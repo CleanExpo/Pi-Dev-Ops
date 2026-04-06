@@ -5,7 +5,7 @@
 import type { Phase } from "@/lib/types";
 
 const STATUS_COLOR = {
-  pending: "#444",
+  pending: "#777",
   running: "#E8751A",
   done:    "#4CAF82",
   error:   "#EF4444",
@@ -24,17 +24,17 @@ interface Props {
 
 export default function PhaseTracker({ phases }: Props) {
   return (
-    <div style={{ borderBottom: "1px solid #1A1A1A" }}>
-      <div className="px-3 py-1.5" style={{ borderBottom: "1px solid #1A1A1A" }}>
-        <span className="font-mono text-[10px] text-[#666] uppercase tracking-widest">phases</span>
+    <div style={{ borderBottom: "1px solid #252525" }}>
+      <div className="px-3 py-1.5" style={{ borderBottom: "1px solid #252525" }}>
+        <span className="font-mono text-[10px] text-[#999] uppercase tracking-widest">phases</span>
       </div>
       <table className="w-full">
         <thead>
-          <tr style={{ borderBottom: "1px solid #111" }}>
+          <tr style={{ borderBottom: "1px solid #1E1E1E" }}>
             {["#", "PHASE", "SKILL", "STATUS"].map((h) => (
               <th
                 key={h}
-                className="font-mono text-[9px] text-[#444] uppercase text-left px-3 py-1"
+                className="font-mono text-[9px] text-[#888] uppercase text-left px-3 py-1"
               >
                 {h}
               </th>
@@ -46,20 +46,20 @@ export default function PhaseTracker({ phases }: Props) {
             <tr
               key={p.id}
               style={{
-                borderBottom: "1px solid #111",
-                background: p.status === "running" ? "rgba(232,117,26,0.04)" : "transparent",
+                borderBottom: "1px solid #1E1E1E",
+                background: p.status === "running" ? "rgba(232,117,26,0.07)" : "transparent",
               }}
             >
-              <td className="font-mono text-[10px] text-[#444] px-3 py-1.5">
+              <td className="font-mono text-[10px] text-[#888] px-3 py-1.5">
                 {p.id}
               </td>
               <td
                 className="font-mono text-[11px] px-3 py-1.5"
-                style={{ color: p.status === "running" ? "#E8751A" : p.status === "done" ? "#F0EDE8" : "#555" }}
+                style={{ color: p.status === "running" ? "#E8751A" : p.status === "done" ? "#F0EDE8" : "#999" }}
               >
                 {p.name}
               </td>
-              <td className="font-mono text-[9px] text-[#444] px-3 py-1.5 hidden sm:table-cell">
+              <td className="font-mono text-[9px] text-[#777] px-3 py-1.5 hidden sm:table-cell">
                 {p.skill.split("+")[0].trim()}
               </td>
               <td className="px-3 py-1.5">

@@ -7,7 +7,7 @@ import type { Session } from "@/lib/types";
 const HISTORY_KEY = "pi-ceo-history";
 
 function StatusBadge({ status }: { status: "running" | "done" | "error" | "idle" }) {
-  const color = { running: "#E8751A", done: "#4CAF82", error: "#EF4444", idle: "#444" }[status];
+  const color = { running: "#E8751A", done: "#4CAF82", error: "#EF4444", idle: "#777" }[status];
   return (
     <span className="font-mono text-[9px]" style={{ color }}>
       {status.toUpperCase()}
@@ -33,8 +33,8 @@ export default function HistoryPage() {
   if (sessions.length === 0) {
     return (
       <div className="flex flex-col flex-1 items-center justify-center">
-        <p className="font-mono text-[12px] text-[#333]">No analysis sessions yet.</p>
-        <p className="font-mono text-[10px] text-[#222] mt-2">
+        <p className="font-mono text-[12px] text-[#888]">No analysis sessions yet.</p>
+        <p className="font-mono text-[10px] text-[#666] mt-2">
           Run an analysis from the Dashboard to see history here.
         </p>
       </div>
@@ -45,14 +45,14 @@ export default function HistoryPage() {
     <div className="flex flex-col flex-1">
       <div
         className="flex items-center justify-between px-4 py-2 shrink-0"
-        style={{ borderBottom: "1px solid #1A1A1A" }}
+        style={{ borderBottom: "1px solid #252525" }}
       >
-        <span className="font-mono text-[10px] text-[#666] uppercase tracking-widest">
+        <span className="font-mono text-[10px] text-[#999] uppercase tracking-widest">
           Analysis History — {sessions.length} sessions
         </span>
         <button
           onClick={clearHistory}
-          className="font-mono text-[9px] text-[#444] hover:text-red transition-colors"
+          className="font-mono text-[9px] text-[#777] hover:text-red transition-colors"
         >
           CLEAR ALL
         </button>
@@ -60,11 +60,11 @@ export default function HistoryPage() {
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr style={{ borderBottom: "1px solid #1A1A1A" }}>
+            <tr style={{ borderBottom: "1px solid #252525" }}>
               {["REPO", "BRANCH", "DATE", "QUALITY", "ZTE", "STATUS", "PR"].map((h) => (
                 <th
                   key={h}
-                  className="font-mono text-[9px] text-[#444] uppercase text-left px-4 py-2"
+                  className="font-mono text-[9px] text-[#888] uppercase text-left px-4 py-2"
                 >
                   {h}
                 </th>
@@ -80,8 +80,8 @@ export default function HistoryPage() {
               return (
                 <tr
                   key={s.id}
-                  className="hover:bg-[#0f0f0f] transition-colors"
-                  style={{ borderBottom: "1px solid #111" }}
+                  className="hover:bg-[#141414] transition-colors"
+                  style={{ borderBottom: "1px solid #1E1E1E" }}
                 >
                   <td className="px-4 py-2">
                     <a
@@ -94,23 +94,23 @@ export default function HistoryPage() {
                     </a>
                   </td>
                   <td className="px-4 py-2">
-                    <span className="font-mono text-[10px] text-[#555]">{s.branch}</span>
+                    <span className="font-mono text-[10px] text-[#999]">{s.branch}</span>
                   </td>
                   <td className="px-4 py-2">
-                    <span className="font-mono text-[10px] text-[#444]">
+                    <span className="font-mono text-[10px] text-[#888]">
                       {new Date(s.startedAt).toISOString().slice(0, 10)}
                     </span>
                   </td>
                   <td className="px-4 py-2">
                     <span
                       className="font-mono text-[11px]"
-                      style={{ color: avg !== null ? (avg >= 7 ? "#4CAF82" : avg >= 5 ? "#FFD166" : "#EF4444") : "#444" }}
+                      style={{ color: avg !== null ? (avg >= 7 ? "#4CAF82" : avg >= 5 ? "#FFD166" : "#EF4444") : "#777" }}
                     >
                       {avg !== null ? `${avg}/10` : "—"}
                     </span>
                   </td>
                   <td className="px-4 py-2">
-                    <span className="font-mono text-[11px] text-[#666]">
+                    <span className="font-mono text-[11px] text-[#BBB]">
                       {s.result?.zteScore !== undefined ? `${s.result.zteScore}/60` : "—"}
                     </span>
                   </td>
@@ -128,7 +128,7 @@ export default function HistoryPage() {
                         OPEN ↗
                       </a>
                     ) : (
-                      <span className="font-mono text-[10px] text-[#333]">—</span>
+                      <span className="font-mono text-[10px] text-[#666]">—</span>
                     )}
                   </td>
                 </tr>

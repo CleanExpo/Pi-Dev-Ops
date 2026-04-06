@@ -20,12 +20,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Nav */}
         <nav
           className="flex items-center justify-between px-4 h-10 shrink-0"
-          style={{ borderBottom: "1px solid #1A1A1A", background: "#0A0A0A" }}
+          style={{ borderBottom: "1px solid #252525", background: "#0A0A0A" }}
         >
           <div className="flex items-center gap-2">
             <span className="font-mono text-[10px] text-orange">π</span>
             <span className="font-display text-base tracking-widest text-text">PI CEO</span>
-            <span className="font-mono text-[9px] text-[#444] ml-2 hidden sm:block">
+            <span className="font-mono text-[9px] text-[#777] ml-2 hidden sm:block">
               AUTONOMOUS DEV PLATFORM
             </span>
           </div>
@@ -34,8 +34,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <a
                 key={href}
                 href={href}
-                className="font-mono text-[10px] px-3 py-1 text-[#666] hover:text-text transition-colors"
-                style={{ borderLeft: "1px solid #1A1A1A" }}
+                className="font-mono text-[10px] px-3 py-1 text-[#999] hover:text-text transition-colors"
+                style={{ borderLeft: "1px solid #252525" }}
               >
                 {label}
               </a>

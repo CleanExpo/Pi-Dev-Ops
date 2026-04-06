@@ -41,9 +41,9 @@ export default function Dashboard() {
       {/* Input bar */}
       <div
         className="flex items-center gap-2 px-3 py-2 shrink-0"
-        style={{ borderBottom: "1px solid #1A1A1A", background: "#0A0A0A" }}
+        style={{ borderBottom: "1px solid #252525", background: "#0A0A0A" }}
       >
-        <span className="font-mono text-[10px] text-[#444] shrink-0">REPO</span>
+        <span className="font-mono text-[10px] text-[#999] shrink-0">REPO</span>
         <input
           type="text"
           value={repo}
@@ -51,16 +51,16 @@ export default function Dashboard() {
           onKeyDown={(e) => e.key === "Enter" && !running && handleAnalyze()}
           placeholder="https://github.com/owner/repo"
           disabled={running}
-          className="flex-1 bg-transparent font-mono text-[12px] text-text placeholder:text-[#333] border-0 outline-none disabled:opacity-50"
+          className="flex-1 bg-transparent font-mono text-[12px] text-text placeholder:text-[#555] border-0 outline-none disabled:opacity-50"
           aria-label="GitHub repository URL"
         />
-        <span className="font-mono text-[10px] text-[#444] shrink-0">TOKEN</span>
+        <span className="font-mono text-[10px] text-[#999] shrink-0">TOKEN</span>
         <input
           type="password"
           value={token}
           onChange={(e) => saveToken(e.target.value)}
           placeholder="ghp_..."
-          className="w-28 bg-transparent font-mono text-[11px] text-[#666] placeholder:text-[#333] border-0 outline-none"
+          className="w-28 bg-transparent font-mono text-[11px] text-[#BBB] placeholder:text-[#555] border-0 outline-none"
           aria-label="GitHub personal access token"
         />
         <button
@@ -92,13 +92,13 @@ export default function Dashboard() {
         {/* LEFT — Terminal */}
         <div
           className="flex-1 flex flex-col min-w-0"
-          style={{ borderRight: "1px solid #1A1A1A" }}
+          style={{ borderRight: "1px solid #252525" }}
         >
           <Terminal lines={lines} status={status} />
         </div>
 
         {/* RIGHT — Phases + Results */}
-        <div className="w-72 xl:w-80 flex flex-col min-h-0 shrink-0" style={{ background: "#0F0F0F" }}>
+        <div className="w-72 xl:w-80 flex flex-col min-h-0 shrink-0" style={{ background: "#111111" }}>
           <PhaseTracker phases={phases} />
           <div className="flex-1 overflow-y-auto">
             <ResultCards result={result} />
@@ -108,13 +108,13 @@ export default function Dashboard() {
 
       {/* Bottom status bar */}
       <div
-        className="flex items-center justify-between px-4 py-1 shrink-0 font-mono text-[9px] text-[#444]"
-        style={{ borderTop: "1px solid #1A1A1A", background: "#0A0A0A" }}
+        className="flex items-center justify-between px-4 py-1 shrink-0 font-mono text-[9px] text-[#888]"
+        style={{ borderTop: "1px solid #252525", background: "#0A0A0A" }}
       >
         <div className="flex items-center gap-4">
           <span>
             BRANCH:{" "}
-            <span className="text-[#666]">{branch ?? "—"}</span>
+            <span className="text-[#BBB]">{branch ?? "—"}</span>
           </span>
           {prUrl && (
             <a
@@ -129,7 +129,7 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-4">
           <span>LINES: {lines.length}</span>
-          <span>STATUS: <span className="text-[#666]">{status.toUpperCase()}</span></span>
+          <span>STATUS: <span className="text-[#BBB]">{status.toUpperCase()}</span></span>
           <span>{new Date().toISOString().slice(0, 19).replace("T", " ")} UTC</span>
         </div>
       </div>
