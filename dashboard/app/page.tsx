@@ -1,137 +1,98 @@
-// app/page.tsx — main dashboard: repo input, live terminal (left), results + phases (right)
-"use client";
+// app/page.tsx — full-screen cinematic landing page
+import Link from "next/link";
 
-import { useState, useEffect } from "react";
-import Terminal from "@/components/Terminal";
-import PhaseTracker from "@/components/PhaseTracker";
-import ResultCards from "@/components/ResultCards";
-import { useSSE } from "@/hooks/useSSE";
-
-const STORAGE_KEY = "pi-ceo-token";
-
-function sanitize(s: string): string {
-  return s.replace(/[<>"&]/g, "");
-}
-
-export default function Dashboard() {
-  const [repo, setRepo] = useState("");
-  const [token, setToken] = useState("");
-  const { lines, phases, result, branch, prUrl, status, error, start, stop } = useSSE();
-
-  // Persist GitHub token in localStorage
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) setToken(stored);
-  }, []);
-
-  function saveToken(t: string) {
-    setToken(t);
-    localStorage.setItem(STORAGE_KEY, t);
-  }
-
-  function handleAnalyze() {
-    if (!repo.trim()) return;
-    start(sanitize(repo.trim()), token.trim());
-  }
-
-  const running = status === "running";
-
+export default function LandingPage() {
   return (
-    <div className="flex flex-col flex-1 min-h-0" style={{ height: "calc(100vh - 40px)" }}>
-      {/* Input bar */}
+    <div
+      className="fixed inset-0 flex flex-col items-center justify-center"
+      style={{
+        backgroundImage: "url(/pi-ceo-hero.jpg)",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
+      {/* Dark overlay */}
       <div
-        className="flex items-center gap-2 px-3 py-2 shrink-0"
-        style={{ borderBottom: "1px solid #252525", background: "#0A0A0A" }}
-      >
-        <span className="font-mono text-[10px] text-[#999] shrink-0">REPO</span>
-        <input
-          type="text"
-          value={repo}
-          onChange={(e) => setRepo(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !running && handleAnalyze()}
-          placeholder="https://github.com/owner/repo"
-          disabled={running}
-          className="flex-1 bg-transparent font-mono text-[12px] text-text placeholder:text-[#555] border-0 outline-none disabled:opacity-50"
-          aria-label="GitHub repository URL"
-        />
-        <span className="font-mono text-[10px] text-[#999] shrink-0">TOKEN</span>
-        <input
-          type="password"
-          value={token}
-          onChange={(e) => saveToken(e.target.value)}
-          placeholder="ghp_..."
-          className="w-28 bg-transparent font-mono text-[11px] text-[#BBB] placeholder:text-[#555] border-0 outline-none"
-          aria-label="GitHub personal access token"
-        />
-        <button
-          onClick={running ? stop : handleAnalyze}
-          disabled={!running && !repo.trim()}
-          className="font-mono text-[11px] px-4 py-1 disabled:opacity-30 transition-colors"
+        className="absolute inset-0"
+        style={{ background: "linear-gradient(to bottom, rgba(10,10,10,0.55) 0%, rgba(10,10,10,0.75) 60%, rgba(10,10,10,0.92) 100%)" }}
+      />
+
+      {/* Content */}
+      <div className="relative flex flex-col items-center text-center px-6">
+        {/* Pi symbol */}
+        <span
+          className="font-mono mb-3 tracking-widest"
+          style={{ color: "#E8751A", fontSize: "18px", letterSpacing: "0.4em" }}
+        >
+          π
+        </span>
+
+        {/* Main title */}
+        <h1
+          className="font-display leading-none"
           style={{
-            background: running ? "#EF4444" : "#E8751A",
-            color: "#0A0A0A",
-            fontWeight: 700,
-            letterSpacing: "0.1em",
+            fontSize: "clamp(72px, 14vw, 160px)",
+            color: "#F0EDE8",
+            letterSpacing: "0.06em",
+            textShadow: "0 2px 40px rgba(0,0,0,0.8)",
           }}
         >
-          {running ? "STOP" : "ANALYZE"}
-        </button>
-      </div>
+          PI CEO
+        </h1>
 
-      {error && (
-        <div
-          className="px-4 py-1.5 font-mono text-[11px] text-red shrink-0"
-          style={{ background: "#1a0808", borderBottom: "1px solid #EF4444" }}
+        {/* Subtitle */}
+        <p
+          style={{
+            fontFamily: "'Barlow', sans-serif",
+            fontWeight: 600,
+            fontSize: "clamp(14px, 2.5vw, 22px)",
+            color: "#F0EDE8",
+            letterSpacing: "0.35em",
+            marginTop: "8px",
+            textTransform: "uppercase",
+            opacity: 0.9,
+          }}
         >
-          ✗ {error}
-        </div>
-      )}
+          Solo DevOps Tool
+        </p>
 
-      {/* Main two-column layout */}
-      <div className="flex flex-1 min-h-0">
-        {/* LEFT — Terminal */}
-        <div
-          className="flex-1 flex flex-col min-w-0"
-          style={{ borderRight: "1px solid #252525" }}
+        {/* Powered by */}
+        <p
+          className="font-mono mt-3"
+          style={{
+            fontSize: "10px",
+            color: "#E8751A",
+            letterSpacing: "0.3em",
+            textTransform: "uppercase",
+            opacity: 0.85,
+          }}
         >
-          <Terminal lines={lines} status={status} />
-        </div>
+          Powered by Claude Harness
+        </p>
 
-        {/* RIGHT — Phases + Results */}
-        <div className="w-72 xl:w-80 flex flex-col min-h-0 shrink-0" style={{ background: "#111111" }}>
-          <PhaseTracker phases={phases} />
-          <div className="flex-1 overflow-y-auto">
-            <ResultCards result={result} />
-          </div>
-        </div>
-      </div>
+        {/* CTA */}
+        <Link
+          href="/dashboard"
+          className="mt-12 font-mono font-bold tracking-widest transition-opacity hover:opacity-80"
+          style={{
+            background: "#E8751A",
+            color: "#FFFFFF",
+            padding: "14px 56px",
+            fontSize: "13px",
+            letterSpacing: "0.25em",
+          }}
+        >
+          ENTER ↗
+        </Link>
 
-      {/* Bottom status bar */}
-      <div
-        className="flex items-center justify-between px-4 py-1 shrink-0 font-mono text-[9px] text-[#888]"
-        style={{ borderTop: "1px solid #252525", background: "#0A0A0A" }}
-      >
-        <div className="flex items-center gap-4">
-          <span>
-            BRANCH:{" "}
-            <span className="text-[#BBB]">{branch ?? "—"}</span>
-          </span>
-          {prUrl && (
-            <a
-              href={prUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-orange hover:underline"
-            >
-              VIEW PR ↗
-            </a>
-          )}
-        </div>
-        <div className="flex items-center gap-4">
-          <span>LINES: {lines.length}</span>
-          <span>STATUS: <span className="text-[#BBB]">{status.toUpperCase()}</span></span>
-          <span>{new Date().toISOString().slice(0, 19).replace("T", " ")} UTC</span>
-        </div>
+        {/* Build info */}
+        <p
+          className="font-mono mt-8"
+          style={{ fontSize: "9px", color: "#F0EDE8", opacity: 0.35, letterSpacing: "0.2em" }}
+        >
+          8 ANALYSIS PHASES · CLAUDE OPUS 4.6 · TAO FRAMEWORK
+        </p>
       </div>
     </div>
   );

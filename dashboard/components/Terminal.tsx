@@ -1,5 +1,4 @@
 // components/Terminal.tsx — Bloomberg-style live terminal output panel
-
 "use client";
 
 import { useEffect, useRef } from "react";
@@ -7,12 +6,12 @@ import type { TermLine, TermLineType } from "@/lib/types";
 
 const COLOR: Record<TermLineType, string> = {
   phase:   "#E8751A",  // orange — phase headers
-  success: "#4CAF82",  // green
-  error:   "#EF4444",  // red
+  success: "#4ADE80",  // bright green
+  error:   "#F87171",  // bright red
   tool:    "#FFD166",  // yellow — tool calls
   agent:   "#F0EDE8",  // cream — Claude output
-  system:  "#999999",  // dim — system info
-  output:  "#CCCCCC",  // light grey — stdout
+  system:  "#A8A5A0",  // warm gray — system info
+  output:  "#E8E4DE",  // near-cream — stdout
 };
 
 const PREFIX: Record<TermLineType, string> = {
@@ -34,7 +33,6 @@ export default function Terminal({ lines, status }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll only if already near the bottom
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -42,14 +40,19 @@ export default function Terminal({ lines, status }: Props) {
     if (atBottom) bottomRef.current?.scrollIntoView();
   }, [lines]);
 
+  const statusColor =
+    status === "running" ? "#E8751A" :
+    status === "done"    ? "#4ADE80" :
+    status === "error"   ? "#F87171" : "#888480";
+
   return (
-    <div className="flex flex-col h-full" style={{ background: "#0E0E0E" }}>
+    <div className="flex flex-col h-full" style={{ background: "#0C0C0C" }}>
       {/* Title bar */}
       <div
         className="flex items-center justify-between px-3 py-1.5 shrink-0"
-        style={{ borderBottom: "1px solid #252525" }}
+        style={{ borderBottom: "1px solid #2A2727" }}
       >
-        <span className="font-mono text-[10px] text-[#999] uppercase tracking-widest">
+        <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "#C8C5C0" }}>
           terminal output
         </span>
         <div className="flex items-center gap-2">
@@ -61,16 +64,11 @@ export default function Terminal({ lines, status }: Props) {
           )}
           <span
             className="font-mono text-[9px] uppercase tracking-wider"
-            style={{
-              color:
-                status === "running" ? "#E8751A" :
-                status === "done"    ? "#4CAF82" :
-                status === "error"   ? "#EF4444" : "#888",
-            }}
+            style={{ color: statusColor }}
           >
             {status}
           </span>
-          <span className="font-mono text-[9px] text-[#888]">
+          <span className="font-mono text-[9px]" style={{ color: "#888480" }}>
             {lines.length}L
           </span>
         </div>
@@ -82,7 +80,7 @@ export default function Terminal({ lines, status }: Props) {
         className="flex-1 overflow-y-auto px-3 py-2 space-y-px"
       >
         {lines.length === 0 && status === "idle" && (
-          <p className="font-mono text-[11px] text-[#666] pt-4">
+          <p className="font-mono text-[11px] pt-4" style={{ color: "#888480" }}>
             Paste a GitHub repo URL above and click ANALYZE to begin.
           </p>
         )}

@@ -1,5 +1,5 @@
 /* globals.css — base styles, font imports, scrollbar */
-@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:ital,wght@0,400;0,500;0,600;1,400&family=Barlow+Condensed:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -14,10 +14,10 @@ html, body {
 
 ::-webkit-scrollbar { width: 3px; height: 3px; }
 ::-webkit-scrollbar-track { background: #0A0A0A; }
-::-webkit-scrollbar-thumb { background: #2A2A2A; }
-::-webkit-scrollbar-thumb:hover { background: #E8751A44; }
+::-webkit-scrollbar-thumb { background: #3A3632; }
+::-webkit-scrollbar-thumb:hover { background: #E8751A66; }
 
-::selection { background: #E8751A22; }
+::selection { background: #E8751A33; color: #F0EDE8; }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }

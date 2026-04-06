@@ -46,7 +46,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   try {
     const client = makeClient();
-    const model = process.env.ANALYSIS_MODEL ?? "claude-opus-4-5-20250514";
+    const model = process.env.ANALYSIS_MODEL ?? "claude-sonnet-4-6";
     const reply = await chatWithClaude(
       client, model,
       [{ role: "user", content: text }],
