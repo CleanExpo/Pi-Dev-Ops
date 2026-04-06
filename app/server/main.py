@@ -3,7 +3,6 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, H
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from .auth import verify_password, create_session_token, verify_session_token, require_auth, require_rate_limit
 from .sessions import create_session, get_session, list_sessions, kill_session
@@ -11,12 +10,16 @@ from . import config
 
 app = FastAPI(title="Pi CEO", docs_url=None, redoc_url=None, openapi_url=None)
 
-# Allowed origins: local dev + Vercel deployment
-# Add any extra Vercel preview URLs to TAO_ALLOWED_ORIGINS (comma-separated)
+# True when deployed on Railway (or any cloud with this env var set)
+_IS_CLOUD = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RENDER") or os.environ.get("FLY_APP_NAME"))
+
+# Allowed origins: local Next.js dev + Vercel deployments
+# Append extra origins via TAO_ALLOWED_ORIGINS (comma-separated)
 _extra = os.environ.get("TAO_ALLOWED_ORIGINS", "")
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://pi-dev-ops.vercel.app",
     "https://dashboard-unite-group.vercel.app",
 ] + [o.strip() for o in _extra.split(",") if o.strip()]
 
@@ -26,21 +29,27 @@ class SecurityHeaders(BaseHTTPMiddleware):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' ws://127.0.0.1:* wss://127.0.0.1:* https://*.vercel.app; img-src 'self' data:; frame-ancestors 'none';"
-        # Required for Chrome Private Network Access (HTTPS page → http://127.0.0.1)
-        response.headers["Access-Control-Allow-Private-Network"] = "true"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "connect-src 'self' ws: wss: https://*.vercel.app https://*.railway.app; "
+            "img-src 'self' data:; "
+            "frame-ancestors 'none';"
+        )
         return response
 
 app.add_middleware(SecurityHeaders)
-# CORS must be added before TrustedHostMiddleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,   # needed so the tao_session cookie is sent
+    allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "Cookie"],
+    allow_headers=["Content-Type", "Cookie", "Authorization"],
 )
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
+# NOTE: TrustedHostMiddleware removed — Railway terminates TLS and proxies requests;
+# restricting to 127.0.0.1 would block all cloud traffic.
 
 @app.post("/api/login")
 async def login(request: Request, _=Depends(require_rate_limit)):
@@ -49,7 +58,15 @@ async def login(request: Request, _=Depends(require_rate_limit)):
         raise HTTPException(401, "Invalid password")
     token = create_session_token()
     response = JSONResponse({"ok": True})
-    response.set_cookie("tao_session", token, httponly=True, secure=False, samesite="strict", max_age=config.SESSION_TTL, path="/")
+    # Cross-origin cookies require SameSite=None + Secure (HTTPS only)
+    response.set_cookie(
+        "tao_session", token,
+        httponly=True,
+        secure=_IS_CLOUD,           # True on Railway (HTTPS), False locally (HTTP)
+        samesite="none" if _IS_CLOUD else "strict",
+        max_age=config.SESSION_TTL,
+        path="/",
+    )
     return response
 
 @app.post("/api/logout")
@@ -85,14 +102,18 @@ async def stop_session(sid: str):
 
 @app.websocket("/ws/build/{sid}")
 async def ws_build(websocket: WebSocket, sid: str):
-    token = websocket.cookies.get("tao_session")
+    # Accept token from cookie or Authorization header (cookie may not cross-origin on WS)
+    token = (
+        websocket.cookies.get("tao_session")
+        or websocket.headers.get("authorization", "").replace("Bearer ", "")
+    )
     if not token or not verify_session_token(token):
         await websocket.close(code=4001, reason="Not authenticated")
         return
     await websocket.accept()
     session = get_session(sid)
     if not session:
-        await websocket.send_json({"type":"error","text":"Session not found"})
+        await websocket.send_json({"type": "error", "text": "Session not found"})
         await websocket.close()
         return
     last = 0
@@ -102,13 +123,14 @@ async def ws_build(websocket: WebSocket, sid: str):
             for line in current:
                 await websocket.send_json(line)
             last = len(session.output_lines)
-            if session.status not in ("created","cloning","building"):
+            if session.status not in ("created", "cloning", "building"):
                 for line in session.output_lines[last:]:
                     await websocket.send_json(line)
-                await websocket.send_json({"type":"done","text":f"Session {session.status}","status":session.status})
+                await websocket.send_json({"type": "done", "text": f"Session {session.status}", "status": session.status})
                 break
             await asyncio.sleep(0.15)
-    except (WebSocketDisconnect, Exception): pass
+    except (WebSocketDisconnect, Exception):
+        pass
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "static")
 if os.path.isdir(STATIC_DIR):
@@ -117,4 +139,8 @@ if os.path.isdir(STATIC_DIR):
 @app.get("/")
 async def index():
     p = os.path.join(STATIC_DIR, "index.html")
-    return FileResponse(p) if os.path.exists(p) else JSONResponse({"status":"Pi CEO running"})
+    return FileResponse(p) if os.path.exists(p) else JSONResponse({"status": "Pi CEO running"})
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
