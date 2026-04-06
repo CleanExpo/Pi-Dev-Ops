@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import Terminal from "@/components/Terminal";
 import PhaseTracker from "@/components/PhaseTracker";
 import ResultCards from "@/components/ResultCards";
+import ActionsPanel from "@/components/ActionsPanel";
 import { useSSE } from "@/hooks/useSSE";
 
 const STORAGE_KEY = "pi-ceo-token";
@@ -13,7 +14,7 @@ function sanitize(s: string): string {
   return s.replace(/[<>"&]/g, "");
 }
 
-type RightTab = "phases" | "results";
+type RightTab = "phases" | "results" | "actions";
 
 export default function Dashboard() {
   const [repo, setRepo] = useState("");
@@ -141,9 +142,10 @@ export default function Dashboard() {
             className="flex shrink-0"
             style={{ borderBottom: "1px solid #2A2727" }}
           >
-            {(["phases", "results"] as RightTab[]).map((tab) => {
+            {(["phases", "results", "actions"] as RightTab[]).map((tab) => {
               const active = rightTab === tab;
-              const showDot = tab === "results" && hasResults && rightTab !== "results";
+              const showDot = (tab === "results" && hasResults && rightTab !== "results")
+                           || (tab === "actions" && status === "done" && rightTab !== "actions");
               return (
                 <button
                   key={tab}
@@ -193,6 +195,14 @@ export default function Dashboard() {
                   </p>
                 </div>
               )}
+            </div>
+
+            {/* ACTIONS tab */}
+            <div
+              className="absolute inset-0 overflow-y-auto"
+              style={{ display: rightTab === "actions" ? "block" : "none" }}
+            >
+              <ActionsPanel result={result} />
             </div>
           </div>
         </div>
