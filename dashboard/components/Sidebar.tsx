@@ -24,16 +24,36 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="w-[200px] min-h-screen bg-pi-dark-2 border-r border-pi-border flex flex-col shrink-0">
+    <aside
+      className="w-[200px] min-h-screen flex flex-col shrink-0 relative"
+      style={{
+        background: "linear-gradient(180deg, #0F0F0F 0%, #0A0A0A 100%)",
+        borderRight: "1px solid rgba(232,117,26,0.15)",
+      }}
+    >
+      {/* Orange top accent line */}
+      <div
+        className="absolute top-0 left-0 right-0 h-px"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent, #E8751A, transparent)",
+        }}
+      />
+
       {/* Logo */}
-      <div className="px-5 py-6 border-b border-pi-border">
-        <div className="flex items-center gap-2">
-          <span className="w-1 h-6 bg-pi-orange rounded-sm" />
-          <span className="font-bebas text-2xl tracking-[0.15em] text-pi-cream">
-            PI CEO
+      <div className="px-5 pt-6 pb-5 border-b border-white/5">
+        <div className="flex items-center gap-1.5 mb-0.5">
+          <span
+            className="font-bebas text-xl leading-none"
+            style={{ color: "#E8751A" }}
+          >
+            π
+          </span>
+          <span className="font-bebas text-xl tracking-[0.12em] text-white leading-none">
+            i CEO
           </span>
         </div>
-        <p className="font-mono text-[9px] text-pi-muted mt-0.5 pl-3 tracking-widest uppercase">
+        <p className="font-mono text-[9px] text-white/30 tracking-widest uppercase pl-1">
           Solo DevOps
         </p>
       </div>
@@ -49,14 +69,23 @@ export default function Sidebar() {
             <a
               key={label}
               href={href}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded text-sm transition-all duration-150 group ${
+              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150 group"
+              style={
                 active
-                  ? "bg-pi-orange/10 text-pi-orange border border-pi-orange/20"
-                  : "text-pi-muted hover:text-pi-cream hover:bg-pi-dark-3"
-              }`}
+                  ? {
+                      background: "rgba(232,117,26,0.12)",
+                      color: "#E8751A",
+                      border: "1px solid rgba(232,117,26,0.2)",
+                    }
+                  : {
+                      color: "rgba(255,255,255,0.4)",
+                      border: "1px solid transparent",
+                    }
+              }
             >
               <span
-                className={`text-xs ${active ? "text-pi-orange" : "text-pi-muted group-hover:text-pi-cream"}`}
+                className="text-xs"
+                style={{ color: active ? "#E8751A" : "rgba(255,255,255,0.25)" }}
               >
                 {icon}
               </span>
@@ -66,18 +95,30 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Status badge */}
-      <div className="px-4 py-3 border-t border-pi-border">
+      {/* Status + logout */}
+      <div className="px-4 py-4 border-t border-white/5">
         <div className="flex items-center gap-2 mb-3">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-400 status-dot-active" />
-          <span className="font-mono text-[9px] text-pi-muted uppercase tracking-wider">
+          <span
+            className="w-1.5 h-1.5 rounded-full status-dot-active"
+            style={{ backgroundColor: "#4CAF82" }}
+          />
+          <span className="font-mono text-[9px] text-white/30 uppercase tracking-wider">
             Backend Live
           </span>
         </div>
         <button
           onClick={logout}
           disabled={loggingOut}
-          className="w-full text-left px-3 py-1.5 text-xs font-mono text-pi-muted hover:text-red-400 hover:bg-red-400/5 rounded transition-all duration-150 disabled:opacity-40"
+          className="w-full text-left px-3 py-1.5 text-xs font-mono rounded-lg transition-all duration-150 disabled:opacity-40"
+          style={{ color: "rgba(255,255,255,0.3)" }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = "#EF4444";
+            e.currentTarget.style.background = "rgba(239,68,68,0.06)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = "rgba(255,255,255,0.3)";
+            e.currentTarget.style.background = "transparent";
+          }}
         >
           {loggingOut ? "Logging out…" : "← Log out"}
         </button>
