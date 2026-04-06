@@ -8,3 +8,7 @@ node_modules/
 # Build info
 *.tsbuildinfo
 next-env.d.ts
+
+# Local env (contains secrets, never commit)
+.env.local
+.env*.local
