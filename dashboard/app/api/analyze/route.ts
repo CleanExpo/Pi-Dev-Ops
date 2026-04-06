@@ -38,7 +38,7 @@ function sanitizeRepoUrl(url: string): string {
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const rawRepo = url.searchParams.get("repo") ?? "";
-  const ghToken = url.searchParams.get("token") ?? process.env.GITHUB_TOKEN ?? "";
+  const ghToken = url.searchParams.get("token") || process.env.GITHUB_TOKEN || "";
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
