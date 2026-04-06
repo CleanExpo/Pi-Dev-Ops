@@ -1,0 +1,22 @@
+total_token_budget: 500000
+
+tiers:
+  - name: orchestrator
+    model: opus
+    role: Plans and coordinates the build
+    max_concurrency: 1
+    token_budget_pct: 20
+
+  - name: specialist
+    model: sonnet
+    role: Complex feature implementation
+    parent: orchestrator
+    max_concurrency: 2
+    token_budget_pct: 30
+
+  - name: worker
+    model: haiku
+    role: Discrete execution tasks
+    parent: specialist
+    max_concurrency: 5
+    token_budget_pct: 50

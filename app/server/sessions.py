@@ -27,13 +27,59 @@ async def run_cmd(cwd, *args, timeout=60):
     out, err = await asyncio.wait_for(proc.communicate(), timeout=timeout)
     return proc.returncode, out.decode("utf-8",errors="replace"), err.decode("utf-8",errors="replace")
 
+def parse_claude_event(line, session):
+    try:
+        evt = json.loads(line)
+    except:
+        if line.strip():
+            em(session, "output", line)
+        return
+    etype = evt.get("type", "")
+    if etype == "assistant" and "message" in evt:
+        msg = evt["message"]
+        if isinstance(msg, dict):
+            content = msg.get("content", "")
+            if isinstance(content, list):
+                for block in content:
+                    if isinstance(block, dict):
+                        if block.get("type") == "text":
+                            for tl in block.get("text","").split("\n"):
+                                if tl.strip(): em(session, "agent", tl)
+                        elif block.get("type") == "tool_use":
+                            name = block.get("name","tool")
+                            inp = block.get("input",{})
+                            if name == "Bash":
+                                cmd = inp.get("command","")
+                                em(session, "tool", f"  $ {cmd[:120]}")
+                            elif name == "Write":
+                                path = inp.get("file_path","")
+                                em(session, "tool", f"  write {path}")
+                            elif name == "Edit":
+                                path = inp.get("file_path","")
+                                em(session, "tool", f"  edit {path}")
+                            elif name == "Read":
+                                path = inp.get("file_path","")
+                                em(session, "tool", f"  read {path}")
+                            else:
+                                em(session, "tool", f"  {name}: {json.dumps(inp)[:100]}")
+            elif isinstance(content, str) and content.strip():
+                for tl in content.split("\n"):
+                    if tl.strip(): em(session, "agent", tl)
+    elif etype == "result":
+        txt = evt.get("result","")
+        if isinstance(txt, str):
+            for tl in txt.split("\n"):
+                if tl.strip(): em(session, "output", f"  {tl[:200]}")
+        cost = evt.get("cost_usd")
+        if cost: em(session, "metric", f"  Cost: ")
+        tokens = evt.get("total_tokens")
+        if tokens: em(session, "metric", f"  Tokens: {tokens}")
+
 async def run_build(session, brief="", model="sonnet"):
     em(session, "system", f"=== Pi CEO Session {session.id} ===")
     em(session, "system", f"Repo: {session.repo_url}")
     em(session, "system", f"Model: {model}")
     em(session, "system", "")
-
-    # Phase 1: Clone
     em(session, "phase", "[1/5] Cloning repository...")
     session.status = "cloning"
     session.workspace = os.path.join(config.WORKSPACE_ROOT, session.id)
@@ -54,110 +100,72 @@ async def run_build(session, brief="", model="sonnet"):
         em(session, "error", "Git not in PATH")
         session.status = "failed"
         return
-
-    # Phase 2: Analyze
     em(session, "phase", "[2/5] Analyzing workspace...")
     files = [f for f in os.listdir(session.workspace) if not f.startswith(".")]
     em(session, "system", f"  {len(files)} files: {', '.join(files[:10]) or '(empty)'}")
-
-    # Phase 3: Check Claude
     em(session, "phase", "[3/5] Checking Claude Code...")
     try:
         rc, out, err = await run_cmd(session.workspace, config.CLAUDE_CMD, "--version", timeout=10)
         if rc == 0:
             em(session, "success", f"  {(out.strip() or err.strip())[:80]}")
         else:
-            em(session, "error", "  Claude Code error. Install: npm install -g @anthropic-ai/claude-code")
+            em(session, "error", "  Claude Code error")
             session.status = "failed"
             return
     except FileNotFoundError:
-        em(session, "error", "  Claude Code NOT FOUND. Install: npm install -g @anthropic-ai/claude-code")
+        em(session, "error", "  Claude Code NOT FOUND")
         session.status = "failed"
         return
-
-    # Phase 4: Run Claude Code
-    em(session, "phase", "[4/5] Running Claude Code...")
-    em(session, "system", "  Claude is thinking... (output appears when complete)")
+    em(session, "phase", "[4/5] Running Claude Code (live stream)...")
     em(session, "system", "")
     session.status = "building"
-
     if not brief:
-        brief = "This is an empty repo. Create: README.md, .harness/spec.md, basic project structure. Git add and commit all changes."
-    spec = f"You are Pi CEO orchestrator on Claude Max.\nProject: {session.repo_url}\nTASK:\n{brief}\nRULES:\n- Create files as needed\n- Run: git add -A && git commit -m 'descriptive message' after each change\n- Commit after EACH logical change"
-
+        brief = "This repo has basic files. Create a proper project structure with .harness/spec.md, add useful scaffolding. Git add and commit all changes."
+    spec = f"You are Pi CEO orchestrator on Claude Max.\nProject: {session.repo_url}\nTASK:\n{brief}\nRULES:\n- Create files as needed\n- Run: git add -A && git commit -m 'message' after each change\n- Show what you are doing at each step"
     try:
-        # Claude -p outputs all at once, so we use communicate() with a heartbeat
-        cmd = [config.CLAUDE_CMD, "-p", spec, "--model", model]
-        em(session, "tool", f"  $ claude -p [spec] --model {model}")
-
-        proc = await asyncio.create_subprocess_exec(
-            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, cwd=session.workspace
-        )
-        session.process = proc
-
-        # Heartbeat task — shows progress while Claude thinks
-        async def heartbeat():
-            dots = 0
-            while proc.returncode is None:
-                await asyncio.sleep(3)
-                dots += 1
-                em(session, "system", f"  ... working ({dots * 3}s)")
-
-        hb = asyncio.create_task(heartbeat())
-
-        # Wait for Claude to finish (it outputs everything at once)
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300)
-
-        hb.cancel()
-        try: await hb
-        except asyncio.CancelledError: pass
-
-        # Now display the output
-        out_text = stdout.decode("utf-8", errors="replace").strip()
-        err_text = stderr.decode("utf-8", errors="replace").strip()
-
+        cmd = [config.CLAUDE_CMD, "-p", spec, "--model", model, "--output-format", "stream-json"]
+        em(session, "tool", f"  $ claude --model {model} --output-format stream-json")
         em(session, "system", "")
-        if out_text:
-            em(session, "phase", "  Claude Code output:")
-            for line in out_text.split("\n"):
-                em(session, "output", f"  {line}")
-        if err_text:
-            for line in err_text.split("\n"):
-                if line.strip():
-                    em(session, "stderr", f"  {line}")
-
+        proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, cwd=session.workspace)
+        session.process = proc
+        async def read_stdout():
+            while True:
+                line = await proc.stdout.readline()
+                if not line: break
+                text = line.decode("utf-8",errors="replace").rstrip()
+                if text: parse_claude_event(text, session)
+        async def read_stderr():
+            while True:
+                line = await proc.stderr.readline()
+                if not line: break
+                text = line.decode("utf-8",errors="replace").rstrip()
+                if text: em(session, "stderr", text)
+        await asyncio.gather(read_stdout(), read_stderr())
+        await proc.wait()
         em(session, "system", "")
         if proc.returncode == 0:
-            em(session, "success", "  Claude Code finished successfully")
+            em(session, "success", "  Claude Code finished")
         else:
             em(session, "error", f"  Claude exited code {proc.returncode}")
-
     except asyncio.TimeoutError:
-        em(session, "error", "  Claude Code timed out (5 min)")
+        em(session, "error", "  Timed out")
         session.status = "failed"
         return
     except Exception as e:
         em(session, "error", f"  Error: {e}")
         session.status = "failed"
         return
-
-    # Phase 5: Push
     em(session, "phase", "[5/5] Pushing to GitHub...")
     try:
         rc, out, _ = await run_cmd(session.workspace, "git", "status", "--porcelain")
         if out.strip():
-            em(session, "system", "  Committing remaining changes...")
             await run_cmd(session.workspace, "git", "add", "-A")
-            await run_cmd(session.workspace, "git", "commit", "-m", "feat: Pi CEO auto-build")
-
+            await run_cmd(session.workspace, "git", "commit", "-m", "feat: Pi CEO build")
         rc, out, _ = await run_cmd(session.workspace, "git", "log", "--oneline", "-5")
         for line in out.strip().split("\n"):
             if line.strip(): em(session, "system", f"  {line.strip()}")
-
         commits = len([l for l in out.strip().split("\n") if l.strip()])
-        if commits == 0:
-            em(session, "system", "  Nothing to push")
-        else:
+        if commits > 0:
             em(session, "system", f"  Pushing {commits} commit(s)...")
             rc, out, err = await run_cmd(session.workspace, "git", "push", "origin", "HEAD", timeout=30)
             if rc == 0:
@@ -165,13 +173,12 @@ async def run_build(session, brief="", model="sonnet"):
                 em(session, "success", f"  {session.repo_url.replace('.git','')}")
             else:
                 em(session, "error", f"  Push failed: {err[:200]}")
-                em(session, "system", f"  Manual: cd {session.workspace} && git push origin HEAD")
+        else:
+            em(session, "system", "  Nothing to push")
     except Exception as e:
         em(session, "error", f"  Push error: {e}")
-
     session.status = "complete"
-    elapsed = time.time() - session.started_at
-    em(session, "metric", f"=== Done in {elapsed:.0f}s ===")
+    em(session, "metric", f"=== Done in {time.time()-session.started_at:.0f}s ===")
 
 async def create_session(repo_url, brief="", model="sonnet"):
     if len(_sessions) >= config.MAX_CONCURRENT_SESSIONS:

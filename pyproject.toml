@@ -1,0 +1,10 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tao"
+version = "1.0.0"
+description = "Tiered Agent Orchestrator"
+requires-python = ">=3.11"
+dependencies = ["httpx", "pyyaml"]

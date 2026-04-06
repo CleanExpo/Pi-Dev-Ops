@@ -1,0 +1,9 @@
+project: pi-dev-ops
+harness_version: 1.0
+agents:
+  planner: {model: opus, temperature: 0.3}
+  generator: {model: sonnet, temperature: 0.2}
+  evaluator: {model: sonnet, temperature: 0.1}
+qa:
+  max_rounds: 3
+  auto_escalate: true
