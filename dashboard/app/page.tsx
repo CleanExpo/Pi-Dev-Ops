@@ -1,183 +1,138 @@
+// app/page.tsx — main dashboard: repo input, live terminal (left), results + phases (right)
 "use client";
 
-import { useState, FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import { useState, useEffect } from "react";
+import Terminal from "@/components/Terminal";
+import PhaseTracker from "@/components/PhaseTracker";
+import ResultCards from "@/components/ResultCards";
+import { useSSE } from "@/hooks/useSSE";
 
-export default function LoginPage() {
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
+const STORAGE_KEY = "pi-ceo-token";
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    try {
-      await api.login(password);
-      router.push("/dashboard");
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Login failed");
-    } finally {
-      setLoading(false);
-    }
+function sanitize(s: string): string {
+  return s.replace(/[<>"&]/g, "");
+}
+
+export default function Dashboard() {
+  const [repo, setRepo] = useState("");
+  const [token, setToken] = useState("");
+  const { lines, phases, result, branch, prUrl, status, error, start, stop } = useSSE();
+
+  // Persist GitHub token in localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) setToken(stored);
+  }, []);
+
+  function saveToken(t: string) {
+    setToken(t);
+    localStorage.setItem(STORAGE_KEY, t);
   }
 
+  function handleAnalyze() {
+    if (!repo.trim()) return;
+    start(sanitize(repo.trim()), token.trim());
+  }
+
+  const running = status === "running";
+
   return (
-    <main className="relative min-h-screen flex items-center justify-center overflow-hidden">
-
-      {/* ── Hero image (full bleed) ── */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/pi-ceo-hero.jpg"
-        alt=""
-        aria-hidden="true"
-        className="absolute inset-0 w-full h-full object-cover object-center"
-        style={{ filter: "brightness(0.55)" }}
-      />
-
-      {/* ── Overlay layers ── */}
-      {/* Dark vignette around edges */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80" />
-      {/* Orange radial glow — mirrors the fire in the image */}
+    <div className="flex flex-col flex-1 min-h-0" style={{ height: "calc(100vh - 40px)" }}>
+      {/* Input bar */}
       <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(ellipse 70% 60% at 50% 40%, rgba(232,117,26,0.18) 0%, transparent 70%)",
-        }}
-      />
-      {/* Bottom ground plane */}
-      <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-black/90 to-transparent" />
-
-      {/* ── Login card ── */}
-      <div className="relative z-10 w-full max-w-sm mx-4">
-
-        {/* Logo lockup */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-1 mb-1">
-            {/* π symbol in orange, matching the hero image logo */}
-            <span
-              className="font-bebas text-5xl leading-none"
-              style={{ color: "#E8751A" }}
-            >
-              π
-            </span>
-            <span className="font-bebas text-6xl tracking-widest text-white leading-none">
-              i CEO
-            </span>
-          </div>
-          <p className="text-white/80 text-sm font-barlow font-medium tracking-widest uppercase">
-            Solo DevOps Tool
-          </p>
-          <p className="text-white/40 text-xs font-barlow tracking-wider mt-0.5">
-            Powered by Claude Harness
-          </p>
-        </div>
-
-        {/* Tier badges */}
-        <div className="flex items-center justify-center gap-2 mb-6 font-mono text-[10px]">
-          <span
-            className="px-2 py-0.5 rounded border"
-            style={{
-              color: "#E8751A",
-              borderColor: "rgba(232,117,26,0.4)",
-              backgroundColor: "rgba(232,117,26,0.1)",
-            }}
-          >
-            Opus 4.6
-          </span>
-          <span className="px-2 py-0.5 rounded border border-white/20 text-white/50">
-            Sonnet 4.6
-          </span>
-          <span className="px-2 py-0.5 rounded border border-white/20 text-white/50">
-            Haiku 4.5
-          </span>
-        </div>
-
-        {/* Card */}
-        <div
-          className="rounded-xl p-7 border"
+        className="flex items-center gap-2 px-3 py-2 shrink-0"
+        style={{ borderBottom: "1px solid #1A1A1A", background: "#0A0A0A" }}
+      >
+        <span className="font-mono text-[10px] text-[#444] shrink-0">REPO</span>
+        <input
+          type="text"
+          value={repo}
+          onChange={(e) => setRepo(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && !running && handleAnalyze()}
+          placeholder="https://github.com/owner/repo"
+          disabled={running}
+          className="flex-1 bg-transparent font-mono text-[12px] text-text placeholder:text-[#333] border-0 outline-none disabled:opacity-50"
+          aria-label="GitHub repository URL"
+        />
+        <span className="font-mono text-[10px] text-[#444] shrink-0">TOKEN</span>
+        <input
+          type="password"
+          value={token}
+          onChange={(e) => saveToken(e.target.value)}
+          placeholder="ghp_..."
+          className="w-28 bg-transparent font-mono text-[11px] text-[#666] placeholder:text-[#333] border-0 outline-none"
+          aria-label="GitHub personal access token"
+        />
+        <button
+          onClick={running ? stop : handleAnalyze}
+          disabled={!running && !repo.trim()}
+          className="font-mono text-[11px] px-4 py-1 disabled:opacity-30 transition-colors"
           style={{
-            background: "rgba(10,10,10,0.75)",
-            backdropFilter: "blur(16px)",
-            WebkitBackdropFilter: "blur(16px)",
-            borderColor: "rgba(232,117,26,0.25)",
-            boxShadow:
-              "0 0 40px rgba(232,117,26,0.12), 0 20px 60px rgba(0,0,0,0.5)",
+            background: running ? "#EF4444" : "#E8751A",
+            color: "#0A0A0A",
+            fontWeight: 700,
+            letterSpacing: "0.1em",
           }}
         >
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block font-mono text-[10px] text-white/40 uppercase tracking-widest mb-2">
-                Access Key
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter TAO_PASSWORD"
-                autoFocus
-                className="w-full rounded-lg px-4 py-3 font-mono text-sm text-white placeholder:text-white/25 transition-all duration-200 border"
-                style={{
-                  background: "rgba(255,255,255,0.05)",
-                  borderColor: "rgba(255,255,255,0.12)",
-                  outline: "none",
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = "#E8751A";
-                  e.currentTarget.style.boxShadow =
-                    "0 0 0 1px rgba(232,117,26,0.4)";
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor =
-                    "rgba(255,255,255,0.12)";
-                  e.currentTarget.style.boxShadow = "none";
-                }}
-                disabled={loading}
-              />
-            </div>
+          {running ? "STOP" : "ANALYZE"}
+        </button>
+      </div>
 
-            {error && (
-              <p className="font-mono text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-                ✗ {error}
-              </p>
-            )}
+      {error && (
+        <div
+          className="px-4 py-1.5 font-mono text-[11px] text-red shrink-0"
+          style={{ background: "#1a0808", borderBottom: "1px solid #EF4444" }}
+        >
+          ✗ {error}
+        </div>
+      )}
 
-            <button
-              type="submit"
-              disabled={loading || !password}
-              className="w-full font-barlow font-bold text-sm tracking-widest uppercase py-3.5 rounded-lg transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.99]"
-              style={{
-                background: loading || !password
-                  ? "rgba(232,117,26,0.4)"
-                  : "linear-gradient(135deg, #E8751A 0%, #FF9D4D 100%)",
-                color: "#0A0A0A",
-                boxShadow: loading || !password
-                  ? "none"
-                  : "0 4px 20px rgba(232,117,26,0.35)",
-              }}
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span
-                    className="inline-block w-3.5 h-3.5 border-2 border-black/30 border-t-black/80 rounded-full animate-spin"
-                  />
-                  Authenticating…
-                </span>
-              ) : (
-                "Enter Dashboard →"
-              )}
-            </button>
-          </form>
+      {/* Main two-column layout */}
+      <div className="flex flex-1 min-h-0">
+        {/* LEFT — Terminal */}
+        <div
+          className="flex-1 flex flex-col min-w-0"
+          style={{ borderRight: "1px solid #1A1A1A" }}
+        >
+          <Terminal lines={lines} status={status} />
         </div>
 
-        {/* Footer */}
-        <p className="text-center font-mono text-[10px] text-white/25 mt-5">
-          {process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:7777"}
-        </p>
+        {/* RIGHT — Phases + Results */}
+        <div className="w-72 xl:w-80 flex flex-col min-h-0 shrink-0" style={{ background: "#0F0F0F" }}>
+          <PhaseTracker phases={phases} />
+          <div className="flex-1 overflow-y-auto">
+            <ResultCards result={result} />
+          </div>
+        </div>
       </div>
-    </main>
+
+      {/* Bottom status bar */}
+      <div
+        className="flex items-center justify-between px-4 py-1 shrink-0 font-mono text-[9px] text-[#444]"
+        style={{ borderTop: "1px solid #1A1A1A", background: "#0A0A0A" }}
+      >
+        <div className="flex items-center gap-4">
+          <span>
+            BRANCH:{" "}
+            <span className="text-[#666]">{branch ?? "—"}</span>
+          </span>
+          {prUrl && (
+            <a
+              href={prUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-orange hover:underline"
+            >
+              VIEW PR ↗
+            </a>
+          )}
+        </div>
+        <div className="flex items-center gap-4">
+          <span>LINES: {lines.length}</span>
+          <span>STATUS: <span className="text-[#666]">{status.toUpperCase()}</span></span>
+          <span>{new Date().toISOString().slice(0, 19).replace("T", " ")} UTC</span>
+        </div>
+      </div>
+    </div>
   );
 }

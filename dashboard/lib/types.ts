@@ -1,70 +1,116 @@
-export type Model = "opus" | "sonnet" | "haiku";
+// lib/types.ts — shared TypeScript types for Pi CEO platform
 
-export type SessionStatus =
-  | "created"
-  | "cloning"
-  | "building"
-  | "complete"
-  | "failed"
-  | "killed";
+export type PhaseStatus = "pending" | "running" | "done" | "error";
 
-export interface Session {
-  id: string;
-  repo: string;
-  status: SessionStatus;
-  started: number;
-  lines: number;
+export interface Phase {
+  id: number;
+  name: string;
+  skill: string;
+  status: PhaseStatus;
+  startedAt?: number;
+  doneAt?: number;
 }
 
-export type LineType =
-  | "phase"
-  | "system"
-  | "success"
-  | "error"
-  | "tool"
-  | "agent"
-  | "output"
-  | "metric"
-  | "stderr"
-  | "done";
+export type TermLineType =
+  | "phase"   // orange — phase headers
+  | "tool"    // yellow — tool calls
+  | "agent"   // text — Claude thinking
+  | "success" // green — success
+  | "error"   // red — errors
+  | "system"  // dim — system info
+  | "output"; // text — stdout
 
-export interface OutputLine {
-  type: LineType;
+export interface TermLine {
+  type: TermLineType;
   text: string;
   ts: number;
 }
 
-export interface BuildRequest {
-  repo_url: string;
-  brief: string;
-  model: Model;
+export interface QualityScores {
+  completeness: number;
+  correctness: number;
+  codeQuality: number;
+  documentation: number;
 }
 
-export interface BuildResponse {
-  session_id: string;
-  status: SessionStatus;
+export interface LeveragePoint {
+  id: number;
+  name: string;
+  score: number; // 1-5
 }
 
-export const TIER_INFO: Record<
-  Model,
-  { label: string; role: string; color: string; badge: string }
-> = {
-  opus: {
-    label: "Orchestrator",
-    role: "Plans, decomposes briefs, delegates",
-    color: "#E8751A",
-    badge: "Opus 4.6",
-  },
-  sonnet: {
-    label: "Specialist",
-    role: "Complex implementation & review",
-    color: "#6B8CFF",
-    badge: "Sonnet 4.6",
-  },
-  haiku: {
-    label: "Worker",
-    role: "Discrete task execution",
-    color: "#4CAF82",
-    badge: "Haiku 4.5",
-  },
-};
+export interface AnalysisResult {
+  repoUrl: string;
+  repoName: string;
+  branch: string;
+  previewUrl?: string;
+  techStack?: string[];
+  languages?: Record<string, number>; // lang -> LOC
+  totalFiles?: number;
+  patterns?: string[];
+  quality?: QualityScores;
+  zteLevel?: 1 | 2 | 3;
+  zteScore?: number;
+  leveragePoints?: LeveragePoint[];
+  sprints?: Sprint[];
+  executiveSummary?: string;
+  strengths?: string[];
+  weaknesses?: string[];
+  nextActions?: string[];
+}
+
+export interface Sprint {
+  id: number;
+  name: string;
+  items: SprintItem[];
+  duration: string;
+}
+
+export interface SprintItem {
+  title: string;
+  size: "S" | "M" | "L";
+  priority: "P1" | "P2" | "P3";
+}
+
+export interface Session {
+  id: string;
+  repoUrl: string;
+  repoName: string;
+  branch: string;
+  startedAt: number;
+  completedAt?: number;
+  phases: Phase[];
+  result?: Partial<AnalysisResult>;
+  previewUrl?: string;
+}
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  ts: number;
+}
+
+export interface SSEEvent {
+  type: "line" | "phase_update" | "result_update" | "done" | "error";
+  data: TermLine | PhaseUpdate | ResultUpdate | DoneEvent | ErrorEvent;
+}
+
+export interface PhaseUpdate {
+  phaseId: number;
+  status: PhaseStatus;
+}
+
+export interface ResultUpdate {
+  field: keyof AnalysisResult;
+  value: unknown;
+}
+
+export interface DoneEvent {
+  sessionId: string;
+  branch: string;
+  previewUrl?: string;
+}
+
+export interface ErrorEvent {
+  message: string;
+}

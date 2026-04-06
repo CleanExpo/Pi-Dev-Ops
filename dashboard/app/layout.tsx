@@ -1,25 +1,48 @@
+// app/layout.tsx — root layout with nav bar
 import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Pi CEO — Solo DevOps",
-  description: "Agentic harness for Claude Max. Build → Deploy → Repeat.",
-  openGraph: {
-    title: "Pi CEO",
-    description: "Solo DevOps Tool powered by Claude Max",
-    type: "website",
-  },
+  title: "Pi CEO — Autonomous Dev Platform",
+  description: "GitHub repo analysis engine powered by Claude + TAO framework",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+const NAV = [
+  { href: "/",        label: "DASHBOARD" },
+  { href: "/chat",    label: "CHAT" },
+  { href: "/history", label: "HISTORY" },
+];
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-pi-dark text-pi-cream font-barlow antialiased">
-        {children}
+      <body className="bg-bg text-text font-body min-h-screen flex flex-col">
+        {/* Nav */}
+        <nav
+          className="flex items-center justify-between px-4 h-10 shrink-0"
+          style={{ borderBottom: "1px solid #1A1A1A", background: "#0A0A0A" }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[10px] text-orange">π</span>
+            <span className="font-display text-base tracking-widest text-text">PI CEO</span>
+            <span className="font-mono text-[9px] text-[#444] ml-2 hidden sm:block">
+              AUTONOMOUS DEV PLATFORM
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            {NAV.map(({ href, label }) => (
+              <a
+                key={href}
+                href={href}
+                className="font-mono text-[10px] px-3 py-1 text-[#666] hover:text-text transition-colors"
+                style={{ borderLeft: "1px solid #1A1A1A" }}
+              >
+                {label}
+              </a>
+            ))}
+          </div>
+        </nav>
+        <div className="flex-1 flex flex-col">{children}</div>
       </body>
     </html>
   );

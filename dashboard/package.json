@@ -1,6 +1,6 @@
 {
   "name": "pi-ceo-dashboard",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.36.3",
+    "@octokit/rest": "^21.0.2",
     "next": "^16.2.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -19,7 +21,7 @@
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.20",
     "eslint": "^9",
-    "eslint-config-next": "15.3.0",
+    "eslint-config-next": "^16.2.2",
     "postcss": "^8",
     "tailwindcss": "^3.4.17",
     "typescript": "^5"
