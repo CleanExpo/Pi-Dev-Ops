@@ -2,6 +2,7 @@ import asyncio, json, os
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from .auth import verify_password, create_session_token, verify_session_token, require_auth, require_rate_limit
@@ -10,16 +11,35 @@ from . import config
 
 app = FastAPI(title="Pi CEO", docs_url=None, redoc_url=None, openapi_url=None)
 
+# Allowed origins: local dev + Vercel deployment
+# Add any extra Vercel preview URLs to TAO_ALLOWED_ORIGINS (comma-separated)
+_extra = os.environ.get("TAO_ALLOWED_ORIGINS", "")
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://dashboard-unite-group.vercel.app",
+] + [o.strip() for o in _extra.split(",") if o.strip()]
+
 class SecurityHeaders(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' ws://127.0.0.1:* wss://127.0.0.1:*; img-src 'self' data:; frame-ancestors 'none';"
+        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' ws://127.0.0.1:* wss://127.0.0.1:* https://*.vercel.app; img-src 'self' data:; frame-ancestors 'none';"
+        # Required for Chrome Private Network Access (HTTPS page → http://127.0.0.1)
+        response.headers["Access-Control-Allow-Private-Network"] = "true"
         return response
 
 app.add_middleware(SecurityHeaders)
+# CORS must be added before TrustedHostMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,   # needed so the tao_session cookie is sent
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Cookie"],
+)
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
 
 @app.post("/api/login")
