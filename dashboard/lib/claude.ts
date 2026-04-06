@@ -1,25 +1,32 @@
-// lib/claude.ts — Anthropic SDK wrapper for streaming phase analysis
+// lib/claude.ts — Claude client: CLI mode (Max plan) or SDK mode (API key)
 
+import { spawn } from "child_process";
 import Anthropic from "@anthropic-ai/sdk";
 import type { RepoFile } from "./github";
 
-export function makeClient() {
+// ── Mode detection ────────────────────────────────────────────────────────────
+// ANALYSIS_MODE=cli  → uses `claude -p` subprocess (Claude Max subscription)
+// ANALYSIS_MODE=api  → uses @anthropic-ai/sdk (ANTHROPIC_API_KEY, billed separately)
+export function getAnalysisMode(): "cli" | "api" {
+  return process.env.ANALYSIS_MODE === "api" ? "api" : "cli";
+}
+
+export function makeClient(): Anthropic | null {
+  if (getAnalysisMode() === "cli") return null;
   const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("ANTHROPIC_API_KEY not set");
+  if (!key) throw new Error("ANALYSIS_MODE=api requires ANTHROPIC_API_KEY to be set");
   return new Anthropic({ apiKey: key });
 }
 
-// Build compressed repo context string for injection into phase prompts
+// ── Context builder ────────────────────────────────────────────────────────────
 export function buildContext(files: RepoFile[]): string {
-  const sections = files.map((f) =>
-    `=== FILE: ${f.path} ===\n${f.content}\n`
-  );
-  return sections.join("\n");
+  return files.map((f) => `=== FILE: ${f.path} ===\n${f.content}\n`).join("\n");
 }
 
-const SYSTEM = `You are Pi CEO — a senior engineering team compressed into one AI system.
+// ── System prompt ─────────────────────────────────────────────────────────────
+export const SYSTEM = `You are Pi CEO — a senior engineering team compressed into one AI system.
 You analyse GitHub repositories through the TAO (Tiered Agent Orchestrator) framework.
-You use the following skills: tier-architect, tier-orchestrator, tier-worker, tier-evaluator,
+Skills: tier-architect, tier-orchestrator, tier-worker, tier-evaluator,
 context-compressor, agentic-review, zte-maturity, leverage-audit, piter-framework, ceo-mode.
 
 Rules:
@@ -29,7 +36,51 @@ Rules:
 
 export type PhaseStreamCallback = (chunk: string) => void;
 
-export async function runPhase(
+// ── CLI mode: spawns claude subprocess (uses Claude Max subscription) ──────────
+function runPhaseCLI(
+  model: string,
+  prompt: string,
+  context: string,
+  onChunk: PhaseStreamCallback
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const fullPrompt = `${SYSTEM}\n\n${prompt}\n\n---\nREPO CONTEXT:\n${context}`;
+    const args = ["-p", fullPrompt, "--model", model, "--output-format", "text"];
+
+    const child = spawn("claude", args, {
+      env: { ...process.env },
+      shell: false,
+    });
+
+    let full = "";
+    let stderr = "";
+
+    child.stdout.on("data", (data: Buffer) => {
+      const chunk = data.toString();
+      full += chunk;
+      onChunk(chunk);
+    });
+
+    child.stderr.on("data", (data: Buffer) => {
+      stderr += data.toString();
+    });
+
+    child.on("close", (code) => {
+      if (code !== 0) {
+        reject(new Error(`claude CLI exited with code ${code}: ${stderr.slice(0, 300)}`));
+      } else {
+        resolve(full);
+      }
+    });
+
+    child.on("error", (err) => {
+      reject(new Error(`Failed to spawn claude CLI: ${err.message}. Is Claude Code installed? Run: npm install -g @anthropic-ai/claude-code`));
+    });
+  });
+}
+
+// ── SDK mode: Anthropic SDK with ANTHROPIC_API_KEY ────────────────────────────
+async function runPhaseSDK(
   client: Anthropic,
   model: string,
   prompt: string,
@@ -59,19 +110,41 @@ export async function runPhase(
   return full;
 }
 
+// ── Public API ─────────────────────────────────────────────────────────────────
+export async function runPhase(
+  client: Anthropic | null,
+  model: string,
+  prompt: string,
+  context: string,
+  onChunk: PhaseStreamCallback
+): Promise<string> {
+  if (getAnalysisMode() === "cli") {
+    return runPhaseCLI(model, prompt, context, onChunk);
+  }
+  if (!client) throw new Error("SDK client required for api mode");
+  return runPhaseSDK(client, model, prompt, context, onChunk);
+}
+
+// ── Chat (always uses SDK for responsiveness) ─────────────────────────────────
 export async function chatWithClaude(
-  client: Anthropic,
+  client: Anthropic | null,
   model: string,
   messages: Array<{ role: "user" | "assistant"; content: string }>,
   systemContext: string
 ): Promise<string> {
-  const response = await client.messages.create({
-    model,
-    max_tokens: 2048,
-    system: `${SYSTEM}\n\nCurrent session context:\n${systemContext}`,
-    messages,
-  });
+  // Chat prefers SDK for speed; falls back to CLI if no API key
+  if (client) {
+    const response = await client.messages.create({
+      model,
+      max_tokens: 2048,
+      system: `${SYSTEM}\n\nCurrent session context:\n${systemContext}`,
+      messages,
+    });
+    const block = response.content[0];
+    return block.type === "text" ? block.text : "";
+  }
 
-  const block = response.content[0];
-  return block.type === "text" ? block.text : "";
+  // CLI fallback for chat
+  const lastMsg = messages[messages.length - 1];
+  return runPhaseCLI(model, lastMsg.content, systemContext, () => {});
 }

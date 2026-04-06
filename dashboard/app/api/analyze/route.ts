@@ -13,7 +13,7 @@ import {
   pushFile,
   createPR,
 } from "@/lib/github";
-import { makeClient, buildContext, runPhase } from "@/lib/claude";
+import { makeClient, buildContext, runPhase, getAnalysisMode } from "@/lib/claude";
 import {
   PHASES,
   PHASE_PROMPTS,
@@ -58,8 +58,10 @@ export async function GET(req: NextRequest) {
         const octokit = makeOctokit(ghToken);
         const claude = makeClient();
 
+        const mode = getAnalysisMode();
         line("system", `PI CEO — CODE ANALYSIS ENGINE`);
         line("system", `Repo:  ${owner}/${repo}`);
+        line("system", `Mode:  ${mode === "cli" ? "Claude Max (CLI)" : "Anthropic API"}`);
         line("system", `Time:  ${new Date().toISOString()}`);
         line("system", "");
 
@@ -82,7 +84,7 @@ export async function GET(req: NextRequest) {
 
         // ── Run 8 phases ─────────────────────────────────────────
         let result: Partial<AnalysisResult> = { repoUrl, repoName: repo, branch: branchName };
-        const model = process.env.ANALYSIS_MODEL ?? "claude-opus-4-5-20250514";
+        const model = process.env.ANALYSIS_MODEL ?? "claude-sonnet-4-6";
 
         for (const phase of PHASES.slice(0, 7)) {
           send("phase_update", { phaseId: phase.id, status: "running" satisfies PhaseStatus });
