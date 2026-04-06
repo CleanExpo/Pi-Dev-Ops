@@ -27,58 +27,50 @@ async def run_cmd(cwd, *args, timeout=60):
     out, err = await asyncio.wait_for(proc.communicate(), timeout=timeout)
     return proc.returncode, out.decode("utf-8",errors="replace"), err.decode("utf-8",errors="replace")
 
-def parse_claude_event(line, session):
-    try:
-        evt = json.loads(line)
+def parse_event(line, session):
+    try: evt = json.loads(line)
     except:
-        if line.strip():
-            em(session, "output", line)
+        if line.strip(): em(session, "output", line)
         return
-    etype = evt.get("type", "")
-    if etype == "assistant" and "message" in evt:
-        msg = evt["message"]
-        if isinstance(msg, dict):
-            content = msg.get("content", "")
-            if isinstance(content, list):
-                for block in content:
-                    if isinstance(block, dict):
-                        if block.get("type") == "text":
-                            for tl in block.get("text","").split("\n"):
-                                if tl.strip(): em(session, "agent", tl)
-                        elif block.get("type") == "tool_use":
-                            name = block.get("name","tool")
-                            inp = block.get("input",{})
-                            if name == "Bash":
-                                cmd = inp.get("command","")
-                                em(session, "tool", f"  $ {cmd[:120]}")
-                            elif name == "Write":
-                                path = inp.get("file_path","")
-                                em(session, "tool", f"  write {path}")
-                            elif name == "Edit":
-                                path = inp.get("file_path","")
-                                em(session, "tool", f"  edit {path}")
-                            elif name == "Read":
-                                path = inp.get("file_path","")
-                                em(session, "tool", f"  read {path}")
-                            else:
-                                em(session, "tool", f"  {name}: {json.dumps(inp)[:100]}")
-            elif isinstance(content, str) and content.strip():
-                for tl in content.split("\n"):
-                    if tl.strip(): em(session, "agent", tl)
-    elif etype == "result":
-        txt = evt.get("result","")
-        if isinstance(txt, str):
-            for tl in txt.split("\n"):
-                if tl.strip(): em(session, "output", f"  {tl[:200]}")
+    t = evt.get("type","")
+    if t == "system":
+        m = evt.get("message","")
+        if m: em(session, "system", f"  {m[:200]}")
+    elif t == "assistant":
+        msg = evt.get("message",{})
+        c = msg.get("content","") if isinstance(msg,dict) else ""
+        if isinstance(c, list):
+            for b in c:
+                if not isinstance(b,dict): continue
+                bt = b.get("type","")
+                if bt == "text":
+                    for l in b.get("text","").split("\n"):
+                        if l.strip(): em(session, "agent", f"  {l}")
+                elif bt == "tool_use":
+                    nm = b.get("name","")
+                    inp = b.get("input",{})
+                    if nm == "Bash": em(session, "tool", f"  $ {inp.get('command','')[:150]}")
+                    elif nm in ("Write","Edit"): em(session, "tool", f"  {nm.lower()} {inp.get('file_path','')}")
+                    elif nm == "Read": em(session, "tool", f"  read {inp.get('file_path','')}")
+                    else: em(session, "tool", f"  {nm}")
+    elif t in ("tool_result","result"):
+        c = evt.get("content","") or evt.get("result","")
+        if isinstance(c,list):
+            for b in c:
+                if isinstance(b,dict) and b.get("text"):
+                    for l in b["text"].split("\n")[:20]:
+                        if l.strip(): em(session, "output", f"    {l[:200]}")
+        elif isinstance(c,str):
+            for l in c.split("\n")[:20]:
+                if l.strip(): em(session, "output", f"    {l[:200]}")
         cost = evt.get("cost_usd")
-        if cost: em(session, "metric", f"  Cost: ")
-        tokens = evt.get("total_tokens")
-        if tokens: em(session, "metric", f"  Tokens: {tokens}")
+        if cost: em(session, "metric", f"  Cost: ${cost:.4f}")
 
 async def run_build(session, brief="", model="sonnet"):
-    em(session, "system", f"=== Pi CEO Session {session.id} ===")
-    em(session, "system", f"Repo: {session.repo_url}")
-    em(session, "system", f"Model: {model}")
+    em(session, "phase", "  Pi CEO Solo DevOps Tool")
+    em(session, "system", f"  Session: {session.id}")
+    em(session, "system", f"  Repo:    {session.repo_url}")
+    em(session, "system", f"  Model:   {model}")
     em(session, "system", "")
     em(session, "phase", "[1/5] Cloning repository...")
     session.status = "cloning"
@@ -88,26 +80,25 @@ async def run_build(session, brief="", model="sonnet"):
         proc = await asyncio.create_subprocess_exec("git","clone","--depth","1",session.repo_url,session.workspace,stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.PIPE)
         _, stderr = await asyncio.wait_for(proc.communicate(), timeout=60)
         if proc.returncode != 0:
-            em(session, "error", f"Clone failed: {stderr.decode()[:300]}")
+            em(session, "error", f"  Clone failed: {stderr.decode()[:300]}")
             session.status = "failed"
             return
         em(session, "success", "  Clone complete")
     except asyncio.TimeoutError:
-        em(session, "error", "Clone timed out")
+        em(session, "error", "  Clone timed out")
         session.status = "failed"
         return
     except FileNotFoundError:
-        em(session, "error", "Git not in PATH")
+        em(session, "error", "  Git not in PATH")
         session.status = "failed"
         return
     em(session, "phase", "[2/5] Analyzing workspace...")
     files = [f for f in os.listdir(session.workspace) if not f.startswith(".")]
-    em(session, "system", f"  {len(files)} files: {', '.join(files[:10]) or '(empty)'}")
+    em(session, "system", f"  Files: {', '.join(files[:15]) or '(empty)'}")
     em(session, "phase", "[3/5] Checking Claude Code...")
     try:
         rc, out, err = await run_cmd(session.workspace, config.CLAUDE_CMD, "--version", timeout=10)
-        if rc == 0:
-            em(session, "success", f"  {(out.strip() or err.strip())[:80]}")
+        if rc == 0: em(session, "success", f"  {(out.strip() or err.strip())[:80]}")
         else:
             em(session, "error", "  Claude Code error")
             session.status = "failed"
@@ -116,41 +107,34 @@ async def run_build(session, brief="", model="sonnet"):
         em(session, "error", "  Claude Code NOT FOUND")
         session.status = "failed"
         return
-    em(session, "phase", "[4/5] Running Claude Code (live stream)...")
+    em(session, "phase", "[4/5] Running Claude Code (live)...")
     em(session, "system", "")
     session.status = "building"
     if not brief:
-        brief = "This repo has basic files. Create a proper project structure with .harness/spec.md, add useful scaffolding. Git add and commit all changes."
-    spec = f"You are Pi CEO orchestrator on Claude Max.\nProject: {session.repo_url}\nTASK:\n{brief}\nRULES:\n- Create files as needed\n- Run: git add -A && git commit -m 'message' after each change\n- Show what you are doing at each step"
+        brief = "Analyze this codebase fully. Read every skill in skills/. Read the engine in src/tao/. Produce a detailed analysis in .harness/spec.md. Suggest improvements. Git commit changes."
+    spec = f"You are Pi CEO orchestrator on Claude Max.\nProject: {session.repo_url}\nTASK:\n{brief}\nRULES:\n- Show your thinking\n- After changes: git add -A && git commit -m 'message'\n- At the end write a summary of what you did and what to do next"
     try:
-        cmd = [config.CLAUDE_CMD, "-p", spec, "--model", model, "--output-format", "stream-json"]
-        em(session, "tool", f"  $ claude --model {model} --output-format stream-json")
+        cmd = [config.CLAUDE_CMD, "-p", spec, "--model", model, "--verbose", "--output-format", "stream-json"]
+        em(session, "tool", f"  $ claude --model {model} --verbose --stream-json")
         em(session, "system", "")
         proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, cwd=session.workspace)
         session.process = proc
-        async def read_stdout():
+        async def read_out():
             while True:
                 line = await proc.stdout.readline()
                 if not line: break
-                text = line.decode("utf-8",errors="replace").rstrip()
-                if text: parse_claude_event(text, session)
-        async def read_stderr():
+                parse_event(line.decode("utf-8",errors="replace").rstrip(), session)
+        async def read_err():
             while True:
                 line = await proc.stderr.readline()
                 if not line: break
-                text = line.decode("utf-8",errors="replace").rstrip()
-                if text: em(session, "stderr", text)
-        await asyncio.gather(read_stdout(), read_stderr())
+                t = line.decode("utf-8",errors="replace").rstrip()
+                if t and "warn" not in t.lower(): em(session, "stderr", f"  {t[:200]}")
+        await asyncio.gather(read_out(), read_err())
         await proc.wait()
         em(session, "system", "")
-        if proc.returncode == 0:
-            em(session, "success", "  Claude Code finished")
-        else:
-            em(session, "error", f"  Claude exited code {proc.returncode}")
-    except asyncio.TimeoutError:
-        em(session, "error", "  Timed out")
-        session.status = "failed"
-        return
+        if proc.returncode == 0: em(session, "success", "  Claude Code completed")
+        else: em(session, "error", f"  Claude exited code {proc.returncode}")
     except Exception as e:
         em(session, "error", f"  Error: {e}")
         session.status = "failed"
@@ -161,28 +145,36 @@ async def run_build(session, brief="", model="sonnet"):
         if out.strip():
             await run_cmd(session.workspace, "git", "add", "-A")
             await run_cmd(session.workspace, "git", "commit", "-m", "feat: Pi CEO build")
-        rc, out, _ = await run_cmd(session.workspace, "git", "log", "--oneline", "-5")
-        for line in out.strip().split("\n"):
-            if line.strip(): em(session, "system", f"  {line.strip()}")
-        commits = len([l for l in out.strip().split("\n") if l.strip()])
-        if commits > 0:
-            em(session, "system", f"  Pushing {commits} commit(s)...")
-            rc, out, err = await run_cmd(session.workspace, "git", "push", "origin", "HEAD", timeout=30)
+        rc, out, _ = await run_cmd(session.workspace, "git", "log", "--oneline", "-10")
+        commits = [l.strip() for l in out.strip().split("\n") if l.strip()]
+        if commits:
+            for c in commits: em(session, "system", f"  {c}")
+            em(session, "system", f"  Pushing {len(commits)} commits...")
+            rc, _, err = await run_cmd(session.workspace, "git", "push", "origin", "HEAD", timeout=30)
             if rc == 0:
                 em(session, "success", "  Pushed to GitHub!")
-                em(session, "success", f"  {session.repo_url.replace('.git','')}")
-            else:
-                em(session, "error", f"  Push failed: {err[:200]}")
-        else:
-            em(session, "system", "  Nothing to push")
+                em(session, "success", f"  https://github.com/CleanExpo/Pi-Dev-Ops")
+            else: em(session, "error", f"  Push failed: {err[:200]}")
+        em(session, "system", "")
+        em(session, "phase", "  Project structure:")
+        af = []
+        for r, dirs, fns in os.walk(session.workspace):
+            dirs[:] = [d for d in dirs if d not in (".git","node_modules","__pycache__","workspaces")]
+            for fn in fns: af.append(os.path.relpath(os.path.join(r,fn), session.workspace))
+        for x in sorted(af)[:30]: em(session, "system", f"    {x}")
+        if len(af) > 30: em(session, "system", f"    ...+{len(af)-30} more")
     except Exception as e:
         em(session, "error", f"  Push error: {e}")
     session.status = "complete"
-    em(session, "metric", f"=== Done in {time.time()-session.started_at:.0f}s ===")
+    em(session, "system", "")
+    em(session, "phase", "  Summary")
+    em(session, "system", f"    Duration: {time.time()-session.started_at:.0f}s")
+    em(session, "system", f"    Files: {len(af) if 'af' in dir() else '?'}")
+    em(session, "success", "  === SESSION COMPLETE ===")
 
 async def create_session(repo_url, brief="", model="sonnet"):
     if len(_sessions) >= config.MAX_CONCURRENT_SESSIONS:
-        raise RuntimeError(f"Max {config.MAX_CONCURRENT_SESSIONS} sessions")
+        raise RuntimeError("Max sessions reached")
     session = BuildSession(repo_url=repo_url, started_at=time.time())
     _sessions[session.id] = session
     asyncio.create_task(run_build(session, brief, model))
