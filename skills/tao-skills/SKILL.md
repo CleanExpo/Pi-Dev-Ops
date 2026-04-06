@@ -18,3 +18,6 @@ zte-maturity, agent-expert, leverage-audit, agentic-loop, agentic-layer
 
 ## Foundation
 big-three, claude-max-runtime, pi-integration
+
+## Meta
+ceo-mode, tao-skills
