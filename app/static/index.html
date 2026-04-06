@@ -1,0 +1,107 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pi CEO</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700&family=Barlow+Condensed:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0A0A0A;--bg2:#141414;--bg3:#1A1A1A;--or:#E8751A;--orl:#F59E0B;--fg:#E8E4DE;--fg2:#A09A90;--fg3:#6B665E;--fg4:#3A3632;--grn:#4ADE80;--red:#F87171;--tl:#2DD4BF;--bl:#818CF8;--df:'Bebas Neue',sans-serif;--hf:'Barlow Condensed',sans-serif;--bf:'Barlow',sans-serif;--mf:'IBM Plex Mono',monospace}
+body{background:var(--bg);color:var(--fg);font-family:var(--bf);min-height:100vh}
+input,button,select{font-family:inherit}
+#LS{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(180deg,#0A0A0A,#1A1008)}
+.lb{background:var(--bg2);border:1px solid rgba(232,117,26,.2);border-radius:20px;padding:52px 44px;width:400px;text-align:center;box-shadow:0 0 80px rgba(232,117,26,.08)}
+.lg{font-family:var(--df);font-size:56px;letter-spacing:.05em;line-height:1}.lg .w{color:#F0EDE8}.lg .s{font-size:30px;vertical-align:super;color:#F0EDE8}.lg .o{color:var(--or)}
+.ls{font-family:var(--hf);font-size:15px;color:var(--fg3);letter-spacing:.25em;text-transform:uppercase;margin-bottom:36px}
+.li{width:100%;padding:15px 18px;background:var(--bg);border:1px solid var(--fg4);border-radius:10px;color:var(--fg);font-size:15px;font-family:var(--mf);margin-bottom:16px;outline:none}.li:focus{border-color:var(--or)}.li::placeholder{color:var(--fg4)}
+.lbt{width:100%;padding:15px;background:var(--or);border:none;border-radius:10px;color:#fff;font-size:16px;font-weight:700;font-family:var(--hf);letter-spacing:.08em;text-transform:uppercase;cursor:pointer}.lbt:hover{background:#D06812}
+.le{color:var(--red);font-size:13px;margin-top:14px;display:none;font-family:var(--mf)}
+#AS{display:none}
+.hero{position:relative;width:100%;height:220px;overflow:hidden;border-bottom:1px solid rgba(232,117,26,.15)}
+.hero img{width:100%;height:100%;object-fit:cover;object-position:center 30%;opacity:.5}
+.hov{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,10,10,.2),rgba(10,10,10,.95) 90%)}
+.hc{position:absolute;bottom:24px;left:0;right:0;text-align:center}
+.ht{font-family:var(--df);font-size:48px;letter-spacing:.04em;line-height:1}.ht .w{color:#F0EDE8}.ht .s{font-size:26px;vertical-align:super;color:#F0EDE8}.ht .o{color:var(--or)}
+.hs{font-family:var(--hf);font-size:14px;color:var(--fg3);letter-spacing:.2em;text-transform:uppercase;margin-top:4px}
+.ct{max-width:820px;margin:0 auto;padding:0 24px}
+.tb{display:flex;align-items:center;justify-content:space-between;padding:16px 0;margin-bottom:24px}
+.pl{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;background:var(--bg3);border-radius:20px;font-size:12px;font-family:var(--mf);color:var(--fg3)}
+.sd{width:7px;height:7px;border-radius:50%}.sd.i{background:var(--fg4)}.sd.r{background:var(--grn);animation:pu 1.5s ease infinite}
+.bs{background:none;border:1px solid var(--fg4);color:var(--fg3);padding:5px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:var(--mf)}.bs:hover{border-color:var(--or);color:var(--or)}.bs.d:hover{border-color:var(--red);color:var(--red)}
+.rl{font-family:var(--hf);font-size:13px;color:var(--fg3);letter-spacing:.15em;text-transform:uppercase;margin-bottom:8px;font-weight:600}
+.rb{display:flex;border-radius:12px;overflow:hidden;border:1px solid rgba(232,117,26,.2);background:var(--bg2);margin-bottom:14px}.rb.a{box-shadow:0 0 30px rgba(232,117,26,.12);border-color:rgba(232,117,26,.4)}
+.ri{flex:1;padding:14px 18px;background:transparent;border:none;color:var(--fg);font-size:14px;font-family:var(--mf);outline:none}.ri::placeholder{color:var(--fg4)}
+.lnb{padding:14px 28px;background:var(--or);border:none;color:#fff;font-size:14px;font-weight:700;font-family:var(--hf);letter-spacing:.1em;text-transform:uppercase;cursor:pointer}.lnb:disabled{background:var(--bg3);color:var(--fg4);cursor:default}.lnb:not(:disabled):hover{background:#D06812}
+.or{display:flex;gap:10px;margin-bottom:24px}
+.oi{flex:1;padding:10px 14px;background:var(--bg2);border:1px solid var(--fg4);border-radius:8px;color:var(--fg);font-size:13px;font-family:var(--mf);outline:none}.oi:focus{border-color:rgba(232,117,26,.4)}.oi::placeholder{color:var(--fg4)}
+.os{padding:10px 14px;background:var(--bg2);border:1px solid var(--fg4);border-radius:8px;color:var(--fg);font-size:13px;font-family:var(--mf);outline:none;cursor:pointer;min-width:130px}
+.tm{border-radius:14px;overflow:hidden;border:1px solid rgba(232,117,26,.1);box-shadow:0 24px 64px rgba(0,0,0,.6);margin-bottom:28px}
+.tmb{display:flex;align-items:center;gap:8px;padding:11px 16px;background:var(--bg3);border-bottom:1px solid rgba(255,255,255,.04)}
+.tmd{display:flex;gap:6px}.tc2{width:12px;height:12px;border-radius:50%}.c-r{background:#EF4444}.c-y{background:var(--or)}.c-g{background:#22C55E}
+.tmt{flex:1;text-align:center;font-size:12px;color:var(--fg3);font-family:var(--mf)}
+.tbo{background:#0C0C0C;padding:18px 20px;height:440px;overflow-y:auto;scroll-behavior:smooth}
+.tme{display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:12px;color:var(--fg4);font-family:var(--mf);font-size:14px}
+.tmi{font-family:var(--df);font-size:52px;opacity:.06;color:var(--or)}
+.tml{font-family:var(--mf);font-size:13px;line-height:22px;white-space:pre-wrap;word-break:break-all;animation:fi .2s ease}
+.tms{display:flex;justify-content:space-between;padding:8px 16px;background:var(--bg3);border-top:1px solid rgba(255,255,255,.04);font-size:11px;font-family:var(--mf);color:var(--fg4)}
+.ti{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:32px}
+.tc{background:var(--bg2);border-radius:14px;padding:22px 18px;border:1px solid rgba(255,255,255,.04)}
+.th2{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.td{width:8px;height:8px;border-radius:50%}
+.tn{font-family:var(--hf);font-size:16px;font-weight:700;letter-spacing:.04em}
+.tmod{font-size:12px;color:var(--fg2);font-family:var(--mf);margin-bottom:6px}
+.tro{font-size:13px;color:var(--fg3);line-height:1.5}
+.tco{font-size:11px;color:var(--fg4);font-family:var(--mf);margin-top:8px}
+.ft{text-align:center;padding:20px;border-top:1px solid rgba(255,255,255,.03);font-size:12px;color:var(--fg4);font-family:var(--mf);margin-top:12px}.ft span{color:var(--or)}
+@keyframes fi{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pu{0%,100%{opacity:.4}50%{opacity:1}}
+.tbo::-webkit-scrollbar{width:6px}.tbo::-webkit-scrollbar-track{background:transparent}.tbo::-webkit-scrollbar-thumb{background:rgba(232,117,26,.2);border-radius:3px}
+</style></head><body>
+<div id="LS"><div class="lb">
+<div class="lg"><span class="w">Pi</span><span class="s">&#960;</span> <span class="o">CEO</span></div>
+<div class="ls">Solo DevOps Tool</div>
+<input type="password" class="li" id="pw" placeholder="Password" autofocus>
+<button class="lbt" onclick="doLogin()">Authenticate</button>
+<div class="le" id="le">Invalid password</div>
+</div></div>
+<div id="AS">
+<div class="hero"><img src="/static/hero.jpg" alt=""><div class="hov"></div><div class="hc">
+<div class="ht"><span class="w">Pi</span><span class="s">&#960;</span> <span class="o">CEO</span></div>
+<div class="hs">Solo DevOps Tool &#183; Powered by Claude Harness</div></div></div>
+<div class="ct">
+<div class="tb"><div class="pl"><div class="sd i" id="sd"></div><span id="st">Idle</span></div>
+<div style="display:flex;gap:10px"><button class="bs d" id="kb" style="display:none" onclick="killS()">Kill</button><button class="bs" onclick="doLogout()">Logout</button></div></div>
+<div><div class="rl">Repository</div>
+<div class="rb" id="rb"><input type="text" class="ri" id="ru" value="https://github.com/CleanExpo/Pi-Dev-Ops.git">
+<button class="lnb" id="lb" onclick="launch()">Launch</button></div></div>
+<div class="or"><input type="text" class="oi" id="br" placeholder="Describe what to build (optional)">
+<select class="os" id="mo"><option value="opus">Opus 4.6</option><option value="sonnet" selected>Sonnet 4.6</option><option value="haiku">Haiku 4.5</option></select></div>
+<div class="tm"><div class="tmb"><div class="tmd"><div class="tc2 c-r"></div><div class="tc2 c-y"></div><div class="tc2 c-g"></div></div>
+<span class="tmt" id="tt">claude code &#8212; pi dev ops</span><div style="width:50px"></div></div>
+<div class="tbo" id="tbo"><div class="tme"><div class="tmi">&#960;</div><span>Paste a repo URL and hit Launch</span>
+<span style="font-size:11px;color:var(--fg4)">Claude Code will clone, analyze, and build</span></div></div>
+<div class="tms"><span id="tl">IDLE</span><span id="tm2">&#8212;</span><span id="te">&#8212;</span></div></div>
+<div class="ti">
+<div class="tc"><div class="th2"><div class="td" style="background:var(--or)"></div><span class="tn" style="color:var(--or)">Orchestrator</span></div><div class="tmod">Opus 4.6 &#183; 1M ctx</div><div class="tro">Plans &#183; Decomposes &#183; Reviews</div><div class="tco">$0 &#183; Max plan</div></div>
+<div class="tc"><div class="th2"><div class="td" style="background:var(--tl)"></div><span class="tn" style="color:var(--tl)">Specialist</span></div><div class="tmod">Sonnet 4.6 &#183; 200K ctx</div><div class="tro">Complex features &#183; Code review</div><div class="tco">$0 &#183; Max plan</div></div>
+<div class="tc"><div class="th2"><div class="td" style="background:var(--orl)"></div><span class="tn" style="color:var(--orl)">Worker</span></div><div class="tmod">Haiku 4.5 &#183; 200K ctx</div><div class="tro">Discrete tasks &#183; Fast execution</div><div class="tco">$0 &#183; Max plan</div></div>
+</div>
+<div class="ft"><span>Pi</span><sup>&#960;</sup> <span>CEO</span> &#183; Solo DevOps Tool &#183; Powered by Claude Harness</div>
+</div></div>
+<script>
+const C={system:'#8A8578',phase:'#E8751A',agent:'#E8E4DE',tool:'#818CF8',output:'#A09A90',success:'#4ADE80',error:'#F87171',stderr:'#F87171',subagent:'#2DD4BF',worker:'#F59E0B',done:'#4ADE80'};
+let sid=null,ws=null,ec=0;
+document.getElementById('pw').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+async function doLogin(){const p=document.getElementById('pw').value;try{const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:p})});if(r.ok)sh();else document.getElementById('le').style.display='block'}catch{document.getElementById('le').textContent='Connection failed';document.getElementById('le').style.display='block'}}
+function sh(){document.getElementById('LS').style.display='none';document.getElementById('AS').style.display='block'}
+async function doLogout(){await fetch('/api/logout',{method:'POST'});location.reload()}
+(async()=>{try{if((await fetch('/api/me')).ok)sh()}catch{}})();
+document.getElementById('ru').addEventListener('keydown',e=>{if(e.key==='Enter')launch()});
+async function launch(){const repo=document.getElementById('ru').value.trim();if(!repo)return;const brief=document.getElementById('br').value.trim(),model=document.getElementById('mo').value;document.getElementById('lb').disabled=true;document.getElementById('lb').textContent='BUILDING...';document.getElementById('rb').classList.add('a');document.getElementById('tbo').innerHTML='';document.getElementById('sd').className='sd r';document.getElementById('st').textContent='Building';document.getElementById('kb').style.display='inline-block';ec=0;us('RUNNING',model,'0');try{const r=await fetch('/api/build',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({repo_url:repo,brief,model})});if(!r.ok){const e=await r.json();al('error',e.detail||'Failed');re();return}const d=await r.json();sid=d.session_id;cw(d.session_id)}catch(e){al('error','Network: '+e.message);re()}}
+function cw(id){const p=location.protocol==='https:'?'wss:':'ws:';ws=new WebSocket(p+'//'+location.host+'/ws/build/'+id);ws.onmessage=e=>{const d=JSON.parse(e.data);ec++;al(d.type,d.text);us(d.type==='done'?d.status.toUpperCase():'RUNNING',document.getElementById('mo').value,ec+'');if(d.type==='done'){re();document.getElementById('sd').className='sd i';document.getElementById('st').textContent=d.status}};ws.onerror=()=>al('error','WebSocket error');ws.onclose=()=>{if(document.getElementById('lb').textContent==='BUILDING...')re()}}
+function al(t,x){const b=document.getElementById('tbo'),d=document.createElement('div');d.className='tml';d.style.color=C[t]||'#E8E4DE';d.textContent=x;b.appendChild(d);b.scrollTop=b.scrollHeight}
+function us(s,m,e){document.getElementById('tl').innerHTML=(s==='RUNNING'?'<span style="color:#4ADE80">&#9679; </span>':'')+s;document.getElementById('tm2').textContent=m+' max';document.getElementById('te').textContent=e+' events'}
+function re(){document.getElementById('lb').disabled=false;document.getElementById('lb').textContent='LAUNCH';document.getElementById('rb').classList.remove('a');document.getElementById('kb').style.display='none'}
+async function killS(){if(!sid)return;await fetch('/api/sessions/'+sid+'/kill',{method:'POST'});al('error','Session killed.');re();document.getElementById('sd').className='sd i';document.getElementById('st').textContent='Killed'}
+</script></body></html>
