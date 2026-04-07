@@ -2,6 +2,7 @@ import asyncio, json, os, shutil, time, uuid
 from dataclasses import dataclass, field
 from typing import Optional
 from . import config
+from . import persistence
 
 @dataclass
 class BuildSession:
@@ -18,6 +19,31 @@ _sessions = {}
 def get_session(sid): return _sessions.get(sid)
 def list_sessions():
     return [{"id":s.id,"repo":s.repo_url,"status":s.status,"started":s.started_at,"lines":len(s.output_lines)} for s in _sessions.values()]
+
+def restore_sessions():
+    """Load persisted sessions from disk on server startup.
+    Sessions that were mid-flight (cloning/building) are marked 'interrupted'."""
+    count = 0
+    for data in persistence.load_all_sessions():
+        sid = data.get("id", "")
+        if not sid or sid in _sessions:
+            continue
+        session = BuildSession(
+            id=sid,
+            repo_url=data.get("repo_url", ""),
+            workspace=data.get("workspace", ""),
+            started_at=data.get("started_at", 0.0),
+            status=data.get("status", "unknown"),
+            error=data.get("error"),
+        )
+        # Mark anything that was in-flight as interrupted
+        if session.status in ("created", "cloning", "building"):
+            session.status = "interrupted"
+            persistence.save_session(session)
+        _sessions[sid] = session
+        count += 1
+    if count:
+        print(f"[persistence] Restored {count} session(s) from disk.")
 
 def em(session, t, d):
     session.output_lines.append({"type":t,"text":d,"ts":time.time()})
@@ -74,6 +100,7 @@ async def run_build(session, brief="", model="sonnet"):
     em(session, "system", "")
     em(session, "phase", "[1/5] Cloning repository...")
     session.status = "cloning"
+    persistence.save_session(session)
     session.workspace = os.path.join(config.WORKSPACE_ROOT, session.id)
     os.makedirs(session.workspace, exist_ok=True)
     try:
@@ -82,15 +109,18 @@ async def run_build(session, brief="", model="sonnet"):
         if proc.returncode != 0:
             em(session, "error", f"  Clone failed: {stderr.decode()[:300]}")
             session.status = "failed"
+            persistence.save_session(session)
             return
         em(session, "success", "  Clone complete")
     except asyncio.TimeoutError:
         em(session, "error", "  Clone timed out")
         session.status = "failed"
+        persistence.save_session(session)
         return
     except FileNotFoundError:
         em(session, "error", "  Git not in PATH")
         session.status = "failed"
+        persistence.save_session(session)
         return
     em(session, "phase", "[2/5] Analyzing workspace...")
     files = [f for f in os.listdir(session.workspace) if not f.startswith(".")]
@@ -102,14 +132,17 @@ async def run_build(session, brief="", model="sonnet"):
         else:
             em(session, "error", "  Claude Code error")
             session.status = "failed"
+            persistence.save_session(session)
             return
     except FileNotFoundError:
         em(session, "error", "  Claude Code NOT FOUND")
         session.status = "failed"
+        persistence.save_session(session)
         return
     em(session, "phase", "[4/5] Running Claude Code (live)...")
     em(session, "system", "")
     session.status = "building"
+    persistence.save_session(session)
     if not brief:
         brief = "Analyze this codebase fully. Read every skill in skills/. Read the engine in src/tao/. Produce a detailed analysis in .harness/spec.md. Suggest improvements. Git commit changes."
     spec = f"You are Pi CEO orchestrator on Claude Max.\nProject: {session.repo_url}\nTASK:\n{brief}\nRULES:\n- Show your thinking\n- After changes: git add -A && git commit -m 'message'\n- At the end write a summary of what you did and what to do next"
@@ -138,6 +171,7 @@ async def run_build(session, brief="", model="sonnet"):
     except Exception as e:
         em(session, "error", f"  Error: {e}")
         session.status = "failed"
+        persistence.save_session(session)
         return
     em(session, "phase", "[5/5] Pushing to GitHub...")
     try:
@@ -166,10 +200,11 @@ async def run_build(session, brief="", model="sonnet"):
     except Exception as e:
         em(session, "error", f"  Push error: {e}")
     session.status = "complete"
+    persistence.save_session(session)
     em(session, "system", "")
     em(session, "phase", "  Summary")
     em(session, "system", f"    Duration: {time.time()-session.started_at:.0f}s")
-    em(session, "system", f"    Files: {len(af) if 'af' in dir() else '?'}")
+    em(session, "system", f"    Files: {len(af) if 'af' in locals() else '?'}")
     em(session, "success", "  === SESSION COMPLETE ===")
 
 async def create_session(repo_url, brief="", model="sonnet"):
@@ -177,6 +212,7 @@ async def create_session(repo_url, brief="", model="sonnet"):
         raise RuntimeError("Max sessions reached")
     session = BuildSession(repo_url=repo_url, started_at=time.time())
     _sessions[session.id] = session
+    persistence.save_session(session)
     asyncio.create_task(run_build(session, brief, model))
     return session
 
@@ -188,6 +224,7 @@ async def kill_session(sid):
         await asyncio.sleep(2)
         if s.process.returncode is None: s.process.kill()
         s.status = "killed"
+        persistence.save_session(s)
         em(s, "error", "Killed by user")
         return True
     except: return False
@@ -196,3 +233,4 @@ def cleanup_session(sid):
     s = _sessions.pop(sid, None)
     if s and s.workspace and os.path.exists(s.workspace):
         shutil.rmtree(s.workspace, ignore_errors=True)
+    persistence.delete_session_file(sid)

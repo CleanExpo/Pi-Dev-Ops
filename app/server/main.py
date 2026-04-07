@@ -5,10 +5,15 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from .auth import verify_password, create_session_token, verify_session_token, require_auth, require_rate_limit
-from .sessions import create_session, get_session, list_sessions, kill_session
+from .sessions import create_session, get_session, list_sessions, kill_session, restore_sessions
 from . import config
 
 app = FastAPI(title="Pi CEO", docs_url=None, redoc_url=None, openapi_url=None)
+
+@app.on_event("startup")
+async def on_startup():
+    restore_sessions()
+    print("[startup] Pi CEO ready.")
 
 # True when deployed on Railway (or any cloud with this env var set)
 _IS_CLOUD = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RENDER") or os.environ.get("FLY_APP_NAME"))
