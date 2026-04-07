@@ -3,7 +3,7 @@
   "sprints": [
     {
       "id": 1,
-      "name": "Stability & Persistence",
+      "name": "Stability & Persistence Foundation",
       "duration": "5d",
       "items": [
         {
@@ -12,27 +12,27 @@
           "priority": "P1"
         },
         {
-          "title": "Rate-limit GC: background task evicting IPs from _req_log not seen in >5min",
+          "title": "Rate-limit memory fix: background task evicts IPs not seen in >5min from _req_log in auth.py",
           "size": "S",
           "priority": "P1"
         },
         {
-          "title": "Workspace GC: schedule shutil.rmtree after 24h TTL on session complete/failed",
+          "title": "Workspace GC: schedule shutil.rmtree after 24h TTL on session complete/failed in sessions.py",
           "size": "S",
           "priority": "P1"
         },
         {
-          "title": "Fix af variable scope bug in sessions.py summary block (line ~189: 'af' in dir() → locals())",
+          "title": "Fix af variable scope bug in sessions.py run_build() summary block (af referenced before assignment)",
           "size": "S",
           "priority": "P1"
         },
         {
-          "title": "Pin SESSION_SECRET via env var in run.ps1 to prevent session invalidation on restart",
+          "title": "Seed .harness/lessons.jsonl with first agent-expert entries from this analysis run",
           "size": "S",
           "priority": "P2"
         },
         {
-          "title": "Seed .harness/lessons.jsonl with initial agent-expert entries from this analysis",
+          "title": "Pin SESSION_SECRET to env var with startup warning if auto-generated (prevents session invalidation on restart)",
           "size": "S",
           "priority": "P2"
         }
@@ -40,250 +40,172 @@
     },
     {
       "id": 2,
-      "name": "Quality Gating & Webhook Triggers",
-      "duration": "7d",
+      "name": "Quality Gating & Evaluator Tier",
+      "duration": "5d",
       "items": [
         {
-          "title": "Evaluator tier: second claude -p pass post-build scoring against tier-evaluator dimensions",
+          "title": "Add evaluator tier: second claude -p eval pass post-build using tier-evaluator skill (4 dimensions)",
           "size": "M",
           "priority": "P1"
         },
         {
-          "title": "POST /api/webhook: HMAC-verified GitHub/Linear webhook → parse event → create BuildSession",
+          "title": "Structured brief intake form: classify intent (feature/bug/chore/spike/hotfix) before /api/build",
           "size": "M",
           "priority": "P1"
         },
         {
-          "title": "PITER intent classifier: pre-build form classifying feature/bug/chore/spike/hotfix → ADW routing",
+          "title": "Route classified brief to corresponding ADW template from agent-workflow skill",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "Implement src/tao/skills.py skill loader: parse SKILL.md frontmatter, expose registry for prompt injection",
           "size": "M",
           "priority": "P2"
         },
         {
-          "title": "Implement src/tao/skills.py: parse skills/*/SKILL.md frontmatter, expose registry for prompt injection",
-          "size": "M",
-          "priority": "P2"
-        },
-        {
-          "title": "Add ceo-mode entry to skills/tao-skills/SKILL.md master index (currently missing)",
+          "title": "Emit structured pass/fail event over WebSocket after evaluator tier completes",
           "size": "S",
           "priority": "P2"
-        },
-        {
-          "title": "token-budgeter: populate blank cost values in skills/token-budgeter/SKILL.md",
-          "size": "S",
-          "priority": "P3"
         }
       ]
     },
     {
       "id": 3,
-      "name": "ZTE Level 2 — Out of Loop",
-      "duration": "10d",
+      "name": "Trigger Automation & Webhook Layer",
+      "duration": "5d",
       "items": [
         {
-          "title": "GitHub Issues webhook: auto-generate PITER brief from issue body + labels → trigger build",
-          "size": "L",
-          "priority": "P1"
-        },
-        {
-          "title": "Linear webhook: parse issue create/update events → ADW selection → unattended build session",
-          "size": "L",
-          "priority": "P2"
-        },
-        {
-          "title": "AFK agent contract enforcement: max_runtime_minutes, max_tokens, stop guards in run_build()",
+          "title": "POST /api/webhook: accept HMAC-signed GitHub webhook, parse push/PR events, auto-create build session",
           "size": "M",
           "priority": "P1"
         },
         {
-          "title": "Notification on session complete: Telegram bot or webhook POST to configurable URL",
+          "title": "PITER intent classifier: map webhook event type to ADW template (feature/bugfix/chore)",
+          "size": "M",
+          "priority": "P1"
+        },
+        {
+          "title": "Linear webhook support: parse issue created/updated events → brief generation",
           "size": "M",
           "priority": "P2"
         },
         {
-          "title": "hooks-system integration: PreToolUse (block rm -rf /), PostToolUse logging, Stop guard in claude subprocess",
-          "size": "M",
-          "priority": "P2"
+          "title": "Cron trigger: scheduled analysis runs via POST /api/build with stored repo config",
+          "size": "S",
+          "priority": "P3"
         },
         {
-          "title": "Context precision: targeted file injection per ADW type instead of whole-repo clone",
-          "size": "M",
+          "title": "Add /api/capabilities endpoint (self-describing API per agentic-layer skill)",
+          "size": "S",
           "priority": "P2"
         }
       ]
     },
     {
       "id": 4,
-      "name": "Multi-Session Orchestration",
-      "duration": "10d",
+      "name": "Knowledge Retention & ZTE Level 2",
+      "duration": "5d",
       "items": [
         {
-          "title": "Session tree: parent→child relationships in _sessions dict for orchestrator→specialist→worker",
+          "title": "agent-expert Act-Learn-Reuse: extract lessons after each build, append to .harness/lessons.jsonl",
+          "size": "M",
+          "priority": "P1"
+        },
+        {
+          "title": "Inject top-5 relevant lessons into claude -p spec prompt at build start",
+          "size": "M",
+          "priority": "P1"
+        },
+        {
+          "title": "Record leverage-audit.md baseline score per repo in .harness/ after each run",
+          "size": "S",
+          "priority": "P2"
+        },
+        {
+          "title": "MCP server: add get_zte_score tool to read leverage-audit.md score trend over time",
+          "size": "S",
+          "priority": "P2"
+        },
+        {
+          "title": "Auto-update .harness/handoff.md with session outcome, next recommended action, ZTE delta",
+          "size": "S",
+          "priority": "P2"
+        },
+        {
+          "title": "ZTE Level 2 gate: validate webhooks + auto-brief working before declaring L2 promotion",
+          "size": "S",
+          "priority": "P3"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Multi-Session Orchestration & TAO Engine",
+      "duration": "7d",
+      "items": [
+        {
+          "title": "Implement src/tao/agents/__init__.py: TierAgent base class, dispatch to claude subprocess per tier",
           "size": "L",
           "priority": "P2"
         },
         {
-          "title": "Fan-out: decompose brief into N parallel worker sessions, merge via Opus evaluator",
+          "title": "Fan-out orchestration: decompose brief into N parallel worker sessions via tier-orchestrator pattern",
           "size": "L",
           "priority": "P2"
         },
         {
-          "title": "Implement src/tao/agents/__init__.py: agent execution calling claude subprocess per tier",
-          "size": "L",
+          "title": "Session tree persistence: replace flat _sessions dict with parent→child tree for orchestrator→specialist→worker",
+          "size": "M",
           "priority": "P2"
         },
         {
-          "title": "Closed-loop prompts: embed verification commands in each ADW phase (test-fix-retest max 3 attempts)",
+          "title": "Merge results via Opus evaluator after parallel worker fan-out completes",
           "size": "M",
           "priority": "P3"
         },
         {
-          "title": "Dashboard: session tree visualisation showing parent/child session relationships",
+          "title": "Context-compressor integration: truncate/extract/summarize at tier boundaries before passing to child",
           "size": "M",
+          "priority": "P3"
+        },
+        {
+          "title": "BudgetTracker integration: enforce token_budget_pct per tier from 3-tier-webapp.yaml template",
+          "size": "S",
           "priority": "P3"
         }
       ]
     }
   ],
   "featureList": [
-    {
-      "id": "F001",
-      "title": "Session persistence to .harness/sessions.json",
-      "sprint": 1,
-      "status": "planned"
-    },
-    {
-      "id": "F002",
-      "title": "Rate-limit memory GC background task",
-      "sprint": 1,
-      "status": "planned"
-    },
-    {
-      "id": "F003",
-      "title": "Workspace GC with 24h TTL",
-      "sprint": 1,
-      "status": "planned"
-    },
-    {
-      "id": "F004",
-      "title": "Fix af variable scope bug (sessions.py ~L189)",
-      "sprint": 1,
-      "status": "planned"
-    },
-    {
-      "id": "F005",
-      "title": "SESSION_SECRET pinning in run.ps1",
-      "sprint": 1,
-      "status": "planned"
-    },
-    {
-      "id": "F006",
-      "title": "Seed .harness/lessons.jsonl",
-      "sprint": 1,
-      "status": "planned"
-    },
-    {
-      "id": "F007",
-      "title": "Evaluator tier second-pass quality gating",
-      "sprint": 2,
-      "status": "planned"
-    },
-    {
-      "id": "F008",
-      "title": "POST /api/webhook HMAC-verified endpoint",
-      "sprint": 2,
-      "status": "planned"
-    },
-    {
-      "id": "F009",
-      "title": "PITER intent classifier + ADW routing",
-      "sprint": 2,
-      "status": "planned"
-    },
-    {
-      "id": "F010",
-      "title": "src/tao/skills.py registry from SKILL.md frontmatter",
-      "sprint": 2,
-      "status": "planned"
-    },
-    {
-      "id": "F011",
-      "title": "Add ceo-mode to tao-skills master index",
-      "sprint": 2,
-      "status": "planned"
-    },
-    {
-      "id": "F012",
-      "title": "Populate token-budgeter cost values",
-      "sprint": 2,
-      "status": "planned"
-    },
-    {
-      "id": "F013",
-      "title": "GitHub Issues → auto-brief → build session",
-      "sprint": 3,
-      "status": "planned"
-    },
-    {
-      "id": "F014",
-      "title": "Linear webhook → ADW selection → unattended build",
-      "sprint": 3,
-      "status": "planned"
-    },
-    {
-      "id": "F015",
-      "title": "AFK contract: max_runtime, max_tokens, stop guards",
-      "sprint": 3,
-      "status": "planned"
-    },
-    {
-      "id": "F016",
-      "title": "Completion notification via Telegram/webhook",
-      "sprint": 3,
-      "status": "planned"
-    },
-    {
-      "id": "F017",
-      "title": "hooks-system: PreToolUse safety + PostToolUse logging",
-      "sprint": 3,
-      "status": "planned"
-    },
-    {
-      "id": "F018",
-      "title": "Targeted context injection per ADW type",
-      "sprint": 3,
-      "status": "planned"
-    },
-    {
-      "id": "F019",
-      "title": "Session tree with parent→child relationships",
-      "sprint": 4,
-      "status": "planned"
-    },
-    {
-      "id": "F020",
-      "title": "Fan-out parallel worker sessions with Opus merge",
-      "sprint": 4,
-      "status": "planned"
-    },
-    {
-      "id": "F021",
-      "title": "src/tao/agents/__init__.py — agent execution engine",
-      "sprint": 4,
-      "status": "planned"
-    },
-    {
-      "id": "F022",
-      "title": "Closed-loop prompts with embedded verification",
-      "sprint": 4,
-      "status": "planned"
-    },
-    {
-      "id": "F023",
-      "title": "Dashboard session tree visualisation",
-      "sprint": 4,
-      "status": "planned"
-    }
+    { "id": "F001", "title": "Session persistence to .harness/sessions.json", "sprint": 1, "status": "planned" },
+    { "id": "F002", "title": "Rate-limit memory leak fix (_req_log eviction)", "sprint": 1, "status": "planned" },
+    { "id": "F003", "title": "Workspace GC with 24h TTL", "sprint": 1, "status": "planned" },
+    { "id": "F004", "title": "Fix af variable scope bug in sessions.py", "sprint": 1, "status": "planned" },
+    { "id": "F005", "title": "Seed .harness/lessons.jsonl", "sprint": 1, "status": "planned" },
+    { "id": "F006", "title": "SESSION_SECRET startup warning for auto-generated value", "sprint": 1, "status": "planned" },
+    { "id": "F007", "title": "Evaluator tier: post-build claude -p eval pass", "sprint": 2, "status": "planned" },
+    { "id": "F008", "title": "Structured brief intake with intent classification", "sprint": 2, "status": "planned" },
+    { "id": "F009", "title": "ADW routing from classified brief", "sprint": 2, "status": "planned" },
+    { "id": "F010", "title": "src/tao/skills.py skill loader and registry", "sprint": 2, "status": "planned" },
+    { "id": "F011", "title": "Structured pass/fail WebSocket event from evaluator", "sprint": 2, "status": "planned" },
+    { "id": "F012", "title": "POST /api/webhook with HMAC verification", "sprint": 3, "status": "planned" },
+    { "id": "F013", "title": "PITER intent classifier for webhook events", "sprint": 3, "status": "planned" },
+    { "id": "F014", "title": "Linear webhook integration", "sprint": 3, "status": "planned" },
+    { "id": "F015", "title": "Cron trigger for scheduled analysis", "sprint": 3, "status": "planned" },
+    { "id": "F016", "title": "GET /api/capabilities self-describing endpoint", "sprint": 3, "status": "planned" },
+    { "id": "F017", "title": "Act-Learn-Reuse lesson extraction post-build", "sprint": 4, "status": "planned" },
+    { "id": "F018", "title": "Lesson injection into claude -p spec prompt", "sprint": 4, "status": "planned" },
+    { "id": "F019", "title": "Per-repo leverage-audit.md baseline recording", "sprint": 4, "status": "planned" },
+    { "id": "F020", "title": "MCP get_zte_score trend over time", "sprint": 4, "status": "planned" },
+    { "id": "F021", "title": "Auto-update .harness/handoff.md with session outcome", "sprint": 4, "status": "planned" },
+    { "id": "F022", "title": "ZTE Level 2 promotion gate validation", "sprint": 4, "status": "planned" },
+    { "id": "F023", "title": "TierAgent base class implementation", "sprint": 5, "status": "planned" },
+    { "id": "F024", "title": "Fan-out parallel worker session orchestration", "sprint": 5, "status": "planned" },
+    { "id": "F025", "title": "Session tree persistence (parent→child)", "sprint": 5, "status": "planned" },
+    { "id": "F026", "title": "Opus evaluator merge after fan-out", "sprint": 5, "status": "planned" },
+    { "id": "F027", "title": "Context-compressor at tier boundaries", "sprint": 5, "status": "planned" },
+    { "id": "F028", "title": "BudgetTracker enforcement per tier", "sprint": 5, "status": "planned" }
   ]
 }
 ```
