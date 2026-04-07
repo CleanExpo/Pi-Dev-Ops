@@ -1,24 +1,24 @@
 ```json
 {
-  "projectPurpose": "Pi CEO is a solo DevOps agentic harness that converts a GitHub repo URL and plain-English brief into a fully automated Claude Code execution session — cloning, analysing, building, and pushing results back to GitHub at zero API cost via Claude Max subscription.",
+  "projectPurpose": "Pi CEO is a private solo DevOps tool that turns a GitHub repo URL and plain-English brief into an autonomous Claude Code execution session — cloning, analyzing via 8 structured phases, streaming live output to browser, and pushing results back to GitHub. It eliminates per-token API cost by running entirely within Claude Max subscription.",
   "targetUsers": [
-    "Solo developer / engineering founder (single operator)",
-    "Claude Desktop / CoWork users consuming MCP-exposed analysis outputs",
-    "Board / stakeholders consuming generated board notes and sprint plans"
+    "Solo developer / founder (single user, private tool)",
+    "Engineering team leads reviewing codebases via MCP in Claude Desktop",
+    "Board/stakeholders consuming generated board notes and sprint plans"
   ],
-  "businessLogic": "Two distinct execution paths: (1) Backend path — browser POSTs to FastAPI → asyncio task clones repo, shells out to `claude -p` subprocess inside Claude Max, streams stdout over WebSocket, pushes commits to GitHub. Auth is HMAC-signed cookie with SHA-256 password, rate-limited 30 req/min. Max 3 concurrent sessions, all in-memory (lost on restart). (2) Dashboard path — Next.js on Vercel runs 8 sequential SSE-streamed analysis phases via `claude` CLI (ANALYSIS_MODE=cli) or Anthropic SDK (ANALYSIS_MODE=api); each phase outputs JSON parsed by `applyPhaseResult` in `dashboard/lib/phases.ts`; results committed to a `pidev/analysis-YYYYMMDD` branch and a PR opened. ZTE maturity scored on 12 leverage points (1-5 each, total 12-60); current baseline is 35/60 (Assisted band). MCP server reads `.harness/` files to expose analysis artefacts to Claude Desktop tools.",
+  "businessLogic": "Dual execution modes: CLI (Claude Max, zero cost) via `claude -p` subprocess OR SDK (Anthropic API key, billed). 8 analysis phases run sequentially against fetched repo context: Inventory → Architecture → Code Quality → Context → Gap Analysis → Enhancement Plan → Executive Summary → Commit & Push. Each phase outputs structured JSON parsed into AnalysisResult. ZTE maturity scored 12–60 across 12 Leverage Points (bands: Manual/Assisted/Autonomous/ZTE). Session security enforced via HMAC-signed tokens, HttpOnly cookies, 30 req/min rate limit. Results persisted to `.harness/` on analysis branch, PR auto-created. MCP server exposes 6 tools to Claude Desktop reading from `.harness/`.",
   "currentState": "alpha",
   "keyInsights": [
-    "SPLIT SYSTEM — two completely separate UIs (app/static/ backend UI on :7777, Next.js dashboard on Vercel) with no shared auth or state. Backend sessions are ephemeral; dashboard sessions are localStorage-only. This is by design but creates a fragmented UX.",
-    "CORE INTELLIGENCE IS DELEGATED — src/tao/ is stub scaffolding only (agents/__init__.py is empty, skills.py missing). All AI execution flows through `claude -p` CLI subprocess. Python engine exists only as future scaffolding.",
-    "ZERO-COST ARBITRAGE — the entire value proposition depends on Claude Max subscription making `claude -p` free. ANALYSIS_MODE=api fallback bills Anthropic API and undermines the cost model.",
-    "LEVERAGE SCORE 35/60 (Assisted) — weakest points are Error Recovery (2/5), Session Continuity (2/5), Quality Gating (2/5), Trigger Automation (2/5), Knowledge Retention (2/5). One threshold point below Autonomous (36). Fixing session persistence (P1-A) alone could tip it.",
-    "SECURITY SURFACE — SESSION_SECRET regenerates on restart if not set via env var, invalidating all live sessions. Rate-limit dict `_req_log` in auth.py has unbounded memory growth. Workspace directories in app/workspaces/ accumulate without GC (no cleanup_session() call wired to completion).",
-    "PHASE 8 IS NOT A REAL CLAUDE PHASE — dashboard/lib/phases.ts phase 8 runs no AI; it just commits harness files and opens a PR. The prompt exists but `applyPhaseResult` has no case 8 handler. This is intentional but confusing.",
-    "DUAL README PROBLEM — claude.md (root) is a blank template stub; CLAUDE.md (root) is the authoritative context document. Both exist, creating confusion for Claude Code sessions that pick up the wrong file.",
-    "MCP SERVER READS LOCAL .harness/ — mcp/pi-ceo-server.js reads files from the local filesystem path. When the dashboard runs on Vercel, it writes .harness/ to the analysis branch on GitHub, not the local disk. The MCP tools will return stale/missing data unless the user manually pulls the branch.",
-    "NO TEST COVERAGE — zero test files across the entire codebase. No CI pipeline. No quality gate before merge.",
-    "NEXT.JS VERSION MISMATCH — package.json specifies next@^16.2.2 but the stable Next.js series as of 2025 is 14.x/15.x. Version 16 is a pre-release/canary. This could cause subtle build issues on Vercel."
+    "The core intelligence deliberately bypasses Python orchestration — shells out to `claude -p` CLI to run inside Claude Max context (zero token cost). src/tao/ Python engine is stub scaffolding only, never called by the web server.",
+    "Two separate UIs exist: app/static/index.html (minimal backend UI at :7777, handles build sessions) and dashboard/ Next.js app (rich analysis UI on Vercel). They are NOT connected — dashboard talks to GitHub directly, backend talks to local Claude CLI.",
+    "Leverage audit baseline is 35/60 (Assisted band), just 1 point below Autonomous threshold. Weakest: Error Recovery, Session Continuity, Quality Gating, Trigger Automation, Knowledge Retention — all scored 2/5.",
+    "Session state is purely in-memory (_sessions dict in sessions.py) — lost on restart. No persistence. This is the single highest-impact technical debt item (P1-A fix is a simple JSON file write).",
+    "Rate limiter has an unbounded memory leak: _req_log in auth.py accumulates IP entries indefinitely. No background cleanup task exists.",
+    "dashboard/.env.example only exposes NEXT_PUBLIC_API_URL but dashboard/README.md requires ANTHROPIC_API_KEY, GITHUB_TOKEN, TELEGRAM_BOT_TOKEN — the example is incomplete for onboarding.",
+    "sessions.py line ~180 has a cosmetic bug: `if 'af' in dir()` should be `if 'af' in locals()` — `dir()` returns class attributes, not local variables. The file count in the summary block may silently fail.",
+    "MCP server reads .harness/ files from local filesystem — it cannot access analysis results produced by Vercel dashboard (which writes to GitHub). There is a disconnect: dashboard → GitHub → .harness/ (not synced locally unless git pulled).",
+    "next.config.ts CSP allows `unsafe-eval` in script-src which weakens XSS protection — inconsistent with the stated security posture.",
+    "The `ceo-mode` skill exists in skills/ but is missing from the tao-skills master index in _deploy.py, creating a discrepancy in the 23-skill count documentation."
   ]
 }
 ```
