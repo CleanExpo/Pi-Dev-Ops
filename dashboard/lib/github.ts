@@ -31,11 +31,16 @@ export async function createBranch(
   const { data: ref } = await octokit.git.getRef({
     owner, repo, ref: `heads/${fromBranch}`,
   });
-  await octokit.git.createRef({
-    owner, repo,
-    ref: `refs/heads/${branchName}`,
-    sha: ref.object.sha,
-  });
+  try {
+    await octokit.git.createRef({
+      owner, repo,
+      ref: `refs/heads/${branchName}`,
+      sha: ref.object.sha,
+    });
+  } catch (err: unknown) {
+    if ((err as { status?: number }).status === 422) return; // branch already exists — reuse it
+    throw err;
+  }
 }
 
 export interface RepoFile {
