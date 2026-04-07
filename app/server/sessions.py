@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 from . import config
 from . import persistence
+from .brief import classify_intent, build_structured_brief
 
 @dataclass
 class BuildSession:
@@ -148,7 +149,10 @@ async def run_build(session, brief="", model="sonnet", intent=""):
     persistence.save_session(session)
     if not brief:
         brief = "Analyze this codebase fully. Read every skill in skills/. Read the engine in src/tao/. Produce a detailed analysis in .harness/spec.md. Suggest improvements. Git commit changes."
-    spec = f"You are Pi CEO orchestrator on Claude Max.\nProject: {session.repo_url}\nTASK:\n{brief}\nRULES:\n- Show your thinking\n- After changes: git add -A && git commit -m 'message'\n- At the end write a summary of what you did and what to do next"
+    # Classify intent and build structured spec
+    resolved_intent = intent or classify_intent(brief)
+    em(session, "system", f"  Intent: {resolved_intent.upper()}")
+    spec = build_structured_brief(brief, resolved_intent, session.repo_url)
     try:
         cmd = [config.CLAUDE_CMD, "-p", spec, "--model", model, "--verbose", "--output-format", "stream-json"]
         em(session, "tool", f"  $ claude --model {model} --verbose --stream-json")
