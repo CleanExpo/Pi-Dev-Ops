@@ -14,6 +14,9 @@ class BuildSession:
     status: str = "created"
     output_lines: list = field(default_factory=list)
     error: Optional[str] = None
+    evaluator_enabled: bool = True
+    evaluator_status: str = "pending"
+    evaluator_score: Optional[float] = None
 
 _sessions = {}
 def get_session(sid): return _sessions.get(sid)
@@ -92,7 +95,7 @@ def parse_event(line, session):
         cost = evt.get("cost_usd")
         if cost: em(session, "metric", f"  Cost: ${cost:.4f}")
 
-async def run_build(session, brief="", model="sonnet"):
+async def run_build(session, brief="", model="sonnet", intent=""):
     em(session, "phase", "  Pi CEO Solo DevOps Tool")
     em(session, "system", f"  Session: {session.id}")
     em(session, "system", f"  Repo:    {session.repo_url}")
@@ -173,7 +176,77 @@ async def run_build(session, brief="", model="sonnet"):
         session.status = "failed"
         persistence.save_session(session)
         return
-    em(session, "phase", "[5/5] Pushing to GitHub...")
+    # ── Phase 4.5: Evaluator tier (optional) ─────────────────────────────────
+    if session.evaluator_enabled and config.EVALUATOR_ENABLED:
+        total_phases = 6
+        em(session, "phase", f"[5/{total_phases}] Running Evaluator...")
+        session.status = "evaluating"
+        session.evaluator_status = "running"
+        persistence.save_session(session)
+        try:
+            # Get the diff of what Claude changed
+            rc, diff_out, _ = await run_cmd(session.workspace, "git", "diff", "HEAD~1", "--stat", timeout=10)
+            rc2, diff_full, _ = await run_cmd(session.workspace, "git", "diff", "HEAD~1", timeout=30)
+            diff_context = diff_full[:8000] if diff_full else "(no diff available)"
+
+            eval_spec = (
+                "You are a code evaluator. Grade the following changes on 4 dimensions "
+                "(each scored 1-10):\n"
+                "1. Completeness — does it address the full brief?\n"
+                "2. Correctness — are there bugs, logic errors, or security issues?\n"
+                "3. Conciseness — is the code clean without unnecessary bloat?\n"
+                "4. Format compliance — follows project conventions and style?\n\n"
+                "DIFF SUMMARY:\n" + (diff_out or "(empty)") + "\n\n"
+                "DIFF DETAIL (truncated):\n" + diff_context + "\n\n"
+                "OUTPUT FORMAT: Respond with exactly 4 lines, one per dimension:\n"
+                "COMPLETENESS: <score>/10 — <reason>\n"
+                "CORRECTNESS: <score>/10 — <reason>\n"
+                "CONCISENESS: <score>/10 — <reason>\n"
+                "FORMAT: <score>/10 — <reason>\n"
+                "Then a final line: OVERALL: <average>/10 — PASS or FAIL (threshold: "
+                + str(config.EVALUATOR_THRESHOLD) + "/10)"
+            )
+            eval_cmd = [config.CLAUDE_CMD, "-p", eval_spec, "--model", config.EVALUATOR_MODEL, "--output-format", "text"]
+            em(session, "tool", f"  $ claude --model {config.EVALUATOR_MODEL} (evaluator)")
+            eval_proc = await asyncio.create_subprocess_exec(
+                *eval_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, cwd=session.workspace
+            )
+            eval_out, eval_err = await asyncio.wait_for(eval_proc.communicate(), timeout=120)
+            eval_text = eval_out.decode("utf-8", errors="replace").strip()
+
+            # Parse overall score from output
+            for line in eval_text.split("\n"):
+                em(session, "agent", f"  {line.strip()[:200]}")
+                if line.upper().startswith("OVERALL:"):
+                    try:
+                        score_str = line.split(":")[1].strip().split("/")[0].strip()
+                        session.evaluator_score = float(score_str)
+                    except (ValueError, IndexError):
+                        pass
+
+            if session.evaluator_score is not None:
+                passed = session.evaluator_score >= config.EVALUATOR_THRESHOLD
+                session.evaluator_status = "passed" if passed else "warned"
+                status_msg = "PASS" if passed else "BELOW THRESHOLD (non-blocking)"
+                em(session, "success" if passed else "error",
+                   f"  Evaluator: {session.evaluator_score}/10 — {status_msg}")
+            else:
+                session.evaluator_status = "error"
+                em(session, "error", "  Evaluator: could not parse score")
+            persistence.save_session(session)
+        except asyncio.TimeoutError:
+            session.evaluator_status = "timeout"
+            em(session, "error", "  Evaluator timed out (120s)")
+            persistence.save_session(session)
+        except Exception as e:
+            session.evaluator_status = "error"
+            em(session, "error", f"  Evaluator error: {e}")
+            persistence.save_session(session)
+    else:
+        total_phases = 5
+
+    # ── Phase: Push to GitHub ──────────────────────────────────────────────────
+    em(session, "phase", f"[{total_phases}/{total_phases}] Pushing to GitHub...")
     try:
         rc, out, _ = await run_cmd(session.workspace, "git", "status", "--porcelain")
         if out.strip():
@@ -207,13 +280,13 @@ async def run_build(session, brief="", model="sonnet"):
     em(session, "system", f"    Files: {len(af) if 'af' in locals() else '?'}")
     em(session, "success", "  === SESSION COMPLETE ===")
 
-async def create_session(repo_url, brief="", model="sonnet"):
+async def create_session(repo_url, brief="", model="sonnet", evaluator_enabled=True, intent=""):
     if len(_sessions) >= config.MAX_CONCURRENT_SESSIONS:
         raise RuntimeError("Max sessions reached")
-    session = BuildSession(repo_url=repo_url, started_at=time.time())
+    session = BuildSession(repo_url=repo_url, started_at=time.time(), evaluator_enabled=evaluator_enabled)
     _sessions[session.id] = session
     persistence.save_session(session)
-    asyncio.create_task(run_build(session, brief, model))
+    asyncio.create_task(run_build(session, brief, model, intent=intent))
     return session
 
 async def kill_session(sid):

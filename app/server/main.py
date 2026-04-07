@@ -93,10 +93,12 @@ async def build(request: Request):
     repo_url = body.get("repo_url", "").strip()
     brief = body.get("brief", "").strip()
     model = body.get("model", "sonnet").strip()
+    evaluator_enabled = body.get("evaluator_enabled", config.EVALUATOR_ENABLED)
+    intent = body.get("intent", "").strip()
     if not repo_url: raise HTTPException(400, "repo_url required")
     if not repo_url.startswith(("https://", "git@")): raise HTTPException(400, "Invalid URL")
     if model not in config.ALLOWED_MODELS: raise HTTPException(400, f"model must be {config.ALLOWED_MODELS}")
-    try: session = await create_session(repo_url, brief, model)
+    try: session = await create_session(repo_url, brief, model, evaluator_enabled=evaluator_enabled, intent=intent)
     except RuntimeError as e: raise HTTPException(429, str(e))
     return {"session_id": session.id, "status": session.status}
 
@@ -152,7 +154,7 @@ async def ws_build(websocket: WebSocket, sid: str):
             for line in current:
                 await websocket.send_json(line)
             last = len(session.output_lines)
-            if session.status not in ("created", "cloning", "building"):
+            if session.status not in ("created", "cloning", "building", "evaluating"):
                 for line in session.output_lines[last:]:
                     await websocket.send_json(line)
                 await websocket.send_json({"type": "done", "text": f"Session {session.status}", "status": session.status})

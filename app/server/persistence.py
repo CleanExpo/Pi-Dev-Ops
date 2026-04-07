@@ -40,6 +40,8 @@ def save_session(session) -> None:
         "status": session.status,
         "error": session.error,
         "output_line_count": len(session.output_lines),
+        "evaluator_status": getattr(session, "evaluator_status", "pending"),
+        "evaluator_score": getattr(session, "evaluator_score", None),
         "saved_at": time.time(),
     }
     target = _path(session.id)

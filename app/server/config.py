@@ -16,4 +16,9 @@ WORKSPACE_ROOT = os.environ.get("TAO_WORKSPACE", os.path.join(os.path.dirname(__
 LOG_DIR = os.environ.get("TAO_LOGS", os.path.join(os.path.dirname(__file__), "..", "logs"))
 GC_MAX_AGE = int(os.environ.get("TAO_GC_MAX_AGE", "14400"))   # 4 hours default
 LESSONS_FILE = os.environ.get("TAO_LESSONS", os.path.join(os.path.dirname(__file__), "..", "..", ".harness", "lessons.jsonl"))
+EVALUATOR_ENABLED = os.environ.get("TAO_EVALUATOR_ENABLED", "true").lower() == "true"
+EVALUATOR_MODEL = os.environ.get("TAO_EVALUATOR_MODEL", "sonnet")
+EVALUATOR_THRESHOLD = int(os.environ.get("TAO_EVALUATOR_THRESHOLD", "7"))
+WEBHOOK_SECRET = os.environ.get("TAO_WEBHOOK_SECRET", "")
+LINEAR_WEBHOOK_SECRET = os.environ.get("TAO_LINEAR_WEBHOOK_SECRET", "")
 for d in [WORKSPACE_ROOT, LOG_DIR]: os.makedirs(d, exist_ok=True)
