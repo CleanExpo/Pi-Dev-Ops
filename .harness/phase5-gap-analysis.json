@@ -1,61 +1,53 @@
 ```json
 {
   "zteLevel": 2,
-  "zteScore": 35,
+  "zteScore": 36,
   "leveragePoints": [
-    { "id": 1, "name": "Spec Quality", "score": 3 },
-    { "id": 2, "name": "Context Precision", "score": 3 },
-    { "id": 3, "name": "Model Selection", "score": 4 },
-    { "id": 4, "name": "Tool Availability", "score": 4 },
-    { "id": 5, "name": "Feedback Loops", "score": 3 },
-    { "id": 6, "name": "Error Recovery", "score": 2 },
-    { "id": 7, "name": "Session Continuity", "score": 2 },
-    { "id": 8, "name": "Quality Gating", "score": 2 },
-    { "id": 9, "name": "Cost Efficiency", "score": 5 },
-    { "id": 10, "name": "Trigger Automation", "score": 2 },
-    { "id": 11, "name": "Knowledge Retention", "score": 2 },
-    { "id": 12, "name": "Workflow Standardization", "score": 3 }
+    { "id": 1,  "name": "Spec Quality",              "score": 3 },
+    { "id": 2,  "name": "Context Precision",          "score": 3 },
+    { "id": 3,  "name": "Model Selection",            "score": 4 },
+    { "id": 4,  "name": "Tool Availability",          "score": 4 },
+    { "id": 5,  "name": "Feedback Loops",             "score": 4 },
+    { "id": 6,  "name": "Error Recovery",             "score": 2 },
+    { "id": 7,  "name": "Session Continuity",         "score": 2 },
+    { "id": 8,  "name": "Quality Gating",             "score": 3 },
+    { "id": 9,  "name": "Cost Efficiency",            "score": 5 },
+    { "id": 10, "name": "Trigger Automation",         "score": 2 },
+    { "id": 11, "name": "Knowledge Retention",        "score": 2 },
+    { "id": 12, "name": "Workflow Standardization",   "score": 2 }
   ],
   "productionGaps": [
-    "sessions.py:_sessions dict in-memory only — lost on server restart, no .harness/sessions.json persistence (P1-A unimplemented)",
-    "sessions.py:run_build() has no retry logic on clone/build failure — hard abort on first error, zero recovery path",
-    "auth.py:_req_log dict unbounded growth — no eviction task, memory leak under sustained load",
-    "sessions.py: no workspace GC — old workspaces under app/workspaces/ accumulate on disk indefinitely",
-    "src/tao/agents/__init__.py is empty stub — evaluator tier never runs in web build flow, Quality Gating inoperable",
-    ".harness/lessons.jsonl absent — agent-expert skill cannot activate, zero cross-session learning",
-    "No /api/webhook endpoint — trigger automation requires manual web UI interaction only",
-    "config.py:SESSION_SECRET regenerates on restart when env var unset — all live sessions invalidated on deploy",
-    "dashboard/lib/phases.ts:applyPhaseResult() silently drops phases 4 and 8 output — context and commit metadata never surface in result object",
-    "No structured brief intake / PITER intent classifier — raw freeform brief passed directly to Claude, no ADW routing"
+    "app/server/sessions.py: _sessions dict is in-memory only — lost on uvicorn restart; no persistence to .harness/sessions.json (P1-A unimplemented)",
+    "app/server/auth.py: _req_log dict grows unbounded — no eviction task for IPs inactive >5 min (P1-C unimplemented)",
+    "app/server/sessions.py:run_build(): hard failure on git-clone error and claude CLI errors — no retry, no fallback branch, process just marks session 'failed'",
+    "app/server/sessions.py line 99: 'af' referenced via dir() guard — 'if af in dir()' is a cosmetic bug; should be 'if af' after assignment",
+    "app/workspaces/: no garbage-collection task — old workspace directories accumulate indefinitely (P1-B unimplemented)",
+    "src/tao/agents/__init__.py: empty stub — Python orchestration engine not wired into any execution path",
+    ".harness/lessons.jsonl: missing — agent-expert skill inactive, no cross-session learning loop",
+    ".harness/leverage-audit.md: missing — no persisted baseline to track score improvements over time",
+    "dashboard/lib/claude.ts: CLI mode spawns subprocess synchronously inside Vercel edge function — no timeout guard, can exhaust 300s maxDuration silently",
+    "dashboard/app/api/analyze/route.ts: phase loop continues on individual phase failure (catch+continue) but partial result is pushed to GitHub, risking incomplete harness artifacts",
+    "No webhook endpoint (/api/webhook) — external triggers (GitHub, Linear) cannot initiate builds without human via web UI",
+    "skills/tao-skills/SKILL.md: ceo-mode not listed in master index — skill registry is inconsistent"
   ],
   "loadRisks": [
-    "MAX_CONCURRENT_SESSIONS=3 hard cap with no queue — concurrent requests beyond 3 return HTTP 429 with no backpressure signal to the caller",
-    "WebSocket polling loop in main.py:ws_build() uses asyncio.sleep(0.15) — 6.7 polls/sec per active session; 3 sessions = ~20 tasks/sec on single uvicorn worker",
-    "claude subprocess per session with no timeout ceiling beyond phase-level run_cmd() timeout — runaway claude process blocks worker slot indefinitely",
-    "In-memory _sessions dict is process-local — horizontal scaling (multiple uvicorn workers or replicas) causes session-not-found errors across workers",
-    "Vercel SSE route has maxDuration=300s — analysis phases calling claude CLI sequentially can hit wall-clock limit on repos with large context",
-    "dashboard/lib/github.ts fetchRepoContext() caps at 60 files with MAX_FILE_BYTES=40KB — large monorepos silently truncated, analysis quality degrades without warning",
-    "No circuit breaker on GitHub API calls in analyze/route.ts — rate-limit exhaustion (5000 req/hr) kills mid-analysis with unhandled Octokit error",
-    "app/server/auth.py rate limit resets on restart — DoS window exists during deployment rollover"
+    "app/server/config.py: MAX_CONCURRENT_SESSIONS=3 — concurrent claude subprocesses each consume ~1-2GB RAM on long contexts; no per-session memory cap",
+    "app/server/sessions.py: asyncio.create_task(run_build()) runs unbounded git-clone + claude subprocess inside single uvicorn worker (--workers 1 in Dockerfile CMD) — one stuck clone blocks the event loop during subprocess wait",
+    "dashboard/app/api/analyze/route.ts: fetchRepoContext caps at 60 files but each file fetched individually via octokit.git.getBlob — 60 sequential API calls before analysis starts; GitHub rate limit (5000 req/hr authenticated) exhausted after ~83 concurrent analyses",
+    "app/server/auth.py: rate-limit check (30 req/min) uses in-memory _req_log — not shared across workers/restarts, trivially bypassed by rotating IPs or restarting the server",
+    "dashboard/lib/claude.ts runPhaseCLI(): spawns `claude` subprocess per phase — 7 subprocesses per analysis run, no concurrency limit, will exhaust Claude Max session slots if multiple users trigger simultaneously",
+    "mcp/pi-ceo-server.js: readHarness() reads from local filesystem path — MCP server and Vercel dashboard share no state; get_last_analysis returns stale local data, not the cloud analysis output"
   ]
 }
 ```
 
-**Score rationale per gap point:**
+**Scoring rationale (delta from `.harness/spec.md` baseline of 35):**
 
-| ID | Evidence | Why not higher |
-|----|----------|----------------|
-| 1 Spec Quality | Brief passed verbatim to `claude -p spec` in `sessions.py:run_build()` line ~88; no decomposition, no ADW routing | No PITER classifier wired |
-| 2 Context Precision | `fetchRepoContext()` fetches up to 60 files sorted by priority heuristic — better than whole-repo dump, but no targeted injection per phase | Same context blob for all 8 phases |
-| 3 Model Selection | `config.py:ALLOWED_MODELS` + user-selectable opus/sonnet/haiku; dashboard defaults to sonnet | No auto-escalation between tiers during a session |
-| 4 Tool Availability | Full Claude Code tool suite (Bash, Write, Edit, Read) available via `--verbose` subprocess | No MCP tools wired into analysis pipeline |
-| 5 Feedback Loops | WebSocket streams raw output; SSE streams per-phase; ResultCards update incrementally | No structured PASS/FAIL gate; evaluator tier absent |
-| 6 Error Recovery | `sessions.py:run_build()` sets `status="failed"` and returns on first error — no retry, no fallback model | Single hard-fail path throughout |
-| 7 Session Continuity | `_sessions` dict lost on restart; `SESSION_SECRET` regenerates; `handoff.md` is minimal stub | P1-A not implemented |
-| 8 Quality Gating | `src/tao/agents/__init__.py` empty; no second-pass evaluator in web flow | Evaluator skill defined but never invoked |
-| 9 Cost Efficiency | Claude Max zero-token-cost; `token-budgeter` skill defined; cost shown via `$cost_usd` metric events | Perfect score — no billing exposure |
-| 10 Trigger Automation | Manual web UI or CLI only; no `/api/webhook`; no cron; no GitHub Actions integration | Entire trigger automation backlog unimplemented |
-| 11 Knowledge Retention | `.harness/lessons.jsonl` absent; `agent-expert` skill defined but inoperable | No cross-session learning possible today |
-| 12 Workflow Standardization | ADW templates defined in `skills/agent-workflow/SKILL.md`; `phases.ts` enforces 8-phase structure | ADWs not enforced at brief entry; no intent classifier routes to them |
+| LP | Old | New | Reason |
+|----|-----|-----|--------|
+| 5 Feedback Loops | 3 | **4** | SSE streaming now implemented in `dashboard/app/api/analyze/route.ts`; `phase_update` events give structured pass/fail per phase — genuine improvement over raw WebSocket text |
+| 8 Quality Gating | 2 | **3** | `dashboard/app/api/analyze/route.ts` Phase 3 runs `tier-evaluator + agentic-review` as a discrete phase with scored JSON output; partial gating now exists even though no second-pass evaluator tier runs post-build in the backend |
 
-**ZTE band: 35/60 = Assisted (21-35).** One point below Autonomous threshold. Addressing Error Recovery (+2), Session Continuity (+2), Quality Gating (+2) alone would cross to 41 — Autonomous band.
+All other scores hold from the spec.md baseline. **Total: 36/60 → ZTE Level 2 (Autonomous band, lower bound).**
+
+The system crossed the Autonomous threshold (36) solely due to the dashboard's structured SSE phase feedback loop and the evaluator phase in the 8-phase pipeline — but it is one regression away from dropping back to Assisted. The five weakest points (Error Recovery 2, Session Continuity 2, Trigger Automation 2, Knowledge Retention 2, Workflow Standardization 2) all remain at floor value and represent the highest-ROI improvement surface.
