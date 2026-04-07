@@ -5,7 +5,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from .auth import verify_password, create_session_token, verify_session_token, require_auth, require_rate_limit
-from .sessions import create_session, get_session, list_sessions, kill_session, restore_sessions
+from .sessions import create_session, get_session, list_sessions, kill_session, restore_sessions, _sessions
+from .gc import collect_garbage, gc_loop
 from . import config
 
 app = FastAPI(title="Pi CEO", docs_url=None, redoc_url=None, openapi_url=None)
@@ -13,6 +14,7 @@ app = FastAPI(title="Pi CEO", docs_url=None, redoc_url=None, openapi_url=None)
 @app.on_event("startup")
 async def on_startup():
     restore_sessions()
+    asyncio.create_task(gc_loop(_sessions))
     print("[startup] Pi CEO ready.")
 
 # True when deployed on Railway (or any cloud with this env var set)
@@ -104,6 +106,11 @@ async def get_sessions(): return list_sessions()
 async def stop_session(sid: str):
     if not await kill_session(sid): raise HTTPException(404, "Not found")
     return {"ok": True}
+
+@app.post("/api/gc", dependencies=[Depends(require_auth)])
+async def run_gc():
+    result = collect_garbage(_sessions)
+    return result
 
 @app.websocket("/ws/build/{sid}")
 async def ws_build(websocket: WebSocket, sid: str):

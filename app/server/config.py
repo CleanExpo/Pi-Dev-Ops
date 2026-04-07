@@ -14,4 +14,6 @@ MAX_CONCURRENT_SESSIONS = int(os.environ.get("TAO_MAX_SESSIONS", "3"))
 RATE_LIMIT_PER_MIN = int(os.environ.get("TAO_RATE_LIMIT", "30"))
 WORKSPACE_ROOT = os.environ.get("TAO_WORKSPACE", os.path.join(os.path.dirname(__file__), "..", "workspaces"))
 LOG_DIR = os.environ.get("TAO_LOGS", os.path.join(os.path.dirname(__file__), "..", "logs"))
+GC_MAX_AGE = int(os.environ.get("TAO_GC_MAX_AGE", "14400"))   # 4 hours default
+LESSONS_FILE = os.environ.get("TAO_LESSONS", os.path.join(os.path.dirname(__file__), "..", "..", ".harness", "lessons.jsonl"))
 for d in [WORKSPACE_ROOT, LOG_DIR]: os.makedirs(d, exist_ok=True)
