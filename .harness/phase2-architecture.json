@@ -9,11 +9,11 @@
     "React 19",
     "TypeScript",
     "Tailwind CSS",
-    "Node.js 20",
+    "Claude Max (Opus 4.6 / Sonnet 4.6 / Haiku 4.5)",
     "@anthropic-ai/sdk",
     "@octokit/rest",
-    "Docker",
-    "MCP (stdio JSON-RPC 2.0)"
+    "Node.js 20",
+    "Docker"
   ],
   "pattern": "other",
   "entryPoints": [
@@ -21,7 +21,8 @@
     "dashboard/app/page.tsx",
     "dashboard/app/(main)/dashboard/page.tsx",
     "dashboard/app/api/analyze/route.ts",
-    "mcp/pi-ceo-server.js"
+    "mcp/pi-ceo-server.js",
+    "app/run.ps1"
   ],
   "keyDependencies": [
     "fastapi>=0.111",
@@ -32,9 +33,10 @@
     "next@^16.2.2",
     "react@^19.0.0",
     "@anthropic-ai/sdk@^0.36.3",
-    "@octokit/rest@^21.0.2"
+    "@octokit/rest@^21.0.2",
+    "tailwindcss@^3.4.17"
   ],
-  "dataFlow": "Browser → Next.js API route (/api/analyze, SSE GET) → fetchRepoContext via Octokit → runPhase via Claude CLI subprocess or Anthropic SDK → SSE events streamed back → result pushed to GitHub branch via Octokit → PR created. Parallel path: Browser → FastAPI backend (POST /api/build) → asyncio subprocess (claude -p) → WebSocket /ws/build/{sid} stream. MCP path: Claude Desktop → stdio JSON-RPC → mcp/pi-ceo-server.js → reads .harness/ files.",
-  "architectureNotes": "Dual-runtime hybrid: a FastAPI backend (app/server/) handles authenticated build sessions with WebSocket streaming of claude CLI output, while a Next.js 16 app (dashboard/) independently runs 8 analysis phases via SSE — both ultimately shelling out to the claude CLI subprocess to stay within Claude Max (zero API cost). The src/tao/ Python engine is stub scaffolding only and is not invoked by either runtime path. A third integration surface is the MCP stdio server (mcp/pi-ceo-server.js) that exposes .harness/ artefacts to Claude Desktop without any HTTP layer."
+  "dataFlow": "Browser → Next.js dashboard (Vercel) → SSE stream via /api/analyze → Octokit fetches repo context → Claude CLI subprocess (claude -p) or SDK streams 8-phase analysis output → results pushed to GitHub branch via Octokit → PR created. Separately: Browser → FastAPI backend (localhost:7777) → POST /api/build → asyncio task → git clone → claude -p subprocess → WebSocket stream → git push. MCP server reads .harness/ files and exposes them to Claude Desktop via stdio JSON-RPC.",
+  "architectureNotes": "Dual-surface architecture: a FastAPI backend (localhost or Docker) handles agentic build sessions via WebSocket streaming, while a Next.js 16 app (Vercel) runs 8-phase repo analysis via SSE using either the claude CLI or Anthropic SDK. All AI execution is deliberately delegated to the claude CLI subprocess to run inside the Claude Max subscription at zero token cost — the Python src/tao/ orchestration engine is scaffolded but not yet wired into any execution path. A stdio JSON-RPC 2.0 MCP server bridges Claude Desktop to .harness/ analysis artifacts."
 }
 ```
