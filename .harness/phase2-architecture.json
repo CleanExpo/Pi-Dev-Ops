@@ -1,0 +1,40 @@
+```json
+{
+  "techStack": [
+    "Python 3.11+",
+    "FastAPI",
+    "Uvicorn",
+    "WebSockets",
+    "Next.js 16",
+    "React 19",
+    "TypeScript",
+    "Tailwind CSS",
+    "Node.js 20",
+    "@anthropic-ai/sdk",
+    "@octokit/rest",
+    "Docker",
+    "MCP (stdio JSON-RPC 2.0)"
+  ],
+  "pattern": "other",
+  "entryPoints": [
+    "app/server/main.py",
+    "dashboard/app/page.tsx",
+    "dashboard/app/(main)/dashboard/page.tsx",
+    "dashboard/app/api/analyze/route.ts",
+    "mcp/pi-ceo-server.js"
+  ],
+  "keyDependencies": [
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "websockets>=12",
+    "httpx>=0.27",
+    "pyyaml>=6",
+    "next@^16.2.2",
+    "react@^19.0.0",
+    "@anthropic-ai/sdk@^0.36.3",
+    "@octokit/rest@^21.0.2"
+  ],
+  "dataFlow": "Browser → Next.js API route (/api/analyze, SSE GET) → fetchRepoContext via Octokit → runPhase via Claude CLI subprocess or Anthropic SDK → SSE events streamed back → result pushed to GitHub branch via Octokit → PR created. Parallel path: Browser → FastAPI backend (POST /api/build) → asyncio subprocess (claude -p) → WebSocket /ws/build/{sid} stream. MCP path: Claude Desktop → stdio JSON-RPC → mcp/pi-ceo-server.js → reads .harness/ files.",
+  "architectureNotes": "Dual-runtime hybrid: a FastAPI backend (app/server/) handles authenticated build sessions with WebSocket streaming of claude CLI output, while a Next.js 16 app (dashboard/) independently runs 8 analysis phases via SSE — both ultimately shelling out to the claude CLI subprocess to stay within Claude Max (zero API cost). The src/tao/ Python engine is stub scaffolding only and is not invoked by either runtime path. A third integration surface is the MCP stdio server (mcp/pi-ceo-server.js) that exposes .harness/ artefacts to Claude Desktop without any HTTP layer."
+}
+```
