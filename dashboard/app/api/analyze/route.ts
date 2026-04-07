@@ -58,10 +58,10 @@ export async function GET(req: NextRequest) {
         send("line", termLine);
         // Persist fire-and-forget
         if (supabase && (controller as unknown as { desiredSize: number | null }).desiredSize !== null) {
-          supabase.from("terminal_lines").insert({
+          void supabase.from("terminal_lines").insert({
             session_id: resolvedSessionId,
             type, text, ts: termLine.ts, seq: lineSeq++,
-          }).then(() => {}).catch(() => {});
+          });
         }
       };
 
@@ -89,11 +89,11 @@ export async function GET(req: NextRequest) {
           await supabase.from("sessions").insert({
             id: resolvedSessionId, repo_url: repoUrl, repo_name: repo,
             status: "running", trigger,
-          }).catch(() => {});
+          })
 
           await supabase.from("phase_states").insert(
             PHASES.map((p) => ({ session_id: resolvedSessionId, phase_id: p.id, status: "pending" }))
-          ).catch(() => {});
+          )
         }
 
         // ── Branch ───────────────────────────────────────────────
@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
           send("phase_update", { phaseId: phase.id, status: "running" satisfies PhaseStatus });
           if (supabase) {
             supabase.from("phase_states").update({ status: "running", started_at: new Date() })
-              .eq("session_id", resolvedSessionId).eq("phase_id", phase.id).then(() => {}).catch(() => {});
+              .eq("session_id", resolvedSessionId).eq("phase_id", phase.id);
           }
           line("phase", `[${phase.id}/8] ${phase.name}`);
           line("system", `  Skill: ${phase.skill}`);
@@ -134,7 +134,7 @@ export async function GET(req: NextRequest) {
             send("phase_update", { phaseId: phase.id, status: "error" satisfies PhaseStatus });
             if (supabase) {
               supabase.from("phase_states").update({ status: "error", done_at: new Date() })
-                .eq("session_id", resolvedSessionId).eq("phase_id", phase.id).then(() => {}).catch(() => {});
+                .eq("session_id", resolvedSessionId).eq("phase_id", phase.id);
             }
             continue;
           }
@@ -144,7 +144,7 @@ export async function GET(req: NextRequest) {
           send("phase_update", { phaseId: phase.id, status: "done" satisfies PhaseStatus });
           if (supabase) {
             supabase.from("phase_states").update({ status: "done", done_at: new Date() })
-              .eq("session_id", resolvedSessionId).eq("phase_id", phase.id).then(() => {}).catch(() => {});
+              .eq("session_id", resolvedSessionId).eq("phase_id", phase.id);
           }
           line("success", `  Phase ${phase.id} complete`);
           line("system", "");
@@ -152,7 +152,7 @@ export async function GET(req: NextRequest) {
           // Push phase output to GitHub branch
           const fileName = `.harness/phase${phase.id}-${phase.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.json`;
           await pushFile(octokit, owner, repo, branchName, fileName, phaseOutput,
-            `audit: phase ${phase.id} — ${phase.name}`).catch(() => {});
+            `audit: phase ${phase.id} — ${phase.name}`)
         }
 
         // ── Phase 8: Commit harness + create PR ──────────────────
@@ -191,7 +191,7 @@ export async function GET(req: NextRequest) {
           supabase.from("sessions").update({
             status: "done", branch: branchName, pr_url: prUrl,
             completed_at: new Date(), result,
-          }).eq("id", resolvedSessionId).then(() => {}).catch(() => {});
+          }).eq("id", resolvedSessionId);
         }
 
         send("done", { sessionId: resolvedSessionId, branch: branchName, prUrl, result });
@@ -202,7 +202,7 @@ export async function GET(req: NextRequest) {
         send("error", { message: msg });
         if (supabase) {
           supabase.from("sessions").update({ status: "error", completed_at: new Date() })
-            .eq("id", resolvedSessionId).then(() => {}).catch(() => {});
+            .eq("id", resolvedSessionId);
         }
       } finally {
         controller.close();

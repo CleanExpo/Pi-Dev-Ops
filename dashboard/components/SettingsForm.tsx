@@ -29,7 +29,7 @@ function Badge({ set }: { set: boolean }) {
   );
 }
 
-function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
+function Field({ label, children, hint }: { label: React.ReactNode; children: React.ReactNode; hint?: string }) {
   return (
     <div className="flex flex-col gap-1.5">
       <label className="font-mono text-[9px] uppercase tracking-widest" style={{ color: "#C8C5C0" }}>
@@ -213,7 +213,3 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-// Allow JSX in label prop
-declare module "react" {
-  interface HTMLAttributes<T> { label?: React.ReactNode }
-}

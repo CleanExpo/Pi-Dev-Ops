@@ -15,10 +15,9 @@ export function getAnalysisMode(): "cli" | "api" {
   return "cli";
 }
 
-export function makeClient(): Anthropic | null {
-  if (getAnalysisMode() === "cli") return null;
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("ANTHROPIC_API_KEY is not set. Add it to your Vercel environment variables.");
+export function makeClient(apiKey?: string): Anthropic | null {
+  const key = apiKey || process.env.ANTHROPIC_API_KEY;
+  if (!key) return null;
   return new Anthropic({ apiKey: key });
 }
 
