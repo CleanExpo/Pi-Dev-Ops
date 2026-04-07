@@ -1,0 +1,78 @@
+```json
+{
+  "headline": "Pi CEO is a solo-developer agentic harness that turns a GitHub URL and plain-English brief into a fully-executed Claude Code session — cloning, building, and pushing back to GitHub at zero API cost via Claude Max.",
+  "currentState": "Functional but fragile. The core loop (clone → claude -p → WebSocket stream → push) works end-to-end. The Next.js dashboard (Vercel) runs 8 structured analysis phases with SSE streaming and pushes .harness/ artefacts to a PR branch. The FastAPI backend handles auth, sessions, and subprocess management with solid security headers and HMAC tokens. However, the system sits at ZTE Level 1 (Leverage Score 35/60 — Assisted band, one point below Autonomous). Five leverage points score 2/5: Error Recovery, Session Continuity, Quality Gating, Trigger Automation, and Knowledge Retention. The src/tao/agents/__init__.py engine is an empty stub — all intelligence delegates to the CLI subprocess. Session state is in-memory only (lost on restart). No evaluator tier runs post-build. The _req_log rate-limit dict has an unbounded memory leak. No workspace garbage collection. The .harness/lessons.jsonl agent-expert knowledge base is missing.",
+  "strengths": [
+    "Zero API cost architecture: shells out to claude CLI inside Claude Max subscription — $0/token regardless of session length.",
+    "Clean security posture: HMAC-signed tokens, HttpOnly cookies, CSP headers, timing-safe password comparison, rate limiting — all implemented correctly in app/server/auth.py.",
+    "Dual-mode execution: ANALYSIS_MODE env var switches between CLI (Max plan) and SDK (API key) without code changes — smart escape hatch.",
+    "23 well-defined skills across 4 layers give the system a coherent methodology vocabulary that is already embedded in phase prompts and MCP tools.",
+    "MCP server (mcp/pi-ceo-server.js) provides first-class Claude Desktop integration — board notes, sprint plans, and ZTE scores available via natural language in Cowork.",
+    "Live SSE streaming dashboard with phase tracker, result cards, and actions panel gives real-time visibility that most agentic tools lack.",
+    "scripts/analyze.sh provides a zero-dependency CLI fallback — full 8-phase analysis without the browser UI."
+  ],
+  "weaknesses": [
+    "In-memory sessions (app/server/sessions.py _sessions dict): any backend restart wipes all active and historical session state — no persistence layer exists.",
+    "src/tao/agents/__init__.py is empty: the Python orchestration engine is scaffolding only — no multi-tier fan-out, no evaluator pass, no skill injection at runtime.",
+    "Rate-limit memory leak: _req_log in app/server/auth.py appends IP timestamps forever with no eviction — leaks unboundedly under load.",
+    "No workspace garbage collection: app/workspaces/ accumulates every cloned repo indefinitely — disk exhaustion risk on long-running instances.",
+    "No evaluator tier in the build flow: claude output is never graded before the push step — Quality Gating scores 2/5.",
+    ".harness/lessons.jsonl missing: the agent-expert Act-Learn-Reuse cycle cannot activate — Knowledge Retention scores 2/5.",
+    "SESSION_SECRET regenerates on restart if not set via env — invalidates all active sessions silently.",
+    "dashboard/.env.example only documents NEXT_PUBLIC_API_URL — ANALYSIS_MODE, ANTHROPIC_API_KEY, GITHUB_TOKEN, TELEGRAM_BOT_TOKEN are absent, making first-time setup error-prone.",
+    "ceo-mode skill is missing from the tao-skills master index (skills/tao-skills/SKILL.md lists only 21 skills, not 23)."
+  ],
+  "risks": [
+    "Single point of failure: claude CLI availability. If claude is not in PATH or the Max subscription lapses, every build session silently fails with no fallback or alert — app/server/sessions.py line ~80.",
+    "Cloud deployment gap: TAO_ALLOWED_ORIGINS must be manually set for any domain beyond the two hardcoded Vercel URLs — any new deployment breaks auth silently until env var is updated.",
+    "Workspace disk exhaustion: no TTL or GC on app/workspaces/ — on a Railway/Render instance with a small ephemeral disk, this will eventually crash the backend.",
+    "Session token invalidation on restart: SESSION_SECRET auto-generates (app/server/config.py) — every backend redeploy logs out all users with no warning.",
+    "No webhook or CI trigger: all builds are manually initiated — the system cannot respond to GitHub push events, Linear tickets, or scheduled runs without P2-B implementation."
+  ],
+  "opportunities": [
+    "Session persistence (P1-A): writing _sessions to .harness/sessions.json on state change requires ~30 lines of code and pushes Leverage Score from 35 to 37 — crossing the Autonomous threshold.",
+    "Evaluator tier (P2-A): a second claude -p pass post-build using tier-evaluator dimensions would activate Quality Gating (2→4) and make the system self-correcting without human review.",
+    "Webhook trigger (P2-B): a signed POST /api/webhook endpoint parsing GitHub/Linear events → ADW selection → session creation would push Trigger Automation from 2 to 4 and enable ZTE Level 2.",
+    "Activate agent-expert: seeding .harness/lessons.jsonl from this analysis and injecting top-5 lessons per build brief is a single-session task that activates the entire Act-Learn-Reuse loop.",
+    "Fix rate-limit leak (P1-C): a 5-line background asyncio task evicting stale IPs from _req_log eliminates the only production stability risk in the auth layer.",
+    "Skill loader (src/tao/skills.py): parsing all 23 SKILL.md frontmatter files and injecting relevant skill context into build briefs would make the methodology self-reinforcing — every session gets the right skill loaded automatically."
+  ],
+  "nextActions": [
+    {
+      "action": "Implement session persistence: write _sessions to .harness/sessions.json on every state change, load on startup in app/server/sessions.py.",
+      "why": "Pushes Leverage Score from 35 to 37 — crosses Autonomous threshold. Eliminates restart data loss. One session of work.",
+      "effort": "S"
+    },
+    {
+      "action": "Fix rate-limit memory leak: add asyncio background task in app/server/auth.py to evict IPs not seen in >5 minutes from _req_log.",
+      "why": "Production stability. Currently leaks unboundedly. 5-line fix.",
+      "effort": "S"
+    },
+    {
+      "action": "Add workspace GC: on session status='complete' or 'failed', schedule shutil.rmtree of session.workspace after 24h TTL.",
+      "why": "Prevents disk exhaustion on cloud deployments. Required before any Railway/Render production use.",
+      "effort": "S"
+    },
+    {
+      "action": "Seed .harness/lessons.jsonl with lessons extracted from this analysis run, and wire app/server/sessions.py to inject top-5 relevant lessons into every build brief.",
+      "why": "Activates agent-expert skill. Knowledge Retention 2→3. Every future session improves from prior runs.",
+      "effort": "S"
+    },
+    {
+      "action": "Add evaluator tier post-build: after claude -p completes in run_build(), spawn a second claude -p eval pass using tier-evaluator dimensions. Gate git push on evaluator PASS.",
+      "why": "Quality Gating 2→4. Stops broken builds from reaching GitHub. Core autonomous quality loop.",
+      "effort": "M"
+    },
+    {
+      "action": "Implement POST /api/webhook with GitHub/Linear signature verification, event-to-ADW mapping, and automatic session creation.",
+      "why": "Trigger Automation 2→4. Enables ZTE Level 2. System responds to real work events without human prompt.",
+      "effort": "M"
+    },
+    {
+      "action": "Update dashboard/.env.example to document all required env vars (ANALYSIS_MODE, ANTHROPIC_API_KEY, GITHUB_TOKEN, TELEGRAM_BOT_TOKEN) and add them to CLAUDE.md onboarding steps.",
+      "why": "Eliminates first-run setup failures. Zero-code change, high onboarding impact.",
+      "effort": "S"
+    }
+  ]
+}
+```
