@@ -1,0 +1,45 @@
+```json
+{
+  "totalFiles": 58,
+  "languages": {
+    "TypeScript": 2850,
+    "Python": 820,
+    "JavaScript": 410,
+    "HTML": 380,
+    "CSS": 120,
+    "Shell": 95,
+    "YAML": 45,
+    "Markdown": 40,
+    "TOML": 15
+  },
+  "topFiles": [
+    "dashboard/package-lock.json",
+    "app/static/index.html",
+    "_deploy.py",
+    ".harness/spec.md",
+    "app/server/sessions.py",
+    "dashboard/app/api/analyze/route.ts",
+    "dashboard/lib/claude.ts",
+    "mcp/pi-ceo-server.js",
+    "dashboard/app/(main)/dashboard/page.tsx",
+    "dashboard/lib/github.ts"
+  ],
+  "frameworks": [
+    "Next.js 16",
+    "React 19",
+    "FastAPI",
+    "Tailwind CSS",
+    "Uvicorn",
+    "@anthropic-ai/sdk",
+    "@octokit/rest"
+  ],
+  "entryPoints": [
+    "app/server/main.py",
+    "dashboard/app/page.tsx",
+    "dashboard/app/(main)/dashboard/page.tsx",
+    "mcp/pi-ceo-server.js",
+    "scripts/analyze.sh",
+    "_deploy.py"
+  ]
+}
+```
