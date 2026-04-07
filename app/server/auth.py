@@ -21,8 +21,19 @@ def verify_session_token(token):
     except: return False
 
 _req_log = {}
+_last_gc: float = 0.0
+_GC_INTERVAL: float = 300.0  # purge stale IPs every 5 minutes
+
 def check_rate_limit(ip):
+    global _last_gc
     now = time.time()
+    # Inline GC: purge IP keys with no requests in the last 120 seconds.
+    # Runs at most once per _GC_INTERVAL to stay cheap on hot paths.
+    if now - _last_gc > _GC_INTERVAL:
+        _last_gc = now
+        stale = [k for k, v in _req_log.items() if not v or now - v[-1] > 120]
+        for k in stale:
+            del _req_log[k]
     _req_log.setdefault(ip, [])
     _req_log[ip] = [t for t in _req_log[ip] if now - t < 60]
     if len(_req_log[ip]) >= config.RATE_LIMIT_PER_MIN: return False
