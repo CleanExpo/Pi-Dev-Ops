@@ -1,154 +1,145 @@
 ```json
 {
   "scores": {
-    "completeness": 6,
-    "correctness": 7,
+    "completeness": 7,
+    "correctness": 6,
     "codeQuality": 5,
-    "documentation": 8
+    "documentation": 7
   },
   "issues": [
     {
       "severity": "high",
       "file": "app/server/sessions.py",
-      "description": "Bug at line ~200: `'af' in dir()` is used to check if variable `af` exists. `dir()` returns class/module attributes, not local variables. Should be `'af' in locals()` or restructure so `af` is always defined before the summary block."
+      "description": "Bug at line ~220: `if 'af' in dir()` uses dir() instead of locals(). 'af' is a local variable and dir() returns module/class/instance attributes, not local scope. Should be `if 'af' in locals()`. This means the file count in the session summary will always show '?' even when af is populated."
     },
     {
       "severity": "high",
       "file": "app/server/auth.py",
-      "description": "`_req_log` dict grows unbounded. IPs are never evicted. Under sustained load from many unique IPs (or a scan), this is an unbounded memory leak. Spec acknowledges this (P1-C) but it remains unimplemented."
+      "description": "_req_log dict grows unbounded. IPs are never evicted — only per-IP windows are trimmed. A burst of unique IPs will leak memory indefinitely. No background cleanup task exists (acknowledged in spec as P1-C but not implemented)."
     },
     {
       "severity": "high",
       "file": "app/server/sessions.py",
-      "description": "`_sessions` dict is never pruned. Completed/failed sessions accumulate in memory forever. `cleanup_session()` is defined but never called anywhere in the codebase."
-    },
-    {
-      "severity": "high",
-      "file": "app/server/auth.py",
-      "description": "Session token is raw JSON in the payload field (line: `payload = json.dumps(...)`). The payload is not base64-encoded or otherwise opaque — it leaks `iat`/`exp` timestamps in plaintext to the client and is trivially readable. Standard practice is base64url encoding."
+      "description": "_sessions dict is in-memory only with no persistence. Server restart loses all session state. No GC for old workspace directories — disk accumulates on every build. Both known (spec P1-A, P1-B) but unimplemented."
     },
     {
       "severity": "high",
       "file": "dashboard/app/api/analyze/route.ts",
-      "description": "`ghToken` is accepted as a query parameter (`?token=`). Query params appear in server logs, browser history, and referrer headers. The GitHub PAT is leaked to any proxy or logging layer. Should be a request header or POST body only."
+      "description": "GitHub token passed as a query parameter (?token=ghp_...). Tokens in URLs appear in server logs, proxy logs, browser history, and Referer headers. Should be passed as Authorization header or POST body."
     },
     {
       "severity": "high",
       "file": "dashboard/app/api/telegram/route.ts",
-      "description": "Telegram bot token is validated by comparing `searchParams.get('token')` to `process.env.TELEGRAM_BOT_TOKEN`. This means the bot token appears in the webhook URL and in server access logs. Telegram recommends a separate secret token via `X-Telegram-Bot-Api-Secret-Token` header instead."
+      "description": "Telegram webhook authentication uses token comparison via string equality in URL query param (searchParams.get('token') !== token). Bot token leaks in server access logs. No HMAC signature verification of the Telegram payload (X-Telegram-Bot-Api-Secret-Token header)."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/config.py",
+      "description": "SESSION_SECRET regenerates on every restart when env var is not set (secrets.token_hex(32) called at module load). All existing sessions are invalidated on restart — documented in spec but not mitigated. The env var is named TAO_SESSION_SECRET in config.py but SESSION_SECRET in README/docs — naming inconsistency."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/auth.py",
+      "description": "create_session_token() calls hmac.new() which is not a standard Python hmac API — should be hmac.new(key, msg, digestmod) but the stdlib function is hmac.new(), which is correct. However the token format is raw JSON payload + '.' + hex sig, not URL-safe. The payload contains unescaped characters that could cause issues if the token is passed in headers or URLs without encoding."
     },
     {
       "severity": "medium",
       "file": "app/server/sessions.py",
-      "description": "`run_build()` uses a bare `except Exception` with no re-raise and no structured logging beyond `em(session, 'error', ...)`. Swallowed exceptions make debugging production failures very difficult. Specific exception types should be caught; unexpected exceptions should at minimum log a traceback."
+      "description": "run_build() mixes concerns: cloning, workspace management, Claude invocation, git push, and summary generation all in one 130-line async function. No sub-function decomposition. Violates SRP and makes testing impossible."
     },
     {
       "severity": "medium",
       "file": "app/server/sessions.py",
-      "description": "Git operations in `[5/5] Pushing to GitHub` have no credential mechanism. In Docker/cloud the git push will fail silently (error is caught and swallowed in the outer `except Exception`). No SSH key or GITHUB_TOKEN injection is present in the Dockerfile or run flow."
-    },
-    {
-      "severity": "medium",
-      "file": "app/server/main.py",
-      "description": "WebSocket handler at `/ws/build/{sid}` polls `session.output_lines` in a busy-loop with `asyncio.sleep(0.15)`. This is a polling anti-pattern. Should use an `asyncio.Queue` per session so the WebSocket handler awaits new messages instead of spinning."
-    },
-    {
-      "severity": "medium",
-      "file": "dashboard/app/api/analyze/route.ts",
-      "description": "`sanitizeRepoUrl()` strips http/https prefix then unconditionally prepends `https://`. A URL like `http://evil.com/path?repo=https://github.com/...` passes the regex check because it matches `https://github.com` anywhere in the string after reconstruction. The regex should anchor to the full URL, not use a substring search."
+      "description": "em() (emit message) is a cryptic function name. parse_event() uses bare `except:` on line ~55 which swallows all exceptions silently. Multiple bare `except` blocks throughout sessions.py suppress errors without logging."
     },
     {
       "severity": "medium",
       "file": "dashboard/lib/claude.ts",
-      "description": "`runPhaseCLI()` passes the full repo context (up to 60 files × 40KB = ~2.4MB) as a CLI argument string. CLI arg length is OS-limited (~2MB on Linux, less on some systems). Large repos will silently truncate or crash the subprocess."
+      "description": "runPhaseCLI() spawns child_process.spawn() in a Next.js API route running on Vercel. Vercel serverless functions cannot spawn persistent subprocesses — claude CLI will not be available. The CLI mode is non-functional on Vercel. The fallback in actions/route.ts also uses spawn(). This is a deployment correctness bug."
+    },
+    {
+      "severity": "medium",
+      "file": "dashboard/app/api/analyze/route.ts",
+      "description": "Phase 8 (COMMIT & PREVIEW) is hardcoded outside the PHASES loop (only slices 0-7 of PHASES array). The phase_update event for phaseId 8 is sent manually. This breaks the DRY loop pattern and means PHASES[7] (id:8) is never processed through applyPhaseResult()."
     },
     {
       "severity": "medium",
       "file": "dashboard/lib/phases.ts",
-      "description": "`applyPhaseResult()` casts parsed JSON fields with `as Type` and no runtime validation. If Claude returns malformed JSON that passes `tryParseJson`, downstream rendering will receive unexpected types (e.g. `quality` being a string instead of `QualityScores`). A runtime schema check (e.g. zod) is needed."
+      "description": "applyPhaseResult() for phase 7 maps nextActions as (parsed.nextActions as Array<{action:string}>).map(a => a.action). If Claude returns nextActions as string[] (which the prompt allows), this produces undefined for each element. Type mismatch between prompt schema and parser."
     },
     {
       "severity": "medium",
       "file": "dashboard/hooks/useSSE.ts",
-      "description": "SSE `error` event handler attempts `JSON.parse((e as MessageEvent).data ?? '{}')`. The native EventSource `onerror` fires with a plain `Event`, not a `MessageEvent` — `e.data` will be `undefined`. The cast is incorrect; this error path silently falls through to `onerror` instead."
+      "description": "EventSource error handler parses (e as MessageEvent).data — SSE onerror events do not carry a data payload. JSON.parse of undefined/null will throw. The catch is absent, meaning a network drop could throw an unhandled exception in state update."
     },
     {
       "severity": "medium",
-      "file": "app/server/config.py",
-      "description": "`SESSION_SECRET` is generated with `secrets.token_hex(32)` at import time if the env var is absent. Every server restart invalidates all existing sessions. This is documented as a known issue but the fix (persist to `.harness/` or require the env var) is not implemented."
+      "file": "mcp/pi-ceo-server.js",
+      "description": "MCP server reads .harness/ from local filesystem only (HARNESS_DIR path). When analysing external repos via the Vercel dashboard, harness files are written to GitHub branches — not to the local .harness/ dir. The MCP tools will return stale or missing data for any dashboard-run analysis. The analyze_repo tool listed in the file header comment does not appear in TOOLS array — dead documentation."
     },
     {
       "severity": "medium",
       "file": "_deploy.py",
-      "description": "Bootstrap script hard-codes `ROOT = r'C:\\Pi Dev Ops'` and uses `open(f, 'w').write(c)` (file handle never explicitly closed). The path makes this script non-portable and the unclosed handle is a resource leak, though CPython reference counting masks it."
+      "description": "Bootstrap script uses open(f, 'w').write(c) without context manager — file handles not explicitly closed. ROOT path is hardcoded to Windows path r'C:\\Pi Dev Ops', making this non-portable. Script overwrites pyproject.toml with a version missing FastAPI and other runtime deps (only httpx and pyyaml listed), contradicting the actual pyproject.toml in the repo."
     },
     {
       "severity": "medium",
-      "file": "app/server/main.py",
-      "description": "CSP `script-src` includes `'unsafe-inline'` and the backend serves a static HTML frontend that uses inline `<script>` blocks extensively (`app/static/index.html`). This negates XSS protection for the backend UI. Inline scripts should be moved to external files with a nonce or hash."
-    },
-    {
-      "severity": "low",
-      "file": "app/server/sessions.py",
-      "description": "Function `em()` is named with a cryptic abbreviation. It appends to `output_lines` — a name like `append_line()` or `emit()` would communicate intent. Similarly `run_cmd()` shadows the stdlib concept; `exec_cmd()` is more precise."
-    },
-    {
-      "severity": "low",
-      "file": "app/server/sessions.py",
-      "description": "The `parse_event()` function is 60+ lines with deeply nested `if/elif` chains handling multiple Claude stream event types. Should be decomposed into per-type handler functions (e.g. `_handle_assistant()`, `_handle_tool_result()`)."
-    },
-    {
-      "severity": "low",
-      "file": "app/server/auth.py",
-      "description": "`hmac.new(...)` should be `hmac.new(...)` — this is correct Python but the variable name `sig` is reused for both the expected and computed HMAC in `verify_session_token()`, making the code harder to audit for timing-safe correctness."
-    },
-    {
-      "severity": "low",
       "file": "dashboard/app/(main)/dashboard/page.tsx",
-      "description": "`sanitize()` replaces `<>\"&` characters but is only applied to the `repo` string before passing to `start()`. The SSE URL is constructed server-side in `route.ts` which does its own validation. The client-side sanitize is redundant with `sanitizeRepoUrl()` and creates a false sense of security."
+      "description": "sanitize() function strips <, >, \", & from repo URL but does not validate URL structure. A malformed URL passes sanitization and is sent to the API. URL validation belongs in the API layer (analyze/route.ts already does this), but the client-side sanitize() gives false confidence."
+    },
+    {
+      "severity": "low",
+      "file": "app/server/sessions.py",
+      "description": "cleanup_session() function is defined but never called anywhere. Old workspace directories accumulate on disk. The function exists as dead code."
     },
     {
       "severity": "low",
       "file": "dashboard/app/api/actions/route.ts",
-      "description": "CLI fallback in `POST /api/actions` wraps `spawn()` in a `new Promise()` inside an `async` function, mixing callback and async patterns. Should use `util.promisify` or the `execAsync` pattern consistently."
+      "description": "github_issues action slices gaps to 5 (gaps.slice(0, 5)) with no user feedback that truncation occurred. Silent data loss. Individual issue creation failures are silently skipped (catch with no logging)."
     },
     {
       "severity": "low",
-      "file": "mcp/pi-ceo-server.js",
-      "description": "`https` and `http` are imported at the top of `pi-ceo-server.js` but never used. Dead imports."
+      "file": "dashboard/components/ResultCards.tsx",
+      "description": "Bar component hardcodes 10 segments. For ZTE score (max 60) this component is not used — but the pattern is inconsistent. Values > max would produce negative repeat counts for the empty segments (Math.round(61/10) = 7 → negative for 10-7 segments only if value exceeds max)."
     },
     {
       "severity": "low",
-      "file": "src/tao/agents/__init__.py",
-      "description": "Completely empty stub. The `src/tao/` module is not called by any runtime path. Its existence creates a false impression of a working orchestration layer. Should either be removed or have a clear `raise NotImplementedError` with a pointer to the roadmap."
+      "file": "dashboard/app/(main)/layout.tsx",
+      "description": "NAV active detection uses exact path match (path === href). Navigation to /dashboard sub-routes or /chat/something would not highlight the correct nav item. Should use path.startsWith(href) for robustness."
     },
     {
       "severity": "low",
-      "file": "dashboard/app/api/analyze/route.ts",
-      "description": "Phase 4 result (`applyPhaseResult` case 4) is parsed but nothing from it (`projectPurpose`, `targetUsers`, etc.) is stored on the `result` object. The case returns `result` unchanged. Phase 4 data is silently dropped."
+      "file": "app/server/main.py",
+      "description": "WebSocket handler (ws_build) has a race condition: session.output_lines may be appended to between the 'current = session.output_lines[last:]' read and the 'last = len(session.output_lines)' update. Lines could be missed or double-sent in high-throughput scenarios. Use a copy or index-based approach."
+    },
+    {
+      "severity": "low",
+      "file": "app/static/index.html",
+      "description": "All JavaScript is inline in index.html with no CSP nonce. The SecurityHeaders middleware sets script-src 'self' 'unsafe-inline' which allows XSS via injected scripts. The static frontend bypasses the stricter CSP applied to the Next.js dashboard."
     }
   ],
   "missingTests": [
-    "auth.py: verify_password, create_session_token, verify_session_token — no unit tests for token forgery, expiry, or timing-safe comparison",
-    "sessions.py: run_build() — no integration tests for clone failure, Claude CLI not found, push failure, timeout paths",
-    "main.py: WebSocket authentication — no test that a missing/invalid token results in code 4001 close",
-    "main.py: rate limiting — no test that the 30 req/min ceiling is enforced per IP",
-    "dashboard/lib/phases.ts: applyPhaseResult() — no tests for malformed Claude output, missing fields, or unexpected types",
-    "dashboard/lib/github.ts: parseRepoUrl() — no tests for edge-case URLs (trailing slash, .git suffix, SSH format)",
-    "dashboard/hooks/useSSE.ts: SSE event wiring — no tests for connection loss, malformed events, or partial phase completions",
-    "mcp/pi-ceo-server.js: tool dispatch — no tests for missing harness files, malformed JSON-RPC, or unknown tool names"
+    "app/server/auth.py — verify_password, create_session_token, verify_session_token, check_rate_limit (zero test coverage on security-critical code)",
+    "app/server/sessions.py — run_build() lifecycle, parse_event() JSON parsing, kill_session() subprocess termination",
+    "dashboard/lib/phases.ts — applyPhaseResult() for all 8 phase IDs, tryParseJson() with malformed/markdown-wrapped JSON",
+    "dashboard/lib/github.ts — parseRepoUrl() edge cases (SSH URLs, trailing slash, .git suffix), fetchRepoContext() file prioritization and cap",
+    "dashboard/hooks/useSSE.ts — SSE event dispatch, state transitions (idle→running→done, idle→running→error)",
+    "dashboard/lib/claude.ts — runPhaseCLI() error handling (non-zero exit code, spawn failure), CLI vs SDK mode selection",
+    "mcp/pi-ceo-server.js — dispatch() routing, callTool() for all 6 tools, readHarness() missing file fallback",
+    "Integration: full analyze flow (GitHub fetch → phase loop → harness push → PR creation)",
+    "Security: rate limiting enforcement, HMAC token tamper detection, session expiry"
   ],
   "securityConcerns": [
-    "GitHub PAT transmitted as URL query parameter (?token=) in /api/analyze — exposed in server logs, browser history, and Referrer headers",
-    "Telegram bot token used as URL secret (?token=) — same exposure vector; should use X-Telegram-Bot-Api-Secret-Token header",
-    "Session token payload is unencoded plaintext JSON — `iat`/`exp` are readable by any client with cookie access; base64url encoding at minimum is expected",
-    "CSP script-src 'unsafe-inline' on both backend (main.py SecurityHeaders) and dashboard (next.config.ts) — neutralises XSS protection",
-    "CSP connect-src in next.config.ts includes https://*.vercel.app (wildcard) — allows exfiltration to any attacker-controlled *.vercel.app subdomain",
-    "rate_limit _req_log is in-memory and resets on restart — an attacker can bypass the rate limit by triggering a server restart or waiting for a deploy",
-    "No CSRF protection on /api/login, /api/build, /api/sessions/{sid}/kill — SameSite=Strict mitigates for same-origin but not for cross-origin requests from the Vercel dashboard when _IS_CLOUD=True and SameSite=None is set",
-    "Workspace directories are never garbage-collected — a malicious brief could trigger a disk exhaustion DoS on the backend host",
-    "claude CLI is invoked with user-supplied `brief` string injected directly into the prompt spec without sanitisation — prompt injection is the intended use but the brief is not length-limited beyond FastAPI body size",
-    "Docker image installs Node.js via nodesource curl|bash pattern — supply chain risk; should pin the nodesource GPG key and Node version"
+    "GitHub token (ghp_*) transmitted as URL query parameter in SSE request (/api/analyze?token=...) — visible in server logs, proxy logs, browser history, Referer headers. Move to Authorization header.",
+    "Telegram bot token used as URL-based auth (?token=BOT_TOKEN) — same log exposure risk. Should use X-Telegram-Bot-Api-Secret-Token header with HMAC validation per Telegram docs.",
+    "SESSION_SECRET auto-generation at module import (config.py) means it changes on every cold start when env var is not set. In cloud deployments with ephemeral containers this invalidates all sessions on scale events.",
+    "CSP in next.config.ts includes 'unsafe-eval' in script-src — required by Next.js dev mode but should be removed in production builds. No environment distinction.",
+    "app/static/index.html served with 'unsafe-inline' script-src — the entire frontend JS is inline, negating XSS protection. No nonce or hash-based CSP.",
+    "Rate limit state (_req_log in auth.py) is per-process in-memory. With multiple uvicorn workers (--workers N) or multiple Docker replicas, each worker has independent state — effective rate limit multiplies by worker count.",
+    "src/tao/agents/__init__.py is empty stub — if the agents module is ever imported and called, it will fail silently or with AttributeError. No guard or NotImplementedError.",
+    "CORS allows all Vercel subdomain previews via specific hardcoded domains but TAO_ALLOWED_ORIGINS accepts arbitrary origins from env var with no validation — could be misconfigured to allow unwanted origins.",
+    "Workspace directories (app/workspaces/) are created for every build session and never automatically deleted — potential disk exhaustion on long-running deployments.",
+    "claude CLI subprocess in sessions.py runs with full process permissions and network access. No sandbox, no resource limits (CPU/memory/disk), no timeout on the Claude execution itself (only git operations have timeouts)."
   ]
 }
 ```
