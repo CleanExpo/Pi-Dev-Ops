@@ -5,16 +5,20 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { RepoFile } from "./github";
 
 // ── Mode detection ────────────────────────────────────────────────────────────
-// ANALYSIS_MODE=cli  → uses `claude -p` subprocess (Claude Max subscription)
-// ANALYSIS_MODE=api  → uses @anthropic-ai/sdk (ANTHROPIC_API_KEY, billed separately)
+// Priority order:
+//   1. ANTHROPIC_API_KEY present → always use API mode (works on Vercel serverless)
+//   2. ANALYSIS_MODE=api explicitly set → use API mode
+//   3. Fallback → CLI mode (local Claude Max subscription via `claude -p`)
 export function getAnalysisMode(): "cli" | "api" {
-  return process.env.ANALYSIS_MODE === "api" ? "api" : "cli";
+  if (process.env.ANTHROPIC_API_KEY) return "api";
+  if (process.env.ANALYSIS_MODE === "api") return "api";
+  return "cli";
 }
 
 export function makeClient(): Anthropic | null {
   if (getAnalysisMode() === "cli") return null;
   const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("ANALYSIS_MODE=api requires ANTHROPIC_API_KEY to be set");
+  if (!key) throw new Error("ANTHROPIC_API_KEY is not set. Add it to your Vercel environment variables.");
   return new Anthropic({ apiKey: key });
 }
 
