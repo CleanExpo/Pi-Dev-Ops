@@ -1,0 +1,15 @@
+{
+  "name": "pi-ceo-mcp",
+  "version": "3.0.0",
+  "private": true,
+  "description": "Pi CEO MCP Server — connects Claude Desktop to Pi CEO analysis engine",
+  "main": "pi-ceo-server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node pi-ceo-server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.25.0"
+  }
+}

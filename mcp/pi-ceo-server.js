@@ -1,146 +1,78 @@
 #!/usr/bin/env node
 /**
- * Pi CEO MCP Server — connects Claude Desktop to Pi CEO analysis engine
+ * Pi CEO MCP Server v3.0.0
+ *
+ * Connects Claude Desktop to Pi CEO analysis engine via stdio JSON-RPC 2.0.
+ * Built on @modelcontextprotocol/sdk — handles protocol framing, Zod
+ * validation, and notification lifecycle correctly (fixes v2.0.0 Zod error).
  *
  * Registered in: %APPDATA%\Claude\claude_desktop_config.json
- * Transport: stdio (JSON-RPC 2.0)
+ * Transport: stdio
  *
- * Tools available in Claude Desktop / CoWork:
- *   - get_last_analysis       — reads .harness/ output from last run
- *   - generate_board_notes    — formats exec summary as board meeting notes
+ * Tools:
+ *   - get_last_analysis       — reads .harness/ spec + executive summary
+ *   - generate_board_notes    — formats analysis as board meeting notes
  *   - get_sprint_plan         — returns prioritised sprint items
  *   - get_feature_list        — returns full feature JSON
- *   - analyze_repo            — triggers new analysis via Pi CEO API
  *   - list_harness_files      — shows what's in .harness/
+ *   - get_zte_score           — returns ZTE maturity score breakdown
  */
 
-const fs   = require("fs");
-const path = require("path");
-const https = require("https");
-const http  = require("http");
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const HARNESS_DIR = process.env.HARNESS_DIR
   || path.join(__dirname, "..", ".harness");
 
-const API_BASE = process.env.PI_CEO_API
-  || "https://dashboard-unite-group.vercel.app";
-
-// ── stdio line-buffered JSON-RPC ─────────────────────────────────────────────
-process.stdin.setEncoding("utf8");
-let buf = "";
-
-process.stdin.on("data", (chunk) => {
-  buf += chunk;
-  const lines = buf.split("\n");
-  buf = lines.pop();
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    try { dispatch(JSON.parse(trimmed)); } catch { /* ignore malformed */ }
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function readHarness(filename) {
+  const p = path.join(HARNESS_DIR, filename);
+  if (!fs.existsSync(p)) {
+    return `${filename} not found in ${HARNESS_DIR}. Run an analysis first at https://dashboard-unite-group.vercel.app/dashboard`;
   }
+  return fs.readFileSync(p, "utf8");
+}
+
+// ── Server setup ─────────────────────────────────────────────────────────────
+const server = new McpServer({
+  name: "pi-ceo",
+  version: "3.0.0",
 });
 
-function send(obj) {
-  process.stdout.write(JSON.stringify(obj) + "\n");
-}
-
-function ok(id, result) {
-  send({ jsonrpc: "2.0", id, result });
-}
-
-function err(id, code, message) {
-  send({ jsonrpc: "2.0", id, error: { code, message } });
-}
-
-// ── Protocol dispatch ────────────────────────────────────────────────────────
-function dispatch(msg) {
-  switch (msg.method) {
-    case "initialize":
-      ok(msg.id, {
-        protocolVersion: "2024-11-05",
-        capabilities: { tools: {} },
-        serverInfo: { name: "pi-ceo", version: "2.0.0" },
-      });
-      break;
-
-    case "initialized":
-      break; // no-op notification
-
-    case "tools/list":
-      ok(msg.id, { tools: TOOLS });
-      break;
-
-    case "tools/call":
-      callTool(msg).catch((e) => err(msg.id, -32603, e.message));
-      break;
-
-    default:
-      ok(msg.id, {});
+// ── Tool: get_last_analysis ──────────────────────────────────────────────────
+server.tool(
+  "get_last_analysis",
+  "Get the full Pi CEO analysis from the last run (spec + executive summary). Use this to answer questions about any recently analysed repository.",
+  {},
+  async () => {
+    const spec = readHarness("spec.md");
+    const exec = readHarness("executive-summary.md");
+    return { content: [{ type: "text", text: `${spec}\n\n---\n\n${exec}` }] };
   }
-}
+);
 
-// ── Tool definitions ─────────────────────────────────────────────────────────
-const TOOLS = [
+// ── Tool: generate_board_notes ───────────────────────────────────────────────
+server.tool(
+  "generate_board_notes",
+  "Generate formatted board meeting notes from the last Pi CEO analysis. Returns a structured document ready to share with stakeholders.",
   {
-    name: "get_last_analysis",
-    description: "Get the full Pi CEO analysis from the last run (spec + executive summary). Use this to answer questions about any recently analysed repository.",
-    inputSchema: { type: "object", properties: {}, required: [] },
+    meeting_date: z.string().optional().describe("ISO date e.g. 2026-04-07. Defaults to today."),
+    attendees: z.string().optional().describe("Comma-separated list of attendees."),
   },
-  {
-    name: "generate_board_notes",
-    description: "Generate formatted board meeting notes from the last Pi CEO analysis. Returns a structured document ready to share with stakeholders.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        meeting_date: { type: "string", description: "ISO date e.g. 2026-04-07. Defaults to today." },
-        attendees: { type: "string", description: "Comma-separated list of attendees." },
-      },
-      required: [],
-    },
-  },
-  {
-    name: "get_sprint_plan",
-    description: "Get the prioritised sprint plan from the last Pi CEO analysis with full task details.",
-    inputSchema: { type: "object", properties: {}, required: [] },
-  },
-  {
-    name: "get_feature_list",
-    description: "Get the full feature list JSON from the last Pi CEO analysis.",
-    inputSchema: { type: "object", properties: {}, required: [] },
-  },
-  {
-    name: "list_harness_files",
-    description: "List all files in the .harness/ directory from the last Pi CEO analysis run.",
-    inputSchema: { type: "object", properties: {}, required: [] },
-  },
-  {
-    name: "get_zte_score",
-    description: "Get the Zero Touch Execution maturity score and leverage point breakdown from the last analysis.",
-    inputSchema: { type: "object", properties: {}, required: [] },
-  },
-];
+  async ({ meeting_date, attendees }) => {
+    const exec = readHarness("executive-summary.md");
+    const spec = readHarness("spec.md");
+    const date = meeting_date || new Date().toISOString().slice(0, 10);
+    const people = attendees ? `\nAttendees: ${attendees}` : "";
 
-// ── Tool execution ───────────────────────────────────────────────────────────
-async function callTool(msg) {
-  const { name, arguments: args = {} } = msg.params;
-
-  switch (name) {
-    case "get_last_analysis": {
-      const spec = readHarness("spec.md");
-      const exec = readHarness("executive-summary.md");
-      ok(msg.id, {
-        content: [{ type: "text", text: `${spec}\n\n---\n\n${exec}` }],
-      });
-      break;
-    }
-
-    case "generate_board_notes": {
-      const exec   = readHarness("executive-summary.md");
-      const spec   = readHarness("spec.md");
-      const date   = args.meeting_date || new Date().toISOString().slice(0, 10);
-      const people = args.attendees ? `\nAttendees: ${args.attendees}` : "";
-
-      const notes = `# Board Meeting Notes — Pi CEO Analysis Review
+    const notes = `# Board Meeting Notes — Pi CEO Analysis Review
 Date: ${date}${people}
 
 ---
@@ -158,58 +90,74 @@ ${spec}
 *Generated by Pi CEO Autonomous Dev Platform*
 *Powered by Claude + TAO Framework*`;
 
-      ok(msg.id, { content: [{ type: "text", text: notes }] });
-      break;
-    }
-
-    case "get_sprint_plan": {
-      const spec = readHarness("spec.md");
-      // Extract sprint section
-      const match = spec.match(/## Sprint Plan([\s\S]*?)(?:\n##|$)/);
-      const sprint = match ? match[1].trim() : spec;
-      ok(msg.id, { content: [{ type: "text", text: sprint }] });
-      break;
-    }
-
-    case "get_feature_list": {
-      const features = readHarness("feature_list.json");
-      ok(msg.id, { content: [{ type: "text", text: features }] });
-      break;
-    }
-
-    case "list_harness_files": {
-      if (!fs.existsSync(HARNESS_DIR)) {
-        ok(msg.id, { content: [{ type: "text", text: "No .harness/ directory found. Run an analysis first at https://dashboard-unite-group.vercel.app/dashboard" }] });
-        break;
-      }
-      const files = fs.readdirSync(HARNESS_DIR)
-        .map((f) => {
-          const stat = fs.statSync(path.join(HARNESS_DIR, f));
-          return `${f} (${Math.round(stat.size / 1024)}KB, ${stat.mtime.toISOString().slice(0, 10)})`;
-        })
-        .join("\n");
-      ok(msg.id, { content: [{ type: "text", text: `Harness files in ${HARNESS_DIR}:\n\n${files}` }] });
-      break;
-    }
-
-    case "get_zte_score": {
-      const spec = readHarness("spec.md");
-      const match = spec.match(/## ZTE Maturity([\s\S]*?)(?:\n##|$)/);
-      const zte = match ? match[1].trim() : "No ZTE data found. Run an analysis first.";
-      ok(msg.id, { content: [{ type: "text", text: `## ZTE Maturity\n\n${zte}` }] });
-      break;
-    }
-
-    default:
-      err(msg.id, -32601, `Unknown tool: ${name}`);
+    return { content: [{ type: "text", text: notes }] };
   }
-}
+);
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-function readHarness(filename) {
-  const p = path.join(HARNESS_DIR, filename);
-  if (!fs.existsSync(p)) {
-    return `${filename} not found in ${HARNESS_DIR}. Run an analysis first at https://dashboard-unite-group.vercel.app/dashboard`;
+// ── Tool: get_sprint_plan ────────────────────────────────────────────────────
+server.tool(
+  "get_sprint_plan",
+  "Get the prioritised sprint plan from the last Pi CEO analysis with full task details.",
+  {},
+  async () => {
+    const spec = readHarness("spec.md");
+    const match = spec.match(/## Sprint Plan([\s\S]*?)(?:\n##|$)/);
+    const sprint = match ? match[1].trim() : spec;
+    return { content: [{ type: "text", text: sprint }] };
   }
-  return fs.readFileSync(p, "utf8");
-}
+);
+
+// ── Tool: get_feature_list ───────────────────────────────────────────────────
+server.tool(
+  "get_feature_list",
+  "Get the full feature list JSON from the last Pi CEO analysis.",
+  {},
+  async () => {
+    const features = readHarness("feature_list.json");
+    return { content: [{ type: "text", text: features }] };
+  }
+);
+
+// ── Tool: list_harness_files ─────────────────────────────────────────────────
+server.tool(
+  "list_harness_files",
+  "List all files in the .harness/ directory from the last Pi CEO analysis run.",
+  {},
+  async () => {
+    if (!fs.existsSync(HARNESS_DIR)) {
+      return {
+        content: [{
+          type: "text",
+          text: "No .harness/ directory found. Run an analysis first at https://dashboard-unite-group.vercel.app/dashboard",
+        }],
+      };
+    }
+    const files = fs.readdirSync(HARNESS_DIR)
+      .filter((f) => !fs.statSync(path.join(HARNESS_DIR, f)).isDirectory())
+      .map((f) => {
+        const stat = fs.statSync(path.join(HARNESS_DIR, f));
+        return `${f} (${Math.round(stat.size / 1024)}KB, ${stat.mtime.toISOString().slice(0, 10)})`;
+      })
+      .join("\n");
+    return {
+      content: [{ type: "text", text: `Harness files in ${HARNESS_DIR}:\n\n${files}` }],
+    };
+  }
+);
+
+// ── Tool: get_zte_score ──────────────────────────────────────────────────────
+server.tool(
+  "get_zte_score",
+  "Get the Zero Touch Execution maturity score and leverage point breakdown from the last analysis.",
+  {},
+  async () => {
+    const spec = readHarness("spec.md");
+    const match = spec.match(/## ZTE Maturity([\s\S]*?)(?:\n##|$)/);
+    const zte = match ? match[1].trim() : "No ZTE data found. Run an analysis first.";
+    return { content: [{ type: "text", text: `## ZTE Maturity\n\n${zte}` }] };
+  }
+);
+
+// ── Start ────────────────────────────────────────────────────────────────────
+const transport = new StdioServerTransport();
+await server.connect(transport);
