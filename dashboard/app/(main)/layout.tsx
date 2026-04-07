@@ -8,6 +8,7 @@ const NAV = [
   { href: "/dashboard", label: "DASHBOARD" },
   { href: "/chat",      label: "CHAT" },
   { href: "/history",   label: "HISTORY" },
+  { href: "/settings",  label: "SETTINGS" },
 ];
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {

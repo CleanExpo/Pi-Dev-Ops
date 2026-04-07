@@ -1,18 +1,20 @@
-// components/Terminal.tsx — Bloomberg-style live terminal output panel
+// components/Terminal.tsx — xterm.js real terminal with Bloomberg aesthetic
 "use client";
 
 import { useEffect, useRef } from "react";
 import type { TermLine, TermLineType } from "@/lib/types";
 
-const COLOR: Record<TermLineType, string> = {
-  phase:   "#E8751A",  // orange — phase headers
-  success: "#4ADE80",  // bright green
-  error:   "#F87171",  // bright red
-  tool:    "#FFD166",  // yellow — tool calls
-  agent:   "#F0EDE8",  // cream — Claude output
-  system:  "#A8A5A0",  // warm gray — system info
-  output:  "#E8E4DE",  // near-cream — stdout
+// ANSI colour codes matching the Bloomberg palette
+const ANSI: Record<TermLineType, string> = {
+  phase:   "\x1b[38;2;232;117;26m",   // #E8751A orange
+  success: "\x1b[38;2;74;222;128m",   // #4ADE80 green
+  error:   "\x1b[38;2;248;113;113m",  // #F87171 red
+  tool:    "\x1b[38;2;255;209;102m",  // #FFD166 yellow
+  agent:   "\x1b[38;2;240;237;232m",  // #F0EDE8 cream
+  system:  "\x1b[38;2;168;165;160m",  // #A8A5A0 warm gray
+  output:  "\x1b[38;2;232;228;222m",  // #E8E4DE near-cream
 };
+const RESET = "\x1b[0m";
 
 const PREFIX: Record<TermLineType, string> = {
   phase:   "▶ ",
@@ -24,20 +26,110 @@ const PREFIX: Record<TermLineType, string> = {
   output:  "  ",
 };
 
+const XTERM_THEME = {
+  background:          "#0C0C0C",
+  foreground:          "#F0EDE8",
+  cursor:              "#E8751A",
+  cursorAccent:        "#0C0C0C",
+  selectionBackground: "#E8751A44",
+  black:               "#0C0C0C",
+  red:                 "#F87171",
+  green:               "#4ADE80",
+  yellow:              "#FFD166",
+  blue:                "#6B8CFF",
+  magenta:             "#C678DD",
+  cyan:                "#56B6C2",
+  white:               "#F0EDE8",
+  brightBlack:         "#888480",
+  brightRed:           "#F87171",
+  brightGreen:         "#4ADE80",
+  brightYellow:        "#FFD166",
+  brightBlue:          "#6B8CFF",
+  brightMagenta:       "#C678DD",
+  brightCyan:          "#56B6C2",
+  brightWhite:         "#FFFFFF",
+};
+
 interface Props {
-  lines: TermLine[];
+  lines:  TermLine[];
   status: "idle" | "running" | "done" | "error";
 }
 
 export default function Terminal({ lines, status }: Props) {
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const mountRef      = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const termRef       = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fitRef        = useRef<any>(null);
+  const renderedRef   = useRef(0);
+  const resizeObsRef  = useRef<ResizeObserver | null>(null);
 
+  // Mount xterm.js once (browser-only dynamic import)
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-    if (atBottom) bottomRef.current?.scrollIntoView();
+    if (!mountRef.current || termRef.current) return;
+
+    let disposed = false;
+    (async () => {
+      const [{ Terminal: XTerm }, { FitAddon }, { WebLinksAddon }] = await Promise.all([
+        import("xterm"),
+        import("xterm-addon-fit"),
+        import("xterm-addon-web-links"),
+      ]);
+
+      if (disposed || !mountRef.current) return;
+
+      const term = new XTerm({
+        theme:        XTERM_THEME,
+        fontFamily:   "'IBM Plex Mono', 'Fira Mono', monospace",
+        fontSize:     12,
+        lineHeight:   1.6,
+        cursorStyle:  "block",
+        cursorBlink:  false,
+        scrollback:   5000,
+        disableStdin: true,
+        convertEol:   true,
+      });
+
+      const fit   = new FitAddon();
+      const links = new WebLinksAddon();
+      term.loadAddon(fit);
+      term.loadAddon(links);
+      term.open(mountRef.current);
+      fit.fit();
+
+      termRef.current = term;
+      fitRef.current  = fit;
+
+      // Write idle hint
+      if (renderedRef.current === 0) {
+        term.write(`${ANSI.system}  Paste a GitHub repo URL above and click ANALYZE to begin.${RESET}\r\n`);
+      }
+
+      // Observe container resize
+      resizeObsRef.current = new ResizeObserver(() => { fit.fit(); });
+      resizeObsRef.current.observe(mountRef.current!);
+    })();
+
+    return () => {
+      disposed = true;
+      resizeObsRef.current?.disconnect();
+      termRef.current?.dispose();
+      termRef.current = null;
+      fitRef.current  = null;
+      renderedRef.current = 0;
+    };
+  }, []);
+
+  // Write only new lines (incremental — never re-render existing)
+  useEffect(() => {
+    const term = termRef.current;
+    if (!term || lines.length === 0) return;
+
+    const newLines = lines.slice(renderedRef.current);
+    for (const l of newLines) {
+      term.write(`${ANSI[l.type]}${PREFIX[l.type]}${l.text.trim()}${RESET}\r\n`);
+    }
+    renderedRef.current = lines.length;
   }, [lines]);
 
   const statusColor =
@@ -48,24 +140,17 @@ export default function Terminal({ lines, status }: Props) {
   return (
     <div className="flex flex-col h-full" style={{ background: "#0C0C0C" }}>
       {/* Title bar */}
-      <div
-        className="flex items-center justify-between px-3 py-1.5 shrink-0"
-        style={{ borderBottom: "1px solid #2A2727" }}
-      >
+      <div className="flex items-center justify-between px-3 py-1.5 shrink-0"
+        style={{ borderBottom: "1px solid #2A2727" }}>
         <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "#C8C5C0" }}>
           terminal output
         </span>
         <div className="flex items-center gap-2">
           {status === "running" && (
-            <span
-              className="inline-block w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: "#E8751A", animation: "pulse 1.5s infinite" }}
-            />
+            <span className="inline-block w-1.5 h-1.5 rounded-full"
+              style={{ backgroundColor: "#E8751A", animation: "pulse 1.5s infinite" }} />
           )}
-          <span
-            className="font-mono text-[9px] uppercase tracking-wider"
-            style={{ color: statusColor }}
-          >
+          <span className="font-mono text-[9px] uppercase tracking-wider" style={{ color: statusColor }}>
             {status}
           </span>
           <span className="font-mono text-[9px]" style={{ color: "#888480" }}>
@@ -74,27 +159,9 @@ export default function Terminal({ lines, status }: Props) {
         </div>
       </div>
 
-      {/* Output */}
-      <div
-        ref={containerRef}
-        className="flex-1 overflow-y-auto px-3 py-2 space-y-px"
-      >
-        {lines.length === 0 && status === "idle" && (
-          <p className="font-mono text-[11px] pt-4" style={{ color: "#888480" }}>
-            Paste a GitHub repo URL above and click ANALYZE to begin.
-          </p>
-        )}
-        {lines.map((line, i) => (
-          <div
-            key={i}
-            className="font-mono text-[12px] leading-[1.6] whitespace-pre-wrap break-all"
-            style={{ color: COLOR[line.type] }}
-          >
-            {PREFIX[line.type]}{line.text.trim()}
-          </div>
-        ))}
-        <div ref={bottomRef} />
-      </div>
+      {/* xterm.js mount point — fills remaining space */}
+      <div ref={mountRef} className="flex-1 min-h-0 px-1 py-1"
+        style={{ background: "#0C0C0C", overflow: "hidden" }} />
     </div>
   );
 }
