@@ -1,0 +1,154 @@
+```json
+{
+  "scores": {
+    "completeness": 6,
+    "correctness": 7,
+    "codeQuality": 5,
+    "documentation": 8
+  },
+  "issues": [
+    {
+      "severity": "high",
+      "file": "app/server/sessions.py",
+      "description": "Bug at line ~200: `'af' in dir()` is used to check if variable `af` exists. `dir()` returns class/module attributes, not local variables. Should be `'af' in locals()` or restructure so `af` is always defined before the summary block."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/auth.py",
+      "description": "`_req_log` dict grows unbounded. IPs are never evicted. Under sustained load from many unique IPs (or a scan), this is an unbounded memory leak. Spec acknowledges this (P1-C) but it remains unimplemented."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/sessions.py",
+      "description": "`_sessions` dict is never pruned. Completed/failed sessions accumulate in memory forever. `cleanup_session()` is defined but never called anywhere in the codebase."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/auth.py",
+      "description": "Session token is raw JSON in the payload field (line: `payload = json.dumps(...)`). The payload is not base64-encoded or otherwise opaque — it leaks `iat`/`exp` timestamps in plaintext to the client and is trivially readable. Standard practice is base64url encoding."
+    },
+    {
+      "severity": "high",
+      "file": "dashboard/app/api/analyze/route.ts",
+      "description": "`ghToken` is accepted as a query parameter (`?token=`). Query params appear in server logs, browser history, and referrer headers. The GitHub PAT is leaked to any proxy or logging layer. Should be a request header or POST body only."
+    },
+    {
+      "severity": "high",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "description": "Telegram bot token is validated by comparing `searchParams.get('token')` to `process.env.TELEGRAM_BOT_TOKEN`. This means the bot token appears in the webhook URL and in server access logs. Telegram recommends a separate secret token via `X-Telegram-Bot-Api-Secret-Token` header instead."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/sessions.py",
+      "description": "`run_build()` uses a bare `except Exception` with no re-raise and no structured logging beyond `em(session, 'error', ...)`. Swallowed exceptions make debugging production failures very difficult. Specific exception types should be caught; unexpected exceptions should at minimum log a traceback."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/sessions.py",
+      "description": "Git operations in `[5/5] Pushing to GitHub` have no credential mechanism. In Docker/cloud the git push will fail silently (error is caught and swallowed in the outer `except Exception`). No SSH key or GITHUB_TOKEN injection is present in the Dockerfile or run flow."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "description": "WebSocket handler at `/ws/build/{sid}` polls `session.output_lines` in a busy-loop with `asyncio.sleep(0.15)`. This is a polling anti-pattern. Should use an `asyncio.Queue` per session so the WebSocket handler awaits new messages instead of spinning."
+    },
+    {
+      "severity": "medium",
+      "file": "dashboard/app/api/analyze/route.ts",
+      "description": "`sanitizeRepoUrl()` strips http/https prefix then unconditionally prepends `https://`. A URL like `http://evil.com/path?repo=https://github.com/...` passes the regex check because it matches `https://github.com` anywhere in the string after reconstruction. The regex should anchor to the full URL, not use a substring search."
+    },
+    {
+      "severity": "medium",
+      "file": "dashboard/lib/claude.ts",
+      "description": "`runPhaseCLI()` passes the full repo context (up to 60 files × 40KB = ~2.4MB) as a CLI argument string. CLI arg length is OS-limited (~2MB on Linux, less on some systems). Large repos will silently truncate or crash the subprocess."
+    },
+    {
+      "severity": "medium",
+      "file": "dashboard/lib/phases.ts",
+      "description": "`applyPhaseResult()` casts parsed JSON fields with `as Type` and no runtime validation. If Claude returns malformed JSON that passes `tryParseJson`, downstream rendering will receive unexpected types (e.g. `quality` being a string instead of `QualityScores`). A runtime schema check (e.g. zod) is needed."
+    },
+    {
+      "severity": "medium",
+      "file": "dashboard/hooks/useSSE.ts",
+      "description": "SSE `error` event handler attempts `JSON.parse((e as MessageEvent).data ?? '{}')`. The native EventSource `onerror` fires with a plain `Event`, not a `MessageEvent` — `e.data` will be `undefined`. The cast is incorrect; this error path silently falls through to `onerror` instead."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/config.py",
+      "description": "`SESSION_SECRET` is generated with `secrets.token_hex(32)` at import time if the env var is absent. Every server restart invalidates all existing sessions. This is documented as a known issue but the fix (persist to `.harness/` or require the env var) is not implemented."
+    },
+    {
+      "severity": "medium",
+      "file": "_deploy.py",
+      "description": "Bootstrap script hard-codes `ROOT = r'C:\\Pi Dev Ops'` and uses `open(f, 'w').write(c)` (file handle never explicitly closed). The path makes this script non-portable and the unclosed handle is a resource leak, though CPython reference counting masks it."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "description": "CSP `script-src` includes `'unsafe-inline'` and the backend serves a static HTML frontend that uses inline `<script>` blocks extensively (`app/static/index.html`). This negates XSS protection for the backend UI. Inline scripts should be moved to external files with a nonce or hash."
+    },
+    {
+      "severity": "low",
+      "file": "app/server/sessions.py",
+      "description": "Function `em()` is named with a cryptic abbreviation. It appends to `output_lines` — a name like `append_line()` or `emit()` would communicate intent. Similarly `run_cmd()` shadows the stdlib concept; `exec_cmd()` is more precise."
+    },
+    {
+      "severity": "low",
+      "file": "app/server/sessions.py",
+      "description": "The `parse_event()` function is 60+ lines with deeply nested `if/elif` chains handling multiple Claude stream event types. Should be decomposed into per-type handler functions (e.g. `_handle_assistant()`, `_handle_tool_result()`)."
+    },
+    {
+      "severity": "low",
+      "file": "app/server/auth.py",
+      "description": "`hmac.new(...)` should be `hmac.new(...)` — this is correct Python but the variable name `sig` is reused for both the expected and computed HMAC in `verify_session_token()`, making the code harder to audit for timing-safe correctness."
+    },
+    {
+      "severity": "low",
+      "file": "dashboard/app/(main)/dashboard/page.tsx",
+      "description": "`sanitize()` replaces `<>\"&` characters but is only applied to the `repo` string before passing to `start()`. The SSE URL is constructed server-side in `route.ts` which does its own validation. The client-side sanitize is redundant with `sanitizeRepoUrl()` and creates a false sense of security."
+    },
+    {
+      "severity": "low",
+      "file": "dashboard/app/api/actions/route.ts",
+      "description": "CLI fallback in `POST /api/actions` wraps `spawn()` in a `new Promise()` inside an `async` function, mixing callback and async patterns. Should use `util.promisify` or the `execAsync` pattern consistently."
+    },
+    {
+      "severity": "low",
+      "file": "mcp/pi-ceo-server.js",
+      "description": "`https` and `http` are imported at the top of `pi-ceo-server.js` but never used. Dead imports."
+    },
+    {
+      "severity": "low",
+      "file": "src/tao/agents/__init__.py",
+      "description": "Completely empty stub. The `src/tao/` module is not called by any runtime path. Its existence creates a false impression of a working orchestration layer. Should either be removed or have a clear `raise NotImplementedError` with a pointer to the roadmap."
+    },
+    {
+      "severity": "low",
+      "file": "dashboard/app/api/analyze/route.ts",
+      "description": "Phase 4 result (`applyPhaseResult` case 4) is parsed but nothing from it (`projectPurpose`, `targetUsers`, etc.) is stored on the `result` object. The case returns `result` unchanged. Phase 4 data is silently dropped."
+    }
+  ],
+  "missingTests": [
+    "auth.py: verify_password, create_session_token, verify_session_token — no unit tests for token forgery, expiry, or timing-safe comparison",
+    "sessions.py: run_build() — no integration tests for clone failure, Claude CLI not found, push failure, timeout paths",
+    "main.py: WebSocket authentication — no test that a missing/invalid token results in code 4001 close",
+    "main.py: rate limiting — no test that the 30 req/min ceiling is enforced per IP",
+    "dashboard/lib/phases.ts: applyPhaseResult() — no tests for malformed Claude output, missing fields, or unexpected types",
+    "dashboard/lib/github.ts: parseRepoUrl() — no tests for edge-case URLs (trailing slash, .git suffix, SSH format)",
+    "dashboard/hooks/useSSE.ts: SSE event wiring — no tests for connection loss, malformed events, or partial phase completions",
+    "mcp/pi-ceo-server.js: tool dispatch — no tests for missing harness files, malformed JSON-RPC, or unknown tool names"
+  ],
+  "securityConcerns": [
+    "GitHub PAT transmitted as URL query parameter (?token=) in /api/analyze — exposed in server logs, browser history, and Referrer headers",
+    "Telegram bot token used as URL secret (?token=) — same exposure vector; should use X-Telegram-Bot-Api-Secret-Token header",
+    "Session token payload is unencoded plaintext JSON — `iat`/`exp` are readable by any client with cookie access; base64url encoding at minimum is expected",
+    "CSP script-src 'unsafe-inline' on both backend (main.py SecurityHeaders) and dashboard (next.config.ts) — neutralises XSS protection",
+    "CSP connect-src in next.config.ts includes https://*.vercel.app (wildcard) — allows exfiltration to any attacker-controlled *.vercel.app subdomain",
+    "rate_limit _req_log is in-memory and resets on restart — an attacker can bypass the rate limit by triggering a server restart or waiting for a deploy",
+    "No CSRF protection on /api/login, /api/build, /api/sessions/{sid}/kill — SameSite=Strict mitigates for same-origin but not for cross-origin requests from the Vercel dashboard when _IS_CLOUD=True and SameSite=None is set",
+    "Workspace directories are never garbage-collected — a malicious brief could trigger a disk exhaustion DoS on the backend host",
+    "claude CLI is invoked with user-supplied `brief` string injected directly into the prompt spec without sanitisation — prompt injection is the intended use but the brief is not length-limited beyond FastAPI body size",
+    "Docker image installs Node.js via nodesource curl|bash pattern — supply chain risk; should pin the nodesource GPG key and Node version"
+  ]
+}
+```
