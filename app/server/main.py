@@ -8,6 +8,7 @@ from .auth import verify_password, create_session_token, verify_session_token, r
 from .sessions import create_session, get_session, list_sessions, kill_session, restore_sessions, _sessions
 from .gc import collect_garbage, gc_loop
 from .lessons import load_lessons, append_lesson
+from .webhook import verify_github_signature, verify_linear_signature, parse_github_event, parse_linear_event, linear_issue_to_brief
 from . import config
 
 app = FastAPI(title="Pi CEO", docs_url=None, redoc_url=None, openapi_url=None)
@@ -109,6 +110,58 @@ async def get_sessions(): return list_sessions()
 async def stop_session(sid: str):
     if not await kill_session(sid): raise HTTPException(404, "Not found")
     return {"ok": True}
+
+@app.post("/api/webhook", dependencies=[Depends(require_rate_limit)])
+async def webhook(request: Request):
+    raw_body = await request.body()
+    gh_event = request.headers.get("x-github-event", "")
+    gh_sig = request.headers.get("x-hub-signature-256", "")
+    linear_sig = request.headers.get("linear-signature", "")
+
+    if gh_event and gh_sig:
+        # GitHub webhook
+        if not config.WEBHOOK_SECRET:
+            raise HTTPException(500, "Webhook secret not configured")
+        if not verify_github_signature(raw_body, gh_sig, config.WEBHOOK_SECRET):
+            raise HTTPException(401, "Invalid signature")
+        try:
+            payload = json.loads(raw_body)
+        except json.JSONDecodeError:
+            raise HTTPException(400, "Invalid JSON")
+        event = parse_github_event(gh_event, payload)
+        if not event:
+            return {"skipped": True, "reason": f"Unsupported event: {gh_event}"}
+        brief = f"Triggered by GitHub {event['event']} on {event.get('ref', 'unknown')}. Analyze changes, run tests if present, commit fixes."
+        try:
+            session = await create_session(event["repo_url"], brief, config.EVALUATOR_MODEL)
+        except RuntimeError as e:
+            raise HTTPException(429, str(e))
+        return {"triggered": True, "session_id": session.id, "repo": event["repo_url"], "event": event["event"]}
+
+    elif linear_sig:
+        # Linear webhook
+        if not config.LINEAR_WEBHOOK_SECRET:
+            raise HTTPException(500, "Linear webhook secret not configured")
+        if not verify_linear_signature(raw_body, linear_sig, config.LINEAR_WEBHOOK_SECRET):
+            raise HTTPException(401, "Invalid signature")
+        try:
+            payload = json.loads(raw_body)
+        except json.JSONDecodeError:
+            raise HTTPException(400, "Invalid JSON")
+        event = parse_linear_event(payload)
+        if not event:
+            return {"skipped": True, "reason": "Not an issue-started event"}
+        if not event.get("repo_url"):
+            return {"skipped": True, "reason": "No repo URL found in issue (add repo:<url> label)"}
+        brief = linear_issue_to_brief(event)
+        try:
+            session = await create_session(event["repo_url"], brief, config.EVALUATOR_MODEL)
+        except RuntimeError as e:
+            raise HTTPException(429, str(e))
+        return {"triggered": True, "session_id": session.id, "source": "linear", "title": event["title"]}
+
+    else:
+        raise HTTPException(400, "Missing webhook signature header (x-hub-signature-256 or Linear-Signature)")
 
 @app.post("/api/gc", dependencies=[Depends(require_auth)])
 async def run_gc():
