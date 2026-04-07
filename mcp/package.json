@@ -1,0 +1,17 @@
+{
+  "name": "pi-ceo-mcp-server",
+  "version": "3.0.0",
+  "description": "Pi CEO MCP Server — Claude Desktop integration for Pi-Dev-Ops with Linear sync",
+  "main": "pi-ceo-server.js",
+  "scripts": {
+    "start": "node pi-ceo-server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["mcp", "claude", "linear", "pi-dev-ops"],
+  "author": "Unite Group",
+  "license": "ISC",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.3.6"
+  }
+}
