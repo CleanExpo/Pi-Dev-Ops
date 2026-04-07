@@ -7,6 +7,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from .auth import verify_password, create_session_token, verify_session_token, require_auth, require_rate_limit
 from .sessions import create_session, get_session, list_sessions, kill_session, restore_sessions, _sessions
 from .gc import collect_garbage, gc_loop
+from .lessons import load_lessons, append_lesson
 from . import config
 
 app = FastAPI(title="Pi CEO", docs_url=None, redoc_url=None, openapi_url=None)
@@ -111,6 +112,22 @@ async def stop_session(sid: str):
 async def run_gc():
     result = collect_garbage(_sessions)
     return result
+
+@app.get("/api/lessons", dependencies=[Depends(require_auth)])
+async def get_lessons(category: str | None = None, limit: int = 50):
+    return load_lessons(category=category, limit=min(limit, 200))
+
+@app.post("/api/lessons", dependencies=[Depends(require_auth)])
+async def post_lesson(request: Request):
+    body = await request.json()
+    source = str(body.get("source", "manual"))[:100]
+    category = str(body.get("category", "general"))[:50]
+    lesson = str(body.get("lesson", "")).strip()
+    severity = str(body.get("severity", "info"))
+    if not lesson:
+        raise HTTPException(400, "lesson required")
+    entry = append_lesson(source, category, lesson, severity)
+    return entry
 
 @app.websocket("/ws/build/{sid}")
 async def ws_build(websocket: WebSocket, sid: str):
