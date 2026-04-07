@@ -10,7 +10,12 @@ The structured brief wraps the raw user brief with:
 2. Explicit phase instructions for Claude
 3. Rules for commit messages and output format
 """
-import re
+import os, re, sys
+
+# Ensure src/ is importable (skills.py lives in src/tao/)
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
 # ── PITER Intent Classification ───────────────────────────────────────────────
 _INTENT_KEYWORDS = {
@@ -104,18 +109,43 @@ def get_adw_template(intent: str) -> dict:
     return _ADW_TEMPLATES.get(intent, _ADW_TEMPLATES["feature"])
 
 
+def _get_skill_context(intent: str, max_chars: int = 4000) -> str:
+    """Load relevant skills for the intent and return truncated context."""
+    try:
+        from src.tao.skills import skills_for_intent
+        skills = skills_for_intent(intent)
+        if not skills:
+            return ""
+        parts = []
+        total = 0
+        for s in skills:
+            chunk = f"### Skill: {s['name']}\n{s['body'][:800]}\n"
+            if total + len(chunk) > max_chars:
+                break
+            parts.append(chunk)
+            total += len(chunk)
+        if parts:
+            return "--- RELEVANT SKILLS ---\n" + "\n".join(parts) + "--- END SKILLS ---\n\n"
+    except Exception:
+        pass
+    return ""
+
+
 def build_structured_brief(raw_brief: str, intent: str, repo_url: str = "") -> str:
     """Compose a structured spec string for claude -p from a raw brief + intent.
 
-    Returns the full spec string incorporating ADW workflow steps and rules.
+    Returns the full spec string incorporating ADW workflow steps, relevant
+    skill context, and rules.
     """
     template = get_adw_template(intent)
+    skill_context = _get_skill_context(intent)
 
     spec = (
         f"You are Pi CEO orchestrator on Claude Max.\n"
         f"Project: {repo_url}\n"
         f"Intent: {intent.upper()} — {template['name']}\n\n"
         f"{template['instructions']}\n\n"
+        f"{skill_context}"
         f"--- USER BRIEF ---\n{raw_brief}\n--- END BRIEF ---\n\n"
         f"RULES:\n"
         f"- Follow the workflow steps above in order\n"
