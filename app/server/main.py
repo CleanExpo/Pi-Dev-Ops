@@ -9,6 +9,7 @@ from .sessions import create_session, get_session, list_sessions, kill_session, 
 from .gc import collect_garbage, gc_loop
 from .lessons import load_lessons, append_lesson
 from .webhook import verify_github_signature, verify_linear_signature, parse_github_event, parse_linear_event, linear_issue_to_brief
+from .orchestrator import fan_out
 from . import config
 
 app = FastAPI(title="Pi CEO", docs_url=None, redoc_url=None, openapi_url=None)
@@ -102,6 +103,23 @@ async def build(request: Request):
     try: session = await create_session(repo_url, brief, model, evaluator_enabled=evaluator_enabled, intent=intent)
     except RuntimeError as e: raise HTTPException(429, str(e))
     return {"session_id": session.id, "status": session.status}
+
+@app.post("/api/build/parallel", dependencies=[Depends(require_auth), Depends(require_rate_limit)])
+async def build_parallel(request: Request):
+    """Fan-out a complex brief across N parallel worker sessions (RA-464)."""
+    body = await request.json()
+    repo_url = body.get("repo_url", "").strip()
+    brief = body.get("brief", "").strip()
+    model = body.get("model", "sonnet").strip()
+    n_workers = int(body.get("n_workers", 2))
+    intent = body.get("intent", "").strip()
+    evaluator_enabled = body.get("evaluator_enabled", config.EVALUATOR_ENABLED)
+    if not repo_url: raise HTTPException(400, "repo_url required")
+    if not repo_url.startswith(("https://", "git@")): raise HTTPException(400, "Invalid URL")
+    if model not in config.ALLOWED_MODELS: raise HTTPException(400, f"model must be {config.ALLOWED_MODELS}")
+    if not brief: raise HTTPException(400, "brief required for parallel builds")
+    result = await fan_out(repo_url, brief, n_workers=n_workers, model=model, intent=intent, evaluator_enabled=evaluator_enabled)
+    return result
 
 @app.get("/api/sessions", dependencies=[Depends(require_auth)])
 async def get_sessions(): return list_sessions()

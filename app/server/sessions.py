@@ -5,6 +5,28 @@ from . import config
 from . import persistence
 from .brief import classify_intent, build_structured_brief
 
+# TAO engine — loaded after brief.py sets up sys.path (project root injected there)
+try:
+    from src.tao.budget.tracker import BudgetTracker
+    from src.tao.tiers.config import load_config as _load_tao_config
+    from src.tao.schemas.artifacts import TaskSpec, TaskResult
+    _TAO_AVAILABLE = True
+except ImportError:
+    _TAO_AVAILABLE = False
+
+def _load_harness_config():
+    """Load .harness/config.yaml via TAO TierConfig. Returns dict or None."""
+    if not _TAO_AVAILABLE:
+        return None
+    cfg_path = os.path.join(os.path.dirname(__file__), "..", "..", ".harness", "config.yaml")
+    cfg_path = os.path.abspath(cfg_path)
+    try:
+        return _load_tao_config(cfg_path) if os.path.isfile(cfg_path) else None
+    except Exception:
+        return None
+
+_HARNESS_CONFIG = _load_harness_config()
+
 @dataclass
 class BuildSession:
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
@@ -18,6 +40,8 @@ class BuildSession:
     evaluator_enabled: bool = True
     evaluator_status: str = "pending"
     evaluator_score: Optional[float] = None
+    parent_session_id: Optional[str] = None  # RA-464: fan-out parallelism
+    budget: Optional[object] = None           # RA-465: BudgetTracker instance
 
 _sessions = {}
 def get_session(sid): return _sessions.get(sid)
@@ -101,6 +125,11 @@ async def run_build(session, brief="", model="sonnet", intent=""):
     em(session, "system", f"  Session: {session.id}")
     em(session, "system", f"  Repo:    {session.repo_url}")
     em(session, "system", f"  Model:   {model}")
+    # ── TAO engine initialisation (RA-465) ────────────────────────────────────
+    if _TAO_AVAILABLE:
+        total_budget = (_HARNESS_CONFIG or {}).get("total_token_budget", 100000)
+        session.budget = BudgetTracker(total_budget=total_budget)
+        em(session, "system", f"  TAO:     budget={total_budget:,} tokens | config={'loaded' if _HARNESS_CONFIG else 'default'}")
     em(session, "system", "")
     em(session, "phase", "[1/5] Cloning repository...")
     session.status = "cloning"
@@ -143,6 +172,32 @@ async def run_build(session, brief="", model="sonnet", intent=""):
         session.status = "failed"
         persistence.save_session(session)
         return
+    # ── Sandbox enforcement (RA-468) ─────────────────────────────────────────
+    em(session, "phase", "[3.5/5] Verifying sandbox...")
+    if not session.workspace or not os.path.isdir(session.workspace):
+        em(session, "system", "  Sandbox missing — auto-regenerating workspace...")
+        session.workspace = os.path.join(config.WORKSPACE_ROOT, session.id)
+        os.makedirs(session.workspace, exist_ok=True)
+        try:
+            proc_reclone = await asyncio.create_subprocess_exec(
+                "git", "clone", "--depth", "1", session.repo_url, session.workspace,
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            )
+            _, stderr = await asyncio.wait_for(proc_reclone.communicate(), timeout=60)
+            if proc_reclone.returncode != 0:
+                em(session, "error", f"  Sandbox re-clone failed: {stderr.decode()[:200]}")
+                session.status = "failed"
+                persistence.save_session(session)
+                return
+            em(session, "success", "  Sandbox restored via re-clone")
+        except Exception as e:
+            em(session, "error", f"  Sandbox regeneration error: {e}")
+            session.status = "failed"
+            persistence.save_session(session)
+            return
+    else:
+        em(session, "success", f"  Sandbox verified: {session.workspace}")
+
     em(session, "phase", "[4/5] Running Claude Code (live)...")
     em(session, "system", "")
     session.status = "building"
@@ -284,10 +339,15 @@ async def run_build(session, brief="", model="sonnet", intent=""):
     em(session, "system", f"    Files: {len(af) if 'af' in locals() else '?'}")
     em(session, "success", "  === SESSION COMPLETE ===")
 
-async def create_session(repo_url, brief="", model="sonnet", evaluator_enabled=True, intent=""):
+async def create_session(repo_url, brief="", model="sonnet", evaluator_enabled=True, intent="", parent_session_id=""):
     if len(_sessions) >= config.MAX_CONCURRENT_SESSIONS:
         raise RuntimeError("Max sessions reached")
-    session = BuildSession(repo_url=repo_url, started_at=time.time(), evaluator_enabled=evaluator_enabled)
+    session = BuildSession(
+        repo_url=repo_url,
+        started_at=time.time(),
+        evaluator_enabled=evaluator_enabled,
+        parent_session_id=parent_session_id or None,
+    )
     _sessions[session.id] = session
     persistence.save_session(session)
     asyncio.create_task(run_build(session, brief, model, intent=intent))
