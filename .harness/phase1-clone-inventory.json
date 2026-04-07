@@ -1,28 +1,28 @@
 ```json
 {
-  "totalFiles": 58,
+  "totalFiles": 62,
   "languages": {
     "TypeScript": 2850,
-    "Python": 820,
-    "JavaScript": 410,
-    "HTML": 380,
+    "Python": 1100,
+    "JavaScript": 620,
+    "HTML": 480,
     "CSS": 120,
-    "Shell": 95,
-    "YAML": 45,
-    "Markdown": 40,
-    "TOML": 15
+    "YAML": 80,
+    "Bash": 120,
+    "Markdown": 900,
+    "JSON": 350
   },
   "topFiles": [
     "dashboard/package-lock.json",
     "app/static/index.html",
     "_deploy.py",
-    ".harness/spec.md",
     "app/server/sessions.py",
     "dashboard/app/api/analyze/route.ts",
     "dashboard/lib/claude.ts",
-    "mcp/pi-ceo-server.js",
+    "dashboard/lib/github.ts",
+    ".harness/spec.md",
     "dashboard/app/(main)/dashboard/page.tsx",
-    "dashboard/lib/github.ts"
+    "dashboard/app/api/actions/route.ts"
   ],
   "frameworks": [
     "Next.js 16",
@@ -35,11 +35,10 @@
   ],
   "entryPoints": [
     "app/server/main.py",
+    "dashboard/app/layout.tsx",
     "dashboard/app/page.tsx",
-    "dashboard/app/(main)/dashboard/page.tsx",
     "mcp/pi-ceo-server.js",
-    "scripts/analyze.sh",
-    "_deploy.py"
+    "scripts/analyze.sh"
   ]
 }
 ```
