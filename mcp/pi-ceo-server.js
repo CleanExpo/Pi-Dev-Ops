@@ -585,6 +585,88 @@ server.registerTool(
   }
 );
 
+// ── Tool: linear_status ───────────────────────────────────────────────────────
+server.registerTool(
+  "linear_status",
+  {
+    title: "Linear Auth Status",
+    description: "Check if the Linear API key is configured and verify it can reach the Linear API. Use this to diagnose auth issues before running other linear_* tools.",
+    inputSchema: {},
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+  },
+  async () => {
+    if (!LINEAR_API_KEY) {
+      return {
+        content: [{
+          type: "text",
+          text: [
+            "## Linear Auth Status: NOT CONFIGURED",
+            "",
+            "LINEAR_API_KEY is not set. The pi-ceo linear_* tools cannot reach Linear.",
+            "",
+            "### How to fix",
+            "",
+            "1. Get a Linear API key from: https://linear.app/settings/api",
+            "2. Add it to your Claude Desktop config at:",
+            "   `%APPDATA%\\Claude\\claude_desktop_config.json`",
+            "",
+            "```json",
+            "{",
+            '  "mcpServers": {',
+            '    "pi-ceo": {',
+            '      "command": "node",',
+            `      "args": ["${path.resolve(__dirname, "pi-ceo-server.js")}"],`,
+            '      "env": {',
+            '        "LINEAR_API_KEY": "lin_api_YOUR_KEY_HERE"',
+            "      }",
+            "    }",
+            "  }",
+            "}",
+            "```",
+            "",
+            "3. Restart Claude Desktop (the MCP server is cached as a subprocess)",
+            "4. Run `linear_status` again to confirm it's working",
+          ].join("\n"),
+        }],
+      };
+    }
+
+    // Test the key with a minimal query
+    try {
+      const data = await linearGql(`{ viewer { id name email } }`);
+      const user = data.viewer;
+      return {
+        content: [{
+          type: "text",
+          text: [
+            "## Linear Auth Status: CONNECTED",
+            "",
+            `Authenticated as: **${user.name}** (${user.email})`,
+            `User ID: ${user.id}`,
+            "",
+            "All linear_* tools are operational.",
+          ].join("\n"),
+        }],
+      };
+    } catch (e) {
+      return {
+        content: [{
+          type: "text",
+          text: [
+            "## Linear Auth Status: AUTH FAILED",
+            "",
+            `Error: ${e.message}`,
+            "",
+            "LINEAR_API_KEY is set but the API rejected it.",
+            "Check that the key is valid and has not been revoked.",
+            "Get a new key at: https://linear.app/settings/api",
+          ].join("\n"),
+        }],
+      };
+    }
+  }
+);
+
 // ── Start Server ───────────────────────────────────────────────────────────────
 async function main() {
   const transport = new StdioServerTransport();
