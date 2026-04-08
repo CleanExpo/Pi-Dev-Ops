@@ -115,9 +115,35 @@ The main Linear MCP (via Composio) handles Linear operations in Claude Code sess
 
 ---
 
-## What To Do Next (Sprint 4 Candidates)
+## Sprint 4 — Complete (2026-04-08)
 
-1. **Smoke test with real build** — trigger a build against Pi-Dev-Ops itself via the web UI to confirm the full Claude Code subprocess execution path
-2. **Vercel dashboard sync** — the Next.js dashboard at `dashboard/` may need updating to surface fan-out sessions and evaluator scores
-3. **Linear API key for Pi CEO MCP** — add `LINEAR_API_KEY` to `claude_desktop_config.json` so `pi-ceo-server.js` tools can update issues autonomously without falling back to the Composio MCP
-4. **E2E regression script** — convert the Sprint 3 smoke test into a standalone `scripts/smoke_test.py` that can be run as a pre-deploy gate
+| Issue | Change |
+|-------|--------|
+| RA-473 | `scripts/smoke_test.py`: standalone 28-check E2E regression script, UTF-8 safe, CI exit codes |
+| RA-474 | `dashboard/app/(main)/builds/page.tsx`: live Pi CEO builds view (phase bar, evaluator scores, fan-out grouping); `/api/pi-ceo/[...path]/route.ts` proxy handles auth |
+| RA-475 | Real build validated: 6/7 phases ran (clone→analyze→claude_check→sandbox→generator running); `claude -p` subprocess confirmed working |
+| RA-476 | `linear_status` diagnostic tool added to Pi CEO MCP; self-service setup guide built in |
+
+### RA-476 — Manual step remaining
+To enable `linear_*` MCP tools: add `LINEAR_API_KEY` to `%APPDATA%\Claude\claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "pi-ceo": {
+      "command": "node",
+      "args": ["C:\\Pi Dev Ops\\mcp\\pi-ceo-server.js"],
+      "env": { "LINEAR_API_KEY": "lin_api_..." }
+    }
+  }
+}
+```
+Run `linear_status` tool in Claude to verify. Get key from https://linear.app/settings/api.
+
+---
+
+## What To Do Next (Sprint 5 Candidates)
+
+1. **Confirm RA-475 build completion** — check `app/logs/sessions/` for evaluator score after the in-progress `claude -p` run finishes
+2. **Deploy Pi CEO server** — expose on Railway/Fly so the Vercel dashboard `/builds` page works in production (currently requires local tunnel)
+3. **Vercel env vars** — add `PI_CEO_URL` + `PI_CEO_PASSWORD` to Vercel project settings for the dashboard `/builds` page
+4. **smoke_test.py in CI** — add as a GitHub Actions pre-deploy gate

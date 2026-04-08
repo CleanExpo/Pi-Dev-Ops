@@ -1,15 +1,37 @@
 # Pi Dev Ops — Sprint Plan
 
-_Sprint 3 / Cycle 4 | 2026-04-08 | ZTE Score: 60/60 Zero Touch_
+_Sprint 4 / Cycle 5 | 2026-04-08 | ZTE Score: 60/60 Zero Touch_
 
 ## Status
 
-All Sprint 1 and Sprint 2 items are complete. ZTE score achieved maximum 60/60.
-Sprint 3 focuses on validation, resilience, and documentation.
+All Sprint 1–3 items complete. Sprint 4 complete. Pipeline validated end-to-end.
+ZTE score: 60/60 Zero Touch maintained.
 
 ---
 
-## Sprint 3 — Open Items
+## Sprint 5 — Open Items
+
+### RA-477 [High] — Deploy Pi CEO server to cloud
+Surface Pi CEO builds in the Vercel dashboard in production. Currently the `/builds` page
+requires the server to be reachable at `PI_CEO_URL` — which only works locally.
+
+### RA-478 [Medium] — smoke_test.py as GitHub Actions pre-deploy gate
+Add `scripts/smoke_test.py` as a CI check that runs on push to main.
+
+---
+
+## Sprint 4 — Complete (2026-04-08)
+
+| Issue | Change |
+|-------|--------|
+| RA-473 | `scripts/smoke_test.py`: 28-check E2E regression script, UTF-8 safe, CI exit codes |
+| RA-474 | Dashboard `/builds` page + Pi CEO proxy route; phase bar, evaluator scores, fan-out |
+| RA-475 | Real build trigger: 6/7 phases validated (generator running successfully) |
+| RA-476 | `linear_status` diagnostic tool in Pi CEO MCP; self-service setup guide |
+
+---
+
+## Sprint 3 — Complete (2026-04-08)
 
 ### RA-470 [High] — E2E Integration Smoke Test
 **Problem:** 20 issues implemented across Sprint 1+2 but the full pipeline has never been
