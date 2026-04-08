@@ -75,6 +75,8 @@ def list_sessions():
             "parent": s.parent_session_id,
             "last_phase": s.last_completed_phase,
             "evaluator_score": s.evaluator_score,
+            "retry_count": s.retry_count,
+            "evaluator_status": s.evaluator_status,
         }
         for s in _sessions.values()
     ]
