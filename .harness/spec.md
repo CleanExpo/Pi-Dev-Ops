@@ -79,15 +79,16 @@ Browser ← WebSocket /ws/build/{sid}  (live event stream, 150ms polling)
 - Webhook HMAC: timing-safe comparison for both GitHub (`sha256=<hex>`) and Linear (`<hex>`) formats
 
 **Known limitations / open items:**
-1. `src/tao/agents/__init__.py` is empty — agent dispatch not implemented in Python; all execution is via `claude -p` subprocess
-2. Dashboard `lib/types.ts` defines richer session/phase types than the backend currently emits via `/api/sessions` — potential misalignment
-3. `GET /api/capabilities` endpoint not implemented (agentic-layer skill recommends it for machine-to-machine discovery)
-4. `scripts/smoke_test.py` does not exist — 22-check smoke test lives only in `.harness/qa/smoke-test.md`
+1. ✅ **RESOLVED (RA-482)** `src/tao/agents/__init__.py` — AgentDispatcher now implemented with intent-based skill routing, concurrent execution, batch dispatch
+2. ⚠️  Dashboard `lib/types.ts` defines richer session/phase types than the backend currently emits via `/api/sessions` — potential misalignment (low priority, functional workaround in place)
 
 **Resolved since Sprint 3:**
+- ✅ **RESOLVED (RA-479)** `GET /api/capabilities` endpoint implemented (agentic-layer skill discovery)
+- ✅ **RESOLVED (RA-481)** `scripts/smoke_test.py` created — 22-check automated regression suite
 - ✅ `.harness/executive-summary.md` created (MCP board notes now fully functional)
 - ✅ `token-budgeter/SKILL.md` cost fields filled in (Opus $15, Sonnet $3, Haiku $1.25 per M output)
 - ✅ `ceo-mode` added to `tao-skills/SKILL.md` master index (23/23 skills indexed)
+- ✅ **RESOLVED (RA-480)** `/api/sessions` GET handler implemented with proper Supabase integration
 
 ### 2.2 TAO Engine (`src/tao/`)
 
@@ -99,7 +100,7 @@ The Python engine provides a skills registry, tier config loading, budget tracki
 | `tiers/config.py` | ✅ Complete | `TierConfig` dataclass, MODEL_MAP, YAML loader |
 | `budget/tracker.py` | ✅ Complete | `BudgetTracker`: per-tier token accounting, `record(tier, tokens)` |
 | `skills.py` | ✅ Complete | Skill loader/registry: frontmatter parser, `load_all_skills()`, `skills_for_intent()` |
-| `agents/__init__.py` | ⚠️ Empty | Agent dispatch — not yet implemented |
+| `agents/__init__.py` | ✅ Complete (RA-482) | `AgentDispatcher` class: intent-based routing, concurrent execution, batch dispatch, result aggregation |
 | `templates/3-tier-webapp.yaml` | ✅ Present | Reference config: opus orchestrator + sonnet specialist + haiku workers |
 
 **Engine integration points:**
