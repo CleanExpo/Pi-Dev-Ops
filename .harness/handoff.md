@@ -109,6 +109,30 @@ TAO_EVALUATOR_MODEL=sonnet
 TAO_GC_MAX_AGE=14400  # 4 hours
 ```
 
+### Railway deployment (RA-478)
+
+```bash
+# Deploy from project root
+railway link      # or: railway init
+railway up        # builds Dockerfile, deploys to Railway
+```
+
+Required Railway env vars (set via railway.app dashboard or `railway variables set`):
+```
+TAO_PASSWORD=<strong password>
+TAO_SESSION_SECRET=<long random hex>
+ANTHROPIC_API_KEY=<key for claude CLI>
+TAO_EVALUATOR_ENABLED=true
+TAO_EVALUATOR_THRESHOLD=7
+TAO_GC_MAX_AGE=14400
+```
+
+After deploy, set in Vercel (dashboard project):
+```
+PI_CEO_URL=https://<your-railway-app>.railway.app
+PI_CEO_PASSWORD=<same as TAO_PASSWORD>
+```
+
 The MCP server (`mcp/pi-ceo-server.js`) needs `LINEAR_API_KEY` set in
 `%APPDATA%\Claude\claude_desktop_config.json` for its Linear tools to work.
 The main Linear MCP (via Composio) handles Linear operations in Claude Code sessions.

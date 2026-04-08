@@ -1,0 +1,35 @@
+# Node
+node_modules/
+dashboard/node_modules/
+mcp/node_modules/
+dashboard/.next/
+dashboard/.vercel/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Runtime data (never bake into image)
+app/workspaces/
+app/logs/
+.harness/board-meetings/
+.harness/anthropic-docs/
+
+# Dev
+.env
+.env.local
+.env*.local
+.vscode/
+.playwright-mcp/
+
+# Git
+.git/
+.gitignore
+
+# Misc
+*.log
+Thumbs.db
+desktop.ini
