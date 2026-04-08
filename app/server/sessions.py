@@ -481,11 +481,27 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
         if commits:
             for c in commits: em(session, "system", f"  {c}")
             em(session, "system", f"  Pushing {len(commits)} commits...")
-            rc, _, err = await run_cmd(session.workspace, "git", "push", "origin", "HEAD", timeout=30)
-            if rc == 0:
-                em(session, "success", "  Pushed to GitHub!")
-                em(session, "success", f"  https://github.com/CleanExpo/Pi-Dev-Ops")
-            else: em(session, "error", f"  Push failed: {err[:200]}")
+            # ── Push with retry (RA-471) ──────────────────────────────────────
+            push_ok = False
+            for push_attempt in range(3):
+                rc, _, err = await run_cmd(session.workspace, "git", "push", "origin", "HEAD", timeout=30)
+                if rc == 0:
+                    push_ok = True
+                    em(session, "success", "  Pushed to GitHub!")
+                    em(session, "success", f"  https://github.com/CleanExpo/Pi-Dev-Ops")
+                    break
+                err_lower = err.lower()
+                # Auth failures are permanent — no point retrying
+                if any(s in err_lower for s in ("authentication failed", "could not read username", "permission denied", "403", "401")):
+                    em(session, "error", f"  Push auth error (not retrying): {err[:200]}")
+                    break
+                em(session, "error", f"  Push attempt {push_attempt + 1}/3 failed: {err[:200]}")
+                if push_attempt < 2:
+                    backoff = 2 * (2 ** push_attempt)
+                    em(session, "system", f"  Retrying push in {backoff}s...")
+                    await asyncio.sleep(backoff)
+            if not push_ok:
+                em(session, "error", "  Push failed — changes committed locally, push manually")
         em(session, "system", "")
         em(session, "phase", "  Project structure:")
         af = []

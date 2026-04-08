@@ -178,6 +178,11 @@ server.registerTool(
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },
   async () => {
+    // Prefer dedicated sprint_plan.md; fall back to parsing spec.md
+    const sprintPath = path.join(HARNESS_DIR, "sprint_plan.md");
+    if (fs.existsSync(sprintPath)) {
+      return { content: [{ type: "text", text: fs.readFileSync(sprintPath, "utf8") }] };
+    }
     const spec = readHarness("spec.md");
     const match = spec.match(/## Sprint Plan([\s\S]*?)(?:\n##|$)/);
     const sprint = match ? match[1].trim() : spec;
@@ -233,9 +238,14 @@ server.registerTool(
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },
   async () => {
+    // Read leverage-audit.md directly — authoritative source, updated each sprint
+    const auditPath = path.join(HARNESS_DIR, "leverage-audit.md");
+    if (fs.existsSync(auditPath)) {
+      return { content: [{ type: "text", text: fs.readFileSync(auditPath, "utf8") }] };
+    }
+    // Fallback: parse spec.md for legacy data
     const spec = readHarness("spec.md");
     const match = spec.match(/## ZTE Maturity([\s\S]*?)(?:\n##|$)/);
-    // Also try leverage audit section
     const match2 = spec.match(/## (?:\d+\.\s*)?(?:Current )?Leverage Audit([\s\S]*?)(?:\n##|$)/);
     const zte = match ? match[1].trim() : "";
     const leverage = match2 ? match2[1].trim() : "";

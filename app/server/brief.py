@@ -35,7 +35,10 @@ def classify_intent(brief: str) -> str:
     Checks hotfix first (highest priority), then bug, feature, chore, spike.
     Default: feature."""
     lower = brief.lower()
-    for intent in ["hotfix", "bug", "feature", "chore", "spike"]:
+    # Check hotfix/bug first (highest priority), then chore/spike before feature.
+    # Feature is the fallback — its broad keywords ("new", "build") would otherwise
+    # swallow chore and spike briefs if checked first.
+    for intent in ["hotfix", "bug", "chore", "spike", "feature"]:
         for kw in _INTENT_KEYWORDS[intent]:
             if kw in lower:
                 return intent
