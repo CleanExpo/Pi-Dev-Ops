@@ -1,6 +1,6 @@
 # Pi Dev Ops — Product Spec (Full Analysis)
 
-_Generated: 2026-04-08 | Analyst: Pi CEO Orchestrator (Claude Sonnet 4.6) | Sprint: 4 / Cycle 5_
+_Generated: 2026-04-08 | Last updated: 2026-04-08 (Sprint 4 spike) | Analyst: Pi CEO Orchestrator (Claude Sonnet 4.6) | Sprint: 4 / Cycle 6_
 
 ---
 
@@ -80,10 +80,14 @@ Browser ← WebSocket /ws/build/{sid}  (live event stream, 150ms polling)
 
 **Known limitations / open items:**
 1. `src/tao/agents/__init__.py` is empty — agent dispatch not implemented in Python; all execution is via `claude -p` subprocess
-2. `mcp/pi-ceo-server.js` references `executive-summary.md` in `.harness/` but that file does not exist yet — `get_last_analysis` will return "not found" for that section
-3. Dashboard `lib/types.ts` defines richer session/phase types than the backend currently emits via `/api/sessions` — potential misalignment
-4. `token-budgeter` skill has blank cost fields (`/ per M tokens`) — values were never filled in
-5. `ceo-mode` skill is not listed in the `tao-skills` master index (only 22 of 23 skills indexed)
+2. Dashboard `lib/types.ts` defines richer session/phase types than the backend currently emits via `/api/sessions` — potential misalignment
+3. `GET /api/capabilities` endpoint not implemented (agentic-layer skill recommends it for machine-to-machine discovery)
+4. `scripts/smoke_test.py` does not exist — 22-check smoke test lives only in `.harness/qa/smoke-test.md`
+
+**Resolved since Sprint 3:**
+- ✅ `.harness/executive-summary.md` created (MCP board notes now fully functional)
+- ✅ `token-budgeter/SKILL.md` cost fields filled in (Opus $15, Sonnet $3, Haiku $1.25 per M output)
+- ✅ `ceo-mode` added to `tao-skills/SKILL.md` master index (23/23 skills indexed)
 
 ### 2.2 TAO Engine (`src/tao/`)
 
@@ -260,22 +264,18 @@ RA-469 MCP `get_zte_score` reads `leverage-audit.md` + `feature_list.json`, RA-4
 
 ## 6. Improvement Recommendations (Sprint 4)
 
+### Completed (this cycle)
+
+**~~P4-A~~: ✅ `executive-summary.md` created**
+MCP `get_last_analysis` now returns full content; board meeting generation functional.
+
+**~~P4-B~~: ✅ `token-budgeter` skill cost fields filled in**
+Opus $15, Sonnet $3, Haiku $1.25 per M output tokens documented in skill.
+
+**~~P4-C~~: ✅ `ceo-mode` added to `tao-skills` master index**
+All 23 skills correctly indexed; `skills_for_intent("spike")` returns `ceo-mode`.
+
 ### Priority 1 — High Impact, One Session
-
-**P4-A: Create `executive-summary.md`**
-- MCP `get_last_analysis` reads this file alongside `spec.md`; currently returns "not found"
-- One-paragraph executive summary of current system state
-- Impact: enables MCP board meeting generation to work fully
-
-**P4-B: Fix `token-budgeter` skill cost values**
-- `token-budgeter/SKILL.md` has blank cost fields (`/ per M tokens`)
-- Add actual April 2026 pricing: Opus $15, Sonnet $3, Haiku $0.25 per M output tokens
-- Impact: budget estimates become meaningful; `BudgetTracker` can report $ not just tokens
-
-**P4-C: Add `executive-summary.md` to `tao-skills` master index**
-- `tao-skills/SKILL.md` says "23 skills" but lists only 22 (missing `ceo-mode`)
-- Fix the count and add the entry
-- Impact: consistency; `skills_for_intent()` can include `ceo-mode` for spike intent
 
 **P4-D: Implement `capabilities` endpoint (agentic-layer skill)**
 - `GET /api/capabilities` → returns self-describing JSON of all available actions
@@ -436,12 +436,25 @@ WebSocket is bidirectional — the client can send `ping` frames and the server 
 ## 9. Next Actions (Sprint 4)
 
 ```
-[ ] P4-A: Create .harness/executive-summary.md (unblocks MCP board notes)
-[ ] P4-B: Fix token-budgeter/SKILL.md cost values (Opus $15, Sonnet $3, Haiku $0.25)
-[ ] P4-C: Add ceo-mode to tao-skills/SKILL.md master index
+[x] P4-A: Create .harness/executive-summary.md (DONE)
+[x] P4-B: Fix token-budgeter/SKILL.md cost values (DONE — Opus $15, Sonnet $3, Haiku $1.25)
+[x] P4-C: Add ceo-mode to tao-skills/SKILL.md master index (DONE)
 [ ] P4-D: Implement GET /api/capabilities endpoint
 [ ] P4-E: Align /api/sessions to emit Phase[] array (match dashboard types.ts)
 [ ] P4-F: Implement src/tao/agents/__init__.py AgentDispatcher
 [ ] P4-G: Build scripts/smoke_test.py from .harness/qa/smoke-test.md
 [ ] P4-H: Add LINEAR_API_KEY to claude_desktop_config.json for MCP Linear tools
 ```
+
+### Additional findings from Sprint 4 spike
+
+**Skill registry cache:** `src/tao/skills.py` caches skills after first `load_all_skills()` call.
+Hot-reload via `invalidate_cache()` is implemented but never called — a file watcher could wire this.
+
+**Lesson fallback:** `_get_lesson_context()` in `brief.py` falls back to the 3 most recent lessons of any category when no intent-specific lessons exist. This means new intents bootstrap from general lessons rather than returning empty context.
+
+**Health endpoint:** `GET /health` exists in `main.py` and returns `{"status": "ok", "sessions": N}` — not documented in the spec previously.
+
+**BudgetTracker vs cost estimation gap:** `BudgetTracker.record(tier, tokens)` accumulates tokens per tier but has no cost calculation. The `token-budgeter` skill now has accurate pricing — wiring the two (adding a `cost_usd()` method to `BudgetTracker` using the skill's rates) would close this gap.
+
+**`brief.py` note appended in spike sessions:** When this spike runs, the brief passed to Claude includes `[NOTE: Simplified due to previous failure. Focus on core task only.]` — this is the lesson injection system working: a previous failure lesson was included in the context, affecting the spec generated for this session.
