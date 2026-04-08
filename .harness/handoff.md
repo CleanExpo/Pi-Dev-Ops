@@ -173,9 +173,22 @@ Run `linear_status` tool in Claude to verify. Get key from https://linear.app/se
 
 ---
 
-## What To Do Next (Sprint 6 Candidates)
+## Sprint 6 — Evaluator Quality Push (2026-04-08)
+
+| Issue | Change |
+|-------|--------|
+| RA-479 | `brief.py`: `_QUALITY_GATE` constant injected into every generator brief — explicit 4-dimension self-review rubric mirroring the evaluator (target ≥9/10 per dimension) |
+| RA-480 | `sessions.py`: Evaluator prompt now includes original brief for completeness checking + rigorous scoring guide (10=excellent → ≤6=clear deficiency) |
+| RA-481 | `config.py`: Default `EVALUATOR_THRESHOLD` raised 7 → 8; Railway env var updated to match |
+
+**Expected outcome:** Evaluator scores should consistently land 8.5–9.5 (vs prior 7.5). Root cause of prior scores: generator didn't know the rubric; evaluator couldn't check completeness without the brief.
+
+---
+
+## What To Do Next (Sprint 7 Candidates)
 
 1. **Verify `/builds` page in production** — open `https://dashboard-unite-group.vercel.app/builds` and confirm sessions stream from Railway
 2. **Smoke test against Railway** — run `python scripts/smoke_test.py --url https://pi-dev-ops-production.up.railway.app --password mdGF5NWZrpC4HFCaXMZHE4-ipqq9FJDhebrx_6oDCKg`
 3. **Linear API key** — add `LINEAR_API_KEY` to `%APPDATA%\Claude\claude_desktop_config.json` so `linear_*` MCP tools work (see RA-476 instructions above)
 4. **Cost tracking** — wire Railway spend alerts; add `TAO_MONTHLY_BUDGET_USD` env var check
+5. **Evaluator model upgrade** — set `TAO_EVALUATOR_MODEL=opus` in Railway for maximum scoring rigour (15x cost but catches every gap)

@@ -158,11 +158,41 @@ def _get_lesson_context(intent: str, limit: int = 5, max_chars: int = 2000) -> s
     return ""
 
 
+_QUALITY_GATE = """\
+--- QUALITY GATE (mandatory self-review before every commit) ---
+You will be evaluated by a second AI pass on exactly these 4 dimensions.
+Score yourself honestly. If any dimension falls below 8/10, fix it before committing.
+
+COMPLETENESS (target ≥9/10)
+  • Go back to the brief — list every explicit requirement.
+  • Confirm each one is fully implemented, not partially addressed.
+  • "I started it" is NOT done. Partial code = fail.
+
+CORRECTNESS (target ≥9/10)
+  • No bugs, no logic errors, no null/undefined references.
+  • No security vulnerabilities (no hardcoded secrets, no unsanitised inputs).
+  • If tests exist, run them. If they fail, fix before committing.
+
+CONCISENESS (target ≥9/10)
+  • Delete all dead code, debug prints, and TODO stubs.
+  • No over-engineered abstractions for a single use-case.
+  • Every line must serve a specific purpose from the brief.
+
+FORMAT (target ≥9/10)
+  • Match existing naming conventions exactly (camelCase/snake_case, file naming).
+  • Match existing indentation, import order, and module structure.
+  • Do NOT introduce new patterns that differ from what already exists in the project.
+
+Only commit once all 4 dimensions pass your self-assessment at ≥8/10.
+--- END QUALITY GATE ---
+"""
+
+
 def build_structured_brief(raw_brief: str, intent: str, repo_url: str = "") -> str:
     """Compose a structured spec string for claude -p from a raw brief + intent.
 
     Returns the full spec string incorporating ADW workflow steps, relevant
-    skill context, and rules.
+    skill context, quality gate criteria, and rules.
     """
     template = get_adw_template(intent)
     skill_context = _get_skill_context(intent)
@@ -176,9 +206,11 @@ def build_structured_brief(raw_brief: str, intent: str, repo_url: str = "") -> s
         f"{skill_context}"
         f"{lesson_context}"
         f"--- USER BRIEF ---\n{raw_brief}\n--- END BRIEF ---\n\n"
+        f"{_QUALITY_GATE}\n"
         f"RULES:\n"
         f"- Follow the workflow steps above in order\n"
         f"- Show your thinking at each step\n"
+        f"- Pass the Quality Gate self-review BEFORE every commit\n"
         f"- After changes: git add -A && git commit -m '<type>: <description>'\n"
         f"- Use conventional commits: feat:, fix:, chore:, docs:\n"
         f"- At the end write a summary of what you did and what to do next"

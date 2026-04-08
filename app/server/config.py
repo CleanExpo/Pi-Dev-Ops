@@ -18,7 +18,7 @@ GC_MAX_AGE = int(os.environ.get("TAO_GC_MAX_AGE", "14400"))   # 4 hours default
 LESSONS_FILE = os.environ.get("TAO_LESSONS", os.path.join(os.path.dirname(__file__), "..", "..", ".harness", "lessons.jsonl"))
 EVALUATOR_ENABLED = os.environ.get("TAO_EVALUATOR_ENABLED", "true").lower() == "true"
 EVALUATOR_MODEL = os.environ.get("TAO_EVALUATOR_MODEL", "sonnet")
-EVALUATOR_THRESHOLD = int(os.environ.get("TAO_EVALUATOR_THRESHOLD", "7"))
+EVALUATOR_THRESHOLD = int(os.environ.get("TAO_EVALUATOR_THRESHOLD", "8"))
 EVALUATOR_MAX_RETRIES = int(os.environ.get("TAO_EVALUATOR_MAX_RETRIES", "2"))
 WEBHOOK_SECRET = os.environ.get("TAO_WEBHOOK_SECRET", "")
 LINEAR_WEBHOOK_SECRET = os.environ.get("TAO_LINEAR_WEBHOOK_SECRET", "")
