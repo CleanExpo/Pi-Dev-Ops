@@ -216,7 +216,8 @@ print("\n[6/9] Garbage Collection")
 sc, body = post("/api/gc")
 check("POST /api/gc returns 200", sc == 200, f"got {sc}")
 check("GC response has removed key", isinstance(body, dict) and "removed" in body, str(body))
-check("GC response has no errors", isinstance(body, dict) and body.get("errors", []) == [], str(body))
+errors_val = body.get("errors", 0) if isinstance(body, dict) else 1
+check("GC response has no errors", errors_val == [] or errors_val == 0, str(body))
 
 # ── 7. Lessons API ────────────────────────────────────────────────────────
 print("\n[7/9] Lessons API")
