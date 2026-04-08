@@ -7,17 +7,17 @@ description: Master index of all 23 TAO skills.
 
 23 skills across 5 layers.
 
-## Core
+## Core (7)
 tier-architect, tier-orchestrator, tier-worker, tier-evaluator, context-compressor, token-budgeter, auto-generator
 
-## Frameworks
+## Frameworks (6)
 piter-framework, afk-agent, closed-loop-prompt, hooks-system, agent-workflow, agentic-review
 
-## Strategic
+## Strategic (5)
 zte-maturity, agent-expert, leverage-audit, agentic-loop, agentic-layer
 
-## Foundation
+## Foundation (3)
 big-three, claude-max-runtime, pi-integration
 
-## Meta
+## Meta (2)
 ceo-mode, tao-skills
