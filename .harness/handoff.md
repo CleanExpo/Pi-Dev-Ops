@@ -1,6 +1,6 @@
 # Pi Dev Ops — Cross-Session Handoff
 
-_Last updated: 2026-04-08 | Sprint 3 / Cycle 4 | ZTE Score: 60/60 Zero Touch_
+_Last updated: 2026-04-08 | Sprint 5 / Cycle 6 | ZTE Score: 60/60 Zero Touch_
 
 ---
 
@@ -109,29 +109,28 @@ TAO_EVALUATOR_MODEL=sonnet
 TAO_GC_MAX_AGE=14400  # 4 hours
 ```
 
-### Railway deployment (RA-478)
+### Railway deployment (RA-478) — LIVE ✅
 
-```bash
-# Deploy from project root
-railway link      # or: railway init
-railway up        # builds Dockerfile, deploys to Railway
-```
+**Public URL:** `https://pi-dev-ops-production.up.railway.app`
+**Project:** airy-adventure | **Service:** Pi-Dev-Ops | **Region:** US East (Virginia)
 
-Required Railway env vars (set via railway.app dashboard or `railway variables set`):
+Railway env vars set (via dashboard Variables tab):
 ```
-TAO_PASSWORD=<strong password>
-TAO_SESSION_SECRET=<long random hex>
-ANTHROPIC_API_KEY=<key for claude CLI>
+TAO_PASSWORD=mdGF5NWZrpC4HFCaXMZHE4-ipqq9FJDhebrx_6oDCKg
+TAO_SESSION_SECRET=a3687d7f4ff46d248996cc09ae224e4d5bb1ff61001c0b826a36453ae99d0adc5663a2e71ddd76ef5f71dc30d4f0d52fc7150b5ba53adf4e3657b1fe9f194aa5
+ANTHROPIC_API_KEY=<set in Railway dashboard>
 TAO_EVALUATOR_ENABLED=true
 TAO_EVALUATOR_THRESHOLD=7
+TAO_EVALUATOR_MAX_RETRIES=2
 TAO_GC_MAX_AGE=14400
 ```
 
-After deploy, set in Vercel (dashboard project):
+Vercel dashboard env vars set (all environments):
 ```
-PI_CEO_URL=https://<your-railway-app>.railway.app
-PI_CEO_PASSWORD=<same as TAO_PASSWORD>
+PI_CEO_URL=https://pi-dev-ops-production.up.railway.app
+PI_CEO_PASSWORD=mdGF5NWZrpC4HFCaXMZHE4-ipqq9FJDhebrx_6oDCKg
 ```
+Dashboard redeployed: `https://dashboard-unite-group.vercel.app`
 
 The MCP server (`mcp/pi-ceo-server.js`) needs `LINEAR_API_KEY` set in
 `%APPDATA%\Claude\claude_desktop_config.json` for its Linear tools to work.
@@ -165,9 +164,18 @@ Run `linear_status` tool in Claude to verify. Get key from https://linear.app/se
 
 ---
 
-## What To Do Next (Sprint 5 Candidates)
+## Sprint 5 — Complete (2026-04-08)
 
-1. **Confirm RA-475 build completion** — check `app/logs/sessions/` for evaluator score after the in-progress `claude -p` run finishes
-2. **Deploy Pi CEO server** — expose on Railway/Fly so the Vercel dashboard `/builds` page works in production (currently requires local tunnel)
-3. **Vercel env vars** — add `PI_CEO_URL` + `PI_CEO_PASSWORD` to Vercel project settings for the dashboard `/builds` page
-4. **smoke_test.py in CI** — add as a GitHub Actions pre-deploy gate
+| Issue | Change |
+|-------|--------|
+| RA-477 | `.github/workflows/smoke_test.yml`: GitHub Actions CI — 28-check smoke test runs on push/PR to main; `TAO_EVALUATOR_ENABLED=false` skips real claude in CI |
+| RA-478 | Railway deployment live: `Dockerfile` + `railway.toml` + `.dockerignore`; public URL `https://pi-dev-ops-production.up.railway.app`; Vercel `PI_CEO_URL` + `PI_CEO_PASSWORD` set; dashboard redeployed |
+
+---
+
+## What To Do Next (Sprint 6 Candidates)
+
+1. **Verify `/builds` page in production** — open `https://dashboard-unite-group.vercel.app/builds` and confirm sessions stream from Railway
+2. **Smoke test against Railway** — run `python scripts/smoke_test.py --url https://pi-dev-ops-production.up.railway.app --password mdGF5NWZrpC4HFCaXMZHE4-ipqq9FJDhebrx_6oDCKg`
+3. **Linear API key** — add `LINEAR_API_KEY` to `%APPDATA%\Claude\claude_desktop_config.json` so `linear_*` MCP tools work (see RA-476 instructions above)
+4. **Cost tracking** — wire Railway spend alerts; add `TAO_MONTHLY_BUDGET_USD` env var check
