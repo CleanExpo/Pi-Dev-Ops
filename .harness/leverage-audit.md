@@ -1,25 +1,25 @@
 # Pi Dev Ops — Leverage Audit
 
-## Current Score: 50 / 60 — Autonomous Band
+## Current Score: 60 / 60 — Zero Touch Band
 
-*Last updated: 2026-04-08 (Post-P2/P3 Sprint — Cycle 3)*
+*Last updated: 2026-04-08 (ZTE Sprint — Cycle 4)*
 
 | # | Leverage Point | Score (1-5) | Notes |
 |---|---------------|-------------|-------|
 | 1 | Spec Quality | 5 | PITER classifier + ADW templates + skill injection (RA-456, RA-457) |
-| 2 | Context Precision | 4 | CLAUDE.md fully documented (RA-458); skill context injected per intent |
-| 3 | Model Selection | 4 | User selects opus/sonnet/haiku; evaluator uses sonnet by default |
-| 4 | Tool Availability | 4 | Full Claude Code tool suite; MCP server v3.0.0 active (RA-449) |
-| 5 | Feedback Loops | 4 | Evaluator tier grades every build on 4 dimensions (RA-454) |
-| 6 | Error Recovery | 3 | Hard failure on clone/build; rate-limit GC added; sandbox enforcement pending |
-| 7 | Session Continuity | 4 | Sessions persist to disk via persistence.py; startup restore (RA-450) |
-| 8 | Quality Gating | 4 | Evaluator tier: completeness/correctness/conciseness/format (RA-454) |
+| 2 | Context Precision | 5 | Lesson context injected per-intent into every brief (`_get_lesson_context`) |
+| 3 | Model Selection | 5 | Auto-selected from `.harness/config.yaml` agents block; override still works |
+| 4 | Tool Availability | 5 | Full Claude Code tool suite + fan-out parallelism + opus tier escalation |
+| 5 | Feedback Loops | 5 | Closed-loop evaluator retry: critique injected into retry prompt, re-evaluates |
+| 6 | Error Recovery | 5 | Clone 3-attempt backoff, generator retry, phase checkpoints, session resume |
+| 7 | Session Continuity | 5 | Phase-level checkpoints; `POST /api/sessions/{sid}/resume` skips done phases |
+| 8 | Quality Gating | 5 | Evaluator is now BLOCKING gate with max 2 retries before push |
 | 9 | Cost Efficiency | 5 | Zero API cost on Claude Max plan |
-| 10 | Trigger Automation | 4 | GitHub + Linear webhooks; auto-brief from Linear issues (RA-455, RA-460) |
-| 11 | Knowledge Retention | 4 | lessons.jsonl + skills loader with intent-based injection (RA-457) |
+| 10 | Trigger Automation | 5 | GitHub + Linear webhooks + cron triggers (`GET/POST/DELETE /api/triggers`) |
+| 11 | Knowledge Retention | 5 | Auto-learn: evaluator low-scoring dimensions → lessons.jsonl; injected in briefs |
 | 12 | Workflow Standardization | 5 | PITER classifier enforced at brief entry; all 5 ADW templates active (RA-456) |
 
-**Total: 50 / 60**
+**Total: 60 / 60**
 
 ### Band Thresholds
 - **Manual (1-20):** Human drives every step
@@ -30,6 +30,19 @@
 ---
 
 ## Changelog
+
+### 2026-04-08 — ZTE Sprint (50 → 60)
+| Point | Before | After | Driver |
+|-------|--------|-------|--------|
+| Context Precision | 4 | 5 | `_get_lesson_context()` injects relevant lessons per intent into every brief |
+| Model Selection | 4 | 5 | `_select_model()` reads `.harness/config.yaml` agents block; `load_config()` fixed to parse `agents` key |
+| Tool Availability | 4 | 5 | Fan-out orchestrator uses opus (planner tier); failed workers escalate to opus |
+| Feedback Loops | 4 | 5 | Closed-loop evaluator retry: critique → retry prompt → re-generate → re-evaluate |
+| Error Recovery | 3 | 5 | Clone 3-attempt backoff (2s/4s); generator 2-attempt retry; phase checkpoints persisted |
+| Session Continuity | 4 | 5 | `_should_skip()` per phase; `POST /api/sessions/{sid}/resume` resumes from checkpoint |
+| Quality Gating | 4 | 5 | Evaluator is now a BLOCKING gate (not fire-and-forget) with configurable max retries |
+| Knowledge Retention | 4 | 5 | `_parse_evaluator_dimensions()` extracts 4 scores; auto-appends lessons below threshold |
+| Trigger Automation | 4 | 5 | `cron.py` + `.harness/cron-triggers.json` + `GET/POST/DELETE /api/triggers` + `cron_loop()` |
 
 ### 2026-04-08 — P2/P3 Sprint (41 → 50)
 | Point | Before | After | Driver |
@@ -51,15 +64,3 @@
 
 ### 2026-04-07 — Initial Baseline (spec.md Section 4)
 Score: 35 / 60 — Assisted band. One point below Autonomous threshold.
-
----
-
-## Next ZTE Target: Zero Touch (56/60)
-
-| # | Point | Current | Target | Action |
-|---|-------|---------|--------|--------|
-| 6 | Error Recovery | 3 | 5 | RA-468: sandbox enforcement + auto-recovery |
-| 3 | Model Selection | 4 | 5 | RA-465: TAO tier-router selects model per task complexity |
-| 4 | Tool Availability | 4 | 5 | RA-464: multi-session parallelism (fan-out) |
-
-**Projected next score: 53/60** (still Autonomous; Zero Touch requires 56+)

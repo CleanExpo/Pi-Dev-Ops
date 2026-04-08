@@ -17,6 +17,8 @@ _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
+from .lessons import load_lessons
+
 # ── PITER Intent Classification ───────────────────────────────────────────────
 _INTENT_KEYWORDS = {
     "hotfix": ["hotfix", "urgent fix", "critical fix", "production down", "p0", "emergency"],
@@ -131,6 +133,28 @@ def _get_skill_context(intent: str, max_chars: int = 4000) -> str:
     return ""
 
 
+def _get_lesson_context(intent: str, limit: int = 5, max_chars: int = 2000) -> str:
+    """Load recent lessons relevant to the intent and format as prompt context."""
+    lessons = load_lessons(category=intent, limit=limit)
+    if not lessons:
+        lessons = load_lessons(category=None, limit=3)
+    if not lessons:
+        return ""
+    parts = []
+    total = 0
+    for entry in lessons:
+        sev = entry.get("severity", "info").upper()
+        text = entry.get("lesson", "")[:300]
+        chunk = f"- [{sev}] {text}\n"
+        if total + len(chunk) > max_chars:
+            break
+        parts.append(chunk)
+        total += len(chunk)
+    if parts:
+        return "--- LESSONS LEARNED ---\n" + "".join(parts) + "--- END LESSONS ---\n\n"
+    return ""
+
+
 def build_structured_brief(raw_brief: str, intent: str, repo_url: str = "") -> str:
     """Compose a structured spec string for claude -p from a raw brief + intent.
 
@@ -139,6 +163,7 @@ def build_structured_brief(raw_brief: str, intent: str, repo_url: str = "") -> s
     """
     template = get_adw_template(intent)
     skill_context = _get_skill_context(intent)
+    lesson_context = _get_lesson_context(intent)
 
     spec = (
         f"You are Pi CEO orchestrator on Claude Max.\n"
@@ -146,6 +171,7 @@ def build_structured_brief(raw_brief: str, intent: str, repo_url: str = "") -> s
         f"Intent: {intent.upper()} — {template['name']}\n\n"
         f"{template['instructions']}\n\n"
         f"{skill_context}"
+        f"{lesson_context}"
         f"--- USER BRIEF ---\n{raw_brief}\n--- END BRIEF ---\n\n"
         f"RULES:\n"
         f"- Follow the workflow steps above in order\n"

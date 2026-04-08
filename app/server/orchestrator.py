@@ -14,6 +14,7 @@ import asyncio, json, os, time, uuid
 from . import config
 from .sessions import create_session, em, run_cmd, BuildSession, _sessions
 from .brief import classify_intent
+from .sessions import _select_model
 
 
 async def _decompose_brief(brief: str, n_workers: int, repo_url: str, workspace: str) -> list[str]:
@@ -33,7 +34,7 @@ async def _decompose_brief(brief: str, n_workers: int, repo_url: str, workspace:
     try:
         rc, out, _ = await run_cmd(
             workspace, config.CLAUDE_CMD, "-p", decompose_prompt,
-            "--model", "sonnet", "--output-format", "text",
+            "--model", _select_model("planner"), "--output-format", "text",
             timeout=60
         )
         if rc == 0 and out.strip():
@@ -102,8 +103,9 @@ async def fan_out(
     for i, sb in enumerate(sub_briefs):
         em(parent, "system", f"  [{i+1}] {sb[:100]}")
 
-    # Launch N worker sessions sequentially (each spawns an async build task)
+    # Launch N worker sessions with tier escalation on failure
     worker_ids = []
+    escalated = []
     for i, sub_brief in enumerate(sub_briefs):
         try:
             s = await create_session(
@@ -117,16 +119,34 @@ async def fan_out(
             worker_ids.append(s.id)
             em(parent, "system", f"  Launched worker {i+1}: {s.id}")
         except RuntimeError as e:
-            em(parent, "error", f"  Worker {i+1} launch failed: {e}")
+            em(parent, "error", f"  Worker {i+1} launch failed ({e}) — escalating to opus")
+            # Tier escalation: retry failed worker with opus (one-shot)
+            opus_model = _select_model("planner")  # planner tier = opus
+            try:
+                s2 = await create_session(
+                    repo_url=repo_url,
+                    brief=sub_brief,
+                    model=opus_model,
+                    evaluator_enabled=evaluator_enabled,
+                    intent=resolved_intent,
+                    parent_session_id=parent_id,
+                )
+                worker_ids.append(s2.id)
+                escalated.append(s2.id)
+                em(parent, "system", f"  Escalated worker {i+1} (opus): {s2.id}")
+            except RuntimeError as e2:
+                em(parent, "error", f"  Escalated worker {i+1} also failed: {e2}")
 
     succeeded = len(worker_ids) > 0
     parent.status = "complete" if succeeded else "failed"
     em(parent, "success" if succeeded else "error",
-       f"  {'All workers launched' if succeeded else 'No workers started'}")
+       f"  {'All workers launched' if succeeded else 'No workers started'}"
+       + (f" ({len(escalated)} escalated to opus)" if escalated else ""))
 
     return {
         "parent_id": parent_id,
         "worker_ids": worker_ids,
         "n_workers": len(worker_ids),
+        "escalated_ids": escalated,
         "status": "launched" if succeeded else "failed",
     }

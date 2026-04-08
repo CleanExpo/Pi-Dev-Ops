@@ -5,11 +5,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from .auth import verify_password, create_session_token, verify_session_token, require_auth, require_rate_limit
-from .sessions import create_session, get_session, list_sessions, kill_session, restore_sessions, _sessions
+from .sessions import create_session, get_session, list_sessions, kill_session, restore_sessions, _sessions, run_build
 from .gc import collect_garbage, gc_loop
 from .lessons import load_lessons, append_lesson
 from .webhook import verify_github_signature, verify_linear_signature, parse_github_event, parse_linear_event, linear_issue_to_brief
 from .orchestrator import fan_out
+from .cron import list_triggers, create_trigger, delete_trigger, cron_loop
 from . import config
 
 app = FastAPI(title="Pi CEO", docs_url=None, redoc_url=None, openapi_url=None)
@@ -18,6 +19,7 @@ app = FastAPI(title="Pi CEO", docs_url=None, redoc_url=None, openapi_url=None)
 async def on_startup():
     restore_sessions()
     asyncio.create_task(gc_loop(_sessions))
+    asyncio.create_task(cron_loop())
     print("[startup] Pi CEO ready.")
 
 # True when deployed on Railway (or any cloud with this env var set)
@@ -129,6 +131,20 @@ async def stop_session(sid: str):
     if not await kill_session(sid): raise HTTPException(404, "Not found")
     return {"ok": True}
 
+@app.post("/api/sessions/{sid}/resume", dependencies=[Depends(require_auth)])
+async def resume_session(sid: str):
+    """Resume an interrupted session from its last completed phase (GROUP E)."""
+    session = get_session(sid)
+    if not session: raise HTTPException(404, "Session not found")
+    if session.status != "interrupted": raise HTTPException(400, f"Status is '{session.status}', not 'interrupted'")
+    last_phase = getattr(session, "last_completed_phase", "")
+    if not last_phase: raise HTTPException(400, "No phase checkpoint — cannot resume")
+    session.status = "building"
+    from . import persistence
+    persistence.save_session(session)
+    asyncio.create_task(run_build(session, resume_from=last_phase))
+    return {"session_id": session.id, "resumed_from": last_phase}
+
 @app.post("/api/webhook", dependencies=[Depends(require_rate_limit)])
 async def webhook(request: Request):
     raw_body = await request.body()
@@ -180,6 +196,41 @@ async def webhook(request: Request):
 
     else:
         raise HTTPException(400, "Missing webhook signature header (x-hub-signature-256 or Linear-Signature)")
+
+@app.get("/api/triggers", dependencies=[Depends(require_auth)])
+async def get_triggers():
+    return list_triggers()
+
+@app.post("/api/triggers", dependencies=[Depends(require_auth), Depends(require_rate_limit)])
+async def add_trigger(request: Request):
+    body = await request.json()
+    repo_url = body.get("repo_url", "").strip()
+    brief = body.get("brief", "").strip()
+    model = body.get("model", "sonnet").strip()
+    hour = body.get("hour")  # optional
+    minute = body.get("minute")
+    if not repo_url: raise HTTPException(400, "repo_url required")
+    if not repo_url.startswith(("https://", "git@")): raise HTTPException(400, "Invalid URL")
+    if model not in config.ALLOWED_MODELS: raise HTTPException(400, f"model must be {config.ALLOWED_MODELS}")
+    if minute is None: raise HTTPException(400, "minute required (0-59)")
+    try:
+        minute = int(minute)
+        if not (0 <= minute <= 59): raise ValueError
+    except (ValueError, TypeError):
+        raise HTTPException(400, "minute must be 0-59")
+    if hour is not None:
+        try:
+            hour = int(hour)
+            if not (0 <= hour <= 23): raise ValueError
+        except (ValueError, TypeError):
+            raise HTTPException(400, "hour must be 0-23")
+    trigger = create_trigger(repo_url=repo_url, brief=brief, minute=minute, hour=hour, model=model)
+    return trigger
+
+@app.delete("/api/triggers/{tid}", dependencies=[Depends(require_auth)])
+async def remove_trigger(tid: str):
+    if not delete_trigger(tid): raise HTTPException(404, "Trigger not found")
+    return {"ok": True}
 
 @app.post("/api/gc", dependencies=[Depends(require_auth)])
 async def run_gc():

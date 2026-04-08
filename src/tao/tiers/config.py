@@ -20,4 +20,9 @@ def load_config(path):
     tiers = []
     for t in raw.get('tiers', []):
         tiers.append(TierConfig(**{k:v for k,v in t.items() if k in TierConfig.__dataclass_fields__}))
-    return {'total_token_budget': raw.get('total_token_budget', 100000), 'tiers': tiers}
+    return {
+        'total_token_budget': raw.get('total_token_budget', 100000),
+        'tiers': tiers,
+        'agents': raw.get('agents', {}),
+        'qa': raw.get('qa', {}),
+    }
