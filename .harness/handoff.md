@@ -1,6 +1,6 @@
 # Pi Dev Ops — Cross-Session Handoff
 
-_Last updated: 2026-04-08 | Sprint 5 / Cycle 6 | ZTE Score: 60/60 Zero Touch_
+_Last updated: 2026-04-10 | Sprint 5 / Cycle 10 | ZTE Score: 60/60 Zero Touch_
 
 ---
 
@@ -185,10 +185,57 @@ Run `linear_status` tool in Claude to verify. Get key from https://linear.app/se
 
 ---
 
-## What To Do Next (Sprint 7 Candidates)
+## Security Hardening Sprint (2026-04-09) — RA-489 through RA-508
 
-1. **Verify `/builds` page in production** — open `https://dashboard-unite-group.vercel.app/builds` and confirm sessions stream from Railway
-2. **Smoke test against Railway** — run `python scripts/smoke_test.py --url https://pi-dev-ops-production.up.railway.app --password mdGF5NWZrpC4HFCaXMZHE4-ipqq9FJDhebrx_6oDCKg`
-3. **Linear API key** — add `LINEAR_API_KEY` to `%APPDATA%\Claude\claude_desktop_config.json` so `linear_*` MCP tools work (see RA-476 instructions above)
-4. **Cost tracking** — wire Railway spend alerts; add `TAO_MONTHLY_BUDGET_USD` env var check
-5. **Evaluator model upgrade** — set `TAO_EVALUATOR_MODEL=opus` in Railway for maximum scoring rigour (15x cost but catches every gap)
+Major security and feature completion pass across all layers:
+
+**Security (6 items):**
+- SHA-256 password hashing replaced with bcrypt + transparent migration on first login
+- GitHub token removed from localStorage (XSS vector closed)
+- CSP hardened: `unsafe-eval` replaced with `wasm-unsafe-eval`
+- Session secret persisted to `app/data/.session-secret` (survives restarts)
+- Structured JSON logging (`_JsonFormatter`) across all Python modules
+- `print()` replaced with `logging.getLogger()` in cron.py, gc.py, sessions.py
+
+**Bug Fixes (2 items):**
+- Phase 4 (CONTEXT) result parser in `dashboard/lib/phases.ts` — was missing `case 4`, silently dropping all context data
+- xterm.js CSS import missing in `dashboard/components/Terminal.tsx`
+
+**Feature Wiring (5 items):**
+- Vercel preview deployments wired into `/api/analyze` route after Phase 8
+- Telegram notifications on analysis completion + failure
+- ActionsPanel: download button (Blob) + commit-to-branch button (GitHub API)
+- SSE reconnection with exponential backoff (1s→30s, max 6 retries)
+- Enhanced `/health` endpoint: uptime, sessions, disk, Claude CLI status
+
+**UX (3 items):**
+- Toast notification system with Bloomberg styling (`dashboard/components/Toast.tsx`)
+- ErrorBoundary with retry (`dashboard/components/ErrorBoundary.tsx`)
+- 404 page (`dashboard/app/not-found.tsx`) and global error page (`dashboard/app/error.tsx`)
+
+**New TAO Skills (3 items):**
+- `skills/security-audit/SKILL.md` — OWASP Top 10, CVSS scoring
+- `skills/product-manager/SKILL.md` — RICE prioritisation, feature completeness
+- `skills/maintenance-manager/SKILL.md` — dependency health, debt calendar
+
+---
+
+## Architectural Pivot: Claude Agent SDK (Board Decision 2026-04-09)
+
+**RA-485** — Board Cycle 9 voted 8/8 to adopt the Anthropic Claude Agent SDK as the Pi-CEO runtime via a 2-week parallel PoC.
+
+The full protocol is documented in `MANAGED_AGENTS_v4_FINAL.md` (project root). It defines 6 specialist agents (Senior PM coordinator, Architecture, Implementation, Testing, Review, Content/SEO), memory stores, a quality rubric, and an outcome chain loop.
+
+**Phase 1 (current):** Install SDK, define `board-meeting` AgentDefinition, run first parallel cycle.
+**Phase 2 (days 1-14):** Both systems produce reports each 6-hour cycle. Log metrics.
+**Phase 3 (day 14):** Go/no-go decision based on data.
+
+---
+
+## What To Do Next
+
+1. **RA-484** — Add `smoke_test.py` as GitHub Actions CI gate
+2. **RA-483** — Verify Railway deployment is live and dashboard connects
+3. **RA-485** — Claude Agent SDK PoC Phase 1 (board-meeting agent definition)
+4. **Cost tracking** — wire Railway spend alerts
+5. **Codebase audit** — dead code removal, type safety, missing error handling

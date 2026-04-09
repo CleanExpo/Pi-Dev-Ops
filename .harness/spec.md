@@ -1,6 +1,6 @@
 # Pi Dev Ops — Product Spec (Full Analysis)
 
-_Generated: 2026-04-08 | Last updated: 2026-04-08 (Sprint 4 spike) | Analyst: Pi CEO Orchestrator (Claude Sonnet 4.6) | Sprint: 4 / Cycle 6_
+_Generated: 2026-04-08 | Last updated: 2026-04-10 (Sprint 5) | Analyst: Pi CEO Orchestrator (Claude Opus 4.6) | Sprint: 5 / Cycle 10_
 
 ---
 
@@ -73,7 +73,7 @@ Browser ← WebSocket /ws/build/{sid}  (live event stream, 150ms polling)
 - `SecurityHeaders` middleware: CSP, X-Frame-Options, X-XSS-Protection on every response
 - CORS: explicit allowlist (`localhost:3000`, `*.vercel.app`, `*.railway.app` + env-var extension)
 - Cookie: `HttpOnly`, `Secure` (cloud only), `SameSite=None` (cloud) / `Strict` (local)
-- Auth: SHA-256 password hash, `hmac.compare_digest` (timing-safe). Bearer token also accepted (WS fallback)
+- Auth: bcrypt password hash (auto-migrated from SHA-256 on first login), `hmac.compare_digest` (timing-safe). Bearer token also accepted (WS fallback)
 - Rate limit: 30 req/min/IP, inline GC every 5 min, stale IP keys pruned at 120s idle
 - Path traversal: `_safe_sid()` strips non-alphanumeric from session IDs before file path use
 - Webhook HMAC: timing-safe comparison for both GitHub (`sha256=<hex>`) and Linear (`<hex>`) formats
@@ -263,65 +263,57 @@ RA-469 MCP `get_zte_score` reads `leverage-audit.md` + `feature_list.json`, RA-4
 
 ---
 
-## 6. Improvement Recommendations (Sprint 4)
+## 6. Sprint 4 Completions + Sprint 5 Direction
 
-### Completed (this cycle)
+### Sprint 4 — Completed (2026-04-09)
 
-**~~P4-A~~: ✅ `executive-summary.md` created**
-MCP `get_last_analysis` now returns full content; board meeting generation functional.
+| ID | Item | Status |
+|----|------|--------|
+| P4-A | `executive-summary.md` created | Done |
+| P4-B | `token-budgeter` skill cost fields filled | Done |
+| P4-C | `ceo-mode` added to `tao-skills` master index | Done |
+| P4-D | `GET /api/capabilities` endpoint (RA-479) | Done |
+| P4-E | Dashboard session alignment (RA-480) | Done |
+| P4-F | `AgentDispatcher` in `src/tao/agents/__init__.py` (RA-482) | Done |
+| P4-G | `scripts/smoke_test.py` 28-check suite (RA-481) | Done |
+| P4-K | `LINEAR_API_KEY` in claude_desktop_config.json | Done |
+| SEC-0..5 | Security hardening (bcrypt, CSP, logging, session secret) | Done |
+| BUG-1,2 | Phase 4 parser fix, xterm CSS fix | Done |
+| FEAT-1..5 | Vercel deploy, Telegram, ActionsPanel, SSE reconnect, /health | Done |
+| UX-1..3 | Toast, ErrorBoundary, 404/error pages | Done |
+| SKILL-1..3 | security-audit, product-manager, maintenance-manager skills | Done |
 
-**~~P4-B~~: ✅ `token-budgeter` skill cost fields filled in**
-Opus $15, Sonnet $3, Haiku $1.25 per M output tokens documented in skill.
+### Sprint 5 — Architectural Pivot: Claude Agent SDK
 
-**~~P4-C~~: ✅ `ceo-mode` added to `tao-skills` master index**
-All 23 skills correctly indexed; `skills_for_intent("spike")` returns `ceo-mode`.
+**Board Decision (2026-04-09, Cycle 9):** ADOPT Anthropic Claude Agent SDK via 2-week parallel PoC. Voted 8/8 unanimously (RA-485).
 
-### Priority 1 — High Impact, One Session
+**Rationale:** Pi-CEO is built on custom infrastructure (custom MCP server, manual sandbox enforcement, hand-rolled session persistence, bespoke garbage collection). This infrastructure is fragile (Zod bug blocked 8 cycles), consumes engineering bandwidth, and doesn't compound. Only the intelligence layer compounds.
 
-**P4-D: Implement `capabilities` endpoint (agentic-layer skill)**
-- `GET /api/capabilities` → returns self-describing JSON of all available actions
-- Enables machine-to-machine discovery of the API surface
-- Impact: Agentic Layer skill fully satisfied; ZTE Level 3 capability published
+**Strategy:** Parallel run. Build `board-meeting` agent as a NEW deployment using the Claude Agent SDK (`pip install claude-agent-sdk`). Run both systems in parallel for 14 cycles. Migrate production only after 14 consecutive stable cycles.
 
-### Priority 2 — Medium Impact, 1-3 Sessions
+**Kill criteria (abort PoC if any triggered):**
+- Session lifecycle incompatible with cron-pattern (idle timeout < 6h)
+- MCP connectivity fails from within SDK container
+- Cost > 5x raw API baseline
 
-**P4-E: Dashboard–backend session data alignment**
-- `dashboard/lib/types.ts` defines `Session.phases: Phase[]` but `/api/sessions` returns a flat status string
-- Option A: Enrich backend `/api/sessions` response to include phase array
-- Option B: Strip unused frontend types to match what the backend actually emits
-- Recommendation: Option A — phases are already tracked in `session.last_completed_phase`; serialise the full `_PHASE_ORDER` array with per-phase status
+**What the SDK replaces:**
+| Current Pi-CEO Pattern | SDK Replacement |
+|---|---|
+| `asyncio.create_subprocess_exec("claude")` | Cloud container sessions |
+| Sequential `for phase in PHASES` loop | Multi-agent coordinator |
+| `lessons.jsonl` file | Persistent memory stores |
+| Local stdio MCP server | Remote MCP with vault auth |
+| `TAO_PASSWORD` env var | Vault credential management |
 
-**P4-F: Implement `src/tao/agents/__init__.py`**
-- Currently empty; planner/evaluator agent specifications exist in `.harness/agents/`
-- Implement `AgentDispatcher` class that reads `TierConfig` and calls `claude -p` subprocess
-- Impact: Python-level orchestration becomes possible; enables programmatic task trees
+**Reference:** `MANAGED_AGENTS_v4_FINAL.md` in project root contains the full 6-agent protocol (SPM, Architecture, Implementation, Testing, Review, Content specialists).
 
-**P4-G: E2E regression script (`scripts/smoke_test.py`)**
-- Convert the 22-check smoke test from `.harness/qa/smoke-test.md` into a runnable Python script
-- Can be used as pre-deploy gate and scheduled daily via cron trigger
-- Impact: every push is validated; prevents regressions across sprints
+### Remaining Open Items
 
-**P4-H: `auto-generator` skill implementation**
-- `auto-generator/SKILL.md` defines 3 presets (2-tier-codereview, 3-tier-webapp, 4-tier-research)
-- Implement `generate_config(preset)` in `src/tao/` that produces a valid `config.yaml`
-- Impact: brief onboarding for new repos — auto-select tier config from project type
-
-### Priority 3 — Longer Horizon
-
-**P4-I: ZTE Level 3 — Full system self-improvement loop**
-- Evaluator low-score lessons are already written to `lessons.jsonl`
-- Missing: a scheduled agent that reads recent lessons, identifies patterns, and proposes CLAUDE.md or skills updates
-- This closes the ZTE loop: system detects its own weaknesses and improves its own prompts
-
-**P4-J: Multi-model parallel evaluation (Agentic Loop upgrade)**
-- Run evaluator with both Sonnet and Haiku simultaneously
-- Accept if both agree; escalate to Opus if they disagree
-- Impact: evaluation quality improves; cost stays low (Haiku is $0.25/M)
-
-**P4-K: Linear API key for Pi CEO MCP**
-- Add `LINEAR_API_KEY` to `claude_desktop_config.json` env block
-- Currently the `linear_*` MCP tools fall back to an error message
-- Impact: autonomous issue creation/update from Claude Desktop without Composio dependency
+| Priority | Item | Ticket |
+|----------|------|--------|
+| Medium | `auto-generator` skill implementation | Untracked |
+| Low | Multi-model parallel evaluation | Untracked |
+| Low | Full self-improvement loop (ZTE Level 3 meta) | Untracked |
 
 ---
 
@@ -434,17 +426,15 @@ WebSocket is bidirectional — the client can send `ping` frames and the server 
 
 ---
 
-## 9. Next Actions (Sprint 4)
+## 9. Next Actions (Sprint 5)
 
 ```
-[x] P4-A: Create .harness/executive-summary.md (DONE)
-[x] P4-B: Fix token-budgeter/SKILL.md cost values (DONE — Opus $15, Sonnet $3, Haiku $1.25)
-[x] P4-C: Add ceo-mode to tao-skills/SKILL.md master index (DONE)
-[ ] P4-D: Implement GET /api/capabilities endpoint
-[ ] P4-E: Align /api/sessions to emit Phase[] array (match dashboard types.ts)
-[ ] P4-F: Implement src/tao/agents/__init__.py AgentDispatcher
-[ ] P4-G: Build scripts/smoke_test.py from .harness/qa/smoke-test.md
-[ ] P4-H: Add LINEAR_API_KEY to claude_desktop_config.json for MCP Linear tools
+[x] RA-487: Update feature_list.json — F-027, F-028 marked complete (DONE)
+[x] RA-488: Update harness docs for Sprint 4 + SDK pivot (DONE)
+[x] RA-486: Verify claude CLI PATH — confirmed working v2.1.98 (DONE)
+[ ] RA-484: Add smoke_test.py as GitHub Actions CI gate
+[ ] RA-483: Deploy Pi CEO server to Railway (cloud URL for dashboard)
+[ ] RA-485: Claude Agent SDK PoC — board-meeting agent (Phase 1)
 ```
 
 ### Additional findings from Sprint 4 spike

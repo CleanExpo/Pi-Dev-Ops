@@ -2,7 +2,7 @@
   "generated": "2026-04-08",
   "zte_score": 60,
   "zte_band": "Zero Touch",
-  "sprint": "Sprint 3 / Cycle 4",
+  "sprint": "Sprint 5 / Cycle 10",
   "features": [
     {
       "id": "F-001",
@@ -211,22 +211,23 @@
       "status": "complete",
       "leverage_point": "Trigger Automation",
       "linear_issue": "ZTE-Sprint"
-    }
-  ],
-  "pending": [
+    },
     {
       "id": "F-027",
       "name": "E2E Integration Smoke Test",
-      "description": "Full Brief → PITER → ADW → Claude → Evaluator → GitHub push pipeline validated end-to-end",
-      "status": "pending",
+      "description": "scripts/smoke_test.py — 28-check E2E regression suite validating full pipeline: Brief → PITER → ADW → Claude → Evaluator → GitHub push",
+      "status": "complete",
+      "leverage_point": "Quality Gating",
       "linear_issue": "RA-470"
     },
     {
       "id": "F-028",
       "name": "Error Recovery — Transient Failure Retry",
-      "description": "Retry logic for network blip during push; structured backoff beyond current clone/generator retry",
-      "status": "pending",
+      "description": "3-attempt exponential backoff on git push (2s/4s/8s); structured error reporting on final failure",
+      "status": "complete",
+      "leverage_point": "Error Recovery",
       "linear_issue": "RA-471"
     }
-  ]
+  ],
+  "pending": []
 }

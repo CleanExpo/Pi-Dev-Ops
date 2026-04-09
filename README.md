@@ -1,5 +1,7 @@
 # Pi CEO — Solo DevOps Tool
 
+![Smoke Test](https://github.com/CleanExpo/Pi-Dev-Ops/actions/workflows/smoke_test.yml/badge.svg)
+
 **Private agentic engineering system powered by Claude Harness.**
 
 Pi CEO turns a GitHub repo URL and a plain-English brief into an autonomous Claude Code execution session — cloning the repo, running Claude against it, streaming live output to the browser, and pushing the result back to GitHub. Zero API cost on Claude Max.
