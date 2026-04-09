@@ -17,3 +17,4 @@
 {"ts": "2026-04-08T00:00:04Z", "source": "cycle-3-audit", "category": "architecture", "lesson": "The sandbox IS the workspace directory (app/workspaces/{session_id}/). Each session gets an isolated clone. Sandbox enforcement = verify workspace exists before Phase 4 and refuse to run claude -p outside it.", "severity": "info"}
 {"ts": "2026-04-08T09:18:13Z", "source": "smoke-test", "category": "smoke-test", "lesson": "Smoke test lesson \u2014 safe to delete", "severity": "info"}
 {"ts": "2026-04-08T09:19:19Z", "source": "smoke-test", "category": "smoke-test", "lesson": "Smoke test lesson \u2014 safe to delete", "severity": "info"}
+{"ts": "2026-04-09T02:48:44Z", "source": "smoke-test", "category": "smoke-test", "lesson": "Smoke test lesson \u2014 safe to delete", "severity": "info"}
