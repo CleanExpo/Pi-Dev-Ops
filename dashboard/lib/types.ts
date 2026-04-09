@@ -49,13 +49,24 @@ export interface AnalysisResult {
   totalFiles?: number;
   patterns?: string[];
   quality?: QualityScores;
+  // Phase 4 — context analysis
+  projectPurpose?: string;
+  targetUsers?: string[];
+  businessLogic?: string;
+  currentState?: string;
+  keyInsights?: string[];
+  // Phase 5 — gap analysis
   zteLevel?: 1 | 2 | 3;
   zteScore?: number;
   leveragePoints?: LeveragePoint[];
+  // Phase 6 — enhancement plan
   sprints?: Sprint[];
+  // Phase 7 — executive summary
   executiveSummary?: string;
   strengths?: string[];
   weaknesses?: string[];
+  risks?: string[];
+  opportunities?: string[];
   nextActions?: string[];
 }
 

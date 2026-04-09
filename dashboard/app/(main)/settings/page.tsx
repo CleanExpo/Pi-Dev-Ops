@@ -6,14 +6,19 @@ export default async function SettingsPage() {
   const settings = await getSettings();
 
   const masked = {
-    github_token:      settings.githubToken      ? "••••••••" : "",
-    anthropic_api_key: settings.anthropicApiKey  ? "••••••••" : "",
-    analysis_model:    settings.analysisModel,
-    webhook_secret:    settings.webhookSecret     ? "••••••••" : "",
-    cron_repos:        settings.cronRepos.join("\n"),
-    github_token_set:      !!settings.githubToken,
-    anthropic_api_key_set: !!settings.anthropicApiKey,
-    webhook_secret_set:    !!settings.webhookSecret,
+    github_token:           settings.githubToken      ? "••••••••" : "",
+    anthropic_api_key:      settings.anthropicApiKey  ? "••••••••" : "",
+    analysis_model:         settings.analysisModel,
+    webhook_secret:         settings.webhookSecret     ? "••••••••" : "",
+    cron_repos:             settings.cronRepos.join("\n"),
+    vercel_token:           settings.vercelToken       ? "••••••••" : "",
+    telegram_bot_token:     settings.telegramBotToken  ? "••••••••" : "",
+    telegram_chat_id:       settings.telegramChatId,
+    github_token_set:       !!settings.githubToken,
+    anthropic_api_key_set:  !!settings.anthropicApiKey,
+    webhook_secret_set:     !!settings.webhookSecret,
+    vercel_token_set:       !!settings.vercelToken,
+    telegram_bot_token_set: !!settings.telegramBotToken,
   };
 
   return (

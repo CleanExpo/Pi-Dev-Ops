@@ -93,9 +93,11 @@ def _matches(trigger: dict, now_hour: int, now_minute: int) -> bool:
 
 async def cron_loop():
     """Background asyncio task. Checks triggers every 60s."""
+    import logging
+    _log = logging.getLogger("pi-ceo.cron")
     # Deferred import to avoid circular dependency
     from .sessions import create_session
-    print("[cron] Trigger loop started.")
+    _log.info("Trigger loop started.")
     while True:
         await asyncio.sleep(60)
         try:
@@ -113,10 +115,10 @@ async def cron_loop():
                         )
                         trigger["last_fired_at"] = time.time()
                         fired = True
-                        print(f"[cron] Fired trigger {trigger['id']} for {trigger['repo_url']}")
+                        _log.info("Fired trigger id=%s repo=%s", trigger['id'], trigger['repo_url'])
                     except RuntimeError as e:
-                        print(f"[cron] Trigger {trigger['id']} skipped: {e}")
+                        _log.warning("Trigger skipped id=%s reason=%s", trigger['id'], e)
             if fired:
                 _save(triggers)
         except Exception as e:
-            print(f"[cron] Loop error: {e}")
+            _log.error("Loop error: %s", e)

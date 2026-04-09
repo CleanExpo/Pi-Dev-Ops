@@ -4,27 +4,36 @@
 import { createServerClient } from "./server";
 
 export interface AppSettings {
-  githubToken:      string;
-  anthropicApiKey:  string;
-  analysisModel:    string;
-  webhookSecret:    string;
-  cronRepos:        string[];
+  githubToken:       string;
+  anthropicApiKey:   string;
+  analysisModel:     string;
+  webhookSecret:     string;
+  cronRepos:         string[];
+  vercelToken:       string;
+  telegramBotToken:  string;
+  telegramChatId:    string;
 }
 
 const DEFAULTS: AppSettings = {
-  githubToken:     process.env.GITHUB_TOKEN        ?? "",
-  anthropicApiKey: process.env.ANTHROPIC_API_KEY   ?? "",
-  analysisModel:   process.env.ANALYSIS_MODEL      ?? "claude-sonnet-4-6",
-  webhookSecret:   process.env.WEBHOOK_SECRET      ?? "",
-  cronRepos:       [],
+  githubToken:      process.env.GITHUB_TOKEN        ?? "",
+  anthropicApiKey:  process.env.ANTHROPIC_API_KEY   ?? "",
+  analysisModel:    process.env.ANALYSIS_MODEL      ?? "claude-sonnet-4-6",
+  webhookSecret:    process.env.WEBHOOK_SECRET      ?? "",
+  cronRepos:        [],
+  vercelToken:      process.env.VERCEL_TOKEN        ?? "",
+  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN  ?? "",
+  telegramChatId:   process.env.TELEGRAM_CHAT_ID    ?? "",
 };
 
 const KEY_MAP: Record<string, keyof AppSettings> = {
-  github_token:      "githubToken",
-  anthropic_api_key: "anthropicApiKey",
-  analysis_model:    "analysisModel",
-  webhook_secret:    "webhookSecret",
-  cron_repos:        "cronRepos",
+  github_token:       "githubToken",
+  anthropic_api_key:  "anthropicApiKey",
+  analysis_model:     "analysisModel",
+  webhook_secret:     "webhookSecret",
+  cron_repos:         "cronRepos",
+  vercel_token:       "vercelToken",
+  telegram_bot_token: "telegramBotToken",
+  telegram_chat_id:   "telegramChatId",
 };
 
 export async function getSettings(): Promise<AppSettings> {

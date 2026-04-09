@@ -4,14 +4,19 @@
 import { useState } from "react";
 
 interface InitialSettings {
-  github_token:          string;
-  anthropic_api_key:     string;
-  analysis_model:        string;
-  webhook_secret:        string;
-  cron_repos:            string;
-  github_token_set:      boolean;
-  anthropic_api_key_set: boolean;
-  webhook_secret_set:    boolean;
+  github_token:           string;
+  anthropic_api_key:      string;
+  analysis_model:         string;
+  webhook_secret:         string;
+  cron_repos:             string;
+  vercel_token:           string;
+  telegram_bot_token:     string;
+  telegram_chat_id:       string;
+  github_token_set:       boolean;
+  anthropic_api_key_set:  boolean;
+  webhook_secret_set:     boolean;
+  vercel_token_set:       boolean;
+  telegram_bot_token_set: boolean;
 }
 
 const MODELS = [
@@ -54,11 +59,14 @@ const inputStyle = {
 
 export default function SettingsForm({ initial }: { initial: InitialSettings }) {
   const [form, setForm] = useState({
-    github_token:      "",
-    anthropic_api_key: "",
-    analysis_model:    initial.analysis_model,
-    webhook_secret:    "",
-    cron_repos:        initial.cron_repos,
+    github_token:       "",
+    anthropic_api_key:  "",
+    analysis_model:     initial.analysis_model,
+    webhook_secret:     "",
+    cron_repos:         initial.cron_repos,
+    vercel_token:       "",
+    telegram_bot_token: "",
+    telegram_chat_id:   initial.telegram_chat_id ?? "",
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved]   = useState(false);
@@ -75,13 +83,16 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
     try {
       // Only send fields that have values (blank = don't overwrite)
       const payload: Record<string, string> = {};
-      if (form.github_token)      payload.github_token      = form.github_token;
-      if (form.anthropic_api_key) payload.anthropic_api_key = form.anthropic_api_key;
-      if (form.analysis_model)    payload.analysis_model    = form.analysis_model;
-      if (form.webhook_secret)    payload.webhook_secret    = form.webhook_secret;
-      if (form.cron_repos)        payload.cron_repos        = JSON.stringify(
+      if (form.github_token)       payload.github_token       = form.github_token;
+      if (form.anthropic_api_key)  payload.anthropic_api_key  = form.anthropic_api_key;
+      if (form.analysis_model)     payload.analysis_model     = form.analysis_model;
+      if (form.webhook_secret)     payload.webhook_secret     = form.webhook_secret;
+      if (form.cron_repos)         payload.cron_repos         = JSON.stringify(
         form.cron_repos.split("\n").map((r) => r.trim()).filter(Boolean)
       );
+      if (form.vercel_token)       payload.vercel_token       = form.vercel_token;
+      if (form.telegram_bot_token) payload.telegram_bot_token = form.telegram_bot_token;
+      if (form.telegram_chat_id)   payload.telegram_chat_id   = form.telegram_chat_id;
 
       const res = await fetch("/api/settings", {
         method: "POST",
@@ -157,6 +168,50 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
             value={form.webhook_secret}
             onChange={(e) => set("webhook_secret", e.target.value)}
             placeholder={initial.webhook_secret_set ? "Leave blank to keep existing" : "your-webhook-secret"}
+            style={inputStyle}
+          />
+        </Field>
+      </Section>
+
+      {/* ── Vercel Integration ───────────────────────────────── */}
+      <Section title="Vercel Integration">
+        <Field
+          label={<>Vercel Token <Badge set={initial.vercel_token_set} /></>}
+          hint="Enable automatic preview deployments for analysis branches"
+        >
+          <input
+            type="password"
+            value={form.vercel_token}
+            onChange={(e) => set("vercel_token", e.target.value)}
+            placeholder={initial.vercel_token_set ? "Leave blank to keep existing" : "vercel_..."}
+            style={inputStyle}
+          />
+        </Field>
+      </Section>
+
+      {/* ── Telegram Notifications ────────────────────────────── */}
+      <Section title="Telegram Notifications">
+        <Field
+          label={<>Bot Token <Badge set={initial.telegram_bot_token_set} /></>}
+          hint="Get from @BotFather — format: 1234567890:AAFN..."
+        >
+          <input
+            type="password"
+            value={form.telegram_bot_token}
+            onChange={(e) => set("telegram_bot_token", e.target.value)}
+            placeholder={initial.telegram_bot_token_set ? "Leave blank to keep existing" : "1234567890:AAFN..."}
+            style={inputStyle}
+          />
+        </Field>
+        <Field
+          label="Chat ID"
+          hint="Your Telegram user or group chat ID (e.g. -1001234567890)"
+        >
+          <input
+            type="text"
+            value={form.telegram_chat_id}
+            onChange={(e) => set("telegram_chat_id", e.target.value)}
+            placeholder="-1001234567890"
             style={inputStyle}
           />
         </Field>

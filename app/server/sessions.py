@@ -106,7 +106,8 @@ def restore_sessions():
         _sessions[sid] = session
         count += 1
     if count:
-        print(f"[persistence] Restored {count} session(s) from disk.")
+        import logging
+        logging.getLogger("pi-ceo.sessions").info("Restored %d session(s) from disk.", count)
 
 def em(session, t, d):
     session.output_lines.append({"type":t,"text":d,"ts":time.time()})

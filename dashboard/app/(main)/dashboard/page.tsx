@@ -8,8 +8,6 @@ import ResultCards from "@/components/ResultCards";
 import ActionsPanel from "@/components/ActionsPanel";
 import { useSSE } from "@/hooks/useSSE";
 
-const STORAGE_KEY = "pi-ceo-token";
-
 function sanitize(s: string): string {
   return s.replace(/[<>"&]/g, "");
 }
@@ -18,21 +16,14 @@ type RightTab = "phases" | "results" | "actions";
 
 export default function Dashboard() {
   const [repo, setRepo] = useState("");
-  const [token, setToken] = useState("");
   const [rightTab, setRightTab] = useState<RightTab>("phases");
   const resultsRef = useRef<HTMLDivElement>(null);
   const { lines, phases, result, branch, prUrl, status, error, start, stop } = useSSE();
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) setToken(stored);
-  }, []);
 
   // Auto-switch to RESULTS tab when analysis completes
   useEffect(() => {
     if (status === "done") {
       setRightTab("results");
-      // Scroll results panel to top so user sees them immediately
       setTimeout(() => resultsRef.current?.scrollTo({ top: 0, behavior: "smooth" }), 100);
     }
     if (status === "running") {
@@ -40,21 +31,10 @@ export default function Dashboard() {
     }
   }, [status]);
 
-  // Also switch to results when first result data arrives
-  useEffect(() => {
-    if (Object.keys(result).length > 2 && status === "running") {
-      // Has real data beyond repoUrl/repoName — show results alongside phases
-    }
-  }, [result, status]);
-
-  function saveToken(t: string) {
-    setToken(t);
-    localStorage.setItem(STORAGE_KEY, t);
-  }
-
   function handleAnalyze() {
     if (!repo.trim()) return;
-    start(sanitize(repo.trim()), token.trim());
+    // GitHub token is read server-side from Supabase settings — no need to pass it here
+    start(sanitize(repo.trim()));
   }
 
   const running = status === "running";
@@ -87,16 +67,6 @@ export default function Dashboard() {
           style={{ background: "#141414", color: "#F0EDE8", border: "1px solid #3A3632" }}
           aria-label="GitHub repository URL"
         />
-        <span className="font-mono text-[10px] shrink-0" style={{ color: "#C8C5C0" }}>TOKEN</span>
-        <input
-          type="password"
-          value={token}
-          onChange={(e) => saveToken(e.target.value)}
-          placeholder="ghp_..."
-          className="w-28 font-mono text-[11px] outline-none px-2 py-1"
-          style={{ background: "#141414", color: "#F0EDE8", border: "1px solid #3A3632" }}
-          aria-label="GitHub personal access token"
-        />
         <button
           onClick={running ? stop : handleAnalyze}
           disabled={!running && !repo.trim()}
@@ -124,7 +94,7 @@ export default function Dashboard() {
       {/* ── Main two-column layout ───────────────────────────────── */}
       <div className="flex min-h-0" style={{ flex: 1, overflow: "hidden" }}>
 
-        {/* LEFT — Terminal (fills and scrolls internally) */}
+        {/* LEFT — Terminal */}
         <div
           className="flex flex-col min-w-0"
           style={{ flex: 1, overflow: "hidden", borderRight: "1px solid #2A2727" }}
@@ -132,16 +102,13 @@ export default function Dashboard() {
           <Terminal lines={lines} status={status} />
         </div>
 
-        {/* RIGHT — Tabbed panel: PHASES | RESULTS */}
+        {/* RIGHT — Tabbed panel */}
         <div
           className="flex flex-col shrink-0"
           style={{ width: "320px", background: "#111111", overflow: "hidden" }}
         >
           {/* Tab bar */}
-          <div
-            className="flex shrink-0"
-            style={{ borderBottom: "1px solid #2A2727" }}
-          >
+          <div className="flex shrink-0" style={{ borderBottom: "1px solid #2A2727" }}>
             {(["phases", "results", "actions"] as RightTab[]).map((tab) => {
               const active = rightTab === tab;
               const showDot = (tab === "results" && hasResults && rightTab !== "results")
@@ -170,9 +137,8 @@ export default function Dashboard() {
             })}
           </div>
 
-          {/* Tab content — each fills the remaining height */}
+          {/* Tab content */}
           <div className="flex-1 min-h-0 overflow-hidden relative">
-            {/* PHASES tab */}
             <div
               className="absolute inset-0 overflow-y-auto"
               style={{ display: rightTab === "phases" ? "block" : "none" }}
@@ -180,7 +146,6 @@ export default function Dashboard() {
               <PhaseTracker phases={phases} />
             </div>
 
-            {/* RESULTS tab */}
             <div
               ref={resultsRef}
               className="absolute inset-0 overflow-y-auto"
@@ -197,12 +162,11 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* ACTIONS tab */}
             <div
               className="absolute inset-0 overflow-y-auto"
               style={{ display: rightTab === "actions" ? "block" : "none" }}
             >
-              <ActionsPanel result={result} />
+              <ActionsPanel result={result} branch={branch} />
             </div>
           </div>
         </div>

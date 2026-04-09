@@ -12,7 +12,18 @@ import { makeClient, buildContext, runPhase, getAnalysisMode } from "@/lib/claud
 import { PHASES, PHASE_PROMPTS, applyPhaseResult } from "@/lib/phases";
 import { getSettings } from "@/lib/supabase/settings";
 import { createServerClient } from "@/lib/supabase/server";
+import { createDeployment, getProjectId } from "@/lib/vercel-api";
 import type { TermLine, PhaseStatus, AnalysisResult } from "@/lib/types";
+
+async function sendTelegramMessage(botToken: string, chatId: string, text: string): Promise<void> {
+  try {
+    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: "Markdown" }),
+    });
+  } catch { /* non-critical */ }
+}
 
 function sseEncode(event: string, data: unknown): Uint8Array {
   return new TextEncoder().encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
@@ -44,6 +55,9 @@ export async function GET(req: NextRequest) {
     async start(controller) {
       const send = (event: string, data: unknown) => {
         try { controller.enqueue(sseEncode(event, data)); } catch { /* closed */ }
+      };
+      const logError = (ctx: string, err: unknown) => {
+        console.error(`[analyze] ${ctx}:`, err instanceof Error ? err.message : err);
       };
 
       // Supabase client (best-effort — if not configured, analysis still runs)
@@ -183,6 +197,28 @@ export async function GET(req: NextRequest) {
 
         send("phase_update", { phaseId: 8, status: "done" satisfies PhaseStatus });
         line("success", `  PR: ${prUrl ?? "(create manually)"}`);
+
+        // ── Vercel preview deployment (optional) ─────────────────
+        let previewUrl: string | null = null;
+        if (settings.vercelToken) {
+          try {
+            line("system", "  Triggering Vercel preview deployment…");
+            const projectId = await getProjectId(settings.vercelToken, "pi-dev-ops");
+            if (projectId) {
+              const deploy = await createDeployment(settings.vercelToken, projectId, branchName);
+              if (deploy?.url) {
+                previewUrl = `https://${deploy.url}`;
+                result = { ...result, previewUrl };
+                send("branch", { branch: branchName, previewUrl });
+                line("success", `  Preview: ${previewUrl}`);
+              }
+            }
+          } catch (err) {
+            logError("vercel-deploy", err);
+            line("system", "  Vercel deploy skipped (check token)");
+          }
+        }
+
         line("system", "");
         line("phase", "=== ANALYSIS COMPLETE ===");
 
@@ -194,15 +230,38 @@ export async function GET(req: NextRequest) {
           }).eq("id", resolvedSessionId);
         }
 
+        // ── Telegram notification (optional) ─────────────────────
+        if (settings.telegramBotToken && settings.telegramChatId) {
+          const zte   = result.zteLevel ? `L${result.zteLevel}` : "?";
+          const score = result.zteScore ?? "?";
+          const msg   = [
+            `✅ *Pi CEO Analysis Complete*`,
+            `Repo: \`${repo}\``,
+            `Branch: \`${branchName}\``,
+            `ZTE: ${zte} (${score}/60)`,
+            prUrl      ? `PR: ${prUrl}` : "",
+            previewUrl ? `Preview: ${previewUrl}` : "",
+          ].filter(Boolean).join("\n");
+          void sendTelegramMessage(settings.telegramBotToken, settings.telegramChatId, msg);
+        }
+
         send("done", { sessionId: resolvedSessionId, branch: branchName, prUrl, result });
 
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Unknown error";
+        logError("analysis", err);
         send("line", { type: "error", text: `✗ ${msg}`, ts: Date.now() / 1000 });
         send("error", { message: msg });
         if (supabase) {
           supabase.from("sessions").update({ status: "error", completed_at: new Date() })
             .eq("id", resolvedSessionId);
+        }
+        // Telegram error notification
+        if (settings?.telegramBotToken && settings?.telegramChatId) {
+          void sendTelegramMessage(
+            settings.telegramBotToken, settings.telegramChatId,
+            `❌ *Pi CEO Analysis Failed*\nRepo: \`${rawRepo}\`\nError: ${msg}`
+          );
         }
       } finally {
         controller.close();

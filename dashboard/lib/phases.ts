@@ -176,6 +176,15 @@ export function applyPhaseResult(
         ...result,
         quality: parsed.scores as AnalysisResult["quality"],
       };
+    case 4:
+      return {
+        ...result,
+        projectPurpose: parsed.projectPurpose as string,
+        targetUsers:    parsed.targetUsers as string[],
+        businessLogic:  parsed.businessLogic as string,
+        currentState:   parsed.currentState as string,
+        keyInsights:    parsed.keyInsights as string[],
+      };
     case 5:
       return {
         ...result,
@@ -192,11 +201,12 @@ export function applyPhaseResult(
       return {
         ...result,
         executiveSummary: parsed.currentState as string,
-        strengths: parsed.strengths as string[],
-        weaknesses: parsed.weaknesses as string[],
-        nextActions: (parsed.nextActions as Array<{ action: string }>)?.map(
-          (a) => a.action
-        ),
+        strengths:        parsed.strengths as string[],
+        weaknesses:       parsed.weaknesses as string[],
+        risks:            parsed.risks as string[],
+        opportunities:    parsed.opportunities as string[],
+        nextActions:      (parsed.nextActions as Array<{ action: string; why?: string; effort?: string }>)
+                            ?.map((a) => a.action),
       };
     default:
       return result;

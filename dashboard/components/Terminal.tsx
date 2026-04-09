@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import "xterm/css/xterm.css";
 import type { TermLine, TermLineType } from "@/lib/types";
 
 // ANSI colour codes matching the Bloomberg palette

@@ -76,8 +76,10 @@ def collect_garbage(sessions: dict) -> dict:
 
 async def gc_loop(sessions: dict) -> None:
     """Background task: run collect_garbage every 30 minutes."""
+    import logging
+    _log = logging.getLogger("pi-ceo.gc")
     while True:
         await asyncio.sleep(_GC_LOOP_INTERVAL)
         result = collect_garbage(sessions)
         if result["removed"] > 0:
-            print(f"[gc] Removed {result['removed']} workspace(s). Errors: {result['errors']}")
+            _log.info("GC removed=%d workspaces errors=%d", result["removed"], result["errors"])

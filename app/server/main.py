@@ -1,4 +1,4 @@
-import asyncio, json, os
+import asyncio, json, os, logging
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -13,6 +13,8 @@ from .orchestrator import fan_out
 from .cron import list_triggers, create_trigger, delete_trigger, cron_loop
 from . import config
 
+log = logging.getLogger("pi-ceo.main")
+
 app = FastAPI(title="Pi CEO", docs_url=None, redoc_url=None, openapi_url=None)
 
 @app.on_event("startup")
@@ -20,7 +22,7 @@ async def on_startup():
     restore_sessions()
     asyncio.create_task(gc_loop(_sessions))
     asyncio.create_task(cron_loop())
-    print("[startup] Pi CEO ready.")
+    log.info("Pi CEO ready on %s:%s", config.HOST, config.PORT)
 
 # True when deployed on Railway (or any cloud with this env var set)
 _IS_CLOUD = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RENDER") or os.environ.get("FLY_APP_NAME"))
@@ -294,6 +296,35 @@ async def index():
     p = os.path.join(STATIC_DIR, "index.html")
     return FileResponse(p) if os.path.exists(p) else JSONResponse({"status": "Pi CEO running"})
 
+_START_TIME = __import__("time").time()
+
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    import time, shutil, subprocess
+    uptime_s = int(time.time() - _START_TIME)
+    active = sum(1 for s in _sessions.values() if getattr(s, "status", "") in ("created", "cloning", "building", "evaluating"))
+    total  = len(_sessions)
+
+    # Check Claude CLI availability
+    claude_ok = False
+    try:
+        r = subprocess.run([config.CLAUDE_CMD, "--version"], capture_output=True, timeout=3)
+        claude_ok = r.returncode == 0
+    except Exception:
+        pass
+
+    # Disk space on workspace root
+    try:
+        disk = shutil.disk_usage(config.WORKSPACE_ROOT)
+        disk_free_gb = round(disk.free / 1e9, 1)
+    except Exception:
+        disk_free_gb = None
+
+    return {
+        "status":       "ok",
+        "uptime_s":     uptime_s,
+        "sessions":     {"active": active, "total": total, "max": config.MAX_CONCURRENT_SESSIONS},
+        "claude_cli":   claude_ok,
+        "disk_free_gb": disk_free_gb,
+        "version":      "1.0.0",
+    }
