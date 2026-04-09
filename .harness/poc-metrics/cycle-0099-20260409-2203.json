@@ -1,0 +1,24 @@
+{
+  "timestamp": "2026-04-09T22:03:15.440457+00:00",
+  "cycle": 99,
+  "existing_system": {
+    "system": "existing",
+    "cycle": 99,
+    "latest_minutes": "2026-04-09-1200-board-minutes.md",
+    "minutes_size": 7338,
+    "status": "found"
+  },
+  "managed_agents": {
+    "system": "managed_agents",
+    "cycle": 99,
+    "status": "error",
+    "error": "\"Could not resolve authentication method. Expected either api_key or auth_token to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted\""
+  },
+  "comparison": {
+    "managed_duration_s": 0,
+    "managed_events": 0,
+    "managed_tools": 0,
+    "managed_status": "error",
+    "existing_status": "found"
+  }
+}
