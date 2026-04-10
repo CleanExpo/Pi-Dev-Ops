@@ -1,4 +1,4 @@
-// tailwind.config.ts — Bloomberg terminal design tokens
+// tailwind.config.ts — Bloomberg terminal design tokens (CSS variable–backed for theming)
 import type { Config } from "tailwindcss";
 
 const config: Config = {
@@ -6,19 +6,20 @@ const config: Config = {
     "./app/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
   ],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
-        bg:     "#0A0A0A",
-        panel:  "#111111",
-        term:   "#0C0C0C",
-        border: "#2A2727",
-        text:   "#F0EDE8",
-        cream:  "#E8E4DE",
-        muted:  "#C8C5C0",
-        dim:    "#A8A5A0",
-        chrome: "#888480",
-        orange: "#E8751A",
+        bg:     "var(--c-bg)",
+        panel:  "var(--c-panel)",
+        term:   "var(--c-term)",
+        border: "var(--c-border)",
+        text:   "var(--c-text)",
+        cream:  "var(--c-cream)",
+        muted:  "var(--c-muted)",
+        dim:    "var(--c-dim)",
+        chrome: "var(--c-chrome)",
+        orange: "var(--c-orange)",
         green:  "#4ADE80",
         red:    "#F87171",
         yellow: "#FFD166",

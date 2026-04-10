@@ -3,6 +3,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const NAV = [
   { href: "/dashboard", label: "DASHBOARD" },
@@ -20,16 +21,16 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       {/* Nav */}
       <nav
         className="flex items-center justify-between px-4 h-10 shrink-0"
-        style={{ borderBottom: "1px solid #2A2727", background: "#0A0A0A" }}
+        style={{ borderBottom: "1px solid var(--c-border)", background: "var(--c-bg)" }}
       >
         <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-          <span className="font-mono text-[11px]" style={{ color: "#E8751A" }}>π</span>
-          <span className="font-display text-base tracking-widest" style={{ color: "#F0EDE8" }}>PI CEO</span>
-          <span className="font-mono text-[9px] ml-2 hidden sm:block" style={{ color: "#888480" }}>
+          <span className="font-mono text-[11px]" style={{ color: "var(--c-orange)" }}>π</span>
+          <span className="font-display text-base tracking-widest" style={{ color: "var(--c-text)" }}>PI CEO</span>
+          <span className="font-mono text-[9px] ml-2 hidden sm:block" style={{ color: "var(--c-chrome)" }}>
             AUTONOMOUS DEV PLATFORM
           </span>
         </Link>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center">
           {NAV.map(({ href, label }) => {
             const active = path === href;
             return (
@@ -38,14 +39,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 href={href}
                 className="font-mono text-[10px] px-3 py-1 transition-colors"
                 style={{
-                  borderLeft: "1px solid #2A2727",
-                  color: active ? "#E8751A" : "#C8C5C0",
+                  borderLeft: "1px solid var(--c-border)",
+                  color: active ? "var(--c-orange)" : "var(--c-muted)",
                 }}
               >
                 {label}
               </Link>
             );
           })}
+          <ThemeToggle />
         </div>
       </nav>
       <div className="flex-1 flex flex-col">{children}</div>
