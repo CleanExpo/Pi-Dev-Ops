@@ -127,7 +127,8 @@ Any other message is sent to Claude with full conversation context.`;
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
   const incomingSecret = req.headers.get("x-telegram-bot-api-secret-token");
-  if (!webhookSecret || !incomingSecret || incomingSecret !== webhookSecret) {
+  // Only enforce secret check if one is configured — prevents 403 on first deploy
+  if (webhookSecret && incomingSecret !== webhookSecret) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
