@@ -12,11 +12,13 @@ interface InitialSettings {
   vercel_token:           string;
   telegram_bot_token:     string;
   telegram_chat_id:       string;
+  linear_api_key:         string;
   github_token_set:       boolean;
   anthropic_api_key_set:  boolean;
   webhook_secret_set:     boolean;
   vercel_token_set:       boolean;
   telegram_bot_token_set: boolean;
+  linear_api_key_set:     boolean;
 }
 
 const MODELS = [
@@ -67,6 +69,7 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
     vercel_token:       "",
     telegram_bot_token: "",
     telegram_chat_id:   initial.telegram_chat_id ?? "",
+    linear_api_key:     "",
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved]   = useState(false);
@@ -93,6 +96,7 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
       if (form.vercel_token)       payload.vercel_token       = form.vercel_token;
       if (form.telegram_bot_token) payload.telegram_bot_token = form.telegram_bot_token;
       if (form.telegram_chat_id)   payload.telegram_chat_id   = form.telegram_chat_id;
+      if (form.linear_api_key)     payload.linear_api_key     = form.linear_api_key;
 
       const res = await fetch("/api/settings", {
         method: "POST",
@@ -102,7 +106,7 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setSaved(true);
       // Clear secret fields after save
-      setForm((f) => ({ ...f, github_token: "", anthropic_api_key: "", webhook_secret: "" }));
+      setForm((f) => ({ ...f, github_token: "", anthropic_api_key: "", webhook_secret: "", linear_api_key: "" }));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
     } finally {
@@ -184,6 +188,22 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
             value={form.vercel_token}
             onChange={(e) => set("vercel_token", e.target.value)}
             placeholder={initial.vercel_token_set ? "Leave blank to keep existing" : "vercel_..."}
+            style={inputStyle}
+          />
+        </Field>
+      </Section>
+
+      {/* ── Linear Integration ───────────────────────────────── */}
+      <Section title="Linear Integration">
+        <Field
+          label={<>Linear API Key <Badge set={initial.linear_api_key_set} /></>}
+          hint="lin_api_... — used for two-way issue sync, triage tickets, and ship→Done transitions"
+        >
+          <input
+            type="password"
+            value={form.linear_api_key}
+            onChange={(e) => set("linear_api_key", e.target.value)}
+            placeholder={initial.linear_api_key_set ? "Leave blank to keep existing" : "lin_api_..."}
             style={inputStyle}
           />
         </Field>

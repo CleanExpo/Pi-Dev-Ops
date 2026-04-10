@@ -14,11 +14,13 @@ export default async function SettingsPage() {
     vercel_token:           settings.vercelToken       ? "••••••••" : "",
     telegram_bot_token:     settings.telegramBotToken  ? "••••••••" : "",
     telegram_chat_id:       settings.telegramChatId,
+    linear_api_key:         settings.linearApiKey      ? "••••••••" : "",
     github_token_set:       !!settings.githubToken,
     anthropic_api_key_set:  !!settings.anthropicApiKey,
     webhook_secret_set:     !!settings.webhookSecret,
     vercel_token_set:       !!settings.vercelToken,
     telegram_bot_token_set: !!settings.telegramBotToken,
+    linear_api_key_set:     !!settings.linearApiKey,
   };
 
   return (
