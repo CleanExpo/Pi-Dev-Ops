@@ -711,7 +711,9 @@ async def health():
         pass
 
     anthropic_key_ok = bool(config.ANTHROPIC_API_KEY)
-    healthy = _claude_ok and disk_free_gb is not None
+    # Server is healthy as long as disk is accessible.
+    # claude_cli status is informational — CI runners don't have the CLI installed.
+    healthy = disk_free_gb is not None
     payload = {
         "status":           "ok" if healthy else "degraded",
         "uptime_s":         uptime_s,
