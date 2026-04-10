@@ -36,7 +36,7 @@ async def _decompose_brief(brief: str, n_workers: int, repo_url: str, workspace:
     )
     try:
         rc, out, _ = await run_cmd(
-            workspace, config.CLAUDE_CMD, "-p", decompose_prompt,
+            workspace, config.CLAUDE_CMD, *config.CLAUDE_EXTRA_FLAGS, "-p", decompose_prompt,
             "--model", _select_model("planner"), "--output-format", "text",
             timeout=60
         )

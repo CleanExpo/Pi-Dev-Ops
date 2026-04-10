@@ -1,0 +1,15 @@
+[
+  {
+    "__comment": "MERGE INSTRUCTIONS: Copy this entry into .harness/cron-triggers.json alongside existing triggers. Type must match the cron handler implementation (likely 'intel_refresh' or use existing pattern). Weekday 0=Monday, 0=Sunday may vary — check existing monitor/scan entries for convention.",
+    "id": "intel-refresh-monday",
+    "type": "intel_refresh",
+    "name": "Anthropic Intelligence: Refresh docs snapshot — Monday 02:00 UTC",
+    "script": "python -m app.server.agents.anthropic_intel_refresh",
+    "weekday": 0,
+    "hour": 2,
+    "minute": 0,
+    "enabled": true,
+    "created_at": 1775865600,
+    "last_fired_at": null
+  }
+]

@@ -1,4 +1,55 @@
 {
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": [
+      "Bash(python3:*)",
+      "Bash(python:*)",
+      "Bash(pytest:*)",
+      "Bash(pip:*)",
+      "Bash(npm:*)",
+      "Bash(node:*)",
+      "Bash(git:*)",
+      "Bash(gh:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(find:*)",
+      "Bash(mkdir:*)",
+      "Bash(touch:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(chmod:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(make:*)",
+      "Bash(./scripts/*)",
+      "Read(*)",
+      "Write(*)",
+      "Edit(*)",
+      "Glob(*)",
+      "Grep(*)",
+      "WebFetch(domain:docs.claude.com)",
+      "WebFetch(domain:platform.claude.com)",
+      "WebFetch(domain:code.claude.com)",
+      "WebFetch(domain:api.telegram.org)",
+      "WebFetch(domain:api.linear.app)",
+      "WebFetch(domain:api.anthropic.com)",
+      "WebSearch",
+      "mcp__pi-ceo__*",
+      "mcp__scheduled-tasks__*"
+    ],
+    "deny": [
+      "Bash(sudo:*)",
+      "Bash(rm -rf /:*)",
+      "Bash(dd:*)",
+      "Bash(mkfs:*)",
+      "WebFetch(domain:localhost)",
+      "Bash(curl * | sh:*)",
+      "Bash(wget * | sh:*)"
+    ]
+  },
   "hooks": {
     "WorktreeCreate": [
       {

@@ -22,6 +22,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from app.server import config
+
 
 log = logging.getLogger("pi-ceo.agents.board-meeting")
 
@@ -280,8 +282,10 @@ Output ONLY the JSON array.
             log.info("SDK returned empty — retrying via subprocess for category=%s", audit_target["category"])
 
     if not raw:
+        cmd = [config.CLAUDE_CMD, *config.CLAUDE_EXTRA_FLAGS, "-p", prompt,
+               "--output-format", "text", "--model", "claude-sonnet-4-6"]
         result = subprocess.run(
-            ["claude", "-p", prompt, "--output-format", "text", "--model", "claude-sonnet-4-6"],
+            cmd,
             capture_output=True,
             text=True,
             timeout=120,

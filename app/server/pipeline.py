@@ -282,7 +282,8 @@ def _run_claude(brief: str, model: str = "sonnet", timeout: int = 300) -> str:
     """Run claude -p and return output. Raises RuntimeError on failure."""
     claude_bin = _resolve_claude_bin()
     model_flag = _MODEL_MAP.get(model, model) if not model.startswith("claude-") else model
-    cmd = [claude_bin, "-p", brief, "--model", model_flag, "--output-format", "text"]
+    cmd = [claude_bin, *config.CLAUDE_EXTRA_FLAGS, "-p", brief,
+           "--model", model_flag, "--output-format", "text"]
     log.info("Running claude: bin=%s model=%s brief_len=%d", claude_bin, model, len(brief))
     # Pass current environment so ANTHROPIC_API_KEY and PATH are available
     env = os.environ.copy()

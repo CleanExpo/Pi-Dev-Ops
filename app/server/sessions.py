@@ -201,9 +201,58 @@ def _parse_evaluator_dimensions(eval_text: str) -> dict:
     return dimensions
 
 
+async def _run_claude_via_sdk(prompt: str, model: str, workspace: str, timeout: int = 300) -> tuple[int, str, float]:
+    """Run Claude via agent SDK. Returns (returncode, output_text, cost_usd).
+
+    On any error or import failure, returns (1, "", 0.0) for fallback to subprocess.
+    """
+    try:
+        from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
+    except ImportError:
+        _log.debug("claude_agent_sdk not available, falling back to subprocess")
+        return (1, "", 0.0)
+
+    try:
+        # Set up SDK options — no MCP tools, permissive mode for Phase 2
+        options = ClaudeAgentOptions(
+            cwd=workspace,
+            model=model,
+            allowed_tools=[],  # Phase 2: SDK-only, no MCP tools
+            permission_mode="bypassPermissions",
+        )
+
+        client = ClaudeSDKClient(options)
+        await client.connect()
+
+        final_text = ""
+        cost_usd = 0.0
+
+        # Send prompt and stream response
+        await client.query(prompt)
+        async for message in client.receive_response():
+            # Convert SDK message to dict shape that parse_event expects
+            msg_dict = getattr(message, "__dict__", {})
+            if hasattr(message, "content"):
+                final_text += str(getattr(message, "content", ""))
+            # Extract cost if present
+            if hasattr(message, "cost_usd"):
+                cost_usd = max(cost_usd, float(getattr(message, "cost_usd", 0.0)))
+
+        await client.disconnect()
+        return (0, final_text, cost_usd)
+
+    except asyncio.TimeoutError:
+        _log.warning("SDK query timed out after %ds", timeout)
+        return (1, "", 0.0)
+    except Exception as exc:
+        _log.warning("SDK query failed: %s (%s)", exc, type(exc).__name__)
+        return (1, "", 0.0)
+
+
 async def _run_single_eval(workspace: str, eval_spec: str, model: str, timeout: int = 120) -> tuple[Optional[float], str]:
     """Run one evaluator pass. Returns (score_or_None, full_output_text)."""
-    cmd = [config.CLAUDE_CMD, "-p", eval_spec, "--model", model, "--output-format", "text"]
+    cmd = [config.CLAUDE_CMD, *config.CLAUDE_EXTRA_FLAGS, "-p", eval_spec,
+           "--model", model, "--output-format", "text"]
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, cwd=workspace,
@@ -495,10 +544,33 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
     em(session, "system", "")
     session.status = "building"
     persistence.save_session(session)
+    use_sdk = config.USE_AGENT_SDK
     for attempt in range(2):
         current_spec = spec if attempt == 0 else spec[:4000] + "\n\n[NOTE: Simplified due to previous failure. Focus on core task only.]"
         try:
-            cmd = [config.CLAUDE_CMD, "-p", current_spec, "--model", model, "--verbose", "--output-format", "stream-json"]
+            # Try SDK path first if flag enabled
+            if use_sdk:
+                em(session, "tool", f"  $ claude --model {model} (via SDK)")
+                em(session, "system", "")
+                rc, sdk_output, cost = await _run_claude_via_sdk(current_spec, model, session.workspace)
+                if rc == 0:
+                    # SDK succeeded — parse output and emit events
+                    for line in sdk_output.split("\n"):
+                        if line.strip():
+                            parse_event(line, session)
+                    em(session, "system", "")
+                    em(session, "success", "  Claude Code completed")
+                    session.last_completed_phase = "generator"
+                    persistence.save_session(session)
+                    return True
+                else:
+                    # SDK failed — fall back to subprocess
+                    _log.warning("SDK path failed (rc=%d), falling back to subprocess", rc)
+                    em(session, "system", "  [SDK failed, falling back to subprocess]")
+
+            # Subprocess path (original or fallback from SDK)
+            cmd = [config.CLAUDE_CMD, *config.CLAUDE_EXTRA_FLAGS, "-p", current_spec,
+                   "--model", model, "--verbose", "--output-format", "stream-json"]
             em(session, "tool", f"  $ claude --model {model} --verbose --stream-json")
             em(session, "system", "")
             proc = await asyncio.create_subprocess_exec(
@@ -618,17 +690,41 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
             em(session, "phase", f"[4/{total_phases}] Re-running Claude Code (retry {eval_attempt + 1})...")
             session.status = "building"
             persistence.save_session(session)
-            retry_cmd = [config.CLAUDE_CMD, "-p", retry_brief, "--model", model, "--verbose", "--output-format", "stream-json"]
-            retry_proc = await asyncio.create_subprocess_exec(
-                *retry_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, cwd=session.workspace,
-            )
-            session.process = retry_proc
-            await _stream_claude(retry_proc, session)
-            await retry_proc.wait()
-            if retry_proc.returncode != 0:
-                em(session, "error", "  Retry generation failed")
-                break
-            em(session, "success", "  Retry generation complete")
+
+            # Try SDK path first if flag enabled (same pattern as _phase_generate)
+            use_sdk = config.USE_AGENT_SDK
+            retry_success = False
+            if use_sdk:
+                em(session, "tool", f"  $ claude --model {model} (via SDK, retry)")
+                em(session, "system", "")
+                rc, sdk_output, cost = await _run_claude_via_sdk(retry_brief, model, session.workspace)
+                if rc == 0:
+                    # SDK succeeded — parse output and emit events
+                    for line in sdk_output.split("\n"):
+                        if line.strip():
+                            parse_event(line, session)
+                    em(session, "system", "")
+                    em(session, "success", "  Retry generation complete")
+                    retry_success = True
+                else:
+                    # SDK failed — fall back to subprocess
+                    _log.warning("SDK retry failed (rc=%d), falling back to subprocess", rc)
+                    em(session, "system", "  [SDK failed, falling back to subprocess]")
+
+            # Subprocess path (original or fallback from SDK)
+            if not retry_success:
+                retry_cmd = [config.CLAUDE_CMD, *config.CLAUDE_EXTRA_FLAGS, "-p", retry_brief,
+                             "--model", model, "--verbose", "--output-format", "stream-json"]
+                retry_proc = await asyncio.create_subprocess_exec(
+                    *retry_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, cwd=session.workspace,
+                )
+                session.process = retry_proc
+                await _stream_claude(retry_proc, session)
+                await retry_proc.wait()
+                if retry_proc.returncode != 0:
+                    em(session, "error", "  Retry generation failed")
+                    break
+                em(session, "success", "  Retry generation complete")
         except asyncio.TimeoutError:
             session.evaluator_status = "timeout"
             em(session, "error", "  Evaluator timed out (120s)")
