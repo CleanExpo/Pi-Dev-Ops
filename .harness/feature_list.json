@@ -1,232 +1,202 @@
-{
-  "generated": "2026-04-08",
-  "zte_score": 60,
-  "zte_band": "Zero Touch",
-  "sprint": "Sprint 3 / Cycle 4",
-  "features": [
-    {
-      "id": "F-001",
-      "name": "Session Persistence",
-      "description": "Atomic JSON writes to .harness/sessions.json on every state change; restored on server startup",
-      "status": "complete",
-      "leverage_point": "Session Continuity",
-      "linear_issue": "RA-450"
-    },
-    {
-      "id": "F-002",
-      "name": "Workspace Garbage Collection",
-      "description": "Background asyncio GC loop runs every 30 min; removes workspaces for terminal sessions older than GC_MAX_AGE (default 4h)",
-      "status": "complete",
-      "leverage_point": "Error Recovery",
-      "linear_issue": "RA-451"
-    },
-    {
-      "id": "F-003",
-      "name": "Rate-Limit Memory GC",
-      "description": "Inline GC in check_rate_limit() evicts stale IP keys older than 120s every 5 minutes",
-      "status": "complete",
-      "leverage_point": "Error Recovery",
-      "linear_issue": "RA-452"
-    },
-    {
-      "id": "F-004",
-      "name": "Agent-Expert Lessons Store",
-      "description": "lessons.jsonl seeded with 12 entries; GET/POST /api/lessons endpoints; categories: persistence/security/rate-limit/gc/windows/deployment/claude/architecture",
-      "status": "complete",
-      "leverage_point": "Knowledge Retention",
-      "linear_issue": "RA-453"
-    },
-    {
-      "id": "F-005",
-      "name": "Evaluator Tier (Quality Gate)",
-      "description": "Second claude -p pass grades output on correctness/completeness/style/security; BLOCKING gate with max 2 retries; scores streamed to WebSocket",
-      "status": "complete",
-      "leverage_point": "Quality Gating",
-      "linear_issue": "RA-454"
-    },
-    {
-      "id": "F-006",
-      "name": "Webhook Trigger Support",
-      "description": "POST /api/webhook accepts signed GitHub/Linear webhooks; parses event type → selects ADW → creates build session automatically",
-      "status": "complete",
-      "leverage_point": "Trigger Automation",
-      "linear_issue": "RA-455"
-    },
-    {
-      "id": "F-007",
-      "name": "PITER Intent Classifier",
-      "description": "Classifies briefs as feature/bug/chore/spike/hotfix; routes to corresponding ADW template; enforced at brief entry in UI",
-      "status": "complete",
-      "leverage_point": "Spec Quality",
-      "linear_issue": "RA-456"
-    },
-    {
-      "id": "F-008",
-      "name": "ADW Template Engine",
-      "description": "5 Agent Defined Workflow templates (feature/bugfix/chore/review/spike) in .harness/templates/; auto-selected by PITER classifier",
-      "status": "complete",
-      "leverage_point": "Workflow Standardization",
-      "linear_issue": "RA-456"
-    },
-    {
-      "id": "F-009",
-      "name": "Skills Loader / Registry",
-      "description": "src/tao/skills.py parses all skills/*/SKILL.md frontmatter; intent-to-skill mapping; injects relevant skills into brief context",
-      "status": "complete",
-      "leverage_point": "Spec Quality",
-      "linear_issue": "RA-457"
-    },
-    {
-      "id": "F-010",
-      "name": "CLAUDE.md Documentation",
-      "description": "Full project context: architecture, file map, dev setup, code conventions, smoke test checklist — replaces stub template",
-      "status": "complete",
-      "leverage_point": "Context Precision",
-      "linear_issue": "RA-458"
-    },
-    {
-      "id": "F-011",
-      "name": "Security: settings.local.json untracked",
-      "description": ".claude/settings.local.json added to .gitignore and git rm --cached; local permissions preserved",
-      "status": "complete",
-      "leverage_point": "Security",
-      "linear_issue": "RA-459"
-    },
-    {
-      "id": "F-012",
-      "name": "Auto-Brief from Linear Issues",
-      "description": "Webhook handler auto-generates Claude briefs when Linear issue moves to In Progress; no human prompt required",
-      "status": "complete",
-      "leverage_point": "Trigger Automation",
-      "linear_issue": "RA-460"
-    },
-    {
-      "id": "F-013",
-      "name": "Leverage Audit Baseline",
-      "description": ".harness/leverage-audit.md tracks 12-point ZTE score over time; updated each sprint cycle",
-      "status": "complete",
-      "leverage_point": "Knowledge Retention",
-      "linear_issue": "RA-461"
-    },
-    {
-      "id": "F-014",
-      "name": "ZTE Sprint Score Tracking",
-      "description": "Changelog in leverage-audit.md records before/after per sprint; current 60/60 Zero Touch band",
-      "status": "complete",
-      "leverage_point": "Knowledge Retention",
-      "linear_issue": "RA-462"
-    },
-    {
-      "id": "F-015",
-      "name": "Harness Directories Populated",
-      "description": ".harness/agents/, contracts/, qa/, templates/ all populated with tier specs, build/eval contracts, regression checklist, ADW templates",
-      "status": "complete",
-      "leverage_point": "Workflow Standardization",
-      "linear_issue": "RA-463"
-    },
-    {
-      "id": "F-016",
-      "name": "Fan-Out Parallelism",
-      "description": "app/server/orchestrator.py: fan_out() decomposes brief via Claude, launches N parallel workers; POST /api/build/parallel endpoint",
-      "status": "complete",
-      "leverage_point": "Tool Availability",
-      "linear_issue": "RA-464"
-    },
-    {
-      "id": "F-017",
-      "name": "TAO Engine Wire-Up",
-      "description": "BudgetTracker initialised per session; TierConfig loaded from .harness/config.yaml; _select_model() reads agents block for auto model selection",
-      "status": "complete",
-      "leverage_point": "Model Selection",
-      "linear_issue": "RA-465"
-    },
-    {
-      "id": "F-018",
-      "name": "Daily Anthropic Docs Pull",
-      "description": "scripts/fetch_anthropic_docs.py fetches 6 key doc pages daily; scheduled task at 5:50am AEST; saved to .harness/anthropic-docs/",
-      "status": "complete",
-      "leverage_point": "Knowledge Retention",
-      "linear_issue": "RA-466"
-    },
-    {
-      "id": "F-019",
-      "name": "Autonomous Board Meetings",
-      "description": "Scheduled task at 0/6/12/18 AEST; 6-phase flow: Status → Linear Review → SWOT → Sprint Recs → Save Minutes → Update issues; no human gates",
-      "status": "complete",
-      "leverage_point": "Trigger Automation",
-      "linear_issue": "RA-467"
-    },
-    {
-      "id": "F-020",
-      "name": "Sandbox Auto-Generate",
-      "description": "Phase 3.5 in run_build(): validates workspace exists, auto-re-clones if GC'd mid-session; hard gate if re-clone fails",
-      "status": "complete",
-      "leverage_point": "Error Recovery",
-      "linear_issue": "RA-468"
-    },
-    {
-      "id": "F-021",
-      "name": "Lesson Context Injection",
-      "description": "_get_lesson_context() injects relevant lessons.jsonl entries per intent into every brief before Claude sees it",
-      "status": "complete",
-      "leverage_point": "Context Precision",
-      "linear_issue": "ZTE-Sprint"
-    },
-    {
-      "id": "F-022",
-      "name": "Closed-Loop Evaluator Retry",
-      "description": "Evaluator critique injected into retry prompt; re-generates then re-evaluates; max 2 retries before blocking push",
-      "status": "complete",
-      "leverage_point": "Feedback Loops",
-      "linear_issue": "ZTE-Sprint"
-    },
-    {
-      "id": "F-023",
-      "name": "Phase Checkpoints + Session Resume",
-      "description": "_should_skip() per phase; POST /api/sessions/{sid}/resume skips already-completed phases; persisted to .harness/sessions.json",
-      "status": "complete",
-      "leverage_point": "Session Continuity",
-      "linear_issue": "ZTE-Sprint"
-    },
-    {
-      "id": "F-024",
-      "name": "Clone + Generator Retry with Backoff",
-      "description": "git clone: 3 attempts with 2s/4s backoff; generator: 2-attempt retry; phase-level failure checkpoints persisted",
-      "status": "complete",
-      "leverage_point": "Error Recovery",
-      "linear_issue": "ZTE-Sprint"
-    },
-    {
-      "id": "F-025",
-      "name": "Auto-Learn from Evaluator",
-      "description": "_parse_evaluator_dimensions() extracts 4 scores; dimensions below threshold auto-appended to lessons.jsonl for future brief injection",
-      "status": "complete",
-      "leverage_point": "Knowledge Retention",
-      "linear_issue": "ZTE-Sprint"
-    },
-    {
-      "id": "F-026",
-      "name": "Cron Triggers API",
-      "description": "app/server/cron.py + .harness/cron-triggers.json; GET/POST/DELETE /api/triggers; cron_loop() background task; complements webhook triggers",
-      "status": "complete",
-      "leverage_point": "Trigger Automation",
-      "linear_issue": "ZTE-Sprint"
-    }
-  ],
-  "pending": [
-    {
-      "id": "F-027",
-      "name": "E2E Integration Smoke Test",
-      "description": "Full Brief → PITER → ADW → Claude → Evaluator → GitHub push pipeline validated end-to-end",
-      "status": "pending",
-      "linear_issue": "RA-470"
-    },
-    {
-      "id": "F-028",
-      "name": "Error Recovery — Transient Failure Retry",
-      "description": "Retry logic for network blip during push; structured backoff beyond current clone/generator retry",
-      "status": "pending",
-      "linear_issue": "RA-471"
-    }
-  ]
-}
+[
+  {
+    "id": "F100",
+    "title": "Populate CLAUDE.md with complete project context (file map, conventions, dev setup, smoke test checklist) — replace empty stub",
+    "sprint": 1,
+    "size": "S",
+    "priority": "P1",
+    "status": "planned"
+  },
+  {
+    "id": "F101",
+    "title": "Wire BudgetTracker.cost_usd() using token-budgeter skill rates (Opus $15, Sonnet $3, Haiku $1.25/M) — close cost tracking gap",
+    "sprint": 1,
+    "size": "S",
+    "priority": "P1",
+    "status": "planned"
+  },
+  {
+    "id": "F102",
+    "title": "Implement GET /api/capabilities endpoint returning self-describing JSON of all API actions, trigger types, and supported models",
+    "sprint": 1,
+    "size": "S",
+    "priority": "P1",
+    "status": "planned"
+  },
+  {
+    "id": "F103",
+    "title": "Fix get_zte_score MCP tool in mcp/pi-ceo-server.js to parse .harness/leverage-audit.md directly and return structured score + breakdown",
+    "sprint": 1,
+    "size": "S",
+    "priority": "P1",
+    "status": "planned"
+  },
+  {
+    "id": "F104",
+    "title": "Enrich /api/sessions response to include phases array (map _PHASE_ORDER against last_completed_phase) — resolve dashboard/lib/types.ts Phase[] mismatch",
+    "sprint": 1,
+    "size": "M",
+    "priority": "P1",
+    "status": "planned"
+  },
+  {
+    "id": "F105",
+    "title": "Add skill cache file-watcher in src/tao/skills.py to call invalidate_cache() on SKILL.md changes at runtime",
+    "sprint": 1,
+    "size": "S",
+    "priority": "P2",
+    "status": "planned"
+  },
+  {
+    "id": "F106",
+    "title": "Implement Stop and SubagentStop hooks in app/server/sessions.py (2 of 6 hooks-system hooks currently unimplemented)",
+    "sprint": 1,
+    "size": "M",
+    "priority": "P2",
+    "status": "planned"
+  },
+  {
+    "id": "F200",
+    "title": "Implement src/tao/agents/__init__.py AgentDispatcher class: intent-based task routing, concurrent execution via asyncio.gather, batch dispatch, result aggregation",
+    "sprint": 2,
+    "size": "L",
+    "priority": "P1",
+    "status": "planned"
+  },
+  {
+    "id": "F201",
+    "title": "Raise EVALUATOR_THRESHOLD default from 7 to 8 in app/server/config.py and update Railway env var — align with Sprint 6 quality push intent",
+    "sprint": 2,
+    "size": "S",
+    "priority": "P1",
+    "status": "planned"
+  },
+  {
+    "id": "F202",
+    "title": "Add EVALUATOR_THRESHOLD env var enforcement: if evaluator score < threshold after max retries, block git push and emit structured error (convert warned to hard block)",
+    "sprint": 2,
+    "size": "M",
+    "priority": "P1",
+    "status": "planned"
+  },
+  {
+    "id": "F203",
+    "title": "Implement auto-generator skill: generate_config(preset) in src/tao/ producing valid .harness/config.yaml from 3 presets (2-tier-codereview, 3-tier-webapp, 4-tier-research)",
+    "sprint": 2,
+    "size": "M",
+    "priority": "P2",
+    "status": "planned"
+  },
+  {
+    "id": "F204",
+    "title": "Add context-compressor AI summarisation path in brief.py: when skill context exceeds 4000 chars, summarise via claude -p haiku instead of hard-truncating",
+    "sprint": 2,
+    "size": "M",
+    "priority": "P2",
+    "status": "planned"
+  },
+  {
+    "id": "F205",
+    "title": "Add multi-model parallel evaluation: run evaluator with sonnet + haiku simultaneously; escalate to opus if scores diverge by >2 points",
+    "sprint": 2,
+    "size": "L",
+    "priority": "P3",
+    "status": "planned"
+  },
+  {
+    "id": "F300",
+    "title": "Add TAO_MONTHLY_BUDGET_USD env var: check Railway spend on startup; emit warning in WebSocket stream when projected monthly cost exceeds threshold",
+    "sprint": 3,
+    "size": "M",
+    "priority": "P1",
+    "status": "planned"
+  },
+  {
+    "id": "F301",
+    "title": "Fix cron_loop() state loss on restart: reload .harness/cron-triggers.json in on_startup() and re-register all enabled triggers before starting cron_loop asyncio task",
+    "sprint": 3,
+    "size": "S",
+    "priority": "P1",
+    "status": "planned"
+  },
+  {
+    "id": "F302",
+    "title": "Add Supabase session sync: after persistence.save_session(), mirror session JSON to Supabase table for dashboard /builds page queries (remove dependency on in-memory _sessions for dashboard)",
+    "sprint": 3,
+    "size": "L",
+    "priority": "P1",
+    "status": "planned"
+  },
+  {
+    "id": "F303",
+    "title": "Implement WebSocket ping/pong keepalive in /ws/build/{sid} handler to prevent Railway 30s idle timeout dropping live build streams",
+    "sprint": 3,
+    "size": "S",
+    "priority": "P2",
+    "status": "planned"
+  },
+  {
+    "id": "F304",
+    "title": "Add structured error taxonomy to BuildSession: distinguish clone_error, auth_error, build_error, eval_error, push_error — expose in /api/sessions response for dashboard error UI",
+    "sprint": 3,
+    "size": "M",
+    "priority": "P2",
+    "status": "planned"
+  },
+  {
+    "id": "F305",
+    "title": "Add /api/metrics endpoint returning aggregate session stats: total builds, pass rate, avg evaluator score, avg duration, token spend by tier",
+    "sprint": 3,
+    "size": "M",
+    "priority": "P3",
+    "status": "planned"
+  },
+  {
+    "id": "F400",
+    "title": "Implement meta-analysis agent: scheduled cron (Sunday 9am AEST) reads last 50 lessons.jsonl entries, identifies recurring failure patterns, proposes CLAUDE.md and skill file updates",
+    "sprint": 4,
+    "size": "L",
+    "priority": "P1",
+    "status": "planned"
+  },
+  {
+    "id": "F401",
+    "title": "Add lesson deduplication in append_lesson(): check last 20 entries for substring overlap before appending — prevent lessons.jsonl bloat from repeated evaluator failures",
+    "sprint": 4,
+    "size": "S",
+    "priority": "P1",
+    "status": "planned"
+  },
+  {
+    "id": "F402",
+    "title": "Add GET /api/lessons?format=summary endpoint returning lesson frequency table by category and severity — expose to MCP get_zte_score for trend data",
+    "sprint": 4,
+    "size": "S",
+    "priority": "P2",
+    "status": "planned"
+  },
+  {
+    "id": "F403",
+    "title": "Implement skill effectiveness tracking: after each build, record which skills were injected and the resulting evaluator score to skills.jsonl — identify low-signal skills",
+    "sprint": 4,
+    "size": "M",
+    "priority": "P2",
+    "status": "planned"
+  },
+  {
+    "id": "F404",
+    "title": "Dashboard ZTE health panel: surface ZTE score, evaluator pass rate trend, top 3 weak dimensions on Next.js /dashboard page using /api/metrics data",
+    "sprint": 4,
+    "size": "L",
+    "priority": "P2",
+    "status": "planned"
+  },
+  {
+    "id": "F405",
+    "title": "Regenerate spec.md, handoff.md, feature_list.json, sprint_plan.md post-sprint to reflect current state — run full Pi CEO analysis against own repo",
+    "sprint": 4,
+    "size": "M",
+    "priority": "P3",
+    "status": "planned"
+  }
+]
