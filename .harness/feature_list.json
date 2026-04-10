@@ -556,6 +556,22 @@
       "status": "complete",
       "leverage_point": "Error Recovery",
       "linear_issue": null
+    },
+    {
+      "id": "F-070",
+      "name": "SDK Phase 3 — pipeline.py Agent SDK path (RA-585)",
+      "description": "pipeline.py: _run_claude_via_sdk_async() async helper, _write_pipeline_sdk_metric() JSONL metrics, and _run_claude() wrapper that tries SDK via asyncio.run() before subprocess. All 3 call-sites (spec/plan/review) emit phase-tagged metrics. Gate: TAO_USE_AGENT_SDK=1.",
+      "status": "complete",
+      "leverage_point": "Workflow Standardization",
+      "linear_issue": "RA-585"
+    },
+    {
+      "id": "F-071",
+      "name": "SDK Phase 3 — orchestrator.py Agent SDK path (RA-585)",
+      "description": "orchestrator.py: _decompose_brief() now tries _run_claude_via_sdk (imported from sessions.py) first when TAO_USE_AGENT_SDK=1, falling through to run_cmd subprocess on any failure. Adds 7 new tests in tests/test_sdk_phase3.py; total suite 46 tests.",
+      "status": "complete",
+      "leverage_point": "Workflow Standardization",
+      "linear_issue": "RA-585"
     }
   ],
   "pending": []

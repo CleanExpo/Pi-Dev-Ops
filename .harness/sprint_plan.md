@@ -19,6 +19,7 @@ Sprints 1–7 complete. Sprint 8 active. 69 features shipped.
 | RA-581 | `DEPLOYMENT.md`: production URLs, env matrix, rollback procedures (single source of truth) |
 | RA-582 | `scripts/verify_deploy.py`: commit parity audit — git HEAD vs Vercel + Railway SHAs |
 | RA-584 | `app/server/autonomy.py`: Linear todo poller, `/api/autonomy/status` endpoint |
+| RA-585 | MARATHON-1: `pipeline.py` + `orchestrator.py` migrated to Agent SDK; 7 new tests (46 total) |
 | (CI fix) | `app/server/main.py`: health endpoint no longer gates on `_claude_ok`; CI 28/28 pass |
 
 ## Sprint 8 — Open
