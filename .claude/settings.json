@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "WorktreeCreate": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "git -C /Users/phill-mac/Pi-CEO/Pi-Dev-Ops worktree add \"$WORKTREE_DIR\" -b \"$WORKTREE_BRANCH\" 2>&1"
+          }
+        ]
+      }
+    ],
+    "WorktreeRemove": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "git -C /Users/phill-mac/Pi-CEO/Pi-Dev-Ops worktree remove \"$WORKTREE_DIR\" --force 2>&1"
+          }
+        ]
+      }
+    ]
+  }
+}
