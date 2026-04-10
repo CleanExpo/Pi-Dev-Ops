@@ -1,0 +1,47 @@
+```json
+{
+  "totalFiles": 78,
+  "languages": {
+    "Python": 2850,
+    "TypeScript": 420,
+    "JavaScript": 380,
+    "Markdown": 8200,
+    "YAML": 310,
+    "JSON": 680,
+    "Shell": 45,
+    "PowerShell": 15,
+    "Dockerfile": 60
+  },
+  "topFiles": [
+    "app/server/sessions.py",
+    ".harness/spec.md",
+    ".harness/handoff.md",
+    ".harness/board-meetings/2026-04-09-1200-board-minutes.md",
+    ".harness/board-meetings/2026-04-08-1200-board-minutes.md",
+    "app/server/main.py",
+    ".harness/feature_list.json",
+    "app/server/brief.py",
+    "_deploy.py",
+    ".harness/lessons.jsonl"
+  ],
+  "frameworks": [
+    "FastAPI",
+    "Next.js",
+    "React",
+    "Tailwind CSS",
+    "Uvicorn",
+    "Model Context Protocol (MCP)",
+    "Anthropic SDK",
+    "Octokit",
+    "Supabase",
+    "xterm.js"
+  ],
+  "entryPoints": [
+    "app/server/main.py",
+    "mcp/pi-ceo-server.js",
+    "dashboard/app/(main)/dashboard/page.tsx",
+    "app/run.ps1",
+    "Dockerfile"
+  ]
+}
+```
