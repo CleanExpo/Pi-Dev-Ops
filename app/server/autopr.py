@@ -18,7 +18,6 @@ import asyncio
 import json
 import logging
 import os
-import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone

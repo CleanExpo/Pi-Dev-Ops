@@ -8,7 +8,10 @@ GC_MAX_AGE seconds. Also scans WORKSPACE_ROOT for orphan directories
 Runs every 30 minutes as a background asyncio task started during
 server startup. Also exposed as POST /api/gc for manual triggers.
 """
-import asyncio, os, shutil, time
+import asyncio
+import os
+import shutil
+import time
 from . import config
 from . import persistence
 

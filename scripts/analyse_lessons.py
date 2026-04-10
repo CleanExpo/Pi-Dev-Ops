@@ -26,8 +26,8 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_ROOT))
 
-import app.server.config  # noqa: F401 — triggers dotenv load
-from app.server.triage import LinearClient
+import app.server.config  # noqa: F401,E402 — triggers dotenv load
+from app.server.triage import LinearClient  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("pi-ceo.analyse-lessons")
@@ -111,14 +111,14 @@ def build_proposal(category: str, entries: list[dict]) -> str:
 
     lines = [
         f"# Improvement Proposal: {category.replace('-', ' ').title()}",
-        f"",
+        "",
         f"**Generated:** {date_str}  ",
         f"**Source:** lessons.jsonl — {len(entries)} entries ({warn_count} warnings)  ",
         f"**Proposed action:** {action}  ",
         f"**Target:** {target}",
-        f"",
+        "",
         f"## Recurring Lessons ({len(entries)} occurrences)",
-        f"",
+        "",
     ]
     for e in entries:
         emoji = _severity_emoji(e.get("severity", "info"))
@@ -126,48 +126,48 @@ def build_proposal(category: str, entries: list[dict]) -> str:
         lines.append(f"- {emoji} **[{source}]** {e['lesson']}")
 
     lines += [
-        f"",
-        f"## Proposed Content",
-        f"",
+        "",
+        "## Proposed Content",
+        "",
     ]
 
     if ptype == "skill":
         lines += [
             f"Add a new skill or expand an existing one covering these {category} patterns:",
-            f"",
-            f"```markdown",
+            "",
+            "```markdown",
             f"# SKILL: {category.replace('-', ' ').title()} Best Practices",
-            f"",
-            f"## When to apply",
+            "",
+            "## When to apply",
             f"Whenever code touches {category}-related logic.",
-            f"",
-            f"## Rules",
+            "",
+            "## Rules",
         ]
         for e in entries:
             lines.append(f"- {e['lesson']}")
         lines += [
-            f"```",
+            "```",
         ]
     else:
         lines += [
-            f"Add the following section to CLAUDE.md:",
-            f"",
-            f"```markdown",
+            "Add the following section to CLAUDE.md:",
+            "",
+            "```markdown",
             f"## {category.replace('-', ' ').title()} Guidelines",
-            f"",
+            "",
         ]
         for e in entries:
             lines.append(f"- {e['lesson']}")
         lines += [
-            f"```",
+            "```",
         ]
 
     lines += [
-        f"",
-        f"## Review Required",
-        f"",
-        f"This proposal was auto-generated. A human must review and apply it.",
-        f"Close this Linear ticket when applied or explicitly rejected.",
+        "",
+        "## Review Required",
+        "",
+        "This proposal was auto-generated. A human must review and apply it.",
+        "Close this Linear ticket when applied or explicitly rejected.",
     ]
     return "\n".join(lines)
 
@@ -263,7 +263,7 @@ def main() -> None:
     proposals_written = 0
     for category, entries in sorted(recurring.items(), key=lambda x: -len(x[1])):
         content = build_proposal(category, entries)
-        path = write_proposal(category, content)
+        write_proposal(category, content)
         proposals_written += 1
 
         if client:

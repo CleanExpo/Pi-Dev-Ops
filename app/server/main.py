@@ -1,4 +1,7 @@
-import asyncio, json, os, logging
+import asyncio
+import json
+import os
+import logging
 from pathlib import Path
 from typing import Literal
 from pydantic import BaseModel, field_validator
@@ -252,11 +255,13 @@ async def build_parallel(body: ParallelBuildRequest):
     return result
 
 @app.get("/api/sessions", dependencies=[Depends(require_auth)])
-async def get_sessions(): return list_sessions()
+async def get_sessions():
+    return list_sessions()
 
 @app.post("/api/sessions/{sid}/kill", dependencies=[Depends(require_auth)])
 async def stop_session(sid: str):
-    if not await kill_session(sid): raise HTTPException(404, "Not found")
+    if not await kill_session(sid):
+        raise HTTPException(404, "Not found")
     return {"ok": True}
 
 @app.get("/api/sessions/{sid}/logs", dependencies=[Depends(require_auth)])
@@ -298,10 +303,13 @@ async def stream_session_logs(sid: str, after: int = 0):
 async def resume_session(sid: str):
     """Resume an interrupted session from its last completed phase (GROUP E)."""
     session = get_session(sid)
-    if not session: raise HTTPException(404, "Session not found")
-    if session.status != "interrupted": raise HTTPException(400, f"Status is '{session.status}', not 'interrupted'")
+    if not session:
+        raise HTTPException(404, "Session not found")
+    if session.status != "interrupted":
+        raise HTTPException(400, f"Status is '{session.status}', not 'interrupted'")
     last_phase = getattr(session, "last_completed_phase", "")
-    if not last_phase: raise HTTPException(400, "No phase checkpoint — cannot resume")
+    if not last_phase:
+        raise HTTPException(400, "No phase checkpoint — cannot resume")
     session.status = "building"
     from . import persistence
     persistence.save_session(session)
@@ -394,7 +402,8 @@ async def add_trigger(body: TriggerRequest):
 
 @app.delete("/api/triggers/{tid}", dependencies=[Depends(require_auth)])
 async def remove_trigger(tid: str):
-    if not delete_trigger(tid): raise HTTPException(404, "Trigger not found")
+    if not delete_trigger(tid):
+        raise HTTPException(404, "Trigger not found")
     return {"ok": True}
 
 @app.post("/api/scan", dependencies=[Depends(require_auth), Depends(require_rate_limit)])
@@ -688,7 +697,8 @@ async def _start_claude_poll():
 
 @app.get("/health")
 async def health():
-    import time, shutil
+    import time
+    import shutil
     uptime_s = int(time.time() - _START_TIME)
     active = sum(1 for s in _sessions.values() if getattr(s, "status", "") in ("created", "cloning", "building", "evaluating"))
     total  = len(_sessions)

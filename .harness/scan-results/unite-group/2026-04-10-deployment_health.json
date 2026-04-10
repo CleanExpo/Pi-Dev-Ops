@@ -2,8 +2,8 @@
   "project_id": "unite-group",
   "repo": "CleanExpo/unite-group",
   "scan_type": "deployment_health",
-  "started_at": "2026-04-10T06:26:54.459662+00:00",
-  "finished_at": "2026-04-10T06:26:54.767556+00:00",
+  "started_at": "2026-04-10T18:01:07.926101+00:00",
+  "finished_at": "2026-04-10T18:01:08.269916+00:00",
   "findings": [
     {
       "scan_type": "deployment_health",

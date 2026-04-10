@@ -17,8 +17,6 @@ import os
 import argparse
 import asyncio
 import json
-import hashlib
-import hmac
 import time
 import urllib.request
 import urllib.error
@@ -279,7 +277,7 @@ total = len(PASS) + len(FAIL)
 print(f"\n{'=' * 50}")
 print(f"Result: {len(PASS)}/{total} checks passed")
 if FAIL:
-    print(f"\nFailed checks:")
+    print("\nFailed checks:")
     for name in FAIL:
         print(f"  - {name}")
 print()

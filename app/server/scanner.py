@@ -21,7 +21,6 @@ import json
 import logging
 import os
 import re
-import subprocess
 import time
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
@@ -421,8 +420,6 @@ class DeploymentHealthScanner:
         return findings
 
     async def _check_url(self, name: str, url: str) -> Finding | None:
-        import urllib.request
-        import urllib.error
 
         try:
             loop = asyncio.get_event_loop()

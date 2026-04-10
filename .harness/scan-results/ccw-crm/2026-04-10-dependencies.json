@@ -2,8 +2,8 @@
   "project_id": "ccw-crm",
   "repo": "CleanExpo/CCW-CRM",
   "scan_type": "dependencies",
-  "started_at": "2026-04-10T06:26:58.143099+00:00",
-  "finished_at": "2026-04-10T06:26:58.274676+00:00",
+  "started_at": "2026-04-10T18:01:08.188397+00:00",
+  "finished_at": "2026-04-10T18:01:08.306556+00:00",
   "findings": [],
   "error": "",
   "health_score": 100

@@ -2,8 +2,8 @@
   "project_id": "disaster-recovery",
   "repo": "CleanExpo/Disaster-Recovery",
   "scan_type": "deployment_health",
-  "started_at": "2026-04-10T06:26:52.351976+00:00",
-  "finished_at": "2026-04-10T06:26:52.704066+00:00",
+  "started_at": "2026-04-10T18:01:00.626752+00:00",
+  "finished_at": "2026-04-10T18:01:01.050440+00:00",
   "findings": [],
   "error": "",
   "health_score": 100

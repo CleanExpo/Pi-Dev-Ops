@@ -8,7 +8,11 @@ Usage:
     python scripts/fetch_anthropic_docs.py
     python scripts/fetch_anthropic_docs.py --dry-run
 """
-import argparse, json, os, re, sys, time
+import argparse
+import json
+import re
+import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from urllib.request import urlopen, Request
@@ -61,8 +65,8 @@ def _strip_html(html: str) -> str:
     """Minimal HTML → plain text (no external deps)."""
     text = _TAG_RE.sub(" ", html)
     text = text.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", '"').replace("&#39;", "'").replace("&nbsp;", " ")
-    lines = [l.strip() for l in text.splitlines()]
-    text = "\n".join(l for l in lines if l)
+    lines = [ln.strip() for ln in text.splitlines()]
+    text = "\n".join(ln for ln in lines if ln)
     return _WHITESPACE_RE.sub("\n\n", text)
 
 

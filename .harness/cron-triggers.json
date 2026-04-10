@@ -48,7 +48,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": null
+    "last_fired_at": 1775822443.2519722
   },
   {
     "id": "scan-high-1800",
@@ -65,7 +65,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": null
+    "last_fired_at": 1775844073.0137632
   },
   {
     "id": "scan-medium-0200",
@@ -127,7 +127,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": null
+    "last_fired_at": 1775826043.495788
   },
   {
     "id": "monitor-1900",
@@ -138,7 +138,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": null
+    "last_fired_at": 1775847613.295764
   },
   {
     "id": "analyse-lessons-weekly",

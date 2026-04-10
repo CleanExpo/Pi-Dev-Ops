@@ -9,7 +9,8 @@ append_lesson() appends a new entry atomically (open in 'a' mode — append is
 atomic for individual writes within the OS buffer size on POSIX; good enough
 for a single-process server).
 """
-import json, os, time
+import json
+import os
 from datetime import timezone, datetime
 from . import config
 

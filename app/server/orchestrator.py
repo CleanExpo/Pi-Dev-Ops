@@ -9,7 +9,10 @@ Implements the P3-B fan-out pattern:
 Usage:
   POST /api/build/parallel  { repo_url, brief, n_workers, model, intent }
 """
-import asyncio, json, os, time, uuid
+import json
+import os
+import time
+import uuid
 
 from . import config
 from .sessions import create_session, em, run_cmd, BuildSession, _sessions

@@ -11,7 +11,10 @@ on crash or mid-write power loss.
 Session IDs are sanitised (alphanumeric only) before any file path use to
 prevent path traversal attacks.
 """
-import json, os, re, time
+import json
+import os
+import re
+import time
 from . import config
 
 

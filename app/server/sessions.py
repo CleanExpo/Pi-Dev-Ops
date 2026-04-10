@@ -1,4 +1,9 @@
-import asyncio, json, os, shutil, time, uuid
+import asyncio
+import json
+import os
+import shutil
+import time
+import uuid
 import logging
 import urllib.request
 import urllib.error
@@ -15,7 +20,6 @@ _log = logging.getLogger("pi-ceo.sessions")
 try:
     from src.tao.budget.tracker import BudgetTracker
     from src.tao.tiers.config import load_config as _load_tao_config
-    from src.tao.schemas.artifacts import TaskSpec, TaskResult
     _TAO_AVAILABLE = True
 except ImportError:
     _TAO_AVAILABLE = False
@@ -129,43 +133,55 @@ async def run_cmd(cwd, *args, timeout=60):
     return proc.returncode, out.decode("utf-8",errors="replace"), err.decode("utf-8",errors="replace")
 
 def parse_event(line, session):
-    try: evt = json.loads(line)
-    except:
-        if line.strip(): em(session, "output", line)
+    try:
+        evt = json.loads(line)
+    except Exception:
+        if line.strip():
+            em(session, "output", line)
         return
     t = evt.get("type","")
     if t == "system":
         m = evt.get("message","")
-        if m: em(session, "system", f"  {m[:200]}")
+        if m:
+            em(session, "system", f"  {m[:200]}")
     elif t == "assistant":
         msg = evt.get("message",{})
         c = msg.get("content","") if isinstance(msg,dict) else ""
         if isinstance(c, list):
             for b in c:
-                if not isinstance(b,dict): continue
+                if not isinstance(b,dict):
+                    continue
                 bt = b.get("type","")
                 if bt == "text":
-                    for l in b.get("text","").split("\n"):
-                        if l.strip(): em(session, "agent", f"  {l}")
+                    for ln in b.get("text","").split("\n"):
+                        if ln.strip():
+                            em(session, "agent", f"  {ln}")
                 elif bt == "tool_use":
                     nm = b.get("name","")
                     inp = b.get("input",{})
-                    if nm == "Bash": em(session, "tool", f"  $ {inp.get('command','')[:150]}")
-                    elif nm in ("Write","Edit"): em(session, "tool", f"  {nm.lower()} {inp.get('file_path','')}")
-                    elif nm == "Read": em(session, "tool", f"  read {inp.get('file_path','')}")
-                    else: em(session, "tool", f"  {nm}")
+                    if nm == "Bash":
+                        em(session, "tool", f"  $ {inp.get('command','')[:150]}")
+                    elif nm in ("Write","Edit"):
+                        em(session, "tool", f"  {nm.lower()} {inp.get('file_path','')}")
+                    elif nm == "Read":
+                        em(session, "tool", f"  read {inp.get('file_path','')}")
+                    else:
+                        em(session, "tool", f"  {nm}")
     elif t in ("tool_result","result"):
         c = evt.get("content","") or evt.get("result","")
         if isinstance(c,list):
             for b in c:
                 if isinstance(b,dict) and b.get("text"):
-                    for l in b["text"].split("\n")[:20]:
-                        if l.strip(): em(session, "output", f"    {l[:200]}")
+                    for ln in b["text"].split("\n")[:20]:
+                        if ln.strip():
+                            em(session, "output", f"    {ln[:200]}")
         elif isinstance(c,str):
-            for l in c.split("\n")[:20]:
-                if l.strip(): em(session, "output", f"    {l[:200]}")
+            for ln in c.split("\n")[:20]:
+                if ln.strip():
+                    em(session, "output", f"    {ln[:200]}")
         cost = evt.get("cost_usd")
-        if cost: em(session, "metric", f"  Cost: ${cost:.4f}")
+        if cost:
+            em(session, "metric", f"  Cost: ${cost:.4f}")
 
 def _parse_evaluator_dimensions(eval_text: str) -> dict:
     """Parse all 4 evaluator dimension scores from output text.
@@ -743,16 +759,19 @@ async def create_session(repo_url, brief="", model="", evaluator_enabled=True, i
 
 async def kill_session(sid):
     s = _sessions.get(sid)
-    if not s or not s.process: return False
+    if not s or not s.process:
+        return False
     try:
         s.process.terminate()
         await asyncio.sleep(2)
-        if s.process.returncode is None: s.process.kill()
+        if s.process.returncode is None:
+            s.process.kill()
         s.status = "killed"
         persistence.save_session(s)
         em(s, "error", "Killed by user")
         return True
-    except: return False
+    except Exception:
+        return False
 
 def cleanup_session(sid):
     s = _sessions.pop(sid, None)

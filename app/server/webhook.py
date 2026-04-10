@@ -7,7 +7,8 @@ and metadata from webhook payloads.
 GitHub: x-hub-signature-256 header, sha256=<hex> format
 Linear: Linear-Signature header, raw hex format
 """
-import hashlib, hmac, json
+import hashlib
+import hmac
 
 
 def verify_github_signature(raw_body: bytes, signature: str, secret: str) -> bool:
@@ -62,7 +63,7 @@ def parse_linear_event(payload: dict) -> dict | None:
         return None
     title = data.get("title", "")
     description = data.get("description", "")
-    labels = [l.get("name", "") for l in (data.get("labels") or [])]
+    labels = [lbl.get("name", "") for lbl in (data.get("labels") or [])]
     priority = data.get("priority", 0)
     # Try to extract repo URL from issue labels or description
     repo_url = ""

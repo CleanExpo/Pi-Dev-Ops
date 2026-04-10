@@ -389,7 +389,6 @@ class TriageEngine:
 
 async def _main() -> None:
     import argparse
-    import asyncio
     from app.server.scanner import ProjectScanner
 
     logging.basicConfig(

@@ -2,9 +2,23 @@
   "project_id": "pi-dev-ops",
   "repo": "CleanExpo/Pi-Dev-Ops",
   "scan_type": "deployment_health",
-  "started_at": "2026-04-10T07:29:51.919614+00:00",
-  "finished_at": "2026-04-10T07:29:52.603242+00:00",
-  "findings": [],
+  "started_at": "2026-04-10T18:00:52.661079+00:00",
+  "finished_at": "2026-04-10T18:00:53.753462+00:00",
+  "findings": [
+    {
+      "scan_type": "deployment_health",
+      "severity": "critical",
+      "title": "Deployment unreachable: frontend",
+      "description": "https://dashboard-unite-group.vercel.app failed: HTTP Error 401: Unauthorized",
+      "file_path": "",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "url": "https://dashboard-unite-group.vercel.app",
+        "deployment": "frontend"
+      }
+    }
+  ],
   "error": "",
-  "health_score": 100
+  "health_score": 75
 }

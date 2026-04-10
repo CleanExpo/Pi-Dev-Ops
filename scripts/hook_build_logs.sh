@@ -22,13 +22,16 @@ PYEOF
 
 # Decide if we should trigger
 IS_PUSH=$(echo "$CMD" | grep -cE 'git push.*origin' || true)
+IS_VERCEL=$(echo "$CMD" | grep -cE 'vercel\s+--prod|vercel\s+deploy' || true)
 IS_SMOKE=$(echo "$CMD" | grep -cE 'smoke_test\.py' || true)
 
-if [ "$IS_PUSH" -eq 0 ] && [ "$IS_SMOKE" -eq 0 ]; then
+if [ "$IS_PUSH" -eq 0 ] && [ "$IS_VERCEL" -eq 0 ] && [ "$IS_SMOKE" -eq 0 ]; then
     exit 0
 fi
 
-if [ "$IS_PUSH" -gt 0 ]; then
+if [ "$IS_VERCEL" -gt 0 ]; then
+    TRIGGER="post-vercel-deploy"
+elif [ "$IS_PUSH" -gt 0 ]; then
     TRIGGER="post-git-push"
 else
     TRIGGER="post-smoke-test"
@@ -44,6 +47,9 @@ echo "╚═══════════════════════�
 if [ "$TRIGGER" = "post-git-push" ]; then
     echo "  Waiting 35s for Vercel to register the new deployment…"
     sleep 35
+elif [ "$TRIGGER" = "post-vercel-deploy" ]; then
+    echo "  Waiting 10s for Vercel deployment to fully register…"
+    sleep 10
 fi
 
 python3 "$SCRIPT_DIR/check_build_logs.py" 2>&1

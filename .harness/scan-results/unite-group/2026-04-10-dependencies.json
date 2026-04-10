@@ -2,8 +2,8 @@
   "project_id": "unite-group",
   "repo": "CleanExpo/unite-group",
   "scan_type": "dependencies",
-  "started_at": "2026-04-10T06:26:53.515776+00:00",
-  "finished_at": "2026-04-10T06:26:54.459095+00:00",
+  "started_at": "2026-04-10T18:01:00.617694+00:00",
+  "finished_at": "2026-04-10T18:01:07.925575+00:00",
   "findings": [
     {
       "scan_type": "dependencies",
@@ -171,7 +171,7 @@
       "auto_fixable": true,
       "extra": {
         "package": "next",
-        "range": "0.9.9 - 15.5.13"
+        "range": "0.9.9 - 15.5.14"
       }
     },
     {

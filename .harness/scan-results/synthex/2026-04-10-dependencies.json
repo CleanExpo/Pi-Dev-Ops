@@ -2,8 +2,8 @@
   "project_id": "synthex",
   "repo": "CleanExpo/Synthex",
   "scan_type": "dependencies",
-  "started_at": "2026-04-10T06:26:52.678833+00:00",
-  "finished_at": "2026-04-10T06:26:54.348935+00:00",
+  "started_at": "2026-04-10T18:01:00.916471+00:00",
+  "finished_at": "2026-04-10T18:01:12.853566+00:00",
   "findings": [
     {
       "scan_type": "dependencies",
@@ -106,7 +106,7 @@
       "auto_fixable": false,
       "extra": {
         "package": "@storybook/nextjs",
-        "range": "<=0.0.0-pr-34476-sha-f8f46a46 || >=7.0.15"
+        "range": "<=0.0.0-pr-34520-sha-aa0070c8 || >=7.0.15"
       }
     },
     {
@@ -289,6 +289,19 @@
       "extra": {
         "package": "lodash",
         "range": "<=4.17.23"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: next",
+      "description": "Next.js has a Denial of Service with Server Components. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "next",
+        "range": "16.0.0-beta.0 - 16.2.2"
       }
     },
     {

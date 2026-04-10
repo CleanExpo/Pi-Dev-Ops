@@ -17,8 +17,11 @@ Trigger schema:
     "last_fired_at": float | null
   }
 """
-import asyncio, json, os, time, uuid
-from . import config
+import asyncio
+import json
+import os
+import time
+import uuid
 
 _TRIGGERS_FILE = os.path.join(
     os.path.dirname(__file__), "..", "..", ".harness", "cron-triggers.json"

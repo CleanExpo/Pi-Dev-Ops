@@ -2,8 +2,8 @@
   "project_id": "disaster-recovery",
   "repo": "CleanExpo/Disaster-Recovery",
   "scan_type": "dependencies",
-  "started_at": "2026-04-10T06:26:45.302412+00:00",
-  "finished_at": "2026-04-10T06:26:52.351537+00:00",
+  "started_at": "2026-04-10T18:00:52.956604+00:00",
+  "finished_at": "2026-04-10T18:01:00.626152+00:00",
   "findings": [
     {
       "scan_type": "dependencies",
@@ -119,7 +119,7 @@
       "auto_fixable": false,
       "extra": {
         "package": "next",
-        "range": "9.5.0 - 15.5.13"
+        "range": "9.5.0 - 15.5.14"
       }
     },
     {
@@ -241,5 +241,5 @@
     }
   ],
   "error": "",
-  "health_score": 10
+  "health_score": 8
 }

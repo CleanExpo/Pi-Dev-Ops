@@ -471,7 +471,7 @@ def main() -> None:
 
     audit = run_gap_audit_phase(dry_run=args.dry_run)
     print(json.dumps(audit, indent=2, ensure_ascii=False))
-    summary = audit.get("summary", {})
+    audit.get("summary", {})
     for sev in ("critical", "high"):
         for item in audit.get(sev, []):
             log.info("[%s] %s — %s", sev.upper(), item.get("category"), item.get("recommendation"))
