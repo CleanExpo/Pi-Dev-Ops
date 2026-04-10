@@ -3,105 +3,115 @@
   "sprints": [
     {
       "id": 1,
-      "name": "Observability & Harness Integrity",
-      "duration": "3d",
+      "name": "Observability & Self-Healing Foundation",
+      "duration": "5d",
       "items": [
         {
-          "title": "Populate CLAUDE.md with full project context (architecture, file map, smoke test checklist, conventions)",
+          "title": "Populate CLAUDE.md with complete project context (file map, conventions, dev setup, smoke test checklist) — replace empty stub",
           "size": "S",
           "priority": "P1"
         },
         {
-          "title": "Regenerate spec.md + feature_list.json to reflect Sprint 5/6 state (RA-477/478/479/480/481 shipped)",
+          "title": "Wire BudgetTracker.cost_usd() using token-budgeter skill rates (Opus $15, Sonnet $3, Haiku $1.25/M) — close cost tracking gap",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "Implement GET /api/capabilities endpoint returning self-describing JSON of all API actions, trigger types, and supported models",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "Fix get_zte_score MCP tool in mcp/pi-ceo-server.js to parse .harness/leverage-audit.md directly and return structured score + breakdown",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "Enrich /api/sessions response to include phases array (map _PHASE_ORDER against last_completed_phase) — resolve dashboard/lib/types.ts Phase[] mismatch",
           "size": "M",
           "priority": "P1"
         },
         {
-          "title": "Wire BudgetTracker.cost_usd() using token-budgeter/SKILL.md rates (Opus $15, Sonnet $3, Haiku $1.25 per M)",
+          "title": "Add skill cache file-watcher in src/tao/skills.py to call invalidate_cache() on SKILL.md changes at runtime",
           "size": "S",
           "priority": "P2"
         },
         {
-          "title": "Add TAO_MONTHLY_BUDGET_USD env var check in config.py + emit warning event when 80% consumed",
-          "size": "S",
-          "priority": "P2"
-        },
-        {
-          "title": "Fix cron_loop() to reload .harness/cron-triggers.json on server startup (prevent silent trigger loss on restart)",
-          "size": "S",
-          "priority": "P1"
-        },
-        {
-          "title": "Implement Stop + SubagentStop hooks from hooks-system skill in sessions.py",
+          "title": "Implement Stop and SubagentStop hooks in app/server/sessions.py (2 of 6 hooks-system hooks currently unimplemented)",
           "size": "M",
-          "priority": "P3"
+          "priority": "P2"
         }
       ]
     },
     {
       "id": 2,
-      "name": "Dashboard–Backend Alignment & API Surface",
-      "duration": "3d",
+      "name": "Agent Orchestration & Quality Uplift",
+      "duration": "5d",
       "items": [
         {
-          "title": "Enrich /api/sessions response to emit phases: Phase[] array mapped from _PHASE_ORDER + last_completed_phase",
+          "title": "Implement src/tao/agents/__init__.py AgentDispatcher class: intent-based task routing, concurrent execution via asyncio.gather, batch dispatch, result aggregation",
+          "size": "L",
+          "priority": "P1"
+        },
+        {
+          "title": "Raise EVALUATOR_THRESHOLD default from 7 to 8 in app/server/config.py and update Railway env var — align with Sprint 6 quality push intent",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "Add EVALUATOR_THRESHOLD env var enforcement: if evaluator score < threshold after max retries, block git push and emit structured error (convert warned to hard block)",
           "size": "M",
           "priority": "P1"
         },
         {
-          "title": "Add ZTE score + build health panel to Next.js dashboard (reads /api/capabilities or harness directly)",
+          "title": "Implement auto-generator skill: generate_config(preset) in src/tao/ producing valid .harness/config.yaml from 3 presets (2-tier-codereview, 3-tier-webapp, 4-tier-research)",
           "size": "M",
           "priority": "P2"
         },
         {
-          "title": "Verify /builds page on production Vercel (dashboard-unite-group.vercel.app/builds) streams from Railway",
-          "size": "S",
-          "priority": "P1"
-        },
-        {
-          "title": "Run smoke_test.py --url https://pi-dev-ops-production.up.railway.app against production and document results",
-          "size": "S",
-          "priority": "P1"
-        },
-        {
-          "title": "Add Railway spend alert configuration (TAO_MONTHLY_BUDGET_USD threshold notification)",
-          "size": "S",
+          "title": "Add context-compressor AI summarisation path in brief.py: when skill context exceeds 4000 chars, summarise via claude -p haiku instead of hard-truncating",
+          "size": "M",
           "priority": "P2"
         },
         {
-          "title": "Reconcile dashboard useSSE.ts + WebSocket /ws/build/{sid} — unify to single streaming protocol or document split intentionally",
-          "size": "M",
+          "title": "Add multi-model parallel evaluation: run evaluator with sonnet + haiku simultaneously; escalate to opus if scores diverge by >2 points",
+          "size": "L",
           "priority": "P3"
         }
       ]
     },
     {
       "id": 3,
-      "name": "Agentic Self-Improvement Loop (ZTE Evolution)",
+      "name": "Resilience, Telemetry & Cost Control",
       "duration": "5d",
       "items": [
         {
-          "title": "Implement scheduled meta-analysis agent: reads lessons.jsonl patterns every 24h, proposes CLAUDE.md + skill file updates",
+          "title": "Add TAO_MONTHLY_BUDGET_USD env var: check Railway spend on startup; emit warning in WebSocket stream when projected monthly cost exceeds threshold",
+          "size": "M",
+          "priority": "P1"
+        },
+        {
+          "title": "Fix cron_loop() state loss on restart: reload .harness/cron-triggers.json in on_startup() and re-register all enabled triggers before starting cron_loop asyncio task",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "Add Supabase session sync: after persistence.save_session(), mirror session JSON to Supabase table for dashboard /builds page queries (remove dependency on in-memory _sessions for dashboard)",
           "size": "L",
           "priority": "P1"
         },
         {
-          "title": "Wire skills cache hot-reload: call invalidate_cache() in src/tao/skills.py when skills/ directory changes (file watcher or on-demand via API)",
+          "title": "Implement WebSocket ping/pong keepalive in /ws/build/{sid} handler to prevent Railway 30s idle timeout dropping live build streams",
           "size": "S",
           "priority": "P2"
         },
         {
-          "title": "Implement auto-generator skill: generate_config(preset) in src/tao/ producing valid .harness/config.yaml from project type",
+          "title": "Add structured error taxonomy to BuildSession: distinguish clone_error, auth_error, build_error, eval_error, push_error — expose in /api/sessions response for dashboard error UI",
           "size": "M",
           "priority": "P2"
         },
         {
-          "title": "Add multi-model parallel evaluation (Agentic Loop upgrade): run evaluator with Sonnet + Haiku simultaneously; escalate to Opus on disagreement",
-          "size": "L",
-          "priority": "P3"
-        },
-        {
-          "title": "Implement context-compressor AI summarisation tier: replace 800-char truncation in build_structured_brief() with Haiku summary call",
+          "title": "Add /api/metrics endpoint returning aggregate session stats: total builds, pass rate, avg evaluator score, avg duration, token spend by tier",
           "size": "M",
           "priority": "P3"
         }
@@ -109,169 +119,68 @@
     },
     {
       "id": 4,
-      "name": "Hardening & CI/CD Completion",
-      "duration": "3d",
+      "name": "ZTE Self-Improvement Loop (P4-I)",
+      "duration": "5d",
       "items": [
         {
-          "title": "Add GitHub Actions CD pipeline: on push to main, deploy to Railway automatically (railway up via workflow)",
-          "size": "M",
+          "title": "Implement meta-analysis agent: scheduled cron (Sunday 9am AEST) reads last 50 lessons.jsonl entries, identifies recurring failure patterns, proposes CLAUDE.md and skill file updates",
+          "size": "L",
           "priority": "P1"
         },
         {
-          "title": "Close RA-479/480/481/482 in Linear — confirmed implemented in code, board is 1 sprint stale",
+          "title": "Add lesson deduplication in append_lesson(): check last 20 entries for substring overlap before appending — prevent lessons.jsonl bloat from repeated evaluator failures",
           "size": "S",
           "priority": "P1"
         },
         {
-          "title": "Set TAO_EVALUATOR_MODEL=opus in Railway for maximum scoring rigour (15x cost accepted for quality gate)",
+          "title": "Add GET /api/lessons?format=summary endpoint returning lesson frequency table by category and severity — expose to MCP get_zte_score for trend data",
           "size": "S",
           "priority": "P2"
         },
         {
-          "title": "Add _safe_sid() path traversal test to scripts/smoke_test.py (regression checklist item not yet automated)",
-          "size": "S",
-          "priority": "P2"
-        },
-        {
-          "title": "Add session resume E2E test to smoke_test.py: create session, interrupt, call /api/sessions/{sid}/resume, verify phase skip",
+          "title": "Implement skill effectiveness tracking: after each build, record which skills were injected and the resulting evaluator score to skills.jsonl — identify low-signal skills",
           "size": "M",
           "priority": "P2"
         },
         {
-          "title": "Rotate GITHUB_TOKEN (ghp_GFuX6...) — currently exposed in READY_TO_DEPLOY.md committed to repo",
-          "size": "S",
-          "priority": "P1"
+          "title": "Dashboard ZTE health panel: surface ZTE score, evaluator pass rate trend, top 3 weak dimensions on Next.js /dashboard page using /api/metrics data",
+          "size": "L",
+          "priority": "P2"
+        },
+        {
+          "title": "Regenerate spec.md, handoff.md, feature_list.json, sprint_plan.md post-sprint to reflect current state — run full Pi CEO analysis against own repo",
+          "size": "M",
+          "priority": "P3"
         }
       ]
     }
   ],
   "featureList": [
-    {
-      "id": "F001",
-      "title": "CLAUDE.md full population (architecture, file map, smoke test, conventions)",
-      "sprint": 1,
-      "status": "planned"
-    },
-    {
-      "id": "F002",
-      "title": "Harness file regeneration — spec.md + feature_list.json current to Sprint 6",
-      "sprint": 1,
-      "status": "planned"
-    },
-    {
-      "id": "F003",
-      "title": "BudgetTracker.cost_usd() method with accurate per-model pricing",
-      "sprint": 1,
-      "status": "planned"
-    },
-    {
-      "id": "F004",
-      "title": "Monthly budget cap env var + WebSocket warning event at 80% consumed",
-      "sprint": 1,
-      "status": "planned"
-    },
-    {
-      "id": "F005",
-      "title": "Cron trigger persistence on server restart (reload from .harness/cron-triggers.json at startup)",
-      "sprint": 1,
-      "status": "planned"
-    },
-    {
-      "id": "F006",
-      "title": "Stop + SubagentStop lifecycle hooks (hooks-system skill completion)",
-      "sprint": 1,
-      "status": "planned"
-    },
-    {
-      "id": "F007",
-      "title": "/api/sessions phases[] array emission matching dashboard/lib/types.ts Phase type",
-      "sprint": 2,
-      "status": "planned"
-    },
-    {
-      "id": "F008",
-      "title": "Dashboard ZTE score + build health panel (real-time pipeline visibility)",
-      "sprint": 2,
-      "status": "planned"
-    },
-    {
-      "id": "F009",
-      "title": "Production /builds page verification and Railway smoke test run",
-      "sprint": 2,
-      "status": "planned"
-    },
-    {
-      "id": "F010",
-      "title": "Railway spend alerting configuration",
-      "sprint": 2,
-      "status": "planned"
-    },
-    {
-      "id": "F011",
-      "title": "Streaming protocol unification: SSE vs WebSocket documented or merged",
-      "sprint": 2,
-      "status": "planned"
-    },
-    {
-      "id": "F012",
-      "title": "ZTE self-improvement meta-agent: lessons.jsonl pattern analysis → CLAUDE.md/skill update proposals",
-      "sprint": 3,
-      "status": "planned"
-    },
-    {
-      "id": "F013",
-      "title": "Skills cache hot-reload via file watcher or /api/skills/reload endpoint",
-      "sprint": 3,
-      "status": "planned"
-    },
-    {
-      "id": "F014",
-      "title": "auto-generator skill implementation: generate_config(preset) for 3-tier-webapp, 2-tier-codereview, 4-tier-research",
-      "sprint": 3,
-      "status": "planned"
-    },
-    {
-      "id": "F015",
-      "title": "Multi-model parallel evaluation: Sonnet + Haiku consensus, Opus escalation on disagreement",
-      "sprint": 3,
-      "status": "planned"
-    },
-    {
-      "id": "F016",
-      "title": "context-compressor Haiku summarisation replacing 800-char truncation at tier boundaries",
-      "sprint": 3,
-      "status": "planned"
-    },
-    {
-      "id": "F017",
-      "title": "GitHub Actions → Railway CD pipeline (railway up on push to main)",
-      "sprint": 4,
-      "status": "planned"
-    },
-    {
-      "id": "F018",
-      "title": "Linear board cleanup: close RA-479/480/481/482 (confirmed shipped in codebase)",
-      "sprint": 4,
-      "status": "planned"
-    },
-    {
-      "id": "F019",
-      "title": "TAO_EVALUATOR_MODEL=opus in Railway production config",
-      "sprint": 4,
-      "status": "planned"
-    },
-    {
-      "id": "F020",
-      "title": "Path traversal + session resume automated tests added to smoke_test.py",
-      "sprint": 4,
-      "status": "planned"
-    },
-    {
-      "id": "F021",
-      "title": "GITHUB_TOKEN rotation — token exposed in READY_TO_DEPLOY.md (security remediation)",
-      "sprint": 4,
-      "status": "planned"
-    }
+    { "id": "F001", "title": "Populate CLAUDE.md with complete project context", "sprint": 1, "status": "planned" },
+    { "id": "F002", "title": "BudgetTracker.cost_usd() method with accurate tier pricing", "sprint": 1, "status": "planned" },
+    { "id": "F003", "title": "GET /api/capabilities self-describing endpoint", "sprint": 1, "status": "planned" },
+    { "id": "F004", "title": "Fix get_zte_score MCP tool to parse leverage-audit.md", "sprint": 1, "status": "planned" },
+    { "id": "F005", "title": "Enrich /api/sessions with phases array for dashboard alignment", "sprint": 1, "status": "planned" },
+    { "id": "F006", "title": "SKILL.md file-watcher for runtime cache invalidation", "sprint": 1, "status": "planned" },
+    { "id": "F007", "title": "Stop and SubagentStop lifecycle hooks in sessions.py", "sprint": 1, "status": "planned" },
+    { "id": "F008", "title": "AgentDispatcher class in src/tao/agents/__init__.py", "sprint": 2, "status": "planned" },
+    { "id": "F009", "title": "Raise EVALUATOR_THRESHOLD default to 8 and enforce hard block on exhausted retries", "sprint": 2, "status": "planned" },
+    { "id": "F010", "title": "Hard-block push when evaluator below threshold after max retries", "sprint": 2, "status": "planned" },
+    { "id": "F011", "title": "auto-generator skill: generate_config() from presets", "sprint": 2, "status": "planned" },
+    { "id": "F012", "title": "AI-based context-compressor via Haiku for skill context overflow", "sprint": 2, "status": "planned" },
+    { "id": "F013", "title": "Multi-model parallel evaluator (sonnet + haiku, escalate to opus)", "sprint": 2, "status": "planned" },
+    { "id": "F014", "title": "TAO_MONTHLY_BUDGET_USD spend guardrail with WebSocket warning", "sprint": 3, "status": "planned" },
+    { "id": "F015", "title": "Cron trigger state persistence across server restarts", "sprint": 3, "status": "planned" },
+    { "id": "F016", "title": "Supabase session sync for dashboard /builds independence from in-memory state", "sprint": 3, "status": "planned" },
+    { "id": "F017", "title": "WebSocket ping/pong keepalive to prevent Railway idle timeout", "sprint": 3, "status": "planned" },
+    { "id": "F018", "title": "Structured error taxonomy on BuildSession with dashboard error UI", "sprint": 3, "status": "planned" },
+    { "id": "F019", "title": "GET /api/metrics aggregate session statistics endpoint", "sprint": 3, "status": "planned" },
+    { "id": "F020", "title": "Meta-analysis agent: scheduled lesson pattern analysis and CLAUDE.md proposals", "sprint": 4, "status": "planned" },
+    { "id": "F021", "title": "Lesson deduplication in append_lesson() to prevent lessons.jsonl bloat", "sprint": 4, "status": "planned" },
+    { "id": "F022", "title": "GET /api/lessons?format=summary frequency table by category and severity", "sprint": 4, "status": "planned" },
+    { "id": "F023", "title": "Skill effectiveness tracking: inject→score correlation in skills.jsonl", "sprint": 4, "status": "planned" },
+    { "id": "F024", "title": "Dashboard ZTE health panel with evaluator pass rate trend and weak dimensions", "sprint": 4, "status": "planned" },
+    { "id": "F025", "title": "Full Pi CEO self-analysis run to regenerate all stale harness artefacts", "sprint": 4, "status": "planned" }
   ]
 }
 ```
