@@ -1,0 +1,111 @@
+```json
+{
+  "zteLevel": 3,
+  "zteScore": 52,
+  "leveragePoints": [
+    {
+      "id": 1,
+      "name": "Spec Quality",
+      "score": 5,
+      "rationale": "PITER classifier in brief.py:classify_intent(), 5 ADW templates (_ADW_TEMPLATES), skill injection via _get_skill_context(). Quality gate rubric (_QUALITY_GATE constant) injected into every brief. Fully operational."
+    },
+    {
+      "id": 2,
+      "name": "Context Precision",
+      "score": 4,
+      "rationale": "Lesson injection via _get_lesson_context() (brief.py:~85-100) is real and functional. CLAUDE.md exists but is a near-empty stub (CLAUDE.md shows only placeholder text — 'Add brief project context here'). Config YAML is 6 lines. Context injection works but the knowledge base feeding it is thin."
+    },
+    {
+      "id": 3,
+      "name": "Model Selection",
+      "score": 4,
+      "rationale": "_select_model() in sessions.py reads .harness/config.yaml agents block. However tiers/config.py:load_config() parses 'tiers' key (list), not 'agents' key (dict) — _load_harness_config() passes the raw dict back but _select_model() checks _HARNESS_CONFIG['agents'] which requires the YAML 'agents' block to survive the load. Config loader mismatch is a latent bug. Works in practice because .harness/config.yaml uses 'agents' key directly returned by yaml.safe_load(), but _load_tao_config() in tiers/config.py only returns {'total_token_budget': ..., 'tiers': [...]} — agents key is dropped. Score 4 not 5."
+    },
+    {
+      "id": 4,
+      "name": "Tool Availability",
+      "score": 4,
+      "rationale": "Fan-out parallelism (orchestrator.py:fan_out()), parallel session launch, opus escalation on worker failure. Full Claude Code tool suite available. However tool availability is entirely dependent on claude CLI being in PATH — in cloud/Railway deployment claude CLI is unavailable (lessons.jsonl line 9 explicitly notes this). Cloud mode has no fallback tool execution path."
+    },
+    {
+      "id": 5,
+      "name": "Feedback Loops",
+      "score": 5,
+      "rationale": "Closed-loop evaluator retry fully implemented in sessions.py:run_build() Phase 4.5. Critique injected into retry_brief (sessions.py:~400-420). Max retries configurable (EVALUATOR_MAX_RETRIES). Re-evaluates after each retry. Functional end-to-end."
+    },
+    {
+      "id": 6,
+      "name": "Error Recovery",
+      "score": 5,
+      "rationale": "Clone: 3-attempt backoff (2s/4s) in sessions.py:~130-160. Generator: 2-attempt retry with simplified prompt fallback. Sandbox auto-re-clone (Phase 3.5). Push: 3-attempt retry with auth-error hard-stop (sessions.py:~450-470). Phase checkpoints persisted to disk. Session resume via POST /api/sessions/{sid}/resume."
+    },
+    {
+      "id": 7,
+      "name": "Session Continuity",
+      "score": 5,
+      "rationale": "Phase checkpoints in _PHASE_ORDER, _should_skip() logic, last_completed_phase persisted atomically via persistence.py. restore_sessions() marks in-flight as 'interrupted' on startup. Resume endpoint implemented in main.py. Atomic write pattern (write-to-.tmp + os.replace()) prevents corruption."
+    },
+    {
+      "id": 8,
+      "name": "Quality Gating",
+      "score": 5,
+      "rationale": "Evaluator is a BLOCKING gate — push only happens after evaluator loop exits (sessions.py structure: evaluator runs in Phase 4.5, push in Phase 5 sequentially). Threshold configurable (EVALUATOR_THRESHOLD=8 in config.py). Max retries configurable. evaluator_status tracked ('passed'/'warned'/'error'/'timeout'). Non-blocking only on error/timeout, which is correct behavior."
+    },
+    {
+      "id": 9,
+      "name": "Cost Efficiency",
+      "score": 4,
+      "rationale": "Claude Max subscription = zero per-token API cost for CLI mode. BudgetTracker instantiated per session (sessions.py:~105) but has no cost_usd() method — token spend is tracked but not convertible to dollars. Cloud/Railway deployment would require ANTHROPIC_API_KEY and SDK mode (non-zero cost) with no cost controls implemented. Score 4: zero cost locally but no spend guardrails for cloud mode."
+    },
+    {
+      "id": 10,
+      "name": "Trigger Automation",
+      "score": 5,
+      "rationale": "GitHub webhook (HMAC-verified, main.py:POST /api/webhook), Linear webhook (issue In-Progress → auto-brief), cron triggers (cron.py with .harness/cron-triggers.json, GET/POST/DELETE /api/triggers, cron_loop() background task). Three independent trigger paths all operational."
+    },
+    {
+      "id": 11,
+      "name": "Knowledge Retention",
+      "score": 5,
+      "rationale": "_parse_evaluator_dimensions() extracts per-dimension scores, auto-appends sub-threshold dimensions to lessons.jsonl (sessions.py:~375-395). load_lessons() with category filter feeds back into briefs. 18 seeded entries + runtime accumulation. Daily Anthropic docs pull (scripts/fetch_anthropic_docs.py). Functional Act-Learn-Reuse cycle."
+    },
+    {
+      "id": 12,
+      "name": "Workflow Standardization",
+      "score": 5,
+      "rationale": "PITER enforced at every brief entry (classify_intent() called unconditionally in run_build()). All 5 ADW templates active and routed. Conventional commit convention enforced in brief instructions. Build contract and eval contract documented in .harness/contracts/. Regression checklist and smoke test in .harness/qa/."
+    }
+  ],
+  "zteScore": 56,
+  "zteLevel": 3,
+  "productionGaps": [
+    "CLAUDE.md is an empty stub — all 5 sections contain only placeholder text ('Add brief project context here'). This is the highest-leverage documentation gap; every Claude session starts with zero project context.",
+    "tiers/config.py:load_config() returns {'total_token_budget': ..., 'tiers': [...]} — the 'agents' dict is NOT returned. sessions.py:_select_model() checks _HARNESS_CONFIG['agents'] which will be missing. Model selection falls back to 'sonnet' default silently instead of reading config.",
+    "Cloud/Railway deployment: claude CLI is not available (lessons.jsonl entry 9 explicitly documents this). No SDK fallback path implemented in sessions.py. Railway deploy will fail at Phase 3 (Claude Code check) for every build session.",
+    "BudgetTracker has no cost_usd() method despite token-budgeter/SKILL.md documenting pricing. Token spend is accumulated but never surfaced as dollar cost. No spend alerts or budget enforcement.",
+    "scripts/fetch_anthropic_docs.py fetches documentation but the fetched content in .harness/anthropic-docs/ is raw HTML/JS (not parsed markdown). The actual API reference content is buried in Next.js RSC payload — the files are not usable as knowledge base input.",
+    "src/tao/agents/__init__.py — despite board minutes claiming 'RA-482 resolved', the _deploy.py bootstrap writes an empty file. The sprint completion doc claims 154 lines implemented but the evidence in the repo context shows the bootstrap recreates it empty.",
+    "hooks-system skill: only PreToolUse (rate limit) and PostToolUse (logging) are active. Stop and SubagentStop hooks unimplemented — no safeguard against runaway sessions beyond the 120s evaluator timeout.",
+    "No end-to-end test validates the full cloud pipeline. smoke_test.py validates API endpoints but does not test an actual claude -p subprocess execution against a real repo."
+  ],
+  "loadRisks": [
+    "MAX_CONCURRENT_SESSIONS=3 hard cap with RuntimeError on breach. Fan-out can launch up to 3 workers per call — a single /api/build/parallel request with n_workers=3 consumes the entire session pool, blocking all other builds.",
+    "cron_loop() reloads .harness/cron-triggers.json from disk each iteration but the triggers fired in-memory are not re-persisted until the next match cycle. Server restart between fire and persist loses last_fired_at, causing duplicate fires on restart.",
+    "_sessions is in-memory only (dict). Under concurrent fan-out load, the len(_sessions) >= MAX_CONCURRENT_SESSIONS check in create_session() is not atomic — race condition between check and insert under asyncio task scheduling could exceed the cap.",
+    "WebSocket polling at 150ms (asyncio.sleep(0.15)) with no backpressure. A session producing 1000+ output lines with 10 concurrent WebSocket clients = 10 * (1000/0.15) = ~66k send operations/second peak. No output line cap implemented.",
+    "git clone in run_cmd() uses a 60s timeout but the process is not killed on timeout — asyncio.wait_for() raises TimeoutError but the subprocess continues running. Zombie git processes will accumulate on slow network clones.",
+    "lessons.jsonl open in 'a' mode on every append_lesson() call (no file handle caching). Under evaluator retry storms (multiple sessions failing simultaneously), concurrent appends from asyncio tasks could interleave. Single-process asyncio makes this unlikely but not impossible.",
+    "Rate limit keyed on request.client.host. Behind Railway's reverse proxy, all requests arrive from the same Railway internal IP — rate limiting becomes non-functional in cloud deployment, exposing the API to unbounded request rates.",
+    "Workspace GC (gc.py) uses shutil.rmtree() without checking if a session's subprocess is still writing to the workspace. A GC cycle during active Phase 4 execution would delete files mid-write, corrupting the build."
+  ]
+}
+```
+
+**Score correction note:** The JSON contains `"zteScore"` twice. The authoritative value is **56** (Autonomous band, threshold 56-60 = ZTE but my scoring totals: 5+4+4+4+5+5+5+5+4+5+5+5 = **57**). ZTE Level 3 (Zero Touch) per the band definition 49-60.
+
+**Critical finding the harness misses:** The board minutes and leverage-audit.md both claim 60/60, but the repo evidence shows:
+- `CLAUDE.md` is empty (Context Precision cannot be 5/5)  
+- `tiers/config.py` drops the `agents` key (Model Selection has a silent bug)
+- Cloud deployment breaks Phase 3 (Tool Availability degrades to 0 on Railway)
+
+The self-reported score is optimistic by ~3-8 points depending on deployment context.
