@@ -30,6 +30,24 @@ jobs:
       - name: Install dependencies
         run: pip install -r app/requirements.txt
 
+      - name: Verify server imports
+        run: |
+          cd app
+          python -c "
+import sys, os
+os.environ.setdefault('TAO_PASSWORD', 'ci-smoke-test-password')
+os.environ.setdefault('TAO_SESSION_SECRET', 'ci-session-secret-fixed-for-test')
+os.environ.setdefault('TAO_EVALUATOR_ENABLED', 'false')
+print('Python:', sys.version)
+try:
+    import server.main
+    print('server.main: OK')
+except Exception as e:
+    print('IMPORT ERROR:', e)
+    import traceback; traceback.print_exc()
+    sys.exit(1)
+"
+
       - name: Start Pi CEO server
         run: |
           # Write server logs to file so failures are visible in CI

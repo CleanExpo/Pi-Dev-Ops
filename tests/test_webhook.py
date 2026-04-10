@@ -113,10 +113,11 @@ def test_parse_linear_issue_started():
     payload = {
         "type": "Issue",
         "action": "update",
+        "updatedFrom": {"stateId": "prev-state-id"},  # required: signals state changed
         "data": {
             "id": "abc-123",
             "title": "Fix auth bug",
-            "state": {"name": "In Progress"},
+            "state": {"name": "In Progress", "type": "started"},  # Linear state type
             "description": "repo:https://github.com/org/repo\nFix the bug",
         },
     }

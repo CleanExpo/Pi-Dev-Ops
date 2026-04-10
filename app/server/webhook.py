@@ -65,11 +65,16 @@ def parse_linear_event(payload: dict) -> dict | None:
     description = data.get("description", "")
     labels = [lbl.get("name", "") for lbl in (data.get("labels") or [])]
     priority = data.get("priority", 0)
-    # Try to extract repo URL from issue labels or description
+    # Try to extract repo URL from labels first, then description lines
     repo_url = ""
     for label in labels:
         if label.startswith("repo:"):
             repo_url = label.replace("repo:", "").strip()
+    if not repo_url:
+        for line in description.splitlines():
+            if line.startswith("repo:"):
+                repo_url = line.replace("repo:", "").strip()
+                break
     return {
         "source": "linear",
         "event": "issue_started",
