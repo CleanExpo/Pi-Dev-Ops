@@ -1,0 +1,24 @@
+{
+  "timestamp": "2026-04-09T22:12:58.839450+00:00",
+  "cycle": 82211,
+  "existing_system": {
+    "system": "existing",
+    "cycle": 82211,
+    "latest_minutes": "2026-04-09-1200-board-minutes.md",
+    "minutes_size": 7338,
+    "status": "found"
+  },
+  "managed_agents": {
+    "system": "managed_agents",
+    "cycle": 82211,
+    "status": "error",
+    "error": "Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'config.setup_commands: Extra inputs are not permitted'}, 'request_id': 'req_011CZtxyRYqNXh5aiETqSjR2'}"
+  },
+  "comparison": {
+    "managed_duration_s": 0,
+    "managed_events": 0,
+    "managed_tools": 0,
+    "managed_status": "error",
+    "existing_status": "found"
+  }
+}

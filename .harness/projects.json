@@ -1,0 +1,152 @@
+{
+  "version": "1.0",
+  "generated": "2026-04-10",
+  "description": "Pi-SEO project registry — maps every GitHub repo to its Linear project, team, and deployment URLs. Used by the autonomous scanner to route findings to the correct Linear project.",
+  "projects": [
+    {
+      "id": "pi-dev-ops",
+      "repo": "CleanExpo/Pi-Dev-Ops",
+      "linear_project_id": "f45212be-3259-4bfb-89b1-54c122c939a7",
+      "linear_project_name": "Pi - Dev -Ops",
+      "linear_team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673",
+      "linear_team_key": "RA",
+      "stack": ["FastAPI", "Next.js", "Python", "TypeScript"],
+      "deployments": {
+        "frontend": "https://dashboard-unite-group.vercel.app",
+        "backend": "https://pi-dev-ops-production.up.railway.app"
+      },
+      "scan_priority": "high",
+      "scan_schedule": "*/6 * * * *"
+    },
+    {
+      "id": "restoreassist",
+      "repo": "CleanExpo/RestoreAssist",
+      "linear_project_id": "3c78358a-b558-4029-b47d-367a65beea7b",
+      "linear_project_name": "RestoreAssist Compliance Platform",
+      "linear_team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673",
+      "linear_team_key": "RA",
+      "stack": ["Next.js", "TypeScript", "Supabase"],
+      "deployments": {
+        "frontend": "https://restoreassist.app"
+      },
+      "scan_priority": "high",
+      "scan_schedule": "0 */6 * * *"
+    },
+    {
+      "id": "disaster-recovery",
+      "repo": "CleanExpo/Disaster-Recovery",
+      "linear_project_id": "d2c1d63b-1e85-424d-9278-efff15b0d46b",
+      "linear_project_name": "DR Client Website (disasterrecovery.com.au)",
+      "linear_team_id": "43811130-ac12-47d3-9433-330320a76205",
+      "linear_team_key": "DR",
+      "stack": ["Next.js", "TypeScript"],
+      "deployments": {
+        "frontend": "https://disasterrecovery.com.au"
+      },
+      "scan_priority": "high",
+      "scan_schedule": "0 */6 * * *"
+    },
+    {
+      "id": "dr-nrpg",
+      "repo": "CleanExpo/DR-NRPG",
+      "linear_project_id": "ec4e8059-988f-495e-8ba7-38af44073cec",
+      "linear_project_name": "NRPG Operations Platform",
+      "linear_team_id": "43811130-ac12-47d3-9433-330320a76205",
+      "linear_team_key": "DR",
+      "stack": ["Next.js", "TypeScript", "Supabase"],
+      "deployments": {},
+      "scan_priority": "medium",
+      "scan_schedule": "0 0 * * *"
+    },
+    {
+      "id": "nrpg-onboarding",
+      "repo": "CleanExpo/NRPG-Onboarding-Framework",
+      "linear_project_id": "144c3160-0277-4c68-9e7c-96000a81db59",
+      "linear_project_name": "NRPG Contractor Onboarding Framework",
+      "linear_team_id": "43811130-ac12-47d3-9433-330320a76205",
+      "linear_team_key": "DR",
+      "stack": ["Next.js", "TypeScript"],
+      "deployments": {},
+      "scan_priority": "medium",
+      "scan_schedule": "0 0 * * *"
+    },
+    {
+      "id": "synthex",
+      "repo": "CleanExpo/Synthex",
+      "linear_project_id": "3125c6e4-b729-48d4-a718-400a2b83ddc5",
+      "linear_project_name": "Synthex",
+      "linear_team_id": "b887971b-6761-4260-a111-b94dbb628ebe",
+      "linear_team_key": "SYN",
+      "stack": ["Next.js", "TypeScript", "Supabase"],
+      "deployments": {
+        "frontend": "https://synthex.social"
+      },
+      "scan_priority": "high",
+      "scan_schedule": "0 */6 * * *"
+    },
+    {
+      "id": "unite-group",
+      "repo": "CleanExpo/unite-group",
+      "linear_project_id": "b62d9b14-9d9c-46c7-a3f4-05fbd49550ff",
+      "linear_project_name": "Unite-Group",
+      "linear_team_id": "ab9c7810-4dd6-4ce2-8e8f-e1fc94c6b88b",
+      "linear_team_key": "UNI",
+      "stack": ["Next.js", "TypeScript", "Supabase", "Claude AI"],
+      "deployments": {
+        "frontend": "https://dashboard-unite-group.vercel.app"
+      },
+      "scan_priority": "high",
+      "scan_schedule": "0 */6 * * *"
+    },
+    {
+      "id": "nodejs-starter",
+      "repo": "CleanExpo/NodeJS-Starter-V1",
+      "linear_project_id": "c12337a6-4f2d-4fdc-953d-49a50c514de1",
+      "linear_project_name": "NodeJS Starter V1",
+      "linear_team_id": "ab9c7810-4dd6-4ce2-8e8f-e1fc94c6b88b",
+      "linear_team_key": "UNI",
+      "stack": ["Next.js", "FastAPI", "PostgreSQL", "TypeScript"],
+      "deployments": {},
+      "scan_priority": "low",
+      "scan_schedule": "0 0 * * 1"
+    },
+    {
+      "id": "oh-my-codex",
+      "repo": "CleanExpo/oh-my-codex",
+      "linear_project_id": null,
+      "linear_project_name": null,
+      "linear_team_id": "ab9c7810-4dd6-4ce2-8e8f-e1fc94c6b88b",
+      "linear_team_key": "UNI",
+      "stack": ["Python"],
+      "deployments": {},
+      "scan_priority": "low",
+      "scan_schedule": "0 0 * * 1",
+      "notes": "No Linear project yet — scanner will create tickets at team level"
+    },
+    {
+      "id": "carsi",
+      "repo": "CleanExpo/carsi",
+      "linear_project_id": "20538e04-ba27-467d-b632-1fb346063089",
+      "linear_project_name": "CARSI",
+      "linear_team_id": "91b3cd04-86eb-422d-81e2-9aa37db2f2f5",
+      "linear_team_key": "GP",
+      "stack": ["unknown"],
+      "deployments": {},
+      "scan_priority": "medium",
+      "scan_schedule": "0 0 * * *"
+    }
+  ],
+  "scan_types": [
+    "security",
+    "code_quality",
+    "dependencies",
+    "deployment_health",
+    "linear_hygiene"
+  ],
+  "severity_to_linear_priority": {
+    "critical": 1,
+    "high": 2,
+    "medium": 3,
+    "low": 4
+  }
+}
