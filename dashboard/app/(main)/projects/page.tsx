@@ -56,7 +56,7 @@ export default function ProjectsPage() {
 
   const fetchHealth = useCallback(async () => {
     try {
-      const res = await fetch("/api/pi-ceo/projects/health");
+      const res = await fetch("/api/pi-ceo/api/projects/health");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setProjects(data);
@@ -78,7 +78,7 @@ export default function ProjectsPage() {
   async function triggerScan(projectId?: string) {
     setScanning(true);
     try {
-      await fetch("/api/pi-ceo/scan", {
+      await fetch("/api/pi-ceo/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ project_id: projectId, dry_run: false }),

@@ -1,5 +1,5 @@
 /**
- * middleware.ts — Next.js auth + CSP nonce middleware (RA-519, RA-518)
+ * proxy.ts — Next.js auth + CSP nonce proxy (RA-519, RA-518)
  *
  * 1. Auth: redirects unauthenticated requests for protected routes to login.
  *    Cookie presence check only — HMAC verification is enforced server-side.
@@ -26,9 +26,10 @@ const PROTECTED_PREFIXES = [
 ];
 
 function buildCsp(nonce: string): string {
+  const isDev = process.env.NODE_ENV === "development";
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'wasm-unsafe-eval'`,
+    `script-src 'self' 'nonce-${nonce}' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "connect-src 'self' https://api.github.com https://api.anthropic.com https://*.vercel.app https://*.supabase.co wss://*.supabase.co",
@@ -38,7 +39,7 @@ function buildCsp(nonce: string): string {
   ].join("; ");
 }
 
-export function middleware(req: NextRequest): NextResponse {
+export function proxy(req: NextRequest): NextResponse {
   const { pathname } = req.nextUrl;
 
   // ── Auth redirect ──────────────────────────────────────────────────────────

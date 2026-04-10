@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "bash -c 'set -a && source .env.local && set +a && next dev'",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

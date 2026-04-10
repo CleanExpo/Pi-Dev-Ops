@@ -154,24 +154,63 @@ def _skill_prefix(skill_names: list[str]) -> str:
         return ""
 
 
+def _resolve_claude_bin() -> str:
+    """Resolve the claude CLI path, searching common nvm/node locations."""
+    import shutil
+    # Honour config override first
+    configured = config.CLAUDE_CMD
+    if configured != "claude":
+        return configured
+    # Try PATH as-is
+    found = shutil.which("claude")
+    if found:
+        return found
+    # Common nvm/homebrew locations
+    candidates = [
+        os.path.expanduser("~/.nvm/versions/node/v24.14.1/bin/claude"),
+        os.path.expanduser("~/.nvm/versions/node/v23.14.1/bin/claude"),
+        "/opt/homebrew/bin/claude",
+        "/usr/local/bin/claude",
+    ]
+    for c in candidates:
+        if os.path.isfile(c) and os.access(c, os.X_OK):
+            return c
+    # Glob for any nvm node version
+    import glob
+    for g in glob.glob(os.path.expanduser("~/.nvm/versions/node/*/bin/claude")):
+        if os.path.isfile(g) and os.access(g, os.X_OK):
+            return g
+    raise RuntimeError("claude CLI not found — ensure Claude Code is installed")
+
+
+_MODEL_MAP = {
+    "opus":   "claude-opus-4-6",
+    "sonnet": "claude-sonnet-4-6",
+    "haiku":  "claude-haiku-4-5-20251001",
+}
+
+
 def _run_claude(brief: str, model: str = "sonnet", timeout: int = 300) -> str:
     """Run claude -p and return output. Raises RuntimeError on failure."""
-    claude_bin = "claude"
-    model_flag = f"claude-{model}" if not model.startswith("claude-") else model
+    claude_bin = _resolve_claude_bin()
+    model_flag = _MODEL_MAP.get(model, model) if not model.startswith("claude-") else model
     cmd = [claude_bin, "-p", brief, "--model", model_flag, "--output-format", "text"]
-    log.info("Running claude: model=%s brief_len=%d", model, len(brief))
+    log.info("Running claude: bin=%s model=%s brief_len=%d", claude_bin, model, len(brief))
+    # Pass current environment so ANTHROPIC_API_KEY and PATH are available
+    env = os.environ.copy()
     try:
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             timeout=timeout,
+            env=env,
         )
         if result.returncode != 0:
             raise RuntimeError(f"claude exited {result.returncode}: {result.stderr[:500]}")
         return result.stdout.strip()
     except FileNotFoundError:
-        raise RuntimeError("claude CLI not found — ensure Claude Code is installed")
+        raise RuntimeError(f"claude CLI not found at {claude_bin}")
     except subprocess.TimeoutExpired:
         raise RuntimeError(f"claude timed out after {timeout}s")
 
@@ -200,15 +239,14 @@ def run_spec_phase(
     skill_ctx = _skill_prefix(["ship-chain", "define-spec"])
     brief = f"""{skill_ctx}
 
-## Task: Write a specification for the following idea
+---
+TASK: Write a specification document. Return ONLY raw markdown. No file writes. No explanations. No preamble. Start your response with "# Spec:" on the first line.
 
-Pipeline ID: {pipeline_id}
-Repository: {repo_url}
-
+Pipeline: {pipeline_id}
+Repo: {repo_url}
 Idea: {idea}
 
-Produce a complete spec.md following the define-spec skill format exactly.
-Output ONLY the markdown spec — no preamble, no explanation.
+Use the define-spec skill format (Summary, Goals, Non-Goals, Acceptance Criteria, Constraints, Out of Scope).
 """
     spec_content = _run_claude(brief, model=model)
     _write_artifact(pipeline_id, "spec.md", spec_content)
@@ -239,16 +277,16 @@ def run_plan_phase(pipeline_id: str, model: str = "sonnet") -> PipelineState:
     skill_ctx = _skill_prefix(["ship-chain", "technical-plan"])
     brief = f"""{skill_ctx}
 
-## Task: Write a technical implementation plan
+---
+TASK: Write a technical implementation plan. Return ONLY raw markdown. No file writes. No explanations. No preamble. Start your response with "# Plan:" on the first line.
 
-Pipeline ID: {pipeline_id}
-Repository: {state.repo_url}
+Pipeline: {pipeline_id}
+Repo: {state.repo_url}
 
 ## Spec
 {spec}
 
-Produce a complete plan.md following the technical-plan skill format exactly.
-Output ONLY the markdown plan — no preamble, no explanation.
+Use the technical-plan skill format (Approach, Files Changed, Effort, Dependencies, Risks, Test Plan).
 """
     plan_content = _run_claude(brief, model=model)
     _write_artifact(pipeline_id, "plan.md", plan_content)

@@ -466,7 +466,7 @@ async def run_spec(body: SpecRequest, background_tasks: BackgroundTasks):
 
     pipeline_id = body.pipeline_id or _uuid.uuid4().hex[:8]
 
-    async def _run():
+    def _run():
         try:
             run_spec_phase(body.idea, body.repo_url, pipeline_id=pipeline_id, model=body.model)
         except Exception as exc:
@@ -481,7 +481,7 @@ async def run_plan(body: PlanRequest, background_tasks: BackgroundTasks):
     """Phase 2: Convert spec.md into a concrete implementation plan.md."""
     from .pipeline import run_plan_phase
 
-    async def _run():
+    def _run():
         try:
             run_plan_phase(body.pipeline_id, model=body.model)
         except Exception as exc:
@@ -496,7 +496,7 @@ async def run_test(body: TestRequest, background_tasks: BackgroundTasks):
     """Phase 4: Run smoke tests and record results."""
     from .pipeline import run_test_phase
 
-    async def _run():
+    def _run():
         try:
             run_test_phase(body.pipeline_id, body.session_id)
         except Exception as exc:
