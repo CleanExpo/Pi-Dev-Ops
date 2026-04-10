@@ -35,6 +35,13 @@ if not _raw_password:
     _raw_password = secrets.token_urlsafe(24)
     log.info("Generated one-time password: %s  (set TAO_PASSWORD to persist)", _raw_password)
 
+# ---------------------------------------------------------------------------
+# Data directory — must be defined before any path references below
+# ---------------------------------------------------------------------------
+
+_DATA_DIR = Path(os.path.dirname(__file__)).parent / "data"
+_DATA_DIR.mkdir(exist_ok=True)
+
 # Store the raw password; auth.hash_password() / auth.verify_password() handle bcrypt.
 # On first login, SHA-256 is upgraded to bcrypt and persisted to HASH_FILE so restarts
 # don't revert to SHA-256.
@@ -49,8 +56,6 @@ else:
 # Session secret — persist to disk so it survives restarts
 # ---------------------------------------------------------------------------
 
-_DATA_DIR = Path(os.path.dirname(__file__)).parent / "data"
-_DATA_DIR.mkdir(exist_ok=True)
 _SECRET_FILE = _DATA_DIR / ".session-secret"
 
 _env_secret = os.environ.get("TAO_SESSION_SECRET", "")
