@@ -178,7 +178,44 @@ function LogPanel({ sid, status }: { sid: string; status: string }) {
   );
 }
 
-function SessionCard({ s, isChild }: { s: PiSession; isChild?: boolean }) {
+function ResumeButton({ s, onResumed }: { s: PiSession; onResumed: () => void }) {
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function resume() {
+    setLoading(true);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/pi-ceo/api/sessions/${s.id}/resume`, { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setErr(body.detail ?? `HTTP ${res.status}`);
+      } else {
+        onResumed();
+      }
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={(e) => { e.stopPropagation(); resume(); }}
+        disabled={loading}
+        className="font-mono text-[9px] px-2 py-0.5 rounded transition-opacity hover:opacity-70 disabled:opacity-40"
+        style={{ border: "1px solid var(--c-orange)", color: "var(--c-orange)", background: "transparent" }}
+      >
+        {loading ? "…" : `RESUME from ${s.last_phase || "start"}`}
+      </button>
+      {err && <span className="font-mono text-[9px]" style={{ color: "#F87171" }}>{err}</span>}
+    </div>
+  );
+}
+
+function SessionCard({ s, isChild, onRefresh }: { s: PiSession; isChild?: boolean; onRefresh: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const isActive = ["cloning", "building", "evaluating"].includes(s.status);
 
@@ -230,7 +267,7 @@ function SessionCard({ s, isChild }: { s: PiSession; isChild?: boolean }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 mt-1">
+        <div className="flex items-center gap-3 mt-1 flex-wrap">
           <span className="font-mono text-[9px]" style={{ color: "var(--c-chrome)" }}>
             {elapsed(s.started)} ago
           </span>
@@ -241,6 +278,9 @@ function SessionCard({ s, isChild }: { s: PiSession; isChild?: boolean }) {
             <span className="font-mono text-[9px]" style={{ color: "var(--c-chrome)" }}>
               last: {s.last_phase}
             </span>
+          )}
+          {s.status === "interrupted" && (
+            <ResumeButton s={s} onResumed={() => { onRefresh(); setExpanded(true); }} />
           )}
         </div>
       </div>
@@ -352,9 +392,9 @@ export default function BuildsPage() {
             const children = childrenOf(s.id);
             return (
               <div key={s.id}>
-                <SessionCard s={s} />
+                <SessionCard s={s} onRefresh={fetchSessions} />
                 {children.map((c) => (
-                  <SessionCard key={c.id} s={c} isChild />
+                  <SessionCard key={c.id} s={c} isChild onRefresh={fetchSessions} />
                 ))}
               </div>
             );
