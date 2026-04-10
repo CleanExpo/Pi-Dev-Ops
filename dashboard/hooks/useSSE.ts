@@ -112,10 +112,9 @@ export function useSSE() {
           ts:   Date.now() / 1000,
         };
 
-        // Schedule reconnect
-        retryTimeout.current = setTimeout(() => {
-          connect(repoRef.current, nextRetry);
-        }, delay);
+        // Schedule reconnect — recursive useCallback is safe here (runs async, after init)
+        // eslint-disable-next-line react-hooks/immutability
+        retryTimeout.current = setTimeout(() => connect(repoRef.current, nextRetry), delay);
 
         return { ...s, lines: [...s.lines, reconnectMsg], retries: nextRetry };
       });

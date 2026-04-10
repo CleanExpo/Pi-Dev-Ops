@@ -6,7 +6,7 @@
     "dev": "bash -c 'set -a && source .env.local && set +a && next dev'",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "create-snapshot": "tsx scripts/create-sandbox-snapshot.ts"
   },
   "dependencies": {
