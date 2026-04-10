@@ -1,0 +1,180 @@
+{
+  "project_id": "carsi",
+  "repo": "CleanExpo/carsi",
+  "scan_type": "dependencies",
+  "started_at": "2026-04-10T06:26:58.519119+00:00",
+  "finished_at": "2026-04-10T06:26:59.711336+00:00",
+  "findings": [
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: @hono/node-server",
+      "description": "@hono/node-server: Middleware bypass via repeated slashes in serveStatic. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "@hono/node-server",
+        "range": "<1.19.13"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: @prisma/dev",
+      "description": "@hono/node-server. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "@prisma/dev",
+        "range": "*"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "critical",
+      "title": "npm vulnerability: axios",
+      "description": "Axios has a NO_PROXY Hostname Normalization Bypass Leads to SSRF. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "axios",
+        "range": "<1.15.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: defu",
+      "description": "defu: Prototype pollution via `__proto__` key in defaults argument. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "defu",
+        "range": "<=6.1.4"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: hono",
+      "description": "Hono missing validation of cookie name on write path in setCookie(). Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "hono",
+        "range": "<=4.12.11"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: lodash",
+      "description": "lodash vulnerable to Code Injection via `_.template` imports key names. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "lodash",
+        "range": "<=4.17.23"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: next",
+      "description": "Next.js self-hosted applications vulnerable to DoS via Image Optimizer remotePatterns configuration. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "next",
+        "range": "15.6.0-canary.0 - 16.1.6"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: next-pwa",
+      "description": "workbox-webpack-plugin. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "next-pwa",
+        "range": ">=2.1.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: prisma",
+      "description": "@prisma/dev. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "prisma",
+        "range": ">=6.20.0-dev.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: rollup-plugin-terser",
+      "description": "serialize-javascript. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "rollup-plugin-terser",
+        "range": "3.0.0 || >=4.0.4"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: serialize-javascript",
+      "description": "Serialize JavaScript is Vulnerable to RCE via RegExp.flags and Date.prototype.toISOString(). Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "serialize-javascript",
+        "range": "<=7.0.4"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: workbox-build",
+      "description": "rollup-plugin-terser. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "workbox-build",
+        "range": "5.0.0-alpha.0 - 7.0.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: workbox-webpack-plugin",
+      "description": "workbox-build. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "workbox-webpack-plugin",
+        "range": "5.0.0-alpha.0 - 7.0.0"
+      }
+    }
+  ],
+  "error": "",
+  "health_score": 0
+}

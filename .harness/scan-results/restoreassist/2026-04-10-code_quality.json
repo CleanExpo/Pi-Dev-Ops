@@ -1,0 +1,10 @@
+{
+  "project_id": "restoreassist",
+  "repo": "CleanExpo/RestoreAssist",
+  "scan_type": "code_quality",
+  "started_at": "2026-04-10T06:26:43.284450+00:00",
+  "finished_at": "2026-04-10T06:26:45.295556+00:00",
+  "findings": [],
+  "error": "",
+  "health_score": 100
+}

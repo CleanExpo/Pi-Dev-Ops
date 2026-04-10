@@ -73,7 +73,12 @@ cd dashboard && npm run build
 
 ## Strategic Direction
 
-**Sprint 5:** Anthropic Claude Managed Agents API PoC (RA-485). 14-day parallel run comparing existing system vs cloud-hosted agents. See `MANAGED_AGENTS_v4_FINAL.md` and `app/server/agents/board_meeting.py`.
+**Sprint 6:** Agent SDK migration (RA-551). Migrating from `claude -p` subprocess to `claude_agent_sdk` in three phases. Plan: `.harness/agents/sdk-migration-plan.md`. Phase 1 (board_meeting gap audit) complete — `TAO_USE_AGENT_SDK=1` to enable.
+
+## Persistence Guidelines
+
+- `_sessions` is an in-memory dict — any server restart loses all running sessions. Always persist status to disk atomically after every state change.
+- Use write-to-.tmp-then-`os.replace()` for JSON file writes. `os.replace()` is atomic on NTFS and POSIX — a crash mid-write leaves the old file intact, not a corrupt half-written file.
 
 ## Content Rules
 

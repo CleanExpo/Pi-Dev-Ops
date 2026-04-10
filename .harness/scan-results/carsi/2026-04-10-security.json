@@ -1,0 +1,2161 @@
+{
+  "project_id": "carsi",
+  "repo": "CleanExpo/carsi",
+  "scan_type": "security",
+  "started_at": "2026-04-10T06:26:57.636242+00:00",
+  "finished_at": "2026-04-10T06:26:58.128127+00:00",
+  "findings": [
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in Dockerfile:42. Review and remediate.",
+      "file_path": "Dockerfile",
+      "line_number": 42,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: eval() usage",
+      "description": "Found in next.config.ts:70. Review and remediate.",
+      "file_path": "next.config.ts",
+      "line_number": 70,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in docs/production-deployment.md:403. Rotate the credential immediately.",
+      "file_path": "docs/production-deployment.md",
+      "line_number": 403,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/production-deployment.md:372. Review and remediate.",
+      "file_path": "docs/production-deployment.md",
+      "line_number": 372,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/production-deployment.md:377. Review and remediate.",
+      "file_path": "docs/production-deployment.md",
+      "line_number": 377,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/production-deployment.md:386. Review and remediate.",
+      "file_path": "docs/production-deployment.md",
+      "line_number": 386,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/production-deployment.md:390. Review and remediate.",
+      "file_path": "docs/production-deployment.md",
+      "line_number": 390,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/production-deployment.md:392. Review and remediate.",
+      "file_path": "docs/production-deployment.md",
+      "line_number": 392,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in docs/production-deployment.md:302. Review and remediate.",
+      "file_path": "docs/production-deployment.md",
+      "line_number": 302,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/EVENT_BRIDGE.md:218. Review and remediate.",
+      "file_path": "docs/EVENT_BRIDGE.md",
+      "line_number": 218,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/EVENT_BRIDGE.md:374. Review and remediate.",
+      "file_path": "docs/EVENT_BRIDGE.md",
+      "line_number": 374,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/CRON_JOBS.md:233. Review and remediate.",
+      "file_path": "docs/CRON_JOBS.md",
+      "line_number": 233,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/AGENTIC_LAYER_IMPLEMENTATION.md:568. Review and remediate.",
+      "file_path": "docs/AGENTIC_LAYER_IMPLEMENTATION.md",
+      "line_number": 568,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/AGENTIC_LAYER_IMPLEMENTATION.md:581. Review and remediate.",
+      "file_path": "docs/AGENTIC_LAYER_IMPLEMENTATION.md",
+      "line_number": 581,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/AGENTIC_LAYER_IMPLEMENTATION.md:582. Review and remediate.",
+      "file_path": "docs/AGENTIC_LAYER_IMPLEMENTATION.md",
+      "line_number": 582,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/AGENTIC_LAYER_IMPLEMENTATION.md:583. Review and remediate.",
+      "file_path": "docs/AGENTIC_LAYER_IMPLEMENTATION.md",
+      "line_number": 583,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/AGENTIC_LAYER_IMPLEMENTATION.md:584. Review and remediate.",
+      "file_path": "docs/AGENTIC_LAYER_IMPLEMENTATION.md",
+      "line_number": 584,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/AGENTIC_LAYER_IMPLEMENTATION.md:589. Review and remediate.",
+      "file_path": "docs/AGENTIC_LAYER_IMPLEMENTATION.md",
+      "line_number": 589,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/AGENTIC_LAYER_IMPLEMENTATION.md:590. Review and remediate.",
+      "file_path": "docs/AGENTIC_LAYER_IMPLEMENTATION.md",
+      "line_number": 590,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/AGENTIC_LAYER_IMPLEMENTATION.md:591. Review and remediate.",
+      "file_path": "docs/AGENTIC_LAYER_IMPLEMENTATION.md",
+      "line_number": 591,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in docs/PRODUCTION_DEPLOY.md:340. Rotate the credential immediately.",
+      "file_path": "docs/PRODUCTION_DEPLOY.md",
+      "line_number": 340,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in docs/PRODUCTION_DEPLOY.md:418. Rotate the credential immediately.",
+      "file_path": "docs/PRODUCTION_DEPLOY.md",
+      "line_number": 418,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in docs/OPTIONAL_SERVICES.md:355. Review and remediate.",
+      "file_path": "docs/OPTIONAL_SERVICES.md",
+      "line_number": 355,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in docs/OPTIONAL_SERVICES.md:905. Review and remediate.",
+      "file_path": "docs/OPTIONAL_SERVICES.md",
+      "line_number": 905,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: DB connection string",
+      "description": "Pattern '(?i)(?:db|database)_?(?:url|uri|connecti' matched in scripts/seed-wordpress-lessons-wxr.ts:12. Rotate the credential immediately.",
+      "file_path": "scripts/seed-wordpress-lessons-wxr.ts",
+      "line_number": 12,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/seed-wordpress-lessons-wxr.ts:239. Review and remediate.",
+      "file_path": "scripts/seed-wordpress-lessons-wxr.ts",
+      "line_number": 239,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/seed-wordpress-lessons-wxr.ts:263. Review and remediate.",
+      "file_path": "scripts/seed-wordpress-lessons-wxr.ts",
+      "line_number": 263,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/seed-wordpress-lessons-wxr.ts:311. Review and remediate.",
+      "file_path": "scripts/seed-wordpress-lessons-wxr.ts",
+      "line_number": 311,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/seed-wordpress-lessons-wxr.ts:314. Review and remediate.",
+      "file_path": "scripts/seed-wordpress-lessons-wxr.ts",
+      "line_number": 314,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:199. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 199,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:206. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 206,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:292. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 292,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:330. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 330,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:337. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 337,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:342. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 342,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:347. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 347,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:352. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 352,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:357. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 357,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:368. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 368,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:389. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 389,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:407. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 407,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:417. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 417,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:444. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 444,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:462. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 462,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:469. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 469,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:473. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 473,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:476. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 476,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:487. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 487,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:516. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 516,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:519. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 519,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:812. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 812,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:813. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 813,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:814. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 814,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:815. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 815,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:816. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 816,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:817. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 817,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:818. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 818,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:833. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 833,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:834. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 834,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:835. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 835,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:836. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 836,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:837. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 837,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:838. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 838,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:839. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 839,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:840. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 840,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:843. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 843,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:865. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 865,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:871. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 871,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:874. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 874,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:875. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 875,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:876. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 876,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:877. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 877,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:878. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 878,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:879. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 879,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:880. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 880,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:881. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 881,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/wp-migrate.ts:882. Review and remediate.",
+      "file_path": "scripts/wp-migrate.ts",
+      "line_number": 882,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/ensure-lms-user-password.ts:43. Review and remediate.",
+      "file_path": "scripts/ensure-lms-user-password.ts",
+      "line_number": 43,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/ensure-lms-user-password.ts:57. Review and remediate.",
+      "file_path": "scripts/ensure-lms-user-password.ts",
+      "line_number": 57,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/ensure-lms-user-password.ts:65. Review and remediate.",
+      "file_path": "scripts/ensure-lms-user-password.ts",
+      "line_number": 65,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/export-courses-catalog.ts:103. Review and remediate.",
+      "file_path": "scripts/export-courses-catalog.ts",
+      "line_number": 103,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/delete-wp-duplicate-monitoring-course.ts:24. Review and remediate.",
+      "file_path": "scripts/delete-wp-duplicate-monitoring-course.ts",
+      "line_number": 24,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/delete-wp-duplicate-monitoring-course.ts:26. Review and remediate.",
+      "file_path": "scripts/delete-wp-duplicate-monitoring-course.ts",
+      "line_number": 26,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: DB connection string",
+      "description": "Pattern '(?i)(?:db|database)_?(?:url|uri|connecti' matched in scripts/seed-courses-catalog.ts:6. Rotate the credential immediately.",
+      "file_path": "scripts/seed-courses-catalog.ts",
+      "line_number": 6,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/seed-courses-catalog.ts:196. Review and remediate.",
+      "file_path": "scripts/seed-courses-catalog.ts",
+      "line_number": 196,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/seed-courses-catalog.ts:214. Review and remediate.",
+      "file_path": "scripts/seed-courses-catalog.ts",
+      "line_number": 214,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/seed-courses-catalog.ts:217. Review and remediate.",
+      "file_path": "scripts/seed-courses-catalog.ts",
+      "line_number": 217,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: DB connection string",
+      "description": "Pattern '(?i)(?:db|database)_?(?:url|uri|connecti' matched in scripts/set-wp-export-courses-draft.ts:9. Rotate the credential immediately.",
+      "file_path": "scripts/set-wp-export-courses-draft.ts",
+      "line_number": 9,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/set-wp-export-courses-draft.ts:31. Review and remediate.",
+      "file_path": "scripts/set-wp-export-courses-draft.ts",
+      "line_number": 31,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/set-wp-export-courses-draft.ts:43. Review and remediate.",
+      "file_path": "scripts/set-wp-export-courses-draft.ts",
+      "line_number": 43,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: DB connection string",
+      "description": "Pattern '(?i)(?:db|database)_?(?:url|uri|connecti' matched in scripts/seed-wordpress-export-courses.ts:12. Rotate the credential immediately.",
+      "file_path": "scripts/seed-wordpress-export-courses.ts",
+      "line_number": 12,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/seed-wordpress-export-courses.ts:155. Review and remediate.",
+      "file_path": "scripts/seed-wordpress-export-courses.ts",
+      "line_number": 155,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/seed-wordpress-export-courses.ts:158. Review and remediate.",
+      "file_path": "scripts/seed-wordpress-export-courses.ts",
+      "line_number": 158,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: TODO near sensitive keyword",
+      "description": "Found in e2e/prd-generation.spec.ts:73. Review and remediate.",
+      "file_path": "e2e/prd-generation.spec.ts",
+      "line_number": 73,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/logger.ts:34. Review and remediate.",
+      "file_path": "src/lib/logger.ts",
+      "line_number": 34,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/image-generation/asset-manager.ts:73. Review and remediate.",
+      "file_path": "src/lib/image-generation/asset-manager.ts",
+      "line_number": 73,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in src/lib/admin/load-admin-catalog.ts:292. Review and remediate.",
+      "file_path": "src/lib/admin/load-admin-catalog.ts",
+      "line_number": 292,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded password",
+      "description": "Pattern '(?i)(password|passwd|pwd)\\s*=\\s*['\\\"][^'' matched in src/lib/admin/admin-auth.ts:8. Rotate the credential immediately.",
+      "file_path": "src/lib/admin/admin-auth.ts",
+      "line_number": 8,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in src/lib/schema/shared.tsx:16. Review and remediate.",
+      "file_path": "src/lib/schema/shared.tsx",
+      "line_number": 16,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in src/lib/api/client.ts:36. Rotate the credential immediately.",
+      "file_path": "src/lib/api/client.ts",
+      "line_number": 36,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/design-system/pattern-validator.ts:371. Review and remediate.",
+      "file_path": "src/lib/design-system/pattern-validator.ts",
+      "line_number": 371,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/design-system/pattern-validator.ts:374. Review and remediate.",
+      "file_path": "src/lib/design-system/pattern-validator.ts",
+      "line_number": 374,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/audits/visual-audit.ts:107. Review and remediate.",
+      "file_path": "src/ai/audits/visual-audit.ts",
+      "line_number": 107,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/audits/visual-audit.ts:181. Review and remediate.",
+      "file_path": "src/ai/audits/visual-audit.ts",
+      "line_number": 181,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/audits/visual-audit.ts:195. Review and remediate.",
+      "file_path": "src/ai/audits/visual-audit.ts",
+      "line_number": 195,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/audits/visual-audit.ts:196. Review and remediate.",
+      "file_path": "src/ai/audits/visual-audit.ts",
+      "line_number": 196,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/version-checks/check-model-currency.ts:159. Review and remediate.",
+      "file_path": "src/ai/version-checks/check-model-currency.ts",
+      "line_number": 159,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/version-checks/check-model-currency.ts:164. Review and remediate.",
+      "file_path": "src/ai/version-checks/check-model-currency.ts",
+      "line_number": 164,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/version-checks/check-model-currency.ts:179. Review and remediate.",
+      "file_path": "src/ai/version-checks/check-model-currency.ts",
+      "line_number": 179,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/version-checks/check-model-currency.ts:180. Review and remediate.",
+      "file_path": "src/ai/version-checks/check-model-currency.ts",
+      "line_number": 180,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/version-checks/check-model-currency.ts:181. Review and remediate.",
+      "file_path": "src/ai/version-checks/check-model-currency.ts",
+      "line_number": 181,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in src/components/lms/LessonPlayer.tsx:169. Review and remediate.",
+      "file_path": "src/components/lms/LessonPlayer.tsx",
+      "line_number": 169,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in src/components/seo/JsonLd.tsx:3. Review and remediate.",
+      "file_path": "src/components/seo/JsonLd.tsx",
+      "line_number": 3,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in src/components/seo/JsonLd.tsx:160. Review and remediate.",
+      "file_path": "src/components/seo/JsonLd.tsx",
+      "line_number": 160,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in src/components/seo/JsonLd.tsx:194. Review and remediate.",
+      "file_path": "src/components/seo/JsonLd.tsx",
+      "line_number": 194,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in src/components/seo/JsonLd.tsx:263. Review and remediate.",
+      "file_path": "src/components/seo/JsonLd.tsx",
+      "line_number": 263,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in src/components/seo/JsonLd.tsx:287. Review and remediate.",
+      "file_path": "src/components/seo/JsonLd.tsx",
+      "line_number": 287,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in src/components/seo/JsonLd.tsx:313. Review and remediate.",
+      "file_path": "src/components/seo/JsonLd.tsx",
+      "line_number": 313,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in src/components/seo/JsonLd.tsx:424. Review and remediate.",
+      "file_path": "src/components/seo/JsonLd.tsx",
+      "line_number": 424,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in src/components/seo/JsonLd.tsx:506. Review and remediate.",
+      "file_path": "src/components/seo/JsonLd.tsx",
+      "line_number": 506,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in src/components/seo/JsonLd.tsx:556. Review and remediate.",
+      "file_path": "src/components/seo/JsonLd.tsx",
+      "line_number": 556,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in src/components/seo/JsonLd.tsx:613. Review and remediate.",
+      "file_path": "src/components/seo/JsonLd.tsx",
+      "line_number": 613,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in src/components/seo/JsonLd.tsx:655. Review and remediate.",
+      "file_path": "src/components/seo/JsonLd.tsx",
+      "line_number": 655,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in src/components/seo/JsonLd.tsx:702. Review and remediate.",
+      "file_path": "src/components/seo/JsonLd.tsx",
+      "line_number": 702,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in skills/workflow/bug-fixing.skill.md:99. Review and remediate.",
+      "file_path": "skills/workflow/bug-fixing.skill.md",
+      "line_number": 99,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in skills/workflow/bug-fixing.skill.md:101. Review and remediate.",
+      "file_path": "skills/workflow/bug-fixing.skill.md",
+      "line_number": 101,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .github/workflows/agent-pr-checks.yml:146. Review and remediate.",
+      "file_path": ".github/workflows/agent-pr-checks.yml",
+      "line_number": 146,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .github/workflows/agent-pr-checks.yml:147. Review and remediate.",
+      "file_path": ".github/workflows/agent-pr-checks.yml",
+      "line_number": 147,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in packages/news-worker/src/index.ts:14. Review and remediate.",
+      "file_path": "packages/news-worker/src/index.ts",
+      "line_number": 14,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in packages/news-worker/src/index.ts:15. Review and remediate.",
+      "file_path": "packages/news-worker/src/index.ts",
+      "line_number": 15,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in packages/news-worker/src/index.ts:16. Review and remediate.",
+      "file_path": "packages/news-worker/src/index.ts",
+      "line_number": 16,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in packages/news-worker/src/index.ts:17. Review and remediate.",
+      "file_path": "packages/news-worker/src/index.ts",
+      "line_number": 17,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in packages/news-worker/src/index.ts:27. Review and remediate.",
+      "file_path": "packages/news-worker/src/index.ts",
+      "line_number": 27,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in packages/news-worker/src/index.ts:35. Review and remediate.",
+      "file_path": "packages/news-worker/src/index.ts",
+      "line_number": 35,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in packages/news-worker/src/index.ts:48. Review and remediate.",
+      "file_path": "packages/news-worker/src/index.ts",
+      "line_number": 48,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in packages/news-worker/src/index.ts:56. Review and remediate.",
+      "file_path": "packages/news-worker/src/index.ts",
+      "line_number": 56,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in packages/news-worker/src/queues.ts:54. Review and remediate.",
+      "file_path": "packages/news-worker/src/queues.ts",
+      "line_number": 54,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in packages/news-worker/src/queues.ts:94. Review and remediate.",
+      "file_path": "packages/news-worker/src/queues.ts",
+      "line_number": 94,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in packages/news-worker/src/queues.ts:107. Review and remediate.",
+      "file_path": "packages/news-worker/src/queues.ts",
+      "line_number": 107,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in packages/news-worker/src/queues.ts:132. Review and remediate.",
+      "file_path": "packages/news-worker/src/queues.ts",
+      "line_number": 132,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in packages/news-worker/src/queues.ts:145. Review and remediate.",
+      "file_path": "packages/news-worker/src/queues.ts",
+      "line_number": 145,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/plans/2026-03-04-gamification-subscription-iicrc-plan.md:149. Review and remediate.",
+      "file_path": "docs/plans/2026-03-04-gamification-subscription-iicrc-plan.md",
+      "line_number": 149,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/plans/2026-03-04-gamification-subscription-iicrc-plan.md:297. Review and remediate.",
+      "file_path": "docs/plans/2026-03-04-gamification-subscription-iicrc-plan.md",
+      "line_number": 297,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/plans/2026-03-04-gamification-subscription-iicrc-plan.md:1004. Review and remediate.",
+      "file_path": "docs/plans/2026-03-04-gamification-subscription-iicrc-plan.md",
+      "line_number": 1004,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/plans/2026-03-04-gamification-subscription-iicrc-plan.md:1940. Review and remediate.",
+      "file_path": "docs/plans/2026-03-04-gamification-subscription-iicrc-plan.md",
+      "line_number": 1940,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/plans/2026-03-06-student-credentials-notes.md:676. Review and remediate.",
+      "file_path": "docs/plans/2026-03-06-student-credentials-notes.md",
+      "line_number": 676,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in docs/plans/2026-03-03-carsi-enhancements-plan.md:1616. Rotate the credential immediately.",
+      "file_path": "docs/plans/2026-03-03-carsi-enhancements-plan.md",
+      "line_number": 1616,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/plans/2026-03-03-carsi-enhancements-plan.md:1646. Review and remediate.",
+      "file_path": "docs/plans/2026-03-03-carsi-enhancements-plan.md",
+      "line_number": 1646,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/plans/2026-03-03-carsi-enhancements-plan.md:1663. Review and remediate.",
+      "file_path": "docs/plans/2026-03-03-carsi-enhancements-plan.md",
+      "line_number": 1663,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/plans/2026-03-03-carsi-enhancements-plan.md:1667. Review and remediate.",
+      "file_path": "docs/plans/2026-03-03-carsi-enhancements-plan.md",
+      "line_number": 1667,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Dangerous pattern: Debug mode enabled",
+      "description": "Found in docs/features/AUTH_OAUTH_DEPLOYMENT.md:165. Review and remediate.",
+      "file_path": "docs/features/AUTH_OAUTH_DEPLOYMENT.md",
+      "line_number": 165,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in docs/guides/PRODUCTION-DEPLOYMENT.md:145. Review and remediate.",
+      "file_path": "docs/guides/PRODUCTION-DEPLOYMENT.md",
+      "line_number": 145,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in docs/guides/TESTING_GUIDE.md:247. Review and remediate.",
+      "file_path": "docs/guides/TESTING_GUIDE.md",
+      "line_number": 247,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/frontend/shadcn-ui.md:214. Review and remediate.",
+      "file_path": "docs/internal/frontend/shadcn-ui.md",
+      "line_number": 214,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in docs/internal/ai-models/google-gemini.md:56. Rotate the credential immediately.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 56,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in docs/internal/ai-models/google-gemini.md:607. Rotate the credential immediately.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 607,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in docs/internal/ai-models/google-gemini.md:624. Rotate the credential immediately.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 624,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in docs/internal/ai-models/google-gemini.md:626. Rotate the credential immediately.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 626,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:114. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 114,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:137. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 137,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:207. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 207,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:210. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 210,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:370. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 370,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:104. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 104,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:126. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 126,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:148. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 148,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:155. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 155,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:181. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 181,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:192. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 192,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:195. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 195,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:231. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 231,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:256. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 256,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:280. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 280,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:303. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 303,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:336. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 336,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:385. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 385,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:400. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 400,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:415. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 415,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:429. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 429,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:447. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 447,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:503. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 503,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:554. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 554,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:564. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 564,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:580. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 580,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:581. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 581,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:617. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 617,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in docs/internal/ai-models/anthropic-claude.md:66. Rotate the credential immediately.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 66,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:103. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 103,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:218. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 218,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:220. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 220,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:92. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 92,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:137. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 137,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:151. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 151,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:193. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 193,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:195. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 195,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:237. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 237,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:239. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 239,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:284. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 284,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:310. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 310,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:338. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 338,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:492. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 492,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:507. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 507,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:510. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 510,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:512. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 512,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in docs/internal/ai-models/openrouter.md:28. Rotate the credential immediately.",
+      "file_path": "docs/internal/ai-models/openrouter.md",
+      "line_number": 28,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/ai-models/openrouter.md:82. Review and remediate.",
+      "file_path": "docs/internal/ai-models/openrouter.md",
+      "line_number": 82,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/openrouter.md:72. Review and remediate.",
+      "file_path": "docs/internal/ai-models/openrouter.md",
+      "line_number": 72,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/openrouter.md:100. Review and remediate.",
+      "file_path": "docs/internal/ai-models/openrouter.md",
+      "line_number": 100,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/openrouter.md:305. Review and remediate.",
+      "file_path": "docs/internal/ai-models/openrouter.md",
+      "line_number": 305,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/openrouter.md:318. Review and remediate.",
+      "file_path": "docs/internal/ai-models/openrouter.md",
+      "line_number": 318,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/openrouter.md:319. Review and remediate.",
+      "file_path": "docs/internal/ai-models/openrouter.md",
+      "line_number": 319,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/openrouter.md:370. Review and remediate.",
+      "file_path": "docs/internal/ai-models/openrouter.md",
+      "line_number": 370,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/openrouter.md:386. Review and remediate.",
+      "file_path": "docs/internal/ai-models/openrouter.md",
+      "line_number": 386,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/openrouter.md:400. Review and remediate.",
+      "file_path": "docs/internal/ai-models/openrouter.md",
+      "line_number": 400,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in app/(public)/research/[slug]/page.tsx:190. Review and remediate.",
+      "file_path": "app/(public)/research/[slug]/page.tsx",
+      "line_number": 190,
+      "auto_fixable": false,
+      "extra": {}
+    }
+  ],
+  "error": "",
+  "health_score": 0
+}

@@ -1,0 +1,219 @@
+{
+  "project_id": "unite-group",
+  "repo": "CleanExpo/unite-group",
+  "scan_type": "dependencies",
+  "started_at": "2026-04-10T06:26:53.515776+00:00",
+  "finished_at": "2026-04-10T06:26:54.459095+00:00",
+  "findings": [
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: @next/eslint-plugin-next",
+      "description": "glob. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "@next/eslint-plugin-next",
+        "range": "14.0.5-canary.0 - 15.0.0-rc.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: ajv",
+      "description": "ajv has ReDoS when using `$data` option. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "ajv",
+        "range": "<6.14.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: brace-expansion",
+      "description": "brace-expansion Regular Expression Denial of Service vulnerability. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "brace-expansion",
+        "range": "<=1.1.12 || 2.0.0 - 2.0.2"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: dompurify",
+      "description": "DOMPurify contains a Cross-site Scripting vulnerability. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "dompurify",
+        "range": "<=3.3.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: eslint-config-next",
+      "description": "@next/eslint-plugin-next. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "eslint-config-next",
+        "range": "14.0.5-canary.0 - 15.0.0-rc.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: flatted",
+      "description": "flatted vulnerable to unbounded recursion DoS in parse() revive phase. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "flatted",
+        "range": "<=3.4.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: glob",
+      "description": "glob CLI: Command injection via -c/--cmd executes matches with shell:true. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "glob",
+        "range": "10.2.0 - 10.4.5"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: js-yaml",
+      "description": "js-yaml has prototype pollution in merge (<<). Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "js-yaml",
+        "range": "<3.14.2 || >=4.0.0 <4.1.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "critical",
+      "title": "npm vulnerability: jspdf",
+      "description": "jsPDF Denial of Service (DoS). Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "jspdf",
+        "range": "<=4.2.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: lodash",
+      "description": "Lodash has Prototype Pollution Vulnerability in `_.unset` and `_.omit` functions. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "lodash",
+        "range": "<=4.17.23"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: mdast-util-to-hast",
+      "description": "mdast-util-to-hast has unsanitized class attribute. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "mdast-util-to-hast",
+        "range": "13.0.0 - 13.2.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: minimatch",
+      "description": "minimatch has a ReDoS via repeated wildcards with non-matching literal in pattern. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "minimatch",
+        "range": "<=3.1.3 || 9.0.0 - 9.0.6"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: next",
+      "description": "Information exposure in Next.js dev server due to lack of origin verification. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "next",
+        "range": "0.9.9 - 15.5.13"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: nodemailer",
+      "description": "Nodemailer: Email to an unintended domain can occur due to Interpretation Conflict. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "nodemailer",
+        "range": "<=8.0.4"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: picomatch",
+      "description": "Picomatch: Method Injection in POSIX Character Classes causes incorrect Glob Matching. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "picomatch",
+        "range": "<=2.3.1 || 4.0.0 - 4.0.3"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: yaml",
+      "description": "yaml is vulnerable to Stack Overflow via deeply nested YAML collections. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "yaml",
+        "range": "2.0.0 - 2.8.2"
+      }
+    }
+  ],
+  "error": "",
+  "health_score": 0
+}

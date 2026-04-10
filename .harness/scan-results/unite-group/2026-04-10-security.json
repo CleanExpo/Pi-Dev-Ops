@@ -1,0 +1,4171 @@
+{
+  "project_id": "unite-group",
+  "repo": "CleanExpo/unite-group",
+  "scan_type": "security",
+  "started_at": "2026-04-10T06:26:52.704530+00:00",
+  "finished_at": "2026-04-10T06:26:53.171424+00:00",
+  "findings": [
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in public/sw.js:16. Review and remediate.",
+      "file_path": "public/sw.js",
+      "line_number": 16,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in public/sw.js:22. Review and remediate.",
+      "file_path": "public/sw.js",
+      "line_number": 22,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in public/sw.js:30. Review and remediate.",
+      "file_path": "public/sw.js",
+      "line_number": 30,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in public/sw.js:38. Review and remediate.",
+      "file_path": "public/sw.js",
+      "line_number": 38,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/pre-build-check.ts:25. Review and remediate.",
+      "file_path": "scripts/pre-build-check.ts",
+      "line_number": 25,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/pre-build-check.ts:27. Review and remediate.",
+      "file_path": "scripts/pre-build-check.ts",
+      "line_number": 27,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/pre-build-check.ts:201. Review and remediate.",
+      "file_path": "scripts/pre-build-check.ts",
+      "line_number": 201,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/pre-build-check.ts:210. Review and remediate.",
+      "file_path": "scripts/pre-build-check.ts",
+      "line_number": 210,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/pre-build-check.ts:215. Review and remediate.",
+      "file_path": "scripts/pre-build-check.ts",
+      "line_number": 215,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/pre-build-check.ts:216. Review and remediate.",
+      "file_path": "scripts/pre-build-check.ts",
+      "line_number": 216,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/pre-build-check.ts:217. Review and remediate.",
+      "file_path": "scripts/pre-build-check.ts",
+      "line_number": 217,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/pre-build-check.ts:220. Review and remediate.",
+      "file_path": "scripts/pre-build-check.ts",
+      "line_number": 220,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/pre-build-check.ts:223. Review and remediate.",
+      "file_path": "scripts/pre-build-check.ts",
+      "line_number": 223,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/pre-build-check.ts:225. Review and remediate.",
+      "file_path": "scripts/pre-build-check.ts",
+      "line_number": 225,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/validate-jsonld.ts:120. Review and remediate.",
+      "file_path": "scripts/validate-jsonld.ts",
+      "line_number": 120,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/validate-jsonld.ts:121. Review and remediate.",
+      "file_path": "scripts/validate-jsonld.ts",
+      "line_number": 121,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/validate-jsonld.ts:202. Review and remediate.",
+      "file_path": "scripts/validate-jsonld.ts",
+      "line_number": 202,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/validate-jsonld.ts:213. Review and remediate.",
+      "file_path": "scripts/validate-jsonld.ts",
+      "line_number": 213,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/validate-jsonld.ts:216. Review and remediate.",
+      "file_path": "scripts/validate-jsonld.ts",
+      "line_number": 216,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/validate-jsonld.ts:218. Review and remediate.",
+      "file_path": "scripts/validate-jsonld.ts",
+      "line_number": 218,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/validate-jsonld.ts:224. Review and remediate.",
+      "file_path": "scripts/validate-jsonld.ts",
+      "line_number": 224,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/validate-jsonld.ts:231. Review and remediate.",
+      "file_path": "scripts/validate-jsonld.ts",
+      "line_number": 231,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/validate-jsonld.ts:239. Review and remediate.",
+      "file_path": "scripts/validate-jsonld.ts",
+      "line_number": 239,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/safe-migrate.sh:132. Review and remediate.",
+      "file_path": "scripts/safe-migrate.sh",
+      "line_number": 132,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in src/components/SchemaMarkup.tsx:228. Review and remediate.",
+      "file_path": "src/components/SchemaMarkup.tsx",
+      "line_number": 228,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ecosystem/service.ts:361. Review and remediate.",
+      "file_path": "src/lib/ecosystem/service.ts",
+      "line_number": 361,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ecosystem/service.ts:369. Review and remediate.",
+      "file_path": "src/lib/ecosystem/service.ts",
+      "line_number": 369,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ecosystem/service.ts:485. Review and remediate.",
+      "file_path": "src/lib/ecosystem/service.ts",
+      "line_number": 485,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ecosystem/service.ts:749. Review and remediate.",
+      "file_path": "src/lib/ecosystem/service.ts",
+      "line_number": 749,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ecosystem/service.ts:837. Review and remediate.",
+      "file_path": "src/lib/ecosystem/service.ts",
+      "line_number": 837,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ecosystem/service.ts:847. Review and remediate.",
+      "file_path": "src/lib/ecosystem/service.ts",
+      "line_number": 847,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/calendar/generateWeeklyCalendar.ts:102. Review and remediate.",
+      "file_path": "src/lib/calendar/generateWeeklyCalendar.ts",
+      "line_number": 102,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/calendar/digestReader.ts:30. Review and remediate.",
+      "file_path": "src/lib/calendar/digestReader.ts",
+      "line_number": 30,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in src/lib/calendar/generateWeeklyCalendar.test.ts:68. Rotate the credential immediately.",
+      "file_path": "src/lib/calendar/generateWeeklyCalendar.test.ts",
+      "line_number": 68,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/security/advanced-security.ts:613. Review and remediate.",
+      "file_path": "src/lib/security/advanced-security.ts",
+      "line_number": 613,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/pipelines/track-cost.ts:43. Review and remediate.",
+      "file_path": "src/lib/pipelines/track-cost.ts",
+      "line_number": 43,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/publish/publishQueue.ts:124. Review and remediate.",
+      "file_path": "src/lib/publish/publishQueue.ts",
+      "line_number": 124,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/publish/publishQueue.ts:142. Review and remediate.",
+      "file_path": "src/lib/publish/publishQueue.ts",
+      "line_number": 142,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/publish/publishQueue.ts:248. Review and remediate.",
+      "file_path": "src/lib/publish/publishQueue.ts",
+      "line_number": 248,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/publish/publishQueue.ts:275. Review and remediate.",
+      "file_path": "src/lib/publish/publishQueue.ts",
+      "line_number": 275,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/recommendation-engine.ts:555. Review and remediate.",
+      "file_path": "src/lib/ai/recommendation-engine.ts",
+      "line_number": 555,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/personalization-engine.ts:736. Review and remediate.",
+      "file_path": "src/lib/ai/personalization-engine.ts",
+      "line_number": 736,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/predictive-analytics.ts:602. Review and remediate.",
+      "file_path": "src/lib/ai/predictive-analytics.ts",
+      "line_number": 602,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/predictive-analytics.ts:657. Review and remediate.",
+      "file_path": "src/lib/ai/predictive-analytics.ts",
+      "line_number": 657,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/automation-engine.ts:111. Review and remediate.",
+      "file_path": "src/lib/ai/automation-engine.ts",
+      "line_number": 111,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/automation-engine.ts:282. Review and remediate.",
+      "file_path": "src/lib/ai/automation-engine.ts",
+      "line_number": 282,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/automation-engine.ts:306. Review and remediate.",
+      "file_path": "src/lib/ai/automation-engine.ts",
+      "line_number": 306,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/automation-engine.ts:328. Review and remediate.",
+      "file_path": "src/lib/ai/automation-engine.ts",
+      "line_number": 328,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/automation-engine.ts:349. Review and remediate.",
+      "file_path": "src/lib/ai/automation-engine.ts",
+      "line_number": 349,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/automation-engine.ts:370. Review and remediate.",
+      "file_path": "src/lib/ai/automation-engine.ts",
+      "line_number": 370,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/automation-engine.ts:563. Review and remediate.",
+      "file_path": "src/lib/ai/automation-engine.ts",
+      "line_number": 563,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/automation-engine.ts:691. Review and remediate.",
+      "file_path": "src/lib/ai/automation-engine.ts",
+      "line_number": 691,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/automation-engine.ts:747. Review and remediate.",
+      "file_path": "src/lib/ai/automation-engine.ts",
+      "line_number": 747,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/pwa/registerSW.ts:18. Review and remediate.",
+      "file_path": "src/lib/pwa/registerSW.ts",
+      "line_number": 18,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/pwa/registerSW.ts:22. Review and remediate.",
+      "file_path": "src/lib/pwa/registerSW.ts",
+      "line_number": 22,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/pwa/registerSW.ts:31. Review and remediate.",
+      "file_path": "src/lib/pwa/registerSW.ts",
+      "line_number": 31,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/pwa/registerSW.ts:46. Review and remediate.",
+      "file_path": "src/lib/pwa/registerSW.ts",
+      "line_number": 46,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/pwa/registerSW.ts:52. Review and remediate.",
+      "file_path": "src/lib/pwa/registerSW.ts",
+      "line_number": 52,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/pwa/registerSW.ts:74. Review and remediate.",
+      "file_path": "src/lib/pwa/registerSW.ts",
+      "line_number": 74,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/pwa/PWAInitializer.tsx:20. Review and remediate.",
+      "file_path": "src/lib/pwa/PWAInitializer.tsx",
+      "line_number": 20,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/api/client.ts:124. Review and remediate.",
+      "file_path": "src/lib/api/client.ts",
+      "line_number": 124,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/api/client.ts:202. Review and remediate.",
+      "file_path": "src/lib/api/client.ts",
+      "line_number": 202,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/api/client.ts:226. Review and remediate.",
+      "file_path": "src/lib/api/client.ts",
+      "line_number": 226,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/api/client.ts:282. Review and remediate.",
+      "file_path": "src/lib/api/client.ts",
+      "line_number": 282,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/notifications/saveFirstWinNotification.ts:59. Review and remediate.",
+      "file_path": "src/lib/notifications/saveFirstWinNotification.ts",
+      "line_number": 59,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/analytics/index.ts:50. Review and remediate.",
+      "file_path": "src/lib/analytics/index.ts",
+      "line_number": 50,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/analytics/service.ts:236. Review and remediate.",
+      "file_path": "src/lib/analytics/service.ts",
+      "line_number": 236,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/analytics/service.ts:451. Review and remediate.",
+      "file_path": "src/lib/analytics/service.ts",
+      "line_number": 451,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/analytics/service.ts:676. Review and remediate.",
+      "file_path": "src/lib/analytics/service.ts",
+      "line_number": 676,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/analytics/service.ts:692. Review and remediate.",
+      "file_path": "src/lib/analytics/service.ts",
+      "line_number": 692,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/analytics/service.ts:707. Review and remediate.",
+      "file_path": "src/lib/analytics/service.ts",
+      "line_number": 707,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/analytics/service.ts:772. Review and remediate.",
+      "file_path": "src/lib/analytics/service.ts",
+      "line_number": 772,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/analytics/service.ts:848. Review and remediate.",
+      "file_path": "src/lib/analytics/service.ts",
+      "line_number": 848,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/quantum-optimization-engine.ts:188. Review and remediate.",
+      "file_path": "src/lib/quantum/quantum-optimization-engine.ts",
+      "line_number": 188,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/quantum-optimization-engine.ts:202. Review and remediate.",
+      "file_path": "src/lib/quantum/quantum-optimization-engine.ts",
+      "line_number": 202,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/quantum-optimization-engine.ts:217. Review and remediate.",
+      "file_path": "src/lib/quantum/quantum-optimization-engine.ts",
+      "line_number": 217,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/quantum-optimization-engine.ts:225. Review and remediate.",
+      "file_path": "src/lib/quantum/quantum-optimization-engine.ts",
+      "line_number": 225,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/quantum-optimization-engine.ts:270. Review and remediate.",
+      "file_path": "src/lib/quantum/quantum-optimization-engine.ts",
+      "line_number": 270,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/quantum-optimization-engine.ts:435. Review and remediate.",
+      "file_path": "src/lib/quantum/quantum-optimization-engine.ts",
+      "line_number": 435,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/quantum-optimization-engine.ts:469. Review and remediate.",
+      "file_path": "src/lib/quantum/quantum-optimization-engine.ts",
+      "line_number": 469,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/quantum-optimization-engine.ts:511. Review and remediate.",
+      "file_path": "src/lib/quantum/quantum-optimization-engine.ts",
+      "line_number": 511,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/quantum-optimization-engine.ts:624. Review and remediate.",
+      "file_path": "src/lib/quantum/quantum-optimization-engine.ts",
+      "line_number": 624,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/quantum-optimization-engine.ts:629. Review and remediate.",
+      "file_path": "src/lib/quantum/quantum-optimization-engine.ts",
+      "line_number": 629,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/quantum-processor.ts:161. Review and remediate.",
+      "file_path": "src/lib/quantum/quantum-processor.ts",
+      "line_number": 161,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/quantum-processor.ts:179. Review and remediate.",
+      "file_path": "src/lib/quantum/quantum-processor.ts",
+      "line_number": 179,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/quantum-processor.ts:196. Review and remediate.",
+      "file_path": "src/lib/quantum/quantum-processor.ts",
+      "line_number": 196,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/quantum-processor.ts:217. Review and remediate.",
+      "file_path": "src/lib/quantum/quantum-processor.ts",
+      "line_number": 217,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/quantum-processor.ts:234. Review and remediate.",
+      "file_path": "src/lib/quantum/quantum-processor.ts",
+      "line_number": 234,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/quantum-processor.ts:261. Review and remediate.",
+      "file_path": "src/lib/quantum/quantum-processor.ts",
+      "line_number": 261,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/quantum-processor.ts:284. Review and remediate.",
+      "file_path": "src/lib/quantum/quantum-processor.ts",
+      "line_number": 284,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/quantum-processor.ts:329. Review and remediate.",
+      "file_path": "src/lib/quantum/quantum-processor.ts",
+      "line_number": 329,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/quantum-processor.ts:431. Review and remediate.",
+      "file_path": "src/lib/quantum/quantum-processor.ts",
+      "line_number": 431,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/quantum-processor.ts:493. Review and remediate.",
+      "file_path": "src/lib/quantum/quantum-processor.ts",
+      "line_number": 493,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/quantum-neural-network.ts:553. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/quantum-neural-network.ts",
+      "line_number": 553,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/quantum-attention.ts:132. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/quantum-attention.ts",
+      "line_number": 132,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/quantum-attention.ts:150. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/quantum-attention.ts",
+      "line_number": 150,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/quantum-attention.ts:175. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/quantum-attention.ts",
+      "line_number": 175,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/quantum-attention.ts:212. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/quantum-attention.ts",
+      "line_number": 212,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/quantum-attention.ts:234. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/quantum-attention.ts",
+      "line_number": 234,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/quantum-attention.ts:277. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/quantum-attention.ts",
+      "line_number": 277,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/quantum-attention.ts:328. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/quantum-attention.ts",
+      "line_number": 328,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/quantum-attention.ts:365. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/quantum-attention.ts",
+      "line_number": 365,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/quantum-attention.ts:392. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/quantum-attention.ts",
+      "line_number": 392,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/quantum-attention.ts:400. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/quantum-attention.ts",
+      "line_number": 400,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/quantum-attention.ts:424. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/quantum-attention.ts",
+      "line_number": 424,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/quantum-attention.ts:432. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/quantum-attention.ts",
+      "line_number": 432,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/quantum-attention.ts:453. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/quantum-attention.ts",
+      "line_number": 453,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/quantum-attention.ts:461. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/quantum-attention.ts",
+      "line_number": 461,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/quantum-attention.ts:477. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/quantum-attention.ts",
+      "line_number": 477,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/language/quantum-llm.ts:174. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/language/quantum-llm.ts",
+      "line_number": 174,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/language/quantum-llm.ts:203. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/language/quantum-llm.ts",
+      "line_number": 203,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/language/quantum-llm.ts:204. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/language/quantum-llm.ts",
+      "line_number": 204,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/language/quantum-llm.ts:205. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/language/quantum-llm.ts",
+      "line_number": 205,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/language/quantum-llm.ts:238. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/language/quantum-llm.ts",
+      "line_number": 238,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/language/quantum-llm.ts:280. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/language/quantum-llm.ts",
+      "line_number": 280,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/language/quantum-llm.ts:310. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/language/quantum-llm.ts",
+      "line_number": 310,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/language/quantum-llm.ts:355. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/language/quantum-llm.ts",
+      "line_number": 355,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/language/quantum-llm.ts:386. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/language/quantum-llm.ts",
+      "line_number": 386,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/language/quantum-llm.ts:415. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/language/quantum-llm.ts",
+      "line_number": 415,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/language/quantum-llm.ts:436. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/language/quantum-llm.ts",
+      "line_number": 436,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/language/quantum-llm.ts:461. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/language/quantum-llm.ts",
+      "line_number": 461,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/language/quantum-llm.ts:478. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/language/quantum-llm.ts",
+      "line_number": 478,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/language/quantum-llm.ts:517. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/language/quantum-llm.ts",
+      "line_number": 517,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/language/quantum-llm.ts:525. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/language/quantum-llm.ts",
+      "line_number": 525,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/language/quantum-llm.ts:529. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/language/quantum-llm.ts",
+      "line_number": 529,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/language/quantum-llm.ts:536. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/language/quantum-llm.ts",
+      "line_number": 536,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/language/quantum-llm.ts:540. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/language/quantum-llm.ts",
+      "line_number": 540,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/language/quantum-llm.ts:546. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/language/quantum-llm.ts",
+      "line_number": 546,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/language/quantum-llm.ts:550. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/language/quantum-llm.ts",
+      "line_number": 550,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/quantum/ai/language/quantum-llm.ts:556. Review and remediate.",
+      "file_path": "src/lib/quantum/ai/language/quantum-llm.ts",
+      "line_number": 556,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/self-healing/service.ts:50. Review and remediate.",
+      "file_path": "src/lib/autonomous/self-healing/service.ts",
+      "line_number": 50,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/self-healing/service.ts:60. Review and remediate.",
+      "file_path": "src/lib/autonomous/self-healing/service.ts",
+      "line_number": 60,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/self-healing/service.ts:140. Review and remediate.",
+      "file_path": "src/lib/autonomous/self-healing/service.ts",
+      "line_number": 140,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/self-healing/service.ts:160. Review and remediate.",
+      "file_path": "src/lib/autonomous/self-healing/service.ts",
+      "line_number": 160,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/self-healing/service.ts:198. Review and remediate.",
+      "file_path": "src/lib/autonomous/self-healing/service.ts",
+      "line_number": 198,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/self-healing/service.ts:208. Review and remediate.",
+      "file_path": "src/lib/autonomous/self-healing/service.ts",
+      "line_number": 208,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/self-healing/service.ts:480. Review and remediate.",
+      "file_path": "src/lib/autonomous/self-healing/service.ts",
+      "line_number": 480,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/self-healing/service.ts:578. Review and remediate.",
+      "file_path": "src/lib/autonomous/self-healing/service.ts",
+      "line_number": 578,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/self-healing/service.ts:698. Review and remediate.",
+      "file_path": "src/lib/autonomous/self-healing/service.ts",
+      "line_number": 698,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/self-healing/service.ts:734. Review and remediate.",
+      "file_path": "src/lib/autonomous/self-healing/service.ts",
+      "line_number": 734,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/monitoring/service.ts:180. Review and remediate.",
+      "file_path": "src/lib/autonomous/monitoring/service.ts",
+      "line_number": 180,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/monitoring/service.ts:210. Review and remediate.",
+      "file_path": "src/lib/autonomous/monitoring/service.ts",
+      "line_number": 210,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/monitoring/service.ts:262. Review and remediate.",
+      "file_path": "src/lib/autonomous/monitoring/service.ts",
+      "line_number": 262,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/monitoring/service.ts:266. Review and remediate.",
+      "file_path": "src/lib/autonomous/monitoring/service.ts",
+      "line_number": 266,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/monitoring/service.ts:361. Review and remediate.",
+      "file_path": "src/lib/autonomous/monitoring/service.ts",
+      "line_number": 361,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/monitoring/service.ts:386. Review and remediate.",
+      "file_path": "src/lib/autonomous/monitoring/service.ts",
+      "line_number": 386,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/monitoring/service.ts:416. Review and remediate.",
+      "file_path": "src/lib/autonomous/monitoring/service.ts",
+      "line_number": 416,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/infrastructure/enhanced-monitoring.ts:48. Review and remediate.",
+      "file_path": "src/lib/autonomous/infrastructure/enhanced-monitoring.ts",
+      "line_number": 48,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/infrastructure/enhanced-monitoring.ts:56. Review and remediate.",
+      "file_path": "src/lib/autonomous/infrastructure/enhanced-monitoring.ts",
+      "line_number": 56,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/infrastructure/enhanced-monitoring.ts:324. Review and remediate.",
+      "file_path": "src/lib/autonomous/infrastructure/enhanced-monitoring.ts",
+      "line_number": 324,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/infrastructure/enhanced-monitoring.ts:327. Review and remediate.",
+      "file_path": "src/lib/autonomous/infrastructure/enhanced-monitoring.ts",
+      "line_number": 327,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/infrastructure/enhanced-monitoring.ts:330. Review and remediate.",
+      "file_path": "src/lib/autonomous/infrastructure/enhanced-monitoring.ts",
+      "line_number": 330,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/infrastructure/enhanced-monitoring.ts:333. Review and remediate.",
+      "file_path": "src/lib/autonomous/infrastructure/enhanced-monitoring.ts",
+      "line_number": 333,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/autonomous/infrastructure/enhanced-monitoring.ts:340. Review and remediate.",
+      "file_path": "src/lib/autonomous/infrastructure/enhanced-monitoring.ts",
+      "line_number": 340,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/workflow/service.ts:627. Review and remediate.",
+      "file_path": "src/lib/ai/workflow/service.ts",
+      "line_number": 627,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/gateway/production-ai-gateway.ts:103. Review and remediate.",
+      "file_path": "src/lib/ai/gateway/production-ai-gateway.ts",
+      "line_number": 103,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/gateway/production-ai-gateway.ts:166. Review and remediate.",
+      "file_path": "src/lib/ai/gateway/production-ai-gateway.ts",
+      "line_number": 166,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/gateway/production-ai-gateway.ts:365. Review and remediate.",
+      "file_path": "src/lib/ai/gateway/production-ai-gateway.ts",
+      "line_number": 365,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/gateway/enhanced-ai-gateway.ts:81. Review and remediate.",
+      "file_path": "src/lib/ai/gateway/enhanced-ai-gateway.ts",
+      "line_number": 81,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/gateway/enhanced-ai-gateway.ts:424. Review and remediate.",
+      "file_path": "src/lib/ai/gateway/enhanced-ai-gateway.ts",
+      "line_number": 424,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/gateway/enhanced-ai-gateway.ts:428. Review and remediate.",
+      "file_path": "src/lib/ai/gateway/enhanced-ai-gateway.ts",
+      "line_number": 428,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/gateway/enhanced-ai-gateway.ts:472. Review and remediate.",
+      "file_path": "src/lib/ai/gateway/enhanced-ai-gateway.ts",
+      "line_number": 472,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/gateway/ai-gateway.ts:113. Review and remediate.",
+      "file_path": "src/lib/ai/gateway/ai-gateway.ts",
+      "line_number": 113,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/gateway/ai-gateway.ts:251. Review and remediate.",
+      "file_path": "src/lib/ai/gateway/ai-gateway.ts",
+      "line_number": 251,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/analytics/service.ts:367. Review and remediate.",
+      "file_path": "src/lib/ai/analytics/service.ts",
+      "line_number": 367,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/analytics/service.ts:698. Review and remediate.",
+      "file_path": "src/lib/ai/analytics/service.ts",
+      "line_number": 698,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/gateway/cache/ai-cache.ts:287. Review and remediate.",
+      "file_path": "src/lib/ai/gateway/cache/ai-cache.ts",
+      "line_number": 287,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/ai/gateway/routing/ai-router.ts:404. Review and remediate.",
+      "file_path": "src/lib/ai/gateway/routing/ai-router.ts",
+      "line_number": 404,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/financial-intelligence/advanced-engine.ts:125. Review and remediate.",
+      "file_path": "src/lib/cognitive/financial-intelligence/advanced-engine.ts",
+      "line_number": 125,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/financial-intelligence/advanced-engine.ts:139. Review and remediate.",
+      "file_path": "src/lib/cognitive/financial-intelligence/advanced-engine.ts",
+      "line_number": 139,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/financial-intelligence/advanced-engine.ts:189. Review and remediate.",
+      "file_path": "src/lib/cognitive/financial-intelligence/advanced-engine.ts",
+      "line_number": 189,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/financial-intelligence/advanced-engine.ts:193. Review and remediate.",
+      "file_path": "src/lib/cognitive/financial-intelligence/advanced-engine.ts",
+      "line_number": 193,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/financial-intelligence/advanced-engine.ts:200. Review and remediate.",
+      "file_path": "src/lib/cognitive/financial-intelligence/advanced-engine.ts",
+      "line_number": 200,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/financial-intelligence/advanced-engine.ts:205. Review and remediate.",
+      "file_path": "src/lib/cognitive/financial-intelligence/advanced-engine.ts",
+      "line_number": 205,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/financial-intelligence/advanced-engine.ts:210. Review and remediate.",
+      "file_path": "src/lib/cognitive/financial-intelligence/advanced-engine.ts",
+      "line_number": 210,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/financial-intelligence/advanced-engine.ts:215. Review and remediate.",
+      "file_path": "src/lib/cognitive/financial-intelligence/advanced-engine.ts",
+      "line_number": 215,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/financial-intelligence/advanced-engine.ts:220. Review and remediate.",
+      "file_path": "src/lib/cognitive/financial-intelligence/advanced-engine.ts",
+      "line_number": 220,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/financial-intelligence/advanced-engine.ts:252. Review and remediate.",
+      "file_path": "src/lib/cognitive/financial-intelligence/advanced-engine.ts",
+      "line_number": 252,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/financial-intelligence/advanced-engine.ts:564. Review and remediate.",
+      "file_path": "src/lib/cognitive/financial-intelligence/advanced-engine.ts",
+      "line_number": 564,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/financial-intelligence/advanced-engine.ts:570. Review and remediate.",
+      "file_path": "src/lib/cognitive/financial-intelligence/advanced-engine.ts",
+      "line_number": 570,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/financial-intelligence/advanced-engine.ts:575. Review and remediate.",
+      "file_path": "src/lib/cognitive/financial-intelligence/advanced-engine.ts",
+      "line_number": 575,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/financial-intelligence/advanced-engine.ts:603. Review and remediate.",
+      "file_path": "src/lib/cognitive/financial-intelligence/advanced-engine.ts",
+      "line_number": 603,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/business-intelligence/predictive-engine.ts:80. Review and remediate.",
+      "file_path": "src/lib/cognitive/business-intelligence/predictive-engine.ts",
+      "line_number": 80,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/business-intelligence/predictive-engine.ts:91. Review and remediate.",
+      "file_path": "src/lib/cognitive/business-intelligence/predictive-engine.ts",
+      "line_number": 91,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/business-intelligence/predictive-engine.ts:128. Review and remediate.",
+      "file_path": "src/lib/cognitive/business-intelligence/predictive-engine.ts",
+      "line_number": 128,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/business-intelligence/predictive-engine.ts:147. Review and remediate.",
+      "file_path": "src/lib/cognitive/business-intelligence/predictive-engine.ts",
+      "line_number": 147,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/business-intelligence/predictive-engine.ts:158. Review and remediate.",
+      "file_path": "src/lib/cognitive/business-intelligence/predictive-engine.ts",
+      "line_number": 158,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/business-intelligence/predictive-engine.ts:164. Review and remediate.",
+      "file_path": "src/lib/cognitive/business-intelligence/predictive-engine.ts",
+      "line_number": 164,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/business-intelligence/predictive-engine.ts:170. Review and remediate.",
+      "file_path": "src/lib/cognitive/business-intelligence/predictive-engine.ts",
+      "line_number": 170,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/business-intelligence/predictive-engine.ts:176. Review and remediate.",
+      "file_path": "src/lib/cognitive/business-intelligence/predictive-engine.ts",
+      "line_number": 176,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/business-intelligence/predictive-engine.ts:180. Review and remediate.",
+      "file_path": "src/lib/cognitive/business-intelligence/predictive-engine.ts",
+      "line_number": 180,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/business-intelligence/predictive-engine.ts:406. Review and remediate.",
+      "file_path": "src/lib/cognitive/business-intelligence/predictive-engine.ts",
+      "line_number": 406,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/business-intelligence/predictive-engine.ts:414. Review and remediate.",
+      "file_path": "src/lib/cognitive/business-intelligence/predictive-engine.ts",
+      "line_number": 414,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/customer-experience/autonomous-engine.ts:118. Review and remediate.",
+      "file_path": "src/lib/cognitive/customer-experience/autonomous-engine.ts",
+      "line_number": 118,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/customer-experience/autonomous-engine.ts:132. Review and remediate.",
+      "file_path": "src/lib/cognitive/customer-experience/autonomous-engine.ts",
+      "line_number": 132,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/customer-experience/autonomous-engine.ts:144. Review and remediate.",
+      "file_path": "src/lib/cognitive/customer-experience/autonomous-engine.ts",
+      "line_number": 144,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/customer-experience/autonomous-engine.ts:235. Review and remediate.",
+      "file_path": "src/lib/cognitive/customer-experience/autonomous-engine.ts",
+      "line_number": 235,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/customer-experience/autonomous-engine.ts:237. Review and remediate.",
+      "file_path": "src/lib/cognitive/customer-experience/autonomous-engine.ts",
+      "line_number": 237,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/customer-experience/autonomous-engine.ts:255. Review and remediate.",
+      "file_path": "src/lib/cognitive/customer-experience/autonomous-engine.ts",
+      "line_number": 255,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/customer-experience/autonomous-engine.ts:263. Review and remediate.",
+      "file_path": "src/lib/cognitive/customer-experience/autonomous-engine.ts",
+      "line_number": 263,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/customer-experience/autonomous-engine.ts:268. Review and remediate.",
+      "file_path": "src/lib/cognitive/customer-experience/autonomous-engine.ts",
+      "line_number": 268,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/customer-experience/autonomous-engine.ts:273. Review and remediate.",
+      "file_path": "src/lib/cognitive/customer-experience/autonomous-engine.ts",
+      "line_number": 273,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/customer-experience/autonomous-engine.ts:278. Review and remediate.",
+      "file_path": "src/lib/cognitive/customer-experience/autonomous-engine.ts",
+      "line_number": 278,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/customer-experience/autonomous-engine.ts:283. Review and remediate.",
+      "file_path": "src/lib/cognitive/customer-experience/autonomous-engine.ts",
+      "line_number": 283,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/customer-experience/autonomous-engine.ts:287. Review and remediate.",
+      "file_path": "src/lib/cognitive/customer-experience/autonomous-engine.ts",
+      "line_number": 287,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/complete-service.ts:72. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/complete-service.ts",
+      "line_number": 72,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/complete-service.ts:159. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/complete-service.ts",
+      "line_number": 159,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/complete-service.ts:173. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/complete-service.ts",
+      "line_number": 173,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/complete-service.ts:257. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/complete-service.ts",
+      "line_number": 257,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/complete-service.ts:282. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/complete-service.ts",
+      "line_number": 282,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/complete-service.ts:296. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/complete-service.ts",
+      "line_number": 296,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/index.ts:70. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/index.ts",
+      "line_number": 70,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/index.ts:153. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/index.ts",
+      "line_number": 153,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/index.ts:158. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/index.ts",
+      "line_number": 158,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/index.ts:163. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/index.ts",
+      "line_number": 163,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/index.ts:178. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/index.ts",
+      "line_number": 178,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/index.ts:195. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/index.ts",
+      "line_number": 195,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/index.ts:247. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/index.ts",
+      "line_number": 247,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/index.ts:252. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/index.ts",
+      "line_number": 252,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/index.ts:285. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/index.ts",
+      "line_number": 285,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/index.ts:299. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/index.ts",
+      "line_number": 299,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/index.ts:331. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/index.ts",
+      "line_number": 331,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/index.ts:355. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/index.ts",
+      "line_number": 355,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/index.ts:375. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/index.ts",
+      "line_number": 375,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:74. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 74,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:375. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 375,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:527. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 527,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:537. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 537,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:543. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 543,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:569. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 569,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:600. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 600,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:615. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 615,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:654. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 654,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:683. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 683,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:708. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 708,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:804. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 804,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:810. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 810,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:820. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 820,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:830. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 830,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:836. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 836,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:842. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 842,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:858. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 858,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:863. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 863,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:868. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 868,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:885. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 885,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:890. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 890,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:904. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 904,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:909. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 909,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:914. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 914,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:919. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 919,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:928. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 928,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:933. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 933,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/cognitive/analytics/service.ts:938. Review and remediate.",
+      "file_path": "src/lib/cognitive/analytics/service.ts",
+      "line_number": 938,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/autonomous-development/qa-system.ts:100. Review and remediate.",
+      "file_path": "src/lib/innovation/autonomous-development/qa-system.ts",
+      "line_number": 100,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/autonomous-development/ai-feature-generator.ts:9. Review and remediate.",
+      "file_path": "src/lib/innovation/autonomous-development/ai-feature-generator.ts",
+      "line_number": 9,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/autonomous-development/development-pipeline.ts:13. Review and remediate.",
+      "file_path": "src/lib/innovation/autonomous-development/development-pipeline.ts",
+      "line_number": 13,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/autonomous-development/deployment-engine.ts:156. Review and remediate.",
+      "file_path": "src/lib/innovation/autonomous-development/deployment-engine.ts",
+      "line_number": 156,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/autonomous-development/deployment-engine.ts:172. Review and remediate.",
+      "file_path": "src/lib/innovation/autonomous-development/deployment-engine.ts",
+      "line_number": 172,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/autonomous-development/deployment-engine.ts:213. Review and remediate.",
+      "file_path": "src/lib/innovation/autonomous-development/deployment-engine.ts",
+      "line_number": 213,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/autonomous-development/deployment-engine.ts:275. Review and remediate.",
+      "file_path": "src/lib/innovation/autonomous-development/deployment-engine.ts",
+      "line_number": 275,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/autonomous-development/deployment-engine.ts:286. Review and remediate.",
+      "file_path": "src/lib/innovation/autonomous-development/deployment-engine.ts",
+      "line_number": 286,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/autonomous-development/feature-engine.ts:24. Review and remediate.",
+      "file_path": "src/lib/innovation/autonomous-development/feature-engine.ts",
+      "line_number": 24,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/autonomous-development/feature-engine.ts:82. Review and remediate.",
+      "file_path": "src/lib/innovation/autonomous-development/feature-engine.ts",
+      "line_number": 82,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/monitoring/innovation-monitor.ts:125. Review and remediate.",
+      "file_path": "src/lib/innovation/monitoring/innovation-monitor.ts",
+      "line_number": 125,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/monitoring/innovation-monitor.ts:139. Review and remediate.",
+      "file_path": "src/lib/innovation/monitoring/innovation-monitor.ts",
+      "line_number": 139,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/monitoring/innovation-monitor.ts:144. Review and remediate.",
+      "file_path": "src/lib/innovation/monitoring/innovation-monitor.ts",
+      "line_number": 144,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/monitoring/innovation-monitor.ts:155. Review and remediate.",
+      "file_path": "src/lib/innovation/monitoring/innovation-monitor.ts",
+      "line_number": 155,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/monitoring/innovation-monitor.ts:503. Review and remediate.",
+      "file_path": "src/lib/innovation/monitoring/innovation-monitor.ts",
+      "line_number": 503,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/monitoring/innovation-monitor.ts:510. Review and remediate.",
+      "file_path": "src/lib/innovation/monitoring/innovation-monitor.ts",
+      "line_number": 510,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/monitoring/innovation-monitor.ts:515. Review and remediate.",
+      "file_path": "src/lib/innovation/monitoring/innovation-monitor.ts",
+      "line_number": 515,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/monitoring/innovation-monitor.ts:520. Review and remediate.",
+      "file_path": "src/lib/innovation/monitoring/innovation-monitor.ts",
+      "line_number": 520,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/monitoring/innovation-monitor.ts:525. Review and remediate.",
+      "file_path": "src/lib/innovation/monitoring/innovation-monitor.ts",
+      "line_number": 525,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/monitoring/innovation-monitor.ts:530. Review and remediate.",
+      "file_path": "src/lib/innovation/monitoring/innovation-monitor.ts",
+      "line_number": 530,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/monitoring/innovation-monitor.ts:556. Review and remediate.",
+      "file_path": "src/lib/innovation/monitoring/innovation-monitor.ts",
+      "line_number": 556,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/validation/market-validator.ts:127. Review and remediate.",
+      "file_path": "src/lib/innovation/validation/market-validator.ts",
+      "line_number": 127,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/validation/market-validator.ts:141. Review and remediate.",
+      "file_path": "src/lib/innovation/validation/market-validator.ts",
+      "line_number": 141,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/validation/market-validator.ts:146. Review and remediate.",
+      "file_path": "src/lib/innovation/validation/market-validator.ts",
+      "line_number": 146,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/validation/market-validator.ts:157. Review and remediate.",
+      "file_path": "src/lib/innovation/validation/market-validator.ts",
+      "line_number": 157,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/validation/market-validator.ts:565. Review and remediate.",
+      "file_path": "src/lib/innovation/validation/market-validator.ts",
+      "line_number": 565,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/validation/market-validator.ts:572. Review and remediate.",
+      "file_path": "src/lib/innovation/validation/market-validator.ts",
+      "line_number": 572,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/validation/market-validator.ts:577. Review and remediate.",
+      "file_path": "src/lib/innovation/validation/market-validator.ts",
+      "line_number": 577,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/validation/market-validator.ts:582. Review and remediate.",
+      "file_path": "src/lib/innovation/validation/market-validator.ts",
+      "line_number": 582,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/validation/market-validator.ts:587. Review and remediate.",
+      "file_path": "src/lib/innovation/validation/market-validator.ts",
+      "line_number": 587,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/validation/market-validator.ts:592. Review and remediate.",
+      "file_path": "src/lib/innovation/validation/market-validator.ts",
+      "line_number": 592,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/validation/market-validator.ts:621. Review and remediate.",
+      "file_path": "src/lib/innovation/validation/market-validator.ts",
+      "line_number": 621,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/lib/innovation/validation/market-validator.ts:791. Review and remediate.",
+      "file_path": "src/lib/innovation/validation/market-validator.ts",
+      "line_number": 791,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in src/components/content/ContentEditor.tsx:645. Review and remediate.",
+      "file_path": "src/components/content/ContentEditor.tsx",
+      "line_number": 645,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/components/compliance/CookieConsentProvider.tsx:130. Review and remediate.",
+      "file_path": "src/components/compliance/CookieConsentProvider.tsx",
+      "line_number": 130,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/components/compliance/CookieConsentProvider.tsx:136. Review and remediate.",
+      "file_path": "src/components/compliance/CookieConsentProvider.tsx",
+      "line_number": 136,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in src/components/schema/LocalBusinessSchema.tsx:56. Review and remediate.",
+      "file_path": "src/components/schema/LocalBusinessSchema.tsx",
+      "line_number": 56,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in src/components/schema/VideoObjectSchema.tsx:25. Review and remediate.",
+      "file_path": "src/components/schema/VideoObjectSchema.tsx",
+      "line_number": 25,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in src/components/performance/ResourceOptimizer.tsx:160. Review and remediate.",
+      "file_path": "src/components/performance/ResourceOptimizer.tsx",
+      "line_number": 160,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/components/quantum/QuantumComputingDashboard.tsx:204. Review and remediate.",
+      "file_path": "src/components/quantum/QuantumComputingDashboard.tsx",
+      "line_number": 204,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/ai-gateway/route.ts:279. Review and remediate.",
+      "file_path": "src/app/api/ai-gateway/route.ts",
+      "line_number": 279,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/ai-gateway/route.ts:284. Review and remediate.",
+      "file_path": "src/app/api/ai-gateway/route.ts",
+      "line_number": 284,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/ai-gateway/route.ts:289. Review and remediate.",
+      "file_path": "src/app/api/ai-gateway/route.ts",
+      "line_number": 289,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/ai-gateway/route.ts:318. Review and remediate.",
+      "file_path": "src/app/api/ai-gateway/route.ts",
+      "line_number": 318,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/ai-gateway/route.ts:323. Review and remediate.",
+      "file_path": "src/app/api/ai-gateway/route.ts",
+      "line_number": 323,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/threat-detection/route.ts:386. Review and remediate.",
+      "file_path": "src/app/api/threat-detection/route.ts",
+      "line_number": 386,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/threat-detection/route.ts:575. Review and remediate.",
+      "file_path": "src/app/api/threat-detection/route.ts",
+      "line_number": 575,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/threat-detection/route.ts:579. Review and remediate.",
+      "file_path": "src/app/api/threat-detection/route.ts",
+      "line_number": 579,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/threat-detection/route.ts:583. Review and remediate.",
+      "file_path": "src/app/api/threat-detection/route.ts",
+      "line_number": 583,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/threat-detection/route.ts:587. Review and remediate.",
+      "file_path": "src/app/api/threat-detection/route.ts",
+      "line_number": 587,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/compliance-automation/route.ts:631. Review and remediate.",
+      "file_path": "src/app/api/compliance-automation/route.ts",
+      "line_number": 631,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/compliance-automation/route.ts:743. Review and remediate.",
+      "file_path": "src/app/api/compliance-automation/route.ts",
+      "line_number": 743,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/compliance-automation/route.ts:747. Review and remediate.",
+      "file_path": "src/app/api/compliance-automation/route.ts",
+      "line_number": 747,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/compliance-automation/route.ts:751. Review and remediate.",
+      "file_path": "src/app/api/compliance-automation/route.ts",
+      "line_number": 751,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/compliance-automation/route.ts:755. Review and remediate.",
+      "file_path": "src/app/api/compliance-automation/route.ts",
+      "line_number": 755,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/cron/geo-citation-monitor/route.ts:29. Review and remediate.",
+      "file_path": "src/app/api/cron/geo-citation-monitor/route.ts",
+      "line_number": 29,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/cron/geo-citation-monitor/route.ts:34. Review and remediate.",
+      "file_path": "src/app/api/cron/geo-citation-monitor/route.ts",
+      "line_number": 34,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/webhooks/video-published/route.ts:45. Review and remediate.",
+      "file_path": "src/app/api/webhooks/video-published/route.ts",
+      "line_number": 45,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/marketing/leads/route.ts:109. Review and remediate.",
+      "file_path": "src/app/api/marketing/leads/route.ts",
+      "line_number": 109,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/internal/sync-post-performance/route.ts:89. Review and remediate.",
+      "file_path": "src/app/api/internal/sync-post-performance/route.ts",
+      "line_number": 89,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/internal/sync-post-performance/route.ts:108. Review and remediate.",
+      "file_path": "src/app/api/internal/sync-post-performance/route.ts",
+      "line_number": 108,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/api/clients/featured-opt-in/route.ts:66. Review and remediate.",
+      "file_path": "src/app/api/clients/featured-opt-in/route.ts",
+      "line_number": 66,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/dashboard/analytics/page.tsx:298. Review and remediate.",
+      "file_path": "src/app/dashboard/analytics/page.tsx",
+      "line_number": 298,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/dashboard/analytics/page.tsx:302. Review and remediate.",
+      "file_path": "src/app/dashboard/analytics/page.tsx",
+      "line_number": 302,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/[locale]/dashboard/analytics/page.tsx:300. Review and remediate.",
+      "file_path": "src/app/[locale]/dashboard/analytics/page.tsx",
+      "line_number": 300,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/app/[locale]/dashboard/analytics/page.tsx:304. Review and remediate.",
+      "file_path": "src/app/[locale]/dashboard/analytics/page.tsx",
+      "line_number": 304,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/security/advanced-security.ts:613. Review and remediate.",
+      "file_path": "backups/2025-05-29/security/advanced-security.ts",
+      "line_number": 613,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/quantum-optimization-engine.ts:188. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/quantum-optimization-engine.ts",
+      "line_number": 188,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/quantum-optimization-engine.ts:202. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/quantum-optimization-engine.ts",
+      "line_number": 202,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/quantum-optimization-engine.ts:217. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/quantum-optimization-engine.ts",
+      "line_number": 217,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/quantum-optimization-engine.ts:225. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/quantum-optimization-engine.ts",
+      "line_number": 225,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/quantum-optimization-engine.ts:270. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/quantum-optimization-engine.ts",
+      "line_number": 270,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/quantum-optimization-engine.ts:434. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/quantum-optimization-engine.ts",
+      "line_number": 434,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/quantum-optimization-engine.ts:468. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/quantum-optimization-engine.ts",
+      "line_number": 468,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/quantum-optimization-engine.ts:510. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/quantum-optimization-engine.ts",
+      "line_number": 510,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/quantum-optimization-engine.ts:623. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/quantum-optimization-engine.ts",
+      "line_number": 623,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/quantum-optimization-engine.ts:628. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/quantum-optimization-engine.ts",
+      "line_number": 628,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/quantum-processor.ts:161. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/quantum-processor.ts",
+      "line_number": 161,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/quantum-processor.ts:179. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/quantum-processor.ts",
+      "line_number": 179,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/quantum-processor.ts:196. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/quantum-processor.ts",
+      "line_number": 196,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/quantum-processor.ts:217. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/quantum-processor.ts",
+      "line_number": 217,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/quantum-processor.ts:234. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/quantum-processor.ts",
+      "line_number": 234,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/quantum-processor.ts:261. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/quantum-processor.ts",
+      "line_number": 261,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/quantum-processor.ts:284. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/quantum-processor.ts",
+      "line_number": 284,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/quantum-processor.ts:329. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/quantum-processor.ts",
+      "line_number": 329,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/quantum-processor.ts:431. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/quantum-processor.ts",
+      "line_number": 431,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/quantum-processor.ts:493. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/quantum-processor.ts",
+      "line_number": 493,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/quantum-neural-network.ts:553. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/quantum-neural-network.ts",
+      "line_number": 553,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/quantum-attention.ts:132. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/quantum-attention.ts",
+      "line_number": 132,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/quantum-attention.ts:150. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/quantum-attention.ts",
+      "line_number": 150,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/quantum-attention.ts:175. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/quantum-attention.ts",
+      "line_number": 175,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/quantum-attention.ts:212. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/quantum-attention.ts",
+      "line_number": 212,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/quantum-attention.ts:234. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/quantum-attention.ts",
+      "line_number": 234,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/quantum-attention.ts:277. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/quantum-attention.ts",
+      "line_number": 277,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/quantum-attention.ts:328. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/quantum-attention.ts",
+      "line_number": 328,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/quantum-attention.ts:365. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/quantum-attention.ts",
+      "line_number": 365,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/quantum-attention.ts:392. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/quantum-attention.ts",
+      "line_number": 392,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/quantum-attention.ts:400. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/quantum-attention.ts",
+      "line_number": 400,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/quantum-attention.ts:424. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/quantum-attention.ts",
+      "line_number": 424,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/quantum-attention.ts:432. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/quantum-attention.ts",
+      "line_number": 432,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/quantum-attention.ts:453. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/quantum-attention.ts",
+      "line_number": 453,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/quantum-attention.ts:461. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/quantum-attention.ts",
+      "line_number": 461,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/quantum-attention.ts:477. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/quantum-attention.ts",
+      "line_number": 477,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/language/quantum-llm.ts:174. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/language/quantum-llm.ts",
+      "line_number": 174,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/language/quantum-llm.ts:203. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/language/quantum-llm.ts",
+      "line_number": 203,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/language/quantum-llm.ts:204. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/language/quantum-llm.ts",
+      "line_number": 204,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/language/quantum-llm.ts:205. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/language/quantum-llm.ts",
+      "line_number": 205,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/language/quantum-llm.ts:238. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/language/quantum-llm.ts",
+      "line_number": 238,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/language/quantum-llm.ts:280. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/language/quantum-llm.ts",
+      "line_number": 280,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/language/quantum-llm.ts:310. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/language/quantum-llm.ts",
+      "line_number": 310,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/language/quantum-llm.ts:355. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/language/quantum-llm.ts",
+      "line_number": 355,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/language/quantum-llm.ts:386. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/language/quantum-llm.ts",
+      "line_number": 386,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/language/quantum-llm.ts:415. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/language/quantum-llm.ts",
+      "line_number": 415,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/language/quantum-llm.ts:436. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/language/quantum-llm.ts",
+      "line_number": 436,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/language/quantum-llm.ts:461. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/language/quantum-llm.ts",
+      "line_number": 461,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/language/quantum-llm.ts:478. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/language/quantum-llm.ts",
+      "line_number": 478,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/language/quantum-llm.ts:517. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/language/quantum-llm.ts",
+      "line_number": 517,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/language/quantum-llm.ts:525. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/language/quantum-llm.ts",
+      "line_number": 525,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/language/quantum-llm.ts:529. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/language/quantum-llm.ts",
+      "line_number": 529,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/language/quantum-llm.ts:536. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/language/quantum-llm.ts",
+      "line_number": 536,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/language/quantum-llm.ts:540. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/language/quantum-llm.ts",
+      "line_number": 540,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/language/quantum-llm.ts:546. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/language/quantum-llm.ts",
+      "line_number": 546,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/language/quantum-llm.ts:550. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/language/quantum-llm.ts",
+      "line_number": 550,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in backups/2025-05-29/quantum/ai/language/quantum-llm.ts:556. Review and remediate.",
+      "file_path": "backups/2025-05-29/quantum/ai/language/quantum-llm.ts",
+      "line_number": 556,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in lib/geo-citation/run-weekly-monitor.ts:172. Review and remediate.",
+      "file_path": "lib/geo-citation/run-weekly-monitor.ts",
+      "line_number": 172,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in lib/geo-citation/run-weekly-monitor.ts:195. Review and remediate.",
+      "file_path": "lib/geo-citation/run-weekly-monitor.ts",
+      "line_number": 195,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in lib/geo-citation/run-weekly-monitor.ts:209. Review and remediate.",
+      "file_path": "lib/geo-citation/run-weekly-monitor.ts",
+      "line_number": 209,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in lib/geo-citation/run-weekly-monitor.ts:218. Review and remediate.",
+      "file_path": "lib/geo-citation/run-weekly-monitor.ts",
+      "line_number": 218,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in lib/geo-citation/run-weekly-monitor.ts:247. Review and remediate.",
+      "file_path": "lib/geo-citation/run-weekly-monitor.ts",
+      "line_number": 247,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in lib/geo-citation/run-weekly-monitor.ts:257. Review and remediate.",
+      "file_path": "lib/geo-citation/run-weekly-monitor.ts",
+      "line_number": 257,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/review-metrics.js:34. Review and remediate.",
+      "file_path": "scripts/review/review-metrics.js",
+      "line_number": 34,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/review-metrics.js:58. Review and remediate.",
+      "file_path": "scripts/review/review-metrics.js",
+      "line_number": 58,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/review-metrics.js:94. Review and remediate.",
+      "file_path": "scripts/review/review-metrics.js",
+      "line_number": 94,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/review-metrics.js:95. Review and remediate.",
+      "file_path": "scripts/review/review-metrics.js",
+      "line_number": 95,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/review-metrics.js:96. Review and remediate.",
+      "file_path": "scripts/review/review-metrics.js",
+      "line_number": 96,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/review-metrics.js:97. Review and remediate.",
+      "file_path": "scripts/review/review-metrics.js",
+      "line_number": 97,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/review-metrics.js:99. Review and remediate.",
+      "file_path": "scripts/review/review-metrics.js",
+      "line_number": 99,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/review-metrics.js:100. Review and remediate.",
+      "file_path": "scripts/review/review-metrics.js",
+      "line_number": 100,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/review-metrics.js:101. Review and remediate.",
+      "file_path": "scripts/review/review-metrics.js",
+      "line_number": 101,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/review-metrics.js:102. Review and remediate.",
+      "file_path": "scripts/review/review-metrics.js",
+      "line_number": 102,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/review-metrics.js:103. Review and remediate.",
+      "file_path": "scripts/review/review-metrics.js",
+      "line_number": 103,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/review-metrics.js:105. Review and remediate.",
+      "file_path": "scripts/review/review-metrics.js",
+      "line_number": 105,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/review-metrics.js:106. Review and remediate.",
+      "file_path": "scripts/review/review-metrics.js",
+      "line_number": 106,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/review-metrics.js:107. Review and remediate.",
+      "file_path": "scripts/review/review-metrics.js",
+      "line_number": 107,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/review-metrics.js:109. Review and remediate.",
+      "file_path": "scripts/review/review-metrics.js",
+      "line_number": 109,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/review-metrics.js:112. Review and remediate.",
+      "file_path": "scripts/review/review-metrics.js",
+      "line_number": 112,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/review-metrics.js:113. Review and remediate.",
+      "file_path": "scripts/review/review-metrics.js",
+      "line_number": 113,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/review-metrics.js:114. Review and remediate.",
+      "file_path": "scripts/review/review-metrics.js",
+      "line_number": 114,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/review-metrics.js:117. Review and remediate.",
+      "file_path": "scripts/review/review-metrics.js",
+      "line_number": 117,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/review-metrics.js:121. Review and remediate.",
+      "file_path": "scripts/review/review-metrics.js",
+      "line_number": 121,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/run-specialist.js:244. Review and remediate.",
+      "file_path": "scripts/review/run-specialist.js",
+      "line_number": 244,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/run-specialist.js:246. Review and remediate.",
+      "file_path": "scripts/review/run-specialist.js",
+      "line_number": 246,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/chief-reviewer.js:140. Review and remediate.",
+      "file_path": "scripts/review/chief-reviewer.js",
+      "line_number": 140,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/chief-reviewer.js:163. Review and remediate.",
+      "file_path": "scripts/review/chief-reviewer.js",
+      "line_number": 163,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/chief-reviewer.js:185. Review and remediate.",
+      "file_path": "scripts/review/chief-reviewer.js",
+      "line_number": 185,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/chief-reviewer.js:190. Review and remediate.",
+      "file_path": "scripts/review/chief-reviewer.js",
+      "line_number": 190,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/chief-reviewer.js:194. Review and remediate.",
+      "file_path": "scripts/review/chief-reviewer.js",
+      "line_number": 194,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/chief-reviewer.js:202. Review and remediate.",
+      "file_path": "scripts/review/chief-reviewer.js",
+      "line_number": 202,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/chief-reviewer.js:203. Review and remediate.",
+      "file_path": "scripts/review/chief-reviewer.js",
+      "line_number": 203,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/review/chief-reviewer.js:213. Review and remediate.",
+      "file_path": "scripts/review/chief-reviewer.js",
+      "line_number": 213,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in components/ui/chart.tsx:81. Review and remediate.",
+      "file_path": "components/ui/chart.tsx",
+      "line_number": 81,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in supabase/functions/generate-calendar/index.ts:80. Review and remediate.",
+      "file_path": "supabase/functions/generate-calendar/index.ts",
+      "line_number": 80,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in supabase/functions/process-publish-queue/index.ts:41. Review and remediate.",
+      "file_path": "supabase/functions/process-publish-queue/index.ts",
+      "line_number": 41,
+      "auto_fixable": false,
+      "extra": {}
+    }
+  ],
+  "error": "",
+  "health_score": 72
+}

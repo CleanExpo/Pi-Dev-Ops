@@ -134,6 +134,12 @@ async def on_startup():
     restore_sessions()
     asyncio.create_task(_resilient(lambda: gc_loop(_sessions), "gc_loop"))
     asyncio.create_task(_resilient(cron_loop, "cron_loop"))
+    if not config.ANTHROPIC_API_KEY:
+        log.warning(
+            "ANTHROPIC_API_KEY is empty — Anthropic SDK calls will fail. "
+            "If launched from a terminal running the claude CLI, start with: "
+            "source .env.local && uvicorn ..."
+        )
     if not config.WEBHOOK_SECRET:
         log.warning("TAO_WEBHOOK_SECRET not set — GitHub webhook endpoint is unprotected")
     if not config.LINEAR_WEBHOOK_SECRET:
@@ -694,13 +700,15 @@ async def health():
     except Exception:
         pass
 
+    anthropic_key_ok = bool(config.ANTHROPIC_API_KEY)
     healthy = _claude_ok and disk_free_gb is not None
     payload = {
-        "status":       "ok" if healthy else "degraded",
-        "uptime_s":     uptime_s,
-        "sessions":     {"active": active, "total": total, "max": config.MAX_CONCURRENT_SESSIONS},
-        "claude_cli":   _claude_ok,
-        "disk_free_gb": disk_free_gb,
-        "version":      "1.0.0",
+        "status":           "ok" if healthy else "degraded",
+        "uptime_s":         uptime_s,
+        "sessions":         {"active": active, "total": total, "max": config.MAX_CONCURRENT_SESSIONS},
+        "claude_cli":       _claude_ok,
+        "anthropic_key":    anthropic_key_ok,
+        "disk_free_gb":     disk_free_gb,
+        "version":          "1.0.0",
     }
     return JSONResponse(payload, status_code=200 if healthy else 503)

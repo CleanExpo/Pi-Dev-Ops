@@ -1,0 +1,362 @@
+{
+  "project_id": "synthex",
+  "repo": "CleanExpo/Synthex",
+  "scan_type": "dependencies",
+  "started_at": "2026-04-10T06:26:52.678833+00:00",
+  "finished_at": "2026-04-10T06:26:54.348935+00:00",
+  "findings": [
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: @anthropic-ai/sdk",
+      "description": "Claude SDK for TypeScript: Memory Tool Path Validation Allows Sandbox Escape to Sibling Directories. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "@anthropic-ai/sdk",
+        "range": "0.79.0 - 0.80.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: @chevrotain/cst-dts-gen",
+      "description": "@chevrotain/gast. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "@chevrotain/cst-dts-gen",
+        "range": "10.0.0 - 10.5.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: @chevrotain/gast",
+      "description": "lodash. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "@chevrotain/gast",
+        "range": "<=10.5.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: @hono/node-server",
+      "description": "@hono/node-server has authorization bypass for protected static paths via encoded slashes in Serve Static Middleware. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "@hono/node-server",
+        "range": "<=1.19.12"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: @mrleebo/prisma-ast",
+      "description": "chevrotain. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "@mrleebo/prisma-ast",
+        "range": "0.4.2 - 0.13.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: @prisma/config",
+      "description": "effect. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "@prisma/config",
+        "range": "6.13.0-dev.1 - 6.19.2 || 6.20.0-dev.1 - 7.6.0-integration-feat-prisma-bootstrap.13"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: @prisma/dev",
+      "description": "@hono/node-server. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "@prisma/dev",
+        "range": "<=0.22.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: @storybook/nextjs",
+      "description": "node-polyfill-webpack-plugin. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "@storybook/nextjs",
+        "range": "<=0.0.0-pr-34476-sha-f8f46a46 || >=7.0.15"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: @xmldom/xmldom",
+      "description": "xmldom: XML injection via unsafe CDATA serialization allows attacker-controlled markup insertion. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "@xmldom/xmldom",
+        "range": "<0.8.12"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "critical",
+      "title": "npm vulnerability: axios",
+      "description": "Axios has a NO_PROXY Hostname Normalization Bypass Leads to SSRF. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "axios",
+        "range": "<1.15.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: basic-ftp",
+      "description": "basic-ftp has FTP Command Injection via CRLF. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "basic-ftp",
+        "range": "5.2.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: brace-expansion",
+      "description": "brace-expansion: Zero-step sequence causes process hang and memory exhaustion. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "brace-expansion",
+        "range": "<=1.1.12 || 2.0.0 - 2.0.2 || 4.0.0 - 5.0.4"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: browserify-sign",
+      "description": "elliptic. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "browserify-sign",
+        "range": ">=2.4.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: chevrotain",
+      "description": "@chevrotain/cst-dts-gen. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "chevrotain",
+        "range": "10.0.0 - 10.5.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: create-ecdh",
+      "description": "elliptic. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "create-ecdh",
+        "range": "*"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: crypto-browserify",
+      "description": "browserify-sign. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "crypto-browserify",
+        "range": ">=3.4.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: defu",
+      "description": "defu: Prototype pollution via `__proto__` key in defaults argument. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "defu",
+        "range": "<=6.1.4"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: effect",
+      "description": "Effect `AsyncLocalStorage` context lost/contaminated inside Effect fibers under concurrent load with RPC. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "effect",
+        "range": "<3.20.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: elliptic",
+      "description": "Elliptic Uses a Cryptographic Primitive with a Risky Implementation. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "elliptic",
+        "range": "*"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "critical",
+      "title": "npm vulnerability: handlebars",
+      "description": "Handlebars.js has JavaScript Injection via AST Type Confusion by tampering @partial-block. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "handlebars",
+        "range": "4.0.0 - 4.7.8"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: hono",
+      "description": "Hono vulnerable to XSS through ErrorBoundary component . Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "hono",
+        "range": "<=4.12.11"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: lodash",
+      "description": "Lodash has Prototype Pollution Vulnerability in `_.unset` and `_.omit` functions. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "lodash",
+        "range": "<=4.17.23"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: node-polyfill-webpack-plugin",
+      "description": "crypto-browserify. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "node-polyfill-webpack-plugin",
+        "range": "<=4.0.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: nodemailer",
+      "description": "Nodemailer has SMTP command injection due to unsanitized `envelope.size` parameter. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "nodemailer",
+        "range": "<=8.0.4"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: picomatch",
+      "description": "Picomatch: Method Injection in POSIX Character Classes causes incorrect Glob Matching. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "picomatch",
+        "range": "<=2.3.1 || 4.0.0 - 4.0.3"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: prisma",
+      "description": "@prisma/config. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "prisma",
+        "range": "6.13.0-dev.1 - 6.19.2 || 6.20.0-dev.1 - 7.6.0-integration-feat-prisma-bootstrap.13"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: yaml",
+      "description": "yaml is vulnerable to Stack Overflow via deeply nested YAML collections. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "yaml",
+        "range": "2.0.0 - 2.8.2"
+      }
+    }
+  ],
+  "error": "",
+  "health_score": 0
+}

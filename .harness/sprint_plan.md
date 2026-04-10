@@ -1,22 +1,71 @@
 # Pi Dev Ops — Sprint Plan
 
-_Sprint 4 / Cycle 5 | 2026-04-08 | ZTE Score: 60/60 Zero Touch_
+_Sprint 7 complete | 2026-04-10 | ZTE Score: 60/60 Zero Touch_
 
 ## Status
 
-All Sprint 1–3 items complete. Sprint 4 complete. Pipeline validated end-to-end.
-ZTE score: 60/60 Zero Touch maintained.
+All Sprints 1–7 complete. 62 features shipped. Board is defining Sprint 8 scope.
 
 ---
 
-## Sprint 5 — Open Items
+## Sprint 8 — Open Items (Candidate)
 
-### RA-477 [High] — Deploy Pi CEO server to cloud
-Surface Pi CEO builds in the Vercel dashboard in production. Currently the `/builds` page
-requires the server to be reachable at `PI_CEO_URL` — which only works locally.
+### [High] Pi-SEO Activation — First Full Sweep
+Scanner and triage engine are built. Trigger first full scan across all 10 repos, review finding volume, tune severity thresholds.
 
-### RA-478 [Medium] — smoke_test.py as GitHub Actions pre-deploy gate
-Add `scripts/smoke_test.py` as a CI check that runs on push to main.
+### [High] Agent SDK Production Cut-Over Plan
+RA-485 delivered a board-meeting PoC. Define rollout: which sessions migrate first, kill criteria, rollback plan.
+
+### [Medium] Self-Improvement Loop
+Scheduled lesson-pattern analyser reads lessons.jsonl, identifies recurring patterns, proposes CLAUDE.md / skills updates. Closes the ZTE Level 3 meta-loop.
+
+### [Medium] Multi-Model Parallel Evaluation
+Run Sonnet and Haiku evaluators in parallel; use score consensus. Escalate to Opus on disagreement (>2 point delta). Expected improvement: evaluator false negatives reduced.
+
+### [Low] Autonomous Pi Dev Ops Self-Maintenance
+Turn the Pi-SEO scanner loose on Pi Dev Ops itself on a 6h schedule. Auto-create Linear tickets for findings.
+
+---
+
+## Sprint 7 — Complete (2026-04-10)
+
+| Issue | Change |
+|-------|--------|
+| RA-546 | Mobile/tablet responsive layout: bottom tab bar, card history, iOS zoom fix |
+| RA-547 | .claude/settings.json: WorktreeCreate/WorktreeRemove hooks for worktree isolation |
+| RA-548 | dashboard/app/api/telegram/route.ts: @piceoagent_bot commands + Claude chat |
+| RA-549 | Railway: claude-code-telegram agentic bot (full Claude Agent SDK, tool use via Telegram) |
+
+---
+
+## Sprint 6 — Complete (2026-04-10)
+
+| Issue | Change |
+|-------|--------|
+| RA-531 | app/server/scanner.py: autonomous multi-project Pi-SEO scanner |
+| RA-532 | Triage engine: auto-Linear ticket creation from findings |
+| RA-533 | .harness/projects.json: registry of 10 monitored repos |
+| RA-534 | skills/pi-seo-security: OWASP Top 10 + secret detection |
+| RA-535 | skills/pi-seo-deployment: Vercel Sandbox + Core Web Vitals |
+| RA-536 | skills/pi-seo-dependencies: CVE + outdated packages |
+| RA-537 | Auto-PR generation for auto-fixable findings |
+| RA-538 | dashboard/app/(main)/health: 10-repo health dashboard |
+| RA-539 | cron-triggers.json: 6h scan rotation for all 10 repos |
+| RA-540 | MCP: scan_project + get_project_health (13 tools total) |
+| RA-541 | Vercel Sandbox pre-baked Chromium snapshot |
+| RA-542 | Pi-SEO intelligence layer: 3 specialist skills + synthesiser |
+| RA-543 | Ship-chain: /spec /plan /build /test /review /ship pipeline |
+
+---
+
+## Sprint 5 — Complete (2026-04-09)
+
+| Issue | Change |
+|-------|--------|
+| RA-489–RA-508 | Security hardening: bcrypt, CSP nonce, Next.js auth middleware, pytest suite (34 tests) |
+| RA-515–RA-527 | Pydantic validation, graceful shutdown, crash recovery, health 503, CI expansion |
+| RA-528–RA-530 | .env.example, sessions.py refactor, structured logging |
+| RA-485 | Claude Agent SDK PoC: board-meeting agent, parallel 14-cycle comparison run |
 
 ---
 
@@ -24,66 +73,24 @@ Add `scripts/smoke_test.py` as a CI check that runs on push to main.
 
 | Issue | Change |
 |-------|--------|
-| RA-473 | `scripts/smoke_test.py`: 28-check E2E regression script, UTF-8 safe, CI exit codes |
-| RA-474 | Dashboard `/builds` page + Pi CEO proxy route; phase bar, evaluator scores, fan-out |
-| RA-475 | Real build trigger: 6/7 phases validated (generator running successfully) |
-| RA-476 | `linear_status` diagnostic tool in Pi CEO MCP; self-service setup guide |
+| RA-473 | scripts/smoke_test.py: 28-check E2E regression script |
+| RA-474 | Dashboard /builds page + Pi CEO proxy route |
+| RA-475 | Real build validated: 6/7 phases confirmed |
+| RA-476 | linear_status diagnostic tool in Pi CEO MCP |
 
 ---
 
 ## Sprint 3 — Complete (2026-04-08)
 
-### RA-470 [High] — E2E Integration Smoke Test
-**Problem:** 20 issues implemented across Sprint 1+2 but the full pipeline has never been
-validated end-to-end. Individual components were smoke-tested at module level only.
-
-**Required flow:**
-```
-Brief → PITER classify → ADW template select → Claude build (sandbox) → Evaluator grade → GitHub push
-```
-
-**Acceptance criteria:**
-- Submit a real brief via POST /api/build
-- Confirm PITER classifies correctly
-- Confirm ADW template selected and injected into brief
-- Confirm Claude Code runs in sandboxed workspace
-- Confirm Evaluator grades and either approves or triggers retry
-- Confirm push to GitHub on pass
+| Issue | Change |
+|-------|--------|
+| RA-469 | MCP get_zte_score reads leverage-audit.md directly |
+| RA-470 | E2E smoke test 22/22 pass; PITER priority bug fixed |
+| RA-471 | git push retry: 3 attempts, 2s/4s backoff |
+| RA-472 | handoff.md created |
 
 ---
 
-### RA-471 [Medium] — Error Recovery: Transient Failure Retry
-**Problem:** Error Recovery scored 2/5 in the original baseline. Sprint work brought it to 5/5
-for clone/generator retries and sandbox auto-generate. One gap remains: network blip during
-the final `git push` step.
+## Sprints 1+2 — Complete (2026-04-07/08)
 
-**Required:**
-- git push retry: up to 3 attempts with exponential backoff (2s, 4s)
-- Network error detection: distinguish transient (retry) from auth failures (hard stop)
-- Log retry attempts to session output stream
-
----
-
-### RA-472 [Medium] — Update handoff.md
-**Problem:** handoff.md is a minimal stub. Cross-session state relies on Linear issues.
-
-**Required:**
-- Compact summary of all 20 completed Sprint 1+2 implementation items
-- Current architecture state (what changed from baseline)
-- Known working configuration notes
-- Outstanding gaps
-
----
-
-## Completed Sprints
-
-### Sprint 2 / ZTE Sprint (2026-04-08) — 50/60 → 60/60
-RA-465 TAO wire-up, RA-464 fan-out, RA-463 harness dirs, RA-462 ZTE audit,
-RA-460 auto-brief, RA-467 autonomous board, RA-466 docs pull, RA-468 sandbox,
-plus ZTE sprint items: lesson injection, closed-loop evaluator, phase checkpoints,
-clone/generator retry, auto-learn, cron triggers
-
-### Sprint 1 / P1+P2 Sprint (2026-04-07) — 35/60 → 50/60
-RA-450 session persistence, RA-451 workspace GC, RA-452 rate-limit GC,
-RA-453 lessons.jsonl, RA-454 evaluator tier, RA-455 webhooks, RA-456 PITER+ADW,
-RA-457 skills loader, RA-458 CLAUDE.md, RA-459 security, RA-449 MCP v3.0.0
+Foundation → Capability → ZTE Sprint: 35/60 → 60/60 across 26 issues (RA-449–RA-468 + ZTE sprint items).

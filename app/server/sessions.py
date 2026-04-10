@@ -62,6 +62,8 @@ class BuildSession:
     evaluator_enabled: bool = True
     evaluator_status: str = "pending"
     evaluator_score: Optional[float] = None
+    evaluator_model: str = ""       # RA-553: which model(s) produced the score
+    evaluator_consensus: str = ""   # RA-553: per-model scores + delta description
     parent_session_id: Optional[str] = None  # RA-464: fan-out parallelism
     budget: Optional[object] = None           # RA-465: BudgetTracker instance
     last_completed_phase: str = ""            # Phase tracking for resume (GROUP D/E)
@@ -81,6 +83,8 @@ def list_sessions():
             "parent": s.parent_session_id,
             "last_phase": s.last_completed_phase,
             "evaluator_score": s.evaluator_score,
+            "evaluator_model": s.evaluator_model,
+            "evaluator_consensus": s.evaluator_consensus,
             "retry_count": s.retry_count,
             "evaluator_status": s.evaluator_status,
         }
@@ -179,6 +183,56 @@ def _parse_evaluator_dimensions(eval_text: str) -> dict:
                 except (ValueError, IndexError):
                     pass
     return dimensions
+
+
+async def _run_single_eval(workspace: str, eval_spec: str, model: str, timeout: int = 120) -> tuple[Optional[float], str]:
+    """Run one evaluator pass. Returns (score_or_None, full_output_text)."""
+    cmd = [config.CLAUDE_CMD, "-p", eval_spec, "--model", model, "--output-format", "text"]
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, cwd=workspace,
+        )
+        out, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+        text = out.decode("utf-8", errors="replace").strip()
+    except (asyncio.TimeoutError, Exception):
+        return None, ""
+    score: Optional[float] = None
+    for line in text.split("\n"):
+        if line.upper().startswith("OVERALL:"):
+            try:
+                score = float(line.split(":")[1].strip().split("/")[0].strip())
+            except (ValueError, IndexError):
+                pass
+    return score, text
+
+
+async def _run_parallel_eval(session, eval_spec: str) -> tuple[Optional[float], str, str, str]:
+    """Run Sonnet + Haiku in parallel; escalate to Opus when |delta| > 2.
+
+    Returns (final_score, primary_eval_text, evaluator_model_label, consensus_detail).
+    Weighted average on escalation: Opus 60%, Sonnet 30%, Haiku 10%.
+    """
+    em(session, "tool", "  $ claude --model sonnet (eval-1) | claude --model haiku (eval-2) [parallel]")
+    (s_score, s_text), (h_score, h_text) = await asyncio.gather(
+        _run_single_eval(session.workspace, eval_spec, "sonnet"),
+        _run_single_eval(session.workspace, eval_spec, "haiku"),
+    )
+    if s_score is None and h_score is None:
+        return None, "", "sonnet+haiku", "both evals failed"
+    if s_score is None:
+        return h_score, h_text, "haiku", "sonnet-failed"
+    if h_score is None:
+        return s_score, s_text, "sonnet", "haiku-failed"
+    delta = abs(s_score - h_score)
+    consensus = f"sonnet={s_score:.1f} haiku={h_score:.1f} delta={delta:.1f}"
+    if delta <= 2:
+        return (s_score + h_score) / 2, s_text, "sonnet+haiku", consensus
+    em(session, "agent", f"  Evaluator delta={delta:.1f} > 2 — escalating to Opus")
+    o_score, o_text = await _run_single_eval(session.workspace, eval_spec, "opus", timeout=180)
+    if o_score is None:
+        return (s_score + h_score) / 2, s_text, "sonnet+haiku", f"{consensus} opus-failed"
+    weighted = o_score * 0.6 + s_score * 0.3 + h_score * 0.1
+    return weighted, o_text, "opus-escalated", f"{consensus} opus={o_score:.1f} weighted={weighted:.1f}"
 
 
 _PHASE_ORDER = ["clone", "analyze", "claude_check", "sandbox", "generator", "evaluator", "push"]
@@ -503,21 +557,12 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
                 + "DIFF DETAIL (truncated to 8000 chars):\n" + diff_context + "\n\n"
                 + _EVAL_PROMPT_DIMS
             )
-            eval_cmd = [config.CLAUDE_CMD, "-p", eval_spec, "--model", config.EVALUATOR_MODEL, "--output-format", "text"]
-            em(session, "tool", f"  $ claude --model {config.EVALUATOR_MODEL} (evaluator)")
-            eval_proc = await asyncio.create_subprocess_exec(
-                *eval_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, cwd=session.workspace,
-            )
-            eval_out, _ = await asyncio.wait_for(eval_proc.communicate(), timeout=120)
-            eval_text = eval_out.decode("utf-8", errors="replace").strip()
-            session.evaluator_score = None
+            final_score, eval_text, eval_model, consensus_detail = await _run_parallel_eval(session, eval_spec)
+            session.evaluator_score = final_score
+            session.evaluator_model = eval_model
+            session.evaluator_consensus = consensus_detail
             for line in eval_text.split("\n"):
                 em(session, "agent", f"  {line.strip()[:200]}")
-                if line.upper().startswith("OVERALL:"):
-                    try:
-                        session.evaluator_score = float(line.split(":")[1].strip().split("/")[0].strip())
-                    except (ValueError, IndexError):
-                        pass
             if session.evaluator_score is None:
                 session.evaluator_status = "error"
                 em(session, "error", "  Evaluator: could not parse score")

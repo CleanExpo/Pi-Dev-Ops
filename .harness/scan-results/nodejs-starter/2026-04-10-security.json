@@ -1,0 +1,4631 @@
+{
+  "project_id": "nodejs-starter",
+  "repo": "CleanExpo/NodeJS-Starter-V1",
+  "scan_type": "security",
+  "started_at": "2026-04-10T06:26:53.724611+00:00",
+  "finished_at": "2026-04-10T06:26:54.322412+00:00",
+  "findings": [
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in SYSTEM_DOCS.md:87. Review and remediate.",
+      "file_path": "SYSTEM_DOCS.md",
+      "line_number": 87,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in docker-compose.yml:60. Review and remediate.",
+      "file_path": "docker-compose.yml",
+      "line_number": 60,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in docs/production-deployment.md:412. Rotate the credential immediately.",
+      "file_path": "docs/production-deployment.md",
+      "line_number": 412,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/production-deployment.md:381. Review and remediate.",
+      "file_path": "docs/production-deployment.md",
+      "line_number": 381,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/production-deployment.md:386. Review and remediate.",
+      "file_path": "docs/production-deployment.md",
+      "line_number": 386,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/production-deployment.md:395. Review and remediate.",
+      "file_path": "docs/production-deployment.md",
+      "line_number": 395,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/production-deployment.md:399. Review and remediate.",
+      "file_path": "docs/production-deployment.md",
+      "line_number": 399,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/production-deployment.md:401. Review and remediate.",
+      "file_path": "docs/production-deployment.md",
+      "line_number": 401,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in docs/production-deployment.md:311. Review and remediate.",
+      "file_path": "docs/production-deployment.md",
+      "line_number": 311,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/EVENT_BRIDGE.md:227. Review and remediate.",
+      "file_path": "docs/EVENT_BRIDGE.md",
+      "line_number": 227,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/EVENT_BRIDGE.md:383. Review and remediate.",
+      "file_path": "docs/EVENT_BRIDGE.md",
+      "line_number": 383,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/CRON_JOBS.md:242. Review and remediate.",
+      "file_path": "docs/CRON_JOBS.md",
+      "line_number": 242,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/AGENTIC_LAYER_IMPLEMENTATION.md:577. Review and remediate.",
+      "file_path": "docs/AGENTIC_LAYER_IMPLEMENTATION.md",
+      "line_number": 577,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/AGENTIC_LAYER_IMPLEMENTATION.md:590. Review and remediate.",
+      "file_path": "docs/AGENTIC_LAYER_IMPLEMENTATION.md",
+      "line_number": 590,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/AGENTIC_LAYER_IMPLEMENTATION.md:591. Review and remediate.",
+      "file_path": "docs/AGENTIC_LAYER_IMPLEMENTATION.md",
+      "line_number": 591,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/AGENTIC_LAYER_IMPLEMENTATION.md:592. Review and remediate.",
+      "file_path": "docs/AGENTIC_LAYER_IMPLEMENTATION.md",
+      "line_number": 592,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/AGENTIC_LAYER_IMPLEMENTATION.md:593. Review and remediate.",
+      "file_path": "docs/AGENTIC_LAYER_IMPLEMENTATION.md",
+      "line_number": 593,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/AGENTIC_LAYER_IMPLEMENTATION.md:598. Review and remediate.",
+      "file_path": "docs/AGENTIC_LAYER_IMPLEMENTATION.md",
+      "line_number": 598,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/AGENTIC_LAYER_IMPLEMENTATION.md:599. Review and remediate.",
+      "file_path": "docs/AGENTIC_LAYER_IMPLEMENTATION.md",
+      "line_number": 599,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/AGENTIC_LAYER_IMPLEMENTATION.md:600. Review and remediate.",
+      "file_path": "docs/AGENTIC_LAYER_IMPLEMENTATION.md",
+      "line_number": 600,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in docs/OPTIONAL_SERVICES.md:364. Review and remediate.",
+      "file_path": "docs/OPTIONAL_SERVICES.md",
+      "line_number": 364,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in docs/OPTIONAL_SERVICES.md:914. Review and remediate.",
+      "file_path": "docs/OPTIONAL_SERVICES.md",
+      "line_number": 914,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/validate-notebooks.py:23. Review and remediate.",
+      "file_path": "scripts/validate-notebooks.py",
+      "line_number": 23,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/validate-notebooks.py:30. Review and remediate.",
+      "file_path": "scripts/validate-notebooks.py",
+      "line_number": 30,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/validate-notebooks.py:127. Review and remediate.",
+      "file_path": "scripts/validate-notebooks.py",
+      "line_number": 127,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/validate-notebooks.py:128. Review and remediate.",
+      "file_path": "scripts/validate-notebooks.py",
+      "line_number": 128,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/validate-notebooks.py:129. Review and remediate.",
+      "file_path": "scripts/validate-notebooks.py",
+      "line_number": 129,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/validate-notebooks.py:130. Review and remediate.",
+      "file_path": "scripts/validate-notebooks.py",
+      "line_number": 130,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/validate-notebooks.py:131. Review and remediate.",
+      "file_path": "scripts/validate-notebooks.py",
+      "line_number": 131,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/validate-notebooks.py:132. Review and remediate.",
+      "file_path": "scripts/validate-notebooks.py",
+      "line_number": 132,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/validate-notebooks.py:147. Review and remediate.",
+      "file_path": "scripts/validate-notebooks.py",
+      "line_number": 147,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/validate-notebooks.py:149. Review and remediate.",
+      "file_path": "scripts/validate-notebooks.py",
+      "line_number": 149,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/validate-notebooks.py:152. Review and remediate.",
+      "file_path": "scripts/validate-notebooks.py",
+      "line_number": 152,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/validate-notebooks.py:158. Review and remediate.",
+      "file_path": "scripts/validate-notebooks.py",
+      "line_number": 158,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/validate-notebooks.py:160. Review and remediate.",
+      "file_path": "scripts/validate-notebooks.py",
+      "line_number": 160,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/validate-notebooks.py:162. Review and remediate.",
+      "file_path": "scripts/validate-notebooks.py",
+      "line_number": 162,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/validate-notebooks.py:164. Review and remediate.",
+      "file_path": "scripts/validate-notebooks.py",
+      "line_number": 164,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/dependency-checks.sh:142. Review and remediate.",
+      "file_path": "scripts/dependency-checks.sh",
+      "line_number": 142,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/dependency-checks.sh:246. Review and remediate.",
+      "file_path": "scripts/dependency-checks.sh",
+      "line_number": 246,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/dependency-checks.sh:328. Review and remediate.",
+      "file_path": "scripts/dependency-checks.sh",
+      "line_number": 328,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in scripts/dependency-checks.sh:330. Review and remediate.",
+      "file_path": "scripts/dependency-checks.sh",
+      "line_number": 330,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/version-checks/check-model-currency.ts:156. Review and remediate.",
+      "file_path": "src/ai/version-checks/check-model-currency.ts",
+      "line_number": 156,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/version-checks/check-model-currency.ts:157. Review and remediate.",
+      "file_path": "src/ai/version-checks/check-model-currency.ts",
+      "line_number": 157,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/adoption/project-adopter.ts:19. Review and remediate.",
+      "file_path": "src/ai/adoption/project-adopter.ts",
+      "line_number": 19,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/adoption/project-adopter.ts:23. Review and remediate.",
+      "file_path": "src/ai/adoption/project-adopter.ts",
+      "line_number": 23,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/adoption/project-adopter.ts:24. Review and remediate.",
+      "file_path": "src/ai/adoption/project-adopter.ts",
+      "line_number": 24,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/adoption/project-adopter.ts:25. Review and remediate.",
+      "file_path": "src/ai/adoption/project-adopter.ts",
+      "line_number": 25,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/adoption/project-adopter.ts:26. Review and remediate.",
+      "file_path": "src/ai/adoption/project-adopter.ts",
+      "line_number": 26,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/adoption/project-adopter.ts:27. Review and remediate.",
+      "file_path": "src/ai/adoption/project-adopter.ts",
+      "line_number": 27,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/adoption/project-adopter.ts:28. Review and remediate.",
+      "file_path": "src/ai/adoption/project-adopter.ts",
+      "line_number": 28,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/adoption/project-adopter.ts:29. Review and remediate.",
+      "file_path": "src/ai/adoption/project-adopter.ts",
+      "line_number": 29,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/adoption/project-adopter.ts:30. Review and remediate.",
+      "file_path": "src/ai/adoption/project-adopter.ts",
+      "line_number": 30,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/adoption/project-adopter.ts:31. Review and remediate.",
+      "file_path": "src/ai/adoption/project-adopter.ts",
+      "line_number": 31,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/adoption/project-adopter.ts:39. Review and remediate.",
+      "file_path": "src/ai/adoption/project-adopter.ts",
+      "line_number": 39,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/adoption/project-adopter.ts:40. Review and remediate.",
+      "file_path": "src/ai/adoption/project-adopter.ts",
+      "line_number": 40,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/adoption/project-adopter.ts:41. Review and remediate.",
+      "file_path": "src/ai/adoption/project-adopter.ts",
+      "line_number": 41,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/adoption/project-adopter.ts:42. Review and remediate.",
+      "file_path": "src/ai/adoption/project-adopter.ts",
+      "line_number": 42,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/adoption/project-adopter.ts:45. Review and remediate.",
+      "file_path": "src/ai/adoption/project-adopter.ts",
+      "line_number": 45,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/adoption/project-adopter.ts:50. Review and remediate.",
+      "file_path": "src/ai/adoption/project-adopter.ts",
+      "line_number": 50,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/ai/adoption/project-adopter.ts:59. Review and remediate.",
+      "file_path": "src/ai/adoption/project-adopter.ts",
+      "line_number": 59,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/integrations/linear/sync-issues.ts:16. Review and remediate.",
+      "file_path": "src/integrations/linear/sync-issues.ts",
+      "line_number": 16,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/integrations/linear/sync-issues.ts:39. Review and remediate.",
+      "file_path": "src/integrations/linear/sync-issues.ts",
+      "line_number": 39,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/integrations/linear/sync-issues.ts:40. Review and remediate.",
+      "file_path": "src/integrations/linear/sync-issues.ts",
+      "line_number": 40,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/integrations/linear/sync-issues.ts:43. Review and remediate.",
+      "file_path": "src/integrations/linear/sync-issues.ts",
+      "line_number": 43,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in .skills/custom/docker-patterns/SKILL.md:111. Review and remediate.",
+      "file_path": ".skills/custom/docker-patterns/SKILL.md",
+      "line_number": 111,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in .skills/custom/docker-patterns/SKILL.md:182. Review and remediate.",
+      "file_path": ".skills/custom/docker-patterns/SKILL.md",
+      "line_number": 182,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in .skills/custom/docker-patterns/SKILL.md:285. Review and remediate.",
+      "file_path": ".skills/custom/docker-patterns/SKILL.md",
+      "line_number": 285,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in .skills/custom/systematic-debugging/SKILL.md:97. Review and remediate.",
+      "file_path": ".skills/custom/systematic-debugging/SKILL.md",
+      "line_number": 97,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in .skills/custom/systematic-debugging/SKILL.md:100. Review and remediate.",
+      "file_path": ".skills/custom/systematic-debugging/SKILL.md",
+      "line_number": 100,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in .skills/custom/systematic-debugging/SKILL.md:101. Review and remediate.",
+      "file_path": ".skills/custom/systematic-debugging/SKILL.md",
+      "line_number": 101,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .skills/custom/systematic-debugging/SKILL.md:86. Review and remediate.",
+      "file_path": ".skills/custom/systematic-debugging/SKILL.md",
+      "line_number": 86,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .skills/custom/systematic-debugging/SKILL.md:89. Review and remediate.",
+      "file_path": ".skills/custom/systematic-debugging/SKILL.md",
+      "line_number": 89,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .skills/custom/systematic-debugging/SKILL.md:92. Review and remediate.",
+      "file_path": ".skills/custom/systematic-debugging/SKILL.md",
+      "line_number": 92,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in .skills/custom/infrastructure-as-code/SKILL.md:132. Review and remediate.",
+      "file_path": ".skills/custom/infrastructure-as-code/SKILL.md",
+      "line_number": 132,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: TODO near sensitive keyword",
+      "description": "Found in .skills/custom/code-output-uplift/SKILL.md:63. Review and remediate.",
+      "file_path": ".skills/custom/code-output-uplift/SKILL.md",
+      "line_number": 63,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Dangerous pattern: shell=True subprocess",
+      "description": "Found in .skills/custom/input-sanitisation/SKILL.md:193. Review and remediate.",
+      "file_path": ".skills/custom/input-sanitisation/SKILL.md",
+      "line_number": 193,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Dangerous pattern: shell=True subprocess",
+      "description": "Found in .skills/custom/input-sanitisation/SKILL.md:200. Review and remediate.",
+      "file_path": ".skills/custom/input-sanitisation/SKILL.md",
+      "line_number": 200,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in .skills/custom/input-sanitisation/SKILL.md:81. Review and remediate.",
+      "file_path": ".skills/custom/input-sanitisation/SKILL.md",
+      "line_number": 81,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in .skills/custom/input-sanitisation/SKILL.md:90. Review and remediate.",
+      "file_path": ".skills/custom/input-sanitisation/SKILL.md",
+      "line_number": 90,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in .skills/custom/input-sanitisation/SKILL.md:301. Review and remediate.",
+      "file_path": ".skills/custom/input-sanitisation/SKILL.md",
+      "line_number": 301,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in .skills/custom/input-sanitisation/SKILL.md:314. Review and remediate.",
+      "file_path": ".skills/custom/input-sanitisation/SKILL.md",
+      "line_number": 314,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in .skills/custom/input-sanitisation/SKILL.md:274. Review and remediate.",
+      "file_path": ".skills/custom/input-sanitisation/SKILL.md",
+      "line_number": 274,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in .skills/custom/markdown-processor/SKILL.md:238. Review and remediate.",
+      "file_path": ".skills/custom/markdown-processor/SKILL.md",
+      "line_number": 238,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in .skills/custom/markdown-processor/SKILL.md:244. Review and remediate.",
+      "file_path": ".skills/custom/markdown-processor/SKILL.md",
+      "line_number": 244,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in .skills/custom/structured-logging/SKILL.md:281. Review and remediate.",
+      "file_path": ".skills/custom/structured-logging/SKILL.md",
+      "line_number": 281,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .skills/custom/structured-logging/SKILL.md:54. Review and remediate.",
+      "file_path": ".skills/custom/structured-logging/SKILL.md",
+      "line_number": 54,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .skills/custom/structured-logging/SKILL.md:55. Review and remediate.",
+      "file_path": ".skills/custom/structured-logging/SKILL.md",
+      "line_number": 55,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: TODO near sensitive keyword",
+      "description": "Found in .skills/custom/verification-before-completion/SKILL.md:231. Review and remediate.",
+      "file_path": ".skills/custom/verification-before-completion/SKILL.md",
+      "line_number": 231,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in .skills/custom/graceful-shutdown/SKILL.md:115. Review and remediate.",
+      "file_path": ".skills/custom/graceful-shutdown/SKILL.md",
+      "line_number": 115,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in .skills/custom/structured-logging/references/anti-patterns.md:41. Review and remediate.",
+      "file_path": ".skills/custom/structured-logging/references/anti-patterns.md",
+      "line_number": 41,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in .skills/custom/structured-logging/references/anti-patterns.md:49. Review and remediate.",
+      "file_path": ".skills/custom/structured-logging/references/anti-patterns.md",
+      "line_number": 49,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .skills/custom/structured-logging/references/anti-patterns.md:25. Review and remediate.",
+      "file_path": ".skills/custom/structured-logging/references/anti-patterns.md",
+      "line_number": 25,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .skills/custom/structured-logging/references/anti-patterns.md:31. Review and remediate.",
+      "file_path": ".skills/custom/structured-logging/references/anti-patterns.md",
+      "line_number": 31,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .skills/custom/structured-logging/references/anti-patterns.md:32. Review and remediate.",
+      "file_path": ".skills/custom/structured-logging/references/anti-patterns.md",
+      "line_number": 32,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .skills/custom/structured-logging/references/anti-patterns.md:49. Review and remediate.",
+      "file_path": ".skills/custom/structured-logging/references/anti-patterns.md",
+      "line_number": 49,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in .skills/custom/structured-logging/assets/examples/before-after.md:86. Review and remediate.",
+      "file_path": ".skills/custom/structured-logging/assets/examples/before-after.md",
+      "line_number": 86,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in .skills/custom/structured-logging/assets/examples/before-after.md:90. Review and remediate.",
+      "file_path": ".skills/custom/structured-logging/assets/examples/before-after.md",
+      "line_number": 90,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .skills/custom/structured-logging/assets/examples/before-after.md:7. Review and remediate.",
+      "file_path": ".skills/custom/structured-logging/assets/examples/before-after.md",
+      "line_number": 7,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .skills/custom/structured-logging/assets/examples/before-after.md:13. Review and remediate.",
+      "file_path": ".skills/custom/structured-logging/assets/examples/before-after.md",
+      "line_number": 13,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .skills/custom/structured-logging/assets/examples/before-after.md:17. Review and remediate.",
+      "file_path": ".skills/custom/structured-logging/assets/examples/before-after.md",
+      "line_number": 17,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in .skills/custom/document-formatting-uplift/assets/examples/before-after.md:81. Review and remediate.",
+      "file_path": ".skills/custom/document-formatting-uplift/assets/examples/before-after.md",
+      "line_number": 81,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in .skills/custom/document-formatting-uplift/assets/examples/before-after.md:122. Review and remediate.",
+      "file_path": ".skills/custom/document-formatting-uplift/assets/examples/before-after.md",
+      "line_number": 122,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: TODO near sensitive keyword",
+      "description": "Found in .skills/custom/code-output-uplift/references/standards-generic.md:190. Review and remediate.",
+      "file_path": ".skills/custom/code-output-uplift/references/standards-generic.md",
+      "line_number": 190,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in .skills/custom/code-output-uplift/references/anti-patterns.md:88. Review and remediate.",
+      "file_path": ".skills/custom/code-output-uplift/references/anti-patterns.md",
+      "line_number": 88,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in .skills/custom/code-output-uplift/references/anti-patterns.md:89. Review and remediate.",
+      "file_path": ".skills/custom/code-output-uplift/references/anti-patterns.md",
+      "line_number": 89,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in .skills/custom/code-output-uplift/references/anti-patterns.md:90. Review and remediate.",
+      "file_path": ".skills/custom/code-output-uplift/references/anti-patterns.md",
+      "line_number": 90,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in .skills/custom/code-output-uplift/references/anti-patterns.md:94. Review and remediate.",
+      "file_path": ".skills/custom/code-output-uplift/references/anti-patterns.md",
+      "line_number": 94,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in .skills/custom/code-output-uplift/references/anti-patterns.md:95. Review and remediate.",
+      "file_path": ".skills/custom/code-output-uplift/references/anti-patterns.md",
+      "line_number": 95,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in .skills/custom/code-output-uplift/references/anti-patterns.md:98. Review and remediate.",
+      "file_path": ".skills/custom/code-output-uplift/references/anti-patterns.md",
+      "line_number": 98,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: TODO near sensitive keyword",
+      "description": "Found in .skills/custom/code-output-uplift/references/anti-patterns.md:212. Review and remediate.",
+      "file_path": ".skills/custom/code-output-uplift/references/anti-patterns.md",
+      "line_number": 212,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in .skills/custom/code-output-uplift/assets/examples/before-after.md:32. Review and remediate.",
+      "file_path": ".skills/custom/code-output-uplift/assets/examples/before-after.md",
+      "line_number": 32,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .skills/custom/code-output-uplift/assets/examples/before-after.md:94. Review and remediate.",
+      "file_path": ".skills/custom/code-output-uplift/assets/examples/before-after.md",
+      "line_number": 94,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .skills/custom/code-output-uplift/assets/examples/before-after.md:102. Review and remediate.",
+      "file_path": ".skills/custom/code-output-uplift/assets/examples/before-after.md",
+      "line_number": 102,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .skills/custom/code-output-uplift/assets/examples/before-after.md:118. Review and remediate.",
+      "file_path": ".skills/custom/code-output-uplift/assets/examples/before-after.md",
+      "line_number": 118,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .skills/custom/code-output-uplift/assets/examples/before-after.md:121. Review and remediate.",
+      "file_path": ".skills/custom/code-output-uplift/assets/examples/before-after.md",
+      "line_number": 121,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in apps/web/Dockerfile:39. Review and remediate.",
+      "file_path": "apps/web/Dockerfile",
+      "line_number": 39,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in apps/backend/Dockerfile:30. Review and remediate.",
+      "file_path": "apps/backend/Dockerfile",
+      "line_number": 30,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in apps/backend/Procfile:1. Review and remediate.",
+      "file_path": "apps/backend/Procfile",
+      "line_number": 1,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in apps/backend/railway.json:8. Review and remediate.",
+      "file_path": "apps/backend/railway.json",
+      "line_number": 8,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:24. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 24,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:25. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 25,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:26. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 26,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:27. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 27,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:31. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 31,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:32. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 32,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:33. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 33,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:34. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 34,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:35. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 35,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:36. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 36,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:38. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 38,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:43. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 43,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:44. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 44,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:45. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 45,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:46. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 46,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:47. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 47,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:48. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 48,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:50. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 50,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:51. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 51,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:52. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 52,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:53. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 53,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:54. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 54,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:55. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 55,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:56. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 56,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:58. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 58,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:59. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 59,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:60. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 60,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:61. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 61,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:62. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 62,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:64. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 64,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:65. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 65,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:66. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 66,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:67. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 67,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:68. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 68,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:69. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 69,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:71. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 71,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:76. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 76,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:77. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 77,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:78. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 78,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:79. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 79,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:114. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 114,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:115. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 115,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:116. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 116,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:117. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 117,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:118. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 118,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:119. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 119,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:121. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 121,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:126. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 126,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:129. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 129,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:131. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 131,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:133. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 133,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:136. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 136,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:137. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 137,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:138. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 138,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:140. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 140,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:145. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 145,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:146. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 146,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:147. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 147,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:148. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 148,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:153. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 153,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:158. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 158,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:159. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 159,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:161. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 161,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:199. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 199,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:200. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 200,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:201. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 201,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:203. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 203,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:209. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 209,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:210. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 210,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:211. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 211,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:212. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 212,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:213. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 213,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:214. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 214,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:216. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 216,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:217. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 217,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:218. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 218,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:219. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 219,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:221. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 221,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:222. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 222,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:227. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 227,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:228. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 228,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:229. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 229,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:233. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 233,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:234. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 234,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:235. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 235,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:236. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 236,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:237. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 237,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:238. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 238,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:239. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 239,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:241. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 241,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:242. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 242,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:243. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 243,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:244. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 244,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:245. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 245,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:246. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 246,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:248. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 248,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:249. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 249,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:250. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 250,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:251. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 251,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:252. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 252,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:253. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 253,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:254. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 254,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:255. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 255,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:256. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 256,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:258. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 258,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:259. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 259,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:260. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 260,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:261. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 261,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:262. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 262,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:263. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 263,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:264. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 264,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:265. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 265,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:266. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 266,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:267. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 267,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:271. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 271,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:272. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 272,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:273. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 273,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:274. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 274,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:275. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 275,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:276. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 276,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:278. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 278,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:283. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 283,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:284. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 284,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:285. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 285,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:286. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 286,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:302. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 302,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:303. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 303,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:304. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 304,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:305. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 305,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:306. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 306,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:307. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 307,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:308. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 308,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:309. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 309,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:310. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 310,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:311. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 311,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:312. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 312,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/examples/use_agentic_layer.py:317. Review and remediate.",
+      "file_path": "apps/backend/examples/use_agentic_layer.py",
+      "line_number": 317,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:17. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 17,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:18. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 18,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:19. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 19,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:25. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 25,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:27. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 27,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:42. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 42,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:78. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 78,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:96. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 96,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:116. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 116,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:142. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 142,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:192. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 192,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:224. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 224,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:225. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 225,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:227. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 227,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:230. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 230,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:232. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 232,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:234. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 234,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:235. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 235,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:236. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 236,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:237. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 237,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:238. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 238,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:243. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 243,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:244. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 244,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:246. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 246,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:247. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 247,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:249. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 249,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:250. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 250,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:251. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 251,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:252. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 252,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:253. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 253,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:263. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 263,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/scripts/setup-memory.py:266. Review and remediate.",
+      "file_path": "apps/backend/scripts/setup-memory.py",
+      "line_number": 266,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: eval() usage",
+      "description": "Found in apps/backend/src/workflow/engine.py:254. Review and remediate.",
+      "file_path": "apps/backend/src/workflow/engine.py",
+      "line_number": 254,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/src/agents/prd/USAGE.md:44. Review and remediate.",
+      "file_path": "apps/backend/src/agents/prd/USAGE.md",
+      "line_number": 44,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/src/agents/prd/USAGE.md:45. Review and remediate.",
+      "file_path": "apps/backend/src/agents/prd/USAGE.md",
+      "line_number": 45,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/src/agents/prd/USAGE.md:46. Review and remediate.",
+      "file_path": "apps/backend/src/agents/prd/USAGE.md",
+      "line_number": 46,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/src/agents/prd/USAGE.md:47. Review and remediate.",
+      "file_path": "apps/backend/src/agents/prd/USAGE.md",
+      "line_number": 47,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/src/agents/prd/USAGE.md:48. Review and remediate.",
+      "file_path": "apps/backend/src/agents/prd/USAGE.md",
+      "line_number": 48,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/src/agents/prd/USAGE.md:50. Review and remediate.",
+      "file_path": "apps/backend/src/agents/prd/USAGE.md",
+      "line_number": 50,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/src/agents/prd/USAGE.md:73. Review and remediate.",
+      "file_path": "apps/backend/src/agents/prd/USAGE.md",
+      "line_number": 73,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/src/agents/prd/USAGE.md:74. Review and remediate.",
+      "file_path": "apps/backend/src/agents/prd/USAGE.md",
+      "line_number": 74,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/src/agents/prd/USAGE.md:100. Review and remediate.",
+      "file_path": "apps/backend/src/agents/prd/USAGE.md",
+      "line_number": 100,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/src/agents/prd/USAGE.md:101. Review and remediate.",
+      "file_path": "apps/backend/src/agents/prd/USAGE.md",
+      "line_number": 101,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/src/agents/prd/USAGE.md:129. Review and remediate.",
+      "file_path": "apps/backend/src/agents/prd/USAGE.md",
+      "line_number": 129,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/src/agents/prd/USAGE.md:130. Review and remediate.",
+      "file_path": "apps/backend/src/agents/prd/USAGE.md",
+      "line_number": 130,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/src/agents/prd/USAGE.md:158. Review and remediate.",
+      "file_path": "apps/backend/src/agents/prd/USAGE.md",
+      "line_number": 158,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/src/agents/prd/USAGE.md:159. Review and remediate.",
+      "file_path": "apps/backend/src/agents/prd/USAGE.md",
+      "line_number": 159,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/src/agents/prd/USAGE.md:160. Review and remediate.",
+      "file_path": "apps/backend/src/agents/prd/USAGE.md",
+      "line_number": 160,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/src/agents/prd/USAGE.md:189. Review and remediate.",
+      "file_path": "apps/backend/src/agents/prd/USAGE.md",
+      "line_number": 189,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/src/agents/prd/USAGE.md:190. Review and remediate.",
+      "file_path": "apps/backend/src/agents/prd/USAGE.md",
+      "line_number": 190,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/src/agents/prd/USAGE.md:191. Review and remediate.",
+      "file_path": "apps/backend/src/agents/prd/USAGE.md",
+      "line_number": 191,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/src/agents/prd/USAGE.md:400. Review and remediate.",
+      "file_path": "apps/backend/src/agents/prd/USAGE.md",
+      "line_number": 400,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/src/agents/prd/prd_orchestrator.py:82. Review and remediate.",
+      "file_path": "apps/backend/src/agents/prd/prd_orchestrator.py",
+      "line_number": 82,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in apps/backend/src/agents/prd/prd_orchestrator.py:83. Review and remediate.",
+      "file_path": "apps/backend/src/agents/prd/prd_orchestrator.py",
+      "line_number": 83,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in apps/web/lib/logger.ts:34. Review and remediate.",
+      "file_path": "apps/web/lib/logger.ts",
+      "line_number": 34,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in apps/web/lib/csrf.ts:12. Rotate the credential immediately.",
+      "file_path": "apps/web/lib/csrf.ts",
+      "line_number": 12,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: TODO near sensitive keyword",
+      "description": "Found in apps/web/e2e/prd-generation.spec.ts:73. Review and remediate.",
+      "file_path": "apps/web/e2e/prd-generation.spec.ts",
+      "line_number": 73,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in apps/web/lib/image-generation/asset-manager.ts:73. Review and remediate.",
+      "file_path": "apps/web/lib/image-generation/asset-manager.ts",
+      "line_number": 73,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in apps/web/lib/design-system/pattern-validator.ts:374. Review and remediate.",
+      "file_path": "apps/web/lib/design-system/pattern-validator.ts",
+      "line_number": 374,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in apps/web/lib/design-system/pattern-validator.ts:377. Review and remediate.",
+      "file_path": "apps/web/lib/design-system/pattern-validator.ts",
+      "line_number": 377,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in apps/web/app/api/stripe/webhook/route.ts:31. Review and remediate.",
+      "file_path": "apps/web/app/api/stripe/webhook/route.ts",
+      "line_number": 31,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in apps/web/app/api/stripe/webhook/route.ts:41. Review and remediate.",
+      "file_path": "apps/web/app/api/stripe/webhook/route.ts",
+      "line_number": 41,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in apps/web/app/api/stripe/webhook/route.ts:50. Review and remediate.",
+      "file_path": "apps/web/app/api/stripe/webhook/route.ts",
+      "line_number": 50,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in apps/web/app/api/stripe/webhook/route.ts:58. Review and remediate.",
+      "file_path": "apps/web/app/api/stripe/webhook/route.ts",
+      "line_number": 58,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in skills/database/supabase.skill.md:179. Review and remediate.",
+      "file_path": "skills/database/supabase.skill.md",
+      "line_number": 179,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in skills/database/supabase.skill.md:199. Review and remediate.",
+      "file_path": "skills/database/supabase.skill.md",
+      "line_number": 199,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in skills/workflow/bug-fixing.skill.md:99. Review and remediate.",
+      "file_path": "skills/workflow/bug-fixing.skill.md",
+      "line_number": 99,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in skills/workflow/bug-fixing.skill.md:101. Review and remediate.",
+      "file_path": "skills/workflow/bug-fixing.skill.md",
+      "line_number": 101,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .github/workflows/solution-library-sync.yml:69. Review and remediate.",
+      "file_path": ".github/workflows/solution-library-sync.yml",
+      "line_number": 69,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .github/workflows/solution-library-sync.yml:71. Review and remediate.",
+      "file_path": ".github/workflows/solution-library-sync.yml",
+      "line_number": 71,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .github/workflows/agent-pr-checks.yml:150. Review and remediate.",
+      "file_path": ".github/workflows/agent-pr-checks.yml",
+      "line_number": 150,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .github/workflows/agent-pr-checks.yml:151. Review and remediate.",
+      "file_path": ".github/workflows/agent-pr-checks.yml",
+      "line_number": 151,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:68. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 68,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:80. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 80,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:86. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 86,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:94. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 94,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:100. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 100,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:110. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 110,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:116. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 116,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:124. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 124,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:257. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 257,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:258. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 258,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:259. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 259,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:260. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 260,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:262. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 262,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:269. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 269,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:270. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 270,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:272. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 272,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:274. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 274,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:275. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 275,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:276. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 276,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:277. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 277,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:282. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 282,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:284. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 284,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:286. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 286,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:289. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 289,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:291. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 291,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:292. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 292,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:293. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 293,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/autoresearch/orchestrator.py:294. Review and remediate.",
+      "file_path": "scripts/autoresearch/orchestrator.py",
+      "line_number": 294,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in docs/archive/PRODUCTION-DEPLOYMENT.md:154. Review and remediate.",
+      "file_path": "docs/archive/PRODUCTION-DEPLOYMENT.md",
+      "line_number": 154,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Dangerous pattern: Debug mode enabled",
+      "description": "Found in docs/archive/SUPABASE-QUICKSTART.md:182. Review and remediate.",
+      "file_path": "docs/archive/SUPABASE-QUICKSTART.md",
+      "line_number": 182,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Dangerous pattern: Debug mode enabled",
+      "description": "Found in docs/archive/SUPABASE-SETUP.md:169. Review and remediate.",
+      "file_path": "docs/archive/SUPABASE-SETUP.md",
+      "line_number": 169,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in docs/archive/TESTING_GUIDE.md:256. Review and remediate.",
+      "file_path": "docs/archive/TESTING_GUIDE.md",
+      "line_number": 256,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/plans/2026-03-06-self-upgrade-adoption-engine.md:1181. Review and remediate.",
+      "file_path": "docs/plans/2026-03-06-self-upgrade-adoption-engine.md",
+      "line_number": 1181,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/plans/2026-03-06-self-upgrade-adoption-engine.md:1184. Review and remediate.",
+      "file_path": "docs/plans/2026-03-06-self-upgrade-adoption-engine.md",
+      "line_number": 1184,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/plans/2026-03-06-self-upgrade-adoption-engine.md:1185. Review and remediate.",
+      "file_path": "docs/plans/2026-03-06-self-upgrade-adoption-engine.md",
+      "line_number": 1185,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/plans/2026-03-06-self-upgrade-adoption-engine.md:1186. Review and remediate.",
+      "file_path": "docs/plans/2026-03-06-self-upgrade-adoption-engine.md",
+      "line_number": 1186,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/plans/2026-03-06-self-upgrade-adoption-engine.md:1187. Review and remediate.",
+      "file_path": "docs/plans/2026-03-06-self-upgrade-adoption-engine.md",
+      "line_number": 1187,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/plans/2026-03-06-self-upgrade-adoption-engine.md:1188. Review and remediate.",
+      "file_path": "docs/plans/2026-03-06-self-upgrade-adoption-engine.md",
+      "line_number": 1188,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/plans/2026-03-06-self-upgrade-adoption-engine.md:1189. Review and remediate.",
+      "file_path": "docs/plans/2026-03-06-self-upgrade-adoption-engine.md",
+      "line_number": 1189,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/plans/2026-03-06-self-upgrade-adoption-engine.md:1190. Review and remediate.",
+      "file_path": "docs/plans/2026-03-06-self-upgrade-adoption-engine.md",
+      "line_number": 1190,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/plans/2026-03-06-self-upgrade-adoption-engine.md:1197. Review and remediate.",
+      "file_path": "docs/plans/2026-03-06-self-upgrade-adoption-engine.md",
+      "line_number": 1197,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/plans/2026-03-06-self-upgrade-adoption-engine.md:1198. Review and remediate.",
+      "file_path": "docs/plans/2026-03-06-self-upgrade-adoption-engine.md",
+      "line_number": 1198,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/plans/2026-03-06-self-upgrade-adoption-engine.md:1201. Review and remediate.",
+      "file_path": "docs/plans/2026-03-06-self-upgrade-adoption-engine.md",
+      "line_number": 1201,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/plans/2026-03-06-self-upgrade-adoption-engine.md:1205. Review and remediate.",
+      "file_path": "docs/plans/2026-03-06-self-upgrade-adoption-engine.md",
+      "line_number": 1205,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/plans/2026-03-06-self-upgrade-adoption-engine.md:1213. Review and remediate.",
+      "file_path": "docs/plans/2026-03-06-self-upgrade-adoption-engine.md",
+      "line_number": 1213,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/plans/2026-03-06-self-upgrade-adoption-engine.md:1327. Review and remediate.",
+      "file_path": "docs/plans/2026-03-06-self-upgrade-adoption-engine.md",
+      "line_number": 1327,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/plans/2026-03-06-self-upgrade-adoption-engine.md:1350. Review and remediate.",
+      "file_path": "docs/plans/2026-03-06-self-upgrade-adoption-engine.md",
+      "line_number": 1350,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/plans/2026-03-06-self-upgrade-adoption-engine.md:1399. Review and remediate.",
+      "file_path": "docs/plans/2026-03-06-self-upgrade-adoption-engine.md",
+      "line_number": 1399,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/plans/2026-03-06-self-upgrade-adoption-engine.md:1412. Review and remediate.",
+      "file_path": "docs/plans/2026-03-06-self-upgrade-adoption-engine.md",
+      "line_number": 1412,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/plans/2026-03-06-self-upgrade-adoption-engine.md:1413. Review and remediate.",
+      "file_path": "docs/plans/2026-03-06-self-upgrade-adoption-engine.md",
+      "line_number": 1413,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/plans/2026-03-06-self-upgrade-adoption-engine.md:1414. Review and remediate.",
+      "file_path": "docs/plans/2026-03-06-self-upgrade-adoption-engine.md",
+      "line_number": 1414,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/plans/2026-03-06-self-upgrade-adoption-engine.md:1415. Review and remediate.",
+      "file_path": "docs/plans/2026-03-06-self-upgrade-adoption-engine.md",
+      "line_number": 1415,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Dangerous pattern: Debug mode enabled",
+      "description": "Found in docs/features/AUTH_OAUTH_DEPLOYMENT.md:174. Review and remediate.",
+      "file_path": "docs/features/AUTH_OAUTH_DEPLOYMENT.md",
+      "line_number": 174,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/superpowers/plans/2026-03-18-framework-overhaul.md:69. Review and remediate.",
+      "file_path": "docs/superpowers/plans/2026-03-18-framework-overhaul.md",
+      "line_number": 69,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/superpowers/plans/2026-03-18-framework-overhaul.md:211. Review and remediate.",
+      "file_path": "docs/superpowers/plans/2026-03-18-framework-overhaul.md",
+      "line_number": 211,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/superpowers/specs/2026-03-26-capability-uplift-design.md:320. Review and remediate.",
+      "file_path": "docs/superpowers/specs/2026-03-26-capability-uplift-design.md",
+      "line_number": 320,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/database/supabase.md:266. Review and remediate.",
+      "file_path": "docs/internal/database/supabase.md",
+      "line_number": 266,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/database/supabase.md:284. Review and remediate.",
+      "file_path": "docs/internal/database/supabase.md",
+      "line_number": 284,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/database/supabase.md:302. Review and remediate.",
+      "file_path": "docs/internal/database/supabase.md",
+      "line_number": 302,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/database/supabase.md:315. Review and remediate.",
+      "file_path": "docs/internal/database/supabase.md",
+      "line_number": 315,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/frontend/shadcn-ui.md:223. Review and remediate.",
+      "file_path": "docs/internal/frontend/shadcn-ui.md",
+      "line_number": 223,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in docs/internal/ai-models/google-gemini.md:65. Rotate the credential immediately.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 65,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in docs/internal/ai-models/google-gemini.md:616. Rotate the credential immediately.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 616,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in docs/internal/ai-models/google-gemini.md:633. Rotate the credential immediately.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 633,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in docs/internal/ai-models/google-gemini.md:635. Rotate the credential immediately.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 635,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:123. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 123,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:146. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 146,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:216. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 216,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:219. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 219,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:379. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 379,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:113. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 113,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:135. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 135,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:157. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 157,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:164. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 164,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:190. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 190,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:201. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 201,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:204. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 204,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:240. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 240,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:265. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 265,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:289. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 289,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:312. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 312,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:345. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 345,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:394. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 394,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:409. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 409,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:424. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 424,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:438. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 438,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:456. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 456,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:512. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 512,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:563. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 563,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:573. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 573,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:589. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 589,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:590. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 590,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/google-gemini.md:626. Review and remediate.",
+      "file_path": "docs/internal/ai-models/google-gemini.md",
+      "line_number": 626,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in docs/internal/ai-models/anthropic-claude.md:75. Rotate the credential immediately.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 75,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:112. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 112,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:227. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 227,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:229. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 229,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:101. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 101,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:146. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 146,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:160. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 160,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:202. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 202,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:204. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 204,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:246. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 246,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:248. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 248,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:293. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 293,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:319. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 319,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:347. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 347,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:501. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 501,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:516. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 516,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:519. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 519,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/anthropic-claude.md:521. Review and remediate.",
+      "file_path": "docs/internal/ai-models/anthropic-claude.md",
+      "line_number": 521,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in docs/internal/ai-models/openrouter.md:37. Rotate the credential immediately.",
+      "file_path": "docs/internal/ai-models/openrouter.md",
+      "line_number": 37,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in docs/internal/ai-models/openrouter.md:91. Review and remediate.",
+      "file_path": "docs/internal/ai-models/openrouter.md",
+      "line_number": 91,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/openrouter.md:81. Review and remediate.",
+      "file_path": "docs/internal/ai-models/openrouter.md",
+      "line_number": 81,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/openrouter.md:109. Review and remediate.",
+      "file_path": "docs/internal/ai-models/openrouter.md",
+      "line_number": 109,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/openrouter.md:314. Review and remediate.",
+      "file_path": "docs/internal/ai-models/openrouter.md",
+      "line_number": 314,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/openrouter.md:327. Review and remediate.",
+      "file_path": "docs/internal/ai-models/openrouter.md",
+      "line_number": 327,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/openrouter.md:328. Review and remediate.",
+      "file_path": "docs/internal/ai-models/openrouter.md",
+      "line_number": 328,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/openrouter.md:379. Review and remediate.",
+      "file_path": "docs/internal/ai-models/openrouter.md",
+      "line_number": 379,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/openrouter.md:395. Review and remediate.",
+      "file_path": "docs/internal/ai-models/openrouter.md",
+      "line_number": 395,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in docs/internal/ai-models/openrouter.md:409. Review and remediate.",
+      "file_path": "docs/internal/ai-models/openrouter.md",
+      "line_number": 409,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .claude/blueprints/refactor.blueprint.md:40. Review and remediate.",
+      "file_path": ".claude/blueprints/refactor.blueprint.md",
+      "line_number": 40,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .claude/hooks/scripts/stop-verify-todos.py:126. Review and remediate.",
+      "file_path": ".claude/hooks/scripts/stop-verify-todos.py",
+      "line_number": 126,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .claude/hooks/scripts/notebooklm-sync.sh:26. Review and remediate.",
+      "file_path": ".claude/hooks/scripts/notebooklm-sync.sh",
+      "line_number": 26,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .claude/hooks/scripts/notebooklm-sync.sh:59. Review and remediate.",
+      "file_path": ".claude/hooks/scripts/notebooklm-sync.sh",
+      "line_number": 59,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .claude/hooks/scripts/pre-compact-save.py:88. Review and remediate.",
+      "file_path": ".claude/hooks/scripts/pre-compact-save.py",
+      "line_number": 88,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .claude/hooks/scripts/iteration-counter.py:68. Review and remediate.",
+      "file_path": ".claude/hooks/scripts/iteration-counter.py",
+      "line_number": 68,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .claude/hooks/scripts/pre-bash-validate.py:91. Review and remediate.",
+      "file_path": ".claude/hooks/scripts/pre-bash-validate.py",
+      "line_number": 91,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .claude/hooks/scripts/pre-bash-validate.py:108. Review and remediate.",
+      "file_path": ".claude/hooks/scripts/pre-bash-validate.py",
+      "line_number": 108,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .claude/hooks/scripts/pre-bash-validate.py:118. Review and remediate.",
+      "file_path": ".claude/hooks/scripts/pre-bash-validate.py",
+      "line_number": 118,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .claude/agents/deploy-guardian/agent.md:64. Review and remediate.",
+      "file_path": ".claude/agents/deploy-guardian/agent.md",
+      "line_number": 64,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .claude/agents/backend-specialist/agent.md:127. Review and remediate.",
+      "file_path": ".claude/agents/backend-specialist/agent.md",
+      "line_number": 127,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .claude/agents/code-reviewer/agent.md:52. Review and remediate.",
+      "file_path": ".claude/agents/code-reviewer/agent.md",
+      "line_number": 52,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in .claude/agents/code-reviewer/agent.md:65. Review and remediate.",
+      "file_path": ".claude/agents/code-reviewer/agent.md",
+      "line_number": 65,
+      "auto_fixable": false,
+      "extra": {}
+    }
+  ],
+  "error": "",
+  "health_score": 0
+}

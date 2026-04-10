@@ -1,0 +1,10 @@
+{
+  "project_id": "nrpg-onboarding",
+  "repo": "CleanExpo/NRPG-Onboarding-Framework",
+  "scan_type": "deployment_health",
+  "started_at": "2026-04-10T06:26:48.698427+00:00",
+  "finished_at": "2026-04-10T06:26:48.698430+00:00",
+  "findings": [],
+  "error": "",
+  "health_score": 100
+}

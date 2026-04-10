@@ -1,0 +1,10 @@
+{
+  "project_id": "carsi",
+  "repo": "CleanExpo/carsi",
+  "scan_type": "deployment_health",
+  "started_at": "2026-04-10T06:26:59.711782+00:00",
+  "finished_at": "2026-04-10T06:26:59.711787+00:00",
+  "findings": [],
+  "error": "",
+  "health_score": 100
+}

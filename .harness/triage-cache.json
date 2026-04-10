@@ -1,0 +1,12 @@
+{
+  "b1483abbbb07a4ce": {
+    "linear_id": "2beba241-1a4e-45f2-b954-f5538a1b3f4c",
+    "title": "[Pi-SEO][Security] Secret detected: GitHub personal access token",
+    "created_at": "2026-04-10T06:56:05.598892+00:00"
+  },
+  "5b0acd0b694a515f": {
+    "linear_id": "c9f9d514-bf9c-4ebe-b987-4bc5fa420e0d",
+    "title": "[Pi-SEO][Security] Secret detected: Linear API key",
+    "created_at": "2026-04-10T06:56:06.630926+00:00"
+  }
+}

@@ -11,8 +11,8 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
--- Service role only writes; anon cannot read secrets
-CREATE POLICY "service_only_write" ON settings FOR ALL USING (false);
+-- Service role only — anon cannot read or write secrets
+CREATE POLICY "service_only_write" ON settings FOR ALL TO service_role USING (true);
 
 -- Seed default rows so GET /api/settings always returns something
 INSERT INTO settings (key, value) VALUES
@@ -20,7 +20,11 @@ INSERT INTO settings (key, value) VALUES
   ('anthropic_api_key',  ''),
   ('analysis_model',     'claude-sonnet-4-6'),
   ('webhook_secret',     ''),
-  ('cron_repos',         '[]')
+  ('cron_repos',         '[]'),
+  ('vercel_token',       ''),
+  ('telegram_bot_token', ''),
+  ('telegram_chat_id',   ''),
+  ('linear_api_key',     '')
 ON CONFLICT (key) DO NOTHING;
 
 -- ── sessions ──────────────────────────────────────────────────────────────────
@@ -44,9 +48,9 @@ CREATE INDEX IF NOT EXISTS sessions_started_at_idx ON sessions (started_at DESC)
 CREATE INDEX IF NOT EXISTS sessions_repo_name_idx  ON sessions (repo_name);
 
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "public_read"   ON sessions FOR SELECT USING (true);
-CREATE POLICY "service_write" ON sessions FOR INSERT WITH CHECK (true);
-CREATE POLICY "service_update" ON sessions FOR UPDATE USING (true);
+CREATE POLICY "public_read"    ON sessions FOR SELECT USING (true);
+CREATE POLICY "service_write"  ON sessions FOR INSERT TO service_role WITH CHECK (true);
+CREATE POLICY "service_update" ON sessions FOR UPDATE TO service_role USING (true);
 
 -- ── terminal_lines ────────────────────────────────────────────────────────────
 -- Persisted terminal output lines per session (enables replay on reconnect)
@@ -64,7 +68,7 @@ CREATE INDEX IF NOT EXISTS terminal_lines_session_idx ON terminal_lines (session
 
 ALTER TABLE terminal_lines ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_read"    ON terminal_lines FOR SELECT USING (true);
-CREATE POLICY "service_insert" ON terminal_lines FOR INSERT WITH CHECK (true);
+CREATE POLICY "service_insert" ON terminal_lines FOR INSERT TO service_role WITH CHECK (true);
 
 -- ── phase_states ──────────────────────────────────────────────────────────────
 -- Phase status per session (enables progress replay)
@@ -80,5 +84,5 @@ CREATE TABLE IF NOT EXISTS phase_states (
 
 ALTER TABLE phase_states ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_read"    ON phase_states FOR SELECT USING (true);
-CREATE POLICY "service_insert" ON phase_states FOR INSERT WITH CHECK (true);
-CREATE POLICY "service_update" ON phase_states FOR UPDATE USING (true);
+CREATE POLICY "service_insert" ON phase_states FOR INSERT TO service_role WITH CHECK (true);
+CREATE POLICY "service_update" ON phase_states FOR UPDATE TO service_role USING (true);

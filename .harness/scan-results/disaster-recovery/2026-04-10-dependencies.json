@@ -1,0 +1,245 @@
+{
+  "project_id": "disaster-recovery",
+  "repo": "CleanExpo/Disaster-Recovery",
+  "scan_type": "dependencies",
+  "started_at": "2026-04-10T06:26:45.302412+00:00",
+  "finished_at": "2026-04-10T06:26:52.351537+00:00",
+  "findings": [
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: @langchain/core",
+      "description": "langsmith. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "@langchain/core",
+        "range": "0.3.64 - 1.1.6"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: @langchain/openai",
+      "description": "@langchain/core. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "@langchain/openai",
+        "range": "0.6.6 - 0.6.17 || 1.2.0-dev-1765431816670 - 1.2.0-dev-1765433794876"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: @next-auth/prisma-adapter",
+      "description": "next-auth. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "@next-auth/prisma-adapter",
+        "range": "*"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: @next/eslint-plugin-next",
+      "description": "glob. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "@next/eslint-plugin-next",
+        "range": "14.0.5-canary.0 - 15.0.0-rc.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: eslint-config-next",
+      "description": "@next/eslint-plugin-next. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "eslint-config-next",
+        "range": "14.0.5-canary.0 - 15.0.0-rc.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: glob",
+      "description": "glob CLI: Command injection via -c/--cmd executes matches with shell:true. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "glob",
+        "range": "10.2.0 - 10.4.5"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: langchain",
+      "description": "langsmith. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "langchain",
+        "range": "0.3.31 - 1.2.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: langsmith",
+      "description": "LangSmith Client SDK Affected by Server-Side Request Forgery via Tracing Header Injection. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "langsmith",
+        "range": "0.3.41 - 0.4.5"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: next",
+      "description": "Next.js self-hosted applications vulnerable to DoS via Image Optimizer remotePatterns configuration. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "next",
+        "range": "9.5.0 - 15.5.13"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: next-auth",
+      "description": "nodemailer. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "next-auth",
+        "range": "<=0.0.0-semantically-released || 1.1.0 - 1.5.0 || >=2.0.0-beta.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: nodemailer",
+      "description": "Nodemailer has SMTP command injection due to unsanitized `envelope.size` parameter. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "nodemailer",
+        "range": "<=8.0.4"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: qs",
+      "description": "qs's arrayLimit bypass in its bracket notation allows DoS via memory exhaustion. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "qs",
+        "range": "<6.14.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: request",
+      "description": "Server-Side Request Forgery in Request. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "request",
+        "range": "*"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: request-promise",
+      "description": "request. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "request-promise",
+        "range": ">=0.0.2"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: request-promise-core",
+      "description": "request. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "request-promise-core",
+        "range": "*"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: snoowrap",
+      "description": "request. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "snoowrap",
+        "range": "*"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: tough-cookie",
+      "description": "tough-cookie Prototype Pollution vulnerability. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "tough-cookie",
+        "range": "<4.1.3"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: ws",
+      "description": "ws affected by a DoS when handling a request with many HTTP headers. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": false,
+      "extra": {
+        "package": "ws",
+        "range": "2.1.0 - 5.2.3"
+      }
+    }
+  ],
+  "error": "",
+  "health_score": 10
+}

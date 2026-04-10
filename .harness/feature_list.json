@@ -1,8 +1,9 @@
 {
   "generated": "2026-04-08",
+  "last_updated": "2026-04-10",
   "zte_score": 60,
   "zte_band": "Zero Touch",
-  "sprint": "Sprint 5 / Cycle 10",
+  "sprint": "Sprint 7 / Cycle 13",
   "features": [
     {
       "id": "F-001",
@@ -227,6 +228,278 @@
       "status": "complete",
       "leverage_point": "Error Recovery",
       "linear_issue": "RA-471"
+    },
+    {
+      "id": "F-029",
+      "name": "Webhook Secrets Mandatory",
+      "description": "Webhook handler hard-fails on missing GITHUB_WEBHOOK_SECRET/LINEAR_WEBHOOK_SECRET; removes silent pass-through.",
+      "status": "complete",
+      "leverage_point": "Security",
+      "linear_issue": "RA-517"
+    },
+    {
+      "id": "F-030",
+      "name": "Telegram Webhook Token in Header",
+      "description": "Bot token moved from URL query string to X-Telegram-Bot-Api-Secret-Token header; old URL-param route removed.",
+      "status": "complete",
+      "leverage_point": "Security",
+      "linear_issue": "RA-516"
+    },
+    {
+      "id": "F-031",
+      "name": "Pydantic Request Validation",
+      "description": "All POST endpoints use Pydantic models; invalid payloads return 422 with field-level errors.",
+      "status": "complete",
+      "leverage_point": "Spec Quality",
+      "linear_issue": "RA-515"
+    },
+    {
+      "id": "F-032",
+      "name": "CSP Nonce-Based Policy",
+      "description": "unsafe-inline replaced with per-request nonce injection in SecurityHeaders middleware; wasm-unsafe-eval retained for xterm.js.",
+      "status": "complete",
+      "leverage_point": "Security",
+      "linear_issue": "RA-518"
+    },
+    {
+      "id": "F-033",
+      "name": "Next.js Auth Middleware",
+      "description": "Edge middleware at dashboard/middleware.ts protects all /(main) routes; unauthenticated requests redirect to /login.",
+      "status": "complete",
+      "leverage_point": "Security",
+      "linear_issue": "RA-519"
+    },
+    {
+      "id": "F-034",
+      "name": "pytest Unit Test Suite",
+      "description": "tests/test_auth.py, test_webhook.py, test_sessions.py; 34 unit tests covering bcrypt migration, HMAC verification, session lifecycle.",
+      "status": "complete",
+      "leverage_point": "Quality Gating",
+      "linear_issue": "RA-520"
+    },
+    {
+      "id": "F-035",
+      "name": "Graceful Shutdown on SIGTERM",
+      "description": "signal handler in main.py drains active sessions before exit; SIGTERM sets a global shutdown flag checked by run_build().",
+      "status": "complete",
+      "leverage_point": "Error Recovery",
+      "linear_issue": "RA-521"
+    },
+    {
+      "id": "F-036",
+      "name": "Background Task Crash Recovery",
+      "description": "GC loop and cron loop wrapped in try/except with exponential backoff restart (5s/30s/120s); crash logged to structured logger.",
+      "status": "complete",
+      "leverage_point": "Error Recovery",
+      "linear_issue": "RA-522"
+    },
+    {
+      "id": "F-037",
+      "name": "Health Check 503 on Unhealthy Deps",
+      "description": "GET /health returns 503 when Claude CLI unreachable or disk >90%; removes blocking Claude check from startup.",
+      "status": "complete",
+      "leverage_point": "Error Recovery",
+      "linear_issue": "RA-523"
+    },
+    {
+      "id": "F-038",
+      "name": "bcrypt Hash Persistence Fix",
+      "description": "bcrypt-upgraded hash now written back to config on first successful login; SHA-256 migration no longer re-runs each restart.",
+      "status": "complete",
+      "leverage_point": "Security",
+      "linear_issue": "RA-524"
+    },
+    {
+      "id": "F-039",
+      "name": "Duplicate Build Submission Prevention",
+      "description": "Submit button disabled after first click; re-enabled only on error response; prevents double-session creation.",
+      "status": "complete",
+      "leverage_point": "Workflow Standardization",
+      "linear_issue": "RA-525"
+    },
+    {
+      "id": "F-040",
+      "name": "Env Var Validation at Startup",
+      "description": "Next.js startup validates all required env vars (PI_CEO_URL, PI_CEO_PASSWORD, ANTHROPIC_API_KEY, GITHUB_TOKEN); hard fails with clear message.",
+      "status": "complete",
+      "leverage_point": "Error Recovery",
+      "linear_issue": "RA-526"
+    },
+    {
+      "id": "F-041",
+      "name": "CI Expansion — TypeScript + Lint",
+      "description": "GitHub Actions workflow adds tsc --noEmit, ESLint, and flake8 jobs alongside existing smoke test; all three required for merge.",
+      "status": "complete",
+      "leverage_point": "Quality Gating",
+      "linear_issue": "RA-527"
+    },
+    {
+      "id": "F-042",
+      "name": ".env.example Documentation",
+      "description": ".env.example added to repo root documenting all required and optional vars with descriptions and example values.",
+      "status": "complete",
+      "leverage_point": "Context Precision",
+      "linear_issue": "RA-528"
+    },
+    {
+      "id": "F-043",
+      "name": "sessions.py Phase Extraction",
+      "description": "run_build() phases refactored into separate functions (_phase_clone, _phase_analyze, etc.); each under 40 lines.",
+      "status": "complete",
+      "leverage_point": "Workflow Standardization",
+      "linear_issue": "RA-529"
+    },
+    {
+      "id": "F-044",
+      "name": "Structured Logging — Remove print()",
+      "description": "All print() calls in board_meeting.py, cron.py, gc.py, sessions.py replaced with logging.getLogger(); _JsonFormatter used.",
+      "status": "complete",
+      "leverage_point": "Workflow Standardization",
+      "linear_issue": "RA-530"
+    },
+    {
+      "id": "F-045",
+      "name": "Claude Agent SDK PoC — Board Meeting Agent",
+      "description": "app/server/agents/board_meeting.py implements BoardMeetingAgent using claude-agent-sdk; runs as parallel system alongside existing board_meeting cron.",
+      "status": "complete",
+      "leverage_point": "Tool Availability",
+      "linear_issue": "RA-485"
+    },
+    {
+      "id": "F-046",
+      "name": "Pi-SEO Project Registry",
+      "description": ".harness/projects.json lists all 10 monitored repos with metadata; loaded by scanner at runtime.",
+      "status": "complete",
+      "leverage_point": "Trigger Automation",
+      "linear_issue": "RA-533"
+    },
+    {
+      "id": "F-047",
+      "name": "Pi-SEO Autonomous Scanner",
+      "description": "app/server/scanner.py orchestrates multi-project scans; runs each project through 4 scanner skills in parallel; persists results to .harness/scan-results/.",
+      "status": "complete",
+      "leverage_point": "Trigger Automation",
+      "linear_issue": "RA-531"
+    },
+    {
+      "id": "F-048",
+      "name": "Pi-SEO Triage Engine",
+      "description": "Auto-creates Linear tickets from scanner findings; deduplicates against open issues; assigns severity (critical/high/medium).",
+      "status": "complete",
+      "leverage_point": "Feedback Loops",
+      "linear_issue": "RA-532"
+    },
+    {
+      "id": "F-049",
+      "name": "Pi-SEO Security Scanner Skill",
+      "description": "skills/pi-seo-security/SKILL.md: OWASP Top 10 checks + secret detection via regex patterns across all source files.",
+      "status": "complete",
+      "leverage_point": "Quality Gating",
+      "linear_issue": "RA-534"
+    },
+    {
+      "id": "F-050",
+      "name": "Pi-SEO Deployment Health Scanner",
+      "description": "skills/pi-seo-deployment/SKILL.md: Vercel Sandbox browser audit + Core Web Vitals (LCP, CLS, FID) measurement.",
+      "status": "complete",
+      "leverage_point": "Quality Gating",
+      "linear_issue": "RA-535"
+    },
+    {
+      "id": "F-051",
+      "name": "Pi-SEO Dependency Auditor Skill",
+      "description": "skills/pi-seo-dependencies/SKILL.md: npm/pip outdated package detection + CVE lookup via OSV API.",
+      "status": "complete",
+      "leverage_point": "Quality Gating",
+      "linear_issue": "RA-536"
+    },
+    {
+      "id": "F-052",
+      "name": "Pi-SEO Auto-PR Generation",
+      "description": "scanner.py opens GitHub PRs for auto-fixable findings (outdated deps, missing .env.example, stale README).",
+      "status": "complete",
+      "leverage_point": "Tool Availability",
+      "linear_issue": "RA-537"
+    },
+    {
+      "id": "F-053",
+      "name": "Pi-SEO Health Dashboard",
+      "description": "dashboard/app/(main)/health/page.tsx: all 10 repos health scores, latest findings, trend over last 5 scans.",
+      "status": "complete",
+      "leverage_point": "Context Precision",
+      "linear_issue": "RA-538"
+    },
+    {
+      "id": "F-054",
+      "name": "Pi-SEO Scan Cron Triggers",
+      "description": ".harness/cron-triggers.json extended with entries for all 10 projects; 6-hour rotation so no two scans overlap.",
+      "status": "complete",
+      "leverage_point": "Trigger Automation",
+      "linear_issue": "RA-539"
+    },
+    {
+      "id": "F-055",
+      "name": "Pi-SEO MCP Tools",
+      "description": "pi-ceo-server.js: scan_project and get_project_health tools added; total 13 MCP tools.",
+      "status": "complete",
+      "leverage_point": "Tool Availability",
+      "linear_issue": "RA-540"
+    },
+    {
+      "id": "F-056",
+      "name": "Pi-SEO Vercel Sandbox Snapshot",
+      "description": "Pre-baked Chromium snapshot for sub-second browser audit startup; snapshot refreshed weekly.",
+      "status": "complete",
+      "leverage_point": "Cost Efficiency",
+      "linear_issue": "RA-541"
+    },
+    {
+      "id": "F-057",
+      "name": "Pi-SEO Intelligence Layer",
+      "description": "3 specialist skills (code-quality, performance, accessibility) + intelligence orchestrator that synthesises findings into a prioritised action list.",
+      "status": "complete",
+      "leverage_point": "Spec Quality",
+      "linear_issue": "RA-542"
+    },
+    {
+      "id": "F-058",
+      "name": "Ship-Chain Pipeline /spec /plan /build /test /review /ship",
+      "description": "6-phase pipeline with artifact persistence to .harness/pipeline/{id}/; 5 new skills (ship-chain, define-spec, technical-plan, verify-test, ship-release); 5 new API endpoints; 7 new MCP tools.",
+      "status": "complete",
+      "leverage_point": "Workflow Standardization",
+      "linear_issue": "RA-543"
+    },
+    {
+      "id": "F-059",
+      "name": "Mobile & Tablet Responsive Layout",
+      "description": "Bottom tab bar for mobile nav; card layout for history on mobile; iOS Safari font-size zoom fix; CSS custom property theming on all inputs.",
+      "status": "complete",
+      "leverage_point": "Context Precision",
+      "linear_issue": "RA-546"
+    },
+    {
+      "id": "F-060",
+      "name": "Worktree Isolation Fix",
+      "description": ".claude/settings.json with WorktreeCreate/WorktreeRemove hooks using explicit git -C path; agent isolation works from any working directory.",
+      "status": "complete",
+      "leverage_point": "Error Recovery",
+      "linear_issue": "RA-547"
+    },
+    {
+      "id": "F-061",
+      "name": "Telegram Bot Integration — @piceoagent_bot",
+      "description": "dashboard/app/api/telegram/route.ts: /status, /build, /clear commands + free-form Claude chat with 20-turn per-chat history; webhook registration endpoint.",
+      "status": "complete",
+      "leverage_point": "Trigger Automation",
+      "linear_issue": "RA-548"
+    },
+    {
+      "id": "F-062",
+      "name": "Claude-Code-Telegram Railway Deployment",
+      "description": "RichardAtCT/claude-code-telegram deployed to Railway project pi-ceo-telegram-bot; full Claude Agent SDK with tool use; authenticated to Telegram user ID 8792816988.",
+      "status": "complete",
+      "leverage_point": "Tool Availability",
+      "linear_issue": "RA-549"
     }
   ],
   "pending": []

@@ -1,0 +1,4401 @@
+{
+  "project_id": "oh-my-codex",
+  "repo": "CleanExpo/oh-my-codex",
+  "scan_type": "security",
+  "started_at": "2026-04-10T06:26:54.460333+00:00",
+  "finished_at": "2026-04-10T06:26:54.755844+00:00",
+  "findings": [
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in docs/openclaw-integration.md:12. Rotate the credential immediately.",
+      "file_path": "docs/openclaw-integration.md",
+      "line_number": 12,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in prompts/code-reviewer.md:66. Review and remediate.",
+      "file_path": "prompts/code-reviewer.md",
+      "line_number": 66,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/config/generator.ts:893. Review and remediate.",
+      "file_path": "src/config/generator.ts",
+      "line_number": 893,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/config/generator.ts:901. Review and remediate.",
+      "file_path": "src/config/generator.ts",
+      "line_number": 901,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/agents/native-config.ts:339. Review and remediate.",
+      "file_path": "src/agents/native-config.ts",
+      "line_number": 339,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/agents/native-config.ts:345. Review and remediate.",
+      "file_path": "src/agents/native-config.ts",
+      "line_number": 345,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/agents/native-config.ts:355. Review and remediate.",
+      "file_path": "src/agents/native-config.ts",
+      "line_number": 355,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/agents-init.ts:318. Review and remediate.",
+      "file_path": "src/cli/agents-init.ts",
+      "line_number": 318,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/agents-init.ts:319. Review and remediate.",
+      "file_path": "src/cli/agents-init.ts",
+      "line_number": 319,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/agents-init.ts:320. Review and remediate.",
+      "file_path": "src/cli/agents-init.ts",
+      "line_number": 320,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/agents-init.ts:321. Review and remediate.",
+      "file_path": "src/cli/agents-init.ts",
+      "line_number": 321,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/agents-init.ts:370. Review and remediate.",
+      "file_path": "src/cli/agents-init.ts",
+      "line_number": 370,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/agents-init.ts:374. Review and remediate.",
+      "file_path": "src/cli/agents-init.ts",
+      "line_number": 374,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/agents-init.ts:375. Review and remediate.",
+      "file_path": "src/cli/agents-init.ts",
+      "line_number": 375,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/agents-init.ts:378. Review and remediate.",
+      "file_path": "src/cli/agents-init.ts",
+      "line_number": 378,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/agents-init.ts:381. Review and remediate.",
+      "file_path": "src/cli/agents-init.ts",
+      "line_number": 381,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/agents-init.ts:384. Review and remediate.",
+      "file_path": "src/cli/agents-init.ts",
+      "line_number": 384,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/agents-init.ts:387. Review and remediate.",
+      "file_path": "src/cli/agents-init.ts",
+      "line_number": 387,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/agents-init.ts:391. Review and remediate.",
+      "file_path": "src/cli/agents-init.ts",
+      "line_number": 391,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/agents-init.ts:392. Review and remediate.",
+      "file_path": "src/cli/agents-init.ts",
+      "line_number": 392,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/agents-init.ts:399. Review and remediate.",
+      "file_path": "src/cli/agents-init.ts",
+      "line_number": 399,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/doctor.ts:112. Review and remediate.",
+      "file_path": "src/cli/doctor.ts",
+      "line_number": 112,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/doctor.ts:113. Review and remediate.",
+      "file_path": "src/cli/doctor.ts",
+      "line_number": 113,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/doctor.ts:114. Review and remediate.",
+      "file_path": "src/cli/doctor.ts",
+      "line_number": 114,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/doctor.ts:163. Review and remediate.",
+      "file_path": "src/cli/doctor.ts",
+      "line_number": 163,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/doctor.ts:169. Review and remediate.",
+      "file_path": "src/cli/doctor.ts",
+      "line_number": 169,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/doctor.ts:172. Review and remediate.",
+      "file_path": "src/cli/doctor.ts",
+      "line_number": 172,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/doctor.ts:174. Review and remediate.",
+      "file_path": "src/cli/doctor.ts",
+      "line_number": 174,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/doctor.ts:176. Review and remediate.",
+      "file_path": "src/cli/doctor.ts",
+      "line_number": 176,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/doctor.ts:187. Review and remediate.",
+      "file_path": "src/cli/doctor.ts",
+      "line_number": 187,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/doctor.ts:188. Review and remediate.",
+      "file_path": "src/cli/doctor.ts",
+      "line_number": 188,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/doctor.ts:192. Review and remediate.",
+      "file_path": "src/cli/doctor.ts",
+      "line_number": 192,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/doctor.ts:193. Review and remediate.",
+      "file_path": "src/cli/doctor.ts",
+      "line_number": 193,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/doctor.ts:202. Review and remediate.",
+      "file_path": "src/cli/doctor.ts",
+      "line_number": 202,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/doctor.ts:205. Review and remediate.",
+      "file_path": "src/cli/doctor.ts",
+      "line_number": 205,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:118. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 118,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:154. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 154,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:159. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 159,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:185. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 185,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:214. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 214,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:240. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 240,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:252. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 252,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:272. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 272,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:283. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 283,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:298. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 298,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:305. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 305,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:308. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 308,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:310. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 310,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:313. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 313,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:316. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 316,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:319. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 319,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:324. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 324,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:327. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 327,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:331. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 331,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:334. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 334,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:337. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 337,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:342. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 342,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:345. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 345,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:357. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 357,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:378. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 378,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:379. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 379,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:381. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 381,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:383. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 383,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:401. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 401,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:403. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 403,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:410. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 410,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:413. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 413,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:419. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 419,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:422. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 422,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:425. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 425,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:430. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 430,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:433. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 433,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:436. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 436,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:442. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 442,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:445. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 445,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:448. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 448,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:470. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 470,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:476. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 476,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:481. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 481,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/uninstall.ts:485. Review and remediate.",
+      "file_path": "src/cli/uninstall.ts",
+      "line_number": 485,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/session-search.ts:127. Review and remediate.",
+      "file_path": "src/cli/session-search.ts",
+      "line_number": 127,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/session-search.ts:136. Review and remediate.",
+      "file_path": "src/cli/session-search.ts",
+      "line_number": 136,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/session-search.ts:143. Review and remediate.",
+      "file_path": "src/cli/session-search.ts",
+      "line_number": 143,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/session-search.ts:146. Review and remediate.",
+      "file_path": "src/cli/session-search.ts",
+      "line_number": 146,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:213. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 213,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:354. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 354,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:432. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 432,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:433. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 433,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:436. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 436,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:583. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 583,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:598. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 598,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:604. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 604,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:623. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 623,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:624. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 624,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:625. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 625,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:630. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 630,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:644. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 644,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:650. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 650,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:659. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 659,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:663. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 663,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:673. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 673,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:694. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 694,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:698. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 698,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:704. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 704,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:708. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 708,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:713. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 713,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:723. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 723,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:727. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 727,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:732. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 732,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:744. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 744,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:750. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 750,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:763. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 763,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:768. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 768,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:773. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 773,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:792. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 792,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:795. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 795,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:798. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 798,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:800. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 800,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:801. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 801,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:803. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 803,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:806. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 806,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:854. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 854,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:859. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 859,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:862. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 862,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:872. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 872,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:892. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 892,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:898. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 898,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:904. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 904,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:910. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 910,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:914. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 914,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:916. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 916,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:919. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 919,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:921. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 921,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:924. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 924,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:931. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 931,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:932. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 932,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:934. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 934,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:937. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 937,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:939. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 939,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:941. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 941,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:943. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 943,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:949. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 949,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:953. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 953,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:954. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 954,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:958. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 958,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:961. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 961,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:964. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 964,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:965. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 965,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:966. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 966,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:967. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 967,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:970. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 970,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:971. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 971,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:972. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 972,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:975. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 975,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:979. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 979,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:1020. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 1020,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:1061. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 1061,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:1098. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 1098,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:1132. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 1132,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:1147. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 1147,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:1164. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 1164,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:1202. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 1202,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:1243. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 1243,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:1279. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 1279,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:1336. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 1336,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:1377. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 1377,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:1416. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 1416,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:1480. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 1480,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:1557. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 1557,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:1564. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 1564,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:1593. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 1593,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:1602. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 1602,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:1626. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 1626,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/setup.ts:1630. Review and remediate.",
+      "file_path": "src/cli/setup.ts",
+      "line_number": 1630,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1269. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1269,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1274. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1274,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1278. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1278,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1282. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1282,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1285. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1285,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1289. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1289,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1294. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1294,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1299. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1299,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1304. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1304,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1309. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1309,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1314. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1314,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1319. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1319,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1324. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1324,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1329. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1329,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1334. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1334,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1339. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1339,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1344. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1344,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1349. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1349,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1354. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1354,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1359. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1359,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1364. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1364,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1369. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1369,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1374. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1374,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1379. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1379,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1384. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1384,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1389. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1389,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1394. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1394,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1399. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1399,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1404. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1404,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1409. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1409,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1414. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1414,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1419. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1419,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1424. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1424,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1429. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1429,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1434. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1434,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1439. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1439,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1444. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1444,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1449. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1449,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1454. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1454,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1459. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1459,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1464. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1464,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1469. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1469,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1474. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1474,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1479. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1479,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1484. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1484,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1489. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1489,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1494. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1494,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1499. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1499,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1504. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1504,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1509. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1509,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1514. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1514,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1519. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1519,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1524. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1524,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1529. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1529,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1534. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1534,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1539. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1539,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1544. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1544,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1549. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1549,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1554. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1554,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1559. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1559,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1564. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1564,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1569. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1569,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1574. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1574,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1579. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1579,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1584. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1584,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1589. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1589,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1594. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1594,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1599. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1599,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1603. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1603,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1606. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1606,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1609. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1609,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1687. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1687,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:1691. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 1691,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2064. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2064,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2065. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2065,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2066. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2066,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2067. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2067,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2069. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2069,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2072. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2072,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2073. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2073,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2078. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2078,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2081. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2081,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2083. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2083,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2088. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2088,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2109. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2109,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2118. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2118,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2121. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2121,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2128. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2128,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2139. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2139,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2156. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2156,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2165. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2165,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2166. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2166,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2182. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2182,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2190. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2190,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2197. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2197,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2225. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2225,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2227. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2227,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2229. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2229,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2231. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2231,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2234. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2234,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2236. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2236,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2238. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2238,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2259. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2259,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2261. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2261,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2299. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2299,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2309. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2309,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2323. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2323,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2332. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2332,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/team.ts:2367. Review and remediate.",
+      "file_path": "src/cli/team.ts",
+      "line_number": 2367,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/cleanup.ts:230. Review and remediate.",
+      "file_path": "src/cli/cleanup.ts",
+      "line_number": 230,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/cleanup.ts:241. Review and remediate.",
+      "file_path": "src/cli/cleanup.ts",
+      "line_number": 241,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/cleanup.ts:348. Review and remediate.",
+      "file_path": "src/cli/cleanup.ts",
+      "line_number": 348,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/agents.ts:246. Review and remediate.",
+      "file_path": "src/cli/agents.ts",
+      "line_number": 246,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/agents.ts:262. Review and remediate.",
+      "file_path": "src/cli/agents.ts",
+      "line_number": 262,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/agents.ts:268. Review and remediate.",
+      "file_path": "src/cli/agents.ts",
+      "line_number": 268,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/agents.ts:286. Review and remediate.",
+      "file_path": "src/cli/agents.ts",
+      "line_number": 286,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/agents.ts:293. Review and remediate.",
+      "file_path": "src/cli/agents.ts",
+      "line_number": 293,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/agents.ts:300. Review and remediate.",
+      "file_path": "src/cli/agents.ts",
+      "line_number": 300,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/autoresearch.ts:356. Review and remediate.",
+      "file_path": "src/cli/autoresearch.ts",
+      "line_number": 356,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/autoresearch.ts:383. Review and remediate.",
+      "file_path": "src/cli/autoresearch.ts",
+      "line_number": 383,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/ask.ts:171. Review and remediate.",
+      "file_path": "src/cli/ask.ts",
+      "line_number": 171,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:84. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 84,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:193. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 193,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:195. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 195,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:198. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 198,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:200. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 200,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:320. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 320,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:340. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 340,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:341. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 341,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:343. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 343,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:346. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 346,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:349. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 349,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:369. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 369,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:370. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 370,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:373. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 373,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:374. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 374,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:375. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 375,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:377. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 377,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:379. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 379,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:380. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 380,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:381. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 381,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:382. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 382,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:383. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 383,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:386. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 386,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:389. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 389,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:390. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 390,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:391. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 391,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:392. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 392,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:393. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 393,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:396. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 396,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:398. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 398,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:402. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 402,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:417. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 417,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:418. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 418,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:419. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 419,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:421. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 421,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:429. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 429,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:461. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 461,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:462. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 462,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:463. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 463,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/tmux-hook.ts:464. Review and remediate.",
+      "file_path": "src/cli/tmux-hook.ts",
+      "line_number": 464,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/autoresearch-guided.ts:224. Review and remediate.",
+      "file_path": "src/cli/autoresearch-guided.ts",
+      "line_number": 224,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/autoresearch-guided.ts:225. Review and remediate.",
+      "file_path": "src/cli/autoresearch-guided.ts",
+      "line_number": 225,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/autoresearch-guided.ts:274. Review and remediate.",
+      "file_path": "src/cli/autoresearch-guided.ts",
+      "line_number": 274,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/autoresearch-guided.ts:275. Review and remediate.",
+      "file_path": "src/cli/autoresearch-guided.ts",
+      "line_number": 275,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/autoresearch-guided.ts:276. Review and remediate.",
+      "file_path": "src/cli/autoresearch-guided.ts",
+      "line_number": 276,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/autoresearch-guided.ts:277. Review and remediate.",
+      "file_path": "src/cli/autoresearch-guided.ts",
+      "line_number": 277,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in src/cli/index.ts:1327. Rotate the credential immediately.",
+      "file_path": "src/cli/index.ts",
+      "line_number": 1327,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/index.ts:603. Review and remediate.",
+      "file_path": "src/cli/index.ts",
+      "line_number": 603,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/index.ts:697. Review and remediate.",
+      "file_path": "src/cli/index.ts",
+      "line_number": 697,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/index.ts:709. Review and remediate.",
+      "file_path": "src/cli/index.ts",
+      "line_number": 709,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/index.ts:725. Review and remediate.",
+      "file_path": "src/cli/index.ts",
+      "line_number": 725,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/index.ts:739. Review and remediate.",
+      "file_path": "src/cli/index.ts",
+      "line_number": 739,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/index.ts:745. Review and remediate.",
+      "file_path": "src/cli/index.ts",
+      "line_number": 745,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/index.ts:755. Review and remediate.",
+      "file_path": "src/cli/index.ts",
+      "line_number": 755,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/index.ts:758. Review and remediate.",
+      "file_path": "src/cli/index.ts",
+      "line_number": 758,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/index.ts:766. Review and remediate.",
+      "file_path": "src/cli/index.ts",
+      "line_number": 766,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/index.ts:770. Review and remediate.",
+      "file_path": "src/cli/index.ts",
+      "line_number": 770,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/index.ts:771. Review and remediate.",
+      "file_path": "src/cli/index.ts",
+      "line_number": 771,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/index.ts:789. Review and remediate.",
+      "file_path": "src/cli/index.ts",
+      "line_number": 789,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/index.ts:880. Review and remediate.",
+      "file_path": "src/cli/index.ts",
+      "line_number": 880,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/index.ts:960. Review and remediate.",
+      "file_path": "src/cli/index.ts",
+      "line_number": 960,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/index.ts:1647. Review and remediate.",
+      "file_path": "src/cli/index.ts",
+      "line_number": 1647,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/index.ts:2606. Review and remediate.",
+      "file_path": "src/cli/index.ts",
+      "line_number": 2606,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/index.ts:2610. Review and remediate.",
+      "file_path": "src/cli/index.ts",
+      "line_number": 2610,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/index.ts:2614. Review and remediate.",
+      "file_path": "src/cli/index.ts",
+      "line_number": 2614,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/version.ts:10. Review and remediate.",
+      "file_path": "src/cli/version.ts",
+      "line_number": 10,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/version.ts:11. Review and remediate.",
+      "file_path": "src/cli/version.ts",
+      "line_number": 11,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/version.ts:12. Review and remediate.",
+      "file_path": "src/cli/version.ts",
+      "line_number": 12,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/version.ts:14. Review and remediate.",
+      "file_path": "src/cli/version.ts",
+      "line_number": 14,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/sparkshell.ts:316. Review and remediate.",
+      "file_path": "src/cli/sparkshell.ts",
+      "line_number": 316,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/ralph.ts:172. Review and remediate.",
+      "file_path": "src/cli/ralph.ts",
+      "line_number": 172,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/ralph.ts:203. Review and remediate.",
+      "file_path": "src/cli/ralph.ts",
+      "line_number": 203,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/ralph.ts:206. Review and remediate.",
+      "file_path": "src/cli/ralph.ts",
+      "line_number": 206,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/ralph.ts:208. Review and remediate.",
+      "file_path": "src/cli/ralph.ts",
+      "line_number": 208,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/ralph.ts:209. Review and remediate.",
+      "file_path": "src/cli/ralph.ts",
+      "line_number": 209,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/ralph.ts:210. Review and remediate.",
+      "file_path": "src/cli/ralph.ts",
+      "line_number": 210,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/hooks.ts:83. Review and remediate.",
+      "file_path": "src/cli/hooks.ts",
+      "line_number": 83,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/hooks.ts:97. Review and remediate.",
+      "file_path": "src/cli/hooks.ts",
+      "line_number": 97,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/hooks.ts:102. Review and remediate.",
+      "file_path": "src/cli/hooks.ts",
+      "line_number": 102,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/hooks.ts:103. Review and remediate.",
+      "file_path": "src/cli/hooks.ts",
+      "line_number": 103,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/hooks.ts:111. Review and remediate.",
+      "file_path": "src/cli/hooks.ts",
+      "line_number": 111,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/hooks.ts:112. Review and remediate.",
+      "file_path": "src/cli/hooks.ts",
+      "line_number": 112,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/hooks.ts:113. Review and remediate.",
+      "file_path": "src/cli/hooks.ts",
+      "line_number": 113,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/hooks.ts:114. Review and remediate.",
+      "file_path": "src/cli/hooks.ts",
+      "line_number": 114,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/hooks.ts:117. Review and remediate.",
+      "file_path": "src/cli/hooks.ts",
+      "line_number": 117,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/hooks.ts:119. Review and remediate.",
+      "file_path": "src/cli/hooks.ts",
+      "line_number": 119,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/hooks.ts:127. Review and remediate.",
+      "file_path": "src/cli/hooks.ts",
+      "line_number": 127,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/hooks.ts:135. Review and remediate.",
+      "file_path": "src/cli/hooks.ts",
+      "line_number": 135,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/hooks.ts:138. Review and remediate.",
+      "file_path": "src/cli/hooks.ts",
+      "line_number": 138,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/hooks.ts:207. Review and remediate.",
+      "file_path": "src/cli/hooks.ts",
+      "line_number": 207,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/hooks.ts:208. Review and remediate.",
+      "file_path": "src/cli/hooks.ts",
+      "line_number": 208,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/hooks.ts:209. Review and remediate.",
+      "file_path": "src/cli/hooks.ts",
+      "line_number": 209,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/hooks.ts:210. Review and remediate.",
+      "file_path": "src/cli/hooks.ts",
+      "line_number": 210,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/hooks.ts:216. Review and remediate.",
+      "file_path": "src/cli/hooks.ts",
+      "line_number": 216,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/hooks.ts:223. Review and remediate.",
+      "file_path": "src/cli/hooks.ts",
+      "line_number": 223,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/update.ts:172. Review and remediate.",
+      "file_path": "src/cli/update.ts",
+      "line_number": 172,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/update.ts:177. Review and remediate.",
+      "file_path": "src/cli/update.ts",
+      "line_number": 177,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/cli/update.ts:179. Review and remediate.",
+      "file_path": "src/cli/update.ts",
+      "line_number": 179,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/team/runtime.ts:1204. Review and remediate.",
+      "file_path": "src/team/runtime.ts",
+      "line_number": 1204,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/team/runtime.ts:1206. Review and remediate.",
+      "file_path": "src/team/runtime.ts",
+      "line_number": 1206,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/team/runtime.ts:1208. Review and remediate.",
+      "file_path": "src/team/runtime.ts",
+      "line_number": 1208,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/team/runtime.ts:1562. Review and remediate.",
+      "file_path": "src/team/runtime.ts",
+      "line_number": 1562,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/team/scaling.ts:337. Review and remediate.",
+      "file_path": "src/team/scaling.ts",
+      "line_number": 337,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/team/scaling.ts:456. Review and remediate.",
+      "file_path": "src/team/scaling.ts",
+      "line_number": 456,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/scripts/build-sparkshell.ts:52. Review and remediate.",
+      "file_path": "src/scripts/build-sparkshell.ts",
+      "line_number": 52,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/scripts/test-reply-listener-live.ts:165. Review and remediate.",
+      "file_path": "src/scripts/test-reply-listener-live.ts",
+      "line_number": 165,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/scripts/test-reply-listener-live.ts:169. Review and remediate.",
+      "file_path": "src/scripts/test-reply-listener-live.ts",
+      "line_number": 169,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/scripts/test-reply-listener-live.ts:174. Review and remediate.",
+      "file_path": "src/scripts/test-reply-listener-live.ts",
+      "line_number": 174,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/scripts/test-reply-listener-live.ts:175. Review and remediate.",
+      "file_path": "src/scripts/test-reply-listener-live.ts",
+      "line_number": 175,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/scripts/test-reply-listener-live.ts:176. Review and remediate.",
+      "file_path": "src/scripts/test-reply-listener-live.ts",
+      "line_number": 176,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/scripts/check-version-sync.ts:50. Review and remediate.",
+      "file_path": "src/scripts/check-version-sync.ts",
+      "line_number": 50,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/scripts/generate-catalog-docs.ts:101. Review and remediate.",
+      "file_path": "src/scripts/generate-catalog-docs.ts",
+      "line_number": 101,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/scripts/generate-catalog-docs.ts:108. Review and remediate.",
+      "file_path": "src/scripts/generate-catalog-docs.ts",
+      "line_number": 108,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/scripts/generate-catalog-docs.ts:109. Review and remediate.",
+      "file_path": "src/scripts/generate-catalog-docs.ts",
+      "line_number": 109,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/scripts/verify-native-release-assets.ts:68. Review and remediate.",
+      "file_path": "src/scripts/verify-native-release-assets.ts",
+      "line_number": 68,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in src/scripts/verify-native-release-assets.ts:59. Review and remediate.",
+      "file_path": "src/scripts/verify-native-release-assets.ts",
+      "line_number": 59,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/scripts/run-provider-advisor.ts:173. Review and remediate.",
+      "file_path": "src/scripts/run-provider-advisor.ts",
+      "line_number": 173,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/scripts/smoke-packed-install.ts:157. Review and remediate.",
+      "file_path": "src/scripts/smoke-packed-install.ts",
+      "line_number": 157,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/scripts/smoke-packed-install.ts:191. Review and remediate.",
+      "file_path": "src/scripts/smoke-packed-install.ts",
+      "line_number": 191,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/scripts/smoke-packed-install.ts:207. Review and remediate.",
+      "file_path": "src/scripts/smoke-packed-install.ts",
+      "line_number": 207,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/scripts/generate-native-release-manifest.ts:147. Review and remediate.",
+      "file_path": "src/scripts/generate-native-release-manifest.ts",
+      "line_number": 147,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/scripts/check-runtime-syntax.ts:63. Review and remediate.",
+      "file_path": "src/scripts/check-runtime-syntax.ts",
+      "line_number": 63,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/scripts/team-hardening-benchmark.ts:83. Review and remediate.",
+      "file_path": "src/scripts/team-hardening-benchmark.ts",
+      "line_number": 83,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/scripts/team-hardening-benchmark.ts:88. Review and remediate.",
+      "file_path": "src/scripts/team-hardening-benchmark.ts",
+      "line_number": 88,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/hud/index.ts:206. Review and remediate.",
+      "file_path": "src/hud/index.ts",
+      "line_number": 206,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/hud/index.ts:210. Review and remediate.",
+      "file_path": "src/hud/index.ts",
+      "line_number": 210,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/hud/index.ts:215. Review and remediate.",
+      "file_path": "src/hud/index.ts",
+      "line_number": 215,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/hud/index.ts:273. Review and remediate.",
+      "file_path": "src/hud/index.ts",
+      "line_number": 273,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in src/scripts/eval/eval-ml-kaggle-model-optimization.py:20. Review and remediate.",
+      "file_path": "src/scripts/eval/eval-ml-kaggle-model-optimization.py",
+      "line_number": 20,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in src/scripts/eval/eval-ml-kaggle-model-optimization.py:28. Review and remediate.",
+      "file_path": "src/scripts/eval/eval-ml-kaggle-model-optimization.py",
+      "line_number": 28,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/scripts/eval/eval-cli-discoverability.ts:30. Review and remediate.",
+      "file_path": "src/scripts/eval/eval-cli-discoverability.ts",
+      "line_number": 30,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in src/scripts/eval/eval-noisy-latent-subspace-discovery.py:40. Review and remediate.",
+      "file_path": "src/scripts/eval/eval-noisy-latent-subspace-discovery.py",
+      "line_number": 40,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in src/scripts/eval/eval-adaptive-sort-optimization.py:18. Review and remediate.",
+      "file_path": "src/scripts/eval/eval-adaptive-sort-optimization.py",
+      "line_number": 18,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in src/scripts/eval/eval-adaptive-sort-optimization.py:24. Review and remediate.",
+      "file_path": "src/scripts/eval/eval-adaptive-sort-optimization.py",
+      "line_number": 24,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in src/scripts/eval/eval-security-path-traversal.ts:28. Review and remediate.",
+      "file_path": "src/scripts/eval/eval-security-path-traversal.ts",
+      "line_number": 28,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in src/scripts/eval/eval-noisy-bayesopt-highdim.py:40. Review and remediate.",
+      "file_path": "src/scripts/eval/eval-noisy-bayesopt-highdim.py",
+      "line_number": 40,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "high",
+      "title": "Secret detected: Hardcoded secret",
+      "description": "Pattern '(?i)(secret|api_key|apikey|token)\\s*=\\s*' matched in src/scripts/notify-hook/auto-nudge.ts:470. Rotate the credential immediately.",
+      "file_path": "src/scripts/notify-hook/auto-nudge.ts",
+      "line_number": 470,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "medium",
+      "title": "Dangerous pattern: dangerouslySetInnerHTML (review required)",
+      "description": "Found in skills/security-review/SKILL.md:158. Review and remediate.",
+      "file_path": "skills/security-review/SKILL.md",
+      "line_number": 158,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in .github/workflows/release.yml:82. Review and remediate.",
+      "file_path": ".github/workflows/release.yml",
+      "line_number": 82,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: console.log in production",
+      "description": "Found in .github/workflows/release.yml:299. Review and remediate.",
+      "file_path": ".github/workflows/release.yml",
+      "line_number": 299,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in playground/bayesopt_highdim_demo/run_search.py:16. Review and remediate.",
+      "file_path": "playground/bayesopt_highdim_demo/run_search.py",
+      "line_number": 16,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in playground/adaptive_sort_demo/sort_benchmark.py:167. Review and remediate.",
+      "file_path": "playground/adaptive_sort_demo/sort_benchmark.py",
+      "line_number": 167,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in playground/bayesopt_latent_discovery_demo/run_search.py:16. Review and remediate.",
+      "file_path": "playground/bayesopt_latent_discovery_demo/run_search.py",
+      "line_number": 16,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in playground/ml_kaggle_demo/train.py:37. Review and remediate.",
+      "file_path": "playground/ml_kaggle_demo/train.py",
+      "line_number": 37,
+      "auto_fixable": false,
+      "extra": {}
+    }
+  ],
+  "error": "",
+  "health_score": 67
+}

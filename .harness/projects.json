@@ -124,6 +124,18 @@
       "notes": "No Linear project yet — scanner will create tickets at team level"
     },
     {
+      "id": "ccw-crm",
+      "repo": "CleanExpo/CCW-CRM",
+      "linear_project_id": "40c7dc3d-35ff-4e2c-ac1e-f903c1f5c856",
+      "linear_project_name": "CCW-ERP/CRM",
+      "linear_team_id": "ab9c7810-4dd6-4ce2-8e8f-e1fc94c6b88b",
+      "linear_team_key": "UNI",
+      "stack": ["Next.js", "FastAPI", "TypeScript", "Python", "Supabase"],
+      "deployments": {},
+      "scan_priority": "high",
+      "scan_schedule": "0 */6 * * *"
+    },
+    {
       "id": "carsi",
       "repo": "CleanExpo/carsi",
       "linear_project_id": "20538e04-ba27-467d-b632-1fb346063089",

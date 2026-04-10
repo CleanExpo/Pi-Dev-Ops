@@ -6,7 +6,7 @@
 
 ### Backend (FastAPI)
 - ✅ 28/28 smoke tests passing locally
-- ✅ TAO_PASSWORD set: `PiDevOpsTestPassword2024`
+- ✅ TAO_PASSWORD set: `<redacted>`
 - ✅ Server runs at http://0.0.0.0:7777
 - ✅ Health endpoint: `/health` returns `{"status":"ok"}`
 - ✅ Authentication fixed (password consistency)
@@ -22,11 +22,11 @@
 
 ### Environment Variables (Found)
 ```
-GITHUB_TOKEN=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
-LINEAR_API_KEY=lin_api_DUkmVuRx1ZdjKKfyjVlGKqLAleHmaEcpKTq7En4i
+GITHUB_TOKEN=<redacted>
+LINEAR_API_KEY=<redacted>
 SUPABASE_SERVICE_ROLE_KEY=<configured>
 VERCEL_OIDC_TOKEN=<configured>
-TAO_PASSWORD=PiDevOpsTestPassword2024
+TAO_PASSWORD=<redacted>
 ```
 
 ### Deployment Scripts
@@ -73,10 +73,10 @@ bash scripts/deploy_railway.sh
 Once deployed, set these in Railway dashboard → Environment:
 
 ```
-TAO_PASSWORD=PiDevOpsTestPassword2024
+TAO_PASSWORD=<redacted>
 ANTHROPIC_API_KEY=<your-anthropic-key>
-GITHUB_TOKEN=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
-LINEAR_API_KEY=lin_api_DUkmVuRx1ZdjKKfyjVlGKqLAleHmaEcpKTq7En4i
+GITHUB_TOKEN=<redacted>
+LINEAR_API_KEY=<redacted>
 ```
 
 ### Step 4: Verify Deployment
@@ -85,7 +85,7 @@ LINEAR_API_KEY=lin_api_DUkmVuRx1ZdjKKfyjVlGKqLAleHmaEcpKTq7En4i
 railway open
 
 # Run smoke tests
-python scripts/smoke_test.py --url <railway-url> --password PiDevOpsTestPassword2024
+python scripts/smoke_test.py --url <railway-url> --password <redacted>
 ```
 
 ## 📊 Current Metrics

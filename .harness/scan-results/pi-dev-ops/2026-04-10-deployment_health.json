@@ -1,0 +1,10 @@
+{
+  "project_id": "pi-dev-ops",
+  "repo": "CleanExpo/Pi-Dev-Ops",
+  "scan_type": "deployment_health",
+  "started_at": "2026-04-10T07:29:51.919614+00:00",
+  "finished_at": "2026-04-10T07:29:52.603242+00:00",
+  "findings": [],
+  "error": "",
+  "health_score": 100
+}

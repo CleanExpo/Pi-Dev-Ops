@@ -1,0 +1,10 @@
+{
+  "project_id": "unite-group",
+  "repo": "CleanExpo/unite-group",
+  "scan_type": "code_quality",
+  "started_at": "2026-04-10T06:26:53.173792+00:00",
+  "finished_at": "2026-04-10T06:26:53.514707+00:00",
+  "findings": [],
+  "error": "",
+  "health_score": 100
+}

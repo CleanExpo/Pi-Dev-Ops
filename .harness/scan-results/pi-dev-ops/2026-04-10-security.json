@@ -1,0 +1,441 @@
+{
+  "project_id": "pi-dev-ops",
+  "repo": "CleanExpo/Pi-Dev-Ops",
+  "scan_type": "security",
+  "started_at": "2026-04-10T07:16:10.153734+00:00",
+  "finished_at": "2026-04-10T07:16:10.230699+00:00",
+  "findings": [
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in Dockerfile:35. Review and remediate.",
+      "file_path": "Dockerfile",
+      "line_number": 35,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in Dockerfile:43. Review and remediate.",
+      "file_path": "Dockerfile",
+      "line_number": 43,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in READY_TO_DEPLOY.md:10. Review and remediate.",
+      "file_path": "READY_TO_DEPLOY.md",
+      "line_number": 10,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in railway.toml:6. Review and remediate.",
+      "file_path": "railway.toml",
+      "line_number": 6,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in _deploy.py:12. Review and remediate.",
+      "file_path": "_deploy.py",
+      "line_number": 12,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in _deploy.py:83. Review and remediate.",
+      "file_path": "_deploy.py",
+      "line_number": 83,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in _deploy.py:84. Review and remediate.",
+      "file_path": "_deploy.py",
+      "line_number": 84,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in app/Dockerfile:25. Review and remediate.",
+      "file_path": "app/Dockerfile",
+      "line_number": 25,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: Binding to 0.0.0.0",
+      "description": "Found in app/Dockerfile:29. Review and remediate.",
+      "file_path": "app/Dockerfile",
+      "line_number": 29,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/smoke_test.py:140. Review and remediate.",
+      "file_path": "scripts/smoke_test.py",
+      "line_number": 140,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/smoke_test.py:147. Review and remediate.",
+      "file_path": "scripts/smoke_test.py",
+      "line_number": 147,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/smoke_test.py:150. Review and remediate.",
+      "file_path": "scripts/smoke_test.py",
+      "line_number": 150,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/smoke_test.py:153. Review and remediate.",
+      "file_path": "scripts/smoke_test.py",
+      "line_number": 153,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/smoke_test.py:154. Review and remediate.",
+      "file_path": "scripts/smoke_test.py",
+      "line_number": 154,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/smoke_test.py:160. Review and remediate.",
+      "file_path": "scripts/smoke_test.py",
+      "line_number": 160,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/smoke_test.py:166. Review and remediate.",
+      "file_path": "scripts/smoke_test.py",
+      "line_number": 166,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/smoke_test.py:167. Review and remediate.",
+      "file_path": "scripts/smoke_test.py",
+      "line_number": 167,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/smoke_test.py:181. Review and remediate.",
+      "file_path": "scripts/smoke_test.py",
+      "line_number": 181,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/smoke_test.py:194. Review and remediate.",
+      "file_path": "scripts/smoke_test.py",
+      "line_number": 194,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/smoke_test.py:202. Review and remediate.",
+      "file_path": "scripts/smoke_test.py",
+      "line_number": 202,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/smoke_test.py:215. Review and remediate.",
+      "file_path": "scripts/smoke_test.py",
+      "line_number": 215,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/smoke_test.py:223. Review and remediate.",
+      "file_path": "scripts/smoke_test.py",
+      "line_number": 223,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/smoke_test.py:243. Review and remediate.",
+      "file_path": "scripts/smoke_test.py",
+      "line_number": 243,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/smoke_test.py:263. Review and remediate.",
+      "file_path": "scripts/smoke_test.py",
+      "line_number": 263,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/smoke_test.py:274. Review and remediate.",
+      "file_path": "scripts/smoke_test.py",
+      "line_number": 274,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/smoke_test.py:275. Review and remediate.",
+      "file_path": "scripts/smoke_test.py",
+      "line_number": 275,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/smoke_test.py:277. Review and remediate.",
+      "file_path": "scripts/smoke_test.py",
+      "line_number": 277,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/smoke_test.py:279. Review and remediate.",
+      "file_path": "scripts/smoke_test.py",
+      "line_number": 279,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/smoke_test.py:280. Review and remediate.",
+      "file_path": "scripts/smoke_test.py",
+      "line_number": 280,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/analyze.sh:171. Review and remediate.",
+      "file_path": "scripts/analyze.sh",
+      "line_number": 171,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/fetch_anthropic_docs.py:75. Review and remediate.",
+      "file_path": "scripts/fetch_anthropic_docs.py",
+      "line_number": 75,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/fetch_anthropic_docs.py:91. Review and remediate.",
+      "file_path": "scripts/fetch_anthropic_docs.py",
+      "line_number": 91,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/fetch_anthropic_docs.py:113. Review and remediate.",
+      "file_path": "scripts/fetch_anthropic_docs.py",
+      "line_number": 113,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/fetch_anthropic_docs.py:119. Review and remediate.",
+      "file_path": "scripts/fetch_anthropic_docs.py",
+      "line_number": 119,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in scripts/fetch_anthropic_docs.py:120. Review and remediate.",
+      "file_path": "scripts/fetch_anthropic_docs.py",
+      "line_number": 120,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in app/server/sessions.py:109. Review and remediate.",
+      "file_path": "app/server/sessions.py",
+      "line_number": 109,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in app/server/config.py:5. Review and remediate.",
+      "file_path": "app/server/config.py",
+      "line_number": 5,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in app/server/gc.py:83. Review and remediate.",
+      "file_path": "app/server/gc.py",
+      "line_number": 83,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in app/server/cron.py:98. Review and remediate.",
+      "file_path": "app/server/cron.py",
+      "line_number": 98,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in app/server/cron.py:116. Review and remediate.",
+      "file_path": "app/server/cron.py",
+      "line_number": 116,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in app/server/cron.py:118. Review and remediate.",
+      "file_path": "app/server/cron.py",
+      "line_number": 118,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in app/server/cron.py:122. Review and remediate.",
+      "file_path": "app/server/cron.py",
+      "line_number": 122,
+      "auto_fixable": false,
+      "extra": {}
+    },
+    {
+      "scan_type": "security",
+      "severity": "info",
+      "title": "Dangerous pattern: print() in production (Python)",
+      "description": "Found in app/server/main.py:23. Review and remediate.",
+      "file_path": "app/server/main.py",
+      "line_number": 23,
+      "auto_fixable": false,
+      "extra": {}
+    }
+  ],
+  "error": "",
+  "health_score": 100
+}

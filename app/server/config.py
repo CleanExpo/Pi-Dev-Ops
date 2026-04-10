@@ -1,5 +1,18 @@
 import os, secrets, hashlib, logging, json
 from pathlib import Path
+from dotenv import load_dotenv
+
+# ---------------------------------------------------------------------------
+# Load .env files before reading any os.environ values.
+# override=True ensures variables in the file beat whatever the shell has set —
+# specifically, the `claude` CLI sets ANTHROPIC_API_KEY="" in the parent shell
+# env as a security measure, so child processes (this server) would inherit an
+# empty string. Loading from the file with override=True fixes that permanently,
+# regardless of how the server was launched.
+# ---------------------------------------------------------------------------
+_root = Path(__file__).resolve().parents[2]  # Pi-Dev-Ops/
+load_dotenv(_root / ".env", override=True)
+load_dotenv(_root / ".env.local", override=True)  # local overrides win
 
 # ---------------------------------------------------------------------------
 # Structured JSON logging — replaces all print() calls
@@ -97,6 +110,9 @@ LINEAR_WEBHOOK_SECRET = os.environ.get("TAO_LINEAR_WEBHOOK_SECRET",     "")
 # ---------------------------------------------------------------------------
 # Pi-SEO scanner settings
 # ---------------------------------------------------------------------------
+
+ANTHROPIC_API_KEY    = os.environ.get("ANTHROPIC_API_KEY",               "")
+USE_AGENT_SDK        = os.environ.get("TAO_USE_AGENT_SDK", "0") == "1"
 
 LINEAR_API_KEY       = os.environ.get("LINEAR_API_KEY",                 "")
 SCAN_WORKSPACE_ROOT  = os.environ.get("SCAN_WORKSPACE_ROOT",

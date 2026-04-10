@@ -1,0 +1,63 @@
+{
+  "project_id": "oh-my-codex",
+  "repo": "CleanExpo/oh-my-codex",
+  "scan_type": "dependencies",
+  "started_at": "2026-04-10T06:26:57.487165+00:00",
+  "finished_at": "2026-04-10T06:26:58.143155+00:00",
+  "findings": [
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: @hono/node-server",
+      "description": "@hono/node-server: Middleware bypass via repeated slashes in serveStatic. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "@hono/node-server",
+        "range": "<1.19.13"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: brace-expansion",
+      "description": "brace-expansion: Zero-step sequence causes process hang and memory exhaustion. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "brace-expansion",
+        "range": "4.0.0 - 5.0.4"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: hono",
+      "description": "Hono missing validation of cookie name on write path in setCookie(). Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "hono",
+        "range": "<=4.12.11"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: path-to-regexp",
+      "description": "path-to-regexp vulnerable to Denial of Service via sequential optional groups. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "path-to-regexp",
+        "range": "8.0.0 - 8.3.0"
+      }
+    }
+  ],
+  "error": "",
+  "health_score": 81
+}

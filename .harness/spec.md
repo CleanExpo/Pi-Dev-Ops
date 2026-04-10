@@ -1,6 +1,6 @@
 # Pi Dev Ops — Product Spec (Full Analysis)
 
-_Generated: 2026-04-08 | Last updated: 2026-04-10 (Sprint 5) | Analyst: Pi CEO Orchestrator (Claude Opus 4.6) | Sprint: 5 / Cycle 10_
+_Generated: 2026-04-08 | Last updated: 2026-04-10 (Sprint 7) | Analyst: Pi CEO Orchestrator | Sprint: 7 / Cycle 13_
 
 ---
 
@@ -48,6 +48,8 @@ Browser ← WebSocket /ws/build/{sid}  (live event stream, 150ms polling)
 | Linear In-Progress | `POST /api/webhook` | Issue → structured brief |
 | Cron | background `cron_loop()` | Hourly/daily repeating builds |
 | MCP | `pi-ceo-server.js` tools | From Claude Desktop / CoWork |
+| Telegram | `POST /api/telegram` | /build, /status, /clear commands + free-form chat |
+| Ship-chain | `POST /api/spec /api/plan /api/build /api/test /api/review /api/ship` | 6-phase structured pipeline |
 
 ---
 
@@ -68,27 +70,18 @@ Browser ← WebSocket /ws/build/{sid}  (live event stream, 150ms polling)
 | `cron.py` | Scheduled triggers (`.harness/cron-triggers.json`), 60s loop | ✅ Complete |
 | `gc.py` | Workspace GC: terminal sessions >4h TTL + orphan dir scan, 30min loop | ✅ Complete |
 | `lessons.py` | JSONL-backed institutional memory, `GET/POST /api/lessons` | ✅ Complete |
+| `scanner.py` | Pi-SEO autonomous multi-project scanner orchestrator | ✅ Complete |
+| `pipeline.py` | Ship-chain pipeline orchestrator (6 phases, artifact persistence) | ✅ Complete |
+| `agents/board_meeting.py` | Claude Agent SDK PoC — BoardMeetingAgent parallel to existing cron | ✅ Complete |
 
 **Security posture:**
-- `SecurityHeaders` middleware: CSP, X-Frame-Options, X-XSS-Protection on every response
+- `SecurityHeaders` middleware: CSP nonce-based policy (per-request), X-Frame-Options, X-XSS-Protection on every response
 - CORS: explicit allowlist (`localhost:3000`, `*.vercel.app`, `*.railway.app` + env-var extension)
 - Cookie: `HttpOnly`, `Secure` (cloud only), `SameSite=None` (cloud) / `Strict` (local)
 - Auth: bcrypt password hash (auto-migrated from SHA-256 on first login), `hmac.compare_digest` (timing-safe). Bearer token also accepted (WS fallback)
 - Rate limit: 30 req/min/IP, inline GC every 5 min, stale IP keys pruned at 120s idle
 - Path traversal: `_safe_sid()` strips non-alphanumeric from session IDs before file path use
-- Webhook HMAC: timing-safe comparison for both GitHub (`sha256=<hex>`) and Linear (`<hex>`) formats
-
-**Known limitations / open items:**
-1. ✅ **RESOLVED (RA-482)** `src/tao/agents/__init__.py` — AgentDispatcher now implemented with intent-based skill routing, concurrent execution, batch dispatch
-2. ⚠️  Dashboard `lib/types.ts` defines richer session/phase types than the backend currently emits via `/api/sessions` — potential misalignment (low priority, functional workaround in place)
-
-**Resolved since Sprint 3:**
-- ✅ **RESOLVED (RA-479)** `GET /api/capabilities` endpoint implemented (agentic-layer skill discovery)
-- ✅ **RESOLVED (RA-481)** `scripts/smoke_test.py` created — 22-check automated regression suite
-- ✅ `.harness/executive-summary.md` created (MCP board notes now fully functional)
-- ✅ `token-budgeter/SKILL.md` cost fields filled in (Opus $15, Sonnet $3, Haiku $1.25 per M output)
-- ✅ `ceo-mode` added to `tao-skills/SKILL.md` master index (23/23 skills indexed)
-- ✅ **RESOLVED (RA-480)** `/api/sessions` GET handler implemented with proper Supabase integration
+- Webhook HMAC: mandatory secrets (GITHUB_WEBHOOK_SECRET / LINEAR_WEBHOOK_SECRET hard-fail if missing); timing-safe comparison
 
 ### 2.2 TAO Engine (`src/tao/`)
 
@@ -103,14 +96,6 @@ The Python engine provides a skills registry, tier config loading, budget tracki
 | `agents/__init__.py` | ✅ Complete (RA-482) | `AgentDispatcher` class: intent-based routing, concurrent execution, batch dispatch, result aggregation |
 | `templates/3-tier-webapp.yaml` | ✅ Present | Reference config: opus orchestrator + sonnet specialist + haiku workers |
 
-**Engine integration points:**
-- `sessions.py` imports `BudgetTracker`, `load_config`, `TaskSpec`, `TaskResult` on startup (soft-fails via `_TAO_AVAILABLE` flag)
-- `brief.py` calls `skills_for_intent(intent)` to inject relevant skill bodies into every spec
-- `.harness/config.yaml` is parsed by `load_config()` to drive `_select_model()` per phase
-
-**Why delegate to `claude -p` rather than Python API calls?**
-The Claude Max subscription includes zero-cost Claude Code execution. Calling `anthropic.Anthropic()` directly would incur per-token charges and require API key management. The CLI subprocess approach also gets native tool-use, file editing, and bash execution without re-implementing the harness.
-
 ### 2.3 Next.js Dashboard (`dashboard/`)
 
 Deployed on Vercel at `https://pi-dev-ops.vercel.app`.
@@ -121,6 +106,8 @@ Deployed on Vercel at `https://pi-dev-ops.vercel.app`.
 | `app/(main)/chat/page.tsx` | Chat interface |
 | `app/(main)/history/page.tsx` | Build history |
 | `app/(main)/settings/page.tsx` | Settings form |
+| `app/(main)/health/page.tsx` | Pi-SEO health dashboard (10 repos, scores, findings) |
+| `app/api/telegram/route.ts` | Telegram bot webhook handler (@piceoagent_bot) |
 | `hooks/useSSE.ts` | SSE client for streaming events from `/api/analyze` |
 | `components/Terminal.tsx` | Live terminal output renderer |
 | `components/PhaseTracker.tsx` | Phase status visualiser |
@@ -128,11 +115,9 @@ Deployed on Vercel at `https://pi-dev-ops.vercel.app`.
 | `components/ActionsPanel.tsx` | Post-analysis action buttons |
 | `lib/types.ts` | Shared TypeScript types: `Phase`, `Session`, `AnalysisResult`, `LeveragePoint` |
 
-**Potential dashboard–backend gap:** The dashboard `types.ts` defines `Session.phases: Phase[]` and `AnalysisResult.leveragePoints: LeveragePoint[]` but the backend `/api/sessions` currently returns a flat status string, not structured phases. The dashboard's `/api/analyze` route (SSE) and the backend's `/api/build` + WebSocket flow may need reconciliation in Sprint 4.
-
 ### 2.4 MCP Server (`mcp/pi-ceo-server.js`)
 
-Version 3.0.0. Built on `@modelcontextprotocol/sdk` (official subpath imports required: `sdk/server/mcp.js`, `sdk/server/stdio.js`).
+Version 3.1.0. Built on `@modelcontextprotocol/sdk` (official subpath imports required: `sdk/server/mcp.js`, `sdk/server/stdio.js`). Total: 21 tools.
 
 | Tool | Purpose |
 |------|---------|
@@ -147,6 +132,16 @@ Version 3.0.0. Built on `@modelcontextprotocol/sdk` (official subpath imports re
 | `linear_update_issue` | Updates an existing Linear issue by identifier |
 | `linear_search_issues` | Full-text search across issues |
 | `linear_sync_board` | Full kanban board view (all statuses) |
+| `scan_project` | Triggers Pi-SEO scan for a repo |
+| `get_project_health` | Returns latest scan results + health score |
+| `spec_idea` | Ship-chain: converts idea to spec.md |
+| `plan_build` | Ship-chain: converts spec to implementation plan |
+| `test_build` | Ship-chain: runs smoke test suite |
+| `review_build` | Ship-chain: runs evaluator on build session |
+| `ship_build` | Ship-chain: gate check + deploy |
+| `get_pipeline` | Returns current pipeline state |
+| `run_monitor_cycle` | Triggers a monitoring cycle |
+| `linear_status` | Diagnostic tool for Linear connectivity |
 
 **Dependencies:** `LINEAR_API_KEY` env var required for Linear tools. Configured in `%APPDATA%\Claude\claude_desktop_config.json`.
 
@@ -159,8 +154,12 @@ Version 3.0.0. Built on `@modelcontextprotocol/sdk` (official subpath imports re
 | `handoff.md` | ✅ Complete | Cross-session state, sprint history, architecture snapshot |
 | `lessons.jsonl` | ✅ Seeded (18 entries) | Agent-expert institutional memory |
 | `leverage-audit.md` | ✅ Present | 12-point ZTE diagnostic, full changelog from 35→60 |
-| `sprint_plan.md` | ✅ Present | Sprint 3 items, completed sprint history |
+| `sprint_plan.md` | ✅ Present | Sprint history and Sprint 8 open items |
 | `feature_list.json` | ✅ Present | Feature list for MCP `get_feature_list` tool |
+| `pipeline/{id}/` | ✅ Present | Ship-chain artifact store per pipeline run |
+| `projects.json` | ✅ Present | Pi-SEO project registry (10 repos) |
+| `scan-results/` | ✅ Present | Pi-SEO scan output per project |
+| `poc-metrics/` | ✅ Present | Agent SDK PoC comparison metrics |
 | `agents/planner.md` | ✅ Present | Planner agent tier 1 specification |
 | `agents/evaluator.md` | ✅ Present | Evaluator agent tier 3 specification |
 | `contracts/build-contract.md` | ✅ Present | Build contract spec |
@@ -170,22 +169,22 @@ Version 3.0.0. Built on `@modelcontextprotocol/sdk` (official subpath imports re
 | `templates/*.md` | ✅ Present | Feature/bugfix/chore brief templates |
 | `board-meetings/` | ✅ Present | Autonomous board meeting minutes |
 | `anthropic-docs/index.json` | ✅ Present | Fetched Anthropic documentation index |
-| `cron-triggers.json` | ⚠️ Created at runtime | Cron trigger persistence |
+| `cron-triggers.json` | ✅ Present | Cron trigger persistence (10 Pi-SEO + system crons) |
 
 ---
 
-## 3. Skills Analysis (23 of 23)
+## 3. Skills Analysis (31 of 31)
 
 ### Layer 1: Core (7 skills)
 
 | Skill | Purpose | Wired In Code | Notes |
 |-------|---------|---------------|-------|
-| `tier-architect` | Design model-to-role tier hierarchy | Partial | `.harness/config.yaml` partially implements; `agents/__init__.py` not implemented |
+| `tier-architect` | Design model-to-role tier hierarchy | Partial | `.harness/config.yaml` partially implements |
 | `tier-orchestrator` | Top-tier planning + delegation patterns | ✅ | `orchestrator.py` fan-out pattern + brief decomposition |
 | `tier-worker` | Discrete execution, escalation rules | ✅ | `run_build()` workers; escalation via opus fallback |
 | `tier-evaluator` | QA grading with 4 dimensions | ✅ | Phase 4.5 in `sessions.py`; `evaluator.md` spec |
-| `context-compressor` | Truncate/extract/summarize at tier boundaries | Partial | `build_structured_brief()` truncates skill bodies to 800 chars; no AI summarisation |
-| `token-budgeter` | Track token spend per tier | Partial | `BudgetTracker` instantiated per session; cost values blank in skill file |
+| `context-compressor` | Truncate/extract/summarize at tier boundaries | Partial | `build_structured_brief()` truncates skill bodies to 800 chars |
+| `token-budgeter` | Track token spend per tier | Partial | `BudgetTracker` instantiated per session |
 | `auto-generator` | Generate tier configs from project briefs | No | Presets defined; no code generates them yet |
 
 ### Layer 2: Frameworks (6 skills)
@@ -195,9 +194,9 @@ Version 3.0.0. Built on `@modelcontextprotocol/sdk` (official subpath imports re
 | `piter-framework` | 5-pillar AFK setup | ✅ | `classify_intent()` + 5 ADW templates enforced at brief entry |
 | `afk-agent` | Bounded unattended runs with stop guards | ✅ | Phase pipeline has explicit success/failure termination |
 | `closed-loop-prompt` | Self-correcting prompts with embedded verification | ✅ | Evaluator critique injected into retry prompt |
-| `hooks-system` | 6 lifecycle hooks for observability + safety | Partial | PreToolUse (rate limit), PostToolUse (logging); Stop/SubagentStop not yet implemented |
+| `hooks-system` | 6 lifecycle hooks for observability + safety | Partial | PreToolUse (rate limit), PostToolUse (logging) |
 | `agent-workflow` | 5 ADW templates | ✅ | Full templates in `brief.py`, routes all 5 intent types |
-| `agentic-review` | 6-dimension quality review | ✅ | Evaluator covers 4 of 6 dimensions; Architecture + Naming not explicitly graded |
+| `agentic-review` | 6-dimension quality review | ✅ | Evaluator covers 4 of 6 dimensions |
 
 ### Layer 3: Strategic (5 skills)
 
@@ -207,7 +206,7 @@ Version 3.0.0. Built on `@modelcontextprotocol/sdk` (official subpath imports re
 | `agent-expert` | Act-Learn-Reuse cycle | ✅ | Auto-learns from evaluator → `lessons.jsonl` → injected in next brief |
 | `leverage-audit` | 12-point diagnostic | ✅ | `leverage-audit.md` maintained and read by MCP `get_zte_score` |
 | `agentic-loop` | Two-prompt infinite loop | ✅ | Up to 3 evaluator rounds (max_iterations respected) |
-| `agentic-layer` | Dual-interface design | Partial | Machine-readable JSON API exists; `capabilities` endpoint not implemented |
+| `agentic-layer` | Dual-interface design | Partial | Machine-readable JSON API exists |
 
 ### Layer 4: Foundation (3 skills)
 
@@ -221,8 +220,26 @@ Version 3.0.0. Built on `@modelcontextprotocol/sdk` (official subpath imports re
 
 | Skill | Status |
 |-------|--------|
-| `ceo-mode` | ✅ Active — used this session |
-| `tao-skills` | ⚠️ Missing `ceo-mode` in the 23-skill index (shows 23 but only lists 22 in text) |
+| `ceo-mode` | ✅ Active |
+| `tao-skills` | ✅ Master index (31 skills) |
+
+### Layer 6: Pi-SEO (3 skills)
+
+| Skill | Purpose | Wired In Code | Notes |
+|-------|---------|---------------|-------|
+| `pi-seo-security` | OWASP Top 10 + secret detection | ✅ | scanner.py skill orchestration |
+| `pi-seo-deployment` | Vercel Sandbox audit + Core Web Vitals | ✅ | scanner.py |
+| `pi-seo-dependencies` | npm/pip CVE + outdated packages | ✅ | scanner.py |
+
+### Layer 7: Ship Chain (5 skills)
+
+| Skill | Purpose | Wired In Code | Notes |
+|-------|---------|---------------|-------|
+| `ship-chain` | Orchestrates all 6 phases, routing + gate checks | ✅ | `pipeline.py` + 7 MCP tools |
+| `define-spec` | Converts raw idea → structured spec.md | ✅ | `POST /api/spec` |
+| `technical-plan` | Converts spec → implementation plan | ✅ | `POST /api/plan` |
+| `verify-test` | Interprets test results, identifies gaps | ✅ | `POST /api/test` |
+| `ship-release` | Release gate (score ≥8) + ship log | ✅ | `POST /api/ship` |
 
 ---
 
@@ -239,9 +256,9 @@ Version 3.0.0. Built on `@modelcontextprotocol/sdk` (official subpath imports re
 | 7 | Session Continuity | 5/5 | Phase-level checkpoints; `POST /api/sessions/{sid}/resume` |
 | 8 | Quality Gating | 5/5 | Evaluator is a BLOCKING gate (configurable max retries before push) |
 | 9 | Cost Efficiency | 5/5 | Zero API cost on Claude Max |
-| 10 | Trigger Automation | 5/5 | GitHub + Linear webhooks + cron triggers |
+| 10 | Trigger Automation | 5/5 | GitHub + Linear webhooks + cron triggers + Telegram + Pi-SEO scan rotation |
 | 11 | Knowledge Retention | 5/5 | Auto-learn: low evaluator dims → lessons.jsonl → injected in next brief |
-| 12 | Workflow Standardisation | 5/5 | PITER at brief entry; all 5 ADW templates active |
+| 12 | Workflow Standardisation | 5/5 | PITER at brief entry; all 5 ADW templates active; ship-chain pipeline |
 
 **Total: 60 / 60 — Zero Touch Engineering band (56-60)**
 
@@ -261,59 +278,31 @@ RA-454 evaluator tier, RA-455 webhooks, RA-456 PITER+ADW, RA-457 skills loader, 
 ### Sprint 3 — Validation (2026-04-08) | 60/60 maintained
 RA-469 MCP `get_zte_score` reads `leverage-audit.md` + `feature_list.json`, RA-470 E2E smoke test 22/22 passes + PITER priority bug fixed, RA-471 push retry 3-attempt backoff, RA-472 handoff.md.
 
+### Sprint 5 — Security + Agent SDK (2026-04-09)
+RA-489–RA-527: bcrypt auth, CSP nonce policy, Next.js auth middleware, pytest suite (34 tests), graceful shutdown, crash recovery, health check hardening, CI expansion (TypeScript + lint). RA-485: Claude Agent SDK PoC (board-meeting agent, parallel 14-cycle comparison run).
+
+### Sprint 6 — Pi-SEO + Ship-Chain (2026-04-10)
+RA-531–RA-542: Pi-SEO scanner epic — project registry, autonomous scanner, triage engine, 3 scanner skills (security/deployment/dependencies), auto-PR, health dashboard, scan crons, MCP tools, Vercel Sandbox snapshot. RA-543: Ship-chain pipeline (/spec /plan /build /test /review /ship) — 5 skills, 5 API endpoints, 7 MCP tools.
+
+### Sprint 7 — Mobile + Telegram (2026-04-10)
+RA-546: Mobile/tablet responsive layout (bottom tab bar, iOS zoom fix). RA-547: Worktree isolation fix (.claude/settings.json hooks). RA-548: @piceoagent_bot Telegram webhook integration. RA-549: claude-code-telegram agentic bot deployed to Railway.
+
 ---
 
-## 6. Sprint 4 Completions + Sprint 5 Direction
+## 6. Sprint 7 Completions + Sprint 8 Direction
 
-### Sprint 4 — Completed (2026-04-09)
+### Sprint 7 — Complete (2026-04-10)
+Mobile & tablet responsive layout, worktree isolation fix, Telegram bot integration (@piceoagent_bot), claude-code-telegram deployed to Railway with full Claude Agent SDK tool use.
 
-| ID | Item | Status |
-|----|------|--------|
-| P4-A | `executive-summary.md` created | Done |
-| P4-B | `token-budgeter` skill cost fields filled | Done |
-| P4-C | `ceo-mode` added to `tao-skills` master index | Done |
-| P4-D | `GET /api/capabilities` endpoint (RA-479) | Done |
-| P4-E | Dashboard session alignment (RA-480) | Done |
-| P4-F | `AgentDispatcher` in `src/tao/agents/__init__.py` (RA-482) | Done |
-| P4-G | `scripts/smoke_test.py` 28-check suite (RA-481) | Done |
-| P4-K | `LINEAR_API_KEY` in claude_desktop_config.json | Done |
-| SEC-0..5 | Security hardening (bcrypt, CSP, logging, session secret) | Done |
-| BUG-1,2 | Phase 4 parser fix, xterm CSS fix | Done |
-| FEAT-1..5 | Vercel deploy, Telegram, ActionsPanel, SSE reconnect, /health | Done |
-| UX-1..3 | Toast, ErrorBoundary, 404/error pages | Done |
-| SKILL-1..3 | security-audit, product-manager, maintenance-manager skills | Done |
+### Sprint 8 — Open Items (Candidate)
 
-### Sprint 5 — Architectural Pivot: Claude Agent SDK
-
-**Board Decision (2026-04-09, Cycle 9):** ADOPT Anthropic Claude Agent SDK via 2-week parallel PoC. Voted 8/8 unanimously (RA-485).
-
-**Rationale:** Pi-CEO is built on custom infrastructure (custom MCP server, manual sandbox enforcement, hand-rolled session persistence, bespoke garbage collection). This infrastructure is fragile (Zod bug blocked 8 cycles), consumes engineering bandwidth, and doesn't compound. Only the intelligence layer compounds.
-
-**Strategy:** Parallel run. Build `board-meeting` agent as a NEW deployment using the Claude Agent SDK (`pip install claude-agent-sdk`). Run both systems in parallel for 14 cycles. Migrate production only after 14 consecutive stable cycles.
-
-**Kill criteria (abort PoC if any triggered):**
-- Session lifecycle incompatible with cron-pattern (idle timeout < 6h)
-- MCP connectivity fails from within SDK container
-- Cost > 5x raw API baseline
-
-**What the SDK replaces:**
-| Current Pi-CEO Pattern | SDK Replacement |
-|---|---|
-| `asyncio.create_subprocess_exec("claude")` | Cloud container sessions |
-| Sequential `for phase in PHASES` loop | Multi-agent coordinator |
-| `lessons.jsonl` file | Persistent memory stores |
-| Local stdio MCP server | Remote MCP with vault auth |
-| `TAO_PASSWORD` env var | Vault credential management |
-
-**Reference:** `MANAGED_AGENTS_v4_FINAL.md` in project root contains the full 6-agent protocol (SPM, Architecture, Implementation, Testing, Review, Content specialists).
-
-### Remaining Open Items
-
-| Priority | Item | Ticket |
+| Priority | Item | Status |
 |----------|------|--------|
-| Medium | `auto-generator` skill implementation | Untracked |
-| Low | Multi-model parallel evaluation | Untracked |
-| Low | Full self-improvement loop (ZTE Level 3 meta) | Untracked |
+| High | Pi-SEO first full sweep across all 10 repos | Unstarted |
+| High | Agent SDK production cut-over plan (post-PoC) | Unstarted |
+| Medium | Self-improvement loop — lesson-pattern analyser | Unstarted |
+| Medium | Multi-model parallel evaluation (Sonnet+Haiku consensus) | Unstarted |
+| Low | Autonomous Pi Dev Ops self-maintenance on 6h schedule | Unstarted |
 
 ---
 
@@ -336,7 +325,11 @@ Pi Dev Ops/
 │       ├── webhook.py                  ← GitHub + Linear HMAC + event parsing
 │       ├── cron.py                     ← Scheduled triggers + cron_loop()
 │       ├── gc.py                       ← Workspace GC (4h TTL, 30min loop)
-│       └── lessons.py                  ← JSONL lessons CRUD
+│       ├── lessons.py                  ← JSONL lessons CRUD
+│       ├── scanner.py                  ← Pi-SEO autonomous multi-project scanner
+│       ├── pipeline.py                 ← Ship-chain pipeline orchestrator
+│       └── agents/
+│           └── board_meeting.py        ← Claude Agent SDK PoC board-meeting agent
 │   ├── static/index.html               ← Minimal frontend
 │   └── workspaces/                     ← Ephemeral session clones (GC'd at 4h)
 │       └── {session_id}/               ← Isolated clone per session
@@ -345,26 +338,30 @@ Pi Dev Ops/
 │   ├── app/(main)/chat/page.tsx        ← Chat interface
 │   ├── app/(main)/history/page.tsx     ← Build history
 │   ├── app/(main)/settings/page.tsx    ← Settings
+│   ├── app/(main)/health/page.tsx      ← Pi-SEO health dashboard (10 repos)
 │   ├── app/api/                        ← Next.js API routes (proxy to backend)
+│   ├── app/api/telegram/route.ts       ← Telegram bot webhook handler
 │   ├── components/                     ← Terminal, PhaseTracker, ResultCards, ActionsPanel
 │   ├── hooks/useSSE.ts                 ← SSE client for streaming events
 │   └── lib/types.ts                    ← Shared TypeScript types
 ├── mcp/
-│   └── pi-ceo-server.js               ← MCP v3.0.0 (11 tools, Linear + harness reads)
-├── skills/ (23 skills)
+│   └── pi-ceo-server.js               ← MCP v3.1.0 (21 tools, Linear + harness reads)
+├── skills/ (31 skills)
 │   ├── [core: 7]    tier-architect, tier-orchestrator, tier-worker,
 │   │                tier-evaluator, context-compressor, token-budgeter, auto-generator
 │   ├── [fw: 6]      piter-framework, afk-agent, closed-loop-prompt,
 │   │                hooks-system, agent-workflow, agentic-review
 │   ├── [strat: 5]   zte-maturity, agent-expert, leverage-audit, agentic-loop, agentic-layer
 │   ├── [found: 3]   big-three, claude-max-runtime, pi-integration
-│   └── [meta: 2]    ceo-mode, tao-skills (master index — needs ceo-mode entry)
+│   ├── [meta: 2]    ceo-mode, tao-skills (master index)
+│   ├── [pi-seo: 3]  pi-seo-security/, pi-seo-deployment/, pi-seo-dependencies/
+│   └── [ship: 5]    ship-chain/, define-spec/, technical-plan/, verify-test/, ship-release/
 ├── src/tao/
-│   ├── skills.py                       ← ✅ Skill loader/registry, intent-to-skill mapping
+│   ├── skills.py                       ← Skill loader/registry, intent-to-skill mapping
 │   ├── schemas/artifacts.py            ← TaskSpec, TaskResult, Escalation dataclasses
 │   ├── tiers/config.py                 ← TierConfig, MODEL_MAP, YAML loader
 │   ├── budget/tracker.py               ← BudgetTracker (per-tier token accounting)
-│   ├── agents/__init__.py              ← ⚠️ EMPTY — agent dispatch not implemented
+│   ├── agents/__init__.py              ← AgentDispatcher (intent routing, batch dispatch)
 │   └── templates/3-tier-webapp.yaml    ← Reference 3-tier config (opus/sonnet/haiku)
 ├── supabase/migration.sql              ← DB schema (if Supabase integration active)
 ├── scripts/
@@ -373,11 +370,15 @@ Pi Dev Ops/
 ├── .harness/
 │   ├── config.yaml                     ← Harness agent config (planner/generator/evaluator)
 │   ├── spec.md                         ← This document (living specification)
-│   ├── handoff.md                      ← Cross-session state (Sprint 3 complete)
+│   ├── handoff.md                      ← Cross-session state (Sprint 7 complete)
 │   ├── leverage-audit.md               ← ZTE score 60/60 + full changelog
-│   ├── sprint_plan.md                  ← Sprint 3 complete; Sprint 4 open
+│   ├── sprint_plan.md                  ← Sprint 7 complete; Sprint 8 open
 │   ├── lessons.jsonl                   ← 18 institutional memory entries
-│   ├── feature_list.json               ← Feature list for MCP
+│   ├── feature_list.json               ← Feature list for MCP (62 features)
+│   ├── pipeline/                       ← Ship-chain artifact store per pipeline run
+│   ├── projects.json                   ← Pi-SEO project registry (10 repos)
+│   ├── scan-results/                   ← Pi-SEO scan output per project
+│   ├── poc-metrics/                    ← Agent SDK PoC comparison metrics
 │   ├── agents/
 │   │   ├── planner.md                  ← Planner agent (Tier 1 Opus) spec
 │   │   ├── generator.md                ← Generator agent (Tier 2 Sonnet) spec
@@ -392,10 +393,8 @@ Pi Dev Ops/
 │   │   ├── feature-brief.md            ← Feature brief template
 │   │   ├── bugfix-brief.md             ← Bug fix brief template
 │   │   └── chore-brief.md              ← Chore brief template
-│   ├── board-meetings/
-│   │   └── 2026-04-08-1200-board-minutes.md  ← Autonomous board meeting
-│   ├── anthropic-docs/index.json       ← Fetched Anthropic docs index
-│   └── [cron-triggers.json]            ← Created at runtime by cron.py
+│   ├── board-meetings/                 ← Autonomous board meeting minutes
+│   └── anthropic-docs/index.json       ← Fetched Anthropic docs index
 ├── _deploy.py                          ← Bootstrap script (regenerates all files)
 ├── pyproject.toml                      ← Python project metadata + deps
 ├── vercel.json                         ← Vercel deployment config
@@ -422,30 +421,16 @@ A brief ML classifier would be overkill for 5 categories. The keyword matching i
 The use case is a solo developer on a single machine with low session volume. A full database adds operational overhead (schema migration, connection pooling) for marginal gain. The JSON file backup via `persistence.py` provides the important properties: survive restarts, mark interrupted sessions. The trade-off is no concurrent multi-server deployment.
 
 **Why WebSocket instead of SSE for build output?**
-WebSocket is bidirectional — the client can send `ping` frames and the server can terminate cleanly. SSE would also work but WS was chosen for its explicit connection lifecycle management. The dashboard `useSSE.ts` hook polls the SSE endpoint separately for analysis results, suggesting a future unification to either protocol.
+WebSocket is bidirectional — the client can send `ping` frames and the server can terminate cleanly. SSE would also work but WS was chosen for its explicit connection lifecycle management.
 
 ---
 
-## 9. Next Actions (Sprint 5)
+## 9. Next Actions (Sprint 8)
 
 ```
-[x] RA-487: Update feature_list.json — F-027, F-028 marked complete (DONE)
-[x] RA-488: Update harness docs for Sprint 4 + SDK pivot (DONE)
-[x] RA-486: Verify claude CLI PATH — confirmed working v2.1.98 (DONE)
-[ ] RA-484: Add smoke_test.py as GitHub Actions CI gate
-[ ] RA-483: Deploy Pi CEO server to Railway (cloud URL for dashboard)
-[ ] RA-485: Claude Agent SDK PoC — board-meeting agent (Phase 1)
+[ ] Pi-SEO activation: trigger first full sweep across all 10 repos; review finding volume
+[ ] Agent SDK cut-over: define production migration plan from claude -p subprocess
+[ ] Self-improvement loop: scheduled lesson-pattern analyser (CLAUDE.md proposals)
+[ ] Multi-model evaluator: Sonnet + Haiku consensus, Opus escalation on disagreement
+[ ] Autonomous self-maintenance: Pi Dev Ops scans itself on 6h schedule
 ```
-
-### Additional findings from Sprint 4 spike
-
-**Skill registry cache:** `src/tao/skills.py` caches skills after first `load_all_skills()` call.
-Hot-reload via `invalidate_cache()` is implemented but never called — a file watcher could wire this.
-
-**Lesson fallback:** `_get_lesson_context()` in `brief.py` falls back to the 3 most recent lessons of any category when no intent-specific lessons exist. This means new intents bootstrap from general lessons rather than returning empty context.
-
-**Health endpoint:** `GET /health` exists in `main.py` and returns `{"status": "ok", "sessions": N}` — not documented in the spec previously.
-
-**BudgetTracker vs cost estimation gap:** `BudgetTracker.record(tier, tokens)` accumulates tokens per tier but has no cost calculation. The `token-budgeter` skill now has accurate pricing — wiring the two (adding a `cost_usd()` method to `BudgetTracker` using the skill's rates) would close this gap.
-
-**`brief.py` note appended in spike sessions:** When this spike runs, the brief passed to Claude includes `[NOTE: Simplified due to previous failure. Focus on core task only.]` — this is the lesson injection system working: a previous failure lesson was included in the context, affecting the spec generated for this session.

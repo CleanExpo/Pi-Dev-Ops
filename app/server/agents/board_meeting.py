@@ -1,20 +1,16 @@
 """
-board_meeting.py — Board Meeting Agent (Managed Agents API PoC)
+board_meeting.py — Board Meeting Gap Audit
 
-Creates a cloud-hosted board meeting agent that:
-1. Reads Linear project state via MCP
-2. Reads Pi-CEO harness state via MCP
-3. Runs a structured 6-phase board meeting deliberation
-4. Saves minutes to .harness/board-meetings/
-
-This is Phase 1 of the Claude Agent SDK PoC (RA-485).
-Uses the Anthropic Managed Agents API (public beta).
+Compares the Pi-CEO spec against actual source code and raises Linear tickets
+for any discrepancies found. Uses claude_agent_sdk (TAO_USE_AGENT_SDK=1) or
+falls back to the claude CLI subprocess.
 
 Usage:
-    python -m app.server.agents.board_meeting [--dry-run]
+    python -m app.server.agents.board_meeting [--dry-run] [--cycle N]
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -26,7 +22,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from anthropic import Anthropic
 
 log = logging.getLogger("pi-ceo.agents.board-meeting")
 
@@ -191,6 +186,45 @@ def _extract_spec_claims(spec_text: str) -> list[str]:
     return claims
 
 
+# ── Claude SDK helper ────────────────────────────────────────────────────────
+
+def _run_prompt_via_sdk(prompt: str, model: str = "claude-sonnet-4-6", timeout: int = 120) -> str:
+    """Run a single-shot prompt via claude_agent_sdk and return the text response.
+
+    Falls back silently to empty string on any SDK error so the caller can
+    fall through to the subprocess path.
+    """
+    try:
+        from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions, ClaudeSDKClient, ResultMessage, TextBlock
+    except ImportError:
+        log.warning("claude_agent_sdk not installed — falling back to subprocess")
+        return ""
+
+    async def _run() -> str:
+        options = ClaudeAgentOptions(model=model, max_turns=1)
+        client = ClaudeSDKClient(options)
+        text_parts: list[str] = []
+        try:
+            await client.connect()
+            await client.query(prompt)
+            async for msg in client.receive_messages():
+                if isinstance(msg, AssistantMessage):
+                    for block in msg.content:
+                        if isinstance(block, TextBlock):
+                            text_parts.append(block.text)
+                elif isinstance(msg, ResultMessage):
+                    break
+        finally:
+            await client.disconnect()
+        return "".join(text_parts)
+
+    try:
+        return asyncio.run(asyncio.wait_for(_run(), timeout=timeout))
+    except Exception as exc:
+        log.warning("claude_agent_sdk call failed: %s — falling back to subprocess", exc)
+        return ""
+
+
 # ── Claude CLI call ───────────────────────────────────────────────────────────
 
 def _call_claude_for_discrepancies(
@@ -238,15 +272,24 @@ If there are no discrepancies, output: []
 Output ONLY the JSON array.
 """
 
-    result = subprocess.run(
-        ["claude", "-p", prompt, "--output-format", "text", "--model", "claude-sonnet-4-6"],
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    raw = result.stdout.strip()
+    use_sdk = os.environ.get("TAO_USE_AGENT_SDK", "0") == "1"
+    raw = ""
+    if use_sdk:
+        raw = _run_prompt_via_sdk(prompt, model="claude-sonnet-4-6", timeout=120)
+        if not raw:
+            log.info("SDK returned empty — retrying via subprocess for category=%s", audit_target["category"])
+
     if not raw:
-        log.warning("claude CLI returned empty output for category=%s", audit_target["category"])
+        result = subprocess.run(
+            ["claude", "-p", prompt, "--output-format", "text", "--model", "claude-sonnet-4-6"],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        raw = result.stdout.strip()
+
+    if not raw:
+        log.warning("claude returned empty output for category=%s", audit_target["category"])
         return []
 
     # Strip markdown code fences if present
@@ -412,163 +455,8 @@ def run_gap_audit_phase(dry_run: bool = False) -> dict[str, Any]:
     return result
 
 
-def create_agent(client: Anthropic) -> dict[str, Any]:
-    """Create the board-meeting agent definition."""
-    agent = client.beta.agents.create(
-        name="Pi-CEO Board Meeting",
-        model="claude-sonnet-4-6",
-        system=BOARD_MEETING_SYSTEM,
-        tools=[
-            {"type": "agent_toolset_20260401"},
-        ],
-    )
-    log.info("Created agent: id=%s version=%s", agent.id, agent.version)
-    return {"id": agent.id, "version": agent.version}
-
-
-def create_environment(client: Anthropic) -> str:
-    """Create a cloud environment with network access for MCP."""
-    env = client.beta.environments.create(
-        name="pi-ceo-board-meeting",
-        config={
-            "type": "cloud",
-            "networking": {"type": "unrestricted"},
-        },
-    )
-    log.info("Created environment: id=%s", env.id)
-    return env.id
-
-
-def run_board_meeting(
-    client: Anthropic,
-    agent_id: str,
-    environment_id: str,
-    cycle: int | None = None,
-    dry_run: bool = False,
-) -> dict[str, Any]:
-    """Run a single board meeting cycle.
-
-    Returns dict with: session_id, duration_s, events_count, minutes (str).
-    """
-    now = datetime.now(timezone.utc)
-    cycle_num = cycle or int(now.timestamp() // (6 * 3600))
-    title = f"Board Meeting — Cycle {cycle_num} — {now.strftime('%Y-%m-%d %H:%M UTC')}"
-
-    log.info("Starting board meeting: %s", title)
-    start = time.monotonic()
-
-    session = client.beta.sessions.create(
-        agent=agent_id,
-        environment_id=environment_id,
-        title=title,
-    )
-    log.info("Session created: id=%s", session.id)
-
-    prompt = f"""Run a board meeting for Pi-CEO (Cycle {cycle_num}).
-
-Current date: {now.strftime('%Y-%m-%d %H:%M UTC')}
-
-Execute all 6 phases of the board meeting protocol:
-1. Read project status from the harness files
-2. Review Linear board state
-3. Run SWOT analysis
-4. Generate sprint recommendations
-5. Write structured minutes
-6. Identify any new tickets needed
-
-The Pi-CEO project is a Zero Touch Engineering platform with:
-- FastAPI backend (Railway-deployed)
-- Next.js dashboard (Vercel-deployed)
-- MCP server for Claude Desktop
-- 28 TAO skills
-- Currently at ZTE Score 60/60
-
-Focus on: what was shipped recently, what is blocked, what should be next.
-"""
-
-    if dry_run:
-        log.info("DRY RUN — would send prompt to session %s", session.id)
-        return {
-            "session_id": session.id,
-            "duration_s": 0,
-            "events_count": 0,
-            "minutes": "[dry run — no execution]",
-            "dry_run": True,
-        }
-
-    collected_text: list[str] = []
-    tools_used: list[str] = []
-    events_count = 0
-
-    with client.beta.sessions.events.stream(session.id) as stream:
-        client.beta.sessions.events.send(
-            session.id,
-            events=[
-                {
-                    "type": "user.message",
-                    "content": [{"type": "text", "text": prompt}],
-                },
-            ],
-        )
-
-        for event in stream:
-            events_count += 1
-            match event.type:
-                case "agent.message":
-                    for block in event.content:
-                        if hasattr(block, "text"):
-                            collected_text.append(block.text)
-                case "agent.tool_use":
-                    tools_used.append(event.name)
-                    log.info("Tool: %s", event.name)
-                case "session.status_idle":
-                    log.info("Session idle — board meeting complete")
-                    break
-
-    duration = time.monotonic() - start
-    minutes = "".join(collected_text)
-
-    result = {
-        "session_id": session.id,
-        "cycle": cycle_num,
-        "duration_s": round(duration, 1),
-        "events_count": events_count,
-        "tools_used": tools_used,
-        "minutes_length": len(minutes),
-        "minutes": minutes,
-    }
-
-    log.info(
-        "Board meeting complete: cycle=%s duration=%.1fs events=%d tools=%d",
-        cycle_num,
-        duration,
-        events_count,
-        len(tools_used),
-    )
-
-    # Phase 6 — LIVE CODE GAP AUDIT (runs after SWOT / agent session completes)
-    log.info("Running Phase 6 — LIVE CODE GAP AUDIT")
-    try:
-        gap_audit = run_gap_audit_phase(dry_run=dry_run)
-        result["gap_audit"] = gap_audit
-        summary = gap_audit.get("summary", {})
-        log.info(
-            "Gap audit complete: critical=%d high=%d low=%d tickets=%s duration=%.1fs",
-            summary.get("critical_count", 0),
-            summary.get("high_count", 0),
-            summary.get("low_count", 0),
-            summary.get("linear_tickets_created", []),
-            summary.get("duration_s", 0.0),
-        )
-    except Exception as exc:
-        log.error("Gap audit phase failed: %s", exc, exc_info=True)
-        result["gap_audit"] = {"error": str(exc), "critical": [], "high": [], "low": []}
-
-    return result
-
-
 def main() -> None:
-    """CLI entry point for running a board meeting."""
+    """CLI entry point — run the gap audit."""
     import argparse
 
     logging.basicConfig(
@@ -576,73 +464,17 @@ def main() -> None:
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
 
-    parser = argparse.ArgumentParser(description="Run Pi-CEO board meeting via Managed Agents API")
-    parser.add_argument("--dry-run", action="store_true", help="Create session but don't execute")
-    parser.add_argument("--cycle", type=int, help="Override cycle number")
-    parser.add_argument("--agent-id", help="Reuse existing agent ID")
-    parser.add_argument("--env-id", help="Reuse existing environment ID")
-    parser.add_argument(
-        "--gap-audit-only",
-        action="store_true",
-        help="Run only the live code gap audit phase (no agent session required)",
-    )
+    parser = argparse.ArgumentParser(description="Run Pi-CEO board meeting gap audit")
+    parser.add_argument("--dry-run", action="store_true", help="Skip Linear ticket creation")
+    parser.add_argument("--cycle", type=int, help="Override cycle number (unused, reserved)")
     args = parser.parse_args()
 
-    # Gap-audit-only mode: no Anthropic client needed
-    if args.gap_audit_only:
-        audit = run_gap_audit_phase(dry_run=args.dry_run)
-        print(json.dumps(audit, indent=2, ensure_ascii=False))
-        raise SystemExit(0)
-
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        log.error("ANTHROPIC_API_KEY not set")
-        raise SystemExit(1)
-
-    client = Anthropic()
-
-    # Create or reuse agent
-    if args.agent_id:
-        agent_id = args.agent_id
-        log.info("Reusing agent: %s", agent_id)
-    else:
-        agent_info = create_agent(client)
-        agent_id = agent_info["id"]
-
-    # Create or reuse environment
-    if args.env_id:
-        environment_id = args.env_id
-        log.info("Reusing environment: %s", environment_id)
-    else:
-        environment_id = create_environment(client)
-
-    # Run the meeting
-    result = run_board_meeting(
-        client=client,
-        agent_id=agent_id,
-        environment_id=environment_id,
-        cycle=args.cycle,
-        dry_run=args.dry_run,
-    )
-
-    # Log summary (exclude large text fields)
-    _exclude = {"minutes", "gap_audit"}
-    log.info("Board meeting result: %s", json.dumps({k: v for k, v in result.items() if k not in _exclude}))
-    if result.get("minutes") and not result.get("dry_run"):
-        log.info("Board meeting minutes:\n%s", result["minutes"])
-    if result.get("gap_audit"):
-        audit = result["gap_audit"]
-        summary = audit.get("summary", {})
-        log.info(
-            "Gap audit summary: critical=%d high=%d low=%d tickets=%s",
-            summary.get("critical_count", 0),
-            summary.get("high_count", 0),
-            summary.get("low_count", 0),
-            summary.get("linear_tickets_created", []),
-        )
-        for sev in ("critical", "high"):
-            for item in audit.get(sev, []):
-                log.info("[%s] %s — %s", sev.upper(), item.get("category"), item.get("recommendation"))
+    audit = run_gap_audit_phase(dry_run=args.dry_run)
+    print(json.dumps(audit, indent=2, ensure_ascii=False))
+    summary = audit.get("summary", {})
+    for sev in ("critical", "high"):
+        for item in audit.get(sev, []):
+            log.info("[%s] %s — %s", sev.upper(), item.get("category"), item.get("recommendation"))
 
 
 if __name__ == "__main__":

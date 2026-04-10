@@ -208,6 +208,11 @@ if session_id and os.path.isdir(sessions_dir):
     # Give persistence a moment to write (it's async)
     time.sleep(0.5)
     check("Session JSON persisted to disk", os.path.isfile(json_file), json_file)
+    if os.path.isfile(json_file):
+        with open(json_file) as _f:
+            _sdata = json.load(_f)
+        check("Session JSON has evaluator_model field", "evaluator_model" in _sdata, str(list(_sdata.keys())))
+        check("Session JSON has evaluator_consensus field", "evaluator_consensus" in _sdata, str(list(_sdata.keys())))
 else:
     check("Session JSON check skipped", False, "no session_id or sessions_dir missing")
 

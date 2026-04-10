@@ -1,0 +1,687 @@
+{
+  "project_id": "dr-nrpg",
+  "repo": "CleanExpo/DR-NRPG",
+  "scan_type": "dependencies",
+  "started_at": "2026-04-10T06:26:52.352499+00:00",
+  "finished_at": "2026-04-10T06:26:53.723518+00:00",
+  "findings": [
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: @langchain/community",
+      "description": "@langchain/community affected by SSRF Bypass in RecursiveUrlLoader via insufficient URL origin validation. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "@langchain/community",
+        "range": "<=1.1.17"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: @lhci/cli",
+      "description": "@lhci/utils. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "@lhci/cli",
+        "range": "*"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: @lhci/utils",
+      "description": "lighthouse. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "@lhci/utils",
+        "range": "0.11.0 - 0.14.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: @next/eslint-plugin-next",
+      "description": "glob. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "@next/eslint-plugin-next",
+        "range": "14.0.5-canary.0 - 15.0.0-rc.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: @puppeteer/browsers",
+      "description": "tar-fs. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "@puppeteer/browsers",
+        "range": "1.4.2 - 2.2.3"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: @sentry/node",
+      "description": "cookie. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "@sentry/node",
+        "range": "4.0.0-beta.0 - 7.74.2-alpha.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: @storybook/nextjs",
+      "description": "node-polyfill-webpack-plugin. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "@storybook/nextjs",
+        "range": "<=0.0.0-pr-34476-sha-f8f46a46 || >=7.0.15"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: @tootallnate/once",
+      "description": "@tootallnate/once vulnerable to Incorrect Control Flow Scoping. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "@tootallnate/once",
+        "range": "<3.0.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: ajv",
+      "description": "ajv has ReDoS when using `$data` option. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "ajv",
+        "range": "<6.14.0 || >=7.0.0-alpha.0 <8.18.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "critical",
+      "title": "npm vulnerability: axios",
+      "description": "Axios is Vulnerable to Denial of Service via __proto__ Key in mergeConfig. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "axios",
+        "range": "<=1.14.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "critical",
+      "title": "npm vulnerability: basic-ftp",
+      "description": "Basic FTP has Path Traversal Vulnerability in its downloadToDir()\u00a0method. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "basic-ftp",
+        "range": "<5.2.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: bn.js",
+      "description": "bn.js affected by an infinite loop. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "bn.js",
+        "range": ">=5.0.0 <5.2.3 || <4.12.3"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: brace-expansion",
+      "description": "brace-expansion: Zero-step sequence causes process hang and memory exhaustion. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "brace-expansion",
+        "range": "<1.1.13 || >=2.0.0 <2.0.3"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: browserify-sign",
+      "description": "elliptic. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "browserify-sign",
+        "range": ">=2.4.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: cookie",
+      "description": "cookie accepts cookie name, path, and domain with out of bounds characters. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "cookie",
+        "range": "<0.7.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: create-ecdh",
+      "description": "elliptic. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "create-ecdh",
+        "range": "*"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: crypto-browserify",
+      "description": "browserify-sign. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "crypto-browserify",
+        "range": ">=3.4.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: diff",
+      "description": "jsdiff has a Denial of Service vulnerability in parsePatch and applyPatch. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "diff",
+        "range": "4.0.0 - 4.0.3"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: dompurify",
+      "description": "DOMPurify is vulnerable to mutation-XSS via Re-Contextualization . Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "dompurify",
+        "range": "<=3.3.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: elliptic",
+      "description": "Elliptic Uses a Cryptographic Primitive with a Risky Implementation. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "elliptic",
+        "range": "*"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: eslint-config-next",
+      "description": "@next/eslint-plugin-next. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "eslint-config-next",
+        "range": "14.0.5-canary.0 - 15.0.0-rc.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: external-editor",
+      "description": "tmp. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "external-editor",
+        "range": ">=1.1.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: fabric",
+      "description": "Fabric.js Affected by Stored XSS via SVG Export. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "fabric",
+        "range": "<7.2.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: flatted",
+      "description": "flatted vulnerable to unbounded recursion DoS in parse() revive phase. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "flatted",
+        "range": "<=3.4.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: glob",
+      "description": "glob CLI: Command injection via -c/--cmd executes matches with shell:true. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "glob",
+        "range": "10.2.0 - 10.4.5"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "critical",
+      "title": "npm vulnerability: handlebars",
+      "description": "Handlebars.js has JavaScript Injection via AST Type Confusion by tampering @partial-block. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "handlebars",
+        "range": "4.0.0 - 4.7.8"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: http-proxy-agent",
+      "description": "@tootallnate/once. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "http-proxy-agent",
+        "range": "4.0.1 - 5.0.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: inquirer",
+      "description": "external-editor. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "inquirer",
+        "range": "3.0.0 - 8.2.6 || 9.0.0 - 9.3.7"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: jest-environment-jsdom",
+      "description": "jsdom. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "jest-environment-jsdom",
+        "range": "27.0.1 - 30.0.0-rc.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: jsdom",
+      "description": "http-proxy-agent. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "jsdom",
+        "range": "16.6.0 - 22.1.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "critical",
+      "title": "npm vulnerability: jspdf",
+      "description": "jsPDF has PDF Injection in AcroFormChoiceField that allows Arbitrary JavaScript Execution. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "jspdf",
+        "range": "<=4.2.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: langsmith",
+      "description": "LangSmith Client SDK Affected by Server-Side Request Forgery via Tracing Header Injection. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "langsmith",
+        "range": "0.3.41 - 0.4.5"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: lighthouse",
+      "description": "@sentry/node. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "lighthouse",
+        "range": "9.4.0-dev.20220216 - 12.2.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: lodash",
+      "description": "Lodash has Prototype Pollution Vulnerability in `_.unset` and `_.omit` functions. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "lodash",
+        "range": "<=4.17.23"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: lodash-es",
+      "description": "Lodash has Prototype Pollution Vulnerability in `_.unset` and `_.omit` functions. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "lodash-es",
+        "range": "<=4.17.23"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: minimatch",
+      "description": "minimatch has a ReDoS via repeated wildcards with non-matching literal in pattern. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "minimatch",
+        "range": "<=3.1.3 || 9.0.0 - 9.0.6"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: next",
+      "description": "Next.js self-hosted applications vulnerable to DoS via Image Optimizer remotePatterns configuration. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "next",
+        "range": "9.5.0 - 15.5.13"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: node-polyfill-webpack-plugin",
+      "description": "crypto-browserify. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "node-polyfill-webpack-plugin",
+        "range": "<=4.0.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: nodemailer",
+      "description": "Nodemailer has SMTP command injection due to unsanitized `envelope.size` parameter. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "nodemailer",
+        "range": "<=8.0.4"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: path-to-regexp",
+      "description": "path-to-regexp vulnerable to Regular Expression Denial of Service via multiple route parameters. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "path-to-regexp",
+        "range": "<0.1.13"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: picomatch",
+      "description": "Picomatch: Method Injection in POSIX Character Classes causes incorrect Glob Matching. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "picomatch",
+        "range": "<=2.3.1 || 4.0.0 - 4.0.3"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: preact",
+      "description": "Preact has JSON VNode Injection issue. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "preact",
+        "range": "10.28.0 - 10.28.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: puppeteer-core",
+      "description": "@puppeteer/browsers. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "puppeteer-core",
+        "range": "11.0.0 - 22.13.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: qs",
+      "description": "qs's arrayLimit bypass in comma parsing allows denial of service. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "qs",
+        "range": "<=6.14.1"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: serialize-javascript",
+      "description": "Serialize JavaScript is Vulnerable to RCE via RegExp.flags and Date.prototype.toISOString(). Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "serialize-javascript",
+        "range": "<=7.0.4"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: socket.io-parser",
+      "description": "socket.io allows an unbounded number of binary attachments. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "socket.io-parser",
+        "range": "4.0.0 - 4.2.5"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: storybook",
+      "description": "Storybook Dev Server is Vulnerable to WebSocket Hijacking. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "storybook",
+        "range": "10.0.0-beta.0 - 10.2.9"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: tar-fs",
+      "description": "tar-fs has a symlink validation bypass if destination directory is predictable with a specific tarball. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "tar-fs",
+        "range": "3.0.0 - 3.1.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: terser-webpack-plugin",
+      "description": "serialize-javascript. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "terser-webpack-plugin",
+        "range": "<=5.3.16"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "low",
+      "title": "npm vulnerability: tmp",
+      "description": "tmp allows arbitrary temporary file / directory write via symbolic link `dir` parameter. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "tmp",
+        "range": "<=0.2.3"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "high",
+      "title": "npm vulnerability: ws",
+      "description": "ws affected by a DoS when handling a request with many HTTP headers. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "ws",
+        "range": "8.0.0 - 8.17.0"
+      }
+    },
+    {
+      "scan_type": "dependencies",
+      "severity": "medium",
+      "title": "npm vulnerability: yaml",
+      "description": "yaml is vulnerable to Stack Overflow via deeply nested YAML collections. Run `npm audit fix` to remediate.",
+      "file_path": "package.json",
+      "line_number": 0,
+      "auto_fixable": true,
+      "extra": {
+        "package": "yaml",
+        "range": "2.0.0 - 2.8.2"
+      }
+    }
+  ],
+  "error": "",
+  "health_score": 0
+}

@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from app.server.scanner import Finding, ScanResult
+import app.server.config  # noqa: F401 — triggers dotenv load for standalone runs
 
 log = logging.getLogger("pi-ceo.triage")
 
@@ -35,9 +36,10 @@ _HARNESS = Path(__file__).parent.parent.parent / ".harness"
 _PROJECTS_FILE = _HARNESS / "projects.json"
 _CACHE_FILE = _HARNESS / "triage-cache.json"
 
-# Skip low-severity items to avoid noise
+# Only ticket medium+ findings — low/info are informational noise
 _MIN_SEVERITY_RANK = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
-_TRIAGE_THRESHOLD = 1  # create tickets for low and above
+_TRIAGE_THRESHOLD = 2  # create tickets for medium and above only
+_MAX_TICKETS_PER_PROJECT = 3  # cap per sweep to avoid Linear floods
 
 # ─── Linear GraphQL client ────────────────────────────────────────────────────
 
@@ -271,58 +273,64 @@ class TriageEngine:
         project_linear_id = project.get("linear_project_id")
         created: list[dict[str, Any]] = []
 
-        for result in scan_results:
-            for finding in result.findings:
-                if _SEVERITY_TO_LINEAR_PRIORITY.get(finding.severity, 4) > _TRIAGE_THRESHOLD + 3:
-                    continue  # skip info
-                if _MIN_SEVERITY_RANK.get(finding.severity, 0) < _TRIAGE_THRESHOLD:
+        # Sort all findings across scan types by severity (critical first) before iterating
+        all_findings = [
+            (result, finding)
+            for result in scan_results
+            for finding in result.findings
+            if _MIN_SEVERITY_RANK.get(finding.severity, 0) >= _TRIAGE_THRESHOLD
+        ]
+        all_findings.sort(key=lambda x: _MIN_SEVERITY_RANK.get(x[1].severity, 0), reverse=True)
+
+        for result, finding in all_findings:
+            if len(created) >= _MAX_TICKETS_PER_PROJECT:
+                log.info("Ticket cap (%d) reached for project %s — stopping", _MAX_TICKETS_PER_PROJECT, project_id)
+                break
+            fp = finding.fingerprint
+            if self._cache.is_known(fp):
+                log.debug("Skipping known finding: %s", fp)
+                continue
+
+            title = self._build_title(finding)
+            description = self._build_description(finding, result)
+
+            # Check Linear for duplicates
+            if self._client and not dry_run:
+                existing = self._client.search_issues(team_id, title[:60])
+                if existing:
+                    log.info("Duplicate found in Linear for '%s', caching", title[:60])
+                    self._cache.mark(fp, existing[0]["id"], title)
                     continue
 
-                fp = finding.fingerprint
-                if self._cache.is_known(fp):
-                    log.debug("Skipping known finding: %s", fp)
-                    continue
+            priority = _SEVERITY_TO_LINEAR_PRIORITY.get(finding.severity, 4)
 
-                title = self._build_title(finding)
-                description = self._build_description(finding, result)
+            if dry_run or not self._client:
+                log.info("[DRY RUN] Would create: %s (priority=%d)", title, priority)
+                self._cache.mark(fp, "dry-run", title)
+                created.append({"title": title, "priority": priority, "dry_run": True})
+                continue
 
-                # Check Linear for duplicates
-                if self._client and not dry_run:
-                    existing = self._client.search_issues(team_id, title[:60])
-                    if existing:
-                        log.info("Duplicate found in Linear for '%s', caching", title[:60])
-                        self._cache.mark(fp, existing[0]["id"], title)
-                        continue
+            label_id = self._get_label(team_id, finding.scan_type)
 
-                priority = _SEVERITY_TO_LINEAR_PRIORITY.get(finding.severity, 4)
-
-                if dry_run or not self._client:
-                    log.info("[DRY RUN] Would create: %s (priority=%d)", title, priority)
-                    self._cache.mark(fp, "dry-run", title)
-                    created.append({"title": title, "priority": priority, "dry_run": True})
-                    continue
-
-                label_id = self._get_label(team_id, finding.scan_type)
-
-                try:
-                    issue = self._client.create_issue(
-                        team_id=team_id,
-                        title=title,
-                        description=description,
-                        priority=priority,
-                        project_id=project_linear_id,
-                        label_ids=[label_id] if label_id else None,
-                    )
-                    self._cache.mark(fp, issue["id"], title)
-                    log.info(
-                        "Created %s: %s [%s]",
-                        issue.get("identifier", "?"),
-                        title[:60],
-                        finding.severity,
-                    )
-                    created.append(issue)
-                except RuntimeError as exc:
-                    log.error("Failed to create issue for '%s': %s", title[:60], exc)
+            try:
+                issue = self._client.create_issue(
+                    team_id=team_id,
+                    title=title,
+                    description=description,
+                    priority=priority,
+                    project_id=project_linear_id,
+                    label_ids=[label_id] if label_id else None,
+                )
+                self._cache.mark(fp, issue["id"], title)
+                log.info(
+                    "Created %s: %s [%s]",
+                    issue.get("identifier", "?"),
+                    title[:60],
+                    finding.severity,
+                )
+                created.append(issue)
+            except RuntimeError as exc:
+                log.error("Failed to create issue for '%s': %s", title[:60], exc)
 
         return created
 

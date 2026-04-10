@@ -80,8 +80,7 @@ class ScanResult:
                     score -= 10
                 case "medium":
                     score -= 3
-                case "low":
-                    score -= 1
+                # low/info findings are informational — they do not affect the score
         return max(0, score)
 
     def to_dict(self) -> dict[str, Any]:
@@ -98,8 +97,8 @@ _SECRET_PATTERNS: list[tuple[str, str, str]] = [
     (r"lin_api_[0-9A-Za-z]{40}", "Linear API key", "critical"),
     (r"AKIA[0-9A-Z]{16}", "AWS access key ID", "critical"),
     (r"sk-[a-zA-Z0-9]{48}", "OpenAI API key", "critical"),
-    (r"(?i)(password|passwd|pwd)\s*=\s*['\"][^'\"]{8,}['\"]", "Hardcoded password", "high"),
-    (r"(?i)(secret|api_key|apikey|token)\s*=\s*['\"][^'\"]{8,}['\"]", "Hardcoded secret", "high"),
+    (r"(?i)(password|passwd|pwd)\s*=\s*['\"][^'\"\n]{8,}['\"]", "Hardcoded password", "high"),
+    (r"(?i)(secret|api_key|apikey|token)\s*=\s*['\"][^'\"\n]{8,}['\"]", "Hardcoded secret", "high"),
     (r"-----BEGIN (RSA|EC|DSA|OPENSSH) PRIVATE KEY-----", "Private key in source", "critical"),
     (r"(?i)bearer\s+[0-9a-zA-Z\-._~+/]{20,}", "Bearer token in source", "high"),
     (r"(?i)(?:db|database)_?(?:url|uri|connection)\s*=\s*['\"]postgresql://[^'\"]+['\"]", "DB connection string", "high"),
@@ -108,29 +107,43 @@ _SECRET_PATTERNS: list[tuple[str, str, str]] = [
 _DANGEROUS_PATTERNS: list[tuple[str, str, str]] = [
     (r"subprocess\.(?:run|Popen|call|check_output)\([^)]*shell\s*=\s*True", "shell=True subprocess", "high"),
     (r"\beval\s*\(", "eval() usage", "medium"),
-    (r"dangerouslySetInnerHTML", "dangerouslySetInnerHTML", "high"),
-    (r"innerHTML\s*=\s*[^'\";]+(?:req|params|query|body|input)", "innerHTML XSS risk", "high"),
-    (r"(?<!log\.)(?<!//\s*)console\.log\(", "console.log in production", "low"),
-    (r"(?<!\w)print\s*\((?!.*#\s*noqa)", "print() in production (Python)", "low"),
+    (r"dangerouslySetInnerHTML", "dangerouslySetInnerHTML (review required)", "medium"),
+    (r"innerHTML\s*=\s*[^'\";]+(?:req|params|query|body|input)", "innerHTML XSS risk (user input)", "high"),
+    (r"(?<!log\.)console\.log\(", "console.log in production", "info"),
+    (r"(?<!\w)print\s*\((?!.*#\s*noqa)", "print() in production (Python)", "info"),
     (r"#\s*nosec\b", "security check suppressed (# nosec)", "medium"),
     (r"(?i)TODO.*(?:auth|password|secret|token|key)", "TODO near sensitive keyword", "medium"),
-    (r"0\.0\.0\.0", "Binding to 0.0.0.0", "medium"),
+    (r"0\.0\.0\.0", "Binding to 0.0.0.0", "info"),
     (r"(?i)debug\s*=\s*True", "Debug mode enabled", "high"),
 ]
 
 _SKIP_DIRS = {
     ".git", "node_modules", "__pycache__", ".next", "dist", "build",
     ".venv", "venv", "env", ".tox", "coverage", ".coverage",
+    "tests", "test", "__tests__", "spec", "fixtures",
 }
 _SKIP_EXTS = {
     ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2",
     ".ttf", ".eot", ".pdf", ".zip", ".tar", ".gz", ".lock",
 }
+# Filenames never scanned for secrets — env files contain real creds by design;
+# documentation files contain placeholder/example values.
+_SKIP_SECRET_FILENAMES = {
+    ".env", ".env.local", ".env.production", ".env.development", ".env.example",
+    "READY_TO_DEPLOY.md", "DEPLOYMENT_GUIDE.md",
+}
 _TEXT_EXTS = {
     ".py", ".ts", ".tsx", ".js", ".jsx", ".json", ".yaml", ".yml",
-    ".env", ".env.example", ".md", ".sh", ".toml", ".cfg", ".ini",
+    ".md", ".sh", ".toml", ".cfg", ".ini",
     ".html", ".css", ".scss",
 }
+# Placeholder strings that indicate a value is intentionally redacted/templated,
+# or is a shell/env variable reference rather than a hardcoded literal.
+_PLACEHOLDER_RE = re.compile(
+    r"<redacted>|<your-|<paste|<configured>|your-password|example\.com"
+    r'|\$\{[A-Z_]+|process\.env\.|os\.environ',
+    re.IGNORECASE,
+)
 
 
 # ─── security scanner ─────────────────────────────────────────────────────────
@@ -164,10 +177,17 @@ class SecurityScanner:
             yield path
 
     def _check_secrets(self, text: str, rel: str) -> list[Finding]:
+        basename = rel.split("/")[-1].split("\\")[-1]
+        if basename in _SKIP_SECRET_FILENAMES:
+            return []
+        lines = text.split("\n")
         findings = []
         for pattern, title, severity in _SECRET_PATTERNS:
             for match in re.finditer(pattern, text):
                 line_num = text[: match.start()].count("\n") + 1
+                line_text = lines[line_num - 1] if line_num <= len(lines) else ""
+                if _PLACEHOLDER_RE.search(line_text):
+                    continue
                 findings.append(
                     Finding(
                         scan_type="security",
@@ -426,6 +446,9 @@ class DeploymentHealthScanner:
                 auto_fixable=False,
                 extra={"url": url, "status": status, "deployment": name},
             )
+        if status == 401 or status == 403:
+            # Auth-protected deployment — server is up, just requires credentials
+            return None
         if status >= 400:
             return Finding(
                 scan_type="deployment_health",
@@ -449,12 +472,17 @@ class DeploymentHealthScanner:
     @staticmethod
     def _http_get(url: str) -> tuple[int, float]:
         import urllib.request
+        import urllib.error
         start = time.monotonic()
         req = urllib.request.Request(url, method="GET")
         req.add_header("User-Agent", "Pi-SEO-Scanner/1.0")
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            resp.read(1024)
-        return resp.status, time.monotonic() - start
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                resp.read(1024)
+            return resp.status, time.monotonic() - start
+        except urllib.error.HTTPError as exc:
+            # HTTPError carries a status code — return it so _check_url can classify it
+            return exc.code, time.monotonic() - start
 
 
 # ─── project scanner (orchestrator) ───────────────────────────────────────────

@@ -1,0 +1,10 @@
+{
+  "project_id": "oh-my-codex",
+  "repo": "CleanExpo/oh-my-codex",
+  "scan_type": "code_quality",
+  "started_at": "2026-04-10T06:26:54.758322+00:00",
+  "finished_at": "2026-04-10T06:26:57.486917+00:00",
+  "findings": [],
+  "error": "",
+  "health_score": 100
+}

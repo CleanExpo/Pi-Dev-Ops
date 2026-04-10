@@ -1,0 +1,10 @@
+{
+  "project_id": "disaster-recovery",
+  "repo": "CleanExpo/Disaster-Recovery",
+  "scan_type": "code_quality",
+  "started_at": "2026-04-10T06:26:44.900061+00:00",
+  "finished_at": "2026-04-10T06:26:45.302232+00:00",
+  "findings": [],
+  "error": "",
+  "health_score": 100
+}

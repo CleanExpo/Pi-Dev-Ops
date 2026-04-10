@@ -1,0 +1,15 @@
+{
+  "pipeline_id": "febf4aa8",
+  "idea": "add dark mode toggle to dashboard",
+  "repo_url": "https://github.com/CleanExpo/Pi-Dev-Ops",
+  "current_phase": "spec",
+  "phases_completed": [],
+  "spec": null,
+  "plan": null,
+  "session_id": null,
+  "test_results": null,
+  "review_score": null,
+  "ship_log": null,
+  "created_at": "2026-04-10T01:36:17.227756+00:00",
+  "updated_at": "2026-04-10T01:36:17.227770+00:00"
+}

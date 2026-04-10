@@ -11,6 +11,7 @@ function LoginForm() {
 
   const [mode, setMode] = useState<"hero" | "login">("hero");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -82,24 +83,62 @@ function LoginForm() {
           </button>
         ) : (
           <form onSubmit={handleLogin} className="mt-12 flex flex-col items-center gap-3" style={{ width: "280px" }}>
-            <input
-              ref={inputRef}
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="PASSWORD"
-              disabled={loading}
-              className="font-mono w-full text-center"
-              style={{
-                background: "rgba(240,237,232,0.08)",
-                border: "1px solid rgba(232,117,26,0.6)",
-                color: "#F0EDE8",
-                padding: "12px 20px",
-                fontSize: "13px",
-                letterSpacing: "0.25em",
-                outline: "none",
-              }}
-            />
+            <div className="relative w-full">
+              <input
+                ref={inputRef}
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="PASSWORD"
+                disabled={loading}
+                className="font-mono w-full text-center"
+                style={{
+                  background: "rgba(240,237,232,0.08)",
+                  border: "1px solid rgba(232,117,26,0.6)",
+                  color: "#F0EDE8",
+                  padding: "12px 40px 12px 20px",
+                  fontSize: "13px",
+                  letterSpacing: "0.25em",
+                  outline: "none",
+                  width: "100%",
+                  boxSizing: "border-box",
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                tabIndex={-1}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                style={{
+                  position: "absolute",
+                  right: "10px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "4px",
+                  color: "rgba(232,117,26,0.7)",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                {showPassword ? (
+                  /* Eye-off icon */
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
+                    <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  </svg>
+                ) : (
+                  /* Eye icon */
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                )}
+              </button>
+            </div>
             {error && (
               <p className="font-mono" style={{ color: "#F87171", fontSize: "11px", letterSpacing: "0.15em" }}>
                 {error.toUpperCase()}

@@ -1,0 +1,10 @@
+{
+  "project_id": "nodejs-starter",
+  "repo": "CleanExpo/NodeJS-Starter-V1",
+  "scan_type": "dependencies",
+  "started_at": "2026-04-10T06:26:57.485326+00:00",
+  "finished_at": "2026-04-10T06:26:57.635567+00:00",
+  "findings": [],
+  "error": "",
+  "health_score": 100
+}

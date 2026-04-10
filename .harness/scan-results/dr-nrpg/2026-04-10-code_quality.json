@@ -1,0 +1,10 @@
+{
+  "project_id": "dr-nrpg",
+  "repo": "CleanExpo/DR-NRPG",
+  "scan_type": "code_quality",
+  "started_at": "2026-04-10T06:26:48.400774+00:00",
+  "finished_at": "2026-04-10T06:26:52.352353+00:00",
+  "findings": [],
+  "error": "",
+  "health_score": 100
+}
