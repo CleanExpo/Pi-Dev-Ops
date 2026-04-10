@@ -667,12 +667,267 @@ server.registerTool(
   }
 );
 
+// ── Tool: get_project_health ──────────────────────────────────────────────────
+server.registerTool(
+  "get_project_health",
+  {
+    title: "Get Project Health",
+    description: "Get the latest Pi-SEO scan results and health scores for one or all registered projects. Returns overall health score (0-100), per-scan-type scores, and finding counts.",
+    inputSchema: {
+      project_id: z.string().optional().describe("Project ID (e.g. 'pi-dev-ops'). Omit to get all projects."),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+  },
+  async ({ project_id }) => {
+    const resultsDir = path.join(HARNESS_DIR, "scan-results");
+    const projectsFile = path.join(HARNESS_DIR, "projects.json");
+
+    let projects;
+    try {
+      projects = JSON.parse(fs.readFileSync(projectsFile, "utf8")).projects;
+    } catch {
+      return { content: [{ type: "text", text: "projects.json not found — run a scan first." }] };
+    }
+
+    if (project_id) {
+      projects = projects.filter(p => p.id === project_id);
+      if (!projects.length) {
+        return { content: [{ type: "text", text: `Project '${project_id}' not found in projects.json` }] };
+      }
+    }
+
+    const scanTypes = ["security", "code_quality", "dependencies", "deployment_health"];
+    const lines = ["# Pi-SEO Project Health", ""];
+
+    for (const proj of projects) {
+      const projDir = path.join(resultsDir, proj.id);
+      const scores = {};
+      const counts = {};
+
+      if (fs.existsSync(projDir)) {
+        for (const st of scanTypes) {
+          const files = fs.readdirSync(projDir).filter(f => f.endsWith(`-${st}.json`)).sort();
+          if (!files.length) continue;
+          try {
+            const data = JSON.parse(fs.readFileSync(path.join(projDir, files[files.length - 1]), "utf8"));
+            scores[st] = data.health_score ?? 100;
+            counts[st] = (data.findings ?? []).length;
+          } catch { /* skip corrupt file */ }
+        }
+      }
+
+      const scoreValues = Object.values(scores);
+      const overall = scoreValues.length
+        ? Math.round(scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length)
+        : null;
+
+      const indicator = overall === null ? "⬜" : overall >= 80 ? "🟢" : overall >= 60 ? "🟡" : "🔴";
+      lines.push(`## ${indicator} ${proj.id} — ${proj.repo}`);
+      lines.push(`**Overall health:** ${overall !== null ? overall + "/100" : "not scanned yet"}`);
+
+      if (Object.keys(scores).length) {
+        lines.push("");
+        lines.push("| Scan Type | Score | Findings |");
+        lines.push("|-----------|-------|----------|");
+        for (const st of scanTypes) {
+          if (scores[st] !== undefined) {
+            lines.push(`| ${st} | ${scores[st]}/100 | ${counts[st] ?? 0} |`);
+          }
+        }
+      }
+
+      if (proj.deployments && Object.keys(proj.deployments).length) {
+        lines.push("");
+        lines.push("**Deployments:** " + Object.entries(proj.deployments).map(([k, v]) => `${k}: ${v}`).join(" · "));
+      }
+      lines.push("");
+    }
+
+    return { content: [{ type: "text", text: lines.join("\n") }] };
+  }
+);
+
+// ── Tool: scan_project ────────────────────────────────────────────────────────
+server.registerTool(
+  "scan_project",
+  {
+    title: "Scan Project",
+    description: "Trigger a Pi-SEO autonomous scan for one or all projects via the Pi-CEO API. Runs async — call get_project_health after a few minutes to see results.",
+    inputSchema: {
+      project_id: z.string().optional().describe("Project ID to scan. Omit to scan all projects."),
+      scan_types: z.array(z.enum(["security", "code_quality", "dependencies", "deployment_health"])).optional().describe("Scan types to run. Omit for all."),
+      dry_run: z.boolean().optional().describe("Simulate ticket creation without hitting Linear (default: false)."),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  },
+  async ({ project_id, scan_types, dry_run }) => {
+    const PI_CEO_URL = process.env.PI_CEO_URL || "http://127.0.0.1:7777";
+    const PI_CEO_PASSWORD = process.env.PI_CEO_PASSWORD || "";
+    const http = require(PI_CEO_URL.startsWith("https") ? "https" : "http");
+
+    function httpPost(url, body, headers = {}) {
+      return new Promise((resolve, reject) => {
+        const u = new URL(url);
+        const data = JSON.stringify(body);
+        const req = http.request(u, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(data), ...headers },
+        }, (res) => {
+          let out = "";
+          res.on("data", c => out += c);
+          res.on("end", () => resolve({ status: res.statusCode, body: out, headers: res.headers }));
+        });
+        req.on("error", reject);
+        req.write(data);
+        req.end();
+      });
+    }
+
+    // Login to get session cookie
+    let sessionCookie;
+    try {
+      const loginRes = await httpPost(`${PI_CEO_URL}/api/login`, { password: PI_CEO_PASSWORD });
+      if (loginRes.status !== 200) throw new Error(`HTTP ${loginRes.status}`);
+      const cookie = (loginRes.headers["set-cookie"] || []).find(c => c.startsWith("tao_session="));
+      if (!cookie) throw new Error("No session cookie in response");
+      sessionCookie = cookie.split(";")[0];
+    } catch (e) {
+      return { content: [{ type: "text", text: `Login to Pi-CEO failed: ${e.message}\n\nEnsure PI_CEO_URL and PI_CEO_PASSWORD are set in MCP env config.` }] };
+    }
+
+    // Trigger scan
+    try {
+      await httpPost(`${PI_CEO_URL}/api/scan`, { project_id, scan_types, dry_run: dry_run ?? false }, { "Cookie": sessionCookie });
+    } catch (e) {
+      return { content: [{ type: "text", text: `Scan trigger failed: ${e.message}` }] };
+    }
+
+    const scope = project_id ? `project '${project_id}'` : "all projects";
+    const types = scan_types ? scan_types.join(", ") : "all scan types";
+    return {
+      content: [{
+        type: "text",
+        text: [
+          `✅ Scan triggered for ${scope} (${types})${dry_run ? " — DRY RUN" : ""}.`,
+          "",
+          "Results are saved to `.harness/scan-results/` as they complete.",
+          "Call `get_project_health` in a few minutes to see updated scores.",
+          dry_run ? "\n> DRY RUN: no Linear tickets will be created." : "",
+        ].join("\n"),
+      }],
+    };
+  }
+);
+
+// ── Tool: get_monitor_digest ──────────────────────────────────────────────────
+server.registerTool(
+  "get_monitor_digest",
+  {
+    title: "Get Monitor Digest",
+    description: "Return the latest Pi-SEO portfolio health monitor digest. Shows portfolio health score, per-project deltas, regressions, systemic issues, and alerts.",
+    inputSchema: {},
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+  },
+  async () => {
+    const digestsDir = path.join(HARNESS_DIR, "monitor-digests");
+    if (!fs.existsSync(digestsDir)) {
+      return { content: [{ type: "text", text: "No monitor digests found. Run `run_monitor_cycle` first." }] };
+    }
+    const files = fs.readdirSync(digestsDir).filter(f => f.endsWith(".json")).sort().reverse();
+    if (!files.length) {
+      return { content: [{ type: "text", text: "No monitor digests found. Run `run_monitor_cycle` first." }] };
+    }
+    try {
+      const digest = JSON.parse(fs.readFileSync(path.join(digestsDir, files[0]), "utf8"));
+      const md = digest.digest_markdown || JSON.stringify(digest, null, 2);
+      return { content: [{ type: "text", text: md }] };
+    } catch (e) {
+      return { content: [{ type: "text", text: `Failed to read digest: ${e.message}` }] };
+    }
+  }
+);
+
+// ── Tool: run_monitor_cycle ───────────────────────────────────────────────────
+server.registerTool(
+  "run_monitor_cycle",
+  {
+    title: "Run Monitor Cycle",
+    description: "Trigger a Pi-SEO portfolio health monitor cycle via the Pi-CEO API. Detects regressions, systemic issues, and routes critical alerts to Linear. Runs async — call get_monitor_digest after a minute to see results.",
+    inputSchema: {
+      project_id: z.string().optional().describe("Scope to a single project ID. Omit for all projects."),
+      use_agent: z.boolean().optional().describe("Enable AI remediation analysis (requires ANTHROPIC_API_KEY on server, default: false)."),
+      dry_run: z.boolean().optional().describe("Skip ticket creation and digest save (default: false)."),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  },
+  async ({ project_id, use_agent, dry_run }) => {
+    const PI_CEO_URL = process.env.PI_CEO_URL || "http://127.0.0.1:7777";
+    const PI_CEO_PASSWORD = process.env.PI_CEO_PASSWORD || "";
+    const http = require(PI_CEO_URL.startsWith("https") ? "https" : "http");
+
+    function httpPost(url, body, headers = {}) {
+      return new Promise((resolve, reject) => {
+        const u = new URL(url);
+        const data = JSON.stringify(body);
+        const req = http.request(u, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(data), ...headers },
+        }, (res) => {
+          let out = "";
+          res.on("data", c => out += c);
+          res.on("end", () => resolve({ status: res.statusCode, body: out, headers: res.headers }));
+        });
+        req.on("error", reject);
+        req.write(data);
+        req.end();
+      });
+    }
+
+    // Login to get session cookie
+    let sessionCookie;
+    try {
+      const loginRes = await httpPost(`${PI_CEO_URL}/api/login`, { password: PI_CEO_PASSWORD });
+      if (loginRes.status !== 200) throw new Error(`HTTP ${loginRes.status}`);
+      const cookie = (loginRes.headers["set-cookie"] || []).find(c => c.startsWith("tao_session="));
+      if (!cookie) throw new Error("No session cookie in response");
+      sessionCookie = cookie.split(";")[0];
+    } catch (e) {
+      return { content: [{ type: "text", text: `Login to Pi-CEO failed: ${e.message}\n\nEnsure PI_CEO_URL and PI_CEO_PASSWORD are set in MCP env config.` }] };
+    }
+
+    // Trigger monitor cycle
+    try {
+      await httpPost(
+        `${PI_CEO_URL}/api/monitor`,
+        { project_id: project_id ?? null, use_agent: use_agent ?? false, dry_run: dry_run ?? false },
+        { "Cookie": sessionCookie }
+      );
+    } catch (e) {
+      return { content: [{ type: "text", text: `Monitor trigger failed: ${e.message}` }] };
+    }
+
+    const scope = project_id ? `project '${project_id}'` : "all projects";
+    return {
+      content: [{
+        type: "text",
+        text: [
+          `✅ Monitor cycle triggered for ${scope}${dry_run ? " — DRY RUN" : ""}.`,
+          "",
+          "The monitor agent is analysing scan results in the background.",
+          "Call `get_monitor_digest` in about a minute to see the portfolio health report.",
+          dry_run ? "\n> DRY RUN: no Linear tickets will be created and no digest will be saved." : "",
+        ].join("\n"),
+      }],
+    };
+  }
+);
+
 // ── Start Server ───────────────────────────────────────────────────────────────
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   // Server is now running — the SDK handles all MCP protocol negotiation
-  process.stderr.write("Pi CEO MCP Server v3.0.0 started (stdio transport)\n");
+  process.stderr.write("Pi CEO MCP Server v3.0.0 started (stdio transport, 14 tools)\n");
 }
 
 main().catch((err) => {

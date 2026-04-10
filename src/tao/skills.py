@@ -1,5 +1,5 @@
 """
-skills.py — Skill loader and registry for the 23 TAO skills.
+skills.py — Skill loader and registry for the 26 TAO skills.
 
 Parses YAML frontmatter (name, description) + markdown body from
 each skills/*/SKILL.md file. Provides lookup by name and by intent
@@ -88,6 +88,7 @@ _INTENT_SKILLS = {
     "chore": ["tier-worker", "agent-workflow"],
     "spike": ["ceo-mode", "context-compressor", "tier-orchestrator"],
     "hotfix": ["tier-worker", "agentic-loop", "closed-loop-prompt"],
+    "monitor": ["pi-seo-scanner", "pi-seo-health-monitor", "pi-seo-remediation", "maintenance-manager"],
 }
 
 

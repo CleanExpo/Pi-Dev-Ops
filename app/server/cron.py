@@ -91,6 +91,34 @@ def _matches(trigger: dict, now_hour: int, now_minute: int) -> bool:
     return True
 
 
+async def _fire_scan_trigger(trigger: dict, log) -> None:
+    """Fire a Pi-SEO scan trigger directly via the scanner module."""
+    from .scanner import ProjectScanner
+    from .triage import TriageEngine
+    priority = trigger.get("priority_filter")
+    scan_types = trigger.get("scan_types") or None
+    scanner = ProjectScanner()
+    engine = TriageEngine()
+    log.info("Firing scan trigger id=%s priority=%s types=%s", trigger["id"], priority, scan_types)
+    all_results = await scanner.scan_all(priority=priority, scan_types=scan_types)
+    created = engine.triage_all(all_results)
+    total = sum(len(v) for v in created.values())
+    log.info("Scan trigger id=%s complete: %d tickets created", trigger["id"], total)
+
+
+async def _fire_monitor_trigger(trigger: dict, log) -> None:
+    """Fire a Pi-SEO monitor trigger via the monitor agent."""
+    from .agents.pi_seo_monitor import run_monitor_cycle
+    project_id = trigger.get("project_id") or None
+    use_agent = trigger.get("use_agent", False)
+    log.info("Firing monitor trigger id=%s project=%s use_agent=%s", trigger["id"], project_id, use_agent)
+    digest = run_monitor_cycle(project_id=project_id, use_agent=use_agent, dry_run=False)
+    log.info(
+        "Monitor trigger id=%s complete: health=%d alerts=%d",
+        trigger["id"], digest.portfolio_health, len(digest.alerts),
+    )
+
+
 async def cron_loop():
     """Background asyncio task. Checks triggers every 60s."""
     import logging
@@ -107,17 +135,23 @@ async def cron_loop():
             fired = False
             for trigger in triggers:
                 if _matches(trigger, now.hour, now.minute):
+                    trigger_type = trigger.get("type", "build")
                     try:
-                        await create_session(
-                            repo_url=trigger["repo_url"],
-                            brief=trigger.get("brief", ""),
-                            model=trigger.get("model", "sonnet"),
-                        )
+                        if trigger_type == "scan":
+                            await _fire_scan_trigger(trigger, _log)
+                        elif trigger_type == "monitor":
+                            await _fire_monitor_trigger(trigger, _log)
+                        else:
+                            await create_session(
+                                repo_url=trigger["repo_url"],
+                                brief=trigger.get("brief", ""),
+                                model=trigger.get("model", "sonnet"),
+                            )
+                            _log.info("Fired build trigger id=%s repo=%s", trigger["id"], trigger.get("repo_url"))
                         trigger["last_fired_at"] = time.time()
                         fired = True
-                        _log.info("Fired trigger id=%s repo=%s", trigger['id'], trigger['repo_url'])
                     except RuntimeError as e:
-                        _log.warning("Trigger skipped id=%s reason=%s", trigger['id'], e)
+                        _log.warning("Trigger skipped id=%s reason=%s", trigger["id"], e)
             if fired:
                 _save(triggers)
         except Exception as e:

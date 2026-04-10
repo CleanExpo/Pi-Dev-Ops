@@ -1,0 +1,118 @@
+[
+  {
+    "id": "scan-high-0000",
+    "type": "scan",
+    "name": "Pi-SEO: High priority scan — 00:00 UTC",
+    "priority_filter": "high",
+    "scan_types": ["security", "code_quality", "dependencies", "deployment_health"],
+    "hour": 0,
+    "minute": 0,
+    "enabled": true,
+    "created_at": 1744243200,
+    "last_fired_at": null
+  },
+  {
+    "id": "scan-high-0600",
+    "type": "scan",
+    "name": "Pi-SEO: High priority scan — 06:00 UTC",
+    "priority_filter": "high",
+    "scan_types": ["security", "code_quality", "dependencies", "deployment_health"],
+    "hour": 6,
+    "minute": 0,
+    "enabled": true,
+    "created_at": 1744243200,
+    "last_fired_at": null
+  },
+  {
+    "id": "scan-high-1200",
+    "type": "scan",
+    "name": "Pi-SEO: High priority scan — 12:00 UTC",
+    "priority_filter": "high",
+    "scan_types": ["security", "code_quality", "dependencies", "deployment_health"],
+    "hour": 12,
+    "minute": 0,
+    "enabled": true,
+    "created_at": 1744243200,
+    "last_fired_at": null
+  },
+  {
+    "id": "scan-high-1800",
+    "type": "scan",
+    "name": "Pi-SEO: High priority scan — 18:00 UTC",
+    "priority_filter": "high",
+    "scan_types": ["security", "code_quality", "dependencies", "deployment_health"],
+    "hour": 18,
+    "minute": 0,
+    "enabled": true,
+    "created_at": 1744243200,
+    "last_fired_at": null
+  },
+  {
+    "id": "scan-medium-0200",
+    "type": "scan",
+    "name": "Pi-SEO: Medium priority scan — 02:00 UTC daily",
+    "priority_filter": "medium",
+    "scan_types": ["security", "dependencies"],
+    "hour": 2,
+    "minute": 0,
+    "enabled": true,
+    "created_at": 1744243200,
+    "last_fired_at": null
+  },
+  {
+    "id": "scan-low-0300",
+    "type": "scan",
+    "name": "Pi-SEO: Low priority scan — 03:00 UTC daily",
+    "priority_filter": "low",
+    "scan_types": ["security"],
+    "hour": 3,
+    "minute": 0,
+    "enabled": true,
+    "created_at": 1744243200,
+    "last_fired_at": null
+  },
+  {
+    "id": "monitor-0100",
+    "type": "monitor",
+    "name": "Pi-SEO: Portfolio health monitor — 01:00 UTC",
+    "use_agent": false,
+    "hour": 1,
+    "minute": 0,
+    "enabled": true,
+    "created_at": 1744243200,
+    "last_fired_at": null
+  },
+  {
+    "id": "monitor-0700",
+    "type": "monitor",
+    "name": "Pi-SEO: Portfolio health monitor — 07:00 UTC",
+    "use_agent": false,
+    "hour": 7,
+    "minute": 0,
+    "enabled": true,
+    "created_at": 1744243200,
+    "last_fired_at": null
+  },
+  {
+    "id": "monitor-1300",
+    "type": "monitor",
+    "name": "Pi-SEO: Portfolio health monitor — 13:00 UTC",
+    "use_agent": false,
+    "hour": 13,
+    "minute": 0,
+    "enabled": true,
+    "created_at": 1744243200,
+    "last_fired_at": null
+  },
+  {
+    "id": "monitor-1900",
+    "type": "monitor",
+    "name": "Pi-SEO: Portfolio health monitor — 19:00 UTC",
+    "use_agent": false,
+    "hour": 19,
+    "minute": 0,
+    "enabled": true,
+    "created_at": 1744243200,
+    "last_fired_at": null
+  }
+]

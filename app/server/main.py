@@ -1,5 +1,8 @@
 import asyncio, json, os, logging
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Depends, HTTPException
+from pathlib import Path
+from typing import Literal
+from pydantic import BaseModel, field_validator
+from fastapi import FastAPI, BackgroundTasks, WebSocket, WebSocketDisconnect, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,12 +20,143 @@ log = logging.getLogger("pi-ceo.main")
 
 app = FastAPI(title="Pi CEO", docs_url=None, redoc_url=None, openapi_url=None)
 
+# ─── Pydantic request models (RA-515) ─────────────────────────────────────────
+
+class BuildRequest(BaseModel):
+    repo_url: str
+    brief: str = ""
+    model: str = "sonnet"
+    evaluator_enabled: bool | None = None
+    intent: str = ""
+
+    @field_validator("repo_url")
+    @classmethod
+    def valid_url(cls, v: str) -> str:
+        v = v.strip()
+        if not v.startswith(("https://", "git@")):
+            raise ValueError("repo_url must start with https:// or git@")
+        return v
+
+    @field_validator("model")
+    @classmethod
+    def valid_model(cls, v: str) -> str:
+        if v not in ("opus", "sonnet", "haiku"):
+            raise ValueError("model must be opus | sonnet | haiku")
+        return v
+
+
+class ParallelBuildRequest(BuildRequest):
+    n_workers: int = 2
+
+    @field_validator("n_workers")
+    @classmethod
+    def valid_workers(cls, v: int) -> int:
+        if not (1 <= v <= 8):
+            raise ValueError("n_workers must be 1–8")
+        return v
+
+
+class TriggerRequest(BaseModel):
+    repo_url: str
+    brief: str = ""
+    model: str = "sonnet"
+    minute: int
+    hour: int | None = None
+
+    @field_validator("repo_url")
+    @classmethod
+    def valid_url(cls, v: str) -> str:
+        v = v.strip()
+        if not v.startswith(("https://", "git@")):
+            raise ValueError("repo_url must start with https:// or git@")
+        return v
+
+    @field_validator("model")
+    @classmethod
+    def valid_model(cls, v: str) -> str:
+        if v not in ("opus", "sonnet", "haiku"):
+            raise ValueError("model must be opus | sonnet | haiku")
+        return v
+
+    @field_validator("minute")
+    @classmethod
+    def valid_minute(cls, v: int) -> int:
+        if not (0 <= v <= 59):
+            raise ValueError("minute must be 0-59")
+        return v
+
+    @field_validator("hour")
+    @classmethod
+    def valid_hour(cls, v: int | None) -> int | None:
+        if v is not None and not (0 <= v <= 23):
+            raise ValueError("hour must be 0-23")
+        return v
+
+
+class LessonRequest(BaseModel):
+    source: str = "manual"
+    category: str = "general"
+    lesson: str
+    severity: str = "info"
+
+    @field_validator("lesson")
+    @classmethod
+    def not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("lesson cannot be empty")
+        return v.strip()
+
+
+class ScanRequest(BaseModel):
+    project_id: str | None = None
+    scan_types: list[Literal["security", "code_quality", "dependencies", "deployment_health"]] | None = None
+    dry_run: bool = False
+    auto_pr: bool = False  # RA-537: open GitHub PRs for auto-fixable findings
+
+
+# ─── Resilient background task wrapper (RA-522) ────────────────────────────────
+
+async def _resilient(coro_factory, name: str, restart_delay: float = 10.0):
+    """Wrap a background coroutine with crash-recovery and auto-restart."""
+    while True:
+        try:
+            await coro_factory()
+        except asyncio.CancelledError:
+            log.info("Background task '%s' cancelled", name)
+            return
+        except Exception as exc:
+            log.error("Background task '%s' crashed: %s — restarting in %.0fs", name, exc, restart_delay, exc_info=True)
+            await asyncio.sleep(restart_delay)
+
+
 @app.on_event("startup")
 async def on_startup():
     restore_sessions()
-    asyncio.create_task(gc_loop(_sessions))
-    asyncio.create_task(cron_loop())
+    asyncio.create_task(_resilient(lambda: gc_loop(_sessions), "gc_loop"))
+    asyncio.create_task(_resilient(cron_loop, "cron_loop"))
+    if not config.WEBHOOK_SECRET:
+        log.warning("TAO_WEBHOOK_SECRET not set — GitHub webhook endpoint is unprotected")
+    if not config.LINEAR_WEBHOOK_SECRET:
+        log.warning("TAO_LINEAR_WEBHOOK_SECRET not set — Linear webhook endpoint is unprotected")
     log.info("Pi CEO ready on %s:%s", config.HOST, config.PORT)
+
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    """Drain active sessions on SIGTERM (RA-521)."""
+    active = [s for s in _sessions.values() if getattr(s, "status", "") in ("created", "cloning", "building", "evaluating")]
+    if active:
+        log.info("Shutdown: draining %d active sessions", len(active))
+        for session in active:
+            session.status = "interrupted"
+            proc = getattr(session, "process", None)
+            if proc:
+                try:
+                    proc.terminate()
+                except Exception:
+                    pass
+        await asyncio.sleep(2)
+    log.info("Shutdown complete")
 
 # True when deployed on Railway (or any cloud with this env var set)
 _IS_CLOUD = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RENDER") or os.environ.get("FLY_APP_NAME"))
@@ -94,35 +228,21 @@ async def me(_=Depends(require_auth)):
     return {"authenticated": True}
 
 @app.post("/api/build", dependencies=[Depends(require_auth), Depends(require_rate_limit)])
-async def build(request: Request):
-    body = await request.json()
-    repo_url = body.get("repo_url", "").strip()
-    brief = body.get("brief", "").strip()
-    model = body.get("model", "sonnet").strip()
-    evaluator_enabled = body.get("evaluator_enabled", config.EVALUATOR_ENABLED)
-    intent = body.get("intent", "").strip()
-    if not repo_url: raise HTTPException(400, "repo_url required")
-    if not repo_url.startswith(("https://", "git@")): raise HTTPException(400, "Invalid URL")
-    if model not in config.ALLOWED_MODELS: raise HTTPException(400, f"model must be {config.ALLOWED_MODELS}")
-    try: session = await create_session(repo_url, brief, model, evaluator_enabled=evaluator_enabled, intent=intent)
-    except RuntimeError as e: raise HTTPException(429, str(e))
+async def build(body: BuildRequest):
+    evaluator_enabled = body.evaluator_enabled if body.evaluator_enabled is not None else config.EVALUATOR_ENABLED
+    try:
+        session = await create_session(body.repo_url, body.brief, body.model, evaluator_enabled=evaluator_enabled, intent=body.intent)
+    except RuntimeError as e:
+        raise HTTPException(429, str(e))
     return {"session_id": session.id, "status": session.status}
 
 @app.post("/api/build/parallel", dependencies=[Depends(require_auth), Depends(require_rate_limit)])
-async def build_parallel(request: Request):
+async def build_parallel(body: ParallelBuildRequest):
     """Fan-out a complex brief across N parallel worker sessions (RA-464)."""
-    body = await request.json()
-    repo_url = body.get("repo_url", "").strip()
-    brief = body.get("brief", "").strip()
-    model = body.get("model", "sonnet").strip()
-    n_workers = int(body.get("n_workers", 2))
-    intent = body.get("intent", "").strip()
-    evaluator_enabled = body.get("evaluator_enabled", config.EVALUATOR_ENABLED)
-    if not repo_url: raise HTTPException(400, "repo_url required")
-    if not repo_url.startswith(("https://", "git@")): raise HTTPException(400, "Invalid URL")
-    if model not in config.ALLOWED_MODELS: raise HTTPException(400, f"model must be {config.ALLOWED_MODELS}")
-    if not brief: raise HTTPException(400, "brief required for parallel builds")
-    result = await fan_out(repo_url, brief, n_workers=n_workers, model=model, intent=intent, evaluator_enabled=evaluator_enabled)
+    if not body.brief:
+        raise HTTPException(400, "brief required for parallel builds")
+    evaluator_enabled = body.evaluator_enabled if body.evaluator_enabled is not None else config.EVALUATOR_ENABLED
+    result = await fan_out(body.repo_url, body.brief, n_workers=body.n_workers, model=body.model, intent=body.intent, evaluator_enabled=evaluator_enabled)
     return result
 
 @app.get("/api/sessions", dependencies=[Depends(require_auth)])
@@ -204,35 +324,116 @@ async def get_triggers():
     return list_triggers()
 
 @app.post("/api/triggers", dependencies=[Depends(require_auth), Depends(require_rate_limit)])
-async def add_trigger(request: Request):
-    body = await request.json()
-    repo_url = body.get("repo_url", "").strip()
-    brief = body.get("brief", "").strip()
-    model = body.get("model", "sonnet").strip()
-    hour = body.get("hour")  # optional
-    minute = body.get("minute")
-    if not repo_url: raise HTTPException(400, "repo_url required")
-    if not repo_url.startswith(("https://", "git@")): raise HTTPException(400, "Invalid URL")
-    if model not in config.ALLOWED_MODELS: raise HTTPException(400, f"model must be {config.ALLOWED_MODELS}")
-    if minute is None: raise HTTPException(400, "minute required (0-59)")
-    try:
-        minute = int(minute)
-        if not (0 <= minute <= 59): raise ValueError
-    except (ValueError, TypeError):
-        raise HTTPException(400, "minute must be 0-59")
-    if hour is not None:
-        try:
-            hour = int(hour)
-            if not (0 <= hour <= 23): raise ValueError
-        except (ValueError, TypeError):
-            raise HTTPException(400, "hour must be 0-23")
-    trigger = create_trigger(repo_url=repo_url, brief=brief, minute=minute, hour=hour, model=model)
+async def add_trigger(body: TriggerRequest):
+    trigger = create_trigger(repo_url=body.repo_url, brief=body.brief, minute=body.minute, hour=body.hour, model=body.model)
     return trigger
 
 @app.delete("/api/triggers/{tid}", dependencies=[Depends(require_auth)])
 async def remove_trigger(tid: str):
     if not delete_trigger(tid): raise HTTPException(404, "Trigger not found")
     return {"ok": True}
+
+@app.post("/api/scan", dependencies=[Depends(require_auth), Depends(require_rate_limit)])
+async def trigger_scan(body: ScanRequest):
+    """Trigger Pi-SEO autonomous scan for one or all projects."""
+    from .scanner import ProjectScanner
+    from .triage import TriageEngine
+
+    project_id = body.project_id
+    scan_types = [s for s in body.scan_types] if body.scan_types else None
+    dry_run = body.dry_run
+
+    scanner = ProjectScanner()
+    engine = TriageEngine()
+
+    async def _run() -> dict:
+        if project_id:
+            projects = scanner.load_projects()
+            proj = next((p for p in projects if p["id"] == project_id), None)
+            if not proj:
+                return {"error": f"project_id '{project_id}' not found"}
+            results = await scanner.scan_project(proj, scan_types)
+            created = engine.triage(project_id, results, dry_run=dry_run)
+            out: dict = {
+                "project_id": project_id,
+                "scan_results": [
+                    {"scan_type": r.scan_type, "findings": len(r.findings), "health_score": r.health_score}
+                    for r in results
+                ],
+                "tickets_created": len(created),
+                "dry_run": dry_run,
+            }
+            if body.auto_pr:
+                from .autopr import run_autopr
+                out["auto_pr"] = await run_autopr(proj, dry_run=dry_run)
+            return out
+        else:
+            all_results = await scanner.scan_all(scan_types=scan_types)
+            all_created = engine.triage_all(all_results, dry_run=dry_run)
+            out = {
+                "projects_scanned": len(all_results),
+                "tickets_created": sum(len(v) for v in all_created.values()),
+                "dry_run": dry_run,
+                "summary": {
+                    pid: {"findings": sum(len(r.findings) for r in results), "tickets": len(all_created.get(pid, []))}
+                    for pid, results in all_results.items()
+                },
+            }
+            if body.auto_pr:
+                from .autopr import run_autopr_all
+                out["auto_pr"] = await run_autopr_all(dry_run=dry_run)
+            return out
+
+    asyncio.create_task(_run())
+    return {"ok": True, "message": "Scan started — results will be saved to .harness/scan-results/"}
+
+
+@app.get("/api/projects/health", dependencies=[Depends(require_auth)])
+async def projects_health():
+    """Return health scores for all projects based on latest scan results."""
+    from .scanner import ProjectScanner
+    scanner = ProjectScanner()
+    return scanner.get_health_summary()
+
+
+# ─── Monitor endpoints (RA-541) ───────────────────────────────────────────────
+
+class MonitorRequest(BaseModel):
+    project_id: str | None = None
+    use_agent: bool = False
+    dry_run: bool = False
+
+
+@app.post("/api/monitor", dependencies=[Depends(require_auth)])
+async def trigger_monitor(body: MonitorRequest, background_tasks: BackgroundTasks):
+    """Run a Pi-SEO monitor cycle (portfolio health + regression detection)."""
+    from .agents.pi_seo_monitor import run_monitor_cycle
+
+    async def _run():
+        run_monitor_cycle(
+            project_id=body.project_id,
+            use_agent=body.use_agent,
+            dry_run=body.dry_run,
+        )
+
+    background_tasks.add_task(_run)
+    return {"ok": True, "dry_run": body.dry_run}
+
+
+@app.get("/api/monitor/digest", dependencies=[Depends(require_auth)])
+async def get_monitor_digest():
+    """Return the latest monitor digest JSON."""
+    import glob as _glob
+    digests_root = Path(__file__).parent.parent.parent / ".harness" / "monitor-digests"
+    files = sorted(_glob.glob(str(digests_root / "*.json")), reverse=True)
+    if not files:
+        return {"error": "No monitor digest found"}
+    try:
+        with open(files[0]) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError) as exc:
+        return {"error": str(exc)}
+
 
 @app.post("/api/gc", dependencies=[Depends(require_auth)])
 async def run_gc():
@@ -244,15 +445,8 @@ async def get_lessons(category: str | None = None, limit: int = 50):
     return load_lessons(category=category, limit=min(limit, 200))
 
 @app.post("/api/lessons", dependencies=[Depends(require_auth)])
-async def post_lesson(request: Request):
-    body = await request.json()
-    source = str(body.get("source", "manual"))[:100]
-    category = str(body.get("category", "general"))[:50]
-    lesson = str(body.get("lesson", "")).strip()
-    severity = str(body.get("severity", "info"))
-    if not lesson:
-        raise HTTPException(400, "lesson required")
-    entry = append_lesson(source, category, lesson, severity)
+async def post_lesson(body: LessonRequest):
+    entry = append_lesson(body.source[:100], body.category[:50], body.lesson, body.severity)
     return entry
 
 @app.websocket("/ws/build/{sid}")
@@ -298,33 +492,56 @@ async def index():
 
 _START_TIME = __import__("time").time()
 
+_claude_ok: bool = False
+_claude_check_task: asyncio.Task | None = None
+
+async def _poll_claude_cli() -> None:
+    """Check Claude CLI in background every 30s — never blocks health endpoint."""
+    global _claude_ok
+    while True:
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                config.CLAUDE_CMD, "--version",
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=5)
+                _claude_ok = proc.returncode == 0
+            except asyncio.TimeoutError:
+                proc.kill()
+                _claude_ok = False
+        except Exception:
+            _claude_ok = False
+        await asyncio.sleep(30)
+
+
+@app.on_event("startup")
+async def _start_claude_poll():
+    asyncio.create_task(_resilient(_poll_claude_cli, "claude_cli_poll"))
+
+
 @app.get("/health")
 async def health():
-    import time, shutil, subprocess
+    import time, shutil
     uptime_s = int(time.time() - _START_TIME)
     active = sum(1 for s in _sessions.values() if getattr(s, "status", "") in ("created", "cloning", "building", "evaluating"))
     total  = len(_sessions)
 
-    # Check Claude CLI availability
-    claude_ok = False
-    try:
-        r = subprocess.run([config.CLAUDE_CMD, "--version"], capture_output=True, timeout=3)
-        claude_ok = r.returncode == 0
-    except Exception:
-        pass
-
-    # Disk space on workspace root
+    disk_free_gb: float | None = None
     try:
         disk = shutil.disk_usage(config.WORKSPACE_ROOT)
         disk_free_gb = round(disk.free / 1e9, 1)
     except Exception:
-        disk_free_gb = None
+        pass
 
-    return {
-        "status":       "ok",
+    healthy = _claude_ok and disk_free_gb is not None
+    payload = {
+        "status":       "ok" if healthy else "degraded",
         "uptime_s":     uptime_s,
         "sessions":     {"active": active, "total": total, "max": config.MAX_CONCURRENT_SESSIONS},
-        "claude_cli":   claude_ok,
+        "claude_cli":   _claude_ok,
         "disk_free_gb": disk_free_gb,
         "version":      "1.0.0",
     }
+    return JSONResponse(payload, status_code=200 if healthy else 503)
