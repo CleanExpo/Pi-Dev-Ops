@@ -138,9 +138,17 @@ _TEXT_EXTS = {
 }
 # Placeholder strings that indicate a value is intentionally redacted/templated,
 # or is a shell/env variable reference rather than a hardcoded literal.
+# Also allowlists AWS official example keys (AKIAIOSFODNN7EXAMPLE, wJalrXUt...)
+# and sk-xxx... pattern placeholders used in env-doc generators.
 _PLACEHOLDER_RE = re.compile(
     r"<redacted>|<your-|<paste|<configured>|your-password|example\.com"
-    r'|\$\{[A-Z_]+|process\.env\.|os\.environ',
+    r'|\$\{[A-Z_]+|process\.env\.|os\.environ'
+    # AWS official documentation example keys (safe to ignore)
+    r"|AKIAIOSFODNN7EXAMPLE|wJalrXUtnFEMI"
+    # Placeholder patterns: all-x or all-asterisk values after = or :
+    r"|(?:=|:\s*')['\"]?(?:sk-|lin_api_|ghp_)?[xX*]{8,}['\"]?"
+    # Example-field placeholders in env doc generators
+    r"|example:\s*['\"]sk-[xX*]+",
     re.IGNORECASE,
 )
 
