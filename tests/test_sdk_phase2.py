@@ -17,21 +17,29 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 @pytest.mark.asyncio
 async def test_run_claude_via_sdk_success():
-    """SDK succeeds and returns (0, text, cost)."""
-    from app.server.sessions import _run_claude_via_sdk
+    """SDK succeeds and returns (0, text, cost).
 
-    mock_msg = MagicMock()
-    mock_msg.content = "Generated code"
-    mock_msg.cost_usd = 0.001
+    Mocks the REAL method used by sessions.py: `client.receive_messages()`.
+    The code path checks `isinstance(msg, AssistantMessage)` and iterates
+    `msg.content` for `TextBlock` instances — so we use real SDK types here
+    rather than plain MagicMocks, which would fail the isinstance check.
+    """
+    from app.server.sessions import _run_claude_via_sdk
+    from claude_agent_sdk import AssistantMessage, TextBlock, ResultMessage
+
+    text_block = TextBlock(text="Generated code")
+    assistant_msg = AssistantMessage(content=[text_block], model="sonnet")
+    # Minimal ResultMessage — kwargs vary across SDK versions, so build via MagicMock
+    result_msg = MagicMock(spec=ResultMessage)
+
+    async def mock_receive():
+        yield assistant_msg
+        yield result_msg
 
     mock_client = AsyncMock()
     mock_client.connect = AsyncMock()
     mock_client.query = AsyncMock()
-
-    async def mock_receive():
-        yield mock_msg
-
-    mock_client.receive_response = mock_receive
+    mock_client.receive_messages = mock_receive
     mock_client.disconnect = AsyncMock()
 
     with patch("claude_agent_sdk.ClaudeSDKClient", return_value=mock_client):
@@ -74,18 +82,21 @@ async def test_run_claude_via_sdk_import_error():
 
 @pytest.mark.asyncio
 async def test_run_claude_via_sdk_timeout():
-    """SDK timeout returns (1, "", 0.0)."""
+    """SDK timeout returns (1, "", 0.0).
+
+    Mocks `receive_messages` (the real method) to raise TimeoutError on first
+    iteration, which should be caught and surfaced as rc=1.
+    """
     from app.server.sessions import _run_claude_via_sdk
+
+    async def mock_receive_timeout():
+        raise asyncio.TimeoutError("Query timeout")
+        yield  # Never reached but keeps this an async generator
 
     mock_client = AsyncMock()
     mock_client.connect = AsyncMock()
     mock_client.query = AsyncMock()
-
-    async def mock_receive_timeout():
-        raise asyncio.TimeoutError("Query timeout")
-        yield  # Never reached
-
-    mock_client.receive_response = mock_receive_timeout
+    mock_client.receive_messages = mock_receive_timeout
     mock_client.disconnect = AsyncMock()
 
     with patch("claude_agent_sdk.ClaudeSDKClient", return_value=mock_client):
