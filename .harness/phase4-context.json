@@ -1,0 +1,22 @@
+```json
+{
+  "projectPurpose": "Pi CEO is a private solo-developer DevOps automation platform that converts plain-English briefs and GitHub repo URLs into autonomous Claude Code execution sessions — cloning, building, evaluating, and pushing changes with zero human intervention mid-run. It operates at zero API cost by leveraging the Claude Max subscription via CLI subprocess.",
+  "targetUsers": [
+    "Solo developer (Phill / Unite Group) using Claude Max subscription",
+    "Claude Desktop / Cowork users consuming MCP tools",
+    "CI/CD pipelines via GitHub Actions smoke test"
+  ],
+  "businessLogic": "1. PITER intent classifier (hotfix→bug→chore→spike→feature priority order) routes briefs to one of 5 ADW templates in brief.py. 2. Three-tier model selection: Opus 4.6 (planner/orchestrator), Sonnet 4.6 (generator/evaluator), Haiku 4.5 (workers) — read from .harness/config.yaml via _select_model(). 3. Blocking evaluator gate: 4-dimension scoring (completeness/correctness/conciseness/format), threshold=8/10, max 2 retries with critique injection before push. 4. Session lifecycle: created→cloning→building→evaluating→complete|failed|killed|interrupted; persisted atomically to app/logs/sessions/{sid}.json. 5. Auto-learn loop: evaluator below-threshold dimensions auto-appended to lessons.jsonl, injected into next brief via _get_lesson_context(). 6. Concurrent session cap: MAX_CONCURRENT_SESSIONS=3. 7. Git push retry: 3 attempts with exponential backoff; auth errors hard-stop. 8. Fan-out parallelism via POST /api/build/parallel with Opus decomposition + N worker sessions. 9. Trigger sources: manual UI, GitHub/Linear HMAC webhooks, cron triggers (cron-triggers.json), MCP tools.",
+  "currentState": "production-ready",
+  "keyInsights": [
+    "The system achieved ZTE 60/60 (Zero Touch band) across all 12 leverage points — the highest maturity tier — as of Sprint 3 (2026-04-08), with the score documented in .harness/leverage-audit.md and read directly by the MCP get_zte_score tool.",
+    "All AI execution is delegated to 'claude -p' subprocess (config.CLAUDE_CMD), not the Anthropic Python SDK — this is the architectural bedrock that enables zero API cost on Claude Max, but means cloud deployments (Railway) cannot run the generator/evaluator since claude CLI is not authenticated there without additional setup.",
+    "CLAUDE.md (root) is a near-empty stub (placeholder text only) despite the system having a rich .harness/spec.md (13KB) and handoff.md — this is a critical context gap: any future Claude session starting from CLAUDE.md gets no meaningful project context.",
+    "The dashboard (Next.js) and backend (FastAPI) have a structural type mismatch: dashboard/lib/types.ts defines Session.phases: Phase[] but /api/sessions returns a flat status string — partially addressed in Sprint 4 (RA-480) but the resolution is in the dashboard API route, not the backend.",
+    "Three sensitive credentials appear in plaintext in committed documentation files: READY_TO_DEPLOY.md contains GITHUB_TOKEN=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, LINEAR_API_KEY=lin_api_DUkmVuRx1ZdjKKfyjVlGKqLAleHmaEcpKTq7En4i, and TAO_PASSWORD=PiDevOpsTestPassword2024 — these are production values that should be rotated immediately.",
+    "The harness documentation (board-meetings, spec.md, handoff.md) is self-referential and highly detailed — 6 autonomous board meetings have been generated, 28 Linear issues tracked, and 5 sprints completed, making the .harness/ directory the authoritative source of truth for project state rather than traditional git commit history.",
+    "The src/tao/agents/__init__.py was implemented in Sprint 4 (RA-482) as AgentDispatcher but the _deploy.py bootstrap script still writes it as empty ('') — any fresh deployment from _deploy.py would regress this implementation.",
+    "Two Dockerfiles exist (root Dockerfile and app/Dockerfile) with different WORKDIR and COPY structures — root Dockerfile copies src/, .harness/, and skills/ (needed for TAO engine), while app/Dockerfile does not, meaning the app/Dockerfile produces a server that will fail _TAO_AVAILABLE checks silently."
+  ]
+}
+```
