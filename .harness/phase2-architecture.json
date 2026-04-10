@@ -1,0 +1,52 @@
+```json
+{
+  "techStack": [
+    "Python 3.11+",
+    "FastAPI",
+    "Uvicorn",
+    "WebSockets",
+    "Next.js 16",
+    "React 19",
+    "TypeScript",
+    "Tailwind CSS",
+    "Node.js 20",
+    "Claude Code CLI (@anthropic-ai/claude-code)",
+    "@anthropic-ai/sdk",
+    "@octokit/rest",
+    "@modelcontextprotocol/sdk",
+    "@supabase/supabase-js",
+    "xterm.js",
+    "Docker",
+    "Vercel",
+    "Railway",
+    "GitHub Actions",
+    "YAML",
+    "JSONL"
+  ],
+  "pattern": "other",
+  "entryPoints": [
+    "app/server/main.py",
+    "dashboard/app/(main)/dashboard/page.tsx",
+    "mcp/pi-ceo-server.js",
+    "app/run.ps1",
+    "scripts/smoke_test.py"
+  ],
+  "keyDependencies": [
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "websockets>=12",
+    "httpx>=0.27",
+    "pyyaml>=6",
+    "next@^16.2.2",
+    "react@^19.0.0",
+    "@anthropic-ai/sdk@^0.36.3",
+    "@octokit/rest@^21.0.2",
+    "@supabase/supabase-js@^2.101.1",
+    "@modelcontextprotocol/sdk@^1.29.0",
+    "xterm@^5.3.0",
+    "zod@^4.3.6"
+  ],
+  "dataFlow": "User submits repo URL + brief via Next.js dashboard (Vercel) → POST /api/build to FastAPI backend (Railway/local:7777) → PITER classifier in brief.py classifies intent → ADW template + skill/lesson context injected → run_build() spawns claude -p subprocess in isolated workspace (app/workspaces/{sid}/) → stream-json events parsed and streamed over WebSocket /ws/build/{sid} to browser → evaluator tier runs second claude -p pass grading output → lessons auto-appended to .harness/lessons.jsonl → git push to GitHub. Parallel path: GitHub/Linear webhooks + cron triggers fire create_session() autonomously. MCP server (pi-ceo-server.js, stdio JSON-RPC) reads .harness/ files and Linear API for Claude Desktop integration.",
+  "architectureNotes": "Three-component split system: (1) FastAPI backend orchestrates agentic build pipeline via claude CLI subprocess — deliberately avoids direct Anthropic SDK calls to leverage zero-cost Claude Max subscription; all intelligence delegated to the claude -p process running stream-json. (2) Next.js dashboard deployed to Vercel acts as the UI layer, proxying to the backend over HTTP/WebSocket with CORS allowlist enforcement. (3) stdio MCP server bridges Claude Desktop to .harness/ state files and Linear API. The TAO engine in src/tao/ provides schemas and skill registry but is not the execution runtime — it's scaffolding that annotates sessions with budget tracking and injects skill context into briefs via brief.py."
+}
+```
