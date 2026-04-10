@@ -15,7 +15,7 @@ import time
 import uuid
 
 from . import config
-from .sessions import create_session, em, run_cmd, BuildSession, _sessions
+from .sessions import create_session, em, run_cmd, BuildSession, _sessions, _run_claude_via_sdk
 from .brief import classify_intent
 from .sessions import _select_model
 
@@ -34,6 +34,31 @@ async def _decompose_brief(brief: str, n_workers: int, repo_url: str, workspace:
         f"- Output ONLY a JSON array of {n_workers} strings, no other text\n"
         f"- Example: [\"Sub-task 1: ...\", \"Sub-task 2: ...\"]"
     )
+    def _parse_sub_briefs(out: str) -> list[str] | None:
+        start = out.find("[")
+        end = out.rfind("]") + 1
+        if start >= 0 and end > start:
+            sub_briefs = json.loads(out[start:end])
+            if isinstance(sub_briefs, list) and sub_briefs:
+                return [str(s) for s in sub_briefs[:n_workers]]
+        return None
+
+    # SDK path — try first when TAO_USE_AGENT_SDK=1
+    if config.USE_AGENT_SDK:
+        try:
+            rc, out, _ = await _run_claude_via_sdk(
+                decompose_prompt, model=_select_model("planner"),
+                workspace=workspace, timeout=60,
+                session_id="", phase="orchestrator.decompose",
+            )
+            if rc == 0 and out.strip():
+                parsed = _parse_sub_briefs(out)
+                if parsed:
+                    return parsed
+        except Exception:
+            pass  # fall through to subprocess
+
+    # Subprocess fallback
     try:
         rc, out, _ = await run_cmd(
             workspace, config.CLAUDE_CMD, *config.CLAUDE_EXTRA_FLAGS, "-p", decompose_prompt,
@@ -41,12 +66,9 @@ async def _decompose_brief(brief: str, n_workers: int, repo_url: str, workspace:
             timeout=60
         )
         if rc == 0 and out.strip():
-            start = out.find("[")
-            end = out.rfind("]") + 1
-            if start >= 0 and end > start:
-                sub_briefs = json.loads(out[start:end])
-                if isinstance(sub_briefs, list) and sub_briefs:
-                    return [str(s) for s in sub_briefs[:n_workers]]
+            parsed = _parse_sub_briefs(out)
+            if parsed:
+                return parsed
     except Exception:
         pass
     return [brief] * n_workers

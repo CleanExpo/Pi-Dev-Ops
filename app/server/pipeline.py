@@ -15,18 +15,20 @@ Phase artifacts:
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
 import re
 import subprocess
+import time
 import urllib.error
 import urllib.request
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from . import config
 
@@ -278,13 +280,13 @@ _MODEL_MAP = {
 }
 
 
-def _run_claude(brief: str, model: str = "sonnet", timeout: int = 300) -> str:
-    """Run claude -p and return output. Raises RuntimeError on failure."""
+def _run_claude_subprocess(brief: str, model: str = "sonnet", timeout: int = 300) -> str:
+    """Run claude -p subprocess and return output. Raises RuntimeError on failure."""
     claude_bin = _resolve_claude_bin()
     model_flag = _MODEL_MAP.get(model, model) if not model.startswith("claude-") else model
     cmd = [claude_bin, *config.CLAUDE_EXTRA_FLAGS, "-p", brief,
            "--model", model_flag, "--output-format", "text"]
-    log.info("Running claude: bin=%s model=%s brief_len=%d", claude_bin, model, len(brief))
+    log.info("Running claude subprocess: bin=%s model=%s brief_len=%d", claude_bin, model, len(brief))
     # Pass current environment so ANTHROPIC_API_KEY and PATH are available
     env = os.environ.copy()
     try:
@@ -302,6 +304,121 @@ def _run_claude(brief: str, model: str = "sonnet", timeout: int = 300) -> str:
         raise RuntimeError(f"claude CLI not found at {claude_bin}")
     except subprocess.TimeoutExpired:
         raise RuntimeError(f"claude timed out after {timeout}s")
+
+
+async def _run_claude_via_sdk_async(
+    prompt: str,
+    model: str = "sonnet",
+    timeout: int = 300,
+    phase: str = "",
+) -> tuple[bool, str]:
+    """Run Claude via agent SDK (text-only, no file writes).
+
+    Returns (success, output_text). On any import/runtime error returns (False, "").
+    Emits one row to .harness/agent-sdk-metrics/ on every invocation.
+    """
+    try:
+        from claude_agent_sdk import (  # noqa: PLC0415
+            AssistantMessage,
+            ClaudeAgentOptions,
+            ClaudeSDKClient,
+            ResultMessage,
+            TextBlock,
+        )
+    except ImportError:
+        log.debug("claude_agent_sdk not available — falling back to subprocess")
+        return (False, "")
+
+    t0 = time.monotonic()
+    error_msg: Optional[str] = None
+    output_text = ""
+    try:
+        options = ClaudeAgentOptions(model=model)
+        client = ClaudeSDKClient(options)
+        text_parts: list[str] = []
+        try:
+            await client.connect()
+            await client.query(prompt)
+            async for msg in client.receive_messages():
+                if isinstance(msg, AssistantMessage):
+                    for block in msg.content:
+                        if isinstance(block, TextBlock):
+                            text_parts.append(block.text)
+                elif isinstance(msg, ResultMessage):
+                    break
+        finally:
+            await client.disconnect()
+        output_text = "\n".join(text_parts)
+        _write_pipeline_sdk_metric(phase=phase, model=model, success=True,
+                                   latency_s=time.monotonic() - t0, output_len=len(output_text))
+        return (True, output_text)
+
+    except asyncio.TimeoutError:
+        error_msg = f"timeout after {timeout}s"
+        log.warning("SDK pipeline timed out after %ds (phase=%s)", timeout, phase)
+    except Exception as exc:
+        error_msg = f"{type(exc).__name__}: {exc}"
+        log.warning("SDK pipeline failed: %s (phase=%s)", exc, phase)
+
+    _write_pipeline_sdk_metric(phase=phase, model=model, success=False,
+                               latency_s=time.monotonic() - t0, output_len=0,
+                               error=error_msg)
+    return (False, "")
+
+
+def _write_pipeline_sdk_metric(
+    *,
+    phase: str,
+    model: str,
+    success: bool,
+    latency_s: float,
+    output_len: int,
+    error: Optional[str] = None,
+) -> None:
+    """Append one pipeline SDK metric row to .harness/agent-sdk-metrics/."""
+    import datetime as _dt  # local import to avoid name clash with module-level datetime
+    try:
+        metrics_dir = Path(__file__).parent.parent.parent / ".harness" / "agent-sdk-metrics"
+        metrics_dir.mkdir(parents=True, exist_ok=True)
+        today = _dt.date.today().isoformat()
+        row = json.dumps({
+            "ts": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
+            "session_id": "",
+            "phase": f"pipeline.{phase}",
+            "model": model,
+            "sdk_enabled": True,
+            "success": success,
+            "latency_s": round(latency_s, 3),
+            "output_len": output_len,
+            "error": error,
+        })
+        with open(metrics_dir / f"{today}.jsonl", "a") as fh:
+            fh.write(row + "\n")
+    except Exception:
+        pass  # metrics must never break the pipeline
+
+
+def _run_claude(brief: str, model: str = "sonnet", timeout: int = 300, phase: str = "") -> str:
+    """Run Claude and return output. Tries SDK first when TAO_USE_AGENT_SDK=1.
+
+    Falls back to subprocess if SDK is unavailable or raises. Raises RuntimeError on failure.
+    """
+    if config.USE_AGENT_SDK:
+        try:
+            success, output = asyncio.run(
+                _run_claude_via_sdk_async(brief, model=model, timeout=timeout, phase=phase)
+            )
+            if success and output.strip():
+                log.info("Pipeline SDK call succeeded: phase=%s model=%s chars=%d",
+                         phase, model, len(output))
+                return output
+            if success:
+                log.warning("SDK returned empty output for phase=%s — falling back", phase)
+        except Exception as exc:
+            log.warning("SDK asyncio.run failed: %s — falling back to subprocess", exc)
+
+    # Subprocess fallback (original implementation below)
+    return _run_claude_subprocess(brief, model=model, timeout=timeout)
 
 
 # ── Phase implementations ─────────────────────────────────────────────────────
@@ -337,7 +454,7 @@ Idea: {idea}
 
 Use the define-spec skill format (Summary, Goals, Non-Goals, Acceptance Criteria, Constraints, Out of Scope).
 """
-    spec_content = _run_claude(brief, model=model)
+    spec_content = _run_claude(brief, model=model, phase="spec")
     _write_artifact(pipeline_id, "spec.md", spec_content)
 
     state.spec = spec_content
@@ -377,7 +494,7 @@ Repo: {state.repo_url}
 
 Use the technical-plan skill format (Approach, Files Changed, Effort, Dependencies, Risks, Test Plan).
 """
-    plan_content = _run_claude(brief, model=model)
+    plan_content = _run_claude(brief, model=model, phase="plan")
     _write_artifact(pipeline_id, "plan.md", plan_content)
 
     state.plan = plan_content
@@ -496,7 +613,7 @@ Output a JSON object with this exact structure:
 Output ONLY the JSON — no preamble.
 """
     try:
-        output = _run_claude(brief, model="sonnet")
+        output = _run_claude(brief, model="sonnet", phase="review")
         # Extract JSON from output
         import re
         json_match = re.search(r'\{.*\}', output, re.DOTALL)
