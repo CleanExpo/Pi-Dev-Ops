@@ -94,6 +94,12 @@ SESSION_TTL          = int(os.environ.get("TAO_SESSION_TTL",          "86400"))
 HOST                 = os.environ.get("TAO_HOST",                       "127.0.0.1")
 PORT                 = int(os.environ.get("TAO_PORT",                   "7777"))
 CLAUDE_CMD           = os.environ.get("TAO_CLAUDE_CMD",                 "claude")
+# CLAUDE_EXTRA_FLAGS is prepended to every subprocess `claude -p` invocation.
+# In non-interactive contexts (Railway cron, scheduled tasks, autonomous runs) this
+# MUST include --dangerously-skip-permissions so the CLI never stalls on a prompt.
+# Default ON for marathon mode; set TAO_CLAUDE_INTERACTIVE=1 to disable for local dev.
+_INTERACTIVE         = os.environ.get("TAO_CLAUDE_INTERACTIVE", "0") == "1"
+CLAUDE_EXTRA_FLAGS   = [] if _INTERACTIVE else ["--dangerously-skip-permissions"]
 ALLOWED_MODELS       = ["opus", "sonnet", "haiku"]
 MAX_CONCURRENT_SESSIONS = int(os.environ.get("TAO_MAX_SESSIONS",        "3"))
 RATE_LIMIT_PER_MIN   = int(os.environ.get("TAO_RATE_LIMIT",             "30"))
@@ -119,6 +125,7 @@ ANTHROPIC_API_KEY    = os.environ.get("ANTHROPIC_API_KEY",               "")
 USE_AGENT_SDK        = os.environ.get("TAO_USE_AGENT_SDK", "0") == "1"
 
 LINEAR_API_KEY       = os.environ.get("LINEAR_API_KEY",                 "")
+AUTONOMY_ENABLED     = os.environ.get("TAO_AUTONOMY_ENABLED", "1") != "0"
 SCAN_WORKSPACE_ROOT  = os.environ.get("SCAN_WORKSPACE_ROOT",
                            str(Path.home() / "pi-seo-workspace"))
 SCAN_RESULTS_DIR     = os.environ.get("SCAN_RESULTS_DIR",

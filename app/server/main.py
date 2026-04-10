@@ -17,6 +17,7 @@ from .lessons import load_lessons, append_lesson
 from .webhook import verify_github_signature, verify_linear_signature, parse_github_event, parse_linear_event, linear_issue_to_brief
 from .orchestrator import fan_out
 from .cron import list_triggers, create_trigger, delete_trigger, cron_loop
+from .autonomy import linear_todo_poller, autonomy_status
 from . import config
 
 log = logging.getLogger("pi-ceo.main")
@@ -137,6 +138,11 @@ async def on_startup():
     restore_sessions()
     asyncio.create_task(_resilient(lambda: gc_loop(_sessions), "gc_loop"))
     asyncio.create_task(_resilient(cron_loop, "cron_loop"))
+    asyncio.create_task(_resilient(linear_todo_poller, "linear_todo_poller"))
+    if config.AUTONOMY_ENABLED:
+        log.info("Autonomy poller enabled — polling Linear every 5 min for Todo issues")
+    else:
+        log.info("Autonomy poller DISABLED (TAO_AUTONOMY_ENABLED=0)")
     if not config.ANTHROPIC_API_KEY:
         log.warning(
             "ANTHROPIC_API_KEY is empty — Anthropic SDK calls will fail. "
@@ -622,6 +628,12 @@ async def get_lessons(category: str | None = None, limit: int = 50):
 async def post_lesson(body: LessonRequest):
     entry = append_lesson(body.source[:100], body.category[:50], body.lesson, body.severity)
     return entry
+
+@app.get("/api/autonomy/status", dependencies=[Depends(require_auth)])
+async def get_autonomy_status():
+    """Return current autonomy poller heartbeat + recent pickup events."""
+    return autonomy_status()
+
 
 @app.websocket("/ws/build/{sid}")
 async def ws_build(websocket: WebSocket, sid: str):
