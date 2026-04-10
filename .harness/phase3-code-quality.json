@@ -1,0 +1,159 @@
+```json
+{
+  "scores": {
+    "completeness": 7,
+    "correctness": 6,
+    "codeQuality": 5,
+    "documentation": 7
+  },
+  "issues": [
+    {
+      "severity": "high",
+      "file": "READY_TO_DEPLOY.md",
+      "description": "GitHub token, Linear API key, TAO_PASSWORD ('PiDevOpsTestPassword2024'), and Supabase service role key are hardcoded in plaintext in a committed markdown file. These are live credentials that must be rotated immediately and removed from git history."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/sessions.py",
+      "description": "run_build() is a single function of ~300 lines with 6+ nested async loops, multiple try/except blocks, and interleaved phase logic. Cyclomatic complexity is extreme. Each phase (clone, analyze, claude_check, sandbox, generator, evaluator, push) should be an isolated async function. Current form is untestable and unmaintainable."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/sessions.py",
+      "description": "Line referencing `af` in the push phase: `em(session, 'system', f'  Files: {len(af) if \\'af\\' in locals() else \\'?\\'}')`  — `locals()` check is a code smell indicating the variable is conditionally defined across branches. If the git status block raises early, af is undefined. Should be initialised to [] before the try block."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/sessions.py",
+      "description": "_read_stdout and _read_stderr are defined as nested async functions inside a for-loop (gen_attempt loop). On retry, stale closures from the previous iteration reference the previous proc. The retry path redefines these functions but they capture proc via the outer scope — race condition risk on retry."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/auth.py",
+      "description": "hmac.new() is not a valid stdlib call — correct call is hmac.new(key, msg, digestmod) which is Python 2 style; Python 3 uses hmac.new(key, msg, digestmod) or hmac.HMAC. The actual stdlib function is `hmac.new()` which does exist in Python 3 but the import is just `import hmac` with no explicit `digestmod` validation. However the real bug: `hmac.new(config.SESSION_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()` — this is correct Python 3 but the verify_session_token does `hmac.new(config.SESSION_SECRET.encode(), data.encode(), hashlib.sha256).hexdigest()` — functionally correct but inconsistent with the `hmac.compare_digest` security intent if the token format ever changes. Low risk currently, flag for review."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/orchestrator.py",
+      "description": "_read_stdout and _read_stderr are imported/referenced from sessions.py scope but defined as nested closures inside run_build(). orchestrator.py calls `from .sessions import ... run_cmd, BuildSession, _sessions` but _read_stdout/_read_stderr are not exported — they're inner functions. The fan_out function cannot call them, yet the code at line ~85 of orchestrator.py uses them implicitly via run_build indirectly. If orchestrator ever tries to stream output directly, this will fail with NameError."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "description": "on_event('startup') is deprecated in FastAPI 0.93+. Should use lifespan context manager pattern. Will generate deprecation warnings and will break in future FastAPI versions."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/sessions.py",
+      "description": "_sessions is a module-level mutable dict with no locking. create_session(), kill_session(), and gc all mutate it from concurrent asyncio tasks. While asyncio is single-threaded, the len() check in create_session() and the subsequent insert are not atomic — two concurrent requests could both pass the MAX_CONCURRENT_SESSIONS check and both insert. Needs asyncio.Lock."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/sessions.py",
+      "description": "parse_event() uses a bare `except:` (line: `try: evt = json.loads(line) / except:`) — catches BaseException including KeyboardInterrupt and SystemExit. Should be `except (json.JSONDecodeError, Exception)`."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/brief.py",
+      "description": "_QUALITY_GATE string uses a Unicode em-dash (\\u2014) hardcoded inline. The evaluator parsing in sessions.py also splits on \\u2014. If the Claude output uses a plain hyphen or different dash, parsing silently fails. Should normalise the delimiter."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/config.py",
+      "description": "EVALUATOR_THRESHOLD is cast to int() but the evaluator scores are floats (e.g. 7.5). The comparison `session.evaluator_score >= config.EVALUATOR_THRESHOLD` works but a score of 7.9 fails an int threshold of 8 even though it rounded would pass. Intent mismatch — threshold should be float."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/orchestrator.py",
+      "description": "fan_out() calls `_select_model('planner')` to get the opus model string, but _select_model returns a short alias ('opus'/'sonnet'/'haiku'), not a full model ID. The create_session() call then passes this alias as `model=opus_model`. config.ALLOWED_MODELS = ['opus','sonnet','haiku'] so 'opus' is valid, but this is fragile — if _select_model ever returns a full model name it will be rejected by the ALLOWED_MODELS check in main.py."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/cron.py",
+      "description": "cron_loop() imports `from .sessions import create_session` inside the loop function body to avoid circular imports. This works but hides the dependency. Better pattern: use TYPE_CHECKING guard or restructure modules to eliminate the cycle."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/sessions.py",
+      "description": "The push phase hardcodes the GitHub URL: `em(session, 'success', '  https://github.com/CleanExpo/Pi-Dev-Ops')` — this is a repo-specific hardcoded string that will be wrong for every other repo. Should derive from session.repo_url."
+    },
+    {
+      "severity": "medium",
+      "file": ".harness/anthropic-docs/api-reference.md",
+      "description": "These files contain raw scraped HTML/JS from Anthropic's docs site — thousands of lines of minified Next.js RSC payload, CSS, and font declarations. No useful content is extractable. The daily fetch script is storing rendered page source not actual documentation. These files waste storage and pollute the harness context with noise."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/sessions.py",
+      "description": "run_build() references _read_stdout and _read_stderr (defined as inner async defs) inside the generator retry block at the bottom of the function. These inner functions close over `session` correctly, but the retry path calls `asyncio.gather(_read_stdout(retry_proc, session), _read_stderr(retry_proc, session))` using the outer scope's _read_stdout/_read_stderr definitions — which themselves closed over `proc` from the outer for-loop. The retry proc is passed as an argument so this is technically safe, but the inner function signature takes `(p, s)` making this work by coincidence. Brittle."
+    },
+    {
+      "severity": "medium",
+      "file": "Dockerfile",
+      "description": "Two Dockerfiles exist: root Dockerfile and app/Dockerfile. They diverge: root copies src/, .harness/, skills/ but app/Dockerfile does not. Root sets PYTHONPATH=/pi-ceo; app/Dockerfile does not. Running `docker build` from the wrong directory produces a broken image. Should be a single Dockerfile or clearly documented which is canonical."
+    },
+    {
+      "severity": "low",
+      "file": "CLAUDE.md",
+      "description": "CLAUDE.md is a stub template with no actual project context. Every field says 'Add ... here'. This is the highest-leverage documentation file per the lessons.jsonl entry ('highest single-leverage documentation fix') yet it's empty. Contradicts the lessons and the spec."
+    },
+    {
+      "severity": "low",
+      "file": "app/server/sessions.py",
+      "description": "em() (emit) is a module-level function with a 1-character name. parse_event(), run_cmd(), and em() all use abbreviated/cryptic naming inconsistent with the rest of the codebase which uses descriptive names. Should be emit_event(), execute_command(), parse_stream_event()."
+    },
+    {
+      "severity": "low",
+      "file": "app/server/main.py",
+      "description": "Multiple inline raises use bare `raise HTTPException(400, ...)` without keyword argument: should be `raise HTTPException(status_code=400, detail=...)` for clarity and future compatibility with FastAPI signature changes."
+    },
+    {
+      "severity": "low",
+      "file": "_deploy.py",
+      "description": "_deploy.py uses a hardcoded absolute Windows path `ROOT = r'C:\\Pi Dev Ops'` making it non-portable. Any developer on a different machine or OS will need to edit this before running. Should use `os.path.dirname(os.path.abspath(__file__))`."
+    },
+    {
+      "severity": "low",
+      "file": "app/server/sessions.py",
+      "description": "list_sessions() returns a raw list with no pagination. With GC_MAX_AGE=4h and MAX_CONCURRENT_SESSIONS=3, this is currently safe, but as sessions accumulate before GC runs the response grows unbounded. Should accept limit/offset parameters."
+    },
+    {
+      "severity": "low",
+      "file": "dashboard/package.json",
+      "description": "pg (PostgreSQL client) is listed as a devDependency but is used in production API routes (Supabase integration). If it's used at runtime in Next.js API routes it must be a regular dependency, not devDependency."
+    },
+    {
+      "severity": "low",
+      "file": "mcp/pi-ceo-server.js",
+      "description": "File not shown in repo context but version is 3.0.0 in package.json. The board meeting minutes reference 'get_zte_score returns No ZTE data found' as a known MCP bug — suggests the tool was broken at the time of the last board meeting but allegedly fixed later. No test confirms the fix is present."
+    }
+  ],
+  "missingTests": [
+    "Unit tests for classify_intent() — keyword priority ordering (hotfix > bug > chore > spike > feature) is critical logic with no automated coverage",
+    "Unit tests for _parse_evaluator_dimensions() — parses structured text that drives auto-learning; a format change silently breaks the entire feedback loop",
+    "Unit tests for verify_session_token() — security-critical HMAC verification with expiry logic",
+    "Unit tests for _should_skip() and phase checkpoint/resume logic",
+    "Unit tests for check_rate_limit() — inline GC and window logic",
+    "Integration test for the full run_build() pipeline with a mock claude subprocess",
+    "Integration test for webhook HMAC verification for both GitHub and Linear payloads",
+    "Integration test for fan_out() parallelism and opus tier escalation path",
+    "Test for cron trigger matching logic (_matches() debounce + hour/minute filtering)",
+    "Test for persistence atomic write + restore_sessions() interrupted state marking",
+    "Test for collect_garbage() — orphan detection and terminal session cleanup",
+    "Dashboard API route tests (Next.js API routes are entirely untested)",
+    "MCP server tool tests — get_zte_score file parsing, linear tool error handling",
+    "Test for build_structured_brief() — verifies skill/lesson injection and QUALITY_GATE inclusion"
+  ],
+  "securityConcerns": [
+    "Live credentials committed to git: READY_TO_DEPLOY.md contains GitHub PAT (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), Linear API key (lin_api_DUkmVuRx1ZdjKKfyjVlGKqLAleHmaEcpKTq7En4i), TAO_PASSWORD, and Supabase service role key. These must be rotated and removed from git history via BFG or git-filter-repo immediately.",
+    "TAO_PASSWORD exposed in handoff.md: 'mdGF5NWZrpC4HFCaXMZHE4-ipqq9FJDhebrx_6oDCKg' is the production Railway password committed in plaintext to the repository.",
+    "SESSION_SECRET exposed in .github/workflows/smoke_test.yml: TAO_SESSION_SECRET is hardcoded as 'ci-session-secret-fixed-for-test' — acceptable for CI but documents the secret format, reducing brute-force difficulty for production secrets.",
+    "CSP allows 'unsafe-inline' for both script-src and style-src in SecurityHeaders middleware (main.py). This significantly weakens XSS protection — the primary attack vector CSP is designed to prevent.",
+    "The claude -p subprocess receives the full brief including lesson context and skill bodies as a command-line argument. On Linux, process arguments are visible in /proc/<pid>/cmdline to all users. Sensitive repo context could leak. Should use stdin or a temp file.",
+    "WebSocket auth accepts a Bearer token via Authorization header, but the token is visible in browser devtools network tab and server logs. The cookie path is more secure. The fallback was added for cross-origin WebSocket but expands the attack surface.",
+    "No CSRF protection on POST endpoints beyond SameSite cookie. SameSite=None (cloud mode) removes the browser's CSRF protection. The API requires no CSRF token, relying entirely on cookie-based auth with SameSite — which is disabled in cloud mode.",
+    "rate limit is keyed on request.client.host (socket IP). Behind Railway's reverse proxy, all requests arrive from the same proxy IP, making rate limiting ineffective. Should honour X-Forwarded-For with a trusted proxy list, or Railway provides the real IP via a different header.",
+    "Workspace paths are constructed as os.path.join(WORKSPACE_ROOT, session.id) where session.id is uuid hex. persistence.py sanitises sid with _safe_sid() but sessions.py constructs workspace paths directly from session.id without sanitisation. If session.id ever contains path characters (currently impossible with uuid.hex but fragile), path traversal is possible."
+  ]
+}
+```
