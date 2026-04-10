@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Literal
 from pydantic import BaseModel, field_validator
 from fastapi import FastAPI, BackgroundTasks, WebSocket, WebSocketDisconnect, Request, Depends, HTTPException
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -252,6 +252,41 @@ async def get_sessions(): return list_sessions()
 async def stop_session(sid: str):
     if not await kill_session(sid): raise HTTPException(404, "Not found")
     return {"ok": True}
+
+@app.get("/api/sessions/{sid}/logs", dependencies=[Depends(require_auth)])
+async def stream_session_logs(sid: str, after: int = 0):
+    """SSE stream of build log events for a session.
+
+    Query param `after` = index of the last event the client has seen (0 = all).
+    Streams existing events immediately, then polls for new ones until terminal.
+    """
+    session = get_session(sid)
+    if not session:
+        raise HTTPException(404, "Session not found")
+
+    terminal = {"done", "complete", "failed", "killed"}
+
+    async def generate():
+        cursor = after
+        while True:
+            lines = session.output_lines
+            while cursor < len(lines):
+                event = lines[cursor]
+                yield f"data: {json.dumps({'i': cursor, **event})}\n\n"
+                cursor += 1
+            if session.status in terminal:
+                yield "data: {\"type\":\"done\",\"text\":\"\"}\n\n"
+                break
+            await asyncio.sleep(0.3)
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 @app.post("/api/sessions/{sid}/resume", dependencies=[Depends(require_auth)])
 async def resume_session(sid: str):

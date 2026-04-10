@@ -1,8 +1,7 @@
 "use client";
-// app/(main)/builds/page.tsx — Pi CEO build sessions (fan-out + evaluator scores)
-// Polls the FastAPI Pi CEO server via the /api/pi-ceo proxy every 5s.
+// app/(main)/builds/page.tsx — Pi CEO build sessions with live log streaming
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 interface PiSession {
   id: string;
@@ -17,24 +16,45 @@ interface PiSession {
   evaluator_status: string;
 }
 
+interface LogLine {
+  i: number;
+  type: string;
+  text: string;
+  ts: number;
+}
+
 const PHASES = ["clone", "analyze", "claude_check", "sandbox", "generator", "evaluator", "push"];
 const PHASE_LABELS = ["Clone", "Analyze", "Check", "Sandbox", "Generate", "Evaluate", "Push"];
 
 const STATUS_COLOR: Record<string, string> = {
-  created:    "#888480",
-  cloning:    "#E8751A",
-  building:   "#E8751A",
+  created:    "var(--c-chrome)",
+  cloning:    "var(--c-orange)",
+  building:   "var(--c-orange)",
   evaluating: "#FFD166",
   complete:   "#4ADE80",
+  done:       "#4ADE80",
   failed:     "#F87171",
-  interrupted:"#888480",
-  killed:     "#888480",
+  interrupted:"var(--c-chrome)",
+  killed:     "var(--c-chrome)",
+};
+
+const LINE_COLOR: Record<string, string> = {
+  phase:   "var(--c-orange)",
+  success: "#4ADE80",
+  error:   "#F87171",
+  tool:    "#6B8CFF",
+  agent:   "var(--c-muted)",
+  metric:  "#FFD166",
+  system:  "var(--c-chrome)",
+  output:  "var(--c-dim)",
+  stderr:  "#F87171",
+  done:    "#4ADE80",
 };
 
 const EVAL_COLOR: Record<string, string> = {
   passed: "#4ADE80",
   warned: "#FFD166",
-  pending: "#888480",
+  pending: "var(--c-chrome)",
 };
 
 function repoName(url: string): string {
@@ -62,7 +82,7 @@ function PhaseBar({ lastPhase, status }: { lastPhase: string; status: string }) 
             title={PHASE_LABELS[i]}
             className="h-1 flex-1 rounded-sm"
             style={{
-              background: done ? "#4ADE80" : active ? "#E8751A" : "#2A2727",
+              background: done ? "#4ADE80" : active ? "var(--c-orange)" : "var(--c-border)",
               opacity: done || active ? 1 : 0.4,
             }}
           />
@@ -78,74 +98,155 @@ function ScoreBadge({ score, evalStatus }: { score: number | null; evalStatus: s
   return (
     <span
       className="font-mono text-[10px] px-1.5 py-0.5 rounded"
-      style={{ background: "#1E1C1C", color, border: `1px solid ${EVAL_COLOR[evalStatus] ?? "#2A2727"}` }}
+      style={{ background: "var(--c-panel)", color, border: `1px solid ${EVAL_COLOR[evalStatus] ?? "var(--c-border)"}` }}
     >
       {score.toFixed(1)}/10
     </span>
   );
 }
 
-function SessionCard({ s, isChild }: { s: PiSession; isChild?: boolean }) {
+function LogPanel({ sid, status }: { sid: string; status: string }) {
+  const [lines, setLines] = useState<LogLine[]>([]);
+  const [streaming, setStreaming] = useState(true);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const esRef = useRef<EventSource | null>(null);
+  const cursorRef = useRef(0);
+
+  useEffect(() => {
+    const terminal = new Set(["done", "complete", "failed", "killed"]);
+
+    function openStream() {
+      esRef.current?.close();
+      const es = new EventSource(`/api/pi-ceo/api/sessions/${sid}/logs?after=${cursorRef.current}`);
+      esRef.current = es;
+
+      es.onmessage = (e) => {
+        try {
+          const line: LogLine = JSON.parse(e.data);
+          if (line.type === "done") {
+            setStreaming(false);
+            es.close();
+            return;
+          }
+          cursorRef.current = line.i + 1;
+          setLines((prev) => [...prev, line]);
+        } catch { /* ignore parse errors */ }
+      };
+
+      es.onerror = () => {
+        es.close();
+        if (!terminal.has(status)) {
+          setTimeout(openStream, 2000);
+        } else {
+          setStreaming(false);
+        }
+      };
+    }
+
+    openStream();
+    return () => esRef.current?.close();
+  }, [sid, status]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-scroll
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [lines]);
+
   return (
     <div
-      className="px-4 py-3 transition-colors"
+      className="font-mono text-[10px] overflow-y-auto"
       style={{
-        borderBottom: "1px solid #1E1C1C",
-        borderLeft: isChild ? "2px solid #2A2727" : "none",
-        marginLeft: isChild ? "20px" : 0,
-        background: "transparent",
+        background: "var(--c-term)",
+        borderTop: "1px solid var(--c-border)",
+        maxHeight: "280px",
+        padding: "8px 12px",
       }}
     >
-      <div className="flex items-start justify-between gap-4">
-        {/* Left: repo + id */}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono text-[11px] truncate" style={{ color: "#F0EDE8" }}>
-              {repoName(s.repo)}
-            </span>
-            {isChild && (
-              <span className="font-mono text-[9px]" style={{ color: "#888480" }}>
-                [child]
+      {lines.length === 0 && streaming && (
+        <span style={{ color: "var(--c-chrome)" }}>Connecting…</span>
+      )}
+      {lines.map((l, idx) => (
+        <div key={idx} style={{ color: LINE_COLOR[l.type] ?? "var(--c-dim)", lineHeight: "1.5" }}>
+          {l.text}
+        </div>
+      ))}
+      {!streaming && lines.length > 0 && (
+        <div style={{ color: "var(--c-chrome)", marginTop: "4px" }}>— stream closed —</div>
+      )}
+      <div ref={bottomRef} />
+    </div>
+  );
+}
+
+function SessionCard({ s, isChild }: { s: PiSession; isChild?: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+  const isActive = ["cloning", "building", "evaluating"].includes(s.status);
+
+  return (
+    <div
+      style={{
+        borderBottom: "1px solid var(--c-border)",
+        borderLeft: isChild ? "2px solid var(--c-border)" : "none",
+        marginLeft: isChild ? "20px" : 0,
+      }}
+    >
+      {/* Card header — clickable to expand */}
+      <div
+        className="px-4 py-3 cursor-pointer transition-colors hover:bg-panel"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-mono text-[11px] truncate" style={{ color: "var(--c-text)" }}>
+                {repoName(s.repo)}
+              </span>
+              {isChild && (
+                <span className="font-mono text-[9px]" style={{ color: "var(--c-chrome)" }}>[child]</span>
+              )}
+              <span className="font-mono text-[9px]" style={{ color: "var(--c-chrome)" }}>{s.id}</span>
+              {isActive && (
+                <span className="font-mono text-[9px] px-1 rounded" style={{ background: "var(--c-panel)", color: "var(--c-orange)" }}>
+                  LIVE
+                </span>
+              )}
+            </div>
+            <PhaseBar lastPhase={s.last_phase} status={s.status} />
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {s.retry_count > 0 && (
+              <span className="font-mono text-[9px] px-1 py-0.5 rounded" style={{ background: "var(--c-panel)", color: "#FFD166" }}>
+                {s.retry_count}x retry
               </span>
             )}
-            <span className="font-mono text-[9px]" style={{ color: "#888480" }}>
-              {s.id}
+            <ScoreBadge score={s.evaluator_score} evalStatus={s.evaluator_status} />
+            <span className="font-mono text-[9px] uppercase" style={{ color: STATUS_COLOR[s.status] ?? "var(--c-chrome)" }}>
+              {s.status}
+            </span>
+            <span className="font-mono text-[9px]" style={{ color: "var(--c-chrome)" }}>
+              {expanded ? "▲" : "▼"}
             </span>
           </div>
-          <PhaseBar lastPhase={s.last_phase} status={s.status} />
         </div>
 
-        {/* Right: badges */}
-        <div className="flex items-center gap-2 shrink-0">
-          {s.retry_count > 0 && (
-            <span className="font-mono text-[9px] px-1 py-0.5 rounded" style={{ background: "#2A2727", color: "#FFD166" }}>
-              {s.retry_count}x retry
+        <div className="flex items-center gap-3 mt-1">
+          <span className="font-mono text-[9px]" style={{ color: "var(--c-chrome)" }}>
+            {elapsed(s.started)} ago
+          </span>
+          <span className="font-mono text-[9px]" style={{ color: "var(--c-chrome)" }}>
+            {s.lines} lines
+          </span>
+          {s.last_phase && (
+            <span className="font-mono text-[9px]" style={{ color: "var(--c-chrome)" }}>
+              last: {s.last_phase}
             </span>
           )}
-          <ScoreBadge score={s.evaluator_score} evalStatus={s.evaluator_status} />
-          <span
-            className="font-mono text-[9px] uppercase"
-            style={{ color: STATUS_COLOR[s.status] ?? "#888480" }}
-          >
-            {s.status}
-          </span>
         </div>
       </div>
 
-      {/* Footer: meta */}
-      <div className="flex items-center gap-3 mt-1">
-        <span className="font-mono text-[9px]" style={{ color: "#888480" }}>
-          {elapsed(s.started)} ago
-        </span>
-        <span className="font-mono text-[9px]" style={{ color: "#888480" }}>
-          {s.lines} lines
-        </span>
-        {s.last_phase && (
-          <span className="font-mono text-[9px]" style={{ color: "#888480" }}>
-            last: {s.last_phase}
-          </span>
-        )}
-      </div>
+      {/* Log panel */}
+      {expanded && <LogPanel sid={s.id} status={s.status} />}
     </div>
   );
 }
@@ -178,7 +279,6 @@ export default function BuildsPage() {
     return () => clearInterval(t);
   }, [fetchSessions]);
 
-  // Group: parents + their children
   const parents = sessions.filter((s) => !s.parent);
   const childrenOf = (pid: string) => sessions.filter((s) => s.parent === pid);
 
@@ -191,28 +291,28 @@ export default function BuildsPage() {
       {/* Header */}
       <div
         className="flex items-center justify-between px-4 py-2 shrink-0"
-        style={{ borderBottom: "1px solid #2A2727" }}
+        style={{ borderBottom: "1px solid var(--c-border)" }}
       >
         <div className="flex items-center gap-3">
-          <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "#C8C5C0" }}>
+          <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "var(--c-muted)" }}>
             Pi CEO Builds — {sessions.length} sessions
           </span>
           {activeCount > 0 && (
-            <span className="font-mono text-[9px] px-2 py-0.5 rounded" style={{ background: "#1E1C1C", color: "#E8751A" }}>
+            <span className="font-mono text-[9px] px-2 py-0.5 rounded" style={{ background: "var(--c-panel)", color: "var(--c-orange)" }}>
               {activeCount} active
             </span>
           )}
         </div>
         <div className="flex items-center gap-3">
           {lastFetch > 0 && (
-            <span className="font-mono text-[9px]" style={{ color: "#888480" }}>
+            <span className="font-mono text-[9px]" style={{ color: "var(--c-chrome)" }}>
               updated {new Date(lastFetch).toLocaleTimeString()}
             </span>
           )}
           <button
             onClick={fetchSessions}
             className="font-mono text-[9px] px-2 py-1 transition-opacity hover:opacity-70"
-            style={{ border: "1px solid #2A2727", color: "#C8C5C0" }}
+            style={{ border: "1px solid var(--c-border)", color: "var(--c-muted)" }}
           >
             REFRESH
           </button>
@@ -221,14 +321,14 @@ export default function BuildsPage() {
 
       {/* Error state */}
       {error && (
-        <div className="px-4 py-3" style={{ borderBottom: "1px solid #2A2727" }}>
+        <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--c-border)" }}>
           <span className="font-mono text-[11px]" style={{ color: "#F87171" }}>
             {error.includes("unreachable") || error.includes("502")
               ? "Pi CEO server offline. Start with: cd app && uvicorn server.main:app --host 127.0.0.1 --port 7777"
               : error}
           </span>
           <div className="mt-1">
-            <span className="font-mono text-[10px]" style={{ color: "#888480" }}>
+            <span className="font-mono text-[10px]" style={{ color: "var(--c-chrome)" }}>
               Set PI_CEO_URL and PI_CEO_PASSWORD in dashboard .env.local
             </span>
           </div>
@@ -238,8 +338,8 @@ export default function BuildsPage() {
       {/* Empty state */}
       {!error && sessions.length === 0 && (
         <div className="flex flex-col flex-1 items-center justify-center">
-          <p className="font-mono text-[12px]" style={{ color: "#C8C5C0" }}>No build sessions yet.</p>
-          <p className="font-mono text-[10px] mt-2" style={{ color: "#888480" }}>
+          <p className="font-mono text-[12px]" style={{ color: "var(--c-muted)" }}>No build sessions yet.</p>
+          <p className="font-mono text-[10px] mt-2" style={{ color: "var(--c-chrome)" }}>
             Trigger a build via POST /api/build on the Pi CEO server.
           </p>
         </div>
