@@ -20,7 +20,7 @@ The system is fully operational at **ZTE Level: Zero Touch (60/60)**. 62 feature
 
 ---
 
-## Architecture (Post-Sprint State)
+## Architecture (Post-Sprint 8 State)
 
 ```
 Browser → POST /api/build → FastAPI → run_build()
@@ -29,13 +29,21 @@ Browser → POST /api/build → FastAPI → run_build()
   Phase 2: workspace analysis             │
   Phase 3: Claude Code availability check │
   Phase 3.5: sandbox verification         │
-  Phase 4: generator (claude -p) + retry  │
+  Phase 4: generator                      │
+    ├─ TAO_USE_AGENT_SDK=true  → _run_claude_via_sdk()  [SDK, bypassPermissions]
+    │                                                     [falls back to subprocess on failure]
+    └─ TAO_USE_AGENT_SDK=false → claude -p subprocess   [original path]
   Phase 4.5: evaluator (blocking gate)    │  ← closed-loop retry with critique injection
-  Phase 5: git push (3-attempt backoff)   │  ← RA-471 added
+    └─ subprocess path (both modes)       │  ← evaluator uses subprocess only
+  Phase 5: git push (3-attempt backoff)   │
                                           ▼
              lessons.jsonl ← auto-learn from evaluator scores
 Browser ← WebSocket /ws/build/{sid} (live stream)
 ```
+
+**SDK canary state:** Not yet activated. Set `TAO_USE_AGENT_SDK=true` or
+`TAO_USE_AGENT_SDK_CANARY_RATE=0.10` in Railway to open Phase A.
+See `.harness/agents/sdk-phase2-rollout.md`.
 
 **Key supporting modules:**
 - `app/server/brief.py` — PITER classifier + ADW template engine + lesson/skill injection
@@ -219,10 +227,25 @@ Major security and feature completion pass across all layers:
 
 ---
 
+## Sprint 8 — SDK Phase 2 + Ops Hardening (2026-04-11)
+
+| Issue | Change |
+|-------|--------|
+| RA-571 | `sessions.py`: `_run_claude_via_sdk()` — dual-path SDK/subprocess generator with fallback |
+| RA-572 | `sessions.py`: evaluator retry also routes via SDK when `USE_AGENT_SDK=true` |
+| RA-574 | `.harness/agents/sdk-phase2-rollout.md`: Phase A→B→C canary plan, pass criteria, rollback table |
+| RA-575 | `scripts/smoke_test.py --agent-sdk`: SDK import check + session field check + metrics dir check |
+| RA-578 | `config.py`: `USE_AGENT_SDK`, `SDK_CANARY_RATE`, `SDK_METRICS_FILE` env-backed settings |
+| RA-580 | Harness refresh: `feature_list.json` → 68 features (Sprint 8/Cycle 16), `handoff.md`, `sprint_plan.md` |
+| RA-581 | `DEPLOYMENT.md`: prod URLs, env matrix, deploy commands, activation checklist |
+| RA-583 | `scripts/smoke_test.py --target=prod`: prod-safe mode, URL from DEPLOYMENT.md |
+
+---
+
 ## What To Do Next
 
-1. Pi-SEO activation — run first full sweep across all 10 repos, review findings volume
-2. Agent SDK migration — production cut-over plan from claude -p to Agent SDK (RA-485 was PoC)
+1. **Open canary Phase A** — set `TAO_USE_AGENT_SDK_CANARY_RATE=0.10` in Railway; monitor for 24h
+2. Pi-SEO activation — run first full sweep across all 10 repos, review findings volume
 3. Self-improvement loop — scheduled lesson-pattern analyser proposes CLAUDE.md updates
 4. Multi-model parallel evaluation — Sonnet + Haiku consensus with Opus escalation
-5. Autonomous Pi Dev Ops self-maintenance — run scanner on Pi Dev Ops itself on 6h schedule
+5. **DR-510** — enable Vercel Automation Bypass Secret (CEO browser action, 30 sec)

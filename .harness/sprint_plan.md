@@ -1,29 +1,41 @@
 # Pi Dev Ops — Sprint Plan
 
-_Sprint 7 complete | 2026-04-10 | ZTE Score: 60/60 Zero Touch_
+_Sprint 8 / Cycle 16 | 2026-04-11 | ZTE Score: 60/60 Zero Touch_
 
 ## Status
 
-All Sprints 1–7 complete. 62 features shipped. Board is defining Sprint 8 scope.
+All Sprints 1–8 complete. 68 features shipped. SDK Phase 2 dual-path wired; canary Phase A not yet activated.
 
 ---
 
-## Sprint 8 — Open Items (Candidate)
+## Sprint 9 — Open Items (Candidates)
+
+### [High] Open SDK Canary Phase A
+Set `TAO_USE_AGENT_SDK_CANARY_RATE=0.10` in Railway. Monitor `.harness/sdk-metrics.jsonl` for 24h. Proceed to Phase B/C per rollout plan.
 
 ### [High] Pi-SEO Activation — First Full Sweep
 Scanner and triage engine are built. Trigger first full scan across all 10 repos, review finding volume, tune severity thresholds.
-
-### [High] Agent SDK Production Cut-Over Plan
-RA-485 delivered a board-meeting PoC. Define rollout: which sessions migrate first, kill criteria, rollback plan.
 
 ### [Medium] Self-Improvement Loop
 Scheduled lesson-pattern analyser reads lessons.jsonl, identifies recurring patterns, proposes CLAUDE.md / skills updates. Closes the ZTE Level 3 meta-loop.
 
 ### [Medium] Multi-Model Parallel Evaluation
-Run Sonnet and Haiku evaluators in parallel; use score consensus. Escalate to Opus on disagreement (>2 point delta). Expected improvement: evaluator false negatives reduced.
+Run Sonnet and Haiku evaluators in parallel; use score consensus. Escalate to Opus on disagreement (>2 point delta).
 
-### [Low] Autonomous Pi Dev Ops Self-Maintenance
-Turn the Pi-SEO scanner loose on Pi Dev Ops itself on a 6h schedule. Auto-create Linear tickets for findings.
+---
+
+## Sprint 8 — Complete (2026-04-11)
+
+| Issue | Change |
+|-------|--------|
+| RA-571 | `sessions.py`: `_run_claude_via_sdk()` dual-path generator; SDK with `bypassPermissions`, subprocess fallback |
+| RA-572 | `sessions.py`: evaluator retry also routes via SDK when `USE_AGENT_SDK=true` |
+| RA-574 | `.harness/agents/sdk-phase2-rollout.md`: Phase A→B→C canary plan, pass criteria, rollback table, sign-off checklist |
+| RA-575 | `scripts/smoke_test.py --agent-sdk`: SDK import + session token fields + metrics dir checks |
+| RA-578 | `config.py`: `USE_AGENT_SDK`, `SDK_CANARY_RATE`, `SDK_METRICS_FILE` added |
+| RA-580 | Harness refresh: `feature_list.json` → 68 features (Sprint 8/Cycle 16) |
+| RA-581 | `DEPLOYMENT.md`: single source of truth for prod URLs + env matrix + activation checklist |
+| RA-583 | `scripts/smoke_test.py --target=prod`: prod-safe mode, Railway URL from DEPLOYMENT.md |
 
 ---
 
