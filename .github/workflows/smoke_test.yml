@@ -10,13 +10,14 @@ jobs:
   smoke:
     name: Pi CEO API smoke test (28 checks)
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
 
     env:
       TAO_PASSWORD: ${{ secrets.TAO_PASSWORD || 'ci-smoke-test-password' }}
       TAO_SESSION_SECRET: ci-session-secret-fixed-for-test
-      TAO_EVALUATOR_ENABLED: "false"   # skip real claude runs in CI
+      TAO_EVALUATOR_ENABLED: "false"
       TAO_GC_MAX_AGE: "3600"
+      PYTHONPATH: ${{ github.workspace }}
 
     steps:
       - uses: actions/checkout@v4
@@ -30,46 +31,40 @@ jobs:
       - name: Install dependencies
         run: pip install -r app/requirements.txt
 
-      - name: Verify server imports
+      - name: Verify server can be imported
+        working-directory: app
         run: |
-          cd app
-          python -c "
-import sys, os
-os.environ.setdefault('TAO_PASSWORD', 'ci-smoke-test-password')
-os.environ.setdefault('TAO_SESSION_SECRET', 'ci-session-secret-fixed-for-test')
-os.environ.setdefault('TAO_EVALUATOR_ENABLED', 'false')
-print('Python:', sys.version)
-try:
-    import server.main
-    print('server.main: OK')
-except Exception as e:
-    print('IMPORT ERROR:', e)
-    import traceback; traceback.print_exc()
-    sys.exit(1)
-"
+          python - <<'PYEOF'
+          import sys
+          print('Python:', sys.version)
+          print('CWD path[0]:', sys.path[0] if sys.path else 'empty')
+          import server.main
+          print('server.main import: OK')
+          PYEOF
 
       - name: Start Pi CEO server
         run: |
-          # Write server logs to file so failures are visible in CI
-          cd app
+          # Run from app/ dir with full logging captured
           python -m uvicorn server.main:app \
             --host 127.0.0.1 --port 7777 \
             --log-level info > /tmp/server.log 2>&1 &
           echo "SERVER_PID=$!" >> $GITHUB_ENV
+        working-directory: app
 
       - name: Wait for server to be ready
         run: |
-          for i in $(seq 1 25); do
-            if curl -sf http://127.0.0.1:7777/health > /dev/null 2>&1; then
+          for i in $(seq 1 30); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:7777/health 2>/dev/null || echo "000")
+            echo "[${i}s] health status: $STATUS"
+            if [ "$STATUS" = "200" ]; then
               echo "Server ready after ${i}s"
               exit 0
             fi
             sleep 1
           done
           echo "=== SERVER STARTUP LOG ==="
-          cat /tmp/server.log || true
+          cat /tmp/server.log
           echo "==========================="
-          echo "Server failed to start after 25s"
           exit 1
 
       - name: Run smoke test
