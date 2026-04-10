@@ -31,13 +31,21 @@ export default function Dashboard() {
     }
   }, [status]);
 
+  const [submitting, setSubmitting] = useState(false);
+
+  // Clear submitting flag once SSE confirms the session started (or errors)
+  useEffect(() => {
+    if (status !== "idle") setSubmitting(false);
+  }, [status]);
+
   function handleAnalyze() {
-    if (!repo.trim()) return;
+    if (!repo.trim() || submitting) return;
+    setSubmitting(true);
     // GitHub token is read server-side from Supabase settings — no need to pass it here
     start(sanitize(repo.trim()));
   }
 
-  const running = status === "running";
+  const running = status === "running" || submitting;
   const hasResults = Object.keys(result).length > 2;
 
   const statusColor =
