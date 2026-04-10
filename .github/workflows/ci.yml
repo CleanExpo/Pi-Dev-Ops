@@ -28,7 +28,9 @@ jobs:
           cache-dependency-path: app/requirements.txt
 
       - name: Install dependencies
-        run: pip install -r app/requirements.txt
+        run: |
+          pip install -r app/requirements.txt
+          pip install "ruff==0.15.10" "pytest>=8"
 
       - name: Ruff lint
         run: ruff check app/ --output-format=github

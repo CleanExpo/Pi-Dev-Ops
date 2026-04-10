@@ -32,28 +32,37 @@ jobs:
 
       - name: Start Pi CEO server
         run: |
+          # Write server logs to file so failures are visible in CI
           cd app
           python -m uvicorn server.main:app \
             --host 127.0.0.1 --port 7777 \
-            --log-level warning &
+            --log-level info > /tmp/server.log 2>&1 &
           echo "SERVER_PID=$!" >> $GITHUB_ENV
 
       - name: Wait for server to be ready
         run: |
-          for i in $(seq 1 20); do
+          for i in $(seq 1 25); do
             if curl -sf http://127.0.0.1:7777/health > /dev/null 2>&1; then
               echo "Server ready after ${i}s"
-              break
+              exit 0
             fi
             sleep 1
           done
-          curl -sf http://127.0.0.1:7777/health || (echo "Server failed to start" && exit 1)
+          echo "=== SERVER STARTUP LOG ==="
+          cat /tmp/server.log || true
+          echo "==========================="
+          echo "Server failed to start after 25s"
+          exit 1
 
       - name: Run smoke test
         run: |
           python scripts/smoke_test.py \
             --url http://127.0.0.1:7777 \
             --password "$TAO_PASSWORD"
+
+      - name: Show server log on failure
+        if: failure()
+        run: cat /tmp/server.log || true
 
       - name: Stop server
         if: always()
