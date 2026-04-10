@@ -723,6 +723,20 @@ async def health():
         pass
 
     anthropic_key_ok = bool(config.ANTHROPIC_API_KEY)
+    linear_key_ok    = bool(config.LINEAR_API_KEY)
+    autonomy_enabled = bool(config.AUTONOMY_ENABLED)
+
+    # Autonomy is considered "armed" only when the flag is on AND the key is present.
+    # This is the field the marathon watchdog should read to detect the silent-failure
+    # mode where /health says ok but no builds ever fire.
+    autonomy_armed = autonomy_enabled and linear_key_ok
+
+    # Expose the poller heartbeat so external monitors can alert on staleness.
+    from . import autonomy as _autonomy
+    last_poll_at = getattr(_autonomy, "_last_poll_at", 0.0) or 0.0
+    poll_count   = getattr(_autonomy, "_poll_count", 0)
+    seconds_since_last_poll = int(time.time() - last_poll_at) if last_poll_at else None
+
     # Server is healthy as long as disk is accessible.
     # claude_cli status is informational — CI runners don't have the CLI installed.
     healthy = disk_free_gb is not None
@@ -732,6 +746,13 @@ async def health():
         "sessions":         {"active": active, "total": total, "max": config.MAX_CONCURRENT_SESSIONS},
         "claude_cli":       _claude_ok,
         "anthropic_key":    anthropic_key_ok,
+        "linear_key":       linear_key_ok,
+        "autonomy": {
+            "enabled":                 autonomy_enabled,
+            "armed":                   autonomy_armed,
+            "poll_count":              poll_count,
+            "seconds_since_last_poll": seconds_since_last_poll,
+        },
         "disk_free_gb":     disk_free_gb,
         "version":          "1.0.0",
     }

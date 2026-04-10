@@ -195,17 +195,35 @@ async def linear_todo_poller() -> None:
     global _last_poll_at, _poll_count
 
     interval = int(os.environ.get("TAO_AUTONOMY_POLL_INTERVAL", "300"))
-    log.info("Autonomy poller started (interval=%ds, enabled=%s)", interval, config.AUTONOMY_ENABLED)
+    # Startup delay — small grace period so the API is fully up before poll #1,
+    # but NOT a full interval. Previously this was `await asyncio.sleep(interval)`
+    # which meant after every Railway restart the poller sat idle for 5 full
+    # minutes before its first fetch. That bootstrap delay is what made the
+    # system look "stuck" and required a manual prompt to kick it back into life.
+    startup_delay = int(os.environ.get("TAO_AUTONOMY_STARTUP_DELAY", "10"))
+    log.info(
+        "Autonomy poller started (interval=%ds, startup_delay=%ds, enabled=%s)",
+        interval, startup_delay, config.AUTONOMY_ENABLED,
+    )
 
+    # Do-while: first iteration fires after `startup_delay` seconds, subsequent
+    # iterations wait the full `interval`.
+    first_iter = True
     while True:
-        await asyncio.sleep(interval)
+        await asyncio.sleep(startup_delay if first_iter else interval)
+        first_iter = False
 
         if not config.AUTONOMY_ENABLED:
             log.debug("Autonomy poller: disabled (TAO_AUTONOMY_ENABLED=0)")
             continue
 
         if not config.LINEAR_API_KEY:
-            log.warning("Autonomy poller: LINEAR_API_KEY not set — skipping")
+            # Warn loudly EVERY poll, not just once — this was the silent-failure
+            # mode that made Pi-Dev-Ops look healthy while nothing was happening.
+            log.warning(
+                "Autonomy poller: LINEAR_API_KEY not set — skipping poll #%d (check Railway env vars)",
+                _poll_count + 1,
+            )
             continue
 
         _last_poll_at = time.time()
