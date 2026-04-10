@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest } from "next/server";
 import {
   makeOctokit, parseRepoUrl, getDefaultBranch,
-  createBranch, fetchRepoContext, pushFile, createPR,
+  createBranch, fetchRepoContext, fetchBranchDiffs, pushFile, createPR,
 } from "@/lib/github";
 import { makeClient, buildContext, runPhase, getAnalysisMode } from "@/lib/claude";
 import { PHASES, PHASE_PROMPTS, applyPhaseResult } from "@/lib/phases";
@@ -122,8 +122,16 @@ export async function GET(req: NextRequest) {
         // ── Repo context ─────────────────────────────────────────
         line("phase", "FETCHING REPO CONTEXT...");
         const files   = await fetchRepoContext(octokit, owner, repo, defaultBranch);
+        line("system", `  Fetched ${files.length} files (${Math.round(JSON.stringify(files).length / 1000)}KB)`);
+
+        const branchFiles = await fetchBranchDiffs(octokit, owner, repo, defaultBranch);
+        if (branchFiles.length > 0) {
+          files.push(...branchFiles);
+          line("system", `  + ${branchFiles.length} files from feature branches`);
+        }
+
         const context = buildContext(files);
-        line("system", `  Fetched ${files.length} files (${Math.round(context.length / 1000)}KB)`);
+        line("system", `  Total context: ${files.length} files (${Math.round(context.length / 1000)}KB)`);
         line("system", "");
 
         // ── Run 7 analysis phases ────────────────────────────────
@@ -197,6 +205,92 @@ export async function GET(req: NextRequest) {
 
         send("phase_update", { phaseId: 8, status: "done" satisfies PhaseStatus });
         line("success", `  PR: ${prUrl ?? "(create manually)"}`);
+
+        // ── Auto-create Linear triage ticket ─────────────────────
+        const linearKey = settings.linearApiKey || process.env.LINEAR_API_KEY;
+        if (linearKey) {
+          try {
+            const linearGql = async (query: string, variables: Record<string, unknown> = {}) => {
+              const res = await fetch("https://api.linear.app/graphql", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": linearKey,
+                },
+                body: JSON.stringify({ query, variables }),
+              });
+              const json = await res.json() as { data?: Record<string, unknown>; errors?: unknown[] };
+              if (json.errors) throw new Error(`Linear API error: ${JSON.stringify(json.errors)}`);
+              return json.data!;
+            };
+
+            // 1. Get team ID
+            const teamsData = await linearGql(`{ teams { nodes { id name } } }`) as { teams: { nodes: { id: string; name: string }[] } };
+            const team = teamsData.teams.nodes[0];
+            if (!team) throw new Error("No Linear team found");
+
+            // 2. Find the "Triage" workflow state for this team
+            const statesData = await linearGql(`{
+              workflowStates(filter: { team: { id: { eq: "${team.id}" } }, name: { eq: "Triage" } }) {
+                nodes { id name }
+              }
+            }`) as { workflowStates: { nodes: { id: string; name: string }[] } };
+            const triageState = statesData.workflowStates.nodes[0] ?? null;
+
+            // 3. Build issue description with PR URL and phase scores
+            const date = new Date().toISOString().slice(0, 10);
+            const qualityLines = result.quality
+              ? [
+                  `| Completeness | ${result.quality.completeness ?? "?"}/10 |`,
+                  `| Correctness  | ${result.quality.correctness ?? "?"}/10 |`,
+                  `| Code Quality | ${result.quality.codeQuality ?? "?"}/10 |`,
+                  `| Documentation| ${result.quality.documentation ?? "?"}/10 |`,
+                ].join("\n")
+              : "_Not scored_";
+
+            const description = [
+              `## Pi CEO Analysis — ${repo}`,
+              "",
+              `**Date:** ${date}`,
+              `**Branch:** \`${branchName}\``,
+              prUrl ? `**PR:** ${prUrl}` : "",
+              "",
+              "## Quality Scores",
+              "| Dimension | Score |",
+              "|-----------|-------|",
+              qualityLines,
+              "",
+              `**ZTE Level:** ${result.zteLevel ?? "?"} — Score: ${result.zteScore ?? "?"}/60`,
+              "",
+              "## Summary",
+              result.executiveSummary ?? "_No summary generated._",
+            ].filter((l) => l !== null).join("\n");
+
+            // 4. Create the issue
+            const issueInput: Record<string, unknown> = {
+              title: `Analysis: ${repo} ${date}`,
+              teamId: team.id,
+              description,
+              priority: 3, // Normal
+            };
+            if (triageState) issueInput.stateId = triageState.id;
+
+            const issueData = await linearGql(`
+              mutation CreateIssue($input: IssueCreateInput!) {
+                issueCreate(input: $input) {
+                  success
+                  issue { id identifier title url state { name } }
+                }
+              }
+            `, { input: issueInput }) as { issueCreate: { success: boolean; issue: { identifier: string; url: string } } };
+
+            const issue = issueData.issueCreate.issue;
+            line("success", `  Linear: ${issue.identifier} — ${issue.url}`);
+          } catch (err) {
+            logError("linear-triage", err);
+            // non-fatal — analysis already complete
+          }
+        }
 
         // ── Vercel preview deployment (optional) ─────────────────
         let previewUrl: string | null = null;

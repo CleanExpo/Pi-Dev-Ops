@@ -1,10 +1,15 @@
 import asyncio, json, os, shutil, time, uuid
+import logging
+import urllib.request
+import urllib.error
 from dataclasses import dataclass, field
 from typing import Optional
 from . import config
 from . import persistence
 from .brief import classify_intent, build_structured_brief
 from .lessons import append_lesson
+
+_log = logging.getLogger("pi-ceo.sessions")
 
 # TAO engine — loaded after brief.py sets up sys.path (project root injected there)
 try:
@@ -61,6 +66,7 @@ class BuildSession:
     budget: Optional[object] = None           # RA-465: BudgetTracker instance
     last_completed_phase: str = ""            # Phase tracking for resume (GROUP D/E)
     retry_count: int = 0                      # Evaluator retry count (GROUP C)
+    linear_issue_id: Optional[str] = None    # Linear issue ID for two-way sync
 
 _sessions = {}
 def get_session(sid): return _sessions.get(sid)
@@ -98,6 +104,7 @@ def restore_sessions():
             error=data.get("error"),
             last_completed_phase=data.get("last_completed_phase", ""),
             retry_count=data.get("retry_count", 0),
+            linear_issue_id=data.get("linear_issue_id"),
         )
         # Mark anything that was in-flight as interrupted
         if session.status in ("created", "cloning", "building"):
@@ -185,6 +192,99 @@ def _should_skip(phase: str, resume_from: str) -> bool:
         return _PHASE_ORDER.index(phase) <= _PHASE_ORDER.index(resume_from)
     except ValueError:
         return False
+
+
+# ── Linear two-way sync helpers ───────────────────────────────────────────────
+
+def _update_linear_state(issue_id: str, state_name: str) -> None:
+    """Move a Linear issue to the named workflow state.
+
+    Uses urllib only (no extra dependencies).  Never raises — failures are
+    logged and silently swallowed so a Linear outage cannot break a build.
+
+    Algorithm:
+      1. Fetch the issue's team ID and current state ID.
+      2. List the team's workflow states and find the ID whose name matches
+         state_name (case-insensitive).
+      3. Call updateIssue mutation with the resolved state ID.
+    """
+    api_key = os.environ.get("LINEAR_API_KEY", "")
+    if not api_key:
+        _log.warning("LINEAR_API_KEY not set — cannot update Linear issue %s to '%s'", issue_id, state_name)
+        return
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": api_key,
+    }
+
+    def _gql(query: str, variables: dict) -> dict:
+        payload = json.dumps({"query": query, "variables": variables}).encode("utf-8")
+        req = urllib.request.Request(
+            "https://api.linear.app/graphql",
+            data=payload,
+            headers=headers,
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+
+    try:
+        # Step 1: get team ID for the issue
+        fetch_q = """
+query GetIssueTeam($id: String!) {
+  issue(id: $id) {
+    team { id }
+  }
+}"""
+        result = _gql(fetch_q, {"id": issue_id})
+        team_id = (result.get("data") or {}).get("issue", {}).get("team", {}).get("id")
+        if not team_id:
+            _log.warning("Linear: could not resolve team for issue %s — skipping state update", issue_id)
+            return
+
+        # Step 2: find the workflow state ID whose name matches state_name
+        states_q = """
+query GetTeamStates($teamId: String!) {
+  team(id: $teamId) {
+    states { nodes { id name type } }
+  }
+}"""
+        result = _gql(states_q, {"teamId": team_id})
+        nodes = (result.get("data") or {}).get("team", {}).get("states", {}).get("nodes", [])
+        target_id = None
+        for node in nodes:
+            if node.get("name", "").lower() == state_name.lower():
+                target_id = node["id"]
+                break
+        if not target_id:
+            _log.warning(
+                "Linear: state '%s' not found in team %s — available: %s",
+                state_name, team_id, [n.get("name") for n in nodes],
+            )
+            return
+
+        # Step 3: update the issue
+        mutation = """
+mutation UpdateIssueState($id: String!, $stateId: String!) {
+  issueUpdate(id: $id, input: { stateId: $stateId }) {
+    success
+    issue { id title state { name } }
+  }
+}"""
+        result = _gql(mutation, {"id": issue_id, "stateId": target_id})
+        success = (result.get("data") or {}).get("issueUpdate", {}).get("success", False)
+        if success:
+            _log.info("Linear: issue %s moved to '%s'", issue_id, state_name)
+        else:
+            errors = result.get("errors") or []
+            _log.warning("Linear: issueUpdate returned success=false for %s — errors: %s", issue_id, errors)
+
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")[:500]
+        _log.warning("Linear HTTP %s updating issue %s to '%s': %s", exc.code, issue_id, state_name, body)
+    except Exception as exc:
+        _log.warning("Linear update failed for issue %s to '%s': %s", issue_id, state_name, exc)
 
 
 # ── Phase helpers (RA-529) ────────────────────────────────────────────────────
@@ -568,13 +668,19 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     session.last_completed_phase = "push"
     session.status = "complete"
     persistence.save_session(session)
+
+    # Two-way Linear sync: move issue to "In Review" now that the build is pushed
+    if session.linear_issue_id:
+        em(session, "system", f"  Updating Linear issue {session.linear_issue_id} → In Review")
+        _update_linear_state(session.linear_issue_id, "In Review")
+
     em(session, "system", "")
     em(session, "phase", "  Summary")
     em(session, "system", f"    Duration: {time.time() - session.started_at:.0f}s")
     em(session, "system", f"    Files: {len(af)}")
     em(session, "success", "  === SESSION COMPLETE ===")
 
-async def create_session(repo_url, brief="", model="", evaluator_enabled=True, intent="", parent_session_id=""):
+async def create_session(repo_url, brief="", model="", evaluator_enabled=True, intent="", parent_session_id="", linear_issue_id: Optional[str] = None):
     if len(_sessions) >= config.MAX_CONCURRENT_SESSIONS:
         raise RuntimeError("Max sessions reached")
     resolved_model = _select_model("generator", model)
@@ -583,6 +689,7 @@ async def create_session(repo_url, brief="", model="", evaluator_enabled=True, i
         started_at=time.time(),
         evaluator_enabled=evaluator_enabled,
         parent_session_id=parent_session_id or None,
+        linear_issue_id=linear_issue_id or None,
     )
     _sessions[session.id] = session
     persistence.save_session(session)

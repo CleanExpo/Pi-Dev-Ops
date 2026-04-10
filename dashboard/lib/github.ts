@@ -96,6 +96,79 @@ export async function fetchRepoContext(
     .map((r) => r.value);
 }
 
+export async function fetchBranchDiffs(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  defaultBranch: string
+): Promise<RepoFile[]> {
+  try {
+    const { data: branches } = await octokit.repos.listBranches({ owner, repo, per_page: 50 });
+
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+
+    // Filter out default branch, pidev/* branches, and stale branches
+    const filtered: typeof branches = [];
+    for (const branch of branches) {
+      if (branch.name === defaultBranch) continue;
+      if (/^pidev\//.test(branch.name)) continue;
+      // Check last commit date
+      try {
+        const { data: commit } = await octokit.repos.getCommit({
+          owner, repo, ref: branch.commit.sha,
+        });
+        const commitDate = commit.commit.committer?.date ?? commit.commit.author?.date ?? "";
+        if (commitDate && new Date(commitDate).getTime() < thirtyDaysAgo) continue;
+      } catch {
+        continue; // skip if we can't check
+      }
+      filtered.push(branch);
+      if (filtered.length >= 5) break;
+    }
+
+    const results: RepoFile[] = [];
+
+    for (const branch of filtered) {
+      try {
+        const { data: diff } = await octokit.repos.compareCommits({
+          owner, repo, base: defaultBranch, head: branch.name,
+        });
+
+        const changedFiles = (diff.files ?? []).slice(0, 15);
+
+        const fileResults = await Promise.allSettled(
+          changedFiles
+            .filter((f) => f.sha && f.filename)
+            .map(async (f): Promise<RepoFile> => {
+              const { data } = await octokit.git.getBlob({
+                owner, repo, file_sha: f.sha!,
+              });
+              const raw = Buffer.from(data.content, "base64").toString("utf-8");
+              const content = raw.length > MAX_FILE_BYTES
+                ? raw.slice(0, MAX_FILE_BYTES) + `\n... [truncated ${raw.length - MAX_FILE_BYTES} bytes]`
+                : raw;
+              return {
+                path: `[BRANCH: ${branch.name}] ${f.filename}`,
+                content,
+                size: raw.length,
+              };
+            })
+        );
+
+        for (const r of fileResults) {
+          if (r.status === "fulfilled") results.push(r.value);
+        }
+      } catch {
+        // skip this branch on error
+      }
+    }
+
+    return results;
+  } catch {
+    return [];
+  }
+}
+
 export async function pushFile(
   octokit: Octokit,
   owner: string,

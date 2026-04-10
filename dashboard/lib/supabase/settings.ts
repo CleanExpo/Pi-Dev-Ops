@@ -12,6 +12,7 @@ export interface AppSettings {
   vercelToken:       string;
   telegramBotToken:  string;
   telegramChatId:    string;
+  linearApiKey:      string;
 }
 
 const DEFAULTS: AppSettings = {
@@ -23,6 +24,7 @@ const DEFAULTS: AppSettings = {
   vercelToken:      process.env.VERCEL_TOKEN        ?? "",
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN  ?? "",
   telegramChatId:   process.env.TELEGRAM_CHAT_ID    ?? "",
+  linearApiKey:     process.env.LINEAR_API_KEY      ?? "",
 };
 
 const KEY_MAP: Record<string, keyof AppSettings> = {
@@ -34,6 +36,7 @@ const KEY_MAP: Record<string, keyof AppSettings> = {
   vercel_token:       "vercelToken",
   telegram_bot_token: "telegramBotToken",
   telegram_chat_id:   "telegramChatId",
+  linear_api_key:     "linearApiKey",
 };
 
 export async function getSettings(): Promise<AppSettings> {

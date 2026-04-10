@@ -267,6 +267,15 @@ async def resume_session(sid: str):
     asyncio.create_task(run_build(session, resume_from=last_phase))
     return {"session_id": session.id, "resumed_from": last_phase}
 
+def _find_active_session_for_repo(repo_url: str) -> str | None:
+    """Return the session ID of the first non-terminal session for repo_url, or None."""
+    terminal = {"done", "complete", "failed", "killed", "interrupted"}
+    for s in _sessions.values():
+        if s.repo_url == repo_url and s.status not in terminal:
+            return s.id
+    return None
+
+
 @app.post("/api/webhook", dependencies=[Depends(require_rate_limit)])
 async def webhook(request: Request):
     raw_body = await request.body()
@@ -287,12 +296,17 @@ async def webhook(request: Request):
         event = parse_github_event(gh_event, payload)
         if not event:
             return {"skipped": True, "reason": f"Unsupported event: {gh_event}"}
+        repo_url = event["repo_url"]
+        existing_id = _find_active_session_for_repo(repo_url)
+        if existing_id:
+            log.info("Skipping duplicate webhook for %s — session %s already active", repo_url, existing_id)
+            return {"skipped": True, "reason": f"session {existing_id} already active", "session_id": existing_id}
         brief = f"Triggered by GitHub {event['event']} on {event.get('ref', 'unknown')}. Analyze changes, run tests if present, commit fixes."
         try:
-            session = await create_session(event["repo_url"], brief, config.EVALUATOR_MODEL)
+            session = await create_session(repo_url, brief, config.EVALUATOR_MODEL)
         except RuntimeError as e:
             raise HTTPException(429, str(e))
-        return {"triggered": True, "session_id": session.id, "repo": event["repo_url"], "event": event["event"]}
+        return {"triggered": True, "session_id": session.id, "repo": repo_url, "event": event["event"]}
 
     elif linear_sig:
         # Linear webhook
@@ -309,12 +323,21 @@ async def webhook(request: Request):
             return {"skipped": True, "reason": "Not an issue-started event"}
         if not event.get("repo_url"):
             return {"skipped": True, "reason": "No repo URL found in issue (add repo:<url> label)"}
+        repo_url = event["repo_url"]
+        existing_id = _find_active_session_for_repo(repo_url)
+        if existing_id:
+            log.info("Skipping duplicate webhook for %s — session %s already active", repo_url, existing_id)
+            return {"skipped": True, "reason": f"session {existing_id} already active", "session_id": existing_id}
         brief = linear_issue_to_brief(event)
+        linear_issue_id = event.get("issue_id") or None
         try:
-            session = await create_session(event["repo_url"], brief, config.EVALUATOR_MODEL)
+            session = await create_session(
+                repo_url, brief, config.EVALUATOR_MODEL,
+                linear_issue_id=linear_issue_id,
+            )
         except RuntimeError as e:
             raise HTTPException(429, str(e))
-        return {"triggered": True, "session_id": session.id, "source": "linear", "title": event["title"]}
+        return {"triggered": True, "session_id": session.id, "source": "linear", "title": event["title"], "linear_issue_id": linear_issue_id}
 
     else:
         raise HTTPException(400, "Missing webhook signature header (x-hub-signature-256 or Linear-Signature)")

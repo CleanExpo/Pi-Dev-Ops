@@ -19,8 +19,11 @@ import asyncio
 import json
 import logging
 import os
+import re
 import subprocess
 import time
+import urllib.error
+import urllib.request
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -32,6 +35,93 @@ from . import config
 log = logging.getLogger("pi-ceo.pipeline")
 
 _HARNESS_ROOT = Path(__file__).parent.parent.parent / ".harness"
+
+# ── Linear sync helper (pipeline) ─────────────────────────────────────────────
+
+_LINEAR_ISSUE_RE = re.compile(r"^[A-Z]+-\d+$")
+
+
+def _linear_issue_id_from_pipeline(pipeline_id: str) -> str | None:
+    """Return the Linear issue ID if pipeline_id looks like 'RA-XXX', else None."""
+    if _LINEAR_ISSUE_RE.match(pipeline_id or ""):
+        return pipeline_id
+    return None
+
+
+def _update_linear_state_pipeline(issue_id: str, state_name: str) -> None:
+    """Move a Linear issue to state_name.  Never raises — failures are logged only."""
+    api_key = os.environ.get("LINEAR_API_KEY", "")
+    if not api_key:
+        log.warning("LINEAR_API_KEY not set — cannot update Linear issue %s to '%s'", issue_id, state_name)
+        return
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": api_key,
+    }
+
+    def _gql(query: str, variables: dict) -> dict:
+        payload = json.dumps({"query": query, "variables": variables}).encode("utf-8")
+        req = urllib.request.Request(
+            "https://api.linear.app/graphql",
+            data=payload,
+            headers=headers,
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+
+    try:
+        # Resolve team ID from issue
+        fetch_q = """
+query GetIssueTeam($id: String!) {
+  issue(id: $id) {
+    team { id }
+  }
+}"""
+        result = _gql(fetch_q, {"id": issue_id})
+        team_id = (result.get("data") or {}).get("issue", {}).get("team", {}).get("id")
+        if not team_id:
+            log.warning("Linear: could not resolve team for issue %s — skipping", issue_id)
+            return
+
+        # Find matching workflow state
+        states_q = """
+query GetTeamStates($teamId: String!) {
+  team(id: $teamId) {
+    states { nodes { id name } }
+  }
+}"""
+        result = _gql(states_q, {"teamId": team_id})
+        nodes = (result.get("data") or {}).get("team", {}).get("states", {}).get("nodes", [])
+        target_id = next((n["id"] for n in nodes if n.get("name", "").lower() == state_name.lower()), None)
+        if not target_id:
+            log.warning(
+                "Linear: state '%s' not found in team %s — available: %s",
+                state_name, team_id, [n.get("name") for n in nodes],
+            )
+            return
+
+        # Mutate
+        mutation = """
+mutation UpdateIssueState($id: String!, $stateId: String!) {
+  issueUpdate(id: $id, input: { stateId: $stateId }) {
+    success
+    issue { id title state { name } }
+  }
+}"""
+        result = _gql(mutation, {"id": issue_id, "stateId": target_id})
+        success = (result.get("data") or {}).get("issueUpdate", {}).get("success", False)
+        if success:
+            log.info("Linear: issue %s moved to '%s'", issue_id, state_name)
+        else:
+            log.warning("Linear: issueUpdate returned success=false for %s errors=%s", issue_id, result.get("errors"))
+
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")[:500]
+        log.warning("Linear HTTP %s updating issue %s to '%s': %s", exc.code, issue_id, state_name, body)
+    except Exception as exc:
+        log.warning("Linear update failed for issue %s to '%s': %s", issue_id, state_name, exc)
 _PIPELINE_ROOT = _HARNESS_ROOT / "pipeline"
 
 
@@ -470,6 +560,14 @@ def run_ship_phase(pipeline_id: str) -> PipelineState:
         log.warning("Ship gate failed: pipeline=%s blocking=%s", pipeline_id, failing[0])
         return state
 
+    # Two-way Linear sync: move issue to "Done" if pipeline_id is a Linear ticket (e.g. RA-123)
+    linear_issue_id = _linear_issue_id_from_pipeline(pipeline_id)
+    linear_ticket_updated = False
+    if linear_issue_id:
+        log.info("Ship: updating Linear issue %s to Done", linear_issue_id)
+        _update_linear_state_pipeline(linear_issue_id, "Done")
+        linear_ticket_updated = True
+
     ship_log = {
         "shipped": True,
         "pipeline_id": pipeline_id,
@@ -479,9 +577,8 @@ def run_ship_phase(pipeline_id: str) -> PipelineState:
         "review_score": score,
         "gate_checks": gate_checks,
         "rollback_ref": f"git revert HEAD  # revert last commit from session {state.session_id}",
-        "linear_ticket_updated": False,
+        "linear_ticket_updated": linear_ticket_updated,
         "post_ship_actions": [
-            f"Move Linear ticket {pipeline_id} to Done",
             "Append pattern to .harness/lessons.jsonl",
         ],
     }
@@ -496,7 +593,7 @@ def run_ship_phase(pipeline_id: str) -> PipelineState:
         state.phases_completed.append("ship")
     save_pipeline_state(state)
 
-    log.info("Ship complete: pipeline=%s score=%s", pipeline_id, score)
+    log.info("Ship complete: pipeline=%s score=%s linear_updated=%s", pipeline_id, score, linear_ticket_updated)
     return state
 
 

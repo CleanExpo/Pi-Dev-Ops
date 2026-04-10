@@ -72,6 +72,7 @@ def parse_linear_event(payload: dict) -> dict | None:
     return {
         "source": "linear",
         "event": "issue_started",
+        "issue_id": data.get("id", ""),
         "title": title,
         "description": description[:2000],
         "labels": labels,

@@ -22,7 +22,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   try { body = await req.json() as Record<string, string>; }
   catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
-  const ALLOWED = ["github_token", "anthropic_api_key", "analysis_model", "webhook_secret", "cron_repos"];
+  const ALLOWED = ["github_token", "anthropic_api_key", "analysis_model", "webhook_secret", "cron_repos", "linear_api_key"];
   const updates: Array<Promise<void>> = [];
 
   for (const [key, value] of Object.entries(body)) {
