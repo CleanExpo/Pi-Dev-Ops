@@ -435,6 +435,107 @@ async def get_monitor_digest():
         return {"error": str(exc)}
 
 
+# ─── Ship Chain pipeline endpoints ───────────────────────────────────────────
+
+class SpecRequest(BaseModel):
+    idea: str
+    repo_url: str
+    pipeline_id: str | None = None
+    model: str = "sonnet"
+
+
+class PlanRequest(BaseModel):
+    pipeline_id: str
+    model: str = "sonnet"
+
+
+class TestRequest(BaseModel):
+    pipeline_id: str
+    session_id: str
+
+
+class ShipRequest(BaseModel):
+    pipeline_id: str
+
+
+@app.post("/api/spec", dependencies=[Depends(require_auth)])
+async def run_spec(body: SpecRequest, background_tasks: BackgroundTasks):
+    """Phase 1: Convert a raw idea into a structured spec.md."""
+    from .pipeline import run_spec_phase
+    import uuid as _uuid
+
+    pipeline_id = body.pipeline_id or _uuid.uuid4().hex[:8]
+
+    async def _run():
+        try:
+            run_spec_phase(body.idea, body.repo_url, pipeline_id=pipeline_id, model=body.model)
+        except Exception as exc:
+            log.error("Spec phase failed: pipeline=%s err=%s", pipeline_id, exc)
+
+    background_tasks.add_task(_run)
+    return {"ok": True, "pipeline_id": pipeline_id}
+
+
+@app.post("/api/plan", dependencies=[Depends(require_auth)])
+async def run_plan(body: PlanRequest, background_tasks: BackgroundTasks):
+    """Phase 2: Convert spec.md into a concrete implementation plan.md."""
+    from .pipeline import run_plan_phase
+
+    async def _run():
+        try:
+            run_plan_phase(body.pipeline_id, model=body.model)
+        except Exception as exc:
+            log.error("Plan phase failed: pipeline=%s err=%s", body.pipeline_id, exc)
+
+    background_tasks.add_task(_run)
+    return {"ok": True, "pipeline_id": body.pipeline_id}
+
+
+@app.post("/api/test", dependencies=[Depends(require_auth)])
+async def run_test(body: TestRequest, background_tasks: BackgroundTasks):
+    """Phase 4: Run smoke tests and record results."""
+    from .pipeline import run_test_phase
+
+    async def _run():
+        try:
+            run_test_phase(body.pipeline_id, body.session_id)
+        except Exception as exc:
+            log.error("Test phase failed: pipeline=%s err=%s", body.pipeline_id, exc)
+
+    background_tasks.add_task(_run)
+    return {"ok": True, "pipeline_id": body.pipeline_id}
+
+
+@app.post("/api/ship", dependencies=[Depends(require_auth)])
+async def run_ship(body: ShipRequest):
+    """Phase 6: Hard gate + ship. Returns ship-log immediately (synchronous)."""
+    from .pipeline import run_ship_phase
+    try:
+        state = run_ship_phase(body.pipeline_id)
+        ship_log = state.ship_log or {}
+        return {"ok": ship_log.get("shipped", False), "pipeline_id": body.pipeline_id, "ship_log": ship_log}
+    except ValueError as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+@app.get("/api/pipeline/{pipeline_id}", dependencies=[Depends(require_auth)])
+async def get_pipeline(pipeline_id: str):
+    """Return full PipelineState for a pipeline."""
+    from .pipeline import load_pipeline_state
+    from dataclasses import asdict
+    state = load_pipeline_state(pipeline_id)
+    if not state:
+        raise HTTPException(status_code=404, detail=f"Pipeline {pipeline_id} not found")
+    return asdict(state)
+
+
+@app.get("/api/pipelines", dependencies=[Depends(require_auth)])
+async def get_pipelines():
+    """List all pipeline summaries."""
+    from .pipeline import list_pipelines
+    return list_pipelines()
+
+
 @app.post("/api/gc", dependencies=[Depends(require_auth)])
 async def run_gc():
     result = collect_garbage(_sessions)

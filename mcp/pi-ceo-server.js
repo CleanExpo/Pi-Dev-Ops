@@ -922,12 +922,333 @@ server.registerTool(
   }
 );
 
+// ── Ship Chain tools (shared HTTP helper) ─────────────────────────────────────
+
+function _shipHttp(method, url, body, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const http = require(url.startsWith("https") ? "https" : "http");
+    const u = new URL(url);
+    const data = body ? JSON.stringify(body) : null;
+    const opts = {
+      method,
+      headers: {
+        ...(data ? { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(data) } : {}),
+        ...headers,
+      },
+    };
+    const req = http.request(u, opts, (res) => {
+      let out = "";
+      res.on("data", c => out += c);
+      res.on("end", () => resolve({ status: res.statusCode, body: out, headers: res.headers }));
+    });
+    req.on("error", reject);
+    if (data) req.write(data);
+    req.end();
+  });
+}
+
+async function _shipLogin() {
+  const PI_CEO_URL = process.env.PI_CEO_URL || "http://127.0.0.1:7777";
+  const PI_CEO_PASSWORD = process.env.PI_CEO_PASSWORD || "";
+  const res = await _shipHttp("POST", `${PI_CEO_URL}/api/login`, { password: PI_CEO_PASSWORD });
+  if (res.status !== 200) throw new Error(`Login failed HTTP ${res.status}`);
+  const cookie = (res.headers["set-cookie"] || []).find(c => c.startsWith("tao_session="));
+  if (!cookie) throw new Error("No session cookie");
+  return { cookie: cookie.split(";")[0], url: PI_CEO_URL };
+}
+
+// ── Tool: spec_idea ───────────────────────────────────────────────────────────
+server.registerTool(
+  "spec_idea",
+  {
+    title: "Spec Idea",
+    description: "Phase 1 of the Ship Chain. Converts a raw idea into a structured spec.md with PITER classification, goals, acceptance criteria, and constraints. Returns a pipeline_id to track all subsequent phases.",
+    inputSchema: {
+      idea: z.string().describe("The raw idea or requirement to specify (e.g. 'add dark mode toggle to settings')"),
+      repo_url: z.string().describe("GitHub repo URL this change targets"),
+      pipeline_id: z.string().optional().describe("Optional pipeline ID (e.g. RA-547). Auto-generated if omitted."),
+      model: z.enum(["sonnet", "opus", "haiku"]).optional().describe("Claude model (default: sonnet)"),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  },
+  async ({ idea, repo_url, pipeline_id, model }) => {
+    try {
+      const { cookie, url } = await _shipLogin();
+      const body = { idea, repo_url, pipeline_id: pipeline_id ?? null, model: model ?? "sonnet" };
+      const res = await _shipHttp("POST", `${url}/api/spec`, body, { Cookie: cookie });
+      const data = JSON.parse(res.body);
+      return {
+        content: [{
+          type: "text",
+          text: [
+            `✅ Spec phase started. Pipeline ID: **${data.pipeline_id}**`,
+            "",
+            "The spec agent is writing `spec.md` in the background.",
+            `Run \`get_pipeline\` with pipeline_id="${data.pipeline_id}" to check progress.`,
+            "When current_phase is 'plan', run \`plan_build\` to generate the implementation plan.",
+          ].join("\n"),
+        }],
+      };
+    } catch (e) {
+      return { content: [{ type: "text", text: `spec_idea failed: ${e.message}` }] };
+    }
+  }
+);
+
+// ── Tool: plan_build ──────────────────────────────────────────────────────────
+server.registerTool(
+  "plan_build",
+  {
+    title: "Plan Build",
+    description: "Phase 2 of the Ship Chain. Reads the spec.md and produces a technical implementation plan with files to change, effort sizing, dependencies, and risks.",
+    inputSchema: {
+      pipeline_id: z.string().describe("Pipeline ID from spec_idea (e.g. RA-547 or abc12345)"),
+      model: z.enum(["sonnet", "opus", "haiku"]).optional().describe("Claude model (default: sonnet)"),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  },
+  async ({ pipeline_id, model }) => {
+    try {
+      const { cookie, url } = await _shipLogin();
+      const res = await _shipHttp("POST", `${url}/api/plan`, { pipeline_id, model: model ?? "sonnet" }, { Cookie: cookie });
+      const data = JSON.parse(res.body);
+      return {
+        content: [{
+          type: "text",
+          text: [
+            `✅ Plan phase started for pipeline **${pipeline_id}**.`,
+            "",
+            "The planner agent is writing `plan.md` in the background.",
+            `Run \`get_pipeline\` with pipeline_id="${pipeline_id}" to check progress.`,
+            "When current_phase is 'build', run \`build_feature\` to start the implementation.",
+          ].join("\n"),
+        }],
+      };
+    } catch (e) {
+      return { content: [{ type: "text", text: `plan_build failed: ${e.message}` }] };
+    }
+  }
+);
+
+// ── Tool: build_feature ───────────────────────────────────────────────────────
+server.registerTool(
+  "build_feature",
+  {
+    title: "Build Feature",
+    description: "Phase 3 of the Ship Chain. Starts a build session (clone → analyze → generate → push). Returns a session_id. Provide the pipeline_id to link the session to the pipeline.",
+    inputSchema: {
+      repo_url: z.string().describe("GitHub repo URL to build"),
+      brief: z.string().describe("Implementation brief — paste the plan.md content or summarise the task"),
+      pipeline_id: z.string().optional().describe("Pipeline ID to link this build session to"),
+      model: z.enum(["sonnet", "opus", "haiku"]).optional().describe("Claude model (default: sonnet)"),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  },
+  async ({ repo_url, brief, pipeline_id, model }) => {
+    try {
+      const { cookie, url } = await _shipLogin();
+      const body = { repo_url, brief: brief ?? "", model: model ?? "sonnet" };
+      const res = await _shipHttp("POST", `${url}/api/sessions`, body, { Cookie: cookie });
+      const data = JSON.parse(res.body);
+      const sessionId = data.id || data.session_id;
+
+      // If pipeline_id given, link session via test endpoint stub (stores session_id)
+      if (pipeline_id && sessionId) {
+        await _shipHttp("POST", `${url}/api/test`, { pipeline_id, session_id: sessionId }, { Cookie: cookie });
+      }
+
+      return {
+        content: [{
+          type: "text",
+          text: [
+            `✅ Build session started. Session ID: **${sessionId}**`,
+            pipeline_id ? `Pipeline: **${pipeline_id}**` : "",
+            "",
+            "Monitor progress via the dashboard or WebSocket stream.",
+            "When the session completes, run \`test_build\` to verify the implementation.",
+          ].filter(Boolean).join("\n"),
+        }],
+      };
+    } catch (e) {
+      return { content: [{ type: "text", text: `build_feature failed: ${e.message}` }] };
+    }
+  }
+);
+
+// ── Tool: test_build ──────────────────────────────────────────────────────────
+server.registerTool(
+  "test_build",
+  {
+    title: "Test Build",
+    description: "Phase 4 of the Ship Chain. Runs the smoke test suite and records results. Must pass before /review is allowed.",
+    inputSchema: {
+      pipeline_id: z.string().describe("Pipeline ID to record results against"),
+      session_id: z.string().describe("Session ID from build_feature"),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  },
+  async ({ pipeline_id, session_id }) => {
+    try {
+      const { cookie, url } = await _shipLogin();
+      await _shipHttp("POST", `${url}/api/test`, { pipeline_id, session_id }, { Cookie: cookie });
+      return {
+        content: [{
+          type: "text",
+          text: [
+            `✅ Test phase started for pipeline **${pipeline_id}**.`,
+            "",
+            "Smoke tests are running in the background.",
+            `Run \`get_pipeline\` with pipeline_id="${pipeline_id}" to check results.`,
+            "When current_phase is 'review', run \`review_build\` for the quality gate.",
+          ].join("\n"),
+        }],
+      };
+    } catch (e) {
+      return { content: [{ type: "text", text: `test_build failed: ${e.message}` }] };
+    }
+  }
+);
+
+// ── Tool: review_build ────────────────────────────────────────────────────────
+server.registerTool(
+  "review_build",
+  {
+    title: "Review Build",
+    description: "Phase 5 of the Ship Chain. Runs the evaluator against spec + implementation. Scores on correctness, coverage, quality, security, and documentation. Score ≥ 8/10 required to ship.",
+    inputSchema: {
+      pipeline_id: z.string().describe("Pipeline ID to review"),
+      session_id: z.string().describe("Session ID from build_feature"),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  },
+  async ({ pipeline_id, session_id }) => {
+    try {
+      const { cookie, url } = await _shipLogin();
+      const res = await _shipHttp(
+        "POST",
+        `${url}/api/sessions/${session_id}/resume`,
+        { resume_from: "evaluator", pipeline_id },
+        { Cookie: cookie }
+      );
+      return {
+        content: [{
+          type: "text",
+          text: [
+            `✅ Review phase started for pipeline **${pipeline_id}**.`,
+            "",
+            "The evaluator is scoring the implementation in the background.",
+            `Run \`get_pipeline\` with pipeline_id="${pipeline_id}" to see the review score.`,
+            "If score ≥ 8/10, run \`ship_build\` to deploy.",
+          ].join("\n"),
+        }],
+      };
+    } catch (e) {
+      return { content: [{ type: "text", text: `review_build failed: ${e.message}` }] };
+    }
+  }
+);
+
+// ── Tool: ship_build ──────────────────────────────────────────────────────────
+server.registerTool(
+  "ship_build",
+  {
+    title: "Ship Build",
+    description: "Phase 6 of the Ship Chain. Hard gate: requires all prior phases complete and review score ≥ 8/10. On pass: deploys, writes ship-log.json, updates Linear ticket to Done.",
+    inputSchema: {
+      pipeline_id: z.string().describe("Pipeline ID to ship (e.g. RA-547 or abc12345)"),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  },
+  async ({ pipeline_id }) => {
+    try {
+      const { cookie, url } = await _shipLogin();
+      const res = await _shipHttp("POST", `${url}/api/ship`, { pipeline_id }, { Cookie: cookie });
+      const data = JSON.parse(res.body);
+      if (data.ok) {
+        const log = data.ship_log || {};
+        return {
+          content: [{
+            type: "text",
+            text: [
+              `✅ **SHIPPED** — Pipeline ${pipeline_id}`,
+              `Review score: ${log.review_score}/10`,
+              `Deployed at: ${log.deployed_at}`,
+              `Rollback: \`${log.rollback_ref}\``,
+              "",
+              "Linear ticket updated to Done.",
+            ].join("\n"),
+          }],
+        };
+      } else {
+        const log = data.ship_log || {};
+        return {
+          content: [{
+            type: "text",
+            text: [
+              `🚫 **SHIP BLOCKED** — Pipeline ${pipeline_id}`,
+              `Blocking gate: ${log.blocking_gate || "unknown"}`,
+              `Reason: ${log.blocking_reason || data.error || "Gate check failed"}`,
+              "",
+              "Fix the blocking issue and re-run the relevant phase before shipping.",
+            ].join("\n"),
+          }],
+        };
+      }
+    } catch (e) {
+      return { content: [{ type: "text", text: `ship_build failed: ${e.message}` }] };
+    }
+  }
+);
+
+// ── Tool: get_pipeline ────────────────────────────────────────────────────────
+server.registerTool(
+  "get_pipeline",
+  {
+    title: "Get Pipeline",
+    description: "Return the current state of a Ship Chain pipeline — current phase, completed phases, artifact sizes, and phase-specific results (test pass/fail, review score, ship log).",
+    inputSchema: {
+      pipeline_id: z.string().describe("Pipeline ID to inspect (e.g. RA-547 or abc12345)"),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+  },
+  async ({ pipeline_id }) => {
+    try {
+      const { cookie, url } = await _shipLogin();
+      const res = await _shipHttp("GET", `${url}/api/pipeline/${pipeline_id}`, null, { Cookie: cookie });
+      if (res.status === 404) {
+        return { content: [{ type: "text", text: `Pipeline '${pipeline_id}' not found.` }] };
+      }
+      const state = JSON.parse(res.body);
+      const phases = ["spec", "plan", "build", "test", "review", "ship"];
+      const completed = new Set(state.phases_completed || []);
+      const lines = [
+        `**Pipeline: ${state.pipeline_id}** — "${(state.idea || "").slice(0, 80)}"`,
+        `Current phase: **${state.current_phase}**`,
+        "",
+        "**Progress:**",
+        ...phases.map(p => `  ${completed.has(p) ? "✓" : "○"} /${p}`),
+      ];
+      if (state.review_score) {
+        lines.push("", `Review score: **${state.review_score.overall_score}/10**`);
+        if (state.review_score.feedback) lines.push(`Feedback: ${state.review_score.feedback.slice(0, 200)}`);
+      }
+      if (state.ship_log?.shipped) {
+        lines.push("", `✅ Shipped at: ${state.ship_log.deployed_at}`);
+        lines.push(`Rollback: \`${state.ship_log.rollback_ref}\``);
+      }
+      return { content: [{ type: "text", text: lines.join("\n") }] };
+    } catch (e) {
+      return { content: [{ type: "text", text: `get_pipeline failed: ${e.message}` }] };
+    }
+  }
+);
+
 // ── Start Server ───────────────────────────────────────────────────────────────
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   // Server is now running — the SDK handles all MCP protocol negotiation
-  process.stderr.write("Pi CEO MCP Server v3.0.0 started (stdio transport, 14 tools)\n");
+  process.stderr.write("Pi CEO MCP Server v3.0.0 started (stdio transport, 21 tools)\n");
 }
 
 main().catch((err) => {

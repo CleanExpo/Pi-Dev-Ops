@@ -1,11 +1,11 @@
 ---
 name: tao-skills
-description: Master index of all 26 TAO skills.
+description: Master index of all 31 TAO skills.
 ---
 
 # TAO Skills Index
 
-26 skills across 6 layers.
+31 skills across 7 layers.
 
 ## Core (7)
 tier-architect, tier-orchestrator, tier-worker, tier-evaluator, context-compressor, token-budgeter, auto-generator
@@ -24,3 +24,6 @@ ceo-mode, tao-skills
 
 ## Operations (3)
 pi-seo-scanner, pi-seo-health-monitor, pi-seo-remediation
+
+## Ship Chain (5)
+ship-chain, define-spec, technical-plan, verify-test, ship-release
