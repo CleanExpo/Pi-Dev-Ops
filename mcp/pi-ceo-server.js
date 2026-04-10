@@ -129,6 +129,42 @@ const server = new McpServer({
   version: "3.0.0",
 });
 
+// ── Harness staleness check ────────────────────────────────────────────────────
+// Returns a warning string if any core harness doc is older than 48 hours.
+const HARNESS_STALENESS_THRESHOLD_MS = 48 * 60 * 60 * 1000; // 48 hours
+const HARNESS_CORE_DOCS = [
+  "executive-summary.md",
+  "feature_list.json",
+  "sprint_plan.md",
+  "handoff.md",
+];
+
+function harnessStalenessBanner() {
+  const now = Date.now();
+  const stale = [];
+  for (const doc of HARNESS_CORE_DOCS) {
+    const p = path.join(HARNESS_DIR, doc);
+    try {
+      const stat = fs.statSync(p);
+      const ageMs = now - stat.mtimeMs;
+      if (ageMs > HARNESS_STALENESS_THRESHOLD_MS) {
+        const ageH = Math.round(ageMs / 3600000);
+        stale.push(`  - ${doc} (last updated ${ageH}h ago)`);
+      }
+    } catch (_) {
+      stale.push(`  - ${doc} (missing)`);
+    }
+  }
+  if (!stale.length) return "";
+  return (
+    "\n\n---\n" +
+    "⚠️  **HARNESS DOCS STALE (>48h)** — regenerate before trusting this data.\n" +
+    "Stale files:\n" +
+    stale.join("\n") +
+    "\n\nRun `mcp__pi-ceo__get_last_analysis` after a full board meeting or sprint close to refresh."
+  );
+}
+
 // ── Tool: get_last_analysis ────────────────────────────────────────────────────
 server.registerTool(
   "get_last_analysis",
@@ -141,7 +177,8 @@ server.registerTool(
   async () => {
     const spec = readHarness("spec.md");
     const exec = readHarness("executive-summary.md");
-    return { content: [{ type: "text", text: `${spec}\n\n---\n\n${exec}` }] };
+    const stale = harnessStalenessBanner();
+    return { content: [{ type: "text", text: `${spec}\n\n---\n\n${exec}${stale}` }] };
   }
 );
 

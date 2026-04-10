@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import json
 import os
 import shutil
@@ -15,6 +16,47 @@ from .brief import classify_intent, build_structured_brief
 from .lessons import append_lesson
 
 _log = logging.getLogger("pi-ceo.sessions")
+
+# ── SDK metrics ────────────────────────────────────────────────────────────────
+_SDK_METRICS_DIR = os.path.join(
+    os.path.dirname(__file__), "..", "..", ".harness", "agent-sdk-metrics"
+)
+
+
+def _write_sdk_metric(
+    *,
+    session_id: str,
+    phase: str,
+    model: str,
+    success: bool,
+    latency_s: float,
+    output_len: int,
+    error: Optional[str] = None,
+) -> None:
+    """Append one SDK invocation row to today's JSONL metrics file.
+
+    Non-blocking by design: any I/O error is silently swallowed so metrics
+    failures never affect the build pipeline.
+    """
+    try:
+        os.makedirs(_SDK_METRICS_DIR, exist_ok=True)
+        today = datetime.date.today().isoformat()
+        path = os.path.join(_SDK_METRICS_DIR, f"{today}.jsonl")
+        row = json.dumps({
+            "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+            "session_id": session_id,
+            "phase": phase,
+            "model": model,
+            "sdk_enabled": True,
+            "success": success,
+            "latency_s": round(latency_s, 3),
+            "output_len": output_len,
+            "error": error,
+        })
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(row + "\n")
+    except Exception:
+        pass  # metrics must never break the pipeline
 
 # TAO engine — loaded after brief.py sets up sys.path (project root injected there)
 try:
@@ -201,56 +243,112 @@ def _parse_evaluator_dimensions(eval_text: str) -> dict:
     return dimensions
 
 
-async def _run_claude_via_sdk(prompt: str, model: str, workspace: str, timeout: int = 300) -> tuple[int, str, float]:
+async def _run_claude_via_sdk(
+    prompt: str,
+    model: str,
+    workspace: str,
+    timeout: int = 300,
+    session_id: str = "",
+    phase: str = "",
+) -> tuple[int, str, float]:
     """Run Claude via agent SDK. Returns (returncode, output_text, cost_usd).
 
-    On any error or import failure, returns (1, "", 0.0) for fallback to subprocess.
+    Uses the same API pattern as board_meeting._run_prompt_via_sdk() (the verified Phase 1
+    reference implementation). All standard Claude Code tools (Bash, Edit, Write, etc.) are
+    available by default — no allowed_tools restriction so the generator can write files.
+
+    On any error or import failure, returns (1, "", 0.0) for transparent fallback to subprocess.
+    Emits one row to .harness/agent-sdk-metrics/YYYY-MM-DD.jsonl on every invocation.
     """
     try:
-        from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
+        from claude_agent_sdk import (  # noqa: PLC0415
+            AssistantMessage,
+            ClaudeAgentOptions,
+            ClaudeSDKClient,
+            ResultMessage,
+            TextBlock,
+        )
     except ImportError:
         _log.debug("claude_agent_sdk not available, falling back to subprocess")
         return (1, "", 0.0)
 
+    t0 = time.monotonic()
+    error_msg: Optional[str] = None
+    output_text = ""
     try:
-        # Set up SDK options — no MCP tools, permissive mode for Phase 2
-        options = ClaudeAgentOptions(
-            cwd=workspace,
-            model=model,
-            allowed_tools=[],  # Phase 2: SDK-only, no MCP tools
-            permission_mode="bypassPermissions",
-        )
-
+        # cwd=workspace so Claude edits files in the right directory.
+        # No allowed_tools restriction — generator needs Bash + Edit + Write.
+        options = ClaudeAgentOptions(cwd=workspace, model=model)
         client = ClaudeSDKClient(options)
-        await client.connect()
-
-        final_text = ""
-        cost_usd = 0.0
-
-        # Send prompt and stream response
-        await client.query(prompt)
-        async for message in client.receive_response():
-            # Convert SDK message to dict shape that parse_event expects
-            msg_dict = getattr(message, "__dict__", {})
-            if hasattr(message, "content"):
-                final_text += str(getattr(message, "content", ""))
-            # Extract cost if present
-            if hasattr(message, "cost_usd"):
-                cost_usd = max(cost_usd, float(getattr(message, "cost_usd", 0.0)))
-
-        await client.disconnect()
-        return (0, final_text, cost_usd)
+        text_parts: list[str] = []
+        try:
+            await client.connect()
+            await client.query(prompt)
+            async for msg in client.receive_messages():
+                if isinstance(msg, AssistantMessage):
+                    for block in msg.content:
+                        if isinstance(block, TextBlock):
+                            text_parts.append(block.text)
+                elif isinstance(msg, ResultMessage):
+                    break
+        finally:
+            await client.disconnect()
+        output_text = "\n".join(text_parts)
+        _write_sdk_metric(
+            session_id=session_id, phase=phase, model=model,
+            success=True, latency_s=time.monotonic() - t0,
+            output_len=len(output_text),
+        )
+        return (0, output_text, 0.0)
 
     except asyncio.TimeoutError:
-        _log.warning("SDK query timed out after %ds", timeout)
-        return (1, "", 0.0)
+        error_msg = f"timeout after {timeout}s"
+        _log.warning("SDK generator timed out after %ds", timeout)
     except Exception as exc:
-        _log.warning("SDK query failed: %s (%s)", exc, type(exc).__name__)
-        return (1, "", 0.0)
+        error_msg = f"{type(exc).__name__}: {exc}"
+        _log.warning("SDK generator failed: %s (%s)", exc, type(exc).__name__)
+
+    _write_sdk_metric(
+        session_id=session_id, phase=phase, model=model,
+        success=False, latency_s=time.monotonic() - t0,
+        output_len=0, error=error_msg,
+    )
+    return (1, "", 0.0)
 
 
-async def _run_single_eval(workspace: str, eval_spec: str, model: str, timeout: int = 120) -> tuple[Optional[float], str]:
-    """Run one evaluator pass. Returns (score_or_None, full_output_text)."""
+def _extract_eval_score(text: str) -> Optional[float]:
+    """Parse the OVERALL: <score>/10 line from evaluator output."""
+    for line in text.split("\n"):
+        if line.upper().startswith("OVERALL:"):
+            try:
+                return float(line.split(":")[1].strip().split("/")[0].strip())
+            except (ValueError, IndexError):
+                pass
+    return None
+
+
+async def _run_single_eval(
+    workspace: str,
+    eval_spec: str,
+    model: str,
+    timeout: int = 120,
+    session_id: str = "",
+) -> tuple[Optional[float], str]:
+    """Run one evaluator pass. Returns (score_or_None, full_output_text).
+
+    When TAO_USE_AGENT_SDK=1, tries the SDK path first (text-only response).
+    Falls back to subprocess on SDK error.
+    """
+    # ── SDK path ─────────────────────────────────────────────────────────────
+    if config.USE_AGENT_SDK:
+        rc, sdk_text, _ = await _run_claude_via_sdk(
+            eval_spec, model, workspace, timeout=timeout,
+            session_id=session_id, phase="evaluator",
+        )
+        if rc == 0 and sdk_text.strip():
+            return _extract_eval_score(sdk_text), sdk_text
+
+    # ── Subprocess path (original or SDK fallback) ────────────────────────
     cmd = [config.CLAUDE_CMD, *config.CLAUDE_EXTRA_FLAGS, "-p", eval_spec,
            "--model", model, "--output-format", "text"]
     try:
@@ -261,14 +359,7 @@ async def _run_single_eval(workspace: str, eval_spec: str, model: str, timeout: 
         text = out.decode("utf-8", errors="replace").strip()
     except (asyncio.TimeoutError, Exception):
         return None, ""
-    score: Optional[float] = None
-    for line in text.split("\n"):
-        if line.upper().startswith("OVERALL:"):
-            try:
-                score = float(line.split(":")[1].strip().split("/")[0].strip())
-            except (ValueError, IndexError):
-                pass
-    return score, text
+    return _extract_eval_score(text), text
 
 
 async def _run_parallel_eval(session, eval_spec: str) -> tuple[Optional[float], str, str, str]:
@@ -278,9 +369,10 @@ async def _run_parallel_eval(session, eval_spec: str) -> tuple[Optional[float], 
     Weighted average on escalation: Opus 60%, Sonnet 30%, Haiku 10%.
     """
     em(session, "tool", "  $ claude --model sonnet (eval-1) | claude --model haiku (eval-2) [parallel]")
+    sid = getattr(session, "id", "")
     (s_score, s_text), (h_score, h_text) = await asyncio.gather(
-        _run_single_eval(session.workspace, eval_spec, "sonnet"),
-        _run_single_eval(session.workspace, eval_spec, "haiku"),
+        _run_single_eval(session.workspace, eval_spec, "sonnet", session_id=sid),
+        _run_single_eval(session.workspace, eval_spec, "haiku", session_id=sid),
     )
     if s_score is None and h_score is None:
         return None, "", "sonnet+haiku", "both evals failed"
@@ -293,7 +385,7 @@ async def _run_parallel_eval(session, eval_spec: str) -> tuple[Optional[float], 
     if delta <= 2:
         return (s_score + h_score) / 2, s_text, "sonnet+haiku", consensus
     em(session, "agent", f"  Evaluator delta={delta:.1f} > 2 — escalating to Opus")
-    o_score, o_text = await _run_single_eval(session.workspace, eval_spec, "opus", timeout=180)
+    o_score, o_text = await _run_single_eval(session.workspace, eval_spec, "opus", timeout=180, session_id=sid)
     if o_score is None:
         return (s_score + h_score) / 2, s_text, "sonnet+haiku", f"{consensus} opus-failed"
     weighted = o_score * 0.6 + s_score * 0.3 + h_score * 0.1
@@ -552,7 +644,10 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
             if use_sdk:
                 em(session, "tool", f"  $ claude --model {model} (via SDK)")
                 em(session, "system", "")
-                rc, sdk_output, cost = await _run_claude_via_sdk(current_spec, model, session.workspace)
+                rc, sdk_output, cost = await _run_claude_via_sdk(
+                    current_spec, model, session.workspace,
+                    session_id=session.id, phase="generator",
+                )
                 if rc == 0:
                     # SDK succeeded — parse output and emit events
                     for line in sdk_output.split("\n"):
@@ -697,7 +792,10 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
             if use_sdk:
                 em(session, "tool", f"  $ claude --model {model} (via SDK, retry)")
                 em(session, "system", "")
-                rc, sdk_output, cost = await _run_claude_via_sdk(retry_brief, model, session.workspace)
+                rc, sdk_output, cost = await _run_claude_via_sdk(
+                    retry_brief, model, session.workspace,
+                    session_id=session.id, phase="generator_retry",
+                )
                 if rc == 0:
                     # SDK succeeded — parse output and emit events
                     for line in sdk_output.split("\n"):

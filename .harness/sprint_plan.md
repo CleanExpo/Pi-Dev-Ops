@@ -1,41 +1,39 @@
 # Pi Dev Ops — Sprint Plan
 
-_Sprint 8 / Cycle 16 | 2026-04-11 | ZTE Score: 60/60 Zero Touch_
+_Sprint 8 in progress | 2026-04-11 | ZTE Score: 60/60 Zero Touch_
 
 ## Status
 
-All Sprints 1–8 complete. 68 features shipped. SDK Phase 2 dual-path wired; canary Phase A not yet activated.
+Sprints 1–7 complete. Sprint 8 active. 69 features shipped.
 
 ---
 
-## Sprint 9 — Open Items (Candidates)
-
-### [High] Open SDK Canary Phase A
-Set `TAO_USE_AGENT_SDK_CANARY_RATE=0.10` in Railway. Monitor `.harness/sdk-metrics.jsonl` for 24h. Proceed to Phase B/C per rollout plan.
-
-### [High] Pi-SEO Activation — First Full Sweep
-Scanner and triage engine are built. Trigger first full scan across all 10 repos, review finding volume, tune severity thresholds.
-
-### [Medium] Self-Improvement Loop
-Scheduled lesson-pattern analyser reads lessons.jsonl, identifies recurring patterns, proposes CLAUDE.md / skills updates. Closes the ZTE Level 3 meta-loop.
-
-### [Medium] Multi-Model Parallel Evaluation
-Run Sonnet and Haiku evaluators in parallel; use score consensus. Escalate to Opus on disagreement (>2 point delta).
-
----
-
-## Sprint 8 — Complete (2026-04-11)
+## Sprint 8 — Done (2026-04-11)
 
 | Issue | Change |
 |-------|--------|
-| RA-571 | `sessions.py`: `_run_claude_via_sdk()` dual-path generator; SDK with `bypassPermissions`, subprocess fallback |
-| RA-572 | `sessions.py`: evaluator retry also routes via SDK when `USE_AGENT_SDK=true` |
-| RA-574 | `.harness/agents/sdk-phase2-rollout.md`: Phase A→B→C canary plan, pass criteria, rollback table, sign-off checklist |
-| RA-575 | `scripts/smoke_test.py --agent-sdk`: SDK import + session token fields + metrics dir checks |
-| RA-578 | `config.py`: `USE_AGENT_SDK`, `SDK_CANARY_RATE`, `SDK_METRICS_FILE` added |
-| RA-580 | Harness refresh: `feature_list.json` → 68 features (Sprint 8/Cycle 16) |
-| RA-581 | `DEPLOYMENT.md`: single source of truth for prod URLs + env matrix + activation checklist |
-| RA-583 | `scripts/smoke_test.py --target=prod`: prod-safe mode, Railway URL from DEPLOYMENT.md |
+| RA-551 | `agents/board_meeting.py`: Claude Agent SDK Phase 1 gap audit + `_run_prompt_via_sdk()` added |
+| RA-556 | `_run_prompt_via_sdk()` migration in board_meeting.py; `TAO_USE_AGENT_SDK=1` to enable |
+| RA-557 | dotenv `override=True` fix; `LINEAR_API_KEY` added to `.env`; `config.py` updated |
+| RA-579 | `cron.py`: startup catch-up for overdue triggers; 12h watchdog fires Urgent Linear ticket |
+| RA-581 | `DEPLOYMENT.md`: production URLs, env matrix, rollback procedures (single source of truth) |
+| RA-582 | `scripts/verify_deploy.py`: commit parity audit — git HEAD vs Vercel + Railway SHAs |
+| RA-584 | `app/server/autonomy.py`: Linear todo poller, `/api/autonomy/status` endpoint |
+| (CI fix) | `app/server/main.py`: health endpoint no longer gates on `_claude_ok`; CI 28/28 pass |
+
+## Sprint 8 — Open
+
+| Issue | Priority | Title |
+|-------|----------|-------|
+| RA-583 | High | Post-deploy verification harness: `smoke_test.py --target=prod` in CI |
+| RA-577 | High | Update CLAUDE.md + `.harness/config.yaml` for SDK architecture |
+| RA-580 | High | Harness doc regeneration + 48h staleness watchdog |
+| RA-571 | Medium | Migrate `sessions.py` generator call to `claude_agent_sdk` |
+| RA-572 | Medium | Migrate `sessions.py` evaluator call to `claude_agent_sdk` |
+| RA-573 | Medium | Wire SDK metrics collection (tokens, latency, success rate) |
+| RA-574 | Medium | Canary rollout + validation plan for sessions.py SDK migration |
+| RA-575 | Medium | Smoke-test the SDK path via `scripts/smoke_test.py` |
+| RA-576 | Medium | Remove `claude -p` subprocess fallback paths (post-canary) |
 
 ---
 

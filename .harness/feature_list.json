@@ -1,9 +1,9 @@
 {
-  "generated": "2026-04-11",
-  "last_updated": "2026-04-10",
+  "generated": "2026-04-08",
+  "last_updated": "2026-04-11",
   "zte_score": 60,
   "zte_band": "Zero Touch",
-  "sprint": "Sprint 8 / Cycle 16",
+  "sprint": "Sprint 8 / Cycle 15",
   "features": [
     {
       "id": "F-001",
@@ -48,7 +48,7 @@
     {
       "id": "F-006",
       "name": "Webhook Trigger Support",
-      "description": "POST /api/webhook accepts signed GitHub/Linear webhooks; parses event type \u00e2\u2020\u2019 selects ADW \u00e2\u2020\u2019 creates build session automatically",
+      "description": "POST /api/webhook accepts signed GitHub/Linear webhooks; parses event type → selects ADW → creates build session automatically",
       "status": "complete",
       "leverage_point": "Trigger Automation",
       "linear_issue": "RA-455"
@@ -80,7 +80,7 @@
     {
       "id": "F-010",
       "name": "CLAUDE.md Documentation",
-      "description": "Full project context: architecture, file map, dev setup, code conventions, smoke test checklist \u00e2\u20ac\u201d replaces stub template",
+      "description": "Full project context: architecture, file map, dev setup, code conventions, smoke test checklist — replaces stub template",
       "status": "complete",
       "leverage_point": "Context Precision",
       "linear_issue": "RA-458"
@@ -152,7 +152,7 @@
     {
       "id": "F-019",
       "name": "Autonomous Board Meetings",
-      "description": "Scheduled task at 0/6/12/18 AEST; 6-phase flow: Status \u00e2\u2020\u2019 Linear Review \u00e2\u2020\u2019 SWOT \u00e2\u2020\u2019 Sprint Recs \u00e2\u2020\u2019 Save Minutes \u00e2\u2020\u2019 Update issues; no human gates",
+      "description": "Scheduled task at 0/6/12/18 AEST; 6-phase flow: Status → Linear Review → SWOT → Sprint Recs → Save Minutes → Update issues; no human gates",
       "status": "complete",
       "leverage_point": "Trigger Automation",
       "linear_issue": "RA-467"
@@ -216,14 +216,14 @@
     {
       "id": "F-027",
       "name": "E2E Integration Smoke Test",
-      "description": "scripts/smoke_test.py \u00e2\u20ac\u201d 28-check E2E regression suite validating full pipeline: Brief \u00e2\u2020\u2019 PITER \u00e2\u2020\u2019 ADW \u00e2\u2020\u2019 Claude \u00e2\u2020\u2019 Evaluator \u00e2\u2020\u2019 GitHub push",
+      "description": "scripts/smoke_test.py — 28-check E2E regression suite validating full pipeline: Brief → PITER → ADW → Claude → Evaluator → GitHub push",
       "status": "complete",
       "leverage_point": "Quality Gating",
       "linear_issue": "RA-470"
     },
     {
       "id": "F-028",
-      "name": "Error Recovery \u00e2\u20ac\u201d Transient Failure Retry",
+      "name": "Error Recovery — Transient Failure Retry",
       "description": "3-attempt exponential backoff on git push (2s/4s/8s); structured error reporting on final failure",
       "status": "complete",
       "leverage_point": "Error Recovery",
@@ -327,7 +327,7 @@
     },
     {
       "id": "F-041",
-      "name": "CI Expansion \u00e2\u20ac\u201d TypeScript + Lint",
+      "name": "CI Expansion — TypeScript + Lint",
       "description": "GitHub Actions workflow adds tsc --noEmit, ESLint, and flake8 jobs alongside existing smoke test; all three required for merge.",
       "status": "complete",
       "leverage_point": "Quality Gating",
@@ -351,7 +351,7 @@
     },
     {
       "id": "F-044",
-      "name": "Structured Logging \u00e2\u20ac\u201d Remove print()",
+      "name": "Structured Logging — Remove print()",
       "description": "All print() calls in board_meeting.py, cron.py, gc.py, sessions.py replaced with logging.getLogger(); _JsonFormatter used.",
       "status": "complete",
       "leverage_point": "Workflow Standardization",
@@ -359,7 +359,7 @@
     },
     {
       "id": "F-045",
-      "name": "Claude Agent SDK PoC \u00e2\u20ac\u201d Board Meeting Agent",
+      "name": "Claude Agent SDK PoC — Board Meeting Agent",
       "description": "app/server/agents/board_meeting.py implements BoardMeetingAgent using claude-agent-sdk; runs as parallel system alongside existing board_meeting cron.",
       "status": "complete",
       "leverage_point": "Tool Availability",
@@ -487,7 +487,7 @@
     },
     {
       "id": "F-061",
-      "name": "Telegram Bot Integration \u00e2\u20ac\u201d @piceoagent_bot",
+      "name": "Telegram Bot Integration — @piceoagent_bot",
       "description": "dashboard/app/api/telegram/route.ts: /status, /build, /clear commands + free-form Claude chat with 20-turn per-chat history; webhook registration endpoint.",
       "status": "complete",
       "leverage_point": "Trigger Automation",
@@ -503,45 +503,59 @@
     },
     {
       "id": "F-063",
-      "name": "Agent SDK Phase 2 \u2014 Generator Path",
-      "sprint": "Sprint 8 / SDK",
-      "category": "ai_orchestration",
-      "description": "_run_claude_via_sdk() with ClaudeAgentOptions, bypassPermissions, subprocess fallback"
+      "name": "Agent SDK _run_prompt_via_sdk() (RA-551 / RA-556)",
+      "description": "board_meeting.py: gap audit of SDK vs subprocess, then _run_prompt_via_sdk() added using claude_agent_sdk. Enabled via TAO_USE_AGENT_SDK=1 env flag. Phase 1 of sessions.py SDK migration.",
+      "status": "complete",
+      "leverage_point": "Tool Availability",
+      "linear_issue": "RA-556"
     },
     {
       "id": "F-064",
-      "name": "Agent SDK Phase 2 \u2014 Evaluator Path",
-      "sprint": "Sprint 8 / SDK",
-      "category": "ai_orchestration",
-      "description": "SDK evaluator path with text-only mode, subprocess fallback on import/runtime failure"
+      "name": "dotenv override=True Fix + LINEAR_API_KEY (RA-557)",
+      "description": "config.py: load_dotenv(override=True) so .env beats the claude CLI's empty ANTHROPIC_API_KEY shell export. LINEAR_API_KEY added to .env so triage engine exits dry-run mode.",
+      "status": "complete",
+      "leverage_point": "Error Recovery",
+      "linear_issue": "RA-557"
     },
     {
       "id": "F-065",
-      "name": "SDK Canary Rollout Plan",
-      "sprint": "Sprint 8 / SDK",
-      "category": "devops",
-      "description": ".harness/agents/sdk-phase2-rollout.md \u2014 Phase A(10%) B(50%) C(100%) with pass criteria and rollback table"
+      "name": "Cron Startup Catch-Up + 12h Watchdog (RA-579)",
+      "description": "cron.py: _should_catch_up() fires overdue scan/monitor triggers on container restart (Railway ephemeral FS fix). _watchdog_check() creates Urgent Linear ticket if no scan/monitor fired in 12h. abs() debounce bug fixed.",
+      "status": "complete",
+      "leverage_point": "Trigger Automation",
+      "linear_issue": "RA-579"
     },
     {
       "id": "F-066",
-      "name": "smoke_test --target=prod + --agent-sdk",
-      "sprint": "Sprint 8 / SDK",
-      "category": "testing",
-      "description": "Prod-safe smoke test mode, SDK token field check, metrics dir check, Railway URL from DEPLOYMENT.md"
+      "name": "DEPLOYMENT.md — Production Reference Doc (RA-581)",
+      "description": "Single source of truth for production URLs, Vercel/Railway project IDs, env var matrix (backend + frontend + CI), deployment log, and rollback procedures.",
+      "status": "complete",
+      "leverage_point": "Workflow Standardization",
+      "linear_issue": "RA-581"
     },
     {
       "id": "F-067",
-      "name": "DEPLOYMENT.md \u2014 Single Source of Truth",
-      "sprint": "Sprint 8 / SDK",
-      "category": "devops",
-      "description": "Prod URLs, platform IDs, 18-var env matrix, deploy commands, GitHub Secrets, activation checklist"
+      "name": "verify_deploy.py — Commit Parity Audit (RA-582)",
+      "description": "scripts/verify_deploy.py checks git HEAD vs origin/main drift, queries Vercel REST API for latest production SHA, and runs railway status for Railway SHA. Exits 1 on drift. Supports --json output.",
+      "status": "complete",
+      "leverage_point": "Quality Gating",
+      "linear_issue": "RA-582"
     },
     {
       "id": "F-068",
-      "name": "SDK Canary Config Vars",
-      "sprint": "Sprint 8 / SDK",
-      "category": "configuration",
-      "description": "config.py: USE_AGENT_SDK, SDK_CANARY_RATE, SDK_METRICS_FILE env-backed settings"
+      "name": "Linear Todo Poller — Autonomy (RA-584)",
+      "description": "app/server/autonomy.py: background async loop fetches Urgent+High unstarted Linear issues every 5 min, transitions each to In Progress, posts a comment, and creates a sessions.py build session. GET /api/autonomy/status returns enabled state, poll count, last poll timestamp, and last 20 events.",
+      "status": "complete",
+      "leverage_point": "Trigger Automation",
+      "linear_issue": "RA-584"
+    },
+    {
+      "id": "F-069",
+      "name": "CI Health Endpoint Fix — _claude_ok Gate Removed",
+      "description": "app/server/main.py: healthy = disk_free_gb is not None (removed _claude_ok from the gate). CI runners don't have the claude CLI installed so _claude_ok was always False, causing 503 on every smoke test run. Claude CLI status is now informational-only.",
+      "status": "complete",
+      "leverage_point": "Error Recovery",
+      "linear_issue": null
     }
   ],
   "pending": []

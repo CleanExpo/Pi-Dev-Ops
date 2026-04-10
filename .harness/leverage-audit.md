@@ -2,7 +2,7 @@
 
 ## Current Score: 60 / 60 — Zero Touch Band
 
-*Last updated: 2026-04-10 (Sprint 7 — Cycle 13)*
+*Last updated: 2026-04-11 (Sprint 8 — Cycle 15)*
 
 | # | Leverage Point | Score (1-5) | Notes |
 |---|---------------|-------------|-------|
@@ -30,6 +30,14 @@
 ---
 
 ## Changelog
+
+### 2026-04-11 — Sprint 8 (60/60 maintained)
+| Point | Score | New Evidence |
+|-------|-------|-------------|
+| Trigger Automation | 5/5 | Linear todo poller (autonomy.py) auto-promotes Urgent/High issues to sessions — no human trigger required (RA-584). Cron startup catch-up fires missed triggers on Railway restart (RA-579). |
+| Error Recovery | 5/5 | Cron 12h watchdog fires Urgent Linear ticket if scheduler goes silent. CI health check fixed — no longer blocks on claude CLI availability. abs() debounce prevents future-timestamp lock (RA-579). |
+| Quality Gating | 5/5 | verify_deploy.py commit parity audit added — CI can confirm git HEAD matches Vercel + Railway deployed SHAs (RA-582). |
+| Workflow Standardization | 5/5 | DEPLOYMENT.md: canonical single source of truth for all production URLs, env vars, rollback procedures (RA-581). |
 
 ### 2026-04-10 — Sprint 6+7 (60/60 maintained)
 | Point | Score | New Evidence |

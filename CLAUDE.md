@@ -2,7 +2,7 @@
 
 ## Project Context
 
-Pi-Dev-Ops is a Zero Touch Engineering (ZTE) platform that converts a GitHub repo URL and a plain-English brief into an autonomous Claude Code execution session. It runs on Claude Max (zero per-token cost via `claude` CLI subprocess).
+Pi-Dev-Ops is a Zero Touch Engineering (ZTE) platform that converts a GitHub repo URL and a plain-English brief into an autonomous Claude Code execution session. The generator and evaluator can run via the `claude_agent_sdk` Python SDK (preferred) or via `claude -p` subprocess (fallback). Set `TAO_USE_AGENT_SDK=1` to activate the SDK path.
 
 **ZTE Score:** 60/60 (all 12 leverage points at maximum)
 
@@ -60,9 +60,25 @@ cd dashboard && npm run build
 - **Password auth:** bcrypt with transparent SHA-256 migration (`app/server/auth.py`)
 - **Session secret:** Persisted to `app/data/.session-secret` (survives restarts)
 - **SSE streaming:** `dashboard/hooks/useSSE.ts` with exponential backoff reconnection
-- **Phase pipeline:** 8 phases in `app/server/sessions.py`, parsed by `dashboard/lib/phases.ts`
+- **Phase pipeline:** 5-6 phases in `app/server/sessions.py`, parsed by `dashboard/lib/phases.ts`
 - **Settings:** Supabase-backed via `dashboard/lib/supabase/settings.ts`
-- **MCP tools:** `mcp/pi-ceo-server.js` — 11 tools for harness reads + Linear operations
+- **MCP tools:** `mcp/pi-ceo-server.js` — 21 tools for harness reads + Linear operations
+
+## SDK Architecture (Phase 2 — RA-571/572)
+
+The build pipeline supports two invocation modes, selected by `TAO_USE_AGENT_SDK`:
+
+| Path | Flag | Function | File |
+|------|------|----------|------|
+| SDK (preferred) | `TAO_USE_AGENT_SDK=1` | `_run_claude_via_sdk()` | `sessions.py` |
+| Subprocess (fallback) | `TAO_USE_AGENT_SDK=0` (default) | `asyncio.create_subprocess_exec` | `sessions.py` |
+
+**Generator:** `_phase_generate()` tries SDK first; falls back to subprocess on import/runtime error.
+**Evaluator:** `_run_single_eval()` tries SDK first; falls back to subprocess on error.
+**Retry loop:** `_phase_evaluate()` retry generation uses the same SDK-first pattern.
+**Metrics:** Every SDK invocation emits a row to `.harness/agent-sdk-metrics/YYYY-MM-DD.jsonl`. Analyse with `python scripts/sdk_metrics.py`.
+
+SDK reference implementation: `app/server/agents/board_meeting.py::_run_prompt_via_sdk()` (Phase 1, verified working). Version policy: `.harness/agents/sdk-version-policy.md`.
 
 ## Linear Integration
 
@@ -73,7 +89,9 @@ cd dashboard && npm run build
 
 ## Strategic Direction
 
-**Sprint 6:** Agent SDK migration (RA-551). Migrating from `claude -p` subprocess to `claude_agent_sdk` in three phases. Plan: `.harness/agents/sdk-migration-plan.md`. Phase 1 (board_meeting gap audit) complete — `TAO_USE_AGENT_SDK=1` to enable.
+**Sprint 8:** Agent SDK migration Phase 2 complete (RA-571/572). Generator and evaluator in `sessions.py` now try `claude_agent_sdk` first with subprocess fallback. Canary rollout plan: RA-574. Phase 3 (remove subprocess fallback): RA-576 — gated on 7-day canary stability.
+
+**Autonomy:** `app/server/autonomy.py` polls Linear every 5 min for Urgent/High unstarted issues and auto-creates sessions. Kill switch: `TAO_AUTONOMY_ENABLED=0` in Railway env.
 
 ## Persistence Guidelines
 
