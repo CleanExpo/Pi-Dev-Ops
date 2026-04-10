@@ -36,9 +36,14 @@ if not _raw_password:
     log.info("Generated one-time password: %s  (set TAO_PASSWORD to persist)", _raw_password)
 
 # Store the raw password; auth.hash_password() / auth.verify_password() handle bcrypt.
-# For the initial hash stored at startup we use SHA-256 (64-char hex) so that
-# auth.py's _is_legacy_hash() triggers a bcrypt upgrade on first login.
-PASSWORD_HASH = hashlib.sha256(_raw_password.encode()).hexdigest()
+# On first login, SHA-256 is upgraded to bcrypt and persisted to HASH_FILE so restarts
+# don't revert to SHA-256.
+HASH_FILE = _DATA_DIR / ".password-hash"
+if HASH_FILE.exists():
+    PASSWORD_HASH = HASH_FILE.read_text().strip()
+    log.info("Loaded persisted bcrypt hash from %s", HASH_FILE)
+else:
+    PASSWORD_HASH = hashlib.sha256(_raw_password.encode()).hexdigest()
 
 # ---------------------------------------------------------------------------
 # Session secret — persist to disk so it survives restarts
@@ -84,5 +89,18 @@ EVALUATOR_MAX_RETRIES = int(os.environ.get("TAO_EVALUATOR_MAX_RETRIES", "2"))
 WEBHOOK_SECRET       = os.environ.get("TAO_WEBHOOK_SECRET",             "")
 LINEAR_WEBHOOK_SECRET = os.environ.get("TAO_LINEAR_WEBHOOK_SECRET",     "")
 
-for d in [WORKSPACE_ROOT, LOG_DIR]:
+# ---------------------------------------------------------------------------
+# Pi-SEO scanner settings
+# ---------------------------------------------------------------------------
+
+LINEAR_API_KEY       = os.environ.get("LINEAR_API_KEY",                 "")
+SCAN_WORKSPACE_ROOT  = os.environ.get("SCAN_WORKSPACE_ROOT",
+                           str(Path.home() / "pi-seo-workspace"))
+SCAN_RESULTS_DIR     = os.environ.get("SCAN_RESULTS_DIR",
+                           os.path.join(os.path.dirname(__file__), "..", "..", ".harness", "scan-results"))
+
+if not LINEAR_API_KEY:
+    log.warning("LINEAR_API_KEY not set — Pi-SEO triage will run in dry-run mode")
+
+for d in [WORKSPACE_ROOT, LOG_DIR, SCAN_WORKSPACE_ROOT, SCAN_RESULTS_DIR]:
     os.makedirs(d, exist_ok=True)

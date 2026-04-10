@@ -1,5 +1,19 @@
-// next.config.ts — Next.js configuration with hardened CSP headers
+// next.config.ts — Next.js configuration
+// CSP is generated per-request with a nonce in middleware.ts (RA-518).
+// Static security headers are set here; Content-Security-Policy is omitted.
 import type { NextConfig } from "next";
+
+// RA-526 — Fail fast at build/startup if critical env vars are missing in production
+if (process.env.NODE_ENV === "production") {
+  const required = ["PI_CEO_URL", "PI_CEO_PASSWORD"] as const;
+  const missing = required.filter((k) => !process.env[k]);
+  if (missing.length) {
+    throw new Error(
+      `Missing required environment variables: ${missing.join(", ")}\n` +
+      `Set these in Vercel project settings or dashboard/.env.local`
+    );
+  }
+}
 
 const nextConfig: NextConfig = {
   async headers() {
@@ -7,20 +21,6 @@ const nextConfig: NextConfig = {
       {
         source: "/(.*)",
         headers: [
-          {
-            key: "Content-Security-Policy",
-            value: [
-              "default-src 'self'",
-              // xterm.js requires wasm-unsafe-eval for WebAssembly; unsafe-eval removed
-              "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "font-src 'self' https://fonts.gstatic.com",
-              "connect-src 'self' https://api.github.com https://api.anthropic.com https://*.vercel.app https://*.supabase.co wss://*.supabase.co",
-              "worker-src blob:",
-              "img-src 'self' data: blob:",
-              "frame-ancestors 'none'",
-            ].join("; "),
-          },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

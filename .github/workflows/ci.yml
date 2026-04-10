@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Python: unit tests + ruff lint ──────────────────────────────────────────
+  python:
+    name: Python (pytest + ruff)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      TAO_PASSWORD: ci-test-password
+      TAO_SESSION_SECRET: ci-session-secret-fixed-for-test
+      TAO_EVALUATOR_ENABLED: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: app/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r app/requirements.txt
+
+      - name: Ruff lint
+        run: ruff check app/ --output-format=github
+
+      - name: Pytest unit tests
+        run: pytest tests/ -v --tb=short
+        working-directory: .
+
+  # ── Frontend: TypeScript + ESLint + build ────────────────────────────────────
+  frontend:
+    name: Frontend (tsc + eslint + build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: dashboard
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: ESLint
+        run: npm run lint
+        continue-on-error: false
+
+      - name: Build
+        run: npm run build
+        env:
+          # Stub required env vars for build validation
+          PI_CEO_URL: http://127.0.0.1:7777
+          PI_CEO_PASSWORD: ci-build-stub
+          NEXT_PUBLIC_SUPABASE_URL: https://stub.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: stub-key

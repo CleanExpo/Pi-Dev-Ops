@@ -24,10 +24,12 @@ async function sendTelegramMessage(chatId: number, text: string): Promise<void> 
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  // Verify this is a genuine Telegram request by checking bot token in URL
-  const { searchParams } = new URL(req.url);
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  if (!token || searchParams.get("token") !== token) {
+  // Verify via X-Telegram-Bot-Api-Secret-Token header (set when registering webhook).
+  // TELEGRAM_WEBHOOK_SECRET is a separate secret from the bot token — set it in env
+  // and pass the same value as secret_token when calling setWebhook.
+  const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  const incomingSecret = req.headers.get("x-telegram-bot-api-secret-token");
+  if (!webhookSecret || !incomingSecret || incomingSecret !== webhookSecret) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

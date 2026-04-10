@@ -97,9 +97,6 @@ def create_environment(client: Anthropic) -> str:
         config={
             "type": "cloud",
             "networking": {"type": "unrestricted"},
-            "setup_commands": [
-                "pip install --break-system-packages requests",
-            ],
         },
     )
     log.info("Created environment: id=%s", env.id)
@@ -262,11 +259,10 @@ def main() -> None:
         dry_run=args.dry_run,
     )
 
-    # Print summary
-    print(json.dumps({k: v for k, v in result.items() if k != "minutes"}, indent=2))
+    # Log summary
+    log.info("Board meeting result: %s", json.dumps({k: v for k, v in result.items() if k != "minutes"}))
     if result.get("minutes") and not result.get("dry_run"):
-        print("\n--- BOARD MEETING MINUTES ---\n")
-        print(result["minutes"])
+        log.info("Board meeting minutes:\n%s", result["minutes"])
 
 
 if __name__ == "__main__":

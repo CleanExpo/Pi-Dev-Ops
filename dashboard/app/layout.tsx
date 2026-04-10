@@ -1,5 +1,6 @@
-// app/layout.tsx — root layout with ToastProvider
+// app/layout.tsx — root layout with ToastProvider (RA-518: async for nonce)
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
 import { ToastProvider } from "@/components/Toast";
 
@@ -8,10 +9,11 @@ export const metadata: Metadata = {
   description: "GitHub repo analysis engine powered by Claude + TAO framework",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const nonce = (await headers()).get("x-nonce") ?? "";
   return (
     <html lang="en">
-      <body className="bg-bg text-text font-body min-h-screen flex flex-col">
+      <body className="bg-bg text-text font-body min-h-screen flex flex-col" {...(nonce ? { "data-nonce": nonce } : {})}>
         <ToastProvider>
           {children}
         </ToastProvider>

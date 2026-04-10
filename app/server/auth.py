@@ -27,10 +27,14 @@ def verify_password(p: str) -> bool:
         candidate = hashlib.sha256(p.encode()).hexdigest()
         match = hmac.compare_digest(candidate, stored)
         if match:
-            # Upgrade: re-hash with bcrypt and update config at runtime.
-            # The new hash is only in-memory; set TAO_PASSWORD to persist it.
-            config.PASSWORD_HASH = hash_password(p)
-            log.info("Password hash upgraded from SHA-256 to bcrypt (set TAO_PASSWORD to persist)")
+            # Upgrade: re-hash with bcrypt, update config, and persist to disk.
+            new_hash = hash_password(p)
+            config.PASSWORD_HASH = new_hash
+            try:
+                config.HASH_FILE.write_text(new_hash)
+                log.info("Password hash upgraded from SHA-256 to bcrypt and persisted to %s", config.HASH_FILE)
+            except OSError as exc:
+                log.warning("bcrypt hash upgrade succeeded but could not persist: %s", exc)
         return match
     try:
         return bcrypt.checkpw(p.encode(), stored.encode())
