@@ -30,7 +30,7 @@ const MODELS = [
 
 function Badge({ set }: { set: boolean }) {
   return (
-    <span className="font-mono text-[8px] ml-2" style={{ color: set ? "#4ADE80" : "#F87171" }}>
+    <span className="font-mono text-[10px] ml-2" style={{ color: set ? "#4ADE80" : "#F87171" }}>
       {set ? "● SET" : "○ NOT SET"}
     </span>
   );
@@ -39,24 +39,25 @@ function Badge({ set }: { set: boolean }) {
 function Field({ label, children, hint }: { label: React.ReactNode; children: React.ReactNode; hint?: string }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="font-mono text-[9px] uppercase tracking-widest" style={{ color: "#C8C5C0" }}>
+      <label className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "var(--c-muted)" }}>
         {label}
       </label>
       {children}
-      {hint && <p className="font-mono text-[8px]" style={{ color: "#888480" }}>{hint}</p>}
+      {hint && <p className="font-mono text-[10px]" style={{ color: "var(--c-chrome)" }}>{hint}</p>}
     </div>
   );
 }
 
-const inputStyle = {
-  background: "#141414",
-  color: "#F0EDE8",
-  border: "1px solid #3A3632",
-  padding: "6px 10px",
+const inputBaseStyle: React.CSSProperties = {
+  background: "var(--c-panel)",
+  color: "var(--c-text)",
+  border: "1px solid var(--c-border)",
+  padding: "10px 12px",
   fontFamily: "monospace",
-  fontSize: "11px",
+  fontSize: "13px",
   outline: "none",
   width: "100%",
+  minHeight: "44px",
 };
 
 export default function SettingsForm({ initial }: { initial: InitialSettings }) {
@@ -115,7 +116,7 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
   }
 
   return (
-    <div className="flex flex-col gap-0 max-w-2xl mx-auto w-full px-6 py-6">
+    <div className="flex flex-col gap-0 w-full max-w-2xl mx-auto px-4 sm:px-6 py-6">
 
       {/* ── Credentials ───────────────────────────────────────── */}
       <Section title="Credentials">
@@ -128,7 +129,7 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
             value={form.github_token}
             onChange={(e) => set("github_token", e.target.value)}
             placeholder={initial.github_token_set ? "Leave blank to keep existing" : "ghp_..."}
-            style={inputStyle}
+            style={inputBaseStyle}
           />
         </Field>
 
@@ -141,7 +142,7 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
             value={form.anthropic_api_key}
             onChange={(e) => set("anthropic_api_key", e.target.value)}
             placeholder={initial.anthropic_api_key_set ? "Leave blank to keep existing" : "sk-ant-api03-..."}
-            style={inputStyle}
+            style={inputBaseStyle}
           />
         </Field>
       </Section>
@@ -152,10 +153,10 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
           <select
             value={form.analysis_model}
             onChange={(e) => set("analysis_model", e.target.value)}
-            style={{ ...inputStyle, cursor: "pointer" }}
+            style={{ ...inputBaseStyle, cursor: "pointer" }}
           >
             {MODELS.map((m) => (
-              <option key={m} value={m} style={{ background: "#141414" }}>{m}</option>
+              <option key={m} value={m} style={{ background: "var(--c-panel)" }}>{m}</option>
             ))}
           </select>
         </Field>
@@ -172,7 +173,7 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
             value={form.webhook_secret}
             onChange={(e) => set("webhook_secret", e.target.value)}
             placeholder={initial.webhook_secret_set ? "Leave blank to keep existing" : "your-webhook-secret"}
-            style={inputStyle}
+            style={inputBaseStyle}
           />
         </Field>
       </Section>
@@ -188,7 +189,7 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
             value={form.vercel_token}
             onChange={(e) => set("vercel_token", e.target.value)}
             placeholder={initial.vercel_token_set ? "Leave blank to keep existing" : "vercel_..."}
-            style={inputStyle}
+            style={inputBaseStyle}
           />
         </Field>
       </Section>
@@ -204,7 +205,7 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
             value={form.linear_api_key}
             onChange={(e) => set("linear_api_key", e.target.value)}
             placeholder={initial.linear_api_key_set ? "Leave blank to keep existing" : "lin_api_..."}
-            style={inputStyle}
+            style={inputBaseStyle}
           />
         </Field>
       </Section>
@@ -220,7 +221,7 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
             value={form.telegram_bot_token}
             onChange={(e) => set("telegram_bot_token", e.target.value)}
             placeholder={initial.telegram_bot_token_set ? "Leave blank to keep existing" : "1234567890:AAFN..."}
-            style={inputStyle}
+            style={inputBaseStyle}
           />
         </Field>
         <Field
@@ -232,7 +233,7 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
             value={form.telegram_chat_id}
             onChange={(e) => set("telegram_chat_id", e.target.value)}
             placeholder="-1001234567890"
-            style={inputStyle}
+            style={inputBaseStyle}
           />
         </Field>
       </Section>
@@ -248,7 +249,7 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
             onChange={(e) => set("cron_repos", e.target.value)}
             placeholder={"CleanExpo/Pi-Dev-Ops\nowner/another-repo"}
             rows={4}
-            style={{ ...inputStyle, resize: "vertical" }}
+            style={{ ...inputBaseStyle, resize: "vertical", minHeight: "88px" }}
           />
         </Field>
       </Section>
@@ -260,10 +261,16 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
 
       <div className="flex items-center gap-4 mt-6">
         <button
-          onClick={save}
+          onClick={() => void save()}
           disabled={saving}
-          className="font-mono text-[11px] px-6 py-2 disabled:opacity-40 transition-opacity"
-          style={{ background: "#E8751A", color: "#FFFFFF", fontWeight: 700, letterSpacing: "0.1em" }}
+          className="font-mono text-xs px-6 disabled:opacity-40 transition-opacity w-full sm:w-auto"
+          style={{
+            background: "var(--c-orange)",
+            color: "#FFFFFF",
+            fontWeight: 700,
+            letterSpacing: "0.1em",
+            minHeight: "44px",
+          }}
         >
           {saving ? "SAVING…" : "SAVE SETTINGS"}
         </button>
@@ -278,8 +285,8 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mb-8">
-      <div className="mb-4 pb-2" style={{ borderBottom: "1px solid #2A2727" }}>
-        <span className="font-mono text-[9px] uppercase tracking-widest" style={{ color: "#E8751A" }}>
+      <div className="mb-4 pb-2" style={{ borderBottom: "1px solid var(--c-border)" }}>
+        <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "var(--c-orange)" }}>
           {title}
         </span>
       </div>
@@ -287,4 +294,3 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     </div>
   );
 }
-

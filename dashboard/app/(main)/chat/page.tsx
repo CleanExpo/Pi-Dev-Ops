@@ -63,47 +63,51 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0" style={{ height: "calc(100vh - 40px)" }}>
+    <div
+      className="flex flex-col flex-1 min-h-0"
+      style={{ height: "calc(100vh - 44px)" }}
+    >
       {/* Header */}
       <div
-        className="flex items-center justify-between px-4 py-2 shrink-0"
-        style={{ borderBottom: "1px solid #2A2727" }}
+        className="flex items-center justify-between px-3 sm:px-4 py-2 shrink-0"
+        style={{ borderBottom: "1px solid var(--c-border)" }}
       >
-        <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "#C8C5C0" }}>
-          Claude Chat — Pi CEO Engineering Team
+        <span className="font-mono text-xs uppercase tracking-widest" style={{ color: "var(--c-muted)" }}>
+          Claude Chat
+          <span className="hidden sm:inline"> — Pi CEO Engineering Team</span>
         </span>
         <button
           onClick={clearChat}
-          className="font-mono text-[9px] transition-colors"
-          style={{ color: "#888480" }}
+          className="font-mono text-[10px] transition-colors min-h-[36px] px-2"
+          style={{ color: "var(--c-chrome)" }}
           onMouseOver={(e) => (e.currentTarget.style.color = "#F87171")}
-          onMouseOut={(e) => (e.currentTarget.style.color = "#888480")}
+          onMouseOut={(e) => (e.currentTarget.style.color = "var(--c-chrome)")}
         >
           CLEAR
         </button>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+      <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-4">
         {messages.length === 0 && (
-          <p className="font-mono text-[11px] mt-8" style={{ color: "#888480" }}>
-            Ask anything about your codebase, architecture, or how to proceed.
+          <p className="font-mono text-xs sm:text-[11px] mt-6 sm:mt-8 leading-relaxed" style={{ color: "var(--c-chrome)" }}>
+            Ask anything about the codebase, architecture, or how to proceed.
             <br />
             e.g. &quot;Explain the authentication flow&quot; or &quot;Start building sprint 1&quot;
           </p>
         )}
         {messages.map((m, i) => (
-          <div key={i} className={`flex gap-3 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
+          <div key={i} className={`flex gap-2 sm:gap-3 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
             <span
-              className="font-mono text-[9px] shrink-0 mt-1"
-              style={{ minWidth: "3rem", color: "#888480" }}
+              className="font-mono text-[10px] shrink-0 mt-1"
+              style={{ minWidth: "2.5rem", color: "var(--c-chrome)" }}
             >
               {m.role === "user" ? "YOU" : "CEO"}
             </span>
             <div
-              className="font-mono text-[12px] leading-relaxed max-w-2xl whitespace-pre-wrap"
+              className="font-mono text-xs sm:text-[12px] leading-relaxed max-w-[85%] sm:max-w-2xl whitespace-pre-wrap break-words"
               style={{
-                color: m.role === "user" ? "#F0EDE8" : "#E8E4DE",
+                color: m.role === "user" ? "var(--c-text)" : "var(--c-cream)",
                 textAlign: m.role === "user" ? "right" : "left",
               }}
             >
@@ -112,24 +116,24 @@ export default function ChatPage() {
           </div>
         ))}
         {loading && (
-          <div className="flex gap-3">
-            <span className="font-mono text-[9px] mt-1" style={{ color: "#888480" }}>CEO</span>
-            <span className="font-mono text-[12px]" style={{ color: "#888480" }}>thinking…</span>
+          <div className="flex gap-2 sm:gap-3">
+            <span className="font-mono text-[10px] mt-1" style={{ color: "var(--c-chrome)" }}>CEO</span>
+            <span className="font-mono text-xs" style={{ color: "var(--c-chrome)" }}>thinking…</span>
           </div>
         )}
         <div ref={bottomRef} />
       </div>
 
       {error && (
-        <div className="px-4 py-1.5 font-mono text-[11px]" style={{ background: "#1a0808", color: "#F87171" }}>
+        <div className="px-3 sm:px-4 py-2 font-mono text-xs" style={{ background: "#1a0808", color: "#F87171" }}>
           ✗ {error}
         </div>
       )}
 
       {/* Input */}
       <div
-        className="flex items-center gap-2 px-4 py-2 shrink-0"
-        style={{ borderTop: "1px solid #2A2727" }}
+        className="flex items-end gap-2 px-3 sm:px-4 py-2 shrink-0"
+        style={{ borderTop: "1px solid var(--c-border)" }}
       >
         <textarea
           value={input}
@@ -139,18 +143,24 @@ export default function ChatPage() {
           }}
           placeholder="Ask the engineering team… (Enter to send, Shift+Enter for newline)"
           rows={2}
-          className="flex-1 font-mono text-[12px] border-0 outline-none resize-none px-2 py-1"
+          className="flex-1 font-mono text-xs sm:text-[12px] border-0 outline-none resize-none px-3 py-2"
           style={{
-            background: "#141414",
-            color: "#F0EDE8",
-            border: "1px solid #3A3632",
+            background: "var(--c-panel)",
+            color: "var(--c-text)",
+            border: "1px solid var(--c-border)",
+            minHeight: "60px",
           }}
         />
         <button
           onClick={() => void send()}
           disabled={loading || !input.trim()}
-          className="font-mono text-[11px] px-4 py-1 disabled:opacity-30 transition-opacity shrink-0"
-          style={{ background: "#E8751A", color: "#FFFFFF", fontWeight: 700 }}
+          className="font-mono text-xs px-4 disabled:opacity-30 transition-opacity shrink-0"
+          style={{
+            background: "var(--c-orange)",
+            color: "#FFFFFF",
+            fontWeight: 700,
+            minHeight: "44px",
+          }}
         >
           SEND
         </button>

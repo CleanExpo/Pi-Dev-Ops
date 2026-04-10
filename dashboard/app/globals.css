@@ -58,3 +58,26 @@ html, body {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
 }
+
+/* ── Mobile base fixes ───────────────────────────────────────────────────── */
+
+/* Prevent iOS tap highlight on interactive elements */
+a, button { -webkit-tap-highlight-color: transparent; }
+
+/* Ensure inputs don't zoom on focus on iOS (requires font-size >= 16px effective,
+   but we handle this per-component with minHeight instead of bumping font globally) */
+@media (max-width: 639px) {
+  input[type="text"],
+  input[type="password"],
+  input[type="email"],
+  select,
+  textarea {
+    font-size: 16px !important; /* prevents iOS auto-zoom */
+  }
+}
+
+/* Prevent horizontal overflow at the root */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}

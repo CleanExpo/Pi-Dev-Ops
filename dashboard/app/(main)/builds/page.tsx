@@ -72,7 +72,7 @@ function PhaseBar({ lastPhase, status }: { lastPhase: string; status: string }) 
   const doneIdx = PHASES.indexOf(lastPhase);
   const isRunning = ["cloning", "building", "evaluating"].includes(status);
   return (
-    <div className="flex gap-0.5 mt-1">
+    <div className="flex gap-0.5 mt-1.5">
       {PHASES.map((p, i) => {
         const done = doneIdx >= i;
         const active = isRunning && doneIdx + 1 === i;
@@ -154,11 +154,11 @@ function LogPanel({ sid, status }: { sid: string; status: string }) {
 
   return (
     <div
-      className="font-mono text-[10px] overflow-y-auto"
+      className="font-mono text-xs overflow-y-auto"
       style={{
         background: "var(--c-term)",
         borderTop: "1px solid var(--c-border)",
-        maxHeight: "280px",
+        maxHeight: "240px",
         padding: "8px 12px",
       }}
     >
@@ -201,16 +201,16 @@ function ResumeButton({ s, onResumed }: { s: PiSession; onResumed: () => void })
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 flex-wrap">
       <button
-        onClick={(e) => { e.stopPropagation(); resume(); }}
+        onClick={(e) => { e.stopPropagation(); void resume(); }}
         disabled={loading}
-        className="font-mono text-[9px] px-2 py-0.5 rounded transition-opacity hover:opacity-70 disabled:opacity-40"
+        className="font-mono text-[10px] px-2 min-h-[36px] rounded transition-opacity hover:opacity-70 disabled:opacity-40"
         style={{ border: "1px solid var(--c-orange)", color: "var(--c-orange)", background: "transparent" }}
       >
         {loading ? "…" : `RESUME from ${s.last_phase || "start"}`}
       </button>
-      {err && <span className="font-mono text-[9px]" style={{ color: "#F87171" }}>{err}</span>}
+      {err && <span className="font-mono text-[10px]" style={{ color: "#F87171" }}>{err}</span>}
     </div>
   );
 }
@@ -224,26 +224,29 @@ function SessionCard({ s, isChild, onRefresh }: { s: PiSession; isChild?: boolea
       style={{
         borderBottom: "1px solid var(--c-border)",
         borderLeft: isChild ? "2px solid var(--c-border)" : "none",
-        marginLeft: isChild ? "20px" : 0,
+        marginLeft: isChild ? "12px" : 0,
       }}
     >
       {/* Card header — clickable to expand */}
       <div
-        className="px-4 py-3 cursor-pointer transition-colors hover:bg-panel"
+        className="px-3 sm:px-4 py-3 cursor-pointer transition-colors"
+        style={{ background: "transparent" }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--c-panel)")}
+        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
         onClick={() => setExpanded((v) => !v)}
       >
-        <div className="flex items-start justify-between gap-4">
+        {/* Top row: repo name + status/chevron */}
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-[11px] truncate" style={{ color: "var(--c-text)" }}>
+              <span className="font-mono text-xs sm:text-[11px] break-all" style={{ color: "var(--c-text)" }}>
                 {repoName(s.repo)}
               </span>
               {isChild && (
-                <span className="font-mono text-[9px]" style={{ color: "var(--c-chrome)" }}>[child]</span>
+                <span className="font-mono text-[10px]" style={{ color: "var(--c-chrome)" }}>[child]</span>
               )}
-              <span className="font-mono text-[9px]" style={{ color: "var(--c-chrome)" }}>{s.id}</span>
               {isActive && (
-                <span className="font-mono text-[9px] px-1 rounded" style={{ background: "var(--c-panel)", color: "var(--c-orange)" }}>
+                <span className="font-mono text-[10px] px-1 rounded" style={{ background: "var(--c-panel)", color: "var(--c-orange)" }}>
                   LIVE
                 </span>
               )}
@@ -253,36 +256,44 @@ function SessionCard({ s, isChild, onRefresh }: { s: PiSession; isChild?: boolea
 
           <div className="flex items-center gap-2 shrink-0">
             {s.retry_count > 0 && (
-              <span className="font-mono text-[9px] px-1 py-0.5 rounded" style={{ background: "var(--c-panel)", color: "#FFD166" }}>
-                {s.retry_count}x retry
+              <span className="font-mono text-[10px] px-1 py-0.5 rounded hidden sm:inline" style={{ background: "var(--c-panel)", color: "#FFD166" }}>
+                {s.retry_count}x
               </span>
             )}
             <ScoreBadge score={s.evaluator_score} evalStatus={s.evaluator_status} />
-            <span className="font-mono text-[9px] uppercase" style={{ color: STATUS_COLOR[s.status] ?? "var(--c-chrome)" }}>
+            <span className="font-mono text-[10px] uppercase" style={{ color: STATUS_COLOR[s.status] ?? "var(--c-chrome)" }}>
               {s.status}
             </span>
-            <span className="font-mono text-[9px]" style={{ color: "var(--c-chrome)" }}>
+            <span className="font-mono text-[10px]" style={{ color: "var(--c-chrome)" }}>
               {expanded ? "▲" : "▼"}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 mt-1 flex-wrap">
-          <span className="font-mono text-[9px]" style={{ color: "var(--c-chrome)" }}>
+        {/* Meta row */}
+        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+          <span className="font-mono text-[10px]" style={{ color: "var(--c-chrome)" }}>
             {elapsed(s.started)} ago
           </span>
-          <span className="font-mono text-[9px]" style={{ color: "var(--c-chrome)" }}>
+          <span className="font-mono text-[10px] hidden sm:inline" style={{ color: "var(--c-chrome)" }}>
             {s.lines} lines
           </span>
           {s.last_phase && (
-            <span className="font-mono text-[9px]" style={{ color: "var(--c-chrome)" }}>
-              last: {s.last_phase}
+            <span className="font-mono text-[10px]" style={{ color: "var(--c-chrome)" }}>
+              {s.last_phase}
             </span>
           )}
-          {s.status === "interrupted" && (
-            <ResumeButton s={s} onResumed={() => { onRefresh(); setExpanded(true); }} />
-          )}
+          <span className="font-mono text-[9px] sm:hidden" style={{ color: "var(--c-chrome)" }}>
+            {s.id.slice(0, 8)}
+          </span>
         </div>
+
+        {/* Resume button (only when interrupted) */}
+        {s.status === "interrupted" && (
+          <div className="mt-2">
+            <ResumeButton s={s} onResumed={() => { onRefresh(); setExpanded(true); }} />
+          </div>
+        )}
       </div>
 
       {/* Log panel */}
@@ -314,7 +325,7 @@ export default function BuildsPage() {
   }, []);
 
   useEffect(() => {
-    fetchSessions();
+    void fetchSessions();
     const t = setInterval(fetchSessions, 5000);
     return () => clearInterval(t);
   }, [fetchSessions]);
@@ -330,28 +341,30 @@ export default function BuildsPage() {
     <div className="flex flex-col flex-1">
       {/* Header */}
       <div
-        className="flex items-center justify-between px-4 py-2 shrink-0"
+        className="flex items-center justify-between px-3 sm:px-4 py-2 shrink-0 flex-wrap gap-2"
         style={{ borderBottom: "1px solid var(--c-border)" }}
       >
         <div className="flex items-center gap-3">
-          <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "var(--c-muted)" }}>
-            Pi CEO Builds — {sessions.length} sessions
+          <span className="font-mono text-xs uppercase tracking-widest" style={{ color: "var(--c-muted)" }}>
+            Builds
+            <span className="hidden sm:inline"> — {sessions.length} sessions</span>
+            <span className="sm:hidden"> ({sessions.length})</span>
           </span>
           {activeCount > 0 && (
-            <span className="font-mono text-[9px] px-2 py-0.5 rounded" style={{ background: "var(--c-panel)", color: "var(--c-orange)" }}>
+            <span className="font-mono text-[10px] px-2 py-0.5 rounded" style={{ background: "var(--c-panel)", color: "var(--c-orange)" }}>
               {activeCount} active
             </span>
           )}
         </div>
         <div className="flex items-center gap-3">
           {lastFetch > 0 && (
-            <span className="font-mono text-[9px]" style={{ color: "var(--c-chrome)" }}>
-              updated {new Date(lastFetch).toLocaleTimeString()}
+            <span className="font-mono text-[10px] hidden sm:inline" style={{ color: "var(--c-chrome)" }}>
+              {new Date(lastFetch).toLocaleTimeString()}
             </span>
           )}
           <button
-            onClick={fetchSessions}
-            className="font-mono text-[9px] px-2 py-1 transition-opacity hover:opacity-70"
+            onClick={() => void fetchSessions()}
+            className="font-mono text-[10px] px-3 min-h-[36px] transition-opacity hover:opacity-70"
             style={{ border: "1px solid var(--c-border)", color: "var(--c-muted)" }}
           >
             REFRESH
@@ -361,8 +374,8 @@ export default function BuildsPage() {
 
       {/* Error state */}
       {error && (
-        <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--c-border)" }}>
-          <span className="font-mono text-[11px]" style={{ color: "#F87171" }}>
+        <div className="px-3 sm:px-4 py-3" style={{ borderBottom: "1px solid var(--c-border)" }}>
+          <span className="font-mono text-xs" style={{ color: "#F87171" }}>
             {error.includes("unreachable") || error.includes("502")
               ? "Pi CEO server offline. Start with: cd app && uvicorn server.main:app --host 127.0.0.1 --port 7777"
               : error}
@@ -377,8 +390,8 @@ export default function BuildsPage() {
 
       {/* Empty state */}
       {!error && sessions.length === 0 && (
-        <div className="flex flex-col flex-1 items-center justify-center">
-          <p className="font-mono text-[12px]" style={{ color: "var(--c-muted)" }}>No build sessions yet.</p>
+        <div className="flex flex-col flex-1 items-center justify-center px-4 text-center">
+          <p className="font-mono text-xs" style={{ color: "var(--c-muted)" }}>No build sessions yet.</p>
           <p className="font-mono text-[10px] mt-2" style={{ color: "var(--c-chrome)" }}>
             Trigger a build via POST /api/build on the Pi CEO server.
           </p>
