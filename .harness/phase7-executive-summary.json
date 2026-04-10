@@ -1,80 +1,76 @@
 ```json
 {
-  "headline": "Pi CEO is a private agentic DevOps platform that autonomously clones a GitHub repo, executes Claude Code against a plain-English brief, evaluates the output, and pushes the result — zero human intervention, zero API cost on Claude Max.",
+  "headline": "Pi CEO is a Zero Touch Engineering platform that autonomously clones any GitHub repo, executes Claude Code against a plain-English brief, self-evaluates the output, and pushes the result — with zero human intervention and zero API cost on Claude Max.",
 
-  "currentState": "The system is operationally mature at ZTE 60/60 (Zero Touch band, all 12 leverage points at 5/5) as of Sprint 6 (2026-04-08). The FastAPI backend (app/server/) runs a 5-phase pipeline: clone → analyze → generate → evaluate → push, with 3-attempt exponential backoff on clone and push, a blocking evaluator gate (threshold 8/10, max 2 retries with critique injection), and phase-level checkpoints supporting session resume. The Next.js dashboard is live on Vercel (dashboard-unite-group.vercel.app); the backend is deployed on Railway (pi-dev-ops-production.up.railway.app). 23 skills across 5 layers are loaded and injected into briefs via PITER intent classification and ADW templates. GitHub and Linear webhooks, cron triggers, fan-out parallelism (POST /api/build/parallel), and an MCP server (v3.0.0, 11 tools) are all operational. The CI smoke test suite runs 28 checks on every push to main. Primary gap: CLAUDE.md is a near-empty stub (template placeholder text only), meaning future Claude sessions start with degraded context; this is the highest-leverage unfixed issue.",
+  "currentState": "The system has reached ZTE Level 3 (60/60) across 6 sprints completing 28+ Linear issues. The core pipeline is production-ready: FastAPI backend (app/server/) handles auth, sessions, webhooks, and cron triggers; a 3-tier agent model (Opus planner, Sonnet generator, Sonnet evaluator) executes via 'claude -p' subprocess; PITER intent classification routes briefs to 5 ADW templates; a blocking evaluator gate with closed-loop critique injection enforces quality before push; lessons.jsonl provides auto-learning institutional memory. The Railway backend is live at pi-dev-ops-production.up.railway.app; the Next.js dashboard is deployed at dashboard-unite-group.vercel.app; the MCP server (v3.0.0) exposes 11 tools to Claude Desktop. GitHub Actions CI runs 28 smoke test checks on every push. The sprint backlog in Linear is clean (all 28 issues Done), though the Linear board lags the codebase by approximately one sprint. CLAUDE.md remains a stub, creating a context gap for every new Claude session.",
 
   "strengths": [
-    "ZTE 60/60 achieved — all 12 leverage points at maximum; system is genuinely autonomous from trigger to GitHub push",
-    "Zero marginal cost — claude -p subprocess delegates all inference to Claude Max subscription, no per-token API charges",
-    "Closed-loop evaluator with critique injection (app/server/sessions.py:~310) — retries are meaningfully differentiated, not blind repeats",
-    "Auto-learn from evaluator: low-scoring dimensions auto-appended to lessons.jsonl and injected into future briefs (_parse_evaluator_dimensions, sessions.py:~230)",
-    "Robust error recovery: 3-attempt clone backoff, 2-attempt generator retry, 3-attempt push backoff with auth-error hard-stop (sessions.py:~380-430)",
-    "Phase checkpoints + session resume (POST /api/sessions/{sid}/resume) — interrupted sessions skip already-completed phases",
-    "Strong security posture: HMAC-signed HttpOnly cookies, timing-safe comparisons, path traversal protection (_safe_sid), CSP headers, rate limiting with inline GC",
-    "28-check CI smoke test (.github/workflows/smoke_test.yml) validates all subsystems on every push to main",
-    "Fan-out parallelism (POST /api/build/parallel) with opus-tier escalation on worker failure (orchestrator.py)",
-    "MCP server v3.0.0 with 11 tools gives Claude Desktop direct read/write access to all harness state"
+    "Zero API cost: all inference runs via 'claude -p' subprocess on Claude Max — no per-token charges regardless of session volume",
+    "Full autonomous pipeline: webhook/cron trigger → PITER classify → ADW template → skill+lesson injection → claude -p → blocking evaluator → closed-loop retry → git push — zero human gates",
+    "Hardened error recovery: 3-attempt exponential backoff on clone and push, 2-attempt generator retry, auth-error hard-stop, phase checkpoints with POST /api/sessions/{sid}/resume",
+    "Auto-learning memory: evaluator dimensions below threshold are automatically appended to lessons.jsonl and injected into subsequent briefs via _get_lesson_context()",
+    "Solid security posture: HMAC-signed HttpOnly cookies, timing-safe compare_digest everywhere, path-traversal-safe session IDs (_safe_sid), CSP/X-Frame-Options/X-XSS-Protection on all responses, rate limiting at 30 req/min/IP with inline GC",
+    "23 skills across 5 layers provide structured methodology (PITER, ADW, ZTE maturity, leverage audit, tier architecture) that transfers between sessions",
+    "28-check CI smoke test (.github/workflows/smoke_test.yml) gates every push to main"
   ],
 
   "weaknesses": [
-    "CLAUDE.md is an empty stub (placeholder template text only) — every future Claude session starts blind; this is the single highest-leverage unfixed gap (file: CLAUDE.md, all sections are unfilled templates)",
-    "BudgetTracker.record() accumulates tokens but has no cost_usd() method — token spend is tracked but never converted to dollars despite token-budgeter/SKILL.md having current pricing",
-    "src/tao/agents/__init__.py contains only a stub despite the SPRINT_4_COMPLETION.md claiming AgentDispatcher was implemented — the spec.md still marks it as ✅ Complete (RA-482) but the deployed file via _deploy.py writes it as empty",
-    "dashboard/.env.example exposes TAO_PASSWORD in plaintext ('your-tao-password'); READY_TO_DEPLOY.md exposes live GITHUB_TOKEN, LINEAR_API_KEY, and TAO_PASSWORD values in committed markdown files",
-    "Harness spec.md and feature_list.json reflect Sprint 3/4 state; board minutes show drift vs actual codebase — cross-session context degrades over time without a refresh trigger",
-    "Single-worker Uvicorn (--workers 1 in Dockerfile CMD) means a long-running build blocks the event loop; concurrent sessions share one process with no isolation",
-    "hooks-system skill: only PreToolUse and PostToolUse are wired; Stop and SubagentStop hooks are documented but not implemented"
+    "CLAUDE.md is a stub (CLAUDE.md lines 1-12: all placeholder text) — every new Claude session starts without project context, directly undermining the Context Precision leverage point claimed at 5/5",
+    "src/tao/agents/__init__.py was marked empty in spec.md Section 3 and the AgentDispatcher in SPRINT_4_COMPLETION.md was implemented in dashboard/app/api, not in src/tao/ — the Python-level orchestration layer is either absent or misplaced",
+    "Duplicate Dockerfiles: root Dockerfile and app/Dockerfile diverge (different WORKDIR, PYTHONPATH, CMD paths) — one will fail on Railway depending on which is used",
+    "dashboard/.env.example only documents NEXT_PUBLIC_API_URL and PI_CEO_PASSWORD — ANTHROPIC_API_KEY, GITHUB_TOKEN, ANALYSIS_MODE are documented in README but absent from the example, creating setup friction",
+    "BudgetTracker.record() accumulates tokens but has no cost_usd() method — token spend is tracked but never converted to dollars despite accurate pricing in token-budgeter/SKILL.md",
+    "READY_TO_DEPLOY.md exposes a real GitHub token (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) and Linear API key in plain text — these are committed to the repo and must be rotated immediately",
+    "config.py EVALUATOR_THRESHOLD default is 8 but the eval-contract.md spec says 7 and the evaluator prompt hardcodes threshold reference from config — documentation drift creates ambiguity about the actual gate",
+    "The dashboard useSSE.ts / WebSocket split means two different streaming protocols are in play — the dashboard's /api/analyze SSE route and the backend's /ws/build/{sid} WebSocket are not reconciled"
   ],
 
   "risks": [
-    "Exposed secrets in committed files: READY_TO_DEPLOY.md contains live GITHUB_TOKEN (ghp_GFuX6...) and LINEAR_API_KEY (lin_api_DUkmVu...) — these must be rotated immediately; any historical git clone has them",
-    "CLAUDE.md stub means autonomous sessions (cron triggers, webhooks) operate without project context — risk of regressions, incorrect conventions, or duplicate work on every unattended run",
-    "Cron triggers stored in .harness/cron-triggers.json are not loaded on server startup (cron.py only reads the file inside cron_loop, which starts fresh) — all scheduled triggers are silently lost on Railway restarts",
-    "Single Uvicorn worker + MAX_CONCURRENT_SESSIONS=3 with asyncio: a hanging subprocess (claude -p) can starve the event loop and block all WebSocket streams and API responses",
-    "Evaluator threshold raised to 8 in config.py but the eval contract (.harness/contracts/eval-contract.md) still states 7/10 — documentation drift creates confusion for future Claude sessions reading the harness",
-    "Railway ephemeral filesystem: app/workspaces/ and app/logs/ are lost on every deploy/restart; session persistence relies on the local filesystem which Railway does not persist across deploys by default"
+    "Committed credentials in READY_TO_DEPLOY.md (GitHub PAT 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 and Linear API key lin_api_DUkmVuRx1ZdjKKfyjVlGKqLAleHmaEcpKTq7En4i) — these are live secrets in git history and must be rotated before any further work",
+    "Railway cloud deployment runs 'claude -p' subprocess but claude CLI is not available in cloud containers without a Claude Max session — lessons.jsonl entry (category: claude) explicitly warns this; cloud builds will silently fail at Phase 3 (Claude check) unless ANALYSIS_MODE=api with ANTHROPIC_API_KEY is configured",
+    "Single-worker uvicorn (--workers 1 in both Dockerfiles) means any long-running build blocks the event loop — asyncio.create_subprocess_exec is non-blocking but a compute-bound generator phase will degrade WebSocket streaming for all other sessions",
+    "In-memory _sessions dict with no cross-process sharing: Railway auto-restarts or multi-instance deployments will lose all session state; the file-backed persistence only recovers on restart, not across instances",
+    "cron_loop() reloads .harness/cron-triggers.json on each tick but does not persist last_fired_at atomically with trigger state — a server restart mid-minute could double-fire a cron trigger",
+    "The TAO_PASSWORD in READY_TO_DEPLOY.md ('PiDevOpsTestPassword2024') is documented as a test password but handoff.md shows it was set as the Railway production password — production runs on a guessable password"
   ],
 
   "opportunities": [
-    "Populate CLAUDE.md immediately — 30 minutes of accurate project context (file map, conventions, smoke test commands) yields 5x improvement in every future autonomous session quality; highest ROI action available",
-    "Rotate and vault exposed secrets (GITHUB_TOKEN, LINEAR_API_KEY in READY_TO_DEPLOY.md) then delete or redact those files — security hygiene required before any public or team exposure",
-    "Wire cron trigger restore on startup: load .harness/cron-triggers.json in on_startup() (main.py) and re-register active triggers so Railway restarts don't silently kill scheduled work",
-    "Add cost_usd() to BudgetTracker using token-budgeter skill pricing constants — closes the only remaining gap between token tracking and spend visibility; 1-hour change",
-    "ZTE self-improvement loop (P4-I): scheduled agent reads lessons.jsonl patterns and proposes CLAUDE.md or skill file updates — the logical next milestone after 60/60; closes the one remaining ZTE frontier",
-    "Move persistent state (sessions, cron triggers, lessons) to Supabase (already depended upon in dashboard/package.json) or Railway Volumes — eliminates the ephemeral filesystem risk for production deployments",
-    "Surface Railway deployment URL + live ZTE score on the Vercel dashboard home page — gives single-pane operational visibility without requiring MCP access"
+    "Populate CLAUDE.md with the architecture snapshot from handoff.md — this single S-effort change restores the Context Precision leverage point to genuine 5/5 and reduces session ramp-up time for every future Claude run",
+    "Add cost_usd() to BudgetTracker using the pricing in token-budgeter/SKILL.md (Opus $15, Sonnet $3, Haiku $1.25 per M output) — surfaces real spend per session in the dashboard and enables budget alerting",
+    "Implement the ZTE self-improvement loop (P4-I from spec.md): a scheduled agent reads lessons.jsonl, identifies recurring failure patterns (e.g. FORMAT < 7 across 3+ sessions), and proposes targeted CLAUDE.md or skill file updates — this is the only remaining frontier above 60/60",
+    "Reconcile the dashboard SSE / backend WebSocket split: standardise on one protocol (WebSocket preferred given existing /ws/build/{sid} infrastructure) and remove the parallel /api/analyze SSE route to eliminate dual-streaming maintenance burden",
+    "Wire Supabase (already in dashboard/package.json as @supabase/supabase-js ^2.101.1) to persist session history across Railway restarts — eliminates the in-memory _sessions limitation and enables multi-instance deployment"
   ],
 
   "nextActions": [
     {
-      "action": "Rotate GITHUB_TOKEN and LINEAR_API_KEY immediately — values are committed in READY_TO_DEPLOY.md (lines 43-44); delete or redact that file; regenerate both tokens",
-      "why": "Live credentials are in git history. Any clone of this repo has them. This is an active security incident, not a future risk.",
+      "action": "Rotate the GitHub PAT (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) and Linear API key (lin_api_DUkmVuRx1ZdjKKfyjVlGKqLAleHmaEcpKTq7En4i) committed in READY_TO_DEPLOY.md, then remove or redact that file from git history",
+      "why": "Live credentials are committed to a repository — immediate security risk regardless of whether the repo is private",
       "effort": "S"
     },
     {
-      "action": "Populate CLAUDE.md with actual project context: architecture summary, file map (key paths from spec.md Section 7), dev setup commands, code conventions, smoke test invocation",
-      "why": "Every cron-triggered and webhook-triggered autonomous session runs blind. This single file determines the quality ceiling of all unattended work. Currently it contains only unfilled template placeholders.",
+      "action": "Replace the TAO_PASSWORD in Railway from 'PiDevOpsTestPassword2024' to a cryptographically random value, and verify the Dockerfile used by Railway is the root Dockerfile (not app/Dockerfile) to eliminate the duplicate ambiguity",
+      "why": "Production runs on a dictionary-guessable password; duplicate Dockerfiles create deployment uncertainty",
       "effort": "S"
     },
     {
-      "action": "Add cron trigger restore to on_startup() in app/server/main.py: call list_triggers() and re-register enabled triggers so Railway restarts don't silently drop scheduled builds",
-      "why": "Railway restarts the container on every deploy. All cron triggers are currently lost on restart with no error or warning. Scheduled automation is broken in production.",
+      "action": "Populate CLAUDE.md with the current architecture: file map, pipeline phases, env vars, dev setup, and smoke test instructions (source content already exists in handoff.md and spec.md Section 7)",
+      "why": "Every Claude session starts context-blind; this is the highest single-leverage documentation fix per lessons.jsonl entry ts:2026-04-07T00:00:10Z",
       "effort": "S"
     },
     {
-      "action": "Move session persistence and lessons to Railway Volume or Supabase — update config.py LOG_DIR and LESSONS_FILE to point to mounted volume path",
-      "why": "Railway's filesystem is ephemeral. Every deploy wipes app/logs/sessions/ and lessons.jsonl. The ZTE self-learning loop (Knowledge Retention 5/5) is silently broken in production.",
+      "action": "Verify Railway production builds actually execute claude -p successfully: run smoke_test.py --url https://pi-dev-ops-production.up.railway.app with a real build session and confirm Phase 3 (Claude check) passes, or configure ANALYSIS_MODE=api as the cloud fallback",
+      "why": "The lessons.jsonl explicitly warns claude -p is unavailable in cloud containers — the entire ZTE pipeline is inert if Phase 3 fails silently in production",
       "effort": "M"
     },
     {
-      "action": "Add cost_usd() method to BudgetTracker (src/tao/budget/tracker.py) using pricing from token-budgeter/SKILL.md; expose spend in WebSocket stream and /api/sessions response",
-      "why": "Token budgets are tracked but never converted to dollars. Operators have no visibility into actual spend per session. 1-hour change that closes the last BudgetTracker gap.",
+      "action": "Add cost_usd() to app/server/../src/tao/budget/tracker.py and surface per-session token cost in list_sessions() response and the /builds dashboard page",
+      "why": "Token spend is tracked but invisible; cost visibility is a prerequisite for budget alerting and the token-budgeter skill is otherwise dead code",
       "effort": "S"
     },
     {
-      "action": "Implement ZTE self-improvement loop: scheduled agent (cron trigger, daily) reads lessons.jsonl, identifies recurring failure patterns across evaluator dimensions, and proposes targeted CLAUDE.md or skill file updates",
-      "why": "This is the only remaining ZTE capability gap (P4-I). The evaluator auto-learn loop already writes to lessons.jsonl. Closing the loop from lessons → improved prompts → fewer failures is the logical next milestone and would push the system beyond its current 60/60 ceiling.",
+      "action": "Implement the ZTE self-improvement loop: a cron-triggered agent that reads lessons.jsonl, groups failures by dimension and intent, and appends targeted rules to CLAUDE.md or the relevant ADW template skill file",
+      "why": "This is the only capability not yet implemented that extends the system beyond its current ceiling — it makes the pipeline self-evolving rather than static at 60/60",
       "effort": "L"
     }
   ]
