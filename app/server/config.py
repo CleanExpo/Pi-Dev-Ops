@@ -48,6 +48,8 @@ log = logging.getLogger("pi-ceo.config")
 # ---------------------------------------------------------------------------
 
 _raw_password = os.environ.get("TAO_PASSWORD", "")
+_password_from_env = bool(_raw_password)  # True = user explicitly set it
+
 if not _raw_password:
     _raw_password = secrets.token_urlsafe(24)
     log.info("Generated one-time password: %s  (set TAO_PASSWORD to persist)", _raw_password)
@@ -59,15 +61,28 @@ if not _raw_password:
 _DATA_DIR = Path(os.path.dirname(__file__)).parent / "data"
 _DATA_DIR.mkdir(exist_ok=True)
 
-# Store the raw password; auth.hash_password() / auth.verify_password() handle bcrypt.
-# On first login, SHA-256 is upgraded to bcrypt and persisted to HASH_FILE so restarts
-# don't revert to SHA-256.
+# Password hash resolution:
+#   1. TAO_PASSWORD explicitly set → hash it fresh with bcrypt so env var
+#      changes take effect immediately on redeploy.
+#   2. No TAO_PASSWORD but persisted hash file → use it (container restart).
+#   3. Neither → SHA-256 of auto-generated password (upgrades to bcrypt on
+#      first successful login via auth.py).
 HASH_FILE = _DATA_DIR / ".password-hash"
-if HASH_FILE.exists():
+
+if _password_from_env:
+    import bcrypt as _bcrypt
+    PASSWORD_HASH = _bcrypt.hashpw(_raw_password.encode(), _bcrypt.gensalt()).decode()
+    try:
+        HASH_FILE.write_text(PASSWORD_HASH)
+        log.info("Password hash generated from TAO_PASSWORD and persisted to %s", HASH_FILE)
+    except OSError as exc:
+        log.warning("Could not persist password hash: %s", exc)
+elif HASH_FILE.exists():
     PASSWORD_HASH = HASH_FILE.read_text().strip()
-    log.info("Loaded persisted bcrypt hash from %s", HASH_FILE)
+    log.info("Loaded persisted bcrypt hash from %s (no TAO_PASSWORD in env)", HASH_FILE)
 else:
     PASSWORD_HASH = hashlib.sha256(_raw_password.encode()).hexdigest()
+    log.info("Using SHA-256 hash of auto-generated password (will upgrade to bcrypt on first login)")
 
 # ---------------------------------------------------------------------------
 # Session secret — persist to disk so it survives restarts
