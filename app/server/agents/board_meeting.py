@@ -771,7 +771,7 @@ def run_status_phase() -> dict[str, Any]:
     leverage_path = _HARNESS_ROOT / "leverage-audit.md"
     if leverage_path.exists():
         content = leverage_path.read_text(encoding="utf-8")[:500]
-        match = re.search(r"ZTE[^\d]*(\d+)\s*/\s*(\d+)", content, re.IGNORECASE)
+        match = re.search(r"(?:Score|ZTE)[^\d]*(\d+)\s*/\s*(\d+)", content, re.IGNORECASE)
         if match:
             status["zte_score"] = f"{match.group(1)}/{match.group(2)}"
 
@@ -828,7 +828,7 @@ def run_linear_review_phase() -> dict[str, Any]:
                 team: {id: {eq: $teamId}},
                 priority: {in: [1, 2]},
                 state: {type: {nin: ["completed", "cancelled"]}}
-              }, first: 30, orderBy: priority) {
+              }, first: 30, orderBy: updatedAt) {
                 nodes {
                   identifier title priority
                   state { name type }
