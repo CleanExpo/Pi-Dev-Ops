@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from .auth import verify_password, create_session_token, verify_session_token, require_auth, require_rate_limit
 from .sessions import create_session, get_session, list_sessions, kill_session, restore_sessions, _sessions, run_build
+from .supabase_log import mark_alert_acked
 from .gc import collect_garbage, gc_loop
 from .lessons import load_lessons, append_lesson
 from .webhook import verify_github_signature, verify_linear_signature, parse_github_event, parse_linear_event, linear_issue_to_brief
@@ -396,6 +397,68 @@ async def webhook(request: Request):
 
     else:
         raise HTTPException(400, "Missing webhook signature header (x-hub-signature-256 or Linear-Signature)")
+
+
+# ── RA-657: Telegram /ack_alert webhook ───────────────────────────────────────
+
+def _telegram_send(token: str, chat_id: int | str, text: str) -> None:
+    """Fire-and-forget helper — sends a message via Telegram Bot API."""
+    import urllib.request as _ur
+    payload = json.dumps({"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}).encode()
+    req = _ur.Request(
+        f"https://api.telegram.org/bot{token}/sendMessage",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with _ur.urlopen(req, timeout=8):
+            pass
+    except Exception as exc:
+        _log.warning("Telegram reply failed: %s", exc)
+
+
+@app.post("/webhook/telegram")
+async def telegram_webhook(request: Request):
+    """
+    RA-657 — Receive Telegram bot updates.
+    Handles /ack_alert <key> to silence the escalation watchdog.
+    Secured via X-Telegram-Bot-Api-Secret-Token (set when registering webhook).
+    """
+    token = config.TELEGRAM_BOT_TOKEN
+    secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+    # Reject if bot token is set but secret doesn't match
+    if token and secret != token:
+        raise HTTPException(401, "Invalid Telegram webhook secret")
+
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid JSON")
+
+    message = data.get("message", {})
+    text = (message.get("text") or "").strip()
+    chat_id = (message.get("chat") or {}).get("id")
+
+    if text.startswith("/ack_alert"):
+        parts = text.split(None, 1)
+        alert_key = parts[1].strip() if len(parts) > 1 else ""
+        if not alert_key:
+            if token and chat_id:
+                _telegram_send(token, chat_id, "⚠️ Usage: `/ack_alert <alert_key>`")
+            return {"ok": True}
+        try:
+            mark_alert_acked(alert_key)
+            _log.info("Alert acked via Telegram: key=%s chat=%s", alert_key, chat_id)
+        except Exception as exc:
+            _log.error("mark_alert_acked failed: %s", exc)
+            if token and chat_id:
+                _telegram_send(token, chat_id, f"❌ Failed to ack `{alert_key}`: {exc}")
+            return {"ok": True}
+        if token and chat_id:
+            _telegram_send(token, chat_id, f"✅ Alert `{alert_key}` acknowledged — re-paging stopped.")
+
+    return {"ok": True}
+
 
 @app.get("/api/triggers", dependencies=[Depends(require_auth)])
 async def get_triggers():
