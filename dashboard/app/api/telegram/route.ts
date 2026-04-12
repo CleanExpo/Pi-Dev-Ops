@@ -1,9 +1,11 @@
-// app/api/telegram/route.ts — Telegram bot: commands + multi-turn conversation history
+// app/api/telegram/route.ts — Pi CEO Telegram interface: CEO delegation + commands
 
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { makeClient, chatWithClaude } from "@/lib/claude";
+import Anthropic from "@anthropic-ai/sdk";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface TelegramUpdate {
   message?: {
@@ -16,10 +18,10 @@ interface TelegramUpdate {
 type Role = "user" | "assistant";
 interface Turn { role: Role; content: string }
 
-// In-memory per-chat history (survives within a single serverless instance lifetime)
-// Key: chatId, Value: last N turns
+// ── Conversation history ──────────────────────────────────────────────────────
+
 const HISTORY = new Map<number, Turn[]>();
-const MAX_HISTORY_TURNS = 20; // 10 user + 10 assistant
+const MAX_HISTORY_TURNS = 20;
 
 function getHistory(chatId: number): Turn[] {
   return HISTORY.get(chatId) ?? [];
@@ -36,6 +38,8 @@ function clearHistory(chatId: number): void {
   HISTORY.delete(chatId);
 }
 
+// ── Telegram send ─────────────────────────────────────────────────────────────
+
 async function send(chatId: number, text: string): Promise<void> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) return;
@@ -46,33 +50,91 @@ async function send(chatId: number, text: string): Promise<void> {
   });
 }
 
-async function getPiCeoStatus(): Promise<string> {
+// ── Linear ────────────────────────────────────────────────────────────────────
+
+const LINEAR_TEAM_ID = "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673"; // RestoreAssist
+
+async function linearGQL(query: string, variables: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const apiKey = process.env.LINEAR_API_KEY ?? "";
+  if (!apiKey) return { error: "LINEAR_API_KEY not configured" };
+  const res = await fetch("https://api.linear.app/graphql", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: apiKey },
+    body: JSON.stringify({ query, variables }),
+    signal: AbortSignal.timeout(8000),
+  });
+  return res.json() as Promise<Record<string, unknown>>;
+}
+
+async function createLinearIssue(
+  title: string,
+  description: string,
+  priority: number,
+): Promise<string> {
+  type GQLResult = { data?: { issueCreate?: { success: boolean; issue?: { identifier: string; url: string } } } };
+  const result = await linearGQL(
+    `mutation CreateIssue($title: String!, $desc: String!, $priority: Int!, $teamId: String!) {
+       issueCreate(input: { title: $title, description: $desc, priority: $priority, teamId: $teamId }) {
+         success
+         issue { identifier url }
+       }
+     }`,
+    { title, desc: description, priority, teamId: LINEAR_TEAM_ID },
+  ) as GQLResult;
+  const issue = result.data?.issueCreate?.issue;
+  if (issue) return `Created *${issue.identifier}*: ${title}\n${issue.url}`;
+  return `Failed to create Linear issue (check LINEAR_API_KEY)`;
+}
+
+async function getLinearBacklog(): Promise<string> {
+  type GQLResult = { data?: { issues?: { nodes: Array<{ identifier: string; title: string; state: { name: string }; priority: number }> } } };
+  const result = await linearGQL(
+    `query Backlog($teamId: ID!) {
+       issues(filter: {
+         team: { id: { eq: $teamId } },
+         state: { type: { nin: ["completed", "cancelled"] } }
+       }, orderBy: priority, first: 8) {
+         nodes { identifier title state { name } priority }
+       }
+     }`,
+    { teamId: LINEAR_TEAM_ID },
+  ) as GQLResult;
+  const nodes = result.data?.issues?.nodes ?? [];
+  if (!nodes.length) return "No open issues.";
+  const priorityLabel = (p: number) => ["", "🔴 Urgent", "🟠 High", "🟡 Normal", "⚪ Low"][p] ?? "?";
+  return nodes.map((n) => `${priorityLabel(n.priority)} *${n.identifier}* ${n.title} [${n.state.name}]`).join("\n");
+}
+
+// ── Pi CEO server ──────────────────────────────────────────────────────────────
+
+async function piCeoLogin(): Promise<string | null> {
   const piUrl = (process.env.PI_CEO_URL ?? "http://127.0.0.1:7777").replace(/\/$/, "");
   const piPassword = process.env.PI_CEO_PASSWORD ?? "";
-  try {
-    const loginRes = await fetch(`${piUrl}/api/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: piPassword }),
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!loginRes.ok) return "Pi CEO server unreachable.";
-    const cookie = loginRes.headers.get("set-cookie")?.split(";")[0] ?? "";
+  const res = await fetch(`${piUrl}/api/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: piPassword }),
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!res.ok) return null;
+  return res.headers.get("set-cookie")?.split(";")[0] ?? null;
+}
 
+async function getPiCeoStatus(): Promise<string> {
+  const piUrl = (process.env.PI_CEO_URL ?? "http://127.0.0.1:7777").replace(/\/$/, "");
+  try {
+    const cookie = await piCeoLogin();
+    if (!cookie) return "Pi CEO server unreachable — check PI_CEO_PASSWORD.";
     const sessRes = await fetch(`${piUrl}/api/sessions`, {
       headers: { Cookie: cookie },
       signal: AbortSignal.timeout(5000),
     });
     if (!sessRes.ok) return "Could not fetch sessions.";
     const sessions: Array<{ id: string; repo: string; status: string; last_phase: string }> = await sessRes.json();
-
-    if (sessions.length === 0) return "No build sessions. Start one via `/build <repo_url>`.";
-
+    if (!sessions.length) return "No build sessions. Send a task to create one.";
     const active = sessions.filter((s) => ["cloning", "building", "evaluating"].includes(s.status));
     const recent = sessions.slice(0, 5);
-
-    let msg = `*Pi CEO Status*\n`;
-    msg += `Active: ${active.length} | Total: ${sessions.length}\n\n`;
+    let msg = `*Pi CEO Status*\nActive: ${active.length} | Total: ${sessions.length}\n\n`;
     for (const s of recent) {
       const phase = s.last_phase ? ` (${s.last_phase})` : "";
       msg += `• \`${s.id}\` ${s.status}${phase}\n  ${s.repo.split("/").slice(-2).join("/")}\n`;
@@ -83,23 +145,15 @@ async function getPiCeoStatus(): Promise<string> {
   }
 }
 
-async function triggerBuild(repoUrl: string): Promise<string> {
+async function triggerBuild(repoUrl: string, brief: string = "Triggered via Telegram"): Promise<string> {
   const piUrl = (process.env.PI_CEO_URL ?? "http://127.0.0.1:7777").replace(/\/$/, "");
-  const piPassword = process.env.PI_CEO_PASSWORD ?? "";
   try {
-    const loginRes = await fetch(`${piUrl}/api/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: piPassword }),
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!loginRes.ok) return "Pi CEO server unreachable.";
-    const cookie = loginRes.headers.get("set-cookie")?.split(";")[0] ?? "";
-
+    const cookie = await piCeoLogin();
+    if (!cookie) return "Pi CEO server unreachable — check PI_CEO_PASSWORD.";
     const buildRes = await fetch(`${piUrl}/api/sessions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: cookie },
-      body: JSON.stringify({ repo_url: repoUrl, brief: "Triggered via Telegram" }),
+      body: JSON.stringify({ repo_url: repoUrl, brief }),
       signal: AbortSignal.timeout(10_000),
     });
     if (!buildRes.ok) {
@@ -107,27 +161,188 @@ async function triggerBuild(repoUrl: string): Promise<string> {
       return `Build failed: ${body.detail ?? `HTTP ${buildRes.status}`}`;
     }
     const data = await buildRes.json() as { session_id: string };
-    return `Build started. Session: \`${data.session_id}\`\nTrack at /builds in the dashboard.`;
+    return `Build started: \`${data.session_id}\``;
   } catch (e) {
     return `Build error: ${e instanceof Error ? e.message : String(e)}`;
   }
 }
 
-const HELP = `*Pi CEO Bot*
+// ── CEO agent ─────────────────────────────────────────────────────────────────
 
-Commands:
-/start — welcome message
-/help — show this help
-/status — show active build sessions
-/build <repo\\_url> — trigger a new build
+const CEO_SYSTEM = `You are the Pi CEO delegate — an autonomous chief of staff operating from a phone.
+The user is the CEO. Every message is a delegation. Your job is not to discuss, it is to EXECUTE.
+
+BEHAVIOUR:
+- Task given → call create_linear_issue immediately, then confirm what was created
+- "Status" or "what's running" → call get_pi_ceo_status
+- "Backlog" or "what's open" → call get_linear_backlog
+- "Build <repo>" → call trigger_build with the repo URL and a brief derived from context
+- Follow-up questions → answer concisely from conversation history
+- Never ask for permission. Never say "I'll help you with that." Just do it and confirm.
+
+PRIORITY MAPPING (for create_linear_issue):
+- Urgent / critical / asap / broken → priority 1
+- High / important / soon → priority 2
+- Normal / standard (default) → priority 3
+- Low / nice to have / later → priority 4
+
+PROJECTS context:
+- Pi-CEO / Pi Dev Ops → pi-ceo-dev-ops repo, team RestoreAssist
+- Pi-SEO → scanner/health dashboard
+- RestoreAssist → the main RA app
+
+Telegram limit: 4096 chars. Be concise.`;
+
+const CEO_TOOLS: Anthropic.Tool[] = [
+  {
+    name: "create_linear_issue",
+    description: "Create a new Linear issue for engineering work. Call this whenever the user delegates a task.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        title: { type: "string", description: "Short issue title (max 80 chars)" },
+        description: { type: "string", description: "Full task description with context and acceptance criteria" },
+        priority: { type: "number", description: "1=Urgent, 2=High, 3=Normal, 4=Low" },
+      },
+      required: ["title", "description", "priority"],
+    },
+  },
+  {
+    name: "trigger_build",
+    description: "Start a Pi CEO build session for a GitHub repository.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        repo_url: { type: "string", description: "Full GitHub repository URL" },
+        brief: { type: "string", description: "What to build or fix — one sentence" },
+      },
+      required: ["repo_url", "brief"],
+    },
+  },
+  {
+    name: "get_pi_ceo_status",
+    description: "Get current Pi CEO build sessions and recent activity.",
+    input_schema: { type: "object" as const, properties: {}, required: [] },
+  },
+  {
+    name: "get_linear_backlog",
+    description: "Get open Linear issues sorted by priority.",
+    input_schema: { type: "object" as const, properties: {}, required: [] },
+  },
+];
+
+type ToolInput = {
+  create_linear_issue: { title: string; description: string; priority: number };
+  trigger_build: { repo_url: string; brief: string };
+  get_pi_ceo_status: Record<string, never>;
+  get_linear_backlog: Record<string, never>;
+};
+
+async function executeTool(name: string, input: Record<string, unknown>): Promise<string> {
+  if (name === "create_linear_issue") {
+    const { title, description, priority } = input as ToolInput["create_linear_issue"];
+    return createLinearIssue(title, description, priority);
+  }
+  if (name === "trigger_build") {
+    const { repo_url, brief } = input as ToolInput["trigger_build"];
+    return triggerBuild(repo_url, brief);
+  }
+  if (name === "get_pi_ceo_status") {
+    return getPiCeoStatus();
+  }
+  if (name === "get_linear_backlog") {
+    return getLinearBacklog();
+  }
+  return `Unknown tool: ${name}`;
+}
+
+async function ceoAgentCall(history: Turn[]): Promise<string> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    // Fallback: plain chat without tools
+    const client = new Anthropic({ apiKey: "" });
+    try {
+      const response = await client.messages.create({
+        model: process.env.ANALYSIS_MODEL ?? "claude-sonnet-4-6",
+        max_tokens: 1024,
+        system: CEO_SYSTEM,
+        messages: history,
+      });
+      const block = response.content[0];
+      return block.type === "text" ? block.text : "(no response)";
+    } catch {
+      return "ANTHROPIC_API_KEY not set — cannot process free-form messages.";
+    }
+  }
+
+  const client = new Anthropic({ apiKey });
+  const messages: Anthropic.MessageParam[] = history.map((t) => ({
+    role: t.role,
+    content: t.content,
+  }));
+
+  // Agentic loop: up to 5 turns to handle tool calls
+  for (let turn = 0; turn < 5; turn++) {
+    const response = await client.messages.create({
+      model: process.env.ANALYSIS_MODEL ?? "claude-sonnet-4-6",
+      max_tokens: 1024,
+      system: CEO_SYSTEM,
+      tools: CEO_TOOLS,
+      messages,
+    });
+
+    if (response.stop_reason === "end_turn") {
+      return response.content
+        .filter((b): b is Anthropic.TextBlock => b.type === "text")
+        .map((b) => b.text)
+        .join("");
+    }
+
+    if (response.stop_reason === "tool_use") {
+      messages.push({ role: "assistant", content: response.content });
+      const toolResults: Anthropic.ToolResultBlockParam[] = [];
+      for (const block of response.content) {
+        if (block.type === "tool_use") {
+          const result = await executeTool(block.name, block.input as Record<string, unknown>);
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: block.id,
+            content: result,
+          });
+        }
+      }
+      messages.push({ role: "user", content: toolResults });
+      continue;
+    }
+
+    break;
+  }
+
+  return "Done.";
+}
+
+// ── Commands ──────────────────────────────────────────────────────────────────
+
+const HELP = `*Pi CEO — CEO Interface*
+
+Just type naturally. Examples:
+_"Fix the login timeout bug in RestoreAssist, high priority"_
+_"Add dark mode to the dashboard, normal priority"_
+_"What's currently running?"_
+_"Show me the backlog"_
+
+Slash commands:
+/status — active build sessions
+/backlog — open Linear issues
+/build <repo\\_url> — trigger a build directly
 /clear — clear conversation history
+/help — this message`;
 
-Any other message is sent to Claude with full conversation context.`;
+// ── POST handler ──────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
   const incomingSecret = req.headers.get("x-telegram-bot-api-secret-token");
-  // Only reject if BOTH sides have a value and they don't match
   if (webhookSecret && incomingSecret && incomingSecret !== webhookSecret) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -146,9 +361,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const text = msg.text.trim();
   const firstName = msg.from?.first_name ?? "there";
 
-  // ── Commands ────────────────────────────────────────────────────────────────
+  // ── Slash commands ──────────────────────────────────────────────────────────
+
   if (text === "/start") {
-    await send(chatId, `👋 Hey ${firstName}! Pi CEO is online.\n\n${HELP}`);
+    await send(chatId, `👋 Hey ${firstName}! Pi CEO is online and ready.\n\n${HELP}`);
     return NextResponse.json({ ok: true });
   }
 
@@ -158,8 +374,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   if (text === "/status") {
-    const status = await getPiCeoStatus();
-    await send(chatId, status);
+    await send(chatId, await getPiCeoStatus());
+    return NextResponse.json({ ok: true });
+  }
+
+  if (text === "/backlog") {
+    await send(chatId, await getLinearBacklog());
     return NextResponse.json({ ok: true });
   }
 
@@ -170,46 +390,39 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ ok: true });
     }
     await send(chatId, `Starting build for \`${repoUrl}\`…`);
-    const result = await triggerBuild(repoUrl);
-    await send(chatId, result);
+    await send(chatId, await triggerBuild(repoUrl));
     return NextResponse.json({ ok: true });
   }
 
   if (text === "/clear") {
     clearHistory(chatId);
-    await send(chatId, "Conversation history cleared.");
+    await send(chatId, "Conversation cleared.");
     return NextResponse.json({ ok: true });
   }
 
-  // Unknown slash command
   if (text.startsWith("/")) {
     await send(chatId, `Unknown command. Try /help`);
     return NextResponse.json({ ok: true });
   }
 
-  // ── Free-form chat with history ─────────────────────────────────────────────
+  // ── CEO agent (free-form) ───────────────────────────────────────────────────
+
   pushHistory(chatId, "user", text);
 
   try {
-    const client = makeClient();
-    const model = process.env.ANALYSIS_MODEL ?? "claude-sonnet-4-6";
-    const reply = await chatWithClaude(
-      client,
-      model,
-      getHistory(chatId),
-      "User is messaging via Telegram. Be concise — Telegram has a 4096 char limit. You are the Pi CEO assistant. Help with repo analysis, build sessions, and development tasks."
-    );
+    const reply = await ceoAgentCall(getHistory(chatId));
     pushHistory(chatId, "assistant", reply);
     await send(chatId, reply.slice(0, 4000));
   } catch (err) {
-    const errMsg = err instanceof Error ? err.message : "Error";
-    await send(chatId, `⚠️ ${errMsg}`);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    await send(chatId, `⚠️ ${errMsg.slice(0, 500)}`);
   }
 
   return NextResponse.json({ ok: true });
 }
 
-// GET /api/telegram/set-webhook — registers this URL as the Telegram webhook
+// ── GET: register webhook ──────────────────────────────────────────────────────
+
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
