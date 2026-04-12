@@ -226,6 +226,75 @@ async def _fire_script_trigger(trigger: dict, log) -> None:
         log.info("Script trigger id=%s complete (rc=0)", trigger["id"])
 
 
+async def _fire_board_meeting_trigger(trigger: dict, log) -> None:
+    """Fire the full board meeting (all 6 phases) in a thread executor, then Telegram summary."""
+    import asyncio as _asyncio
+    import json as _json
+    from . import config
+
+    log.info("Firing board_meeting trigger id=%s", trigger["id"])
+    loop = _asyncio.get_event_loop()
+
+    # run_full_board_meeting is synchronous — run it off the event loop
+    from .agents.board_meeting import run_full_board_meeting
+    result: dict = await loop.run_in_executor(None, run_full_board_meeting)
+
+    swot     = result.get("swot") or {}
+    recs     = result.get("sprint_recommendations") or {}
+    gap      = result.get("gap_audit") or {}
+    status   = result.get("status") or {}
+    duration = result.get("duration_s", 0)
+
+    critical_n = len(gap.get("critical", []))
+    high_n     = len(gap.get("high", []))
+    zte_v2     = status.get("zte_v2") or {}
+    zte_str    = (
+        f"ZTE v2: *{zte_v2['total']}/{zte_v2['max']}* ({zte_v2['band']})"
+        if zte_v2 else
+        f"ZTE v1: *{status.get('zte_score', '?')}*"
+    )
+
+    # Telegram summary — truncate long text for readability
+    def _short(text: str, n: int = 400) -> str:
+        return (text[:n] + "…") if len(text) > n else text
+
+    summary_text = (
+        "🏛 *Pi-CEO Weekly Board Meeting — Complete*\n\n"
+        + zte_str + "\n"
+        + f"Duration: {duration:.0f}s\n\n"
+        + "*SWOT Summary*\n"
+        + _short(swot.get("summary", swot.get("analysis", "—")), 300) + "\n\n"
+        + "*Sprint Recommendations*\n"
+        + _short(recs.get("summary", recs.get("recommendations", "—")), 300) + "\n\n"
+        + f"*Gap Audit:* {critical_n} critical, {high_n} high findings"
+        + (" → Linear tickets created" if not gap.get("dry_run") else " (dry-run)")
+    )
+
+    token   = config.TELEGRAM_BOT_TOKEN
+    chat_id = config.TELEGRAM_ALERT_CHAT_ID
+    if token and chat_id:
+        import urllib.request as _ureq
+        payload = _json.dumps({
+            "chat_id": chat_id,
+            "text": summary_text,
+            "parse_mode": "Markdown",
+            "disable_web_page_preview": True,
+        }).encode()
+        req = _ureq.Request(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            data=payload, method="POST",
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with _ureq.urlopen(req, timeout=10):
+                pass
+            log.info("Board meeting Telegram summary sent")
+        except Exception as exc:
+            log.warning("Board meeting Telegram send failed: %s", exc)
+
+    log.info("Board meeting trigger id=%s complete in %.1fs", trigger["id"], duration)
+
+
 async def _fire_trigger(trigger: dict, log) -> None:
     """Dispatch a single trigger by type. Raises on failure."""
     from .sessions import create_session
@@ -240,6 +309,8 @@ async def _fire_trigger(trigger: dict, log) -> None:
         await _fire_script_trigger(trigger, log)
     elif trigger_type == "fallback_dryrun":              # RA-634: quarterly API key test
         await _fire_script_trigger(trigger, log)
+    elif trigger_type == "board_meeting":
+        await _fire_board_meeting_trigger(trigger, log)
     else:
         await create_session(
             repo_url=trigger["repo_url"],

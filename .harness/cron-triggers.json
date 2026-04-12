@@ -164,6 +164,18 @@
     "last_fired_at": null
   },
   {
+    "id": "board-meeting-weekly",
+    "type": "board_meeting",
+    "name": "Pi-CEO: Weekly board meeting — Monday 05:00 UTC (15:00 AEST)",
+    "weekday": 0,
+    "hour": 5,
+    "minute": 0,
+    "enabled": true,
+    "created_at": 1744588800,
+    "last_fired_at": null,
+    "note": "Runs all 6 phases: STATUS → LINEAR REVIEW → SWOT → RECOMMENDATIONS → SAVE MINUTES → GAP AUDIT. Result sent to Telegram."
+  },
+  {
     "id": "fallback-dryrun-quarterly",
     "type": "fallback_dryrun",
     "name": "Risk Register R-02: Quarterly ANTHROPIC_API_KEY fallback dry-run — 1st Jan/Apr/Jul/Oct 17:00 UTC",
