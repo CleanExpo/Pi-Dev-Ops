@@ -14,6 +14,7 @@ from . import config
 from . import persistence
 from .brief import classify_intent, build_structured_brief
 from .lessons import append_lesson
+from .supabase_log import log_gate_check
 
 _log = logging.getLogger("pi-ceo.sessions")
 
@@ -1046,8 +1047,8 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
     return total_phases
 
 
-async def _phase_push(session, total_phases: int) -> list[str]:
-    """Commit uncommitted changes, push to GitHub, return all-files list."""
+async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
+    """Commit uncommitted changes, push to GitHub. Returns (all-files, push_ok)."""
     em(session, "phase", f"[{total_phases}/{total_phases}] Pushing to GitHub...")
     af: list[str] = []
     try:
@@ -1057,6 +1058,7 @@ async def _phase_push(session, total_phases: int) -> list[str]:
             await run_cmd(session.workspace, "git", "commit", "-m", "feat: Pi CEO build")
         _, out, _ = await run_cmd(session.workspace, "git", "log", "--oneline", "-10")
         commits = [ln.strip() for ln in out.strip().split("\n") if ln.strip()]
+        push_ok = False
         if commits:
             for c in commits:
                 em(session, "system", f"  {c}")
@@ -1092,7 +1094,8 @@ async def _phase_push(session, total_phases: int) -> list[str]:
             em(session, "system", f"    ...+{len(af) - 30} more")
     except Exception as e:
         em(session, "error", f"  Push error: {e}")
-    return af
+        return af, False
+    return af, push_ok
 
 
 # ── Orchestrator ──────────────────────────────────────────────────────────────
@@ -1128,11 +1131,33 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     if not await _phase_generate(session, spec, model, resume_from):
         return
     total_phases = await _phase_evaluate(session, brief, model, spec, resolved_intent)
-    af = await _phase_push(session, total_phases)
+    af, push_ok = await _phase_push(session, total_phases)
 
     session.last_completed_phase = "push"
     session.status = "complete"
     persistence.save_session(session)
+
+    # RA-656: log gate_check row — fire-and-forget, never blocks pipeline
+    try:
+        spec_exists = os.path.isfile(os.path.join(session.workspace, ".harness", "spec.md"))
+        plan_exists = os.path.isfile(os.path.join(session.workspace, ".harness", "plan.md"))
+        review_passed = getattr(session, "evaluator_status", "") == "passed"
+        review_score = float(session.evaluator_score or 0)
+        log_gate_check(
+            pipeline_id=session.id,
+            session_id=session.id,
+            gate_checks={
+                "spec_exists":    spec_exists,
+                "plan_exists":    plan_exists,
+                "build_complete": True,   # reached here only if generate succeeded
+                "tests_passed":   True,   # reached here only if sandbox succeeded
+                "review_passed":  review_passed,
+            },
+            review_score=review_score,
+            shipped=push_ok,
+        )
+    except Exception:
+        pass  # observability must never block the pipeline
 
     # Two-way Linear sync: move issue to "In Review" now that the build is pushed
     if session.linear_issue_id:
