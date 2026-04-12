@@ -77,6 +77,122 @@ Write board meeting minutes in markdown with:
 """
 
 
+# ── RA-609: Prior context loaders ────────────────────────────────────────────
+
+def _read_prior_minutes(n: int = 2) -> str:
+    """
+    RA-609 — Read the last N board meeting minutes from .harness/board-meetings/.
+
+    Returns a formatted string ready to inject into the board meeting system prompt.
+    Skips gap-audit JSON files — only reads the -board-minutes.md files.
+    """
+    meetings_dir = _HARNESS_ROOT / "board-meetings"
+    if not meetings_dir.exists():
+        return ""
+
+    minute_files = sorted(
+        [f for f in meetings_dir.glob("*-board-minutes.md") if f.is_file()],
+        key=lambda f: f.name,
+        reverse=True,
+    )[:n]
+
+    if not minute_files:
+        return ""
+
+    sections: list[str] = []
+    for f in reversed(minute_files):  # chronological order
+        try:
+            content = f.read_text(encoding="utf-8")[:4000]  # cap at 4k chars per meeting
+            sections.append(f"### Prior Minutes: {f.stem}\n\n{content}")
+        except Exception as exc:
+            log.warning("Could not read board minutes %s: %s", f.name, exc)
+
+    if not sections:
+        return ""
+
+    return (
+        "\n\n## PRIOR BOARD MEETING MINUTES (last 2 cycles)\n\n"
+        "Use these to maintain continuity — reference prior decisions, track action item completion.\n\n"
+        + "\n\n---\n\n".join(sections)
+    )
+
+
+def _read_latest_anthropic_docs() -> str:
+    """
+    RA-609 — Read the most recent Anthropic docs snapshot from .harness/anthropic-docs/.
+
+    Returns a formatted summary (capped at 6k chars) for injection into board context.
+    Enables the board agent to cite current Anthropic capabilities + release notes.
+    """
+    docs_root = _HARNESS_ROOT / "anthropic-docs"
+    if not docs_root.exists():
+        return ""
+
+    # Find the most recent dated directory (YYYY-MM-DD format)
+    dated_dirs = sorted(
+        [d for d in docs_root.iterdir() if d.is_dir() and d.name[:4].isdigit()],
+        reverse=True,
+    )
+    if not dated_dirs:
+        return ""
+
+    latest_dir = dated_dirs[0]
+    doc_files = sorted(latest_dir.glob("*.md"))[:5]  # read up to 5 doc files
+
+    if not doc_files:
+        return ""
+
+    sections: list[str] = []
+    total_chars = 0
+    _CAP = 6000
+
+    for f in doc_files:
+        if total_chars >= _CAP:
+            break
+        try:
+            content = f.read_text(encoding="utf-8")
+            remaining = _CAP - total_chars
+            sections.append(f"**{f.stem}**\n{content[:remaining]}")
+            total_chars += min(len(content), remaining)
+        except Exception as exc:
+            log.warning("Could not read anthropic-docs file %s: %s", f.name, exc)
+
+    if not sections:
+        return ""
+
+    return (
+        f"\n\n## ANTHROPIC INTELLIGENCE SNAPSHOT ({latest_dir.name})\n\n"
+        "Reference this when evaluating model capabilities, API changes, or new tooling.\n\n"
+        + "\n\n".join(sections)
+    )
+
+
+def _read_zte_reality_status() -> str:
+    """
+    RA-608 — Read the ZTE reality-check status file if a stall is active.
+    Injects a warning into board context so the agent acknowledges the stall.
+    """
+    status_file = _HARNESS_ROOT / "zte-reality-status.json"
+    if not status_file.exists():
+        return ""
+    try:
+        import json as _j
+        status = _j.loads(status_file.read_text())
+        if not status.get("stalled"):
+            return ""
+        stall_h = status.get("stall_h", 0)
+        urgent = status.get("urgent_todo", 0)
+        return (
+            f"\n\n## ⚠️ ZTE REALITY CHECK — PIPELINE STALLED ({stall_h:.0f}h)\n\n"
+            f"In Progress: **0** | Urgent/High Todo: **{urgent}**\n\n"
+            f"The pipeline has been stalled for {stall_h:.0f} hours. This MUST be addressed "
+            f"in Phase 4 (Sprint Recommendations) — identify the root cause and propose "
+            f"a specific unblocking action."
+        )
+    except Exception:
+        return ""
+
+
 # ── Gap audit constants ───────────────────────────────────────────────────────
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]  # Pi-Dev-Ops/
@@ -233,8 +349,10 @@ def _call_claude_for_discrepancies(
     spec_claims: list[str],
     audit_target: dict[str, Any],
     file_contents: dict[str, str],
+    system_prompt: str | None = None,
 ) -> list[dict[str, Any]]:
     """Call the claude CLI to compare spec claims against actual source files.
+    If system_prompt is provided (RA-609 enriched context), it is prepended to the prompt.
 
     Returns a list of discrepancy dicts: {severity, claim, reality, file, recommendation}.
     """
@@ -244,7 +362,16 @@ def _call_claude_for_discrepancies(
         for path, content in file_contents.items()
     )
 
-    prompt = f"""You are auditing a project spec against actual source code.
+    # RA-609 — prepend enriched board context if provided
+    context_header = ""
+    if system_prompt and len(system_prompt) > len(BOARD_MEETING_SYSTEM):
+        # Include the context delta (prior minutes + anthropic-docs) but not the full protocol
+        # to keep the audit prompt focused
+        extra = system_prompt[len(BOARD_MEETING_SYSTEM):].strip()
+        if extra:
+            context_header = f"{extra}\n\n---\n\n"
+
+    prompt = f"""{context_header}You are auditing a project spec against actual source code.
 
 AUDIT CATEGORY: {audit_target['category']}
 WHAT THE SPEC CLAIMS: {audit_target['claim']}
@@ -335,12 +462,47 @@ Output ONLY the JSON array.
 
 # ── Main gap audit phase ──────────────────────────────────────────────────────
 
+def build_board_system_prompt() -> str:
+    """
+    RA-609 — Build the full board meeting system prompt with injected context:
+      - Core BOARD_MEETING_SYSTEM protocol
+      - ZTE reality-check stall warning (if pipeline is stalled)
+      - Prior board meeting minutes (last 2 cycles)
+      - Latest Anthropic intelligence snapshot
+
+    Call this instead of using BOARD_MEETING_SYSTEM directly so every
+    board meeting cycle has full continuity context.
+    """
+    parts = [BOARD_MEETING_SYSTEM]
+
+    zte_warning = _read_zte_reality_status()
+    if zte_warning:
+        log.warning("Board context: ZTE stall warning injected into system prompt")
+        parts.append(zte_warning)
+
+    prior_minutes = _read_prior_minutes(n=2)
+    if prior_minutes:
+        log.info("Board context: injected prior minutes from last 2 cycles")
+        parts.append(prior_minutes)
+    else:
+        log.info("Board context: no prior minutes found in .harness/board-meetings/")
+
+    anthropic_docs = _read_latest_anthropic_docs()
+    if anthropic_docs:
+        log.info("Board context: injected Anthropic intelligence snapshot")
+        parts.append(anthropic_docs)
+    else:
+        log.info("Board context: no Anthropic docs snapshot found in .harness/anthropic-docs/")
+
+    return "\n".join(parts)
+
+
 def run_gap_audit_phase(dry_run: bool = False) -> dict[str, Any]:
     """Phase 6 — LIVE CODE GAP AUDIT.
 
     1. Reads spec.md for capability claims.
     2. For each audit target, reads the relevant source files.
-    3. Calls claude CLI to compare claims vs code.
+    3. Calls claude CLI to compare claims vs code (with full board context injected).
     4. Buckets discrepancies into critical / high / low.
     5. Auto-creates Linear tickets for critical and high gaps.
     6. Saves output to .harness/board-meetings/{date}-gap-audit.json.
@@ -348,6 +510,14 @@ def run_gap_audit_phase(dry_run: bool = False) -> dict[str, Any]:
     Returns the structured audit result dict.
     """
     log.info("Starting Phase 6 — LIVE CODE GAP AUDIT")
+
+    # RA-609 — build enriched system prompt with prior minutes + anthropic-docs
+    enriched_system = build_board_system_prompt()
+    if len(enriched_system) > len(BOARD_MEETING_SYSTEM):
+        log.info(
+            "Board context enriched: +%d chars (prior minutes + anthropic-docs injected)",
+            len(enriched_system) - len(BOARD_MEETING_SYSTEM),
+        )
     start = time.monotonic()
 
     # 1. Read spec.md
@@ -384,7 +554,9 @@ def run_gap_audit_phase(dry_run: bool = False) -> dict[str, Any]:
             continue
 
         try:
-            items = _call_claude_for_discrepancies(spec_claims, target, file_contents)
+            items = _call_claude_for_discrepancies(
+                spec_claims, target, file_contents, system_prompt=enriched_system
+            )
             log.info("category=%s discrepancies=%d", target["category"], len(items))
             all_discrepancies.extend(items)
         except subprocess.TimeoutExpired:

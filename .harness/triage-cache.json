@@ -9328,5 +9328,3800 @@
     "linear_id": "dry-run",
     "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
     "created_at": "2026-04-10T12:00:43.250979+00:00"
+  },
+  "6ad9d4b1814fd8e4": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: eval() usage",
+    "created_at": "2026-04-11T00:00:48.572671+00:00"
+  },
+  "c8bbfbe4c004ec17": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T00:00:48.579262+00:00"
+  },
+  "b220e41c7b7089bd": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T00:00:48.584430+00:00"
+  },
+  "33905cc342aa6ab0": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: security check suppressed (# nosec)",
+    "created_at": "2026-04-11T00:00:48.588784+00:00"
+  },
+  "a36dafb5b6f88e52": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: TODO near sensitive keyword",
+    "created_at": "2026-04-11T00:00:48.592120+00:00"
+  },
+  "0b191f98b0a54afe": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: Binding to 0.0.0.0",
+    "created_at": "2026-04-11T00:00:48.595151+00:00"
+  },
+  "1fdcd3f22aef91e1": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T00:00:48.598049+00:00"
+  },
+  "3fa0bd6a79b59a56": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T00:00:48.600829+00:00"
+  },
+  "111138d6b1a45029": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T00:00:48.603375+00:00"
+  },
+  "83ab3cdcaa21f5e4": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T00:00:48.605537+00:00"
+  },
+  "d3eb46ec96708507": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T00:00:48.607749+00:00"
+  },
+  "74822ede3bfa7fd4": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T00:00:48.609919+00:00"
+  },
+  "930ca6befc41d9cb": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T00:00:48.612046+00:00"
+  },
+  "d7f27b0b2b9c931f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: eval() usage",
+    "created_at": "2026-04-11T00:00:48.613882+00:00"
+  },
+  "4860f126833c7c8d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T00:00:48.615723+00:00"
+  },
+  "c731595cb8d81aff": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T00:00:48.617588+00:00"
+  },
+  "3f3eeb521830282a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: TODO near sensitive keyword",
+    "created_at": "2026-04-11T00:00:48.619447+00:00"
+  },
+  "f2f842b50657c7f4": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: Binding to 0.0.0.0",
+    "created_at": "2026-04-11T00:00:48.621154+00:00"
+  },
+  "27d3f71674bfaba5": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: eval() usage",
+    "created_at": "2026-04-11T00:00:48.622816+00:00"
+  },
+  "8737850af9b7a881": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T00:00:48.624431+00:00"
+  },
+  "6f018b3609c40fc3": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T00:00:48.625910+00:00"
+  },
+  "9be48491dd96eaac": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: TODO near sensitive keyword",
+    "created_at": "2026-04-11T00:00:48.627990+00:00"
+  },
+  "a9f9d1b9ca9ca45a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: Binding to 0.0.0.0",
+    "created_at": "2026-04-11T00:00:48.629493+00:00"
+  },
+  "208964f094c68851": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: eval() usage",
+    "created_at": "2026-04-11T00:00:48.632156+00:00"
+  },
+  "de073e5d4ab3d058": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T00:00:48.634782+00:00"
+  },
+  "2ad4b7f7d7e7878e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: security check suppressed (# nosec)",
+    "created_at": "2026-04-11T00:00:48.641321+00:00"
+  },
+  "79a0900dd825e20d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: TODO near sensitive keyword",
+    "created_at": "2026-04-11T00:00:48.642528+00:00"
+  },
+  "5e5e3b48ceeb57f1": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: TODO near sensitive keyword",
+    "created_at": "2026-04-11T00:00:48.648309+00:00"
+  },
+  "53437538f9e95914": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T00:00:48.649422+00:00"
+  },
+  "9fddf753cfda54ff": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `typing.Any` imported but unused",
+    "created_at": "2026-04-11T00:00:48.650543+00:00"
+  },
+  "ee4a795dd50f1bad": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F841 \u2014 Local variable `msg_dict` is assigned to but never used",
+    "created_at": "2026-04-11T00:00:48.651607+00:00"
+  },
+  "c19e5e0e98f3d97f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `time` imported but unused",
+    "created_at": "2026-04-11T00:00:48.652678+00:00"
+  },
+  "4f00fd284e227d38": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `os` imported but unused",
+    "created_at": "2026-04-11T00:00:48.653731+00:00"
+  },
+  "050c3da16f7a7204": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F541 \u2014 f-string without any placeholders",
+    "created_at": "2026-04-11T00:00:48.654791+00:00"
+  },
+  "62e2da3da71c4388": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `os` imported but unused",
+    "created_at": "2026-04-11T00:00:48.655814+00:00"
+  },
+  "ab789cd97cd6894c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F541 \u2014 f-string without any placeholders",
+    "created_at": "2026-04-11T00:00:48.656847+00:00"
+  },
+  "46d1289b02713d12": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `json` imported but unused",
+    "created_at": "2026-04-11T00:00:48.657879+00:00"
+  },
+  "ca0e32a1b1899533": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `..skills.get_skill` imported but unused; consider removing, adding to `__all__`, or using a redundant alias",
+    "created_at": "2026-04-11T00:00:48.659460+00:00"
+  },
+  "f1efc00a70c9abb7": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `time` imported but unused",
+    "created_at": "2026-04-11T00:00:48.660443+00:00"
+  },
+  "31fbaba2a27c0452": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `typing.Any` imported but unused",
+    "created_at": "2026-04-11T00:00:48.661423+00:00"
+  },
+  "2da2c72cac2e77bc": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: E401 \u2014 Multiple imports on one line",
+    "created_at": "2026-04-11T00:00:48.662399+00:00"
+  },
+  "c8b995759e33a56e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `time` imported but unused",
+    "created_at": "2026-04-11T00:00:48.663387+00:00"
+  },
+  "aa48a912da969858": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: E401 \u2014 Multiple imports on one line",
+    "created_at": "2026-04-11T00:00:48.664340+00:00"
+  },
+  "ba73adb47b8562ce": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `dataclasses.field` imported but unused",
+    "created_at": "2026-04-11T00:00:48.665295+00:00"
+  },
+  "239e044c847d441f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `pytest` imported but unused",
+    "created_at": "2026-04-11T00:00:48.666244+00:00"
+  },
+  "5461040246a4c06c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `pytest` imported but unused",
+    "created_at": "2026-04-11T00:00:48.667195+00:00"
+  },
+  "b044d81c73d85feb": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `json` imported but unused",
+    "created_at": "2026-04-11T00:00:48.668143+00:00"
+  },
+  "350b1f86866a9dce": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `pytest` imported but unused",
+    "created_at": "2026-04-11T00:00:48.669014+00:00"
+  },
+  "a8d620f02d4ab051": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `enum.Enum` imported but unused",
+    "created_at": "2026-04-11T00:00:48.670100+00:00"
+  },
+  "c2e31715aa5e9ee5": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: E741 \u2014 Ambiguous variable name: `l`",
+    "created_at": "2026-04-11T00:00:48.670980+00:00"
+  },
+  "ef1c1d90b979f76e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: E402 \u2014 Module level import not at top of file",
+    "created_at": "2026-04-11T00:00:48.671859+00:00"
+  },
+  "8d2fc31e53dd814d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F541 \u2014 f-string without any placeholders",
+    "created_at": "2026-04-11T00:00:48.672738+00:00"
+  },
+  "a4b8e0e4384d4b00": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: E722 \u2014 Do not use bare `except`",
+    "created_at": "2026-04-11T00:00:48.674572+00:00"
+  },
+  "db7486dff4fd6969": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `re` imported but unused",
+    "created_at": "2026-04-11T00:00:48.675445+00:00"
+  },
+  "7b81311f07bd3bdb": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F811 \u2014 Redefinition of unused `re` from line 9: `re` redefined here",
+    "created_at": "2026-04-11T00:00:48.676321+00:00"
+  },
+  "1dd9b2ea7c6b5352": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `urllib.parse.urljoin` imported but unused",
+    "created_at": "2026-04-11T00:00:48.678798+00:00"
+  },
+  "80f9ceed777895da": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F841 \u2014 Local variable `all_text` is assigned to but never used",
+    "created_at": "2026-04-11T00:00:48.679671+00:00"
+  },
+  "69f57f30d3750122": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `datetime.timezone` imported but unused",
+    "created_at": "2026-04-11T00:00:48.680816+00:00"
+  },
+  "679a534ef14ecefd": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `os` imported but unused",
+    "created_at": "2026-04-11T00:00:48.681707+00:00"
+  },
+  "427e5443757134f2": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F541 \u2014 f-string without any placeholders",
+    "created_at": "2026-04-11T00:00:48.682594+00:00"
+  },
+  "3aa6e66bfd81472b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `pathlib.Path` imported but unused",
+    "created_at": "2026-04-11T00:00:48.683478+00:00"
+  },
+  "d8a9fddc95fa6858": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `pathlib.Path` imported but unused",
+    "created_at": "2026-04-11T00:00:48.684352+00:00"
+  },
+  "3e05b363e4cbad46": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `typing.List` imported but unused",
+    "created_at": "2026-04-11T00:00:48.685235+00:00"
+  },
+  "2adc9bcf97333f85": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F841 \u2014 Local variable `env_key` is assigned to but never used",
+    "created_at": "2026-04-11T00:00:48.686115+00:00"
+  },
+  "1c24cdd134a9d531": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F841 \u2014 Local variable `retries_left` is assigned to but never used",
+    "created_at": "2026-04-11T00:00:48.687002+00:00"
+  },
+  "bf541c41106b45bc": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `datetime.datetime` imported but unused",
+    "created_at": "2026-04-11T00:00:48.687884+00:00"
+  },
+  "bef148e1ee16cd9c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `typing.Optional` imported but unused",
+    "created_at": "2026-04-11T00:00:48.689107+00:00"
+  },
+  "dc2466ef5def417b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F841 \u2014 Local variable `point` is assigned to but never used",
+    "created_at": "2026-04-11T00:00:48.689996+00:00"
+  },
+  "b5acbe158d3b1b73": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F401 \u2014 `json` imported but unused",
+    "created_at": "2026-04-11T00:00:48.691153+00:00"
+  },
+  "c0d458129a3999f6": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F841 \u2014 Local variable `last_training_date` is assigned to but never used",
+    "created_at": "2026-04-11T00:00:48.692033+00:00"
+  },
+  "c6dead7412aa0e85": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: E741 \u2014 Ambiguous variable name: `l`",
+    "created_at": "2026-04-11T00:00:48.696547+00:00"
+  },
+  "ed431f8eaf8d974b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: I001 \u2014 Import block is un-sorted or un-formatted",
+    "created_at": "2026-04-11T00:00:48.697425+00:00"
+  },
+  "9773fe5cc2aed9ba": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: E402 \u2014 Module level import not at top of file",
+    "created_at": "2026-04-11T00:00:48.698318+00:00"
+  },
+  "584956ef024db575": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F403 \u2014 `from src.db.demo_models import *` used; unable to detect undefined names",
+    "created_at": "2026-04-11T00:00:48.699208+00:00"
+  },
+  "0721c55b311e5bdd": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: F403 \u2014 `from src.db.inventory_models import *` used; unable to detect undefined names",
+    "created_at": "2026-04-11T00:00:48.700099+00:00"
+  },
+  "b2f8c04cacc612d8": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: W291 \u2014 Trailing whitespace",
+    "created_at": "2026-04-11T00:00:48.700993+00:00"
+  },
+  "49acc2215686e938": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: UP035 \u2014 Import from `collections.abc` instead: `Sequence`",
+    "created_at": "2026-04-11T00:00:48.701886+00:00"
+  },
+  "1353e1a45653f4d6": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: I001 \u2014 Import block is un-sorted or un-formatted",
+    "created_at": "2026-04-11T00:00:48.702769+00:00"
+  },
+  "d5c268fbfdacd0c5": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: UP007 \u2014 Use `X | Y` for type annotations",
+    "created_at": "2026-04-11T00:00:48.704219+00:00"
+  },
+  "e0d37cbbe19ee304": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: E501 \u2014 Line too long (110 > 100)",
+    "created_at": "2026-04-11T00:00:48.705118+00:00"
+  },
+  "b921703415be4720": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: UP035 \u2014 Import from `collections.abc` instead: `Sequence`",
+    "created_at": "2026-04-11T00:00:48.706166+00:00"
+  },
+  "25f139bdf50f6224": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: I001 \u2014 Import block is un-sorted or un-formatted",
+    "created_at": "2026-04-11T00:00:48.707048+00:00"
+  },
+  "a554625ed22fdc73": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: UP007 \u2014 Use `X | Y` for type annotations",
+    "created_at": "2026-04-11T00:00:48.707932+00:00"
+  },
+  "b14646fb7f8eef9b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: E501 \u2014 Line too long (116 > 100)",
+    "created_at": "2026-04-11T00:00:48.708815+00:00"
+  },
+  "217ae032a9aad9a5": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: E501 \u2014 Line too long (110 > 100)",
+    "created_at": "2026-04-11T00:00:48.709705+00:00"
+  },
+  "d52fc6a5576cc232": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: E501 \u2014 Line too long (107 > 100)",
+    "created_at": "2026-04-11T00:00:48.710597+00:00"
+  },
+  "cea3aaf14fb2a6b3": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: E501 \u2014 Line too long (101 > 100)",
+    "created_at": "2026-04-11T00:00:48.711491+00:00"
+  },
+  "947acd0f04d772fa": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: UP035 \u2014 Import from `collections.abc` instead: `Sequence`",
+    "created_at": "2026-04-11T00:00:48.712378+00:00"
+  },
+  "bb840c310ac8690a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: I001 \u2014 Import block is un-sorted or un-formatted",
+    "created_at": "2026-04-11T00:00:48.713258+00:00"
+  },
+  "4969be428abb53cb": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: UP007 \u2014 Use `X | Y` for type annotations",
+    "created_at": "2026-04-11T00:00:48.714142+00:00"
+  },
+  "97b8ee2936805d9a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: E501 \u2014 Line too long (116 > 100)",
+    "created_at": "2026-04-11T00:00:48.715031+00:00"
+  },
+  "a5749c58afc68b1a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Code Quality] ruff: E501 \u2014 Line too long (109 > 100)",
+    "created_at": "2026-04-11T00:00:48.715936+00:00"
+  },
+  "25b3606193a15adb": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.738854+00:00"
+  },
+  "c2d6db494a806de4": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.739903+00:00"
+  },
+  "29dc348b54725486": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.740866+00:00"
+  },
+  "fb206cb202cbae5d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:13.741786+00:00"
+  },
+  "672b164cd84213f0": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.742705+00:00"
+  },
+  "648f86c93307f20d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.743629+00:00"
+  },
+  "589722dce211106c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.744834+00:00"
+  },
+  "b022fdcba94fb919": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:13.745785+00:00"
+  },
+  "981f7b44435a2985": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:13.746750+00:00"
+  },
+  "882209994d2075a7": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:13.747677+00:00"
+  },
+  "ff9e7604fb578743": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.748599+00:00"
+  },
+  "41f56dd6c61c12a8": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:13.749518+00:00"
+  },
+  "eed035434ea751d4": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:13.750706+00:00"
+  },
+  "24df46b8f4426335": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:13.751616+00:00"
+  },
+  "b890415865cee06c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.752536+00:00"
+  },
+  "848acf16db3e1239": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:13.753460+00:00"
+  },
+  "36ff88b98683580a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:13.754373+00:00"
+  },
+  "a0b543cfc439d7a2": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:13.755280+00:00"
+  },
+  "ce6e16b710d69563": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.756195+00:00"
+  },
+  "46f15376f0c5be54": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:13.757123+00:00"
+  },
+  "886a703abc1b2d2d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:13.758326+00:00"
+  },
+  "e94b50149afca3c9": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.759262+00:00"
+  },
+  "f20768ea2a874e0e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.760349+00:00"
+  },
+  "dcf313a50fd77637": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.761262+00:00"
+  },
+  "371c4d24c3394532": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:13.762180+00:00"
+  },
+  "389d845188eda230": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:13.763090+00:00"
+  },
+  "a6c7c695bc8b7f45": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:13.764263+00:00"
+  },
+  "06ffe66813f4c76f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.765182+00:00"
+  },
+  "61c1ba5291911a27": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.766098+00:00"
+  },
+  "43dc1049234514ad": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.767013+00:00"
+  },
+  "44d696c7e7589ea8": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.767928+00:00"
+  },
+  "8c6abc3920181309": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.768950+00:00"
+  },
+  "9ea44c8e5f372bc1": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.769914+00:00"
+  },
+  "97272f4912dd7846": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:13.770826+00:00"
+  },
+  "67db0e6880f2747e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:13.771741+00:00"
+  },
+  "908519f16926b3b8": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.772649+00:00"
+  },
+  "1cb81496d8051d6c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.773588+00:00"
+  },
+  "af6e74497408457d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:13.774503+00:00"
+  },
+  "2635e2c7121b4c08": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.775425+00:00"
+  },
+  "b002c0ef0e507b0a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.776352+00:00"
+  },
+  "797f74bd34ca462c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.777690+00:00"
+  },
+  "d5bc18a0bb6440d9": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Bearer token in source",
+    "created_at": "2026-04-11T02:01:13.778634+00:00"
+  },
+  "c679d933b4cb8e84": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.779554+00:00"
+  },
+  "1b2a5a9ac1107afd": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Bearer token in source",
+    "created_at": "2026-04-11T02:01:13.780473+00:00"
+  },
+  "ced5a8d8276213f9": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.781397+00:00"
+  },
+  "cbdaf695fca3c277": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded password",
+    "created_at": "2026-04-11T02:01:13.782313+00:00"
+  },
+  "67d82a8f35084a3f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:13.783588+00:00"
+  },
+  "e65f2feee466c447": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:13.784512+00:00"
+  },
+  "d980fa1cd5506984": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.785427+00:00"
+  },
+  "d63c26a836ecf8cb": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:13.786339+00:00"
+  },
+  "7ab5d04bb572dd84": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:13.787263+00:00"
+  },
+  "488fa9d89a65a6c6": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:13.788175+00:00"
+  },
+  "82cf3fa42687e242": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.789089+00:00"
+  },
+  "3b110982c195346b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:13.790032+00:00"
+  },
+  "48e3ca21a39eb6c8": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.790947+00:00"
+  },
+  "ebf66399884aefda": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: eval() usage",
+    "created_at": "2026-04-11T02:01:13.791886+00:00"
+  },
+  "df9c5d98901ebaf9": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.792799+00:00"
+  },
+  "a54943362f4dbb24": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded password",
+    "created_at": "2026-04-11T02:01:13.793733+00:00"
+  },
+  "3a886b74e439705b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:13.794660+00:00"
+  },
+  "80e136444eaa0edd": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:13.795615+00:00"
+  },
+  "49ee7be69fe61acb": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.796545+00:00"
+  },
+  "1e4571bd86e62ce8": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.797478+00:00"
+  },
+  "252864e5d5198ce3": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:13.798415+00:00"
+  },
+  "a77823cbbbabee66": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.799336+00:00"
+  },
+  "750b9b43a06fbf7a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:13.800260+00:00"
+  },
+  "2acf4692d0638192": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: Binding to 0.0.0.0",
+    "created_at": "2026-04-11T02:01:13.801190+00:00"
+  },
+  "b744c68a29923278": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.802446+00:00"
+  },
+  "925e38cf4c6cbc66": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.803477+00:00"
+  },
+  "eb5939eb5dd94d95": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.804436+00:00"
+  },
+  "8fdf386132c759dc": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.805383+00:00"
+  },
+  "5b6c2ceb2d1b5da0": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.806319+00:00"
+  },
+  "7607bb20a6fac000": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.807243+00:00"
+  },
+  "5d41b95c319d568b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.808168+00:00"
+  },
+  "0b5f5a215962556c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.809099+00:00"
+  },
+  "2dbb3659267fff80": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.810015+00:00"
+  },
+  "b891947269e2de1e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.810966+00:00"
+  },
+  "163d18899488327f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.811893+00:00"
+  },
+  "b2ee373b6f16b1ac": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.812819+00:00"
+  },
+  "2fa3b00f0b691f15": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.814257+00:00"
+  },
+  "af190c0c2191f6bb": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.815187+00:00"
+  },
+  "0b7e1f93e155cb17": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.816364+00:00"
+  },
+  "b148b9f75da3468a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.817331+00:00"
+  },
+  "ea1d96feda6c1134": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.818405+00:00"
+  },
+  "527b0cfcd04b4999": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.819380+00:00"
+  },
+  "d1189ebc17aa07fc": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.820327+00:00"
+  },
+  "df634a7c45728134": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.821284+00:00"
+  },
+  "66f889d378ea6ca2": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:13.822576+00:00"
+  },
+  "83534445a04bfbbe": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.823615+00:00"
+  },
+  "cde19b84a4a27111": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.824604+00:00"
+  },
+  "a920b82f0e42079d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.825599+00:00"
+  },
+  "59c1fa2494805d52": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.826573+00:00"
+  },
+  "4ef6c28c304aea5a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.827547+00:00"
+  },
+  "012e8c03f3e920a4": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.828885+00:00"
+  },
+  "ad5f9ffe6f687674": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.829830+00:00"
+  },
+  "7983d9f5b3eed876": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.830777+00:00"
+  },
+  "4ca17f79041cb388": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.831735+00:00"
+  },
+  "d89ef22b303dc4aa": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.833912+00:00"
+  },
+  "5a1ebf3b9c301ea8": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.834911+00:00"
+  },
+  "d8f5b1bfbd413253": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.836237+00:00"
+  },
+  "648009aef06c00c3": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.837209+00:00"
+  },
+  "807d1b3f18cffc31": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.838213+00:00"
+  },
+  "8120b23122d9fdb0": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.839167+00:00"
+  },
+  "f9dc2b7f198866fb": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.840154+00:00"
+  },
+  "17ba01565a610a65": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.841120+00:00"
+  },
+  "874070e57af168bc": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.842114+00:00"
+  },
+  "0789d8ae701853b1": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.843071+00:00"
+  },
+  "cbb3b54c192e063b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.844066+00:00"
+  },
+  "946266f77c106bf8": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.845054+00:00"
+  },
+  "b265d2f2fc728d34": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.846018+00:00"
+  },
+  "67eaa64dc81db14b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.846999+00:00"
+  },
+  "7dfcc2d237d17e34": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.848188+00:00"
+  },
+  "66549265a5f70d2e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.849157+00:00"
+  },
+  "3e1d2de66545a889": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.850277+00:00"
+  },
+  "243e43138291010c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:13.851258+00:00"
+  },
+  "c1aff400cdd749bd": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.852555+00:00"
+  },
+  "811b8371df92ca36": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.853514+00:00"
+  },
+  "e9d504bb7a197ee5": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: Binding to 0.0.0.0",
+    "created_at": "2026-04-11T02:01:13.854622+00:00"
+  },
+  "82f23ef8a9c4a3bc": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: Binding to 0.0.0.0",
+    "created_at": "2026-04-11T02:01:13.855575+00:00"
+  },
+  "ba8a57b2d2cd770c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: shell=True subprocess",
+    "created_at": "2026-04-11T02:01:13.856539+00:00"
+  },
+  "b51ff15cb0a104c3": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:13.857496+00:00"
+  },
+  "cc17499ca300e077": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: Binding to 0.0.0.0",
+    "created_at": "2026-04-11T02:01:13.858459+00:00"
+  },
+  "c1584b7c4a8f00d4": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:13.859418+00:00"
+  },
+  "4a82251dfd153d5e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.860710+00:00"
+  },
+  "8d1dafaabd1e245c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:13.861654+00:00"
+  },
+  "9e5629454caaebca": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.862601+00:00"
+  },
+  "5ddfcf3986518059": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.863547+00:00"
+  },
+  "ea482fffa353edb6": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.864494+00:00"
+  },
+  "614510b3d8f167c0": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: TODO near sensitive keyword",
+    "created_at": "2026-04-11T02:01:13.865444+00:00"
+  },
+  "7e5453b8af4803f8": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.866398+00:00"
+  },
+  "4ef347c4a1a59238": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: Binding to 0.0.0.0",
+    "created_at": "2026-04-11T02:01:13.867351+00:00"
+  },
+  "1b07faae2a1d053d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:13.868304+00:00"
+  },
+  "75fdb99b1e5f996e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.869252+00:00"
+  },
+  "27e5736b611d4796": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.870476+00:00"
+  },
+  "7596d16971e972db": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.871408+00:00"
+  },
+  "0f91d8101ac1ed45": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.872603+00:00"
+  },
+  "792116db975d2952": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.873558+00:00"
+  },
+  "6676b935538593e3": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.874691+00:00"
+  },
+  "c527570462f6bab6": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.875678+00:00"
+  },
+  "644c4989bbf36e66": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.876648+00:00"
+  },
+  "039613d14232081e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.877636+00:00"
+  },
+  "a3b3b961510ffeef": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.878613+00:00"
+  },
+  "b08b99a9921f2923": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.879584+00:00"
+  },
+  "500c3a64dedb9888": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.880828+00:00"
+  },
+  "78b7a892a9492a07": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.881825+00:00"
+  },
+  "252c5a3b792b4d94": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.882795+00:00"
+  },
+  "62f52d624d063b21": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.883783+00:00"
+  },
+  "21325df37d0495c3": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.884749+00:00"
+  },
+  "d4bc43ef8c8cacdf": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.885742+00:00"
+  },
+  "cda195bda18f9e33": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.886711+00:00"
+  },
+  "daa172b1f557572a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.887679+00:00"
+  },
+  "30701f5fe8f72188": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:13.888900+00:00"
+  },
+  "2cb8198c69691ae6": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:13.889861+00:00"
+  },
+  "058b290be4570111": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded password",
+    "created_at": "2026-04-11T02:01:13.890825+00:00"
+  },
+  "6c1d49d596b92fbf": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:13.891809+00:00"
+  },
+  "2a371ab2096f0eb6": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.892775+00:00"
+  },
+  "063c1244d69df2ab": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.893735+00:00"
+  },
+  "c5964c235c3edefb": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.894954+00:00"
+  },
+  "3bd3be433c813d1d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.895938+00:00"
+  },
+  "c6e4dc948354d636": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.896897+00:00"
+  },
+  "c1ceb615d752cc8e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.897854+00:00"
+  },
+  "e4595ac2d7707ce8": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.898822+00:00"
+  },
+  "fad62184c8d89bcd": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.899794+00:00"
+  },
+  "fd0196216ae66944": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.900783+00:00"
+  },
+  "75091549c5ef96f9": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.901744+00:00"
+  },
+  "538b9756d095f23e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.903068+00:00"
+  },
+  "66801280f7b9f9ff": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.904030+00:00"
+  },
+  "822a2389bf545b96": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.904983+00:00"
+  },
+  "e4e2ef6efa94be56": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.905934+00:00"
+  },
+  "f18d3c49ccb5ab3b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.907150+00:00"
+  },
+  "48491803c4409e81": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.908131+00:00"
+  },
+  "5f0840fc968fb6a7": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.909375+00:00"
+  },
+  "b89c0a9b8a14fcff": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.910340+00:00"
+  },
+  "6a9806f350ec2ae7": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.911311+00:00"
+  },
+  "093f5f42cab6802f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.912280+00:00"
+  },
+  "05350970d178c338": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:13.913233+00:00"
+  },
+  "6a7c7c2952ea88eb": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.914192+00:00"
+  },
+  "170b9af49cb1c2e1": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.915141+00:00"
+  },
+  "f6f6f29a46163ead": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.916092+00:00"
+  },
+  "45d4d77a33e5508c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.917078+00:00"
+  },
+  "bef65660ce9dcde8": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.918037+00:00"
+  },
+  "cf894502955d5ba1": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.919004+00:00"
+  },
+  "e83f9d7353cf1a00": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.919972+00:00"
+  },
+  "47d498cd4e99c094": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.921304+00:00"
+  },
+  "88cb4f7f8175d764": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.922307+00:00"
+  },
+  "3346902b43043c7f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.923307+00:00"
+  },
+  "783e5fd573842470": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.924302+00:00"
+  },
+  "51214f19a03555a2": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.925655+00:00"
+  },
+  "68c9aa1d752a2121": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.926650+00:00"
+  },
+  "ca6fa4319e066372": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.927895+00:00"
+  },
+  "0f5cb8e8a0982ebc": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.928865+00:00"
+  },
+  "6df0055638e611b1": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.929828+00:00"
+  },
+  "6c5d1cdab2cea747": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.930788+00:00"
+  },
+  "a2f3271a389af61d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.931751+00:00"
+  },
+  "a30d1a7245b802b4": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.932705+00:00"
+  },
+  "7c92a5afd3353913": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.933729+00:00"
+  },
+  "f7d9b0d860670c41": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.934725+00:00"
+  },
+  "59b3d63c8e50afbf": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.935726+00:00"
+  },
+  "6476a47d4af0488a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.936961+00:00"
+  },
+  "c49433d97b18a281": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.937932+00:00"
+  },
+  "533ca577e72ce5e4": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.938892+00:00"
+  },
+  "a18c0a192d50241a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.939853+00:00"
+  },
+  "89da94286398b597": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.940838+00:00"
+  },
+  "08d2af9800783098": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.941811+00:00"
+  },
+  "d22a4e90b08b79a7": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.942774+00:00"
+  },
+  "3c13250c0f95ce53": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.943753+00:00"
+  },
+  "8424d5699ed4fad9": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.944744+00:00"
+  },
+  "d1a4e0a52e956762": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.945719+00:00"
+  },
+  "ffc0c392dacfeadc": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.946697+00:00"
+  },
+  "63e57b2dc4f00333": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.947675+00:00"
+  },
+  "c7ed858b810f7b31": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: TODO near sensitive keyword",
+    "created_at": "2026-04-11T02:01:13.948637+00:00"
+  },
+  "c8fba982fe662622": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.949604+00:00"
+  },
+  "dd298eb10b665a4c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.950581+00:00"
+  },
+  "15aa0673e4a914fe": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.951591+00:00"
+  },
+  "1584c273345847ec": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:13.952574+00:00"
+  },
+  "c2607d96797a4f57": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:13.953566+00:00"
+  },
+  "e0492cd38efd09cb": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.954540+00:00"
+  },
+  "6168ec32a9f53183": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.955513+00:00"
+  },
+  "236f8147288ac01a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.956509+00:00"
+  },
+  "be4d3f9d6a54ecbc": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.957528+00:00"
+  },
+  "d9466bce687114f0": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.958532+00:00"
+  },
+  "aceaed520c90d7a4": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.959530+00:00"
+  },
+  "ea6150eb98cc1827": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.960554+00:00"
+  },
+  "d417ae3f62f4dc34": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.961557+00:00"
+  },
+  "a7099f1f82aa1bb2": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.962557+00:00"
+  },
+  "fd0f2857ebdf5ddb": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.963565+00:00"
+  },
+  "fc3bf7d2a6f264e0": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.964561+00:00"
+  },
+  "2fe2d446c41b3549": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.965566+00:00"
+  },
+  "548e6767019f5921": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.966564+00:00"
+  },
+  "83817ad01693e416": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.967999+00:00"
+  },
+  "a48a58009930ded6": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.969012+00:00"
+  },
+  "81931b39a0503e9d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.970231+00:00"
+  },
+  "9b1d573dba12420c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.971254+00:00"
+  },
+  "a8d7f30aad72d6c6": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.972284+00:00"
+  },
+  "09c85ec3a509cc9c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.973314+00:00"
+  },
+  "b1a61b5c6d9d3d3f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.974339+00:00"
+  },
+  "d173414519a9b114": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.975361+00:00"
+  },
+  "e683caaacb1905ad": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:13.976385+00:00"
+  },
+  "08255cd24ba84204": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.977424+00:00"
+  },
+  "813f37340c49c715": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.978452+00:00"
+  },
+  "3df009898c35f2e8": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.979480+00:00"
+  },
+  "8454ab94654604d1": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.980500+00:00"
+  },
+  "04c8f5434697b3fc": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.981532+00:00"
+  },
+  "6e11672df5e7b4e9": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.982560+00:00"
+  },
+  "a3c4a52499254b9b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.983584+00:00"
+  },
+  "f833faf98fb962dd": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.984628+00:00"
+  },
+  "9040d91e26377007": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: eval() usage",
+    "created_at": "2026-04-11T02:01:13.985680+00:00"
+  },
+  "ef37f3b2d25cd5f2": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.986712+00:00"
+  },
+  "7e8eb845ffad5ca7": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.987756+00:00"
+  },
+  "d357d79c35989c3b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.988806+00:00"
+  },
+  "3c3fb7b0f3b96b91": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.989865+00:00"
+  },
+  "1046aeb59a289640": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.990929+00:00"
+  },
+  "b27e6d2cd2013851": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.991997+00:00"
+  },
+  "8902a95c2214552f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.993086+00:00"
+  },
+  "86a5ab64352c69d3": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.994148+00:00"
+  },
+  "d2f8d7e89f9ba7ad": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.995213+00:00"
+  },
+  "aa96a31672ef5666": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.996271+00:00"
+  },
+  "2227bef2bd8379c2": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.997355+00:00"
+  },
+  "96978f8d013ee8c8": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:13.998407+00:00"
+  },
+  "5ebcb5b1b6bbe6d7": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: TODO near sensitive keyword",
+    "created_at": "2026-04-11T02:01:13.999468+00:00"
+  },
+  "070032655863e71b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:14.000523+00:00"
+  },
+  "9ec42f2ffca788fd": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:14.001579+00:00"
+  },
+  "a576489fbef3a082": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:14.002637+00:00"
+  },
+  "f1f8e22dc10498c0": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.003689+00:00"
+  },
+  "56b39ad6afcce645": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:14.004735+00:00"
+  },
+  "f990c67b3e541e13": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:14.005794+00:00"
+  },
+  "31b67a54a5bbb539": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:14.006846+00:00"
+  },
+  "bd3f5a10350284a4": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.007912+00:00"
+  },
+  "eabd6584d245a060": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.008969+00:00"
+  },
+  "39b9b69465b40214": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.010035+00:00"
+  },
+  "620e0f9c316b5dde": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.011116+00:00"
+  },
+  "4f1ea5d8dc41d5c3": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.012171+00:00"
+  },
+  "d067bb014684677a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.013241+00:00"
+  },
+  "fb2e11097d9eae5c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.014302+00:00"
+  },
+  "23aa9789c2d2f00b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.015366+00:00"
+  },
+  "f94458f84358fd35": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.016417+00:00"
+  },
+  "c5c8982d84593013": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.017475+00:00"
+  },
+  "1f42fe4ffd4acf5f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.018530+00:00"
+  },
+  "1887114ca13a46e8": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.019589+00:00"
+  },
+  "138417cb669aec47": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.020654+00:00"
+  },
+  "90dfa84186e32eae": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.021707+00:00"
+  },
+  "6a7a4fdfbc8670ab": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.022766+00:00"
+  },
+  "96d92b64f7024cc2": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.023838+00:00"
+  },
+  "673339cc0f3ee6af": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.024913+00:00"
+  },
+  "a3b308387602738a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.025980+00:00"
+  },
+  "afa977a7b0be6274": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.027046+00:00"
+  },
+  "6458ad21d38508ca": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.028121+00:00"
+  },
+  "cebbf6739ee8526f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.029182+00:00"
+  },
+  "9d9713dbb65e7dde": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.030244+00:00"
+  },
+  "71a1f09e5fbf7b17": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.031303+00:00"
+  },
+  "11961d836b67cafc": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.032366+00:00"
+  },
+  "0878596ded41a116": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.033422+00:00"
+  },
+  "ccb825d6bcb165e4": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.034487+00:00"
+  },
+  "f82195db6c0fff54": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.035548+00:00"
+  },
+  "9964d07e3f32e30b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.036606+00:00"
+  },
+  "b49a4aa1f1afe268": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.037668+00:00"
+  },
+  "c13ba48cf7bfda08": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.038729+00:00"
+  },
+  "40f8bef0f23f8122": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.039799+00:00"
+  },
+  "8016fe0caa6e49c0": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.040866+00:00"
+  },
+  "4a7b6b5d163d1f50": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.041938+00:00"
+  },
+  "ed2c1818b9137173": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.042979+00:00"
+  },
+  "954c96bc97190d86": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.044082+00:00"
+  },
+  "2ee2c64f5b01b07a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.045126+00:00"
+  },
+  "4be3affee6695bd7": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.046176+00:00"
+  },
+  "4215cad1ab1757e6": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.047216+00:00"
+  },
+  "4856b88de468e34c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.048281+00:00"
+  },
+  "3547454e8e7f49b3": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.049317+00:00"
+  },
+  "dfbd31ee082d0832": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.050376+00:00"
+  },
+  "66e074e3ba55bd68": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.051434+00:00"
+  },
+  "24fd214e8d58e3e1": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.052481+00:00"
+  },
+  "256bb97c6ea05e3c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.053549+00:00"
+  },
+  "d86a36d36d9afa85": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.054634+00:00"
+  },
+  "b13903e9a19acc0f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.055719+00:00"
+  },
+  "fc92955a3f8751d4": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.056793+00:00"
+  },
+  "23fa9b52b46b9b1a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.057866+00:00"
+  },
+  "1932af9cfa61f985": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.058950+00:00"
+  },
+  "4c40909f2ed2b624": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.060021+00:00"
+  },
+  "f7f926e89704a597": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.061092+00:00"
+  },
+  "bb2fb177c4f71227": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.062150+00:00"
+  },
+  "2c325c1f12b54222": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.063235+00:00"
+  },
+  "a62907b20b18ee66": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.064319+00:00"
+  },
+  "3adcf94d712ac1a1": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.065395+00:00"
+  },
+  "0cae464862cb49cd": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.066472+00:00"
+  },
+  "172a39f6ebb28484": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.067555+00:00"
+  },
+  "7c69f4107500153f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.068620+00:00"
+  },
+  "5e9212a318a33806": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.069656+00:00"
+  },
+  "0badd9dfe7c3ad58": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.070723+00:00"
+  },
+  "7129857c9be2ed94": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.071763+00:00"
+  },
+  "169261c204705269": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.072830+00:00"
+  },
+  "c61a3e1df341ca23": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.073896+00:00"
+  },
+  "f24590a96d51877d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.074962+00:00"
+  },
+  "c5df598710a6e325": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.076032+00:00"
+  },
+  "3103969e1a9481ee": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.077130+00:00"
+  },
+  "470e594ef65d4e40": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.078204+00:00"
+  },
+  "82ab62ba3a3762aa": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.079275+00:00"
+  },
+  "47c1a1732c708dc6": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.080347+00:00"
+  },
+  "508a26006939fc32": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.081395+00:00"
+  },
+  "da2b90bcde7fba87": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.082468+00:00"
+  },
+  "0a042d3311905038": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.083833+00:00"
+  },
+  "9d4a0ae8a763467f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.084913+00:00"
+  },
+  "f725f38c19e831d9": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.085966+00:00"
+  },
+  "a25758f50409b8c4": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.087019+00:00"
+  },
+  "0ea0ca294952501c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.088406+00:00"
+  },
+  "3a18e5cca40d14bc": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.089470+00:00"
+  },
+  "289b50a875be18ea": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.090516+00:00"
+  },
+  "0796ccc7e30dbb58": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: TODO near sensitive keyword",
+    "created_at": "2026-04-11T02:01:14.091570+00:00"
+  },
+  "18f819e40f4f50c3": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.092616+00:00"
+  },
+  "f7e22ce049148b2f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.093661+00:00"
+  },
+  "c8f1784c401b17e1": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.094971+00:00"
+  },
+  "9737eba10175ac90": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.096024+00:00"
+  },
+  "b2708673850d7d75": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.097080+00:00"
+  },
+  "4147e30b7fbcc59b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.098146+00:00"
+  },
+  "c6f524207a052762": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.099193+00:00"
+  },
+  "61ffe4b000f6cc6e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: TODO near sensitive keyword",
+    "created_at": "2026-04-11T02:01:14.100250+00:00"
+  },
+  "24b0a02ab30a2145": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.101295+00:00"
+  },
+  "47e7431082e8845a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.102344+00:00"
+  },
+  "d3a6d11d95a9ef1f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.103397+00:00"
+  },
+  "0b883c848891d23b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.104443+00:00"
+  },
+  "1ace290cb5f2f501": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.105504+00:00"
+  },
+  "669703add1b46afb": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.106572+00:00"
+  },
+  "d511a986df4f719f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.107629+00:00"
+  },
+  "6d4598f4bdd899e3": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.108680+00:00"
+  },
+  "d84fa3600801ef80": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.109730+00:00"
+  },
+  "f5fd059520b81140": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.110789+00:00"
+  },
+  "8e5d26b779b26b1e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.111859+00:00"
+  },
+  "c41e7f7f5ea7477e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.112915+00:00"
+  },
+  "004df0da7d544c1f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.113973+00:00"
+  },
+  "e55eecafb5e5aee7": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.115069+00:00"
+  },
+  "681118a9a25933e6": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.116115+00:00"
+  },
+  "9f648219d2232c5d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.117175+00:00"
+  },
+  "015a86b3f2aa4a7b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.118263+00:00"
+  },
+  "c28c659314da5862": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.119321+00:00"
+  },
+  "0aad54ae230060d2": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.120375+00:00"
+  },
+  "3acf60b98616b547": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.121448+00:00"
+  },
+  "d5e8c80cbcd1c170": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.122507+00:00"
+  },
+  "c7e15e742d426408": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.123572+00:00"
+  },
+  "1d648141b89c2556": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.124641+00:00"
+  },
+  "e906fb3740f0cf97": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.125711+00:00"
+  },
+  "14375e6a1888326b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.126769+00:00"
+  },
+  "afa8242c96ae1b73": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.127842+00:00"
+  },
+  "8e6d110919fb0958": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.128905+00:00"
+  },
+  "5f822f9b9d420262": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.129977+00:00"
+  },
+  "83f61e96ba852b74": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.131050+00:00"
+  },
+  "88089ea5a6025033": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.132141+00:00"
+  },
+  "a2027383fe5c8fbe": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.133224+00:00"
+  },
+  "9e63b43ab38a3a8e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.134322+00:00"
+  },
+  "33757d0cf78ed685": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.135382+00:00"
+  },
+  "9b0acf8c645be6db": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.136441+00:00"
+  },
+  "2d0e14390776b431": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.137516+00:00"
+  },
+  "1e395f0b0e7713b6": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.138589+00:00"
+  },
+  "010bd6c894876e3d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.139666+00:00"
+  },
+  "e85b89d8e48d894e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.140743+00:00"
+  },
+  "4a8a02d63cf27082": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.141798+00:00"
+  },
+  "813ac7f8a0ad1c91": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.142881+00:00"
+  },
+  "aba1e28b4935fd42": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:14.143969+00:00"
+  },
+  "1a23b6c5504ee255": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.145039+00:00"
+  },
+  "1f1a4c114c2fe656": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.146116+00:00"
+  },
+  "9930a288d4bdbf4c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.147171+00:00"
+  },
+  "8946b9e113765592": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.148235+00:00"
+  },
+  "935bdcb9eca52a11": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.149294+00:00"
+  },
+  "a5c5c496de9f9399": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.150362+00:00"
+  },
+  "78c358249e9a792f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.151427+00:00"
+  },
+  "a0838f3b731ef56c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded password",
+    "created_at": "2026-04-11T02:01:14.152498+00:00"
+  },
+  "0faf8d5ce8313969": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded password",
+    "created_at": "2026-04-11T02:01:14.153851+00:00"
+  },
+  "2e6c0896735ea8dd": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded password",
+    "created_at": "2026-04-11T02:01:14.154949+00:00"
+  },
+  "8c1b52dda625d5e7": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.156014+00:00"
+  },
+  "4fed54988a8a60d1": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.157357+00:00"
+  },
+  "05356cb23fb421ec": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.158541+00:00"
+  },
+  "19aa5fac2d380b84": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.159825+00:00"
+  },
+  "0f7a06c1497d3e21": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.160881+00:00"
+  },
+  "094ce9c60bafaf48": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.161954+00:00"
+  },
+  "ed465ce47380510e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.163225+00:00"
+  },
+  "cc6ee149ea8862f5": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.164288+00:00"
+  },
+  "f23b5f887d1100c9": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.165362+00:00"
+  },
+  "46c03a1618f130da": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.166439+00:00"
+  },
+  "bf04b1c7e5a617e0": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.167500+00:00"
+  },
+  "5d78c3e96498ac1e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.168565+00:00"
+  },
+  "79f7244295787614": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.169630+00:00"
+  },
+  "9c839c0b5a473272": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.170694+00:00"
+  },
+  "c70943b3ebe7d51c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: AWS access key ID",
+    "created_at": "2026-04-11T02:01:14.171759+00:00"
+  },
+  "ba80ab32f6109c42": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded password",
+    "created_at": "2026-04-11T02:01:14.172832+00:00"
+  },
+  "0dc20a8f39119308": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:14.173900+00:00"
+  },
+  "0712db956fd70bb3": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:14.174965+00:00"
+  },
+  "4d5ccf2af0b0f9bd": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.176039+00:00"
+  },
+  "c6f12afbfd1b2966": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: Binding to 0.0.0.0",
+    "created_at": "2026-04-11T02:01:14.177112+00:00"
+  },
+  "5caf248aee82f2dd": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:14.178205+00:00"
+  },
+  "6282d0b1a1782e20": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: Debug mode enabled",
+    "created_at": "2026-04-11T02:01:14.179280+00:00"
+  },
+  "8561f442c80d45a9": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: Debug mode enabled",
+    "created_at": "2026-04-11T02:01:14.180349+00:00"
+  },
+  "f406a7e93c4496f1": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.181418+00:00"
+  },
+  "082bf95f4c07cf39": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.182495+00:00"
+  },
+  "42ea1ac321838a18": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.183579+00:00"
+  },
+  "ac331d2327811a04": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:14.184649+00:00"
+  },
+  "d478f5ec66fe13dc": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.185726+00:00"
+  },
+  "33c34cba8e62e275": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:14.186806+00:00"
+  },
+  "9ec281a403a4861a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:14.187909+00:00"
+  },
+  "67d8aa1054f69c11": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.188978+00:00"
+  },
+  "c8d8ab60bdd27310": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:14.190067+00:00"
+  },
+  "d801eab4cf6aba1e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:14.191164+00:00"
+  },
+  "4071098365720ee2": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.192244+00:00"
+  },
+  "0cf3c8fa7c83f9bd": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:14.193351+00:00"
+  },
+  "3225a6d7912a8ac0": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:14.194432+00:00"
+  },
+  "236a85541e2c2873": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.195529+00:00"
+  },
+  "6ed046baa811637d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.196633+00:00"
+  },
+  "46114480f4e741bb": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.197713+00:00"
+  },
+  "2e0098ebf11ae651": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.198794+00:00"
+  },
+  "6007ab6420c5475c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded password",
+    "created_at": "2026-04-11T02:01:14.199889+00:00"
+  },
+  "fffe4d0eaefbd898": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:14.200972+00:00"
+  },
+  "a58978f46cb9eaf9": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.202094+00:00"
+  },
+  "595eaee5739b7a4d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.203212+00:00"
+  },
+  "e9f87540e18db090": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.204315+00:00"
+  },
+  "dbfcf6dcd2cd72f8": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.205432+00:00"
+  },
+  "54a1e936f9dad7e7": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.206532+00:00"
+  },
+  "76cbea8bf4bbd576": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.207629+00:00"
+  },
+  "31e9f0d21a7a462f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.208740+00:00"
+  },
+  "ee358e3f9898807e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.209821+00:00"
+  },
+  "6a0ed965e45fceda": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded password",
+    "created_at": "2026-04-11T02:01:14.210922+00:00"
+  },
+  "004a0fc5d350656d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:14.212019+00:00"
+  },
+  "39e3ec7a362f3840": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.213116+00:00"
+  },
+  "8e51f54d63e90370": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: Binding to 0.0.0.0",
+    "created_at": "2026-04-11T02:01:14.214215+00:00"
+  },
+  "dbc66f82bd09fd1f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.215297+00:00"
+  },
+  "8ac55504e13224bf": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.216407+00:00"
+  },
+  "8ba6c583ac9779c2": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.217501+00:00"
+  },
+  "120e8931aa881459": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.218593+00:00"
+  },
+  "b3b4441aebd6106c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.219703+00:00"
+  },
+  "9c088aa8d41cd369": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.220793+00:00"
+  },
+  "36e5bb9d291ee4c0": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.221907+00:00"
+  },
+  "3b0aea53289c735c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.222996+00:00"
+  },
+  "1044a5479bd4482f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.224105+00:00"
+  },
+  "c98fadbc92868bb7": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.225213+00:00"
+  },
+  "6292f67dae00e1fe": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.226309+00:00"
+  },
+  "fe2d7a95fd1999dd": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.227396+00:00"
+  },
+  "08c3f32111b6608b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.228499+00:00"
+  },
+  "3323db341a860ca5": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.229592+00:00"
+  },
+  "2ebc3bb8d360eb92": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: TODO near sensitive keyword",
+    "created_at": "2026-04-11T02:01:14.230694+00:00"
+  },
+  "f1d0f7ca870c9ea3": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: TODO near sensitive keyword",
+    "created_at": "2026-04-11T02:01:14.231819+00:00"
+  },
+  "9b41c6b365f84d29": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: TODO near sensitive keyword",
+    "created_at": "2026-04-11T02:01:14.232915+00:00"
+  },
+  "93ece02d4b79581f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.234026+00:00"
+  },
+  "7559153b08a9f5b0": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.235136+00:00"
+  },
+  "d268a3295ffd5d49": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: eval() usage",
+    "created_at": "2026-04-11T02:01:14.236237+00:00"
+  },
+  "81fa0e61f54dc002": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.237358+00:00"
+  },
+  "5462aa09e014dfd9": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: eval() usage",
+    "created_at": "2026-04-11T02:01:14.238475+00:00"
+  },
+  "32a5a7ca9fb6b7b9": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.239591+00:00"
+  },
+  "ae52214908947b58": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.240705+00:00"
+  },
+  "79431293abd7c223": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.241803+00:00"
+  },
+  "1686f529cd612322": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.242915+00:00"
+  },
+  "cfa58c43c0b7aa99": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.244061+00:00"
+  },
+  "763d6882347da3a6": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.245501+00:00"
+  },
+  "96e60ad84e0e6c41": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.246637+00:00"
+  },
+  "1ce90f2fcbea1c5b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.247734+00:00"
+  },
+  "6628c75e8fe1aed7": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:14.248825+00:00"
+  },
+  "211987558caee79c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.249900+00:00"
+  },
+  "366d104fe75f373e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:14.250984+00:00"
+  },
+  "7b98298e4414b53d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:14.252067+00:00"
+  },
+  "ab947b5f6b65b395": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:14.253162+00:00"
+  },
+  "4e26ff1e8c08d7ba": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:14.254245+00:00"
+  },
+  "66e25da197cbe5ec": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:14.255329+00:00"
+  },
+  "975086b58bfa2252": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:14.256411+00:00"
+  },
+  "fe9e5bc55e32d9be": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:14.257498+00:00"
+  },
+  "d285cd10b63c9dc3": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded password",
+    "created_at": "2026-04-11T02:01:14.258590+00:00"
+  },
+  "56b71f4f3e22d579": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded password",
+    "created_at": "2026-04-11T02:01:14.259679+00:00"
+  },
+  "5145c8fd01fe18fa": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:14.260764+00:00"
+  },
+  "049e90488717528d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.261851+00:00"
+  },
+  "90a5574be40a993a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded password",
+    "created_at": "2026-04-11T02:01:14.262932+00:00"
+  },
+  "f6892a31dd6b1604": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.264047+00:00"
+  },
+  "860b9d4b25785956": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.265136+00:00"
+  },
+  "d29ae746e3994733": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.266234+00:00"
+  },
+  "bde6c34b328335b5": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.267356+00:00"
+  },
+  "b893f79102d900da": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.268448+00:00"
+  },
+  "b6866baa93cbbed1": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.269548+00:00"
+  },
+  "58fb14f5606a8574": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.270667+00:00"
+  },
+  "873bf94018164b44": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:14.271784+00:00"
+  },
+  "5cff193a00b2ef87": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:14.272863+00:00"
+  },
+  "ea7512b99293c44e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: @langchain/community",
+    "created_at": "2026-04-11T02:01:14.273978+00:00"
+  },
+  "8d4ee6bd9ab1dbdc": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: @lhci/cli",
+    "created_at": "2026-04-11T02:01:14.275100+00:00"
+  },
+  "a02ec90d1c21ffa5": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: @lhci/utils",
+    "created_at": "2026-04-11T02:01:14.276208+00:00"
+  },
+  "3d48b8f2b1ac8861": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: @puppeteer/browsers",
+    "created_at": "2026-04-11T02:01:14.277353+00:00"
+  },
+  "55e0a0db82b0323f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: @sentry/node",
+    "created_at": "2026-04-11T02:01:14.278451+00:00"
+  },
+  "dfe99f8f71ce615a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: @tootallnate/once",
+    "created_at": "2026-04-11T02:01:14.279562+00:00"
+  },
+  "915c0eac71cd20cb": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: bn.js",
+    "created_at": "2026-04-11T02:01:14.280676+00:00"
+  },
+  "3e00cbe563926b44": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: cookie",
+    "created_at": "2026-04-11T02:01:14.281806+00:00"
+  },
+  "845f5a9327973efa": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: diff",
+    "created_at": "2026-04-11T02:01:14.282895+00:00"
+  },
+  "016e85d783fcd466": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: external-editor",
+    "created_at": "2026-04-11T02:01:14.284020+00:00"
+  },
+  "d9706f8feb48b27a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: fabric",
+    "created_at": "2026-04-11T02:01:14.285151+00:00"
+  },
+  "6e0359a64cd7eb0b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: http-proxy-agent",
+    "created_at": "2026-04-11T02:01:14.286283+00:00"
+  },
+  "2d9edc30ccaa4ea7": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: inquirer",
+    "created_at": "2026-04-11T02:01:14.287395+00:00"
+  },
+  "ecda95eb45fce5ce": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: jest-environment-jsdom",
+    "created_at": "2026-04-11T02:01:14.288526+00:00"
+  },
+  "adc4b0522a6a20cb": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: jsdom",
+    "created_at": "2026-04-11T02:01:14.289644+00:00"
+  },
+  "40c7c0d5f6806b6b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: lighthouse",
+    "created_at": "2026-04-11T02:01:14.290778+00:00"
+  },
+  "9add70ff7798c71b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: lodash-es",
+    "created_at": "2026-04-11T02:01:14.291874+00:00"
+  },
+  "11ff55971ffb3749": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: path-to-regexp",
+    "created_at": "2026-04-11T02:01:14.293008+00:00"
+  },
+  "3f238a8ee5698530": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: preact",
+    "created_at": "2026-04-11T02:01:14.294182+00:00"
+  },
+  "afdace3c037e2de1": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: puppeteer-core",
+    "created_at": "2026-04-11T02:01:14.295286+00:00"
+  },
+  "765cc14f2f0ab4c4": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: serialize-javascript",
+    "created_at": "2026-04-11T02:01:14.296417+00:00"
+  },
+  "fc8c19fe8da742d9": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: socket.io-parser",
+    "created_at": "2026-04-11T02:01:14.297552+00:00"
+  },
+  "30b9e54e9ada7f16": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: storybook",
+    "created_at": "2026-04-11T02:01:14.298698+00:00"
+  },
+  "4fa1e4a35493068a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: tar-fs",
+    "created_at": "2026-04-11T02:01:14.299875+00:00"
+  },
+  "36757946f2d33d17": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: terser-webpack-plugin",
+    "created_at": "2026-04-11T02:01:14.301009+00:00"
+  },
+  "8d791cd851b94d78": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: tmp",
+    "created_at": "2026-04-11T02:01:14.302149+00:00"
+  },
+  "02e99249e4440eb0": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: eval() usage",
+    "created_at": "2026-04-11T02:01:14.303275+00:00"
+  },
+  "a73ddd44c673d5ed": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:14.304410+00:00"
+  },
+  "c4f706c4fb3b1e6e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.305554+00:00"
+  },
+  "f6dc78550aa4c95b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.306702+00:00"
+  },
+  "68a84b62930b58b1": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.307849+00:00"
+  },
+  "726230ff6b1eeba6": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.308980+00:00"
+  },
+  "e6456848dd0af678": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.310116+00:00"
+  },
+  "e1bd6b6883704249": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.311258+00:00"
+  },
+  "11e703fa39615dad": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.312395+00:00"
+  },
+  "a9b4c7bbe9db8b1a": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.313504+00:00"
+  },
+  "272b408eacf34a0c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.314657+00:00"
+  },
+  "0ce321bd13991919": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.315773+00:00"
+  },
+  "45ada6654db9d53d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: DB connection string",
+    "created_at": "2026-04-11T02:01:14.316913+00:00"
+  },
+  "29e7b8cf4383b854": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.318043+00:00"
+  },
+  "d3967b8866530e88": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: TODO near sensitive keyword",
+    "created_at": "2026-04-11T02:01:14.319193+00:00"
+  },
+  "d994774159a8d811": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.320340+00:00"
+  },
+  "dca885277c62e1e7": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.321451+00:00"
+  },
+  "455922d0b87c3bd2": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:14.322598+00:00"
+  },
+  "fe27392e92e6444b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded password",
+    "created_at": "2026-04-11T02:01:14.323760+00:00"
+  },
+  "198666bdf7996f41": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.324903+00:00"
+  },
+  "34049eb1cbd57934": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:14.326028+00:00"
+  },
+  "0b8f1209b6a33487": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.327182+00:00"
+  },
+  "c709bf6ccc08b3b5": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.328331+00:00"
+  },
+  "f7a748ce4f6207db": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.329478+00:00"
+  },
+  "27e4f3de254e266c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.330620+00:00"
+  },
+  "817e3df67d8a3b9c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.331776+00:00"
+  },
+  "9d50861e14964ca7": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.332929+00:00"
+  },
+  "3eab5477ad72d8ca": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T02:01:14.334064+00:00"
+  },
+  "538bf549e927953e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:14.335226+00:00"
+  },
+  "c3f7fcfa481d1d15": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:14.336373+00:00"
+  },
+  "14dd99caab529963": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T02:01:14.337504+00:00"
+  },
+  "b396a757c20b1c99": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T02:01:14.338662+00:00"
+  },
+  "7319cf07c8eed36e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T02:01:14.339860+00:00"
+  },
+  "ac84d7c20bf02d12": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: next-pwa",
+    "created_at": "2026-04-11T02:01:14.341015+00:00"
+  },
+  "2adfcf7b30b93e38": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: rollup-plugin-terser",
+    "created_at": "2026-04-11T02:01:14.342154+00:00"
+  },
+  "0ff70aaf87894597": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: workbox-build",
+    "created_at": "2026-04-11T02:01:14.343309+00:00"
+  },
+  "d54e5fa98c2a8027": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Dependencies] npm vulnerability: workbox-webpack-plugin",
+    "created_at": "2026-04-11T02:01:14.344452+00:00"
+  },
+  "3d52dcab7cc6f578": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.455025+00:00"
+  },
+  "61c0360659d14663": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.456335+00:00"
+  },
+  "d662cea8ea3a9735": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.457528+00:00"
+  },
+  "13c911569352f8b0": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.458681+00:00"
+  },
+  "0e8d6ca3d1d6adf3": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.459831+00:00"
+  },
+  "d947a63669d43b64": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: TODO near sensitive keyword",
+    "created_at": "2026-04-11T03:00:18.460982+00:00"
+  },
+  "1cd2f30a91b02402": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: TODO near sensitive keyword",
+    "created_at": "2026-04-11T03:00:18.462145+00:00"
+  },
+  "35316dd575c6c5ee": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.463291+00:00"
+  },
+  "be5b00d7186c9935": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.464452+00:00"
+  },
+  "59e83adf225b75e2": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.465632+00:00"
+  },
+  "57e752e3e0fbfc1c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.466818+00:00"
+  },
+  "9e410b5288d239e0": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: Binding to 0.0.0.0",
+    "created_at": "2026-04-11T03:00:18.467972+00:00"
+  },
+  "040703c691f7bbce": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: TODO near sensitive keyword",
+    "created_at": "2026-04-11T03:00:18.469120+00:00"
+  },
+  "26f0d8450987ad04": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.470298+00:00"
+  },
+  "862dcac7f740a626": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: TODO near sensitive keyword",
+    "created_at": "2026-04-11T03:00:18.471478+00:00"
+  },
+  "e15b8c3b7f048d3c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.472636+00:00"
+  },
+  "b9887246ba0ff5c7": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.473792+00:00"
+  },
+  "c9b3bda5a6a94694": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.474940+00:00"
+  },
+  "bb8858e4325abd30": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.476231+00:00"
+  },
+  "859b3562eef6be30": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T03:00:18.477422+00:00"
+  },
+  "d8c3188b05f47a3d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: eval() usage",
+    "created_at": "2026-04-11T03:00:18.478569+00:00"
+  },
+  "9125f0b398847729": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.479729+00:00"
+  },
+  "30c3150bd82a5891": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.480879+00:00"
+  },
+  "cb0eb39c434f7195": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T03:00:18.482084+00:00"
+  },
+  "a031f51c9801165d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.483241+00:00"
+  },
+  "3aa583084ed6bf5d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T03:00:18.484395+00:00"
+  },
+  "91c786faa05c4c94": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.485554+00:00"
+  },
+  "8125d4364f1478b5": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.486721+00:00"
+  },
+  "d2f06dc20449ca13": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.487899+00:00"
+  },
+  "370d96f8709a8e2e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: Binding to 0.0.0.0",
+    "created_at": "2026-04-11T03:00:18.489091+00:00"
+  },
+  "ccdb7d803a959b2b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: Debug mode enabled",
+    "created_at": "2026-04-11T03:00:18.490264+00:00"
+  },
+  "74a1423b2c162833": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: Debug mode enabled",
+    "created_at": "2026-04-11T03:00:18.491448+00:00"
+  },
+  "8a58d594d8fe796d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T03:00:18.492601+00:00"
+  },
+  "c812c771838f05cd": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.493784+00:00"
+  },
+  "5f2680c8756b600e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.494996+00:00"
+  },
+  "8688e656ea344314": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.496184+00:00"
+  },
+  "e6380b53da78a2f3": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.497389+00:00"
+  },
+  "7cea1610310da7db": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.498581+00:00"
+  },
+  "42b4d0f64bf26798": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T03:00:18.499766+00:00"
+  },
+  "0f46f80b5a958eab": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.500944+00:00"
+  },
+  "8bb9eb5bede3dac5": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.502143+00:00"
+  },
+  "63e512d4ef55ffb0": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.503328+00:00"
+  },
+  "e9509be2b717c9a8": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.504530+00:00"
+  },
+  "da83ca4dabefacac": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.505718+00:00"
+  },
+  "249ad04e00710392": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.506920+00:00"
+  },
+  "b7afe4c1ef8e8c52": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.508145+00:00"
+  },
+  "0930a0dcc47485c0": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.509303+00:00"
+  },
+  "bb98fd1e2022921e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.510536+00:00"
+  },
+  "0a4a690d24888db4": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.511828+00:00"
+  },
+  "c1d35db20f6000cb": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.512997+00:00"
+  },
+  "e42be30ba8bf6bd0": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.514213+00:00"
+  },
+  "f8097935dad0b5c5": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.515433+00:00"
+  },
+  "7cacec5e26d2eab9": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.516617+00:00"
+  },
+  "4c25176286f85974": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.517807+00:00"
+  },
+  "4e5e364e6c2331e2": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T03:00:18.519014+00:00"
+  },
+  "5e1cde034b25c7e1": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.520199+00:00"
+  },
+  "6662616cddebacb8": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.521411+00:00"
+  },
+  "599f6b5a9ef43c10": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.522614+00:00"
+  },
+  "b81cec45c8995606": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.523769+00:00"
+  },
+  "82ca49ae30a92112": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.524953+00:00"
+  },
+  "adb124859e5e7804": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.526161+00:00"
+  },
+  "0863352619b640ff": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.527323+00:00"
+  },
+  "928e836efea4f67d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.528532+00:00"
+  },
+  "153626c413dca69c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.529701+00:00"
+  },
+  "cd2ed5dbfd130f54": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.530887+00:00"
+  },
+  "e0dfc249129d34a6": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.532096+00:00"
+  },
+  "3600cb9f3e6e9892": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.533257+00:00"
+  },
+  "4dd05560900dd939": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.534443+00:00"
+  },
+  "fb462140c818c16e": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.535648+00:00"
+  },
+  "dcd0ba482350b49b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.536813+00:00"
+  },
+  "dd9a45235dcc2ec4": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.538010+00:00"
+  },
+  "8cae6668935eb176": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.539204+00:00"
+  },
+  "1cbf437e797758a1": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.540361+00:00"
+  },
+  "143d3472e7f61d5b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.541568+00:00"
+  },
+  "48f7daae90f097dd": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.542763+00:00"
+  },
+  "003ef81f509c984d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T03:00:18.543936+00:00"
+  },
+  "7d2fe385f12de84d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T03:00:18.545144+00:00"
+  },
+  "6659623887addc94": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T03:00:18.546303+00:00"
+  },
+  "35fd8e1ce4dd37f5": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.547519+00:00"
+  },
+  "8d54ae05d724dda2": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.548723+00:00"
+  },
+  "11bcf463becabc75": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.549891+00:00"
+  },
+  "5ee85f435fcbf7ae": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.551096+00:00"
+  },
+  "15d3a1092b257db5": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.552265+00:00"
+  },
+  "262f1c2c68efae6d": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.553464+00:00"
+  },
+  "745b82eabf31f883": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T03:00:18.554673+00:00"
+  },
+  "ca05d5478a2f24b9": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T03:00:18.555842+00:00"
+  },
+  "515bb88f995b708f": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Secret detected: Hardcoded secret",
+    "created_at": "2026-04-11T03:00:18.557050+00:00"
+  },
+  "f505ef4665d1625c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: dangerouslySetInnerHTML",
+    "created_at": "2026-04-11T03:00:18.558253+00:00"
+  },
+  "a60a0239c832423b": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: console.log in production",
+    "created_at": "2026-04-11T03:00:18.559464+00:00"
+  },
+  "3277f69d15fe7396": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.560661+00:00"
+  },
+  "0601953ce8d057ed": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.561873+00:00"
+  },
+  "6bd64f0fe79be4e6": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.563089+00:00"
+  },
+  "b26363c2337e6a7c": {
+    "linear_id": "dry-run",
+    "title": "[Pi-SEO][Security] Dangerous pattern: print() in production (Python)",
+    "created_at": "2026-04-11T03:00:18.564288+00:00"
   }
 }

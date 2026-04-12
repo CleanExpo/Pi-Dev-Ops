@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pi-CEO · Command Centre</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #0A0A0A;
+    --surface: #111111;
+    --surface2:#161616;
+    --border:  #2A2727;
+    --text:    #F0EDE8;
+    --cream:   #E8E4DE;
+    --muted:   #C8C5C0;
+    --dim:     #A8A5A0;
+    --chrome:  #888480;
+    --orange:  #E8751A;
+    --green:   #4ADE80;
+    --red:     #F87171;
+    --yellow:  #FFD166;
+    --blue:    #6B8CFF;
+  }
+
+  html { font-size: 14px; }
+
+  body {
+    font-family: 'Barlow', sans-serif;
+    background: var(--bg);
+    /* Ambient warm glow — same as Pi-CEO landing */
+    background-image: radial-gradient(ellipse at 0% 0%, rgba(232,117,26,0.045) 0%, transparent 45%);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Refresh progress line (top of page) ─────────────────────────── */
+  #refresh-bar {
+    height: 1px;
+    background: var(--orange);
+    position: fixed; top: 0; left: 0;
+    transition: width 1s linear;
+    z-index: 300;
+    opacity: 0.6;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     HEADER — same identity as Pi-CEO app nav
+  ══════════════════════════════════════════════════════════════════ */
+  header {
+    position: sticky; top: 0; z-index: 100;
+    height: 52px;
+    display: flex; align-items: stretch; justify-content: space-between;
+    /* Warm gradient — references landing hero */
+    background: linear-gradient(to bottom, rgba(232,117,26,0.03) 0%, transparent 100%), var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  /* Orange accent underline — matches app nav */
+  header::after {
+    content: '';
+    position: absolute; bottom: -1px; left: 0; right: 0; height: 1px;
+    background: linear-gradient(to right, var(--orange) 0%, rgba(232,117,26,0.25) 30%, transparent 60%);
+    z-index: 1;
+  }
+
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 24px;
+    border-right: 1px solid var(--border);
+    text-decoration: none;
+  }
+  .logo-pi {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 18px; color: var(--orange); letter-spacing: 0.15em; line-height: 1;
+  }
+  .logo-wordmark { display: flex; flex-direction: column; gap: 1px; }
+  .logo-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px; color: var(--text); letter-spacing: 0.1em; line-height: 1;
+  }
+  .logo-sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px; color: var(--chrome);
+    letter-spacing: 0.22em; text-transform: uppercase;
+  }
+
+  .header-right { display: flex; align-items: stretch; }
+  .hcell {
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 20px;
+    border-left: 1px solid var(--border);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  #clock { font-size: 13px; color: var(--muted); letter-spacing: 0.08em; }
+  .live-badge {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 10px; color: var(--green);
+    text-transform: uppercase; letter-spacing: 0.2em;
+  }
+  .live-dot {
+    width: 5px; height: 5px; border-radius: 50%; background: var(--green);
+    animation: livePulse 2s ease-in-out infinite;
+  }
+  @keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.75)} }
+
+  /* ══════════════════════════════════════════════════════════════════
+     MAIN CONTENT
+  ══════════════════════════════════════════════════════════════════ */
+  main { padding: 0; max-width: 100%; }
+
+  /* ── Hairline grid — Bloomberg terminal panel approach ───────────── */
+  /* Outer wrapper has border-color as bg; children fill to create hairlines */
+  .panel-row {
+    display: grid;
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .panel-row.cols-4 { grid-template-columns: repeat(4, 1fr); }
+  .panel-row.cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .panel-row.cols-3-1 { grid-template-columns: 1fr 1fr 2fr; } /* cost row */
+  .panel-row.cols-1 { grid-template-columns: 1fr; }
+
+  .panel {
+    background: var(--surface);
+    padding: 18px 20px;
+  }
+
+  /* Spacing between panel-row groups */
+  .section { border-top: 24px solid var(--bg); }
+
+  /* ── Panel label ─────────────────────────────────────────────────── */
+  .panel-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.25em;
+    color: var(--chrome);
+    margin-bottom: 14px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .panel-label .accent-dot {
+    display: inline-block; width: 4px; height: 4px; border-radius: 50%;
+    background: var(--orange); margin-right: 6px; vertical-align: middle;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     KPI TILES — large Bebas Neue values, Bloomberg-style
+  ══════════════════════════════════════════════════════════════════ */
+  .kpi-accent { height: 2px; width: 28px; margin-bottom: 12px; }
+  .kpi-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 56px; line-height: 1;
+    letter-spacing: 0.03em;
+    color: var(--text);
+  }
+  .kpi-val.red    { color: var(--red); }
+  .kpi-val.orange { color: var(--orange); }
+  .kpi-val.green  { color: var(--green); }
+  .kpi-sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px; color: var(--chrome);
+    text-transform: uppercase; letter-spacing: 0.18em;
+    margin-top: 5px;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     STATUS BADGES — monospace, sharp, no rounded corners
+  ══════════════════════════════════════════════════════════════════ */
+  .badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.18em;
+    padding: 2px 7px;
+    border: 1px solid;
+    display: inline-flex; align-items: center; gap: 4px;
+    white-space: nowrap;
+  }
+  .badge-dot { width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; }
+
+  .b-ok     { color: var(--green);  border-color: rgba(74,222,128,0.35);  background: rgba(74,222,128,0.07); }
+  .b-ok   .badge-dot { background: var(--green); }
+  .b-down   { color: var(--red);    border-color: rgba(248,113,113,0.35); background: rgba(248,113,113,0.07); }
+  .b-down .badge-dot { background: var(--red); animation: livePulse 1.2s ease-in-out infinite; }
+  .b-warn   { color: var(--yellow); border-color: rgba(255,209,102,0.35); background: rgba(255,209,102,0.07); }
+  .b-warn .badge-dot { background: var(--yellow); }
+  .b-info   { color: var(--blue);   border-color: rgba(107,140,255,0.35); background: rgba(107,140,255,0.07); }
+  .b-info .badge-dot { background: var(--blue); }
+  .b-ok-run   { color: var(--green);  border-color: rgba(74,222,128,0.35);  background: rgba(74,222,128,0.07); }
+  .b-ok-run .badge-dot { background: var(--green); }
+  .b-err-run  { color: var(--red);    border-color: rgba(248,113,113,0.35); background: rgba(248,113,113,0.07); }
+  .b-err-run .badge-dot { background: var(--red); }
+  .b-skip-run { color: var(--yellow); border-color: rgba(255,209,102,0.35); background: rgba(255,209,102,0.07); }
+  .b-skip-run .badge-dot { background: var(--yellow); }
+
+  /* ══════════════════════════════════════════════════════════════════
+     DATA ROWS — heartbeat, runs, alerts
+  ══════════════════════════════════════════════════════════════════ */
+  .data-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 0; gap: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .data-row:last-child { border-bottom: none; }
+  .data-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.2;
+  }
+  .data-meta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: var(--chrome); margin-top: 2px;
+  }
+  .data-right { text-align: right; flex-shrink: 0; }
+  .data-val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: var(--dim); margin-top: 3px;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     TRIAGE BARS — thin 1px fills
+  ══════════════════════════════════════════════════════════════════ */
+  .triage-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+  }
+  .triage-row:last-child { border-bottom: none; }
+  .triage-name {
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+    color: var(--chrome); text-transform: uppercase; letter-spacing: 0.1em;
+    width: 68px; flex-shrink: 0;
+  }
+  .triage-track {
+    flex: 1; height: 2px; background: var(--border); overflow: hidden;
+  }
+  .triage-fill { height: 100%; transition: width .7s cubic-bezier(.4,0,.2,1); }
+  .fill-critical { background: var(--red); }
+  .fill-action   { background: var(--yellow); }
+  .fill-fyi      { background: var(--blue); }
+  .fill-skip     { background: var(--chrome); }
+  .fill-untriaged{ background: var(--orange); }
+  .triage-num {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+    color: var(--muted); width: 24px; text-align: right;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     COST ROW — orange accent value
+  ══════════════════════════════════════════════════════════════════ */
+  .cost-val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 20px; color: var(--orange);
+    letter-spacing: 0.04em; margin-top: 6px;
+  }
+  .cost-val.blue { color: var(--blue); }
+
+  /* ══════════════════════════════════════════════════════════════════
+     PORTFOLIO GRID
+  ══════════════════════════════════════════════════════════════════ */
+  .portfolio-header {
+    padding: 11px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface);
+  }
+  .portfolio-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.25em; color: var(--chrome);
+  }
+  .portfolio-label .pi { color: var(--orange); margin-right: 5px; font-size: 11px; }
+
+  .proj-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 1px; background: var(--border);
+  }
+  .proj-card {
+    position: relative; background: var(--surface); cursor: pointer;
+    padding: 24px 22px 20px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    min-height: 120px;
+    transition: background 0.15s ease;
+    border-top: 2px solid transparent;
+  }
+  .proj-card:hover { background: #161616; }
+
+  /* Per-project accent colours */
+  .proj-card[data-id="pi-ceo"]           { border-top-color: var(--orange); }
+  .proj-card[data-id="pi-seo"]           { border-top-color: var(--blue); }
+  .proj-card[data-id="restoreassist"]    { border-top-color: var(--yellow); }
+  .proj-card[data-id="ccw-crm"]         { border-top-color: var(--green); }
+  .proj-card[data-id="disaster-recovery"]{ border-top-color: var(--red); }
+  .proj-card[data-id="pi-devops"]        { border-top-color: var(--chrome); }
+
+  .proj-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px; line-height: 1; letter-spacing: 0.04em;
+    color: var(--text);
+  }
+  .proj-meta {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 14px;
+  }
+  .proj-cat {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.2em;
+    color: var(--chrome);
+  }
+  .proj-status-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 5px var(--green);
+  }
+  .proj-status-dot.idle   { background: var(--chrome); box-shadow: none; }
+  .proj-status-dot.warn   { background: var(--yellow); box-shadow: 0 0 5px var(--yellow); }
+
+  /* ══════════════════════════════════════════════════════════════════
+     EMPTY + ERROR STATES
+  ══════════════════════════════════════════════════════════════════ */
+  .empty-state {
+    padding: 28px 12px; text-align: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; color: var(--chrome);
+    text-transform: uppercase; letter-spacing: 0.15em;
+    line-height: 1.6;
+  }
+  .empty-ok { color: var(--green); }
+
+  #error-banner {
+    display: none;
+    background: rgba(248,113,113,0.06);
+    border: 1px solid rgba(248,113,113,0.3);
+    color: var(--red);
+    padding: 8px 20px; margin: 1px 0;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 0.1em;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     RESPONSIVE
+  ══════════════════════════════════════════════════════════════════ */
+  @media(max-width: 900px) {
+    .panel-row.cols-4  { grid-template-columns: repeat(2,1fr); }
+    .panel-row.cols-3-1{ grid-template-columns: 1fr 1fr; }
+    .proj-grid         { grid-template-columns: repeat(2,1fr); }
+  }
+  @media(max-width: 600px) {
+    .panel-row.cols-4,
+    .panel-row.cols-2,
+    .panel-row.cols-3-1 { grid-template-columns: 1fr; }
+    .proj-grid          { grid-template-columns: 1fr; }
+    .logo-sub           { display: none; }
+  }
+  </style>
+</head>
+<body>
+
+<!-- Refresh progress line -->
+<div id="refresh-bar" style="width:100%"></div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════════════════════════════ -->
+<header>
+  <div class="logo">
+    <span class="logo-pi">π</span>
+    <div class="logo-wordmark">
+      <span class="logo-name">PI CEO</span>
+      <span class="logo-sub">Command Centre</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="hcell"><span id="clock">--:--:--</span></div>
+    <div class="hcell"><span class="live-badge"><span class="live-dot"></span>Live</span></div>
+  </div>
+</header>
+
+<!-- Error banner (outside main grid) -->
+<div id="error-banner"></div>
+
+<main>
+
+  <!-- ── KPI ROW ──────────────────────────────────────────────────────── -->
+  <div class="panel-row cols-4">
+
+    <div class="panel">
+      <div class="kpi-accent" style="background:var(--orange)"></div>
+      <div class="panel-label">Services Online</div>
+      <div class="kpi-val" id="kpi-services">—</div>
+      <div class="kpi-sub">Monitored endpoints</div>
+    </div>
+
+    <div class="panel">
+      <div class="kpi-accent" style="background:var(--red)"></div>
+      <div class="panel-label">Critical Issues</div>
+      <div class="kpi-val red" id="kpi-critical">—</div>
+      <div class="kpi-sub">Need immediate action</div>
+    </div>
+
+    <div class="panel">
+      <div class="kpi-accent" style="background:var(--yellow)"></div>
+      <div class="panel-label">Triage Queue</div>
+      <div class="kpi-val orange" id="kpi-untriaged">—</div>
+      <div class="kpi-sub">Awaiting review</div>
+    </div>
+
+    <div class="panel">
+      <div class="kpi-accent" style="background:var(--green)"></div>
+      <div class="panel-label">Workflow Runs</div>
+      <div class="kpi-val" id="kpi-runs">—</div>
+      <div class="kpi-sub">Last 24 hours</div>
+    </div>
+
+  </div><!-- /KPI row -->
+
+  <!-- ── HEARTBEAT + TRIAGE ──────────────────────────────────────────── -->
+  <div class="panel-row cols-2 section">
+
+    <div class="panel">
+      <div class="panel-label">
+        <span><span class="accent-dot"></span>Service Heartbeat</span>
+        <span id="heartbeat-badge"></span>
+      </div>
+      <div id="heartbeat-list">
+        <div class="empty-state">Waiting for first heartbeat cycle</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label">
+        <span>Triage Breakdown</span>
+        <span id="triage-total" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--chrome)"></span>
+      </div>
+      <div id="triage-list">
+        <div class="empty-state">Waiting for first polling cycle</div>
+      </div>
+    </div>
+
+  </div><!-- /heartbeat + triage -->
+
+  <!-- ── WORKFLOW RUNS + ACTIVE ALERTS ───────────────────────────────── -->
+  <div class="panel-row cols-2 section">
+
+    <div class="panel">
+      <div class="panel-label">Recent Workflow Runs</div>
+      <div id="runs-list">
+        <div class="empty-state">No workflow runs logged yet</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label">
+        <span>Active Alerts</span>
+        <span id="alerts-unsent" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--red)"></span>
+      </div>
+      <div id="alerts-list">
+        <div class="empty-state empty-ok">No active alerts</div>
+      </div>
+    </div>
+
+  </div><!-- /runs + alerts -->
+
+  <!-- ── CLAUDE API COSTS ─────────────────────────────────────────────── -->
+  <div class="panel-row cols-3-1 section">
+
+    <div class="panel" style="border-left: 2px solid var(--orange)">
+      <div class="panel-label">Claude API · Today</div>
+      <div class="cost-val" id="kpi-cost-today">$0.000000</div>
+      <div class="kpi-sub" style="margin-top:6px">USD spent today</div>
+    </div>
+
+    <div class="panel" style="border-left: 2px solid var(--blue)">
+      <div class="panel-label">Tokens · Today</div>
+      <div class="cost-val blue" id="kpi-tokens-today">0</div>
+      <div class="kpi-sub" style="margin-top:6px">Total tokens consumed</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label">
+        <span>Recent Claude Calls</span>
+        <span id="claude-model-badge" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--chrome)"></span>
+      </div>
+      <div id="claude-calls-list">
+        <div class="empty-state">No Claude API calls yet — triggers on Critical / Action items</div>
+      </div>
+    </div>
+
+  </div><!-- /claude costs -->
+
+  <!-- ── QUALITY GATE + ESCALATIONS ──────────────────────────────────────── -->
+  <div class="panel-row cols-2 section">
+
+    <div class="panel">
+      <div class="panel-label">
+        <span><span class="accent-dot" style="background:var(--green)"></span>Quality Gate</span>
+        <span id="gate-pass-rate" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--chrome)"></span>
+      </div>
+      <div id="gate-list">
+        <div class="empty-state">No gate checks logged yet — triggers on /ship</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label">
+        <span><span class="accent-dot" style="background:var(--red)"></span>Alert Escalations</span>
+        <span id="escalation-badge"></span>
+      </div>
+      <div id="escalation-list">
+        <div class="empty-state empty-ok">No unacknowledged alerts</div>
+      </div>
+    </div>
+
+  </div><!-- /gate + escalations -->
+
+  <!-- ── PORTFOLIO ─────────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="portfolio-header">
+      <span class="portfolio-label"><span class="pi">π</span>Unite-Group Portfolio</span>
+      <span class="portfolio-label">6 active projects</span>
+    </div>
+    <div class="proj-grid" id="portfolio-grid">
+      <div class="proj-card" data-id="pi-ceo">
+        <div class="proj-name">Pi-CEO</div>
+        <div class="proj-meta">
+          <span class="proj-cat">AI Ops</span>
+          <span class="proj-status-dot"></span>
+        </div>
+      </div>
+      <div class="proj-card" data-id="pi-seo">
+        <div class="proj-name">Pi-SEO</div>
+        <div class="proj-meta">
+          <span class="proj-cat">SEO</span>
+          <span class="proj-status-dot"></span>
+        </div>
+      </div>
+      <div class="proj-card" data-id="restoreassist">
+        <div class="proj-name">RestoreAssist</div>
+        <div class="proj-meta">
+          <span class="proj-cat">Restoration</span>
+          <span class="proj-status-dot idle"></span>
+        </div>
+      </div>
+      <div class="proj-card" data-id="ccw-crm">
+        <div class="proj-name">CCW-CRM</div>
+        <div class="proj-meta">
+          <span class="proj-cat">CRM</span>
+          <span class="proj-status-dot idle"></span>
+        </div>
+      </div>
+      <div class="proj-card" data-id="disaster-recovery">
+        <div class="proj-name">Disaster Recovery</div>
+        <div class="proj-meta">
+          <span class="proj-cat">DR</span>
+          <span class="proj-status-dot idle"></span>
+        </div>
+      </div>
+      <div class="proj-card" data-id="pi-devops">
+        <div class="proj-name">Pi Dev-Ops</div>
+        <div class="proj-meta">
+          <span class="proj-cat">DevOps</span>
+          <span class="proj-status-dot"></span>
+        </div>
+      </div>
+    </div>
+  </div><!-- /portfolio -->
+
+</main>
+
+
+<!-- ══════════════════════════════════════════════════════════════════
+     JAVASCRIPT — data fetch + render (logic unchanged, rendering updated)
+══════════════════════════════════════════════════════════════════ -->
+<script>
+  const SUPABASE_URL = 'https://zbryrmxmgfmslqzizsto.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpicnlybXhtZ2Ztc2xxeml6c3RvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1MjY2MDYsImV4cCI6MjA5MTEwMjYwNn0.-MsMY6zDY0ASRuGrpSmiqTqpRtv7Rs8hU5CMezYP9ag';
+  const REFRESH_SEC = 30;
+  let countdown = REFRESH_SEC;
+
+  async function sb(table, params = '') {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    });
+    if (!r.ok) throw new Error(`${table}: ${r.status}`);
+    return r.json();
+  }
+
+  /* Clock */
+  function tick() {
+    document.getElementById('clock').textContent =
+      new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+  setInterval(tick, 1000); tick();
+
+  /* Refresh progress bar */
+  const bar = document.getElementById('refresh-bar');
+  setInterval(() => {
+    countdown--;
+    bar.style.width = (countdown / REFRESH_SEC * 100) + '%';
+    if (countdown <= 0) { countdown = REFRESH_SEC; bar.style.width = '100%'; loadAll(); }
+  }, 1000);
+
+  /* Helpers */
+  function timeAgo(ts) {
+    if (!ts) return '';
+    const d = Math.floor((Date.now() - new Date(ts)) / 1000);
+    if (d < 60)    return `${d}s ago`;
+    if (d < 3600)  return `${Math.floor(d / 60)}m ago`;
+    if (d < 86400) return `${Math.floor(d / 3600)}h ago`;
+    return `${Math.floor(d / 86400)}d ago`;
+  }
+
+  function badge(s) {
+    const cls = s === 'OK' ? 'b-ok' : s === 'DOWN' ? 'b-down' : 'b-warn';
+    return `<span class="badge ${cls}"><span class="badge-dot"></span>${s}</span>`;
+  }
+
+  function runBadge(s) {
+    const cls = { success: 'b-ok-run', error: 'b-err-run', skipped: 'b-skip-run' }[s] || 'b-skip-run';
+    return `<span class="badge ${cls}"><span class="badge-dot"></span>${s}</span>`;
+  }
+
+  /* Render: Service Heartbeat */
+  function renderHeartbeat(rows) {
+    const el    = document.getElementById('heartbeat-list');
+    const bdg   = document.getElementById('heartbeat-badge');
+    const kpi   = document.getElementById('kpi-services');
+    if (!rows.length) { el.innerHTML = '<div class="empty-state">Waiting for first heartbeat cycle</div>'; return; }
+
+    const latest = {};
+    rows.forEach(r => {
+      if (!latest[r.service] || new Date(r.checked_at) > new Date(latest[r.service].checked_at))
+        latest[r.service] = r;
+    });
+    const svcs = Object.values(latest);
+    const down = svcs.filter(s => s.status === 'DOWN').length;
+    const ok   = svcs.filter(s => s.status === 'OK').length;
+
+    kpi.textContent = `${ok}/${svcs.length}`;
+    bdg.innerHTML = down > 0
+      ? `<span class="badge b-down"><span class="badge-dot"></span>${down} Down</span>`
+      : `<span class="badge b-ok"><span class="badge-dot"></span>All OK</span>`;
+
+    el.innerHTML = svcs.map(s => `
+      <div class="data-row">
+        <div>
+          <div class="data-name">${s.service}</div>
+          <div class="data-meta">${timeAgo(s.checked_at)}</div>
+        </div>
+        <div class="data-right">
+          ${badge(s.status)}
+          <div class="data-val">${s.latency_ms != null ? s.latency_ms + 'ms' : ''}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  /* Render: Triage Breakdown */
+  function renderTriage(rows) {
+    const el     = document.getElementById('triage-list');
+    const totEl  = document.getElementById('triage-total');
+    const kpiC   = document.getElementById('kpi-critical');
+    const kpiU   = document.getElementById('kpi-untriaged');
+
+    const c = { Critical: 0, Action: 0, FYI: 0, Skip: 0, Untriaged: 0 };
+    rows.forEach(r => {
+      if (!r.triage_label) c.Untriaged++;
+      else if (c[r.triage_label] !== undefined) c[r.triage_label]++;
+    });
+    const total = rows.length;
+    kpiC.textContent = c.Critical;
+    kpiU.textContent = c.Untriaged;
+    totEl.textContent = `${total} issues`;
+
+    if (!total) { el.innerHTML = '<div class="empty-state">Waiting for first polling cycle</div>'; return; }
+
+    el.innerHTML = [
+      { name: 'Critical',  key: 'Critical',  cls: 'fill-critical' },
+      { name: 'Action',    key: 'Action',    cls: 'fill-action'   },
+      { name: 'FYI',       key: 'FYI',       cls: 'fill-fyi'      },
+      { name: 'Skip',      key: 'Skip',      cls: 'fill-skip'     },
+      { name: 'Untriaged', key: 'Untriaged', cls: 'fill-untriaged'},
+    ].map(l => {
+      const pct = total ? Math.round(c[l.key] / total * 100) : 0;
+      return `<div class="triage-row">
+        <span class="triage-name">${l.name}</span>
+        <div class="triage-track"><div class="triage-fill ${l.cls}" style="width:${pct}%"></div></div>
+        <span class="triage-num">${c[l.key]}</span>
+      </div>`;
+    }).join('');
+  }
+
+  /* Render: Workflow Runs */
+  function renderRuns(rows) {
+    const el  = document.getElementById('runs-list');
+    const kpi = document.getElementById('kpi-runs');
+    const cutoff = Date.now() - 86400000;
+    kpi.textContent = rows.filter(r => new Date(r.run_at) > cutoff).length;
+    if (!rows.length) { el.innerHTML = '<div class="empty-state">No workflow runs logged yet</div>'; return; }
+    el.innerHTML = rows.slice(0, 7).map(r => `
+      <div class="data-row">
+        <div>
+          <div class="data-name">${r.workflow_name || '—'}</div>
+          <div class="data-meta">${timeAgo(r.run_at)} · ${r.trigger_type || 'schedule'}</div>
+        </div>
+        <div class="data-right">
+          ${runBadge(r.status)}
+          <div class="data-val">${r.items_processed != null ? r.items_processed + ' items' : ''}${r.duration_ms != null ? ' · ' + r.duration_ms + 'ms' : ''}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  /* Render: Active Alerts */
+  function renderAlerts(rows) {
+    const el      = document.getElementById('alerts-list');
+    const unsentEl = document.getElementById('alerts-unsent');
+    const unsent  = rows.filter(r => !r.telegram_sent);
+    unsentEl.textContent = unsent.length ? `${unsent.length} unsent` : '';
+
+    const active = rows.filter(r => r.triage_label === 'Critical' || r.triage_label === 'Action');
+    if (!active.length) {
+      el.innerHTML = '<div class="empty-state empty-ok">No active alerts</div>';
+      return;
+    }
+    el.innerHTML = active.slice(0, 6).map(r => {
+      const cls = r.triage_label === 'Critical' ? 'b-down' : 'b-warn';
+      return `<div class="data-row">
+        <div>
+          <div class="data-name">${r.issue_title || '—'}</div>
+          <div class="data-meta">${r.team_name || ''} · ${timeAgo(r.created_at)} · ${r.telegram_sent ? 'sent' : 'queued'}</div>
+        </div>
+        <span class="badge ${cls}"><span class="badge-dot"></span>${r.triage_label}</span>
+      </div>`;
+    }).join('');
+  }
+
+  /* Render: Claude API Costs */
+  function renderClaudeCosts(rows) {
+    const listEl     = document.getElementById('claude-calls-list');
+    const kpiCost    = document.getElementById('kpi-cost-today');
+    const kpiTok     = document.getElementById('kpi-tokens-today');
+    const modelBadge = document.getElementById('claude-model-badge');
+
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const today      = rows.filter(r => new Date(r.called_at) >= todayStart);
+    const totalCost  = today.reduce((s, r) => s + parseFloat(r.cost_usd || 0), 0);
+    const totalTok   = today.reduce((s, r) => s + (r.input_tokens || 0) + (r.output_tokens || 0), 0);
+
+    kpiCost.textContent = '$' + totalCost.toFixed(6);
+    kpiTok.textContent  = totalTok.toLocaleString();
+    if (rows[0]?.model) modelBadge.textContent = rows[0].model;
+
+    if (!rows.length) {
+      listEl.innerHTML = '<div class="empty-state">No Claude API calls yet — triggers on Critical / Action items</div>';
+      return;
+    }
+    listEl.innerHTML = rows.slice(0, 5).map(r => `
+      <div class="data-row">
+        <div>
+          <div class="data-name">${r.purpose || r.workflow_name || '—'}</div>
+          <div class="data-meta">${timeAgo(r.called_at)} · in:${r.input_tokens || 0} / out:${r.output_tokens || 0} tok</div>
+        </div>
+        <div class="data-right">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--orange)">$${parseFloat(r.cost_usd || 0).toFixed(6)}</div>
+          <div class="data-val">${r.model ? r.model.replace('claude-', '').split('-20')[0] : ''}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  /* Render: Quality Gate (RA-651) */
+  function renderGateChecks(rows) {
+    const el      = document.getElementById('gate-list');
+    const rateEl  = document.getElementById('gate-pass-rate');
+    if (!rows.length) { el.innerHTML = '<div class="empty-state">No gate checks logged yet — triggers on /ship</div>'; return; }
+    const passed  = rows.filter(r => r.all_passed).length;
+    const total   = rows.length;
+    const pct     = Math.round(passed / total * 100);
+    rateEl.textContent = `${pct}% pass rate (${passed}/${total})`;
+    el.innerHTML = rows.slice(0, 6).map(r => {
+      const cls = r.all_passed ? 'b-ok' : 'b-down';
+      const score = r.review_score != null ? r.review_score.toFixed(1) : '—';
+      return `<div class="data-row">
+        <div>
+          <div class="data-name">${r.pipeline_id || '—'}</div>
+          <div class="data-meta">${timeAgo(r.checked_at)} · score ${score}</div>
+        </div>
+        <span class="badge ${cls}"><span class="badge-dot"></span>${r.all_passed ? 'PASS' : 'FAIL'}</span>
+      </div>`;
+    }).join('');
+  }
+
+  /* Render: Alert Escalations (RA-633) */
+  function renderEscalations(rows) {
+    const el  = document.getElementById('escalation-list');
+    const bdg = document.getElementById('escalation-badge');
+    const unacked = rows.filter(r => !r.acked && !r.escalated);
+    if (unacked.length) {
+      bdg.innerHTML = `<span class="badge b-down"><span class="badge-dot"></span>${unacked.length} unacked</span>`;
+    } else {
+      bdg.innerHTML = '';
+    }
+    const active = rows.filter(r => !r.acked).slice(0, 6);
+    if (!active.length) {
+      el.innerHTML = '<div class="empty-state empty-ok">No unacknowledged alerts</div>';
+      return;
+    }
+    el.innerHTML = active.map(r => {
+      const cls = r.escalated ? 'b-down' : 'b-warn';
+      const label = r.escalated ? 'ESCALATED' : 'SENT';
+      return `<div class="data-row">
+        <div>
+          <div class="data-name">${r.issue_title || '—'}</div>
+          <div class="data-meta">${r.project_id || ''} · ${timeAgo(r.telegram_sent_at)} · ${r.linear_ticket || ''}</div>
+        </div>
+        <span class="badge ${cls}"><span class="badge-dot"></span>${label}</span>
+      </div>`;
+    }).join('');
+  }
+
+  /* Main load */
+  async function loadAll() {
+    const errEl = document.getElementById('error-banner');
+    errEl.style.display = 'none';
+    try {
+      const [hb, triage, runs, claudeCosts, gateChecks, escalations] = await Promise.all([
+        sb('heartbeat_log',      'order=checked_at.desc&limit=50'),
+        sb('triage_log',         'order=created_at.desc&limit=200'),
+        sb('workflow_runs',      'order=run_at.desc&limit=20'),
+        sb('claude_api_costs',   'order=called_at.desc&limit=20'),
+        sb('gate_checks',        'order=checked_at.desc&limit=30'),
+        sb('alert_escalations',  'order=created_at.desc&limit=20'),
+      ]);
+      renderHeartbeat(hb);
+      renderTriage(triage);
+      renderRuns(runs);
+      renderAlerts(triage);
+      renderClaudeCosts(claudeCosts);
+      renderGateChecks(gateChecks);
+      renderEscalations(escalations);
+    } catch (e) {
+      errEl.textContent = 'ERROR: ' + e.message;
+      errEl.style.display = 'block';
+    }
+  }
+
+  loadAll();
+</script>
+</body>
+</html>

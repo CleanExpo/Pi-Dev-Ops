@@ -131,8 +131,54 @@ SCAN_WORKSPACE_ROOT  = os.environ.get("SCAN_WORKSPACE_ROOT",
 SCAN_RESULTS_DIR     = os.environ.get("SCAN_RESULTS_DIR",
                            os.path.join(os.path.dirname(__file__), "..", "..", ".harness", "scan-results"))
 
+# RA-586 — Production gate for Pi-SEO live scanning.
+# Set PI_SEO_ACTIVE=1 in Railway (or .env.local) to enable live scans.
+# When 0 (default), all scan + monitor cron triggers are skipped with an info log.
+# This allows the scanner code to be fully deployed without immediately running
+# across all 11 repos until the operator explicitly activates it.
+PI_SEO_ACTIVE        = os.environ.get("PI_SEO_ACTIVE", "0") == "1"
+
+# RA-586 — Path exclusion patterns for known documentation false positives.
+# Files matching any of these glob-style substrings are skipped by the secret scanner.
+# SEC-1: dr-nrpg  — docs/runbooks/secrets-rotation.md (example rotation procedure)
+# SEC-2: synthex  — scripts/generate-env-docs.js, scripts/get-linear-task.js, scripts/fetch-linear.js
+# SEC-3: ccw-crm  — docs/ISS-014-VERIFICATION.md (verification report, example keys)
+SCAN_PATH_EXCLUSIONS: list[str] = [p.strip() for p in
+    os.environ.get("SCAN_PATH_EXCLUSIONS",
+        "docs/runbooks/secrets-rotation.md,"
+        "scripts/generate-env-docs.js,"
+        "scripts/get-linear-task.js,"
+        "scripts/fetch-linear.js,"
+        "docs/ISS-014-VERIFICATION.md"
+    ).split(",") if p.strip()
+]
+
+# RA-586 — Telegram alert channel for critical Pi-SEO findings.
+# TELEGRAM_BOT_TOKEN: the Railway Python bot token (same as telegram-bot/.env)
+# TELEGRAM_ALERT_CHAT_ID: Phill's Telegram user ID (8792816988 from ALLOWED_USERS)
+# When either is unset, Telegram alerts are silently skipped (Linear tickets still created).
+TELEGRAM_BOT_TOKEN    = os.environ.get("TELEGRAM_BOT_TOKEN",   "")
+TELEGRAM_ALERT_CHAT_ID = os.environ.get("TELEGRAM_ALERT_CHAT_ID", "")
+
+# RA-651 / RA-633 — Supabase server-side writes (gate_checks, alert_escalations).
+# NEXT_PUBLIC_SUPABASE_URL matches the dashboard env var (same project).
+# SUPABASE_SERVICE_ROLE_KEY is the service-role secret — bypasses RLS for writes.
+# When either is unset, supabase_log writes are silently skipped (non-fatal).
+SUPABASE_URL              = os.environ.get("NEXT_PUBLIC_SUPABASE_URL", "") or os.environ.get("SUPABASE_URL", "")
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+
+# RA-634 — API fallback gate (Risk Register R-02).
+# When TAO_USE_FALLBACK=1, the pipeline uses the Anthropic Python SDK directly
+# (api.anthropic.com with ANTHROPIC_API_KEY) instead of the claude CLI or Agent SDK.
+# FALLBACK ONLY — never set in normal operation. Tested quarterly via scripts/fallback_dryrun.py.
+USE_FALLBACK          = os.environ.get("TAO_USE_FALLBACK", "0") == "1"
+
 if not LINEAR_API_KEY:
     log.warning("LINEAR_API_KEY not set — Pi-SEO triage will run in dry-run mode")
+if not PI_SEO_ACTIVE:
+    log.info("PI_SEO_ACTIVE=0 — Pi-SEO cron scans are paused (set PI_SEO_ACTIVE=1 to enable)")
+if PI_SEO_ACTIVE and not TELEGRAM_BOT_TOKEN:
+    log.warning("TELEGRAM_BOT_TOKEN not set — critical Pi-SEO findings will NOT reach Telegram")
 
 for d in [WORKSPACE_ROOT, LOG_DIR, SCAN_WORKSPACE_ROOT, SCAN_RESULTS_DIR]:
     os.makedirs(d, exist_ok=True)

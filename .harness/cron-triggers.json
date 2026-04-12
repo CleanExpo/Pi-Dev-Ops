@@ -2,7 +2,7 @@
   {
     "id": "scan-high-0000",
     "type": "scan",
-    "name": "Pi-SEO: High priority scan \u2014 00:00 UTC",
+    "name": "Pi-SEO: High priority scan — 00:00 UTC",
     "priority_filter": "high",
     "scan_types": [
       "security",
@@ -14,12 +14,12 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": null
+    "last_fired_at": 1775952090.0903811
   },
   {
     "id": "scan-high-0600",
     "type": "scan",
-    "name": "Pi-SEO: High priority scan \u2014 06:00 UTC",
+    "name": "Pi-SEO: High priority scan — 06:00 UTC",
     "priority_filter": "high",
     "scan_types": [
       "security",
@@ -31,12 +31,12 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1775800874.1941261
+    "last_fired_at": 1775887250.3202062
   },
   {
     "id": "scan-high-1200",
     "type": "scan",
-    "name": "Pi-SEO: High priority scan \u2014 12:00 UTC",
+    "name": "Pi-SEO: High priority scan — 12:00 UTC",
     "priority_filter": "high",
     "scan_types": [
       "security",
@@ -48,12 +48,12 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1775822443.2519722
+    "last_fired_at": 1775908882.062293
   },
   {
     "id": "scan-high-1800",
     "type": "scan",
-    "name": "Pi-SEO: High priority scan \u2014 18:00 UTC",
+    "name": "Pi-SEO: High priority scan — 18:00 UTC",
     "priority_filter": "high",
     "scan_types": [
       "security",
@@ -65,12 +65,12 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1775844073.0137632
+    "last_fired_at": 1775930455.130702
   },
   {
     "id": "scan-medium-0200",
     "type": "scan",
-    "name": "Pi-SEO: Medium priority scan \u2014 02:00 UTC daily",
+    "name": "Pi-SEO: Medium priority scan — 02:00 UTC daily",
     "priority_filter": "medium",
     "scan_types": [
       "security",
@@ -80,12 +80,12 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1775786482.0018182
+    "last_fired_at": 1775872874.345698
   },
   {
     "id": "scan-low-0300",
     "type": "scan",
-    "name": "Pi-SEO: Low priority scan \u2014 03:00 UTC daily",
+    "name": "Pi-SEO: Low priority scan — 03:00 UTC daily",
     "priority_filter": "low",
     "scan_types": [
       "security"
@@ -94,56 +94,56 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1775790027.0080798
+    "last_fired_at": 1775876418.5656278
   },
   {
     "id": "monitor-0100",
     "type": "monitor",
-    "name": "Pi-SEO: Portfolio health monitor \u2014 01:00 UTC",
+    "name": "Pi-SEO: Portfolio health monitor — 01:00 UTC",
     "use_agent": false,
     "hour": 1,
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": null
+    "last_fired_at": 1775955630.308446
   },
   {
     "id": "monitor-0700",
     "type": "monitor",
-    "name": "Pi-SEO: Portfolio health monitor \u2014 07:00 UTC",
+    "name": "Pi-SEO: Portfolio health monitor — 07:00 UTC",
     "use_agent": false,
     "hour": 7,
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1775804414.296018
+    "last_fired_at": 1775890850.524554
   },
   {
     "id": "monitor-1300",
     "type": "monitor",
-    "name": "Pi-SEO: Portfolio health monitor \u2014 13:00 UTC",
+    "name": "Pi-SEO: Portfolio health monitor — 13:00 UTC",
     "use_agent": false,
     "hour": 13,
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1775826043.495788
+    "last_fired_at": 1775912422.374037
   },
   {
     "id": "monitor-1900",
     "type": "monitor",
-    "name": "Pi-SEO: Portfolio health monitor \u2014 19:00 UTC",
+    "name": "Pi-SEO: Portfolio health monitor — 19:00 UTC",
     "use_agent": false,
     "hour": 19,
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1775847613.295764
+    "last_fired_at": 1775934055.480764
   },
   {
     "id": "analyse-lessons-weekly",
     "type": "analyse_lessons",
-    "name": "Self-improvement: lesson pattern analyser \u2014 Sunday 16:00 UTC (02:00 AEST)",
+    "name": "Self-improvement: lesson pattern analyser — Sunday 16:00 UTC (02:00 AEST)",
     "script": "scripts/analyse_lessons.py",
     "weekday": 6,
     "hour": 16,
@@ -151,5 +151,35 @@
     "enabled": true,
     "created_at": 1775804551,
     "last_fired_at": null
+  },
+  {
+    "id": "intel-refresh-monday",
+    "type": "intel_refresh",
+    "name": "Anthropic Intelligence: Refresh docs snapshot — Monday 02:00 UTC",
+    "weekday": 0,
+    "hour": 2,
+    "minute": 0,
+    "enabled": true,
+    "created_at": 1775865600,
+    "last_fired_at": null
+  },
+  {
+    "id": "fallback-dryrun-quarterly",
+    "type": "fallback_dryrun",
+    "name": "Risk Register R-02: Quarterly ANTHROPIC_API_KEY fallback dry-run — 1st Jan/Apr/Jul/Oct 17:00 UTC",
+    "script": "scripts/fallback_dryrun.py",
+    "day_of_month": 1,
+    "month": [
+      1,
+      4,
+      7,
+      10
+    ],
+    "hour": 17,
+    "minute": 0,
+    "enabled": true,
+    "created_at": 1775865600,
+    "last_fired_at": null,
+    "note": "RA-634 — tests direct Anthropic SDK path (TAO_USE_FALLBACK contingency). See DEPLOYMENT.md → Contingency: API Fallback."
   }
 ]

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background: #1a1a2e; display:flex; flex-wrap:wrap; gap:0; }
+  canvas { display:block; }
+</style>
+</head>
+<body>
+<canvas id="c" width="800" height="480"></canvas>
+<script>
+const projects = [
+  {
+    id: 'pi-ceo',
+    name: 'Pi-CEO',
+    sub: 'AI Operations Platform',
+    bg1: '#0D0F1A', bg2: '#1A1040',
+    accent1: '#6366F1', accent2: '#818CF8', accent3: '#C4B5FD',
+    shape: 'neural'
+  },
+  {
+    id: 'pi-seo',
+    name: 'Pi-SEO',
+    sub: 'Autonomous SEO Intelligence',
+    bg1: '#071018', bg2: '#0D2030',
+    accent1: '#0EA5E9', accent2: '#38BDF8', accent3: '#7DD3FC',
+    shape: 'wave'
+  },
+  {
+    id: 'restoreassist',
+    name: 'RestoreAssist',
+    sub: 'National Inspection Platform',
+    bg1: '#120A00', bg2: '#1E1200',
+    accent1: '#F97316', accent2: '#FB923C', accent3: '#FED7AA',
+    shape: 'grid'
+  },
+  {
+    id: 'ccw-crm',
+    name: 'CCW-CRM',
+    sub: 'Customer Intelligence System',
+    bg1: '#050D18', bg2: '#0A1A2E',
+    accent1: '#10B981', accent2: '#34D399', accent3: '#A7F3D0',
+    shape: 'orbit'
+  },
+  {
+    id: 'disaster-recovery',
+    name: 'Disaster Recovery',
+    sub: 'Portfolio Resilience Layer',
+    bg1: '#18050A', bg2: '#2D0A14',
+    accent1: '#F43F5E', accent2: '#FB7185', accent3: '#FECDD3',
+    shape: 'shield'
+  },
+  {
+    id: 'pi-devops',
+    name: 'Pi Dev-Ops',
+    sub: 'Infrastructure & Automation',
+    bg1: '#080F08', bg2: '#0F1E10',
+    accent1: '#22C55E', accent2: '#4ADE80', accent3: '#BBF7D0',
+    shape: 'circuit'
+  }
+];
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return {r,g,b};
+}
+
+function drawProject(p) {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const W = 800, H = 480;
+  ctx.clearRect(0,0,W,H);
+
+  // Background gradient
+  const bgGrad = ctx.createLinearGradient(0,0,W,H);
+  bgGrad.addColorStop(0, p.bg1);
+  bgGrad.addColorStop(1, p.bg2);
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0,0,W,H);
+
+  // Noise texture overlay
+  for(let i=0;i<800;i++){
+    const x=Math.random()*W, y=Math.random()*H;
+    const a=Math.random()*0.03;
+    ctx.fillStyle=`rgba(255,255,255,${a})`;
+    ctx.fillRect(x,y,1,1);
+  }
+
+  const {r:r1,g:g1,b:b1} = hexToRgb(p.accent1);
+  const {r:r2,g:g2,b:b2} = hexToRgb(p.accent2);
+
+  if(p.shape === 'neural') {
+    // Neural network nodes for Pi-CEO
+    const nodes = [];
+    for(let i=0;i<18;i++) nodes.push({x:400+Math.cos(i*0.7)*280+Math.random()*80-40, y:240+Math.sin(i*0.5)*160+Math.random()*60-30});
+    ctx.strokeStyle=`rgba(${r1},${g1},${b1},0.15)`;
+    ctx.lineWidth=1;
+    nodes.forEach((n,i)=>{ nodes.forEach((m,j)=>{ if(Math.abs(i-j)<4){ctx.beginPath();ctx.moveTo(n.x,n.y);ctx.lineTo(m.x,m.y);ctx.stroke(); }}); });
+    nodes.forEach((n,i)=>{
+      const rad = i%3===0?10:i%2===0?6:4;
+      const grd = ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,rad*3);
+      grd.addColorStop(0,`rgba(${r2},${g2},${b2},0.8)`);
+      grd.addColorStop(1,`rgba(${r1},${g1},${b1},0)`);
+      ctx.beginPath(); ctx.arc(n.x,n.y,rad*2.5,0,Math.PI*2);
+      ctx.fillStyle=grd; ctx.fill();
+      ctx.beginPath(); ctx.arc(n.x,n.y,rad,0,Math.PI*2);
+      ctx.fillStyle=`rgba(${r2},${g2},${b2},0.9)`; ctx.fill();
+    });
+    // Central glow
+    const cg=ctx.createRadialGradient(440,230,0,440,230,200);
+    cg.addColorStop(0,`rgba(${r1},${g1},${b1},0.12)`);
+    cg.addColorStop(1,`rgba(${r1},${g1},${b1},0)`);
+    ctx.fillStyle=cg; ctx.fillRect(0,0,W,H);
+
+  } else if(p.shape === 'wave') {
+    // Wave / data streams for Pi-SEO
+    for(let w=0;w<6;w++){
+      ctx.beginPath();
+      ctx.moveTo(0, 240+w*25-75);
+      for(let x=0;x<=W;x+=4){
+        const y=240+w*25-75+Math.sin((x/W)*Math.PI*4+w)*40+Math.sin((x/W)*Math.PI*7+w*1.3)*15;
+        ctx.lineTo(x,y);
+      }
+      const alpha=0.06+w*0.04;
+      ctx.strokeStyle=`rgba(${r1},${g1},${b1},${alpha})`;
+      ctx.lineWidth=2; ctx.stroke();
+    }
+    // Data points
+    for(let i=0;i<40;i++){
+      const x=80+i*(W-160)/39;
+      const y=200+Math.sin(i*0.4)*80+Math.cos(i*0.7)*30;
+      const grd=ctx.createRadialGradient(x,y,0,x,y,12);
+      grd.addColorStop(0,`rgba(${r2},${g2},${b2},0.9)`);
+      grd.addColorStop(1,`rgba(${r1},${g1},${b1},0)`);
+      ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(x,y,12,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=`rgba(${r2},${g2},${b2},1)`; ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill();
+    }
+    // Large glow
+    const cg=ctx.createRadialGradient(W*0.6,H*0.4,0,W*0.6,H*0.4,300);
+    cg.addColorStop(0,`rgba(${r1},${g1},${b1},0.1)`);
+    cg.addColorStop(1,`rgba(${r1},${g1},${b1},0)`);
+    ctx.fillStyle=cg; ctx.fillRect(0,0,W,H);
+
+  } else if(p.shape === 'grid') {
+    // Isometric grid for RestoreAssist
+    const cols=12, rows=8, sz=55;
+    for(let row=0;row<rows;row++) for(let col=0;col<cols;col++){
+      const ox=W*0.5+(col-cols/2)*sz-(row-rows/2)*sz;
+      const oy=H*0.5+(col-cols/2)*sz*0.5+(row-rows/2)*sz*0.5;
+      const h=Math.random()*0.6+0.1;
+      if(Math.random()>0.35){
+        // Top face
+        ctx.beginPath();
+        ctx.moveTo(ox,oy-h*40);ctx.lineTo(ox+sz,oy+sz*0.5-h*40);
+        ctx.lineTo(ox,oy+sz-h*40);ctx.lineTo(ox-sz,oy+sz*0.5-h*40);ctx.closePath();
+        ctx.fillStyle=`rgba(${r1},${g1},${b1},${h*0.25})`;ctx.fill();
+        // Right face
+        ctx.beginPath();
+        ctx.moveTo(ox,oy-h*40);ctx.lineTo(ox+sz,oy+sz*0.5-h*40);
+        ctx.lineTo(ox+sz,oy+sz*0.5);ctx.lineTo(ox,oy);ctx.closePath();
+        ctx.fillStyle=`rgba(${r2},${g2},${b2},${h*0.12})`;ctx.fill();
+        // Edge
+        ctx.strokeStyle=`rgba(${r1},${g1},${b1},${h*0.3})`;
+        ctx.lineWidth=0.5; ctx.stroke();
+      }
+    }
+    const cg=ctx.createRadialGradient(W*0.5,H*0.4,0,W*0.5,H*0.4,350);
+    cg.addColorStop(0,`rgba(${r1},${g1},${b1},0.15)`); cg.addColorStop(1,`rgba(${r1},${g1},${b1},0)`);
+    ctx.fillStyle=cg; ctx.fillRect(0,0,W,H);
+
+  } else if(p.shape === 'orbit') {
+    // Orbital rings for CCW-CRM
+    const cx=W*0.55, cy=H*0.45;
+    [200,140,80].forEach((rad,i)=>{
+      ctx.beginPath();
+      ctx.ellipse(cx,cy,rad,rad*(0.35+i*0.08),Math.PI*0.15,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(${r1},${g1},${b1},${0.15+i*0.08})`;
+      ctx.lineWidth=1; ctx.stroke();
+      // Orbital dot
+      const angle=(i/3)*Math.PI*2*1.3;
+      const ex=cx+Math.cos(angle)*rad;
+      const ey=cy+Math.sin(angle)*rad*0.35;
+      const grd=ctx.createRadialGradient(ex,ey,0,ex,ey,14);
+      grd.addColorStop(0,`rgba(${r2},${g2},${b2},1)`);
+      grd.addColorStop(1,`rgba(${r1},${g1},${b1},0)`);
+      ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(ex,ey,14,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='white'; ctx.beginPath(); ctx.arc(ex,ey,5,0,Math.PI*2); ctx.fill();
+    });
+    // Particles
+    for(let i=0;i<60;i++){
+      const px=cx+Math.cos(i*0.52)*190*Math.random()+Math.random()*100-50;
+      const py=cy+Math.sin(i*0.52)*100*Math.random()+Math.random()*60-30;
+      ctx.fillStyle=`rgba(${r2},${g2},${b2},${Math.random()*0.5+0.2})`;
+      ctx.beginPath(); ctx.arc(px,py,Math.random()*2+0.5,0,Math.PI*2); ctx.fill();
+    }
+    const cg=ctx.createRadialGradient(cx,cy,0,cx,cy,200);
+    cg.addColorStop(0,`rgba(${r1},${g1},${b1},0.12)`); cg.addColorStop(1,'transparent');
+    ctx.fillStyle=cg; ctx.fillRect(0,0,W,H);
+
+  } else if(p.shape === 'shield') {
+    // Shield + fractured grid for DR
+    const cx=W*0.55, cy=H*0.45;
+    // Fractured background lines
+    for(let i=0;i<20;i++){
+      const x1=Math.random()*W, y1=Math.random()*H;
+      const x2=x1+Math.random()*200-100, y2=y1+Math.random()*200-100;
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+      ctx.strokeStyle=`rgba(${r1},${g1},${b1},0.06)`;
+      ctx.lineWidth=1; ctx.stroke();
+    }
+    // Shield shape
+    ctx.beginPath();
+    ctx.moveTo(cx,cy-130);
+    ctx.bezierCurveTo(cx+100,cy-130,cx+130,cy-60,cx+130,cy+10);
+    ctx.bezierCurveTo(cx+130,cy+80,cx,cy+160,cx,cy+160);
+    ctx.bezierCurveTo(cx,cy+160,cx-130,cy+80,cx-130,cy+10);
+    ctx.bezierCurveTo(cx-130,cy-60,cx-100,cy-130,cx,cy-130);
+    ctx.strokeStyle=`rgba(${r1},${g1},${b1},0.5)`;
+    ctx.lineWidth=2; ctx.stroke();
+    // Shield inner glow
+    const sg=ctx.createRadialGradient(cx,cy,0,cx,cy,130);
+    sg.addColorStop(0,`rgba(${r1},${g1},${b1},0.2)`);
+    sg.addColorStop(0.6,`rgba(${r1},${g1},${b1},0.06)`);
+    sg.addColorStop(1,`rgba(${r1},${g1},${b1},0)`);
+    ctx.fillStyle=sg; ctx.fill();
+    // Central mark
+    ctx.strokeStyle=`rgba(${r2},${g2},${b2},0.9)`; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(cx-28,cy+5); ctx.lineTo(cx-8,cy+28); ctx.lineTo(cx+30,cy-20);
+    ctx.stroke();
+
+  } else if(p.shape === 'circuit') {
+    // Circuit board for Pi Dev-Ops
+    const lines = [];
+    for(let i=0;i<14;i++){
+      const x1=Math.random()*W, y1=Math.random()*H;
+      const bend=Math.random()>0.5;
+      const x2=bend?x1+Math.random()*160-80:x1, y2=bend?y1:y1+Math.random()*160-80;
+      const x3=x2+(Math.random()*120-60), y3=y2+(Math.random()*120-60);
+      lines.push({x1,y1,x2,y2,x3,y3});
+    }
+    lines.forEach(l=>{
+      ctx.beginPath(); ctx.moveTo(l.x1,l.y1); ctx.lineTo(l.x2,l.y2); ctx.lineTo(l.x3,l.y3);
+      ctx.strokeStyle=`rgba(${r1},${g1},${b1},0.2)`; ctx.lineWidth=1.5; ctx.stroke();
+      // Node dots
+      [l.x1,l.x3].forEach((x,i)=>{
+        const y=i===0?l.y1:l.y3;
+        const grd=ctx.createRadialGradient(x,y,0,x,y,10);
+        grd.addColorStop(0,`rgba(${r2},${g2},${b2},0.8)`);
+        grd.addColorStop(1,`rgba(${r1},${g1},${b1},0)`);
+        ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(x,y,10,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle=`rgba(${r2},${g2},${b2},0.95)`; ctx.beginPath(); ctx.arc(x,y,3.5,0,Math.PI*2); ctx.fill();
+      });
+    });
+    const cg=ctx.createRadialGradient(W*0.45,H*0.45,0,W*0.45,H*0.45,280);
+    cg.addColorStop(0,`rgba(${r1},${g1},${b1},0.1)`); cg.addColorStop(1,'transparent');
+    ctx.fillStyle=cg; ctx.fillRect(0,0,W,H);
+  }
+
+  // Vignette
+  const vig=ctx.createRadialGradient(W/2,H/2,H*0.3,W/2,H/2,H*0.85);
+  vig.addColorStop(0,'rgba(0,0,0,0)'); vig.addColorStop(1,'rgba(0,0,0,0.55)');
+  ctx.fillStyle=vig; ctx.fillRect(0,0,W,H);
+
+  // Bottom gradient bar
+  const barGrad=ctx.createLinearGradient(0,H-80,0,H);
+  barGrad.addColorStop(0,'rgba(0,0,0,0)'); barGrad.addColorStop(1,'rgba(0,0,0,0.7)');
+  ctx.fillStyle=barGrad; ctx.fillRect(0,H-80,W,80);
+
+  // Accent line top
+  const lineGrad=ctx.createLinearGradient(0,0,W,0);
+  lineGrad.addColorStop(0,`rgba(${r1},${g1},${b1},0)`);
+  lineGrad.addColorStop(0.3,`rgba(${r2},${g2},${b2},0.9)`);
+  lineGrad.addColorStop(0.7,`rgba(${r2},${g2},${b2},0.9)`);
+  lineGrad.addColorStop(1,`rgba(${r1},${g1},${b1},0)`);
+  ctx.fillStyle=lineGrad; ctx.fillRect(0,0,W,3);
+
+  // Project name
+  ctx.font='700 56px -apple-system, "SF Pro Display", "Inter", sans-serif';
+  ctx.fillStyle='rgba(255,255,255,0.95)';
+  ctx.fillText(p.name, 52, H-108);
+
+  // Subtitle
+  ctx.font='400 20px -apple-system, "SF Pro Text", "Inter", sans-serif';
+  ctx.fillStyle=`rgba(${r2},${g2},${b2},0.85)`;
+  ctx.fillText(p.sub, 54, H-74);
+
+  // Tag line
+  ctx.font='500 12px "DM Mono", monospace';
+  ctx.fillStyle='rgba(255,255,255,0.3)';
+  ctx.fillText('UNITE-GROUP · PI-CEO PORTFOLIO', 54, H-44);
+}
+
+// Expose for external call
+window.renderProject = function(idx) {
+  drawProject(projects[idx]);
+  return document.getElementById('c').toDataURL('image/png');
+};
+window.projectCount = projects.length;
+window.projects = projects;
+
+// Render first on load
+drawProject(projects[0]);
+</script>
+</body>
+</html>

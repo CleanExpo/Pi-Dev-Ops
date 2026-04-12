@@ -7,6 +7,7 @@
 
 /* ── Dark theme (default) ────────────────────────────────────────────────── */
 :root, html.dark {
+  /* Bloomberg terminal palette */
   --c-bg:     #0A0A0A;
   --c-panel:  #111111;
   --c-term:   #0C0C0C;
@@ -20,10 +21,33 @@
 
   --c-scrollbar-track: #0A0A0A;
   --c-scrollbar-thumb: #3A3632;
+
+  /* shadcn/ui variable aliases — mapped to Bloomberg palette */
+  --background:        0 0% 4%;           /* #0A0A0A */
+  --foreground:        30 11% 94%;        /* #F0EDE8 */
+  --card:              0 0% 7%;           /* #111111 */
+  --card-foreground:   30 11% 94%;
+  --popover:           0 0% 7%;
+  --popover-foreground: 30 11% 94%;
+  --primary:           24 82% 51%;        /* #E8751A orange */
+  --primary-foreground: 0 0% 100%;
+  --secondary:         0 0% 7%;           /* --c-panel */
+  --secondary-foreground: 30 11% 94%;
+  --muted:             0 0% 7%;
+  --muted-foreground:  30 4% 54%;         /* --c-chrome */
+  --accent:            24 82% 51%;
+  --accent-foreground: 0 0% 100%;
+  --destructive:       0 91% 71%;         /* #F87171 */
+  --destructive-foreground: 0 0% 100%;
+  --border:            0 4% 16%;          /* #2A2727 */
+  --input:             0 4% 16%;
+  --ring:              24 82% 51%;
+  --radius:            0rem;              /* Sharp: no border radius */
 }
 
 /* ── Light theme ─────────────────────────────────────────────────────────── */
 html.light {
+  /* Bloomberg terminal palette — light mode */
   --c-bg:     #F2EFE9;
   --c-panel:  #E8E4DD;
   --c-term:   #FAFAF8;
@@ -37,6 +61,28 @@ html.light {
 
   --c-scrollbar-track: #E8E4DD;
   --c-scrollbar-thumb: #C0BCB8;
+
+  /* shadcn/ui variable aliases — light mode */
+  --background:        33 24% 95%;
+  --foreground:        20 7% 10%;
+  --card:              33 19% 91%;
+  --card-foreground:   20 7% 10%;
+  --popover:           33 19% 91%;
+  --popover-foreground: 20 7% 10%;
+  --primary:           24 72% 42%;        /* #C96310 light orange */
+  --primary-foreground: 0 0% 100%;
+  --secondary:         33 19% 91%;
+  --secondary-foreground: 20 7% 10%;
+  --muted:             33 19% 91%;
+  --muted-foreground:  30 4% 54%;
+  --accent:            24 72% 42%;
+  --accent-foreground: 0 0% 100%;
+  --destructive:       0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border:            30 8% 82%;
+  --input:             30 8% 82%;
+  --ring:              24 72% 42%;
+  --radius:            0rem;
 }
 
 html, body {

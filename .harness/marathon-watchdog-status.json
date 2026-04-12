@@ -1,0 +1,55 @@
+{
+  "ts": "2026-04-12T20:37:45.190449+00:00",
+  "escalated": true,
+  "checks": [
+    {
+      "name": "heartbeat",
+      "ok": true,
+      "severity": "info",
+      "detail": "last watchdog run 30m ago",
+      "auto_remediation": "",
+      "needs_founder": ""
+    },
+    {
+      "name": "digest",
+      "ok": true,
+      "severity": "info",
+      "detail": "newest digest is 9m old",
+      "auto_remediation": "",
+      "needs_founder": ""
+    },
+    {
+      "name": "tests",
+      "ok": false,
+      "severity": "warn",
+      "detail": "/usr/bin/python3: No module named pytest",
+      "auto_remediation": "",
+      "needs_founder": "watchdog test check is advisory only \u2014 verify against GH Actions status before acting"
+    },
+    {
+      "name": "lessons",
+      "ok": true,
+      "severity": "info",
+      "detail": "38 entries, last updated 1177m ago",
+      "auto_remediation": "",
+      "needs_founder": ""
+    },
+    {
+      "name": "scans",
+      "ok": false,
+      "severity": "warn",
+      "detail": "newest scan 20.6h old (threshold 12h) \u2014 Railway cron may be stalled",
+      "auto_remediation": "",
+      "needs_founder": "check Railway \u2192 pi-ceo service \u2192 cron logs for the Pi-SEO monitor job"
+    },
+    {
+      "name": "git",
+      "ok": false,
+      "severity": "warn",
+      "detail": "8 commit(s) not pushed to origin",
+      "auto_remediation": "",
+      "needs_founder": "run `cd ~/Pi-CEO/Pi-Dev-Ops && git push origin main` \u2014 unpushed commits: 129f52d incident(2026-04-12): post-mortem + V2 architecture + watchdog fix, 9d8a4ff docs(charters): Pi-CEO Standard v1 + CCW/RestoreAssist/DR-NRPG charters, 14a444d docs(harness): mark RA-585 done; add F-070/F-071 to feature list"
+    }
+  ],
+  "message": "[WARN] MARATHON WATCHDOG - 20:37 UTC\n\nWARN:\n- tests: /usr/bin/python3: No module named pytest\n- scans: newest scan 20.6h old (threshold 12h) \u2014 Railway cron may be stalled\n- git: 8 commit(s) not pushed to origin\n\nNEEDS YOU:\n- [tests] watchdog test check is advisory only \u2014 verify against GH Actions status before acting\n- [scans] check Railway \u2192 pi-ceo service \u2192 cron logs for the Pi-SEO monitor job\n- [git] run `cd ~/Pi-CEO/Pi-Dev-Ops && git push origin main` \u2014 unpushed commits: 129f52d incident(2026-04-12): post-mortem + V2 architecture + watchdog fix, 9d8a4ff docs(charters): Pi-CEO Standard v1 + CCW/RestoreAssist/DR-NRPG charters, 14a444d docs(harness): mark RA-585 done; add F-070/F-071 to feature list\n\nREPRODUCE: python3 scripts/marathon_watchdog.py"
+}

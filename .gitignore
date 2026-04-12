@@ -1,15 +1,126 @@
+# ══════════════════════════════════════════════════════════════════════
+# Pi-Dev-Ops .gitignore — comprehensive credential & artifact protection
+# Last updated: 2026-04-12 (RA-SECURITY)
+# ══════════════════════════════════════════════════════════════════════
+
+# ── Credentials & secrets (NEVER commit these) ────────────────────────
+.env
+.env.*
+!.env.example
+!.env.*.example
+!.env.*.sample
+*.env
+secrets.json
+secrets.yaml
+secrets.yml
+credentials.json
+credentials.yaml
+*_credentials.*
+*-credentials.*
+service-account*.json
+gcp-key*.json
+railway.toml
+railway.json
+
+# Specific Pi-CEO credential files
+telegram-bot/.env
+telegram-bot/.env.railway
+telegram-bot/.env.local
+dashboard/.env.local
+dashboard/.env.*.local
+
+# API key files
+*.key
+*.pem
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+*.ppk
+
+# ── Python artifacts ──────────────────────────────────────────────────
 __pycache__/
 *.pyc
-.env
-.env.local
-.env*.local
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.tox/
+.nox/
+.mypy_cache/
+.dmypy.json
+.pyre/
+.ruff_cache/
+*.coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# ── Node / Next.js ────────────────────────────────────────────────────
+node_modules/
+.next/
+out/
+.vercel/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ── App runtime data (auto-generated, not source) ────────────────────
 app/workspaces/
 app/logs/
-node_modules/
+app/data/
+*.log
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# ── Dashboard generated assets (large binary, not source) ─────────────
+dashboard/*.png
+dashboard/render-images.html
+
+# ── IDE & OS artifacts ────────────────────────────────────────────────
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
 Thumbs.db
 desktop.ini
+ehthumbs.db
+
+# ── MCP / Claude tooling ──────────────────────────────────────────────
 .claude/settings.local.json
 mcp/node_modules/
 .playwright-mcp/
-app/data/
+.harness/telegram-inbox/*.json
+.harness/monitor-digests/
+
+# ── Scan results (may contain real secret values from scanned repos) ──
+.harness/scan-results/
+
+# ── Docker / deployment ───────────────────────────────────────────────
+*.pid
+*.seed
+.env.docker
+docker-compose.override.yml
+
+# ── launchd plists with embedded credentials (use .plist.example instead) ──
+scripts/*.plist
+!scripts/*.plist.example
+
+# ── Session / temp files ──────────────────────────────────────────────
+sessions/
+*.session
+*.tmp
+*.temp
+/tmp/

@@ -1,0 +1,12 @@
+{"ts": "2026-04-12T00:51:29+00:00", "session_id": "", "phase": "", "model": "sonnet", "sdk_enabled": true, "success": true, "latency_s": 0.0, "output_len": 14, "error": null}
+{"ts": "2026-04-12T00:51:29+00:00", "session_id": "", "phase": "", "model": "sonnet", "sdk_enabled": true, "success": false, "latency_s": 0.0, "output_len": 0, "error": "RuntimeError: Connection failed"}
+{"ts": "2026-04-12T00:51:29+00:00", "session_id": "", "phase": "", "model": "sonnet", "sdk_enabled": true, "success": false, "latency_s": 0.011, "output_len": 0, "error": "timeout after 1s"}
+{"ts": "2026-04-12T00:51:29+00:00", "session_id": "", "phase": "pipeline.spec", "model": "sonnet", "sdk_enabled": true, "success": true, "latency_s": 0.0, "output_len": 20, "error": null}
+{"ts": "2026-04-12T00:51:29+00:00", "session_id": "", "phase": "pipeline.spec", "model": "sonnet", "sdk_enabled": true, "success": false, "latency_s": 0.0, "output_len": 0, "error": "RuntimeError: Connection failed"}
+{"ts": "2026-04-12T00:51:29+00:00", "session_id": "", "phase": "pipeline.spec", "model": "sonnet", "sdk_enabled": true, "success": false, "latency_s": 0.0, "output_len": 0, "error": "timeout after 1s"}
+{"ts": "2026-04-12T01:01:11+00:00", "session_id": "", "phase": "", "model": "sonnet", "sdk_enabled": true, "success": true, "latency_s": 0.0, "output_len": 14, "error": null}
+{"ts": "2026-04-12T01:01:11+00:00", "session_id": "", "phase": "", "model": "sonnet", "sdk_enabled": true, "success": false, "latency_s": 0.0, "output_len": 0, "error": "RuntimeError: Connection failed"}
+{"ts": "2026-04-12T01:01:11+00:00", "session_id": "", "phase": "", "model": "sonnet", "sdk_enabled": true, "success": false, "latency_s": 0.01, "output_len": 0, "error": "timeout after 1s"}
+{"ts": "2026-04-12T01:01:11+00:00", "session_id": "", "phase": "pipeline.spec", "model": "sonnet", "sdk_enabled": true, "success": true, "latency_s": 0.0, "output_len": 20, "error": null}
+{"ts": "2026-04-12T01:01:11+00:00", "session_id": "", "phase": "pipeline.spec", "model": "sonnet", "sdk_enabled": true, "success": false, "latency_s": 0.0, "output_len": 0, "error": "RuntimeError: Connection failed"}
+{"ts": "2026-04-12T01:01:11+00:00", "session_id": "", "phase": "pipeline.spec", "model": "sonnet", "sdk_enabled": true, "success": false, "latency_s": 0.0, "output_len": 0, "error": "timeout after 1s"}

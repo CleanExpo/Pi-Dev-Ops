@@ -76,3 +76,41 @@ jobs:
           PI_CEO_PASSWORD: ci-build-stub
           NEXT_PUBLIC_SUPABASE_URL: https://stub.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: stub-key
+
+  # ── RA-583: Post-deploy smoke test against production Railway URL ──────────
+  # Runs only on pushes to main (not PRs) after both python + frontend jobs pass.
+  # Requires TAO_PROD_PASSWORD secret set in GitHub → Settings → Secrets.
+  smoke-prod:
+    name: Smoke test (prod)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [python, frontend]
+    # Only fire on pushes to main — not on PRs (we don't smoke prod on every PR)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install minimal deps for smoke test
+        run: pip install requests
+
+      - name: Wait for Railway deploy to settle
+        # Railway deploys typically take 60-90s after a push lands
+        run: sleep 90
+
+      - name: Run smoke test against production
+        run: python scripts/smoke_test.py --target=prod --emit-metrics
+        env:
+          TAO_PASSWORD: ${{ secrets.TAO_PROD_PASSWORD }}
+
+      - name: Upload smoke test metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: post-deploy-metrics
+          path: .harness/post-deploy-metrics/
+          if-no-files-found: ignore

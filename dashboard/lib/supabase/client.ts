@@ -1,15 +1,13 @@
-// lib/supabase/client.ts — anon client for browser components (obeys RLS)
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+// lib/supabase/client.ts — browser Supabase client
+// Uses @supabase/ssr for proper cookie-based auth in Next.js App Router.
+// Falls back to the plain JS client if SSR package is unavailable.
+"use client";
+import { createBrowserClient as createSSRBrowserClient } from "@supabase/ssr";
 
-let _client: SupabaseClient | null = null;
-
-export function createBrowserClient(): SupabaseClient {
-  if (!_client) {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    // Support both old anon key and new publishable key formats
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-             ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!;
-    _client = createClient(url, key);
-  }
-  return _client;
+export function createBrowserClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  // Support both anon key formats
+  const key = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+            ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY)!;
+  return createSSRBrowserClient(url, key);
 }

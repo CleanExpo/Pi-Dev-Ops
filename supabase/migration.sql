@@ -86,3 +86,56 @@ ALTER TABLE phase_states ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_read"    ON phase_states FOR SELECT USING (true);
 CREATE POLICY "service_insert" ON phase_states FOR INSERT TO service_role WITH CHECK (true);
 CREATE POLICY "service_update" ON phase_states FOR UPDATE TO service_role USING (true);
+
+-- ── gate_checks ───────────────────────────────────────────────────────────────
+-- RA-651: Records every quality gate evaluation from the ship-chain.
+-- Drives Operational Observability on the Command Centre dashboard.
+CREATE TABLE IF NOT EXISTS gate_checks (
+  id              BIGSERIAL    PRIMARY KEY,
+  pipeline_id     TEXT         NOT NULL,
+  session_id      TEXT,
+  spec_exists     BOOLEAN      NOT NULL DEFAULT FALSE,
+  plan_exists     BOOLEAN      NOT NULL DEFAULT FALSE,
+  build_complete  BOOLEAN      NOT NULL DEFAULT FALSE,
+  tests_passed    BOOLEAN      NOT NULL DEFAULT FALSE,
+  review_passed   BOOLEAN      NOT NULL DEFAULT FALSE,
+  all_passed      BOOLEAN      NOT NULL DEFAULT FALSE,
+  review_score    FLOAT8,
+  shipped         BOOLEAN      NOT NULL DEFAULT FALSE,
+  checked_at      TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS gate_checks_checked_at_idx  ON gate_checks (checked_at DESC);
+CREATE INDEX IF NOT EXISTS gate_checks_pipeline_id_idx ON gate_checks (pipeline_id);
+
+ALTER TABLE gate_checks ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_read"    ON gate_checks FOR SELECT USING (true);
+CREATE POLICY "service_insert" ON gate_checks FOR INSERT TO service_role WITH CHECK (true);
+
+-- ── alert_escalations ────────────────────────────────────────────────────────
+-- RA-633: Tracks critical alerts sent via Telegram + escalation/ack state.
+-- Enables the 30-min escalation watchdog: unacked alerts → second louder page.
+CREATE TABLE IF NOT EXISTS alert_escalations (
+  id               BIGSERIAL    PRIMARY KEY,
+  alert_key        TEXT         NOT NULL UNIQUE,   -- finding fingerprint or Linear ticket ID
+  project_id       TEXT         NOT NULL,
+  issue_title      TEXT         NOT NULL,
+  severity         TEXT         NOT NULL DEFAULT 'critical',
+  linear_ticket    TEXT,
+  telegram_sent    BOOLEAN      NOT NULL DEFAULT FALSE,
+  telegram_sent_at TIMESTAMPTZ,
+  escalated        BOOLEAN      NOT NULL DEFAULT FALSE,
+  escalated_at     TIMESTAMPTZ,
+  acked            BOOLEAN      NOT NULL DEFAULT FALSE,
+  acked_at         TIMESTAMPTZ,
+  created_at       TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS alert_escalations_unacked_idx
+  ON alert_escalations (telegram_sent_at)
+  WHERE telegram_sent = TRUE AND escalated = FALSE AND acked = FALSE;
+
+ALTER TABLE alert_escalations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_read"    ON alert_escalations FOR SELECT USING (true);
+CREATE POLICY "service_insert" ON alert_escalations FOR INSERT TO service_role WITH CHECK (true);
+CREATE POLICY "service_update" ON alert_escalations FOR UPDATE TO service_role USING (true);

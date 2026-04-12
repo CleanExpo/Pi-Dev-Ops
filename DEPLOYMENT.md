@@ -2,7 +2,7 @@
 
 Single source of truth for production services, hosting, env vars, and rollback procedures.
 
-**Last updated:** 2026-04-11 (RA-581)
+**Last updated:** 2026-04-12 (RA-634)
 
 ---
 
@@ -72,6 +72,9 @@ Railway config: [`railway.toml`](railway.toml), [`Dockerfile`](Dockerfile)
 | `GITHUB_TOKEN` | Optional | GitHub PAT (`ghp_...`) for private repo access. |
 | `TELEGRAM_BOT_TOKEN` | Optional | Telegram bot integration. |
 | `TELEGRAM_WEBHOOK_SECRET` | Optional | Verifies Telegram webhook requests. |
+| `PI_SEO_ACTIVE` | Optional | Set to `1` to enable live Pi-SEO cron scan/monitor triggers. Default: `0` (paused). See RA-586. |
+| `TELEGRAM_ALERT_CHAT_ID` | Optional | Phill's Telegram user ID. Critical Pi-SEO findings are DMed here. |
+| `TAO_USE_FALLBACK` | Optional | **FALLBACK ONLY.** Set to `1` to force Anthropic Python SDK path instead of claude CLI. Default: `0`. See *Contingency: API Fallback* below. |
 | `TAO_AUTONOMY_ENABLED` | Optional | Set to `0` to disable Linear todo poller. Default: `1` (on). |
 | `TAO_AUTONOMY_POLL_INTERVAL` | Optional | Seconds between polls. Default: `300` (5 min). |
 | `TAO_EVALUATOR_ENABLED` | Optional | Enable/disable build evaluator. Default: `true`. |
@@ -117,6 +120,11 @@ Railway config: [`railway.toml`](railway.toml), [`Dockerfile`](Dockerfile)
 | RA-579 | Cron watchdog + startup catch-up | Backend |
 | RA-582 | `scripts/verify_deploy.py` | Tooling |
 | RA-581 | This document | Docs |
+| RA-586 | Pi-SEO PI_SEO_ACTIVE gate + SCAN_PATH_EXCLUSIONS + Telegram critical alert | Backend |
+| RA-587 | intel_refresh + analyse_lessons cron trigger types; weekday gate | Backend |
+| RA-576 | Agent SDK hard-error on ImportError; removed subprocess fallback paths | Backend |
+| RA-635 | Docs-staleness watchdog (48h threshold → Medium Linear ticket) | Backend |
+| RA-634 | scripts/fallback_dryrun.py + quarterly cron trigger (Risk Register R-02) | Tooling |
 
 ---
 
@@ -151,6 +159,60 @@ git revert HEAD && git push origin main
 # Kill all active Claude sessions:
 curl -X POST https://pi-dev-ops-production.up.railway.app/api/sessions/<id>/kill \
   -H "Authorization: Bearer <session-token>"
+```
+
+---
+
+## Contingency: API Fallback
+
+> **Risk Register R-02** — Mitigated (quarterly dry-run active as of 2026-04-12, RA-634).
+> Next scheduled dry-run: **2026-07-01 17:00 UTC** (cron trigger `fallback-dryrun-quarterly`).
+> Most recent result: *not yet run* — first automated run is 2026-07-01.
+
+The Pi-CEO pipeline normally calls Claude via the `claude` CLI (Claude Max subscription). If that path becomes unavailable, there is a contingency path using the Anthropic Python SDK directly against `api.anthropic.com` with `ANTHROPIC_API_KEY`.
+
+### When to activate the fallback
+
+Activate when the `claude` CLI is unavailable or the Claude Max subscription lapses:
+
+```bash
+# 1. Verify the fallback path is healthy first (no tokens consumed):
+python scripts/fallback_dryrun.py --dry-run
+
+# 2. Run a live test (~1 API call, cheap haiku model):
+python scripts/fallback_dryrun.py
+
+# 3. If both pass, enable the fallback in Railway env:
+#    Set TAO_USE_FALLBACK=1  →  Restart service
+```
+
+**Cost note:** The fallback uses `ANTHROPIC_API_KEY` and incurs standard Anthropic API costs. Monitor `claude_api_costs` table in Supabase.
+
+### Quarterly dry-run procedure (`scripts/fallback_dryrun.py`)
+
+The fallback path is tested automatically every quarter (1st Jan/Apr/Jul/Oct at 17:00 UTC) by the `fallback-dryrun-quarterly` cron trigger in `.harness/cron-triggers.json`.
+
+To run manually:
+
+```bash
+# Config-only check (no API call):
+python scripts/fallback_dryrun.py --dry-run
+
+# Full live test (sends one API call to claude-haiku-4-5-20251001):
+python scripts/fallback_dryrun.py
+
+# Test against a specific model:
+python scripts/fallback_dryrun.py --model claude-sonnet-4-6
+```
+
+Results are appended to `.harness/fallback-dryrun-log.jsonl`. On failure, an Urgent Linear ticket is automatically created (if `LINEAR_API_KEY` is set).
+
+### Deactivating the fallback
+
+```bash
+# When the claude CLI is healthy again, disable the fallback:
+# Set TAO_USE_FALLBACK=0 in Railway env  →  Restart service
+# Confirm /health returns "status": "ok"
 ```
 
 ---

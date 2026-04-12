@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.piceo.healthcheck</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/phill-mac/pi-ceo/health_check.py</string>
+    </array>
+
+    <!-- Copy this file to com.piceo.healthcheck.plist and fill in real values -->
+    <!-- DO NOT commit the real .plist — it is gitignored -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PICEO_BOT_TOKEN</key>
+        <string>YOUR_TELEGRAM_BOT_TOKEN_HERE</string>
+        <key>PICEO_CHAT_ID</key>
+        <string>YOUR_TELEGRAM_CHAT_ID_HERE</string>
+    </dict>
+
+    <!-- Run every 5 minutes -->
+    <key>StartInterval</key>
+    <integer>300</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/phill-mac/pi-ceo/logs/healthcheck_launchd.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/phill-mac/pi-ceo/logs/healthcheck_launchd_err.log</string>
+</dict>
+</plist>

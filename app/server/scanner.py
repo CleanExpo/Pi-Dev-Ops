@@ -143,12 +143,20 @@ _TEXT_EXTS = {
 _PLACEHOLDER_RE = re.compile(
     r"<redacted>|<your-|<paste|<configured>|your-password|example\.com"
     r'|\$\{[A-Z_]+|process\.env\.|os\.environ'
-    # AWS official documentation example keys (safe to ignore)
-    r"|AKIAIOSFODNN7EXAMPLE|wJalrXUtnFEMI"
+    # AWS official documentation example keys — complete set (RA-654)
+    # Ref: https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
+    r"|AKIAIOSFODNN7EXAMPLE"           # AWS Access Key ID example
+    r"|wJalrXUtnFEMI"                  # AWS Secret Access Key example (prefix)
+    r"|wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"  # full AWS SAK example
+    r"|AKIAI44QH8DHBEXAMPLE"           # alternate AWS Access Key ID example
+    r"|je7MtGbClwBF/2Zp9Utk/h3yCo8nvbEXAMPLEKEY"  # alternate AWS SAK example
+    r"|aws.*example|example.*key"      # generic AWS example patterns in comments/docs
     # Placeholder patterns: all-x or all-asterisk values after = or :
     r"|(?:=|:\s*')['\"]?(?:sk-|lin_api_|ghp_)?[xX*]{8,}['\"]?"
     # Example-field placeholders in env doc generators
-    r"|example:\s*['\"]sk-[xX*]+",
+    r"|example:\s*['\"]sk-[xX*]+"
+    # Explicit placeholder indicators in code comments or strings
+    r"|REPLACE_ME|INSERT_YOUR|YOUR_.*_HERE|PASTE_YOUR",
     re.IGNORECASE,
 )
 
@@ -186,6 +194,15 @@ class SecurityScanner:
     def _check_secrets(self, text: str, rel: str) -> list[Finding]:
         basename = rel.split("/")[-1].split("\\")[-1]
         if basename in _SKIP_SECRET_FILENAMES:
+            return []
+        # RA-586 — per-repo path exclusions (documentation/runbook files with example keys)
+        try:
+            from . import config as _cfg
+            exclusions = _cfg.SCAN_PATH_EXCLUSIONS
+        except Exception:
+            exclusions = []
+        rel_norm = rel.replace("\\", "/")
+        if any(rel_norm.endswith(excl.replace("\\", "/")) for excl in exclusions):
             return []
         lines = text.split("\n")
         findings = []

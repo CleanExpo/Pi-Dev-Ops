@@ -1,0 +1,150 @@
+{
+  "name": "RA-649 — Telegram Command Interface",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds",
+              "secondsInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "node-schedule",
+      "name": "Poll every 30s",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// RA-649 — Step 1: Read last processed update_id from Supabase\n// Uses native fetch() — n8n v2 Code node, no $http\n\nconst SUPABASE_URL = 'https://zbryrmxmgfmslqzizsto.supabase.co';\nconst SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';\n\nlet lastUpdateId = 0;\ntry {\n  const resp = await fetch(\n    `${SUPABASE_URL}/rest/v1/settings?key=eq.telegram_last_update_id&select=value`,\n    {\n      headers: {\n        'apikey': SUPABASE_KEY,\n        'Authorization': `Bearer ${SUPABASE_KEY}`,\n        'Content-Type': 'application/json',\n      }\n    }\n  );\n  const rows = await resp.json();\n  if (rows && rows.length > 0) {\n    lastUpdateId = parseInt(rows[0].value, 10) || 0;\n  }\n} catch (err) {\n  // Non-fatal — fall back to 0 (may re-process recent messages once)\n  console.log('Supabase read error (non-fatal):', err.message);\n}\n\nreturn [{ json: { lastUpdateId } }];\n"
+      },
+      "id": "node-read-offset",
+      "name": "Read last update_id",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// RA-649 — Step 2: Call Telegram getUpdates with offset\n// Only returns updates AFTER lastUpdateId\n\nconst BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';\nconst lastUpdateId = $input.first().json.lastUpdateId;\nconst offset = lastUpdateId + 1;\n\nif (!BOT_TOKEN) {\n  throw new Error('TELEGRAM_BOT_TOKEN env var not set in n8n');\n}\n\nconst resp = await fetch(\n  `https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?offset=${offset}&timeout=0&limit=10`\n);\n\nif (!resp.ok) {\n  throw new Error(`getUpdates HTTP ${resp.status}: ${await resp.text()}`);\n}\n\nconst data = await resp.json();\nconst updates = (data.result || []).filter(u => u.message && u.message.text);\n\nif (updates.length === 0) {\n  // No new messages — pass an empty sentinel so downstream nodes no-op\n  return [{ json: { noUpdates: true, lastUpdateId } }];\n}\n\n// Return each message as a separate item\nreturn updates.map(u => ({\n  json: {\n    update_id: u.update_id,\n    chat_id: String(u.message.chat.id),\n    user_id: String(u.message.from.id),\n    text: (u.message.text || '').trim(),\n    lastUpdateId,\n  }\n}));\n"
+      },
+      "id": "node-get-updates",
+      "name": "getUpdates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false
+          },
+          "conditions": [
+            {
+              "id": "cond-no-updates",
+              "leftValue": "={{ $json.noUpdates }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        }
+      },
+      "id": "node-if-empty",
+      "name": "Any new messages?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// RA-649 — Step 3a: Parse command and build reply\n// Allowed user IDs (matches ALLOWED_USERS in telegram-bot/.env)\nconst ALLOWED = ['8792816988'];\n\nconst item = $input.first().json;\nconst chatId = item.chat_id;\nconst userId = item.user_id;\nconst text = item.text || '';\n\n// Security: only respond to authorised users\nif (!ALLOWED.includes(userId)) {\n  return [{ json: { chatId, reply: '⛔ Unauthorised.', skip: false } }];\n}\n\n// Parse command\nconst cmd = text.split(' ')[0].toLowerCase();\nlet reply = '';\n\nswitch (cmd) {\n  case '/status': {\n    // Fetch live status from Pi-CEO Railway backend\n    let statusText = '';\n    try {\n      const resp = await fetch('https://pi-dev-ops-production.up.railway.app/api/status', {\n        headers: { 'Content-Type': 'application/json' }\n      });\n      if (resp.ok) {\n        const d = await resp.json();\n        const sessions = d.sessions || {};\n        const autonomy = d.autonomy || {};\n        const eff = (autonomy.effective_autonomy || {}).effective_autonomy_pct;\n        const lastPoll = autonomy.last_poll_ago_s != null ? `${Math.round(autonomy.last_poll_ago_s / 60)}m ago` : 'never';\n        statusText = (\n          `🤖 *Pi-CEO Status*\\n` +\n          `Active sessions: ${sessions.active || 0}/${sessions.max || 3}\\n` +\n          `Autonomy poll: ${lastPoll}\\n` +\n          `Effective autonomy: ${eff != null ? eff + '%' : 'n/a'}\\n` +\n          `Stale: ${autonomy.stale ? '⚠️ YES' : '✅ no'}`\n        );\n      } else {\n        statusText = `⚠️ Status endpoint returned HTTP ${resp.status}`;\n      }\n    } catch (err) {\n      statusText = `❌ Could not reach Pi-CEO: ${err.message}`;\n    }\n    reply = statusText;\n    break;\n  }\n\n  case '/triage': {\n    // Fetch recent Pi-SEO triage summary from Supabase scan-results (last 24h tickets)\n    reply = (\n      `📋 *Triage summary*\\n` +\n      `Use the Pi-CEO dashboard for detailed scan results.\\n` +\n      `https://pi-dev-ops-production.up.railway.app/`\n    );\n    break;\n  }\n\n  case '/alerts': {\n    // Fetch last monitor digest summary\n    try {\n      const resp = await fetch('https://pi-dev-ops-production.up.railway.app/api/monitor/digest', {\n        headers: { 'Content-Type': 'application/json' }\n      });\n      if (resp.ok) {\n        const d = await resp.json();\n        const health = d.portfolio_health || 0;\n        const alertCount = (d.alerts || []).length;\n        const critCount = (d.alerts || []).filter(a => a.severity === 'critical').length;\n        reply = (\n          `🔔 *Alerts*\\n` +\n          `Portfolio health: ${health}/100\\n` +\n          `Total alerts: ${alertCount}\\n` +\n          `Critical: ${critCount}\\n` +\n          `Last run: ${d.generated_at || 'unknown'}`\n        );\n      } else {\n        reply = `⚠️ Monitor digest returned HTTP ${resp.status}`;\n      }\n    } catch (err) {\n      reply = `❌ Could not reach monitor: ${err.message}`;\n    }\n    break;\n  }\n\n  case '/help':\n  default:\n    reply = (\n      `🤖 *Pi-CEO Bot*\\n\\n` +\n      `/status — live session + autonomy stats\\n` +\n      `/alerts — latest Pi-SEO monitor digest\\n` +\n      `/triage — link to Pi-SEO triage dashboard\\n` +\n      `/help — this message`\n    );\n    break;\n}\n\nreturn [{ json: { chatId, reply, update_id: item.update_id, lastUpdateId: item.lastUpdateId } }];\n"
+      },
+      "id": "node-parse-command",
+      "name": "Parse command + build reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "// RA-649 — Step 4: Send reply via Telegram sendMessage\nconst BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';\nconst item = $input.first().json;\n\nif (!item.chatId || !item.reply) {\n  return [{ json: { sent: false, reason: 'no chatId or reply' } }];\n}\n\nconst payload = {\n  chat_id: item.chatId,\n  text: item.reply,\n  parse_mode: 'Markdown',\n  disable_web_page_preview: true,\n};\n\nconst resp = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify(payload),\n});\n\nconst result = await resp.json();\nif (!result.ok) {\n  console.log('sendMessage error:', JSON.stringify(result));\n}\n\nreturn [{ json: { sent: result.ok, update_id: item.update_id, lastUpdateId: item.lastUpdateId } }];\n"
+      },
+      "id": "node-send-reply",
+      "name": "Send Telegram reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "// RA-649 — Step 5: Persist the highest processed update_id back to Supabase\n// This prevents re-processing messages on the next poll cycle\n\nconst SUPABASE_URL = 'https://zbryrmxmgfmslqzizsto.supabase.co';\nconst SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';\n\nconst item = $input.first().json;\nconst newUpdateId = item.update_id || item.lastUpdateId || 0;\n\nif (!newUpdateId) {\n  return [{ json: { persisted: false, reason: 'no update_id to save' } }];\n}\n\n// Upsert: update if row exists, insert if not\nconst resp = await fetch(\n  `${SUPABASE_URL}/rest/v1/settings`,\n  {\n    method: 'POST',\n    headers: {\n      'apikey': SUPABASE_KEY,\n      'Authorization': `Bearer ${SUPABASE_KEY}`,\n      'Content-Type': 'application/json',\n      'Prefer': 'resolution=merge-duplicates',\n    },\n    body: JSON.stringify({ key: 'telegram_last_update_id', value: String(newUpdateId) }),\n  }\n);\n\nconst ok = resp.ok || resp.status === 201 || resp.status === 200;\nconsole.log(`Persisted update_id=${newUpdateId} to Supabase (HTTP ${resp.status})`);\n\nreturn [{ json: { persisted: ok, update_id: newUpdateId } }];\n"
+      },
+      "id": "node-persist-offset",
+      "name": "Persist update_id to Supabase",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 180]
+    }
+  ],
+  "connections": {
+    "Poll every 30s": {
+      "main": [
+        [{ "node": "Read last update_id", "type": "main", "index": 0 }]
+      ]
+    },
+    "Read last update_id": {
+      "main": [
+        [{ "node": "getUpdates", "type": "main", "index": 0 }]
+      ]
+    },
+    "getUpdates": {
+      "main": [
+        [{ "node": "Any new messages?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Any new messages?": {
+      "main": [
+        [],
+        [{ "node": "Parse command + build reply", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse command + build reply": {
+      "main": [
+        [{ "node": "Send Telegram reply", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send Telegram reply": {
+      "main": [
+        [{ "node": "Persist update_id to Supabase", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "pi-ceo-ra-649"
+  },
+  "pinData": {},
+  "versionId": "ra-649-v1",
+  "triggerCount": 1,
+  "tags": [
+    { "id": "ra-649", "name": "RA-649" },
+    { "id": "telegram", "name": "Telegram" },
+    { "id": "pi-ceo", "name": "Pi-CEO" }
+  ]
+}

@@ -4,7 +4,7 @@
 
 Pi-Dev-Ops is a Zero Touch Engineering (ZTE) platform that converts a GitHub repo URL and a plain-English brief into an autonomous Claude Code execution session. The generator and evaluator can run via the `claude_agent_sdk` Python SDK (preferred) or via `claude -p` subprocess (fallback). Set `TAO_USE_AGENT_SDK=1` to activate the SDK path.
 
-**ZTE Score:** 60/60 (all 12 leverage points at maximum)
+**ZTE Score:** 73/75 (Sprint 8 — see `.harness/leverage-audit.md` for full breakdown)
 
 ## Architecture
 
@@ -64,21 +64,23 @@ cd dashboard && npm run build
 - **Settings:** Supabase-backed via `dashboard/lib/supabase/settings.ts`
 - **MCP tools:** `mcp/pi-ceo-server.js` — 21 tools for harness reads + Linear operations
 
-## SDK Architecture (Phase 2 — RA-571/572)
+## SDK Architecture (Phase 3 Complete — RA-576)
 
-The build pipeline supports two invocation modes, selected by `TAO_USE_AGENT_SDK`:
+The build pipeline runs **SDK-only** as of Sprint 8 (RA-576). The `claude -p` subprocess fallback paths have been removed from `sessions.py`. `TAO_USE_AGENT_SDK=1` is now the only supported mode — setting it to 0 causes an `ImportError` at startup (deliberate: misconfiguration must be loud).
 
-| Path | Flag | Function | File |
-|------|------|----------|------|
-| SDK (preferred) | `TAO_USE_AGENT_SDK=1` | `_run_claude_via_sdk()` | `sessions.py` |
-| Subprocess (fallback) | `TAO_USE_AGENT_SDK=0` (default) | `asyncio.create_subprocess_exec` | `sessions.py` |
+| Layer | SDK Path | File |
+|-------|----------|------|
+| Generator | `_run_claude_via_sdk()` | `sessions.py` |
+| Evaluator | `_run_single_eval()` → SDK | `sessions.py` |
+| Board Meeting | `_run_prompt_via_sdk()` | `agents/board_meeting.py` |
+| Orchestrator | Agent SDK fan-out | `orchestrator.py` |
+| Pipeline | Agent SDK per phase | `pipeline.py` |
 
-**Generator:** `_phase_generate()` tries SDK first; falls back to subprocess on import/runtime error.
-**Evaluator:** `_run_single_eval()` tries SDK first; falls back to subprocess on error.
-**Retry loop:** `_phase_evaluate()` retry generation uses the same SDK-first pattern.
 **Metrics:** Every SDK invocation emits a row to `.harness/agent-sdk-metrics/YYYY-MM-DD.jsonl`. Analyse with `python scripts/sdk_metrics.py`.
 
-SDK reference implementation: `app/server/agents/board_meeting.py::_run_prompt_via_sdk()` (Phase 1, verified working). Version policy: `.harness/agents/sdk-version-policy.md`.
+**API fallback (Risk Register R-02):** `TAO_USE_FALLBACK=1` activates the direct Anthropic Python SDK path (no claude CLI). Test quarterly via `python scripts/fallback_dryrun.py`. See `DEPLOYMENT.md → Contingency: API Fallback`.
+
+SDK reference: `app/server/agents/board_meeting.py::_run_prompt_via_sdk()`. Version policy: `.harness/agents/sdk-version-policy.md`.
 
 ## Linear Integration
 
@@ -89,9 +91,13 @@ SDK reference implementation: `app/server/agents/board_meeting.py::_run_prompt_v
 
 ## Strategic Direction
 
-**Sprint 8:** Agent SDK migration Phase 2 complete (RA-571/572). Generator and evaluator in `sessions.py` now try `claude_agent_sdk` first with subprocess fallback. Canary rollout plan: RA-574. Phase 3 (remove subprocess fallback): RA-576 — gated on 7-day canary stability.
+**Sprint 8 (current):** SDK-only execution confirmed (RA-576). Post-deploy smoke test wired into CI via `scripts/smoke_test.py --target=prod` (RA-583). Quality gate results persisted to Supabase `gate_checks` table (RA-651). Critical alert escalation chain complete: Telegram → 30-min watchdog → escalation page (RA-633). ZTE target: 75/75.
 
 **Autonomy:** `app/server/autonomy.py` polls Linear every 5 min for Urgent/High unstarted issues and auto-creates sessions. Kill switch: `TAO_AUTONOMY_ENABLED=0` in Railway env.
+
+**Observability:** `supabase_log.py` is the single write path for all server-side Supabase events. Tables: `gate_checks`, `alert_escalations`, `heartbeat_log`, `triage_log`, `workflow_runs`, `claude_api_costs`. All writes are fire-and-forget — observability failures must never block the build pipeline.
+
+**CI pipeline (RA-583):** Three jobs: `python` (pytest + ruff), `frontend` (tsc + eslint + build), `smoke-prod` (post-deploy gate against Railway, main-branch pushes only). `smoke-prod` requires `TAO_PROD_PASSWORD` GitHub secret.
 
 ## Persistence Guidelines
 

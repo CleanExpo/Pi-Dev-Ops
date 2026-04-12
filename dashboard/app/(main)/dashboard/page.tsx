@@ -6,6 +6,8 @@ import Terminal from "@/components/Terminal";
 import PhaseTracker from "@/components/PhaseTracker";
 import ResultCards from "@/components/ResultCards";
 import ActionsPanel from "@/components/ActionsPanel";
+import PageHero from "@/components/PageHero";
+import { Badge } from "@/components/ui/badge";
 import { useSSE } from "@/hooks/useSSE";
 
 function sanitize(s: string): string {
@@ -60,8 +62,26 @@ export default function Dashboard() {
   return (
     <div
       className="flex flex-col"
-      style={{ height: "calc(100vh - 44px)", overflow: "hidden" }}
+      style={{ height: "calc(100vh - 48px)", overflow: "hidden" }}
     >
+      {/* ── Cinematic page header — carries landing aesthetic into app ─ */}
+      <PageHero
+        title="DASHBOARD"
+        subtitle="Analysis pipeline · Claude Opus 4.6"
+        compact
+        right={
+          <Badge
+            variant={
+              status === "running" ? "default" :
+              status === "done"    ? "success" :
+              status === "error"   ? "destructive" : "outline"
+            }
+          >
+            {status.toUpperCase()}
+          </Badge>
+        }
+      />
+
       {/* ── Input bar ─────────────────────────────────────────────── */}
       <div
         className="flex items-center gap-2 sm:gap-3 px-3 py-2 shrink-0"

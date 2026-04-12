@@ -332,6 +332,56 @@ async def linear_todo_poller() -> None:
 # Status (for /api/autonomy/status endpoint)
 # ---------------------------------------------------------------------------
 
+def _calc_effective_autonomy(events: list[dict]) -> dict:
+    """
+    RA-626 — Compute Effective Autonomy runtime metric from in-memory events.
+
+    Metric definition:
+      effective_autonomy_pct = poll_success_rate × session_success_rate × 100
+
+    Where:
+      poll_success_rate  = successful_polls / (successful_polls + poll_errors)
+      session_success_rate = sessions_started / (sessions_started + session_errors)
+
+    A value of 100 means every poll succeeded AND every session it attempted
+    launched without error. Partial credit is given for partially healthy runs.
+    Returns None for each sub-rate when there is no data yet.
+    """
+    polls           = sum(1 for e in events if e.get("action") == "poll")
+    poll_errors     = sum(1 for e in events if e.get("action") == "poll_error")
+    started         = sum(1 for e in events if e.get("action") == "session_started")
+    errors          = sum(1 for e in events if e.get("action") == "session_error")
+    transitions_ok  = sum(1 for e in events if e.get("action") == "transition_to_in_progress")
+    transition_errs = sum(1 for e in events if e.get("action") == "transition_error")
+    issues_found    = sum(e.get("found", 0) for e in events if e.get("action") == "poll")
+
+    total_polls    = polls + poll_errors
+    total_sessions = started + errors
+
+    poll_rate    = polls / total_polls       if total_polls    > 0 else None
+    session_rate = started / total_sessions  if total_sessions > 0 else None
+    pickup_rate  = started / issues_found    if issues_found   > 0 else None
+
+    # Composite: treat None sub-rates as 1.0 (no data = assume healthy)
+    effective_pct = round(
+        (poll_rate if poll_rate is not None else 1.0) *
+        (session_rate if session_rate is not None else 1.0) * 100,
+        1,
+    )
+
+    return {
+        "effective_autonomy_pct": effective_pct,
+        "poll_success_rate_pct": round(poll_rate * 100, 1) if poll_rate is not None else None,
+        "session_success_rate_pct": round(session_rate * 100, 1) if session_rate is not None else None,
+        "pickup_rate_pct": round(pickup_rate * 100, 1) if pickup_rate is not None else None,
+        "sessions_started": started,
+        "session_errors": errors,
+        "transition_errors": transition_errs,
+        "issues_found_window": issues_found,
+        "window_size": len(events),
+    }
+
+
 def autonomy_status() -> dict:
     """Return poller heartbeat + recent events for the status endpoint."""
     from . import config
@@ -344,5 +394,6 @@ def autonomy_status() -> dict:
         "last_poll_ago_s": age,
         "stale": age is not None and age > 900,
         "poll_count": _poll_count,
+        "effective_autonomy": _calc_effective_autonomy(_recent_events),  # RA-626
         "recent_events": _recent_events,
     }

@@ -1,18 +1,58 @@
 project: pi-dev-ops
-harness_version: 1.1
+harness_version: 1.2
+# Last regenerated: 2026-04-12 (RA-580 Sprint 8)
+
 agents:
-  planner: {model: opus, temperature: 0.3}
+  planner:   {model: opus,   temperature: 0.3}
   generator: {model: sonnet, temperature: 0.2, sdk: true}
   evaluator: {model: sonnet, temperature: 0.1, sdk: true, parallel: true}
+
 qa:
   max_rounds: 3
   auto_escalate: true
+
 sdk:
-  # TAO_USE_AGENT_SDK=1 activates the claude_agent_sdk path in sessions.py.
-  # When enabled, generator and evaluator try SDK first; subprocess is the fallback.
-  # Phase 2 complete (RA-571/572). Phase 3 (remove fallback) tracked in RA-576.
-  enabled_by_flag: TAO_USE_AGENT_SDK
-  reference_impl: app/server/agents/board_meeting.py
-  version_policy: .harness/agents/sdk-version-policy.md
-  metrics_dir: .harness/agent-sdk-metrics/
+  # SDK-only mode as of Sprint 8 / RA-576.
+  # Subprocess fallback removed from sessions.py — TAO_USE_AGENT_SDK=1 is required.
+  # Setting TAO_USE_AGENT_SDK=0 raises ImportError at startup (deliberate loud failure).
+  enabled_by_flag:  TAO_USE_AGENT_SDK
+  fallback_removed: true      # RA-576: subprocess paths deleted
+  reference_impl:   app/server/agents/board_meeting.py
+  version_policy:   .harness/agents/sdk-version-policy.md
+  metrics_dir:      .harness/agent-sdk-metrics/
   metrics_analyser: scripts/sdk_metrics.py
+
+observability:
+  # Supabase event logging (RA-651, RA-633)
+  supabase_writer:  app/server/supabase_log.py
+  tables:
+    gate_checks:       "quality gate results — every /ship phase"
+    alert_escalations: "critical alert tracking + escalation state"
+    heartbeat_log:     "service health polls"
+    triage_log:        "Pi-SEO finding triage events"
+    workflow_runs:     "n8n workflow execution records"
+    claude_api_costs:  "per-call token + cost tracking"
+
+ci:
+  # Three-job CI pipeline (RA-583)
+  jobs:
+    python:     "pytest + ruff — all branches"
+    frontend:   "tsc + eslint + build — all branches"
+    smoke-prod: "smoke_test.py --target=prod — main branch pushes only"
+  smoke_test:   scripts/smoke_test.py
+  prod_secret:  TAO_PROD_PASSWORD   # GitHub Actions secret
+
+cron:
+  # 13 active triggers — see .harness/cron-triggers.json for full list
+  watchdogs:
+    scheduler_silence: "12h — creates Urgent Linear ticket if no scan fires"
+    docs_staleness:    "48h — creates Medium ticket if anthropic-docs/ is stale (RA-635)"
+    escalations:       "30m — re-pages Telegram if critical alert unacked (RA-633)"
+  quarterly:
+    fallback_dryrun: "1st Jan/Apr/Jul/Oct 17:00 UTC — tests TAO_USE_FALLBACK path (RA-634)"
+
+staleness:
+  # RA-580: harness docs regeneration policy
+  max_age_days: 2
+  watchdog_enabled: true
+  watchdog_fires: "Medium Linear ticket if .harness/ docs are >48h stale"

@@ -268,9 +268,16 @@ async def _run_claude_via_sdk(
             ResultMessage,
             TextBlock,
         )
-    except ImportError:
-        _log.debug("claude_agent_sdk not available, falling back to subprocess")
-        return (1, "", 0.0)
+    except ImportError as exc:
+        # RA-576: SDK not installed but USE_AGENT_SDK=1 — deployment misconfiguration.
+        # Raise so the operator sees it clearly rather than silently degrading to subprocess.
+        _log.error(
+            "claude_agent_sdk import failed but USE_AGENT_SDK=1. "
+            "Install the package or set USE_AGENT_SDK=0. Error: %s", exc,
+        )
+        raise RuntimeError(
+            "claude_agent_sdk not installed — set USE_AGENT_SDK=0 or run: pip install claude_agent_sdk"
+        ) from exc
 
     t0 = time.monotonic()
     error_msg: Optional[str] = None
@@ -347,8 +354,11 @@ async def _run_single_eval(
         )
         if rc == 0 and sdk_text.strip():
             return _extract_eval_score(sdk_text), sdk_text
+        # RA-576: SDK required — do not fall back to subprocess evaluator.
+        _log.warning("SDK evaluator failed rc=%d — returning None (no subprocess fallback) [RA-576]", rc)
+        return None, ""
 
-    # ── Subprocess path (original or SDK fallback) ────────────────────────
+    # ── Subprocess path — only reached when USE_AGENT_SDK=0 ──────────────
     cmd = [config.CLAUDE_CMD, *config.CLAUDE_EXTRA_FLAGS, "-p", eval_spec,
            "--model", model, "--output-format", "text"]
     try:
@@ -659,11 +669,15 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
                     persistence.save_session(session)
                     return True
                 else:
-                    # SDK failed — fall back to subprocess
-                    _log.warning("SDK path failed (rc=%d), falling back to subprocess", rc)
-                    em(session, "system", "  [SDK failed, falling back to subprocess]")
+                    # RA-576: SDK path required — no subprocess fallback.
+                    # Retry with simplified spec on attempt 0; fail on attempt 1.
+                    _log.warning("SDK path failed rc=%d (attempt %d/2) — no subprocess fallback", rc, attempt + 1)
+                    em(session, "error", f"  SDK failed rc={rc} (attempt {attempt + 1}/2) — no subprocess fallback [RA-576]")
+                    if attempt == 0:
+                        em(session, "system", "  Retrying with simplified prompt...")
+                    continue  # skip subprocess block; proceed to next attempt
 
-            # Subprocess path (original or fallback from SDK)
+            # ── Subprocess path — only reached when USE_AGENT_SDK=0 ──────────
             cmd = [config.CLAUDE_CMD, *config.CLAUDE_EXTRA_FLAGS, "-p", current_spec,
                    "--model", model, "--verbose", "--output-format", "stream-json"]
             em(session, "tool", f"  $ claude --model {model} --verbose --stream-json")
@@ -805,12 +819,13 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
                     em(session, "success", "  Retry generation complete")
                     retry_success = True
                 else:
-                    # SDK failed — fall back to subprocess
-                    _log.warning("SDK retry failed (rc=%d), falling back to subprocess", rc)
-                    em(session, "system", "  [SDK failed, falling back to subprocess]")
+                    # RA-576: SDK retry required — no subprocess fallback.
+                    _log.warning("SDK retry failed rc=%d — aborting evaluator retry [RA-576]", rc)
+                    em(session, "error", f"  SDK retry failed rc={rc} — no subprocess fallback [RA-576]")
+                    break
 
-            # Subprocess path (original or fallback from SDK)
-            if not retry_success:
+            # ── Subprocess retry path — only reached when USE_AGENT_SDK=0 ──
+            if not use_sdk and not retry_success:
                 retry_cmd = [config.CLAUDE_CMD, *config.CLAUDE_EXTRA_FLAGS, "-p", retry_brief,
                              "--model", model, "--verbose", "--output-format", "stream-json"]
                 retry_proc = await asyncio.create_subprocess_exec(

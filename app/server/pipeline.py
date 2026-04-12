@@ -674,6 +674,18 @@ def run_ship_phase(pipeline_id: str) -> PipelineState:
         state.ship_log = ship_log
         save_pipeline_state(state)
         log.warning("Ship gate failed: pipeline=%s blocking=%s", pipeline_id, failing[0])
+        # RA-651 — log failed gate check to Supabase
+        try:
+            from .supabase_log import log_gate_check as _log_gate_check
+            _log_gate_check(
+                pipeline_id=pipeline_id,
+                session_id=state.session_id,
+                gate_checks=gate_checks,
+                review_score=score,
+                shipped=False,
+            )
+        except Exception as _exc:
+            log.warning("gate_check Supabase log failed (non-fatal): %s", _exc)
         return state
 
     # Two-way Linear sync: move issue to "Done" if pipeline_id is a Linear ticket (e.g. RA-123)
@@ -708,6 +720,19 @@ def run_ship_phase(pipeline_id: str) -> PipelineState:
     if "ship" not in state.phases_completed:
         state.phases_completed.append("ship")
     save_pipeline_state(state)
+
+    # RA-651 — log gate check result to Supabase for Observability dashboard
+    try:
+        from .supabase_log import log_gate_check as _log_gate_check
+        _log_gate_check(
+            pipeline_id=pipeline_id,
+            session_id=state.session_id,
+            gate_checks=gate_checks,
+            review_score=score,
+            shipped=True,
+        )
+    except Exception as _exc:
+        log.warning("gate_check Supabase log failed (non-fatal): %s", _exc)
 
     log.info("Ship complete: pipeline=%s score=%s linear_updated=%s", pipeline_id, score, linear_ticket_updated)
     return state
