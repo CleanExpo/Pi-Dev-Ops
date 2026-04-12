@@ -70,16 +70,25 @@ class ScanResult:
 
     @property
     def health_score(self) -> int:
-        score = 100
+        # Count findings per severity bucket
+        counts: dict[str, int] = {}
         for f in self.findings:
-            match f.severity:
-                case "critical":
-                    score -= 25
-                case "high":
-                    score -= 10
-                case "medium":
-                    score -= 3
-                # low/info findings are informational — they do not affect the score
+            counts[f.severity] = counts.get(f.severity, 0) + 1
+        # Deduct with per-severity caps so a flood of one type doesn't mask all signal.
+        # Without caps: 10 criticals → score 0 (indistinguishable from 100 criticals).
+        # With caps: deduction plateaus, leaving residual score as a rough rank signal.
+        #   critical: -25 each, capped at -50  (2+ criticals → always serious)
+        #   high:     -10 each, capped at -40  (4+ highs    → significant issues)
+        #   medium:   -3  each, capped at -20  (7+ mediums  → moderate concerns)
+        #   low/info: informational, no score impact
+        deductions = [
+            ("critical", 25, 50),
+            ("high",     10, 40),
+            ("medium",    3, 20),
+        ]
+        score = 100
+        for sev, per_finding, cap in deductions:
+            score -= min(counts.get(sev, 0) * per_finding, cap)
         return max(0, score)
 
     def to_dict(self) -> dict[str, Any]:
@@ -120,6 +129,11 @@ _SKIP_DIRS = {
     ".git", "node_modules", "__pycache__", ".next", "dist", "build",
     ".venv", "venv", "env", ".tox", "coverage", ".coverage",
     "tests", "test", "__tests__", "spec", "fixtures",
+    # Documentation directories — never contain real credentials
+    "docs", "doc", "runbooks", "runbook", "examples", "example",
+    "samples", "sample", "migrations", "stubs",
+    # Project harness/cache directories — scanner output would recurse on itself
+    ".harness", "archive", "archives",
 }
 _SKIP_EXTS = {
     ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2",
@@ -156,9 +170,36 @@ _PLACEHOLDER_RE = re.compile(
     # Example-field placeholders in env doc generators
     r"|example:\s*['\"]sk-[xX*]+"
     # Explicit placeholder indicators in code comments or strings
-    r"|REPLACE_ME|INSERT_YOUR|YOUR_.*_HERE|PASTE_YOUR",
+    r"|REPLACE_ME|INSERT_YOUR|YOUR_.*_HERE|PASTE_YOUR"
+    # Generic "not real" indicators common in documentation and tests
+    r"|fake[_-]?(?:key|token|secret|password|api)"
+    r"|dummy[_-]?(?:key|token|secret|password)"
+    r"|sample[_-]?(?:key|token|secret|password)"
+    r"|test[_-]?(?:key|token|secret|password|api)"
+    r"|demo[_-]?(?:key|token|secret|password)"
+    r"|placeholder|not.?a.?real|not.?valid|changeme|change.?this"
+    # Redacted/masked values in logs and outputs
+    r"|REDACTED|MASKED|CENSORED|\[hidden\]|\[removed\]"
+    # Variable interpolation patterns
+    r"|\$[A-Z_][A-Z0-9_]+"             # shell variable reference $MY_TOKEN
+    r"|%[A-Z_][A-Z0-9__%]+"           # Windows env var %MY_TOKEN%
+    r"|\{\{[^}]+\}\}",                 # template variable {{MY_TOKEN}}
     re.IGNORECASE,
 )
+
+# File extensions skipped from secret detection only (not dangerous-pattern detection).
+# Markdown/RST files routinely contain example credentials in documentation; real
+# secrets are not stored in prose files. Code files are still fully scanned.
+_SECRET_SKIP_EXTS = {".md", ".rst"}
+
+# Filenames skipped from dangerous-pattern detection. Lock files and generated manifests
+# contain third-party code excerpts (dangerouslySetInnerHTML in React docs, eval() calls
+# in minified libs etc.) — these are not actionable findings in the host project.
+_SKIP_DANGEROUS_FILENAMES = {
+    "package-lock.json", "npm-shrinkwrap.json", "yarn.lock",
+    "pnpm-lock.yaml", "composer.lock", "Pipfile.lock",
+    "poetry.lock", "Gemfile.lock", "cargo.lock",
+}
 
 
 # ─── security scanner ─────────────────────────────────────────────────────────
@@ -192,8 +233,19 @@ class SecurityScanner:
             yield path
 
     def _check_secrets(self, text: str, rel: str) -> list[Finding]:
-        basename = rel.split("/")[-1].split("\\")[-1]
+        rel_norm = rel.replace("\\", "/")
+        parts = rel_norm.split("/")
+        basename = parts[-1]
+        # Skip by extension — markdown/RST are documentation; real secrets live in code
+        ext = "." + basename.rsplit(".", 1)[-1] if "." in basename else ""
+        if ext.lower() in _SECRET_SKIP_EXTS:
+            return []
+        # Skip by filename — env files contain real creds by design; known doc files
         if basename in _SKIP_SECRET_FILENAMES:
+            return []
+        # Skip if any *directory* component matches the skip list — catches files
+        # like skills/.env.example or docs/api-keys.yaml
+        if any(part in _SKIP_SECRET_FILENAMES for part in parts[:-1]):
             return []
         # RA-586 — per-repo path exclusions (documentation/runbook files with example keys)
         try:
@@ -201,7 +253,6 @@ class SecurityScanner:
             exclusions = _cfg.SCAN_PATH_EXCLUSIONS
         except Exception:
             exclusions = []
-        rel_norm = rel.replace("\\", "/")
         if any(rel_norm.endswith(excl.replace("\\", "/")) for excl in exclusions):
             return []
         lines = text.split("\n")
@@ -226,6 +277,13 @@ class SecurityScanner:
         return findings
 
     def _check_dangerous(self, text: str, rel: str) -> list[Finding]:
+        basename = rel.split("/")[-1].split("\\")[-1]
+        if basename in _SKIP_DANGEROUS_FILENAMES:
+            return []
+        # Skip markdown/RST — code-snippet examples trigger eval/nosec/TODO patterns
+        ext = "." + basename.rsplit(".", 1)[-1] if "." in basename else ""
+        if ext.lower() in _SECRET_SKIP_EXTS:
+            return []
         findings = []
         for pattern, title, severity in _DANGEROUS_PATTERNS:
             for match in re.finditer(pattern, text):
@@ -658,8 +716,27 @@ class ProjectScanner:
                     if files:
                         try:
                             data = json.loads(files[-1].read_text())
-                            scores[scan_type] = data.get("health_score", 100)
-                            findings_count[scan_type] = len(data.get("findings", []))
+                            raw_findings = data.get("findings", [])
+                            findings_count[scan_type] = len(raw_findings)
+                            # Recompute score from findings using current formula so cached
+                            # results from older scanner versions stay accurate after formula
+                            # or filter changes.
+                            findings = [
+                                Finding(
+                                    scan_type=f.get("scan_type", scan_type),
+                                    severity=f.get("severity", "info"),
+                                    title=f.get("title", ""),
+                                    description=f.get("description", ""),
+                                    file_path=f.get("file_path", ""),
+                                    line_number=f.get("line_number", 0),
+                                )
+                                for f in raw_findings
+                            ]
+                            dummy = ScanResult(
+                                project_id=pid, repo="", scan_type=scan_type,
+                                started_at="", finished_at="", findings=findings,
+                            )
+                            scores[scan_type] = dummy.health_score
                         except (json.JSONDecodeError, OSError):
                             pass
             overall = int(sum(scores.values()) / len(scores)) if scores else 100
