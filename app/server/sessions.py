@@ -17,6 +17,24 @@ from .lessons import append_lesson
 
 _log = logging.getLogger("pi-ceo.sessions")
 
+# ── Prompt caching (RA-655) ───────────────────────────────────────────────────
+
+_claude_md_cache: Optional[str] = None
+
+def _get_claude_md() -> str:
+    """Lazy-load CLAUDE.md content for cached system prompt (RA-655)."""
+    global _claude_md_cache
+    if _claude_md_cache is None:
+        try:
+            path = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), "..", "..", "CLAUDE.md")
+            )
+            with open(path, encoding="utf-8") as f:
+                _claude_md_cache = f.read()
+        except Exception:
+            _claude_md_cache = ""
+    return _claude_md_cache
+
 # ── SDK metrics ────────────────────────────────────────────────────────────────
 _SDK_METRICS_DIR = os.path.join(
     os.path.dirname(__file__), "..", "..", ".harness", "agent-sdk-metrics"
@@ -332,6 +350,175 @@ def _extract_eval_score(text: str) -> Optional[float]:
             except (ValueError, IndexError):
                 pass
     return None
+
+
+async def _run_eval_with_cache(
+    *,
+    brief_context: str,
+    diff_out: str,
+    diff_context: str,
+    model: str,
+    threshold: int,
+    timeout: int = 120,
+    session_id: str = "",
+) -> tuple[Optional[float], str]:
+    """RA-655 — Evaluator via direct Anthropic API with prompt caching.
+
+    System blocks (ephemeral cache):
+      1. CLAUDE.md — project context, ~1200 tokens, reused across all eval rounds
+      2. Static grading criteria — same for every eval in the same build
+
+    User message (dynamic):
+      Brief + diff output
+
+    Returns (score_or_None, text). Returns (None, "") on any error so caller
+    can fall back to the Agent SDK path.
+    """
+    try:
+        import anthropic as _anthropic  # noqa: PLC0415
+    except ImportError:
+        return None, ""
+
+    api_key = config.ANTHROPIC_API_KEY
+    if not api_key:
+        return None, ""
+
+    _MODEL_IDS = {
+        "opus": "claude-opus-4-6",
+        "sonnet": "claude-sonnet-4-6",
+        "haiku": "claude-haiku-4-5-20251001",
+    }
+    full_model = _MODEL_IDS.get(model, model)
+
+    eval_criteria = (
+        "You are a senior code reviewer evaluating AI-generated changes. "
+        "Be rigorous — your job is to catch every gap and flaw.\n\n"
+        "Grade on 4 dimensions (1-10). Scoring guide:\n"
+        "  10 = production-ready, exceeds expectations\n"
+        "   9 = complete and correct, minor style preferences only\n"
+        "   8 = solid work, 1-2 small gaps or nits\n"
+        "   7 = acceptable but missing something meaningful\n"
+        "  \u22646 = clear deficiency that must be fixed\n\n"
+        "DIMENSION CRITERIA:\n"
+        "1. COMPLETENESS \u2014 Does the diff address EVERY requirement in the brief? "
+        "List any unmet requirements. Partial = \u22646.\n"
+        "2. CORRECTNESS \u2014 Any bugs, logic errors, type issues, null refs, security "
+        "vulnerabilities, or broken tests? One confirmed bug = \u22646.\n"
+        "3. CONCISENESS \u2014 Any dead code, debug prints, TODO stubs, or over-engineered "
+        "abstractions? Tight, purposeful code = 9-10.\n"
+        "4. FORMAT \u2014 Does it match the project's existing conventions exactly? "
+        "Style violations or inconsistent naming = \u22646.\n\n"
+        "OUTPUT FORMAT: Respond with exactly 4 dimension lines then the overall:\n"
+        "COMPLETENESS: <score>/10 \u2014 <reason>\n"
+        "CORRECTNESS: <score>/10 \u2014 <reason>\n"
+        "CONCISENESS: <score>/10 \u2014 <reason>\n"
+        "FORMAT: <score>/10 \u2014 <reason>\n"
+        f"OVERALL: <average>/10 \u2014 PASS or FAIL (threshold: {threshold}/10)"
+    )
+
+    system_blocks: list[dict] = []
+    claude_md = _get_claude_md()
+    if claude_md:
+        system_blocks.append({
+            "type": "text",
+            "text": claude_md,
+            "cache_control": {"type": "ephemeral"},
+        })
+    system_blocks.append({
+        "type": "text",
+        "text": eval_criteria,
+        "cache_control": {"type": "ephemeral"},
+    })
+
+    user_content = (
+        "ORIGINAL BRIEF (what was asked for):\n" + brief_context + "\n\n"
+        "DIFF SUMMARY:\n" + (diff_out or "(empty)") + "\n\n"
+        "DIFF DETAIL (truncated to 8000 chars):\n" + diff_context
+    )
+
+    t0 = time.monotonic()
+    try:
+        client = _anthropic.Anthropic(api_key=api_key)
+        message = client.messages.create(
+            model=full_model,
+            max_tokens=512,
+            system=system_blocks,
+            messages=[{"role": "user", "content": user_content}],
+            timeout=timeout,
+        )
+        text = message.content[0].text if message.content else ""
+        usage = message.usage
+        _log.info(
+            "eval-cache model=%s input=%d cache_write=%d cache_read=%d output=%d latency=%.1fs",
+            model,
+            getattr(usage, "input_tokens", 0),
+            getattr(usage, "cache_creation_input_tokens", 0),
+            getattr(usage, "cache_read_input_tokens", 0),
+            getattr(usage, "output_tokens", 0),
+            time.monotonic() - t0,
+        )
+        _write_sdk_metric(
+            session_id=session_id, phase=f"evaluator_cached_{model}",
+            model=model, success=True,
+            latency_s=time.monotonic() - t0, output_len=len(text),
+        )
+        return _extract_eval_score(text), text
+    except Exception as exc:
+        _log.warning("eval-cache model=%s failed: %s — will fall back", model, exc)
+        _write_sdk_metric(
+            session_id=session_id, phase=f"evaluator_cached_{model}",
+            model=model, success=False,
+            latency_s=time.monotonic() - t0, output_len=0, error=str(exc),
+        )
+        return None, ""
+
+
+async def _run_parallel_eval_cached(
+    session,
+    brief_context: str,
+    diff_out: str,
+    diff_context: str,
+    threshold: int,
+    sid: str = "",
+) -> tuple[Optional[float], str, str, str]:
+    """RA-655 — Parallel evaluator using cached direct API calls.
+
+    Same return type as _run_parallel_eval: (score, text, model_label, consensus_detail).
+    Returns ("", "", "", "cache-all-failed") tuple with None score if both evals fail,
+    so caller can fall back to the Agent SDK path.
+    """
+    em(session, "tool", "  $ anthropic.messages (cached) sonnet + haiku [parallel]")
+    kwargs = dict(
+        brief_context=brief_context,
+        diff_out=diff_out,
+        diff_context=diff_context,
+        threshold=threshold,
+        session_id=sid,
+    )
+    (s_score, s_text), (h_score, h_text) = await asyncio.gather(
+        _run_eval_with_cache(model="sonnet", **kwargs),
+        _run_eval_with_cache(model="haiku", **kwargs),
+    )
+    if s_score is None and h_score is None:
+        return None, "", "", "cache-all-failed"
+
+    # Same consensus logic as _run_parallel_eval
+    if s_score is None:
+        return h_score, h_text, "haiku(cached)", "sonnet-failed"
+    if h_score is None:
+        return s_score, s_text, "sonnet(cached)", "haiku-failed"
+
+    delta = abs(s_score - h_score)
+    consensus = f"sonnet={s_score:.1f} haiku={h_score:.1f} delta={delta:.1f}"
+    if delta <= 2:
+        return (s_score + h_score) / 2, s_text, "sonnet+haiku(cached)", consensus
+
+    em(session, "agent", f"  Evaluator delta={delta:.1f} > 2 — escalating to Opus (cached)")
+    o_score, o_text = await _run_eval_with_cache(model="opus", timeout=180, **kwargs)
+    if o_score is None:
+        return (s_score + h_score) / 2, s_text, "sonnet+haiku(cached)", f"{consensus} opus-failed"
+    weighted = o_score * 0.6 + s_score * 0.3 + h_score * 0.1
+    return weighted, o_text, "opus+sonnet+haiku(cached)", f"{consensus} opus={o_score:.1f}"
 
 
 async def _run_single_eval(
@@ -748,13 +935,21 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
             _, diff_out, _ = await run_cmd(session.workspace, "git", "diff", "HEAD~1", "--stat", timeout=10)
             _, diff_full, _ = await run_cmd(session.workspace, "git", "diff", "HEAD~1", timeout=30)
             diff_context = diff_full[:8000] if diff_full else "(no diff available)"
-            eval_spec = (
-                _EVAL_PROMPT_BASE
-                + "DIFF SUMMARY:\n" + (diff_out or "(empty)") + "\n\n"
-                + "DIFF DETAIL (truncated to 8000 chars):\n" + diff_context + "\n\n"
-                + _EVAL_PROMPT_DIMS
+            sid = getattr(session, "id", "")
+            # RA-655 — prefer cached direct API path; fall back to Agent SDK on failure
+            final_score, eval_text, eval_model, consensus_detail = await _run_parallel_eval_cached(
+                session, brief_context, diff_out or "", diff_context, threshold=threshold, sid=sid,
             )
-            final_score, eval_text, eval_model, consensus_detail = await _run_parallel_eval(session, eval_spec)
+            if eval_model == "":
+                # Cached path failed — fall back to Agent SDK path
+                _log.info("eval-cache all-failed — falling back to Agent SDK evaluator")
+                eval_spec = (
+                    _EVAL_PROMPT_BASE
+                    + "DIFF SUMMARY:\n" + (diff_out or "(empty)") + "\n\n"
+                    + "DIFF DETAIL (truncated to 8000 chars):\n" + diff_context + "\n\n"
+                    + _EVAL_PROMPT_DIMS
+                )
+                final_score, eval_text, eval_model, consensus_detail = await _run_parallel_eval(session, eval_spec)
             session.evaluator_score = final_score
             session.evaluator_model = eval_model
             session.evaluator_consensus = consensus_detail

@@ -6,12 +6,12 @@
   <title>Pi-CEO · Command Centre</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 
   <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  :root {
+  :root, html.dark {
     --bg:      #0A0A0A;
     --surface: #111111;
     --surface2:#161616;
@@ -28,10 +28,27 @@
     --blue:    #6B8CFF;
   }
 
-  html { font-size: 14px; }
+  html.light {
+    --bg:      #ECEAE7;
+    --surface: #E0DDD9;
+    --surface2:#D4D0CB;
+    --border:  #B8B5B0;
+    --text:    #141210;
+    --cream:   #2A2624;
+    --muted:   #282422;
+    --dim:     #343130;
+    --chrome:  #484440;
+    --orange:  #B85A0A;
+    --green:   #155F32;
+    --red:     #A82520;
+    --yellow:  #7A5500;
+    --blue:    #2A4EBB;
+  }
+
+  html { font-size: 18px; }
 
   body {
-    font-family: 'Barlow', sans-serif;
+    font-family: 'Noto Sans', sans-serif;
     background: var(--bg);
     /* Ambient warm glow — same as Pi-CEO landing */
     background-image: radial-gradient(ellipse at 0% 0%, rgba(232,117,26,0.045) 0%, transparent 45%);
@@ -76,7 +93,7 @@
     text-decoration: none;
   }
   .logo-pi {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'Noto Sans Mono', monospace;
     font-size: 18px; color: var(--orange); letter-spacing: 0.15em; line-height: 1;
   }
   .logo-wordmark { display: flex; flex-direction: column; gap: 1px; }
@@ -85,9 +102,9 @@
     font-size: 22px; color: var(--text); letter-spacing: 0.1em; line-height: 1;
   }
   .logo-sub {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 9px; color: var(--chrome);
-    letter-spacing: 0.22em; text-transform: uppercase;
+    font-family: 'Noto Sans Mono', monospace;
+    font-size: 13px; color: var(--chrome);
+    letter-spacing: 0.14em; text-transform: uppercase;
   }
 
   .header-right { display: flex; align-items: stretch; }
@@ -95,12 +112,12 @@
     display: flex; align-items: center; gap: 8px;
     padding: 0 20px;
     border-left: 1px solid var(--border);
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'Noto Sans Mono', monospace;
   }
-  #clock { font-size: 13px; color: var(--muted); letter-spacing: 0.08em; }
+  #clock { font-size: 17px; color: var(--muted); letter-spacing: 0.04em; }
   .live-badge {
     display: flex; align-items: center; gap: 5px;
-    font-size: 10px; color: var(--green);
+    font-size: 14px; color: var(--green);
     text-transform: uppercase; letter-spacing: 0.2em;
   }
   .live-dot {
@@ -112,34 +129,46 @@
   /* ══════════════════════════════════════════════════════════════════
      MAIN CONTENT
   ══════════════════════════════════════════════════════════════════ */
-  main { padding: 0; max-width: 100%; }
+  main { padding: 12px 14px; max-width: 100%; }
 
-  /* ── Hairline grid — Bloomberg terminal panel approach ───────────── */
-  /* Outer wrapper has border-color as bg; children fill to create hairlines */
+  /* ── Card grid — rounded containers with depth ───────────────────── */
   .panel-row {
     display: grid;
-    gap: 1px;
-    background: var(--border);
-    border-bottom: 1px solid var(--border);
+    gap: 10px;
+    background: transparent;
+    border-bottom: none;
   }
   .panel-row.cols-4 { grid-template-columns: repeat(4, 1fr); }
   .panel-row.cols-2 { grid-template-columns: repeat(2, 1fr); }
-  .panel-row.cols-3-1 { grid-template-columns: 1fr 1fr 2fr; } /* cost row */
+  .panel-row.cols-3-1 { grid-template-columns: 1fr 1fr 2fr; }
   .panel-row.cols-1 { grid-template-columns: 1fr; }
 
   .panel {
     background: var(--surface);
     padding: 18px 20px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    /* Double edge: inner border → bg gap → outer ring */
+    box-shadow: 0 0 0 3px var(--bg), 0 0 0 4px var(--border);
+    transition: box-shadow 0.22s ease, border-color 0.22s ease;
+  }
+
+  .panel:hover {
+    border-color: rgba(232,117,26,0.55);
+    box-shadow:
+      0 0 0 3px var(--bg),
+      0 0 0 4px rgba(232,117,26,0.5),
+      0 0 22px rgba(232,117,26,0.13);
   }
 
   /* Spacing between panel-row groups */
-  .section { border-top: 24px solid var(--bg); }
+  .section { margin-top: 10px; }
 
   /* ── Panel label ─────────────────────────────────────────────────── */
   .panel-label {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 9px; font-weight: 500;
-    text-transform: uppercase; letter-spacing: 0.25em;
+    font-family: 'Noto Sans Mono', monospace;
+    font-size: 13px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.14em;
     color: var(--chrome);
     margin-bottom: 14px;
     display: flex; align-items: center; justify-content: space-between;
@@ -163,9 +192,9 @@
   .kpi-val.orange { color: var(--orange); }
   .kpi-val.green  { color: var(--green); }
   .kpi-sub {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 9px; color: var(--chrome);
-    text-transform: uppercase; letter-spacing: 0.18em;
+    font-family: 'Noto Sans Mono', monospace;
+    font-size: 13px; color: var(--chrome);
+    text-transform: uppercase; letter-spacing: 0.1em;
     margin-top: 5px;
   }
 
@@ -173,10 +202,10 @@
      STATUS BADGES — monospace, sharp, no rounded corners
   ══════════════════════════════════════════════════════════════════ */
   .badge {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 9px; font-weight: 500;
-    text-transform: uppercase; letter-spacing: 0.18em;
-    padding: 2px 7px;
+    font-family: 'Noto Sans Mono', monospace;
+    font-size: 12px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    padding: 4px 9px;
     border: 1px solid;
     display: inline-flex; align-items: center; gap: 4px;
     white-space: nowrap;
@@ -208,17 +237,17 @@
   }
   .data-row:last-child { border-bottom: none; }
   .data-name {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.2;
+    font-family: 'Noto Sans', sans-serif;
+    font-size: 17px; font-weight: 600; color: var(--text); line-height: 1.2;
   }
   .data-meta {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px; color: var(--chrome); margin-top: 2px;
+    font-family: 'Noto Sans Mono', monospace;
+    font-size: 13px; color: var(--chrome); margin-top: 2px;
   }
   .data-right { text-align: right; flex-shrink: 0; }
   .data-val {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px; color: var(--dim); margin-top: 3px;
+    font-family: 'Noto Sans Mono', monospace;
+    font-size: 13px; color: var(--dim); margin-top: 3px;
   }
 
   /* ══════════════════════════════════════════════════════════════════
@@ -230,9 +259,9 @@
   }
   .triage-row:last-child { border-bottom: none; }
   .triage-name {
-    font-family: 'IBM Plex Mono', monospace; font-size: 10px;
-    color: var(--chrome); text-transform: uppercase; letter-spacing: 0.1em;
-    width: 68px; flex-shrink: 0;
+    font-family: 'Noto Sans Mono', monospace; font-size: 14px;
+    color: var(--chrome); text-transform: uppercase; letter-spacing: 0.06em;
+    width: 88px; flex-shrink: 0;
   }
   .triage-track {
     flex: 1; height: 2px; background: var(--border); overflow: hidden;
@@ -244,15 +273,15 @@
   .fill-skip     { background: var(--chrome); }
   .fill-untriaged{ background: var(--orange); }
   .triage-num {
-    font-family: 'IBM Plex Mono', monospace; font-size: 12px;
-    color: var(--muted); width: 24px; text-align: right;
+    font-family: 'Noto Sans Mono', monospace; font-size: 16px;
+    color: var(--muted); width: 32px; text-align: right;
   }
 
   /* ══════════════════════════════════════════════════════════════════
      COST ROW — orange accent value
   ══════════════════════════════════════════════════════════════════ */
   .cost-val {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'Noto Sans Mono', monospace;
     font-size: 20px; color: var(--orange);
     letter-spacing: 0.04em; margin-top: 6px;
   }
@@ -268,10 +297,10 @@
     background: var(--surface);
   }
   .portfolio-label {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 9px; text-transform: uppercase; letter-spacing: 0.25em; color: var(--chrome);
+    font-family: 'Noto Sans Mono', monospace;
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--chrome);
   }
-  .portfolio-label .pi { color: var(--orange); margin-right: 5px; font-size: 11px; }
+  .portfolio-label .pi { color: var(--orange); margin-right: 5px; font-size: 15px; }
 
   .proj-grid {
     display: grid; grid-template-columns: repeat(3, 1fr);
@@ -305,8 +334,8 @@
     margin-top: 14px;
   }
   .proj-cat {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 9px; text-transform: uppercase; letter-spacing: 0.2em;
+    font-family: 'Noto Sans Mono', monospace;
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em;
     color: var(--chrome);
   }
   .proj-status-dot {
@@ -321,11 +350,13 @@
      EMPTY + ERROR STATES
   ══════════════════════════════════════════════════════════════════ */
   .empty-state {
-    padding: 28px 12px; text-align: center;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px; color: var(--chrome);
-    text-transform: uppercase; letter-spacing: 0.15em;
-    line-height: 1.6;
+    padding: 16px 12px; text-align: center;
+    font-family: 'Noto Sans Mono', monospace;
+    font-size: 14px; color: var(--chrome);
+    text-transform: uppercase; letter-spacing: 0.1em;
+    line-height: 1.7;
+    border: 1px dashed var(--border);
+    margin: 2px 0;
   }
   .empty-ok { color: var(--green); }
 
@@ -335,8 +366,8 @@
     border: 1px solid rgba(248,113,113,0.3);
     color: var(--red);
     padding: 8px 20px; margin: 1px 0;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px; letter-spacing: 0.1em;
+    font-family: 'Noto Sans Mono', monospace;
+    font-size: 12px; letter-spacing: 0.08em;
   }
 
   /* ══════════════════════════════════════════════════════════════════
@@ -375,8 +406,37 @@
   <div class="header-right">
     <div class="hcell"><span id="clock">--:--:--</span></div>
     <div class="hcell"><span class="live-badge"><span class="live-dot"></span>Live</span></div>
+    <div class="hcell" style="padding:0 12px;">
+      <button id="theme-toggle" onclick="toggleTheme()" style="
+        font-family:'Noto Sans Mono',monospace;font-size:15px;letter-spacing:0.05em;
+        color:var(--text);background:rgba(128,120,112,0.15);
+        border:1px solid var(--border);padding:4px 10px;cursor:pointer;
+        display:flex;align-items:center;gap:5px;white-space:nowrap;
+      ">☾ DARK</button>
+    </div>
   </div>
 </header>
+
+<script>
+  (function(){
+    var t = localStorage.getItem('cc-theme');
+    var theme = t === 'dark' ? 'dark' : 'light';
+    document.documentElement.className = theme;
+    document.addEventListener('DOMContentLoaded', function(){
+      var btn = document.getElementById('theme-toggle');
+      if (btn) btn.innerHTML = theme === 'dark' ? '☀ LIGHT' : '☾ DARK';
+    });
+  })();
+
+  function toggleTheme() {
+    var cur = document.documentElement.className === 'dark' ? 'dark' : 'light';
+    var next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.className = next;
+    localStorage.setItem('cc-theme', next);
+    var btn = document.getElementById('theme-toggle');
+    if (btn) btn.innerHTML = next === 'dark' ? '☀ LIGHT' : '☾ DARK';
+  }
+</script>
 
 <!-- Error banner (outside main grid) -->
 <div id="error-banner"></div>
@@ -425,17 +485,17 @@
         <span id="heartbeat-badge"></span>
       </div>
       <div id="heartbeat-list">
-        <div class="empty-state">Waiting for first heartbeat cycle</div>
+        <div class="empty-state">Polling every 5 min — first cycle pending</div>
       </div>
     </div>
 
     <div class="panel">
       <div class="panel-label">
-        <span>Triage Breakdown</span>
-        <span id="triage-total" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--chrome)"></span>
+        <span><span class="accent-dot"></span>Triage Breakdown</span>
+        <span id="triage-total" style="font-family:'Noto Sans Mono',monospace;font-size:14px;color:var(--chrome)"></span>
       </div>
       <div id="triage-list">
-        <div class="empty-state">Waiting for first polling cycle</div>
+        <div class="empty-state">Awaiting first Linear poll</div>
       </div>
     </div>
 
@@ -445,16 +505,16 @@
   <div class="panel-row cols-2 section">
 
     <div class="panel">
-      <div class="panel-label">Recent Workflow Runs</div>
+      <div class="panel-label"><span><span class="accent-dot"></span>Recent Workflow Runs</span></div>
       <div id="runs-list">
-        <div class="empty-state">No workflow runs logged yet</div>
+        <div class="empty-state">No runs yet</div>
       </div>
     </div>
 
     <div class="panel">
       <div class="panel-label">
-        <span>Active Alerts</span>
-        <span id="alerts-unsent" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--red)"></span>
+        <span><span class="accent-dot" style="background:var(--red)"></span>Active Alerts</span>
+        <span id="alerts-unsent" style="font-family:'Noto Sans Mono',monospace;font-size:14px;color:var(--red)"></span>
       </div>
       <div id="alerts-list">
         <div class="empty-state empty-ok">No active alerts</div>
@@ -480,11 +540,11 @@
 
     <div class="panel">
       <div class="panel-label">
-        <span>Recent Claude Calls</span>
-        <span id="claude-model-badge" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--chrome)"></span>
+        <span><span class="accent-dot" style="background:var(--blue)"></span>Recent Claude Calls</span>
+        <span id="claude-model-badge" style="font-family:'Noto Sans Mono',monospace;font-size:14px;color:var(--chrome)"></span>
       </div>
       <div id="claude-calls-list">
-        <div class="empty-state">No Claude API calls yet — triggers on Critical / Action items</div>
+        <div class="empty-state">Triggers on Critical / Action items</div>
       </div>
     </div>
 
@@ -496,10 +556,10 @@
     <div class="panel">
       <div class="panel-label">
         <span><span class="accent-dot" style="background:var(--green)"></span>Quality Gate</span>
-        <span id="gate-pass-rate" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--chrome)"></span>
+        <span id="gate-pass-rate" style="font-family:'Noto Sans Mono',monospace;font-size:14px;color:var(--chrome)"></span>
       </div>
       <div id="gate-list">
-        <div class="empty-state">No gate checks logged yet — triggers on /ship</div>
+        <div class="empty-state">Triggers on /ship</div>
       </div>
     </div>
 
@@ -627,7 +687,7 @@
     const el    = document.getElementById('heartbeat-list');
     const bdg   = document.getElementById('heartbeat-badge');
     const kpi   = document.getElementById('kpi-services');
-    if (!rows.length) { el.innerHTML = '<div class="empty-state">Waiting for first heartbeat cycle</div>'; return; }
+    if (!rows.length) { el.innerHTML = '<div class="empty-state">Polling every 5 min — first cycle pending</div>'; return; }
 
     const latest = {};
     rows.forEach(r => {
@@ -673,7 +733,7 @@
     kpiU.textContent = c.Untriaged;
     totEl.textContent = `${total} issues`;
 
-    if (!total) { el.innerHTML = '<div class="empty-state">Waiting for first polling cycle</div>'; return; }
+    if (!total) { el.innerHTML = '<div class="empty-state">Awaiting first Linear poll</div>'; return; }
 
     el.innerHTML = [
       { name: 'Critical',  key: 'Critical',  cls: 'fill-critical' },
@@ -697,7 +757,7 @@
     const kpi = document.getElementById('kpi-runs');
     const cutoff = Date.now() - 86400000;
     kpi.textContent = rows.filter(r => new Date(r.run_at) > cutoff).length;
-    if (!rows.length) { el.innerHTML = '<div class="empty-state">No workflow runs logged yet</div>'; return; }
+    if (!rows.length) { el.innerHTML = '<div class="empty-state">No runs yet</div>'; return; }
     el.innerHTML = rows.slice(0, 7).map(r => `
       <div class="data-row">
         <div>
@@ -752,7 +812,7 @@
     if (rows[0]?.model) modelBadge.textContent = rows[0].model;
 
     if (!rows.length) {
-      listEl.innerHTML = '<div class="empty-state">No Claude API calls yet — triggers on Critical / Action items</div>';
+      listEl.innerHTML = '<div class="empty-state">Triggers on Critical / Action items</div>';
       return;
     }
     listEl.innerHTML = rows.slice(0, 5).map(r => `
@@ -762,7 +822,7 @@
           <div class="data-meta">${timeAgo(r.called_at)} · in:${r.input_tokens || 0} / out:${r.output_tokens || 0} tok</div>
         </div>
         <div class="data-right">
-          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--orange)">$${parseFloat(r.cost_usd || 0).toFixed(6)}</div>
+          <div style="font-family:'Noto Sans Mono',monospace;font-size:15px;color:var(--orange)">$${parseFloat(r.cost_usd || 0).toFixed(6)}</div>
           <div class="data-val">${r.model ? r.model.replace('claude-', '').split('-20')[0] : ''}</div>
         </div>
       </div>`).join('');
@@ -772,7 +832,7 @@
   function renderGateChecks(rows) {
     const el      = document.getElementById('gate-list');
     const rateEl  = document.getElementById('gate-pass-rate');
-    if (!rows.length) { el.innerHTML = '<div class="empty-state">No gate checks logged yet — triggers on /ship</div>'; return; }
+    if (!rows.length) { el.innerHTML = '<div class="empty-state">Triggers on /ship</div>'; return; }
     const passed  = rows.filter(r => r.all_passed).length;
     const total   = rows.length;
     const pct     = Math.round(passed / total * 100);

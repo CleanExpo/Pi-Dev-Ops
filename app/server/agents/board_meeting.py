@@ -343,6 +343,62 @@ def _run_prompt_via_sdk(prompt: str, model: str = "claude-sonnet-4-6", timeout: 
         return ""
 
 
+def _run_prompt_with_cache(
+    system_text: str,
+    user_content: str,
+    model: str = "claude-sonnet-4-6",
+    timeout: int = 120,
+) -> str:
+    """RA-655 — Run a single-shot prompt via direct Anthropic API with prompt caching.
+
+    Passes system_text as a single cached content block (ephemeral TTL). Across the 5
+    audit category calls in run_gap_audit_phase(), the shared board context (prior minutes
+    + anthropic-docs) hits the cache on calls 2-5, reducing cost ~70%.
+
+    Returns response text, or empty string on any error so caller falls back.
+    """
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return ""
+
+    try:
+        import anthropic as _anthropic  # noqa: PLC0415
+    except ImportError:
+        log.warning("anthropic package not installed — skipping cached board prompt path")
+        return ""
+
+    system_blocks = [
+        {
+            "type": "text",
+            "text": system_text,
+            "cache_control": {"type": "ephemeral"},
+        }
+    ]
+
+    try:
+        client = _anthropic.Anthropic(api_key=api_key)
+        message = client.messages.create(
+            model=model,
+            max_tokens=2048,
+            system=system_blocks,
+            messages=[{"role": "user", "content": user_content}],
+            timeout=timeout,
+        )
+        text = message.content[0].text if message.content else ""
+        usage = message.usage
+        log.info(
+            "board-cache input=%d cache_write=%d cache_read=%d output=%d",
+            getattr(usage, "input_tokens", 0),
+            getattr(usage, "cache_creation_input_tokens", 0),
+            getattr(usage, "cache_read_input_tokens", 0),
+            getattr(usage, "output_tokens", 0),
+        )
+        return text
+    except Exception as exc:
+        log.warning("board-cache failed: %s — will fall back to SDK/subprocess", exc)
+        return ""
+
+
 # ── Claude CLI call ───────────────────────────────────────────────────────────
 
 def _call_claude_for_discrepancies(
@@ -403,7 +459,49 @@ Output ONLY the JSON array.
 
     use_sdk = os.environ.get("TAO_USE_AGENT_SDK", "0") == "1"
     raw = ""
-    if use_sdk:
+
+    # RA-655 — prefer cached direct API path when system_prompt + ANTHROPIC_API_KEY available
+    if system_prompt and os.environ.get("ANTHROPIC_API_KEY", ""):
+        # Build the audit-only prompt (no context_header — that's the system message)
+        audit_only_prompt = f"""You are auditing a project spec against actual source code.
+
+AUDIT CATEGORY: {audit_target['category']}
+WHAT THE SPEC CLAIMS: {audit_target['claim']}
+PROBE — look specifically for: {audit_target['probe']}
+
+RELEVANT SPEC CLAIMS (lines containing ✅ / Complete / RESOLVED / implemented / wired):
+{claims_block}
+
+ACTUAL SOURCE FILES:
+{files_block}
+
+TASK:
+Compare the spec claims against the actual code. Identify every discrepancy where the spec says something is complete/implemented but the code does not actually implement it, or implements it differently.
+
+OUTPUT FORMAT (strict JSON array, no markdown, no explanation outside the array):
+[
+  {{
+    "severity": "critical|high|low",
+    "claim": "exact text of the spec claim",
+    "reality": "what the code actually does or lacks",
+    "file": "the most relevant file path",
+    "recommendation": "concrete fix in one sentence"
+  }}
+]
+
+If there are no discrepancies, output: []
+Output ONLY the JSON array.
+"""
+        raw = _run_prompt_with_cache(
+            system_text=system_prompt,
+            user_content=audit_only_prompt,
+            model="claude-sonnet-4-6",
+            timeout=120,
+        )
+        if not raw:
+            log.info("board-cache returned empty — falling back for category=%s", audit_target["category"])
+
+    if not raw and use_sdk:
         raw = _run_prompt_via_sdk(prompt, model="claude-sonnet-4-6", timeout=120)
         if not raw:
             log.info("SDK returned empty — retrying via subprocess for category=%s", audit_target["category"])

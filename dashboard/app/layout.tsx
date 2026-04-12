@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 // Reads localStorage before first paint to avoid theme flash
-const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('pi-theme');document.documentElement.className=t==='light'?'light':'dark';}catch(e){}})();`;
+const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('pi-theme');document.documentElement.className=t==='dark'?'dark':'light';}catch(e){}})();`;
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const nonce = (await headers()).get("x-nonce") ?? "";

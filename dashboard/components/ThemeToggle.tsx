@@ -4,11 +4,11 @@
 import { useEffect, useState } from "react";
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<"dark" | "light">("light");
 
   useEffect(() => {
     const stored = localStorage.getItem("pi-theme");
-    const initial = stored === "light" ? "light" : "dark";
+    const initial = stored === "dark" ? "dark" : "light";
     setTheme(initial);
   }, []);
 
@@ -23,17 +23,24 @@ export default function ThemeToggle() {
     <button
       onClick={toggle}
       title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-      className="font-mono text-[13px] transition-opacity hover:opacity-70"
+      className="font-mono text-[13px] transition-all hover:opacity-80"
       style={{
-        borderLeft: "1px solid var(--c-border)",
-        color: "var(--c-chrome)",
-        padding: "0 12px",
-        lineHeight: "40px",
-        background: "none",
+        color: "var(--c-text)",
+        padding: "4px 10px",
+        lineHeight: "1",
+        background: "rgba(128,120,112,0.12)",
+        border: "1px solid var(--c-border)",
+        borderRadius: "3px",
         cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        gap: "5px",
+        fontSize: "12px",
+        letterSpacing: "0.08em",
       }}
     >
-      {theme === "dark" ? "☀" : "☾"}
+      <span style={{ fontSize: "14px" }}>{theme === "dark" ? "☀" : "☾"}</span>
+      <span>{theme === "dark" ? "LIGHT" : "DARK"}</span>
     </button>
   );
 }
