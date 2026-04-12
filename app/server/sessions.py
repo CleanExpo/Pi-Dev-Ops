@@ -752,6 +752,68 @@ mutation UpdateIssueState($id: String!, $stateId: String!) {
         _log.warning("Linear update failed for issue %s to '%s': %s", issue_id, state_name, exc)
 
 
+def _post_linear_comment(issue_id: str, body: str) -> None:
+    """Post a comment to a Linear issue. Never raises — failures are logged and swallowed."""
+    api_key = os.environ.get("LINEAR_API_KEY", "")
+    if not api_key:
+        return
+    mutation = """
+mutation PostComment($issueId: String!, $body: String!) {
+  commentCreate(input: { issueId: $issueId, body: $body }) {
+    success
+  }
+}"""
+    payload = json.dumps({"query": mutation, "variables": {"issueId": issue_id, "body": body}}).encode()
+    req = urllib.request.Request(
+        "https://api.linear.app/graphql",
+        data=payload,
+        headers={"Content-Type": "application/json", "Authorization": api_key},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            result = json.loads(resp.read().decode())
+            if not (result.get("data") or {}).get("commentCreate", {}).get("success"):
+                _log.warning("Linear: commentCreate returned success=false for issue %s", issue_id)
+    except Exception as exc:
+        _log.warning("Linear comment failed for issue %s: %s", issue_id, exc)
+
+
+def _sync_linear_on_completion(session) -> None:
+    """RA-665/666 — Post build outcome to Linear on every terminal state.
+
+    Called from run_build() finally block so it fires on success AND all
+    early-return failure paths without touching each individual return.
+    """
+    issue_id = getattr(session, "linear_issue_id", None)
+    if not issue_id:
+        return
+    status = getattr(session, "status", "")
+    duration_s = int(time.time() - (session.started_at or time.time()))
+    eval_score = getattr(session, "evaluator_score", None)
+    eval_status = getattr(session, "evaluator_status", "")
+
+    if status == "complete":
+        score_line = f"Evaluator: {eval_score}/10 ({eval_status})\n" if eval_score else ""
+        comment = (
+            f"Pi CEO build **complete** in {duration_s}s.\n\n"
+            f"{score_line}"
+            f"Session: `{session.id}`"
+        )
+        _post_linear_comment(issue_id, comment)
+        # Issue already moved to "In Review" during push phase; leave it there
+        # so a human can review the PR before marking Done.
+    elif status == "failed":
+        comment = (
+            f"Pi CEO build **failed** after {duration_s}s.\n\n"
+            f"Session: `{session.id}` — check Railway logs for details."
+        )
+        _post_linear_comment(issue_id, comment)
+        # Move back to Todo so the issue is visible as needing attention
+        _update_linear_state(issue_id, "Todo")
+    # killed / other terminal states: no Linear update needed
+
+
 # ── Phase helpers (RA-529) ────────────────────────────────────────────────────
 
 
@@ -1174,11 +1236,14 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     em(session, "system", "")
 
     if not await _phase_clone(session, resume_from):
+        _sync_linear_on_completion(session)
         return
     _phase_analyze(session, resume_from)
     if not await _phase_claude_check(session, resume_from):
+        _sync_linear_on_completion(session)
         return
     if not await _phase_sandbox(session, resume_from):
+        _sync_linear_on_completion(session)
         return
 
     if not brief:
@@ -1188,6 +1253,7 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     spec = build_structured_brief(brief, resolved_intent, session.repo_url)
 
     if not await _phase_generate(session, spec, model, resume_from):
+        _sync_linear_on_completion(session)
         return
     total_phases = await _phase_evaluate(session, brief, model, spec, resolved_intent)
     af, push_ok = await _phase_push(session, total_phases)
@@ -1228,6 +1294,12 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     em(session, "system", f"    Duration: {time.time() - session.started_at:.0f}s")
     em(session, "system", f"    Files: {len(af)}")
     em(session, "success", "  === SESSION COMPLETE ===")
+
+    # RA-665/666 — post outcome comment to Linear now build is fully complete
+    try:
+        _sync_linear_on_completion(session)
+    except Exception:
+        pass  # Linear sync must never crash the build pipeline
 
 async def create_session(repo_url, brief="", model="", evaluator_enabled=True, intent="", parent_session_id="", linear_issue_id: Optional[str] = None):
     if len(_sessions) >= config.MAX_CONCURRENT_SESSIONS:
