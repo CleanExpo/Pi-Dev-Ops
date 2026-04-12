@@ -243,7 +243,7 @@ Version 3.1.0. Built on `@modelcontextprotocol/sdk` (official subpath imports re
 
 ---
 
-## 4. Current Leverage Audit (60/60 — Zero Touch)
+## 4. Current Leverage Audit (73/75 — Zero Touch)
 
 | # | Point | Score | Evidence |
 |---|-------|-------|---------|
@@ -259,8 +259,11 @@ Version 3.1.0. Built on `@modelcontextprotocol/sdk` (official subpath imports re
 | 10 | Trigger Automation | 5/5 | GitHub + Linear webhooks + cron triggers + Telegram + Pi-SEO scan rotation |
 | 11 | Knowledge Retention | 5/5 | Auto-learn: low evaluator dims → lessons.jsonl → injected in next brief |
 | 12 | Workflow Standardisation | 5/5 | PITER at brief entry; all 5 ADW templates active; ship-chain pipeline |
+| 13 | Observability | 4/5 | gate_checks + alert_escalations in Supabase; ZTE v2 score pipeline; SDK hook latency tracing (RA-651, RA-633, RA-662, RA-672) |
+| 14 | External Validation | 3/5 | ZTE v2 Section C scoring active; C2 (Linear acceptance rate) pending RA-672 Phase 2 (RA-661) |
+| 15 | Incident History RAG | 5/5 | lessons.jsonl injected into generator prompt via `_build_incident_context()` (RA-660) |
 
-**Total: 60 / 60 — Zero Touch Engineering band (56-60)**
+**Total: 73 / 75 — Zero Touch Engineering band (v1 scale; v2 target: 85+/100)**
 
 ---
 
@@ -287,22 +290,26 @@ RA-531–RA-542: Pi-SEO scanner epic — project registry, autonomous scanner, t
 ### Sprint 7 — Mobile + Telegram (2026-04-10)
 RA-546: Mobile/tablet responsive layout (bottom tab bar, iOS zoom fix). RA-547: Worktree isolation fix (.claude/settings.json hooks). RA-548: @piceoagent_bot Telegram webhook integration. RA-549: claude-code-telegram agentic bot deployed to Railway.
 
+### Sprint 8 — Observability + ZTE v2 (2026-04-12 → 2026-04-13)
+RA-576: SDK-only execution locked in (subprocess fallback removed). RA-651: gate_checks Supabase table — quality gate telemetry on every /ship. RA-633: Critical alert escalation chain (Telegram → 30-min watchdog → second page). RA-652: ZTE framework extended to 75-point v1 scale (leverage-audit.md). RA-659: Adaptive Thinking via `ThinkingConfigAdaptive` in SDK options. RA-660: Incident history RAG — `_build_incident_context()` injects lessons.jsonl into generator prompt. RA-661: ZTE v2 framework spec (100-point scale, Section C external validation). RA-662: SDK hooks for latency observability (`HookMatcher` pre/post tool timing). RA-665/666: Linear two-way sync — build outcome + score posted back as Linear comment on completion or failure. RA-672: ZTE v2 data collection — `push_timestamp` and `session_started_at` in gate_checks; `scripts/zte_v2_score.py` computes C1–C5 live; board meeting Phase 1 surfaces v2 score. RA-673: Pi-SEO scanner false positive fix (16,042 → 128 findings); `PI_SEO_ACTIVE=1` deployed to Railway.
+
 ---
 
-## 6. Sprint 7 Completions + Sprint 8 Direction
+## 6. Sprint 8 Completions + Sprint 9 Direction
 
-### Sprint 7 — Complete (2026-04-10)
-Mobile & tablet responsive layout, worktree isolation fix, Telegram bot integration (@piceoagent_bot), claude-code-telegram deployed to Railway with full Claude Agent SDK tool use.
+### Sprint 8 — Complete (2026-04-13)
+SDK-only execution locked in. Supabase observability layer (gate_checks + alert_escalations). Adaptive Thinking + SDK Hooks wired into board_meeting and sessions. Incident history RAG active. ZTE v2 framework designed and scoring pipeline deployed. Linear two-way sync (build outcomes posted as comments). Pi-SEO scanner false positive fix deployed to Railway with `PI_SEO_ACTIVE=1`.
 
-### Sprint 8 — Open Items (Candidate)
+### Sprint 9 — Open Items (Candidate)
 
 | Priority | Item | Status |
 |----------|------|--------|
-| High | Pi-SEO first full sweep across all 10 repos | Unstarted |
-| High | Agent SDK production cut-over plan (post-PoC) | Unstarted |
+| High | RA-588 MARATHON-4: first 6-hour autonomous self-maintenance run | In Progress |
+| High | ZTE v2 C2 — Linear state-transition webhook event logging | Unstarted |
+| High | Pi-SEO live sweep — confirm auto-ticketing clean across 10 repos | Active (Railway) |
 | Medium | Self-improvement loop — lesson-pattern analyser | Unstarted |
 | Medium | Multi-model parallel evaluation (Sonnet+Haiku consensus) | Unstarted |
-| Low | Autonomous Pi Dev Ops self-maintenance on 6h schedule | Unstarted |
+| Low | ZTE v2 target: reach 90+/100 (Zero Touch Elite threshold: 95) | Unstarted |
 
 ---
 
@@ -329,7 +336,7 @@ Pi Dev Ops/
 │       ├── scanner.py                  ← Pi-SEO autonomous multi-project scanner
 │       ├── pipeline.py                 ← Ship-chain pipeline orchestrator
 │       └── agents/
-│           └── board_meeting.py        ← Claude Agent SDK PoC board-meeting agent
+│           └── board_meeting.py        ← Board meeting agent (SDK-only, Adaptive Thinking, HookMatcher latency tracing)
 │   ├── static/index.html               ← Minimal frontend
 │   └── workspaces/                     ← Ephemeral session clones (GC'd at 4h)
 │       └── {session_id}/               ← Isolated clone per session
@@ -366,15 +373,19 @@ Pi Dev Ops/
 ├── supabase/migration.sql              ← DB schema (if Supabase integration active)
 ├── scripts/
 │   ├── analyze.sh                      ← Analysis helper script
-│   └── fetch_anthropic_docs.py         ← Daily docs pull (cron at 5:50am AEST)
+│   ├── fetch_anthropic_docs.py         ← Daily docs pull (cron at 5:50am AEST)
+│   ├── zte_v2_score.py                 ← ZTE v2 Section C scorer (Supabase + scanner + lessons) (RA-672)
+│   └── sdk_metrics.py                  ← SDK invocation metrics analyser
 ├── .harness/
 │   ├── config.yaml                     ← Harness agent config (planner/generator/evaluator)
 │   ├── spec.md                         ← This document (living specification)
-│   ├── handoff.md                      ← Cross-session state (Sprint 7 complete)
-│   ├── leverage-audit.md               ← ZTE score 60/60 + full changelog
-│   ├── sprint_plan.md                  ← Sprint 7 complete; Sprint 8 open
-│   ├── lessons.jsonl                   ← 18 institutional memory entries
-│   ├── feature_list.json               ← Feature list for MCP (62 features)
+│   ├── handoff.md                      ← Cross-session state (Sprint 8 complete)
+│   ├── leverage-audit.md               ← ZTE score 73/75 + full changelog
+│   ├── sprint_plan.md                  ← Sprint 8 complete; Sprint 9 open
+│   ├── zte-framework-v2.md             ← ZTE v2 100-point spec (RA-661)
+│   ├── zte-v2-score.json               ← Latest live v2 score (written by zte_v2_score.py)
+│   ├── lessons.jsonl                   ← Institutional memory (append-only JSONL)
+│   ├── feature_list.json               ← Feature list for MCP
 │   ├── pipeline/                       ← Ship-chain artifact store per pipeline run
 │   ├── projects.json                   ← Pi-SEO project registry (10 repos)
 │   ├── scan-results/                   ← Pi-SEO scan output per project
@@ -405,8 +416,8 @@ Pi Dev Ops/
 
 ## 8. Design Decisions (CEO Mode)
 
-**Why `claude -p` subprocess instead of Python API?**
-Zero-cost execution under Claude Max subscription. Calling `anthropic.Anthropic()` directly would incur per-token charges. The CLI also provides native tool-use, bash execution, file editing, and stream-json output without re-implementing the harness. This is the architectural bedrock decision.
+**Why Claude Agent SDK instead of `claude -p` subprocess?**
+The `claude_agent_sdk` Python package replaced the subprocess path in Sprint 8 (RA-576). SDK execution provides structured event streaming, `ThinkingConfigAdaptive` for extended reasoning, `HookMatcher` for latency observability, and avoids shell escaping hazards. The zero-cost advantage under Claude Max is preserved. `TAO_USE_AGENT_SDK=1` is now mandatory — setting it to 0 raises `ImportError` at startup (deliberate: misconfiguration must be loud).
 
 **Why JSONL for lessons?**
 JSONL is append-only and atomic at the OS buffer level for a single-process server. Each lesson is one line — no lock needed, no corruption risk. `load_lessons(category=intent)` is O(N) over a small file — acceptable until the file exceeds ~10MB.
@@ -425,12 +436,13 @@ WebSocket is bidirectional — the client can send `ping` frames and the server 
 
 ---
 
-## 9. Next Actions (Sprint 8)
+## 9. Next Actions (Sprint 9)
 
 ```
-[ ] Pi-SEO activation: trigger first full sweep across all 10 repos; review finding volume
-[ ] Agent SDK cut-over: define production migration plan from claude -p subprocess
+[ ] RA-588 MARATHON-4: run first 6-hour autonomous self-maintenance cycle; confirm clean exit
+[ ] ZTE v2 C2 data: implement Linear state-transition webhook event logging (RA-672 Phase 2)
+[ ] Pi-SEO live sweep: monitor Railway logs for first clean auto-ticketing run across all 10 repos
+[ ] ZTE v2 reach goal: identify actions to push total above 90/100 (Zero Touch Elite: 95)
 [ ] Self-improvement loop: scheduled lesson-pattern analyser (CLAUDE.md proposals)
 [ ] Multi-model evaluator: Sonnet + Haiku consensus, Opus escalation on disagreement
-[ ] Autonomous self-maintenance: Pi Dev Ops scans itself on 6h schedule
 ```
