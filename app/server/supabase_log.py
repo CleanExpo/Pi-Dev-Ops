@@ -146,12 +146,17 @@ def log_gate_check(
     gate_checks: dict[str, bool],
     review_score: float,
     shipped: bool,
+    session_started_at: float | None = None,
+    push_timestamp: float | None = None,
 ) -> None:
     """
     Write one gate_check row to Supabase after every /ship phase.
     Called from pipeline.run_ship_phase() — non-blocking, never raises.
+
+    RA-672: session_started_at (unix epoch) and push_timestamp (unix epoch) are
+    used by zte_v2_score.py to compute C3 (mean time to value).
     """
-    _insert("gate_checks", {
+    row: dict = {
         "pipeline_id":    pipeline_id,
         "session_id":     session_id,
         "spec_exists":    gate_checks.get("spec_exists", False),
@@ -163,7 +168,16 @@ def log_gate_check(
         "review_score":   review_score,
         "shipped":        shipped,
         "checked_at":     datetime.now(timezone.utc).isoformat(),
-    })
+    }
+    if session_started_at is not None:
+        row["session_started_at"] = datetime.fromtimestamp(
+            session_started_at, tz=timezone.utc
+        ).isoformat()
+    if push_timestamp is not None:
+        row["push_timestamp"] = datetime.fromtimestamp(
+            push_timestamp, tz=timezone.utc
+        ).isoformat()
+    _insert("gate_checks", row)
     log.info(
         "gate_check logged: pipeline=%s all_passed=%s score=%.1f shipped=%s",
         pipeline_id, all(gate_checks.values()), review_score, shipped,

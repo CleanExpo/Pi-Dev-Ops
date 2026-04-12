@@ -1256,6 +1256,7 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
         _sync_linear_on_completion(session)
         return
     total_phases = await _phase_evaluate(session, brief, model, spec, resolved_intent)
+    push_ts = time.time()
     af, push_ok = await _phase_push(session, total_phases)
 
     session.last_completed_phase = "push"
@@ -1280,6 +1281,8 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
             },
             review_score=review_score,
             shipped=push_ok,
+            session_started_at=session.started_at,   # RA-672: C3 mean time to value
+            push_timestamp=push_ts if push_ok else None,
         )
     except Exception:
         pass  # observability must never block the pipeline

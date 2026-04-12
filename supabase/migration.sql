@@ -112,6 +112,11 @@ ALTER TABLE gate_checks ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_read"    ON gate_checks FOR SELECT USING (true);
 CREATE POLICY "service_insert" ON gate_checks FOR INSERT TO service_role WITH CHECK (true);
 
+-- RA-672: ZTE v2 timing columns — trigger-to-deploy measurement (C3)
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS session_started_at TIMESTAMPTZ;
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS push_timestamp TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS gate_checks_push_ts_idx ON gate_checks (push_timestamp DESC) WHERE push_timestamp IS NOT NULL;
+
 -- ── alert_escalations ────────────────────────────────────────────────────────
 -- RA-633: Tracks critical alerts sent via Telegram + escalation/ack state.
 -- Enables the 30-min escalation watchdog: unacked alerts → second louder page.

@@ -848,6 +848,25 @@ def run_status_phase() -> dict[str, Any]:
         log.warning("Phase 1 Linear query failed: %s", exc)
         status["urgent_issues"] = []
 
+    # ZTE v2 score (RA-672) — compute from live gate_checks + scanner + lessons
+    try:
+        import sys as _sys
+        _scripts_dir = str(_HARNESS_ROOT.parent / "scripts")
+        if _scripts_dir not in _sys.path:
+            _sys.path.insert(0, _scripts_dir)
+        from zte_v2_score import compute_v2_score  # type: ignore[import]
+        v2 = compute_v2_score(days=30)
+        status["zte_v2"] = {
+            "total": v2["v2_total"],
+            "max": v2["v2_max"],
+            "band": v2["band"],
+            "section_c": v2["section_c"]["total"],
+            "v1_base": v2["v1_score"],
+        }
+        log.info("Phase 1 ZTE v2: %d/%d [%s]", v2["v2_total"], v2["v2_max"], v2["band"])
+    except Exception as exc:
+        log.warning("ZTE v2 score compute failed (non-fatal): %s", exc)
+
     log.info("Phase 1 STATUS: zte=%s urgent=%d",
              status.get("zte_score", "?"), len(status.get("urgent_issues", [])))
     return status
@@ -916,14 +935,23 @@ def run_swot_phase(
     stale = linear.get("stale_items", [])
     unassigned = linear.get("unassigned", [])
 
+    v2 = status.get("zte_v2", {})
+    v2_line = (
+        f"- ZTE Score (v2): {v2['total']}/{v2['max']} [{v2['band']}]\n"
+        if v2 else ""
+    )
+    state_section = (
+        "## Current State\n"
+        f"- ZTE Score (v1): {status.get('zte_score', 'unknown')}\n"
+        + v2_line
+        + f"- Open Urgent issues: {len(urgent_issues)}\n"
+        + f"- Open High issues: {linear.get('high_count', 0)}\n"
+        + f"- Stale items (>3d unchanged): {', '.join(stale) or 'None'}\n"
+        + f"- Unassigned issues: {', '.join(unassigned) or 'None'}\n"
+    )
     user_content = (
         "Run Phase 3 — SWOT ANALYSIS.\n\n"
-        "## Current State\n"
-        f"- ZTE Score: {status.get('zte_score', 'unknown')}\n"
-        f"- Open Urgent issues: {len(urgent_issues)}\n"
-        f"- Open High issues: {linear.get('high_count', 0)}\n"
-        f"- Stale items (>3d unchanged): {', '.join(stale) or 'None'}\n"
-        f"- Unassigned issues: {', '.join(unassigned) or 'None'}\n"
+        + state_section
         + lessons
         + "\n\n## Instructions\n"
         "Produce a concise SWOT for Pi-CEO based on the above data and lessons.\n"
@@ -1002,7 +1030,11 @@ def save_board_minutes(
         "- Gap Audit Agent",
         "",
         "## Phase 1 — STATUS",
-        f"- ZTE Score: {status.get('zte_score', 'unknown')}",
+        f"- ZTE Score (v1): {status.get('zte_score', 'unknown')}",
+        *(
+            [f"- ZTE Score (v2): {status['zte_v2']['total']}/{status['zte_v2']['max']} [{status['zte_v2']['band']}] (v1 base {status['zte_v2']['v1_base']} + Section C {status['zte_v2']['section_c']}/25)"]
+            if "zte_v2" in status else []
+        ),
         f"- Urgent Issues: {len(status.get('urgent_issues', []))}",
         f"- Cron Health: {cron_status}",
         "",
