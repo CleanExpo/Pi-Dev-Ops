@@ -425,9 +425,10 @@ async def telegram_webhook(request: Request):
     Secured via X-Telegram-Bot-Api-Secret-Token (set when registering webhook).
     """
     token = config.TELEGRAM_BOT_TOKEN
+    expected_secret = config.TELEGRAM_WEBHOOK_SECRET
     secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
-    # Reject if bot token is set but secret doesn't match
-    if token and secret != token:
+    # Reject if a webhook secret is configured but the header doesn't match
+    if expected_secret and secret != expected_secret:
         raise HTTPException(401, "Invalid Telegram webhook secret")
 
     try:

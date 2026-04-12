@@ -306,20 +306,56 @@ def _extract_spec_claims(spec_text: str) -> list[str]:
 
 # ── Claude SDK helper ────────────────────────────────────────────────────────
 
-def _run_prompt_via_sdk(prompt: str, model: str = "claude-sonnet-4-6", timeout: int = 120) -> str:
+def _run_prompt_via_sdk(
+    prompt: str,
+    model: str = "claude-sonnet-4-6",
+    timeout: int = 120,
+    thinking: str = "adaptive",
+) -> str:
     """Run a single-shot prompt via claude_agent_sdk and return the text response.
 
+    thinking: "adaptive" (default), "enabled" (8k budget for deep analysis), "disabled".
     Falls back silently to empty string on any SDK error so the caller can
     fall through to the subprocess path.
     """
     try:
         from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions, ClaudeSDKClient, ResultMessage, TextBlock
+        from claude_agent_sdk.types import (
+            ThinkingConfigAdaptive, ThinkingConfigEnabled, ThinkingConfigDisabled,
+            HookMatcher, PreToolUseHookInput, PostToolUseHookInput,
+        )
     except ImportError:
         log.warning("claude_agent_sdk not installed — falling back to subprocess")
         return ""
 
+    # RA-659 — build thinking config
+    if thinking == "adaptive":
+        _thinking_cfg = ThinkingConfigAdaptive(type="adaptive")
+    elif thinking == "enabled":
+        _thinking_cfg = ThinkingConfigEnabled(type="enabled", budget_tokens=8000)
+    else:
+        _thinking_cfg = ThinkingConfigDisabled(type="disabled")
+
+    # RA-662 — SDK hooks for board meeting observability
+    _tool_timers: dict[str, float] = {}
+
+    async def _on_pre_tool(hook_input: PreToolUseHookInput) -> None:
+        _tool_timers[hook_input.tool_use_id] = time.monotonic()
+        log.debug("board_meeting tool_start tool=%s id=%s", hook_input.tool_name, hook_input.tool_use_id)
+
+    async def _on_post_tool(hook_input: PostToolUseHookInput) -> None:
+        elapsed = time.monotonic() - _tool_timers.pop(hook_input.tool_use_id, time.monotonic())
+        log.info(
+            "board_meeting tool_done tool=%s id=%s latency_ms=%d",
+            hook_input.tool_name, hook_input.tool_use_id, int(elapsed * 1000),
+        )
+
     async def _run() -> str:
-        options = ClaudeAgentOptions(model=model, max_turns=1)
+        hooks = {
+            "PreToolUse": [HookMatcher(hooks=[_on_pre_tool])],
+            "PostToolUse": [HookMatcher(hooks=[_on_post_tool])],
+        }
+        options = ClaudeAgentOptions(model=model, max_turns=1, thinking=_thinking_cfg, hooks=hooks)
         client = ClaudeSDKClient(options)
         text_parts: list[str] = []
         try:
@@ -897,7 +933,8 @@ def run_swot_phase(
     )
     raw = _run_prompt_with_cache(system_text=system_prompt, user_content=user_content, timeout=90)
     if not raw:
-        raw = _run_prompt_via_sdk(user_content, timeout=90)
+        # RA-659: SWOT benefits from deep reasoning — use enabled thinking with 8k budget
+        raw = _run_prompt_via_sdk(user_content, timeout=90, thinking="enabled")
 
     log.info("Phase 3 SWOT complete (%d chars)", len(raw))
     return {"phase": "swot", "content": raw}
@@ -931,7 +968,8 @@ def run_sprint_recommendations_phase(
     )
     raw = _run_prompt_with_cache(system_text=system_prompt, user_content=user_content, timeout=90)
     if not raw:
-        raw = _run_prompt_via_sdk(user_content, timeout=90)
+        # RA-659: Sprint recommendations require trade-off reasoning — use enabled thinking
+        raw = _run_prompt_via_sdk(user_content, timeout=90, thinking="enabled")
 
     log.info("Phase 4 SPRINT RECOMMENDATIONS complete (%d chars)", len(raw))
     return {"phase": "sprint_recommendations", "content": raw}

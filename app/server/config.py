@@ -159,6 +159,13 @@ SCAN_PATH_EXCLUSIONS: list[str] = [p.strip() for p in
 # When either is unset, Telegram alerts are silently skipped (Linear tickets still created).
 TELEGRAM_BOT_TOKEN    = os.environ.get("TELEGRAM_BOT_TOKEN",   "")
 TELEGRAM_ALERT_CHAT_ID = os.environ.get("TELEGRAM_ALERT_CHAT_ID", "")
+# Webhook secret for POST /webhook/telegram.
+# Telegram requires [A-Za-z0-9_-] only (no colons). Defaults to the numeric
+# prefix of the bot token (before the colon) if no explicit value is set.
+TELEGRAM_WEBHOOK_SECRET = os.environ.get(
+    "TELEGRAM_WEBHOOK_SECRET",
+    TELEGRAM_BOT_TOKEN.split(":")[0] if ":" in TELEGRAM_BOT_TOKEN else TELEGRAM_BOT_TOKEN,
+)
 
 # RA-651 / RA-633 — Supabase server-side writes (gate_checks, alert_escalations).
 # NEXT_PUBLIC_SUPABASE_URL matches the dashboard env var (same project).

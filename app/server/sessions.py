@@ -13,7 +13,7 @@ from typing import Optional
 from . import config
 from . import persistence
 from .brief import classify_intent, build_structured_brief
-from .lessons import append_lesson
+from .lessons import append_lesson, load_lessons
 from .supabase_log import log_gate_check
 
 _log = logging.getLogger("pi-ceo.sessions")
@@ -21,6 +21,43 @@ _log = logging.getLogger("pi-ceo.sessions")
 # ── Prompt caching (RA-655) ───────────────────────────────────────────────────
 
 _claude_md_cache: Optional[str] = None
+
+# ── Incident history RAG (RA-660) ────────────────────────────────────────────
+
+def _build_incident_context(repo_url: str = "", n: int = 10) -> str:
+    """Return a formatted block of recent lessons to prepend to the generator prompt.
+
+    Prioritises warn-severity entries and those whose source matches the current repo.
+    Returns empty string when lessons.jsonl doesn't exist or has no entries.
+    """
+    try:
+        all_lessons = load_lessons(limit=50)
+    except Exception:
+        return ""
+    if not all_lessons:
+        return ""
+    # Prefer entries from the same repo, then most-recent warn entries
+    repo_slug = repo_url.rstrip("/").split("/")[-1].lower() if repo_url else ""
+    def _rank(e: dict) -> int:
+        same_repo = repo_slug and repo_slug in e.get("source", "").lower()
+        is_warn = e.get("severity") == "warn"
+        return (2 if same_repo else 0) + (1 if is_warn else 0)
+    ranked = sorted(all_lessons, key=_rank, reverse=True)[:n]
+    # Restore chronological order within the selection
+    ranked.sort(key=lambda e: e.get("ts", ""))
+    lines = []
+    for e in ranked:
+        sev = e.get("severity", "info").upper()
+        src = e.get("source", "")
+        cat = e.get("category", "")
+        lesson = e.get("lesson", "")
+        lines.append(f"[{sev}] {src}/{cat}: {lesson}")
+    return (
+        "\n## PRIOR BUILD LESSONS (avoid repeating these mistakes)\n"
+        + "\n".join(lines)
+        + "\n"
+    )
+
 
 def _get_claude_md() -> str:
     """Lazy-load CLAUDE.md content for cached system prompt (RA-655)."""
@@ -269,12 +306,17 @@ async def _run_claude_via_sdk(
     timeout: int = 300,
     session_id: str = "",
     phase: str = "",
+    thinking: str = "adaptive",
 ) -> tuple[int, str, float]:
     """Run Claude via agent SDK. Returns (returncode, output_text, cost_usd).
 
     Uses the same API pattern as board_meeting._run_prompt_via_sdk() (the verified Phase 1
     reference implementation). All standard Claude Code tools (Bash, Edit, Write, etc.) are
     available by default — no allowed_tools restriction so the generator can write files.
+
+    thinking: "adaptive" (default — let Claude decide when to think deeply),
+              "enabled" (always think, 8k token budget),
+              "disabled" (no extended thinking).
 
     On any error or import failure, returns (1, "", 0.0) for transparent fallback to subprocess.
     Emits one row to .harness/agent-sdk-metrics/YYYY-MM-DD.jsonl on every invocation.
@@ -287,6 +329,11 @@ async def _run_claude_via_sdk(
             ResultMessage,
             TextBlock,
         )
+        from claude_agent_sdk.types import (  # noqa: PLC0415
+            ThinkingConfigAdaptive,
+            ThinkingConfigEnabled,
+            ThinkingConfigDisabled,
+        )
     except ImportError as exc:
         # RA-576: SDK not installed but USE_AGENT_SDK=1 — deployment misconfiguration.
         # Raise so the operator sees it clearly rather than silently degrading to subprocess.
@@ -298,13 +345,22 @@ async def _run_claude_via_sdk(
             "claude_agent_sdk not installed — set USE_AGENT_SDK=0 or run: pip install claude_agent_sdk"
         ) from exc
 
+    # RA-659 — build thinking config
+    _thinking_cfg: ThinkingConfigAdaptive | ThinkingConfigEnabled | ThinkingConfigDisabled | None
+    if thinking == "adaptive":
+        _thinking_cfg = ThinkingConfigAdaptive(type="adaptive")
+    elif thinking == "enabled":
+        _thinking_cfg = ThinkingConfigEnabled(type="enabled", budget_tokens=8000)
+    else:
+        _thinking_cfg = ThinkingConfigDisabled(type="disabled")
+
     t0 = time.monotonic()
     error_msg: Optional[str] = None
     output_text = ""
     try:
         # cwd=workspace so Claude edits files in the right directory.
         # No allowed_tools restriction — generator needs Bash + Edit + Write.
-        options = ClaudeAgentOptions(cwd=workspace, model=model)
+        options = ClaudeAgentOptions(cwd=workspace, model=model, thinking=_thinking_cfg)
         client = ClaudeSDKClient(options)
         text_parts: list[str] = []
         try:
@@ -835,8 +891,11 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
     session.status = "building"
     persistence.save_session(session)
     use_sdk = config.USE_AGENT_SDK
+    # RA-660 — prepend recent institutional memory so generator avoids known pitfalls
+    incident_ctx = _build_incident_context(repo_url=getattr(session, "repo_url", ""))
     for attempt in range(2):
-        current_spec = spec if attempt == 0 else spec[:4000] + "\n\n[NOTE: Simplified due to previous failure. Focus on core task only.]"
+        base_spec = spec if attempt == 0 else spec[:4000] + "\n\n[NOTE: Simplified due to previous failure. Focus on core task only.]"
+        current_spec = (incident_ctx + base_spec) if incident_ctx else base_spec
         try:
             # Try SDK path first if flag enabled
             if use_sdk:
