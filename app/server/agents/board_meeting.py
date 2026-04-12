@@ -729,6 +729,307 @@ def run_gap_audit_phase(dry_run: bool = False) -> dict[str, Any]:
     return result
 
 
+# ── RA-658: lessons.jsonl reader ──────────────────────────────────────────────
+
+def _read_lessons(n: int = 20) -> str:
+    """Read the last N entries from lessons.jsonl, formatted for board context."""
+    path = _HARNESS_ROOT / "lessons.jsonl"
+    if not path.exists():
+        return ""
+    try:
+        lines = [l.strip() for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
+        recent = lines[-n:]
+        if not recent:
+            return ""
+        entries: list[str] = []
+        for line in recent:
+            try:
+                entry = json.loads(line)
+                entries.append(
+                    f"[{entry.get('severity', 'info').upper()}] "
+                    f"{entry.get('source', '?')}/{entry.get('category', '?')}: "
+                    f"{entry.get('lesson', '')}"
+                )
+            except json.JSONDecodeError:
+                entries.append(line[:200])
+        return (
+            f"\n\n## OPERATIONAL INTELLIGENCE (last {len(entries)} lessons)\n\n"
+            + "\n".join(f"- {e}" for e in entries)
+        )
+    except Exception as exc:
+        log.warning("Could not read lessons.jsonl: %s", exc)
+        return ""
+
+
+# ── RA-658: Board Meeting Phases 1–5 ─────────────────────────────────────────
+
+def run_status_phase() -> dict[str, Any]:
+    """Phase 1 — STATUS: snapshot ZTE score, cron health, open Urgent issues."""
+    status: dict[str, Any] = {"phase": "status", "timestamp": datetime.now(timezone.utc).isoformat()}
+
+    # ZTE score from leverage-audit.md
+    leverage_path = _HARNESS_ROOT / "leverage-audit.md"
+    if leverage_path.exists():
+        content = leverage_path.read_text(encoding="utf-8")[:500]
+        match = re.search(r"ZTE[^\d]*(\d+)\s*/\s*(\d+)", content, re.IGNORECASE)
+        if match:
+            status["zte_score"] = f"{match.group(1)}/{match.group(2)}"
+
+    # Marathon watchdog health
+    watchdog_path = _HARNESS_ROOT / "marathon-watchdog-status.json"
+    if watchdog_path.exists():
+        try:
+            w = json.loads(watchdog_path.read_text(encoding="utf-8"))
+            status["cron_health"] = {
+                "last_run": w.get("last_run"),
+                "status": w.get("status", "unknown"),
+                "missed_cycles": w.get("missed_cycles", 0),
+            }
+        except Exception:
+            status["cron_health"] = "parse error"
+
+    # Open Urgent issues from Linear
+    try:
+        data = _linear_gql(
+            """
+            query UrgentIssues($teamId: ID!) {
+              issues(filter: {
+                team: {id: {eq: $teamId}},
+                priority: {eq: 1},
+                state: {type: {nin: ["completed", "cancelled"]}}
+              }, first: 10) {
+                nodes { identifier title state { name } }
+              }
+            }
+            """,
+            {"teamId": _LINEAR_TEAM_ID},
+        )
+        status["urgent_issues"] = [
+            {"id": n["identifier"], "title": n["title"], "state": n["state"]["name"]}
+            for n in data.get("issues", {}).get("nodes", [])
+        ]
+    except Exception as exc:
+        log.warning("Phase 1 Linear query failed: %s", exc)
+        status["urgent_issues"] = []
+
+    log.info("Phase 1 STATUS: zte=%s urgent=%d",
+             status.get("zte_score", "?"), len(status.get("urgent_issues", [])))
+    return status
+
+
+def run_linear_review_phase() -> dict[str, Any]:
+    """Phase 2 — LINEAR REVIEW: fetch open Urgent + High issues, surface stale/blocked items."""
+    review: dict[str, Any] = {"phase": "linear_review"}
+    try:
+        data = _linear_gql(
+            """
+            query OpenIssues($teamId: ID!) {
+              issues(filter: {
+                team: {id: {eq: $teamId}},
+                priority: {in: [1, 2]},
+                state: {type: {nin: ["completed", "cancelled"]}}
+              }, first: 30, orderBy: priority) {
+                nodes {
+                  identifier title priority
+                  state { name type }
+                  assignee { name }
+                  updatedAt
+                }
+              }
+            }
+            """,
+            {"teamId": _LINEAR_TEAM_ID},
+        )
+        nodes = data.get("issues", {}).get("nodes", [])
+        review["issues"] = nodes
+        review["urgent_count"] = sum(1 for n in nodes if n.get("priority") == 1)
+        review["high_count"] = sum(1 for n in nodes if n.get("priority") == 2)
+        review["unassigned"] = [n["identifier"] for n in nodes if not n.get("assignee")]
+
+        now = datetime.now(timezone.utc)
+        stale: list[str] = []
+        for n in nodes:
+            updated = n.get("updatedAt", "")
+            if updated:
+                try:
+                    updated_dt = datetime.fromisoformat(updated.replace("Z", "+00:00"))
+                    if (now - updated_dt).days > 3:
+                        stale.append(f"{n['identifier']} ({(now - updated_dt).days}d stale)")
+                except Exception:
+                    pass
+        review["stale_items"] = stale
+    except Exception as exc:
+        log.warning("Phase 2 Linear review failed: %s", exc)
+        review["issues"] = []
+        review["error"] = str(exc)
+
+    log.info("Phase 2 LINEAR REVIEW: urgent=%d high=%d stale=%d",
+             review.get("urgent_count", 0), review.get("high_count", 0),
+             len(review.get("stale_items", [])))
+    return review
+
+
+def run_swot_phase(
+    system_prompt: str,
+    status: dict[str, Any],
+    linear: dict[str, Any],
+) -> dict[str, Any]:
+    """Phase 3 — SWOT: analysis informed by lessons.jsonl + live board context."""
+    lessons = _read_lessons(n=20)
+    urgent_issues = status.get("urgent_issues", [])
+    stale = linear.get("stale_items", [])
+    unassigned = linear.get("unassigned", [])
+
+    user_content = (
+        "Run Phase 3 — SWOT ANALYSIS.\n\n"
+        "## Current State\n"
+        f"- ZTE Score: {status.get('zte_score', 'unknown')}\n"
+        f"- Open Urgent issues: {len(urgent_issues)}\n"
+        f"- Open High issues: {linear.get('high_count', 0)}\n"
+        f"- Stale items (>3d unchanged): {', '.join(stale) or 'None'}\n"
+        f"- Unassigned issues: {', '.join(unassigned) or 'None'}\n"
+        + lessons
+        + "\n\n## Instructions\n"
+        "Produce a concise SWOT for Pi-CEO based on the above data and lessons.\n"
+        "Format:\nSTRENGTHS: (3–5 bullets)\nWEAKNESSES: (3–5 bullets)\n"
+        "OPPORTUNITIES: (3–5 bullets)\nTHREATS: (3–5 bullets)\n"
+        "Reference specific lesson entries where relevant. No filler language."
+    )
+    raw = _run_prompt_with_cache(system_text=system_prompt, user_content=user_content, timeout=90)
+    if not raw:
+        raw = _run_prompt_via_sdk(user_content, timeout=90)
+
+    log.info("Phase 3 SWOT complete (%d chars)", len(raw))
+    return {"phase": "swot", "content": raw}
+
+
+def run_sprint_recommendations_phase(
+    system_prompt: str,
+    swot: dict[str, Any],
+    linear: dict[str, Any],
+) -> dict[str, Any]:
+    """Phase 4 — SPRINT RECOMMENDATIONS: top 3 actionable items with estimates."""
+    issue_list = "\n".join(
+        f"- {n['identifier']} [{n['state']['name']}] {n['title']}"
+        for n in linear.get("issues", [])[:20]
+    )
+    user_content = (
+        "Run Phase 4 — SPRINT RECOMMENDATIONS.\n\n"
+        "## SWOT Summary\n"
+        + swot.get("content", "(SWOT not available)")[:2000]
+        + "\n\n## Open Urgent/High Issues\n"
+        + (issue_list or "(no open issues)")
+        + "\n\n## Instructions\n"
+        "Recommend exactly 3 sprint priorities. For each:\n"
+        "1. Reference the specific Linear ticket ID (RA-xxx) if one exists, or propose a title\n"
+        "2. One-sentence rationale\n"
+        "3. Estimate: XS (<1h) | S (1–2h) | M (2–4h) | L (4–8h) | XL (>8h)\n"
+        "4. Expected impact on ZTE score or operational health\n\n"
+        "Format:\n"
+        "PRIORITY 1: [ticket] — [rationale] — Estimate: [size] — Impact: [impact]\n"
+        "PRIORITY 2: ...\nPRIORITY 3: ..."
+    )
+    raw = _run_prompt_with_cache(system_text=system_prompt, user_content=user_content, timeout=90)
+    if not raw:
+        raw = _run_prompt_via_sdk(user_content, timeout=90)
+
+    log.info("Phase 4 SPRINT RECOMMENDATIONS complete (%d chars)", len(raw))
+    return {"phase": "sprint_recommendations", "content": raw}
+
+
+def save_board_minutes(
+    cycle: int,
+    status: dict[str, Any],
+    linear: dict[str, Any],
+    swot: dict[str, Any],
+    recommendations: dict[str, Any],
+    gap_audit: dict[str, Any],
+) -> Path:
+    """Phase 5 — SAVE MINUTES: write full board minutes to .harness/board-meetings/."""
+    board_dir = _HARNESS_ROOT / "board-meetings"
+    board_dir.mkdir(parents=True, exist_ok=True)
+
+    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    out_path = board_dir / f"{date_str}-board-minutes.md"
+
+    audit_summary = gap_audit.get("summary", {})
+    cron = status.get("cron_health", {})
+    cron_status = cron.get("status", "unknown") if isinstance(cron, dict) else str(cron)
+
+    content = "\n".join([
+        f"# Board Meeting Minutes — Cycle {cycle} ({date_str})",
+        "",
+        "## Attendees",
+        "- Pi CEO Autonomous Agent",
+        "- Gap Audit Agent",
+        "",
+        "## Phase 1 — STATUS",
+        f"- ZTE Score: {status.get('zte_score', 'unknown')}",
+        f"- Urgent Issues: {len(status.get('urgent_issues', []))}",
+        f"- Cron Health: {cron_status}",
+        "",
+        "## Phase 2 — LINEAR REVIEW",
+        f"- Urgent: {linear.get('urgent_count', 0)} | High: {linear.get('high_count', 0)}",
+        f"- Stale: {', '.join(linear.get('stale_items', [])) or 'None'}",
+        f"- Unassigned: {', '.join(linear.get('unassigned', [])) or 'None'}",
+        "",
+        "## Phase 3 — SWOT",
+        swot.get("content", "(not available)"),
+        "",
+        "## Phase 4 — SPRINT RECOMMENDATIONS",
+        recommendations.get("content", "(not available)"),
+        "",
+        "## Phase 6 — GAP AUDIT SUMMARY",
+        f"- Critical: {audit_summary.get('critical_count', 0)}",
+        f"- High: {audit_summary.get('high_count', 0)}",
+        f"- Low: {audit_summary.get('low_count', 0)}",
+        f"- Tickets created: {', '.join(audit_summary.get('linear_tickets_created', [])) or 'None'}",
+        "",
+        f"_Generated {datetime.now(timezone.utc).isoformat()}_",
+    ])
+
+    out_path.write_text(content, encoding="utf-8")
+    log.info("Board minutes saved to %s", out_path)
+    return out_path
+
+
+def run_full_board_meeting(dry_run: bool = False, cycle: int = 0) -> dict[str, Any]:
+    """Run all 6 board meeting phases in sequence and save minutes.
+
+    Phase 1 — STATUS (data only)
+    Phase 2 — LINEAR REVIEW (data only)
+    Phase 3 — SWOT (Claude + lessons.jsonl)
+    Phase 4 — SPRINT RECOMMENDATIONS (Claude)
+    Phase 5 — SAVE MINUTES (disk write)
+    Phase 6 — GAP AUDIT (Claude × N categories → Linear tickets)
+    """
+    log.info("=== FULL BOARD MEETING START (cycle=%d dry_run=%s) ===", cycle, dry_run)
+    start = time.monotonic()
+
+    system_prompt = build_board_system_prompt()
+
+    status = run_status_phase()
+    linear = run_linear_review_phase()
+    swot = run_swot_phase(system_prompt, status, linear)
+    recommendations = run_sprint_recommendations_phase(system_prompt, swot, linear)
+    gap_audit = run_gap_audit_phase(dry_run=dry_run)
+
+    if not dry_run:
+        minutes_path = save_board_minutes(cycle, status, linear, swot, recommendations, gap_audit)
+        gap_audit["minutes_path"] = str(minutes_path)
+
+    duration = round(time.monotonic() - start, 1)
+    log.info("=== FULL BOARD MEETING COMPLETE in %.1fs ===", duration)
+    return {
+        "status": status,
+        "linear_review": linear,
+        "swot": swot,
+        "sprint_recommendations": recommendations,
+        "gap_audit": gap_audit,
+        "duration_s": duration,
+    }
+
+
 def main() -> None:
     """CLI entry point — run the gap audit."""
     import argparse
@@ -738,17 +1039,21 @@ def main() -> None:
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
 
-    parser = argparse.ArgumentParser(description="Run Pi-CEO board meeting gap audit")
-    parser.add_argument("--dry-run", action="store_true", help="Skip Linear ticket creation")
-    parser.add_argument("--cycle", type=int, help="Override cycle number (unused, reserved)")
+    parser = argparse.ArgumentParser(description="Run Pi-CEO board meeting")
+    parser.add_argument("--dry-run", action="store_true", help="Skip Linear ticket creation and minutes write")
+    parser.add_argument("--cycle", type=int, default=0, help="Board cycle number for minutes filename")
+    parser.add_argument("--full", action="store_true", help="Run all 6 phases (default: gap audit only)")
     args = parser.parse_args()
 
-    audit = run_gap_audit_phase(dry_run=args.dry_run)
-    print(json.dumps(audit, indent=2, ensure_ascii=False))
-    audit.get("summary", {})
-    for sev in ("critical", "high"):
-        for item in audit.get(sev, []):
-            log.info("[%s] %s — %s", sev.upper(), item.get("category"), item.get("recommendation"))
+    if args.full:
+        result = run_full_board_meeting(dry_run=args.dry_run, cycle=args.cycle)
+        print(json.dumps(result, indent=2, ensure_ascii=False, default=str))
+    else:
+        audit = run_gap_audit_phase(dry_run=args.dry_run)
+        print(json.dumps(audit, indent=2, ensure_ascii=False))
+        for sev in ("critical", "high"):
+            for item in audit.get(sev, []):
+                log.info("[%s] %s — %s", sev.upper(), item.get("category"), item.get("recommendation"))
 
 
 if __name__ == "__main__":
