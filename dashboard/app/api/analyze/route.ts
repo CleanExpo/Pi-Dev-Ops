@@ -60,6 +60,17 @@ export async function GET(req: NextRequest) {
         console.error(`[analyze] ${ctx}:`, err instanceof Error ? err.message : err);
       };
 
+      // ── Graceful budget: 270s (30s before Vercel's 300s hard limit) ────────
+      // Sends partial results and a timeout event instead of being killed mid-phase.
+      const BUDGET_MS = 270_000;
+      let budgetFired = false;
+      const budgetTimer = setTimeout(() => { budgetFired = true; }, BUDGET_MS);
+
+      // ── Keepalive: comment ping every 15s to prevent proxy buffering ───────
+      const keepalive = setInterval(() => {
+        try { controller.enqueue(new TextEncoder().encode(": ping\n\n")); } catch { /* closed */ }
+      }, 15_000);
+
       // Supabase client (best-effort — if not configured, analysis still runs)
       let supabase: ReturnType<typeof createServerClient> | null = null;
       try { supabase = createServerClient(); } catch { /* no Supabase config yet */ }
@@ -138,6 +149,11 @@ export async function GET(req: NextRequest) {
         let result: Partial<AnalysisResult> = { repoUrl, repoName: repo, branch: branchName };
 
         for (const phase of PHASES.slice(0, 7)) {
+          // Check budget before starting each phase
+          if (budgetFired) {
+            line("system", `⚠ Analysis budget reached — skipping phase ${phase.id}+`);
+            break;
+          }
           send("phase_update", { phaseId: phase.id, status: "running" satisfies PhaseStatus });
           if (supabase) {
             supabase.from("phase_states").update({ status: "running", started_at: new Date() })
@@ -358,6 +374,13 @@ export async function GET(req: NextRequest) {
           );
         }
       } finally {
+        clearTimeout(budgetTimer);
+        clearInterval(keepalive);
+        // If budget fired before error, send partial results + timeout event
+        if (budgetFired) {
+          send("line", { type: "error", text: "⚠ Analysis budget reached (270s). Partial results saved — re-run to complete remaining phases.", ts: Date.now() / 1000 });
+          send("timeout", { partial: true });
+        }
         controller.close();
       }
     },

@@ -89,9 +89,29 @@ export function useSSE() {
       es.close();
     });
 
+    // Server-sent "error" events — only fire when the route explicitly sends
+    // `event: error\ndata: {...}`. Native connection drops have no .data and
+    // must fall through to onerror (which handles reconnection).
     es.addEventListener("error", (e) => {
-      const data = JSON.parse((e as MessageEvent).data ?? "{}") as { message?: string };
-      setState((s) => ({ ...s, status: "error", error: data.message ?? "Stream error", retries: 0 }));
+      const msgData = (e as MessageEvent).data;
+      if (!msgData) return; // no data = connection drop; let onerror handle it
+      try {
+        const data = JSON.parse(msgData) as { message?: string };
+        if (data.message) {
+          setState((s) => ({ ...s, status: "error", error: data.message!, retries: 0 }));
+          es.close();
+        }
+      } catch { /* malformed — ignore, let onerror handle */ }
+    });
+
+    // "timeout" event — server hit its budget, has partial results
+    es.addEventListener("timeout", () => {
+      setState((s) => ({
+        ...s,
+        status: "error",
+        error:  "Analysis timed out — partial results shown. Re-run to complete.",
+        retries: 0,
+      }));
       es.close();
     });
 
@@ -102,7 +122,7 @@ export function useSSE() {
 
         const nextRetry = retryCount + 1;
         if (nextRetry > MAX_RETRIES) {
-          return { ...s, status: "error", error: "Connection lost after max retries" };
+          return { ...s, status: "error", error: "Connection lost — please re-run the analysis." };
         }
 
         const delay = BACKOFF_MS[Math.min(retryCount, BACKOFF_MS.length - 1)];
