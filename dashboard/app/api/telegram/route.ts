@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { MODELS } from "@/lib/models";
 
@@ -322,22 +322,61 @@ async function ceoAgentCall(history: Turn[]): Promise<string> {
   return "Done.";
 }
 
+// ── Background analysis trigger ───────────────────────────────────────────────
+// Fires the 8-phase analysis SSE stream in background via next/server after().
+// The analyze route sends a Telegram completion notification when done —
+// no need to block the bot response waiting for the 5-min analysis.
+
+function triggerAnalysisBackground(repoUrl: string, appOrigin: string, ghToken?: string): void {
+  after(async () => {
+    try {
+      const url = new URL(`${appOrigin}/api/analyze`);
+      url.searchParams.set("repo", repoUrl);
+      if (ghToken) url.searchParams.set("token", ghToken);
+      // Consume the SSE stream — the analyze route sends Telegram notification on done/error
+      const res = await fetch(url.toString(), {
+        headers: { "x-webhook-trigger": "telegram" },
+        signal: AbortSignal.timeout(295_000), // just under Vercel 300s
+      });
+      // Drain response so the SSE stream completes fully
+      if (res.body) {
+        const reader = res.body.getReader();
+        while (true) {
+          const { done } = await reader.read();
+          if (done) break;
+        }
+      }
+    } catch { /* analyze route handles its own Telegram error notification */ }
+  });
+}
+
 // ── Commands ──────────────────────────────────────────────────────────────────
 
 const HELP = `*Pi CEO — CEO Interface*
 
-Just type naturally. Examples:
-_"Fix the login timeout bug in RestoreAssist, high priority"_
-_"Add dark mode to the dashboard, normal priority"_
-_"What's currently running?"_
-_"Show me the backlog"_
+Delegate tasks by typing naturally. Examples:
+_"Fix login timeout in RestoreAssist, high priority"_
+_"Add dark mode to dashboard, normal priority"_
+_"What's running?"_ · _"Show backlog"_
 
 Slash commands:
-/status — active build sessions
+/analyze <github\\_url> — run full 8-phase analysis (notifies here when done)
+/status — active Railway build sessions
 /backlog — open Linear issues
-/build <repo\\_url> — trigger a build directly
+/build <repo\\_url> — trigger a Railway build
 /clear — clear conversation history
 /help — this message`;
+
+// ── Chat ID allowlist (owner-only access) ─────────────────────────────────────
+// TELEGRAM_CHAT_ID env var is the owner's numeric chat ID.
+// If set, ALL messages from other chat IDs are silently dropped.
+// Get your chat ID by sending /start to @userinfobot on Telegram.
+
+function isAuthorized(chatId: number): boolean {
+  const allowed = process.env.TELEGRAM_CHAT_ID?.trim();
+  if (!allowed) return true; // not configured — open (dev mode)
+  return String(chatId) === allowed;
+}
 
 // ── POST handler ──────────────────────────────────────────────────────────────
 
@@ -359,6 +398,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!msg?.text) return NextResponse.json({ ok: true });
 
   const chatId = msg.chat.id;
+
+  // Silently ignore messages from unauthorized chat IDs
+  if (!isAuthorized(chatId)) return NextResponse.json({ ok: true });
+
   const text = msg.text.trim();
   const firstName = msg.from?.first_name ?? "there";
 
@@ -381,6 +424,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   if (text === "/backlog") {
     await send(chatId, await getLinearBacklog());
+    return NextResponse.json({ ok: true });
+  }
+
+  if (text.startsWith("/analyze ")) {
+    const repoUrl = text.slice(9).trim();
+    if (!repoUrl.includes("github.com/")) {
+      await send(chatId, "Usage: `/analyze https://github.com/owner/repo`");
+      return NextResponse.json({ ok: true });
+    }
+    const appOrigin = req.nextUrl.origin;
+    const ghToken = process.env.GITHUB_TOKEN?.trim();
+    triggerAnalysisBackground(repoUrl, appOrigin, ghToken);
+    await send(chatId,
+      `🔍 *Analysis started*\nRepo: \`${repoUrl}\`\n\nRunning 8 phases — I'll message you here when complete (~5 min).`
+    );
     return NextResponse.json({ ok: true });
   }
 
