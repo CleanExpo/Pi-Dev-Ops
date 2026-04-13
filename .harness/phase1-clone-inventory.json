@@ -1,0 +1,83 @@
+```json
+{
+  "totalFiles": 87,
+  "languages": {
+    "Python": 1840,
+    "TypeScript": 420,
+    "JavaScript": 95,
+    "JSON": 680,
+    "YAML": 210,
+    "Markdown": 8900,
+    "TOML": 18,
+    "Dockerfile": 52,
+    "Shell": 0
+  },
+  "topFiles": [
+    ".harness/BOARD-DELIBERATION-ENHANCED-2026-04-12.md — ~1400 LOC",
+    ".harness/BOARD-DELIBERATION-2026-04-12.md — ~900 LOC",
+    ".harness/anthropic-docs/claude-code-overview.md — ~820 LOC",
+    ".harness/anthropic-docs/api-reference.md — ~800 LOC",
+    ".harness/anthropic-docs/tool-use.md — ~790 LOC",
+    ".harness/anthropic-docs/mcp-overview.md — ~780 LOC",
+    ".harness/anthropic-docs/models-overview.md — ~770 LOC",
+    ".harness/anthropic-docs/claude-code-cli-reference.md — ~760 LOC",
+    "app/server/main.py — ~420 LOC",
+    ".harness/INCIDENT-2026-04-12.md — ~380 LOC"
+  ],
+  "frameworks": [
+    "FastAPI",
+    "Next.js 16",
+    "React 19",
+    "Tailwind CSS",
+    "Uvicorn",
+    "WebSockets",
+    "Pydantic v2",
+    "@modelcontextprotocol/sdk",
+    "@anthropic-ai/sdk",
+    "@octokit/rest",
+    "@supabase/ssr",
+    "xterm.js",
+    "Radix UI",
+    "Hatchling (build backend)",
+    "Docker"
+  ],
+  "entryPoints": [
+    "app/server/main.py",
+    "mcp/pi-ceo-server.js",
+    "dashboard/package.json (next dev / next start)"
+  ],
+  "testFiles": 0,
+  "testCoveragePresent": false,
+  "ciCdConfig": [
+    ".github/workflows/ci.yml",
+    ".github/workflows/smoke_test.yml"
+  ],
+  "dockerPresent": true,
+  "envExamplePresent": true,
+  "packageManagers": [
+    "pip",
+    "npm",
+    "hatchling"
+  ],
+  "totalDependencies": 42,
+  "architecturePattern": "fullstack",
+  "missingCriticalFiles": [
+    "tests/ — no test files present in provided context (CI references pytest tests/ but no test source shown)",
+    "app/server/sessions.py — referenced extensively but not provided",
+    "app/server/config.py — referenced extensively but not provided",
+    "app/server/auth.py — referenced but not provided",
+    "app/server/autonomy.py — referenced but not provided",
+    "app/server/scanner.py — referenced but not provided",
+    "app/server/pipeline.py — referenced but not provided",
+    "app/server/orchestrator.py — referenced but not provided",
+    "mcp/pi-ceo-server.js — referenced but not provided",
+    "scripts/smoke_test.py — referenced by CI but not provided",
+    "railway.toml — referenced but gitignored",
+    "vercel.json — referenced but not provided",
+    "dashboard/app/ — Next.js app directory not provided",
+    "src/tao/ — TAO engine directory referenced in Dockerfile but not provided",
+    ".harness/lessons.jsonl — referenced but not provided",
+    ".harness/projects.json — referenced but not provided"
+  ]
+}
+```
