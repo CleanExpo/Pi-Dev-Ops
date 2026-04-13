@@ -100,6 +100,22 @@ function runPhaseCLI(
   });
 }
 
+// ── Transient error detection ─────────────────────────────────────────────────
+function isTransient(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const msg = err.message.toLowerCase();
+  // Anthropic SDK error types + network-level transients
+  return (
+    msg.includes("overloaded") ||
+    msg.includes("rate_limit") ||
+    msg.includes("529") ||
+    msg.includes("503") ||
+    msg.includes("econnreset") ||
+    msg.includes("etimedout") ||
+    msg.includes("network")
+  );
+}
+
 // ── SDK mode: Anthropic SDK with ANTHROPIC_API_KEY ────────────────────────────
 async function runPhaseSDK(
   client: Anthropic,
@@ -114,29 +130,42 @@ async function runPhaseSDK(
 
   const fullPrompt = `${prompt}\n\n---\nREPO CONTEXT:\n${context}`;
 
-  const stream = await client.messages.stream(
-    {
-      model,
-      max_tokens: maxTokens,
-      system: SYSTEM,
-      messages: [{ role: "user", content: fullPrompt }],
-    },
-    { signal },
-  );
+  const attempt = async (): Promise<string> => {
+    const stream = await client.messages.stream(
+      {
+        model,
+        max_tokens: maxTokens,
+        system: SYSTEM,
+        messages: [{ role: "user", content: fullPrompt }],
+      },
+      { signal },
+    );
 
-  let full = "";
-  for await (const event of stream) {
-    if (signal?.aborted) throw new Error("Phase aborted: budget limit reached");
-    if (
-      event.type === "content_block_delta" &&
-      event.delta.type === "text_delta"
-    ) {
-      const chunk = event.delta.text;
-      full += chunk;
-      onChunk(chunk);
+    let full = "";
+    for await (const event of stream) {
+      if (signal?.aborted) throw new Error("Phase aborted: budget limit reached");
+      if (
+        event.type === "content_block_delta" &&
+        event.delta.type === "text_delta"
+      ) {
+        const chunk = event.delta.text;
+        full += chunk;
+        onChunk(chunk);
+      }
     }
+    return full;
+  };
+
+  // One retry on transient failures (overloaded, rate-limited, network reset).
+  // Hard abort signals are never retried — respect the budget timer.
+  try {
+    return await attempt();
+  } catch (err) {
+    if (signal?.aborted || !isTransient(err)) throw err;
+    await new Promise((res) => setTimeout(res, 10_000)); // 10s backoff
+    if (signal?.aborted) throw new Error("Phase aborted during retry backoff");
+    return attempt();
   }
-  return full;
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────────
