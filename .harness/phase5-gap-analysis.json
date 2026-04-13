@@ -1,0 +1,107 @@
+```json
+{
+  "zteLevel": 3,
+  "zteScore": 40,
+  "leveragePoints": [
+    {
+      "id": 1,
+      "name": "Spec Quality",
+      "score": 4,
+      "rationale": "PITER classifier + 5 ADW templates + 3-tier complexity exist in brief.py. Agent spec files in .harness/agents/ have structured roles. However, no testable acceptance criteria with edge cases are visible for individual features — specs describe system behavior at architectural level, not per-feature AC with boundary conditions. Gap: feature-level testable criteria absent."
+    },
+    {
+      "id": 2,
+      "name": "Context Precision",
+      "score": 4,
+      "rationale": "_get_lesson_context() injects lessons per-intent (leverage-audit.md confirms). RESEARCH_INTENT, ENGINEERING_CONSTRAINTS, EVALUATION_CRITERIA files exist in .harness/intent/. Plan-discovery phase prepends best haiku variant. However, .harness/anthropic-docs/ contains raw HTML/JS noise (scraped pages with CSS frameworks, font-face declarations) rather than compressed signal — context injection quality degrades when these files are included in phase context."
+    },
+    {
+      "id": 3,
+      "name": "Model Selection",
+      "score": 4,
+      "rationale": "config.yaml defines planner=opus, generator=sonnet, evaluator=sonnet with parallel Haiku tiebreaker. AUTONOMY_BUDGET 5-anchor interpolation maps minutes to {model, threshold, retries}. _select_model() reads config. No evidence of runtime auto-selection by task complexity outside the budget anchors — routing is configuration-driven, not dynamic. Fallback logic: TAO_USE_FALLBACK=1 path exists but subprocess removed (RA-576), so fallback is to direct Anthropic SDK, not a true model-tier fallback."
+    },
+    {
+      "id": 4,
+      "name": "Tool Availability",
+      "score": 4,
+      "rationale": ".claude/settings.json grants bypassPermissions with 30+ allowed tool patterns. MCP server at mcp/pi-ceo-server.js exposes 21 tools. Fan-out parallelism via /api/build/parallel. However: mcp/package.json test script is 'echo Error: no test specified && exit 1' — MCP server has zero test coverage. WebFetch whitelist is narrow (6 domains). No custom domain-specific MCP tools beyond harness/Linear reads. Qdrant dropped (board decision). Tool suite is broad but not domain-specialized beyond what Claude Code provides natively."
+    },
+    {
+      "id": 5,
+      "name": "Feedback Loops",
+      "score": 4,
+      "rationale": "Closed-loop evaluator retry with critique injection confirmed in sessions.py. Auto-learn: below-threshold dimensions → lessons.jsonl append. Weekly analyse_lessons.py cron. Self-Improvement proposals to .harness/improvement-proposals/. However: SDK canary Phase A was at 0% traffic for 3+ consecutive board cycles per board minutes — the improvement loop exists but real-traffic data was not flowing into it. lessons.jsonl at 38 entries with no compression or archival strategy. The loop is architecturally complete but operationally underutilized."
+    },
+    {
+      "id": 6,
+      "name": "Error Recovery",
+      "score": 4,
+      "rationale": "3-attempt exponential backoff on clone/generator/push confirmed. _resilient() wrapper in main.py auto-restarts crashed background tasks. SIGTERM drain in on_shutdown(). Phase checkpoints with resume endpoint. However: _sessions is in-memory (lesson explicitly calls this out) — server restart loses all running session state. Sessions marked 'interrupted' but in-flight work is lost. Persistence is post-hoc backup, not pre-emptive checkpoint. No circuit breaker pattern for Linear/Telegram API calls. Error classification is basic (status string), not typed exception hierarchy."
+    },
+    {
+      "id": 7,
+      "name": "Session Continuity",
+      "score": 4,
+      "rationale": "Phase-level checkpoints with last_completed_phase persisted to disk via persistence.py (write-to-.tmp + os.replace() atomic). POST /api/sessions/{sid}/resume skips completed phases. restore_sessions() on startup. However: the gap-audit JSON (.harness/board-meetings/2026-04-12-gap-audit.json) flags restore_sessions() as 'truncated before completion — function body ends mid-line' — persistence/resume correctness cannot be fully audited from available code. In-memory _sessions dict means any crash between state changes loses the delta."
+    },
+    {
+      "id": 8,
+      "name": "Quality Gating",
+      "score": 4,
+      "rationale": "Evaluator is a BLOCKING gate (not advisory) with max 2 retries and critique injection. Three-tier routing: AUTO-SHIP FAST (score>=9.5, confidence>=90%) / PASS / PASS+FLAG. Scope contract ceiling via RA-676. Ship-chain /ship phase is synchronous with hard gate. However: TAO_EVALUATOR_ENABLED can be set to false (CI uses TAO_EVALUATOR_ENABLED=false). .env.example shows TAO_EVALUATOR_THRESHOLD=8 but this is a threshold config, not a binary gate — values can be lowered. Gap audit (gap-audit.json) found 3 CRITICAL discrepancies between spec claims and code reality, suggesting the gate doesn't catch spec-vs-code drift. No second-agent review before merge (board recommended two-agent rule but not implemented)."
+    },
+    {
+      "id": 9,
+      "name": "Cost Efficiency",
+      "score": 4,
+      "rationale": "Claude Max subscription = zero per-token cost for primary path. BudgetTracker in src/tao/budget/tracker.py. claude_api_costs Supabase table. SDK metrics emitted to .harness/agent-sdk-metrics/YYYY-MM-DD.jsonl per invocation. scripts/sdk_metrics.py analyser. However: cost-per-session visibility is unclear — claude_api_costs table exists but no dashboard panel showing cost-per-session is confirmed in available code. Plan discovery runs 3 haiku variants per session (RA-679) — small but real API cost. Fallback path (TAO_USE_FALLBACK=1) uses Anthropic API with real costs, tested quarterly. No budget ceiling enforcement visible in sessions.py — budget_minutes parameter exists but enforcement is timeout-based, not cost-based."
+    },
+    {
+      "id": 10,
+      "name": "Trigger Automation",
+      "score": 4,
+      "rationale": "GitHub webhook (HMAC-verified, /api/webhook), Linear webhook, cron_loop() with .harness/cron-triggers.json (12 triggers), autonomy.py 5-min Linear poller, Telegram /build command, n8n 5-min Linear poller (RA-643). Multiple trigger types confirmed. However: overnight autonomous marathon (MARATHON-4, RA-588) has not completed a successful 6-hour run as of latest board minutes — automation exists but real-world 24/7 reliability is not proven. PI_SEO_ACTIVE=0 by default (.env.example) — Pi-SEO cron scans are disabled until explicitly activated. autonomy.py silently skips when LINEAR_API_KEY missing (documented anti-pattern in CLAUDE.md). Linear API was returning 401 for 2+ consecutive board cycles."
+    },
+    {
+      "id": 11,
+      "name": "Knowledge Retention",
+      "score": 4,
+      "rationale": "lessons.jsonl (38 entries, append-only) confirmed. Auto-learn from evaluator low-scoring dimensions. analyse_lessons.py weekly cron creates Self-Improvement Linear tickets. Plan-discoveries JSONL per day. Anthropic docs daily snapshot (intel-refresh-monday trigger). However: .harness/.analyse-lessons-last-run shows 2026-04-13 — appears to have run once. No evidence lessons are pruned or compressed as the file grows. Board meetings note lessons corpus 'is operationally useful' but the actual injection mechanism (_get_lesson_context) has not been validated against the full 38-entry corpus for relevance filtering. No versioning or staleness marking of lessons."
+    },
+    {
+      "id": 12,
+      "name": "Workflow Standardization",
+      "score": 4,
+      "rationale": "PITER classifier enforced at brief entry. 5 ADW templates active. Ship-chain 6-phase pipeline (/spec /plan /build /test /review /ship). 33 skills with intent-to-skill mapping. CLAUDE.md as house rules. However: ad-hoc board deliberation documents (.harness/BOARD-DELIBERATION-*.md) show significant unstructured decision-making outside the pipeline. Gap-audit process runs outside the standard pipeline. The 'ideas-from-phone' flow deliberately bypasses automation (design choice but breaks standardization). Multiple board minutes show priorities deferred for 3+ cycles without the workflow enforcing resolution."
+    }
+  ],
+  "productionGaps": [
+    "app/server/sessions.py: restore_sessions() function truncated mid-implementation per gap-audit.json — session resume correctness on restart is unverified; last_completed_phase handling may silently fail",
+    "app/server/main.py + webhook.py: Linear two-way sync (issueUpdate GraphQL mutation) not wired — builds complete but Linear tickets never receive status updates or comments from completed sessions (gap-audit.json CRITICAL finding)",
+    "mcp/pi-ceo-server.js: mcp/package.json test script is 'echo Error: no test specified && exit 1' — 21 MCP tools have zero automated test coverage; tool regressions go undetected",
+    ".harness/anthropic-docs/: scraped pages contain raw HTML/CSS/JS framework noise (font-face declarations, Next.js chunk manifests) rather than compressed documentation signal — context injection is polluted when these files are included",
+    "app/server/autonomy.py: SDK canary Phase A was at 0% production traffic for 3+ consecutive board cycles — the SDK dual-path in sessions.py is deployed but unvalidated against real traffic; subprocess path was removed (RA-576) creating no fallback",
+    ".harness/cron-triggers.json: last_fired_at resets on Railway redeploy — combined with debounce bug (abs() missing, documented in lessons), every Railway deploy silently suppresses next scheduled scan window",
+    "app/server/sessions.py + app/server/webhook.py: GET /api/sessions/{sid}/logs SSE endpoint claimed in spec but gap-audit.json flags it as CRITICAL missing — only WebSocket /ws/build/{sid} confirmed; SSE streaming for the dashboard may be broken",
+    "PI_SEO_ACTIVE=0 default in .env.example: Pi-SEO cron scans are disabled by default on every fresh deployment; requires manual Railway env var activation — autonomy is not truly zero-touch on first deploy",
+    ".harness/telegram-inbox/ and .harness/monitor-digests/ are in .gitignore — runtime state is ephemeral and lost on Railway deploy/restart; no persistence layer for these critical operational files",
+    "app/server/supabase_log.py: SUPABASE_SERVICE_ROLE_KEY missing from Railway requires manual action (documented in leverage-audit.md changelog) — gate_checks and alert_escalations tables receive zero data until manually configured"
+  ],
+  "loadRisks": [
+    "_sessions in-memory dict: any Railway restart (deploy, crash, scale-event) loses all running session state; sessions mid-build are marked 'interrupted' but work is lost and must restart from scratch — under high Linear backlog load, multiple sessions can be lost simultaneously",
+    "app/workspaces/{session_id}/ ephemeral clones: TAO_MAX_SESSIONS=3 default but no disk quota enforcement; concurrent sessions on Railway's ephemeral filesystem can exhaust disk before GC runs (30min loop); Railway has no persistent volume by default",
+    ".harness/triage-cache.json at 353KB with no pruning strategy: board meetings flag this across 3+ cycles; scanner startup will degrade as file grows; on Railway this file is in the ephemeral container filesystem and resets on redeploy, losing cache value",
+    "cron_loop() 60s polling with 12 triggers: all cron triggers run in a single background asyncio task; if one trigger blocks (hung Claude SDK call), all subsequent triggers in the same tick are delayed; no per-trigger timeout isolation",
+    "linear_todo_poller 5-min cycle with no deduplication beyond in-memory _sessions check: Railway restart resets _sessions, allowing the same Linear ticket to spawn duplicate sessions if restarted mid-build; no Linear ticket lock or idempotency key",
+    "Fan-out /api/build/parallel with n_workers up to 8: each worker calls create_session() which is gated by TAO_MAX_SESSIONS=3; with n_workers=8 and MAX_SESSIONS=3, 5 workers are silently rejected with RuntimeError and the caller gets no partial result indication",
+    "WebSocket /ws/build/{sid} polling at 0.15s interval per connected client: no connection limit per session; multiple dashboard tabs polling the same session multiply Railway CPU load; no backpressure mechanism",
+    "autonomy.py silently skips entire poll cycle when LINEAR_API_KEY missing: /health returns 200 with autonomy.armed=false but no Telegram alert fires; under deployment rotation (Railway env var update without redeploy), the silence window can be hours"
+  ],
+  "topThreeROI": [
+    "Trigger Automation (score 4) — SDK Canary Phase A was deferred for 3+ consecutive board cycles while the subprocess fallback was simultaneously removed (RA-576); the system is in a state where the only execution path (SDK) has zero real-traffic validation data; activating AGENT_SDK_CANARY_RATE=0.10 in Railway is a single env var change with immediate observability via .harness/agent-sdk-metrics/; failure to activate creates growing risk of undetected SDK regression against which there is now no fallback",
+    "Quality Gating (score 4) — the gap-audit process (.harness/board-meetings/2026-04-12-gap-audit.json) found 3 CRITICAL and 4 HIGH discrepancies between spec claims and code reality that the existing evaluator gate did not catch; the evaluator measures code quality within a session but has no mechanism to detect spec-vs-implementation drift across sessions; adding a post-ship spec-verification step (or a second-agent reviewer as recommended by the Custom Oracle in BOARD-DELIBERATION-2026-04-12.md) would close the highest-severity gap class found in the audit",
+    "Knowledge Retention (score 4) — lessons.jsonl has 38 entries but the weekly analyse_lessons.py shows a single run timestamp (2026-04-13T18:10:20 in .harness/.analyse-lessons-last-run); the self-improvement loop is wired but the output (Linear Self-Improvement tickets) has not been traced back to actual CLAUDE.md or skills/ updates; closing this loop — specifically: lessons → analysis → skills/ file updates → next session performance improvement — would compound value on every session and is the only mechanism that makes the system measurably smarter over time rather than just storing observations"
+  ]
+}
+```
