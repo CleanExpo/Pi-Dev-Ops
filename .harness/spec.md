@@ -1,6 +1,6 @@
 # Pi Dev Ops — Product Spec (Full Analysis)
 
-_Generated: 2026-04-08 | Last updated: 2026-04-13 (Sprint 9) | Analyst: Pi CEO Orchestrator | Sprint: 9 / Cycle 23_
+_Generated: 2026-04-08 | Last updated: 2026-04-13 (Sprint 9 complete) | Analyst: Pi CEO Orchestrator | Sprint: 9 / Cycle 24_
 
 ---
 
@@ -12,7 +12,7 @@ _Generated: 2026-04-08 | Last updated: 2026-04-13 (Sprint 9) | Analyst: Pi CEO O
 
 - **Not CI/CD.** Not a build pipeline. It is an **agentic harness**: a thin orchestration layer between human intent and Claude Code execution.
 - **Companion tool.** Designed to run alongside Claude Desktop (left pane = CLI writing code; right pane = Pi Dev Ops orchestrating, tracking, pushing to Linear).
-- **ZTE Score: 73/75** as of Sprint 9 / Cycle 23 — SDK-only execution confirmed (RA-576). Full leverage-audit breakdown in `.harness/leverage-audit.md`.
+- **ZTE v2 Score: 81/100** as of Sprint 9 / Cycle 24 — Karpathy-series enhancements complete (RA-674–683). SDK-only execution confirmed (RA-576). Full leverage-audit breakdown in `.harness/leverage-audit.md`.
 
 ### Build Pipeline
 
@@ -28,7 +28,13 @@ POST /api/build  →  FastAPI  →  run_build()
   Phase 3.5: sandbox verification (auto re-clone if GC'd)
   Phase 4:   generator — _run_claude_via_sdk() [TAO_USE_AGENT_SDK=1 mandatory]
              └─ claude_agent_sdk with ThinkingConfigAdaptive + HookMatcher
-  Phase 4.5: evaluator — _run_single_eval() via SDK (blocking; up to 3 total)
+  Phase 3.6: plan discovery (RA-679) — optional; 3 haiku variants in parallel, winner prepended
+  Phase 4:   generator — _run_claude_via_sdk() [TAO_USE_AGENT_SDK=1 mandatory]
+             └─ brief tier: auto/basic/detailed/advanced (RA-681) selects spec verbosity
+             └─ claude_agent_sdk with ThinkingConfigAdaptive + HookMatcher
+  Phase 4.5: evaluator — parallel Sonnet+Haiku, Opus tiebreaker if delta>2 (RA-553)
+             └─ three-tier routing: AUTO-SHIP FAST / PASS / PASS+FLAG (RA-674)
+             └─ scope check: file-count ceiling before eval loop (RA-676)
              └─ if below threshold: inject critique → retry Phase 4
              └─ if passed or exhausted: auto-append lessons to .jsonl
   Phase 5:   git push (3-attempt exponential backoff; auth → hard stop)
@@ -70,7 +76,7 @@ NOTE: claude -p subprocess paths removed in RA-576 (Sprint 8). TAO_USE_AGENT_SDK
 | `sessions.py` | Full build lifecycle: 5-phase pipeline, evaluator gate, phase checkpoints, resume | ✅ Complete |
 | `persistence.py` | Atomic JSON session persistence (`write-to-.tmp + os.replace()`) | ✅ Complete |
 | `orchestrator.py` | Fan-out parallelism: decompose → N parallel `create_session()` calls | ✅ Complete |
-| `brief.py` | PITER intent classifier + 5 ADW templates + skill/lesson context injection | ✅ Complete |
+| `brief.py` | PITER intent classifier + 5 ADW templates + 3-tier complexity system (basic/detailed/advanced) + skill/lesson/intent-file injection (RA-678, RA-681) | ✅ Complete |
 | `webhook.py` | GitHub + Linear HMAC verification, event parsing, brief generation | ✅ Complete |
 | `cron.py` | Scheduled triggers (`.harness/cron-triggers.json`), 60s loop | ✅ Complete |
 | `gc.py` | Workspace GC: terminal sessions >4h TTL + orphan dir scan, 30min loop | ✅ Complete |
@@ -79,6 +85,12 @@ NOTE: claude -p subprocess paths removed in RA-576 (Sprint 8). TAO_USE_AGENT_SDK
 | `pipeline.py` | Ship-chain pipeline orchestrator (6 phases, artifact persistence) | ✅ Complete |
 | `agents/board_meeting.py` | Full board meeting automation — 6 phases (STATUS→LINEAR→SWOT→RECS→SAVE→GAP AUDIT), runs weekly via cron | ✅ Complete |
 | `autonomy.py` | Autonomous poller — polls Linear every 5min for Urgent/High issues, auto-creates build sessions. Kill switch: `TAO_AUTONOMY_ENABLED=0` | ✅ Complete |
+| `budget.py` | AUTONOMY_BUDGET: maps minutes→{model, threshold, retries, timeout} via linear interpolation across 5 anchors (RA-677) | ✅ Complete |
+| `vercel_monitor.py` | Vercel deployment drift: polls Deployments API v6, compares deployed SHA vs HEAD, exposes `/api/health/vercel` (RA-692) | ✅ Complete |
+| `core/_chain.py` | Importable Ship Chain primitives: `generate()`, `evaluate()`, `decide()` — no async, safe for scripts (RA-682) | ✅ Complete |
+| `advanced/__init__.py` | Sprint 9 enhancement layer re-exports: budget, plan_discovery, complexity (RA-682) | ✅ Complete |
+| `agents/plan_discovery.py` | Plan variation discovery: 3 haiku-generated approaches scored, best prepended to generator spec (RA-679) | ✅ Complete |
+| `agents/auto_generator.py` | Auto-generates `.harness/config.yaml` from repo URL + brief via complexity tier detection (RA-691) | ✅ Complete |
 
 **Security posture:**
 - `SecurityHeaders` middleware: CSP nonce-based policy (per-request), X-Frame-Options, X-XSS-Protection on every response
@@ -98,7 +110,7 @@ The Python engine provides a skills registry, tier config loading, budget tracki
 | `schemas/artifacts.py` | ✅ Complete | `TaskSpec`, `TaskResult`, `Escalation` dataclasses |
 | `tiers/config.py` | ✅ Complete | `TierConfig` dataclass, MODEL_MAP, YAML loader |
 | `budget/tracker.py` | ✅ Complete | `BudgetTracker`: per-tier token accounting, `record(tier, tokens)` |
-| `skills.py` | ✅ Complete | Skill loader/registry: frontmatter parser, `load_all_skills()`, `skills_for_intent()` |
+| `skills.py` | ✅ Complete | Skill loader/registry: frontmatter parser, `load_all_skills()`, `skills_for_intent()`, `skills_manifest()` (RA-693) |
 | `agents/__init__.py` | ✅ Complete (RA-482) | `AgentDispatcher` class: intent-based routing, concurrent execution, batch dispatch, result aggregation |
 | `templates/3-tier-webapp.yaml` | ✅ Present | Reference config: opus orchestrator + sonnet specialist + haiku workers |
 
@@ -177,10 +189,16 @@ Version 3.1.0. Built on `@modelcontextprotocol/sdk` (official subpath imports re
 | `board-meetings/` | ✅ Present | Autonomous board meeting minutes |
 | `anthropic-docs/index.json` | ✅ Present | Fetched Anthropic documentation index |
 | `cron-triggers.json` | ✅ Present | Cron trigger persistence (10 Pi-SEO + system crons) |
+| `intent/RESEARCH_INTENT.md` | ✅ Present | Strategic steering: ZTE targets, sprint goals (RA-678) |
+| `intent/ENGINEERING_CONSTRAINTS.md` | ✅ Present | Hard invariants: endpoint SLAs, lint gate, file budgets (RA-678) |
+| `intent/EVALUATION_CRITERIA.md` | ✅ Present | Raised thresholds, zero-tolerance list, lesson policy (RA-678) |
+| `plan-discoveries/` | ✅ Present | Plan variation JSONL logs — one file per day (RA-679) |
+| `remediation/` | ✅ Present | Per-repo remediation specs — CCW-CRM quality fix brief (RA-690) |
+| `agent-sdk-metrics/` | ✅ Present | SDK invocation metrics per day (latency, success, model) |
 
 ---
 
-## 3. Skills Analysis (31 of 31)
+## 3. Skills Analysis (33 of 33)
 
 ### Layer 1: Core (7 skills)
 
@@ -192,7 +210,7 @@ Version 3.1.0. Built on `@modelcontextprotocol/sdk` (official subpath imports re
 | `tier-evaluator` | QA grading with 4 dimensions | ✅ | Phase 4.5 in `sessions.py`; `evaluator.md` spec |
 | `context-compressor` | Truncate/extract/summarize at tier boundaries | Partial | `build_structured_brief()` truncates skill bodies to 800 chars |
 | `token-budgeter` | Track token spend per tier | Partial | `BudgetTracker` instantiated per session |
-| `auto-generator` | Generate tier configs from project briefs | No | Presets defined; no code generates them yet |
+| `auto-generator` | Generate tier configs from project briefs | ✅ | `agents/auto_generator.py` — keyword complexity classifier → config.yaml written to pipeline artifact (RA-691) |
 
 ### Layer 2: Frameworks (6 skills)
 
@@ -230,6 +248,13 @@ Version 3.1.0. Built on `@modelcontextprotocol/sdk` (official subpath imports re
 | `ceo-mode` | ✅ Active |
 | `tao-skills` | ✅ Master index (31 skills) |
 
+### Layer 5: Content + Design (2 skills) — RA-693
+
+| Skill | Purpose | Wired In Code | Notes |
+|-------|---------|---------------|-------|
+| `brand-ambassador` | Brand-consistent copy, product descriptions, release notes | ✅ | `skills_for_intent("content")` — backed by `anthropic-skills:brand-ambassador` |
+| `design-system` | Next.js 16 + Tailwind component system scaffolding | ✅ | `skills_for_intent("design")` — backed by `anthropic-skills:design-system-to-production-quick-start` |
+
 ### Layer 6: Pi-SEO (3 skills)
 
 | Skill | Purpose | Wired In Code | Notes |
@@ -250,27 +275,28 @@ Version 3.1.0. Built on `@modelcontextprotocol/sdk` (official subpath imports re
 
 ---
 
-## 4. Current Leverage Audit (73/75 — Zero Touch)
+## 4. Current Leverage Audit (ZTE v2: 81/100 — Zero Touch)
 
 | # | Point | Score | Evidence |
 |---|-------|-------|---------|
-| 1 | Spec Quality | 5/5 | PITER classifier + 5 ADW templates + skill injection (RA-456, RA-457) |
-| 2 | Context Precision | 5/5 | Lesson context injected per-intent into every brief (`_get_lesson_context`) |
-| 3 | Model Selection | 5/5 | `_select_model()` reads `.harness/config.yaml`; override retained |
-| 4 | Tool Availability | 5/5 | Full Claude Code suite + fan-out + opus tier escalation |
-| 5 | Feedback Loops | 5/5 | Closed-loop evaluator: critique → retry prompt → re-generate → re-evaluate |
-| 6 | Error Recovery | 5/5 | Clone 3-attempt backoff; generator 2-attempt retry; phase checkpoints + resume |
+| 1 | Spec Quality | 5/5 | PITER + 5 ADW templates + 3-tier complexity (basic/detailed/advanced) + intent file injection (RA-456, RA-678, RA-681) |
+| 2 | Context Precision | 5/5 | Lesson context + intent files (RESEARCH_INTENT, ENGINEERING_CONSTRAINTS, EVALUATION_CRITERIA) injected per-brief |
+| 3 | Model Selection | 5/5 | `_select_model()` + AUTONOMY_BUDGET linear interpolation across 5 anchors (RA-677) |
+| 4 | Tool Availability | 5/5 | Full Claude Code suite + fan-out + opus escalation + plan discovery (RA-679) |
+| 5 | Feedback Loops | 5/5 | Closed-loop evaluator + confidence routing (RA-674) + lesson injection; plan discovery self-improves after 50 runs |
+| 6 | Error Recovery | 5/5 | Clone/generator/push 3-attempt backoff; scope enforcement before eval (RA-676); phase checkpoints + resume |
 | 7 | Session Continuity | 5/5 | Phase-level checkpoints; `POST /api/sessions/{sid}/resume` |
-| 8 | Quality Gating | 5/5 | Evaluator is a BLOCKING gate (configurable max retries before push) |
-| 9 | Cost Efficiency | 5/5 | Zero API cost on Claude Max |
-| 10 | Trigger Automation | 5/5 | GitHub + Linear webhooks + cron triggers + Telegram + Pi-SEO scan rotation |
-| 11 | Knowledge Retention | 5/5 | Auto-learn: low evaluator dims → lessons.jsonl → injected in next brief |
-| 12 | Workflow Standardisation | 5/5 | PITER at brief entry; all 5 ADW templates active; ship-chain pipeline |
-| 13 | Observability | 4/5 | gate_checks + alert_escalations in Supabase; ZTE v2 score pipeline; SDK hook latency tracing (RA-651, RA-633, RA-662, RA-672) |
-| 14 | External Validation | 3/5 | ZTE v2 Section C scoring active; C2 (Linear acceptance rate) pending RA-672 Phase 2 (RA-661) |
-| 15 | Incident History RAG | 5/5 | lessons.jsonl injected into generator prompt via `_build_incident_context()` (RA-660) |
+| 8 | Quality Gating | 5/5 | Three-tier evaluator (AUTO-SHIP FAST / PASS / PASS+FLAG) + scope contract ceiling (RA-674, RA-676) |
+| 9 | Cost Efficiency | 5/5 | Zero API cost on Claude Max; haiku for plan discovery + scoring to minimise token spend |
+| 10 | Trigger Automation | 5/5 | GitHub + Linear webhooks + cron + Telegram + Pi-SEO scan rotation + autonomy poller |
+| 11 | Knowledge Retention | 5/5 | lessons.jsonl + plan-discoveries JSONL + RESEARCH_INTENT.md pattern proposals (RA-679) |
+| 12 | Workflow Standardisation | 5/5 | PITER + all 5 ADW templates + ship-chain pipeline + 33 skills |
+| 13 | Observability | 4/5 | gate_checks + alert_escalations in Supabase; ZTE v2 score; SDK metrics; Vercel drift monitoring (RA-692) |
+| 14 | External Validation | 3/5 | ZTE v2 Section C live; C2/C3 data pending (RA-672 Phase 2) |
+| 15 | Incident History RAG | 5/5 | `_build_incident_context()` injects lessons.jsonl into every generator prompt (RA-660) |
 
-**Total: 73 / 75 — Zero Touch Engineering band (v1 scale; v2 target: 85+/100)**
+**ZTE v2: 81/100 — Zero Touch band** _(v2 target: 90/100 by end Cycle 25; Elite threshold: 95)_  
+**ZTE v1: 75/75** _(all 15 leverage points at full score)_
 
 ---
 
@@ -297,26 +323,39 @@ RA-531–RA-542: Pi-SEO scanner epic — project registry, autonomous scanner, t
 ### Sprint 7 — Mobile + Telegram (2026-04-10)
 RA-546: Mobile/tablet responsive layout (bottom tab bar, iOS zoom fix). RA-547: Worktree isolation fix (.claude/settings.json hooks). RA-548: @piceoagent_bot Telegram webhook integration. RA-549: claude-code-telegram agentic bot deployed to Railway.
 
+### Sprint 9 — Karpathy Enhancement Layer (2026-04-13) | ZTE v2: 81/100
+RA-674: Confidence-weighted evaluator with three-tier routing (AUTO-SHIP FAST / PASS / PASS+FLAG). RA-676: Session Scope Contract — file-count ceiling enforced before eval, Telegram alert on violation. RA-677: AUTONOMY_BUDGET single-knob — maps budget_minutes → model/threshold/retries/timeout via 5-anchor linear interpolation. RA-678: Markdown intent architecture — RESEARCH_INTENT.md + ENGINEERING_CONSTRAINTS.md + EVALUATION_CRITERIA.md injected per-brief. RA-679: Plan variation discovery — 3 haiku-generated approaches scored in parallel, winner prepended to generator spec; logs to .harness/plan-discoveries/. RA-680: Pi-CEO Essentials — 268-line standalone Ship Chain reference (zero deps). RA-681: Progressive brief complexity — auto-classifies basic/detailed/advanced, adjusts spec verbosity and quality gate tier. RA-682: Layered abstraction — app/server/core/ (primitives) + app/server/advanced/ (enhancements). RA-683: Ship Chain Educational Series — 5-doc Karpathy-10 onboarding in docs/ship-chain/. RA-688: Dependency zero-score alerting in pi_seo_monitor.py — flags repos at 0/100 for 2+ cycles. RA-690: CCW-CRM quality remediation spec (50 ruff findings documented). RA-691: auto_generator.py — auto-generates config.yaml from project complexity keyword detection. RA-692: vercel_monitor.py — deployment drift detection via Vercel Deployments API. RA-693: brand-ambassador + design-system skill stubs + skills_manifest() added to skills registry.
+
 ### Sprint 8 — Observability + ZTE v2 (2026-04-12 → 2026-04-13)
 RA-576: SDK-only execution locked in (subprocess fallback removed). RA-651: gate_checks Supabase table — quality gate telemetry on every /ship. RA-633: Critical alert escalation chain (Telegram → 30-min watchdog → second page). RA-652: ZTE framework extended to 75-point v1 scale (leverage-audit.md). RA-659: Adaptive Thinking via `ThinkingConfigAdaptive` in SDK options. RA-660: Incident history RAG — `_build_incident_context()` injects lessons.jsonl into generator prompt. RA-661: ZTE v2 framework spec (100-point scale, Section C external validation). RA-662: SDK hooks for latency observability (`HookMatcher` pre/post tool timing). RA-665/666: Linear two-way sync — build outcome + score posted back as Linear comment on completion or failure. RA-672: ZTE v2 data collection — `push_timestamp` and `session_started_at` in gate_checks; `scripts/zte_v2_score.py` computes C1–C5 live; board meeting Phase 1 surfaces v2 score. RA-673: Pi-SEO scanner false positive fix (16,042 → 128 findings); `PI_SEO_ACTIVE=1` deployed to Railway.
 
 ---
 
-## 6. Sprint 8 Completions + Sprint 9 Direction
+## 6. Sprint 9 Complete + Sprint 10 Direction
 
-### Sprint 8 — Complete (2026-04-13)
-SDK-only execution locked in. Supabase observability layer (gate_checks + alert_escalations). Adaptive Thinking + SDK Hooks wired into board_meeting and sessions. Incident history RAG active. ZTE v2 framework designed and scoring pipeline deployed. Linear two-way sync (build outcomes posted as comments). Pi-SEO scanner false positive fix deployed to Railway with `PI_SEO_ACTIVE=1`.
+### Sprint 9 — Complete (2026-04-13)
+Full Karpathy enhancement layer shipped (RA-674–683). ZTE v2 score: 81/100. Three-tier confidence routing, AUTONOMY_BUDGET single-knob, Session Scope Contract, plan variation discovery, progressive brief complexity, layered abstraction, educational series, dependency alerting, Vercel drift monitoring, skills manifest. All 14 Sprint 9 tickets closed. 10 commits pushed to origin/main.
 
-### Sprint 9 — Open Items (Candidate)
+### Sprint 9 — Complete (2026-04-13)
 
-| Priority | Item | Status |
-|----------|------|--------|
-| High | RA-588 MARATHON-4: first 6-hour autonomous self-maintenance run | In Progress |
-| High | ZTE v2 C2 — Linear state-transition webhook event logging | Unstarted |
-| High | Pi-SEO live sweep — confirm auto-ticketing clean across 10 repos | Active (Railway) |
-| Medium | Self-improvement loop — lesson-pattern analyser | Unstarted |
-| Medium | Multi-model parallel evaluation (Sonnet+Haiku consensus) | Unstarted |
-| Low | ZTE v2 target: reach 90+/100 (Zero Touch Elite threshold: 95) | Unstarted |
+| Ticket | Item | Status |
+|--------|------|--------|
+| RA-674 | Confidence-weighted evaluator + three-tier routing | ✅ Done |
+| RA-676 | Session Scope Contract — file-count ceiling + Telegram alert on violation | ✅ Done |
+| RA-677 | AUTONOMY_BUDGET single-knob pipeline config (5 anchor interpolation) | ✅ Done |
+| RA-678 | Markdown intent architecture (RESEARCH_INTENT + ENGINEERING_CONSTRAINTS + EVALUATION_CRITERIA) | ✅ Done |
+| RA-679 | Plan variation discovery loop (3 haiku variants, scored, winner prepended) | ✅ Done |
+| RA-680 | Pi-CEO Essentials — 268-line standalone Ship Chain reference (`scripts/pi_essentials.py`) | ✅ Done |
+| RA-681 | Progressive brief complexity — BasicBrief/DetailedBrief/AdvancedBrief auto-detection | ✅ Done |
+| RA-682 | Layered abstraction — `core/` + `advanced/` importable sub-packages | ✅ Done |
+| RA-683 | Ship Chain Educational Series — 5 docs, Karpathy-10 nn-zero-to-hero style | ✅ Done |
+| RA-688 | Dependency zero-score alerting — flags repos stuck at 0/100 for 2+ scan cycles | ✅ Done |
+| RA-690 | CCW-CRM quality remediation spec — 50 ruff findings documented, build brief generated | ✅ Done |
+| RA-691 | Auto-generator skill — `auto_generator.py` writes config.yaml from repo complexity tier | ✅ Done |
+| RA-692 | Vercel deployment drift monitoring — `vercel_monitor.py` + `/api/health/vercel` | ✅ Done |
+| RA-693 | brand-ambassador + design-system skills + `skills_manifest()` | ✅ Done |
+| RA-588 | MARATHON-4: 6-hour autonomous self-maintenance run | ⏳ Awaiting Phill initiation |
+| RA-687 | 3 CRITICAL security alerts — dr-nrpg + synthex manual inspection required | ⏳ Phill manual action |
 
 ---
 
@@ -342,8 +381,15 @@ Pi Dev Ops/
 │       ├── lessons.py                  ← JSONL lessons CRUD
 │       ├── scanner.py                  ← Pi-SEO autonomous multi-project scanner
 │       ├── pipeline.py                 ← Ship-chain pipeline orchestrator
+│       ├── budget.py                   ← AUTONOMY_BUDGET: minutes→params interpolation (RA-677)
+│       ├── vercel_monitor.py           ← Vercel deployment drift check (RA-692)
+│       ├── core/                       ← Importable Ship Chain primitives (RA-682)
+│       │   └── _chain.py               ← generate(), evaluate(), decide() — no async
+│       ├── advanced/                   ← Sprint 9 enhancement layer re-exports (RA-682)
 │       └── agents/
-│           └── board_meeting.py        ← Board meeting agent (SDK-only, Adaptive Thinking, HookMatcher latency tracing)
+│           ├── board_meeting.py        ← Board meeting agent (SDK-only, Adaptive Thinking, HookMatcher)
+│           ├── plan_discovery.py       ← Plan variation discovery: 3 variants, scored (RA-679)
+│           └── auto_generator.py       ← Auto-generates config.yaml from complexity tier (RA-691)
 │   ├── static/index.html               ← Minimal frontend
 │   └── workspaces/                     ← Ephemeral session clones (GC'd at 4h)
 │       └── {session_id}/               ← Isolated clone per session
@@ -360,7 +406,7 @@ Pi Dev Ops/
 │   └── lib/types.ts                    ← Shared TypeScript types
 ├── mcp/
 │   └── pi-ceo-server.js               ← MCP v3.1.0 (21 tools, Linear + harness reads)
-├── skills/ (31 skills)
+├── skills/ (33 skills)
 │   ├── [core: 7]    tier-architect, tier-orchestrator, tier-worker,
 │   │                tier-evaluator, context-compressor, token-budgeter, auto-generator
 │   ├── [fw: 6]      piter-framework, afk-agent, closed-loop-prompt,
@@ -368,6 +414,7 @@ Pi Dev Ops/
 │   ├── [strat: 5]   zte-maturity, agent-expert, leverage-audit, agentic-loop, agentic-layer
 │   ├── [found: 3]   big-three, claude-max-runtime, pi-integration
 │   ├── [meta: 2]    ceo-mode, tao-skills (master index)
+│   ├── [content+design: 2] brand-ambassador, design-system   ← NEW RA-693
 │   ├── [pi-seo: 3]  pi-seo-security/, pi-seo-deployment/, pi-seo-dependencies/
 │   └── [ship: 5]    ship-chain/, define-spec/, technical-plan/, verify-test/, ship-release/
 ├── src/tao/
@@ -378,11 +425,19 @@ Pi Dev Ops/
 │   ├── agents/__init__.py              ← AgentDispatcher (intent routing, batch dispatch)
 │   └── templates/3-tier-webapp.yaml    ← Reference 3-tier config (opus/sonnet/haiku)
 ├── supabase/migration.sql              ← DB schema (if Supabase integration active)
+├── docs/ship-chain/                    ← Educational series (RA-683)
+│   ├── 00-index.md                     ← Series map
+│   ├── 01-the-algorithm.md             ← Five pure functions with code examples
+│   ├── 02-intent-classification.md     ← PITER, ADW templates, complexity tiers
+│   ├── 03-the-evaluator.md             ← Scoring, confidence routing, retry loop
+│   ├── 04-karpathy-optimisations.md    ← All Sprint 9 enhancements
+│   └── 05-running-the-system.md        ← Dev setup, env vars, first build
 ├── scripts/
 │   ├── analyze.sh                      ← Analysis helper script
 │   ├── fetch_anthropic_docs.py         ← Daily docs pull (cron at 5:50am AEST)
-│   ├── zte_v2_score.py                 ← ZTE v2 Section C scorer (Supabase + scanner + lessons) (RA-672)
-│   └── sdk_metrics.py                  ← SDK invocation metrics analyser
+│   ├── zte_v2_score.py                 ← ZTE v2 Section C scorer (RA-672)
+│   ├── sdk_metrics.py                  ← SDK invocation metrics analyser
+│   └── pi_essentials.py                ← 268-line standalone Ship Chain reference (RA-680)
 ├── .harness/
 │   ├── config.yaml                     ← Harness agent config (planner/generator/evaluator)
 │   ├── spec.md                         ← This document (living specification)
@@ -443,31 +498,47 @@ WebSocket is bidirectional — the client can send `ping` frames and the server 
 
 ---
 
-## 9. Next Actions (Sprint 10 — from CEO Memo 2026-04-13)
+## 9. Next Actions (Sprint 10 — Cycle 24)
 
-### Phase 1 — This Week (Manual)
+### Immediately Actionable (Phill)
 ```
-[x] RA-685: Regenerate spec.md (this document) — Sprint 9 / Cycle 23 / ZTE 73/75  ← DONE
-[ ] RA-675: Run self-scan with fresh spec; close 41/60 vs 73/75 gap
-```
+[ ] RA-587 MARATHON-4: Initiate 6-hour autonomous self-maintenance run
+    → All blockers cleared. Server running. Autonomy poller armed.
 
-### Phase 2 — Sprint 10 (Autonomy Poller)
-```
-[ ] RA-684 P1 URGENT: Scout Agent — weekly Monday cron, 3 external sources, Linear scout-labelled issues
-[ ] RA-686 P1 URGENT: Wire 9 CEO Board personas into automated board meetings
-[ ] RA-687 P1 URGENT: Resolve 3 CRITICAL security alerts (dr-nrpg AWS keys, synthex OpenAI key)
-[ ] RA-689 HIGH: Connect analyzing-customer-patterns skill — outcome feedback loop for shipped features
+[ ] RA-687 URGENT: Inspect dr-nrpg + synthex repos manually
+    → 3 CRITICAL security alerts (AWS keys, OpenAI key) — cannot be auto-remediated
+    → Pi-CEO can build the fix once you confirm the findings
 ```
 
-### Phase 3 — Sprint 11+ (Metric Shift)
+### Sprint 10 — Open (Autonomy Poller will pick up)
 ```
-[ ] RA-695 HIGH: Business Velocity Index replaces ZTE as primary board metric from Cycle 24
-     BVI Cycle 23 baseline: CRITICALs resolved=0, portfolio delta=0, MARATHON completions=0
+[ ] ZTE v2 C2/C3: deploy RA-672 Phase 2 migration (Linear state-transition logging)
+    → Unlocks push_timestamp data → C2 acceptance rate + C3 mean-time-to-value
+    → Worth +6 ZTE v2 points (81 → 87)
+
+[ ] CCW-CRM quality fix: trigger Pi-CEO build session for CleanExpo/CCW-CRM
+    → Brief in .harness/remediation/ccw-crm-quality-2026-04-13.md
+    → 50 ruff violations → target 90/100
+
+[ ] BVI baseline Cycle 24: compute first Business Velocity Index snapshot
+    → Primary board metric from Cycle 24 (RA-695 done, metric definition ready)
+```
+
+### ZTE v2 Roadmap
+```
+Current:  81/100 (Zero Touch band)
+Target:   90/100 by end Cycle 25
+Elite:    95/100
+
+Key blockers:
+  C2 acceptance rate  (+3 pts) — needs RA-672 Phase 2
+  C3 mean-time-to-value (+3 pts) — needs push_timestamp data
+  C4 security posture  (+3 pts) — needs RA-687 resolution
+  Remaining +3 pts    — general build throughput data
 ```
 
 ### Strategic Context
-- **Primary metric from Cycle 24:** Business Velocity Index (BVI), not ZTE score
-- **ZTE 73/75** becomes a background health check; BVI leads every board report
-- **Security blocking gate:** RestoreAssist + CCW-CRM must reach 80/100 before new feature work
-- **Manual verification required:** Sprint 10 autonomy poller outputs need human validation
-  (evaluator measures code quality, not functional correctness)
+- **Primary metric Cycle 24+:** Business Velocity Index (BVI), not ZTE score
+- **ZTE 81/100** is background health; BVI leads every board report
+- **Security gate:** dr-nrpg + synthex must reach 80/100 before any new feature epics
+- **Karpathy series:** RA-674–683 all complete. Enhancement layer stable.
