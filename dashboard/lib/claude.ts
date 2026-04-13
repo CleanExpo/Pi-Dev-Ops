@@ -6,12 +6,20 @@ import type { RepoFile } from "./github";
 
 // ── Mode detection ────────────────────────────────────────────────────────────
 // Priority order:
-//   1. ANTHROPIC_API_KEY present → always use API mode (works on Vercel serverless)
-//   2. ANALYSIS_MODE=api explicitly set → use API mode
-//   3. Fallback → CLI mode (local Claude Max subscription via `claude -p`)
+//   1. ANALYSIS_MODE=cli explicitly set → always CLI mode (Claude Max subscription)
+//   2. ANALYSIS_MODE=api explicitly set → always API mode
+//   3. ANTHROPIC_API_KEY present → API mode (Vercel serverless fallback)
+//   4. Fallback → CLI mode (local Claude Max subscription via `claude -p`)
+//
+// To use Claude Max plan on Vercel:
+//   1. Run `claude setup-token` locally → copies a subscription token to clipboard
+//   2. Set ANTHROPIC_API_KEY=<token> in Vercel env (replaces pay-per-use API key)
+//   3. Set ANALYSIS_MODE=api in Vercel env (explicit, survives future key changes)
 export function getAnalysisMode(): "cli" | "api" {
+  const explicit = process.env.ANALYSIS_MODE?.trim();
+  if (explicit === "cli") return "cli";
+  if (explicit === "api") return "api";
   if (process.env.ANTHROPIC_API_KEY?.trim()) return "api";
-  if (process.env.ANALYSIS_MODE?.trim() === "api") return "api";
   return "cli";
 }
 
