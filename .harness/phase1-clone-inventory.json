@@ -1,15 +1,14 @@
 ```json
 {
-  "totalFiles": 84,
+  "totalFiles": 89,
   "languages": {
-    "Python": 4200,
-    "TypeScript": 1800,
-    "JavaScript": 600,
-    "Markdown": 12000,
-    "JSON": 2800,
-    "YAML": 400,
-    "Dockerfile": 80,
-    "Shell": 60
+    "Python": 4850,
+    "TypeScript": 1200,
+    "Markdown": 18400,
+    "JSON": 3200,
+    "YAML": 380,
+    "Dockerfile": 45,
+    "Shell": 12
   },
   "topFiles": [
     ".harness/BOARD-DELIBERATION-ENHANCED-2026-04-12.md",
@@ -19,9 +18,9 @@
     ".harness/anthropic-docs/claude-code-overview.md",
     ".harness/anthropic-docs/tool-use.md",
     ".harness/anthropic-docs/models-overview.md",
+    ".harness/anthropic-docs/mcp-overview.md",
     "app/server/main.py",
-    ".harness/ARCHITECTURE-V2.md",
-    ".harness/INCIDENT-2026-04-12.md"
+    ".harness/ARCHITECTURE-V2.md"
   ],
   "frameworks": [
     "FastAPI",
@@ -29,18 +28,19 @@
     "React",
     "Tailwind CSS",
     "Uvicorn",
+    "WebSockets",
     "Supabase",
-    "MCP (Model Context Protocol)",
-    "Anthropic Claude Agent SDK",
-    "Octokit",
+    "@anthropic-ai/sdk",
+    "@modelcontextprotocol/sdk",
+    "@octokit/rest",
     "xterm.js",
-    "Zod",
+    "Pydantic",
     "Hatchling"
   ],
   "entryPoints": [
     "app/server/main.py",
     "mcp/pi-ceo-server.js",
-    "dashboard/app/page.tsx",
+    "dashboard/package.json",
     "Dockerfile"
   ]
 }
