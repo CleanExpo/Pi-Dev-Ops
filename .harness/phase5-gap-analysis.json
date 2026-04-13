@@ -1,0 +1,103 @@
+```json
+{
+  "zteLevel": 3,
+  "zteScore": 41,
+  "leveragePoints": [
+    {
+      "id": 1,
+      "name": "Spec Quality",
+      "score": 4,
+      "rationale": "PITER classifier + ADW templates + 28 skills documented in CLAUDE.md. Board meetings self-assess 5/5 but gap audit (`.harness/board-meetings/2026-04-12-gap-audit.json`) found 3 critical discrepancies between spec claims and implementation reality. spec.md was stale 2+ days at audit time."
+    },
+    {
+      "id": 2,
+      "name": "Context Precision",
+      "score": 4,
+      "rationale": "`_get_lesson_context()` injects lessons per-intent; 38-entry lessons.jsonl active. Per-project memory layer (TURBOQUANT-ASSESSMENT.md §'concrete first step') is not yet built — agents lack per-business charter context at session start. RAG layer documented but unimplemented."
+    },
+    {
+      "id": 3,
+      "name": "Model Selection",
+      "score": 4,
+      "rationale": "Opus/Sonnet/Haiku tier routing in config.yaml is implemented. SDK Phase 2 dual-path wired (RA-571, RA-572) but canary Phase A still at 0% traffic after 3 consecutive board cycles — subprocess remains the only live path. No evidence of dynamic model escalation based on task complexity at runtime."
+    },
+    {
+      "id": 4,
+      "name": "Tool Availability",
+      "score": 4,
+      "rationale": "21 MCP tools, fan-out parallelism, `.claude/settings.json` with bypassPermissions, 28 skills. Three of five board-meeting MCP tools returned stale/missing data across multiple cycles (`get_zte_score` 'No ZTE data found', missing `feature_list.json`). Qdrant integration documented in LINEAR-PACKAGE-ENHANCED.md but dropped from architecture."
+    },
+    {
+      "id": 5,
+      "name": "Feedback Loops",
+      "score": 3,
+      "rationale": "Closed-loop evaluator retry with critique injection is wired. Linear API auth failed with 401 across at least 2 consecutive board cycles — board meetings ran blind with no issue data. SDK metrics in `.harness/agent-sdk-metrics/` show persistent `RuntimeError: Connection failed` and `timeout after 1s` errors alongside successes. The canary never activated means SDK feedback loop has zero real-traffic data."
+    },
+    {
+      "id": 6,
+      "name": "Error Recovery",
+      "score": 4,
+      "rationale": "3-attempt clone backoff, generator retry, phase checkpoints, `POST /api/sessions/{sid}/resume` endpoint all implemented per main.py and sessions.py. `_resilient()` wrapper with crash-recovery on background tasks (main.py lines ~120-135). Gap audit found `restore_sessions()` truncated mid-function — resume correctness unverifiable. False-positive CRITICAL watchdog alert (anthropic package missing from sandbox) demonstrates environment-dependent failure mode."
+    },
+    {
+      "id": 7,
+      "name": "Session Continuity",
+      "score": 3,
+      "rationale": "Phase-level checkpoints exist; resume endpoint implemented. CLAUDE.md explicitly warns: '_sessions is in-memory dict — any server restart loses all running sessions.' Persistence uses write-to-tmp-then-os.replace() pattern. INCIDENT-2026-04-12.md documents zero commits landing overnight because Railway ran stale code — sessions technically continuable but the autonomy poller that creates them was never triggered."
+    },
+    {
+      "id": 8,
+      "name": "Quality Gating",
+      "score": 4,
+      "rationale": "Evaluator is a BLOCKING gate with configurable max retries (TAO_EVALUATOR_MAX_RETRIES=2). 4-dimension scoring (Completeness/Correctness/Conciseness/Format) per `.harness/agents/evaluator.md`. Gap audit flagged that the evaluator retry subprocess fallback path exists but SDK evaluator path has never been exercised in production. CI has 3 jobs (python/frontend/smoke-prod) per `.github/workflows/ci.yml`."
+    },
+    {
+      "id": 9,
+      "name": "Cost Efficiency",
+      "score": 4,
+      "rationale": "Zero API cost on Claude Max subscription — confirmed. BudgetTracker accumulates tokens but has no `cost_usd()` method per board minutes 2026-04-09 weakness analysis — token-budgeter skill rates not wired to tracker. API fallback path (TAO_USE_FALLBACK=1) would incur real costs; no circuit breaker visible beyond the env flag."
+    },
+    {
+      "id": 10,
+      "name": "Trigger Automation",
+      "score": 3,
+      "rationale": "GitHub + Linear webhooks, 12 cron triggers in `.harness/cron-triggers.json`, Telegram inbound polling, Pi-SEO scanner, autonomy poller. INCIDENT-2026-04-12.md: zero Linear tickets closed overnight because Railway ran pre-marathon code (commits unpushed). Linear API 401 across 2+ cycles silenced the triage engine. `cron-triggers.json` `last_fired_at` resets on Railway redeploy, and debounce bug (`abs()` missing) suppresses post-deploy scan window per board SWOT 2026-04-12."
+    },
+    {
+      "id": 11,
+      "name": "Knowledge Retention",
+      "score": 3,
+      "rationale": "lessons.jsonl active at 38 entries, auto-appended by evaluator on low-scoring dimensions. No pattern analyser — board meetings flagged this as missing for 3 consecutive cycles ('self-improvement loop missing'). `triage-cache.json` at 353KB with no pruning strategy. Per-project memory layer (RAG) is designed in TURBOQUANT-ASSESSMENT.md but unimplemented — agents start each session without per-project charter context."
+    },
+    {
+      "id": 12,
+      "name": "Workflow Standardization",
+      "score": 3,
+      "rationale": "PITER classifier at brief entry, 5 ADW templates, Pi-CEO Standard defined across 7 pillars (PI-CEO-STANDARD.md), Ship-chain pipeline documented. SDK canary rollout plan exists but Phase A never activated after 3 board cycles. ESCALATION.md defines a 9-item 'never do autonomously' list with clear contract. ARCHITECTURE-V2.md and BOARD-DELIBERATION docs show significant workflow redesign underway — current state is transitional, not standardized."
+    }
+  ],
+  "productionGaps": [
+    "SDK canary Phase A (10% traffic) never activated despite 3 consecutive board cycles flagging it as Priority 1 — subprocess is the sole live execution path; RA-571/572 are dead code in production",
+    "Linear API auth (401) failed across 2+ consecutive board cycles — autonomous triage engine blind, sprint planning falls back to stale harness files with no alerting on key expiry",
+    "Per-project RAG memory layer unbuilt — agents start without per-business charter context; designed in TURBOQUANT-ASSESSMENT.md but no implementation exists",
+    "Pi-SEO first full sweep never executed — scanner built since Sprint 6, 10 repos registered, zero baseline scan data across portfolio",
+    "Self-improvement loop (lesson-pattern analyser) absent — 38 lessons accumulate but no automated extraction feeds back to CLAUDE.md or skills; flagged as missing for 3 cycles",
+    "BudgetTracker has no cost_usd() method — token budgeter skill rates ($5/$3/$1/MTok) are defined but not wired to tracker, so cost tracking is token-count only",
+    "Watchdog false-positive CRITICAL alert pattern unresolved — pytest run in Cowork sandbox missing anthropic>=0.90 produces test suite red when tests are actually green; test-truth source not migrated to GH Actions",
+    "triage-cache.json at 353KB with no rotation or pruning strategy — unbounded growth will degrade scanner startup performance",
+    "Autonomous git push from Railway not implemented — build sessions cannot push commits autonomously; all merges require human with push credentials (root cause of overnight failure)",
+    "Supabase gate_checks and alert_escalations logging described in CLAUDE.md but SUPABASE_SERVICE_ROLE_KEY not confirmed set in production env"
+  ],
+  "loadRisks": [
+    "Railway autonomy poller cold-start: first poll fires at startup + 5min sleep (sleep-first bootstrap bug documented in lessons) — commits to e611b1c fix are unpushed, Railway runs stale poller",
+    "Single-worker Railway deployment (--workers 1 in Dockerfile CMD) — concurrent build sessions share one process; session queue bottleneck under load with TAO_MAX_SESSIONS=3",
+    "In-memory _sessions dict: Railway restart drops all active session state — no session recovery under rolling deploy or crash",
+    "WebSocket /ws/build/{sid} polling at 150ms intervals per connected client — 20 concurrent viewers on one session = 133 ws polls/second against asyncio event loop on single worker",
+    "cron_loop and linear_todo_poller both wrapped in _resilient() with 10s restart delay but share the same event loop — a blocking scan or LLM call in one coroutine delays all others",
+    "SSE /api/sessions/{sid}/logs streams output_lines with asyncio.sleep(0.3) polling — no backpressure mechanism; fast-writing sessions can accumulate unbounded output_lines in memory",
+    "Pi-SEO scanner `scan_all()` triggered via /api/scan runs as asyncio.create_task without concurrency limit — parallel scans across 10+ repos under load could exhaust Railway ephemeral disk",
+    "MCP server (mcp/pi-ceo-server.js) is stdio JSON-RPC with no connection pooling — all 21 tools serialize through single Node.js process; Linear API rate limits hit under rapid board-meeting tool calls",
+    "triage-cache.json read on every scanner startup at 353KB and growing — filesystem read + JSON parse adds latency proportional to cache size; no lazy-load or TTL eviction"
+  ]
+}
+```
