@@ -175,6 +175,7 @@ PI_SEO_ACTIVE        = os.environ.get("PI_SEO_ACTIVE", "0") == "1"
 # SEC-3: ccw-crm  — docs/ISS-014-VERIFICATION.md (verification report, example keys)
 SCAN_PATH_EXCLUSIONS: list[str] = [p.strip() for p in
     os.environ.get("SCAN_PATH_EXCLUSIONS",
+        # Pi-Dev-Ops internal false positives (RA-654, RA-687)
         "docs/runbooks/secrets-rotation.md,"
         "scripts/generate-env-docs.js,"
         "scripts/get-linear-task.js,"
@@ -185,7 +186,30 @@ SCAN_PATH_EXCLUSIONS: list[str] = [p.strip() for p in
         "Dockerfile,"
         "railway.toml,"
         "app/server/scanner.py,"
-        "archive/"
+        "archive/,"
+        # RA-834 — portfolio-wide false positive patterns confirmed 2026-04-14
+        # supabase/config.toml: local dev placeholder anon/service keys (not production)
+        "supabase/config.toml,"
+        # storybook-static/: generated build output — not tracked in production deploys
+        "storybook-static/,"
+        # .claude/archived/: Claude Code session archives — not shipped code
+        ".claude/archived/,"
+        # .husky/: git hook scripts — dev tooling, never deployed
+        ".husky/,"
+        # public/api-docs.html: generated OpenAPI HTML — example key strings in templates
+        "public/api-docs.html,"
+        # NodeJS-Starter-V1/: template scaffold nested in CCW-CRM — not active code
+        "NodeJS-Starter-V1/,"
+        # Test files: hardcoded test-database passwords (password='test', password='postgres')
+        "test_asyncpg.py,"
+        "test_nopass.py,"
+        "test_new_user.py,"
+        "test_asyncpg_simple.py,"
+        "test_testuser.py,"
+        "test_psycopg2.py,"
+        # setup/deploy scripts: use $VAR_NAME placeholders, not real keys
+        "phase23-setup.sh,"
+        "setup-digitalocean.sh"
     ).split(",") if p.strip()
 ]
 
