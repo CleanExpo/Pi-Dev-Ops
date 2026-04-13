@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
   // Load settings from Supabase (falls back to process.env)
   const settings = await getSettings();
 
-  const ghToken = settings.githubToken || url.searchParams.get("token") || process.env.GITHUB_TOKEN || "";
+  const ghToken = (settings.githubToken || url.searchParams.get("token") || process.env.GITHUB_TOKEN || "").trim();
   const model   = settings.analysisModel || process.env.ANALYSIS_MODEL || "claude-sonnet-4-6";
 
   // Per-phase model selection — haiku for simple listing/summarisation tasks,

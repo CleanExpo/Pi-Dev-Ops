@@ -55,7 +55,7 @@ export async function getSettings(): Promise<AppSettings> {
       if (field === "cronRepos") {
         try { (settings as Record<string, unknown>)[field] = JSON.parse(row.value); } catch { /* keep default */ }
       } else {
-        (settings as Record<string, unknown>)[field] = row.value;
+        (settings as Record<string, unknown>)[field] = row.value.trim();
       }
     }
     return settings;
