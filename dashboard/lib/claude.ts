@@ -16,7 +16,7 @@ export function getAnalysisMode(): "cli" | "api" {
 }
 
 export function makeClient(apiKey?: string): Anthropic | null {
-  const key = (apiKey || process.env.ANTHROPIC_API_KEY ?? "").trim();
+  const key = (apiKey || (process.env.ANTHROPIC_API_KEY ?? "")).trim();
   if (!key) return null;
   return new Anthropic({ apiKey: key });
 }
