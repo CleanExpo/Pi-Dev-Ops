@@ -111,6 +111,8 @@ mcp/node_modules/
 .harness/pipeline/
 .harness/agent-sdk-metrics/
 .harness/anthropic-docs/2*/
+.harness/secrets-scan/
+.harness/post-deploy-metrics/
 
 # ── Harness feedback loop / BVI state (runtime, not config) ──────────
 .harness/shipped-features.jsonl

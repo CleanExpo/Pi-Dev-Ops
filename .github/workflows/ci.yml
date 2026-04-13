@@ -77,6 +77,27 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://stub.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: stub-key
 
+  # ── Secrets exposure scan (runs on every push + PR, blocks merge) ──────────
+  secrets-scan:
+    name: Secrets exposure scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so git ls-files works correctly
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run secrets_check.py
+        run: python scripts/secrets_check.py --repo-root .
+        # No LINEAR_API_KEY / TELEGRAM_BOT_TOKEN in CI — alerts fire in local + prod only.
+        # A non-zero exit code from secrets_check.py fails the job and blocks the merge.
+
   # ── RA-583: Post-deploy smoke test against production Railway URL ──────────
   # Runs only on pushes to main (not PRs) after both python + frontend jobs pass.
   # Requires TAO_PROD_PASSWORD secret set in GitHub → Settings → Secrets.
@@ -84,7 +105,7 @@ jobs:
     name: Smoke test (prod)
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [python, frontend]
+    needs: [python, frontend, secrets-scan]
     # Only fire on pushes to main — not on PRs (we don't smoke prod on every PR)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 

@@ -428,6 +428,32 @@ if args.agent_sdk:
         except Exception as exc:
             check("SDK _run_prompt_via_sdk() call", False, str(exc)[:120])
 
+# ── 12. Secrets exposure check (local mode only) ─────────────────────────
+if not PROD_MODE:
+    print("\n[12/12] Secrets Exposure Check")
+    _secrets_script = os.path.join(os.path.dirname(__file__), "secrets_check.py")
+    if os.path.isfile(_secrets_script):
+        import subprocess as _subprocess
+        _repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        try:
+            _r = _subprocess.run(
+                [sys.executable, _secrets_script, "--repo-root", _repo_root],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            _clean = _r.returncode == 0
+            check("No exposed secrets in repo (secrets_check.py)", _clean,
+                  "see secrets_check.py output below" if not _clean else "")
+            if not _clean:
+                # Print full output so the developer sees exactly what was found
+                for _line in (_r.stdout + _r.stderr).splitlines():
+                    print(f"    {_line}")
+        except Exception as _exc:
+            check("Secrets check execution", False, str(_exc))
+    else:
+        check("scripts/secrets_check.py exists", False, _secrets_script)
+
 # ── Summary ───────────────────────────────────────────────────────────────
 total = len(PASS) + len(FAIL)
 print(f"\n{'=' * 50}")

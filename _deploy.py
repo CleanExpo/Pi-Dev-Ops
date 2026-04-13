@@ -1,7 +1,29 @@
 import os
-ROOT = r"C:\Pi Dev Ops"
+import sys
+
+# Cross-platform root: always the directory containing this script.
+ROOT = os.path.dirname(os.path.abspath(__file__))
+
+# ── Production guard ─────────────────────────────────────────────────────────
+# _deploy.py is a one-time bootstrap skeleton writer.  If the harness already
+# exists (i.e. this is a live Pi-Dev-Ops deployment) refuse to run — overwriting
+# production harness files (spec.md, lessons.jsonl, config.yaml) would destroy
+# operational state.
+_GUARD_FILE = os.path.join(ROOT, ".harness", "spec.md")
+if os.path.isfile(_GUARD_FILE):
+    print(
+        "ABORT: Pi-Dev-Ops harness already exists at:\n"
+        f"  {_GUARD_FILE}\n\n"
+        "_deploy.py is a first-run bootstrap script and must not be run on a\n"
+        "live deployment — it would overwrite production harness state.\n\n"
+        "To re-scaffold a clean environment, delete the .harness/ directory\n"
+        "first and ensure you are not in your production working tree."
+    )
+    sys.exit(1)
+
 os.chdir(ROOT)
 n = 0
+
 
 def w(p, c):
     global n
