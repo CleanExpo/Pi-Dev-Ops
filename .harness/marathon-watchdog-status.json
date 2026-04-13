@@ -1,5 +1,5 @@
 {
-  "ts": "2026-04-13T06:07:47.656102+00:00",
+  "ts": "2026-04-13T21:07:52.736773+00:00",
   "escalated": true,
   "checks": [
     {
@@ -28,19 +28,19 @@
     },
     {
       "name": "lessons",
-      "ok": true,
-      "severity": "info",
-      "detail": "38 entries, last updated 549m ago",
+      "ok": false,
+      "severity": "warn",
+      "detail": "lessons file frozen for 24.2h (threshold 24h) \u2014 may indicate no work is happening",
       "auto_remediation": "",
-      "needs_founder": ""
+      "needs_founder": "if other checks are green, this is informational only"
     },
     {
       "name": "scans",
-      "ok": true,
-      "severity": "info",
-      "detail": "105 scan files, newest 450m old",
+      "ok": false,
+      "severity": "warn",
+      "detail": "newest scan 22.5h old (threshold 12h) \u2014 Railway cron may be stalled",
       "auto_remediation": "",
-      "needs_founder": ""
+      "needs_founder": "check Railway \u2192 pi-ceo service \u2192 cron logs for the Pi-SEO monitor job"
     },
     {
       "name": "git",
@@ -51,5 +51,5 @@
       "needs_founder": ""
     }
   ],
-  "message": "[WARN] MARATHON WATCHDOG - 06:07 UTC\n\nWARN:\n- tests: /usr/bin/python3: No module named pytest\n\nNEEDS YOU:\n- [tests] watchdog test check is advisory only \u2014 verify against GH Actions status before acting\n\nREPRODUCE: python3 scripts/marathon_watchdog.py"
+  "message": "[WARN] MARATHON WATCHDOG - 21:07 UTC\n\nWARN:\n- tests: /usr/bin/python3: No module named pytest\n- lessons: lessons file frozen for 24.2h (threshold 24h) \u2014 may indicate no work is happening\n- scans: newest scan 22.5h old (threshold 12h) \u2014 Railway cron may be stalled\n\nNEEDS YOU:\n- [tests] watchdog test check is advisory only \u2014 verify against GH Actions status before acting\n- [lessons] if other checks are green, this is informational only\n- [scans] check Railway \u2192 pi-ceo service \u2192 cron logs for the Pi-SEO monitor job\n\nREPRODUCE: python3 scripts/marathon_watchdog.py"
 }
