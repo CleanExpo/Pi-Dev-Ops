@@ -109,7 +109,7 @@ export default function ResultCards({ result }: Props) {
           </div>
           {result.leveragePoints && (
             <div className="space-y-0.5">
-              {result.leveragePoints.slice(0, 6).map((lp) => (
+              {result.leveragePoints.map((lp) => (
                 <div key={lp.id} className="flex items-center gap-2">
                   <span className="font-mono text-[9px] w-4 text-right" style={{ color: "#A8A5A0" }}>{lp.id}</span>
                   <span className="font-mono text-[9px] flex-1 truncate" style={{ color: "#E8E4DE" }}>{lp.name}</span>

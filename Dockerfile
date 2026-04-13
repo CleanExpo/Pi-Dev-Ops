@@ -28,6 +28,9 @@ COPY src/ ./src/
 COPY .harness/ ./.harness/
 COPY skills/ ./skills/
 
+# Utility scripts (analyse_lessons, smoke_test, fallback_dryrun, etc.)
+COPY scripts/ ./scripts/
+
 # Runtime directories
 RUN mkdir -p app/workspaces app/logs/.sessions
 
