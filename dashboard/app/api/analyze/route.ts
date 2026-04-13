@@ -84,6 +84,7 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   const rawRepo = url.searchParams.get("repo") ?? "";
+  const linearTicket = url.searchParams.get("linear_ticket")?.trim() ?? "";
 
   // Load settings from Supabase (falls back to process.env)
   const settings = await getSettings();
@@ -183,7 +184,9 @@ export async function GET(req: NextRequest) {
         const _now = new Date();
         const _date = _now.toISOString().slice(0, 10).replace(/-/g, "");
         const _time = _now.toISOString().slice(11, 16).replace(":", "");
-        const branchName = `pidev/analysis-${_date}-${_time}`;
+        const branchName = linearTicket
+          ? `pidev/analysis-${linearTicket.replace(/[^a-zA-Z0-9]/g, "")}-${_date}-${_time}`
+          : `pidev/analysis-${_date}-${_time}`;
         line("system", `Creating branch: ${branchName}`);
         await createBranch(octokit, owner, repo, branchName, defaultBranch);
         send("branch", { branch: branchName });
@@ -218,6 +221,15 @@ export async function GET(req: NextRequest) {
           ]);
         const lessonsSummary = buildLessonsSummary(lessonsRaw);
         if (lessonsSummary) line("system", `  Injecting ${lessonsSummary.split("\n").length - 2} lessons into intelligence phases`);
+
+        /** Validates that intelligence-heavy phase output contains required JSON fields. */
+        function isPhaseOutputValid(phaseId: number, output: string): boolean {
+          if (![3, 5, 6].includes(phaseId)) return true;
+          if (phaseId === 3) return output.includes('"completeness"') && output.includes('"correctness"');
+          if (phaseId === 5) return output.includes('"leveragePoints"') && output.includes('"zteScore"');
+          if (phaseId === 6) return output.includes('"sprints"');
+          return true;
+        }
 
         /** Returns context enriched with lessons + skill guide for a given phase. */
         const enrichedContext = (phaseId: number): string => {
@@ -268,6 +280,17 @@ export async function GET(req: NextRequest) {
             continue;
           }
 
+          // RA-741: Auto-retry once if intelligence-heavy phase output is missing required fields
+          if (!isPhaseOutputValid(phase.id, phaseOutput)) {
+            line("system", `  ⚠ Phase ${phase.id} output invalid — retrying with guidance`);
+            const retryPrompt = `PREVIOUS ATTEMPT RETURNED INVALID OUTPUT — missing required JSON fields.\nFollow the output schema exactly. Return ONLY valid JSON.\n\n${PHASE_PROMPTS[phase.id]}`;
+            try {
+              phaseOutput = await runPhase(claude, PHASE_MODELS[phase.id] ?? model, retryPrompt, enrichedContext(phase.id), (chunk) => {
+                chunk.split("\n").forEach((l) => { if (l.trim()) line("agent", `  ${l}`); });
+              }, abortController.signal);
+            } catch { /* retry failed — use original output */ }
+          }
+
           result = applyPhaseResult(result, phase.id, phaseOutput);
           send("result_update", { field: "partial", value: result });
           send("phase_update", { phaseId: phase.id, status: "done" satisfies PhaseStatus });
@@ -312,6 +335,18 @@ export async function GET(req: NextRequest) {
 
         send("phase_update", { phaseId: 8, status: "done" satisfies PhaseStatus });
         line("success", `  PR: ${prUrl ?? "(create manually)"}`);
+
+        // RA-743: Post completion comment to Linear ticket (fire-and-forget)
+        const linearCommentKey = process.env.LINEAR_API_KEY ?? "";
+        if (linearTicket && linearCommentKey && result.zteScore) {
+          fetch("https://api.linear.app/graphql", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": linearCommentKey },
+            body: JSON.stringify({
+              query: `mutation { commentCreate(input: { issueId: "${linearTicket}", body: "Analysis complete: branch \`${branchName}\` · ZTE ${result.zteScore}/60 L${result.zteLevel ?? "?"} · Correctness ${result.quality?.correctness ?? "?"}/10" }) { success } }`
+            }),
+          }).catch(() => {});
+        }
 
         // ── Auto-create Linear triage ticket ─────────────────────
         const linearKey = settings.linearApiKey || process.env.LINEAR_API_KEY;
