@@ -11,6 +11,7 @@ import {
 } from "@/lib/github";
 import { makeClient, buildContext, runPhase, getAnalysisMode } from "@/lib/claude";
 import { PHASES, PHASE_PROMPTS, applyPhaseResult } from "@/lib/phases";
+import { phaseModel } from "@/lib/models";
 
 /** Fetch a single file from GitHub. Returns empty string if not found. */
 async function fetchGitHubFile(
@@ -92,17 +93,9 @@ export async function GET(req: NextRequest) {
   const ghToken = (settings.githubToken || url.searchParams.get("token") || process.env.GITHUB_TOKEN || "").trim();
   const model   = settings.analysisModel || process.env.ANALYSIS_MODEL || "claude-sonnet-4-6";
 
-  // Per-phase model selection — haiku for simple listing/summarisation tasks,
-  // full model (sonnet) for intelligence-heavy phases (quality, ZTE, planning, narrative).
-  const PHASE_MODELS: Record<number, string> = {
-    1: "claude-haiku-3-5",   // CLONE & INVENTORY — counting and listing files
-    2: "claude-haiku-3-5",   // ARCHITECTURE — pattern detection from file structure
-    3: model,                // CODE QUALITY — needs intelligence
-    4: "claude-haiku-3-5",   // CONTEXT — summarisation task
-    5: model,                // GAP ANALYSIS — ZTE scoring needs intelligence
-    6: model,                // ENHANCEMENT PLAN — sprint planning
-    7: model,                // EXECUTIVE SUMMARY — CEO narrative
-  };
+  // Per-phase model selection — worker tier (haiku-4-5) for listing/summarisation,
+  // analyst tier (sonnet-4-6) for intelligence-heavy phases.
+  // phaseModel() reads from lib/models.ts — update models there, not here.
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -276,9 +269,12 @@ export async function GET(req: NextRequest) {
           line("phase", `[${phase.id}/8] ${phase.name}`);
           line("system", `  Skill: ${phase.skill}`);
 
+          const selectedModel = phaseModel(phase.id, model);
+          line("system", `  Model: ${selectedModel}`);
+
           let phaseOutput = "";
           try {
-            phaseOutput = await runPhase(claude, PHASE_MODELS[phase.id] ?? model, PHASE_PROMPTS[phase.id], enrichedContext(phase.id), (chunk) => {
+            phaseOutput = await runPhase(claude, selectedModel, PHASE_PROMPTS[phase.id], enrichedContext(phase.id), (chunk) => {
               chunk.split("\n").forEach((l) => { if (l.trim()) line("agent", `  ${l}`); });
             }, abortController.signal);
           } catch (err) {
@@ -302,7 +298,7 @@ export async function GET(req: NextRequest) {
             line("system", `  ⚠ Phase ${phase.id} output invalid — retrying with guidance`);
             const retryPrompt = `PREVIOUS ATTEMPT RETURNED INVALID OUTPUT — missing required JSON fields.\nFollow the output schema exactly. Return ONLY valid JSON.\n\n${PHASE_PROMPTS[phase.id]}`;
             try {
-              phaseOutput = await runPhase(claude, PHASE_MODELS[phase.id] ?? model, retryPrompt, enrichedContext(phase.id), (chunk) => {
+              phaseOutput = await runPhase(claude, selectedModel, retryPrompt, enrichedContext(phase.id), (chunk) => {
                 chunk.split("\n").forEach((l) => { if (l.trim()) line("agent", `  ${l}`); });
               }, abortController.signal);
             } catch { /* retry failed — use original output */ }

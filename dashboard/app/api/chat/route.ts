@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { makeClient, chatWithClaude } from "@/lib/claude";
+import { MODELS } from "@/lib/models";
 import type { ChatMessage } from "@/lib/types";
 
 interface ChatBody {
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   try {
     const client = makeClient();
-    const model = process.env.ANALYSIS_MODEL ?? "claude-sonnet-4-6";
+    const model = MODELS.DEFAULT;
     const reply = await chatWithClaude(
       client,
       model,

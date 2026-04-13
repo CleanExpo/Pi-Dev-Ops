@@ -18,7 +18,7 @@ export interface AppSettings {
 const DEFAULTS: AppSettings = {
   githubToken:      (process.env.GITHUB_TOKEN        ?? "").trim(),
   anthropicApiKey:  (process.env.ANTHROPIC_API_KEY   ?? "").trim(),
-  analysisModel:    (process.env.ANALYSIS_MODEL      ?? "claude-sonnet-4-6").trim(),
+  analysisModel:    (process.env.ANALYSIS_MODEL      ?? "claude-sonnet-4-6").trim(), // update WORKER in lib/models.ts when upgrading
   webhookSecret:    (process.env.WEBHOOK_SECRET      ?? "").trim(),
   cronRepos:        [],
   vercelToken:      (process.env.VERCEL_TOKEN        ?? "").trim(),

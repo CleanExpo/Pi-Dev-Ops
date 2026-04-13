@@ -4,6 +4,7 @@ export const maxDuration = 120;
 
 import { NextRequest, NextResponse } from "next/server";
 import { makeClient, getAnalysisMode, SYSTEM } from "@/lib/claude";
+import { MODELS } from "@/lib/models";
 import { makeOctokit } from "@/lib/github";
 import type { AnalysisResult } from "@/lib/types";
 
@@ -142,7 +143,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       // CLI fallback: run claude -p
       const { spawn } = await import("child_process");
       return new Promise((resolve) => {
-        const child = spawn("claude", ["-p", prompt, "--model", process.env.ANALYSIS_MODEL ?? "claude-sonnet-4-6", "--output-format", "text"], {
+        const child = spawn("claude", ["-p", prompt, "--model", MODELS.DEFAULT, "--output-format", "text"], {
           env: { ...process.env },
         });
         let output = "";
@@ -157,7 +158,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const response = await client.messages.create({
-      model: process.env.ANALYSIS_MODEL ?? "claude-sonnet-4-6",
+      model: MODELS.DEFAULT,
       max_tokens: 4096,
       messages: [{ role: "user", content: prompt }],
     });

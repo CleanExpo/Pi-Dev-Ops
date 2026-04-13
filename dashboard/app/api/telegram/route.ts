@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { MODELS } from "@/lib/models";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -263,7 +264,7 @@ async function ceoAgentCall(history: Turn[]): Promise<string> {
     const client = new Anthropic({ apiKey: "" });
     try {
       const response = await client.messages.create({
-        model: process.env.ANALYSIS_MODEL ?? "claude-sonnet-4-6",
+        model: MODELS.DEFAULT,
         max_tokens: 1024,
         system: CEO_SYSTEM,
         messages: history,
@@ -284,7 +285,7 @@ async function ceoAgentCall(history: Turn[]): Promise<string> {
   // Agentic loop: up to 5 turns to handle tool calls
   for (let turn = 0; turn < 5; turn++) {
     const response = await client.messages.create({
-      model: process.env.ANALYSIS_MODEL ?? "claude-sonnet-4-6",
+      model: MODELS.DEFAULT,
       max_tokens: 1024,
       system: CEO_SYSTEM,
       tools: CEO_TOOLS,
