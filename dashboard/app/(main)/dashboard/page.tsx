@@ -1,7 +1,7 @@
 // app/(main)/dashboard/page.tsx — analysis dashboard
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Terminal from "@/components/Terminal";
 import PhaseTracker from "@/components/PhaseTracker";
 import ResultCards from "@/components/ResultCards";
@@ -16,13 +16,38 @@ function sanitize(s: string): string {
 
 type RightTab = "phases" | "results" | "actions";
 
+const SIDEBAR_MIN = 220;
+const SIDEBAR_MAX = 640;
+const SIDEBAR_DEFAULT = 320;
+
 export default function Dashboard() {
   const [repo, setRepo] = useState("");
   const [rightTab, setRightTab] = useState<RightTab>("phases");
-  // On mobile, show terminal or right panel — default to terminal
   const [mobilePane, setMobilePane] = useState<"terminal" | "panel">("terminal");
+  // Resizable sidebar state
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT);
+  const isResizing = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
-  const { lines, phases, result, branch, prUrl, status, error, start, stop } = useSSE();
+  const { lines, phases, result, branch, prUrl, linearUrl, linearId, status, error, start, stop } = useSSE();
+
+  // ── Drag-to-resize handlers ─────────────────────────────────────────────
+  const onResizePointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, []);
+
+  const onResizePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!isResizing.current || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const newWidth = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, rect.right - e.clientX));
+    setSidebarWidth(newWidth);
+  }, []);
+
+  const onResizePointerUp = useCallback(() => {
+    isResizing.current = false;
+  }, []);
 
   // Auto-switch to RESULTS tab when analysis completes
   useEffect(() => {
@@ -159,23 +184,50 @@ export default function Dashboard() {
       </div>
 
       {/* ── Main layout — stacks on mobile, side-by-side on sm+ ──── */}
-      <div className="flex min-h-0" style={{ flex: 1, overflow: "hidden" }}>
+      <div
+        ref={containerRef}
+        className="flex min-h-0"
+        style={{ flex: 1, overflow: "hidden", cursor: isResizing.current ? "col-resize" : undefined }}
+        onPointerMove={onResizePointerMove}
+        onPointerUp={onResizePointerUp}
+        onPointerLeave={onResizePointerUp}
+      >
 
         {/* LEFT — Terminal (hidden on mobile when panel is active) */}
         <div
           className={`flex flex-col min-w-0 ${mobilePane === "panel" ? "hidden sm:flex" : "flex"}`}
-          style={{ flex: 1, overflow: "hidden", borderRight: "1px solid var(--c-border)" }}
+          style={{ flex: 1, overflow: "hidden" }}
         >
           <Terminal lines={lines} status={status} />
+        </div>
+
+        {/* DRAG HANDLE — desktop only */}
+        <div
+          className="hidden sm:flex w-[5px] shrink-0 cursor-col-resize items-center justify-center group select-none"
+          style={{ background: "var(--c-border)" }}
+          onPointerDown={onResizePointerDown}
+          title="Drag to resize"
+        >
+          <div
+            className="w-[3px] h-10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{ background: "var(--c-orange)" }}
+          />
         </div>
 
         {/* RIGHT — Tabbed panel (hidden on mobile when terminal is active) */}
         <div
           className={`flex flex-col ${mobilePane === "terminal" ? "hidden sm:flex" : "flex"} w-full sm:w-auto sm:shrink-0`}
-          style={{ width: undefined, background: "var(--c-panel)", overflow: "hidden" }}
+          style={{
+            width: undefined,
+            background: "var(--c-panel)",
+            overflow: "hidden",
+          }}
         >
-          {/* Fixed-width wrapper for desktop only */}
-          <div className="flex flex-col h-full sm:w-80">
+          {/* Dynamic-width wrapper for desktop only */}
+          <div
+            className="flex flex-col h-full"
+            style={{ width: `${sidebarWidth}px` }}
+          >
             {/* Tab bar */}
             <div className="flex shrink-0" style={{ borderBottom: "1px solid var(--c-border)" }}>
               {(["phases", "results", "actions"] as RightTab[]).map((tab) => {
@@ -254,6 +306,12 @@ export default function Dashboard() {
           {prUrl && (
             <a href={prUrl} target="_blank" rel="noopener noreferrer" className="shrink-0" style={{ color: "var(--c-orange)" }}>
               PR ↗
+            </a>
+          )}
+          {linearUrl && linearId && (
+            <a href={linearUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 flex items-center gap-1" style={{ color: "#6B7FE3" }}>
+              <span>◈</span>
+              <span>{linearId} ↗</span>
             </a>
           )}
         </div>

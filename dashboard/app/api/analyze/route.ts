@@ -226,82 +226,131 @@ export async function GET(req: NextRequest) {
         const linearKey = settings.linearApiKey || process.env.LINEAR_API_KEY;
         if (linearKey) {
           try {
-            const linearGql = async (query: string, variables: Record<string, unknown> = {}) => {
+            const linearGql = async <T = Record<string, unknown>>(query: string, variables: Record<string, unknown> = {}): Promise<T> => {
               const res = await fetch("https://api.linear.app/graphql", {
                 method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": linearKey,
-                },
+                headers: { "Content-Type": "application/json", "Authorization": linearKey },
                 body: JSON.stringify({ query, variables }),
               });
-              const json = await res.json() as { data?: Record<string, unknown>; errors?: unknown[] };
+              const json = await res.json() as { data?: T; errors?: unknown[] };
               if (json.errors) throw new Error(`Linear API error: ${JSON.stringify(json.errors)}`);
               return json.data!;
             };
 
-            // 1. Get team ID
-            const teamsData = await linearGql(`{ teams { nodes { id name } } }`) as { teams: { nodes: { id: string; name: string }[] } };
-            const team = teamsData.teams.nodes[0];
-            if (!team) throw new Error("No Linear team found");
+            // 1. Get all teams in workspace
+            const teamsData = await linearGql<{ teams: { nodes: { id: string; name: string }[] } }>(
+              `{ teams { nodes { id name } } }`
+            );
+            if (!teamsData.teams.nodes.length) throw new Error("No Linear teams found");
 
-            // 2. Find the "Triage" workflow state for this team
-            const statesData = await linearGql(`{
-              workflowStates(filter: { team: { id: { eq: "${team.id}" } }, name: { eq: "Triage" } }) {
+            // 2. Search for a project whose name matches the repo (case-insensitive partial match)
+            const projectsData = await linearGql<{ projects: { nodes: { id: string; name: string; teams: { nodes: { id: string; name: string }[] } }[] } }>(`{
+              projects(first: 50) {
+                nodes { id name teams { nodes { id name } } }
+              }
+            }`);
+
+            // Normalise repo name for matching: "Pi-Dev-Ops" → "pidevops"
+            const normalise = (s: string) => s.toLowerCase().replace(/[-_\s]/g, "");
+            const repoNorm = normalise(repo);
+            const matchedProject = projectsData.projects.nodes.find(
+              (p) => normalise(p.name).includes(repoNorm) || repoNorm.includes(normalise(p.name))
+            ) ?? null;
+
+            // 3. Pick team: prefer project's team, fall back to first workspace team
+            const team = matchedProject?.teams.nodes[0] ?? teamsData.teams.nodes[0];
+            const projectId = matchedProject?.id ?? null;
+
+            // 4. Find a triage-like workflow state for this team
+            const statesData = await linearGql<{ workflowStates: { nodes: { id: string; name: string }[] } }>(`{
+              workflowStates(filter: { team: { id: { eq: "${team.id}" } } }) {
                 nodes { id name }
               }
-            }`) as { workflowStates: { nodes: { id: string; name: string }[] } };
-            const triageState = statesData.workflowStates.nodes[0] ?? null;
+            }`);
+            const triageState = statesData.workflowStates.nodes.find(
+              (s) => /triage|backlog|todo|unstarted/i.test(s.name)
+            ) ?? statesData.workflowStates.nodes[0] ?? null;
 
-            // 3. Build issue description with PR URL and phase scores
+            // 5. Build rich findings description
             const date = new Date().toISOString().slice(0, 10);
-            const qualityLines = result.quality
-              ? [
-                  `| Completeness | ${result.quality.completeness ?? "?"}/10 |`,
-                  `| Correctness  | ${result.quality.correctness ?? "?"}/10 |`,
-                  `| Code Quality | ${result.quality.codeQuality ?? "?"}/10 |`,
-                  `| Documentation| ${result.quality.documentation ?? "?"}/10 |`,
-                ].join("\n")
-              : "_Not scored_";
+
+            const qualitySection = result.quality ? [
+              "## Quality Scores",
+              "| Dimension | Score |",
+              "|-----------|-------|",
+              `| Completeness  | ${result.quality.completeness ?? "?"}/10 |`,
+              `| Correctness   | ${result.quality.correctness ?? "?"}/10 |`,
+              `| Code Quality  | ${result.quality.codeQuality ?? "?"}/10 |`,
+              `| Documentation | ${result.quality.documentation ?? "?"}/10 |`,
+            ].join("\n") : "";
+
+            const leverageSection = result.leveragePoints?.length ? [
+              "## Leverage Points (bottom 5 = highest ROI)",
+              "| # | Area | Score |",
+              "|---|------|-------|",
+              ...[...result.leveragePoints]
+                .sort((a, b) => a.score - b.score)
+                .slice(0, 5)
+                .map((lp) => `| ${lp.id} | ${lp.name} | ${lp.score}/5 |`),
+            ].join("\n") : "";
+
+            const sprintSection = result.sprints?.length ? [
+              "## Sprint Plan",
+              ...result.sprints.map((s) =>
+                `### Sprint ${s.id}: ${s.name}\n` +
+                s.items.map((i) => `- [${i.size}] [${i.priority}] ${i.title}`).join("\n")
+              ),
+            ].join("\n\n") : "";
+
+            const riskSection = result.risks?.length
+              ? `## Risks\n${result.risks.map((r) => `- ${r}`).join("\n")}`
+              : "";
+
+            const nextActionsSection = result.nextActions?.length
+              ? `## Next Actions\n${result.nextActions.map((a, i) => `${i + 1}. ${a}`).join("\n")}`
+              : "";
 
             const description = [
               `## Pi CEO Analysis — ${repo}`,
               "",
-              `**Date:** ${date}`,
-              `**Branch:** \`${branchName}\``,
+              `**Date:** ${date}  |  **Branch:** \`${branchName}\`  |  **ZTE:** Level ${result.zteLevel ?? "?"} (${result.zteScore ?? "?"}/60)`,
               prUrl ? `**PR:** ${prUrl}` : "",
+              matchedProject ? `**Project:** ${matchedProject.name} _(auto-matched)_` : "_No matching Linear project found — created in default team_",
               "",
-              "## Quality Scores",
-              "| Dimension | Score |",
-              "|-----------|-------|",
-              qualityLines,
-              "",
-              `**ZTE Level:** ${result.zteLevel ?? "?"} — Score: ${result.zteScore ?? "?"}/60`,
-              "",
-              "## Summary",
-              result.executiveSummary ?? "_No summary generated._",
-            ].filter((l) => l !== null).join("\n");
+              result.executiveSummary ? `## Executive Summary\n${result.executiveSummary}` : "",
+              qualitySection,
+              leverageSection,
+              riskSection,
+              nextActionsSection,
+              sprintSection,
+            ].filter(Boolean).join("\n\n");
 
-            // 4. Create the issue
+            // 6. Create the issue
             const issueInput: Record<string, unknown> = {
-              title: `Analysis: ${repo} ${date}`,
+              title: `[Analysis] ${repo} — ${date}`,
               teamId: team.id,
               description,
               priority: 3, // Normal
             };
             if (triageState) issueInput.stateId = triageState.id;
+            if (projectId) issueInput.projectId = projectId;
 
-            const issueData = await linearGql(`
+            const issueData = await linearGql<{ issueCreate: { success: boolean; issue: { id: string; identifier: string; title: string; url: string } } }>(`
               mutation CreateIssue($input: IssueCreateInput!) {
                 issueCreate(input: $input) {
                   success
-                  issue { id identifier title url state { name } }
+                  issue { id identifier title url }
                 }
               }
-            `, { input: issueInput }) as { issueCreate: { success: boolean; issue: { identifier: string; url: string } } };
+            `, { input: issueInput });
 
             const issue = issueData.issueCreate.issue;
-            line("success", `  Linear: ${issue.identifier} — ${issue.url}`);
+            line("success", `  Linear: ${issue.identifier} → ${issue.url}`);
+            if (matchedProject) {
+              line("success", `  Project: ${matchedProject.name}`);
+            }
+            // Emit structured event so dashboard can show clickable ticket link
+            send("linear_ticket", { url: issue.url, identifier: issue.identifier, id: issue.id });
           } catch (err) {
             logError("linear-triage", err);
             // non-fatal — analysis already complete

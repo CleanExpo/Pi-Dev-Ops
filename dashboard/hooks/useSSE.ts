@@ -6,14 +6,16 @@ import type { TermLine, Phase, AnalysisResult, PhaseStatus } from "@/lib/types";
 import { PHASES } from "@/lib/phases";
 
 interface SSEState {
-  lines:   TermLine[];
-  phases:  Phase[];
-  result:  Partial<AnalysisResult>;
-  branch:  string | null;
-  prUrl:   string | null;
-  status:  "idle" | "running" | "done" | "error";
-  error:   string | null;
-  retries: number;
+  lines:      TermLine[];
+  phases:     Phase[];
+  result:     Partial<AnalysisResult>;
+  branch:     string | null;
+  prUrl:      string | null;
+  linearUrl:  string | null;
+  linearId:   string | null;
+  status:     "idle" | "running" | "done" | "error";
+  error:      string | null;
+  retries:    number;
 }
 
 const initialPhases = (): Phase[] =>
@@ -28,14 +30,16 @@ export function useSSE() {
   const repoRef      = useRef<string>("");
 
   const [state, setState] = useState<SSEState>({
-    lines:   [],
-    phases:  initialPhases(),
-    result:  {},
-    branch:  null,
-    prUrl:   null,
-    status:  "idle",
-    error:   null,
-    retries: 0,
+    lines:      [],
+    phases:     initialPhases(),
+    result:     {},
+    branch:     null,
+    prUrl:      null,
+    linearUrl:  null,
+    linearId:   null,
+    status:     "idle",
+    error:      null,
+    retries:    0,
   });
 
   const connect = useCallback((repoUrl: string, retryCount: number) => {
@@ -74,6 +78,11 @@ export function useSSE() {
     es.addEventListener("result_update", (e) => {
       const { value } = JSON.parse(e.data) as { value: Partial<AnalysisResult> };
       setState((s) => ({ ...s, result: { ...s.result, ...value } }));
+    });
+
+    es.addEventListener("linear_ticket", (e) => {
+      const data = JSON.parse(e.data) as { url: string; identifier: string };
+      setState((s) => ({ ...s, linearUrl: data.url, linearId: data.identifier }));
     });
 
     es.addEventListener("done", (e) => {
@@ -147,14 +156,16 @@ export function useSSE() {
 
     repoRef.current = repoUrl;
     setState({
-      lines:   [],
-      phases:  initialPhases(),
-      result:  {},
-      branch:  null,
-      prUrl:   null,
-      status:  "running",
-      error:   null,
-      retries: 0,
+      lines:      [],
+      phases:     initialPhases(),
+      result:     {},
+      branch:     null,
+      prUrl:      null,
+      linearUrl:  null,
+      linearId:   null,
+      status:     "running",
+      error:      null,
+      retries:    0,
     });
     connect(repoUrl, 0);
   }, [connect]);
@@ -166,5 +177,5 @@ export function useSSE() {
   }, []);
 
   const { retries: _, ...publicState } = state;
-  return { ...publicState, reconnecting: state.status === "running" && state.retries > 0, start, stop };
+  return { ...publicState, reconnecting: state.retries > 0 && state.status === "running", start, stop };
 }
