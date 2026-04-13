@@ -1,0 +1,24 @@
+```json
+{
+  "projectPurpose": "Pi CEO is a private autonomous engineering platform that converts a GitHub repo URL and plain-English brief into a full Claude Code execution session — cloning, building, evaluating, and pushing results — while providing a ZTE (Zero Touch Engineering) framework for managing a portfolio of business repos (CCW, RestoreAssist, DR-NRPG) through 24/7 autonomous scanning, triage, and Linear issue management.",
+  "targetUsers": [
+    "Solo founder/operator (Phill McGurk, Unite Group)",
+    "Portfolio companies needing autonomous code maintenance (CCW, RestoreAssist, DR-NRPG)",
+    "Internal: Claude Desktop via MCP integration"
+  ],
+  "businessLogic": "Three-tier agent model (Opus=Planner, Sonnet=Worker, Haiku=Evaluator) orchestrated via TAO. Build sessions run 5-phase pipeline (Plan→Generate→Evaluate→Test→Ship) with a blocking quality gate (threshold 7/10). Linear tickets drive autonomous work via a 5-min poller (autonomy.py). Pi-SEO scanner runs 4x/day against 10+ repos, triaging findings into Linear at severity-mapped priorities (critical=Urgent, high=High). ZTE scoring tracks 12 leverage points; current self-reported score 71-75/75. Telegram provides bidirectional mobile control. Human gates enforced on: PR merges, Linear issue promotion from phone ideas, secret rotation, git push --force, and any action that amplifies agent scope. SDK-only execution path as of Sprint 8 (RA-576); claude -p subprocess fallback removed.",
+  "currentState": "WIP",
+  "keyInsights": [
+    "CRITICAL TOPOLOGY FAILURE documented in .harness/INCIDENT-2026-04-12.md: the 'autonomous' rails were entirely Cowork-sandbox-dependent (Mac-sleep = rails stop). Zero commits landed overnight despite claims of autonomy. This is the core unsolved problem.",
+    "Self-reported ZTE score (60/60 or 71/75 depending on which board minutes you read) is a vanity metric — .harness/board-meetings/2026-04-12-board-minutes.md SWOT explicitly flags 'ZTE Score unknown this cycle' and the gap audit found 15 spec-vs-reality discrepancies including 3 critical (no Linear two-way sync, no SSE streaming endpoint).",
+    "Agent SDK metrics in .harness/agent-sdk-metrics/ show all latency_s values are 0.0 and output_len is either 14 or 20 — these are mock/stub metrics, not real production data. The SDK canary was never activated (TAO_USE_AGENT_SDK_CANARY_RATE=0.10 unset across 3 consecutive sprint cycles).",
+    "Gap audit (.harness/board-meetings/2026-04-12-gap-audit.json) found no Linear two-way sync exists: webhook.py has zero outbound Linear API calls, and there is no issueUpdate mutation anywhere in the codebase. The spec claims this is complete.",
+    "Board meetings (.harness/board-meetings/) show LINEAR_API_KEY failing with 401 for multiple consecutive cycles, meaning all automated sprint planning and issue tracking is operating blind — the primary feedback loop is broken.",
+    "Three architecture documents exist (ARCHITECTURE-V2.md, BOARD-DELIBERATION-2026-04-12.md, BOARD-DELIBERATION-ENHANCED-2026-04-12.md) with contradictory recommendations: V2 proposes Railway APScheduler, the first board memo collapses to GH Actions + thin Railway, the Enhanced board memo adds a Mac Mini local AI layer. No single agreed architecture exists.",
+    "The .harness/PERMISSIONS.md references CLAUDE_EXTRA_FLAGS at app/server/sessions.py:572 and :716 as subprocess fallback paths — but CLAUDE.md states subprocess fallback was removed in Sprint 8 (RA-576). These files are out of sync.",
+    "Security posture on monitored repos is severe: DR-NRPG has 4 critical npm CVEs and 60+ hardcoded secret findings; Disaster-Recovery has 762 dangerouslySetInnerHTML high findings; CCW has 137 hardcoded credential findings. The scanner infrastructure exists but Pi-SEO first full sweep was never run (flagged in 3 consecutive board cycles).",
+    "The Supabase integration (gate_checks, alert_escalations, heartbeat_log tables) is referenced in main.py and CLAUDE.md but NEXT_PUBLIC_SUPABASE_URL in .env.example points to a real project URL — this means production observability state is in a cloud DB that is not auditable from the repo alone.",
+    "dashboard/package.json declares next@^16.2.3 and react@^19.0.0 — these are unreleased/pre-release version numbers as of any known public release, suggesting internal or speculative version pins that will cause npm install failures in CI."
+  ]
+}
+```
