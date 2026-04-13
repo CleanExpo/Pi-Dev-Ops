@@ -1,0 +1,171 @@
+```json
+{
+  "sprints": [
+    {
+      "id": 1,
+      "name": "Production Reliability & Silent Failure Elimination",
+      "duration": "5d",
+      "goal": "Eliminate every known silent failure mode so /health tells the truth and the autonomy poller actually fires builds.",
+      "items": [
+        {
+          "title": "Fix autonomy poller do-while pattern: replace sleep-first loop with 10s startup_delay then immediate first poll",
+          "size": "S",
+          "priority": "P1",
+          "piter": {
+            "problem": "app/server/autonomy.py uses `while True: await asyncio.sleep(interval)` — first poll fires 5 minutes after Railway restart, causing every cold-start to appear stuck for 5 minutes and producing false 'system not working' alerts",
+            "impact": "Every Railway redeploy causes a 5-minute dead zone during which no Linear tickets are picked up; overnight autonomous runs silently stall at the start",
+            "result": "First poll fires within 10 seconds of startup; `seconds_since_last_poll` in /health drops from >300 to <15 within 10s of a fresh deploy"
+          }
+        },
+        {
+          "title": "Surface linear_key_ok and last_poll_at in /health endpoint so missing LINEAR_API_KEY is detectable without reading logs",
+          "size": "S",
+          "priority": "P1",
+          "piter": {
+            "problem": "CLAUDE.md line ~90 documents: 'autonomy.py skips every poll cycle when LINEAR_API_KEY is missing but /health still returns 200. Symptom: sessions.total stays at 0.' The existing /health payload in main.py ~line 550 does expose autonomy.armed but does not expose the raw linear_key boolean separately, and last_poll_at can be None with no staleness alert",
+            "impact": "A Railway deploy with a missing or expired LINEAR_API_KEY silently runs forever with zero builds; no external monitor can distinguish this from healthy operation",
+            "result": "/health payload includes `linear_api_key: bool` and `seconds_since_last_poll` is non-null within 15s of startup; a Telegram alert fires when seconds_since_last_poll > 360"
+          }
+        },
+        {
+          "title": "Fix _req_log in auth.py: prune IPs with last-request > 120s inline in check_rate_limit to prevent unbounded memory growth",
+          "size": "S",
+          "priority": "P1",
+          "piter": {
+            "problem": "Lessons file entry: '_req_log in auth.py accumulates IP keys forever if never cleaned up.' The dict grows without bound on any long-running Railway instance, eventually consuming significant memory",
+            "impact": "Long-lived Railway instances develop a slow memory leak; rate limiting data for IPs not seen in days still consumes heap; no GC path exists",
+            "result": "_req_log size stays bounded to IPs active in the last 120s; memory profile is flat after 24h of operation"
+          }
+        },
+        {
+          "title": "Fix cron-triggers.json last_fired_at reset on Railway redeploy: persist cron state to disk and reload on startup so scheduled scans survive restarts",
+          "size": "M",
+          "priority": "P1",
+          "piter": {
+            "problem": ".harness/BOARD-DELIBERATION-2026-04-12.md SWOT Threats section documents: 'cron-triggers.json last_fired_at resets on Railway redeploy. Combined with bogus-future-timestamp debounce bug, every deploy silently suppresses the next scheduled scan window.' app/server/cron.py loads triggers but in-memory state is lost on restart",
+            "impact": "Every Railway deploy resets all cron timing state; Pi-SEO scans are silently skipped for the full interval after every deploy; with 4 deploys/day the scanner may never fire",
+            "result": "Cron state persisted to app/data/cron-state.json atomically after each trigger fires; on startup, last_fired_at is restored so no scan window is skipped after a restart"
+          }
+        },
+        {
+          "title": "Fix session persistence: write BuildSession state to disk atomically (write-to-.tmp then os.replace) after every status transition",
+          "size": "M",
+          "priority": "P1",
+          "piter": {
+            "problem": "Lessons file entry: '_sessions is an in-memory dict — any server restart loses all running sessions. Always persist status to disk atomically after every state change.' CLAUDE.md Persistence section confirms: 'Use write-to-.tmp-then-os.replace() for JSON writes. Crash-safe on NTFS and POSIX.' The current restore_sessions() in sessions.py is truncated mid-function in the gap audit",
+            "impact": "Railway restart during an active build session leaves the Linear ticket permanently In Progress with no way to detect or recover; operator must manually reset ticket state",
+            "result": "Every status transition writes an atomic JSON snapshot; restore_sessions() on startup correctly remaps cloning/building states to interrupted; /api/sessions/{sid}/resume works after a crash"
+          }
+        },
+        {
+          "title": "Fix watchdog false-positive CRITICAL: gate pytest check to --collect-only in Cowork sandbox; read test truth from GH Actions status artifact instead of running pytest in sandbox",
+          "size": "M",
+          "priority": "P1",
+          "piter": {
+            "problem": ".harness/INCIDENT-2026-04-12.md Why #5: 'The watchdog runs pytest in a fresh Cowork sandbox that doesn't have anthropic>=0.90 installed. ModuleNotFoundError causes pytest to exit 1. Watchdog escalates CRITICAL to Telegram.' This is the direct cause of the overnight false alarm that destroyed founder trust",
+            "impact": "Every watchdog cycle in a clean Cowork sandbox fires a false CRITICAL Telegram alert; founder wakes up to alarms that don't exist; trust in the monitoring system is destroyed",
+            "result": "marathon_watchdog.py no longer runs full pytest in sandbox; it reads .harness/ci-status.json written by GH Actions; zero false CRITICAL alerts in 7-day soak test"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Security & Gap Audit Remediation",
+      "duration": "5d",
+      "goal": "Close the 3 critical and 4 high gap-audit findings from RA-665 through RA-671 and patch the Telegram webhook secret bypass.",
+      "items": [
+        {
+          "title": "Implement Linear two-way sync: add linear_update_issue() GraphQL mutation caller in webhook.py and wire it into sessions.py build completion callback",
+          "size": "M",
+          "priority": "P1",
+          "piter": {
+            "problem": ".harness/board-meetings/2026-04-12-gap-audit.json critical[0]: 'webhook.py implements inbound HMAC verification and event parsing, but contains zero outbound Linear API calls. No linear_update_issue, issueUpdate GraphQL mutation, or any HTTP call back to Linear to update issue state.' Gap audit tickets RA-665, RA-666",
+            "impact": "Linear tickets triggered via webhook are permanently stuck In Progress; autonomy poller cannot distinguish a completed session from a stalled one; the entire feedback loop from build → Linear is broken",
+            "result": "After a build completes, the originating Linear issue transitions to Done with a comment containing session ID, evaluator score, and PR URL; gap audit RA-665 and RA-666 closed"
+          }
+        },
+        {
+          "title": "Add GET /api/sessions/{sid}/logs SSE endpoint as a complement to the existing WebSocket handler — the spec claims SSE exists but no route is present",
+          "size": "M",
+          "priority": "P1",
+          "piter": {
+            "problem": ".harness/board-meetings/2026-04-12-gap-audit.json critical[2]: 'app/server/main.py imports StreamingResponse but no SSE endpoint is present in the visible code. The only real-time log delivery mechanism is the WebSocket handler.' Gap audit ticket RA-667. The spec and MCP tool get_last_analysis reference an SSE stream that does not exist",
+            "impact": "Dashboard and any non-WebSocket client cannot stream build logs; the spec is actively misleading; clients that implement SSE-based log tailing receive 404",
+            "result": "GET /api/sessions/{sid}/logs?after=N returns text/event-stream; existing WebSocket handler is unchanged; gap audit RA-667 closed; dashboard/hooks/useSSE.ts can consume real SSE"
+          }
+        },
+        {
+          "title": "Fix Telegram webhook secret bypass: reject requests when TELEGRAM_WEBHOOK_SECRET is set but X-Telegram-Bot-Api-Secret-Token header is absent",
+          "size": "S",
+          "priority": "P1",
+          "piter": {
+            "problem": ".harness/board-meetings/2026-04-12-gap-audit.json low[6]: 'The TELEGRAM_WEBHOOK_SECRET validation only rejects when both sides have a non-empty value; if incomingSecret is null/missing, the check passes regardless — this is a security gap.' dashboard/app/api/telegram/route.ts has this bypass; app/server/main.py /webhook/telegram has a similar pattern at line ~410",
+            "impact": "An attacker who knows the /webhook/telegram URL can send arbitrary commands (including /ack_alert to silence monitoring) without the secret token; the security control is non-functional when the secret is configured",
+            "result": "Both the Next.js and FastAPI Telegram webhook handlers reject any request missing the secret header when the secret is configured; gap audit low[6] closed; verified by a unit test"
+          }
+        },
+        {
+          "title": "Verify and document the POST /webhook/linear route in main.py: confirm parse_linear_event → linear_issue_to_brief → create_session pipeline is wired end-to-end",
+          "size": "S",
+          "priority": "P2",
+          "piter": {
+            "problem": ".harness/board-meetings/2026-04-12-gap-audit.json high[0]: 'There is no route in main.py (visible portion) that calls linear_issue_to_brief and then triggers a build session from a Linear webhook event.' The full /api/webhook handler in the provided main.py does include Linear handling, but the gap audit found this unclear; the route needs explicit integration test coverage",
+            "impact": "Linear webhook triggers that should auto-start builds silently drop if the routing is broken; no way to know without manual testing",
+            "result": "A smoke test check verifies POST /api/webhook with a mock Linear payload and valid signature returns triggered:true and creates a session; gap audit RA-668 closed"
+          }
+        },
+        {
+          "title": "Fix triage-cache.json unbounded growth: add rotation strategy that prunes entries older than 30 days on every scanner run",
+          "size": "S",
+          "priority": "P2",
+          "piter": {
+            "problem": "Three consecutive board meeting minutes flag triage-cache.json at 353KB with no pruning strategy. .harness/board-meetings/2026-04-12-1200-board-minutes.md Weaknesses: 'triage-cache.json at 353KB with no rotation strategy — scanner startup degradation risk as cache grows.'",
+            "impact": "Cache file grows without bound; scanner startup time increases linearly with cache size; Railway ephemeral disk limits could be hit after months of operation",
+            "result": "triage-cache.json is pruned to entries from the last 30 days on every scanner run; file size stays bounded at <50KB under normal operation; no scanner startup regression"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "SDK Canary Activation & Observability",
+      "duration": "5d",
+      "goal": "Activate SDK Canary Phase A at 10% traffic, instrument real metrics, and wire the ZTE scoring to operational health not just feature presence.",
+      "items": [
+        {
+          "title": "Activate SDK Canary Phase A: set TAO_USE_AGENT_SDK_CANARY_RATE=0.10 in Railway and instrument .harness/agent-sdk-metrics/ with success/failure/latency rows",
+          "size": "S",
+          "priority": "P1",
+          "piter": {
+            "problem": "Three consecutive board meeting minutes and the sdk-phase2-rollout.md plan all flag 'SDK Canary Phase A not activated — dual-path code at 0% production traffic.' The SDK dual-path in sessions.py (RA-571/572) is dead code until real traffic touches it; every week without activation increases bitrot risk per .harness/agents/sdk-phase2-rollout.md",
+            "impact": "The Agent SDK path — the only supported execution mode per CLAUDE.md — has never been validated under real production load; subprocess fallback is silently carrying all traffic; any SDK regression would go undetected until it becomes a complete outage",
+            "result": "10% of build sessions route through SDK path; .harness/agent-sdk-metrics/YYYY-MM-DD.jsonl accumulates rows; scripts/sdk_metrics.py --all shows success_rate >= 80% and p95_latency <= subprocess_baseline * 1.3 after 24h; Phase A sign-off logged in sdk-phase2-rollout.md"
+          }
+        },
+        {
+          "title": "Revise ZTE scoring to include operational health checks: score drops when autonomy poller is not armed, when last_poll_at is stale, or when Linear API key is missing",
+          "size": "M",
+          "priority": "P2",
+          "piter": {
+            "problem": ".harness/BOARD-DELIBERATION-2026-04-12.md Contrarian: 'fix the ZTE scoring. A platform that reports 60/60 while autonomy.py is dead and RestoreAssist PROD is down 76h+ is a platform that lies to its owner.' .harness/board-meetings/2026-04-13-ceo-memo-board-minutes.md Decision: 'ZTE measures whether capabilities exist. It does not measure whether they are working.' RA-652 exists to fix this",
+            "impact": "A ZTE score of 84/100 while the autonomy poller is not armed gives false confidence; the score is used as the primary health signal in board meetings and by the founder; a misleading score leads to wrong prioritisation decisions",
+            "result": "ZTE scoring deducts points when /health shows autonomy.armed=false, seconds_since_last_poll>360, or linear_api_key=false; .harness/zte-v2-score.json reflects operational state not just feature presence; RA-652 closed"
+          }
+        },
+        {
+          "title": "Implement scripts/analyse_lessons.py: read lessons.jsonl, group by category, surface patterns appearing 3+ times, write proposals to .harness/improvement-proposals/",
+          "size": "M",
+          "priority": "P2",
+          "piter": {
+            "problem": "Four consecutive board meetings identify 'self-improvement loop missing' as a Weakness. .harness/board-meetings/2026-04-12-board-minutes.md Phase 4 Priority 3: 'Create a scheduled lesson-pattern analyser that reads lessons.jsonl, groups by category, identifies patterns appearing >=3 times, writes proposals to .harness/improvement-proposals/.' lessons.jsonl now has 30+ entries but no automated extraction feeds back to CLAUDE.md",
+            "impact": "Lessons accumulate but are never systematically acted on; the same failure modes repeat across sessions because no pattern-detection runs; the ZTE Level 3 meta-loop remains incomplete",
+            "result": "scripts/analyse_lessons.py exits 0 and writes at least one proposal file to .harness/improvement-proposals/ from the existing 30+ lesson entries; the script is wired into cron-triggers.json at a 24h interval; RA-652 self-improvement loop component closed"
+          }
+        },
+        {
+          "title": "Wire semantic RAG memory layer: create memory/<project-slug>/charter.md stubs for Pi-Dev-Ops, CCW, RestoreAssist, DR-NRPG and prepend relevant chunks to session system prompts",
+          "size": "L",
+          "priority": "P2",
+          "piter": {
+            "problem
