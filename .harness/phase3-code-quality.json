@@ -1,0 +1,142 @@
+{
+  "scores": {
+    "completeness": 7,
+    "correctness": 6,
+    "codeQuality": 7,
+    "documentation": 8
+  },
+  "issues": [
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The Telegram webhook endpoint (/webhook/telegram) has a conditional security check: 'if expected_secret and secret != expected_secret'. When TELEGRAM_WEBHOOK_SECRET is not set, ANY caller can POST to this endpoint and execute /ack_alert commands. This is confirmed by the gap audit JSON which flags the same pattern. The check must be inverted to deny when secret is absent but the endpoint is live."
+    },
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The gap audit (.harness/board-meetings/2026-04-12-gap-audit.json) identifies that Linear two-way sync is missing: webhook.py has no outbound Linear API calls (no issueUpdate GraphQL mutation). Linear tickets are triggered to start builds but never updated with outcomes (in-progress, done, build URL, evaluation score). The feedback loop is structurally broken."
+    },
+    {
+      "severity": "critical",
+      "file": "app/requirements.txt",
+      "line": null,
+      "description": "app/requirements.txt lists 'claude-agent-sdk>=0.1' which does not match pyproject.toml which lists 'anthropic>=0.90'. CLAUDE.md states the system is SDK-only (TAO_USE_AGENT_SDK=1 required, subprocess removed per RA-576). The requirements.txt references a package name ('claude-agent-sdk') that doesn't exist on PyPI — the actual package is 'anthropic'. This will cause Railway deploys to fail or install the wrong package."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "SSE endpoint GET /api/sessions/{sid}/logs is implemented and returns StreamingResponse, but the gap audit flags this as potentially missing. More critically, the implementation polls session.output_lines with asyncio.sleep(0.3) inside a generator — there is no backpressure mechanism. If the client disconnects, the generator continues running until session reaches terminal status, leaking coroutines for every disconnected client."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /api/scan endpoint fires an asyncio.create_task(_run()) and immediately returns {'ok': True} — the task result is never awaited or monitored. If the scan crashes, there is no error surfacing, no session tracking, no way for the caller to know the scan failed. Fire-and-forget is explicitly called out as acceptable only for observability writes (supabase_log.py), not for user-facing operations."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "WebSocket handler /ws/build/{sid} catches 'except (WebSocketDisconnect, Exception): pass' — bare Exception swallowing. Any internal error during streaming (e.g., session state corruption, serialization error) is silently discarded. The client receives no indication of the server-side failure."
+    },
+    {
+      "severity": "high",
+      "file": ".harness/cron-triggers.json",
+      "line": null,
+      "description": "last_fired_at timestamps for active scan triggers show values like 1775952090 (year ~2026 in Unix time is correct, but some values like 1775804551 are before 1744243200 which is the created_at baseline). More critically, CLAUDE.md notes that last_fired_at resets on Railway redeploy combined with a bogus-future-timestamp debounce bug (Lesson: HIGH — RA-579/scheduler) that silently suppresses scan windows post-deploy. This is an unresolved production defect."
+    },
+    {
+      "severity": "high",
+      "file": ".env.example",
+      "line": null,
+      "description": "NEXT_PUBLIC_SUPABASE_URL appears twice in .env.example with different values ('https://zbryrmxmgfmslqzizsto.supabase.co' and 'https://your-project.supabase.co'). The first occurrence contains what appears to be a real Supabase project URL. If this is a real project URL it should not be committed even to .env.example. The duplicate key will cause confusion about which value applies."
+    },
+    {
+      "severity": "high",
+      "file": "mcp/package.json",
+      "line": null,
+      "description": "mcp/package.json specifies 'zod: ^4.3.6' but the zod ecosystem is at v3.x stable — v4 is a major breaking release with different APIs. If the MCP server was built against zod v3 and ^4.3.6 installs v4, the server will fail at runtime with type errors. This is a dependency version mismatch risk."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "Two @app.on_event('startup') decorators are defined in main.py (on_startup and _start_claude_poll). FastAPI supports multiple startup handlers, but using on_event is deprecated in FastAPI 0.93+ in favor of lifespan context managers. With FastAPI>=0.111 (as required), this pattern generates deprecation warnings and may break in future versions."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The _telegram_send helper uses urllib.request.urlopen (synchronous) inside a FastAPI async endpoint (/webhook/telegram). This blocks the event loop for up to 8 seconds on each Telegram API call. Should use httpx.AsyncClient or run in a thread pool via asyncio.to_thread."
+    },
+    {
+      "severity": "medium",
+      "file": "dashboard/package.json",
+      "line": null,
+      "description": "lucide-react is pinned at '^1.8.0' which does not exist — lucide-react is at v0.x (e.g., 0.460.0). This will cause npm install to fail or install an unexpected package version. The caret range '^1.8.0' requires a 1.x release that doesn't exist in the lucide-react registry."
+    },
+    {
+      "severity": "medium",
+      "file": ".harness/board-meetings/2026-04-12-board-minutes.md",
+      "line": null,
+      "description": "The board meeting minutes report ZTE Score as 60/60 but CLAUDE.md states 'ZTE Score: 73/75 (Sprint 8)' and the CEO memo reports 73/75. The ZTE scoring is inconsistent across harness files. The scoring system the Contrarian called out ('a platform that reports 60/60 while autonomy.py is dead') is demonstrably reporting different numbers in different documents — the measurement system is broken."
+    },
+    {
+      "severity": "medium",
+      "file": ".claude/settings.json",
+      "line": null,
+      "description": "defaultMode is set to 'bypassPermissions' at the project level, which grants the autonomous agent unrestricted file system write access including to paths outside the workspace. The deny list blocks 'rm -rf /:*' and 'dd:*' but does not block writes to sensitive system directories or other repos mounted on the same filesystem. Combined with 'Write(*)' this is a broad attack surface for a compromised or hallucinating agent."
+    },
+    {
+      "severity": "low",
+      "file": ".harness/anthropic-docs/api-reference.md",
+      "line": null,
+      "description": "The anthropic-docs files contain raw HTML/JavaScript from page fetches rather than cleaned markdown content. The files are kilobytes of Next.js hydration JSON, CSS variables, and font-face declarations with no readable API reference content. The fetch script is broken — it captured the page shell, not the documentation. Any agent reading these files gets noise, not signal."
+    },
+    {
+      "severity": "low",
+      "file": "Dockerfile",
+      "line": null,
+      "description": "Two Dockerfiles exist (root Dockerfile and app/Dockerfile) with slightly different configurations. Root Dockerfile sets WORKDIR /pi-ceo and copies src/, .harness/, skills/ — app/Dockerfile sets WORKDIR /app and copies server/ only. They target different module paths ('app.server.main:app' vs 'server.main:app'). This creates deployment ambiguity — Railway may use either depending on configuration."
+    }
+  ],
+  "missingTests": [
+    "Authentication middleware — no tests for rate limiting, token expiry, or cookie security attributes",
+    "WebSocket handler — no tests for disconnection handling, session-not-found, or authentication rejection",
+    "Webhook signature verification — no tests for HMAC timing attacks, malformed signatures, or missing headers",
+    "Linear webhook end-to-end — no integration test from webhook receipt to session creation",
+    "SSE streaming endpoint — no tests for client disconnection cleanup or backpressure",
+    "Cron trigger debounce logic — the RA-579 scheduler bug has no regression test",
+    "Session resume from checkpoint — no tests verifying last_completed_phase is correctly restored across server restarts",
+    "Parallel build fan-out (orchestrator.py) — no tests for n_workers edge cases or worker failure isolation",
+    "GC loop — no tests verifying sessions are correctly identified as stale and cleaned up",
+    "MCP server tool handlers — mcp/pi-ceo-server.js has no tests (package.json test script is 'echo Error: no test specified && exit 1')",
+    "Pipeline phases (spec/plan/test/ship) — no integration tests for the Ship Chain pipeline",
+    "Autonomy poller — no tests for Linear API failure handling or session deduplication"
+  ],
+  "securityConcerns": [
+    "app/server/main.py: /webhook/telegram accepts unauthenticated POST requests when TELEGRAM_WEBHOOK_SECRET is unset — any internet caller can ack alerts",
+    ".env.example: Contains what appears to be a real Supabase project URL (zbryrmxmgfmslqzizsto.supabase.co) committed to the repository",
+    ".claude/settings.json: bypassPermissions + Write(*) grants the autonomous agent unrestricted write access to the entire filesystem, including paths outside the repo workspace",
+    "app/server/main.py: The CSP header allows 'unsafe-inline' for both script-src and style-src, significantly weakening XSS protection for the dashboard",
+    "app/server/main.py: ALLOWED_ORIGINS list is hardcoded but also extended via TAO_ALLOWED_ORIGINS env var with no validation — a misconfigured env var could add arbitrary origins",
+    ".harness/business-charters/projects/disaster-recovery-nrpg-charter.md: DR-NRPG has 2 critical + 60 high hardcoded secret findings and 43 DB connection string findings — these are in repos Pi-CEO has write access to via the autonomous poller",
+    "app/requirements.txt: 'claude-agent-sdk>=0.1' references a non-existent PyPI package — a malicious actor could publish a package with this name to hijack Railway deploys",
+    "dashboard/app/api/telegram/route.ts (referenced in gap audit): TELEGRAM_WEBHOOK_SECRET validation only rejects when both sides non-empty — missing secret header passes validation when no secret is configured"
+  ],
+  "positives": [
+    "Security headers middleware (SecurityHeaders class in main.py) is genuinely comprehensive — X-Content-Type-Options, X-Frame-Options DENY, X-XSS-Protection, and a meaningful CSP are all present",
+    "Password authentication uses hmac.compare_digest for timing-safe comparison and bcrypt for hashing with transparent SHA-256 migration path — correct implementation",
+    "Pydantic v2 field validators on all request models provide consistent input validation at the API boundary with clear error messages",
+    "The _resilient() wrapper for background tasks (crash recovery with auto-restart and configurable delay) is a well-designed pattern that prevents silent task death",
+    "Atomic session persistence using os.replace() (write-to-tmp-then-rename) is correctly implemented per CLAUDE.md guidance — prevents corrupt half-written files",
+    "The escalation contract (.harness/ESCALATION.md) and permission hardening contract (.harness/PERMISSIONS.md) are thorough operational documents that encode important invariants",
+    "CI pipeline (.github/workflows/ci.yml) has three well-separated jobs (python/frontend/secrets-scan) with a smoke-prod gate on main — genuinely useful structure",
+    "The autonomy poller kill switch (TAO_AUTONOMY_ENABLED=0) and the health endpoint's autonomy.armed field provide meaningful operational visibility into whether the autonomous loop is actually running",
+    "The harness architecture — separating operational state (.harness/), skills (skills/), and config (config.yaml) — is a clean separation that enables the board meeting / gap audit feedback loop",
+    "Rate limiting (30 req/min per IP via require_rate_limit dependency) is applied consistently to mutation endpoints"
+  ]
+}
