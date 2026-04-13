@@ -1,0 +1,130 @@
+```json
+{
+  "scores": {
+    "completeness": 7,
+    "correctness": 6,
+    "codeQuality": 6,
+    "documentation": 8
+  },
+  "issues": [
+    {
+      "severity": "high",
+      "file": "app/requirements.txt",
+      "description": "Contains 'claude-agent-sdk>=0.1' — a package that does not exist on PyPI. CLAUDE.md (line ~74) references 'claude_agent_sdk' as if it's a real installed package, but the actual Anthropic SDK is 'anthropic'. This will cause ImportError at startup on a clean install. pyproject.toml correctly lists 'anthropic>=0.90' but requirements.txt diverges."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "description": "Two @app.on_event('startup') handlers registered (on_startup at ~line 120, _start_claude_poll at ~line 340). FastAPI silently runs both but this is a naming/structural anti-pattern that makes startup sequencing opaque and can cause race conditions if either handler errors."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "description": "SHA-256 password hashing referenced in CLAUDE.md ('Password hashed as SHA-256, compared via hmac.compare_digest') but auth.py is not visible. SHA-256 for password storage is cryptographically weak — bcrypt is listed as a dependency in requirements.txt/pyproject.toml and should be the actual hashing mechanism. If SHA-256 is used anywhere in auth.py, it is a security defect."
+    },
+    {
+      "severity": "high",
+      "file": ".env.example",
+      "description": "NEXT_PUBLIC_SUPABASE_URL appears twice with different placeholder values ('https://zbryrmxmgfmslqzizsto.supabase.co' and 'https://your-project.supabase.co'). The first instance contains what appears to be a real Supabase project URL committed to the repository. If this is a production URL, it constitutes information disclosure."
+    },
+    {
+      "severity": "high",
+      "file": ".claude/settings.json",
+      "description": "defaultMode is 'bypassPermissions' globally — this grants Claude unrestricted file system write, bash execution, and web fetch access. The deny list is minimal (no curl|bash, no wget|bash, no sudo). WebFetch to api.telegram.org and api.linear.app is allowed, meaning a compromised or hallucinating agent can exfiltrate data to external APIs with no additional gate."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "description": "The /webhook/telegram endpoint (line ~260) only rejects requests when TELEGRAM_WEBHOOK_SECRET is configured AND the header doesn't match. If TELEGRAM_WEBHOOK_SECRET is unset (empty string), the check is skipped entirely — any unauthenticated POST can trigger mark_alert_acked or read message content. The .harness/board-meetings/2026-04-12-gap-audit.json also flags this exact pattern in the dashboard Telegram route."
+    },
+    {
+      "severity": "high",
+      "file": "Dockerfile",
+      "description": "Two Dockerfiles exist (root Dockerfile and app/Dockerfile) with diverging WORKDIR, COPY paths, and CMD entries. Root Dockerfile copies src/ and .harness/ which app/Dockerfile omits. This creates ambiguous build targets — railway.toml or docker-compose consumers will pick up whichever file Docker resolves first, potentially producing an image missing TAO engine or harness state."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "description": "_sessions is an in-memory dict (imported from sessions.py). CLAUDE.md explicitly warns about this but the /api/sessions/{sid}/logs SSE endpoint at line ~210 polls session.output_lines with asyncio.sleep(0.3) in an infinite loop. If the session object is garbage-collected between GC runs and an SSE client is still connected, this will raise AttributeError with no error handling."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "description": "The /api/scan endpoint (line ~320) calls asyncio.create_task(_run()) and immediately returns {'ok': True} — fire-and-forget with no task handle stored. If the scan raises an exception, it is silently swallowed. There is no way to query scan status or retrieve errors after submission."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "description": "_telegram_send() at line ~255 uses urllib.request.urlopen synchronously inside an async FastAPI handler. This blocks the event loop for up to 8 seconds (the timeout). Should be replaced with httpx async client or run_in_executor."
+    },
+    {
+      "severity": "medium",
+      "file": "dashboard/package.json",
+      "description": "dev script sources .env.local via bash: 'bash -c set -a && source .env.local ...' — this silently fails on Windows (bash not available) and on systems where .env.local doesn't exist. The CI workflow sets env vars directly, masking this defect. next dev should use @next/env or dotenv-cli for cross-platform compatibility."
+    },
+    {
+      "severity": "medium",
+      "file": "mcp/package.json",
+      "description": "test script is 'echo Error: no test specified && exit 1' — the MCP server (21 tools, Linear integration, harness file reads) has zero automated tests. Any regression in tool schemas or Linear API calls is undetectable without manual testing."
+    },
+    {
+      "severity": "medium",
+      "file": ".harness/agents/sdk-version-policy.md",
+      "description": "The API stability contract lists ClaudeSDKClient.connect(), .query(), .receive_messages(), .disconnect() as critical symbols. These are not standard anthropic Python SDK method names (the real SDK uses client.messages.create() or async streaming). If this document describes a fictional or internal wrapper, the version policy is auditing the wrong interface."
+    },
+    {
+      "severity": "medium",
+      "file": ".harness/cron-triggers.json",
+      "description": "last_fired_at timestamps for scan triggers use Unix timestamps (~1775952090) corresponding to year 2026-04-13, while board-meeting-weekly, scout-weekly-monday, and feedback-loop-monthly all have last_fired_at: null. The cron_loop in cron.py resets last_fired_at on redeploy per CLAUDE.md — these null entries mean the first Railway deploy will not fire these triggers until their next scheduled window, creating a silent 7-day gap for weekly triggers."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "description": "require_rate_limit dependency is applied inconsistently: /api/build, /api/build/parallel, /api/webhook, /api/triggers (POST), /api/scan, /api/login all have it, but /api/sessions/{sid}/kill, /api/sessions/{sid}/resume, /api/gc, /api/lessons (POST), /api/monitor do not. State-mutating endpoints without rate limiting can be abused to exhaust server resources."
+    },
+    {
+      "severity": "low",
+      "file": "dashboard/tsconfig.json",
+      "description": "'scripts' directory is excluded from TypeScript compilation. dashboard/package.json defines a 'create-snapshot' script using tsx which bypasses type checking entirely. Scripts that interact with production data (Supabase, GitHub) should be type-checked."
+    },
+    {
+      "severity": "low",
+      "file": ".harness/anthropic-docs/api-reference.md",
+      "description": "Stored raw HTML/JavaScript from a server-side rendered page (Next.js RSC payload, CSS variables, font-face declarations). The file is committed to the repo at ~50KB+ of minified JavaScript noise. This pollutes the harness context window injected into every build session and reduces the signal-to-noise ratio of the lesson/context injection system."
+    },
+    {
+      "severity": "low",
+      "file": "pyproject.toml",
+      "description": "pyproject.toml lists 'anthropic>=0.90' but app/requirements.txt lists 'claude-agent-sdk>=0.1' (a non-existent package) instead of anthropic. The two dependency manifests are not equivalent. Railway likely uses requirements.txt for pip install, meaning the production container cannot import the anthropic SDK through the expected package name."
+    },
+    {
+      "severity": "low",
+      "file": "app/server/main.py",
+      "description": "The SSE endpoint GET /api/sessions/{sid}/logs uses StreamingResponse but the .harness/board-meetings/2026-04-12-gap-audit.json marks this as a 'critical' gap claiming no SSE endpoint exists. The endpoint does exist in main.py (line ~210). The gap audit is stale — but this means the automated spec-vs-code audit has a false critical, undermining trust in the gap audit output."
+    }
+  ],
+  "missingTests": [
+    "MCP server tools (mcp/pi-ceo-server.js) — zero test coverage for 21 tools including Linear create/update, harness file reads, and ZTE score calculation",
+    "Webhook signature verification (verify_github_signature, verify_linear_signature) — no tests for HMAC boundary cases, empty body, malformed signatures",
+    "Authentication flows (create_session_token, verify_session_token, bcrypt migration path) — auth.py not visible in provided context, no tests evident",
+    "Cron trigger scheduling logic (cron.py) — no tests for debounce, last_fired_at reset behavior, or weekday/day_of_month filter correctness",
+    "SSE streaming endpoint (/api/sessions/{sid}/logs) — no tests for cursor advancement, terminal state detection, or client disconnect handling",
+    "Telegram webhook (/webhook/telegram) — no tests for secret validation bypass when TELEGRAM_WEBHOOK_SECRET is unset",
+    "Autonomy poller (autonomy.py) — no tests for LINEAR_API_KEY absent behavior, poll_count increment, or armed/disarmed state transitions",
+    "Budget tracker (budget.py / autonomy_budget anchors) — no tests for tier selection at boundary values or budget_minutes=0 handling",
+    "Session resume logic — no tests for last_completed_phase checkpoint recovery or interrupted→building state transition",
+    "Pi-SEO scanner (scanner.py / triage.py) — scanner infrastructure mentioned throughout but no test coverage visible in tests/ directory context"
+  ],
+  "securityConcerns": [
+    "TELEGRAM_WEBHOOK_SECRET bypass: /webhook/telegram endpoint accepts unauthenticated requests when TELEGRAM_WEBHOOK_SECRET env var is unset — any POST can trigger alert acknowledgment or read message content (app/server/main.py ~line 260)",
+    "Potential real Supabase project URL committed in .env.example ('https://zbryrmxmgfmslqzizsto.supabase.co') — if this is a production project, the URL is publicly disclosed in the repository",
+    "bypassPermissions granted globally in .claude/settings.json with WebFetch allowed to api.telegram.org and api.linear.app — an agent executing malicious or hallucinated code can exfiltrate repository contents or secrets to external APIs with no additional gate",
+    "claude-agent-sdk>=0.1 in app/requirements.txt is a non-existent PyPI package — a malicious actor could publish a package with this name to PyPI and it would be installed in production Docker builds (dependency confusion attack surface)",
+    "SHA-256 referenced for password hashing in CLAUDE.md — if auth.py uses SHA-256 rather than bcrypt for the actual password verification, stored passwords are vulnerable to rainbow table attacks; bcrypt is listed as a dependency suggesting this may be correct but cannot be verified without auth.py source",
+    "CSP header in SecurityHeaders middleware allows 'unsafe-inline' for both script-src and style-src — this negates XSS protection for inline scripts and styles, which is the primary XSS vector in a Next.js/React application served through the FastAPI static handler",
+    "GitHub PAT (GITHUB_TOKEN) and Telegram bot token (TELEGRAM_BOT_TOKEN) stored in Railway environment — .harness/ARCHITECTURE-V2.md proposes autonomous git push using a fine-grained PAT stored in Railway secrets with no mention of secret rotation schedule or blast-radius audit",
+    "No Content-Security-Policy on WebSocket endpoint — ws: and wss: are whitelisted globally in the CSP connect-src directive with no origin restriction, allowing any page loaded in the browser to open a WebSocket to the Pi CEO backend if CORS is misconfigured",
+    "Supabase service role key (SUPABASE_SERVICE_ROLE_KEY) is referenced in .env.example — this key bypasses all Row Level Security policies; if it appears in any client-side code path or log output, it grants unrestricted database access"
+  ]
+}
+```
