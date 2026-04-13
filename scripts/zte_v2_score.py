@@ -151,10 +151,7 @@ def score_c4_security_posture(projects: list[dict]) -> tuple[int, str]:
     if not sec_scores:
         return 1, "no security scores"
     avg = sum(sec_scores) / len(sec_scores)
-    criticals = sum(
-        1 for p in projects
-        for f in []  # rollback tracking not wired — use score as proxy
-    )
+    # rollback tracking not wired — use score as proxy (criticals count pending RA-672)
     note = f"portfolio avg {avg:.0f}, {len(sec_scores)} repos scanned"
     if avg >= 80 and all(s >= 80 for s in sec_scores):
         return 5, note

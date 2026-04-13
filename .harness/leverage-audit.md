@@ -2,7 +2,12 @@
 
 ## Current Score: 73 / 75 — Zero Touch Band (Operational Extension)
 
-*Last updated: 2026-04-12 (Pi-CEO Enhanced — Cycle 22, RA-651 + RA-633 + RA-583 + RA-577 + RA-580)*
+*Last updated: 2026-04-13 (Cycle 23 / Sprint 9 close — RA-684 + RA-686 + RA-689 + RA-696 + RA-675)*
+
+> **RA-675 resolution note:** Previous self-scan returned 41/60 ZTE due to stale spec.md (RA-685).
+> spec.md regenerated 2026-04-13. Automated ZTE v2 score: 81/100 (73/75 + 8/25 Section C).
+> Scanner false positives from scanner.py scanning its own regex patterns added to path_exclusions.
+> Ruff lint errors (F401/F841/F541) resolved across app/server/, scripts/, src/.
 
 > **Scoring revision (RA-652):** Framework extended from 12 AI-pipeline dimensions (60 max) to 15 dimensions
 > including 3 Operational Health dimensions (75 max). Rationale: a 60/60 AI pipeline score is meaningless
@@ -55,6 +60,15 @@
 ---
 
 ## Changelog
+
+### 2026-04-13 — Cycle 23: Sprint 9 close — CEO Memo structural build (73/75 maintained)
+| Point | Before | After | Driver |
+|-------|--------|-------|--------|
+| Scout Agent | — | RA-684 | Weekly GitHub/ArXiv/HN intel gathering; [SCOUT] Linear issues; pre-board cron Mon 04:30 UTC |
+| CEO Board Personas | — | RA-686 | 9 personas (Phase 2.5) wired into board_meeting.py; SWOT gets CEO SYNTHESIS |
+| Feedback Loop | — | RA-689 | analyzing-customer-patterns skill built; shipped-features.jsonl tracking; stale-feature review issues |
+| BVI Metric | — | RA-696 | Business Velocity Index: CRITICALs + portfolio delta + MARATHON completions; primary board metric from Cycle 24 |
+| Self-scan gap | RA-675 | Resolved | spec.md regenerated; scanner false positives excluded; ruff errors fixed; leverage-audit updated |
 
 ### 2026-04-12 — Cycle 22: Sprint 8 close-out — 71→73/75
 | Point | Before | After | Driver |

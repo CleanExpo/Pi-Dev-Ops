@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
-from typing import Optional, Any
-import uuid, time
+from typing import Optional
+import uuid
 
 @dataclass
 class TaskSpec:

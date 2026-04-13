@@ -14,10 +14,8 @@ Usage:
 import argparse
 import datetime
 import json
-import os
 import sys
 from pathlib import Path
-from statistics import median, quantiles
 
 _METRICS_DIR = Path(__file__).parents[1] / ".harness" / "agent-sdk-metrics"
 

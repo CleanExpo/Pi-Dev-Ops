@@ -16,7 +16,6 @@ Usage:
 """
 import argparse
 import json
-import os
 import subprocess
 import sys
 import urllib.request
@@ -56,7 +55,7 @@ def get_local_sha() -> dict:
         origin = _git("rev-parse", "origin/main")
         drift = 0
         if head != origin:
-            log = _git("log", "--oneline", f"origin/main..HEAD")
+            log = _git("log", "--oneline", "origin/main..HEAD")
             drift = len(log.splitlines()) if log else 0
         return {"sha": head, "origin_main": origin, "local_ahead": drift, "ok": True}
     except RuntimeError as exc:

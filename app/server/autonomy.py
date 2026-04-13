@@ -351,7 +351,7 @@ def _calc_effective_autonomy(events: list[dict]) -> dict:
     poll_errors     = sum(1 for e in events if e.get("action") == "poll_error")
     started         = sum(1 for e in events if e.get("action") == "session_started")
     errors          = sum(1 for e in events if e.get("action") == "session_error")
-    transitions_ok  = sum(1 for e in events if e.get("action") == "transition_to_in_progress")
+    _transitions_ok = sum(1 for e in events if e.get("action") == "transition_to_in_progress")  # noqa: F841
     transition_errs = sum(1 for e in events if e.get("action") == "transition_error")
     issues_found    = sum(e.get("found", 0) for e in events if e.get("action") == "poll")
 

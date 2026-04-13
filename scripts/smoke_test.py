@@ -442,7 +442,7 @@ print()
 if args.emit_metrics or PROD_MODE:
     target_label = "prod" if PROD_MODE else BASE
     _emit_metrics(PASS, FAIL, target_label)
-    print(f"  [METRICS] Row written to .harness/post-deploy-metrics/")
+    print("  [METRICS] Row written to .harness/post-deploy-metrics/")
 
 # ── Auto-raise Linear ticket on prod failure ──────────────────────────────
 if PROD_MODE and FAIL:

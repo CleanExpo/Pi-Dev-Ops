@@ -16,7 +16,11 @@
         "backend": "https://pi-dev-ops-production.up.railway.app"
       },
       "scan_priority": "high",
-      "scan_schedule": "*/6 * * * *"
+      "scan_schedule": "*/6 * * * *",
+      "path_exclusions": [
+        "app/server/scanner.py"
+      ],
+      "_comment_path_exclusions": "scanner.py contains regex patterns that match its own dangerous-pattern detectors — eval(), dangerouslySetInnerHTML, nosec, TODO-near-secret — all false positives from self-scanning (RA-675)"
     },
     {
       "id": "restoreassist",

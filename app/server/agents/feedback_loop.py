@@ -15,7 +15,7 @@ import os
 import time
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -545,16 +545,6 @@ def get_feedback_summary() -> dict[str, Any]:
             stale += 1
         else:
             neutral += 1
-
-    # Recent patterns from last feedback run
-    recent_patterns: list[str] = []
-    try:
-        feedback_log_path = _HARNESS_ROOT / "feedback-cache.json"
-        if feedback_log_path.exists():
-            # Patterns not stored in cache — would need separate store; skip for now
-            pass
-    except Exception:
-        pass
 
     return {
         "available": True,

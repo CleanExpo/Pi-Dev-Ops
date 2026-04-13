@@ -1,0 +1,38 @@
+{
+  "computed_at": "2026-04-13T02:28:01.447002+00:00",
+  "window_days": 30,
+  "gate_check_rows": 0,
+  "v1_score": 73,
+  "section_c": {
+    "C1_deployment_success": {
+      "score": 1,
+      "max": 5,
+      "note": "no deployment data yet"
+    },
+    "C2_output_acceptance": {
+      "score": 1,
+      "max": 5,
+      "note": "needs_data \u2014 Linear state-transition logging (RA-672 Phase 2) not yet implemented"
+    },
+    "C3_mean_time_to_value": {
+      "score": 1,
+      "max": 5,
+      "note": "needs_data \u2014 push_timestamp column not yet populated (deploy RA-672 migration)"
+    },
+    "C4_security_posture": {
+      "score": 1,
+      "max": 5,
+      "note": "no scan data available"
+    },
+    "C5_knowledge_velocity": {
+      "score": 4,
+      "max": 5,
+      "note": "7.7 lessons/week"
+    },
+    "total": 8,
+    "max": 25
+  },
+  "v2_total": 81,
+  "v2_max": 100,
+  "band": "Zero Touch"
+}

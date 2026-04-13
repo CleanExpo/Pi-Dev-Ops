@@ -45,7 +45,7 @@ import os
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -144,7 +144,7 @@ def _check_digest_freshness() -> Check:
         return Check(
             "digest", False, "warn",
             f"newest digest {digests[0].name} is {hours:.1f}h old (threshold 2h)",
-            auto_remediation=f"triggered marathon_pi_seo_dryrun.py directly",
+            auto_remediation="triggered marathon_pi_seo_dryrun.py directly",
             needs_founder="if this fires twice in a row, check Cowork → Scheduled → marathon-pi-seo-dryrun-hourly logs",
         )
     return Check("digest", True, "info", f"newest digest is {age / 60:.0f}m old")

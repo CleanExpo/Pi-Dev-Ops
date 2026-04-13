@@ -15,7 +15,6 @@ Exit codes:
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -140,7 +139,7 @@ def main() -> int:
         f"**Repos scanned:** {len(rows)}",
         f"**Critical findings:** {total_critical}",
         f"**High findings:** {total_high}",
-        f"**Severity threshold:** critical + high (founder decision 2026-04-11)",
+        "**Severity threshold:** critical + high (founder decision 2026-04-11)",
         "",
         "## Per-repo breakdown",
         "",

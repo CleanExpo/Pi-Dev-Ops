@@ -11,12 +11,11 @@ Interfaces with:
 """
 
 import asyncio
-import json
 import logging
 from typing import Any
 from dataclasses import dataclass
 
-from ..skills import skills_for_intent, get_skill, load_all_skills
+from ..skills import skills_for_intent, load_all_skills
 
 logger = logging.getLogger(__name__)
 
