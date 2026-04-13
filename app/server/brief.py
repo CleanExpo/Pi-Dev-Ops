@@ -9,6 +9,14 @@ The structured brief wraps the raw user brief with:
 1. Intent classification and ADW workflow steps
 2. Explicit phase instructions for Claude
 3. Rules for commit messages and output format
+
+RA-681: Three-tier complexity system.
+  basic    — sparse spec (< ~80 words, trivial brief keywords)
+  detailed — standard spec with lessons, skills, intent files  [default]
+  advanced — full spec with extended quality gate + confidence requirement
+
+Use classify_brief_complexity() to detect tier, or pass complexity_tier=
+to build_structured_brief() to override.
 """
 import os
 import sys
@@ -200,6 +208,81 @@ def _get_lesson_context(intent: str, limit: int = 5, max_chars: int = 2000) -> s
     return ""
 
 
+# ── RA-681: Brief complexity tiers ───────────────────────────────────────────
+
+# Keywords that signal a trivially simple brief
+_BASIC_KEYWORDS: frozenset[str] = frozenset([
+    "typo", "typos", "spelling", "rename", "comment", "comments",
+    "whitespace", "indent", "indentation", "blank line", "newline",
+    "small fix", "minor fix", "tiny fix", "quick fix",
+    "version bump", "bump version", "update version",
+    "add todo", "remove todo", "delete todo",
+])
+
+# Keywords that signal a complex brief requiring full context
+_ADVANCED_KEYWORDS: frozenset[str] = frozenset([
+    "architecture", "architect", "redesign", "rearchitect",
+    "migration", "migrate", "database migration", "schema migration",
+    "security", "authentication", "authorisation", "authorization",
+    "oauth", "jwt", "encryption", "certificate",
+    "performance", "optimisation", "optimization", "profiling",
+    "integration", "integrate", "third-party", "external api",
+    "multi-tenant", "multitenant", "sharding", "replication",
+    "concurrent", "race condition", "deadlock", "async",
+    "ci/cd", "pipeline", "deployment", "infrastructure",
+    "refactor entire", "rewrite", "overhaul", "redesign",
+    "multiple services", "microservice",
+])
+
+_BASIC_WORD_THRESHOLD = 30    # fewer words → candidate for basic tier
+_ADVANCED_WORD_THRESHOLD = 100  # more words → candidate for advanced tier
+
+
+def classify_brief_complexity(raw_brief: str) -> str:
+    """RA-681 — Classify brief as 'basic', 'detailed', or 'advanced'.
+
+    Decision logic (in priority order):
+    1. Any advanced keyword → 'advanced'
+    2. Any basic keyword AND word count < threshold → 'basic'
+    3. Word count > advanced threshold → 'advanced'
+    4. Otherwise → 'detailed'
+
+    The result controls how much context is prepended to the generator spec:
+      basic    — brief + ADW steps + minimal quality gate only (~500 tokens)
+      detailed — adds lessons, skills, intent files              (~1 200 tokens)
+      advanced — adds extended quality gate + confidence target  (~1 800 tokens)
+    """
+    lower = raw_brief.lower()
+    word_count = len(raw_brief.split())
+
+    # Advanced keywords override everything
+    if any(kw in lower for kw in _ADVANCED_KEYWORDS):
+        return "advanced"
+
+    # Basic: clearly trivial keyword AND short
+    if word_count < _BASIC_WORD_THRESHOLD and any(kw in lower for kw in _BASIC_KEYWORDS):
+        return "basic"
+
+    # Long brief → promote to advanced even without explicit keywords
+    if word_count > _ADVANCED_WORD_THRESHOLD:
+        return "advanced"
+
+    return "detailed"
+
+
+# ── Quality gates (one per tier) ──────────────────────────────────────────────
+
+# Tier 1 — Basic: just the essential checklist, no scoring language
+_QUALITY_GATE_BASIC = """\
+--- QUALITY GATE ---
+Before committing, confirm:
+  ✓ The change matches the brief exactly — nothing more, nothing less
+  ✓ No syntax errors, no debug prints, no leftover TODOs
+  ✓ Commit message follows: <type>: <description>
+--- END QUALITY GATE ---
+"""
+
+# Tier 2 — Detailed: current full gate (default)
 _QUALITY_GATE = """\
 --- QUALITY GATE (mandatory self-review before every commit) ---
 You will be evaluated by a second AI pass on exactly these 4 dimensions.
@@ -229,12 +312,59 @@ Only commit once all 4 dimensions pass your self-assessment at ≥8/10.
 --- END QUALITY GATE ---
 """
 
+# Tier 3 — Advanced: raises bar, adds confidence and risk sections
+_QUALITY_GATE_ADVANCED = """\
+--- QUALITY GATE: ADVANCED (mandatory self-review before every commit) ---
+You will be evaluated on 4 dimensions (target ≥9/10 each) AND a confidence score.
+A score below 9/10 on any dimension OR confidence below 80 % triggers a retry.
+
+COMPLETENESS (target ≥9/10)
+  • Re-read the full brief — enumerate every explicit and implicit requirement.
+  • Complex briefs often have unstated invariants (existing API contracts,
+    backward compatibility, permissions). Identify and honour them.
+
+CORRECTNESS (target ≥9/10)
+  • No bugs, no logic errors, no null/undefined dereferences.
+  • Security: no hardcoded secrets, all external inputs sanitised, no IDOR.
+  • Run the full test suite. All tests must pass before committing.
+  • If tests do not exist, write the critical path tests first.
+
+CONCISENESS (target ≥9/10)
+  • Zero dead code, zero debug prints, zero TODO stubs.
+  • Prefer editing existing abstractions over creating new ones.
+  • No speculative generality — only what the brief requires.
+
+FORMAT (target ≥9/10)
+  • Naming, indentation, import order: match the existing codebase exactly.
+  • Architectural patterns: no new patterns unless the brief explicitly requires them.
+  • Commit message: conventional commit with scope (e.g. feat(auth): ...).
+
+CONFIDENCE (target ≥80 %)
+  • State your confidence in each dimension.
+  • If confidence < 80 %, ask a clarifying question or flag the risk in the
+    commit message before shipping.
+
+RISK REGISTER (required for advanced briefs)
+  • List up to 3 risks this change introduces.
+  • For each: describe mitigation taken or explicitly left as a known trade-off.
+
+Only commit once ALL dimensions pass ≥9/10 and confidence ≥80 %.
+--- END QUALITY GATE: ADVANCED ---
+"""
+
+_QUALITY_GATES = {
+    "basic":    _QUALITY_GATE_BASIC,
+    "detailed": _QUALITY_GATE,
+    "advanced": _QUALITY_GATE_ADVANCED,
+}
+
 
 def build_structured_brief(
     raw_brief: str,
     intent: str,
     repo_url: str = "",
     workspace: str = "",
+    complexity_tier: str = "",
 ) -> str:
     """Compose a structured spec string for claude -p from a raw brief + intent.
 
@@ -245,14 +375,33 @@ def build_structured_brief(
     <workspace>/.harness/intent/ are injected between lesson context and the
     user brief, giving PMs and the CEO declarative steering without touching
     Python.  Missing files are silently skipped.
+
+    RA-681: complexity_tier controls spec verbosity:
+      'basic'    — minimal spec (brief + workflow + simple gate)
+      'detailed' — standard spec with skills, lessons, intent files  [default]
+      'advanced' — full spec with extended quality gate and risk register
+    If complexity_tier is empty, it is auto-detected from the brief text.
     """
+    if not complexity_tier:
+        complexity_tier = classify_brief_complexity(raw_brief)
+
     template = get_adw_template(intent)
-    skill_context = _get_skill_context(intent)
-    lesson_context = _get_lesson_context(intent)
-    intent_context = _load_intent_files(workspace)  # RA-678
+    gate = _QUALITY_GATES.get(complexity_tier, _QUALITY_GATE)
+
+    # Context layers — only included for detailed/advanced tiers
+    skill_context = ""
+    lesson_context = ""
+    intent_context = ""
+    if complexity_tier in ("detailed", "advanced"):
+        skill_context = _get_skill_context(intent)
+        lesson_context = _get_lesson_context(intent)
+        intent_context = _load_intent_files(workspace)  # RA-678
+
+    # Tier label in the header so the evaluator knows what was sent
+    tier_label = f" [{complexity_tier.upper()} BRIEF]"
 
     spec = (
-        f"You are Pi CEO orchestrator on Claude Max.\n"
+        f"You are Pi CEO orchestrator on Claude Max.{tier_label}\n"
         f"Project: {repo_url}\n"
         f"Intent: {intent.upper()} — {template['name']}\n\n"
         f"{template['instructions']}\n\n"
@@ -260,7 +409,7 @@ def build_structured_brief(
         f"{lesson_context}"
         f"{intent_context}"
         f"--- USER BRIEF ---\n{raw_brief}\n--- END BRIEF ---\n\n"
-        f"{_QUALITY_GATE}\n"
+        f"{gate}\n"
         f"RULES:\n"
         f"- Follow the workflow steps above in order\n"
         f"- Show your thinking at each step\n"

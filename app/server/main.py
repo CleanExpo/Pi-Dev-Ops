@@ -36,6 +36,7 @@ class BuildRequest(BaseModel):
     budget_minutes: int | None = None   # RA-677: AUTONOMY_BUDGET single-knob override
     scope: dict | None = None           # RA-676: session scope contract
     plan_discovery: bool = False        # RA-679: run plan variation discovery before generate
+    complexity_tier: str = ""           # RA-681: override tier (basic/detailed/advanced)
 
     @field_validator("repo_url")
     @classmethod
@@ -259,6 +260,7 @@ async def build(body: BuildRequest):
             budget_minutes=budget,
             scope=body.scope,                       # RA-676: session scope contract
             plan_discovery=body.plan_discovery,     # RA-679: plan variation discovery
+            complexity_tier=body.complexity_tier,   # RA-681: brief tier override
         )
     except RuntimeError as e:
         raise HTTPException(429, str(e))

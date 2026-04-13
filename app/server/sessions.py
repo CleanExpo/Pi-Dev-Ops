@@ -265,6 +265,7 @@ class BuildSession:
     scope_adhered: Optional[bool] = None      # RA-676: None=no scope, True/False=check result
     plan_discovery: bool = False              # RA-679: run plan variation discovery before generate
     plan_discovery_meta: Optional[dict] = None  # RA-679: {scores, winner, winner_score, duration_s}
+    complexity_tier: str = ""                 # RA-681: brief tier (basic/detailed/advanced)
     last_completed_phase: str = ""            # Phase tracking for resume (GROUP D/E)
     retry_count: int = 0                      # Evaluator retry count (GROUP C)
     linear_issue_id: Optional[str] = None    # Linear issue ID for two-way sync
@@ -290,6 +291,7 @@ def list_sessions():
             "budget_minutes": (s.budget_params or {}).get("budget_minutes"),
             "scope_adhered": s.scope_adhered,
             "files_modified": len(s.modified_files),
+            "complexity_tier": s.complexity_tier,
         }
         for s in _sessions.values()
     ]
@@ -1458,7 +1460,14 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
         brief = "Analyze this codebase fully. Read every skill in skills/. Read the engine in src/tao/. Produce a detailed analysis in .harness/spec.md. Suggest improvements. Git commit changes."
     resolved_intent = intent or classify_intent(brief)
     em(session, "system", f"  Intent: {resolved_intent.upper()}")
-    spec = build_structured_brief(brief, resolved_intent, session.repo_url, session.workspace)
+    # RA-681 — resolve brief complexity tier (explicit override or auto-detect)
+    from .brief import classify_brief_complexity  # noqa: PLC0415
+    resolved_tier = session.complexity_tier or classify_brief_complexity(brief)
+    em(session, "system", f"  Brief tier: {resolved_tier.upper()}")
+    spec = build_structured_brief(
+        brief, resolved_intent, session.repo_url, session.workspace,
+        complexity_tier=resolved_tier,
+    )
 
     # RA-679 — optional plan variation discovery (generates 3 approaches, picks best)
     if getattr(session, "plan_discovery", False):
@@ -1544,6 +1553,7 @@ async def create_session(
     budget_minutes: Optional[int] = None,
     scope: Optional[dict] = None,
     plan_discovery: bool = False,
+    complexity_tier: str = "",
 ):
     """Create and start a new build session.
 
@@ -1554,6 +1564,9 @@ async def create_session(
     RA-676: when scope is provided ({type, primary_file?, max_files_modified?}),
     the evaluator enforces a file-count ceiling and fires a Telegram alert on
     violation.  Default max_files_modified = 5.
+
+    RA-681: complexity_tier overrides automatic brief complexity detection.
+    Values: 'basic' | 'detailed' | 'advanced'. Empty string = auto-detect.
     """
     if len(_sessions) >= config.MAX_CONCURRENT_SESSIONS:
         raise RuntimeError("Max sessions reached")
@@ -1574,6 +1587,7 @@ async def create_session(
         budget_params=bp,
         scope=scope or None,
         plan_discovery=plan_discovery,
+        complexity_tier=complexity_tier,
     )
     if scope:
         _log.info(
