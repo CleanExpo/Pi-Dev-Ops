@@ -209,7 +209,10 @@ SCAN_PATH_EXCLUSIONS: list[str] = [p.strip() for p in
         "test_psycopg2.py,"
         # setup/deploy scripts: use $VAR_NAME placeholders, not real keys
         "phase23-setup.sh,"
-        "setup-digitalocean.sh"
+        "setup-digitalocean.sh,"
+        # restoreassist change-password page: scanner matches variable names (currentPassword,
+        # newPassword, confirmPassword) in form validation logic — not real credentials
+        "app/dashboard/change-password/page.tsx"
     ).split(",") if p.strip()
 ]
 
