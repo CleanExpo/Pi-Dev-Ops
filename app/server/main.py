@@ -833,5 +833,31 @@ async def health():
         },
         "disk_free_gb":     disk_free_gb,
         "version":          "1.0.0",
+        "vercel_token": bool(config.VERCEL_TOKEN),
     }
     return JSONResponse(payload, status_code=200 if healthy else 503)
+
+
+@app.get("/api/health/vercel", dependencies=[Depends(require_auth)])
+async def vercel_health():
+    """RA-692 — Vercel deployment drift check.
+
+    Returns the latest production deployment SHA, local HEAD SHA, and
+    whether they differ (drifted=True means the deployed frontend is behind).
+
+    Requires VERCEL_TOKEN env var. Returns degraded=True when token is absent.
+    """
+    from .vercel_monitor import check_deployment_drift  # noqa: PLC0415
+    result = check_deployment_drift()
+    payload = {
+        "degraded":               result.degraded,
+        "drifted":                result.drifted,
+        "deployment_state":       result.deployment_state,
+        "deployment_url":         result.deployment_url,
+        "latest_deployment_sha":  result.latest_deployment_sha,
+        "head_sha":               result.head_sha,
+        "error":                  result.error,
+        "vercel_token_configured": bool(config.VERCEL_TOKEN),
+    }
+    status = 200 if not result.degraded else 503
+    return JSONResponse(payload, status_code=status)

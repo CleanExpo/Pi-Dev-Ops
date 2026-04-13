@@ -214,12 +214,24 @@ USE_FALLBACK          = os.environ.get("TAO_USE_FALLBACK", "0") == "1"
 LINEAR_TEAM_ID    = os.environ.get("LINEAR_TEAM_ID",    "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673")
 LINEAR_PROJECT_ID = os.environ.get("LINEAR_PROJECT_ID", "f45212be-3259-4bfb-89b1-54c122c939a7")
 
+# RA-692 — Vercel deployment drift monitoring.
+# VERCEL_TOKEN: personal access token with read:deployments scope.
+# VERCEL_TEAM_ID: optional team/org slug (e.g. "unite-group").
+# VERCEL_PROJECT_ID: project identifier for the dashboard frontend.
+# When any are unset, /api/health/vercel returns degraded=True and
+# deployment drift checks are skipped (non-fatal).
+VERCEL_TOKEN      = os.environ.get("VERCEL_TOKEN",      "")
+VERCEL_TEAM_ID    = os.environ.get("VERCEL_TEAM_ID",    "")
+VERCEL_PROJECT_ID = os.environ.get("VERCEL_PROJECT_ID", "")
+
 if not LINEAR_API_KEY:
     log.warning("LINEAR_API_KEY not set — Pi-SEO triage will run in dry-run mode")
 if not PI_SEO_ACTIVE:
     log.info("PI_SEO_ACTIVE=0 — Pi-SEO cron scans are paused (set PI_SEO_ACTIVE=1 to enable)")
 if PI_SEO_ACTIVE and not TELEGRAM_BOT_TOKEN:
     log.warning("TELEGRAM_BOT_TOKEN not set — critical Pi-SEO findings will NOT reach Telegram")
+if not VERCEL_TOKEN:
+    log.warning("VERCEL_TOKEN not set — frontend deployment drift monitoring is BLIND (RA-692)")
 
 for d in [WORKSPACE_ROOT, LOG_DIR, SCAN_WORKSPACE_ROOT, SCAN_RESULTS_DIR]:
     os.makedirs(d, exist_ok=True)
