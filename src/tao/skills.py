@@ -43,6 +43,10 @@ def load_skill(skill_dir: str) -> dict | None:
         "description": meta.get("description", ""),
         "body": body,
         "path": skill_path,
+        # RA-693: automation mode — "auto" (intent-routed) or "manual" (explicit-only)
+        "automation": meta.get("automation", "auto"),
+        # RA-693: backing Anthropic Cloud Skill reference, if any
+        "anthropic_skill": meta.get("anthropic_skill", ""),
     }
 
 
@@ -70,6 +74,7 @@ def load_all_skills(skills_root: str = "") -> dict[str, dict]:
             continue
         skill = load_skill(full)
         if skill:
+            # RA-693: include automation mode from frontmatter
             result[skill["name"]] = skill
 
     _SKILLS_CACHE = result
@@ -93,6 +98,10 @@ _INTENT_SKILLS = {
     "plan":    ["ship-chain", "technical-plan"],
     "test":    ["ship-chain", "verify-test"],
     "ship":    ["ship-chain", "ship-release"],
+    # RA-693: content + design intents now route to local skill stubs that
+    # reference the backing Anthropic Cloud Skills.
+    "content": ["brand-ambassador"],
+    "design":  ["design-system", "tier-architect"],
 }
 
 
@@ -102,6 +111,38 @@ def skills_for_intent(intent: str) -> list[dict]:
     all_skills = load_all_skills()
     names = _INTENT_SKILLS.get(intent, _INTENT_SKILLS["feature"])
     return [all_skills[n] for n in names if n in all_skills]
+
+
+def skills_manifest() -> dict[str, list[dict]]:
+    """RA-693 — Return skills grouped by automation mode.
+
+    Returns:
+        {
+          "auto":   [list of intent-routed skills],
+          "manual": [list of explicit-invoke-only skills],
+        }
+
+    "auto" skills are injected into generator prompts automatically when the
+    brief intent matches.  "manual" skills must be referenced explicitly.
+    """
+    all_skills = load_all_skills()
+    auto_names: set[str] = set()
+    for names in _INTENT_SKILLS.values():
+        auto_names.update(names)
+
+    result: dict[str, list[dict]] = {"auto": [], "manual": []}
+    for name, skill in sorted(all_skills.items()):
+        # A skill is "auto" if it appears in any intent mapping AND its own
+        # frontmatter does not explicitly declare it as manual.
+        is_auto = name in auto_names and skill.get("automation", "auto") != "manual"
+        bucket = "auto" if is_auto else "manual"
+        result[bucket].append({
+            "name": name,
+            "description": skill.get("description", ""),
+            "automation": skill.get("automation", "auto"),
+            "anthropic_skill": skill.get("anthropic_skill", ""),
+        })
+    return result
 
 
 def invalidate_cache() -> None:

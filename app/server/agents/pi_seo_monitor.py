@@ -263,6 +263,48 @@ def _detect_systemic_issues(
     return sorted(systemic, key=lambda x: x["count"], reverse=True)
 
 
+# ─── RA-688: dependency zero-score detection ──────────────────────────────────
+
+_DEPENDENCY_SCAN_TYPES = frozenset(["dependency", "dependencies", "npm_audit", "pip_audit"])
+_DEP_ZERO_CONSECUTIVE = 2   # flag after this many consecutive zero-score dep scans
+
+
+def _detect_dependency_zeros(
+    all_scans: dict[str, list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    """RA-688 — Find repos with dependency scan score == 0 for N+ consecutive scans.
+
+    Returns a list of alert dicts for repos stuck at 0/100 on dependency health.
+    These are separate from the general sustained-degradation check because:
+    - 0/100 means the repo has known critical/high vulnerabilities that have
+      been ignored for at least N scan cycles.
+    - They should be flagged more aggressively than general degradation.
+    """
+    stuck_repos: list[dict[str, Any]] = []
+
+    for pid, scans in all_scans.items():
+        dep_scores: list[int] = []
+        for scan in scans:
+            if scan.get("scan_type", "").lower() in _DEPENDENCY_SCAN_TYPES:
+                dep_scores.append(scan.get("health_score", 100))
+            if len(dep_scores) >= _DEP_ZERO_CONSECUTIVE:
+                break
+
+        if len(dep_scores) >= _DEP_ZERO_CONSECUTIVE and all(
+            s == 0 for s in dep_scores[:_DEP_ZERO_CONSECUTIVE]
+        ):
+            # Count total scans at 0 (may be more than the minimum threshold)
+            total_zero = sum(1 for s in dep_scores if s == 0)
+            stuck_repos.append({
+                "project_id": pid,
+                "type": "dependency_zero",
+                "severity": "high",
+                "consecutive_zero_scans": total_zero,
+            })
+
+    return stuck_repos
+
+
 # ─── alert generation ─────────────────────────────────────────────────────────
 
 def _generate_alerts(
@@ -271,6 +313,7 @@ def _generate_alerts(
     current_scans: dict[str, list[dict[str, Any]]],
     portfolio_health: int,
     portfolio_delta: int,
+    dep_zeros: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """Build the alerts list from regressions, systemic issues, and portfolio state."""
     alerts = []
@@ -297,6 +340,20 @@ def _generate_alerts(
                 "message": f"Below {r['threshold']} for {r['consecutive_scans_below_threshold']}+ scans",
                 "severity": "high",
             })
+
+    # RA-688 — Repos stuck at 0/100 dependency score for 2+ consecutive scans
+    for dep in (dep_zeros or []):
+        pid = dep["project_id"]
+        n = dep["consecutive_zero_scans"]
+        alerts.append({
+            "type": "dependency_zero",
+            "project_id": pid,
+            "message": (
+                f"Dependency score 0/100 for {n} consecutive scans — "
+                "known vulnerabilities ignored. Run `npm audit fix` or `pip-audit --fix`."
+            ),
+            "severity": "high",
+        })
 
     # New critical findings
     for pid, scans in current_scans.items():
@@ -579,10 +636,14 @@ def run_monitor_cycle(
     prev_portfolio = previous.get("portfolio_health", portfolio_health) if previous else portfolio_health
     portfolio_delta = portfolio_health - prev_portfolio
 
-    # Regressions + systemic issues
+    # Regressions + systemic issues + RA-688 dependency zeros
     regressions = _detect_regressions(deltas, all_scans)
     systemic = _detect_systemic_issues(all_scans)
-    alerts = _generate_alerts(regressions, systemic, all_scans, portfolio_health, portfolio_delta)
+    dep_zeros = _detect_dependency_zeros(all_scans)
+    alerts = _generate_alerts(
+        regressions, systemic, all_scans, portfolio_health, portfolio_delta,
+        dep_zeros=dep_zeros,
+    )
 
     # Basic recommendations (overwritten by agent if use_agent)
     recommendations = []
