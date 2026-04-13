@@ -1,6 +1,6 @@
 # Pi Dev Ops — Executive Summary
 
-_Updated: 2026-04-14 | Sprint 10 active | ZTE v2: 84/100 (projected 85+ after next scan)_
+_Updated: 2026-04-14 | Sprint 11 active | ZTE v2: 84/100 (projected 85+ after next scan)_
 
 ---
 
@@ -14,13 +14,20 @@ Pi Dev Ops is a Zero Touch Engineering platform that executes engineering work a
 
 89 features shipped across 10 sprints. Sprint 9 delivered the Karpathy enhancement layer. Sprint 10 is driving ZTE v2 from 84 → 90: Section C data collection wired (C4 live at 4/5, all exclusions set for 5/5 on next scan), session-outcomes.jsonl wired for C2, CCW-CRM quality fix pushed, carsi hardcoded credential removed, Synthex error leakage fix in progress.
 
-## Sprint 10 Active (2026-04-14)
+## Sprint 11 Active (2026-04-14)
 
-- **MARATHON-4 (RA-588):** First 6-hour autonomous self-maintenance run — In Progress
-- **ZTE v2 Section C push:** C4 security → 5/5 pending next scan (28 false-positive exclusions + carsi credential fix). C2 wired via session-outcomes.jsonl. C1/C3 data flows once Railway sessions run.
-- **Portfolio security:** carsi hardcoded `DEFAULT_ADMIN_PASSWORD` removed (RA-835). CCW-CRM code quality branch pushed. Synthex error-message leakage fix (107 routes) in progress.
-- **Dep health:** Synthex/DR-NRPG/carsi dep scores 0→80+ in progress.
-- **BVI Baseline:** Cycle 24 established. ZTE v2 84/100 → 85 (scan), → 90 target (C1+C2+C3 data).
+- **⚠️ Hard deadline:** RA-818 (Gemini Scheduled Action — Google Cloud Next '26 briefing) must be live before April 22.
+- **Gemini automation layer (RA-816–819):** Dedicated Google account → notebooklm-mcp-cli → 2 Gemini Scheduled Actions. All in Review, awaiting manual account setup.
+- **Dep health PRs (RA-843):** 4 branches ready to merge (carsi/DR-NRPG/Synthex/unite-group). Merge triggers C4 → 5/5 on next scan.
+- **Synthex major CVEs (RA-844):** 10 remaining CVEs requiring major version migrations (@supabase/ssr → stripe → zustand etc.).
+- **MARATHON-4 (RA-588):** First 6-hour autonomous self-maintenance run — carries from Sprint 10, still In Progress.
+
+## Sprint 10 Complete (2026-04-14)
+
+89 features shipped across 10 sprints. All Sprint 10 targets delivered:
+- ZTE v2 C4 security → 5/5 projected (28 exclusions + carsi credential fix + RA-786 error leakage)
+- All 4 dep health branches pushed (0 → 80+ projected across portfolio)
+- BVI Cycle 24 baseline established. ZTE 84 → 85 (after next scan) → 90 (C1+C2+C3 when Railway sessions flow).
 
 ## Sprint 9 Complete (2026-04-13)
 
@@ -37,7 +44,7 @@ The Karpathy enhancement layer: 10 Karpathy optimisations + 10 Gap Audit items. 
 | Metric | Value |
 |--------|-------|
 | ZTE v2 Score | 84/100 (projected 85+ after next scan) |
-| Features shipped | 89 |
+| Features shipped | 94 |
 | Sprints complete | 9 + Sprint 10 active |
 | MCP tools | 21 |
 | Skills loaded | 33 across 7 layers |

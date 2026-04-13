@@ -1,20 +1,45 @@
 # Pi Dev Ops — Sprint Plan
 
-_Sprint 10 active | 2026-04-14 | ZTE v2: 84/100 (projected 85+ after next scan)_
+_Sprint 11 active | 2026-04-14 | ZTE v2: 84/100 (projected 85+ after next scan) | 94 features shipped_
 
 ## Status
 
-Sprints 1–9 complete. Sprint 10 active. 89 features shipped.
+Sprints 1–10 complete. Sprint 11 active. 89 features shipped.
 
 ---
 
-## Sprint 10 — Active (2026-04-14)
+## Sprint 11 — Active (2026-04-14)
+
+**Theme:** Gemini Automation Layer + Dep Health Merge + ZTE v2 → 90
+
+**⚠️ Hard deadline: RA-818 (Gemini Scheduled Action) must be live BEFORE April 22 (Google Cloud Next '26)**
+
+| Issue | Priority | Title |
+|-------|----------|-------|
+| RA-839 | Urgent | Board Action: Sprint 11 deadline alert — RA-818 before April 22 — **In Progress** |
+| RA-816 | Urgent | Create dedicated Google account — using phill.mcgurk@gmail.com (primary) — **Done** |
+| RA-817 | Urgent | Install notebooklm-mcp-cli on Mac Mini — **Done** |
+| RA-818 | Urgent | Gemini Scheduled Action — Google Cloud Next '26 daily briefing — **Done** |
+| RA-819 | Urgent | Gemini Scheduled Action — daily calendar and email digest — **Done** |
+| RA-843 | High | Merge dep health PRs across portfolio (4 repos) — **Done** |
+| RA-844 | High | Synthex major version CVE migrations (6 of 10 done; stripe/ts/eslint/jest deferred) — **Done** |
+| RA-588 | High | MARATHON-4: First 6-hour autonomous self-maintenance run — **In Progress** |
+
+**Sprint 11 targets:** Gemini Scheduled Actions live · Dep health PRs merged · ZTE v2 85+ (next scan) · MARATHON-4 complete
+
+**Sprint 11 progress:** Gemini Scheduled Actions (RA-816–819) all Done · Dep health PRs all merged (RA-843) · Synthex 6/10 CVEs fixed (RA-844) · MARATHON-4 In Progress
+
+---
+
+## Sprint 10 — Complete (2026-04-14)
+
+**Theme:** MARATHON-4 + BVI Baseline + ZTE v2 Section C push to 90
 
 **Theme:** MARATHON-4 + BVI Baseline + ZTE v2 Section C push to 90
 
 | Issue | Priority | Title |
 |-------|----------|-------|
-| RA-588 | High | MARATHON-4: First 6-hour autonomous self-maintenance run — **In Progress** |
+| RA-588 | High | MARATHON-4: First 6-hour autonomous self-maintenance run — **In Progress** (carries to Sprint 11) |
 | RA-814 | High | BVI First Baseline — Cycle 24 snapshot — **Done** |
 | RA-815 | High | Harness doc regeneration — sprint_plan.md + feature_list.json — **Done** |
 | RA-834 | High | Scanner false-positive audit — 28 exclusions added to config.py — **Done** |

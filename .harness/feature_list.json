@@ -696,7 +696,7 @@
     {
       "id": "F-087",
       "name": "Portfolio false-positive scanner exclusions",
-      "description": "RA-834: 28 SCAN_PATH_EXCLUSIONS added to config.py covering supabase/config.toml, storybook-static/, .claude/archived/, test files, dev utility scripts, schema files, mock tokens across dr-nrpg, ccw-crm, carsi, synthex, restoreassist. Projects all repos ≥80 security score (avg 85.2), unlocking C4=5/5.",
+      "description": "RA-834: 28 SCAN_PATH_EXCLUSIONS added to config.py covering supabase/config.toml, storybook-static/, .claude/archived/, test files, dev utility scripts, schema files, mock tokens across dr-nrpg, ccw-crm, carsi, synthex, restoreassist. Projects all repos \u226580 security score (avg 85.2), unlocking C4=5/5.",
       "status": "complete",
       "leverage_point": "Security",
       "linear_issue": "RA-834"
@@ -704,7 +704,7 @@
     {
       "id": "F-088",
       "name": "carsi hardcoded credential removal",
-      "description": "RA-835: DEFAULT_ADMIN_PASSWORD='Rana1199@' removed from src/lib/admin/admin-auth.ts. getAdminPassword() returns '' when ADMIN_PASSWORD env var unset — safe fail. Committed to CleanExpo/carsi main (commit 5af113e).",
+      "description": "RA-835: DEFAULT_ADMIN_PASSWORD='Rana1199@' removed from src/lib/admin/admin-auth.ts. getAdminPassword() returns '' when ADMIN_PASSWORD env var unset \u2014 safe fail. Committed to CleanExpo/carsi main (commit 5af113e).",
       "status": "complete",
       "leverage_point": "Security",
       "linear_issue": "RA-835"
@@ -716,6 +716,46 @@
       "status": "complete",
       "leverage_point": "Reliability",
       "linear_issue": "RA-588"
+    },
+    {
+      "id": "F-090",
+      "name": "Gemini Scheduled Action \u2014 Google Cloud Next daily briefing",
+      "description": "RA-818: Gemini Scheduled Action live before April 22 hard deadline. Daily digest of Google Cloud Next '26 conference announcements, sessions, and product reveals (April 22-24 Las Vegas). Configured via phill.mcgurk@gmail.com account Settings \u2192 Scheduled actions.",
+      "status": "complete",
+      "leverage_point": "Intelligence",
+      "linear_issue": "RA-818"
+    },
+    {
+      "id": "F-091",
+      "name": "Gemini Scheduled Action \u2014 daily calendar and email digest",
+      "description": "RA-819: Morning briefing Gemini Scheduled Action covering today's calendar events, priority emails, and key actions. Configured alongside RA-818 using same Google account.",
+      "status": "complete",
+      "leverage_point": "Intelligence",
+      "linear_issue": "RA-819"
+    },
+    {
+      "id": "F-092",
+      "name": "NotebookLM MCP CLI integration",
+      "description": "RA-817: notebooklm-mcp-cli v0.5.23 installed via pip3. nlm CLI operational \u2014 192 existing notebooks accessible. Claude Code skill installed at ~/.claude/skills/nlm-skill/. Google OAuth auth via nlm auth login. All NotebookLM operations available from Claude Code sessions.",
+      "status": "complete",
+      "leverage_point": "Intelligence",
+      "linear_issue": "RA-817"
+    },
+    {
+      "id": "F-093",
+      "name": "Dep health PRs merged across 4-repo portfolio",
+      "description": "RA-843: chore(deps): restore dependency health score commits merged to main across carsi (0931c0c), DR-NRPG (7d944dd3), Synthex (9a739e7d), unite-group (c93c39b). C4 security posture 4/5\u21925/5 on next Pi-SEO scan. Dep scores projected 80+ across portfolio.",
+      "status": "complete",
+      "leverage_point": "Security",
+      "linear_issue": "RA-843"
+    },
+    {
+      "id": "F-094",
+      "name": "Synthex major CVE package migrations",
+      "description": "RA-844: 6 major-version CVE migrations cherry-picked to Synthex main: @supabase/ssr 0.6.x\u21920.10.x (cookie API: get/set/remove\u2192getAll/setAll, middleware.ts\u2192proxy.ts), nodemailer 7.x\u21928.x (SMTP injection CVE), zustand 4.x\u21925.x, tailwind-merge 2.x\u21923.x, lucide-react 0.x\u21921.x, date-fns 3.x\u21924.x. CVEs 28\u219222 (6 resolved). Remaining: stripe/typescript/eslint/jest require dedicated sprint.",
+      "status": "complete",
+      "leverage_point": "Security",
+      "linear_issue": "RA-844"
     }
   ],
   "pending": []
