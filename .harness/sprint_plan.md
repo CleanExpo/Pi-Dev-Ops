@@ -1,24 +1,31 @@
 # Pi Dev Ops — Sprint Plan
 
-_Sprint 10 active | 2026-04-14 | ZTE v2: 81/100_
+_Sprint 10 active | 2026-04-14 | ZTE v2: 84/100 (projected 85+ after next scan)_
 
 ## Status
 
-Sprints 1–9 complete. Sprint 10 active. 85 features shipped.
+Sprints 1–9 complete. Sprint 10 active. 89 features shipped.
 
 ---
 
 ## Sprint 10 — Active (2026-04-14)
 
-**Theme:** MARATHON-4 + BVI Baseline + ZTE v2 C2/C3
+**Theme:** MARATHON-4 + BVI Baseline + ZTE v2 Section C push to 90
 
 | Issue | Priority | Title |
 |-------|----------|-------|
 | RA-588 | High | MARATHON-4: First 6-hour autonomous self-maintenance run — **In Progress** |
-| RA-814 | High | BVI First Baseline — Cycle 24 snapshot |
-| RA-815 | High | Harness doc regeneration — sprint_plan.md + feature_list.json |
+| RA-814 | High | BVI First Baseline — Cycle 24 snapshot — **Done** |
+| RA-815 | High | Harness doc regeneration — sprint_plan.md + feature_list.json — **Done** |
+| RA-834 | High | Scanner false-positive audit — 28 exclusions added to config.py — **Done** |
+| RA-835 | High | carsi hardcoded admin password removed — **Done** |
+| RA-672 | High | ZTE v2 Section C data collection — C4 live (4/5), C2 wired (session-outcomes.jsonl) — **Done** |
+| RA-690 | High | CCW-CRM code quality 50→90 — branch fix/RA-690-code-quality pushed — **Done** |
+| RA-786 | High | Synthex error message leakage — 107 API routes fix in progress |
 
 **Sprint 10 targets:** ZTE v2 90/100 · MARATHON-4 completion · BVI baseline established
+
+**Sprint 10 progress:** C4 security posture: 4/5 → 5/5 (after next scan), dep scores being fixed (Synthex/DR-NRPG/carsi), error message leakage fix in progress
 
 ---
 

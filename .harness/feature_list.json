@@ -1,7 +1,7 @@
 {
   "generated": "2026-04-14",
   "last_updated": "2026-04-14",
-  "zte_score": 81,
+  "zte_score": 84,
   "zte_band": "ZTE v2",
   "sprint": "Sprint 10 / Cycle 26",
   "features": [
@@ -684,6 +684,38 @@
       "status": "complete",
       "leverage_point": "Metrics",
       "linear_issue": "RA-696"
+    },
+    {
+      "id": "F-086",
+      "name": "ZTE v2 Section C data collection",
+      "description": "RA-672 Phase 2: _load_scanner_summary() reads scan JSON files directly (C4 live 4/5); score_c2_output_acceptance() reads session-outcomes.jsonl (C2 wired); _record_session_outcome() appended to sessions.py after every terminal state; zte-v2-score-daily cron trigger added.",
+      "status": "complete",
+      "leverage_point": "Metrics",
+      "linear_issue": "RA-672"
+    },
+    {
+      "id": "F-087",
+      "name": "Portfolio false-positive scanner exclusions",
+      "description": "RA-834: 28 SCAN_PATH_EXCLUSIONS added to config.py covering supabase/config.toml, storybook-static/, .claude/archived/, test files, dev utility scripts, schema files, mock tokens across dr-nrpg, ccw-crm, carsi, synthex, restoreassist. Projects all repos ≥80 security score (avg 85.2), unlocking C4=5/5.",
+      "status": "complete",
+      "leverage_point": "Security",
+      "linear_issue": "RA-834"
+    },
+    {
+      "id": "F-088",
+      "name": "carsi hardcoded credential removal",
+      "description": "RA-835: DEFAULT_ADMIN_PASSWORD='Rana1199@' removed from src/lib/admin/admin-auth.ts. getAdminPassword() returns '' when ADMIN_PASSWORD env var unset — safe fail. Committed to CleanExpo/carsi main (commit 5af113e).",
+      "status": "complete",
+      "leverage_point": "Security",
+      "linear_issue": "RA-835"
+    },
+    {
+      "id": "F-089",
+      "name": "analyse_lessons 20h run cooldown",
+      "description": "Lock file .harness/.analyse-lessons-last-run prevents ticket flood from autonomous sessions calling script multiple times per day. _check_run_cooldown() exits code 0 if within 20h of last run.",
+      "status": "complete",
+      "leverage_point": "Reliability",
+      "linear_issue": "RA-588"
     }
   ],
   "pending": []
