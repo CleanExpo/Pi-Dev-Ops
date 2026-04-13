@@ -10,13 +10,13 @@ import type { RepoFile } from "./github";
 //   2. ANALYSIS_MODE=api explicitly set → use API mode
 //   3. Fallback → CLI mode (local Claude Max subscription via `claude -p`)
 export function getAnalysisMode(): "cli" | "api" {
-  if (process.env.ANTHROPIC_API_KEY) return "api";
-  if (process.env.ANALYSIS_MODE === "api") return "api";
+  if (process.env.ANTHROPIC_API_KEY?.trim()) return "api";
+  if (process.env.ANALYSIS_MODE?.trim() === "api") return "api";
   return "cli";
 }
 
 export function makeClient(apiKey?: string): Anthropic | null {
-  const key = apiKey || process.env.ANTHROPIC_API_KEY;
+  const key = (apiKey || process.env.ANTHROPIC_API_KEY ?? "").trim();
   if (!key) return null;
   return new Anthropic({ apiKey: key });
 }
