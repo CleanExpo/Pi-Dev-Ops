@@ -1,6 +1,6 @@
 # Pi Dev Ops — Product Spec (Full Analysis)
 
-_Generated: 2026-04-08 | Last updated: 2026-04-10 (Sprint 7) | Analyst: Pi CEO Orchestrator | Sprint: 7 / Cycle 13_
+_Generated: 2026-04-08 | Last updated: 2026-04-13 (Sprint 9) | Analyst: Pi CEO Orchestrator | Sprint: 9 / Cycle 23_
 
 ---
 
@@ -12,7 +12,7 @@ _Generated: 2026-04-08 | Last updated: 2026-04-10 (Sprint 7) | Analyst: Pi CEO O
 
 - **Not CI/CD.** Not a build pipeline. It is an **agentic harness**: a thin orchestration layer between human intent and Claude Code execution.
 - **Companion tool.** Designed to run alongside Claude Desktop (left pane = CLI writing code; right pane = Pi Dev Ops orchestrating, tracking, pushing to Linear).
-- **ZTE Score: 60/60** as of Sprint 3 — all 12 leverage points at maximum.
+- **ZTE Score: 73/75** as of Sprint 9 / Cycle 23 — SDK-only execution confirmed (RA-576). Full leverage-audit breakdown in `.harness/leverage-audit.md`.
 
 ### Build Pipeline
 
@@ -24,18 +24,23 @@ POST /api/build  →  FastAPI  →  run_build()
                                     │
   Phase 1:   git clone (3-attempt exponential backoff)
   Phase 2:   workspace analysis (file listing)
-  Phase 3:   Claude Code availability check
+  Phase 3:   Claude Code availability check (SDK path — no claude CLI)
   Phase 3.5: sandbox verification (auto re-clone if GC'd)
-  Phase 4:   generator — claude -p <spec> --stream-json (2-attempt retry)
-  Phase 4.5: evaluator — claude -p <eval_spec> (blocking; up to 3 total)
+  Phase 4:   generator — _run_claude_via_sdk() [TAO_USE_AGENT_SDK=1 mandatory]
+             └─ claude_agent_sdk with ThinkingConfigAdaptive + HookMatcher
+  Phase 4.5: evaluator — _run_single_eval() via SDK (blocking; up to 3 total)
              └─ if below threshold: inject critique → retry Phase 4
              └─ if passed or exhausted: auto-append lessons to .jsonl
   Phase 5:   git push (3-attempt exponential backoff; auth → hard stop)
                                     │
                                     ▼
                            lessons.jsonl ← auto-learned from evaluator scores
+                           .harness/agent-sdk-metrics/YYYY-MM-DD.jsonl ← every SDK call
 
 Browser ← WebSocket /ws/build/{sid}  (live event stream, 150ms polling)
+
+NOTE: claude -p subprocess paths removed in RA-576 (Sprint 8). TAO_USE_AGENT_SDK=0
+      raises ImportError at startup — misconfiguration must be loud.
 ```
 
 ### Key Trigger Paths
@@ -72,7 +77,8 @@ Browser ← WebSocket /ws/build/{sid}  (live event stream, 150ms polling)
 | `lessons.py` | JSONL-backed institutional memory, `GET/POST /api/lessons` | ✅ Complete |
 | `scanner.py` | Pi-SEO autonomous multi-project scanner orchestrator | ✅ Complete |
 | `pipeline.py` | Ship-chain pipeline orchestrator (6 phases, artifact persistence) | ✅ Complete |
-| `agents/board_meeting.py` | Claude Agent SDK PoC — BoardMeetingAgent parallel to existing cron | ✅ Complete |
+| `agents/board_meeting.py` | Full board meeting automation — 6 phases (STATUS→LINEAR→SWOT→RECS→SAVE→GAP AUDIT), runs weekly via cron | ✅ Complete |
+| `autonomy.py` | Autonomous poller — polls Linear every 5min for Urgent/High issues, auto-creates build sessions. Kill switch: `TAO_AUTONOMY_ENABLED=0` | ✅ Complete |
 
 **Security posture:**
 - `SecurityHeaders` middleware: CSP nonce-based policy (per-request), X-Frame-Options, X-XSS-Protection on every response
@@ -85,7 +91,7 @@ Browser ← WebSocket /ws/build/{sid}  (live event stream, 150ms polling)
 
 ### 2.2 TAO Engine (`src/tao/`)
 
-The Python engine provides a skills registry, tier config loading, budget tracking, and data schemas. All actual AI execution is delegated to the `claude` CLI subprocess — the engine does not call the Anthropic API directly.
+The Python engine provides a skills registry, tier config loading, budget tracking, and data schemas. All actual AI execution uses the `claude_agent_sdk` Python package (SDK-only since RA-576, Sprint 8). The `claude -p` subprocess path has been removed. `TAO_USE_AGENT_SDK=1` is mandatory — setting it to 0 raises `ImportError` at startup.
 
 | Module | Status | Purpose |
 |--------|--------|---------|
@@ -153,8 +159,9 @@ Version 3.1.0. Built on `@modelcontextprotocol/sdk` (official subpath imports re
 | `spec.md` | ✅ This document | Living product specification |
 | `handoff.md` | ✅ Complete | Cross-session state, sprint history, architecture snapshot |
 | `lessons.jsonl` | ✅ Seeded (18 entries) | Agent-expert institutional memory |
-| `leverage-audit.md` | ✅ Present | 12-point ZTE diagnostic, full changelog from 35→60 |
-| `sprint_plan.md` | ✅ Present | Sprint history and Sprint 8 open items |
+| `leverage-audit.md` | ✅ Present | ZTE audit, full changelog; current score 73/75 |
+| `sprint_plan.md` | ✅ Present | Sprint history; Sprint 9 open |
+| `bvi-history.jsonl` | ⬜ Pending | Business Velocity Index tracking (RA-695, from Cycle 24) |
 | `feature_list.json` | ✅ Present | Feature list for MCP `get_feature_list` tool |
 | `pipeline/{id}/` | ✅ Present | Ship-chain artifact store per pipeline run |
 | `projects.json` | ✅ Present | Pi-SEO project registry (10 repos) |
@@ -416,8 +423,8 @@ Pi Dev Ops/
 
 ## 8. Design Decisions (CEO Mode)
 
-**Why Claude Agent SDK instead of `claude -p` subprocess?**
-The `claude_agent_sdk` Python package replaced the subprocess path in Sprint 8 (RA-576). SDK execution provides structured event streaming, `ThinkingConfigAdaptive` for extended reasoning, `HookMatcher` for latency observability, and avoids shell escaping hazards. The zero-cost advantage under Claude Max is preserved. `TAO_USE_AGENT_SDK=1` is now mandatory — setting it to 0 raises `ImportError` at startup (deliberate: misconfiguration must be loud).
+**Why Claude Agent SDK instead of `claude -p` subprocess?** (RA-576, Sprint 8 — completed)
+The `claude_agent_sdk` Python package replaced the subprocess path entirely. SDK execution provides structured event streaming, `ThinkingConfigAdaptive` for extended reasoning, `HookMatcher` for latency observability, and avoids shell escaping hazards. The zero-cost advantage under Claude Max is preserved. `TAO_USE_AGENT_SDK=1` is now mandatory — setting it to 0 raises `ImportError` at startup (deliberate: misconfiguration must be loud). API fallback via `TAO_USE_FALLBACK=1` activates direct Anthropic Python SDK (no claude CLI). Test quarterly via `python scripts/fallback_dryrun.py`.
 
 **Why JSONL for lessons?**
 JSONL is append-only and atomic at the OS buffer level for a single-process server. Each lesson is one line — no lock needed, no corruption risk. `load_lessons(category=intent)` is O(N) over a small file — acceptable until the file exceeds ~10MB.
@@ -436,13 +443,31 @@ WebSocket is bidirectional — the client can send `ping` frames and the server 
 
 ---
 
-## 9. Next Actions (Sprint 9)
+## 9. Next Actions (Sprint 10 — from CEO Memo 2026-04-13)
 
+### Phase 1 — This Week (Manual)
 ```
-[ ] RA-588 MARATHON-4: run first 6-hour autonomous self-maintenance cycle; confirm clean exit
-[ ] ZTE v2 C2 data: implement Linear state-transition webhook event logging (RA-672 Phase 2)
-[ ] Pi-SEO live sweep: monitor Railway logs for first clean auto-ticketing run across all 10 repos
-[ ] ZTE v2 reach goal: identify actions to push total above 90/100 (Zero Touch Elite: 95)
-[ ] Self-improvement loop: scheduled lesson-pattern analyser (CLAUDE.md proposals)
-[ ] Multi-model evaluator: Sonnet + Haiku consensus, Opus escalation on disagreement
+[x] RA-685: Regenerate spec.md (this document) — Sprint 9 / Cycle 23 / ZTE 73/75  ← DONE
+[ ] RA-675: Run self-scan with fresh spec; close 41/60 vs 73/75 gap
 ```
+
+### Phase 2 — Sprint 10 (Autonomy Poller)
+```
+[ ] RA-684 P1 URGENT: Scout Agent — weekly Monday cron, 3 external sources, Linear scout-labelled issues
+[ ] RA-686 P1 URGENT: Wire 9 CEO Board personas into automated board meetings
+[ ] RA-687 P1 URGENT: Resolve 3 CRITICAL security alerts (dr-nrpg AWS keys, synthex OpenAI key)
+[ ] RA-689 HIGH: Connect analyzing-customer-patterns skill — outcome feedback loop for shipped features
+```
+
+### Phase 3 — Sprint 11+ (Metric Shift)
+```
+[ ] RA-695 HIGH: Business Velocity Index replaces ZTE as primary board metric from Cycle 24
+     BVI Cycle 23 baseline: CRITICALs resolved=0, portfolio delta=0, MARATHON completions=0
+```
+
+### Strategic Context
+- **Primary metric from Cycle 24:** Business Velocity Index (BVI), not ZTE score
+- **ZTE 73/75** becomes a background health check; BVI leads every board report
+- **Security blocking gate:** RestoreAssist + CCW-CRM must reach 80/100 before new feature work
+- **Manual verification required:** Sprint 10 autonomy poller outputs need human validation
+  (evaluator measures code quality, not functional correctness)
