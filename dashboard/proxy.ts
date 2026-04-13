@@ -121,7 +121,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse | Response> 
   }
 
   // ── CSP nonce ──────────────────────────────────────────────────────────────
-  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  const nonce = btoa(crypto.randomUUID()); // btoa works in Edge runtime; Buffer does not
   const csp = buildCsp(nonce);
 
   const requestHeaders = new Headers(req.headers);
