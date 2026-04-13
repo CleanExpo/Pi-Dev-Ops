@@ -18,26 +18,24 @@ from .brief import classify_intent, build_structured_brief
 from .lessons import append_lesson, load_lessons
 from .supabase_log import log_gate_check
 
+# ── RA-890: Re-export data model from session_model.py ───────────────────────
+# session_model.py is the canonical home for BuildSession, _sessions, and
+# store helpers. All imports here are re-exported unchanged so that
+# main.py / orchestrator.py / autonomy.py / cron.py continue to work
+# without modification.
+# NOTE: kill_session is NOT re-exported here — sessions.py owns the async
+# version (with await asyncio.sleep + SIGKILL) which must not be shadowed.
+from .session_model import (  # noqa: F401 (re-exports)
+    BuildSession,
+    _sessions,
+    _SESSIONS_DIR,
+    get_session,
+    list_sessions,
+    restore_sessions,
+    em,
+)
+
 _log = logging.getLogger("pi-ceo.sessions")
-
-# ── RA-742: Disk persistence for _sessions dict ───────────────────────────────
-_SESSIONS_DIR = Path(config.DATA_DIR) / "sessions"
-_SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def _persist_session(session_id: str) -> None:
-    """Atomically write session state to disk. Never raises."""
-    try:
-        data = _sessions.get(session_id)
-        if not data:
-            return
-        target = _SESSIONS_DIR / f"{session_id}.json"
-        tmp = target.with_suffix(".tmp")
-        tmp.write_text(json.dumps(data, default=str), encoding="utf-8")
-        os.replace(tmp, target)
-    except Exception as exc:
-        _log.warning("Failed to persist session %s: %s", session_id, exc)
-
 
 # ── Prompt caching (RA-655) ───────────────────────────────────────────────────
 
@@ -280,113 +278,8 @@ def _select_model(phase: str, explicit_model: str = "") -> str:
     return "sonnet"
 
 
-@dataclass
-class BuildSession:
-    id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
-    repo_url: str = ""
-    workspace: str = ""
-    process: Optional[asyncio.subprocess.Process] = None
-    started_at: float = 0.0
-    status: str = "created"
-    output_lines: list = field(default_factory=list)
-    error: Optional[str] = None
-    evaluator_enabled: bool = True
-    evaluator_status: str = "pending"
-    evaluator_score: Optional[float] = None
-    evaluator_confidence: Optional[float] = None  # RA-674: 0-100% self-reported certainty
-    evaluator_model: str = ""       # RA-553: which model(s) produced the score
-    evaluator_consensus: str = ""   # RA-553: per-model scores + delta description
-    parent_session_id: Optional[str] = None  # RA-464: fan-out parallelism
-    budget: Optional[object] = None           # RA-465: BudgetTracker instance
-    budget_params: Optional[dict] = None      # RA-677: AUTONOMY_BUDGET computed params
-    scope: Optional[dict] = None              # RA-676: session scope contract
-    modified_files: list = field(default_factory=list)   # RA-676: git-tracked modified files
-    scope_adhered: Optional[bool] = None      # RA-676: None=no scope, True/False=check result
-    plan_discovery: bool = False              # RA-679: run plan variation discovery before generate
-    plan_discovery_meta: Optional[dict] = None  # RA-679: {scores, winner, winner_score, duration_s}
-    complexity_tier: str = ""                 # RA-681: brief tier (basic/detailed/advanced)
-    last_completed_phase: str = ""            # Phase tracking for resume (GROUP D/E)
-    retry_count: int = 0                      # Evaluator retry count (GROUP C)
-    linear_issue_id: Optional[str] = None    # Linear issue ID for two-way sync
-
-_sessions = {}
-
-
-def _load_persisted_sessions() -> None:
-    """Restore sessions from disk on startup. Running sessions become 'interrupted'."""
-    if not _SESSIONS_DIR.exists():
-        return
-    for path in _SESSIONS_DIR.glob("*.json"):
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-            sid = data.get("session_id") or path.stem
-            if data.get("status") == "running":
-                data["status"] = "interrupted"
-                _log.info("Restored interrupted session %s", sid)
-            _sessions[sid] = data
-        except Exception as exc:
-            _log.warning("Could not restore session from %s: %s", path, exc)
-
-
-_load_persisted_sessions()
-
-
-def get_session(sid): return _sessions.get(sid)
-def list_sessions():
-    return [
-        {
-            "id": s.id,
-            "repo": s.repo_url,
-            "status": s.status,
-            "started": s.started_at,
-            "lines": len(s.output_lines),
-            "parent": s.parent_session_id,
-            "last_phase": s.last_completed_phase,
-            "evaluator_score": s.evaluator_score,
-            "evaluator_confidence": s.evaluator_confidence,
-            "evaluator_model": s.evaluator_model,
-            "evaluator_consensus": s.evaluator_consensus,
-            "retry_count": s.retry_count,
-            "evaluator_status": s.evaluator_status,
-            "budget_minutes": (s.budget_params or {}).get("budget_minutes"),
-            "scope_adhered": s.scope_adhered,
-            "files_modified": len(s.modified_files),
-            "complexity_tier": s.complexity_tier,
-        }
-        for s in _sessions.values()
-    ]
-
-def restore_sessions():
-    """Load persisted sessions from disk on server startup.
-    Sessions that were mid-flight (cloning/building) are marked 'interrupted'."""
-    count = 0
-    for data in persistence.load_all_sessions():
-        sid = data.get("id", "")
-        if not sid or sid in _sessions:
-            continue
-        session = BuildSession(
-            id=sid,
-            repo_url=data.get("repo_url", ""),
-            workspace=data.get("workspace", ""),
-            started_at=data.get("started_at", 0.0),
-            status=data.get("status", "unknown"),
-            error=data.get("error"),
-            last_completed_phase=data.get("last_completed_phase", ""),
-            retry_count=data.get("retry_count", 0),
-            linear_issue_id=data.get("linear_issue_id"),
-        )
-        # Mark anything that was in-flight as interrupted
-        if session.status in ("created", "cloning", "building"):
-            session.status = "interrupted"
-            persistence.save_session(session)
-        _sessions[sid] = session
-        count += 1
-    if count:
-        import logging
-        logging.getLogger("pi-ceo.sessions").info("Restored %d session(s) from disk.", count)
-
-def em(session, t, d):
-    session.output_lines.append({"type":t,"text":d,"ts":time.time()})
+# BuildSession, _sessions, get_session, list_sessions, restore_sessions, em
+# are now defined in session_model.py and re-exported at the top of this file.
 
 async def run_cmd(cwd, *args, timeout=60):
     proc = await asyncio.create_subprocess_exec(*args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, cwd=cwd)
@@ -1736,7 +1629,6 @@ async def create_session(
         )
     _sessions[session.id] = session
     persistence.save_session(session)
-    _persist_session(session.id)  # RA-742: persist _sessions entry to DATA_DIR/sessions/
     asyncio.create_task(run_build(session, brief, resolved_model, intent=intent))
     return session
 
