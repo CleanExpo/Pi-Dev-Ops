@@ -102,11 +102,21 @@ ehthumbs.db
 .claude/settings.local.json
 mcp/node_modules/
 .playwright-mcp/
-.harness/telegram-inbox/*.json
-.harness/monitor-digests/
 
-# ── Scan results (may contain real secret values from scanned repos) ──
+# ── Harness runtime data (NEVER commit — may contain credential scan findings) ──
+.harness/telegram-inbox/
+.harness/monitor-digests/
 .harness/scan-results/
+.harness/build-logs/
+.harness/pipeline/
+.harness/agent-sdk-metrics/
+.harness/anthropic-docs/2*/
+
+# ── Harness feedback loop / BVI state (runtime, not config) ──────────
+.harness/shipped-features.jsonl
+.harness/feedback-cache.json
+.harness/scout-seen.json
+.harness/zte-v2-score.json
 
 # ── Docker / deployment ───────────────────────────────────────────────
 *.pid

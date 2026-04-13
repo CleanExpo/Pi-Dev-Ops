@@ -29,9 +29,10 @@ _FEEDBACK_CACHE_FILE = _HARNESS_ROOT / "feedback-cache.json"
 # How many days before a feature is considered stale (no outcome signal)
 _STALE_DAYS = 30
 
-# Linear API config
-_LINEAR_API_KEY = os.environ.get("LINEAR_API_KEY", "")
-_LINEAR_TEAM_ID = "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673"
+# Linear API config — read from env via config module
+from app.server import config as _config
+_LINEAR_API_KEY = _config.LINEAR_API_KEY
+_LINEAR_TEAM_ID = _config.LINEAR_TEAM_ID
 
 # Positive/negative signal keywords in Linear comments
 _POSITIVE_KEYWORDS = frozenset([

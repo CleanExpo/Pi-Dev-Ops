@@ -195,6 +195,11 @@ SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 # FALLBACK ONLY — never set in normal operation. Tested quarterly via scripts/fallback_dryrun.py.
 USE_FALLBACK          = os.environ.get("TAO_USE_FALLBACK", "0") == "1"
 
+# Linear project/team identifiers — not secrets, but centralised here so
+# they don't appear as literals scattered across source files.
+LINEAR_TEAM_ID    = os.environ.get("LINEAR_TEAM_ID",    "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673")
+LINEAR_PROJECT_ID = os.environ.get("LINEAR_PROJECT_ID", "f45212be-3259-4bfb-89b1-54c122c939a7")
+
 if not LINEAR_API_KEY:
     log.warning("LINEAR_API_KEY not set — Pi-SEO triage will run in dry-run mode")
 if not PI_SEO_ACTIVE:

@@ -41,7 +41,7 @@ _CRON_FILE = _HARNESS / "cron-triggers.json"
 _SKILL_CATEGORIES = {"security", "architecture", "claude", "deployment"}
 _CLAUDE_MD_CATEGORIES = {"persistence", "rate-limit", "gc", "windows", "auth"}
 
-_LINEAR_TEAM_ID = "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673"   # RestoreAssist
+_LINEAR_TEAM_ID = os.environ.get("LINEAR_TEAM_ID", "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673")
 _LINEAR_PROJECT_ID = "f45212be-3259-4bfb-89b1-54c122c939a7"  # Pi - Dev -Ops
 
 

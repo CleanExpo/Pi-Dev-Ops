@@ -198,8 +198,8 @@ def _read_zte_reality_status() -> str:
 _REPO_ROOT = Path(__file__).resolve().parents[3]  # Pi-Dev-Ops/
 _HARNESS_ROOT = _REPO_ROOT / ".harness"
 _LINEAR_API_URL = "https://api.linear.app/graphql"
-_LINEAR_TEAM_ID = "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673"
-_LINEAR_PROJECT_ID = "f45212be-3259-4bfb-89b1-54c122c939a7"
+_LINEAR_TEAM_ID = config.LINEAR_TEAM_ID
+_LINEAR_PROJECT_ID = config.LINEAR_PROJECT_ID
 
 # Maps a spec claim category to the source file(s) to audit against.
 _AUDIT_TARGETS: list[dict[str, Any]] = [
