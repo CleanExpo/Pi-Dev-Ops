@@ -51,6 +51,18 @@ export async function GET(req: NextRequest) {
   const ghToken = settings.githubToken || url.searchParams.get("token") || process.env.GITHUB_TOKEN || "";
   const model   = settings.analysisModel || process.env.ANALYSIS_MODEL || "claude-sonnet-4-6";
 
+  // Per-phase model selection — haiku for simple listing/summarisation tasks,
+  // full model (sonnet) for intelligence-heavy phases (quality, ZTE, planning, narrative).
+  const PHASE_MODELS: Record<number, string> = {
+    1: "claude-haiku-3-5",   // CLONE & INVENTORY — counting and listing files
+    2: "claude-haiku-3-5",   // ARCHITECTURE — pattern detection from file structure
+    3: model,                // CODE QUALITY — needs intelligence
+    4: "claude-haiku-3-5",   // CONTEXT — summarisation task
+    5: model,                // GAP ANALYSIS — ZTE scoring needs intelligence
+    6: model,                // ENHANCEMENT PLAN — sprint planning
+    7: model,                // EXECUTIVE SUMMARY — CEO narrative
+  };
+
   const stream = new ReadableStream({
     async start(controller) {
       const send = (event: string, data: unknown) => {
@@ -172,7 +184,7 @@ export async function GET(req: NextRequest) {
 
           let phaseOutput = "";
           try {
-            phaseOutput = await runPhase(claude, model, PHASE_PROMPTS[phase.id], context, (chunk) => {
+            phaseOutput = await runPhase(claude, PHASE_MODELS[phase.id] ?? model, PHASE_PROMPTS[phase.id], context, (chunk) => {
               chunk.split("\n").forEach((l) => { if (l.trim()) line("agent", `  ${l}`); });
             }, abortController.signal);
           } catch (err) {
