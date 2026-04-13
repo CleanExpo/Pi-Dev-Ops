@@ -1,0 +1,161 @@
+```json
+{
+  "scores": {
+    "completeness": 7,
+    "correctness": 6,
+    "codeQuality": 7,
+    "documentation": 8
+  },
+  "issues": [
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /webhook/telegram endpoint (line ~290) only validates the secret when expected_secret is truthy. If TELEGRAM_WEBHOOK_SECRET is unset in production, any caller can invoke this endpoint without authentication, triggering mark_alert_acked() with arbitrary keys."
+    },
+    {
+      "severity": "critical",
+      "file": "app/requirements.txt",
+      "line": null,
+      "description": "claude-agent-sdk>=0.1 is listed without a pinned upper bound or exact version. CLAUDE.md explicitly states the SDK-only mode is enforced (RA-576) and that misconfiguration at startup is a deliberate loud failure, but a breaking SDK API change (ClaudeSDKClient, ResultMessage, etc.) would crash production with no rollback path since the subprocess fallback was deleted."
+    },
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /api/scan endpoint (trigger_scan) fires asyncio.create_task(_run()) and immediately returns {ok: True} with no way for the caller to track scan completion, failures, or results. If _run() raises inside the task, the exception is silently swallowed — no error surfaced to the caller, no Supabase write, no Telegram alert."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "_telegram_send() uses urllib.request.urlopen (blocking I/O) inside an async FastAPI endpoint handler. On a slow or unreachable Telegram API, this blocks the event loop for up to 8 seconds (the timeout parameter), degrading all concurrent requests."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /api/build/parallel endpoint calls await fan_out() synchronously in the request handler with no timeout guard. A long-running fan_out across N workers will hold the HTTP connection open indefinitely, exhausting worker slots against TAO_MAX_SESSIONS."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "Two @app.on_event('startup') decorators exist (_start_claude_poll at the bottom and on_startup near the top). FastAPI executes both but the ordering is implicit and not guaranteed. If _start_claude_poll fires before on_startup completes restore_sessions(), the background poller may query sessions before they are loaded."
+    },
+    {
+      "severity": "high",
+      "file": ".harness/board-meetings/2026-04-12-gap-audit.json",
+      "line": null,
+      "description": "The gap audit (produced autonomously) identifies that webhook.py has no outbound Linear API calls — no issueUpdate mutation, no state transition back to Linear after a build completes. This means the Linear two-way sync claimed as complete in the spec is not implemented. Verified as critical by the audit agent itself."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The SSE stream at GET /api/sessions/{sid}/logs does not use asyncio.Event or a pub/sub mechanism — it busy-polls session.output_lines every 300ms in a tight async while loop. Under heavy concurrent streaming sessions this degrades latency and wastes CPU. No backpressure, no client disconnect handling beyond the outer try/except."
+    },
+    {
+      "severity": "high",
+      "file": ".claude/settings.json",
+      "line": null,
+      "description": "defaultMode is set to bypassPermissions globally for the project. Combined with Write(*) and Edit(*) allow rules, any Claude agent session running in this workspace directory can write or overwrite any file on the host filesystem without confirmation. There is no path-scoping on Write/Edit — the permissions contract document acknowledges this is intentional but it represents a significant blast radius if an agent session is compromised or runs against the wrong working directory."
+    },
+    {
+      "severity": "high",
+      "file": "dashboard/package.json",
+      "line": null,
+      "description": "The dev script uses bash -c 'set -a && source .env.local && set +a && next dev' which sources the env file into the shell. This works on macOS/Linux but fails silently on Windows (where the CI badge targets PowerShell). The smoke_test.yml CI workflow runs on ubuntu-latest so this mismatch is masked in CI but breaks on the documented Windows local backend workflow."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /webhook/telegram endpoint is exposed without require_auth or require_rate_limit dependencies. Even with secret validation, this endpoint is completely open to the internet and could be used to trigger mark_alert_acked() at high rate or enumerate alert keys."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /api/sessions/{sid}/resume endpoint sets session.status = 'building' and saves before launching run_build() as a background task. If the server crashes after the status write but before the task starts, the session is permanently stuck in 'building' status with no process behind it."
+    },
+    {
+      "severity": "medium",
+      "file": ".harness/cron-triggers.json",
+      "line": null,
+      "description": "The fallback-dryrun-quarterly trigger uses day_of_month + month fields, but the cron.py implementation is not shown. The cron-triggers-anthropic-refresh.json comment says 'weekday 0=Monday, 0=Sunday may vary — check existing entries for convention.' This ambiguity suggests the weekday/day_of_month parsing is not validated and could silently misfire or never fire."
+    },
+    {
+      "severity": "medium",
+      "file": "Dockerfile",
+      "line": null,
+      "description": "The root Dockerfile and app/Dockerfile are duplicated with slightly different WORKDIR and COPY patterns. The root copies src/ and skills/ directories that app/Dockerfile does not. Both declare CMD with the same uvicorn invocation but different module paths (app.server.main vs server.main). Having two Dockerfiles with diverging content creates deployment confusion — it is unclear which is authoritative for Railway."
+    },
+    {
+      "severity": "medium",
+      "file": ".env.example",
+      "line": null,
+      "description": "NEXT_PUBLIC_SUPABASE_URL is defined twice in .env.example — once with the real Supabase URL (zbryrmxmgfmslqzizsto.supabase.co) and once with a placeholder (https://your-project.supabase.co). The real project URL is committed to the repository in the example file, leaking the Supabase project identifier publicly."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /api/monitor endpoint wraps run_monitor_cycle() in an async lambda but run_monitor_cycle itself is synchronous (imported from pi_seo_monitor). background_tasks.add_task(_run) with an async def that calls a sync function blocks the thread pool thread for the duration of the monitor cycle, which can be minutes. Should use asyncio.run_in_executor or ensure run_monitor_cycle is async."
+    },
+    {
+      "severity": "low",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The on_shutdown handler iterates over _sessions.values() and calls proc.terminate() but does not await process termination — only sleeps 2 seconds. Processes that take longer than 2 seconds to terminate are abandoned, potentially leaving orphaned claude CLI subprocesses and dirty workspaces."
+    },
+    {
+      "severity": "low",
+      "file": ".github/workflows/ci.yml",
+      "line": null,
+      "description": "The smoke-prod job has a hard-coded sleep 90 wait for Railway deploy. This is not reliable — Railway deploys can take 30 seconds or 5 minutes depending on build cache. A polling loop against the /health endpoint would be more reliable than a fixed sleep."
+    },
+    {
+      "severity": "low",
+      "file": ".harness/anthropic-docs/api-reference.md",
+      "line": null,
+      "description": "The fetched Anthropic docs files (api-reference.md, claude-code-cli-reference.md, mcp-overview.md, models-overview.md, tool-use.md) contain raw Next.js server-side rendering JavaScript fragments, not parsed documentation content. The fetch script captured the HTML/RSC payload instead of the rendered text. This makes the docs unusable as context for agents."
+    }
+  ],
+  "missingTests": [
+    "Webhook HMAC signature verification (verify_github_signature, verify_linear_signature) — no unit tests shown for invalid/missing signatures",
+    "Session state machine transitions — no tests for cloning→building→evaluating→complete or the interrupted→resume path",
+    "Cron trigger firing logic — no tests for the day_of_month/weekday/hour matching, debounce, or missed-fire catch-up",
+    "SSE log streaming endpoint — no tests for cursor-based pagination, terminal state detection, or client disconnect",
+    "Autonomy poller (linear_todo_poller) — no tests for the do-while bootstrap delay, LINEAR_API_KEY absent path, or duplicate session guard",
+    "Rate limiter (require_rate_limit) — no tests for per-IP bucketing, limit enforcement, or reset behavior",
+    "Password authentication migration path — no tests for SHA-256→bcrypt transparent migration described in auth.py",
+    "Session GC (gc_loop) — no tests for workspace cleanup, age threshold, or sessions in non-terminal states being preserved",
+    "fan_out orchestrator — no integration tests for N-worker parallel builds, worker failure handling, or result aggregation",
+    "Supabase fire-and-forget writes — no tests verifying that supabase_log.py failures do not propagate to callers",
+    "Linear webhook to build session pipeline — no end-to-end test from Linear event receipt to create_session",
+    "Vercel drift check (vercel_monitor) — no tests for the SHA comparison logic or degraded state when VERCEL_TOKEN is absent"
+  ],
+  "securityConcerns": [
+    "app/server/main.py: /webhook/telegram accepts requests without rate limiting and without authentication when TELEGRAM_WEBHOOK_SECRET is unset — open to unauthenticated abuse in default deployments",
+    ".env.example: real Supabase project URL (zbryrmxmgfmslqzizsto.supabase.co) committed to the public repository example file, leaking the project identifier",
+    ".claude/settings.json: Write(*) and Edit(*) with bypassPermissions means any agent session can overwrite any file on the host — no path restriction, no workspace sandboxing enforcement at the permission layer",
+    "app/server/main.py: _telegram_send() constructs the Telegram API URL with string interpolation of config.TELEGRAM_BOT_TOKEN — if the token contains unexpected characters (unlikely but possible with misconfiguration) this could produce a malformed URL rather than failing loudly",
+    "app/server/main.py: The /api/webhook endpoint reads raw request body and then calls json.loads separately rather than using FastAPI's built-in Pydantic body parsing — the raw body is used for HMAC verification which is correct, but there is no maximum body size limit beyond FastAPI's default, making it possible to send a large payload that passes signature verification",
+    "app/server/main.py: Session tokens are verified via verify_session_token() in the WebSocket handler by reading from cookies or Authorization header, but there is no validation that the Authorization header value does not contain the 'Bearer ' prefix multiple times or other malformed inputs",
+    "dashboard/.env.example: PI_CEO_PASSWORD is documented as 'same password as TAO_PASSWORD' — sharing a single password across the FastAPI auth and the Next.js proxy creates a single credential that, if leaked, compromises both layers simultaneously"
+  ],
+  "positives": [
+    "Timing-safe password comparison using hmac.compare_digest in auth.py — correct mitigation for timing attacks on authentication",
+    "Security headers middleware (X-Content-Type-Options, X-Frame-Options DENY, X-XSS-Protection, CSP) applied to all responses via a dedicated BaseHTTPMiddleware class — not bolted on per-route",
+    "Pydantic field validators on all request models (BuildRequest, TriggerRequest, LessonRequest) with explicit allowlists for model names — prevents injection of arbitrary model identifiers",
+    "Resilient background task wrapper (_resilient) with crash-recovery and auto-restart for all long-running background coroutines — gc_loop, cron_loop, linear_todo_poller all protected",
+    "Atomic session persistence using write-to-.tmp-then-os.replace() pattern documented in CLAUDE.md — correct approach for crash-safe file writes",
+    "Comprehensive .gitignore covering credentials, runtime data, harness scan results, and session files — no obvious secret exposure paths through git",
+    "Three-job CI pipeline with secrets scan, TypeScript type checking, ESLint, and post-deploy smoke test — meaningful gates on every merge to main",
+    "The escalation contract (ESCALATION.md) with explicit 'never do autonomously' list is a well-designed human-in-the-loop guardrail — prevents autonomous scope amplification",
+    "CLAUDE.md is genuinely useful as a developer onboarding document — covers architecture, patterns, key files, SDK architecture, and CI pipeline in a single file",
+    "The gap audit JSON (.harness/board-meetings/2026-04-12-gap-audit.json) demonstrates the system can autonomously identify discrepancies between spec claims and actual implementation — a meaningful self-verification capability"
+  ]
+}
+```
