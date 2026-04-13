@@ -3,12 +3,14 @@
   "totalFiles": 89,
   "languages": {
     "Python": 4850,
-    "TypeScript": 420,
-    "Markdown": 18200,
-    "JSON": 3100,
-    "YAML": 180,
+    "TypeScript": 380,
+    "Markdown": 28400,
+    "JSON": 3200,
+    "YAML": 120,
     "Dockerfile": 60,
-    "Shell": 40
+    "JavaScript": 45,
+    "TOML": 35,
+    "Shell": 20
   },
   "topFiles": [
     ".harness/BOARD-DELIBERATION-ENHANCED-2026-04-12.md",
@@ -24,20 +26,23 @@
   ],
   "frameworks": [
     "FastAPI",
-    "Next.js",
-    "React",
+    "Next.js 16",
+    "React 19",
     "Tailwind CSS",
     "Uvicorn",
+    "Supabase",
     "@modelcontextprotocol/sdk",
     "@anthropic-ai/sdk",
     "@octokit/rest",
-    "@supabase/supabase-js",
-    "xterm"
+    "xterm.js",
+    "Hatchling"
   ],
   "entryPoints": [
     "app/server/main.py",
     "mcp/pi-ceo-server.js",
-    "dashboard/package.json"
+    "dashboard/package.json",
+    "Dockerfile",
+    "app/Dockerfile"
   ]
 }
 ```
