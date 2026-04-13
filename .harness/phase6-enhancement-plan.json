@@ -3,303 +3,250 @@
   "sprints": [
     {
       "id": 1,
-      "name": "Foundation Hardening — ZTE 73→75 + Infrastructure Truth",
-      "duration": "4d",
+      "name": "Self-Healing Infrastructure & Autonomy Stability",
+      "duration": "5d",
       "items": [
         {
-          "title": "Fix autonomy.py bootstrap delay: replace sleep-first with 10s startup + immediate first poll (commit e611b1c deployed to Railway)",
+          "title": "Fix do-while bootstrap: replace sleep-first linear_todo_poller with 10s initial delay (app/server/autonomy.py)",
           "size": "S",
           "priority": "P1"
         },
         {
-          "title": "Harden /health endpoint: add linear_key_ok, autonomy.armed, seconds_since_last_poll fields — expose work-execution state not just process liveness",
+          "title": "Harden /health endpoint: add linear_key_ok, last_poll_at, autonomy.armed fields (app/server/main.py ~line 578)",
           "size": "S",
           "priority": "P1"
         },
         {
-          "title": "ZTE scoring revision: add operational health dimension (autonomy poller live, Linear key valid, last scan age) to replace vanity 60/60 score that coexists with outages",
+          "title": "Add signed test-status file written by GH Actions (.github/workflows/pytest-status.yml) so watchdog reads truth instead of running pytest in sandbox",
           "size": "M",
           "priority": "P1"
         },
         {
-          "title": "Fix marathon_watchdog.py false-positive: gate pytest check to collect-only mode or pin anthropic>=0.90 in Cowork sandbox bootstrap — stop CRITICAL alerts when tests are actually green",
+          "title": "Resolve LINEAR_API_KEY 401 — rotate key, update MCP config, add startup assertion in main.py on_startup()",
           "size": "S",
           "priority": "P1"
         },
         {
-          "title": "SDK-only enforcement: verify TAO_USE_AGENT_SDK=1 is permanent Railway env var and subprocess fallback paths in sessions.py are removed (RA-576 completion)",
+          "title": "Fix marathon watchdog false-positive: gate pytest check to --collect-only or require anthropic dep in sandbox (scripts/marathon_watchdog.py)",
           "size": "S",
           "priority": "P1"
         },
         {
-          "title": "Rotate LINEAR_API_KEY and update MCP server config — two consecutive board cycles blind due to 401 auth failure",
-          "size": "S",
-          "priority": "P1"
-        },
-        {
-          "title": "triage-cache.json rotation: add pruning strategy to keep file under 50KB (currently 353KB with no rotation)",
+          "title": "Prune triage-cache.json: add rotation strategy, max 7-day retention (app/server/triage.py)",
           "size": "S",
           "priority": "P2"
         },
         {
-          "title": "Write .github/workflows/pytest.yml: run full pytest suite on push to main + 30-min cron, write signed status/tests-latest.json to status branch",
-          "size": "M",
-          "priority": "P1"
+          "title": "Commit launchd plist for Ollama auto-restart on Mac Mini (scripts/launchd/ollama.plist)",
+          "size": "S",
+          "priority": "P2"
+        },
+        {
+          "title": "Configure Docker Desktop memory cap to 2GB and add restart: always to n8n compose file",
+          "size": "S",
+          "priority": "P2"
         }
       ]
     },
     {
       "id": 2,
-      "name": "GH Actions Scheduler + Autonomous Loop Activation",
-      "duration": "4d",
+      "name": "SDK Canary Activation & Linear Two-Way Sync",
+      "duration": "5d",
       "items": [
         {
-          "title": "Write .github/workflows/autonomy-loop.yml: headless Claude Agent SDK session on 5-min cron against Pi-Dev-Ops, opens PRs (not direct-to-main), gated on signed test-status file",
-          "size": "M",
-          "priority": "P1"
-        },
-        {
-          "title": "Activate SDK Canary Phase A: set TAO_USE_AGENT_SDK_CANARY_RATE=0.10 in Railway, monitor .harness/agent-sdk-metrics/ for 24h against pass criteria in sdk-phase2-rollout.md",
+          "title": "Activate SDK Canary Phase A: set TAO_USE_AGENT_SDK_CANARY_RATE=0.10 in Railway; validate against .harness/agents/sdk-phase2-rollout.md kill criteria",
           "size": "S",
           "priority": "P1"
         },
         {
-          "title": "Two-agent review pattern: add second-pass reviewer SDK session that reads writer diff before merge — writer and reviewer have separate system prompts and communicate only via PR diff",
+          "title": "Implement linear_update_issue() GraphQL mutation in app/server/webhook.py and wire into sessions.py terminal-state callback",
           "size": "M",
           "priority": "P1"
         },
         {
-          "title": "Migrate Telegram inbound from polling getUpdates to Railway webhook (POST /webhook/telegram registered with Telegram Bot API) — drop 5-min sandbox polling lag to sub-second",
+          "title": "Add POST /webhook/linear route to app/server/main.py (verify_linear_signature → parse_linear_event → linear_issue_to_brief → create_session), mirroring GitHub webhook pattern",
+          "size": "M",
+          "priority": "P1"
+        },
+        {
+          "title": "Add GET /api/sessions/{sid}/logs SSE stream endpoint to app/server/main.py (already scaffolded but missing — see gap audit RA-667)",
           "size": "M",
           "priority": "P2"
         },
         {
-          "title": "Move Pi-SEO cron from Cowork scheduled-tasks MCP to APScheduler in Railway FastAPI process — 6 cron entries from .harness/cron-triggers.json become always-on Railway background jobs",
-          "size": "L",
+          "title": "Advance SDK canary to Phase B (50%) after 24h Phase A clean metrics; update .harness/agents/sdk-phase2-rollout.md sign-off log",
+          "size": "S",
           "priority": "P2"
         },
         {
-          "title": "Trigger Pi-SEO first full sweep across all 10 repos in .harness/projects.json — review finding volume, tune severity thresholds, allow triage engine to auto-create Linear tickets",
-          "size": "M",
-          "priority": "P2"
-        },
-        {
-          "title": "Fine-grained GitHub PAT scoped to Pi-Dev-Ops content write only: store in Railway secrets as GITHUB_PUSH_TOKEN, audit log piped to Telegram, rotate monthly",
-          "size": "M",
+          "title": "Fix Telegram webhook secret check to reject missing secret when TELEGRAM_WEBHOOK_SECRET is set (dashboard/app/api/telegram/route.ts)",
+          "size": "S",
           "priority": "P2"
         }
       ]
     },
     {
       "id": 3,
-      "name": "Per-Project Memory Layer + Portfolio Intelligence",
+      "name": "Pi-SEO First Full Sweep & Portfolio Security Gate",
       "duration": "5d",
       "items": [
         {
-          "title": "Create memory/ per-project knowledge base: memory/pi-dev-ops/charter.md, memory/ccw/charter.md, memory/restoreassist/charter.md, memory/disaster-recovery/charter.md — wire into build session startup as system prompt prefix",
+          "title": "Execute Pi-SEO first full sweep across all 10 repos in .harness/projects.json; review finding volume, tune thresholds, enable triage-engine Linear ticket creation",
           "size": "M",
           "priority": "P1"
         },
         {
-          "title": "RAG retrieval step before each session: embed task query, similarity-search against project knowledge base (pgvector in Supabase), inject top-N chunks (≤8KB) into session system prompt",
+          "title": "Set PI_SEO_ACTIVE=1 in Railway env and redeploy — enables live scan/monitor cron rotation (ref .harness/RA-588-PREFLIGHT.md)",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "CCW critical security triage: identify 1 critical + classify 137 hardcoded secret/password findings; rotate any real credentials (ref ccw-charter.md)",
           "size": "L",
           "priority": "P1"
         },
         {
-          "title": "Self-improvement loop skeleton: scripts/analyse_lessons.py reads lessons.jsonl, groups by category, finds patterns ≥3 occurrences, writes proposals to .harness/improvement-proposals/, wired into 24h cron",
+          "title": "DR-NRPG urgent security: identify 2 critical findings, patch 4 critical npm CVEs, classify all DB connection string hits (ref disaster-recovery-nrpg-charter.md)",
+          "size": "L",
+          "priority": "P1"
+        },
+        {
+          "title": "RestoreAssist: classify 9 hardcoded passwords, review 14 dangerouslySetInnerHTML usages — wrap with DOMPurify or add // SAFE: comment (ref restoreassist-charter.md)",
           "size": "M",
           "priority": "P2"
         },
         {
-          "title": "Supabase gate_checks table: persist quality gate results from every build session (RA-651 completion) — fire-and-forget, never block pipeline",
+          "title": "Write shared .pi-seo-ignore template for console.log / print() scope narrowing to production code paths across CCW, RestoreAssist, DR-NRPG",
           "size": "S",
           "priority": "P2"
         },
         {
-          "title": "Weekly summarisation job: compress Linear history, PR comments, board meeting minutes per project into memory/<slug>/summary.md (≤2 pages) — demote raw history to secondary retrieval tier",
+          "title": "Fix cron scheduler debounce: add abs() to last_fired_at delta, add startup catch-up for missed windows, add 12h silence watchdog that creates Urgent Linear ticket (app/server/cron.py)",
           "size": "M",
-          "priority": "P2"
-        },
-        {
-          "title": "Regenerate spec.md + feature_list.json + leverage-audit.md to reflect Sprint 9 reality — harness files are 2+ days stale post SDK migration",
-          "size": "S",
-          "priority": "P2"
-        },
-        {
-          "title": "Post-deploy smoke test in CI (RA-583): smoke-prod job in .github/workflows/ci.yml runs scripts/smoke_test.py --target=prod after Railway deploy settles — requires TAO_PROD_PASSWORD secret",
-          "size": "S",
           "priority": "P2"
         }
       ]
     },
     {
       "id": 4,
-      "name": "Portfolio Security Remediation — CCW + RestoreAssist + DR-NRPG",
-      "duration": "5d",
+      "name": "Per-Project RAG Memory Layer & Self-Improvement Loop",
+      "duration": "7d",
       "items": [
         {
-          "title": "CCW-001/CCW-002: identify and resolve the 1 critical CCW finding + classify/rotate the 137 hardcoded secret findings (real credentials vs test fixtures)",
-          "size": "L",
-          "priority": "P1"
-        },
-        {
-          "title": "DR-SEC-000/DR-SEC-001: DR-NRPG 2 critical findings identified + 4 critical npm CVEs patched — these are the first non-Pi-Dev-Ops urgent issues",
-          "size": "L",
-          "priority": "P1"
-        },
-        {
-          "title": "DR-SEC-002: sample 30 dangerouslySetInnerHTML usages across Disaster-Recovery + DR-NRPG, classify as safe/needs-wrapper/XSS-risk, report distribution to founder",
+          "title": "Create memory/ directory structure: memory/pi-dev-ops/charter.md, memory/ccw/, memory/restoreassist/, memory/disaster-recovery/ — wire into session startup context injection (app/server/sessions.py)",
           "size": "M",
           "priority": "P1"
         },
         {
-          "title": "RA-CLEAN-001/RA-CLEAN-002: RestoreAssist 9 hardcoded passwords classified + 14 dangerouslySetInnerHTML findings resolved with DOMPurify or signed-off SAFE comments",
+          "title": "Build lesson pattern analyser script (scripts/analyse_lessons.py): reads lessons.jsonl, groups by category, identifies patterns ≥3 occurrences, writes to .harness/improvement-proposals/",
           "size": "M",
           "priority": "P1"
         },
         {
-          "title": "Write .pi-seo-ignore templates for all three projects: scope print()/console.log rules to production code paths, exclude scripts/, migrations/, tests/, docs/",
+          "title": "Wire analyse_lessons cron trigger (already in cron-triggers.json id=analyse-lessons-weekly) to actual script execution in app/server/cron.py",
           "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "Implement RAG retrieval step: embed query using text-embedding-3-small, search memory/ chunks via pgvector in Supabase, prepend top-N results to session system prompt",
+          "size": "L",
           "priority": "P2"
         },
         {
-          "title": "DR-DEP-010/DR-DEP-011: patch 6 high npm advisories in Disaster-Recovery + 21 high advisories in DR-NRPG",
+          "title": "Build weekly summarisation job: condense Linear history + PR comments into memory/{project}/summary.md using Claude Haiku (app/server/agents/memory_summariser.py)",
           "size": "M",
           "priority": "P2"
         },
         {
-          "title": "Add detect-secrets pre-commit hook to all portfolio repos: prevents recurrence of exposed key findings that Pi-SEO will otherwise surface repeatedly",
-          "size": "M",
+          "title": "Scout Agent (RA-684): implement scripts/scout_agent.py — searches GitHub/ArXiv/HN, scores against ZTE dimensions, creates scout-labelled Linear issues; wire to cron id=scout-weekly-monday",
+          "size": "L",
           "priority": "P2"
         },
         {
-          "title": "Create .harness/security-exceptions.md: document all intentional security variances (0.0.0.0 binding, DOMPurify-wrapped dangerouslySetInnerHTML) with review dates",
-          "size": "S",
+          "title": "Outcome Feedback Loop (RA-689): reads .harness/shipped-features.jsonl, detects Linear outcome signals, writes outcome lessons, returns BVI contribution data; wire to cron id=feedback-loop-monthly",
+          "size": "M",
+          "priority": "P3"
+        },
+        {
+          "title": "Introduce Business Velocity Index (BVI) as primary board metric: CRITICALs resolved speed + portfolio health delta + MARATHON completions shipped (replace ZTE score as opening number in board minutes)",
+          "size": "M",
           "priority": "P3"
         }
       ]
     },
     {
       "id": 5,
-      "name": "Mac Mini Local Brain (Pi-CEO Enhanced Phase 0–2)",
-      "duration": "5d",
+      "name": "SDK Phase C Cutover, GH Actions Scheduler & Autonomy Portfolio Expansion",
+      "duration": "7d",
       "items": [
         {
-          "title": "Phase 0: configure Mac Mini Energy Settings (auto-restart on power failure), install caffeinate via launchd to prevent sleep, purchase/confirm UPS — MANDATORY before Phase 1",
+          "title": "Advance SDK canary to Phase C (100%): confirm TAO_USE_AGENT_SDK=1 permanent in Railway; monitor .harness/agent-sdk-metrics/ for 7-day stability gate before RA-576 subprocess removal",
           "size": "S",
           "priority": "P1"
         },
         {
-          "title": "Phase 0: install Ollama natively (brew install ollama), pull qwen3:14b + llama3.3:8b, create launchd plist for auto-restart with /api/tags health check, set context window to 8192",
-          "size": "S",
+          "title": "Write .github/workflows/autonomy-loop.yml: headless Claude Agent SDK sessions on 5-min cron, Pi-Dev-Ops scope only, opens PRs (not direct-to-main), two-agent reviewer pattern",
+          "size": "L",
           "priority": "P1"
         },
         {
-          "title": "Phase 0: deploy n8n as single Docker container (restart: always, port 5678, persistent volume), cap Docker memory to 2GB in Docker Desktop settings",
-          "size": "S",
+          "title": "Two-agent review implementation: separate reviewer SDK session reads writer diff via PR API, can block merge before any autonomous merge is enabled (ref BOARD-DELIBERATION-2026-04-12.md Custom Oracle)",
+          "size": "L",
           "priority": "P1"
         },
         {
-          "title": "Phase 0: health-check aggregation script — pings Ollama /api/tags + n8n API + Supabase every 5 min via launchd, self-recovery attempt before Telegram alert, CRITICAL alert if recovery fails",
-          "size": "M",
-          "priority": "P1"
-        },
-        {
-          "title": "Phase 1: create Supabase cloud project (free tier), deploy schema (sessions, lessons, triage_log, memory_embeddings with pgvector), connect n8n via Postgres credentials",
-          "size": "M",
-          "priority": "P1"
-        },
-        {
-          "title": "Phase 1: build n8n Linear polling workflow (5-min cron) — detects new issues + status changes + approaching deadlines across all 4 teams, writes state delta to Supabase triage_log",
-          "size": "M",
-          "priority": "P1"
-        },
-        {
-          "title": "Phase 1: build Qwen 3 14B triage prompt + n8n integration — test both Qwen 3 14B and Llama 3.3 8B, classify P0/P1/P2/P3, recommend escalate/monitor/defer, log reasoning",
-          "size": "M",
-          "priority": "P1"
-        },
-        {
-          "title": "Phase 2: install Open WebUI, configure portfolio health dashboard view showing overnight activity across all repos without requiring Slack",
-          "size": "M",
-          "priority": "P2"
-        },
-        {
-          "title": "Phase 2: Telegram command interface — /status returns live system health, /alerts returns latest portfolio findings, commands route to local Qwen model before escalating to Claude API",
-          "size": "M",
-          "priority": "P2"
-        },
-        {
-          "title": "Phase 2: Claude API routing logic — Qwen 3 14B classifies intent, routes to Haiku/Sonnet/Opus based on confidence threshold, tracks cost per-request in Supabase, defaults to Sonnet on uncertain classification",
-          "size": "M",
-          "priority": "P2"
-        },
-        {
-          "title": "14-day gate evaluation: log Mac Mini uptime, Ollama crashes, n8n success rate, triage accuracy, manual interventions — gate Phases 3-6 on >99.5% uptime, >80% triage accuracy, 0 manual interventions",
+          "title": "Create fine-grained GitHub PAT scoped to Pi-Dev-Ops repo content write, store in Railway secrets, add monthly rotation reminder and audit log pipe to Telegram",
           "size": "S",
           "priority": "P2"
-        }
-      ]
-    },
-    {
-      "id": 6,
-      "name": "Portfolio Autonomy Onboarding + Standard Compliance",
-      "duration": "5d",
-      "items": [
+        },
         {
-          "title": "CCW autonomy onboarding: copy .claude/settings.json allowlist from Pi-Dev-Ops, register in .harness/monitor-config.json, run smoke test ticket (add blank line to README), observe green end-to-end run",
+          "title": "Remove subprocess fallback from sessions.py (RA-576) after 7 consecutive days of Phase C clean metrics",
           "size": "M",
           "priority": "P2"
         },
         {
-          "title": "RestoreAssist autonomy onboarding: .claude/settings.json + Pi-SEO registration + smoke test run — gated on Phase 1 security remediation complete",
-          "size": "M",
-          "priority": "P2"
-        },
-        {
-          "title": "Disaster-Recovery/DR-NRPG autonomy onboarding: three repos get allowlists + monitor registration + smoke tests — gated on Phase 0 security critical fixes complete",
+          "title": "Register CCW, RestoreAssist, DR-NRPG in autonomy pipeline: per-repo REPO_CONFIGS dict, .claude/settings.json allowlists, smoke test Linear tickets observed green",
           "size": "L",
           "priority": "P2"
         },
         {
-          "title": "Documentation sweep: all portfolio repos get README (answers 6 questions), CLAUDE.md (non-empty), docs/runbooks/ with incident-response.md + rollback.md + data-migration.md",
-          "size": "L",
-          "priority": "P2"
-        },
-        {
-          "title": "RestoreAssist NIR compliance: audit PDF generation pipeline, verify PII handling meets Australian Privacy Act APPs, document compliance mapping in docs/compliance/nir.md",
+          "title": "Implement /api/admin/selftest endpoint: minimal end-to-end — fetch Linear Todo issue, create in-memory session, SDK round-trip, teardown, report 200/503 (app/server/main.py)",
           "size": "M",
-          "priority": "P2"
-        },
-        {
-          "title": "Migrate from GitHub PAT to GitHub App for autonomous push: per-repo content write permission, no expiry, audit log per-repo — replace GITHUB_PUSH_TOKEN with App credentials",
-          "size": "L",
           "priority": "P3"
         },
         {
-          "title": "SDK Canary Phase C (100% SDK, subprocess fallback still present): gate on 7-day Phase B stability, success rate ≥95%, p95 evaluator latency ≤180s",
+          "title": "Regenerate spec.md + feature_list.json + executive-summary.md via fresh Pi-CEO analysis run to reflect Sprint 9+ reality (ref RA-675, CEO memo 2026-04-13)",
           "size": "S",
-          "priority": "P3"
-        },
-        {
-          "title": "SDK subprocess removal (RA-576): delete claude -p fallback paths from sessions.py once Phase C has run cleanly for 7 days — make TAO_USE_AGENT_SDK a no-op",
-          "size": "M",
           "priority": "P3"
         }
       ]
     }
   ],
   "featureList": [
-    {
-      "id": "F001",
-      "title": "Autonomy bootstrap delay fix (10s startup + immediate first poll)",
-      "sprint": 1,
-      "status": "planned"
-    },
-    {
-      "id": "F002",
-      "title": "/health endpoint work-execution state (linear_key_ok, autonomy.armed, seconds_since_last_poll)",
-      "sprint": 1,
-      "status": "planned"
-    },
-    
+    { "id": "F001", "title": "do-while bootstrap fix for linear_todo_poller (10s initial delay)", "sprint": 1, "status": "planned" },
+    { "id": "F002", "title": "/health endpoint linear_key_ok + last_poll_at + autonomy.armed fields", "sprint": 1, "status": "planned" },
+    { "id": "F003", "title": "GH Actions signed test-status file (pytest-status.yml)", "sprint": 1, "status": "planned" },
+    { "id": "F004", "title": "LINEAR_API_KEY rotation + startup assertion in on_startup()", "sprint": 1, "status": "planned" },
+    { "id": "F005", "title": "Marathon watchdog false-positive fix (--collect-only gate)", "sprint": 1, "status": "planned" },
+    { "id": "F006", "title": "triage-cache.json 7-day rotation strategy", "sprint": 1, "status": "planned" },
+    { "id": "F007", "title": "Ollama launchd auto-restart plist for Mac Mini", "sprint": 1, "status": "planned" },
+    { "id": "F008", "title": "n8n Docker restart:always + Docker Desktop 2GB memory cap", "sprint": 1, "status": "planned" },
+    { "id": "F009", "title": "SDK Canary Phase A activation (10% traffic, Railway env var)", "sprint": 2, "status": "planned" },
+    { "id": "F010", "title": "linear_update_issue() GraphQL mutation + terminal-state callback wire-up", "sprint": 2, "status": "planned" },
+    { "id": "F011", "title": "POST /webhook/linear route in main.py (full event → create_session pipeline)", "sprint": 2, "status": "planned" },
+    { "id": "F012", "title": "GET /api/sessions/{sid}/logs SSE stream endpoint (RA-667 gap)", "sprint": 2, "status": "planned" },
+    { "id": "F013", "title": "SDK Canary Phase B advancement (50% traffic)", "sprint": 2, "status": "planned" },
+    { "id": "F014", "title": "Telegram webhook secret hardening (reject missing secret when env var set)", "sprint": 2, "status": "planned" },
+    { "id": "F015", "title": "Pi-SEO first full sweep — all 10 repos, triage engine enabled", "sprint": 3, "status": "planned" },
+    { "id": "F016", "title": "PI_SEO_ACTIVE=1 Railway activation + redeploy", "sprint": 3, "status": "planned" },
+    { "id": "F017", "title": "CCW critical + hardcoded secret triage (1 critical, 137 findings)", "sprint": 3, "status": "planned" },
+    { "id": "F018", "title": "DR-NRPG 2 critical security + 4 critical npm CVE remediation", "sprint": 3, "status": "planned" },
+    { "id": "F019", "title": "RestoreAssist 9 hardcoded passwords + 14 dangerouslySetInnerHTML review", "sprint": 3, "status": "planned" },
+    { "id": "F020", "title": "Shared .pi-seo-ignore template for console.log/print() scope narrowing", "sprint": 3, "status": "planned" },
+    { "id": "F021", "title": "Cron scheduler debounce fix: abs() delta + startup catch-up + 12h silence watchdog", "sprint": 3, "status": "planned" },
+    { "id": "F022", "title": "memory/ per-project directory structure + session context injection", "sprint": 4, "status": "planned" },
+    { "id": "F023", "title": "scripts/analyse_lessons.py lesson pattern analyser", "sprint": 4, "status": "planned" },
+    { "id": "F024", "title": "analyse_lessons cron trigger wire-up in app/server/cron.py", "sprint": 4, "status": "planned" },
+    { "id": "F025", "title": "RAG retrieval step: pgvector Supabase similarity search prepended to session prompt", "sprint": 4, "status": "planned" },
+    { "id": "F026", "title": "Weekly memory summarisation job (Haiku) → memory/{project}/summary.md", "sprint": 4, "status": "planned" },
+    { "id": "F027", "title": "Scout Agent (RA-684): GitHub/ArXiv/
