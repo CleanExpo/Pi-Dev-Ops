@@ -982,6 +982,22 @@ def run_status_phase() -> dict[str, Any]:
     except Exception as exc:
         log.warning("ZTE v2 score compute failed (non-fatal): %s", exc)
 
+    # RA-689 — Shipped features performance (outcome feedback loop)
+    try:
+        from .feedback_loop import get_feedback_summary as _get_feedback_summary
+        fb = _get_feedback_summary()
+        if fb.get("available"):
+            status["shipped_features"] = {
+                "total": fb.get("total_shipped", 0),
+                "positive": fb.get("positive", 0),
+                "negative": fb.get("negative", 0),
+                "stale": fb.get("stale", 0),
+                "pending_signal": fb.get("pending_signal", 0),
+            }
+        log.info("Phase 1 shipped features: %s", status.get("shipped_features", "unavailable"))
+    except Exception as exc:
+        log.warning("Phase 1 feedback summary failed (non-fatal): %s", exc)
+
     log.info("Phase 1 STATUS: zte=%s urgent=%d",
              status.get("zte_score", "?"), len(status.get("urgent_issues", [])))
     return status
@@ -1171,6 +1187,18 @@ def save_board_minutes(
         ),
         f"- Urgent Issues: {len(status.get('urgent_issues', []))}",
         f"- Cron Health: {cron_status}",
+        *(
+            [
+                "",
+                "### Shipped Features Performance (RA-689)",
+                f"- Total shipped: {status['shipped_features']['total']}",
+                f"- Positive outcomes: {status['shipped_features']['positive']}",
+                f"- Negative outcomes: {status['shipped_features']['negative']}",
+                f"- Stale (>30 days, no signal): {status['shipped_features']['stale']}",
+                f"- Pending signal: {status['shipped_features']['pending_signal']}",
+            ]
+            if "shipped_features" in status else []
+        ),
         "",
         "## Phase 2 — LINEAR REVIEW",
         f"- Urgent: {linear.get('urgent_count', 0)} | High: {linear.get('high_count', 0)}",

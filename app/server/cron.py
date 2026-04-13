@@ -345,6 +345,60 @@ async def _fire_scout_trigger(trigger: dict, log) -> None:
     log.info("Scout trigger id=%s complete: findings=%d issues=%d", trigger["id"], findings, len(created))
 
 
+async def _fire_feedback_trigger(trigger: dict, log) -> None:
+    """RA-689 — Fire the outcome feedback loop and send a Telegram summary."""
+    import asyncio as _asyncio
+    import json as _json
+    from . import config
+
+    log.info("Firing feedback trigger id=%s", trigger["id"])
+    loop = _asyncio.get_event_loop()
+
+    from .agents.feedback_loop import run_feedback_cycle
+    result: dict = await loop.run_in_executor(None, run_feedback_cycle)
+
+    analysed = result.get("features_analysed", 0)
+    bvi = result.get("bvi_contribution", {})
+    stale_issues = result.get("stale_issues_created", [])
+    patterns = result.get("patterns", [])
+
+    summary_text = (
+        "🔄 *Pi-CEO Feedback Loop — Complete*\n\n"
+        f"Features analysed: *{analysed}*\n"
+        f"Positive outcomes: {bvi.get('features_with_positive_outcome', 0)}\n"
+        f"Negative outcomes: {bvi.get('features_with_negative_outcome', 0)}\n"
+        f"Stale (>30 days): {bvi.get('features_stale', 0)}\n"
+        f"Pending signal: {bvi.get('features_pending_signal', 0)}\n"
+        f"Stale review issues created: *{len(stale_issues)}*"
+        + (f"\nPatterns: {', '.join(p['pattern'] for p in patterns[:3])}" if patterns else "")
+    )
+
+    token   = config.TELEGRAM_BOT_TOKEN
+    chat_id = config.TELEGRAM_ALERT_CHAT_ID
+    if token and chat_id:
+        import urllib.request as _ureq
+        payload = _json.dumps({
+            "chat_id": chat_id,
+            "text": summary_text,
+            "parse_mode": "Markdown",
+            "disable_web_page_preview": True,
+        }).encode()
+        req = _ureq.Request(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            data=payload, method="POST",
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with _ureq.urlopen(req, timeout=10):
+                pass
+            log.info("Feedback loop Telegram summary sent")
+        except Exception as exc:
+            log.warning("Feedback loop Telegram send failed: %s", exc)
+
+    log.info("Feedback trigger id=%s complete: analysed=%d stale_issues=%d",
+             trigger["id"], analysed, len(stale_issues))
+
+
 async def _fire_trigger(trigger: dict, log) -> None:
     """Dispatch a single trigger by type. Raises on failure."""
     from .sessions import create_session
@@ -363,6 +417,8 @@ async def _fire_trigger(trigger: dict, log) -> None:
         await _fire_board_meeting_trigger(trigger, log)
     elif trigger_type == "scout":                              # RA-684
         await _fire_scout_trigger(trigger, log)
+    elif trigger_type == "feedback_loop":                      # RA-689
+        await _fire_feedback_trigger(trigger, log)
     else:
         await create_session(
             repo_url=trigger["repo_url"],

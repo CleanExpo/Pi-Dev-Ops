@@ -714,6 +714,18 @@ def run_ship_phase(pipeline_id: str) -> PipelineState:
     # Append to lessons.jsonl
     _append_ship_lesson(pipeline_id, score)
 
+    # RA-689 — Record shipped feature for outcome feedback loop
+    try:
+        from .agents.feedback_loop import append_shipped_feature as _record_shipped
+        _record_shipped(
+            pipeline_id=pipeline_id,
+            idea=state.idea or "",
+            review_score=score,
+            linear_ticket_id=linear_issue_id,
+        )
+    except Exception as _exc:
+        log.warning("feedback_loop record failed (non-fatal): %s", _exc)
+
     _write_artifact(pipeline_id, "ship-log.json", json.dumps(ship_log, indent=2))
     state.ship_log = ship_log
     state.current_phase = "done"

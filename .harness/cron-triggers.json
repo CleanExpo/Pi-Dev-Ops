@@ -205,5 +205,17 @@
     "created_at": 1744502400,
     "last_fired_at": null,
     "note": "RA-684 — searches GitHub/ArXiv/HN, scores against ZTE dimensions, creates scout-labelled Linear issues before Monday board meeting."
+  },
+  {
+    "id": "feedback-loop-monthly",
+    "type": "feedback_loop",
+    "name": "Outcome Feedback Loop: analyzing-customer-patterns — 1st of month 08:00 UTC",
+    "day_of_month": 1,
+    "hour": 8,
+    "minute": 0,
+    "enabled": true,
+    "created_at": 1744502400,
+    "last_fired_at": null,
+    "note": "RA-689 — reads shipped-features.jsonl, detects outcome signals from Linear, writes outcome lessons, flags stale features, returns BVI contribution data."
   }
 ]
