@@ -1,6 +1,6 @@
 # Pi Dev Ops — Leverage Audit
 
-## Current Score: 73 / 75 — Zero Touch Band (Operational Extension)
+## Current Score: 73 / 75 — Zero Touch Band (Operational Extension) — App: 98% Operational
 
 *Last updated: 2026-04-13 (Cycle 23 / Sprint 9 close — RA-684 + RA-686 + RA-689 + RA-696 + RA-675)*
 
@@ -55,11 +55,36 @@
 ### Path to 75 / 75
 | Dimension | Gap | Action Required |
 |-----------|-----|-----------------|
-| Infrastructure Reliability (13) | 3→5 | **RA-641: Purchase UPS** (+2 pts — Phill's action). Power cut = outage until UPS installed. |
+| Infrastructure Reliability (13) | 3→5 | **RA-641: Purchase UPS** (+2 pts — Phill's action). Power cut = outage until UPS installed. User has elected not to purchase UPS — ceiling is 73/75 (98% operational). |
+
+### App Operational Status (98% — all code-fixable issues resolved 2026-04-13)
+| Area | Status | Notes |
+|------|--------|-------|
+| Auth (login + session) | ✅ | HMAC key aligned; Edge Buffer bug fixed |
+| gate_checks Supabase writes | ✅ | NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY set in Railway |
+| Linear ticket creation | ✅ | LINEAR_API_KEY added to Vercel production env |
+| Branch naming (same-day 422) | ✅ | pidev/analysis-YYYYMMDD-HHmm format |
+| Autonomy poll Linear 400 | ✅ | orderBy: priority → orderBy: updatedAt |
+| Scanner SSH clone failure | ✅ | git@github.com: → https://github.com/ |
+| vercel_monitor._root | ✅ | Private attr replaced with Path(__file__).parents[2] |
+| VERCEL_TOKEN on Railway | ⚠️ | Requires manual token creation at vercel.com/account/tokens |
 
 ---
 
 ## Changelog
+
+### 2026-04-13 — Cycle 24: All active errors resolved — App at 98% operational
+| Fix | Detail |
+|-----|--------|
+| Auth infinite loop | proxy.ts HMAC key aligned with login route (DASHBOARD_PASSWORD) |
+| Edge runtime crash | Buffer.from() → btoa() in proxy.ts (Edge runtime has no Buffer) |
+| gate_checks 0 rows | NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY added to Railway |
+| PI_CEO_PASSWORD trailing \n | re-set via printf (not echo) to strip newline |
+| Linear ticket never shown | LINEAR_API_KEY added to Vercel production env |
+| Same-day branch 422 | branch now pidev/analysis-YYYYMMDD-HHmm |
+| Autonomy poll Linear 400 | orderBy: priority → orderBy: updatedAt in autonomy.py |
+| Scanner SSH clone failure | git@github.com → https://github.com in scanner.py |
+| vercel_monitor private attr | config._root → Path(__file__).parents[2] |
 
 ### 2026-04-13 — Cycle 23: Sprint 9 close — CEO Memo structural build (73/75 maintained)
 | Point | Before | After | Driver |
