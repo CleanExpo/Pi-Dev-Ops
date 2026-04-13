@@ -1,9 +1,39 @@
 // app/api/auth/login/route.ts
-// Browser-facing login: accepts password, calls FastAPI, forwards session cookie.
+// Vercel-native auth — no Railway dependency.
+// Password is checked against DASHBOARD_PASSWORD env var directly.
+// Session token = HMAC-SHA256(key=DASHBOARD_PASSWORD, data=issuedAt) stored as
+// an httpOnly Secure cookie. Rotating the password instantly invalidates all sessions.
 
-const PI_CEO_URL = (process.env.PI_CEO_URL ?? "http://127.0.0.1:7777").replace(/\/$/, "");
+// PI_CEO_PASSWORD is already set in Vercel — reuse it as the login password.
+// This is the same value stored in Railway's TAO_PASSWORD and the proxy uses
+// it server-side. One env var, one source of truth.
+const DASHBOARD_PASSWORD = process.env.PI_CEO_PASSWORD ?? "";
+const SESSION_TTL_SECONDS = 86_400; // 24 hours
+const COOKIE_NAME = "pi_session";
+
+async function hmac(key: string, data: string): Promise<string> {
+  const enc = new TextEncoder();
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(key),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", cryptoKey, enc.encode(data));
+  return Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 export async function POST(request: Request): Promise<Response> {
+  if (!DASHBOARD_PASSWORD) {
+    return Response.json(
+      { error: "DASHBOARD_PASSWORD env var not set on Vercel" },
+      { status: 503 },
+    );
+  }
+
   let password: string;
   try {
     const body = await request.json();
@@ -12,27 +42,35 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  let upstream: Response;
-  try {
-    upstream = await fetch(`${PI_CEO_URL}/api/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
-      signal: AbortSignal.timeout(5_000),
-    });
-  } catch {
-    return Response.json({ error: "Pi CEO server unreachable" }, { status: 502 });
-  }
-
-  if (!upstream.ok) {
+  // Constant-time comparison via HMAC to prevent timing attacks
+  const expectedHmac = await hmac(DASHBOARD_PASSWORD, "auth-check");
+  const submittedHmac = await hmac(password, "auth-check");
+  if (expectedHmac !== submittedHmac) {
     return Response.json({ error: "Invalid password" }, { status: 401 });
   }
 
-  // Forward the tao_session cookie from FastAPI to the browser
-  const setCookie = upstream.headers.get("set-cookie");
-  const res = Response.json({ ok: true }, { status: 200 });
-  if (setCookie) {
-    res.headers.set("set-cookie", setCookie);
-  }
-  return res;
+  // Issue session token: "issuedAt.hmac(issuedAt)"
+  const issuedAt = Math.floor(Date.now() / 1000).toString();
+  const sig = await hmac(DASHBOARD_PASSWORD, issuedAt);
+  const token = `${issuedAt}.${sig}`;
+
+  const isSecure = request.url.startsWith("https://");
+  const cookieHeader = [
+    `${COOKIE_NAME}=${token}`,
+    `Path=/`,
+    `HttpOnly`,
+    isSecure ? "Secure" : "",
+    `SameSite=Strict`,
+    `Max-Age=${SESSION_TTL_SECONDS}`,
+  ]
+    .filter(Boolean)
+    .join("; ");
+
+  return new Response(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+      "Set-Cookie": cookieHeader,
+    },
+  });
 }
