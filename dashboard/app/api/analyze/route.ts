@@ -4,12 +4,52 @@ export const maxDuration = 300; // Vercel Pro: 5-minute max
 export const dynamic = "force-dynamic";
 
 import { NextRequest } from "next/server";
+import { Octokit } from "@octokit/rest";
 import {
   makeOctokit, parseRepoUrl, getDefaultBranch,
   createBranch, fetchRepoContext, fetchBranchDiffs, pushFile, createPR,
 } from "@/lib/github";
 import { makeClient, buildContext, runPhase, getAnalysisMode } from "@/lib/claude";
 import { PHASES, PHASE_PROMPTS, applyPhaseResult } from "@/lib/phases";
+
+/** Fetch a single file from GitHub. Returns empty string if not found. */
+async function fetchGitHubFile(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  ref: string,
+  path: string,
+): Promise<string> {
+  try {
+    const { data } = await octokit.repos.getContent({ owner, repo, path, ref });
+    if ("content" in data && typeof data.content === "string") {
+      return Buffer.from(data.content, "base64").toString("utf-8");
+    }
+  } catch { /* file not found or not a file */ }
+  return "";
+}
+
+/** Parse lessons.jsonl and return the top N most-severe recent lessons as a summary string. */
+function buildLessonsSummary(raw: string, topN = 8): string {
+  if (!raw.trim()) return "";
+  const lessons: Array<{ severity?: string; source?: string; lesson?: string }> = [];
+  for (const line of raw.split("\n")) {
+    if (!line.trim()) continue;
+    try { lessons.push(JSON.parse(line)); } catch { /* skip malformed */ }
+  }
+  // Sort: error first, then warn, then info
+  const rank = (s?: string) => s === "error" ? 0 : s === "warn" ? 1 : 2;
+  const top = lessons
+    .filter((l) => l.lesson)
+    .sort((a, b) => rank(a.severity) - rank(b.severity))
+    .slice(0, topN);
+  if (!top.length) return "";
+  return [
+    "=== LESSONS FROM PRIOR RUNS (apply these to improve your analysis) ===",
+    ...top.map((l) => `[${l.severity ?? "info"}][${l.source ?? "?"}] ${l.lesson}`),
+    "=================================================================",
+  ].join("\n");
+}
 import { getSettings } from "@/lib/supabase/settings";
 import { createServerClient } from "@/lib/supabase/server";
 import { createDeployment, getProjectId } from "@/lib/vercel-api";
@@ -165,6 +205,31 @@ export async function GET(req: NextRequest) {
         line("system", `  Total context: ${files.length} files (${Math.round(context.length / 1000)}KB)`);
         line("system", "");
 
+        // ── Feedback loops + Knowledge retention ─────────────────
+        // Fetch lessons.jsonl and skill files to enrich intelligence phases.
+        // Best-effort: if files missing, analysis still runs without enrichment.
+        const [lessonsRaw, evalSkill, zteSkill, leverageSkill, ceoSkill] =
+          await Promise.all([
+            fetchGitHubFile(octokit, owner, repo, defaultBranch, ".harness/lessons.jsonl"),
+            fetchGitHubFile(octokit, owner, repo, defaultBranch, "skills/tier-evaluator/SKILL.md"),
+            fetchGitHubFile(octokit, owner, repo, defaultBranch, "skills/zte-maturity/SKILL.md"),
+            fetchGitHubFile(octokit, owner, repo, defaultBranch, "skills/leverage-audit/SKILL.md"),
+            fetchGitHubFile(octokit, owner, repo, defaultBranch, "skills/ceo-mode/SKILL.md"),
+          ]);
+        const lessonsSummary = buildLessonsSummary(lessonsRaw);
+        if (lessonsSummary) line("system", `  Injecting ${lessonsSummary.split("\n").length - 2} lessons into intelligence phases`);
+
+        /** Returns context enriched with lessons + skill guide for a given phase. */
+        const enrichedContext = (phaseId: number): string => {
+          const parts: string[] = [context];
+          if (lessonsSummary && [3, 5, 6, 7].includes(phaseId)) parts.push(lessonsSummary);
+          if (phaseId === 3 && evalSkill)     parts.push(`=== SKILL GUIDE: TIER-EVALUATOR ===\n${evalSkill}`);
+          if (phaseId === 5 && zteSkill)      parts.push(`=== SKILL GUIDE: ZTE-MATURITY ===\n${zteSkill}`);
+          if (phaseId === 5 && leverageSkill) parts.push(`=== SKILL GUIDE: LEVERAGE-AUDIT ===\n${leverageSkill}`);
+          if (phaseId === 7 && ceoSkill)      parts.push(`=== SKILL GUIDE: CEO-MODE ===\n${ceoSkill}`);
+          return parts.join("\n\n");
+        };
+
         // ── Run 7 analysis phases ────────────────────────────────
         let result: Partial<AnalysisResult> = { repoUrl, repoName: repo, branch: branchName };
 
@@ -184,7 +249,7 @@ export async function GET(req: NextRequest) {
 
           let phaseOutput = "";
           try {
-            phaseOutput = await runPhase(claude, PHASE_MODELS[phase.id] ?? model, PHASE_PROMPTS[phase.id], context, (chunk) => {
+            phaseOutput = await runPhase(claude, PHASE_MODELS[phase.id] ?? model, PHASE_PROMPTS[phase.id], enrichedContext(phase.id), (chunk) => {
               chunk.split("\n").forEach((l) => { if (l.trim()) line("agent", `  ${l}`); });
             }, abortController.signal);
           } catch (err) {
