@@ -185,8 +185,35 @@ def write_proposal(category: str, content: str) -> Path:
     return path
 
 
+_TERMINAL_STATES = {"done", "cancelled", "duplicate"}
+
+
+def _has_open_ticket(client: LinearClient, title: str) -> bool:
+    """Return True if an open (non-done, non-cancelled) ticket with this exact
+    title already exists.  Prevents duplicate tickets when the script fires
+    multiple times on the same day."""
+    try:
+        issues = client.search_issues(team_id=_LINEAR_TEAM_ID, title_contains=title)
+        for issue in issues:
+            if issue.get("title") != title:
+                continue  # containsIgnoreCase can return partial matches
+            state_name = (issue.get("state") or {}).get("name", "").lower()
+            if state_name not in _TERMINAL_STATES:
+                log.info(
+                    "Skipping duplicate ticket — open issue %s already exists: %s",
+                    issue.get("identifier"), title,
+                )
+                return True
+    except Exception as exc:  # noqa: BLE001
+        # Dedup check failure: log and proceed to create rather than silently skip.
+        log.warning("Dedup check failed (%s) — proceeding with ticket creation", exc)
+    return False
+
+
 def create_linear_ticket(client: LinearClient, category: str, content: str) -> dict | None:
     title = f"[Self-Improvement] Review {category.replace('-', ' ').title()} lessons pattern"
+    if _has_open_ticket(client, title):
+        return None
     try:
         issue = client.create_issue(
             team_id=_LINEAR_TEAM_ID,
