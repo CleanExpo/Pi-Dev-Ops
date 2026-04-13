@@ -7,6 +7,16 @@ agents:
   generator: {model: sonnet, temperature: 0.2, sdk: true}
   evaluator: {model: sonnet, temperature: 0.1, sdk: true, parallel: true}
 
+# RA-674 — Confidence-weighted evaluator gate thresholds.
+# Override per-project via TAO_EVAL_* env vars (see config.py).
+evaluator_confidence:
+  # Tier 1 — AUTO-SHIP FAST: score ≥ auto_ship_score AND confidence ≥ auto_ship_pct
+  auto_ship_score:      9.5   # TAO_EVAL_AUTOSHIP_SCORE
+  auto_ship_pct:        90    # TAO_EVAL_AUTOSHIP_CONFIDENCE (%)
+  # Tier 2 — PASS: score ≥ EVALUATOR_THRESHOLD AND confidence ≥ flag_pct
+  # Tier 3 — PASS + FLAG: score ≥ EVALUATOR_THRESHOLD AND confidence < flag_pct
+  flag_pct:             60    # TAO_EVAL_FLAG_CONFIDENCE (%) — below triggers Telegram alert
+
 qa:
   max_rounds: 3
   auto_escalate: true

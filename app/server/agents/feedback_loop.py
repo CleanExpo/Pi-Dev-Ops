@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import time
 import urllib.error
 import urllib.request
@@ -30,7 +29,7 @@ _FEEDBACK_CACHE_FILE = _HARNESS_ROOT / "feedback-cache.json"
 _STALE_DAYS = 30
 
 # Linear API config — read from env via config module
-from app.server import config as _config
+from app.server import config as _config  # noqa: E402
 _LINEAR_API_KEY = _config.LINEAR_API_KEY
 _LINEAR_TEAM_ID = _config.LINEAR_TEAM_ID
 

@@ -129,6 +129,15 @@ EVALUATOR_ENABLED    = os.environ.get("TAO_EVALUATOR_ENABLED", "true").lower() =
 EVALUATOR_MODEL      = os.environ.get("TAO_EVALUATOR_MODEL",            "sonnet")
 EVALUATOR_THRESHOLD  = int(os.environ.get("TAO_EVALUATOR_THRESHOLD",    "8"))
 EVALUATOR_MAX_RETRIES = int(os.environ.get("TAO_EVALUATOR_MAX_RETRIES", "2"))
+
+# RA-674 — Confidence-weighted evaluator thresholds.
+# Tier 1 (auto-ship fast): score ≥ EVAL_AUTOSHIP_SCORE  AND confidence ≥ EVAL_AUTOSHIP_CONFIDENCE%
+# Tier 2 (pass):           score ≥ EVALUATOR_THRESHOLD   AND confidence ≥ EVAL_FLAG_CONFIDENCE%
+# Tier 3 (pass + flag):    score ≥ EVALUATOR_THRESHOLD   AND confidence <  EVAL_FLAG_CONFIDENCE%
+# Retry:                   score <  EVALUATOR_THRESHOLD   (existing behaviour, unchanged)
+EVAL_AUTOSHIP_SCORE      = float(os.environ.get("TAO_EVAL_AUTOSHIP_SCORE",      "9.5"))
+EVAL_AUTOSHIP_CONFIDENCE = float(os.environ.get("TAO_EVAL_AUTOSHIP_CONFIDENCE", "90"))
+EVAL_FLAG_CONFIDENCE     = float(os.environ.get("TAO_EVAL_FLAG_CONFIDENCE",     "60"))
 WEBHOOK_SECRET       = os.environ.get("TAO_WEBHOOK_SECRET",             "")
 LINEAR_WEBHOOK_SECRET = os.environ.get("TAO_LINEAR_WEBHOOK_SECRET",     "")
 

@@ -164,6 +164,7 @@ class BuildSession:
     evaluator_enabled: bool = True
     evaluator_status: str = "pending"
     evaluator_score: Optional[float] = None
+    evaluator_confidence: Optional[float] = None  # RA-674: 0-100% self-reported certainty
     evaluator_model: str = ""       # RA-553: which model(s) produced the score
     evaluator_consensus: str = ""   # RA-553: per-model scores + delta description
     parent_session_id: Optional[str] = None  # RA-464: fan-out parallelism
@@ -185,6 +186,7 @@ def list_sessions():
             "parent": s.parent_session_id,
             "last_phase": s.last_completed_phase,
             "evaluator_score": s.evaluator_score,
+            "evaluator_confidence": s.evaluator_confidence,
             "evaluator_model": s.evaluator_model,
             "evaluator_consensus": s.evaluator_consensus,
             "retry_count": s.retry_count,
@@ -409,6 +411,64 @@ def _extract_eval_score(text: str) -> Optional[float]:
     return None
 
 
+def _extract_eval_confidence(text: str) -> Optional[float]:
+    """RA-674 — Parse CONFIDENCE: <percent>% line from evaluator output.
+
+    Returns a float in [0, 100] or None if the line is absent / unparseable.
+    """
+    for line in text.split("\n"):
+        if line.upper().startswith("CONFIDENCE:"):
+            try:
+                rest = line.split(":", 1)[1].strip()
+                pct_str = rest.split("%")[0].strip()
+                val = float(pct_str)
+                return max(0.0, min(100.0, val))
+            except (ValueError, IndexError):
+                pass
+    return None
+
+
+def _send_low_confidence_alert(session, score: float, confidence: float) -> None:
+    """RA-674 — Fire-and-forget Telegram alert when an evaluator decision is low-confidence.
+
+    Triggers when score ≥ threshold but confidence < EVAL_FLAG_CONFIDENCE.  The build
+    ships (the score gate passed), but the operator is notified to review manually.
+    """
+    token = config.TELEGRAM_BOT_TOKEN
+    chat_id = config.TELEGRAM_ALERT_CHAT_ID
+    if not token or not chat_id:
+        return
+    repo = (getattr(session, "repo_url", "") or "").rstrip("/").split("/")[-1] or "unknown"
+    msg = (
+        f"⚠️ *Evaluator: Low-Confidence Gate Decision*\n\n"
+        f"Session: `{session.id}`\n"
+        f"Repo: `{repo}`\n"
+        f"Score: *{score:.1f}/10* (PASS — above threshold)\n"
+        f"Confidence: *{confidence:.0f}%* (below {int(config.EVAL_FLAG_CONFIDENCE)}% flag threshold)\n\n"
+        f"Build shipped but evaluator certainty is low. Manual review recommended."
+    )
+    payload = json.dumps({
+        "chat_id": chat_id,
+        "text": msg,
+        "parse_mode": "Markdown",
+        "disable_web_page_preview": True,
+    }).encode()
+    try:
+        req = urllib.request.Request(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            data=payload, method="POST",
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=8):
+            pass
+        _log.info(
+            "Low-confidence alert sent: session=%s score=%.1f confidence=%.0f%%",
+            session.id, score, confidence,
+        )
+    except Exception as exc:
+        _log.warning("Low-confidence Telegram alert failed (non-fatal): %s", exc)
+
+
 async def _run_eval_with_cache(
     *,
     brief_context: str,
@@ -465,12 +525,15 @@ async def _run_eval_with_cache(
         "abstractions? Tight, purposeful code = 9-10.\n"
         "4. FORMAT \u2014 Does it match the project's existing conventions exactly? "
         "Style violations or inconsistent naming = \u22646.\n\n"
-        "OUTPUT FORMAT: Respond with exactly 4 dimension lines then the overall:\n"
+        "OUTPUT FORMAT: Respond with exactly 4 dimension lines, the overall, then a confidence line:\n"
         "COMPLETENESS: <score>/10 \u2014 <reason>\n"
         "CORRECTNESS: <score>/10 \u2014 <reason>\n"
         "CONCISENESS: <score>/10 \u2014 <reason>\n"
         "FORMAT: <score>/10 \u2014 <reason>\n"
-        f"OVERALL: <average>/10 \u2014 PASS or FAIL (threshold: {threshold}/10)"
+        f"OVERALL: <average>/10 \u2014 PASS or FAIL (threshold: {threshold}/10)\n"
+        "CONFIDENCE: <0-100>% \u2014 <how certain are you? consider: diff clarity, "
+        "requirements ambiguity, borderline score, incomplete context. "
+        "100% = unambiguous; 50% = borderline; <60% = genuinely uncertain>"
     )
 
     system_blocks: list[dict] = []
@@ -1040,12 +1103,15 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
         "2. CORRECTNESS \u2014 Any bugs, logic errors, type issues, null refs, security vulnerabilities, or broken tests? One confirmed bug = ≤6.\n"
         "3. CONCISENESS \u2014 Any dead code, debug prints, TODO stubs, or over-engineered abstractions? Tight, purposeful code = 9-10.\n"
         "4. FORMAT \u2014 Does it match the project's existing conventions exactly? Style violations or inconsistent naming = ≤6.\n\n"
-        "OUTPUT FORMAT: Respond with exactly 4 dimension lines then the overall:\n"
+        "OUTPUT FORMAT: Respond with exactly 4 dimension lines, the overall, then a confidence line:\n"
         "COMPLETENESS: <score>/10 \u2014 <reason>\n"
         "CORRECTNESS: <score>/10 \u2014 <reason>\n"
         "CONCISENESS: <score>/10 \u2014 <reason>\n"
         "FORMAT: <score>/10 \u2014 <reason>\n"
-        f"OVERALL: <average>/10 \u2014 PASS or FAIL (threshold: {threshold}/10)"
+        f"OVERALL: <average>/10 \u2014 PASS or FAIL (threshold: {threshold}/10)\n"
+        "CONFIDENCE: <0-100>% \u2014 <how certain are you? consider: diff clarity, "
+        "requirements ambiguity, borderline score, incomplete context. "
+        "100% = unambiguous; 50% = borderline; <60% = genuinely uncertain>"
     )
     for eval_attempt in range(max_retries + 1):
         em(session, "phase", f"[5/{total_phases}] Running Evaluator (attempt {eval_attempt + 1}/{max_retries + 1})...")
@@ -1075,6 +1141,10 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
             session.evaluator_score = final_score
             session.evaluator_model = eval_model
             session.evaluator_consensus = consensus_detail
+            # RA-674 — extract and store confidence score
+            raw_confidence = _extract_eval_confidence(eval_text)
+            session.evaluator_confidence = raw_confidence
+            conf_pct = raw_confidence if raw_confidence is not None else 50.0
             for line in eval_text.split("\n"):
                 em(session, "agent", f"  {line.strip()[:200]}")
             if session.evaluator_score is None:
@@ -1097,8 +1167,27 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
             except Exception:
                 pass
             if passed:
-                session.evaluator_status = "passed"
-                em(session, "success", f"  Evaluator: {session.evaluator_score}/10 \u2014 PASS")
+                # RA-674 — Three-tier routing based on score + confidence
+                if (session.evaluator_score >= config.EVAL_AUTOSHIP_SCORE
+                        and conf_pct >= config.EVAL_AUTOSHIP_CONFIDENCE):
+                    # Tier 1 — AUTO-SHIP FAST: very high score + high confidence
+                    session.evaluator_status = "passed"
+                    em(session, "success",
+                       f"  Evaluator: {session.evaluator_score:.1f}/10 @ {conf_pct:.0f}%"
+                       f" \u2014 AUTO-SHIP FAST")
+                elif conf_pct >= config.EVAL_FLAG_CONFIDENCE:
+                    # Tier 2 — PASS: meets threshold + adequate confidence
+                    session.evaluator_status = "passed"
+                    em(session, "success",
+                       f"  Evaluator: {session.evaluator_score:.1f}/10 @ {conf_pct:.0f}%"
+                       f" \u2014 PASS")
+                else:
+                    # Tier 3 — LOW CONFIDENCE: passes score gate but operator review needed
+                    session.evaluator_status = "passed_low_confidence"
+                    em(session, "success",
+                       f"  Evaluator: {session.evaluator_score:.1f}/10 @ {conf_pct:.0f}%"
+                       f" \u2014 PASS (low confidence \u2014 flagged for review)")
+                    _send_low_confidence_alert(session, session.evaluator_score, conf_pct)
                 break
             if eval_attempt >= max_retries:
                 session.evaluator_status = "warned"
@@ -1267,7 +1356,10 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     try:
         spec_exists = os.path.isfile(os.path.join(session.workspace, ".harness", "spec.md"))
         plan_exists = os.path.isfile(os.path.join(session.workspace, ".harness", "plan.md"))
-        review_passed = getattr(session, "evaluator_status", "") == "passed"
+        # RA-674: passed_low_confidence is a passing state (score gate cleared)
+        review_passed = getattr(session, "evaluator_status", "") in (
+            "passed", "passed_low_confidence"
+        )
         review_score = float(session.evaluator_score or 0)
         log_gate_check(
             pipeline_id=session.id,
@@ -1283,6 +1375,7 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
             shipped=push_ok,
             session_started_at=session.started_at,   # RA-672: C3 mean time to value
             push_timestamp=push_ts if push_ok else None,
+            confidence=session.evaluator_confidence,  # RA-674: log to Supabase
         )
     except Exception:
         pass  # observability must never block the pipeline

@@ -773,7 +773,7 @@ def _read_lessons(n: int = 20) -> str:
     if not path.exists():
         return ""
     try:
-        lines = [l.strip() for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
+        lines = [ln.strip() for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
         recent = lines[-n:]
         if not recent:
             return ""

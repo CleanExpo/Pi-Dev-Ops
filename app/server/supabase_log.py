@@ -148,6 +148,7 @@ def log_gate_check(
     shipped: bool,
     session_started_at: float | None = None,
     push_timestamp: float | None = None,
+    confidence: float | None = None,
 ) -> None:
     """
     Write one gate_check row to Supabase after every /ship phase.
@@ -155,6 +156,7 @@ def log_gate_check(
 
     RA-672: session_started_at (unix epoch) and push_timestamp (unix epoch) are
     used by zte_v2_score.py to compute C3 (mean time to value).
+    RA-674: confidence (0-100%) is the evaluator's self-reported certainty score.
     """
     row: dict = {
         "pipeline_id":    pipeline_id,
@@ -177,10 +179,13 @@ def log_gate_check(
         row["push_timestamp"] = datetime.fromtimestamp(
             push_timestamp, tz=timezone.utc
         ).isoformat()
+    if confidence is not None:
+        row["confidence"] = confidence
     _insert("gate_checks", row)
     log.info(
-        "gate_check logged: pipeline=%s all_passed=%s score=%.1f shipped=%s",
-        pipeline_id, all(gate_checks.values()), review_score, shipped,
+        "gate_check logged: pipeline=%s all_passed=%s score=%.1f confidence=%s shipped=%s",
+        pipeline_id, all(gate_checks.values()), review_score,
+        f"{confidence:.0f}%" if confidence is not None else "n/a", shipped,
     )
 
 

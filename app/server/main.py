@@ -414,7 +414,7 @@ def _telegram_send(token: str, chat_id: int | str, text: str) -> None:
         with _ur.urlopen(req, timeout=8):
             pass
     except Exception as exc:
-        _log.warning("Telegram reply failed: %s", exc)
+        log.warning("Telegram reply failed: %s", exc)
 
 
 @app.post("/webhook/telegram")
@@ -449,9 +449,9 @@ async def telegram_webhook(request: Request):
             return {"ok": True}
         try:
             mark_alert_acked(alert_key)
-            _log.info("Alert acked via Telegram: key=%s chat=%s", alert_key, chat_id)
+            log.info("Alert acked via Telegram: key=%s chat=%s", alert_key, chat_id)
         except Exception as exc:
-            _log.error("mark_alert_acked failed: %s", exc)
+            log.error("mark_alert_acked failed: %s", exc)
             if token and chat_id:
                 _telegram_send(token, chat_id, f"❌ Failed to ack `{alert_key}`: {exc}")
             return {"ok": True}
