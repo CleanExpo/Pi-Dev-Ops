@@ -1,0 +1,79 @@
+```json
+{
+  "totalFiles": 72,
+  "languages": {
+    "Python": 1840,
+    "TypeScript": 180,
+    "JavaScript": 45,
+    "JSON": 620,
+    "YAML": 180,
+    "Markdown": 8200,
+    "TOML": 18,
+    "Dockerfile": 48
+  },
+  "topFiles": [
+    ".harness/BOARD-DELIBERATION-ENHANCED-2026-04-12.md — 1050",
+    ".harness/BOARD-DELIBERATION-2026-04-12.md — 820",
+    ".harness/anthropic-docs/claude-code-cli-reference.md — 780",
+    ".harness/anthropic-docs/mcp-overview.md — 760",
+    ".harness/anthropic-docs/api-reference.md — 740",
+    ".harness/anthropic-docs/tool-use.md — 720",
+    ".harness/anthropic-docs/models-overview.md — 700",
+    ".harness/anthropic-docs/claude-code-overview.md — 680",
+    "app/server/main.py — 490",
+    ".harness/INCIDENT-2026-04-12.md — 340"
+  ],
+  "frameworks": [
+    "FastAPI",
+    "Next.js 16",
+    "React 19",
+    "Tailwind CSS",
+    "Uvicorn",
+    "Pydantic v2",
+    "Starlette",
+    "xterm.js",
+    "Supabase",
+    "Radix UI",
+    "Model Context Protocol (MCP)",
+    "Anthropic SDK (@anthropic-ai/sdk)",
+    "Octokit (@octokit/rest)",
+    "Hatchling (build)",
+    "Zod"
+  ],
+  "entryPoints": [
+    "app/server/main.py",
+    "mcp/pi-ceo-server.js",
+    "dashboard/app/layout.tsx",
+    "Dockerfile"
+  ],
+  "testFiles": 0,
+  "testCoveragePresent": false,
+  "ciCdConfig": [
+    ".github/workflows/ci.yml",
+    ".github/workflows/smoke_test.yml"
+  ],
+  "dockerPresent": true,
+  "envExamplePresent": true,
+  "packageManagers": [
+    "pip",
+    "npm",
+    "hatchling"
+  ],
+  "totalDependencies": 37,
+  "architecturePattern": "fullstack",
+  "missingCriticalFiles": [
+    "tests/ directory (no test files present in repo context — only referenced in CI)",
+    "app/server/sessions.py (referenced extensively but not provided)",
+    "app/server/config.py (referenced extensively but not provided)",
+    "app/server/auth.py (referenced but not provided)",
+    "app/server/autonomy.py (referenced but not provided)",
+    "app/server/scanner.py (referenced but not provided)",
+    "app/server/pipeline.py (referenced but not provided)",
+    "app/server/orchestrator.py (referenced but not provided)",
+    "mcp/pi-ceo-server.js (referenced but not provided)",
+    "dashboard/app/ source files (no TSX/TS app source provided)",
+    "vercel.json",
+    "railway.toml (in .gitignore — blocked from commit)"
+  ]
+}
+```
