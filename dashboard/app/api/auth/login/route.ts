@@ -4,10 +4,15 @@
 // Session token = HMAC-SHA256(key=DASHBOARD_PASSWORD, data=issuedAt) stored as
 // an httpOnly Secure cookie. Rotating the password instantly invalidates all sessions.
 
-// PI_CEO_PASSWORD is already set in Vercel — reuse it as the login password.
-// This is the same value stored in Railway's TAO_PASSWORD and the proxy uses
-// it server-side. One env var, one source of truth.
-const DASHBOARD_PASSWORD = process.env.PI_CEO_PASSWORD ?? "";
+// DASHBOARD_PASSWORD = human-facing login (what you type on the landing page).
+// PI_CEO_PASSWORD    = machine-to-machine secret (Vercel proxy → Railway backend).
+// These must be SEPARATE: PI_CEO_PASSWORD is a random 30-char secret that no human
+// should be expected to type. Set DASHBOARD_PASSWORD in Vercel env to whatever
+// password you want to use on the login screen.
+const DASHBOARD_PASSWORD =
+  process.env.DASHBOARD_PASSWORD ||
+  process.env.PI_CEO_PASSWORD ||
+  "";
 const SESSION_TTL_SECONDS = 86_400; // 24 hours
 const COOKIE_NAME = "pi_session";
 
