@@ -295,6 +295,56 @@ async def _fire_board_meeting_trigger(trigger: dict, log) -> None:
     log.info("Board meeting trigger id=%s complete in %.1fs", trigger["id"], duration)
 
 
+async def _fire_scout_trigger(trigger: dict, log) -> None:
+    """RA-684 — Fire the Scout Agent (GitHub/ArXiv/HN intel) and send a Telegram summary."""
+    import asyncio as _asyncio
+    import json as _json
+    from . import config
+
+    log.info("Firing scout trigger id=%s", trigger["id"])
+    loop = _asyncio.get_event_loop()
+
+    from .agents.scout import run_scout_cycle
+    result: dict = await loop.run_in_executor(None, run_scout_cycle)
+
+    findings  = result.get("findings", 0)
+    created   = result.get("issues_created", [])
+    sources   = result.get("sources", {})
+    src_str   = ", ".join(f"{k}={v}" for k, v in sources.items())
+
+    summary_text = (
+        "🔍 *Pi-CEO Scout Agent — Complete*\n\n"
+        f"New findings: *{findings}*\n"
+        f"Sources: {src_str}\n"
+        f"Linear issues created: *{len(created)}*"
+        + (f"\n{chr(10).join(created[:10])}" if created else "")
+    )
+
+    token   = config.TELEGRAM_BOT_TOKEN
+    chat_id = config.TELEGRAM_ALERT_CHAT_ID
+    if token and chat_id:
+        import urllib.request as _ureq
+        payload = _json.dumps({
+            "chat_id": chat_id,
+            "text": summary_text,
+            "parse_mode": "Markdown",
+            "disable_web_page_preview": True,
+        }).encode()
+        req = _ureq.Request(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            data=payload, method="POST",
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with _ureq.urlopen(req, timeout=10):
+                pass
+            log.info("Scout Telegram summary sent")
+        except Exception as exc:
+            log.warning("Scout Telegram send failed: %s", exc)
+
+    log.info("Scout trigger id=%s complete: findings=%d issues=%d", trigger["id"], findings, len(created))
+
+
 async def _fire_trigger(trigger: dict, log) -> None:
     """Dispatch a single trigger by type. Raises on failure."""
     from .sessions import create_session
@@ -311,6 +361,8 @@ async def _fire_trigger(trigger: dict, log) -> None:
         await _fire_script_trigger(trigger, log)
     elif trigger_type == "board_meeting":
         await _fire_board_meeting_trigger(trigger, log)
+    elif trigger_type == "scout":                              # RA-684
+        await _fire_scout_trigger(trigger, log)
     else:
         await create_session(
             repo_url=trigger["repo_url"],

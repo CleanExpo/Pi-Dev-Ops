@@ -797,6 +797,121 @@ def _read_lessons(n: int = 20) -> str:
         return ""
 
 
+# ── RA-686: CEO Board Personas ───────────────────────────────────────────────
+
+CEO_BOARD_PERSONAS = {
+    "CEO": (
+        "Strategic Operator. Focus: execution velocity, founder leverage, system ROI. "
+        "Asks: Is this the highest-leverage use of current capacity? "
+        "Bias toward ruthless prioritisation and shipping."
+    ),
+    "Revenue": (
+        "Revenue Officer. Focus: client outcomes, monetisation, deal risk. "
+        "Asks: Does this move money or protect existing revenue? "
+        "Bias toward client-facing impact and commercial reality."
+    ),
+    "Product Strategist": (
+        "Product lead. Focus: user needs, product-market fit, feature value. "
+        "Asks: Do real users need this, and will they pay for it? "
+        "Bias toward validated demand over internal assumptions."
+    ),
+    "Technical Architect": (
+        "Senior architect. Focus: architecture integrity, tech debt, maintainability. "
+        "Asks: Can we maintain, extend, and trust this system? "
+        "Bias toward simplicity, reliability, and long-term code health."
+    ),
+    "Contrarian": (
+        "Devil's advocate. Focus: challenge every assumption and recommendation. "
+        "Asks: What are we getting wrong? What is the failure mode nobody is naming? "
+        "Bias toward surfacing uncomfortable truths before they become crises."
+    ),
+    "Compounder": (
+        "Long-term value thinker. Focus: compound returns, moats, durability. "
+        "Asks: Does this compound over time or depreciate? Will we regret prioritising this in 6 months? "
+        "Bias toward actions that build lasting capability, not one-off wins."
+    ),
+    "Custom Oracle": (
+        "Domain expert: Australian B2B SaaS, insurance-linked compliance, restoration industry. "
+        "Asks: Is this commercially safe for clients operating in regulated environments? "
+        "Bias toward risk management — a security incident in this space is a termination event."
+    ),
+    "Market Strategist": (
+        "Market positioning lead. Focus: competitive differentiation, timing, external signals. "
+        "Asks: What does the market signal, and are we positioned to capitalise on it? "
+        "Bias toward external validation over internal conviction."
+    ),
+    "Moonshot": (
+        "Ceiling thinker. Focus: productisation ceiling, 10x framing, founder OS vision. "
+        "Asks: What becomes possible if this system actually works at scale? "
+        "Bias toward the largest viable ambition — challenges the team to see the ceiling."
+    ),
+}
+
+
+def run_persona_debate_phase(
+    system_prompt: str,
+    status: dict[str, Any],
+    linear: dict[str, Any],
+) -> dict[str, Any]:
+    """Phase 2.5 — PERSONA DEBATE (RA-686): 9 CEO Board personas deliberate on the intelligence brief.
+
+    A single SDK/API call generates all 9 persona responses in one structured document.
+    The synthesis is then passed to Phase 3 (SWOT) as additional context.
+    """
+    urgent_issues = "\n".join(
+        f"  - {i['id']} [{i['state']}] {i['title']}"
+        for i in status.get("urgent_issues", [])[:10]
+    ) or "  None"
+
+    zte = status.get("zte_score", "unknown")
+    zte_v2 = status.get("zte_v2", {})
+    v2_line = (
+        f"- ZTE v2: {zte_v2['total']}/{zte_v2['max']} [{zte_v2['band']}]\n"
+        if zte_v2 else ""
+    )
+
+    personas_block = "\n\n".join(
+        f"**{name}**: {desc}"
+        for name, desc in CEO_BOARD_PERSONAS.items()
+    )
+
+    user_content = (
+        "Run Phase 2.5 — CEO BOARD PERSONA DEBATE.\n\n"
+        "## Intelligence Brief\n"
+        f"- ZTE Score (v1): {zte}\n"
+        + v2_line
+        + f"- Open Urgent issues: {len(status.get('urgent_issues', []))}\n"
+        f"- Open High issues: {linear.get('high_count', 0)}\n"
+        f"- Stale items (>3d): {', '.join(linear.get('stale_items', [])) or 'None'}\n\n"
+        "## Open Urgent Issues\n"
+        + urgent_issues
+        + "\n\n## Board Personas\n\n"
+        + personas_block
+        + "\n\n## Instructions\n"
+        "Each persona gives their single most important observation or challenge in 2–3 sentences.\n"
+        "The Contrarian MUST challenge at least one recommendation from another persona by name.\n"
+        "End with a CEO SYNTHESIS (3 sentences): the highest-signal insight from the debate.\n\n"
+        "Format strictly as:\n"
+        "**CEO:** [2–3 sentences]\n"
+        "**Revenue:** [2–3 sentences]\n"
+        "**Product Strategist:** [2–3 sentences]\n"
+        "**Technical Architect:** [2–3 sentences]\n"
+        "**Contrarian:** [2–3 sentences — must name and challenge a specific persona's view]\n"
+        "**Compounder:** [2–3 sentences]\n"
+        "**Custom Oracle:** [2–3 sentences]\n"
+        "**Market Strategist:** [2–3 sentences]\n"
+        "**Moonshot:** [2–3 sentences]\n\n"
+        "**CEO SYNTHESIS:** [3 sentences integrating the debate into one actionable conclusion]"
+    )
+
+    raw = _run_prompt_with_cache(system_text=system_prompt, user_content=user_content, timeout=120)
+    if not raw:
+        raw = _run_prompt_via_sdk(user_content, timeout=120, thinking="adaptive")
+
+    log.info("Phase 2.5 PERSONA DEBATE complete (%d chars)", len(raw))
+    return {"phase": "persona_debate", "content": raw}
+
+
 # ── RA-658: Board Meeting Phases 1–5 ─────────────────────────────────────────
 
 def run_status_phase() -> dict[str, Any]:
@@ -928,8 +1043,9 @@ def run_swot_phase(
     system_prompt: str,
     status: dict[str, Any],
     linear: dict[str, Any],
+    persona_debate: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Phase 3 — SWOT: analysis informed by lessons.jsonl + live board context."""
+    """Phase 3 — SWOT: analysis informed by lessons.jsonl + live board context + persona debate."""
     lessons = _read_lessons(n=20)
     urgent_issues = status.get("urgent_issues", [])
     stale = linear.get("stale_items", [])
@@ -949,15 +1065,25 @@ def run_swot_phase(
         + f"- Stale items (>3d unchanged): {', '.join(stale) or 'None'}\n"
         + f"- Unassigned issues: {', '.join(unassigned) or 'None'}\n"
     )
+
+    # RA-686 — inject persona debate synthesis if available
+    persona_section = ""
+    if persona_debate and persona_debate.get("content"):
+        synthesis_match = persona_debate["content"].split("**CEO SYNTHESIS:**")
+        synthesis = synthesis_match[-1].strip()[:500] if len(synthesis_match) > 1 else ""
+        if synthesis:
+            persona_section = f"\n\n## CEO Board Synthesis (from Persona Debate)\n{synthesis}"
+
     user_content = (
         "Run Phase 3 — SWOT ANALYSIS.\n\n"
         + state_section
+        + persona_section
         + lessons
         + "\n\n## Instructions\n"
-        "Produce a concise SWOT for Pi-CEO based on the above data and lessons.\n"
+        "Produce a concise SWOT for Pi-CEO based on the above data, persona synthesis, and lessons.\n"
         "Format:\nSTRENGTHS: (3–5 bullets)\nWEAKNESSES: (3–5 bullets)\n"
         "OPPORTUNITIES: (3–5 bullets)\nTHREATS: (3–5 bullets)\n"
-        "Reference specific lesson entries where relevant. No filler language."
+        "Reference specific lesson entries and persona debate points where relevant. No filler language."
     )
     raw = _run_prompt_with_cache(system_text=system_prompt, user_content=user_content, timeout=90)
     if not raw:
@@ -1010,6 +1136,7 @@ def save_board_minutes(
     swot: dict[str, Any],
     recommendations: dict[str, Any],
     gap_audit: dict[str, Any],
+    persona_debate: dict[str, Any] | None = None,
 ) -> Path:
     """Phase 5 — SAVE MINUTES: write full board minutes to .harness/board-meetings/."""
     board_dir = _HARNESS_ROOT / "board-meetings"
@@ -1022,11 +1149,18 @@ def save_board_minutes(
     cron = status.get("cron_health", {})
     cron_status = cron.get("status", "unknown") if isinstance(cron, dict) else str(cron)
 
+    persona_section = (
+        ["", "## Phase 2.5 — CEO BOARD PERSONA DEBATE (RA-686)", persona_debate.get("content", "(not available)")]
+        if persona_debate else []
+    )
+
     content = "\n".join([
         f"# Board Meeting Minutes — Cycle {cycle} ({date_str})",
         "",
         "## Attendees",
-        "- Pi CEO Autonomous Agent",
+        "- Pi CEO Autonomous Agent (Orchestrator)",
+        "- CEO Board: 9 personas (CEO, Revenue, Product Strategist, Technical Architect,",
+        "  Contrarian, Compounder, Custom Oracle, Market Strategist, Moonshot)",
         "- Gap Audit Agent",
         "",
         "## Phase 1 — STATUS",
@@ -1042,6 +1176,7 @@ def save_board_minutes(
         f"- Urgent: {linear.get('urgent_count', 0)} | High: {linear.get('high_count', 0)}",
         f"- Stale: {', '.join(linear.get('stale_items', [])) or 'None'}",
         f"- Unassigned: {', '.join(linear.get('unassigned', [])) or 'None'}",
+        *persona_section,
         "",
         "## Phase 3 — SWOT",
         swot.get("content", "(not available)"),
@@ -1064,14 +1199,15 @@ def save_board_minutes(
 
 
 def run_full_board_meeting(dry_run: bool = False, cycle: int = 0) -> dict[str, Any]:
-    """Run all 6 board meeting phases in sequence and save minutes.
+    """Run all 7 board meeting phases in sequence and save minutes.
 
-    Phase 1 — STATUS (data only)
-    Phase 2 — LINEAR REVIEW (data only)
-    Phase 3 — SWOT (Claude + lessons.jsonl)
-    Phase 4 — SPRINT RECOMMENDATIONS (Claude)
-    Phase 5 — SAVE MINUTES (disk write)
-    Phase 6 — GAP AUDIT (Claude × N categories → Linear tickets)
+    Phase 1   — STATUS (data only)
+    Phase 2   — LINEAR REVIEW (data only)
+    Phase 2.5 — PERSONA DEBATE — RA-686 (9 CEO Board personas deliberate)
+    Phase 3   — SWOT (Claude + lessons.jsonl + persona synthesis)
+    Phase 4   — SPRINT RECOMMENDATIONS (Claude)
+    Phase 5   — SAVE MINUTES (disk write)
+    Phase 6   — GAP AUDIT (Claude × N categories → Linear tickets)
     """
     log.info("=== FULL BOARD MEETING START (cycle=%d dry_run=%s) ===", cycle, dry_run)
     start = time.monotonic()
@@ -1080,12 +1216,16 @@ def run_full_board_meeting(dry_run: bool = False, cycle: int = 0) -> dict[str, A
 
     status = run_status_phase()
     linear = run_linear_review_phase()
-    swot = run_swot_phase(system_prompt, status, linear)
+    persona_debate = run_persona_debate_phase(system_prompt, status, linear)
+    swot = run_swot_phase(system_prompt, status, linear, persona_debate=persona_debate)
     recommendations = run_sprint_recommendations_phase(system_prompt, swot, linear)
     gap_audit = run_gap_audit_phase(dry_run=dry_run)
 
     if not dry_run:
-        minutes_path = save_board_minutes(cycle, status, linear, swot, recommendations, gap_audit)
+        minutes_path = save_board_minutes(
+            cycle, status, linear, swot, recommendations, gap_audit,
+            persona_debate=persona_debate,
+        )
         gap_audit["minutes_path"] = str(minutes_path)
 
     duration = round(time.monotonic() - start, 1)
@@ -1093,6 +1233,7 @@ def run_full_board_meeting(dry_run: bool = False, cycle: int = 0) -> dict[str, A
     return {
         "status": status,
         "linear_review": linear,
+        "persona_debate": persona_debate,
         "swot": swot,
         "sprint_recommendations": recommendations,
         "gap_audit": gap_audit,

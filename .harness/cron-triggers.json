@@ -193,5 +193,17 @@
     "created_at": 1775865600,
     "last_fired_at": null,
     "note": "RA-634 — tests direct Anthropic SDK path (TAO_USE_FALLBACK contingency). See DEPLOYMENT.md → Contingency: API Fallback."
+  },
+  {
+    "id": "scout-weekly-monday",
+    "type": "scout",
+    "name": "Scout Agent: External intelligence gathering — Monday 04:30 UTC (pre-board)",
+    "weekday": 0,
+    "hour": 4,
+    "minute": 30,
+    "enabled": true,
+    "created_at": 1744502400,
+    "last_fired_at": null,
+    "note": "RA-684 — searches GitHub/ArXiv/HN, scores against ZTE dimensions, creates scout-labelled Linear issues before Monday board meeting."
   }
 ]
