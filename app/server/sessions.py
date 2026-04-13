@@ -1456,7 +1456,7 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
         brief = "Analyze this codebase fully. Read every skill in skills/. Read the engine in src/tao/. Produce a detailed analysis in .harness/spec.md. Suggest improvements. Git commit changes."
     resolved_intent = intent or classify_intent(brief)
     em(session, "system", f"  Intent: {resolved_intent.upper()}")
-    spec = build_structured_brief(brief, resolved_intent, session.repo_url)
+    spec = build_structured_brief(brief, resolved_intent, session.repo_url, session.workspace)
 
     if not await _phase_generate(session, spec, model, resume_from):
         _sync_linear_on_completion(session)

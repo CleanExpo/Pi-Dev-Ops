@@ -137,6 +137,47 @@ def _get_skill_context(intent: str, max_chars: int = 4000) -> str:
     return ""
 
 
+# ── RA-678: Intent file types — loaded from <workspace>/.harness/intent/ ──────
+_INTENT_FILES = [
+    ("RESEARCH_INTENT.md",         "STRATEGIC INTENT"),
+    ("ENGINEERING_CONSTRAINTS.md", "ENGINEERING CONSTRAINTS"),
+    ("EVALUATION_CRITERIA.md",     "EVALUATION CRITERIA"),
+]
+
+
+def _load_intent_files(workspace: str, max_chars: int = 3000) -> str:
+    """RA-678 — Load per-project intent files from <workspace>/.harness/intent/.
+
+    Reads up to 3 intent files and returns a combined prompt section.
+    Missing files are silently skipped.  Total length capped at max_chars.
+    """
+    if not workspace:
+        return ""
+    intent_dir = os.path.join(workspace, ".harness", "intent")
+    sections: list[str] = []
+    total = 0
+    for filename, header in _INTENT_FILES:
+        path = os.path.join(intent_dir, filename)
+        if not os.path.isfile(path):
+            continue
+        try:
+            content = open(path, encoding="utf-8").read().strip()
+        except OSError:
+            continue
+        if not content:
+            continue
+        chunk = f"--- {header} ({filename}) ---\n{content}\n--- END {header} ---\n\n"
+        if total + len(chunk) > max_chars:
+            remaining = max_chars - total
+            if remaining > 100:
+                chunk = f"--- {header} ({filename}) ---\n{content[:remaining - 60]}\n...(truncated)\n--- END {header} ---\n\n"
+            else:
+                break
+        sections.append(chunk)
+        total += len(chunk)
+    return "".join(sections)
+
+
 def _get_lesson_context(intent: str, limit: int = 5, max_chars: int = 2000) -> str:
     """Load recent lessons relevant to the intent and format as prompt context."""
     lessons = load_lessons(category=intent, limit=limit)
@@ -189,15 +230,26 @@ Only commit once all 4 dimensions pass your self-assessment at ≥8/10.
 """
 
 
-def build_structured_brief(raw_brief: str, intent: str, repo_url: str = "") -> str:
+def build_structured_brief(
+    raw_brief: str,
+    intent: str,
+    repo_url: str = "",
+    workspace: str = "",
+) -> str:
     """Compose a structured spec string for claude -p from a raw brief + intent.
 
     Returns the full spec string incorporating ADW workflow steps, relevant
     skill context, quality gate criteria, and rules.
+
+    RA-678: when workspace is provided, intent files from
+    <workspace>/.harness/intent/ are injected between lesson context and the
+    user brief, giving PMs and the CEO declarative steering without touching
+    Python.  Missing files are silently skipped.
     """
     template = get_adw_template(intent)
     skill_context = _get_skill_context(intent)
     lesson_context = _get_lesson_context(intent)
+    intent_context = _load_intent_files(workspace)  # RA-678
 
     spec = (
         f"You are Pi CEO orchestrator on Claude Max.\n"
@@ -206,6 +258,7 @@ def build_structured_brief(raw_brief: str, intent: str, repo_url: str = "") -> s
         f"{template['instructions']}\n\n"
         f"{skill_context}"
         f"{lesson_context}"
+        f"{intent_context}"
         f"--- USER BRIEF ---\n{raw_brief}\n--- END BRIEF ---\n\n"
         f"{_QUALITY_GATE}\n"
         f"RULES:\n"
