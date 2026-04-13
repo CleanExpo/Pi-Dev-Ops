@@ -140,6 +140,7 @@ class PipelineState:
     test_results: dict[str, Any] | None = None
     review_score: dict[str, Any] | None = None
     ship_log: dict[str, Any] | None = None
+    generated_config: dict | None = None  # RA-691: auto-generated harness config
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
@@ -461,6 +462,20 @@ Use the define-spec skill format (Summary, Goals, Non-Goals, Acceptance Criteria
     state.current_phase = "plan"  # ready for next phase
     if "spec" not in state.phases_completed:
         state.phases_completed.append("spec")
+
+    # RA-691 — auto-generate harness config for new projects (non-fatal)
+    try:
+        from .agents.auto_generator import generate_project_config, config_to_yaml  # noqa: PLC0415
+        cfg = generate_project_config(repo_url=repo_url, brief=idea)
+        state.generated_config = cfg
+        _write_artifact(pipeline_id, "config.yaml", config_to_yaml(cfg))
+        log.info(
+            "auto_generator: config written pipeline=%s tier=%s",
+            pipeline_id, cfg.get("complexity_tier", "?"),
+        )
+    except Exception as _exc:
+        log.warning("auto_generator failed (non-fatal): %s", _exc)
+
     save_pipeline_state(state)
 
     log.info("Spec phase complete: pipeline=%s chars=%d", pipeline_id, len(spec_content))

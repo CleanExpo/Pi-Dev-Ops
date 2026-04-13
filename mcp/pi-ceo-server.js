@@ -999,7 +999,7 @@ server.registerTool(
   "spec_idea",
   {
     title: "Spec Idea",
-    description: "Phase 1 of the Ship Chain. Converts a raw idea into a structured spec.md with PITER classification, goals, acceptance criteria, and constraints. Returns a pipeline_id to track all subsequent phases.",
+    description: "Phase 1 of the Ship Chain. Converts a raw idea into a structured spec.md with PITER classification, goals, acceptance criteria, and constraints. Auto-generates a .harness/config.yaml for new projects (RA-691). Returns a pipeline_id to track all subsequent phases.",
     inputSchema: {
       idea: z.string().describe("The raw idea or requirement to specify (e.g. 'add dark mode toggle to settings')"),
       repo_url: z.string().describe("GitHub repo URL this change targets"),
@@ -1265,6 +1265,11 @@ server.registerTool(
         "**Progress:**",
         ...phases.map(p => `  ${completed.has(p) ? "✓" : "○"} /${p}`),
       ];
+      if (state.generated_config) {
+        const tier = state.generated_config.complexity_tier || "?";
+        const preset = state.generated_config.preset || "?";
+        lines.push("", `Auto-config: **${tier}** tier (preset: ${preset}) — config.yaml written`);
+      }
       if (state.review_score) {
         lines.push("", `Review score: **${state.review_score.overall_score}/10**`);
         if (state.review_score.feedback) lines.push(`Feedback: ${state.review_score.feedback.slice(0, 200)}`);
