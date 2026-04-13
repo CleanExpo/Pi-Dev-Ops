@@ -1,0 +1,356 @@
+```json
+{
+  "sprints": [
+    {
+      "id": 1,
+      "name": "Foundation Stability — Close Autonomy Gaps",
+      "duration": "5d",
+      "items": [
+        {
+          "title": "Activate SDK canary Phase A (set TAO_USE_AGENT_SDK_CANARY_RATE=0.10 in Railway, monitor .harness/agent-sdk-metrics/ for 24h per sdk-phase2-rollout.md)",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "Fix Linear API 401 — rotate LINEAR_API_KEY in Railway + MCP config, add health-check assertion to board-meeting startup sequence",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "Regenerate spec.md, sprint_plan.md, feature_list.json, leverage-audit.md from current Sprint 9 codebase (resolves RA-675/RA-685 staleness)",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "Wire Linear two-way sync: add linear_update_issue() GraphQL issueUpdate mutation to webhook.py and call from sessions.py terminal state handler (resolves gap-audit critical RA-665/RA-666)",
+          "size": "M",
+          "priority": "P1"
+        },
+        {
+          "title": "Add GET /api/sessions/{sid}/logs SSE endpoint to main.py yielding session.output_lines as text/event-stream (resolves gap-audit critical RA-667)",
+          "size": "M",
+          "priority": "P1"
+        },
+        {
+          "title": "Add autonomy health fields to /health: linear_key_ok bool, last_poll_at timestamp, seconds_since_last_poll — surface armed vs silent-skip state",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "Implement do-while Linear poller bootstrap: 10s startup delay then immediate first fetch, eliminating 5-minute cold-start dead zone in autonomy.py",
+          "size": "S",
+          "priority": "P2"
+        },
+        {
+          "title": "Add triage-cache.json rotation strategy: prune entries older than 30 days on every monitor cycle, cap file at 50KB",
+          "size": "S",
+          "priority": "P2"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Portfolio Security Gate — CCW + RestoreAssist Critical Remediation",
+      "duration": "7d",
+      "items": [
+        {
+          "title": "CCW: Identify and resolve 1 critical security finding — immediate human + agent review of specific file/line",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "CCW: Classify all 137 hardcoded secret/password findings — rotate real credentials, allowlist placeholders, document in .harness/security-exceptions.md",
+          "size": "M",
+          "priority": "P1"
+        },
+        {
+          "title": "RestoreAssist: Classify and rotate 9 hardcoded password findings",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "RestoreAssist: Review 14 dangerouslySetInnerHTML findings — add DOMPurify wrappers or signed-off // SAFE: comments per PI-CEO-STANDARD.md",
+          "size": "M",
+          "priority": "P1"
+        },
+        {
+          "title": "DR-NRPG: Resolve 2 critical security findings and 4 critical npm vulnerabilities — highest-risk project in portfolio",
+          "size": "M",
+          "priority": "P1"
+        },
+        {
+          "title": "CCW + RestoreAssist: Write .pi-seo-ignore rules to scope print()/console.log checks to production code paths only, exclude scripts/tests/migrations",
+          "size": "S",
+          "priority": "P2"
+        },
+        {
+          "title": "Disaster-Recovery: Sample 30 dangerouslySetInnerHTML usages — classify as safe/needs-wrapper/XSS-risk, report distribution to founder",
+          "size": "M",
+          "priority": "P2"
+        },
+        {
+          "title": "Add pre-commit detect-secrets hook to all 11 portfolio repos to prevent new credential exposure",
+          "size": "M",
+          "priority": "P2"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Scout Agent + Board Intelligence Layer",
+      "duration": "5d",
+      "items": [
+        {
+          "title": "Build Scout Agent (RA-684): GitHub/ArXiv/HN search, ZTE dimension scoring, scout-labelled Linear issue creation — fires Monday 04:30 UTC pre-board per cron-triggers.json",
+          "size": "L",
+          "priority": "P1"
+        },
+        {
+          "title": "Wire CEO Board personas into autonomous board meetings (RA-686): Revenue, Product, Contrarian, Technical Architect perspectives in Phase 3 SWOT output",
+          "size": "M",
+          "priority": "P1"
+        },
+        {
+          "title": "Build outcome feedback loop (RA-689): reads .harness/shipped-features.jsonl, detects Linear outcome signals, writes lessons, returns BVI contribution data — fires 1st of month per cron",
+          "size": "M",
+          "priority": "P1"
+        },
+        {
+          "title": "Introduce Business Velocity Index as primary board metric: CRITICALs resolved speed + portfolio health delta + features shipped to real users — replace ZTE as lead number from Cycle 24",
+          "size": "S",
+          "priority": "P2"
+        },
+        {
+          "title": "Fix board meeting Phase 1 to read ZTE score from .harness/leverage-audit.md directly when get_zte_score MCP returns stale/missing data",
+          "size": "S",
+          "priority": "P2"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "GH Actions Autonomy Rail + Self-Healing Infrastructure",
+      "duration": "7d",
+      "items": [
+        {
+          "title": "Write .github/workflows/autonomy-loop.yml: headless Claude Agent SDK session on 5-min cron, Pi-Dev-Ops only, PR-only mode (no direct-to-main), reads signed status/tests-latest.json",
+          "size": "L",
+          "priority": "P1"
+        },
+        {
+          "title": "Write .github/workflows/pytest-on-push.yml: full suite with anthropic>=0.90 installed, writes signed status/tests-latest.json to status branch — replaces watchdog sandbox pytest",
+          "size": "M",
+          "priority": "P1"
+        },
+        {
+          "title": "Implement two-agent review rule: separate reviewer SDK session reads writer diff before merge, blocks if intent drift detected — per BOARD-DELIBERATION recommendation",
+          "size": "L",
+          "priority": "P1"
+        },
+        {
+          "title": "Configure launchd agents for Ollama on Mac Mini with health-check on /api/tags endpoint and auto-restart within 30s of crash",
+          "size": "M",
+          "priority": "P2"
+        },
+        {
+          "title": "Add Telegram CRITICAL alert for watchdog when Linear API 401 persists >2 consecutive cycles — currently fails silently",
+          "size": "S",
+          "priority": "P2"
+        },
+        {
+          "title": "Fix cron scheduler debounce: add abs() to delta comparison, implement startup catch-up for missed windows, add Urgent Linear ticket on 12h scan gap (RA-579)",
+          "size": "M",
+          "priority": "P2"
+        },
+        {
+          "title": "Gate watchdog pytest check to --collect-only (import chain validation only) — never run full test suite in Cowork sandbox per ESCALATION.md contract",
+          "size": "S",
+          "priority": "P2"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Pi-SEO First Full Sweep + Per-Project Memory Layer",
+      "duration": "5d",
+      "items": [
+        {
+          "title": "Execute Pi-SEO first full sweep across all 10 repos in .harness/projects.json — review finding volume, tune severity thresholds if >50 findings, allow triage engine to auto-create Linear tickets",
+          "size": "M",
+          "priority": "P1"
+        },
+        {
+          "title": "Build per-project RAG memory layer: memory/{project}/charter.md + scan-latest.json + lessons-relevant.jsonl — retrieval step before every session startup (TURBOQUANT-ASSESSMENT.md plan)",
+          "size": "L",
+          "priority": "P1"
+        },
+        {
+          "title": "Complete SDK canary Phase B (50% traffic) after 24h Phase A clean metrics, per sdk-phase2-rollout.md sign-off gates",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "Build self-improvement loop skeleton (scripts/analyse_lessons.py): groups lessons.jsonl by category, identifies patterns ≥3 occurrences, writes proposals to .harness/improvement-proposals/ — wired to analyse-lessons-weekly cron",
+          "size": "M",
+          "priority": "P2"
+        },
+        {
+          "title": "Populate memory/pi-dev-ops/charter.md as first memory layer seed — inject into every Pi-Dev-Ops build session system prompt, measure agent quality delta",
+          "size": "S",
+          "priority": "P2"
+        },
+        {
+          "title": "Run Pi-CEO autonomy smoke test on CCW: create low-risk Linear ticket, observe poller pick-up → session → PR → close, log to .harness/autonomy.log",
+          "size": "M",
+          "priority": "P2"
+        },
+        {
+          "title": "Complete SDK canary Phase C (100% traffic) after Phase B gate, then execute RA-576 subprocess removal from sessions.py",
+          "size": "M",
+          "priority": "P3"
+        }
+      ]
+    }
+  ],
+  "featureList": [
+    {
+      "id": "F001",
+      "title": "SDK Canary Phase A activation (10% real traffic, 24h monitoring)",
+      "sprint": 1,
+      "status": "planned"
+    },
+    {
+      "id": "F002",
+      "title": "Linear API 401 fix + board meeting health-check assertion",
+      "sprint": 1,
+      "status": "planned"
+    },
+    {
+      "id": "F003",
+      "title": "Harness regeneration (spec.md, sprint_plan.md, feature_list.json, leverage-audit.md) from Sprint 9 codebase",
+      "sprint": 1,
+      "status": "planned"
+    },
+    {
+      "id": "F004",
+      "title": "Linear two-way sync via GraphQL issueUpdate in webhook.py + sessions.py terminal handler",
+      "sprint": 1,
+      "status": "planned"
+    },
+    {
+      "id": "F005",
+      "title": "GET /api/sessions/{sid}/logs SSE endpoint for real-time log streaming",
+      "sprint": 1,
+      "status": "planned"
+    },
+    {
+      "id": "F006",
+      "title": "/health endpoint autonomy fields: linear_key_ok, last_poll_at, seconds_since_last_poll",
+      "sprint": 1,
+      "status": "planned"
+    },
+    {
+      "id": "F007",
+      "title": "Do-while Linear poller bootstrap (10s delay + immediate first fetch)",
+      "sprint": 1,
+      "status": "planned"
+    },
+    {
+      "id": "F008",
+      "title": "triage-cache.json rotation: prune entries >30 days, cap at 50KB",
+      "sprint": 1,
+      "status": "planned"
+    },
+    {
+      "id": "F009",
+      "title": "CCW critical finding resolution + 137 hardcoded secret classification",
+      "sprint": 2,
+      "status": "planned"
+    },
+    {
+      "id": "F010",
+      "title": "RestoreAssist: 9 hardcoded password rotation + 14 dangerouslySetInnerHTML DOMPurify wrappers",
+      "sprint": 2,
+      "status": "planned"
+    },
+    {
+      "id": "F011",
+      "title": "DR-NRPG: 2 critical security findings + 4 critical npm vulnerabilities resolved",
+      "sprint": 2,
+      "status": "planned"
+    },
+    {
+      "id": "F012",
+      "title": ".pi-seo-ignore rules scoping print()/console.log to production code paths across CCW + RestoreAssist",
+      "sprint": 2,
+      "status": "planned"
+    },
+    {
+      "id": "F013",
+      "title": "Disaster-Recovery dangerouslySetInnerHTML 30-sample triage report to founder",
+      "sprint": 2,
+      "status": "planned"
+    },
+    {
+      "id": "F014",
+      "title": "Pre-commit detect-secrets hook deployed across all 11 portfolio repos",
+      "sprint": 2,
+      "status": "planned"
+    },
+    {
+      "id": "F015",
+      "title": "Scout Agent (RA-684): GitHub/ArXiv/HN search, ZTE scoring, Linear issue creation pre-board",
+      "sprint": 3,
+      "status": "planned"
+    },
+    {
+      "id": "F016",
+      "title": "CEO Board personas wired into autonomous board meeting SWOT phase (RA-686)",
+      "sprint": 3,
+      "status": "planned"
+    },
+    {
+      "id": "F017",
+      "title": "Outcome feedback loop (RA-689): shipped-features.jsonl → Linear signals → lessons + BVI data",
+      "sprint": 3,
+      "status": "planned"
+    },
+    {
+      "id": "F018",
+      "title": "Business Velocity Index as primary board metric replacing ZTE as lead number from Cycle 24",
+      "sprint": 3,
+      "status": "planned"
+    },
+    {
+      "id": "F019",
+      "title": "Board meeting Phase 1 ZTE score fallback reader from leverage-audit.md",
+      "sprint": 3,
+      "status": "planned"
+    },
+    {
+      "id": "F020",
+      "title": "GH Actions autonomy-loop.yml: headless Claude SDK on 5-min cron, PR-only, signed test status gate",
+      "sprint": 4,
+      "status": "planned"
+    },
+    {
+      "id": "F021",
+      "title": "GH Actions pytest-on-push.yml: full suite with anthropic dep, writes signed status/tests-latest.json",
+      "sprint": 4,
+      "status": "planned"
+    },
+    {
+      "id": "F022",
+      "title": "Two-agent review rule: reviewer SDK session reads writer diff, blocks on intent drift",
+      "sprint": 4,
+      "status": "planned"
+    },
+    {
+      "id": "F023",
+      "title": "Mac Mini launchd agents for Ollama with /api/tags health-check and 30s auto-restart",
+      "sprint": 4,
+      "status": "planned"
+    },
+    {
+      "id": "F024",
+      "title": "Telegram CRITICAL alert when Linear API 401 persists >2 consecutive board cycles
