@@ -1,0 +1,171 @@
+```json
+{
+  "scores": {
+    "completeness": 7,
+    "correctness": 6,
+    "codeQuality": 7,
+    "documentation": 8
+  },
+  "issues": [
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "Webhook endpoint at /api/webhook handles both GitHub and Linear webhooks but lacks a dedicated /webhook/linear route — the Linear path is embedded inside the GitHub handler with a branching else-if. This means Linear webhook headers must coexist with GitHub headers in the same request, creating ambiguity. The gap audit (board-meetings/2026-04-12-gap-audit.json) confirms no standalone Linear webhook route is verified."
+    },
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "No SSE endpoint for session logs is visible in the provided main.py source — only a WebSocket at /ws/build/{sid}. The gap audit flags this as critical: 'No route exists that reads session.output_lines and yields text/event-stream responses.' The /api/sessions/{sid}/logs endpoint exists in the provided code but it IS an SSE StreamingResponse — however the gap audit was generated against a different version, indicating the codebase is in flux and the audit may reflect the current deployed state."
+    },
+    {
+      "severity": "critical",
+      "file": "app/server/sessions.py",
+      "line": null,
+      "description": "Linear two-way sync is absent: no issueUpdate GraphQL mutation, no linear_update_issue call after build completion. Confirmed by gap audit: 'sessions.py contains no evidence it posts build outcomes back to Linear.' The webhook fires builds FROM Linear issues but never closes or updates them on completion."
+    },
+    {
+      "severity": "high",
+      "file": "app/requirements.txt",
+      "line": null,
+      "description": "app/requirements.txt lists 'claude-agent-sdk>=0.1' but CLAUDE.md states TAO_USE_AGENT_SDK=1 is mandatory and the subprocess fallback was removed in RA-576. The pyproject.toml does NOT list claude-agent-sdk as a dependency. This version mismatch between requirements.txt and pyproject.toml means Docker builds from pyproject.toml (used by Railway via hatchling) will fail to import the SDK at startup."
+    },
+    {
+      "severity": "high",
+      "file": ".harness/agents/sdk-version-policy.md",
+      "line": null,
+      "description": "SDK version policy references ClaudeSDKClient.connect(), ClaudeSDKClient.receive_messages(), and ClaudeSDKClient.disconnect() as the API stability contract, but CLAUDE.md confirms the subprocess path was removed (RA-576) and the SDK is now the only path. If the SDK API surface has changed since the policy was written, the version contract table may be stale against the actual installed SDK."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The _resilient() background task wrapper at startup launches linear_todo_poller unconditionally regardless of config.AUTONOMY_ENABLED — the flag only controls the log message. If AUTONOMY_ENABLED=0, the poller task still starts and will attempt Linear API calls, burning rate limit quota and potentially creating sessions silently."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "Telegram webhook at /webhook/telegram has no rate limiting dependency — Depends(require_rate_limit) is absent. The endpoint is publicly reachable without authentication when TELEGRAM_WEBHOOK_SECRET is not set (the check is skipped if expected_secret is empty). An attacker can call mark_alert_acked() for arbitrary alert keys with no throttle."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The _find_active_session_for_repo() function iterates _sessions dict without a lock. _sessions is mutated by create_session() and kill_session() in async context. This is a race condition: under concurrent webhook triggers, the same repo URL could pass the 'no active session' check simultaneously and spawn duplicate sessions."
+    },
+    {
+      "severity": "high",
+      "file": "dashboard/package.json",
+      "line": null,
+      "description": "Package version 'next': '^16.2.3' — Next.js 16 is not a stable release at time of writing (latest stable is 15.x). The README and CLAUDE.md also say 'Next.js 16' which may be a typo for 15, or may mean the project is pinned to a pre-release. Either way, running on an unstable Next.js major is a production readiness concern."
+    },
+    {
+      "severity": "high",
+      "file": ".harness/board-meetings/2026-04-12-gap-audit.json",
+      "line": null,
+      "description": "Gap audit created 7 Linear tickets (RA-665 through RA-671) for critical/high discrepancies including missing SSE streaming and Linear two-way sync. These issues remain unresolved in the codebase visible in this audit — the tickets exist but the code fixes do not appear to have landed."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /api/scan endpoint fires asyncio.create_task(_run()) and returns immediately with {ok: True} regardless of whether the scan succeeds or fails. Errors inside _run() are silently dropped — there is no error surfacing mechanism, no status endpoint to poll for scan results, and no Telegram alert on scan failure."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "Background task helpers _run() in /api/spec, /api/plan, /api/test all use background_tasks.add_task(_run) where _run is a sync function calling async pipeline functions via background_tasks. This is incorrect — FastAPI background_tasks expects a sync function; calling async code from it without await or asyncio.run() will silently drop coroutines."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "SecurityHeaders middleware uses 'unsafe-inline' in script-src CSP directive. This defeats the primary protection that Content-Security-Policy provides against XSS. The header is set but offers significantly reduced security value."
+    },
+    {
+      "severity": "medium",
+      "file": ".env.example",
+      "line": null,
+      "description": "NEXT_PUBLIC_SUPABASE_URL appears twice in .env.example with different values (zbryrmxmgfmslqzizsto.supabase.co and https://your-project.supabase.co). The second entry in the 'Frontend' section will shadow the first in any shell that sources this file sequentially. Developers setting up locally will use the wrong URL."
+    },
+    {
+      "severity": "medium",
+      "file": "mcp/package.json",
+      "line": null,
+      "description": "mcp/package.json lists 'zod': '^4.3.6' but Zod 4 is not yet released as stable (current stable is 3.x). This will either resolve to an alpha/beta or fail to resolve, breaking the MCP server install."
+    },
+    {
+      "severity": "medium",
+      "file": ".harness/cron-triggers.json",
+      "line": null,
+      "description": "scan-high-* triggers show last_fired_at timestamps around 1775952090 (Unix epoch ~2026-04-13) but fallback-dryrun-quarterly, scout-weekly-monday, and feedback-loop-monthly all have last_fired_at: null. The cron.py handler confirmed in CLAUDE.md resets last_fired_at on Railway redeploy due to the bogus-future-timestamp debounce bug (referenced in board minutes). Active triggers show evidence of this: last_fired_at values appear to be in the far future relative to 2026-04-12, which would suppress the next firing."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /webhook/telegram endpoint imports _telegram_send which uses urllib.request.urlopen in a synchronous blocking call inside an async FastAPI route handler. This blocks the event loop during the Telegram API call (timeout=8s worst case)."
+    },
+    {
+      "severity": "low",
+      "file": ".harness/anthropic-docs/api-reference.md",
+      "line": null,
+      "description": "The anthropic-docs files contain raw Next.js RSC serialization payload (self.__next_f.push([...]) JavaScript) rather than readable API documentation. The WebFetch that populated these files scraped client-rendered HTML and stored the JavaScript bundle, not the documentation content. These files provide no usable context to agents that read them."
+    },
+    {
+      "severity": "low",
+      "file": "Dockerfile",
+      "line": null,
+      "description": "Root Dockerfile and app/Dockerfile are functionally duplicate with minor differences (WORKDIR, COPY paths). Two maintained Dockerfiles for the same service is a drift risk. CLAUDE.md references only Dockerfile at root; app/Dockerfile may be stale."
+    },
+    {
+      "severity": "low",
+      "file": ".harness/config.yaml",
+      "line": null,
+      "description": "config.yaml references 'sdk: true' on generator and evaluator agents and states 'fallback_removed: true' (RA-576), but CLAUDE.md says 'TAO_USE_AGENT_SDK=0 causes an ImportError at startup (deliberate)'. The config.yaml and the code have diverged in how they communicate this — config.yaml documents a build-time fact while the code enforces it at runtime. The config entry is decorative, not functional."
+    }
+  ],
+  "missingTests": [
+    "Linear two-way sync — no tests for issueUpdate GraphQL mutations or build completion callbacks to Linear",
+    "Webhook HMAC verification edge cases — no tests for malformed signatures, empty body, or replay attacks",
+    "Race condition in _find_active_session_for_repo() under concurrent webhook delivery",
+    "Telegram webhook rate limiting and unauthenticated access when TELEGRAM_WEBHOOK_SECRET is unset",
+    "Background task error propagation for /api/scan, /api/spec, /api/plan — fire-and-forget tasks have no test coverage",
+    "SSE streaming endpoint /api/sessions/{sid}/logs — cursor-based pagination and terminal state detection",
+    "Autonomy poller behavior when AUTONOMY_ENABLED=0 — verify poller does not fire Linear API calls",
+    "Session resume from last_completed_phase — phase checkpoint + resume end-to-end",
+    "cron_loop debounce behavior on Railway redeploy with pre-existing last_fired_at timestamps",
+    "Claude SDK import failure fallback — what happens when claude_agent_sdk is missing given subprocess path was removed",
+    "Cookie security attributes — SameSite=None + Secure set correctly in cloud vs local mode",
+    "MCP server tool invocations — none of the 21 MCP tools have integration tests"
+  ],
+  "securityConcerns": [
+    "app/server/main.py: /webhook/telegram has no rate limiting and is unauthenticated when TELEGRAM_WEBHOOK_SECRET env var is empty — mark_alert_acked() is callable by anyone",
+    "app/server/main.py: CSP header uses 'unsafe-inline' for script-src, negating XSS protection that CSP is meant to provide",
+    "app/server/main.py: Session token accepted via Authorization header on WebSocket ('Bearer ' stripped) — if TLS termination is not enforced, tokens transit plaintext",
+    ".env.example: Actual Supabase project URL (zbryrmxmgfmslqzizsto.supabase.co) and Telegram bot token (8630069375:AAH5CDnCm5ApdFsdfFz1KwNGEFDtgy9yvDA) appear to be real credentials committed to the example file — .harness/RA-588-PREFLIGHT.md contains what appears to be a live TELEGRAM_BOT_TOKEN value",
+    ".harness/business-charters/projects/ccw-charter.md: 100+ 'Hardcoded secret' findings in CCW-CRM repo acknowledged but not yet remediated — charter documents the risk without resolution",
+    ".harness/business-charters/projects/disaster-recovery-nrpg-charter.md: 2 critical + 60 high hardcoded secret findings in DR-NRPG acknowledged, database connection strings in code — described as likely Prisma placeholders but unverified",
+    ".claude/settings.json: defaultMode is 'bypassPermissions' — this grants the autonomous agent unrestricted tool access. While intentional per PERMISSIONS.md, it means any prompt injection or malicious repo content has full system access including Write(*) and Edit(*) on all files",
+    "app/server/main.py: _telegram_send() uses urllib with no certificate verification configuration — defaults to system trust store which may be insufficient in container environments",
+    "dashboard/app/api/telegram/route.ts (referenced in gap audit): TELEGRAM_WEBHOOK_SECRET check passes when incomingSecret is null/missing — confirmed gap in the gap audit JSON"
+  ],
+  "positives": [
+    "CLAUDE.md is genuinely excellent — covers architecture, setup, conventions, key patterns, security, and CI in a single authoritative document that would orient any new developer or agent immediately",
+    "Pydantic v2 field_validator decorators on all request models in main.py provide strict input validation with clear error messages — repo_url, model, n_workers, minute, hour all validated before touching business logic",
+    "The _resilient() background task wrapper with crash-recovery and auto-restart is a production-grade pattern that correctly handles asyncio.CancelledError separately from unexpected exceptions",
+    "ESCALATION.md provides a detailed, explicit contract for autonomous watchdog behavior including what it will NEVER do autonomously — the 9-item hard prohibition list is the right design for an agentic system",
+    "Security headers middleware applies X-Content-Type-Options, X-Frame-Options DENY, X-XSS-Protection, and a structured CSP on every response — comprehensive baseline even if unsafe-inline weakens the CSP",
+    "HMAC-based webhook verification for both GitHub (x-hub-signature-256) and Linear (linear-signature) with timing-safe comparison via hmac.compare_digest",
+    "HttpOnly + SameSite cookie handling with correct cloud/local mode detection (_IS_CLOUD flag) adapting between SameSite=None+Secure and SameSite=Strict",
+    "The .harness/ directory as a structured operational memory layer (lessons.jsonl, gap audits, board minutes, business charters) is a genuinely novel and well-executed approach to maintaining autonomous agent context across sessions",
+    "Three-job CI pipeline (python/frontend/smoke-prod) with correct conditional logic — smoke-prod only fires on main branch pushes after all other gates pass",
+    "PERMISSIONS.md documents all three permission layers (settings.json, ClaudeAgentOptions, CLAUDE_EXTRA_FLAGS) with grep-verification instructions — this is engineering discipline that prevents permission drift",
+    "os.replace() atomic write pattern documented in CLAUDE.md persistence guidelines — shows awareness of crash-consistency requirements",
+    "The board deliberation documents (.harness/BOARD-DELIBERATION-*.md) demonstrate genuine strategic thinking with real dissent captured and addressed — not rubber-stamp governance"
+  ]
+}
+```
