@@ -1,0 +1,359 @@
+```json
+{
+  "sprints": [
+    {
+      "id": 1,
+      "name": "Production Hardening — Fix What Lies",
+      "duration": "5d",
+      "items": [
+        {
+          "title": "Fix /health endpoint: add linear_key_ok, autonomy.armed, seconds_since_last_poll — eliminate silent-success-theatre (app/server/main.py:health)",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "Fix watchdog false-positive: gate pytest check to --collect-only or install anthropic in sandbox; prevents CRITICAL alerts on green tests (scripts/marathon_watchdog.py)",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "Fix Linear two-way sync: add linear_update_issue() GraphQL mutation in webhook.py and wire to build completion in sessions.py (app/server/webhook.py, app/server/sessions.py)",
+          "size": "M",
+          "priority": "P1"
+        },
+        {
+          "title": "Add GET /api/sessions/{sid}/logs SSE stream endpoint in main.py — closes gap audit critical RA-667 (app/server/main.py)",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "Fix autonomy poller cold-start: replace sleep-first loop with 10s startup_delay then immediate first fetch (app/server/autonomy.py)",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "Fix cron abs() debounce bug and add startup catch-up for missed scan windows (app/server/cron.py — RA-579 known root cause)",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "Rotate triage-cache.json: add pruning strategy to cap at 500 entries, prune oldest on every scan cycle (app/server/triage.py)",
+          "size": "S",
+          "priority": "P2"
+        },
+        {
+          "title": "Revise ZTE scoring to include operational health checks, not just feature completeness (.harness/leverage-audit.md + mcp/pi-ceo-server.js)",
+          "size": "S",
+          "priority": "P2"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Autonomous Loop Activation",
+      "duration": "5d",
+      "items": [
+        {
+          "title": "Activate SDK Canary Phase A: set TAO_USE_AGENT_SDK=1 in Railway, run smoke_test.py --agent-sdk, monitor .harness/agent-sdk-metrics/ for 24h (RA-574 rollout plan)",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "Write .github/workflows/pytest.yml: pytest on every push to main, write signed status/tests-latest.json to status branch — replace watchdog pytest dependency",
+          "size": "M",
+          "priority": "P1"
+        },
+        {
+          "title": "Migrate Telegram inbound from polling to Railway webhook endpoint POST /webhook/telegram — eliminate 5-min polling latency and Cowork-sleep dependency (app/server/main.py already has the endpoint skeleton)",
+          "size": "M",
+          "priority": "P1"
+        },
+        {
+          "title": "Execute Pi-SEO first full sweep across all 10 repos in .harness/projects.json, review finding volume, enable triage engine to auto-create Linear tickets",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "Add two-agent review pattern: second SDK session reads writer diff before merge, runs in PR-only mode for first 14 days (app/server/sessions.py)",
+          "size": "L",
+          "priority": "P2"
+        },
+        {
+          "title": "Add GitHub Actions smoke-prod job gate: read signed status/tests-latest.json before autonomy poller triggers merge — never trust local pytest from Railway (scripts/smoke_test.py)",
+          "size": "M",
+          "priority": "P2"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Per-Project RAG Memory Layer",
+      "duration": "5d",
+      "items": [
+        {
+          "title": "Create memory/ directory structure: memory/{pi-dev-ops,ccw,restoreassist,disaster-recovery}/charter.md populated from existing .harness/business-charters/projects/",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "Build retrieval step: before each session, embed task query, similarity-search memory/ chunks, prepend top-N to system prompt (app/server/sessions.py:_run_claude_via_sdk)",
+          "size": "M",
+          "priority": "P1"
+        },
+        {
+          "title": "Build weekly summarisation job: cron task condenses Linear history + scan JSON per project into memory/{slug}/summary.md (app/server/cron.py)",
+          "size": "M",
+          "priority": "P2"
+        },
+        {
+          "title": "Build self-improvement loop: scripts/analyse_lessons.py reads lessons.jsonl, groups by category, writes .harness/improvement-proposals/ for patterns ≥ 3 occurrences",
+          "size": "M",
+          "priority": "P2"
+        },
+        {
+          "title": "Wire improvement proposals to CLAUDE.md update PRs: agent opens PR with proposed addition, human merges — closes ZTE Level 3 meta-loop",
+          "size": "M",
+          "priority": "P3"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Pi-SEO Security Backlog — CCW + RestoreAssist",
+      "duration": "7d",
+      "items": [
+        {
+          "title": "CCW: identify and resolve 1 critical finding (CCW-001 Urgent) — manual line inspection required",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "CCW: classify 137 hardcoded secret/password findings — rotate reals, allowlist fixtures (CCW-002 Urgent)",
+          "size": "M",
+          "priority": "P1"
+        },
+        {
+          "title": "RestoreAssist: classify and rotate 9 hardcoded password findings (RA-CLEAN-001 Urgent)",
+          "size": "S",
+          "priority": "P1"
+        },
+        {
+          "title": "DR-NRPG: identify 2 critical security findings and 4 critical npm vulnerabilities, patch or remove (DR-SEC-000, DR-SEC-001 Urgent)",
+          "size": "M",
+          "priority": "P1"
+        },
+        {
+          "title": "CCW + RestoreAssist: write .pi-seo-ignore rules scoping print()/console.log checks to production code paths only — reduces noise from 5583 → signal (CCW-004, RA-CLEAN-005)",
+          "size": "S",
+          "priority": "P2"
+        },
+        {
+          "title": "RestoreAssist: review 14 dangerouslySetInnerHTML findings — DOMPurify wrapper or signed SAFE comment for each (RA-CLEAN-002)",
+          "size": "M",
+          "priority": "P2"
+        },
+        {
+          "title": "Disaster-Recovery: sample 30 dangerouslySetInnerHTML usages, classify as safe/needs-wrapper/XSS-risk, report distribution to founder (DR-SEC-002)",
+          "size": "M",
+          "priority": "P2"
+        },
+        {
+          "title": "All three projects: add .claude/settings.json allowlists, register in Pi-SEO monitor-config, run smoke test Linear tickets (CCW-020..022, RA-CLEAN-030..032, DR-AUT-040..042)",
+          "size": "L",
+          "priority": "P3"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Observability + Dashboard Improvements",
+      "duration": "5d",
+      "items": [
+        {
+          "title": "Open WebUI portfolio health dashboard: single view replacing 18 unread Slack heartbeats — shows overnight Linear transitions, build outcomes, active findings per project (RA-648)",
+          "size": "L",
+          "priority": "P1"
+        },
+        {
+          "title": "Telegram /status command: returns live system health including autonomy.armed, seconds_since_last_poll, active sessions (RA-649 n8n or inline Python)",
+          "size": "M",
+          "priority": "P1"
+        },
+        {
+          "title": "Claude API routing with cost tracking: Qwen 3 14B / Llama 3.3 8B triage classifier → route to Haiku/Sonnet/Opus by task complexity, log per-decision cost to Supabase (RA-650)",
+          "size": "L",
+          "priority": "P2"
+        },
+        {
+          "title": "Add structured heartbeat field to every escalation: 'running_on: Railway|GH-Actions|Mac-Mini' so Phill can tell at a glance which rail fired the alert",
+          "size": "S",
+          "priority": "P2"
+        },
+        {
+          "title": "Supabase agent-sdk-metrics dashboard view: surface SDK success rate, p95 latency per phase, error distribution from .harness/agent-sdk-metrics/*.jsonl",
+          "size": "M",
+          "priority": "P3"
+        },
+        {
+          "title": "Fix Telegram WEBHOOK_SECRET bypass: reject requests where TELEGRAM_WEBHOOK_SECRET is set but incomingSecret is absent (dashboard/app/api/telegram/route.ts gap audit low finding)",
+          "size": "S",
+          "priority": "P2"
+        }
+      ]
+    }
+  ],
+  "featureList": [
+    {
+      "id": "F001",
+      "title": "Health endpoint operational truth: linear_key_ok + autonomy.armed + seconds_since_last_poll",
+      "sprint": 1,
+      "status": "planned"
+    },
+    {
+      "id": "F002",
+      "title": "Watchdog false-positive fix: --collect-only gate or dependency install for pytest check",
+      "sprint": 1,
+      "status": "planned"
+    },
+    {
+      "id": "F003",
+      "title": "Linear two-way sync: issueUpdate GraphQL mutation wired to build completion",
+      "sprint": 1,
+      "status": "planned"
+    },
+    {
+      "id": "F004",
+      "title": "SSE log stream endpoint GET /api/sessions/{sid}/logs",
+      "sprint": 1,
+      "status": "planned"
+    },
+    {
+      "id": "F005",
+      "title": "Autonomy poller do-while cold-start: 10s startup_delay then immediate first fetch",
+      "sprint": 1,
+      "status": "planned"
+    },
+    {
+      "id": "F006",
+      "title": "Cron abs() debounce fix + startup catch-up for missed scan windows",
+      "sprint": 1,
+      "status": "planned"
+    },
+    {
+      "id": "F007",
+      "title": "Triage-cache.json pruning strategy: cap 500 entries, prune oldest per scan cycle",
+      "sprint": 1,
+      "status": "planned"
+    },
+    {
+      "id": "F008",
+      "title": "ZTE scoring revision: include operational health checks",
+      "sprint": 1,
+      "status": "planned"
+    },
+    {
+      "id": "F009",
+      "title": "SDK Canary Phase A activation: TAO_USE_AGENT_SDK=1 + 24h monitoring",
+      "sprint": 2,
+      "status": "planned"
+    },
+    {
+      "id": "F010",
+      "title": "GH Actions pytest.yml: signed status/tests-latest.json on every push to main",
+      "sprint": 2,
+      "status": "planned"
+    },
+    {
+      "id": "F011",
+      "title": "Telegram inbound webhook: Railway POST /webhook/telegram replaces polling",
+      "sprint": 2,
+      "status": "planned"
+    },
+    {
+      "id": "F012",
+      "title": "Pi-SEO first full sweep: all 10 repos, triage engine creates Linear tickets",
+      "sprint": 2,
+      "status": "planned"
+    },
+    {
+      "id": "F013",
+      "title": "Two-agent review pattern: reviewer SDK session gates writer diff before merge",
+      "sprint": 2,
+      "status": "planned"
+    },
+    {
+      "id": "F014",
+      "title": "GH Actions smoke-prod gate: reads signed test status before merge, never trusts Railway pytest",
+      "sprint": 2,
+      "status": "planned"
+    },
+    {
+      "id": "F015",
+      "title": "Per-project memory/ directory: charter.md populated from business-charters",
+      "sprint": 3,
+      "status": "planned"
+    },
+    {
+      "id": "F016",
+      "title": "RAG retrieval step: embed task query, prepend top-N memory chunks to session system prompt",
+      "sprint": 3,
+      "status": "planned"
+    },
+    {
+      "id": "F017",
+      "title": "Weekly summarisation cron: Linear history + scan JSON → memory/{slug}/summary.md",
+      "sprint": 3,
+      "status": "planned"
+    },
+    {
+      "id": "F018",
+      "title": "Self-improvement loop: scripts/analyse_lessons.py → .harness/improvement-proposals/",
+      "sprint": 3,
+      "status": "planned"
+    },
+    {
+      "id": "F019",
+      "title": "Improvement proposals → CLAUDE.md PRs: agent opens PR, human merges — ZTE Level 3 meta-loop closed",
+      "sprint": 3,
+      "status": "planned"
+    },
+    {
+      "id": "F020",
+      "title": "CCW critical finding resolution (CCW-001)",
+      "sprint": 4,
+      "status": "planned"
+    },
+    {
+      "id": "F021",
+      "title": "CCW 137 hardcoded secret/password classification and rotation (CCW-002)",
+      "sprint": 4,
+      "status": "planned"
+    },
+    {
+      "id": "F022",
+      "title": "RestoreAssist 9 hardcoded password classification and rotation (RA-CLEAN-001)",
+      "sprint": 4,
+      "status": "planned"
+    },
+    {
+      "id": "F023",
+      "title": "DR-NRPG 2 critical findings + 4 critical npm vulnerabilities remediation (DR-SEC-000, DR-SEC-001)",
+      "sprint": 4,
+      "status": "planned"
+    },
+    {
+      "id": "F024",
+      "title": ".pi-seo-ignore rules for CCW + RestoreAssist: scope print()/console.log to production paths",
+      "sprint": 4,
+      "status": "planned"
+    },
+    {
+      "id": "F025",
+      "title": "RestoreAssist 14 dangerouslySetInnerHTML: DOMPurify wrapper or SAFE comment per instance",
+      "sprint": 4,
+      "status": "planned"
+    },
+    {
+      "id": "F026",
+      "title": "Disaster-Recovery 30-sample dangerouslySetInnerHTML triage + XSS risk report",
+      "sprint": 
