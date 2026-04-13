@@ -1,0 +1,242 @@
+```json
+{
+  "techStack": [
+    "Python 3.11+ / 3.12 (runtime)",
+    "FastAPI >=0.111 (HTTP framework)",
+    "Uvicorn >=0.30 (ASGI server)",
+    "WebSockets >=12",
+    "httpx >=0.27 (async HTTP client)",
+    "bcrypt >=4.0 (password hashing)",
+    "anthropic >=0.90 (Anthropic Python SDK)",
+    "claude-agent-sdk >=0.1 (Claude Code agent SDK)",
+    "PyYAML >=6",
+    "Next.js ^16.2.3 (frontend framework)",
+    "React ^19.0.0",
+    "TypeScript ^5",
+    "Tailwind CSS ^3.4.17",
+    "@anthropic-ai/sdk ^0.36.3 (dashboard AI calls)",
+    "@octokit/rest ^21.0.2 (GitHub API)",
+    "@supabase/supabase-js ^2.101.1 (database client)",
+    "@supabase/ssr ^0.10.2",
+    "@modelcontextprotocol/sdk ^1.29.0 (MCP server)",
+    "xterm ^5.3.0 (terminal UI)",
+    "Node.js 20 (MCP server runtime)",
+    "Supabase (PostgreSQL + pgvector)",
+    "Docker / Docker Compose",
+    "Railway (backend deployment)",
+    "Vercel (frontend deployment)",
+    "GitHub Actions (CI/CD)",
+    "Telegram Bot API",
+    "Linear API (project management)",
+    "zod ^4.3.6 (MCP schema validation)"
+  ],
+  "pattern": "event-driven",
+  "components": [
+    {
+      "name": "FastAPI Backend (TAO Engine)",
+      "responsibility": "Orchestrates all build sessions, exposes REST + WebSocket + SSE endpoints, runs background autonomy poller, webhook receivers, cron scheduler, and pi-seo scanner.",
+      "file": "app/server/main.py"
+    },
+    {
+      "name": "Auth Module",
+      "responsibility": "Password verification (bcrypt with SHA-256 migration path), HMAC-signed session token creation and validation, rate-limit enforcement per IP.",
+      "file": "app/server/auth.py"
+    },
+    {
+      "name": "Session Manager",
+      "responsibility": "Creates, tracks, persists, and resumes build sessions; runs the 5-phase pipeline (clone→plan→generate→evaluate→ship) via the Claude Agent SDK.",
+      "file": "app/server/sessions.py"
+    },
+    {
+      "name": "Orchestrator",
+      "responsibility": "Fan-out coordinator that decomposes a brief using Opus and dispatches N parallel worker sessions for complex builds.",
+      "file": "app/server/orchestrator.py"
+    },
+    {
+      "name": "Pipeline (Ship Chain)",
+      "responsibility": "Implements the /spec→/plan→/build→/test→/review→/ship phased delivery pipeline with artifact persistence and evaluator gate.",
+      "file": "app/server/pipeline.py"
+    },
+    {
+      "name": "Autonomy Poller",
+      "responsibility": "Polls Linear every 5 minutes for Urgent/High Todo issues and auto-creates build sessions, closing the human-free delivery loop.",
+      "file": "app/server/autonomy.py"
+    },
+    {
+      "name": "Cron Engine",
+      "responsibility": "Reads cron-triggers.json and dispatches scan, monitor, intel_refresh, analyse_lessons, board_meeting, scout, and feedback_loop jobs on schedule.",
+      "file": "app/server/cron.py"
+    },
+    {
+      "name": "Webhook Handler",
+      "responsibility": "Receives and HMAC-verifies inbound GitHub and Linear webhooks, parses events into briefs, and triggers build sessions.",
+      "file": "app/server/webhook.py"
+    },
+    {
+      "name": "Pi-SEO Scanner",
+      "responsibility": "Runs security/code_quality/dependencies/deployment_health scans across up to 11 portfolio repos and stores structured JSON results.",
+      "file": "app/server/scanner.py"
+    },
+    {
+      "name": "Triage Engine",
+      "responsibility": "Reads scanner output, classifies findings by severity, and creates Linear tickets for critical/high findings via the Linear API.",
+      "file": "app/server/triage.py"
+    },
+    {
+      "name": "Pi-SEO Monitor Agent",
+      "responsibility": "Compares scan results across cycles to detect regressions, computes portfolio health scores, and saves digest JSON files.",
+      "file": "app/server/agents/pi_seo_monitor.py"
+    },
+    {
+      "name": "Board Meeting Agent",
+      "responsibility": "Runs the autonomous 6-phase board meeting (status, Linear review, SWOT, recommendations, minutes, gap audit) via the Claude Agent SDK.",
+      "file": "app/server/agents/board_meeting.py"
+    },
+    {
+      "name": "Supabase Logger",
+      "responsibility": "Single write path for all server-side Supabase events (gate_checks, alert_escalations, heartbeat_log, triage_log, workflow_runs, claude_api_costs).",
+      "file": "app/server/supabase_log.py"
+    },
+    {
+      "name": "Config Module",
+      "responsibility": "Centralises all environment variable reads and derived configuration constants for the backend.",
+      "file": "app/server/config.py"
+    },
+    {
+      "name": "GC (Garbage Collector)",
+      "responsibility": "Periodically removes stale workspace clones and log files, running as a background asyncio task.",
+      "file": "app/server/gc.py"
+    },
+    {
+      "name": "Vercel Drift Monitor",
+      "responsibility": "Compares the latest Vercel production deployment SHA against local HEAD to detect frontend drift.",
+      "file": "app/server/vercel_monitor.py"
+    },
+    {
+      "name": "Auto-PR Engine",
+      "responsibility": "Opens GitHub pull requests for auto-fixable Pi-SEO findings when auto_pr=True is requested.",
+      "file": "app/server/autopr.py"
+    },
+    {
+      "name": "Next.js Dashboard",
+      "responsibility": "Vercel-deployed frontend that accepts a GitHub repo URL, streams 8-phase analysis output to a terminal UI, and displays results.",
+      "file": "dashboard/app"
+    },
+    {
+      "name": "SSE Hook (useSSE)",
+      "responsibility": "React hook that connects to the backend SSE stream with exponential backoff reconnection for live build log delivery.",
+      "file": "dashboard/hooks/useSSE.ts"
+    },
+    {
+      "name": "Phase Parser",
+      "responsibility": "Parses the 5-6 phase events emitted by the backend pipeline into structured frontend state.",
+      "file": "dashboard/lib/phases.ts"
+    },
+    {
+      "name": "GitHub Client",
+      "responsibility": "Wraps @octokit/rest to fetch repo context, compare branches, and manage PRs from the dashboard.",
+      "file": "dashboard/lib/github.ts"
+    },
+    {
+      "name": "Supabase Settings",
+      "responsibility": "Provides Supabase-backed persistent settings storage for the dashboard frontend.",
+      "file": "dashboard/lib/supabase/settings.ts"
+    },
+    {
+      "name": "MCP Server (pi-ceo-server)",
+      "responsibility": "stdio JSON-RPC 2.0 server exposing 21 tools for Claude Desktop and Cowork to read harness state and perform Linear operations.",
+      "file": "mcp/pi-ceo-server.js"
+    },
+    {
+      "name": "Harness State Store",
+      "responsibility": "File-system directory of YAML/JSON/Markdown files acting as the persistent operational memory for all agents and board meetings.",
+      "file": ".harness/"
+    },
+    {
+      "name": "Marathon Watchdog",
+      "responsibility": "Runs 6 health checks on a 30-minute schedule, self-heals where possible, and escalates CRITICAL issues to Telegram with a structured envelope.",
+      "file": "scripts/marathon_watchdog.py"
+    },
+    {
+      "name": "Telegram Inbox Poller",
+      "responsibility": "Polls Telegram getUpdates API every 5 minutes, writes raw messages to .harness/telegram-inbox/, and maintains the offset file.",
+      "file": "scripts/marathon_telegram_inbox.py"
+    },
+    {
+      "name": "Smoke Test",
+      "responsibility": "28-check end-to-end regression script that validates all API endpoints, auth, WebSocket, and session lifecycle against a running server.",
+      "file": "scripts/smoke_test.py"
+    },
+    {
+      "name": "Lessons Module",
+      "responsibility": "Loads and appends structured lessons to .harness/lessons.jsonl for cross-session knowledge retention and context injection.",
+      "file": "app/server/lessons.py"
+    },
+    {
+      "name": "Persistence Module",
+      "responsibility": "Atomic JSON file writes (write-to-.tmp then os.replace) for session state to survive server restarts.",
+      "file": "app/server/persistence.py"
+    }
+  ],
+  "entryPoints": [
+    "app/server/main.py (FastAPI startup — all HTTP/WS/SSE routes)",
+    "POST /api/login (password authentication)",
+    "POST /api/build (trigger build session)",
+    "POST /api/build/parallel (fan-out build)",
+    "POST /api/webhook (GitHub + Linear inbound webhooks)",
+    "POST /webhook/telegram (Telegram bot webhook)",
+    "GET /ws/build/{sid} (WebSocket live stream)",
+    "GET /api/sessions/{sid}/logs (SSE log stream)",
+    "POST /api/spec, /api/plan, /api/test, /api/ship (Ship Chain pipeline)",
+    "POST /api/scan (Pi-SEO scanner trigger)",
+    "POST /api/monitor (Pi-SEO monitor trigger)",
+    "POST /api/triggers (cron trigger management)",
+    "GET /health (public health endpoint)",
+    "mcp/pi-ceo-server.js (stdio JSON-RPC from Claude Desktop)",
+    "scripts/marathon_telegram_inbox.py (5-min Telegram polling cron)",
+    "scripts/marathon_watchdog.py (30-min health check cron)",
+    "dashboard/app (Next.js Vercel entry — user browser)"
+  ],
+  "keyDependencies": [
+    "fastapi — HTTP framework and dependency injection",
+    "uvicorn — ASGI production server",
+    "anthropic>=0.90 — Anthropic Python SDK for direct API fallback (TAO_USE_FALLBACK)",
+    "claude-agent-sdk — primary build execution engine (SDK-only as of RA-576)",
+    "@anthropic-ai/sdk ^0.36.3 — dashboard-side Claude API calls",
+    "@octokit/rest — GitHub API (PR creation, repo reads, branch management)",
+    "@supabase/supabase-js — database client for observability event logging",
+    "@modelcontextprotocol/sdk — MCP server protocol implementation",
+    "bcrypt — password hashing with transparent SHA-256 migration",
+    "httpx — async HTTP client for Linear and Telegram API calls",
+    "pyyaml — harness config.yaml parsing",
+    "xterm + xterm-addon-fit — browser terminal emulator for live streaming",
+    "zod — runtime schema validation in MCP server",
+    "next ^16.2.3 — SSR/SSG framework for dashboard",
+    "tailwindcss — utility-first CSS"
+  ],
+  "dataFlow": "A user (or the autonomy poller reading Linear) submits a repo URL + brief to POST /api/build. The FastAPI handler validates via Pydantic, checks the session concurrency cap, and creates a BuildSession object in the in-memory _sessions dict, simultaneously persisting it to disk via atomic os.replace(). A background asyncio task runs run_build(): it clones the repo to a sandboxed workspace, injects lesson context and skill files into the prompt, invokes the Claude Agent SDK (_run_claude_via_sdk) which streams JSON events back. Events are appended to session.output_lines and fanned out over the /ws/build/{sid} WebSocket and /api/sessions/{sid}/logs SSE endpoint to the browser. After generation, the evaluator SDK call grades the git diff on 4 dimensions; if the score meets the threshold the session advances to 'complete' and changes are pushed to GitHub via git. Session state and evaluator scores are written to Supabase (gate_checks table) via the fire-and-forget supabase_log.py writer. Separately, the cron engine dispatches Pi-SEO scanner jobs that clone portfolio repos, run pattern matching, and write scan JSON to .harness/scan-results/; the triage engine reads these and calls the Linear GraphQL API to create issues. The MCP server reads the same .harness/ files via the filesystem and exposes them as tools to Claude Desktop over stdio. Telegram inbound messages are written to .harness/telegram-inbox/ by the poller and drained by the watchdog, which routes them to self-heal actions, idea files, or Telegram replies.",
+  "externalIntegrations": [
+    "Anthropic API (api.anthropic.com) — Claude SDK inference for build, evaluate, board meeting, pipeline phases",
+    "Claude Max subscription / claude CLI — zero-cost local inference path",
+    "GitHub REST API (via @octokit/rest) — repo reads, branch management, PR creation, webhook receipt",
+    "Linear GraphQL API — ticket creation, state transitions, issue reads for autonomy poller",
+    "Telegram Bot API (api.telegram.org) — bidirectional mobile command interface and alert escalation",
+    "Supabase (zbryrmxmgfmslqzizsto.supabase.co) — PostgreSQL + pgvector for observability event logging and dashboard settings",
+    "Vercel API — deployment drift monitoring via vercel_monitor.py",
+    "Railway — backend hosting, env var management, deployment",
+    "Google Fonts (fonts.googleapis.com / fonts.gstatic.com) — dashboard typography"
+  ],
+  "securitySurface": [
+    "POST /api/login — unauthenticated password submission; protected by rate limit (30 req/min/IP) and hmac.compare_digest timing-safe comparison",
+    "POST /api/webhook — inbound GitHub webhook; must carry valid x-hub-signature-256 HMAC-SHA256 over TAO_WEBHOOK_SECRET; no secret = 500 returned",
+    "POST /api/webhook — inbound Linear webhook; must carry Linear-Signature HMAC over TAO_LINEAR_WEBHOOK_SECRET; no secret = 500 returned",
+    "POST /webhook/telegram — inbound Telegram webhook; validated via X-Telegram-Bot-Api-Secret-Token header against TELEGRAM_WEBHOOK_SECRET; if secret unset, all requests accepted (misconfiguration risk)",
+    "GET /ws/build/{sid} — WebSocket; token extracted from cookie or Authorization header and verified against HMAC-signed session store before accept",
+    "GET /health — public, unauthenticated; exposes autonomy armed state, disk free, API key presence booleans",
+    "CORS policy — explicit origin allowlist (localhost:3000, pi-dev-ops.vercel.app, dashboard-unite-group.vercel.app) plus TAO_ALLOWED_ORIGINS env injection; allow_credentials=True",
+    "Cookie trust boundary — tao_session cookie; HttpOnly, SameSite=Strict locally / SameSite=None+Secure on Railway; signed with SESSION_SECRET HMAC",
+    "TAO_PASSWORD env var — single shared password for all dashboard access; SHA-256 hashed, bcrypt verified",
+    "ANTHROPIC_API_KEY — present in Railway env; exposed to claude CLI subprocess and SDK; logged in startup warning if absent",
+    "LINEAR_API_KEY — used for GraphQL mutations; absence causes silent autonomy poll-skipping (identified as silent failure mode in incidents)",
+    "TELEGRAM_BOT_TOKEN — present in Railway env; used to send alert messages outbound",
+    "GITHUB_TOKEN — PAT used for repo reads and PR creation;
