@@ -1,0 +1,150 @@
+```json
+{
+  "scores": {
+    "completeness": 7,
+    "correctness": 6,
+    "codeQuality": 7,
+    "documentation": 8
+  },
+  "issues": [
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /webhook/telegram endpoint at line ~330 validates TELEGRAM_WEBHOOK_SECRET but only rejects when expected_secret is set AND header doesn't match. If TELEGRAM_WEBHOOK_SECRET is empty string (unset), any request passes regardless. The condition `if expected_secret and secret != expected_secret` means an unset secret = open endpoint. Confirmed by gap-audit.json low-severity finding on Telegram webhook."
+    },
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /api/scan endpoint fires an async task and immediately returns {ok: True} with no way for the caller to track progress or get results. The task result is discarded — `asyncio.create_task(_run())` return value not stored. If _run() raises inside the task, the exception is silently swallowed. No error surface to the caller."
+    },
+    {
+      "severity": "critical",
+      "file": "app/requirements.txt",
+      "line": null,
+      "description": "`claude-agent-sdk>=0.1` is listed in app/requirements.txt but the actual package name used throughout the codebase appears to be `claude_agent_sdk` (Python import convention). This version pinning `>=0.1` with no upper bound means any breaking major version will silently install on next build. The sdk-version-policy.md explicitly names stability-critical symbols that break on upgrade, but the requirements file provides no protection."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "WebSocket handler at /ws/build/{sid} accepts token from Authorization header as fallback but does no cleanup if the WebSocket is accepted and then authentication fails partway — the handler calls `await websocket.accept()` before sending the error message. A client that connects with a bad token receives a JSON error then close, but the session is already accepted at the protocol level. The close code 4001 is only used for pre-accept authentication failure."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /api/monitor endpoint uses `background_tasks.add_task(_run)` but _run is an `async def` that calls `run_monitor_cycle` which appears synchronous (no await). Passing a coroutine function to BackgroundTasks.add_task without calling it correctly will result in the coroutine never executing. The inner `async def _run(): run_monitor_cycle(...)` wraps a sync call in async — FastAPI BackgroundTasks runs sync functions in a thread pool but async functions on the event loop. The sync call inside async will block the event loop."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The webhook endpoint (/api/webhook) creates sessions in response to both GitHub and Linear events but has no deduplication beyond checking active sessions for the same repo_url. A burst of webhook events (e.g., multiple commits rapid-fire) could create race conditions between the `_find_active_session_for_repo` check and `create_session` call since there is no locking. Two concurrent webhook handlers could both find no active session and both call create_session."
+    },
+    {
+      "severity": "high",
+      "file": ".harness/anthropic-docs/api-reference.md",
+      "line": null,
+      "description": "The anthropic-docs files stored in .harness/ are raw browser-rendered HTML/JavaScript blobs — the entire React SSR payload, CSS-in-JS, font declarations, and JSON hydration chunks. These are not human-readable documentation. They're 50KB+ of obfuscated JS mixed with actual content. The `index.json` claims they were 'fetched' successfully but the content is unusable for the stated purpose of 'feeding context to agents'."
+    },
+    {
+      "severity": "high",
+      "file": "dashboard/package.json",
+      "line": null,
+      "description": "`lucide-react` is pinned at `^1.8.0` but the stable lucide-react package is at 0.x versions (e.g. 0.400+). Version 1.x does not exist on npm as of early 2026. This will cause `npm ci` to fail in CI. The smoke_test.yml frontend job will fail at `npm ci` with a 404 from npm registry."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The `_telegram_send` function in main.py uses `urllib.request.urlopen` synchronously inside an async FastAPI endpoint handler (/webhook/telegram). This is a blocking HTTP call on the event loop — it will block all concurrent requests for up to 8 seconds (the configured timeout) on every Telegram webhook that triggers an ack."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /api/sessions/{sid}/logs SSE endpoint has no authentication dependency — it is missing `dependencies=[Depends(require_auth)]`. Any unauthenticated client can stream build logs for any session ID by guessing or brute-forcing the session ID. All other sensitive endpoints have require_auth."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The SecurityHeaders middleware sets `script-src 'self' 'unsafe-inline'` in the CSP. The 'unsafe-inline' directive negates most XSS protection the CSP provides. This is specifically called out in the README security section as a positive but it's actually a meaningful security gap."
+    },
+    {
+      "severity": "medium",
+      "file": ".harness/cron-triggers.json",
+      "line": null,
+      "description": "The `fallback-dryrun-quarterly` trigger specifies `day_of_month: 1` and `month: [1,4,7,10]` but the cron dispatcher in `app/server/cron.py` is not shown — it's unclear if the cron engine supports `day_of_month` and `month` fields. The existing triggers only use `hour`, `minute`, and optionally `weekday`. If the cron engine only reads `hour`/`minute`/`weekday`, this trigger will never fire."
+    },
+    {
+      "severity": "medium",
+      "file": "Dockerfile",
+      "line": null,
+      "description": "The root Dockerfile copies `src/` for the TAO engine but pyproject.toml declares the package as `tao` in `src/tao/`. The app/Dockerfile does not copy src/ at all. There are two Dockerfiles with different assumptions about the project structure, and the app/Dockerfile appears to be the older one used for Railway. If Railway is using app/Dockerfile, the TAO engine src/ is missing from that image."
+    },
+    {
+      "severity": "medium",
+      "file": ".env.example",
+      "line": null,
+      "description": "`NEXT_PUBLIC_SUPABASE_URL` is declared twice in .env.example — once with the real project URL `https://zbryrmxmgfmslqzizsto.supabase.co` and once as a template `https://your-project.supabase.co`. This will confuse anyone following the setup guide and potentially leak the real Supabase project URL via the committed example file."
+    },
+    {
+      "severity": "medium",
+      "file": "mcp/package.json",
+      "line": null,
+      "description": "`zod` is pinned at `^4.3.6` but zod v4 is not a stable release as of early 2026 — zod's stable line is v3.x. Zod v4 is a breaking rewrite with different APIs. If the MCP server code was written against zod v3, this will cause runtime errors on install."
+    },
+    {
+      "severity": "low",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The health endpoint imports `time` and `shutil` inline inside the function body rather than at module level. Not a bug, but inconsistent with the rest of the file and adds minor overhead on every health check call."
+    },
+    {
+      "severity": "low",
+      "file": ".harness/cron-triggers.json",
+      "line": null,
+      "description": "`last_fired_at` timestamps on scan triggers (e.g. 1775952090) correspond to year 2026-04 in Unix time, but the `analyse-lessons-weekly`, `intel-refresh-monday`, `board-meeting-weekly`, and `scout-weekly-monday` triggers all have `last_fired_at: null`. The .harness/INCIDENT-2026-04-12.md confirms these never actually fired. The cron state file is partially stale."
+    }
+  ],
+  "missingTests": [
+    "WebSocket authentication path — no test verifies that /ws/build/{sid} correctly rejects invalid tokens or accepts valid ones",
+    "SSE streaming endpoint /api/sessions/{sid}/logs — no test for the streaming behavior, cursor-based replay, or terminal state detection",
+    "Webhook HMAC verification — no test that forge attempts return 401 and valid signatures return expected responses for both GitHub and Linear paths",
+    "Rate limiting — no test verifies the 30 req/min per IP limiter actually blocks requests at the threshold",
+    "Session concurrency limit — no test that creating sessions beyond TAO_MAX_SESSIONS returns 429",
+    "Session resume endpoint — no test for the /api/sessions/{sid}/resume flow including the interrupted status precondition",
+    "Parallel build fan-out /api/build/parallel — no integration test for the N-worker orchestration path",
+    "Cron trigger lifecycle — no test that create_trigger / delete_trigger / list_triggers work correctly and persist across restarts",
+    "Telegram webhook /webhook/telegram — no test for /ack_alert command parsing, invalid secret rejection, or missing secret behavior",
+    "Auth cookie behavior — no test for SameSite/Secure cookie attributes being set correctly based on _IS_CLOUD flag",
+    "GC loop — no test that gc_loop correctly expires old sessions based on TAO_GC_MAX_AGE",
+    "Ship phase gate — no test that /api/ship returns ok:false when the pipeline state has a failing gate",
+    "Health endpoint autonomy fields — no test verifying autonomy.armed reflects correct combination of AUTONOMY_ENABLED and LINEAR_API_KEY presence"
+  ],
+  "securityConcerns": [
+    "app/server/main.py: /api/sessions/{sid}/logs SSE endpoint has no require_auth dependency — unauthenticated log streaming for any session ID",
+    "app/server/main.py: TELEGRAM_WEBHOOK_SECRET check uses `if expected_secret and secret != expected_secret` — when secret is unset, endpoint is completely open to any caller",
+    "app/server/main.py: CSP header includes 'unsafe-inline' for script-src — eliminates most XSS protection the CSP would otherwise provide",
+    ".env.example: Real Supabase project URL `zbryrmxmgfmslqzizsto.supabase.co` is committed in the example file — project ID enumerable by anyone who reads the repo",
+    ".claude/settings.json: `defaultMode: bypassPermissions` with `Write(*)` and `Edit(*)` allowlisted — any Claude session running in this project directory has unrestricted file write access; combined with WebFetch to api.telegram.org and api.linear.app, a compromised prompt could exfiltrate secrets",
+    "app/server/main.py: Blocking `urllib.request.urlopen` call inside async Telegram webhook handler — potential DoS via slow Telegram API responses blocking the event loop",
+    "app/server/main.py: Webhook deduplication check (_find_active_session_for_repo) is not atomic with create_session — TOCTOU race condition under concurrent webhook delivery"
+  ],
+  "positives": [
+    "Pydantic field_validator on all request models (BuildRequest, TriggerRequest, LessonRequest) with explicit allow-lists for model names and URL prefix validation — good input sanitisation at the API boundary",
+    "Timing-safe password comparison via hmac.compare_digest in auth.py (referenced in README) — prevents timing oracle attacks on login",
+    "_resilient() background task wrapper with crash recovery and auto-restart — production-grade pattern for long-running coroutines that prevents silent death of critical background workers",
+    "write-to-.tmp-then-os.replace() pattern documented in CLAUDE.md for atomic file writes — correct approach for crash-safe persistence on both NTFS and POSIX",
+    "Three-tier CI pipeline (pytest+ruff / tsc+eslint+build / smoke-prod) with the smoke-prod job correctly gated on main-branch pushes only and protected by a GitHub secret",
+    "Comprehensive .gitignore that explicitly protects .harness/telegram-inbox/, secrets-scan/, agent-sdk-metrics/ and other runtime data from accidental commits",
+    "Security headers middleware (X-Frame-Options DENY, X-Content-Type-Options nosniff, X-XSS-Protection) applied globally via BaseHTTPMiddleware",
+    "ESCALATION.md defines a clear contract for what the watchdog will NEVER do autonomously (9 explicit items including secret rotation, force push, and financial transfers) — good autonomous system guardrail design",
+    "HttpOnly + SameSite cookie handling with cloud-aware Secure flag based on RAILWAY_ENVIRONMENT detection — correct cross-origin cookie handling for the Vercel+Railway deployment topology",
+    "The on_shutdown drain logic that terminates active sessions and waits 2 seconds on SIGTERM — prevents orphaned Claude subprocesses on Railway deploys"
+  ]
+}
+```
