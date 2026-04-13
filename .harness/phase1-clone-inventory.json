@@ -1,48 +1,47 @@
 ```json
 {
-  "totalFiles": 89,
+  "totalFiles": 84,
   "languages": {
-    "Python": 4850,
-    "TypeScript": 380,
-    "Markdown": 28400,
-    "JSON": 3200,
-    "YAML": 120,
-    "Dockerfile": 60,
-    "JavaScript": 45,
-    "TOML": 35,
-    "Shell": 20
+    "Python": 4200,
+    "TypeScript": 1800,
+    "JavaScript": 600,
+    "Markdown": 12000,
+    "JSON": 2800,
+    "YAML": 400,
+    "Dockerfile": 80,
+    "Shell": 60
   },
   "topFiles": [
     ".harness/BOARD-DELIBERATION-ENHANCED-2026-04-12.md",
     ".harness/BOARD-DELIBERATION-2026-04-12.md",
     ".harness/anthropic-docs/claude-code-cli-reference.md",
-    ".harness/anthropic-docs/claude-code-overview.md",
-    ".harness/anthropic-docs/models-overview.md",
-    ".harness/anthropic-docs/tool-use.md",
-    ".harness/anthropic-docs/mcp-overview.md",
     ".harness/anthropic-docs/api-reference.md",
+    ".harness/anthropic-docs/claude-code-overview.md",
+    ".harness/anthropic-docs/tool-use.md",
+    ".harness/anthropic-docs/models-overview.md",
     "app/server/main.py",
-    ".harness/ARCHITECTURE-V2.md"
+    ".harness/ARCHITECTURE-V2.md",
+    ".harness/INCIDENT-2026-04-12.md"
   ],
   "frameworks": [
     "FastAPI",
-    "Next.js 16",
-    "React 19",
+    "Next.js",
+    "React",
     "Tailwind CSS",
     "Uvicorn",
     "Supabase",
-    "@modelcontextprotocol/sdk",
-    "@anthropic-ai/sdk",
-    "@octokit/rest",
+    "MCP (Model Context Protocol)",
+    "Anthropic Claude Agent SDK",
+    "Octokit",
     "xterm.js",
+    "Zod",
     "Hatchling"
   ],
   "entryPoints": [
     "app/server/main.py",
     "mcp/pi-ceo-server.js",
-    "dashboard/package.json",
-    "Dockerfile",
-    "app/Dockerfile"
+    "dashboard/app/page.tsx",
+    "Dockerfile"
   ]
 }
 ```
