@@ -1,0 +1,162 @@
+```json
+{
+  "scores": {
+    "completeness": 7,
+    "correctness": 6,
+    "codeQuality": 7,
+    "documentation": 8
+  },
+  "issues": [
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "Telegram webhook endpoint (/webhook/telegram) has an authentication bypass: if TELEGRAM_WEBHOOK_SECRET is not configured, ANY request passes through regardless of origin. The check `if expected_secret and secret != expected_secret` means an unconfigured secret equals an open endpoint. Gap audit confirms this in board-meetings/2026-04-12-gap-audit.json."
+    },
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "SSE log streaming endpoint GET /api/sessions/{sid}/logs/stream is documented in contracts/build-contract.md and implied by main.py importing StreamingResponse, but a fully separate SSE endpoint exists at /api/sessions/{sid}/logs — this may be fine, but the gap audit flags it as missing. Needs verification that the SSE endpoint actually drains correctly when session is in terminal state without a race on the final lines."
+    },
+    {
+      "severity": "critical",
+      "file": "app/requirements.txt",
+      "line": null,
+      "description": "Requirements file lists 'claude-agent-sdk>=0.1' which does not exist on PyPI (the correct package is 'anthropic'). This will cause a pip install failure in any fresh Docker build. pyproject.toml correctly lists 'anthropic>=0.90' but the two files are inconsistent. Docker build will fail on the app/requirements.txt path."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "Linear webhook handler creates a build session from any Linear event that has a repo URL label, but there is no deduplication guard scoped to Linear issue ID. Two rapid Linear webhooks for the same issue (e.g. status flip back and forth) will spawn two parallel sessions against the same repo. _find_active_session_for_repo checks repo_url not linear_issue_id."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /api/scan endpoint fires asyncio.create_task(_run()) and immediately returns 200 without any reference to the task. If the scan crashes, the exception is swallowed and the caller has no feedback path. The task is not registered anywhere for lifecycle tracking, so crashes are silent."
+    },
+    {
+      "severity": "high",
+      "file": ".harness/agents/sdk-version-policy.md",
+      "line": null,
+      "description": "CLAUDE.md states 'The claude -p subprocess fallback paths have been removed from sessions.py' (SDK-only as of Sprint 8 / RA-576), but sdk-version-policy.md Phase Milestones still shows RA-576 as 'Remove subprocess fallback — ⏳ Blocked on canary' and sdk-phase2-rollout.md states 'SDK Canary Phase A not yet activated'. This is a direct contradiction in harness documentation — either the fallback is removed or it isn't."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The _telegram_send helper uses urllib.request.urlopen synchronously inside an async FastAPI route handler (telegram_webhook). This blocks the event loop for up to 8 seconds on every Telegram reply. Should be replaced with httpx async client or wrapped in asyncio.to_thread."
+    },
+    {
+      "severity": "high",
+      "file": ".harness/cron-triggers.json",
+      "line": null,
+      "description": "The 'fallback-dryrun-quarterly' trigger uses 'day_of_month' and 'month' fields that are not present in any other trigger schema. The cron dispatcher in app/server/cron.py is not shown but if it only parses 'weekday', 'hour', and 'minute', this trigger will silently never fire — matching the incident post-mortem's description of silent cron failures."
+    },
+    {
+      "severity": "high",
+      "file": "dashboard/package.json",
+      "line": null,
+      "description": "lucide-react is pinned at ^1.8.0 which does not exist — the package was at 0.x versioning when this was written (current is 0.400+). This will cause npm install to fail in fresh environments. The correct package name for v1+ is still lucide-react but the version range is wrong."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "on_startup registers _start_claude_poll via @app.on_event('startup') twice — once in on_startup() which already creates gc_loop, cron_loop, linear_todo_poller tasks, and once in a separate @app.on_event('startup') decorated _start_claude_poll function. FastAPI executes both on startup. This is not a bug per se but 'startup' event handler duplication is easy to miss and the deprecation of on_event in FastAPI 0.111+ means both will emit deprecation warnings."
+    },
+    {
+      "severity": "medium",
+      "file": ".env.example",
+      "line": null,
+      "description": "NEXT_PUBLIC_SUPABASE_URL appears twice in .env.example with different values ('https://zbryrmxmgfmslqzizsto.supabase.co' and 'https://your-project.supabase.co'). The real project URL is leaked in the env example file committed to the repository. This is a credential exposure even if the key itself is not present."
+    },
+    {
+      "severity": "medium",
+      "file": ".harness/PERMISSIONS.md",
+      "line": null,
+      "description": "Grep verification command listed as the contract check ('grep -rn \"claude.*-p\" app/server/ | grep -v CLAUDE_EXTRA_FLAGS') will produce false negatives for SDK paths that invoke claude via Python imports rather than subprocess. The contract check does not verify the SDK permission_mode is set, only subprocess calls."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "Body parsing in /api/login uses 'await request.json()' with no exception handler for malformed JSON. A request with Content-Type: application/json but invalid body will raise an unhandled JSONDecodeError returning a 500 instead of a 400. All other webhook handlers catch json.JSONDecodeError explicitly."
+    },
+    {
+      "severity": "medium",
+      "file": ".harness/config.yaml",
+      "line": null,
+      "description": "autonomy_budget anchors reference 'model: haiku' and 'model: opus' as string values, but config.py and BuildRequest.valid_model() accept 'opus', 'sonnet', 'haiku' — consistent. However the budget module path 'app/server/budget.py' is referenced in config.yaml but there is no evidence this file exists in the provided repo context. If it's missing, the RA-677 budget knob is silently a no-op."
+    },
+    {
+      "severity": "low",
+      "file": "Dockerfile",
+      "line": null,
+      "description": "Two Dockerfiles exist: root Dockerfile and app/Dockerfile. They diverge — root Dockerfile copies src/, .harness/, skills/ into the image; app/Dockerfile does not. Railway uses the root Dockerfile (per railway.toml reference), but app/Dockerfile will produce a broken image if used. The discrepancy creates confusion and maintenance burden."
+    },
+    {
+      "severity": "low",
+      "file": ".github/workflows/ci.yml",
+      "line": null,
+      "description": "The smoke-prod job sleeps 90 seconds unconditionally before hitting the production URL. This adds 90s to every main-branch push even when Railway deploys in 30s. More importantly, there is no retry loop — if Railway takes 120s, the smoke test hits a not-yet-ready server and fails the merge gate."
+    },
+    {
+      "severity": "low",
+      "file": ".harness/anthropic-docs/api-reference.md",
+      "line": null,
+      "description": "The anthropic-docs files contain raw Next.js RSC payloads (self.__next_f.push, React component hydration JSON) instead of parsed markdown documentation. The intel refresh script fetched the page HTML/JS rather than the rendered text content. These files are unusable as context for agents reading them."
+    },
+    {
+      "severity": "low",
+      "file": "mcp/package.json",
+      "line": null,
+      "description": "mcp/package.json depends on 'zod': '^4.3.6' but zod has not released a v4 as of the knowledge cutoff — the latest stable is 3.x. This will fail to resolve on npm install. The correct version should be '^3.x'."
+    }
+  ],
+  "missingTests": [
+    "Authentication bypass path in /webhook/telegram when TELEGRAM_WEBHOOK_SECRET is unset",
+    "Linear webhook deduplication — two rapid events for same issue_id spawning duplicate sessions",
+    "Session resume endpoint — what happens when resume_from phase checkpoint is invalid or corrupt",
+    "Cron trigger dispatch for non-standard fields (day_of_month, month) in cron-triggers.json",
+    "Budget anchor resolution in app/server/budget.py — no tests visible and file may not exist",
+    "_telegram_send blocking behavior under network timeout in async context",
+    "CORS middleware rejects requests from origins not in ALLOWED_ORIGINS list",
+    "Rate limiter (require_rate_limit) actually blocks at 30 req/min threshold",
+    "Session garbage collection (gc_loop) correctly handles sessions in 'interrupted' state",
+    "WebSocket authentication fallback via Authorization header when cookie is absent",
+    "Fan-out (build_parallel) — n_workers boundary validation at 0 and 9",
+    "Webhook signature verification for both GitHub and Linear paths with invalid signatures",
+    "SSE stream terminal condition — confirm final 'done' event emits after last output_line",
+    "Health endpoint disk_free_gb fallback when WORKSPACE_ROOT is unmounted",
+    "restore_sessions() correctly remaps in-flight statuses to 'interrupted' on restart"
+  ],
+  "securityConcerns": [
+    "NEXT_PUBLIC_SUPABASE_URL real project URL ('zbryrmxmgfmslqzizsto.supabase.co') is committed in .env.example — database URL is now public in git history",
+    "Telegram webhook has no auth when TELEGRAM_WEBHOOK_SECRET is unset (app/server/main.py _telegram_send and telegram_webhook handler) — any IP can POST /webhook/telegram and trigger mark_alert_acked",
+    ".claude/settings.json has 'defaultMode: bypassPermissions' committed to the repo — any agent running in this working directory gets unrestricted file system and shell access without prompts",
+    "Telegram bot token '8630069375:AAH5CDnCm5ApdFsdfFz1KwNGEFDtgy9yvDA' is hardcoded in .harness/RA-588-PREFLIGHT.md — live credential committed to repository",
+    "TELEGRAM_ALERT_CHAT_ID '8792816988' (Phill's personal Telegram user ID) committed in .harness/RA-588-PREFLIGHT.md — PII in version control",
+    "CSP header in SecurityHeaders middleware includes 'unsafe-inline' for both script-src and style-src — substantially weakens XSS protection for the dashboard static files served by FastAPI",
+    "app/requirements.txt references 'claude-agent-sdk>=0.1' which is a non-existent package — if a malicious package were published to PyPI under this name, it would be silently installed",
+    "The /api/build endpoint accepts arbitrary repo_url starting with 'git@' — git+ssh URLs could be used to clone from internal network hosts if the server has SSH keys configured",
+    "Session secrets auto-generated if unset but persisted to app/data/.session-secret — if this path is in a Docker volume shared across deployments without rotation, old session tokens remain valid indefinitely"
+  ],
+  "positives": [
+    "Timing-safe password comparison via hmac.compare_digest in auth.py is explicitly called out and implemented correctly",
+    "HMAC signature verification for both GitHub and Linear webhooks with constant-time comparison — correct pattern for webhook security",
+    "Resilient background task wrapper (_resilient) with crash recovery and auto-restart prevents silent death of gc_loop, cron_loop, and autonomy poller",
+    "Atomic file writes documented via os.replace() in CLAUDE.md persistence guidelines — crash-safe session state on both NTFS and POSIX",
+    "Pydantic validators on all request models (BuildRequest, TriggerRequest, LessonRequest) with explicit error messages — good defense against malformed API calls",
+    "Three-layer permission model for autonomous Claude execution (settings.json + ClaudeAgentOptions + subprocess flags) is well-documented in .harness/PERMISSIONS.md",
+    "SameSite cookie policy correctly switches between 'strict' (local HTTP) and 'none' + Secure (cloud HTTPS) based on _IS_CLOUD detection",
+    "Health endpoint exposes autonomy.armed boolean and seconds_since_last_poll — directly addresses the silent-failure mode documented in the incident post-mortem",
+    "ESCALATION.md documents a clear contract for what the watchdog will never do autonomously — explicit guardrails against scope creep in the autonomous loop",
+    "CI pipeline has three distinct jobs (python, frontend, smoke-prod) with appropriate conditional execution (smoke-prod only on main pushes) and correct secret gating",
+    "Board meeting post-mortems (INCIDENT-2026-04-12.md) are thorough five-why analyses that correctly identify root causes rather than proximate causes — evidence of genuine engineering rigor",
+    "SSE streaming endpoint uses asyncio.sleep(0.3) polling rather than busy-waiting, with correct terminal state detection before closing the generator"
+  ]
+}
+```
