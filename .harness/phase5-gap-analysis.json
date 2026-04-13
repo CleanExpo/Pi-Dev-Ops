@@ -1,0 +1,46 @@
+```json
+{
+  "zteLevel": 3,
+  "zteScore": 40,
+  "leveragePoints": [
+    { "id": 1, "name": "Spec Quality", "score": 3 },
+    { "id": 2, "name": "Context Precision", "score": 4 },
+    { "id": 3, "name": "Model Selection", "score": 4 },
+    { "id": 4, "name": "Tool Availability", "score": 4 },
+    { "id": 5, "name": "Feedback Loops", "score": 3 },
+    { "id": 6, "name": "Error Recovery", "score": 3 },
+    { "id": 7, "name": "Session Continuity", "score": 3 },
+    { "id": 8, "name": "Quality Gating", "score": 3 },
+    { "id": 9, "name": "Cost Efficiency", "score": 3 },
+    { "id": 10, "name": "Trigger Automation", "score": 4 },
+    { "id": 11, "name": "Knowledge Retention", "score": 3 },
+    { "id": 12, "name": "Workflow Standardization", "score": 3 }
+  ],
+  "productionGaps": [
+    "Spec Quality — CLAUDE.md claims ZTE 73/75 but .harness/board-meetings/2026-04-13-ceo-memo-board-minutes.md explicitly states 'spec.md is stale' and .harness/board-meetings/2026-04-12-board-minutes.md flags RA-675 as unresolved; no feature has testable acceptance criteria with edge cases in any visible spec file — only high-level descriptions exist in agent markdown files under .harness/agents/",
+    "Feedback Loops — .harness/agents/sdk-phase2-rollout.md sign-off log (Phase A–D) is entirely blank dashes; SDK canary Phase A was never activated across 3+ consecutive board cycles; evaluator critique exists in config (TAO_EVALUATOR_THRESHOLD=8) but .harness/board-meetings/ minutes repeatedly confirm 'self-improvement loop unbuilt' and no lesson-pattern analyser feeding back to skills or CLAUDE.md",
+    "Error Recovery — .harness/INCIDENT-2026-04-12.md documents that the marathon watchdog sent a false-positive CRITICAL based on missing `anthropic` dependency in sandbox; no circuit breaker or environment-validation pre-check exists before pytest runs; error classification between 'environment broken' and 'tests red' is absent",
+    "Session Continuity — CLAUDE.md line 'persistence guidelines' states _sessions is in-memory dict and any restart loses running sessions; .harness/board-meetings/2026-04-12-gap-audit.json confirms restore_sessions() is truncated mid-function in the audited source; resume endpoint POST /api/sessions/{sid}/resume exists in main.py but depends on last_completed_phase field that gap audit flags as unverifiable",
+    "Quality Gating — .env.example shows TAO_EVALUATOR_ENABLED=true and TAO_EVALUATOR_THRESHOLD=8 but .harness/agents/eval-contract.md explicitly states 'BELOW THRESHOLD: warning logged, push still proceeds (non-blocking Phase 1)'; gate is advisory not blocking; .harness/board-meetings/2026-04-12-gap-audit.json raises 3 critical discrepancies including Linear two-way sync and SSE streaming that were never caught by the evaluator",
+    "Cost Efficiency — CLAUDE.md states 'Zero API cost on Claude Max' and board minutes score this 5/5, but .env.example contains ANTHROPIC_API_KEY and dashboard/package.json includes @anthropic-ai/sdk 0.36.3 as a runtime dependency; dual execution paths (claude CLI and SDK) mean API costs exist in fallback and SDK modes; no budget tracking per session visible in any harness file; claude_api_costs Supabase table defined in config.yaml but no evidence of data flowing to it",
+    "Knowledge Retention — .harness/lessons.jsonl is referenced throughout but cron-triggers.json shows analyse-lessons-weekly last_fired_at is null (never fired); the weekly self-improvement loop has never executed; board meeting 2026-04-12 states 'self-improvement loop missing — lessons accumulate but no automated extraction feeds back to CLAUDE.md or skills'",
+    "Workflow Standardization — .harness/board-meetings/2026-04-12-gap-audit.json critical finding: 'linear_issue_to_brief() exists but no route in main.py triggers a build session from a Linear webhook event' — the core PITER-to-Linear workflow is unverified; gap audit also shows 'webhook.py HMAC verification audited against wrong file (dashboard/lib/github.ts not Python webhook.py)' indicating classifier is not enforced end-to-end",
+    "Linear two-way sync absent — .harness/board-meetings/2026-04-12-gap-audit.json critical: webhook.py has zero outbound Linear API calls; no issueUpdate GraphQL mutation exists anywhere in visible source; build outcomes never flow back to Linear despite being a claimed feature in spec.md",
+    "Telegram inbound loop depends on Cowork scheduled tasks — .harness/INCIDENT-2026-04-12.md confirms marathon_telegram_inbox.py and marathon_watchdog.py stopped at 00:48 UTC when Mac slept; scripts still reference Cowork sandbox paths; V2 architecture migration to Railway webhook is planned but last_fired_at for all affected triggers is null"
+  ],
+  "loadRisks": [
+    "In-memory _sessions dict — CLAUDE.md explicitly warns 'any server restart loses all running sessions'; under load with concurrent builds, a Railway OOM restart (single worker, uvicorn --workers 1 in Dockerfile) silently drops all active sessions with no client notification beyond the WebSocket closing",
+    "triage-cache.json at 353KB with no rotation — flagged in three consecutive board meetings (2026-04-11, 2026-04-12 x2); scanner startup reads this file on every invocation; under 4x/day Pi-SEO scan load across 10+ repos the file grows unbounded and will eventually cause Railway ephemeral disk overflow or read-timeout on startup",
+    "TAO_MAX_SESSIONS=3 ceiling with no queue — app/server/main.py raises HTTP 429 when create_session hits the limit; autonomy poller (linear_todo_poller) retries on next 5-minute poll but under burst load (multiple Urgent Linear tickets created simultaneously) sessions are silently dropped with no requeue mechanism",
+    "Single uvicorn worker — Dockerfile CMD uses --workers 1; WebSocket handler at /ws/build/{sid} polls session.output_lines in a 0.15s asyncio.sleep loop; under concurrent WebSocket connections (N active sessions × browser tabs) the event loop saturates before hitting the session limit, causing visible lag in log streaming",
+    "Evaluator retry loop with no global timeout — .harness/config.yaml sets max_rounds: 3 and TAO_EVALUATOR_MAX_RETRIES=2; each evaluator SDK call has a 120s timeout per .harness/agents/evaluator.md; worst case a single session holds the semaphore for 3 × 120s = 6 minutes while retry loop exhausts, blocking other sessions on a 3-session server",
+    "cron_loop state not persisted — CLAUDE.md threat: 'if server restarts, cron_loop() must reload .harness/cron-triggers.json on startup or all scheduled triggers are silently lost'; cron-triggers.json shows last_fired_at populated but .harness/INCIDENT-2026-04-12.md documents that a Railway redeploy resets last_fired_at, causing bogus-future-timestamp debounce suppression and missed scan windows",
+    "Git clone in workspace without disk quota — app/Dockerfile creates workspaces/ dir but sets no size limit; under load with 3 concurrent sessions each cloning large repos the Railway ephemeral disk (512MB default) can exhaust mid-clone, causing cryptic git errors with no graceful degradation path"
+  ],
+  "topThreeROI": [
+    "Feedback Loops — SDK canary Phase A has never been activated despite being a single env var (TAO_USE_AGENT_SDK_CANARY_RATE=0.10); the lesson-pattern analyser cron has never fired (last_fired_at: null in cron-triggers.json); closing this gap immediately validates the entire SDK migration investment (RA-571, RA-572, RA-574) and turns a latent lessons corpus into active CLAUDE.md improvements — the highest ratio of value-unlocked to work-required in the system",
+    "Quality Gating — the evaluator gate is currently advisory (eval-contract.md: 'push still proceeds non-blocking'); upgrading it to a true blocking gate that prevents merge when score < threshold would catch the 3 critical and 4 high discrepancies that the gap audit found post-ship; combined with wiring gate results to Supabase gate_checks table (already defined in config.yaml but unconfirmed as active), this closes the largest single source of shipped defects",
+    "Workflow Standardization — the Linear webhook-to-session pipeline has a critical unverified gap (gap audit: no confirmed POST /webhook/linear route triggering create_session); fixing this plus wiring Linear two-way sync (issueUpdate on build completion) would make the entire autonomous loop actually close — currently the system can start work from Linear but cannot report back, meaning every autonomous session requires manual Linear cleanup by Phill and negates the zero-touch premise"
+  ]
+}
+```
