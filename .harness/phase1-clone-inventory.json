@@ -1,0 +1,83 @@
+```json
+{
+  "totalFiles": 89,
+  "languages": {
+    "Python": 1847,
+    "TypeScript": 312,
+    "JSON": 2841,
+    "YAML": 187,
+    "Markdown": 14203,
+    "Dockerfile": 52,
+    "Shell": 0,
+    "JavaScript": 0
+  },
+  "topFiles": [
+    ".harness/BOARD-DELIBERATION-ENHANCED-2026-04-12.md — 1821",
+    ".harness/BOARD-DELIBERATION-2026-04-12.md — 1247",
+    ".harness/anthropic-docs/claude-code-cli-reference.md — 890",
+    ".harness/anthropic-docs/api-reference.md — 847",
+    ".harness/anthropic-docs/mcp-overview.md — 831",
+    ".harness/anthropic-docs/models-overview.md — 819",
+    ".harness/anthropic-docs/tool-use.md — 812",
+    ".harness/anthropic-docs/claude-code-overview.md — 807",
+    "app/server/main.py — 421",
+    ".harness/board-meetings/2026-04-12-board-minutes.md — 398"
+  ],
+  "frameworks": [
+    "FastAPI",
+    "Next.js 16",
+    "React 19",
+    "Tailwind CSS",
+    "Uvicorn",
+    "Pydantic",
+    "WebSockets",
+    "@modelcontextprotocol/sdk",
+    "@anthropic-ai/sdk",
+    "@octokit/rest",
+    "@supabase/supabase-js",
+    "xterm.js",
+    "Radix UI",
+    "hatchling"
+  ],
+  "entryPoints": [
+    "app/server/main.py",
+    "mcp/pi-ceo-server.js",
+    "dashboard/app/layout.tsx (inferred)",
+    "Dockerfile (CMD: uvicorn app.server.main:app)"
+  ],
+  "testFiles": 0,
+  "testCoveragePresent": false,
+  "ciCdConfig": [
+    ".github/workflows/ci.yml",
+    ".github/workflows/smoke_test.yml"
+  ],
+  "dockerPresent": true,
+  "envExamplePresent": true,
+  "packageManagers": [
+    "npm",
+    "pip",
+    "hatchling (pyproject.toml)"
+  ],
+  "totalDependencies": 43,
+  "architecturePattern": "fullstack",
+  "missingCriticalFiles": [
+    "tests/ directory (zero test files provided; CI references pytest tests/ but none shown)",
+    "app/server/sessions.py (imported everywhere, not provided)",
+    "app/server/config.py (imported everywhere, not provided)",
+    "app/server/auth.py (imported in main.py, not provided)",
+    "app/server/autonomy.py (imported in main.py, not provided)",
+    "app/server/pipeline.py (imported in main.py, not provided)",
+    "app/server/orchestrator.py (imported in main.py, not provided)",
+    "app/server/scanner.py (referenced in docs, not provided)",
+    "mcp/pi-ceo-server.js (entry point, not provided)",
+    "scripts/smoke_test.py (referenced in CI, not provided)",
+    "dashboard/app/ (Next.js pages/routes not provided)",
+    "dashboard/lib/ (hooks and utilities not provided)",
+    "vercel.json (deployment config, not provided)",
+    "railway.toml (gitignored but referenced throughout)",
+    ".harness/lessons.jsonl (runtime state, not provided)",
+    ".harness/projects.json (referenced by scanner, not provided)",
+    "supabase/ schema migrations (referenced in CLAUDE.md, not provided)"
+  ]
+}
+```
