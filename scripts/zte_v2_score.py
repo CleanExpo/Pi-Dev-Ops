@@ -52,13 +52,32 @@ def _supabase_query(table: str, select: str, filters: str = "") -> list[dict]:
 
 
 def _load_scanner_summary() -> list[dict]:
-    """Load latest scan results from .harness/scan-results/."""
-    try:
-        sys.path.insert(0, str(Path(__file__).parent.parent))
-        from app.server.scanner import MultiProjectScanner
-        return MultiProjectScanner().get_health_summary()
-    except Exception:
+    """Load latest scan results from .harness/scan-results/ JSON files.
+
+    Reads each <project>/<date>-<scan_type>.json file directly — no async
+    scanner import required.  Returns a list of project dicts compatible with
+    score_c4_security_posture(): [{"project_id": ..., "scores": {...}}]
+    """
+    scan_root = _HARNESS / "scan-results"
+    if not scan_root.is_dir():
         return []
+    projects: dict[str, dict[str, int]] = {}
+    for proj_dir in scan_root.iterdir():
+        if not proj_dir.is_dir():
+            continue
+        proj_id = proj_dir.name
+        for scan_type in ("security", "code_quality", "dependencies", "deployment_health"):
+            files = sorted(proj_dir.glob(f"*-{scan_type}.json"))
+            if not files:
+                continue
+            try:
+                data = json.loads(files[-1].read_text(encoding="utf-8"))
+                score = data.get("score") if data.get("score") is not None else data.get("health_score")
+                if score is not None:
+                    projects.setdefault(proj_id, {})[scan_type] = int(score)
+            except Exception:
+                pass
+    return [{"project_id": k, "scores": v} for k, v in projects.items()]
 
 
 def _lessons_per_week(days: int = 30) -> float:
@@ -109,9 +128,50 @@ def score_c1_deployment_success(rows: list[dict]) -> tuple[int, str]:
     return 1, note
 
 
-def score_c2_output_acceptance() -> tuple[int, str]:
-    """C2: % of Linear tickets accepted without re-open. Requires state-transition data."""
-    return 1, "needs_data — Linear state-transition logging (RA-672 Phase 2) not yet implemented"
+def score_c2_output_acceptance(days: int = 30) -> tuple[int, str]:
+    """C2: % of sessions whose linked Linear issue moved to Done after push.
+
+    Reads .harness/session-outcomes.jsonl written by sessions.py on completion.
+    Falls back to stub if the file doesn't exist yet.
+    """
+    outcomes_file = _HARNESS / "session-outcomes.jsonl"
+    if not outcomes_file.exists():
+        return 1, "needs_data — session-outcomes.jsonl not yet written (sessions completing will populate this)"
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    total = done = 0
+    try:
+        with open(outcomes_file, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                    ts_str = entry.get("completed_at", "")
+                    if ts_str:
+                        ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                        if ts < cutoff:
+                            continue
+                    total += 1
+                    if entry.get("linear_state_after", "").lower() in ("done", "completed", "closed"):
+                        done += 1
+                except Exception:
+                    pass
+    except Exception:
+        return 1, "error reading session-outcomes.jsonl"
+    if total == 0:
+        return 1, "session-outcomes.jsonl exists but no entries in window"
+    rate = done / total
+    note = f"{done}/{total} issues reached Done after push ({rate:.0%})"
+    if rate >= 0.90:
+        return 5, note
+    if rate >= 0.75:
+        return 4, note
+    if rate >= 0.55:
+        return 3, note
+    if rate >= 0.30:
+        return 2, note
+    return 1, note
 
 
 def score_c3_mean_time_to_value(rows: list[dict]) -> tuple[int, str]:
@@ -218,7 +278,7 @@ def compute_v2_score(days: int = 30) -> dict:
     lpw = _lessons_per_week(days)
 
     c1_score, c1_note = score_c1_deployment_success(rows)
-    c2_score, c2_note = score_c2_output_acceptance()
+    c2_score, c2_note = score_c2_output_acceptance(days)
     c3_score, c3_note = score_c3_mean_time_to_value(rows)
     c4_score, c4_note = score_c4_security_posture(projects)
     c5_score, c5_note = score_c5_knowledge_velocity(lpw, rows)

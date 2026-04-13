@@ -1003,6 +1003,43 @@ mutation PostComment($issueId: String!, $body: String!) {
         _log.warning("Linear comment failed for issue %s: %s", issue_id, exc)
 
 
+def _record_session_outcome(session, push_ok: bool, push_ts: float) -> None:
+    """RA-672 Phase 2 — Write session outcome to .harness/session-outcomes.jsonl.
+
+    Feeds ZTE v2 C2 (output acceptance) scoring in zte_v2_score.py.
+    Each line: session_id, linear_issue_id, push_ok, push_timestamp,
+    linear_state_after, completed_at.
+    """
+    import json as _json
+    from datetime import datetime, timezone
+
+    _harness_dir = Path(config.DATA_DIR).parent.parent / ".harness"
+    outcomes_file = _harness_dir / "session-outcomes.jsonl"
+    _harness_dir.mkdir(parents=True, exist_ok=True)
+
+    # Record Linear state after push — session moves issue to "In Review" on push
+    # The downstream board meeting / autonomy poller moves it to Done after human review.
+    # For C2 scoring we capture "In Review" as the immediate post-push state;
+    # a future watchdog can check if the issue later moved to Done.
+    issue_id = getattr(session, "linear_issue_id", None)
+    linear_state_after = "In Review" if (issue_id and push_ok) else ""
+
+    row = {
+        "session_id": session.id,
+        "linear_issue_id": issue_id,
+        "push_ok": push_ok,
+        "push_timestamp": datetime.fromtimestamp(push_ts, tz=timezone.utc).isoformat() if push_ok else None,
+        "linear_state_after": linear_state_after,
+        "session_status": getattr(session, "status", ""),
+        "completed_at": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        with open(outcomes_file, "a", encoding="utf-8") as f:
+            f.write(_json.dumps(row) + "\n")
+    except OSError as exc:
+        _log.warning("Could not write session-outcomes.jsonl: %s", exc)
+
+
 def _sync_linear_on_completion(session) -> None:
     """RA-665/666 — Post build outcome to Linear on every terminal state.
 
@@ -1633,6 +1670,12 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
         _sync_linear_on_completion(session)
     except Exception:
         pass  # Linear sync must never crash the build pipeline
+
+    # RA-672 Phase 2 — C2 data: log session outcome for ZTE v2 Section C scoring
+    try:
+        _record_session_outcome(session, push_ok, push_ts)
+    except Exception:
+        pass  # observability must never block the pipeline
 
 async def create_session(
     repo_url,
