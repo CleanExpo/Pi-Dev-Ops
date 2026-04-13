@@ -8,7 +8,7 @@ spec so Claude has the best strategy as context.
 
 Discovery flow:
   1. Generate 3 plan variants for the same brief (parallel, using haiku for speed)
-  2. Score each variant with a single lightweight eval (sonnet, text-only)
+  2. Score each variant with a single lightweight scorer (sonnet, text-only)
   3. Pick the highest-scoring variant (ties broken by first)
   4. Append the winner to the generator spec
   5. Log discovery data to .harness/plan-discoveries/<date>.jsonl
