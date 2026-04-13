@@ -1,0 +1,189 @@
+```json
+{
+  "sprints": [
+    {
+      "id": 1,
+      "name": "Foundation Fix — Broken Contracts & Production Blockers",
+      "duration": "5d",
+      "goal": "Eliminate the three critical gaps identified in the gap audit and restore truthful self-reporting across the system.",
+      "items": [
+        {
+          "title": "Add Linear two-way sync: issueUpdate mutation after build completion",
+          "size": "M",
+          "priority": "P1",
+          "piter": {
+            "problem": "app/server/webhook.py and sessions.py have zero outbound Linear API calls — issues never transition to In Progress or Done autonomously despite the autonomy poller being live. Gap audit RA-665/RA-666 confirmed critical.",
+            "impact": "The autonomy loop is silent: builds run, PRs open, but Linear board never reflects reality. Every board meeting operates on stale issue state. Sprint planning is fiction.",
+            "result": "POST /api/build completions call linear_update_issue() with issueUpdate mutation; Linear issue transitions to Done with session summary comment. Verified by a live autonomy session on Pi-Dev-Ops against a real Todo ticket."
+          }
+        },
+        {
+          "title": "Add GET /api/sessions/{sid}/logs SSE endpoint (text/event-stream)",
+          "size": "S",
+          "priority": "P1",
+          "piter": {
+            "problem": "app/server/main.py has StreamingResponse imported but no SSE log endpoint exists — gap audit RA-667 marked critical. Only WebSocket /ws/build/{sid} delivers real-time logs, which requires a persistent connection the dashboard cannot always maintain.",
+            "impact": "Dashboard reconnect after network interruption replays zero history. Any client that cannot upgrade to WebSocket (curl, mobile browser, webhook consumers) gets no streaming output.",
+            "result": "GET /api/sessions/{sid}/logs?after=N returns text/event-stream with existing output_lines from cursor N, then polls for new lines until session reaches terminal state. Smoke test check added."
+          }
+        },
+        {
+          "title": "Fix /health to surface autonomy.armed, last_poll_at, linear_key_ok truthfully",
+          "size": "S",
+          "priority": "P1",
+          "piter": {
+            "problem": "app/server/main.py /health returns status:ok even when LINEAR_API_KEY is absent and the autonomy poller silently skips all polls. CLAUDE.md Sprint 8 notes this was fixed in commit e611b1c but was never pushed to Railway — the fix exists locally only.",
+            "impact": "Every monitoring tool and the marathon watchdog reads /health and sees a green system while zero builds fire. Silent failure that destroyed the 2026-04-11 overnight run.",
+            "result": "/health payload includes autonomy.armed (bool), linear_key_ok (bool), seconds_since_last_poll (int|null). Any monitor reading this field gets a truthful armed/unarmed signal within 10 seconds of startup."
+          }
+        },
+        {
+          "title": "Regenerate spec.md via _deploy.py — restore accurate self-assessment",
+          "size": "S",
+          "priority": "P1",
+          "piter": {
+            "problem": ".harness/spec.md is stale (last updated 2026-04-10, pre-Sprint 9). Board meetings, MCP tools (get_last_analysis, get_sprint_plan), and the evaluator's context all read from a document that reflects a system two sprints behind current reality. CEO memo (2026-04-13) explicitly names this RA-675.",
+            "impact": "Every autonomous agent starting a session gets incorrect architectural context. Evaluator grades against wrong expected capabilities. Board SWOT draws from stale facts.",
+            "result": "get_last_analysis MCP tool returns Sprint 9 / Cycle 23 data with ZTE 73/75. spec.md timestamp reflects today. Verified by board meeting Phase 1 status snapshot matching current Linear state."
+          }
+        },
+        {
+          "title": "Fix Telegram webhook secret check — reject requests where secret is configured but header is absent",
+          "size": "S",
+          "priority": "P1",
+          "piter": {
+            "problem": "dashboard/app/api/telegram/route.ts allows unauthenticated requests when TELEGRAM_WEBHOOK_SECRET is set but the incomingSecret header is absent — gap audit RA-671 (low severity but security). The FastAPI /webhook/telegram in app/server/main.py has the same structural pattern.",
+            "impact": "Any attacker who knows the Telegram webhook URL can inject arbitrary commands (/ack_alert, /stop) into the autonomous rails without a valid bot secret.",
+            "result": "Both webhook handlers reject requests with HTTP 401 when TELEGRAM_WEBHOOK_SECRET is configured and X-Telegram-Bot-Api-Secret-Token is absent or empty. Unit test added."
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Autonomy Rails — Scheduler & Watchdog Hardening",
+      "duration": "5d",
+      "goal": "Make overnight autonomous runs survive without manual intervention by fixing the scheduler silent-regression and replacing the false-positive watchdog test check.",
+      "items": [
+        {
+          "title": "Fix cron scheduler: add abs() to debounce, startup catch-up, and watchdog Linear ticket on 12h scan gap",
+          "size": "M",
+          "priority": "P1",
+          "piter": {
+            "problem": "app/server/cron.py debounce logic is missing abs() — a bogus-future last_fired_at timestamp (from Railway redeploy) silently suppresses every scan. No startup catch-up fires missed windows. No alert fires if scans stop for 12h. Documented in lessons.jsonl as RA-579 HIGH.",
+            "impact": "Every Railway deploy resets last_fired_at to null or a future value, suppressing the next scan window. Pi-SEO cron-triggers.json shows 13 active triggers that silently skip on every deploy without this fix.",
+            "result": "cron_loop() applies abs() to time deltas; startup catch-up fires any trigger missed in the last window; a 12h silence creates an Urgent Linear ticket. Verified by a simulated future-timestamp injection test."
+          }
+        },
+        {
+          "title": "Replace watchdog pytest check with GH Actions status-file read",
+          "size": "M",
+          "priority": "P1",
+          "piter": {
+            "problem": "scripts/marathon_watchdog.py runs python3 -m pytest tests/ inside an ephemeral Cowork sandbox that lacks anthropic>=0.90. This produced the false CRITICAL Telegram alert on 2026-04-12 that destroyed founder trust. The sandbox is not a valid test environment. Documented in INCIDENT-2026-04-12.md.",
+            "impact": "Watchdog cries wolf on every clean-environment run where runtime deps are absent. Founder cannot trust CRITICAL alerts. The one alert that matters (real test failure) is buried in noise.",
+            "result": "Watchdog _check_tests() reads .harness/ci-status.json written by GH Actions pytest.yml (or falls back to pytest --collect-only which validates imports without executing). False-positive rate drops to zero. GH Actions workflow writes the status file on every push."
+          }
+        },
+        {
+          "title": "Wire do-while poller pattern: 10s startup delay instead of sleep-first 5m",
+          "size": "S",
+          "priority": "P2",
+          "piter": {
+            "problem": "app/server/autonomy.py linear_todo_poller() sleeps for 5 minutes before the first poll. CLAUDE.md Sprint 8 notes commit e611b1c fixed this to 10s bootstrap but it was never pushed. Every Railway cold start has a 5-minute dead zone where no builds fire.",
+            "impact": "After every Railway deploy, the autonomy rail is silent for 5 minutes. A deploy triggered by a PR merge means the very PR that should kick off the next build waits unnecessarily.",
+            "result": "First poll fires within 10 seconds of startup. Verified by Railway logs showing poll #1 timestamp within 10s of container start. /health autonomy.seconds_since_last_poll reads < 15 within 15s of startup."
+          }
+        },
+        {
+          "title": "Add TAO_AUTONOMY_ENABLED kill switch validation to /health and startup log",
+          "size": "S",
+          "priority": "P2",
+          "piter": {
+            "problem": "app/server/main.py on_startup() logs 'Autonomy poller DISABLED' but /health only reports autonomy.enabled bool — does not distinguish 'disabled by flag' from 'disabled because LINEAR_API_KEY missing'. Monitoring cannot determine root cause without reading logs.",
+            "impact": "Alert triage requires log access to understand why autonomy is not firing. On-call flow adds unnecessary minutes when the answer is one field away.",
+            "result": "/health autonomy block includes armed (bool: enabled AND linear_key present), enabled (bool: TAO_AUTONOMY_ENABLED flag), linear_key (bool). Three distinct states are machine-readable. Watchdog can alert on armed=false specifically."
+          }
+        },
+        {
+          "title": "Prune triage-cache.json: add rotation strategy capping file at 1000 entries",
+          "size": "S",
+          "priority": "P2",
+          "piter": {
+            "problem": ".harness/triage-cache.json is 353KB with no pruning — flagged in three consecutive board meetings (2026-04-11, 2026-04-12 x2). Railway ephemeral disk has limits; unbounded growth will cause OOM on scanner startup.",
+            "impact": "Scanner startup reads entire cache into memory on each invocation. At current growth rate, cache reaches Railway's ephemeral disk limit within 60 days of daily scans across 11 repos.",
+            "result": "app/server/triage.py prunes cache to newest 1000 entries on each write using write-to-.tmp-then-os.replace(). File size stays under 100KB. Verified by unit test injecting 1500 entries and asserting output length."
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Observability & CI — Production-Grade Feedback Loops",
+      "duration": "5d",
+      "goal": "Wire quality gate results to Supabase, add post-deploy smoke test, and give the board meeting accurate live data from Linear.",
+      "items": [
+        {
+          "title": "Persist quality gate results to Supabase gate_checks table after every /ship phase",
+          "size": "M",
+          "priority": "P2",
+          "piter": {
+            "problem": "app/server/supabase_log.py exists and .harness/config.yaml lists gate_checks as the target table for quality gate results, but app/server/pipeline.py run_ship_phase() does not call supabase_log. RA-651 is listed as complete in CLAUDE.md but the write is missing from the pipeline.",
+            "impact": "ZTE leverage point Quality Gating scores 5/5 but produces no durable record. Trend analysis of evaluator scores over time is impossible. The BVI metric (CEO memo 2026-04-13) cannot be computed without historical gate data.",
+            "result": "run_ship_phase() calls supabase_log.log_gate_check() after every gate decision. Supabase gate_checks table contains one row per /ship invocation with pipeline_id, score, verdict, model, timestamp. Query returns 7-day trend within 1 second."
+          }
+        },
+        {
+          "title": "Fix Linear API auth: rotate LINEAR_API_KEY and add startup health assertion",
+          "size": "S",
+          "priority": "P2",
+          "piter": {
+            "problem": "Three consecutive board meetings (2026-04-11, 2026-04-12 x2) returned 401 on all Linear MCP calls. Board meetings fall back to stale harness files. The autonomy poller silently skips all polls when the key is absent. No alerting exists for key expiry.",
+            "impact": "Sprint planning runs on stale data. The autonomy poller is armed=false without the key. Every autonomous session that should close a Linear ticket fails silently.",
+            "result": "Valid LINEAR_API_KEY in Railway env. Startup log line confirms 'Linear API key: valid'. /health linear_key=true. Board meeting Phase 2 returns live issue data. Zero 401 errors in Railway logs for 24h."
+          }
+        },
+        {
+          "title": "Add GitHub Actions pytest.yml writing ci-status.json to status branch",
+          "size": "M",
+          "priority": "P2",
+          "piter": {
+            "problem": "No GH Actions workflow writes a machine-readable test status file that the watchdog or Railway can read. The existing ci.yml runs pytest but its results are only visible in GH Actions UI — not consumable by the marathon watchdog or the autonomy poller. Recommended in ARCHITECTURE-V2.md and BOARD-DELIBERATION-2026-04-12.md.",
+            "impact": "The watchdog fix (Sprint 2) requires a GH Actions status file to exist. Without it, the watchdog cannot distinguish 'tests green on CI' from 'tests unknown'. The signed test-status file is a prerequisite for safe autonomous merge.",
+            "result": ".github/workflows/pytest-status.yml runs on every push, writes .harness/ci-status.json with {sha, timestamp, passed, failed, total} to main branch. Watchdog reads this file. File age check (>2h = stale) added to watchdog heartbeat check."
+          }
+        },
+        {
+          "title": "Expose ZTE score from leverage-audit.md via get_zte_score MCP tool",
+          "size": "S",
+          "priority": "P2",
+          "piter": {
+            "problem": "mcp/pi-ceo-server.js get_zte_score returns 'No ZTE data found' — documented in board meeting 2026-04-08 as a MCP data gap. The tool does not parse .harness/leverage-audit.md. Board meetings manually source the score from the markdown file.",
+            "impact": "Every board meeting Phase 1 status snapshot is manually reconstructed. Automated ZTE trend tracking is impossible. The BVI metric (CEO memo) cannot include ZTE sub-scores without this fix.",
+            "result": "get_zte_score MCP tool parses .harness/leverage-audit.md, extracts current score (73/75) and per-dimension breakdown, returns structured JSON. Board meeting Phase 1 reads live score without fallback. Verified by running the tool and comparing output to manual leverage-audit.md read."
+          }
+        },
+        {
+          "title": "Add Business Velocity Index (BVI) baseline fields to board meeting Phase 1",
+          "size": "S",
+          "priority": "P3",
+          "piter": {
+            "problem": "CEO memo 2026-04-13 mandates BVI as the primary metric from Cycle 24 onwards. No board meeting template includes BVI fields. The three BVI components (CRITICAL resolution speed, portfolio health delta, MARATHON completions) have no collection point.",
+            "impact": "The CEO's stated primary metric does not exist in any report. ZTE score remains the de facto measure of a system that scores 73/75 while delivering zero portfolio improvements.",
+            "result": "board_meeting.py Phase 1 includes bvi section with critical_resolved_this_cycle (int), portfolio_health_delta (float), marathon_completions (int). All three default to 0 until data pipelines are live. CEO memo target: 3 tickets closed by day 14 is measurable."
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Security & Portfolio Remediation — First Real Deliverables",
+      "duration": "7d",
+      "goal": "Deliver the first autonomous security fixes to CCW and RestoreAssist, proving the end-to-end loop works on revenue-generating repos.",
+      "items": [
+        {
+          "title": "Execute Pi-SEO first full sweep across all 11 repos and populate Linear backlog",
+          "size": "M",
+          "priority": "P2",
+          "piter": {
+            "problem": "Pi-SEO scanner infrastructure is complete (Sprint 6) but has never run. Zero baseline scan data exists. Board meeting 2026-04
