@@ -141,6 +141,11 @@ EVAL_FLAG_CONFIDENCE     = float(os.environ.get("TAO_EVAL_FLAG_CONFIDENCE",     
 WEBHOOK_SECRET       = os.environ.get("TAO_WEBHOOK_SECRET",             "")
 LINEAR_WEBHOOK_SECRET = os.environ.get("TAO_LINEAR_WEBHOOK_SECRET",     "")
 
+# RA-677 — AUTONOMY_BUDGET: single-knob pipeline configuration (minutes).
+# 0 = disabled; per-request budget_minutes overrides this global default.
+# When set, auto-tunes eval_threshold, max_retries, model, and timeout.
+AUTONOMY_BUDGET_MINS = int(os.environ.get("TAO_AUTONOMY_BUDGET", "0"))
+
 # ---------------------------------------------------------------------------
 # Pi-SEO scanner settings
 # ---------------------------------------------------------------------------

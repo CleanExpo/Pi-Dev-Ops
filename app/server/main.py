@@ -33,6 +33,7 @@ class BuildRequest(BaseModel):
     model: str = "sonnet"
     evaluator_enabled: bool | None = None
     intent: str = ""
+    budget_minutes: int | None = None  # RA-677: AUTONOMY_BUDGET single-knob override
 
     @field_validator("repo_url")
     @classmethod
@@ -246,8 +247,15 @@ async def me(_=Depends(require_auth)):
 @app.post("/api/build", dependencies=[Depends(require_auth), Depends(require_rate_limit)])
 async def build(body: BuildRequest):
     evaluator_enabled = body.evaluator_enabled if body.evaluator_enabled is not None else config.EVALUATOR_ENABLED
+    # RA-677: per-request budget overrides global default; global default overrides None
+    budget = body.budget_minutes or config.AUTONOMY_BUDGET_MINS or None
     try:
-        session = await create_session(body.repo_url, body.brief, body.model, evaluator_enabled=evaluator_enabled, intent=body.intent)
+        session = await create_session(
+            body.repo_url, body.brief, body.model,
+            evaluator_enabled=evaluator_enabled,
+            intent=body.intent,
+            budget_minutes=budget,
+        )
     except RuntimeError as e:
         raise HTTPException(429, str(e))
     return {"session_id": session.id, "status": session.status}

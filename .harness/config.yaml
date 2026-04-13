@@ -61,6 +61,20 @@ cron:
   quarterly:
     fallback_dryrun: "1st Jan/Apr/Jul/Oct 17:00 UTC — tests TAO_USE_FALLBACK path (RA-634)"
 
+# RA-677 — AUTONOMY_BUDGET: single-knob pipeline configuration.
+# Set TAO_AUTONOMY_BUDGET=<minutes> globally or pass budget_minutes in the API.
+# 0 (default) = disabled; evaluator_threshold / evaluator_max_retries apply directly.
+autonomy_budget:
+  env_var: TAO_AUTONOMY_BUDGET
+  default: 0
+  module:  app/server/budget.py
+  anchors:
+    - {minutes:  10, eval_threshold: 7.5, max_retries: 1, model: haiku,  timeout_min:   8}
+    - {minutes:  30, eval_threshold: 8.0, max_retries: 2, model: sonnet, timeout_min:  25}
+    - {minutes:  60, eval_threshold: 8.5, max_retries: 3, model: sonnet, timeout_min:  50}
+    - {minutes: 120, eval_threshold: 9.0, max_retries: 4, model: opus,   timeout_min: 100}
+    - {minutes: 240, eval_threshold: 9.5, max_retries: 5, model: opus,   timeout_min: 200}
+
 staleness:
   # RA-580: harness docs regeneration policy
   max_age_days: 2

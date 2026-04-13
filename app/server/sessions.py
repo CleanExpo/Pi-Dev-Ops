@@ -169,6 +169,7 @@ class BuildSession:
     evaluator_consensus: str = ""   # RA-553: per-model scores + delta description
     parent_session_id: Optional[str] = None  # RA-464: fan-out parallelism
     budget: Optional[object] = None           # RA-465: BudgetTracker instance
+    budget_params: Optional[dict] = None      # RA-677: AUTONOMY_BUDGET computed params
     last_completed_phase: str = ""            # Phase tracking for resume (GROUP D/E)
     retry_count: int = 0                      # Evaluator retry count (GROUP C)
     linear_issue_id: Optional[str] = None    # Linear issue ID for two-way sync
@@ -191,6 +192,7 @@ def list_sessions():
             "evaluator_consensus": s.evaluator_consensus,
             "retry_count": s.retry_count,
             "evaluator_status": s.evaluator_status,
+            "budget_minutes": (s.budget_params or {}).get("budget_minutes"),
         }
         for s in _sessions.values()
     ]
@@ -1083,8 +1085,13 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
     if not (session.evaluator_enabled and config.EVALUATOR_ENABLED):
         return 5
     total_phases = 6
-    max_retries = config.EVALUATOR_MAX_RETRIES
-    threshold = config.EVALUATOR_THRESHOLD
+    # RA-677 — session-level budget params override global config
+    _bp = getattr(session, "budget_params", None) or {}
+    max_retries = _bp.get("max_retries", config.EVALUATOR_MAX_RETRIES)
+    threshold   = _bp.get("eval_threshold", config.EVALUATOR_THRESHOLD)
+    if _bp:
+        em(session, "system", f"  Budget: {_bp.get('budget_minutes', '?')}min"
+           f" → threshold={threshold}/10 retries={max_retries}")
     brief_context = (brief[:2000] + "...") if len(brief) > 2000 else brief
     _EVAL_PROMPT_BASE = (
         "You are a senior code reviewer evaluating AI-generated changes. "
@@ -1397,16 +1404,39 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     except Exception:
         pass  # Linear sync must never crash the build pipeline
 
-async def create_session(repo_url, brief="", model="", evaluator_enabled=True, intent="", parent_session_id="", linear_issue_id: Optional[str] = None):
+async def create_session(
+    repo_url,
+    brief="",
+    model="",
+    evaluator_enabled=True,
+    intent="",
+    parent_session_id="",
+    linear_issue_id: Optional[str] = None,
+    budget_minutes: Optional[int] = None,
+):
+    """Create and start a new build session.
+
+    RA-677: when budget_minutes is provided, auto-tunes eval_threshold,
+    max_retries, model, and generator timeout via budget.budget_to_params().
+    Per-request budget_minutes overrides TAO_AUTONOMY_BUDGET global default.
+    """
     if len(_sessions) >= config.MAX_CONCURRENT_SESSIONS:
         raise RuntimeError("Max sessions reached")
     resolved_model = _select_model("generator", model)
+    # RA-677 — apply AUTONOMY_BUDGET if specified
+    bp: Optional[dict] = None
+    if budget_minutes and budget_minutes > 0:
+        from .budget import budget_to_params, describe_budget  # noqa: PLC0415
+        bp = budget_to_params(budget_minutes)
+        resolved_model = bp["model"]
+        _log.info("AUTONOMY_BUDGET applied: %s", describe_budget(bp))
     session = BuildSession(
         repo_url=repo_url,
         started_at=time.time(),
         evaluator_enabled=evaluator_enabled,
         parent_session_id=parent_session_id or None,
         linear_issue_id=linear_issue_id or None,
+        budget_params=bp,
     )
     _sessions[session.id] = session
     persistence.save_session(session)
