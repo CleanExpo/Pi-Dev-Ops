@@ -13,18 +13,22 @@
     "@anthropic-ai/sdk",
     "@modelcontextprotocol/sdk",
     "@octokit/rest",
-    "Supabase (PostgreSQL + pgvector)",
-    "claude_agent_sdk",
+    "@supabase/supabase-js",
     "xterm.js",
+    "Supabase (PostgreSQL + pgvector)",
     "Docker",
+    "Claude Agent SDK (claude_agent_sdk)",
+    "Ollama (Qwen 3 14B / Llama 3.3 8B)",
+    "n8n",
+    "Telegram Bot API",
+    "Linear API",
+    "GitHub Actions",
     "Railway",
     "Vercel",
-    "GitHub Actions",
-    "Zod",
+    "zod",
     "bcrypt",
     "httpx",
-    "pyyaml",
-    "Telegram Bot API"
+    "pyyaml"
   ],
   "pattern": "other",
   "entryPoints": [
@@ -38,20 +42,19 @@
     "fastapi>=0.111",
     "uvicorn[standard]>=0.30",
     "anthropic>=0.90",
-    "claude-agent-sdk>=0.1",
+    "claude-agent-sdk",
     "next@^16.2.3",
     "react@^19.0.0",
     "@anthropic-ai/sdk@^0.36.3",
     "@modelcontextprotocol/sdk@^1.29.0",
-    "@supabase/supabase-js@^2.101.1",
     "@octokit/rest@^21.0.2",
+    "@supabase/supabase-js@^2.101.1",
     "websockets>=12",
     "bcrypt>=4.0",
     "httpx>=0.27",
-    "zod@^4.3.6",
-    "xterm@^5.3.0"
+    "zod@^4.3.6"
   ],
-  "dataFlow": "User submits repo URL + brief via Next.js dashboard → POST /api/build on FastAPI backend → create_session() spawns async build via Claude Agent SDK (claude_agent_sdk, TAO_USE_AGENT_SDK=1 mandatory as of RA-576) → 5-phase pipeline (clone → plan → generate → evaluate → ship) executes in isolated workspace → real-time output streamed to browser via WebSocket /ws/build/{sid} and SSE /api/sessions/{sid}/logs → evaluator grades diff and gates merge → session state persisted to disk (write-to-.tmp-then-os.replace()) and Supabase → Linear ticket updated via webhook.py → git push via GitHub PAT. Parallel inbound paths: GitHub/Linear webhooks trigger builds autonomously; Telegram bot (@piceoagent_bot) provides mobile control; autonomy poller (autonomy.py, 5-min cron) picks up Linear Todo issues; Pi-SEO scanner writes findings to .harness/scan-results/ and triage engine creates Linear tickets; MCP server (mcp/pi-ceo-server.js, stdio JSON-RPC 2.0) exposes 21 tools to Claude Desktop.",
-  "architectureNotes": "Pi-CEO is a Tiered Agent Orchestrator (TAO) with three distinct runtime environments: Railway (always-on FastAPI backend + autonomy poller + cron scheduler via cron-triggers.json), Vercel (Next.js dashboard), and local MCP server (stdio). The system is SDK-only as of Sprint 8/RA-576 — subprocess fallback removed, TAO_USE_AGENT_SDK=0 raises ImportError at startup by design. The .harness/ directory functions as the persistent state layer (config.yaml, lessons.jsonl, cron-triggers.json, scan-results/, board-meetings/) while Supabase (gate_checks, alert_escalations, triage_log tables) provides the append-only observability log — all Supabase writes are fire-and-forget to prevent blocking the build pipeline."
+  "dataFlow": "User submits a repo URL + brief via Next.js dashboard → POST /api/build on FastAPI backend → create_session() spawns an async build task → Claude Agent SDK (SDK-only mode, TAO_USE_AGENT_SDK=1) executes a 5-phase pipeline (plan→generate→evaluate→test→ship) inside a cloned workspace → output streamed to browser via WebSocket /ws/build/{sid} and SSE /api/sessions/{sid}/logs → evaluated output committed and pushed to GitHub via fine-grained PAT → results logged to Supabase tables (gate_checks, claude_api_costs) → MCP server (pi-ceo-server.js) exposes analysis artifacts to Claude Desktop via stdio JSON-RPC 2.0 → autonomy poller (linear_todo_poller) polls Linear every 5 min and auto-creates sessions for Urgent/High Todo tickets → Pi-SEO scanner runs on cron (12 triggers in cron-triggers.json) scanning 10+ repos → findings triaged to Linear via TriageEngine → critical alerts sent to Telegram via marathon_watchdog.py → Telegram inbound messages processed by marathon_telegram_inbox.py and routed by marathon_watchdog.py.",
+  "architectureNotes": "This is a Tiered Agent Orchestrator (TAO) — a three-layer Claude hierarchy (Opus 4.6 as planner, Sonnet 4.6 as generator/evaluator, Haiku 4.5 as worker) wrapped in a FastAPI backend, Next.js dashboard, and stdio MCP server. The system is split across three deployment environments: Railway (always-on FastAPI + autonomy poller + Pi-SEO crons), Vercel (Next.js dashboard), and a planned Mac Mini local brain (Ollama + n8n + Supabase). The critical architectural constraint is SDK-only execution: subprocess claude -p fallback paths were removed in Sprint 8 (RA-576), so TAO_USE_AGENT_SDK=1 is mandatory and misconfiguration raises ImportError at startup. State is ephemeral (in-memory _sessions dict) with atomic disk persistence via write-to-tmp-then-os.replace() pattern, backed by Supabase for cross-session observability."
 }
 ```
