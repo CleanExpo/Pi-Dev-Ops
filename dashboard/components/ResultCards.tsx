@@ -3,10 +3,11 @@
 
 import type { AnalysisResult } from "@/lib/types";
 
-const ZTE_LABELS: Record<number, string> = {
-  1: "IN THE LOOP",
-  2: "OUT OF LOOP",
-  3: "ZERO TOUCH",
+const ZTE_LABELS: Record<number, { label: string; band: string; color: string }> = {
+  1: { label: "MANUAL",      band: "12–20",  color: "#F87171" },
+  2: { label: "ASSISTED",    band: "21–35",  color: "#FFD166" },
+  3: { label: "AUTONOMOUS",  band: "36–48",  color: "#60A5FA" },
+  4: { label: "ZERO TOUCH",  band: "49–60",  color: "#4ADE80" },
 };
 
 function Bar({ value, max = 10 }: { value: number; max?: number }) {
@@ -99,11 +100,14 @@ export default function ResultCards({ result }: Props) {
               L{result.zteLevel}
             </span>
             <div>
-              <div className="font-mono text-[11px]" style={{ color: "#F0EDE8" }}>
-                {ZTE_LABELS[result.zteLevel ?? 1]}
+              <div
+                className="font-mono text-[11px]"
+                style={{ color: ZTE_LABELS[result.zteLevel ?? 1]?.color ?? "#F0EDE8" }}
+              >
+                {ZTE_LABELS[result.zteLevel ?? 1]?.label ?? "—"}
               </div>
               <div className="font-mono text-[9px]" style={{ color: "#A8A5A0" }}>
-                {result.zteScore}/60
+                {result.zteScore}/60 · band {ZTE_LABELS[result.zteLevel ?? 1]?.band ?? "—"}
               </div>
             </div>
           </div>

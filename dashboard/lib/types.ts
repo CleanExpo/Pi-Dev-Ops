@@ -56,7 +56,7 @@ export interface AnalysisResult {
   currentState?: string;
   keyInsights?: string[];
   // Phase 5 — gap analysis
-  zteLevel?: 1 | 2 | 3;
+  zteLevel?: 1 | 2 | 3 | 4;
   zteScore?: number;
   leveragePoints?: LeveragePoint[];
   // Phase 6 — enhancement plan
