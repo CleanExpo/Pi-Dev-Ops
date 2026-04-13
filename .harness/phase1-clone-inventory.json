@@ -1,0 +1,80 @@
+```json
+{
+  "totalFiles": 74,
+  "languages": {
+    "Python": 1420,
+    "TypeScript": 180,
+    "JSON": 890,
+    "YAML": 280,
+    "Markdown": 12400,
+    "Dockerfile": 60,
+    "Shell": 15
+  },
+  "topFiles": [
+    ".harness/BOARD-DELIBERATION-ENHANCED-2026-04-12.md — 1850",
+    ".harness/BOARD-DELIBERATION-2026-04-12.md — 1400",
+    ".harness/anthropic-docs/claude-code-cli-reference.md — 980",
+    ".harness/anthropic-docs/api-reference.md — 920",
+    ".harness/anthropic-docs/tool-use.md — 910",
+    ".harness/anthropic-docs/models-overview.md — 900",
+    ".harness/anthropic-docs/mcp-overview.md — 870",
+    ".harness/anthropic-docs/claude-code-overview.md — 860",
+    "app/server/main.py — 480",
+    ".harness/INCIDENT-2026-04-12.md — 380"
+  ],
+  "frameworks": [
+    "FastAPI",
+    "Next.js 16",
+    "React 19",
+    "Tailwind CSS",
+    "Uvicorn",
+    "Pydantic",
+    "@modelcontextprotocol/sdk",
+    "@anthropic-ai/sdk",
+    "@supabase/supabase-js",
+    "@octokit/rest",
+    "xterm.js",
+    "Radix UI",
+    "hatchling"
+  ],
+  "entryPoints": [
+    "app/server/main.py",
+    "mcp/pi-ceo-server.js",
+    "dashboard/package.json (next dev/build/start)"
+  ],
+  "testFiles": 0,
+  "testCoveragePresent": false,
+  "ciCdConfig": [
+    ".github/workflows/ci.yml",
+    ".github/workflows/smoke_test.yml"
+  ],
+  "dockerPresent": true,
+  "envExamplePresent": true,
+  "packageManagers": [
+    "pip",
+    "npm",
+    "hatchling"
+  ],
+  "totalDependencies": 38,
+  "architecturePattern": "fullstack",
+  "missingCriticalFiles": [
+    "tests/ directory (referenced in CI and smoke_test.yml but no test files provided)",
+    "app/server/sessions.py (imported everywhere, not provided)",
+    "app/server/auth.py (imported in main.py, not provided)",
+    "app/server/config.py (imported in main.py, not provided)",
+    "app/server/autonomy.py (imported in main.py, not provided)",
+    "app/server/scanner.py (referenced in board minutes and imports, not provided)",
+    "app/server/pipeline.py (imported in main.py, not provided)",
+    "app/server/orchestrator.py (imported in main.py, not provided)",
+    "mcp/pi-ceo-server.js (referenced throughout, not provided)",
+    "scripts/smoke_test.py (referenced in CI, not provided)",
+    "scripts/secrets_check.py (referenced in ci.yml, not provided)",
+    "dashboard/.env.example (provided but dashboard/app/ source files not provided)",
+    "vercel.json (referenced in README, not provided)",
+    "railway.toml (referenced in README and .gitignore, not provided — gitignored)",
+    ".harness/leverage-audit.md (referenced in board meetings, not provided)",
+    ".harness/lessons.jsonl (referenced throughout, not provided)",
+    ".harness/projects.json (referenced in scanner/triage, not provided)"
+  ]
+}
+```
