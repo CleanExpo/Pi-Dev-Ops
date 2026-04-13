@@ -1,0 +1,104 @@
+```json
+{
+  "zteLevel": 3,
+  "zteScore": 43,
+  "leveragePoints": [
+    {
+      "id": 1,
+      "name": "Spec Quality",
+      "score": 4,
+      "rationale": "PITER classifier + ADW templates operational. spec.md confirmed stale (2+ days per .harness/config.yaml staleness policy). Board meeting 2026-04-13 explicitly flags stale spec as root-cause gap requiring RA-675. Self-reports 5/5 in leverage-audit but contemporaneous evidence contradicts."
+    },
+    {
+      "id": 2,
+      "name": "Context Precision",
+      "score": 4,
+      "rationale": "_get_lesson_context() injects lessons per intent. lessons.jsonl at 38 entries. No per-project RAG memory layer exists yet — TURBOQUANT-ASSESSMENT.md documents the gap explicitly. TurboQuant assessment prescribes a memory/ folder + retrieval step that has not been built. Charter context injected manually, not automatically."
+    },
+    {
+      "id": 3,
+      "name": "Model Selection",
+      "score": 5,
+      "rationale": "Three-tier model selection (Opus 4.6 / Sonnet 4.6 / Haiku 4.5) auto-selected from .harness/config.yaml agents block. Confidence-weighted evaluator gate with RA-674 thresholds. Budget anchors at app/server/budget.py map minutes → model tier. No observed regression."
+    },
+    {
+      "id": 4,
+      "name": "Tool Availability",
+      "score": 4,
+      "rationale": "21 MCP tools + 28 skills + fan-out parallelism confirmed. .claude/settings.json bypassPermissions at three layers. However, get_zte_score MCP tool returned 'No ZTE data found' in multiple board cycles. Linear API returned 401 for three consecutive board meeting cycles (2026-04-11, 2026-04-12, 2026-04-12-18h). Two of five pi-ceo board tools broken when measured."
+    },
+    {
+      "id": 5,
+      "name": "Feedback Loops",
+      "score": 3,
+      "rationale": "Closed-loop evaluator retry with critique injection wired (RA-571, RA-572). But: SDK Canary Phase A at 0% production traffic across three consecutive sprint cycles — dual-path is dead code. Linear API auth broken means triage-to-ticket loop is severed. Self-improvement loop (lesson pattern analyser) documented in cron-triggers.json (analyse-lessons-weekly) but last_fired_at: null — never fired. Feedback loop infrastructure exists; real feedback is not flowing."
+    },
+    {
+      "id": 6,
+      "name": "Error Recovery",
+      "score": 4,
+      "rationale": "3-attempt clone backoff, generator retry, phase checkpoints, POST /api/sessions/{sid}/resume all implemented per contracts/build-contract.md. Resilient background task wrapper (_resilient) in main.py. Weakness: marathon watchdog false-CRITICAL (tests red due to missing anthropic package in sandbox) documented in INCIDENT-2026-04-12.md — error recovery system itself produced a false positive that eroded founder trust."
+    },
+    {
+      "id": 7,
+      "name": "Session Continuity",
+      "score": 4,
+      "rationale": "Phase-level checkpoints confirmed. resume endpoint implemented. os.replace() atomic writes documented in CLAUDE.md persistence guidelines. _sessions is in-memory — server restart loses all running sessions (explicitly called out in CLAUDE.md). The overnight failure showed zero sessions survived the Cowork sandbox lifecycle. Railway sessions are the only truly persistent path and they require the SDK path to be activated (currently at 0%)."
+    },
+    {
+      "id": 8,
+      "name": "Quality Gating",
+      "score": 4,
+      "rationale": "BLOCKING evaluator gate with configurable thresholds, max 2 retries. eval-contract.md defines 4-dimension scoring. Smoke test 28 checks in CI. Gap audit (2026-04-12-gap-audit.json) found 3 critical + 4 high discrepancies between spec claims and actual implementation — quality gate does not catch spec-vs-reality drift. ZTE score self-reported at 60/60 while autonomy.py was dead and RestoreAssist PROD was down 76h+."
+    },
+    {
+      "id": 9,
+      "name": "Cost Efficiency",
+      "score": 5,
+      "rationale": "Zero API cost on Claude Max plan confirmed across all board minutes. SDK-only mode as of RA-576 removes subprocess overhead. BudgetTracker with per-minute anchors (haiku→opus). claude_api_costs table in Supabase for tracking. No cost regression observed."
+    },
+    {
+      "id": 10,
+      "name": "Trigger Automation",
+      "score": 3,
+      "rationale": "GitHub + Linear webhooks, 16 cron triggers in cron-triggers.json, Telegram inbound/outbound. Critical failures: (1) cron-triggers.json last_fired_at resets on Railway redeploy + bogus-future-timestamp debounce bug (documented in board-meetings/2026-04-12-board-minutes.md) — every deploy silently suppresses next scan. (2) PI_SEO_ACTIVE=0 by default — 10 repos have zero baseline scan data despite scanner being production-ready since Sprint 6. (3) autonomy poller LINEAR_API_KEY missing produced silent skip with green /health. Triggers exist in config; they don't fire reliably in production."
+    },
+    {
+      "id": 11,
+      "name": "Knowledge Retention",
+      "score": 3,
+      "rationale": "lessons.jsonl at 38 entries with auto-append from evaluator. analyse-lessons-weekly cron trigger exists but last_fired_at: null — never fired. No per-project RAG memory layer. Per board meeting 2026-04-13: 'system has been optimising for the wrong thing' and 'zero portfolio projects with improved health' despite 23 cycles. Lessons accumulate but the extraction → CLAUDE.md feedback loop is unbuilt. Knowledge is stored but not operationalized."
+    },
+    {
+      "id": 12,
+      "name": "Workflow Standardization",
+      "score": 5,
+      "rationale": "PITER enforced at brief entry across all sessions. All 5 ADW templates active. Ship-chain pipeline (/spec /plan /build /test /review /ship). 28 skills organized across 4 layers. ESCALATION.md defines escalation contract. PI-CEO-STANDARD.md defines 7-pillar standard for portfolio projects. Conventional Commits enforced. Most consistent leverage point — no regressions observed."
+    }
+  ],
+  "productionGaps": [
+    "SDK Canary Phase A at 0% production traffic for 3+ consecutive sprint cycles (RA-574 documented, TAO_USE_AGENT_SDK_CANARY_RATE never set in Railway) — dual-path implementation is dead code accumulating bitrot risk",
+    "Pi-SEO scanner has zero baseline scan data across all 10 portfolio repos despite infrastructure being complete since Sprint 6 — PI_SEO_ACTIVE=0 default means the entire scanner investment is latent",
+    "spec.md confirmed stale (2+ days violating .harness/config.yaml staleness policy) — all board meeting intelligence built on stale data; RA-675 / RA-685 filed but unresolved",
+    "Linear API auth returning 401 for 3 consecutive board meeting cycles — triage-to-ticket loop severed; no alerting mechanism when key expires",
+    "analyse-lessons-weekly cron trigger (last_fired_at: null) and feedback-loop-monthly (last_fired_at: null) — self-improvement loop documented but never executed",
+    "cron-triggers.json last_fired_at resets on Railway redeploy combined with bogus-future-timestamp debounce bug — every Railway redeploy silently suppresses next scheduled scan window (documented in INCIDENT-2026-04-12.md lesson HIGH)",
+    "Autonomy poller reports green /health when LINEAR_API_KEY is missing — silent failure mode where health endpoint lies about operational status; autonomy.armed field added (commit e611b1c) but commit was unpushed at time of overnight failure",
+    "Per-project RAG memory layer not built — TURBOQUANT-ASSESSMENT.md prescribes memory/ folder + retrieval step but implementation is zero; all sessions start without project-specific context injection",
+    "ZTE scoring methodology does not include operational health checks — score self-reports 60/60 while autonomy.py is dead and RestoreAssist PROD is down 76h+ (per board meeting 2026-04-13 CEO memo)",
+    "Two-agent review pattern not implemented — autonomous sessions push code without a second SDK reviewer session validating intent vs. implementation (Custom Oracle's two-agent rule from BOARD-DELIBERATION-2026-04-12.md)",
+    "gap audit (2026-04-12-gap-audit.json) found 3 critical discrepancies: no outbound Linear API calls in webhook.py (no issueUpdate mutation), no SSE /api/sessions/{sid}/logs/stream endpoint visible in main.py, Linear two-way sync not wired in sessions.py",
+    "Business Velocity Index (BVI) not yet defined as primary metric — ZTE 73/75 coexists with 0 CRITICALs resolved, 0 portfolio projects with improved health, 0 MARATHON completions (per board meeting 2026-04-13)"
+  ],
+  "loadRisks": [
+    "triage-cache.json at 353KB with no pruning strategy — scanner startup degradation compounds each sprint; no rotation logic implemented across 3+ consecutive board cycles of flagging",
+    "In-memory _sessions dict loses all running sessions on server restart — any Railway redeploy during an active autonomous session silently terminates it with no recovery path until manual resume",
+    "Mac Mini as always-on component without confirmed UPS (RA-641 status unknown) — power cut during autonomous run causes full rail failure; overnight 2026-04-11 failure root-caused to Mac sleeping",
+    "Single Railway service handles all concurrent sessions (TAO_MAX_SESSIONS=3 default) with no horizontal scaling — Pi-SEO full sweep across 10 repos simultaneous with autonomy poller build sessions will hit concurrency ceiling",
+    "GitHub Actions cron minimum 5-minute granularity with 6-hour job limit — board deliberation identified this as untested for always-on agent execution; cron drift and queue backup risk unverified in production",
+    "claude_agent_sdk import failure causes silent subprocess fallback with no alerting — bad SDK version in production would go undetected (documented in sdk-version-policy.md); no health check surfaces SDK vs subprocess routing",
+    "Telegram outbound uses urllib fire-and-forget — if Telegram API is unreachable, escalation chain is silently broken; no fallback channel (Gmail draft / Linear issue) is implemented despite ESCALATION.md listing it as planned",
+    "Supabase writes are fire-and-forget (per CLAUDE.md observability section) — all gate_checks, alert_escalations, heartbeat_log writes silently drop on Supabase outage; no local fallback or queue"
+  ]
+}
+```
