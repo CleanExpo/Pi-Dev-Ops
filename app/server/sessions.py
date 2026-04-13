@@ -1643,7 +1643,12 @@ async def create_session(
     RA-681: complexity_tier overrides automatic brief complexity detection.
     Values: 'basic' | 'detailed' | 'advanced'. Empty string = auto-detect.
     """
-    if len(_sessions) >= config.MAX_CONCURRENT_SESSIONS:
+    _running = sum(
+        1 for s in _sessions.values()
+        if (isinstance(s, BuildSession) and s.status == "running")
+        or (isinstance(s, dict) and s.get("status") == "running")
+    )
+    if _running >= config.MAX_CONCURRENT_SESSIONS:
         raise RuntimeError("Max sessions reached")
     resolved_model = _select_model("generator", model)
     # RA-677 — apply AUTONOMY_BUDGET if specified

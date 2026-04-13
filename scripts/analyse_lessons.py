@@ -19,7 +19,7 @@ import os
 import sys
 import time
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # Ensure project root is on sys.path so app.server.* imports work
@@ -186,17 +186,24 @@ def write_proposal(category: str, content: str) -> Path:
 
 
 _TERMINAL_STATES = {"done", "cancelled", "duplicate"}
+_DEDUP_WINDOW_DAYS = 7  # Suppress re-creation if a ticket was created within this window
 
 
 def _has_open_ticket(client: LinearClient, title: str) -> bool:
-    """Return True if an open (non-done, non-cancelled) ticket with this exact
-    title already exists.  Prevents duplicate tickets when the script fires
-    multiple times on the same day."""
+    """Return True if a ticket with this exact title should suppress creation.
+
+    Suppresses if:
+    - An open (non-terminal) ticket exists with this title, OR
+    - A ticket was created within the last _DEDUP_WINDOW_DAYS days (even if
+      subsequently closed). This prevents the cron catch-up from re-creating
+      proposals every time the server restarts after a weekly run.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=_DEDUP_WINDOW_DAYS)
     try:
         issues = client.search_issues(team_id=_LINEAR_TEAM_ID, title_contains=title)
         for issue in issues:
             if issue.get("title") != title:
-                continue  # containsIgnoreCase can return partial matches
+                continue  # search is containsIgnoreCase — filter exact matches only
             state_name = (issue.get("state") or {}).get("name", "").lower()
             if state_name not in _TERMINAL_STATES:
                 log.info(
@@ -204,6 +211,20 @@ def _has_open_ticket(client: LinearClient, title: str) -> bool:
                     issue.get("identifier"), title,
                 )
                 return True
+            # Even if closed, suppress if created recently (catches catch-up re-runs)
+            created_at = issue.get("createdAt", "")
+            if created_at:
+                try:
+                    created = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                    if created > cutoff:
+                        log.info(
+                            "Skipping duplicate ticket — issue %s closed but created "
+                            "%s (within %d-day window): %s",
+                            issue.get("identifier"), created_at, _DEDUP_WINDOW_DAYS, title,
+                        )
+                        return True
+                except ValueError:
+                    pass
     except Exception as exc:  # noqa: BLE001
         # Dedup check failure: log and proceed to create rather than silently skip.
         log.warning("Dedup check failed (%s) — proceeding with ticket creation", exc)
