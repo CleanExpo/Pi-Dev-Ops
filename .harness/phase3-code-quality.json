@@ -1,0 +1,164 @@
+```json
+{
+  "scores": {
+    "completeness": 7,
+    "correctness": 6,
+    "codeQuality": 7,
+    "documentation": 8
+  },
+  "issues": [
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "Telegram webhook secret check at /webhook/telegram accepts requests when expected_secret is set but the incoming header is empty string — condition `if expected_secret and secret != expected_secret` passes when secret='' because empty string equals empty string only if expected_secret is also empty. If TELEGRAM_WEBHOOK_SECRET is non-empty but the header is missing/empty, the check should reject. Confirmed by the gap-audit JSON entry on dashboard/app/api/telegram/route.ts showing the same pattern: 'if incomingSecret is null/missing, the check passes regardless.'"
+    },
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "_telegram_send() uses urllib.request (sync blocking I/O) inside an async FastAPI route handler. This blocks the event loop for up to 8 seconds (the timeout) on every /ack_alert call. Must be replaced with httpx.AsyncClient or run in a thread executor."
+    },
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /api/build endpoint passes body.scope (user-controlled dict) and body.intent (user string) directly to create_session() with no validation of scope structure or intent values beyond the Pydantic model. intent accepts any string; the validator on BuildRequest only checks model and repo_url. An arbitrary intent string is passed to the PITER classifier which may produce unexpected behavior."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /api/scan endpoint fires an asyncio.create_task(_run()) and immediately returns 200 with no handle to the task. If the scan raises an exception, it is silently swallowed — the gap audit JSON confirms this: 'results will be saved' but errors are not surfaced to the caller or to Telegram. The task is also not tracked, so there is no way to kill or status-check an in-flight scan."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "on_startup registers two separate @app.on_event('startup') handlers (_start_claude_poll and on_startup). FastAPI executes both but the ordering is implicit. The _resilient wrapper for linear_todo_poller and gc_loop starts in on_startup; if _start_claude_poll runs first and crashes, no error propagates. Using a single startup handler is the correct pattern."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The webhook endpoint at /api/webhook dispatches to create_session() on GitHub and Linear events but has no deduplication window beyond checking currently-active sessions. A second push event arriving while the first session is in 'created' state (before git clone starts) will create a duplicate session for the same repo. The _find_active_session_for_repo check races with session creation."
+    },
+    {
+      "severity": "high",
+      "file": "app/requirements.txt",
+      "line": null,
+      "description": "app/requirements.txt lists 'claude-agent-sdk>=0.1' but pyproject.toml does not include this dependency at all. The CLAUDE.md states 'SDK-only mode as of Sprint 8 (RA-576)' and that 'TAO_USE_AGENT_SDK=0 causes ImportError at startup.' This dependency mismatch means Docker builds from pyproject.toml will fail at startup."
+    },
+    {
+      "severity": "high",
+      "file": ".env.example",
+      "line": null,
+      "description": "NEXT_PUBLIC_SUPABASE_URL is defined twice in .env.example with different values ('https://zbryrmxmgfmslqzizsto.supabase.co' at the server block and 'https://your-project.supabase.co' at the frontend block). This will confuse operators and may result in the real Supabase URL being committed via the example file."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /api/sessions/{sid}/logs SSE endpoint has no authentication dependency — it is missing Depends(require_auth) unlike every other /api/sessions route. Any unauthenticated client can stream build logs including source code diffs and secrets that may appear in output_lines."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "get_monitor_digest() uses glob.glob() with reverse=True sort to find the latest digest, then opens the file without holding any lock. A concurrent monitor run writing a new digest file mid-sort can produce a race where the 'latest' file is partially written. Should use atomic write-then-rename pattern consistent with CLAUDE.md persistence guidelines."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /ws/build/{sid} WebSocket handler accepts an Authorization header token but does not strip potential 'Bearer ' prefix consistently — it uses .replace('Bearer ', '') which only removes one occurrence and leaves 'bearer ' (lowercase) intact. A client sending 'bearer <token>' will fail authentication."
+    },
+    {
+      "severity": "medium",
+      "file": "Dockerfile",
+      "line": null,
+      "description": "The root Dockerfile and app/Dockerfile both exist and have divergent COPY instructions. The root Dockerfile copies src/ and skills/ which are not copied in app/Dockerfile. Deploying from app/Dockerfile (as the app/README implies) will produce a container missing the TAO engine and skills. No documentation clarifies which Dockerfile is canonical for Railway."
+    },
+    {
+      "severity": "medium",
+      "file": "dashboard/package.json",
+      "line": null,
+      "description": "lucide-react is pinned at '^1.8.0' but the current stable major is 0.x — there is no 1.x release. This will fail npm ci with 'No matching version found'. The correct version constraint is '^0.400.0' or similar."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The health endpoint imports 'time' and 'shutil' inside the handler function on every request. These are stdlib modules and import is fast, but it violates the CLAUDE.md convention of module-level imports and creates minor per-request overhead."
+    },
+    {
+      "severity": "medium",
+      "file": ".harness/board-meetings/2026-04-12-gap-audit.json",
+      "line": null,
+      "description": "The gap audit identifies that webhook.py has no outbound Linear API calls for two-way sync — 'zero `linear_update_issue`, `issueUpdate` GraphQL mutation' — marked critical in the audit. The CLAUDE.md claims 'Linear In Review transition at sessions.py:672-675' but this is not verifiable from provided source. Linear two-way sync appears incomplete."
+    },
+    {
+      "severity": "medium",
+      "file": ".harness/anthropic-docs/api-reference.md",
+      "line": null,
+      "description": "The anthropic-docs files contain raw Next.js RSC JSON payloads and browser JavaScript — not readable API documentation. The fetch pipeline (scripts/marathon_telegram_inbox.py references) is scraping rendered HTML and storing it verbatim. This data is not parseable by the intel_refresh agent and wastes significant storage."
+    },
+    {
+      "severity": "low",
+      "file": ".harness/cron-triggers.json",
+      "line": null,
+      "description": "The 'last_fired_at' values for scan triggers use Unix timestamps in the range 1775xxx which correspond to year 2026-03 — plausible. However the INCIDENT doc notes 'cron-triggers.json last_fired_at resets on Railway redeploy' and the debounce bug with abs() missing. These values may be stale after any redeploy."
+    },
+    {
+      "severity": "low",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The resume_session endpoint imports persistence inline ('from . import persistence') inside the route handler. All other imports are at module level. This inconsistency means a missing persistence module fails at request time rather than startup."
+    },
+    {
+      "severity": "low",
+      "file": ".claude/settings.json",
+      "line": null,
+      "description": "The WebFetch deny list includes 'WebFetch(domain:localhost)' but the allow list includes WebFetch on api.anthropic.com, api.linear.app, api.telegram.org. There is no deny rule for other internal network ranges (10.x.x.x, 172.16.x.x, 192.168.x.x). An agent session could potentially reach internal Railway services."
+    }
+  ],
+  "missingTests": [
+    "Webhook HMAC verification edge cases — empty signature, wrong algorithm, replay attack with reused signature",
+    "Session state machine transitions — specifically the race between _find_active_session_for_repo and create_session under concurrent webhook delivery",
+    "Rate limiter behavior — tests for the 30 req/min per-IP limit and bypass attempts",
+    "SSE /api/sessions/{sid}/logs endpoint — no authentication, cursor behavior, terminal state detection",
+    "WebSocket authentication — token from cookie vs Authorization header, lowercase 'bearer' prefix, expired tokens",
+    "The evaluator score parsing regex — malformed output, partial output, timeout path",
+    "cron_loop trigger dispatch — debounce logic, last_fired_at persistence across restarts, the abs() bug mentioned in incident doc",
+    "linear_todo_poller autonomy logic — what happens when LINEAR_API_KEY is missing vs expired vs rate-limited",
+    "The _resilient wrapper — verifying it actually restarts crashed coroutines and does not swallow CancelledError",
+    "Supabase write path (supabase_log.py) — fire-and-forget failures must not propagate to build pipeline",
+    "Session resume — last_completed_phase checkpoint integrity after crash mid-phase",
+    "GC loop — that sessions with status 'done' older than TAO_GC_MAX_AGE are actually removed from _sessions",
+    "MCP server tool input validation — all 21 tools accept user-supplied strings that are passed to Linear/filesystem",
+    "Telegram webhook secret validation when TELEGRAM_WEBHOOK_SECRET is set and header is absent"
+  ],
+  "securityConcerns": [
+    "app/server/main.py: /api/sessions/{sid}/logs SSE endpoint has no require_auth dependency — unauthenticated access to all session output including code diffs",
+    "app/server/main.py: _telegram_send() constructs a URL with config.TELEGRAM_BOT_TOKEN interpolated directly — if the token contains special characters or is user-influenced, this is a potential injection vector into the Telegram API URL",
+    ".env.example: NEXT_PUBLIC_SUPABASE_URL contains what appears to be a real Supabase project ID ('zbryrmxmgfmslqzizsto') in a committed example file — this may expose the real project URL publicly",
+    "app/server/main.py: Telegram webhook endpoint only validates the secret header when expected_secret is non-empty — if TELEGRAM_WEBHOOK_SECRET is not set in production, any caller can POST arbitrary commands including /ack_alert for any alert_key",
+    ".claude/settings.json: defaultMode is 'bypassPermissions' with Write(*) and Edit(*) — any file in the workspace can be overwritten by an agent session including .harness/lessons.jsonl and .harness/cron-triggers.json which drive production behavior",
+    "app/server/main.py: The /api/build endpoint accepts scope as dict | None with no schema validation — an attacker with a valid session cookie can pass arbitrary nested JSON that is forwarded to create_session() and potentially to the Claude prompt",
+    "dashboard/package.json: lucide-react '^1.8.0' resolves to a non-existent version which will cause npm ci to fail — if this is masked by a lockfile with a specific resolution, that resolution could be a supply-chain substitution",
+    "app/requirements.txt: claude-agent-sdk>=0.1 is an extremely loose version constraint on a package that has direct code execution capabilities — a malicious or broken release would be auto-installed on Railway redeploy"
+  ],
+  "positives": [
+    "Security headers middleware (SecurityHeaders) correctly sets X-Frame-Options DENY, X-Content-Type-Options nosniff, XSS-Protection, and a reasonable CSP — these are applied to all responses",
+    "The _resilient() wrapper for background tasks is a genuinely good pattern — it catches exceptions, logs them with exc_info, and restarts after a configurable delay without swallowing CancelledError",
+    "HMAC signature verification for both GitHub and Linear webhooks uses hmac.compare_digest (timing-safe) which is the correct implementation — no timing oracle vulnerability",
+    "BuildRequest and all Pydantic models use field_validator with @classmethod and validate input at the boundary before it reaches business logic — good defense in depth",
+    "The session log SSE endpoint uses a cursor-based streaming approach (after= query param) that allows clients to resume streams without replaying all events — well-designed for reconnection",
+    "The health endpoint is genuinely informative — it surfaces autonomy.armed, seconds_since_last_poll, disk_free_gb, claude_cli status, and session counts rather than just returning 200",
+    "CLAUDE.md is the most complete and honest engineering specification document in the repository — it documents known limitations (in-memory _sessions dict), the fallback architecture, and persistence requirements with specific file references",
+    "The escalation contract (ESCALATION.md) with explicit 'will NEVER do autonomously' list is a mature safety design — hardcoded guardrails against credential rotation, force-push, and financial operations",
+    "The incident post-mortem (INCIDENT-2026-04-12.md) is an unusually honest and complete root cause analysis — five whys structure, specific timestamps, and clear separation of 'what I said' vs 'what happened'",
+    "The dual Dockerfile approach with a root Dockerfile for Railway and app/Dockerfile for local development is a reasonable separation, and both correctly install Node.js for the claude CLI"
+  ]
+}
+```
