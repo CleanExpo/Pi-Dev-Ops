@@ -20,7 +20,11 @@ export const config = {
   ],
 };
 
-const DASHBOARD_PASSWORD = process.env.PI_CEO_PASSWORD ?? "";
+// Must match the key used to sign the session token in app/api/auth/login/route.ts
+const DASHBOARD_PASSWORD =
+  process.env.DASHBOARD_PASSWORD ||
+  process.env.PI_CEO_PASSWORD ||
+  "";
 const SESSION_TTL_SECONDS = 86_400; // 24h — must match login/route.ts
 const COOKIE_NAME = "pi_session";
 const LOGIN_PATH = "/";
