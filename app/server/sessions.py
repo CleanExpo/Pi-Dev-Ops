@@ -136,6 +136,96 @@ def _load_harness_config():
 _HARNESS_CONFIG = _load_harness_config()
 
 
+def _send_scope_violation_alert(session, modified_files: list[str], max_files: int) -> None:
+    """RA-676 — Fire-and-forget Telegram alert when scope contract is exceeded."""
+    token = config.TELEGRAM_BOT_TOKEN
+    chat_id = config.TELEGRAM_ALERT_CHAT_ID
+    if not token or not chat_id:
+        return
+    repo = (getattr(session, "repo_url", "") or "").rstrip("/").split("/")[-1] or "unknown"
+    file_list = "\n".join(f"  • `{f}`" for f in modified_files[:15])
+    tail = f"\n  _(+ {len(modified_files) - 15} more)_" if len(modified_files) > 15 else ""
+    scope = getattr(session, "scope", None) or {}
+    msg = (
+        f"🚫 *Scope Contract Violated*\n\n"
+        f"Session: `{session.id}`\n"
+        f"Repo: `{repo}`\n"
+        f"Declared max: *{max_files}* files\n"
+        f"Actual: *{len(modified_files)}* files modified\n"
+        f"Scope type: `{scope.get('type', 'unspecified')}`\n\n"
+        f"Modified files:\n{file_list}{tail}\n\n"
+        f"Build held — manual review required."
+    )
+    payload = json.dumps({
+        "chat_id": chat_id,
+        "text": msg,
+        "parse_mode": "Markdown",
+        "disable_web_page_preview": True,
+    }).encode()
+    try:
+        req = urllib.request.Request(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            data=payload, method="POST",
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=8):
+            pass
+        _log.info("Scope violation alert sent: session=%s files=%d", session.id, len(modified_files))
+    except Exception as exc:
+        _log.warning("Scope violation Telegram alert failed (non-fatal): %s", exc)
+
+
+def _check_scope_adherence(
+    session,
+    modified_files: list[str],
+    resolved_intent: str,
+) -> bool:
+    """RA-676 — Enforce session scope contract. Returns True if scope is violated.
+
+    When a scope contract is set on the session:
+      - Counts the files modified by the generator
+      - If count > max_files_modified: marks scope_adhered=False, logs lesson,
+        fires Telegram alert, sets evaluator_status="scope_violation"
+      - If count ≤ max_files_modified: marks scope_adhered=True
+    When no scope is declared, returns False without touching session state.
+    """
+    scope = getattr(session, "scope", None) or {}
+    if not scope:
+        session.scope_adhered = None
+        return False
+
+    max_files = int(scope.get("max_files_modified", 5))
+    n = len(modified_files)
+
+    if n <= max_files:
+        session.scope_adhered = True
+        em(session, "system", f"  Scope: {n}/{max_files} files modified — within contract")
+        return False
+
+    # Violation path
+    session.scope_adhered = False
+    session.evaluator_status = "scope_violation"
+    truncated = modified_files[:10]
+    overflow  = len(modified_files) - 10
+    file_str  = ", ".join(truncated) + (f" (+{overflow} more)" if overflow > 0 else "")
+    violation_msg = (
+        f"Scope contract violated: {n} files modified "
+        f"(max {max_files}, type={scope.get('type', '?')}). Files: {file_str}"
+    )
+    em(session, "error", f"  {violation_msg}")
+    try:
+        append_lesson(
+            source="evaluator",
+            category=resolved_intent,
+            lesson=violation_msg,
+            severity="warn",
+        )
+    except Exception:
+        pass
+    _send_scope_violation_alert(session, modified_files, max_files)
+    return True
+
+
 def _select_model(phase: str, explicit_model: str = "") -> str:
     """Select model for a build phase using harness config.
     phase: 'planner', 'generator', or 'evaluator'.
@@ -170,6 +260,9 @@ class BuildSession:
     parent_session_id: Optional[str] = None  # RA-464: fan-out parallelism
     budget: Optional[object] = None           # RA-465: BudgetTracker instance
     budget_params: Optional[dict] = None      # RA-677: AUTONOMY_BUDGET computed params
+    scope: Optional[dict] = None              # RA-676: session scope contract
+    modified_files: list = field(default_factory=list)   # RA-676: git-tracked modified files
+    scope_adhered: Optional[bool] = None      # RA-676: None=no scope, True/False=check result
     last_completed_phase: str = ""            # Phase tracking for resume (GROUP D/E)
     retry_count: int = 0                      # Evaluator retry count (GROUP C)
     linear_issue_id: Optional[str] = None    # Linear issue ID for two-way sync
@@ -193,6 +286,8 @@ def list_sessions():
             "retry_count": s.retry_count,
             "evaluator_status": s.evaluator_status,
             "budget_minutes": (s.budget_params or {}).get("budget_minutes"),
+            "scope_adhered": s.scope_adhered,
+            "files_modified": len(s.modified_files),
         }
         for s in _sessions.values()
     ]
@@ -1120,6 +1215,21 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
         "requirements ambiguity, borderline score, incomplete context. "
         "100% = unambiguous; 50% = borderline; <60% = genuinely uncertain>"
     )
+    # RA-676 — extract modified files and enforce scope contract before eval loop
+    try:
+        _, _files_out, _ = await run_cmd(
+            session.workspace, "git", "diff", "HEAD~1", "--name-only", timeout=10
+        )
+        session.modified_files = [
+            f.strip() for f in (_files_out or "").splitlines() if f.strip()
+        ]
+    except Exception:
+        session.modified_files = []
+    if _check_scope_adherence(session, session.modified_files, resolved_intent):
+        session.last_completed_phase = "evaluator"
+        persistence.save_session(session)
+        return total_phases
+
     for eval_attempt in range(max_retries + 1):
         em(session, "phase", f"[5/{total_phases}] Running Evaluator (attempt {eval_attempt + 1}/{max_retries + 1})...")
         session.status = "evaluating"
@@ -1364,6 +1474,7 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
         spec_exists = os.path.isfile(os.path.join(session.workspace, ".harness", "spec.md"))
         plan_exists = os.path.isfile(os.path.join(session.workspace, ".harness", "plan.md"))
         # RA-674: passed_low_confidence is a passing state (score gate cleared)
+        # RA-676: scope_violation is NOT a passing state
         review_passed = getattr(session, "evaluator_status", "") in (
             "passed", "passed_low_confidence"
         )
@@ -1383,6 +1494,8 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
             session_started_at=session.started_at,   # RA-672: C3 mean time to value
             push_timestamp=push_ts if push_ok else None,
             confidence=session.evaluator_confidence,  # RA-674: log to Supabase
+            scope_adhered=session.scope_adhered,      # RA-676: scope contract result
+            files_modified=len(session.modified_files),  # RA-676: modified file count
         )
     except Exception:
         pass  # observability must never block the pipeline
@@ -1413,12 +1526,17 @@ async def create_session(
     parent_session_id="",
     linear_issue_id: Optional[str] = None,
     budget_minutes: Optional[int] = None,
+    scope: Optional[dict] = None,
 ):
     """Create and start a new build session.
 
     RA-677: when budget_minutes is provided, auto-tunes eval_threshold,
     max_retries, model, and generator timeout via budget.budget_to_params().
     Per-request budget_minutes overrides TAO_AUTONOMY_BUDGET global default.
+
+    RA-676: when scope is provided ({type, primary_file?, max_files_modified?}),
+    the evaluator enforces a file-count ceiling and fires a Telegram alert on
+    violation.  Default max_files_modified = 5.
     """
     if len(_sessions) >= config.MAX_CONCURRENT_SESSIONS:
         raise RuntimeError("Max sessions reached")
@@ -1437,7 +1555,13 @@ async def create_session(
         parent_session_id=parent_session_id or None,
         linear_issue_id=linear_issue_id or None,
         budget_params=bp,
+        scope=scope or None,
     )
+    if scope:
+        _log.info(
+            "Scope contract set: session=%s type=%s max_files=%s",
+            session.id, scope.get("type", "?"), scope.get("max_files_modified", 5),
+        )
     _sessions[session.id] = session
     persistence.save_session(session)
     asyncio.create_task(run_build(session, brief, resolved_model, intent=intent))

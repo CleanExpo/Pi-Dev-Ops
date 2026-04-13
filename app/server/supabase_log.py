@@ -149,6 +149,8 @@ def log_gate_check(
     session_started_at: float | None = None,
     push_timestamp: float | None = None,
     confidence: float | None = None,
+    scope_adhered: bool | None = None,
+    files_modified: int | None = None,
 ) -> None:
     """
     Write one gate_check row to Supabase after every /ship phase.
@@ -157,6 +159,7 @@ def log_gate_check(
     RA-672: session_started_at (unix epoch) and push_timestamp (unix epoch) are
     used by zte_v2_score.py to compute C3 (mean time to value).
     RA-674: confidence (0-100%) is the evaluator's self-reported certainty score.
+    RA-676: scope_adhered (bool) and files_modified (int) track scope contract results.
     """
     row: dict = {
         "pipeline_id":    pipeline_id,
@@ -181,11 +184,17 @@ def log_gate_check(
         ).isoformat()
     if confidence is not None:
         row["confidence"] = confidence
+    if scope_adhered is not None:
+        row["scope_adhered"] = scope_adhered
+    if files_modified is not None:
+        row["files_modified"] = files_modified
     _insert("gate_checks", row)
     log.info(
-        "gate_check logged: pipeline=%s all_passed=%s score=%.1f confidence=%s shipped=%s",
+        "gate_check logged: pipeline=%s all_passed=%s score=%.1f confidence=%s "
+        "scope_adhered=%s files=%s shipped=%s",
         pipeline_id, all(gate_checks.values()), review_score,
-        f"{confidence:.0f}%" if confidence is not None else "n/a", shipped,
+        f"{confidence:.0f}%" if confidence is not None else "n/a",
+        scope_adhered, files_modified, shipped,
     )
 
 

@@ -34,6 +34,7 @@ class BuildRequest(BaseModel):
     evaluator_enabled: bool | None = None
     intent: str = ""
     budget_minutes: int | None = None  # RA-677: AUTONOMY_BUDGET single-knob override
+    scope: dict | None = None          # RA-676: session scope contract
 
     @field_validator("repo_url")
     @classmethod
@@ -255,6 +256,7 @@ async def build(body: BuildRequest):
             evaluator_enabled=evaluator_enabled,
             intent=body.intent,
             budget_minutes=budget,
+            scope=body.scope,  # RA-676: session scope contract
         )
     except RuntimeError as e:
         raise HTTPException(429, str(e))
