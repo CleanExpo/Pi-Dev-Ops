@@ -136,3 +136,4 @@ sessions/
 *.tmp
 *.temp
 /tmp/
+.vercel

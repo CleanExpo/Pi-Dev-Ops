@@ -1,5 +1,5 @@
 {
-  "ts": "2026-04-12T23:37:45.460974+00:00",
+  "ts": "2026-04-13T06:07:47.656102+00:00",
   "escalated": true,
   "checks": [
     {
@@ -14,7 +14,7 @@
       "name": "digest",
       "ok": true,
       "severity": "info",
-      "detail": "newest digest is 14m old",
+      "detail": "newest digest is 44m old",
       "auto_remediation": "",
       "needs_founder": ""
     },
@@ -30,7 +30,7 @@
       "name": "lessons",
       "ok": true,
       "severity": "info",
-      "detail": "38 entries, last updated 159m ago",
+      "detail": "38 entries, last updated 549m ago",
       "auto_remediation": "",
       "needs_founder": ""
     },
@@ -38,18 +38,18 @@
       "name": "scans",
       "ok": true,
       "severity": "info",
-      "detail": "105 scan files, newest 60m old",
+      "detail": "105 scan files, newest 450m old",
       "auto_remediation": "",
       "needs_founder": ""
     },
     {
       "name": "git",
-      "ok": false,
-      "severity": "warn",
-      "detail": "11 commit(s) not pushed to origin",
+      "ok": true,
+      "severity": "info",
+      "detail": "working tree in sync with origin",
       "auto_remediation": "",
-      "needs_founder": "run `cd ~/Pi-CEO/Pi-Dev-Ops && git push origin main` \u2014 unpushed commits: eb51a0d fix: TAO_PASSWORD env var changes now take effect on redeploy, 4cb22d3 docs(RA-664): regenerate spec.md for Sprint 8 completion, bb7bcca feat(RA-672): ZTE v2 data collection and scoring pipeline"
+      "needs_founder": ""
     }
   ],
-  "message": "[WARN] MARATHON WATCHDOG - 23:37 UTC\n\nWARN:\n- tests: /usr/bin/python3: No module named pytest\n- git: 11 commit(s) not pushed to origin\n\nNEEDS YOU:\n- [tests] watchdog test check is advisory only \u2014 verify against GH Actions status before acting\n- [git] run `cd ~/Pi-CEO/Pi-Dev-Ops && git push origin main` \u2014 unpushed commits: eb51a0d fix: TAO_PASSWORD env var changes now take effect on redeploy, 4cb22d3 docs(RA-664): regenerate spec.md for Sprint 8 completion, bb7bcca feat(RA-672): ZTE v2 data collection and scoring pipeline\n\nREPRODUCE: python3 scripts/marathon_watchdog.py"
+  "message": "[WARN] MARATHON WATCHDOG - 06:07 UTC\n\nWARN:\n- tests: /usr/bin/python3: No module named pytest\n\nNEEDS YOU:\n- [tests] watchdog test check is advisory only \u2014 verify against GH Actions status before acting\n\nREPRODUCE: python3 scripts/marathon_watchdog.py"
 }
