@@ -30,27 +30,7 @@ async function fetchGitHubFile(
   return "";
 }
 
-/** Parse lessons.jsonl and return the top N most-severe recent lessons as a summary string. */
-function buildLessonsSummary(raw: string, topN = 8): string {
-  if (!raw.trim()) return "";
-  const lessons: Array<{ severity?: string; source?: string; lesson?: string }> = [];
-  for (const line of raw.split("\n")) {
-    if (!line.trim()) continue;
-    try { lessons.push(JSON.parse(line)); } catch { /* skip malformed */ }
-  }
-  // Sort: error first, then warn, then info
-  const rank = (s?: string) => s === "error" ? 0 : s === "warn" ? 1 : 2;
-  const top = lessons
-    .filter((l) => l.lesson)
-    .sort((a, b) => rank(a.severity) - rank(b.severity))
-    .slice(0, topN);
-  if (!top.length) return "";
-  return [
-    "=== LESSONS FROM PRIOR RUNS (apply these to improve your analysis) ===",
-    ...top.map((l) => `[${l.severity ?? "info"}][${l.source ?? "?"}] ${l.lesson}`),
-    "=================================================================",
-  ].join("\n");
-}
+import { buildLessonsSummary, sanitizeRepoUrl, sseEncode } from "@/lib/analyze-utils";
 import { getSettings } from "@/lib/supabase/settings";
 import { createServerClient } from "@/lib/supabase/server";
 import { createDeployment, getProjectId } from "@/lib/vercel-api";
@@ -66,16 +46,6 @@ async function sendTelegramMessage(botToken: string, chatId: string, text: strin
   } catch { /* non-critical */ }
 }
 
-function sseEncode(event: string, data: unknown): Uint8Array {
-  return new TextEncoder().encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-}
-
-function sanitizeRepoUrl(url: string): string {
-  const trimmed = url.trim().replace(/^(?:https?:\/\/)?(?:www\.)?/, "https://");
-  if (!/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+/.test(trimmed))
-    throw new Error("Invalid GitHub repository URL");
-  return trimmed;
-}
 
 export async function GET(req: NextRequest) {
   // Detect trigger source (manual browser, GitHub webhook, or Vercel cron)
