@@ -123,7 +123,10 @@ export async function GET(req: NextRequest) {
 
         // ── Branch ───────────────────────────────────────────────
         const defaultBranch = await getDefaultBranch(octokit, owner, repo);
-        const branchName = `pidev/analysis-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}`;
+        const _now = new Date();
+        const _date = _now.toISOString().slice(0, 10).replace(/-/g, "");
+        const _time = _now.toISOString().slice(11, 16).replace(":", "");
+        const branchName = `pidev/analysis-${_date}-${_time}`;
         line("system", `Creating branch: ${branchName}`);
         await createBranch(octokit, owner, repo, branchName, defaultBranch);
         send("branch", { branch: branchName });
