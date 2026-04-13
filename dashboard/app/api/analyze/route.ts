@@ -209,18 +209,25 @@ export async function GET(req: NextRequest) {
         line("system", "");
 
         // ── Feedback loops + Knowledge retention ─────────────────
-        // Fetch lessons.jsonl and skill files to enrich intelligence phases.
-        // Best-effort: if files missing, analysis still runs without enrichment.
-        const [lessonsRaw, evalSkill, zteSkill, leverageSkill, ceoSkill] =
+        // Fetch lessons.jsonl, skill files, and harness evidence docs to enrich
+        // intelligence phases. Best-effort: missing files don't block analysis.
+        const [lessonsRaw, evalSkill, zteSkill, leverageSkill, ceoSkill,
+               leverageAudit, claudeMd, harnessSpec] =
           await Promise.all([
             fetchGitHubFile(octokit, owner, repo, defaultBranch, ".harness/lessons.jsonl"),
             fetchGitHubFile(octokit, owner, repo, defaultBranch, "skills/tier-evaluator/SKILL.md"),
             fetchGitHubFile(octokit, owner, repo, defaultBranch, "skills/zte-maturity/SKILL.md"),
             fetchGitHubFile(octokit, owner, repo, defaultBranch, "skills/leverage-audit/SKILL.md"),
             fetchGitHubFile(octokit, owner, repo, defaultBranch, "skills/ceo-mode/SKILL.md"),
+            // Harness evidence docs — critical for accurate ZTE scoring (phase 5)
+            fetchGitHubFile(octokit, owner, repo, defaultBranch, ".harness/leverage-audit.md"),
+            fetchGitHubFile(octokit, owner, repo, defaultBranch, "CLAUDE.md"),
+            fetchGitHubFile(octokit, owner, repo, defaultBranch, ".harness/spec.md"),
           ]);
         const lessonsSummary = buildLessonsSummary(lessonsRaw);
         if (lessonsSummary) line("system", `  Injecting ${lessonsSummary.split("\n").length - 2} lessons into intelligence phases`);
+        if (leverageAudit)  line("system", `  Injecting leverage-audit.md into ZTE phase (${Math.round(leverageAudit.length / 1000)}KB evidence)`);
+        if (claudeMd)       line("system", `  Injecting CLAUDE.md into architecture + ZTE phases`);
 
         /** Validates that intelligence-heavy phase output contains required JSON fields. */
         function isPhaseOutputValid(phaseId: number, output: string): boolean {
@@ -231,13 +238,23 @@ export async function GET(req: NextRequest) {
           return true;
         }
 
-        /** Returns context enriched with lessons + skill guide for a given phase. */
+        /** Returns context enriched with lessons + skill guides + harness evidence for a given phase. */
         const enrichedContext = (phaseId: number): string => {
           const parts: string[] = [context];
+          // CLAUDE.md + spec.md give architecture phases full project context
+          if ([2, 5].includes(phaseId) && claudeMd)
+            parts.push(`=== CLAUDE.md (architecture, ZTE score, coding conventions) ===\n${claudeMd}`);
+          if ([2, 5].includes(phaseId) && harnessSpec)
+            parts.push(`=== HARNESS SPEC (.harness/spec.md) ===\n${harnessSpec}`);
+          // Lessons injected into intelligence-heavy phases
           if (lessonsSummary && [3, 5, 6, 7].includes(phaseId)) parts.push(lessonsSummary);
+          // Skill guides
           if (phaseId === 3 && evalSkill)     parts.push(`=== SKILL GUIDE: TIER-EVALUATOR ===\n${evalSkill}`);
           if (phaseId === 5 && zteSkill)      parts.push(`=== SKILL GUIDE: ZTE-MATURITY ===\n${zteSkill}`);
           if (phaseId === 5 && leverageSkill) parts.push(`=== SKILL GUIDE: LEVERAGE-AUDIT ===\n${leverageSkill}`);
+          // leverage-audit.md is the primary ZTE evidence document — inject for phase 5 scoring
+          if (phaseId === 5 && leverageAudit)
+            parts.push(`=== ZTE EVIDENCE: .harness/leverage-audit.md (operational proof of each dimension) ===\n${leverageAudit}`);
           if (phaseId === 7 && ceoSkill)      parts.push(`=== SKILL GUIDE: CEO-MODE ===\n${ceoSkill}`);
           return parts.join("\n\n");
         };
