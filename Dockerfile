@@ -13,6 +13,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install claude CLI (uses ANTHROPIC_API_KEY at runtime)
 RUN npm install -g @anthropic-ai/claude-code
 
+# Create non-root user — claude_agent_sdk refuses --dangerously-skip-permissions
+# when invoked as root, so the server must run as an unprivileged user.
+RUN useradd -m -u 1001 pidev
+
 # Python dependencies
 WORKDIR /pi-ceo
 COPY app/requirements.txt ./
@@ -31,8 +35,11 @@ COPY skills/ ./skills/
 # Utility scripts (analyse_lessons, smoke_test, fallback_dryrun, etc.)
 COPY scripts/ ./scripts/
 
-# Runtime directories
-RUN mkdir -p app/workspaces app/logs/.sessions
+# Runtime directories — owned by pidev so the server can write to them
+RUN mkdir -p app/workspaces app/logs/.sessions app/data && \
+    chown -R pidev:pidev /pi-ceo
+
+USER pidev
 
 # Railway uses PORT env var; TAO reads TAO_HOST/TAO_PORT
 ENV TAO_HOST=0.0.0.0
