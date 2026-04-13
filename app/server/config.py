@@ -60,6 +60,7 @@ if not _raw_password:
 
 _DATA_DIR = Path(os.path.dirname(__file__)).parent / "data"
 _DATA_DIR.mkdir(exist_ok=True)
+DATA_DIR: str = str(_DATA_DIR)  # public export for sessions.py and other modules
 
 # Password hash resolution:
 #   1. TAO_PASSWORD explicitly set → hash it fresh with bcrypt so env var

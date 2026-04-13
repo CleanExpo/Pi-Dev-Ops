@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import json
 import os
+import random
 import shutil
 import time
 import uuid
@@ -9,6 +10,7 @@ import logging
 import urllib.request
 import urllib.error
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Optional
 from . import config
 from . import persistence
@@ -17,6 +19,25 @@ from .lessons import append_lesson, load_lessons
 from .supabase_log import log_gate_check
 
 _log = logging.getLogger("pi-ceo.sessions")
+
+# ── RA-742: Disk persistence for _sessions dict ───────────────────────────────
+_SESSIONS_DIR = Path(config.DATA_DIR) / "sessions"
+_SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _persist_session(session_id: str) -> None:
+    """Atomically write session state to disk. Never raises."""
+    try:
+        data = _sessions.get(session_id)
+        if not data:
+            return
+        target = _SESSIONS_DIR / f"{session_id}.json"
+        tmp = target.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, default=str), encoding="utf-8")
+        os.replace(tmp, target)
+    except Exception as exc:
+        _log.warning("Failed to persist session %s: %s", session_id, exc)
+
 
 # ── Prompt caching (RA-655) ───────────────────────────────────────────────────
 
@@ -113,6 +134,24 @@ def _write_sdk_metric(
             f.write(row + "\n")
     except Exception:
         pass  # metrics must never break the pipeline
+
+def _emit_sdk_canary_metric(session_id: str, success: bool) -> None:
+    """Append canary metric line to .harness/agent-sdk-metrics/YYYY-MM-DD.jsonl."""
+    try:
+        metrics_dir = Path(config.DATA_DIR).parent.parent / ".harness" / "agent-sdk-metrics"
+        metrics_dir.mkdir(parents=True, exist_ok=True)
+        date_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+        entry = json.dumps({
+            "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "session_id": session_id,
+            "canary": True,
+            "success": success,
+        })
+        with open(metrics_dir / f"{date_str}.jsonl", "a", encoding="utf-8") as fh:
+            fh.write(entry + "\n")
+    except Exception:
+        pass
+
 
 # TAO engine — loaded after brief.py sets up sys.path (project root injected there)
 try:
@@ -271,6 +310,27 @@ class BuildSession:
     linear_issue_id: Optional[str] = None    # Linear issue ID for two-way sync
 
 _sessions = {}
+
+
+def _load_persisted_sessions() -> None:
+    """Restore sessions from disk on startup. Running sessions become 'interrupted'."""
+    if not _SESSIONS_DIR.exists():
+        return
+    for path in _SESSIONS_DIR.glob("*.json"):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            sid = data.get("session_id") or path.stem
+            if data.get("status") == "running":
+                data["status"] = "interrupted"
+                _log.info("Restored interrupted session %s", sid)
+            _sessions[sid] = data
+        except Exception as exc:
+            _log.warning("Could not restore session from %s: %s", path, exc)
+
+
+_load_persisted_sessions()
+
+
 def get_session(sid): return _sessions.get(sid)
 def list_sessions():
     return [
@@ -1116,6 +1176,18 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
     em(session, "system", "")
     session.status = "building"
     persistence.save_session(session)
+    # RA-697: canary routing — route a fraction of requests through the canary path.
+    # TODO: when a distinct canary SDK variant/endpoint is available, wire it here
+    # instead of sharing the same _run_claude_via_sdk call signature.
+    use_canary = (
+        getattr(config, "AGENT_SDK_CANARY_RATE", 0.0) > 0
+        and random.random() < getattr(config, "AGENT_SDK_CANARY_RATE", 0.0)
+    )
+    if use_canary:
+        _log.info(
+            "Session %s: canary path selected (rate=%.2f)",
+            session.id, config.AGENT_SDK_CANARY_RATE,
+        )
     use_sdk = config.USE_AGENT_SDK
     # RA-660 — prepend recent institutional memory so generator avoids known pitfalls
     incident_ctx = _build_incident_context(repo_url=getattr(session, "repo_url", ""))
@@ -1140,6 +1212,9 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
                     em(session, "success", "  Claude Code completed")
                     session.last_completed_phase = "generator"
                     persistence.save_session(session)
+                    # RA-697: emit canary metric on successful canary run
+                    if use_canary:
+                        _emit_sdk_canary_metric(session.id, success=True)
                     return True
                 else:
                     # RA-576: SDK path required — no subprocess fallback.
@@ -1596,6 +1671,7 @@ async def create_session(
         )
     _sessions[session.id] = session
     persistence.save_session(session)
+    _persist_session(session.id)  # RA-742: persist _sessions entry to DATA_DIR/sessions/
     asyncio.create_task(run_build(session, brief, resolved_model, intent=intent))
     return session
 
