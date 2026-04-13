@@ -144,3 +144,32 @@ ALTER TABLE alert_escalations ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_read"    ON alert_escalations FOR SELECT USING (true);
 CREATE POLICY "service_insert" ON alert_escalations FOR INSERT TO service_role WITH CHECK (true);
 CREATE POLICY "service_update" ON alert_escalations FOR UPDATE TO service_role USING (true);
+
+-- ── telegram_sessions ─────────────────────────────────────────────────────────
+-- RA-924 — Durable Telegram bot session store.
+-- Replaces the ephemeral SQLite DB so Claude session IDs survive Railway redeploys.
+-- Each row maps a Telegram user_id to a Claude Code session_id for a given project.
+-- The SupabaseSessionStorage class in telegram-bot/src/storage/ reads/writes this table.
+CREATE TABLE IF NOT EXISTS telegram_sessions (
+  session_id    TEXT        PRIMARY KEY,           -- Claude SDK session ID
+  user_id       BIGINT      NOT NULL,               -- Telegram user ID
+  project_path  TEXT        NOT NULL,               -- working directory path
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_used     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  total_cost    REAL        NOT NULL DEFAULT 0.0,
+  total_turns   INTEGER     NOT NULL DEFAULT 0,
+  message_count INTEGER     NOT NULL DEFAULT 0,
+  is_active     BOOLEAN     NOT NULL DEFAULT TRUE
+);
+
+CREATE INDEX IF NOT EXISTS telegram_sessions_user_id_idx
+  ON telegram_sessions (user_id)
+  WHERE is_active = TRUE;
+
+CREATE INDEX IF NOT EXISTS telegram_sessions_last_used_idx
+  ON telegram_sessions (last_used DESC)
+  WHERE is_active = TRUE;
+
+ALTER TABLE telegram_sessions ENABLE ROW LEVEL SECURITY;
+-- Service role only — anon clients must never read Telegram user mappings.
+CREATE POLICY "service_only" ON telegram_sessions FOR ALL TO service_role USING (true);
