@@ -1,0 +1,82 @@
+```json
+{
+  "totalFiles": 89,
+  "languages": {
+    "Python": 1847,
+    "TypeScript": 312,
+    "JavaScript": 48,
+    "JSON": 1124,
+    "YAML": 287,
+    "Markdown": 4891,
+    "TOML": 18,
+    "Dockerfile": 52,
+    "Shell": 0
+  },
+  "topFiles": [
+    ".harness/BOARD-DELIBERATION-ENHANCED-2026-04-12.md — 892",
+    ".harness/BOARD-DELIBERATION-2026-04-12.md — 748",
+    "app/server/main.py — 521",
+    ".harness/INCIDENT-2026-04-12.md — 312",
+    ".harness/anthropic-docs/api-reference.md — 298",
+    ".harness/anthropic-docs/claude-code-cli-reference.md — 289",
+    ".harness/anthropic-docs/models-overview.md — 285",
+    ".harness/anthropic-docs/tool-use.md — 281",
+    ".harness/anthropic-docs/mcp-overview.md — 274",
+    ".harness/board-meetings/2026-04-12-board-minutes.md — 268"
+  ],
+  "frameworks": [
+    "FastAPI",
+    "Next.js 16",
+    "React 19",
+    "Tailwind CSS",
+    "Uvicorn",
+    "Pydantic v2",
+    "@modelcontextprotocol/sdk",
+    "@anthropic-ai/sdk",
+    "@octokit/rest",
+    "@supabase/ssr",
+    "xterm.js",
+    "Radix UI",
+    "Zod",
+    "hatchling"
+  ],
+  "entryPoints": [
+    "app/server/main.py",
+    "mcp/pi-ceo-server.js",
+    "dashboard/package.json (next dev / next build)",
+    "Dockerfile (uvicorn app.server.main:app)"
+  ],
+  "testFiles": 0,
+  "testCoveragePresent": false,
+  "ciCdConfig": [
+    ".github/workflows/ci.yml",
+    ".github/workflows/smoke_test.yml"
+  ],
+  "dockerPresent": true,
+  "envExamplePresent": true,
+  "packageManagers": [
+    "pip",
+    "npm",
+    "hatchling"
+  ],
+  "totalDependencies": 47,
+  "architecturePattern": "fullstack",
+  "missingCriticalFiles": [
+    "tests/ directory (0 test files present in repo context — CI references pytest tests/ but no test files provided)",
+    "app/server/sessions.py (referenced throughout but not provided)",
+    "app/server/config.py (referenced throughout but not provided)",
+    "app/server/auth.py (referenced throughout but not provided)",
+    "app/server/autonomy.py (referenced throughout but not provided)",
+    "app/server/scanner.py (referenced throughout but not provided)",
+    "app/server/pipeline.py (referenced throughout but not provided)",
+    "app/server/orchestrator.py (referenced throughout but not provided)",
+    "mcp/pi-ceo-server.js (referenced but not provided)",
+    "scripts/smoke_test.py (referenced in CI but not provided)",
+    "scripts/analyse_lessons.py (referenced in cron-triggers.json but not provided)",
+    "vercel.json (referenced in README but not provided)",
+    "railway.toml (in .gitignore — excluded from repo)",
+    "dashboard/.env.example exists but dashboard/tsconfig.json paths alias @/* to ./* with no src/ layer — verify Next.js app directory structure",
+    "src/tao/ directory (referenced in Dockerfile COPY src/ ./src/ but no files provided)"
+  ]
+}
+```
