@@ -14,6 +14,7 @@ prevent path traversal attacks.
 import json
 import os
 import re
+import tempfile
 import time
 from . import config
 
@@ -53,11 +54,23 @@ def save_session(session) -> None:
         "saved_at": time.time(),
     }
     target = _path(session.id)
-    tmp = target + ".tmp"
+    sessions_dir = os.path.dirname(target)
     try:
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(data, f)
-        os.replace(tmp, target)
+        # Use a unique tmp file in the same directory so os.replace() is atomic
+        # (same filesystem). A fixed .tmp suffix causes races when two threads
+        # save the same session simultaneously — each would overwrite the other's
+        # tmp file before calling os.replace().
+        fd, tmp = tempfile.mkstemp(dir=sessions_dir, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+            os.replace(tmp, target)
+        except Exception:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
     except OSError:
         # Non-fatal — persistence failure should not crash the session
         pass
