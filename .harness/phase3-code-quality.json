@@ -1,0 +1,185 @@
+{
+  "scores": {
+    "completeness": 7,
+    "correctness": 6,
+    "codeQuality": 7,
+    "documentation": 8
+  },
+  "issues": [
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The Telegram webhook handler at /webhook/telegram has a security bypass: if TELEGRAM_WEBHOOK_SECRET is not set, ALL requests are accepted with no authentication whatsoever. Line: `if expected_secret and secret != expected_secret`. An attacker who knows the endpoint can send arbitrary /ack_alert commands to silence monitoring alerts."
+    },
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /api/scan endpoint fires asyncio.create_task(_run()) and immediately returns {ok: True} — but _run() is never awaited and exceptions are silently swallowed. Scanner errors produce no feedback to the caller and no logging path is visible."
+    },
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "_telegram_send() uses urllib.request.urlopen synchronously inside an async FastAPI handler (the /webhook/telegram route). This blocks the event loop for up to 8 seconds (the timeout) on every Telegram reply, degrading all concurrent request handling."
+    },
+    {
+      "severity": "critical",
+      "file": "app/requirements.txt",
+      "line": null,
+      "description": "claude-agent-sdk>=0.1 is listed as a dependency but the CLAUDE.md states 'TAO_USE_AGENT_SDK=0 causes an ImportError at startup (deliberate)' and sdk-version-policy.md references it as the sole execution path since RA-576. The package name 'claude-agent-sdk' does not match the Anthropic SDK package 'anthropic' — this appears to be a fictional/misnamed package that would fail pip install in CI and production."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "WebSocket handler /ws/build/{sid} accepts authentication via Authorization header or cookie but the header name 'authorization' is checked with .replace('Bearer ', '') — this is case-sensitive and will silently fail for clients sending 'Authorization: Bearer <token>' with capital A, rejecting valid tokens."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /api/sessions/{sid}/logs SSE endpoint has no authentication dependency — unlike all other /api/* routes which use Depends(require_auth), this endpoint is unauthenticated. Build logs stream to any unauthenticated caller who knows a session ID."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /webhook/telegram endpoint is not rate-limited (no Depends(require_rate_limit)), unlike all other webhook endpoints. A flood of Telegram webhook calls will consume unbounded event loop time, especially given the synchronous _telegram_send() blocking issue."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The _resilient() wrapper restarts crashed background tasks after a 10s delay with no exponential backoff and no maximum retry cap. A task that crashes on startup (e.g., linear_todo_poller with missing LINEAR_API_KEY) will crash-restart in a tight loop forever, generating log spam and masking the root cause."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The build_parallel fan-out endpoint calls await fan_out(...) synchronously in the request handler without a timeout. A long-running fan-out blocks the request for the full duration. All other build endpoints use BackgroundTasks or asyncio.create_task for deferred execution."
+    },
+    {
+      "severity": "high",
+      "file": ".env.example",
+      "line": null,
+      "description": "The Telegram bot token (8630069375:AAH5CDnCm5ApdFsdfFz1KwNGEFDtgy9yvDA) appears verbatim in .harness/RA-588-PREFLIGHT.md. Regardless of gitignore rules on .env files, this specific token is committed to a .harness/ markdown file which IS tracked in git. The bot token is live and should be rotated immediately."
+    },
+    {
+      "severity": "high",
+      "file": ".harness/RA-588-PREFLIGHT.md",
+      "line": null,
+      "description": "Telegram user ID (8792816988) and bot token (8630069375:AAH5CDnCm5ApdFsdfFz1KwNGEFDtgy9yvDA) are both committed in plaintext in a tracked .harness/ file. The .gitignore explicitly excludes .harness/telegram-inbox/ but not .harness/*.md files."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "CSP header in SecurityHeaders middleware allows 'unsafe-inline' for both script-src and style-src. This nullifies XSS protection for inline scripts. Combined with the unvalidated inputs flowing through the build system, this is a meaningful attack surface reduction failure."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /api/build/parallel endpoint has Depends(require_auth) and Depends(require_rate_limit) as route-level dependencies, but they are passed as a list in the decorator — `dependencies=[Depends(require_auth), Depends(require_rate_limit)]`. This is correct FastAPI syntax, but the parallel build creates N worker sessions in a single call. TAO_MAX_SESSIONS rate limiting applies per-session but not per-fan-out call, allowing a single authenticated user to exhaust the session pool with one request."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The @app.on_event('startup') decorator is used twice (once in on_startup and once in _start_claude_poll). FastAPI deprecated on_event in favor of lifespan context managers. More critically, having two startup handlers makes initialization order implicit and fragile."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /api/monitor endpoint fires background_tasks.add_task(_run) where _run is an async def that calls run_monitor_cycle() — but BackgroundTasks expects a regular callable, not an async one. The async def _run will be called but not awaited by BackgroundTasks, meaning it runs as a coroutine object and does nothing. This is a silent no-op."
+    },
+    {
+      "severity": "medium",
+      "file": "dashboard/package.json",
+      "line": null,
+      "description": "The 'dev' script sources .env.local via bash: `bash -c 'set -a && source .env.local && set +a && next dev'`. This is Linux/macOS only and silently breaks on Windows despite the README specifying Windows PowerShell setup. The CI workflow uses ubuntu-latest so this mismatch is masked."
+    },
+    {
+      "severity": "medium",
+      "file": "dashboard/package.json",
+      "line": null,
+      "description": "lucide-react is pinned at ^1.8.0 but lucide-react's latest stable releases are in the 0.x range (e.g., 0.462). Version 1.8.0 does not exist in the npm registry — this will fail `npm ci` in CI and on fresh installs."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /api/lessons GET endpoint accepts a `limit` query parameter with `min(limit, 200)` but no minimum validation. A caller can pass limit=0 or limit=-1 and receive an empty or undefined response without error."
+    },
+    {
+      "severity": "medium",
+      "file": ".harness/board-meetings/2026-04-12-gap-audit.json",
+      "line": null,
+      "description": "The gap audit JSON itself documents that build log SSE streaming is claimed complete in spec.md but missing from main.py. However, the provided main.py DOES include a GET /api/sessions/{sid}/logs SSE endpoint — the gap audit is outdated/wrong. This demonstrates the self-assessment reliability problem documented in the board minutes."
+    },
+    {
+      "severity": "medium",
+      "file": "Dockerfile",
+      "line": null,
+      "description": "Two Dockerfiles exist (root Dockerfile and app/Dockerfile) with different WORKDIR, COPY patterns, and CMD paths. The root Dockerfile copies app/server/ to ./app/server/ and runs 'app.server.main:app'. The app/Dockerfile copies server/ to ./server/ and runs 'server.main:app'. These will produce containers that break if the wrong one is used — no single source of truth for the build artifact."
+    },
+    {
+      "severity": "low",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The health endpoint imports time, shutil at function call time rather than at module level. These are stdlib imports — importing them inside the function on every /health call is unnecessary overhead, especially for a health check that should be as fast as possible."
+    },
+    {
+      "severity": "low",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The _find_active_session_for_repo() helper iterates _sessions.values() linearly on every webhook call. With hundreds of sessions this is O(n). A secondary index from repo_url to session_id would be O(1)."
+    },
+    {
+      "severity": "low",
+      "file": ".harness/anthropic-docs/api-reference.md",
+      "line": null,
+      "description": "The anthropic-docs files contain raw Next.js RSC payload (self.__next_f.push([1,...]) serialized JavaScript), not readable documentation. The fetch captured the client-side rendered HTML including JavaScript chunks rather than the actual doc content. These files are effectively useless as knowledge base entries."
+    }
+  ],
+  "missingTests": [
+    "Authentication bypass paths — no test for the Telegram webhook with missing TELEGRAM_WEBHOOK_SECRET accepting arbitrary requests",
+    "SSE /api/sessions/{sid}/logs endpoint — no authentication test, no test for cursor-based pagination correctness",
+    "WebSocket authentication — case-sensitivity of Authorization header not tested",
+    "Rate limiting enforcement — no test that the 30 req/min limit actually blocks requests",
+    "The _resilient() wrapper crash-restart behavior — no test for infinite restart loops",
+    "Fan-out parallelism session pool exhaustion — no test that build_parallel cannot exhaust TAO_MAX_SESSIONS in one call",
+    "Webhook duplicate detection — no test for _find_active_session_for_repo() race condition between two simultaneous webhook deliveries",
+    "cron trigger firing with bogus last_fired_at timestamps — the scheduler debounce bug documented in lessons is untested",
+    "Session resume from phase checkpoint — no integration test for the POST /api/sessions/{sid}/resume endpoint",
+    "The /api/monitor BackgroundTasks async-def no-op bug — no test verifies run_monitor_cycle actually executes",
+    "Input validation edge cases on /api/lessons — limit=0, limit=-1, empty lesson string",
+    "Telegram alert acknowledgment (mark_alert_acked) — no test for the Supabase write path",
+    "Pipeline ship phase hard gate — no test for the run_ship_phase blocking behavior"
+  ],
+  "securityConcerns": [
+    "COMMITTED SECRET: .harness/RA-588-PREFLIGHT.md contains a live Telegram bot token (8630069375:AAH5CDnCm5ApdFsdfFz1KwNGEFDtgy9yvDA) and user ID (8792816988) in a tracked git file. This must be rotated immediately.",
+    "UNAUTHENTICATED ENDPOINT: /api/sessions/{sid}/logs (app/server/main.py) streams build logs to any caller — no require_auth dependency unlike all other /api/* endpoints.",
+    "WEBHOOK SECRET BYPASS: /webhook/telegram in app/server/main.py accepts all requests when TELEGRAM_WEBHOOK_SECRET env var is unset, with no warning at startup. Combined with the /ack_alert handler, this allows unauthenticated alert silencing.",
+    "SYNCHRONOUS HTTP IN ASYNC HANDLER: _telegram_send() uses urllib.request.urlopen with timeout=8 in app/server/main.py — blocks the event loop, enabling a DoS by causing 8-second stalls on every Telegram webhook delivery.",
+    "CSP UNSAFE-INLINE: SecurityHeaders middleware in app/server/main.py sets script-src 'unsafe-inline' and style-src 'unsafe-inline', negating XSS protection from Content-Security-Policy.",
+    "SESSION POOL EXHAUSTION: /api/build/parallel in app/server/main.py allows a single authenticated request to create up to 8 concurrent sessions (n_workers max), potentially consuming the entire TAO_MAX_SESSIONS=3 pool multiple times over with one call.",
+    "ARBITRARY COMMAND ALLOWLIST: .claude/settings.json uses defaultMode: bypassPermissions with broad Bash allowlists including Bash(rm:*), Bash(mv:*), Bash(curl:*), Bash(wget:*). Combined with Bash(git:*) and Write(*), a compromised session has near-complete filesystem access.",
+    "SUPABASE_SERVICE_ROLE_KEY in .env.example: The file documents SUPABASE_SERVICE_ROLE_KEY which bypasses Row Level Security — if this value leaks from a Railway environment, the entire Supabase database is exposed with no RLS protection."
+  ],
+  "positives": [
+    "Pydantic field validators on all request models in main.py with specific allowlists (repo_url prefix check, model enum, worker count bounds) — clean input validation at the API boundary",
+    "HMAC timing-safe comparison for both GitHub and Linear webhook signatures using hmac.compare_digest — correct implementation that avoids timing oracle attacks",
+    "Session token uses HttpOnly + SameSite cookies with conditional Secure/SameSite=None based on cloud detection — correct handling of the cross-origin cookie problem for Railway + Vercel split deployment",
+    "The _resilient() background task wrapper pattern — crash recovery with logging is the right approach for background pollers, even if the backoff needs improvement",
+    "write-to-.tmp-then-os.replace() atomic write pattern documented in CLAUDE.md — correct approach for session persistence that survives crashes",
+    "The .harness/ architecture as a persistent, git-tracked knowledge base for agent decisions, lessons, and charters is genuinely well-designed — provides durable cross-session context that most agent systems lack",
+    "Three-tier CI pipeline (python + frontend + smoke-prod) with post-deploy gates against production Railway URL — production readiness verification is baked into the deployment workflow",
+    "Comprehensive .gitignore protecting all .env variants, runtime data, and credential files — the gitignore is thorough and correctly structured",
+    "The ESCALATION.md contract with explicit lists of things the watchdog will NEVER do autonomously is a strong safety design — hard-coding the 'never' list prevents scope creep in the autonomous loop",
+    "The evaluator contract (eval-contract.md) with explicit score format, parse contract, and status enum is the right abstraction for a quality gate that must be machine-readable"
+  ]
+}
