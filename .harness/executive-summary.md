@@ -44,7 +44,7 @@ The Karpathy enhancement layer: 10 Karpathy optimisations + 10 Gap Audit items. 
 | Metric | Value |
 |--------|-------|
 | ZTE v2 Score | 84/100 (projected 85+ after next scan) |
-| Features shipped | 94 |
+| Features shipped | 95 |
 | Sprints complete | 9 + Sprint 10 active |
 | MCP tools | 21 |
 | Skills loaded | 33 across 7 layers |

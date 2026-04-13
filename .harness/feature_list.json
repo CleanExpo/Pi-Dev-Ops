@@ -756,6 +756,14 @@
       "status": "complete",
       "leverage_point": "Security",
       "linear_issue": "RA-844"
+    },
+    {
+      "id": "F-095",
+      "name": "AI Platform Daily Intelligence \u2014 Gemini Scheduled Action",
+      "description": "RA-827: Daily 9:00 AM Gemini Scheduled Action monitoring Anthropic (Claude API, Agent SDK, MCP), OpenAI (GPT, Assistants API), and xAI/Grok for releases, API changes, and new tools. Cross-references against all 6 Pi-CEO portfolio projects and flags opportunities as CRITICAL/COST/ADOPT. Completes the morning intelligence stack: 7AM calendar digest, 8AM Google Cloud Next, 9AM AI platform intel.",
+      "status": "complete",
+      "leverage_point": "Intelligence",
+      "linear_issue": "RA-827"
     }
   ],
   "pending": []

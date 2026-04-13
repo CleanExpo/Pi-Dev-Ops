@@ -1,6 +1,6 @@
 # Pi Dev Ops — Sprint Plan
 
-_Sprint 11 active | 2026-04-14 | ZTE v2: 84/100 (projected 85+ after next scan) | 94 features shipped_
+_Sprint 11 active | 2026-04-14 | ZTE v2: 84/100 (projected 85+ after next scan) | 95 features shipped_
 
 ---
 
