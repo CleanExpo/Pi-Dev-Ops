@@ -1,0 +1,182 @@
+```json
+{
+  "scores": {
+    "completeness": 7,
+    "correctness": 6,
+    "codeQuality": 6,
+    "documentation": 7
+  },
+  "issues": [
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "_sessions is an in-memory dict with no persistent backing on startup beyond restore_sessions(). Server restart during an active build loses all session state — the lessons file explicitly warns about this, but the fix is partial. restore_sessions() remaps statuses to 'interrupted' but output_lines are lost, making resume unreliable for long builds."
+    },
+    {
+      "severity": "critical",
+      "file": "app/requirements.txt",
+      "line": null,
+      "description": "'claude-agent-sdk>=0.1' in requirements.txt does not match the actual package used. CLAUDE.md and config.yaml reference 'claude_agent_sdk' as mandatory (TAO_USE_AGENT_SDK=1 required, ImportError on 0). The package name 'claude-agent-sdk' is not the published Anthropic SDK — this will fail pip install silently or install the wrong package on a fresh Railway deploy."
+    },
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /api/scan endpoint fires asyncio.create_task(_run()) and immediately returns {ok: True} — the scan result is never surfaced to the caller. If ProjectScanner or TriageEngine raises inside the task, the exception is silently swallowed with no logging and no status update. This is a fire-and-forget with no error visibility."
+    },
+    {
+      "severity": "critical",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "line": null,
+      "description": "Gap audit (board-meetings/2026-04-12-gap-audit.json) documents a confirmed security gap: TELEGRAM_WEBHOOK_SECRET validation only rejects when both sides are non-empty — if incomingSecret is absent but the env var is set, the check passes. This is an authentication bypass on the Telegram webhook endpoint."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "morning_intel_webhook imports hmac inside the function body rather than at module top. Also compares secret_header directly to config.WEBHOOK_SECRET with _hmac.compare_digest — but only if config.WEBHOOK_SECRET is truthy. If WEBHOOK_SECRET is unset, the endpoint is completely unprotected with no warning logged, unlike the /api/webhook endpoint which raises 500."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /api/monitor endpoint uses BackgroundTasks.add_task(_run) where _run is an async def. FastAPI's BackgroundTasks.add_task does not await coroutines — it calls them synchronously via asyncio.run_coroutine_threadsafe if not already in an event loop, or drops them silently. This should be asyncio.create_task(_run()) instead."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The webhook endpoint at /api/webhook does not enforce require_auth — it only requires require_rate_limit. Any unauthenticated caller with a valid HMAC signature can trigger arbitrary build sessions. Rate limiting is not a substitute for authentication on a build-triggering endpoint."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "_find_active_session_for_repo() iterates _sessions.values() without a lock. Under concurrent webhook delivery (two pushes in quick succession), two sessions could be created for the same repo before either check completes. Python's GIL helps but asyncio context switches between awaits mean the check-then-create is not atomic."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "get_monitor_digest() uses glob.glob and opens files without any path traversal protection. digests_root is constructed from __file__ which is fine, but files[0] is passed directly to open() — if the directory contains a symlink pointing outside the harness, the file is read without restriction."
+    },
+    {
+      "severity": "high",
+      "file": ".env.example",
+      "line": null,
+      "description": "NEXT_PUBLIC_SUPABASE_URL appears twice in .env.example with different values ('https://zbryrmxmgfmslqzizsto.supabase.co' and 'https://your-project.supabase.co'). The first occurrence contains what appears to be a real Supabase project URL. If this is a real project URL, it constitutes partial credential exposure even without the anon key."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "run_spec, run_plan, run_test all wrap synchronous functions (_run is a regular def calling blocking code) inside BackgroundTasks.add_task. These blocking calls will run on the asyncio event loop thread, stalling the server during execution. They should spawn threads via asyncio.get_event_loop().run_in_executor or the internal functions should be async."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The WebSocket handler ws_build() reads session.output_lines[last:] in a tight polling loop with 0.15s sleep. output_lines is a list mutated by the build process without a lock. A concurrent list append during the slice operation can raise RuntimeError in CPython under certain conditions. Should use a thread-safe deque or add a lock."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "on_startup() is decorated with @app.on_event('startup') twice — once for the main startup logic and once for _start_claude_poll(). FastAPI supports multiple startup handlers but this is an unusual pattern that makes startup ordering non-obvious. The _resilient wrapper is applied to gc_loop, cron_loop, linear_todo_poller but NOT to the claude CLI poll, which has its own _resilient wrapper. Inconsistent pattern."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "SecurityHeaders middleware sets Content-Security-Policy with 'unsafe-inline' for both script-src and style-src. This defeats a large portion of XSS protection that CSP provides. Given the system has WebSocket connections and builds arbitrary code, a stricter nonce-based CSP would be appropriate."
+    },
+    {
+      "severity": "medium",
+      "file": ".harness/anthropic-docs/api-reference.md",
+      "line": null,
+      "description": "The anthropic-docs files contain raw Next.js server-side render payloads (self.__next_f.push, React component JSON) rather than clean documentation text. These files are committed to the repo and read by board meeting agents. They provide essentially zero signal and waste context window tokens on every board meeting cycle."
+    },
+    {
+      "severity": "medium",
+      "file": "dashboard/package.json",
+      "line": null,
+      "description": "'pg' is listed as a devDependency but is used in scripts/create-sandbox-snapshot.ts which can run in production-adjacent contexts. More importantly, if pg is used for direct Postgres access anywhere in the dashboard, it bypasses Supabase RLS entirely. Needs audit."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The /api/build/parallel endpoint calls fan_out() which is awaited directly in the request handler — no timeout is set. A long-running fan_out that spawns multiple worker sessions could hold the request open indefinitely. Should have a timeout and return immediately with a tracking ID."
+    },
+    {
+      "severity": "medium",
+      "file": ".claude/settings.json",
+      "line": null,
+      "description": "defaultMode: bypassPermissions with allow: ['Write(*)', 'Edit(*)', 'Bash(rm:*)'] grants the autonomous agent unrestricted write and delete access to the entire filesystem. The deny list blocks rm -rf / specifically but permits rm on any other path. Combined with Bash(curl:*) and Bash(wget:*), a compromised prompt could exfiltrate data or destroy the workspace."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "_telegram_send() uses urllib.request.urlopen with timeout=8 but is called synchronously inside an async FastAPI handler (telegram_webhook). This blocks the event loop for up to 8 seconds on every Telegram reply. Should use httpx.AsyncClient or run in a thread executor."
+    },
+    {
+      "severity": "low",
+      "file": "Dockerfile",
+      "line": null,
+      "description": "Two Dockerfiles exist (root Dockerfile and app/Dockerfile) with different configurations. The root Dockerfile copies src/, .harness/, skills/ and sets PYTHONPATH=/pi-ceo. The app/Dockerfile does not. The root Dockerfile uses pydev user (uid 1001) while app/Dockerfile runs as root. This dual-Dockerfile setup creates deployment ambiguity."
+    },
+    {
+      "severity": "low",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "version: '1.0.0' is hardcoded in the /health endpoint response. This will permanently report 1.0.0 regardless of actual version. Should read from pyproject.toml or an environment variable."
+    },
+    {
+      "severity": "low",
+      "file": ".harness/board-meetings/2026-04-12-gap-audit.json",
+      "line": null,
+      "description": "Gap audit documents that the SSE /api/sessions/{sid}/logs/stream endpoint was 'missing'. The full main.py provided in this review shows GET /api/sessions/{sid}/logs IS implemented as a StreamingResponse — but this was added after the gap audit. Confirms the gap audit was accurate at time of writing and the fix was applied."
+    }
+  ],
+  "missingTests": [
+    "WebSocket handler ws_build() — no test for concurrent output_lines access or authentication bypass with invalid token",
+    "Webhook HMAC verification — no test for timing attack resistance or invalid signature rejection",
+    "Rate limiting — no test verifying 30 req/min threshold is enforced correctly per IP",
+    "Session resume endpoint — no test for the resume_from phase branching logic",
+    "Fan-out parallel builds — no integration test for n_workers fan-out behavior",
+    "GC loop — no test verifying orphaned workspace directories are cleaned up",
+    "Linear webhook → create_session flow — no end-to-end test for the Linear trigger path",
+    "morning_intel_webhook — no test for the unauthenticated path when WEBHOOK_SECRET is unset",
+    "Autonomy poller linear_todo_poller — no test for the do-while startup delay behavior",
+    "_find_active_session_for_repo race condition — no concurrent access test",
+    "Session persistence atomic write — no test verifying crash-safe write-to-tmp-then-replace behavior",
+    "Config TAO_USE_AGENT_SDK=0 raises ImportError — documented behavior with no test asserting it",
+    "Telegram webhook secret bypass — no test for the authentication gap documented in gap audit"
+  ],
+  "securityConcerns": [
+    "dashboard/app/api/telegram/route.ts: TELEGRAM_WEBHOOK_SECRET check passes when incomingSecret is absent — confirmed authentication bypass documented in .harness/board-meetings/2026-04-12-gap-audit.json",
+    ".env.example line ~60: Real Supabase project URL 'zbryrmxmgfmslqzizsto.supabase.co' committed to repository — partial credential exposure even without the service role key",
+    ".claude/settings.json: bypassPermissions + Write(*) + Edit(*) + Bash(rm:*) + Bash(curl:*) grants autonomous agent near-total filesystem control; a prompt injection in any analyzed repo could weaponize this",
+    "app/server/main.py morning_intel_webhook: endpoint is completely unprotected when TAO_WEBHOOK_SECRET is unset — no warning logged, no 401 returned, no rate limit beyond the shared limit",
+    "app/server/main.py /api/webhook: no require_auth dependency — any party with HMAC secret can trigger arbitrary build sessions against any repo URL",
+    "app/server/main.py /ws/build/{sid}: WebSocket authentication accepts token from Authorization header which could be logged by proxies — should enforce cookie-only auth in cloud deployments where SameSite=None is active",
+    "Dockerfile: npm install -g @anthropic-ai/claude-code runs as root before switching to pidev user — a compromised npm package during build would have root access"
+  ],
+  "positives": [
+    "HMAC timing-safe comparison (hmac.compare_digest) used correctly for both GitHub and Linear webhook signature verification",
+    "Password hashing uses bcrypt with transparent SHA-256 migration path — auth.py pattern is production-grade",
+    "Session ID sanitization with _safe_sid() strips non-alphanumeric characters before file path use — path traversal prevention is documented and applied",
+    "HTTP security headers (CSP, X-Frame-Options DENY, X-Content-Type-Options) applied via middleware to all responses",
+    "Pydantic field validators on all request models with explicit allowlists for model names — no string interpolation of user input into subprocess calls visible at the API boundary",
+    "Rate limiting (30 req/min per IP) applied as a FastAPI Depends() — consistently enforced across endpoints",
+    "Atomic file writes using write-to-.tmp-then-os.replace() pattern documented and referenced in CLAUDE.md — crash-safe persistence on NTFS and POSIX",
+    "_resilient() background task wrapper with crash recovery and auto-restart prevents silent death of critical background loops",
+    "Graceful shutdown handler drains active sessions and sends SIGTERM to subprocesses — avoids orphaned Claude CLI processes on Railway redeploy",
+    "CI pipeline is genuine: three jobs (pytest+ruff, tsc+eslint+build, smoke-prod), secrets-scan on every PR, post-deploy smoke test gated on python+frontend pass — not just linting theater",
+    "Comprehensive .gitignore that protects secrets, runtime data, and harness sensitive outputs from accidental commit",
+    "Supabase logging is fire-and-forget with explicit comment that observability failures must not block the build pipeline — correct priority inversion for a reliability-critical path"
+  ]
+}
+```
