@@ -665,7 +665,7 @@ class ProjectScanner:
             log.info("Cloning %s", repo)
             proc = await asyncio.create_subprocess_exec(
                 "git", "clone", "--depth=1",
-                f"git@github.com:{repo}.git",
+                f"https://github.com/{repo}.git",
                 str(repo_path),
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.PIPE,

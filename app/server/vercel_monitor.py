@@ -19,6 +19,7 @@ import logging
 import subprocess
 import urllib.error
 import urllib.request
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
 
@@ -87,7 +88,7 @@ def _local_head_sha() -> str:
     try:
         result = subprocess.run(
             ["git", "rev-parse", "HEAD"],
-            cwd=str(config._root),  # type: ignore[attr-defined]
+            cwd=str(Path(__file__).resolve().parents[2]),
             capture_output=True, text=True, timeout=5,
         )
         return result.stdout.strip()[:12]

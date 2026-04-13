@@ -88,7 +88,7 @@ def fetch_todo_issues(api_key: str) -> list[dict]:
             issues(filter: {
                 state: { type: { in: ["unstarted"] } }
                 priority: { lte: 2 }
-            }, first: 10, orderBy: priority) {
+            }, first: 10, orderBy: updatedAt) {
                 nodes {
                     id
                     identifier
