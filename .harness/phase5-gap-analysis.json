@@ -1,0 +1,46 @@
+```json
+{
+  "zteLevel": 3,
+  "zteScore": 40,
+  "leveragePoints": [
+    { "id": 1, "name": "Spec Quality", "score": 3 },
+    { "id": 2, "name": "Context Precision", "score": 4 },
+    { "id": 3, "name": "Model Selection", "score": 4 },
+    { "id": 4, "name": "Tool Availability", "score": 4 },
+    { "id": 5, "name": "Feedback Loops", "score": 3 },
+    { "id": 6, "name": "Error Recovery", "score": 4 },
+    { "id": 7, "name": "Session Continuity", "score": 3 },
+    { "id": 8, "name": "Quality Gating", "score": 3 },
+    { "id": 9, "name": "Cost Efficiency", "score": 4 },
+    { "id": 10, "name": "Trigger Automation", "score": 4 },
+    { "id": 11, "name": "Knowledge Retention", "score": 3 },
+    { "id": 12, "name": "Workflow Standardization", "score": 3 }
+  ],
+  "productionGaps": [
+    "Spec Quality: .harness/agents/evaluator.md and generator.md define roles but no per-feature acceptance criteria with edge cases exist anywhere in the harness — .harness/board-meetings/2026-04-12-board-minutes.md explicitly calls spec.md '2 days stale' and .harness/board-meetings/2026-04-13-ceo-memo-board-minutes.md names stale spec.md as a blocking structural gap (RA-675)",
+    "Feedback Loops: lessons.jsonl accumulates entries and _get_lesson_context() injects them per intent (evidenced in .harness/config.yaml and board minutes), but the self-improvement loop is unbuilt — .harness/cron-triggers.json has 'analyse-lessons-weekly' with last_fired_at=null, and board minutes across three consecutive cycles (2026-04-11, 2026-04-12, 2026-04-13) report 'self-improvement loop missing' as a weakness",
+    "Session Continuity: POST /api/sessions/{sid}/resume exists in app/server/main.py and phase checkpoints are defined in .harness/contracts/build-contract.md, but _sessions is an in-memory dict (CLAUDE.md line: '_sessions is an in-memory dict — any server restart loses all running sessions') and restore_sessions() is truncated mid-function per .harness/board-meetings/2026-04-12-gap-audit.json (low severity finding)",
+    "Quality Gating: .harness/agents/evaluator.md states the gate is 'non-blocking' in Phase 1 ('below-threshold score logs warning but does not block git push (for now)') and .harness/contracts/eval-contract.md confirms 'BELOW THRESHOLD: warning logged, push still proceeds (non-blocking Phase 1)' — gate exists but is advisory not hard-blocking",
+    "Knowledge Retention: lessons.jsonl is active with 38 entries (per .harness/INCIDENT-2026-04-12.md) and cron-triggers.json shows 'analyse-lessons-weekly' wired, but last_fired_at is null — the analysis has never run; lessons are stored but the weekly extraction and CLAUDE.md feedback loop has zero production executions",
+    "Workflow Standardization: PITER classifier and ADW templates are referenced in board minutes and config.yaml, but the INCIDENT-2026-04-12.md documents that the entire marathon autonomous rail ran against wrong architecture assumptions — the V2 board deliberation (.harness/BOARD-DELIBERATION-2026-04-12.md) reveals workflow is defined in docs but not enforced at the infrastructure level; Cowork-dependent scheduled tasks are the actual execution environment",
+    "Linear two-way sync critical gap: .harness/board-meetings/2026-04-12-gap-audit.json marks as critical that webhook.py has zero outbound Linear API calls — no issueUpdate mutation, no state transition back to Linear from build completion in sessions.py",
+    "SDK Canary Phase A never activated: .harness/agents/sdk-phase2-rollout.md sign-off log is blank, TAO_USE_AGENT_SDK_CANARY_RATE=0.10 unset in Railway across three consecutive board cycles (2026-04-11, 2026-04-12, 2026-04-13 minutes) — dual-path code exists but zero real-traffic validation",
+    "Pi-SEO first sweep never executed: .harness/cron-triggers.json shows scan triggers with recent last_fired_at timestamps but .harness/board-meetings/2026-04-12-board-minutes.md states 'Pi-SEO first sweep never run — 10 repos have no baseline scan data' despite scanner being complete since Sprint 6",
+    "triage-cache.json at 353KB with no rotation strategy: flagged in three consecutive board meeting cycles (2026-04-11, 2026-04-12, 2026-04-13) with no remediation — unbounded growth risk"
+  ],
+  "loadRisks": [
+    "In-memory session dict (_sessions) loses all active build sessions on any Railway restart — CLAUDE.md explicitly warns this; under load with concurrent sessions a deploy or OOM kill destroys all in-flight work with no recovery path except the phase checkpoint files which require a manual /api/sessions/{sid}/resume call",
+    "Single uvicorn worker (Dockerfile CMD: --workers 1) means all concurrent Claude SDK sessions, WebSocket streams, and background pollers (gc_loop, cron_loop, linear_todo_poller) share one process — CPU-bound Claude subprocess execution blocks the event loop under concurrent build load",
+    "autonomy.py linear_todo_poller crashes are caught by _resilient() wrapper in main.py with 10s restart delay, but if LINEAR_API_KEY is absent the poller silently skips all polls with a green /health response — .harness/INCIDENT-2026-04-12.md documents this exact failure mode causing zero builds overnight",
+    "cron_loop uses last_fired_at timestamps that reset to null on Railway redeploy — .harness/board-meetings/2026-04-12-board-minutes.md (SWOT Threats) and lessons in INCIDENT file both document that every Railway deploy silently suppresses the next scheduled scan window due to bogus-future-timestamp debounce",
+    "triage-cache.json at 353KB loaded on scanner startup with no pruning — under high Pi-SEO scan frequency (4x/day across 10 repos) this grows without bound; Railway ephemeral disk limits will eventually cause startup failures",
+    "WebSocket handler /ws/build/{sid} polls session.output_lines with asyncio.sleep(0.15) in a tight loop — under concurrent sessions this creates O(n*sessions) wake-ups per second on the single event loop thread",
+    "Supabase writes in supabase_log.py are fire-and-forget (CLAUDE.md: 'observability failures must never block the build pipeline') — correct design but under Supabase connection exhaustion all gate_checks and alert_escalations are silently dropped with no alerting"
+  ],
+  "topThreeROI": [
+    "Feedback Loops — the lessons corpus has 38 entries and the injection mechanism exists in _get_lesson_context(), but the weekly analyser has never fired (last_fired_at=null in cron-triggers.json). Activating scripts/analyse_lessons.py and wiring its output back to CLAUDE.md/skills closes the last ZTE Level 3 meta-loop. Every future session benefits compoundingly — this is the highest-leverage single activation requiring no new code, only a confirmed cron run.",
+    "Quality Gating — the evaluator gate is explicitly non-blocking ('push still proceeds' per .harness/contracts/eval-contract.md). Flipping it to a hard-blocking gate with the TAO_EVALUATOR_THRESHOLD already configured and the retry logic already in sessions.py is a config change, not an engineering effort. This transforms the pipeline from 'evaluates then ships anyway' to 'evaluates and blocks bad output' — the definition of a production quality gate — and directly closes the critical finding in the gap audit.",
+    "Session Continuity — _sessions is in-memory only and Railway restarts lose all active sessions (CLAUDE.md documents this as a known risk). The phase checkpoint files exist on disk and /api/sessions/{sid}/resume is implemented, but there is no auto-resume on startup. Wiring restore_sessions() to automatically resume interrupted sessions after a Railway redeploy eliminates the most common production failure mode (deploy during active build = lost work) and directly addresses the gap-audit finding about restore_sessions() being truncated."
+  ]
+}
+```
