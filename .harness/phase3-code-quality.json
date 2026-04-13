@@ -1,0 +1,171 @@
+```json
+{
+  "scores": {
+    "completeness": 7,
+    "correctness": 6,
+    "codeQuality": 6,
+    "documentation": 7
+  },
+  "issues": [
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "_sessions is in-memory dict. Server restart loses all active sessions. The lesson file explicitly flags this, and while persistence is mentioned in CLAUDE.md, the actual implementation in main.py still passes _sessions as a mutable in-memory store with no atomic disk-write on every state change visible in provided code."
+    },
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "morning_intel_webhook endpoint at /api/webhook/morning-intel uses string comparison `if not _hmac.compare_digest(secret_header, config.WEBHOOK_SECRET)` — compare_digest requires both arguments to be the same type (both str or both bytes). If config.WEBHOOK_SECRET is bytes and secret_header is str, this raises TypeError at runtime instead of returning 401."
+    },
+    {
+      "severity": "critical",
+      "file": "app/requirements.txt",
+      "line": null,
+      "description": "claude-agent-sdk>=0.1 listed as a dependency but CLAUDE.md states TAO_USE_AGENT_SDK=1 is mandatory and setting 0 raises ImportError at startup. The package name 'claude-agent-sdk' does not match any known PyPI package — the actual Anthropic SDK is 'anthropic'. If this package doesn't exist on PyPI the Railway deploy silently breaks."
+    },
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "scan endpoint at /api/scan fires asyncio.create_task(_run()) where _run() is a nested async function that returns results to nowhere. The client receives {ok: True, message: 'Scan started'} with no session ID or polling mechanism. Scan results, errors, and ticket counts are all fire-and-forget with no observability hook."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "Rate limit dependency require_rate_limit is NOT applied to /api/webhook/morning-intel — only require_rate_limit is applied, but auth is gated on a shared secret header. Any unauthenticated party who discovers the endpoint can flood it with bogus intel payloads at unlimited rate."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "Telegram webhook at /webhook/telegram: when expected_secret is empty string (falsy) the auth check is skipped entirely. An attacker with knowledge of the endpoint URL can send arbitrary /ack_alert commands with no secret configured, silencing real alerts."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "_telegram_send uses urllib.request.urlopen (blocking I/O) inside an async FastAPI handler. This blocks the event loop for up to 8 seconds (timeout) on every Telegram send, degrading concurrent request handling across all endpoints."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "WebSocket handler /ws/build/{sid} catches bare `except (WebSocketDisconnect, Exception): pass` — swallows all exceptions including programming errors silently. There is no logging of the exception, making debugging impossible."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "Path construction for morning intel: `intel_dir = Path(config.DATA_DIR).parent.parent / '.harness' / 'morning-intel'` — this is a relative traversal from DATA_DIR. If DATA_DIR is set to an unexpected value (e.g. /tmp/data), this writes files to /tmp/.harness/morning-intel, not the repo's .harness directory. No path validation."
+    },
+    {
+      "severity": "high",
+      "file": ".env.example",
+      "line": null,
+      "description": "NEXT_PUBLIC_SUPABASE_URL appears twice with different values (zbryrmxmgfmslqzizsto.supabase.co and https://your-project.supabase.co). Second definition silently overrides the first in most shell parsers. Developers copying this file will get inconsistent behavior."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "GitHub webhook handler: repo_url extracted from parsed event is passed directly to create_session without any allowlist or domain validation. A malicious webhook payload with repo_url pointing to an attacker-controlled repo (git@attacker.com:evil/repo.git) would cause the system to clone and execute code from it."
+    },
+    {
+      "severity": "high",
+      "file": "dashboard/package.json",
+      "line": null,
+      "description": "next version is ^16.2.3 — Next.js 16 does not exist as a stable release (latest stable is 15.x as of knowledge cutoff). This suggests a pinned canary/alpha or a typo. Build may fail or produce unexpected behavior in CI."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "on_startup registers two separate @app.on_event('startup') handlers (_start_claude_poll and on_startup). FastAPI executes both, but the order is not guaranteed. restore_sessions() in on_startup() may run after _start_claude_poll begins polling, creating a race condition if sessions reference subprocess state."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "StreamingResponse SSE endpoint /api/sessions/{sid}/logs polls with asyncio.sleep(0.3) in an infinite loop. Under high session count this creates O(n) polling coroutines with no backpressure mechanism. Should use asyncio.Event or a queue per session."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "get_pipelines and get_pipeline endpoints import from .pipeline at call time inside the handler body. Late imports inside async handlers can cause import errors to surface as 500 responses with no meaningful error message to the client."
+    },
+    {
+      "severity": "medium",
+      "file": "Dockerfile",
+      "line": null,
+      "description": "Two Dockerfiles exist: root Dockerfile and app/Dockerfile with different configurations. Root Dockerfile copies src/, .harness/, skills/ directories; app/Dockerfile does not. CLAUDE.md states app/server imports src/tao via sys.path manipulation — app/Dockerfile will produce a broken image if used."
+    },
+    {
+      "severity": "medium",
+      "file": ".claude/settings.json",
+      "line": null,
+      "description": "defaultMode: bypassPermissions with Write(*) and Edit(*) wildcards grants the autonomous agent write access to the entire filesystem. Combined with the Bash(rm:*) allowlist and no deny rule for rm on project directories, a misbehaving agent can delete source files."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "resume_session endpoint imports persistence module inline: `from . import persistence` inside the handler. If persistence module doesn't exist or has an import error, this raises a 500 with no graceful degradation."
+    },
+    {
+      "severity": "low",
+      "file": "mcp/package.json",
+      "line": null,
+      "description": "test script is `echo 'Error: no test specified' && exit 1` — MCP server has zero tests. 21 exposed tools including Linear issue creation have no test coverage."
+    },
+    {
+      "severity": "low",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "Health endpoint version is hardcoded as '1.0.0' — should be read from pyproject.toml or an env var so it reflects actual deployed version."
+    },
+    {
+      "severity": "low",
+      "file": ".harness/anthropic-docs/api-reference.md",
+      "line": null,
+      "description": "Anthropic docs stored in .harness are raw HTML/JS dumps from the documentation site, not parsed content. They are thousands of lines of JavaScript framework boilerplate. They provide no useful context to Claude agents reading them and waste token budget."
+    }
+  ],
+  "missingTests": [
+    "Webhook HMAC verification (GitHub and Linear) — no unit tests for tampered payloads, missing headers, or empty secrets",
+    "Session resume logic — no tests for resume_from phase checkpoint branching",
+    "Rate limiter behavior under concurrent requests — no concurrency tests for _req_log",
+    "Morning intel webhook — no tests for atomic file write, date parsing, or missing payload fields",
+    "Telegram webhook — no tests for missing secret, malformed JSON, or /ack_alert with unknown key",
+    "SSE log streaming — no tests for cursor advancement, terminal state detection, or client disconnect",
+    "Pydantic validators in BuildRequest/TriggerRequest — no tests for boundary values or injection attempts in repo_url",
+    "MCP server tools — zero tests for any of the 21 exposed Linear/harness tools",
+    "autonomy_status() function — no tests for armed/unarmed state transitions",
+    "scan endpoint fire-and-forget — no tests verifying scan results are actually persisted",
+    "Docker build correctness — no CI step verifying the root Dockerfile produces a working image"
+  ],
+  "securityConcerns": [
+    "app/server/main.py: GitHub webhook accepts any repo_url in parsed event payload without allowlist validation — enables SSRF-equivalent: autonomous code execution from attacker-controlled repositories",
+    "app/server/main.py: Telegram webhook auth bypass when TELEGRAM_WEBHOOK_SECRET is unset (falsy) — any party can invoke /ack_alert and silence production alerts",
+    "app/server/main.py: morning_intel_webhook only checks secret header when config.WEBHOOK_SECRET is truthy — in development/staging where secret is unset, endpoint is completely open",
+    ".claude/settings.json: bypassPermissions + Write(*) + Bash(rm:*) allowlist gives autonomous agent unrestricted filesystem write and delete access with no per-operation confirmation",
+    "app/server/main.py: _telegram_send constructs Telegram API URL using string interpolation with config.TELEGRAM_BOT_TOKEN — if token is user-supplied or leaked via env, it enables token substitution attacks",
+    ".env.example: TAO_PASSWORD=changeme default and SESSION_SECRET left blank — developers who forget to set these get a predictable password and auto-generated secret that resets on redeploy, invalidating all sessions"
+  ],
+  "positives": [
+    "Comprehensive HMAC webhook verification using hmac.compare_digest (timing-safe) for both GitHub and Linear webhooks in app/server/main.py",
+    "Security headers middleware (SecurityHeaders) sets X-Frame-Options DENY, X-Content-Type-Options nosniff, XSS-Protection, and a reasonably tight CSP — applied globally to all responses",
+    "Pydantic field validators on BuildRequest and TriggerRequest with explicit allowlists (model must be opus|sonnet|haiku, repo_url must start with https:// or git@) prevent garbage input from reaching the build pipeline",
+    "Resilient background task wrapper _resilient() with crash-recovery and auto-restart for all background coroutines (gc_loop, cron_loop, linear_todo_poller) — prevents silent death of background workers",
+    "Atomic file writes using write-to-.tmp-then-os.replace() pattern documented in CLAUDE.md and implemented in morning_intel_webhook — crash-safe on both NTFS and POSIX",
+    "Detailed /health endpoint exposes autonomy.armed boolean, seconds_since_last_poll, disk_free_gb, and session counts — addresses the silent-failure pattern documented in incident reports",
+    "Thorough CI pipeline with three separate jobs (pytest+ruff, tsc+eslint+build, smoke-prod) including a post-deploy smoke test against production Railway URL",
+    "Session ID sanitization via _safe_sid() strips non-alphanumeric characters before file path use — prevents path traversal in session log files",
+    "Extensive .harness documentation including incident post-mortems, architecture decision records, and escalation contracts — rare and genuinely useful operational knowledge base",
+    "Docker non-root user (pidev, uid 1001) with explicit directory ownership — good container security practice"
+  ]
+}
+```
