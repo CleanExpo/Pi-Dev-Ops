@@ -1122,6 +1122,23 @@ async def _phase_claude_check(session, resume_from: str) -> bool:
         em(session, "system", "  [SKIP] Claude check (already completed)")
         return True
     em(session, "phase", "[3/5] Checking Claude Code...")
+
+    if config.USE_AGENT_SDK:
+        # SDK mode — no claude CLI needed; verify the SDK package is importable
+        try:
+            import claude_agent_sdk as _sdk  # noqa: PLC0415
+            version = getattr(_sdk, "__version__", "installed")
+            em(session, "success", f"  claude_agent_sdk {version} (SDK mode)")
+            session.last_completed_phase = "claude_check"
+            persistence.save_session(session)
+            return True
+        except ImportError:
+            em(session, "error", "  claude_agent_sdk not installed — TAO_USE_AGENT_SDK=1 requires it")
+            session.status = "failed"
+            persistence.save_session(session)
+            return False
+
+    # Subprocess mode — check for claude CLI binary
     try:
         rc, out, err = await run_cmd(session.workspace, config.CLAUDE_CMD, "--version", timeout=10)
         if rc == 0:
