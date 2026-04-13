@@ -33,8 +33,9 @@ class BuildRequest(BaseModel):
     model: str = "sonnet"
     evaluator_enabled: bool | None = None
     intent: str = ""
-    budget_minutes: int | None = None  # RA-677: AUTONOMY_BUDGET single-knob override
-    scope: dict | None = None          # RA-676: session scope contract
+    budget_minutes: int | None = None   # RA-677: AUTONOMY_BUDGET single-knob override
+    scope: dict | None = None           # RA-676: session scope contract
+    plan_discovery: bool = False        # RA-679: run plan variation discovery before generate
 
     @field_validator("repo_url")
     @classmethod
@@ -256,7 +257,8 @@ async def build(body: BuildRequest):
             evaluator_enabled=evaluator_enabled,
             intent=body.intent,
             budget_minutes=budget,
-            scope=body.scope,  # RA-676: session scope contract
+            scope=body.scope,                       # RA-676: session scope contract
+            plan_discovery=body.plan_discovery,     # RA-679: plan variation discovery
         )
     except RuntimeError as e:
         raise HTTPException(429, str(e))

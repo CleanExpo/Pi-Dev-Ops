@@ -263,6 +263,8 @@ class BuildSession:
     scope: Optional[dict] = None              # RA-676: session scope contract
     modified_files: list = field(default_factory=list)   # RA-676: git-tracked modified files
     scope_adhered: Optional[bool] = None      # RA-676: None=no scope, True/False=check result
+    plan_discovery: bool = False              # RA-679: run plan variation discovery before generate
+    plan_discovery_meta: Optional[dict] = None  # RA-679: {scores, winner, winner_score, duration_s}
     last_completed_phase: str = ""            # Phase tracking for resume (GROUP D/E)
     retry_count: int = 0                      # Evaluator retry count (GROUP C)
     linear_issue_id: Optional[str] = None    # Linear issue ID for two-way sync
@@ -1458,6 +1460,20 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     em(session, "system", f"  Intent: {resolved_intent.upper()}")
     spec = build_structured_brief(brief, resolved_intent, session.repo_url, session.workspace)
 
+    # RA-679 — optional plan variation discovery (generates 3 approaches, picks best)
+    if getattr(session, "plan_discovery", False):
+        try:
+            from .agents.plan_discovery import discover_best_plan  # noqa: PLC0415
+            em(session, "phase", "[3.5/5] Plan Discovery (3 variants, haiku)...")
+            spec, meta = await discover_best_plan(brief, spec, session_id=session.id)
+            session.plan_discovery_meta = meta
+            if meta:
+                em(session, "system",
+                   f"  Plan Discovery: variant {meta['winner']} won "
+                   f"({meta['winner_score']:.1f}/10) in {meta['duration_s']}s")
+        except Exception as _disc_exc:
+            _log.warning("plan_discovery hook failed (non-fatal): %s", _disc_exc)
+
     if not await _phase_generate(session, spec, model, resume_from):
         _sync_linear_on_completion(session)
         return
@@ -1527,6 +1543,7 @@ async def create_session(
     linear_issue_id: Optional[str] = None,
     budget_minutes: Optional[int] = None,
     scope: Optional[dict] = None,
+    plan_discovery: bool = False,
 ):
     """Create and start a new build session.
 
@@ -1556,6 +1573,7 @@ async def create_session(
         linear_issue_id=linear_issue_id or None,
         budget_params=bp,
         scope=scope or None,
+        plan_discovery=plan_discovery,
     )
     if scope:
         _log.info(
