@@ -1,0 +1,53 @@
+```json
+{
+  "techStack": [
+    "Python 3.11+",
+    "FastAPI",
+    "Uvicorn",
+    "WebSockets",
+    "Next.js 16",
+    "React 19",
+    "TypeScript",
+    "Tailwind CSS",
+    "Node.js 20",
+    "@anthropic-ai/sdk",
+    "@modelcontextprotocol/sdk",
+    "@octokit/rest",
+    "@supabase/supabase-js",
+    "Supabase (PostgreSQL + pgvector)",
+    "xterm.js",
+    "Docker",
+    "Railway (deployment)",
+    "Vercel (deployment)",
+    "Claude Agent SDK (claude-agent-sdk)",
+    "bcrypt",
+    "httpx",
+    "pyyaml",
+    "zod"
+  ],
+  "pattern": "microservices",
+  "entryPoints": [
+    "app/server/main.py",
+    "dashboard/app/",
+    "mcp/pi-ceo-server.js",
+    "src/tao/"
+  ],
+  "keyDependencies": [
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "anthropic>=0.90",
+    "claude-agent-sdk>=0.1",
+    "next@^16.2.3",
+    "react@^19.0.0",
+    "@anthropic-ai/sdk@^0.36.3",
+    "@modelcontextprotocol/sdk@^1.29.0",
+    "@octokit/rest@^21.0.2",
+    "@supabase/supabase-js@^2.101.1",
+    "websockets>=12",
+    "bcrypt>=4.0",
+    "zod@^4.3.6"
+  ],
+  "dataFlow": "User submits repo URL + brief via Next.js dashboard → POST /api/build on FastAPI backend → create_session() clones repo into workspace → Claude Agent SDK executes 5-phase pipeline (Plan→Generate→Evaluate→Test→Ship) with streaming output over WebSocket /ws/build/{sid} and SSE /api/sessions/{sid}/logs → evaluator grades diff against 4 dimensions → results persisted to Supabase and .harness/ → Linear ticket updated → MCP server (mcp/pi-ceo-server.js) exposes analysis results to Claude Desktop via stdio JSON-RPC 2.0. Autonomy poller (app/server/autonomy.py) runs on Railway, polls Linear every 5 min for Todo issues and self-creates sessions. Telegram bidirectional loop handles phone-based commands via webhook/telegram endpoint and scheduled inbox polling.",
+  "architectureNotes": "Three-service architecture: (1) FastAPI backend on Railway handles auth, session lifecycle, WebSocket streaming, Linear/GitHub webhooks, cron triggers, and the autonomous poller; (2) Next.js frontend on Vercel runs 8 analysis phases against GitHub repos supporting dual-mode Claude Max CLI or Anthropic SDK; (3) Node.js MCP server exposes 21 tools to Claude Desktop via stdio JSON-RPC. The TAO (Tiered Agent Orchestrator) pattern routes work across Opus 4.6 (planner), Sonnet 4.6 (generator+evaluator), and Haiku 4.5 (worker) tiers with SDK-only execution as of Sprint 8 (RA-576 removed subprocess fallback). The .harness/ directory acts as a file-based state machine holding harness YAML, lessons, scan results, board minutes, and cron trigger state — a deliberate design choice that makes the system's memory inspectable and git-committable."
+}
+```
