@@ -105,7 +105,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // ── GitHub Issues — handled separately (no Claude needed) ─────────────────
   if (action === "github_issues") {
-    const token = process.env.GITHUB_TOKEN;
+    const token = process.env.GITHUB_TOKEN?.trim();
     if (!token || !repoOwner || !repoName) {
       return NextResponse.json({ error: "GitHub token, repoOwner, and repoName required" }, { status: 400 });
     }

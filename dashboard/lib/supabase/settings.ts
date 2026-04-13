@@ -16,15 +16,15 @@ export interface AppSettings {
 }
 
 const DEFAULTS: AppSettings = {
-  githubToken:      process.env.GITHUB_TOKEN        ?? "",
-  anthropicApiKey:  process.env.ANTHROPIC_API_KEY   ?? "",
-  analysisModel:    process.env.ANALYSIS_MODEL      ?? "claude-sonnet-4-6",
-  webhookSecret:    process.env.WEBHOOK_SECRET      ?? "",
+  githubToken:      (process.env.GITHUB_TOKEN        ?? "").trim(),
+  anthropicApiKey:  (process.env.ANTHROPIC_API_KEY   ?? "").trim(),
+  analysisModel:    (process.env.ANALYSIS_MODEL      ?? "claude-sonnet-4-6").trim(),
+  webhookSecret:    (process.env.WEBHOOK_SECRET      ?? "").trim(),
   cronRepos:        [],
-  vercelToken:      process.env.VERCEL_TOKEN        ?? "",
-  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN  ?? "",
-  telegramChatId:   process.env.TELEGRAM_CHAT_ID    ?? "",
-  linearApiKey:     process.env.LINEAR_API_KEY      ?? "",
+  vercelToken:      (process.env.VERCEL_TOKEN        ?? "").trim(),
+  telegramBotToken: (process.env.TELEGRAM_BOT_TOKEN  ?? "").trim(),
+  telegramChatId:   (process.env.TELEGRAM_CHAT_ID    ?? "").trim(),
+  linearApiKey:     (process.env.LINEAR_API_KEY      ?? "").trim(),
 };
 
 const KEY_MAP: Record<string, keyof AppSettings> = {
