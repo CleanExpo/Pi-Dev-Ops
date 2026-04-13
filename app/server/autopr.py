@@ -354,13 +354,13 @@ async def _main() -> None:
             all_projects = json.load(f)["projects"]
         proj = next((p for p in all_projects if p["id"] == args.project), None)
         if not proj:
-            print(f"Project '{args.project}' not found")
+            log.error("Project '%s' not found", args.project)
             raise SystemExit(1)
         result = await run_autopr(proj, dry_run=args.dry_run)
-        print(json.dumps(result, indent=2))
+        log.info("%s", json.dumps(result, indent=2))
     else:
         results = await run_autopr_all(dry_run=args.dry_run)
-        print(json.dumps(results, indent=2))
+        log.info("%s", json.dumps(results, indent=2))
 
 
 if __name__ == "__main__":

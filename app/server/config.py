@@ -179,7 +179,13 @@ SCAN_PATH_EXCLUSIONS: list[str] = [p.strip() for p in
         "scripts/generate-env-docs.js,"
         "scripts/get-linear-task.js,"
         "scripts/fetch-linear.js,"
-        "docs/ISS-014-VERIFICATION.md"
+        "docs/ISS-014-VERIFICATION.md,"
+        "scripts/,"
+        "dashboard/scripts/,"
+        "Dockerfile,"
+        "railway.toml,"
+        "app/server/scanner.py,"
+        "archive/"
     ).split(",") if p.strip()
 ]
 

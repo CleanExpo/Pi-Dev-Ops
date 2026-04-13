@@ -476,17 +476,17 @@ async def _main() -> None:
         projects = scanner.load_projects()
         proj = next((p for p in projects if p["id"] == args.project), None)
         if not proj:
-            print(f"Project '{args.project}' not found")
+            log.error("Project '%s' not found", args.project)
             raise SystemExit(1)
         results = await scanner.scan_project(proj, scan_types)
         created = engine.triage(args.project, results, dry_run=args.dry_run)
-        print(json.dumps(created, indent=2))
+        log.info("%s", json.dumps(created, indent=2))
     else:
         all_results = await scanner.scan_all(scan_types=scan_types)
         all_created = engine.triage_all(all_results, dry_run=args.dry_run)
         total = sum(len(v) for v in all_created.values())
-        print(f"Total tickets created: {total}")
-        print(json.dumps(all_created, indent=2))
+        log.info("Total tickets created: %d", total)
+        log.info("%s", json.dumps(all_created, indent=2))
 
 
 if __name__ == "__main__":

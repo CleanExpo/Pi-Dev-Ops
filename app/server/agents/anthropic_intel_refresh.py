@@ -206,7 +206,7 @@ Fetched {len(fetched_urls)} documentation URLs. Delta detected against snapshot 
 
         if not dry_run:
             brief_file.write_text(brief_content)
-            log.info(f"Wrote brief to {brief_file}")
+            log.info("Wrote brief to %s", brief_file)
 
     # Write new snapshot
     if not dry_run and fetched_content:
@@ -215,7 +215,7 @@ Fetched {len(fetched_urls)} documentation URLs. Delta detected against snapshot 
             filename = url_to_filename[url]
             snapshot_file = new_snapshot_path / filename
             snapshot_file.write_text(content)
-            log.info(f"Wrote snapshot to {snapshot_file}")
+            log.info("Wrote snapshot to %s", snapshot_file)
 
     return {
         "fetched_urls": fetched_urls,
@@ -231,6 +231,10 @@ Fetched {len(fetched_urls)} documentation URLs. Delta detected against snapshot 
 
 def main() -> None:
     """Run refresh with CLI args."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    )
     parser = argparse.ArgumentParser(
         description="Fetch and diff Anthropic docs against snapshot."
     )
@@ -258,7 +262,7 @@ def main() -> None:
             dry_run=args.dry_run,
         )
     )
-    print(json.dumps(result, indent=2))
+    log.info("%s", json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":

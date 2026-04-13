@@ -3,8 +3,6 @@ test_webhook.py — Unit tests for GitHub and Linear webhook signature verificat
 """
 import hashlib
 import hmac
-import json
-import pytest
 
 from app.server.webhook import (
     verify_github_signature,

@@ -2,7 +2,6 @@
 conftest.py — shared pytest fixtures for Pi-CEO unit tests.
 """
 import os
-import pytest
 
 # Set required env vars before any app imports
 os.environ.setdefault("TAO_PASSWORD", "test-password-ci")

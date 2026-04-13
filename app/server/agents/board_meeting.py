@@ -1483,10 +1483,10 @@ def main() -> None:
 
     if args.full:
         result = run_full_board_meeting(dry_run=args.dry_run, cycle=args.cycle)
-        print(json.dumps(result, indent=2, ensure_ascii=False, default=str))
+        log.info("%s", json.dumps(result, indent=2, ensure_ascii=False, default=str))
     else:
         audit = run_gap_audit_phase(dry_run=args.dry_run)
-        print(json.dumps(audit, indent=2, ensure_ascii=False))
+        log.info("%s", json.dumps(audit, indent=2, ensure_ascii=False))
         for sev in ("critical", "high"):
             for item in audit.get(sev, []):
                 log.info("[%s] %s — %s", sev.upper(), item.get("category"), item.get("recommendation"))

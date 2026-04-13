@@ -5,7 +5,8 @@ Parses YAML frontmatter (name, description) + markdown body from
 each skills/*/SKILL.md file. Provides lookup by name and by intent
 (maps PITER intents to relevant skill sets).
 """
-import os, re
+import os
+import re
 
 _SKILLS_CACHE: dict | None = None
 

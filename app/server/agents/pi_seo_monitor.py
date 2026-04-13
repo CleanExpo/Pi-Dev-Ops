@@ -710,7 +710,7 @@ def main() -> None:
         use_agent=args.use_agent,
         dry_run=args.dry_run,
     )
-    print(digest.digest_markdown)
+    log.info("%s", digest.digest_markdown)
 
 
 if __name__ == "__main__":

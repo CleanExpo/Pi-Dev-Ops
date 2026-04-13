@@ -11,7 +11,6 @@ Covers:
   - Rate limiting (sliding window)
 """
 import time
-import pytest
 
 
 def test_sha256_password_correct():
