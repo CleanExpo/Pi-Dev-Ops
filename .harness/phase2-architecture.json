@@ -1,0 +1,60 @@
+```json
+{
+  "techStack": [
+    "Python 3.11+",
+    "FastAPI",
+    "Uvicorn",
+    "WebSockets",
+    "Next.js 16.2.x",
+    "React 19",
+    "TypeScript",
+    "Tailwind CSS",
+    "Node.js 20",
+    "@anthropic-ai/sdk ^0.36.3",
+    "@modelcontextprotocol/sdk ^1.29.0",
+    "@octokit/rest ^21.0.2",
+    "@supabase/supabase-js ^2.101.1",
+    "xterm ^5.3.0",
+    "claude-agent-sdk",
+    "anthropic>=0.90",
+    "bcrypt>=4.0",
+    "httpx>=0.27",
+    "pyyaml>=6",
+    "Docker",
+    "Supabase (PostgreSQL + pgvector)",
+    "Railway (backend deployment)",
+    "Vercel (dashboard deployment)",
+    "GitHub Actions (CI/CD)",
+    "Telegram Bot API",
+    "Linear API (GraphQL)",
+    "zod ^4.3.6"
+  ],
+  "pattern": "other",
+  "entryPoints": [
+    "app/server/main.py",
+    "dashboard/app/",
+    "mcp/pi-ceo-server.js",
+    "scripts/smoke_test.py",
+    "scripts/marathon_watchdog.py",
+    "scripts/marathon_telegram_inbox.py"
+  ],
+  "keyDependencies": [
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "anthropic>=0.90",
+    "claude-agent-sdk",
+    "next ^16.2.3",
+    "react ^19.0.0",
+    "@anthropic-ai/sdk ^0.36.3",
+    "@modelcontextprotocol/sdk ^1.29.0",
+    "@octokit/rest ^21.0.2",
+    "@supabase/ssr ^0.10.2",
+    "@supabase/supabase-js ^2.101.1",
+    "bcrypt>=4.0",
+    "websockets>=12",
+    "zod ^4.3.6"
+  ],
+  "dataFlow": "User submits a GitHub repo URL + brief via the Next.js dashboard → request proxied to FastAPI backend at app/server/main.py → create_session() in sessions.py clones the repo into an ephemeral workspace → 5-phase pipeline (Plan→Generate→Evaluate→Test→Ship) runs via Claude Agent SDK (TAO_USE_AGENT_SDK=1 only path since RA-576) → streaming output pushed to browser over WebSocket /ws/build/{sid} or SSE /api/sessions/{sid}/logs → evaluated output committed and pushed back to GitHub → Linear issue transitioned and Supabase tables (gate_checks, workflow_runs, etc.) written fire-and-forget. Separately, a Railway-hosted linear_todo_poller background coroutine polls Linear every 5 min for Urgent/High Todo issues and auto-creates sessions. Inbound Telegram messages from the founder land at /webhook/telegram (Railway-hosted) or are polled via scripts/marathon_telegram_inbox.py and drained by the marathon watchdog every 30 min. The MCP server (mcp/pi-ceo-server.js, stdio JSON-RPC 2.0) exposes 21 tools for Claude Desktop to read harness state and interact with Linear.",
+  "architectureNotes": "Three-tier TAO (Tiered Agent Orchestrator) system: Opus 4.6 as Planner/Orchestrator, Sonnet 4.6 as Specialist/Generator/Evaluator, Haiku 4.5 as Worker. The system has three distinct runtime surfaces — Railway (always-on FastAPI + autonomy poller + cron triggers), Vercel (Next.js dashboard, static + server functions), and local/MCP (Claude Desktop integration via stdio). As of Sprint 8 / RA-576, the subprocess claude -p fallback has been removed and the Claude Agent SDK is the sole execution path; TAO_USE_AGENT_SDK=0 causes an ImportError at startup by design. A known topology debt documented in .harness/INCIDENT-2026-04-12.md and ARCHITECTURE-V2.md is that the marathon watchdog and Telegram inbox poller still run inside ephemeral Cowork sandboxes, not on Railway, causing overnight autonomy failures when the Mac sleeps — the board-approved migration target is GH Actions as scheduler + Railway as thin state store."
+}
+```
