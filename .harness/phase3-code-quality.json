@@ -1,0 +1,148 @@
+```json
+{
+  "scores": {
+    "completeness": 7,
+    "correctness": 6,
+    "codeQuality": 7,
+    "documentation": 8
+  },
+  "issues": [
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": null,
+      "description": "The gap audit (`.harness/board-meetings/2026-04-12-gap-audit.json`) confirms no outbound Linear API calls exist in webhook.py or sessions.py. Build outcomes never update the Linear issue that triggered the build. The feedback loop is broken: Linear fires a webhook → session builds → ticket stays In Progress forever."
+    },
+    {
+      "severity": "critical",
+      "file": "app/requirements.txt",
+      "line": 8,
+      "description": "`claude-agent-sdk>=0.1` is a non-existent package name on PyPI. The actual SDK is installed differently (via npm or a private index). CLAUDE.md states `TAO_USE_AGENT_SDK=0` causes `ImportError` at startup — if this package fails to install on Railway, the entire server fails to start with no fallback. pyproject.toml doesn't list this dependency at all, creating a split dependency declaration."
+    },
+    {
+      "severity": "critical",
+      "file": "app/server/main.py",
+      "line": 237,
+      "description": "The `/webhook/telegram` endpoint only rejects requests when `expected_secret` is non-empty AND the header doesn't match. If `TELEGRAM_WEBHOOK_SECRET` is unset (the common case given it's optional in `.env.example`), ANY unauthenticated request can POST to this endpoint and trigger `mark_alert_acked()` with arbitrary `alert_key` values — silencing real alerts. The gap audit flags this exact pattern."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": 276,
+      "description": "`_telegram_send()` uses `urllib.request` with a blocking `urlopen()` call inside an async FastAPI handler. This blocks the event loop for up to 8 seconds on each Telegram API call. Should be `httpx.AsyncClient` or wrapped in `asyncio.get_event_loop().run_in_executor()`."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": 345,
+      "description": "`/api/scan` fires `asyncio.create_task(_run())` and immediately returns `{ok: True}` with no session ID or way to track the scan. If the scan fails inside the task, the error is silently swallowed. The caller has no way to check completion status or retrieve results."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": 105,
+      "description": "The `webhook` endpoint checks `if gh_event and gh_sig:` before verifying the secret is configured. If `WEBHOOK_SECRET` is unset, it raises HTTP 500 (internal server error) instead of 401, leaking that the secret is not configured. Should check `config.WEBHOOK_SECRET` before reading the body."
+    },
+    {
+      "severity": "high",
+      "file": ".harness/cron-triggers.json",
+      "line": null,
+      "description": "`last_fired_at` values for active scan triggers are epoch timestamps in 2026 (~1775952090) which correspond to roughly year 2026 — but these will reset to `null` on Railway redeploy per CLAUDE.md and the incident post-mortem. The debounce logic using these values will suppress all scans for up to 6 hours after every deploy. This is a documented known bug (RA-579) that hasn't been fixed."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": 197,
+      "description": "The WebSocket auth extracts token from `authorization` header via `.replace('Bearer ', '')` without case-insensitive matching or validation. If the client sends `Authorization: bearer <token>` (lowercase), the replace fails silently and the raw header value is used as the token, causing a spurious 4001 close."
+    },
+    {
+      "severity": "high",
+      "file": "dashboard/package.json",
+      "line": 15,
+      "description": "`next: '^16.2.3'` — Next.js 16 does not exist as a stable release (latest stable is 15.x as of early 2026). This either resolves to a pre-release/canary or fails. Combined with `react: '^19.0.0'`, this is a bleeding-edge stack that will generate build warnings or fail CI. The CI job does `npm run build` which would catch this, but it's a real version management risk."
+    },
+    {
+      "severity": "high",
+      "file": "app/server/main.py",
+      "line": 144,
+      "description": "The `/ws/build/{sid}` WebSocket handler has an unbounded `while True` loop with no max-duration guard. A session stuck in `building` state (e.g., subprocess hangs) will hold the WebSocket connection open indefinitely, leaking file descriptors and connections."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": 80,
+      "description": "Two `@app.on_event('startup')` handlers (`on_startup` and `_start_claude_poll`) are registered separately. FastAPI executes all of them, but this is the deprecated pattern. In FastAPI 0.111+, the `lifespan` context manager is the recommended approach. More critically, if `on_startup` raises an exception, `_start_claude_poll` may or may not run depending on handler ordering."
+    },
+    {
+      "severity": "medium",
+      "file": ".env.example",
+      "line": 46,
+      "description": "`NEXT_PUBLIC_SUPABASE_URL` is declared twice in `.env.example` — once with the real Supabase URL (`https://zbryrmxmgfmslqzizsto.supabase.co`) and once with a placeholder (`https://your-project.supabase.co`). The real URL is committed to the repo, exposing the Supabase project ID publicly."
+    },
+    {
+      "severity": "medium",
+      "file": "app/server/main.py",
+      "line": 55,
+      "description": "`BuildRequest.valid_model` validator allows only `opus|sonnet|haiku` but the model names used in actual SDK calls (e.g., `claude-sonnet-4-6`) are different. The mapping from alias to full model ID must happen somewhere downstream — if it's missing or breaks, the SDK will receive an invalid model identifier."
+    },
+    {
+      "severity": "medium",
+      "file": "Dockerfile",
+      "line": 39,
+      "description": "`COPY src/ ./src/` — the `src/` directory is not present in the file listing provided and is not in `pyproject.toml` as a package source. This COPY instruction will fail silently (creating an empty dir) or fail the build if Docker's `--no-cache` is used and the directory doesn't exist."
+    },
+    {
+      "severity": "medium",
+      "file": ".harness/anthropic-docs/api-reference.md",
+      "line": null,
+      "description": "The Anthropic docs files (api-reference.md, claude-code-overview.md, mcp-overview.md, etc.) contain raw Next.js SSR hydration JavaScript blobs (`self.__next_f.push(...)`, inline CSS, font-face declarations). These are not useful documentation — the fetch script scraped rendered HTML instead of the actual content. Any agent using these for context will get garbage. This is a real operational gap documented in the board meetings."
+    },
+    {
+      "severity": "low",
+      "file": "app/server/main.py",
+      "line": 391,
+      "description": "`/api/pipeline/{pipeline_id}` uses `from dataclasses import asdict` to serialize `PipelineState`. If `PipelineState` contains non-serializable types (datetime, Path, Enum), `asdict` will raise `TypeError` at runtime. No error handling wraps this call."
+    },
+    {
+      "severity": "low",
+      "file": "mcp/package.json",
+      "line": 9,
+      "description": "`\"test\": \"echo \\\"Error: no test specified\\\" && exit 1\"` — the MCP server has zero tests. Combined with `zod: '^4.3.6'` (Zod v4 has breaking API changes from v3), there's no validation that the schema definitions work correctly."
+    }
+  ],
+  "missingTests": [
+    "WebSocket authentication path — no test for token-from-header vs token-from-cookie fallback, or the 4001 close on invalid token",
+    "Webhook HMAC verification — no test for the case where WEBHOOK_SECRET is unset (should not 500)",
+    "Rate limiting middleware — no test that 31 req/min from same IP returns 429",
+    "Session resume endpoint — no test for the `resume_from` phase checkpoint logic in `run_build()`",
+    "Telegram webhook `/ack_alert` with missing or mismatched secret when TELEGRAM_WEBHOOK_SECRET is unset",
+    "Parallel build fan-out (`/api/build/parallel`) — no test for n_workers boundary conditions or concurrent session limit interaction",
+    "Cron trigger debounce logic — no test for the bogus-future-timestamp suppression bug (RA-579)",
+    "SSE log streaming endpoint — the gap audit flags this as potentially missing; no test confirms it exists and correctly terminates",
+    "Linear webhook handler end-to-end — no test that a Linear issue-started event with a `repo:<url>` label triggers `create_session()`",
+    "MCP server tool implementations — zero tests for any of the 21 MCP tools in `mcp/pi-ceo-server.js`",
+    "Cookie SameSite/Secure behavior difference between `_IS_CLOUD=True` and `_IS_CLOUD=False` — security-critical but untested",
+    "Session garbage collection — no test that `collect_garbage()` correctly identifies and removes expired sessions"
+  ],
+  "securityConcerns": [
+    "`.env.example` line 46: real Supabase project ID (`zbryrmxmgfmslqzizsto`) committed to public repo — allows enumeration of the Supabase project even if service role key is not exposed",
+    "`app/server/main.py` Telegram webhook: unauthenticated alert-ack when `TELEGRAM_WEBHOOK_SECRET` is unset — attacker can silence any critical alert by POSTing to `/webhook/telegram` with a crafted `alert_key`",
+    "`.claude/settings.json`: `defaultMode: bypassPermissions` with `Write(*)`, `Edit(*)`, `rm:*`, `curl:*`, `wget:*` — an agent session on a compromised prompt can write to any path or exfiltrate data. The `deny` list blocks `curl * | sh` syntactically but not semantically (write a script then execute it)",
+    "`app/server/main.py` CSP header: `script-src 'self' 'unsafe-inline'` — inline script execution is permitted, defeating most XSS protections the CSP is supposed to provide",
+    "`app/server/main.py`: password hashed as SHA-256 per README, but `bcrypt` is listed in requirements — if the actual implementation mixes the two approaches, timing-safe comparison of SHA-256 hashes is weaker than bcrypt for offline attacks",
+    "`app/requirements.txt`: `claude-agent-sdk>=0.1` with no upper bound — a malicious or breaking release of this package (if it ever exists on PyPI) would be auto-installed on next Railway deploy",
+    "`.harness/board-meetings/2026-04-12-gap-audit.json`: gap audit flags that `verify_github_signature` uses `hmac.new` — this is `hmac.new(key, msg, digestmod)` which is valid Python, but the key must be `bytes`. If `config.WEBHOOK_SECRET` is a plain string and not `.encode()`d, HMAC verification silently fails or raises TypeError"
+  ],
+  "positives": [
+    "Security middleware stack is genuinely well-structured: timing-safe password comparison via `hmac.compare_digest`, HttpOnly+SameSite cookies, CSP headers, X-Frame-Options DENY, rate limiting, and CORS all present and correctly differentiated between cloud and local modes",
+    "Pydantic v2 validators on all request models with explicit allowlists (model names, URL schemes, n_workers range) — input validation is thorough at the API boundary",
+    "The `_resilient()` wrapper pattern for background tasks with crash-recovery and auto-restart is a clean, reusable solution to the background task reliability problem",
+    "Escalation contract (`.harness/ESCALATION.md`) is exceptionally detailed and operationally honest — explicit never-do list, precise envelope format, and the distinction between self-heal vs escalate modes is well-designed",
+    "Atomic session persistence via write-to-.tmp-then-`os.replace()` is correctly specified in CLAUDE.md and enforced as a convention — protects against partial writes on crash",
+    "The incident post-mortem (`.harness/INCIDENT-2026-04-12.md`) demonstrates genuine engineering honesty — five-whys analysis that reaches the real root cause (topology, not code) rather than blaming a single bug",
+    "`.gitignore` is comprehensive and correctly scoped — harness runtime data, telegram inbox, scan results, and secrets all excluded; the `.env.example` exception pattern is correct",
+    "CI pipeline has three distinct jobs (python/frontend/smoke-prod) with appropriate separation of concerns; the smoke-prod job correctly gates on main-branch pushes only and requires a GitHub secret",
+    "The health endpoint is genuinely useful for operations — `autonomy.armed`, `seconds_since_last_poll`, `disk_free_gb`, and `claude_cli` status give real operational signal rather than just process liveness"
+  ]
+}
+```
