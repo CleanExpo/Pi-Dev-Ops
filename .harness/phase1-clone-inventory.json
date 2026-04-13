@@ -1,0 +1,80 @@
+```json
+{
+  "totalFiles": 74,
+  "languages": {
+    "Python": 1847,
+    "TypeScript": 312,
+    "JavaScript": 89,
+    "JSON": 1243,
+    "YAML": 287,
+    "Markdown": 8941,
+    "TOML": 34,
+    "Dockerfile": 42,
+    "Shell": 0
+  },
+  "topFiles": [
+    ".harness/BOARD-DELIBERATION-ENHANCED-2026-04-12.md — ~1100 LOC",
+    ".harness/BOARD-DELIBERATION-2026-04-12.md — ~780 LOC",
+    "app/server/main.py — ~420 LOC",
+    ".harness/anthropic-docs/claude-code-cli-reference.md — ~380 LOC (mostly raw HTML)",
+    ".harness/anthropic-docs/tool-use.md — ~360 LOC (mostly raw HTML)",
+    ".harness/anthropic-docs/models-overview.md — ~340 LOC (mostly raw HTML)",
+    ".harness/anthropic-docs/api-reference.md — ~330 LOC (mostly raw HTML)",
+    ".harness/anthropic-docs/mcp-overview.md — ~320 LOC (mostly raw HTML)",
+    ".harness/INCIDENT-2026-04-12.md — ~300 LOC",
+    ".harness/board-meetings/2026-04-12-board-minutes.md — ~280 LOC"
+  ],
+  "frameworks": [
+    "FastAPI",
+    "Next.js 16",
+    "React 19",
+    "Tailwind CSS",
+    "Uvicorn",
+    "Pydantic v2",
+    "Supabase",
+    "@modelcontextprotocol/sdk",
+    "@anthropic-ai/sdk",
+    "@octokit/rest",
+    "xterm.js",
+    "Radix UI",
+    "Zod",
+    "hatchling"
+  ],
+  "entryPoints": [
+    "app/server/main.py",
+    "mcp/pi-ceo-server.js",
+    "dashboard/package.json (next dev / next build)",
+    "Dockerfile (uvicorn app.server.main:app)",
+    "app/Dockerfile (uvicorn server.main:app)"
+  ],
+  "testFiles": 0,
+  "testCoveragePresent": false,
+  "ciCdConfig": [
+    ".github/workflows/ci.yml",
+    ".github/workflows/smoke_test.yml"
+  ],
+  "dockerPresent": true,
+  "envExamplePresent": true,
+  "packageManagers": [
+    "pip",
+    "npm",
+    "hatchling"
+  ],
+  "totalDependencies": 38,
+  "architecturePattern": "fullstack",
+  "missingCriticalFiles": [
+    "tests/ directory — zero test files present in the repo context provided (CI references pytest tests/ but no test files shown)",
+    "app/server/sessions.py — referenced extensively but not provided",
+    "app/server/config.py — referenced extensively but not provided",
+    "app/server/auth.py — referenced but not provided",
+    "mcp/pi-ceo-server.js — referenced but not provided",
+    "scripts/smoke_test.py — referenced in CI but not provided",
+    "dashboard/app/ — Next.js app directory not provided",
+    "dashboard/.env.example — present but dashboard-specific; root .env.example also present",
+    "railway.toml — listed in .gitignore exclusions, not provided",
+    "DEPLOYMENT.md — referenced in CLAUDE.md and config.yaml but not provided",
+    "src/tao/ — TAO engine directory referenced in Dockerfile COPY but not provided",
+    "skills/ — 28 SKILL.md files referenced but none provided"
+  ]
+}
+```
