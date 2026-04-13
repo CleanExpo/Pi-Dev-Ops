@@ -44,6 +44,11 @@ _CLAUDE_MD_CATEGORIES = {"persistence", "rate-limit", "gc", "windows", "auth"}
 _LINEAR_TEAM_ID = os.environ.get("LINEAR_TEAM_ID", "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673")
 _LINEAR_PROJECT_ID = "f45212be-3259-4bfb-89b1-54c122c939a7"  # Pi - Dev -Ops
 
+# Run-once lock: prevent duplicate floods when an autonomous session calls this
+# script multiple times in the same calendar day (UTC).
+_LOCK_FILE = _HARNESS / ".analyse-lessons-last-run"
+_RUN_COOLDOWN_HOURS = 20  # Must be at least 20h between ticket-creating runs
+
 
 # ─── lesson loading ────────────────────────────────────────────────────────────
 
@@ -285,11 +290,46 @@ def register_cron_trigger() -> None:
 # ─── main ────────────────────────────────────────────────────────────────────
 
 
+def _check_run_cooldown(dry_run: bool) -> bool:
+    """Return True if it is safe to proceed (no recent run).
+
+    Writes a timestamp to _LOCK_FILE on success so subsequent calls within
+    _RUN_COOLDOWN_HOURS are suppressed.  Dry-run skips the lock entirely.
+    """
+    if dry_run:
+        return True
+    if _LOCK_FILE.exists():
+        try:
+            last_run = datetime.fromisoformat(_LOCK_FILE.read_text().strip())
+            elapsed = datetime.now(timezone.utc) - last_run
+            if elapsed.total_seconds() < _RUN_COOLDOWN_HOURS * 3600:
+                log.info(
+                    "Skipping run — last ticket-creating run was %s ago (cooldown %dh). "
+                    "Use --dry-run to bypass.",
+                    elapsed, _RUN_COOLDOWN_HOURS,
+                )
+                return False
+        except (ValueError, OSError):
+            pass  # Corrupted lock file — proceed and overwrite
+    return True
+
+
+def _record_run() -> None:
+    """Stamp the lock file with the current UTC time."""
+    try:
+        _LOCK_FILE.write_text(datetime.now(timezone.utc).isoformat())
+    except OSError as exc:
+        log.warning("Could not write run lock file: %s", exc)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Pi Dev Ops self-improvement loop")
     parser.add_argument("--dry-run", action="store_true", help="Skip Linear ticket creation and cron registration")
     parser.add_argument("--min-count", type=int, default=2, help="Min lesson count to trigger a proposal (default 2)")
     args = parser.parse_args()
+
+    if not _check_run_cooldown(args.dry_run):
+        sys.exit(0)
 
     lessons = load_lessons(_LESSONS_FILE)
     if not lessons:
@@ -321,6 +361,7 @@ def main() -> None:
 
     if not args.dry_run:
         register_cron_trigger()
+        _record_run()
     else:
         log.info("[DRY RUN] Would register cron trigger (skipped)")
 
