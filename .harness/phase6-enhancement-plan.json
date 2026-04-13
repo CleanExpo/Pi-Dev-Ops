@@ -1,0 +1,152 @@
+```json
+{
+  "sprints": [
+    {
+      "id": 1,
+      "name": "Trust & Stability — Fix What Lies",
+      "duration": "5d",
+      "goal": "Eliminate the three architectural lies: false health reporting, stale self-assessment, and broken Linear auth that make every board cycle operate blind.",
+      "items": [
+        {
+          "title": "Add autonomy.armed + seconds_since_last_poll to /health response (RA-576 follow-on)",
+          "size": "S",
+          "priority": "P1",
+          "piter": {
+            "problem": "app/server/main.py /health returns status:ok even when LINEAR_API_KEY is absent and the autonomy poller is silently skipping every cycle; autonomy.armed and last_poll_at fields exist in the health payload (CLAUDE.md line referencing commit e611b1c) but the fix was never pushed to origin/main — Railway runs stale code",
+            "impact": "Overnight marathon runs produce zero commits and zero Linear transitions while /health reports green; the watchdog and monitoring stack cannot distinguish a working system from a dead one, causing false-negative escalations and eroding founder trust",
+            "result": "GET /health returns autonomy.armed:true only when both TAO_AUTONOMY_ENABLED=1 and LINEAR_API_KEY are set; seconds_since_last_poll updates on every poller tick; Railway smoke test verifies field presence within 5 minutes of deploy"
+          }
+        },
+        {
+          "title": "Regenerate spec.md, feature_list.json, leverage-audit.md to Sprint 9/Cycle 23 reality",
+          "size": "M",
+          "priority": "P1",
+          "piter": {
+            "problem": "spec.md is stale (last updated 2026-04-10 per board minutes 2026-04-12-1200); .harness/board-meetings/2026-04-13-ceo-memo-board-minutes.md explicitly names RA-675/RA-685 as the self-scan gap; get_last_analysis MCP tool returns Sprint 7 data for a Sprint 9 system; ZTE score self-reported as 60/60 in harness while CLAUDE.md header states 73/75 — the two sources contradict",
+            "impact": "Every autonomous board meeting, every Linear sprint plan, and every Claude agent session that reads spec.md starts from incorrect architectural context; the evaluator cannot grade output against real acceptance criteria; risk of regressions shipped as improvements",
+            "result": "spec.md, sprint_plan.md, feature_list.json, and leverage-audit.md all reflect Sprint 9 / Cycle 23 state; get_last_analysis returns ZTE 73/75; board cycle 24 opens with accurate data"
+          }
+        },
+        {
+          "title": "Resolve LINEAR_API_KEY 401 recurring auth failure in MCP server config",
+          "size": "S",
+          "priority": "P1",
+          "piter": {
+            "problem": "Three consecutive board cycles (2026-04-11, 2026-04-12 12:00, 2026-04-12 board-minutes) show LINEAR_API_KEY returning 401; board meetings fall back to harness-file-only sprint planning; triage engine cannot auto-create tickets from Pi-SEO findings; autonomy poller depends on the same key and silently skips when absent per CLAUDE.md",
+            "impact": "Sprint planning operates on 24h+ stale harness data instead of live Linear state; Pi-SEO findings accumulate without creating tickets; 10 Urgent issues on the board (per 2026-04-13 CEO memo) go untracked across multiple autonomous cycles",
+            "result": "Linear API responds 200 in MCP tool calls; board meeting Phase 2 shows live issue count not UNAVAILABLE; autonomy poller logs poll_count incrementing every 5 minutes in Railway logs"
+          }
+        },
+        {
+          "title": "Fix marathon watchdog false-positive: gate pytest check on import-chain not full test execution",
+          "size": "S",
+          "priority": "P1",
+          "piter": {
+            "problem": "scripts/marathon_watchdog.py runs python3 -m pytest tests/ in a Cowork sandbox that lacks anthropic>=0.90; import chain fails with ModuleNotFoundError; watchdog classifies exit 1 as CRITICAL test failure and pages Telegram at 00:38 UTC (documented in .harness/INCIDENT-2026-04-12.md Why #5); tests are actually 46/46 green",
+            "impact": "Founder is paged with CRITICAL false alarm at night; watchdog loses credibility; .harness/ESCALATION.md rule 2 states the watchdog must never cry wolf — one false CRITICAL already violated this contract; future real failures are ignored",
+            "result": "Watchdog uses pytest --collect-only (import check only) OR reads a signed status file written by GH Actions ci.yml; zero false-positive CRITICAL Telegram pages in 14-day monitoring window"
+          }
+        },
+        {
+          "title": "Wire get_zte_score MCP tool to parse leverage-audit.md instead of returning No ZTE data found",
+          "size": "S",
+          "priority": "P2",
+          "piter": {
+            "problem": "mcp/pi-ceo-server.js get_zte_score returns No ZTE data found (documented in board-meetings/2026-04-08-1200-board-minutes.md Phase 1); board meetings must manually source ZTE from leverage-audit.md; the 60/60 vs 73/75 discrepancy between harness files is invisible to automated tooling",
+            "impact": "Every autonomous board cycle reports an incorrect or missing ZTE score; the primary health metric that drives sprint decisions is unreliable; MCP tool advertised in README.md and .harness/BOARD-DELIBERATION files is broken",
+            "result": "mcp/pi-ceo-server.js get_zte_score parses .harness/leverage-audit.md, returns structured score + breakdown JSON; board meetings in cycle 24+ report accurate ZTE without manual fallback"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Autonomy Loop — Close the Gap Between Built and Running",
+      "duration": "5d",
+      "goal": "Activate the SDK canary, execute the first Pi-SEO sweep, and wire the self-improvement lesson analyser so three features that are fully built but have never run in production finally produce real output.",
+      "items": [
+        {
+          "title": "Activate SDK Canary Phase A: set TAO_USE_AGENT_SDK_CANARY_RATE=0.10 in Railway and validate 24h metrics",
+          "size": "S",
+          "priority": "P1",
+          "piter": {
+            "problem": "TAO_USE_AGENT_SDK_CANARY_RATE=0.10 has been unset in Railway across three consecutive board cycles (2026-04-11, 2026-04-12 twice); .harness/agents/sdk-phase2-rollout.md canary plan exists and is ready; _run_claude_via_sdk() in sessions.py and the evaluator SDK path (RA-571, RA-572) are dead code until real traffic touches them; CLAUDE.md states SDK-only mode as of Sprint 8 but subprocess fallback removal (RA-576) blocks the path when the env var is absent",
+            "impact": "Two sprint cycles of SDK implementation (RA-571, RA-572, RA-573, RA-574, RA-575, RA-578) produce zero real-world validation; the dual-path code risks bitrot; Phase B and Phase C eligibility gates in sdk-phase2-rollout.md cannot be reached until Phase A generates 24h of metrics",
+            "result": ".harness/agent-sdk-metrics/YYYY-MM-DD.jsonl shows entries with sdk_path:true; success rate >= 80% over 24h per sdk-phase2-rollout.md Phase A sign-off criteria; Phase B activation is unblocked"
+          }
+        },
+        {
+          "title": "Execute Pi-SEO first full sweep across all 10 repos in .harness/projects.json",
+          "size": "M",
+          "priority": "P1",
+          "piter": {
+            "problem": "Pi-SEO scanner, triage engine, 3 skill layers, 10 repos registered, cron rotation, and auto-PR are all production-ready since Sprint 6; zero baseline scan data exists across the portfolio; .harness/scan-results/ is empty for all 10 repos; board minutes cite this as Priority 2 across three consecutive cycles without execution",
+            "impact": "The entire Pi-SEO investment (multiple sprints of work) produces no value; CCW 1 critical + 196 high, RestoreAssist 25 high, DR-NRPG 2 critical + 130 high findings documented in charters are stale and may have regressed; Linear backlog has no data-driven work items",
+            "result": ".harness/scan-results/<project>/<date>-<type>.json files exist for all 10 repos; triage engine creates Linear issues for critical/high findings; portfolio health baseline scores appear in GET /api/projects/health response"
+          }
+        },
+        {
+          "title": "Deploy scripts/analyse_lessons.py and wire into cron-triggers.json analyse-lessons-weekly entry",
+          "size": "M",
+          "priority": "P2",
+          "piter": {
+            "problem": "cron-triggers.json has an analyse-lessons-weekly entry (id: analyse-lessons-weekly, script: scripts/analyse_lessons.py) with last_fired_at: null; the script does not exist in scripts/; .harness/lessons.jsonl has 38 entries (per RA-588-PREFLIGHT.md) with no pattern extraction; board minutes cite self-improvement loop as Priority 3 for three consecutive cycles",
+            "impact": "lessons.jsonl grows from evaluator auto-appends but no patterns surface to CLAUDE.md or skills/; the ZTE Level 3 meta-loop is incomplete; recurring failure patterns (e.g. bypassPermissions missing, sleep-first bootstrap delay) re-occur across sessions without systematic prevention",
+            "result": "scripts/analyse_lessons.py exists and runs; .harness/improvement-proposals/ directory receives weekly output grouping patterns appearing >= 3 times; cron entry last_fired_at updates on Sunday 16:00 UTC"
+          }
+        },
+        {
+          "title": "Fix cron-triggers.json debounce bug: abs() missing causes bogus-future-timestamp scan suppression on Railway redeploy",
+          "size": "S",
+          "priority": "P2",
+          "piter": {
+            "problem": "app/server/cron.py debounce logic compares last_fired_at to current time without abs(); on Railway redeploy last_fired_at resets or retains a future-looking unix timestamp; combined with the sleep-first bootstrap pattern, every deploy silently suppresses the next scheduled scan window (documented in .harness/board-meetings/2026-04-12-board-minutes.md THREATS section and lessons corpus)",
+            "impact": "Pi-SEO activation on broken cron infrastructure produces zero scans even with PI_SEO_ACTIVE=1 set; cron-triggers.json shows four scan entries with last_fired_at in 2026 but the scheduler never fires them post-redeploy; the overnight marathon produced zero Pi-SEO digests",
+            "result": "cron.py debounce uses abs(now - last_fired_at); a Railway redeploy followed by a 6-minute wait produces at least one scan firing per enabled trigger; Railway logs show Scan trigger id=scan-high-XXXX complete within 10 minutes of startup"
+          }
+        },
+        {
+          "title": "Rotate triage-cache.json at 50MB threshold and add pruning to startup routine",
+          "size": "S",
+          "priority": "P3",
+          "piter": {
+            "problem": "triage-cache.json is 353KB with no rotation strategy (flagged in three consecutive board minutes: 2026-04-11, 2026-04-12 12:00, 2026-04-12 board-minutes.md); the file grows with every Pi-SEO scan cycle; no pruning call exists in app/server/triage.py startup",
+            "impact": "Scanner startup degradation compounds every sprint; on Railway ephemeral disk this eventually causes OOM or disk-full errors that silently suppress scans; the 353KB baseline will reach MB-scale within weeks of Pi-SEO full activation",
+            "result": "triage-cache.json size stays below 50MB; startup pruning removes entries older than 30 days; file size visible in GET /api/projects/health response as cache_size_kb field"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Portfolio Security — Eliminate the Blocking Criticals",
+      "duration": "7d",
+      "goal": "Resolve the critical and high-severity security findings on CCW and DR-NRPG that represent actual commercial risk, establish the Business Velocity Index as the primary metric replacing ZTE score.",
+      "items": [
+        {
+          "title": "CCW: Classify and remediate 1 critical + top 20 high security findings (hardcoded secrets and SSRF)",
+          "size": "L",
+          "priority": "P1",
+          "piter": {
+            "problem": "ccw-charter.md documents 1 critical finding (SSRF vector in image-proxy endpoint per board deliberation 2026-04-12) and 196 high findings; 137 are Hardcoded secret/password that require manual classification as real-credential vs placeholder; Pi-SEO scan results in .harness/scan-results/ccw-crm/ provide the file/line data; no remediation has been attempted in any prior sprint",
+            "impact": "Revenue risk: CCW serves paying CleanExpo users; an SSRF exploit on a live CRM is a commercial termination event; 2026-04-13 CEO memo explicitly states RestoreAssist and CCW security health is a blocking gate before any new feature work",
+            "result": "ccw-crm security scan shows 0 critical findings; hardcoded secret count reduced from 137 to < 10 (remaining are documented fixture allowlists); .harness/business-charters/projects/ccw-charter.md pillar 1 updated from RED to AMBER"
+          }
+        },
+        {
+          "title": "DR-NRPG: Remediate 2 critical security findings and 4 critical npm vulnerabilities",
+          "size": "M",
+          "priority": "P1",
+          "piter": {
+            "problem": "disaster-recovery-nrpg-charter.md documents 2 critical + 130 high security findings and 4 critical npm CVEs in DR-NRPG; charter Phase 0 tickets DR-SEC-000 (critical security) and DR-SEC-001 (critical npm) are the first items on the roadmap but have not been executed; .harness/scan-results/dr-nrpg/ contains the baseline data",
+            "impact": "DR-NRPG handles practitioner PII and insurance-claim-adjacent data; a critical CVE in a runtime dependency on a live system is automatic Urgent triage per PI-CEO-STANDARD.md; the LangChain stack makes prompt-injection vectors from unpatched dependencies materially worse",
+            "result": "dr-nrpg security scan shows 0 critical findings; 4 critical npm advisories patched or removed (package.json + lock file updated); CI green on dr-nrpg main branch"
+          }
+        },
+        {
+          "title": "Introduce Business Velocity Index (BVI) as primary board metric replacing ZTE score",
+          "size": "M",
+          "priority": "P2",
+          "piter": {
+            "problem": "2026-04-13 CEO memo defines BVI as the primary metric from Cycle 24 and explicitly states ZTE score is now a background health check; BVI baseline is 0 CRITICALs resolved / 0 portfolio projects improved / 0 MARATHON completions; no tracking infrastructure exists for BVI components; shipped-features.jsonl referenced in feedback-loop-monthly cron entry does not exist",
+            "impact": "ZTE 73/75 while portfolio health is 62/100 with zero improvement trend proves ZTE optimises the wrong thing; without BVI tracking the system has no
