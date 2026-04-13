@@ -1,0 +1,45 @@
+```json
+{
+  "totalFiles": 82,
+  "languages": {
+    "Python": 4200,
+    "TypeScript": 1800,
+    "Markdown": 18500,
+    "JSON": 3200,
+    "YAML": 420,
+    "Dockerfile": 80,
+    "Shell": 40
+  },
+  "topFiles": [
+    ".harness/BOARD-DELIBERATION-ENHANCED-2026-04-12.md",
+    ".harness/BOARD-DELIBERATION-2026-04-12.md",
+    ".harness/anthropic-docs/claude-code-cli-reference.md",
+    ".harness/anthropic-docs/claude-code-overview.md",
+    ".harness/anthropic-docs/api-reference.md",
+    ".harness/anthropic-docs/tool-use.md",
+    ".harness/anthropic-docs/models-overview.md",
+    ".harness/anthropic-docs/mcp-overview.md",
+    "app/server/main.py",
+    ".harness/INCIDENT-2026-04-12.md"
+  ],
+  "frameworks": [
+    "FastAPI",
+    "Next.js",
+    "React",
+    "Tailwind CSS",
+    "Uvicorn",
+    "Supabase",
+    "MCP (Model Context Protocol)",
+    "Anthropic Claude SDK",
+    "Octokit",
+    "xterm.js"
+  ],
+  "entryPoints": [
+    "app/server/main.py",
+    "dashboard/package.json",
+    "mcp/pi-ceo-server.js",
+    "Dockerfile",
+    "app/Dockerfile"
+  ]
+}
+```
