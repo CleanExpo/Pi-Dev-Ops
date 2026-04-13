@@ -413,6 +413,65 @@ async def webhook(request: Request):
         raise HTTPException(400, "Missing webhook signature header (x-hub-signature-256 or Linear-Signature)")
 
 
+# ── RA-845: Morning AI platform intelligence webhook ──────────────────────────
+
+@app.post("/api/webhook/morning-intel", dependencies=[Depends(require_rate_limit)])
+async def morning_intel_webhook(request: Request):
+    """
+    RA-845 — Receive daily AI platform intelligence from n8n (11:45 AM AEST).
+
+    Payload:
+      {
+        "date": "2026-04-14",           # optional, defaults to today UTC
+        "anthropic": "...",             # Anthropic updates summary
+        "openai": "...",                # OpenAI updates summary
+        "xai": "...",                   # xAI/Grok updates summary
+        "flags": ["🔴 CRITICAL: ...", "🟢 ADOPT: ..."]
+      }
+
+    Writes to .harness/morning-intel/YYYY-MM-DD.json (atomic write).
+    Board meeting build_board_system_prompt() reads it at run time.
+    Protected by X-Pi-CEO-Secret header == TAO_WEBHOOK_SECRET.
+    """
+    import hmac as _hmac
+    from datetime import datetime, timezone
+
+    secret_header = request.headers.get("x-pi-ceo-secret", "")
+    if config.WEBHOOK_SECRET:
+        if not secret_header:
+            raise HTTPException(401, "X-Pi-CEO-Secret header required")
+        if not _hmac.compare_digest(secret_header, config.WEBHOOK_SECRET):
+            raise HTTPException(401, "Invalid secret")
+
+    raw_body = await request.body()
+    try:
+        payload = json.loads(raw_body)
+    except json.JSONDecodeError:
+        raise HTTPException(400, "Invalid JSON")
+
+    date_str = payload.get("date") or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    intel_dir = Path(config.DATA_DIR).parent.parent / ".harness" / "morning-intel"
+    intel_dir.mkdir(parents=True, exist_ok=True)
+
+    intel_file = intel_dir / f"{date_str}.json"
+    tmp = intel_file.with_suffix(".tmp")
+    tmp.write_text(json.dumps(payload, indent=2))
+    os.replace(tmp, intel_file)
+
+    flags: list = payload.get("flags") or []
+    critical_count = sum(1 for f in flags if "🔴" in str(f) or "CRITICAL" in str(f).upper())
+    log.info("Morning intel stored: date=%s flags=%d critical=%d path=%s",
+             date_str, len(flags), critical_count, intel_file)
+
+    return {
+        "ok": True,
+        "date": date_str,
+        "flags": len(flags),
+        "critical": critical_count,
+    }
+
+
 # ── RA-657: Telegram /ack_alert webhook ───────────────────────────────────────
 
 def _telegram_send(token: str, chat_id: int | str, text: str) -> None:

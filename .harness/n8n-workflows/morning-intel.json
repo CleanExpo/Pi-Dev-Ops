@@ -1,0 +1,151 @@
+{
+  "name": "Pi-CEO Morning AI Platform Intelligence",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "45 1 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule — 11:45 AM AEST (01:45 UTC)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "notes": "Fires at 01:45 UTC = 11:45 AM AEST. Gives 15 min before the 12PM board meeting."
+    },
+    {
+      "parameters": {
+        "url": "https://www.anthropic.com/news",
+        "options": {
+          "timeout": 15000,
+          "response": { "response": { "responseFormat": "text" } }
+        }
+      },
+      "id": "fetch-anthropic",
+      "name": "Fetch Anthropic News",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 180]
+    },
+    {
+      "parameters": {
+        "url": "https://openai.com/news",
+        "options": {
+          "timeout": 15000,
+          "response": { "response": { "responseFormat": "text" } }
+        }
+      },
+      "id": "fetch-openai",
+      "name": "Fetch OpenAI News",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://x.ai/blog",
+        "options": {
+          "timeout": 15000,
+          "response": { "response": { "responseFormat": "text" } }
+        }
+      },
+      "id": "fetch-xai",
+      "name": "Fetch xAI Blog",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 420]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Pi-CEO Morning Intel Formatter (RA-845) ──────────────────────────────\n// Extracts relevant content from fetched pages and formats for board meeting injection.\n\nconst today = new Date().toISOString().split('T')[0];\n\nconst anthropicRaw = $('Fetch Anthropic News').first().json.data || '';\nconst openaiRaw    = $('Fetch OpenAI News').first().json.data || '';\nconst xaiRaw       = $('Fetch xAI Blog').first().json.data || '';\n\n// Keywords that indicate material changes worth flagging\nconst CRITICAL_KEYWORDS = ['agent sdk', 'mcp', 'model context protocol', 'breaking', 'deprecat', 'hook', 'subagent'];\nconst COST_KEYWORDS     = ['price', 'pricing', 'cost reduction', 'context window', 'tokens', 'rate limit'];\nconst ADOPT_KEYWORDS    = ['new feature', 'now available', 'launch', 'release', 'introduce', 'api update', 'beta', 'ga ', 'generally available'];\n\nfunction extractText(html) {\n  // Strip HTML tags and collapse whitespace\n  return html\n    .replace(/<script[\\s\\S]*?<\\/script>/gi, '')\n    .replace(/<style[\\s\\S]*?<\\/style>/gi, '')\n    .replace(/<[^>]+>/g, ' ')\n    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim()\n    .slice(0, 3000);\n}\n\nfunction detectFlags(text, platform) {\n  const lower = text.toLowerCase();\n  const flags = [];\n  for (const kw of CRITICAL_KEYWORDS) {\n    if (lower.includes(kw)) {\n      flags.push(`🔴 CRITICAL [${platform}]: mentions \"${kw}\" — verify impact on Agent SDK / MCP pipeline`);\n      break;\n    }\n  }\n  for (const kw of COST_KEYWORDS) {\n    if (lower.includes(kw)) {\n      flags.push(`🟡 COST/CAPACITY [${platform}]: mentions \"${kw}\" — check for pricing or capacity changes`);\n      break;\n    }\n  }\n  for (const kw of ADOPT_KEYWORDS) {\n    if (lower.includes(kw)) {\n      flags.push(`🟢 ADOPT [${platform}]: new release/feature detected — evaluate for portfolio integration`);\n      break;\n    }\n  }\n  return flags;\n}\n\nconst anthropicText = extractText(anthropicRaw);\nconst openaiText    = extractText(openaiRaw);\nconst xaiText       = extractText(xaiRaw);\n\nconst allFlags = [\n  ...detectFlags(anthropicText, 'Anthropic'),\n  ...detectFlags(openaiText, 'OpenAI'),\n  ...detectFlags(xaiText, 'xAI'),\n];\n\nconst payload = {\n  date: today,\n  anthropic: anthropicText.slice(0, 800),\n  openai: openaiText.slice(0, 800),\n  xai: xaiText.slice(0, 800),\n  flags: allFlags,\n  source: 'n8n:morning-intel',\n  generated_at: new Date().toISOString(),\n};\n\nreturn [{ json: payload }];"
+      },
+      "id": "format-intel",
+      "name": "Format Intel Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.PI_CEO_RAILWAY_URL }}/api/webhook/morning-intel",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Pi-CEO-Secret",
+              "value": "={{ $env.PI_CEO_WEBHOOK_SECRET }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "post-to-piceo",
+      "name": "POST to Pi-CEO Railway",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $input.first().json;\nconst ok = res.ok === true;\nconst critical = res.critical || 0;\nconst flags = res.flags || 0;\n\nif (!ok) {\n  throw new Error(`Pi-CEO morning intel POST failed: ${JSON.stringify(res)}`);\n}\n\nconsole.log(`✅ Morning intel stored | date=${res.date} | flags=${flags} | critical=${critical}`);\n\nif (critical > 0) {\n  console.warn(`🔴 ${critical} CRITICAL flag(s) detected — board meeting will surface these in Phase 1`);\n}\n\nreturn [{ json: { success: true, date: res.date, flags, critical } }];"
+      },
+      "id": "log-result",
+      "name": "Log Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 300]
+    }
+  ],
+  "connections": {
+    "Schedule — 11:45 AM AEST (01:45 UTC)": {
+      "main": [[
+        { "node": "Fetch Anthropic News", "type": "main", "index": 0 },
+        { "node": "Fetch OpenAI News",    "type": "main", "index": 0 },
+        { "node": "Fetch xAI Blog",       "type": "main", "index": 0 }
+      ]]
+    },
+    "Fetch Anthropic News": { "main": [[{ "node": "Format Intel Payload", "type": "main", "index": 0 }]] },
+    "Fetch OpenAI News":    { "main": [[{ "node": "Format Intel Payload", "type": "main", "index": 0 }]] },
+    "Fetch xAI Blog":       { "main": [[{ "node": "Format Intel Payload", "type": "main", "index": 0 }]] },
+    "Format Intel Payload": { "main": [[{ "node": "POST to Pi-CEO Railway", "type": "main", "index": 0 }]] },
+    "POST to Pi-CEO Railway": { "main": [[{ "node": "Log Result", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": {
+    "description": "RA-845 — Fetches daily AI platform updates (Anthropic, OpenAI, xAI/Grok), applies CRITICAL/COST/ADOPT flags, and POSTs to Pi-CEO Railway endpoint at 11:45 AM AEST so the 12 PM board meeting has live intelligence context.",
+    "version": "1.0.0"
+  },
+  "_setup": {
+    "environment_variables_required": [
+      "PI_CEO_RAILWAY_URL — e.g. https://pi-ceo-production.up.railway.app",
+      "PI_CEO_WEBHOOK_SECRET — value of TAO_WEBHOOK_SECRET from Railway env vars"
+    ],
+    "import_instructions": "In n8n: Workflows → Import from file → select this JSON. Then set the two env vars in n8n Settings → Environment Variables."
+  }
+}

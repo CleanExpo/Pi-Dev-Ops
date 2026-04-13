@@ -193,6 +193,66 @@ def _read_zte_reality_status() -> str:
         return ""
 
 
+def _read_morning_intel() -> str:
+    """
+    RA-845 — Read today's AI platform intelligence from .harness/morning-intel/.
+
+    Written by n8n at 11:45 AM AEST daily (Anthropic + OpenAI + xAI/Grok updates).
+    Falls back to yesterday's file if today's hasn't arrived yet.
+    Capped at 4k chars. Returns empty string if no file found.
+    """
+    from datetime import datetime, timezone, timedelta
+    import json as _j
+
+    intel_dir = _HARNESS_ROOT / "morning-intel"
+    if not intel_dir.exists():
+        return ""
+
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+
+    intel_file = intel_dir / f"{today}.json"
+    if not intel_file.exists():
+        intel_file = intel_dir / f"{yesterday}.json"
+    if not intel_file.exists():
+        return ""
+
+    try:
+        data = _j.loads(intel_file.read_text())
+    except Exception as exc:
+        log.warning("Could not read morning intel %s: %s", intel_file.name, exc)
+        return ""
+
+    date_label = data.get("date", intel_file.stem)
+    flags: list[str] = data.get("flags", [])
+    critical_flags = [f for f in flags if "🔴" in f or "CRITICAL" in f.upper()]
+
+    sections: list[str] = [f"## MORNING AI PLATFORM INTELLIGENCE — {date_label}\n"]
+
+    if critical_flags:
+        sections.append("### 🔴 CRITICAL FLAGS (address in Phase 1 STATUS)\n")
+        sections.extend(f"- {f}" for f in critical_flags)
+        sections.append("")
+
+    for platform in ("anthropic", "openai", "xai"):
+        content = (data.get(platform) or "").strip()
+        if content:
+            label = {"anthropic": "Anthropic / Claude", "openai": "OpenAI", "xai": "xAI / Grok"}[platform]
+            sections.append(f"### {label}\n{content}\n")
+
+    non_critical = [f for f in flags if f not in critical_flags]
+    if non_critical:
+        sections.append("### Other Flags\n")
+        sections.extend(f"- {f}" for f in non_critical)
+
+    result = "\n".join(sections)
+    _CAP = 4000
+    if len(result) > _CAP:
+        result = result[:_CAP] + "\n\n_(truncated — full file in .harness/morning-intel/)_"
+
+    return result
+
+
 # ── Gap audit constants ───────────────────────────────────────────────────────
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]  # Pi-Dev-Ops/
@@ -598,11 +658,12 @@ Output ONLY the JSON array.
 
 def build_board_system_prompt() -> str:
     """
-    RA-609 — Build the full board meeting system prompt with injected context:
+    RA-609 / RA-845 — Build the full board meeting system prompt with injected context:
       - Core BOARD_MEETING_SYSTEM protocol
       - ZTE reality-check stall warning (if pipeline is stalled)
       - Prior board meeting minutes (last 2 cycles)
       - Latest Anthropic intelligence snapshot
+      - Morning AI platform intelligence (Anthropic + OpenAI + xAI/Grok, written by n8n at 11:45 AM)
 
     Call this instead of using BOARD_MEETING_SYSTEM directly so every
     board meeting cycle has full continuity context.
@@ -627,6 +688,13 @@ def build_board_system_prompt() -> str:
         parts.append(anthropic_docs)
     else:
         log.info("Board context: no Anthropic docs snapshot found in .harness/anthropic-docs/")
+
+    morning_intel = _read_morning_intel()
+    if morning_intel:
+        log.info("Board context: injected morning AI platform intelligence (RA-845)")
+        parts.append(morning_intel)
+    else:
+        log.info("Board context: no morning intel found in .harness/morning-intel/ (n8n not yet run?)")
 
     return "\n".join(parts)
 
