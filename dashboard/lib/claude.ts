@@ -44,9 +44,12 @@ function runPhaseCLI(
   model: string,
   prompt: string,
   context: string,
-  onChunk: PhaseStreamCallback
+  onChunk: PhaseStreamCallback,
+  signal?: AbortSignal,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(new Error("Phase aborted before start")); return; }
+
     const fullPrompt = `${SYSTEM}\n\n${prompt}\n\n---\nREPO CONTEXT:\n${context}`;
     const args = ["-p", fullPrompt, "--model", model, "--output-format", "text"];
 
@@ -57,6 +60,12 @@ function runPhaseCLI(
 
     let full = "";
     let stderr = "";
+
+    // Kill subprocess if abort signal fires
+    signal?.addEventListener("abort", () => {
+      child.kill("SIGTERM");
+      reject(new Error("Phase aborted: budget limit reached"));
+    }, { once: true });
 
     child.stdout.on("data", (data: Buffer) => {
       const chunk = data.toString();
@@ -69,6 +78,7 @@ function runPhaseCLI(
     });
 
     child.on("close", (code) => {
+      if (signal?.aborted) return; // already rejected
       if (code !== 0) {
         reject(new Error(`claude CLI exited with code ${code}: ${stderr.slice(0, 300)}`));
       } else {
@@ -88,19 +98,26 @@ async function runPhaseSDK(
   model: string,
   prompt: string,
   context: string,
-  onChunk: PhaseStreamCallback
+  onChunk: PhaseStreamCallback,
+  signal?: AbortSignal,
 ): Promise<string> {
+  if (signal?.aborted) throw new Error("Phase aborted before start");
+
   const fullPrompt = `${prompt}\n\n---\nREPO CONTEXT:\n${context}`;
 
-  const stream = await client.messages.stream({
-    model,
-    max_tokens: 4096,
-    system: SYSTEM,
-    messages: [{ role: "user", content: fullPrompt }],
-  });
+  const stream = await client.messages.stream(
+    {
+      model,
+      max_tokens: 4096,
+      system: SYSTEM,
+      messages: [{ role: "user", content: fullPrompt }],
+    },
+    { signal },
+  );
 
   let full = "";
   for await (const event of stream) {
+    if (signal?.aborted) throw new Error("Phase aborted: budget limit reached");
     if (
       event.type === "content_block_delta" &&
       event.delta.type === "text_delta"
@@ -119,13 +136,14 @@ export async function runPhase(
   model: string,
   prompt: string,
   context: string,
-  onChunk: PhaseStreamCallback
+  onChunk: PhaseStreamCallback,
+  signal?: AbortSignal,
 ): Promise<string> {
   if (getAnalysisMode() === "cli") {
-    return runPhaseCLI(model, prompt, context, onChunk);
+    return runPhaseCLI(model, prompt, context, onChunk, signal);
   }
   if (!client) throw new Error("SDK client required for api mode");
-  return runPhaseSDK(client, model, prompt, context, onChunk);
+  return runPhaseSDK(client, model, prompt, context, onChunk, signal);
 }
 
 // ── Chat (always uses SDK for responsiveness) ─────────────────────────────────

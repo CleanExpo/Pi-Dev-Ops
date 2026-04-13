@@ -60,10 +60,15 @@ export async function GET(req: NextRequest) {
         console.error(`[analyze] ${ctx}:`, err instanceof Error ? err.message : err);
       };
 
-      // ── Graceful budget: 270s (30s before Vercel's 300s hard limit) ────────
-      // Sends partial results and a timeout event instead of being killed mid-phase.
-      const BUDGET_MS = 270_000;
+      // ── Graceful budget: abort at 240s, hard stop at 260s ────────────────
+      // AbortController fires at 240s — kills any in-progress phase cleanly.
+      // budgetFired at 260s — prevents new phases from starting.
+      // Vercel hard limit is 300s — we're done by ~255s.
+      const ABORT_MS  = 240_000;
+      const BUDGET_MS = 260_000;
       let budgetFired = false;
+      const abortController = new AbortController();
+      const abortTimer  = setTimeout(() => abortController.abort(), ABORT_MS);
       const budgetTimer = setTimeout(() => { budgetFired = true; }, BUDGET_MS);
 
       // ── Keepalive: comment ping every 15s to prevent proxy buffering ───────
@@ -152,8 +157,8 @@ export async function GET(req: NextRequest) {
         let result: Partial<AnalysisResult> = { repoUrl, repoName: repo, branch: branchName };
 
         for (const phase of PHASES.slice(0, 7)) {
-          // Check budget before starting each phase
-          if (budgetFired) {
+          // Check budget / abort before starting each phase
+          if (budgetFired || abortController.signal.aborted) {
             line("system", `⚠ Analysis budget reached — skipping phase ${phase.id}+`);
             break;
           }
@@ -169,8 +174,14 @@ export async function GET(req: NextRequest) {
           try {
             phaseOutput = await runPhase(claude, model, PHASE_PROMPTS[phase.id], context, (chunk) => {
               chunk.split("\n").forEach((l) => { if (l.trim()) line("agent", `  ${l}`); });
-            });
+            }, abortController.signal);
           } catch (err) {
+            const isAbort = abortController.signal.aborted || (err instanceof Error && err.message.includes("aborted"));
+            if (isAbort) {
+              line("system", `⚠ Phase ${phase.id} cut short — budget limit reached, saving partial results`);
+              send("phase_update", { phaseId: phase.id, status: "error" satisfies PhaseStatus });
+              break; // exit loop, fall through to send done with partial results
+            }
             line("error", `  Phase ${phase.id} failed: ${err instanceof Error ? err.message : "unknown"}`);
             send("phase_update", { phaseId: phase.id, status: "error" satisfies PhaseStatus });
             if (supabase) {
@@ -426,11 +437,12 @@ export async function GET(req: NextRequest) {
           );
         }
       } finally {
+        clearTimeout(abortTimer);
         clearTimeout(budgetTimer);
         clearInterval(keepalive);
-        // If budget fired before error, send partial results + timeout event
-        if (budgetFired) {
-          send("line", { type: "error", text: "⚠ Analysis budget reached (270s). Partial results saved — re-run to complete remaining phases.", ts: Date.now() / 1000 });
+        // If budget or abort fired, send partial results + timeout event
+        if (budgetFired || abortController.signal.aborted) {
+          send("line", { type: "error", text: "⚠ Budget reached — partial results saved. Re-run to complete remaining phases.", ts: Date.now() / 1000 });
           send("timeout", { partial: true });
         }
         controller.close();
