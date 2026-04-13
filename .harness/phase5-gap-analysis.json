@@ -7,96 +7,98 @@
       "id": 1,
       "name": "Spec Quality",
       "score": 4,
-      "rationale": "PITER classifier + ADW templates + skill injection operational. Board minutes confirm 5/5 claimed, but spec.md is 2+ days stale (last updated 2026-04-10 per board-meetings/2026-04-12-1200-board-minutes.md) and gap-audit.json found 15 spec-vs-reality discrepancies including 3 critical. Self-reported 5/5 is inflated."
+      "rationale": "PITER classifier + ADW templates + skill injection present (CLAUDE.md:SDK Architecture). spec.md admits staleness (board-minutes 2026-04-12: '2 days stale'). Gap audit (board-meetings/2026-04-12-gap-audit.json) found 15 spec-vs-reality discrepancies including 3 critical. Deduct 1 point."
     },
     {
       "id": 2,
       "name": "Context Precision",
-      "score": 3,
-      "rationale": "_get_lesson_context() injects lessons per intent (confirmed in board minutes). But per-project memory layer is absent — TURBOQUANT-ASSESSMENT.md explicitly acknowledges no RAG memory layer exists yet. All sessions start without CCW/RestoreAssist/NRPG charter context unless manually injected. Memory is flat, not per-business."
+      "score": 4,
+      "rationale": "_get_lesson_context() injects lessons per-intent (config.yaml). lessons.jsonl active at 38 entries. No per-project memory/RAG retrieval before session start — TURBOQUANT-ASSESSMENT.md documents this gap explicitly. Charter context not wired into session prompts. Deduct 1."
     },
     {
       "id": 3,
       "name": "Model Selection",
       "score": 4,
-      "rationale": "Three-tier model selection (Opus 4.6/Sonnet 4.6/Haiku 4.5) auto-selected from .harness/config.yaml. Referenced in CLAUDE.md and agents/*.md specs. SDK canary Phase A is 0% activated (board minutes: three consecutive cycles deferred), so real-traffic model routing is unvalidated. Score docked 1 for dead-code state."
+      "rationale": "Opus/Sonnet/Haiku tier mapping in config.yaml is correct. AUTONOMY_BUDGET anchors (config.yaml:autonomy_budget) dynamically select model by time budget. However, confidence-weighted routing (RA-674) is config-only — no evidence the evaluator_confidence thresholds actually gate auto-ship in production code visible in sessions.py excerpt. Deduct 1."
     },
     {
       "id": 4,
       "name": "Tool Availability",
       "score": 4,
-      "rationale": "21 MCP tools, fan-out parallelism, full Claude Code suite, .claude/settings.json bypassPermissions at all three layers. Three MCP tools (get_zte_score, feature_list, exec_summary) returned broken/missing data in board-meetings/2026-04-08 minutes. Gap-audit.json found Linear two-way sync unimplemented (critical). Score 4 not 5."
+      "rationale": "21 MCP tools, .claude/settings.json bypassPermissions, fan-out parallelism. Three MCP tools broken in board meetings (get_zte_score, feature_list, exec_summary — 2026-04-08 minutes). LINEAR_API_KEY 401 for 2+ consecutive cycles blinded board tooling. Tool availability is degraded in practice. Deduct 1."
     },
     {
       "id": 5,
       "name": "Feedback Loops",
       "score": 3,
-      "rationale": "Closed-loop evaluator retry exists. BUT: Linear API 401 for two consecutive board cycles (2026-04-11, 2026-04-12 board minutes) means triage feedback is blind. SDK metrics in agent-sdk-metrics/ show 66% failure rate on 2026-04-10 (connection refused + timeout errors dominating). Real feedback loops are degraded."
+      "rationale": "Evaluator closed-loop retry exists (sessions.py RA-571/572). BUT: SDK Canary Phase A never activated — dual-path dead code at 0% real traffic (board-minutes 2026-04-12). Analyse-lessons cron (cron-triggers.json:analyse-lessons-weekly) has last_fired_at=null. Feedback loop from evaluator→lesson→prompt injection exists; feedback loop from production outcomes→skill improvement does not. Deduct 2."
     },
     {
       "id": 6,
       "name": "Error Recovery",
       "score": 4,
-      "rationale": "3-attempt clone backoff, generator retry, phase checkpoints, /api/sessions/{sid}/resume endpoint all implemented. _resilient() wrapper with crash-recovery on all background tasks (main.py). Session resume from last_completed_phase confirmed. Docked 1: INCIDENT-2026-04-12.md documents a complete overnight failure with zero recovery — the error recovery didn't fire because commits were never pushed to Railway in the first place."
+      "rationale": "3-attempt clone backoff, generator retry, phase checkpoints, resume endpoint (/api/sessions/{sid}/resume). Session persistence via os.replace atomic writes (CLAUDE.md). The overnight failure (INCIDENT-2026-04-12.md) showed railway running stale code because push credentials are unavailable in sandbox — error recovery exists for agent errors but not for operator dependency failures. Deduct 1."
     },
     {
       "id": 7,
       "name": "Session Continuity",
-      "score": 3,
-      "rationale": "_sessions is in-memory dict — server restart loses all running sessions (explicitly documented in CLAUDE.md: 'any server restart loses all running sessions'). Phase checkpoints persist to disk via os.replace() atomic writes. Resume endpoint exists. But overnight failure (INCIDENT-2026-04-12.md) produced zero session continuity across the topology boundary (Cowork vs Railway). Real continuity requires the right topology."
+      "score": 4,
+      "rationale": "Phase-level checkpoints + resume endpoint implemented (main.py:resume_session). _sessions is in-memory dict — server restart loses running sessions (CLAUDE.md:'any server restart loses all running sessions'). Persistence is best-effort. Deduct 1."
     },
     {
       "id": 8,
       "name": "Quality Gating",
       "score": 4,
-      "rationale": "Evaluator is a BLOCKING gate with configurable threshold (default 7/10) and max 2 retries. 4 dimensions scored (Completeness/Correctness/Conciseness/Format). agents/evaluator.md fully specified. gap-audit.json found sessions.py truncated mid-function — evaluator gate completeness unverifiable from visible code. Linear two-way sync (post-build state update) is unimplemented per gap-audit critical #2, so quality gate results don't flow back to issue tracker."
+      "rationale": "Blocking evaluator gate with EVALUATOR_THRESHOLD, max_retries, Supabase gate_checks logging (RA-651). Gap audit (2026-04-12-gap-audit.json) found evaluator measures code quality not functional correctness (CEO memo:2026-04-13 'evaluator gate measures code quality, not functional correctness'). Zero autonomous sessions closed real Linear tickets in 8 sprints. Deduct 1."
     },
     {
       "id": 9,
       "name": "Cost Efficiency",
       "score": 5,
-      "rationale": "Zero API cost on Claude Max subscription — confirmed across all board minutes and CLAUDE.md. SDK path eliminates subprocess overhead when activated. agent-sdk-metrics/ exists for cost tracking. This is the one genuine 5/5 — the cost model is structurally sound regardless of other issues."
+      "rationale": "Zero API cost on Claude Max subscription. BudgetTracker wired. TAO_AUTONOMY_BUDGET single-knob. claude_api_costs table in Supabase. SDK-only removes subprocess overhead. No deductions — this is genuinely excellent."
     },
     {
       "id": 10,
       "name": "Trigger Automation",
       "score": 3,
-      "rationale": "GitHub + Linear webhooks implemented. Cron triggers in .harness/cron-triggers.json (12 triggers). Autonomy poller in autonomy.py. BUT: INCIDENT-2026-04-12.md proves the autonomy poller never fired a session overnight because unpushed commits meant Railway ran stale code. RA-579 scheduler bug (abs() missing in debounce, no startup catch-up) documented in board minutes. PI_SEO_ACTIVE=0 — Pi-SEO cron scans are disabled. Actual triggered automation: near-zero in practice."
+      "rationale": "GitHub + Linear webhooks + 16 cron entries + Telegram inbound. CRITICAL: cron-triggers.json shows last_fired_at=null on scout-weekly, feedback-loop-monthly, board-meeting-weekly, fallback-dryrun-quarterly, analyse-lessons-weekly, intel-refresh-monday. The scheduler had a debounce abs() bug (board-minutes 2026-04-12 SWOT threats). Overnight marathon produced 0 autonomous commits. Autonomy poller self-start bug (10s fix in commit e611b1c) unpushed to Railway during incident. Deduct 2."
     },
     {
       "id": 11,
       "name": "Knowledge Retention",
       "score": 3,
-      "rationale": "lessons.jsonl at 38 entries (CLAUDE.md) with auto-append from low-scoring evaluator dimensions. But: no self-improvement loop — lesson-pattern analyser unbuilt (flagged in all three 2026-04 board minutes as Priority 3 never actioned). lessons.jsonl grows but no automated extraction feeds back to CLAUDE.md or skills. Per-project memory layer absent (TURBOQUANT-ASSESSMENT.md). Knowledge accumulates but doesn't compound."
+      "rationale": "lessons.jsonl 38 entries, auto-appended by evaluator on low scores. Analyse-lessons cron never fired (last_fired_at=null). No pattern extraction feeds back to CLAUDE.md or skills. Self-improvement loop explicitly called out as 'missing' in 3 consecutive board meetings. Per-project memory layer (charter RAG) designed in TURBOQUANT-ASSESSMENT.md but not built. Deduct 2."
     },
     {
       "id": 12,
       "name": "Workflow Standardization",
-      "score": 3,
-      "rationale": "PITER classifier at brief entry, 5 ADW templates, ship-chain 6-phase pipeline, 23 skills, ESCALATION.md contract, PI-CEO-STANDARD.md 7-pillar framework, business charters. Strong documentation layer. But: overnight marathon produced zero workflow execution (INCIDENT-2026-04-12.md). Scheduled tasks stopped at 00:48 UTC. The workflows are standardized on paper; the execution topology is broken. Discrepancy between described and actual."
+      "score": 4,
+      "rationale": "PITER at brief entry, 5 ADW templates, Ship Chain pipeline, ESCALATION.md contract, PERMISSIONS.md contract, build-contract.md, eval-contract.md all present. BVI metric not yet introduced (CEO memo plans it for Cycle 24). ZTE scoring reported 60/60 while core autonomy failures occurred — metric does not reflect operational reality. Deduct 1."
     }
   ],
   "productionGaps": [
-    "Autonomous rail topology: Cowork-hosted scheduled tasks stop when Mac sleeps (confirmed in INCIDENT-2026-04-12.md — tasks stopped at 00:48 UTC). Railway is the only truly always-on surface but was running pre-marathon stale code due to 7 unpushed commits.",
-    "Linear two-way sync unimplemented: gap-audit.json critical findings #1 and #2 — webhook.py has zero outbound Linear API calls (no issueUpdate mutation), build outcomes never flow back to issue tracker.",
-    "SDK Canary Phase A stuck at 0% traffic for 3+ consecutive board cycles: TAO_USE_AGENT_SDK_CANARY_RATE=0.10 not set in Railway. Dual-path code (RA-571, RA-572) is dead code with bitrot risk.",
-    "Linear API authentication broken (401) for 2 consecutive board cycles (2026-04-11, 2026-04-12 board minutes) — sprint planning falls back to stale harness files, triage engine cannot create tickets.",
-    "Pi-SEO first full sweep never executed: PI_SEO_ACTIVE=0 in Railway. 10 repos registered, scanner built, zero baseline scan data. RA-588-PREFLIGHT.md shows activation steps not taken.",
-    "Self-improvement loop missing: lessons.jsonl grows to 38 entries but no pattern analyser surfaces proposals. ZTE Level 3 meta-loop incomplete — flagged in board minutes for 3+ cycles without action.",
-    "ZTE score self-reporting discrepancy: CLAUDE.md claims 73/75, board minutes claim 60/60, gap-audit.json found 15 spec-vs-reality discrepancies (3 critical). Score is not validated against operational reality.",
-    "Per-project memory layer absent: no RAG retrieval before sessions, no per-business context injection. All sessions start cold on CCW/RestoreAssist/DR-NRPG despite charters existing in .harness/business-charters/.",
-    "triage-cache.json at 353KB with no rotation strategy — flagged in 3 consecutive board cycles without remediation.",
-    "Session state in-memory only: _sessions dict lost on Railway restart. Phase checkpoints persist but session index does not survive redeploy."
+    "Autonomous push credentials absent: Pi-CEO cannot git push from Railway or any sandbox — every session's commits require a manual `git push origin main` from Phill's Mac (INCIDENT-2026-04-12.md Why #3). No fine-grained PAT, deploy key, or GitHub App configured.",
+    "SDK Canary Phase A never activated: TAO_USE_AGENT_SDK_CANARY_RATE=0.10 unset in Railway across 3+ consecutive sprint cycles. Dual-path code (RA-571, RA-572) accumulates bitrot risk at 0% real traffic. (board-meetings/2026-04-12-board-minutes.md)",
+    "Pi-SEO first full sweep never executed: Scanner, triage engine, 3 skill layers, 10 repos registered, cron rotation all built. Zero baseline scan data across portfolio. All six cron-triggers scan entries have real last_fired_at values but the portfolio scan results visible in harness show no improvement — CCW still at 1 critical + 196 high as of charter date.",
+    "Self-improvement loop absent: analyse-lessons-weekly cron last_fired_at=null. No pattern extraction from lessons.jsonl to CLAUDE.md or skill files. Lesson corpus grows but is never actioned autonomously.",
+    "Per-project memory/RAG layer not built: TURBOQUANT-ASSESSMENT.md documents the design (memory/ folder + retrieval before session + summarization). Not implemented. Sessions start without project-specific charter context.",
+    "Supabase gate_checks and alert_escalations writes unverified in production: RA-651 and RA-633 listed as complete in CLAUDE.md but gap audit (2026-04-12-gap-audit.json) found Linear two-way sync (issueUpdate mutations) not implemented in webhook.py or sessions.py.",
+    "Linear two-way sync missing: Build outcomes do not flow back to Linear (no issueUpdate GraphQL call visible anywhere). Board meetings rely on Linear for sprint tracking but Linear API returned 401 for 2+ consecutive cycles with no automated key-rotation or alerting.",
+    "triage-cache.json at 353KB with no pruning strategy: Flagged in 3 consecutive board meetings. Scanner startup degradation risk. No rotation implemented.",
+    "ZTE Score metric disconnected from operational reality: System reported 60/60 through a cycle where zero commits landed, autonomy poller was dead, and watchdog sent a false CRITICAL alert. The CEO memo (2026-04-13) explicitly calls this out and proposes replacing ZTE with Business Velocity Index (BVI) as primary metric.",
+    "Scout Agent (RA-684) not built: scout-weekly-monday cron exists in cron-triggers.json with last_fired_at=null. No external portfolio sensing. Board meetings run without competitive or technical intelligence input.",
+    "Spec.md staleness: Last meaningful regeneration 2026-04-10. Gap audit found 15 discrepancies between spec claims and code reality including 3 critical. CEO memo makes spec regeneration the Day 1 Phill action."
   ],
   "loadRisks": [
-    "Single-machine topology risk: Mac Mini (per BOARD-DELIBERATION-ENHANCED-2026-04-12.md) proposed as always-on brain with no UPS confirmed (RA-641 listed as mandatory but 'Phill-gated'). Power failure = total outage of local intelligence layer.",
-    "Railway single-worker constraint: Dockerfile/CMD specifies --workers 1. TAO_MAX_SESSIONS=3 but uvicorn single-worker means concurrent sessions share one event loop. Three parallel builds under load risk blocking the event loop.",
-    "agent-sdk-metrics/ shows 66% failure rate on 2026-04-10 (RuntimeError: Connection failed + timeout after 1s dominating). If SDK canary activates under load, real error rate may be higher than subprocess fallback implies.",
-    "Concurrent Pi-SEO activation risk: 12 cron triggers in cron-triggers.json firing simultaneously after PI_SEO_ACTIVE=1 could saturate the single-worker Railway instance. No rate limiting between scan jobs documented.",
-    "triage-cache.json growth unbounded at 353KB: scanner startup degradation compounds with each sprint. No pruning strategy defined after 3 board cycles flagging it — eventual Railway ephemeral disk limit risk.",
-    "Webhook flood protection gap: /api/webhook has duplicate-session detection (_find_active_session_for_repo) but no global rate limit beyond 30 req/min per IP. A single IP-hopping actor could exhaust TAO_MAX_SESSIONS.",
-    "Autonomy poller cold-start bug: linear_todo_poller sleeps first before first poll (documented in ARCHITECTURE-V2.md as e611b1c fix not yet deployed). 5-minute cold-start dead zone on every Railway redeploy means triggered deployments have a guaranteed gap window.",
-    "Telegram webhook secret validation gap: gap-audit.json low severity #7 — TELEGRAM_WEBHOOK_SECRET check passes when incomingSecret is null/missing even if secret is configured. Under load with spoofed webhooks, bot commands could execute unauthenticated."
+    "Single-threaded autonomy poller bottleneck: linear_todo_poller (app/server/autonomy.py) is a single asyncio coroutine with TAO_MAX_SESSIONS=3 hard cap. Under load from 10+ portfolio repos with concurrent Urgent issues, sessions queue behind each other. No priority-weighted dispatch — a trivial DR-NRPG ticket can block an Urgent CCW security fix.",
+    "Railway ephemeral disk for workspaces: app/workspaces/ is ephemeral on Railway. A deployment mid-build destroys the workspace. Session resume (POST /api/sessions/{sid}/resume) restores state from JSON but cannot recover the cloned workspace directory — resume from last_completed_phase requires re-cloning, which may fail if the repo is large or rate-limited.",
+    "WebSocket session fan-out memory growth: _sessions is an unbounded in-memory dict. Each BuildSession holds output_lines as a list that grows throughout the build. Under sustained load (multiple long-running sessions), memory grows linearly with output volume. gc_loop (app/server/gc.py) prunes by age but not by memory pressure.",
+    "Claude SDK subprocess replacement incomplete: CLAUDE.md states 'subprocess fallback paths have been removed from sessions.py' but app/requirements.txt still lists claude-agent-sdk>=0.1 with no pinned version. An SDK breaking change (see sdk-version-policy.md API stability contract) would cause startup ImportError with no fallback path — total service outage.",
+    "Cron trigger debounce bug under rapid redeploys: board-minutes 2026-04-12 SWOT threats document 'cron-triggers.json last_fired_at resets on Railway redeploy... bogus-future-timestamp debounce bug'. Every Railway deploy (triggered by CI on main push per RA-583) silently suppresses the next scan window. Under active development with frequent pushes, Pi-SEO scans may never fire.",
+    "Telegram webhook secret validation bypass: gap audit (2026-04-12-gap-audit.json, low severity) found 'if incomingSecret is null/missing, the check passes regardless' in dashboard/app/api/telegram/route.ts. An attacker knowing the endpoint URL can inject arbitrary build triggers without the secret token.",
+    "SSE streaming endpoint missing: gap audit critical finding — 'GET /api/sessions/{sid}/logs/stream endpoint does not exist'. Dashboard SSE hooks (dashboard/hooks/useSSE.ts) will 404 under load if the frontend depends on SSE rather than WebSocket. Only /ws/build/{sid} WebSocket is confirmed present.",
+    "Supabase fire-and-forget writes may silently drop data at scale: CLAUDE.md:'All writes are fire-and-forget — observability failures must never block the build pipeline.' Under Railway memory pressure or Supabase rate limits, gate_checks, alert_escalations, and cost tracking rows are silently lost with no retry queue or DLQ.",
+    "Linear webhook route existence unconfirmed: gap audit high finding — 'Linear webhook route POST /webhook/linear existence unconfirmed due to truncated main.py'. The full /webhook/linear handler shown in the provided main.py excerpt IS present (lines visible in the audit context), but the gap audit flagged it as unverifiable. Risk: if the route was removed or misconfigured in a Sprint 8 merge, Linear-triggered builds silently fail."
   ]
 }
 ```
