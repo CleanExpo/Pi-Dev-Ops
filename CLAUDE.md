@@ -2,9 +2,9 @@
 
 ## Project Context
 
-Pi-Dev-Ops is a Zero Touch Engineering (ZTE) platform that converts a GitHub repo URL and a plain-English brief into an autonomous Claude Code execution session. The generator and evaluator can run via the `claude_agent_sdk` Python SDK (preferred) or via `claude -p` subprocess (fallback). Set `TAO_USE_AGENT_SDK=1` to activate the SDK path.
+Pi-Dev-Ops is a Zero Touch Engineering (ZTE) platform that converts a GitHub repo URL and a plain-English brief into an autonomous Claude Code execution session. The generator and evaluator run via the `claude_agent_sdk` Python SDK. `TAO_USE_AGENT_SDK=1` is mandatory — setting it to 0 raises `ImportError` at startup (deliberate: misconfiguration must be loud).
 
-**ZTE Score:** 73/75 (Sprint 8 — see `.harness/leverage-audit.md` for full breakdown)
+**ZTE Score:** 73/75 (Sprint 8) | ZTE v2: 81/100 (Sprint 9) — see `.harness/leverage-audit.md`
 
 ## Architecture
 
@@ -15,7 +15,7 @@ Pi-Dev-Ops is a Zero Touch Engineering (ZTE) platform that converts a GitHub rep
 | MCP Server | Node.js, @modelcontextprotocol/sdk | `mcp/` |
 | TAO Engine | Python (skills, tiers, budget) | `src/tao/` |
 | Harness State | YAML/JSON/Markdown | `.harness/` |
-| Skills | 28 SKILL.md files | `skills/` |
+| Skills | 33 SKILL.md files | `skills/` |
 | Database | Supabase (PostgreSQL) | `supabase/` |
 | Deploy (FE) | Vercel | `dashboard/vercel.json` |
 | Deploy (BE) | Railway | `railway.toml`, `Dockerfile` |
@@ -57,16 +57,19 @@ cd dashboard && npm run build
 
 ## Key Patterns
 
-- **Password auth:** bcrypt with transparent SHA-256 migration (`app/server/auth.py`)
+- **Password auth:** bcrypt with transparent SHA-256 migration (`app/server/auth.py`). If `TAO_PASSWORD` is set in env, the hash is always regenerated on startup so Railway env var changes take effect immediately.
 - **Session secret:** Persisted to `app/data/.session-secret` (survives restarts)
 - **SSE streaming:** `dashboard/hooks/useSSE.ts` with exponential backoff reconnection
 - **Phase pipeline:** 5-6 phases in `app/server/sessions.py`, parsed by `dashboard/lib/phases.ts`
 - **Settings:** Supabase-backed via `dashboard/lib/supabase/settings.ts`
 - **MCP tools:** `mcp/pi-ceo-server.js` — 21 tools for harness reads + Linear operations
+- **Path traversal:** `_safe_sid()` strips non-alphanumeric from session IDs before file path use
+- **Webhook HMAC:** `hmac.compare_digest()` (timing-safe) for both GitHub (`x-hub-signature-256`) and Linear (`Linear-Signature`)
+- **Analysis mode:** `dashboard/lib/claude.ts::getAnalysisMode()` — `ANALYSIS_MODE` env var takes priority over `ANTHROPIC_API_KEY`. Set `ANALYSIS_MODE=api` in Vercel to use Max plan subscription token (`sk-ant-oat01-*` from `claude setup-token`).
 
-## SDK Architecture (Phase 3 Complete — RA-576)
+## SDK Architecture (Sprint 8 Complete — RA-576)
 
-The build pipeline runs **SDK-only** as of Sprint 8 (RA-576). The `claude -p` subprocess fallback paths have been removed from `sessions.py`. `TAO_USE_AGENT_SDK=1` is now the only supported mode — setting it to 0 causes an `ImportError` at startup (deliberate: misconfiguration must be loud).
+The build pipeline runs **SDK-only**. `TAO_USE_AGENT_SDK=1` is the only supported mode.
 
 | Layer | SDK Path | File |
 |-------|----------|------|
@@ -78,7 +81,7 @@ The build pipeline runs **SDK-only** as of Sprint 8 (RA-576). The `claude -p` su
 
 **Metrics:** Every SDK invocation emits a row to `.harness/agent-sdk-metrics/YYYY-MM-DD.jsonl`. Analyse with `python scripts/sdk_metrics.py`.
 
-**API fallback (Risk Register R-02):** `TAO_USE_FALLBACK=1` activates the direct Anthropic Python SDK path (no claude CLI). Test quarterly via `python scripts/fallback_dryrun.py`. See `DEPLOYMENT.md → Contingency: API Fallback`.
+**API fallback (Risk Register R-02):** `TAO_USE_FALLBACK=1` activates the direct Anthropic Python SDK path. Test quarterly via `python scripts/fallback_dryrun.py`.
 
 SDK reference: `app/server/agents/board_meeting.py::_run_prompt_via_sdk()`. Version policy: `.harness/agents/sdk-version-policy.md`.
 
@@ -87,22 +90,40 @@ SDK reference: `app/server/agents/board_meeting.py::_run_prompt_via_sdk()`. Vers
 - **Team:** RestoreAssist (`a8a52f07-63cf-4ece-9ad2-3e3bd3c15673`)
 - **Project:** Pi - Dev -Ops (`f45212be-3259-4bfb-89b1-54c122c939a7`)
 - **Ticket format:** RA-xxx
-- **MCP:** `LINEAR_API_KEY` env var in Claude Desktop config
+- **MCP:** `LINEAR_API_KEY` env var in Claude Desktop config and Railway
 
-## Strategic Direction
+## Autonomy and Health
 
-**Sprint 8 (current):** SDK-only execution confirmed (RA-576). Post-deploy smoke test wired into CI via `scripts/smoke_test.py --target=prod` (RA-583). Quality gate results persisted to Supabase `gate_checks` table (RA-651). Critical alert escalation chain complete: Telegram → 30-min watchdog → escalation page (RA-633). ZTE target: 75/75.
+- `app/server/autonomy.py` polls Linear every 5 min for **Urgent/High unstarted (Todo)** issues and auto-creates sessions. In Progress issues are invisible to the poller — reset to Todo if a stalled session needs restart.
+- Kill switch: `TAO_AUTONOMY_ENABLED=0` in Railway env.
+- `/health` must report the state of the work, not just process uptime. Every long-running loop needs: (1) a boolean confirming it is armed and will fire on next tick, (2) a timestamp/counter of the last successful tick. Without both, you get silent-success theatre.
+- Silent failure pattern: `autonomy.py` skips every poll cycle when `LINEAR_API_KEY` is missing, but `/health` still returns 200. Symptom: `sessions.total` stays at 0. Always surface `linear_api_key: bool` in the health response.
+- Do-while pattern for pollers: `while True: await asyncio.sleep(interval)` delays the first execution by the full interval after a Railway restart. Use a short `startup_delay` (10s) instead. Log every skipped poll, not just the first.
 
-**Autonomy:** `app/server/autonomy.py` polls Linear every 5 min for Urgent/High unstarted issues and auto-creates sessions. Kill switch: `TAO_AUTONOMY_ENABLED=0` in Railway env.
+## Autonomy Is a Topology Property
 
-**Observability:** `supabase_log.py` is the single write path for all server-side Supabase events. Tables: `gate_checks`, `alert_escalations`, `heartbeat_log`, `triage_log`, `workflow_runs`, `claude_api_costs`. All writes are fire-and-forget — observability failures must never block the build pipeline.
+"Autonomous" means every component runs on an always-on host. If any step depends on a Mac staying awake, Cowork staying open, or a local process running, the system is a cron job in an editor — not an autonomous agent. Always-on path: Railway (backend) + Vercel (frontend) + GitHub Actions (CI). Never schedule work in Cowork scheduled tasks that must survive overnight.
 
-**CI pipeline (RA-583):** Three jobs: `python` (pytest + ruff), `frontend` (tsc + eslint + build), `smoke-prod` (post-deploy gate against Railway, main-branch pushes only). `smoke-prod` requires `TAO_PROD_PASSWORD` GitHub secret.
+## Scheduled Tasks
+
+- The scheduled-tasks MCP runs inside the desktop Claude session and does **not** inherit the repo `.claude/settings.json` allowlist. Keep every scheduled task prompt to a single shell command calling a standalone Python helper — this minimises tool-approval surface to Bash alone.
+- Each task runs inside a fresh Cowork sandbox at `/sessions/<random-id>/mnt/<folder>`. The session ID changes every run — never hardcode the Mac path. Discover the repo dynamically: `find /sessions -type d -name <repo>` then `cd` into it.
+- Never escalate CRITICAL from a Cowork sandbox. The sandbox package set is not guaranteed to match production. `ModuleNotFoundError` inside a watchdog task is a sandbox environment issue, not a real test failure. Real test-green truth comes from GitHub Actions.
 
 ## Persistence Guidelines
 
 - `_sessions` is an in-memory dict — any server restart loses all running sessions. Always persist status to disk atomically after every state change.
 - Use write-to-.tmp-then-`os.replace()` for JSON file writes. `os.replace()` is atomic on NTFS and POSIX — a crash mid-write leaves the old file intact, not a corrupt half-written file.
+
+## Strategic Direction
+
+**Sprint 9 (complete):** Karpathy enhancement layer — confidence-weighted evaluator, AUTONOMY_BUDGET single-knob, Session Scope Contract, plan variation discovery, progressive brief complexity, layered abstraction, dependency alerting, Vercel drift monitoring, skills manifest. ZTE v2: 81/100.
+
+**Sprint 10 (current):** MARATHON-4 (RA-588) — first 6-hour autonomous self-maintenance run. SDK Canary Phase A running at 10% rate (`AGENT_SDK_CANARY_RATE=0.1`), 24h observation window. Quality gate results persisted to Supabase `gate_checks` table. ZTE target: 90/100.
+
+**Observability:** `supabase_log.py` is the single write path for all server-side Supabase events. Tables: `gate_checks`, `alert_escalations`, `heartbeat_log`, `triage_log`, `workflow_runs`, `claude_api_costs`. All writes are fire-and-forget — observability failures must never block the build pipeline.
+
+**CI pipeline (RA-583):** Three jobs: `python` (pytest + ruff), `frontend` (tsc + eslint + build), `smoke-prod` (post-deploy gate against Railway, main-branch pushes only). `smoke-prod` requires `TAO_PROD_PASSWORD` GitHub secret.
 
 ## Content Rules
 
