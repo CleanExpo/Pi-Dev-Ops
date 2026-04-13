@@ -1,0 +1,147 @@
+{
+  "critical": [
+    {
+      "severity": "critical",
+      "claim": "`webhook.py` | GitHub + Linear HMAC verification, event parsing, brief generation | ✅ Complete",
+      "reality": "webhook.py implements inbound HMAC verification and event parsing, but contains zero outbound Linear API calls. There is no `linear_update_issue`, `issueUpdate` GraphQL mutation, or any HTTP call back to Linear to update issue state (e.g., marking an issue as 'in progress', 'done', or attaching a comment with build results).",
+      "file": "app/server/webhook.py",
+      "recommendation": "Add a `linear_update_issue(issue_id, state_id, comment)` function that calls the Linear GraphQL API with an `issueUpdate` mutation and wire it into the build completion callback in sessions.py.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "critical",
+      "claim": "`sessions.py` | Full build lifecycle: 5-phase pipeline, evaluator gate, phase checkpoints, resume | ✅ Complete",
+      "reality": "The truncated main.py startup shows `run_build` imported from sessions.py, but there is no evidence in the provided source that sessions.py posts build outcomes back to Linear. The Linear two-way sync (state updates flowing back) is not implemented in any visible file.",
+      "file": "app/server/main.py",
+      "recommendation": "In sessions.py, after a build reaches a terminal state (success/failure), call a linear_update_issue helper with the resulting state and a summary comment to close the feedback loop.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "critical",
+      "claim": "spec implies build logs stream to browser in real time via SSE (Server-Sent Events) endpoint that pipes session.output_lines — distinct from WebSocket /ws/build/{sid}",
+      "reality": "app/server/main.py imports StreamingResponse but no SSE endpoint (e.g. GET /api/sessions/{sid}/stream or similar) is present in the visible code. The only real-time log delivery mechanism referenced is the WebSocket handler (/ws/build/{sid}). No route exists that reads session.output_lines and yields text/event-stream responses.",
+      "file": "app/server/main.py",
+      "recommendation": "Add a dedicated GET /api/sessions/{sid}/logs/stream endpoint that yields session.output_lines entries as text/event-stream, polling or using an asyncio.Event to push new lines as they arrive, or explicitly remove the SSE claim from the spec.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "`webhook.py` | GitHub + Linear HMAC verification, event parsing, brief generation | ✅ Complete",
+      "reality": "`linear_issue_to_brief()` exists but there is no route in main.py (visible portion) that calls it and then actually triggers a build session from a Linear webhook event. The Linear webhook handler path — receive event → verify → parse → create_session — is not shown as wired in any route.",
+      "file": "app/server/main.py",
+      "recommendation": "Confirm or add a POST /webhook/linear route in main.py that calls verify_linear_signature, parse_linear_event, linear_issue_to_brief, and then create_session, mirroring the GitHub webhook route pattern.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "`main.py` | FastAPI app, all routes, WebSocket handler, security middleware | ✅ Complete",
+      "reality": "The main.py source is truncated mid-sentence inside on_shutdown(), so the Linear webhook route, WebSocket handler, and several other claimed routes cannot be verified as present. The visible code does not show a /webhook/linear POST handler.",
+      "file": "app/server/main.py",
+      "recommendation": "Provide the full main.py for audit; at minimum confirm a POST /webhook/linear route exists that calls parse_linear_event and triggers create_session.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "| `sessions.py` | Full build lifecycle: 5-phase pipeline, evaluator gate, phase checkpoints, resume | ✅ Complete |",
+      "reality": "The sessions.py excerpt defines BuildSession dataclass and helper functions (get_session, list_sessions, restore_sessions) but the actual 5-phase pipeline execution, evaluator gate logic, phase checkpoints, and resume logic are not visible in the provided code — restore_sessions is truncated mid-function. The presence of last_completed_phase and retry_count fields suggests the structure exists, but completeness cannot be confirmed from the provided source.",
+      "file": "app/server/sessions.py",
+      "recommendation": "Verify that run_build() implements all 5 phases with phase checkpoint writes and resume branching; if the file was truncated in the audit, provide the full file for review.",
+      "category": "build log SSE streaming"
+    },
+    {
+      "severity": "high",
+      "claim": "| `main.py` | FastAPI app, all routes, WebSocket handler, security middleware | ✅ Complete |",
+      "reality": "main.py is truncated mid-function (on_shutdown is cut off). The WebSocket handler route (/ws/build/{sid}) is not visible in the provided excerpt — only imports and HTTP routes up to on_shutdown are shown. Cannot confirm WebSocket handler or all security middleware are present.",
+      "file": "app/server/main.py",
+      "recommendation": "Provide the full main.py for audit; verify @app.websocket('/ws/build/{sid}') and SecurityHeadersMiddleware or equivalent are present and complete.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "| `webhook.py` | GitHub + Linear HMAC verification, event parsing, brief generation | ✅ Complete |",
+      "reality": "The audited source is dashboard/lib/github.ts (a TypeScript GitHub API client), not a Python webhook.py. The file handles repo context fetching, branch management, and PR comparison but is not a webhook receiver with HMAC verification or brief generation.",
+      "file": "dashboard/lib/github.ts",
+      "recommendation": "Audit the actual webhook.py Python file to verify HMAC verification and brief generation are implemented; the TypeScript github.ts is a separate client library, not the webhook handler.",
+      "category": "multi-branch reads"
+    },
+    {
+      "severity": "low",
+      "claim": "| `main.py` | FastAPI app, all routes, WebSocket handler, security middleware | ✅ Complete |",
+      "reality": "No main.py is present in the audited source files; only dashboard/lib/github.ts was provided. Cannot confirm FastAPI routes, WebSocket handler, or security middleware exist.",
+      "file": "dashboard/lib/github.ts",
+      "recommendation": "Include main.py in the audit scope and verify all claimed routes, WebSocket handler, and security middleware are present in that file.",
+      "category": "multi-branch reads"
+    },
+    {
+      "severity": "low",
+      "claim": "| `scanner.py` | Pi-SEO autonomous multi-project scanner orchestrator | ✅ Complete |",
+      "reality": "scanner.py was not present in the audited source files. No evidence of Pi-SEO scanner implementation in the provided code.",
+      "file": "dashboard/lib/github.ts",
+      "recommendation": "Include scanner.py in the audit scope to verify Pi-SEO multi-project scanner orchestration is fully implemented.",
+      "category": "multi-branch reads"
+    },
+    {
+      "severity": "low",
+      "claim": "`webhook.py` | GitHub + Linear HMAC verification, event parsing, brief generation | ✅ Complete",
+      "reality": "`verify_github_signature` uses `hmac.new(...)` which is not a valid Python call; the correct function is `hmac.new` does not exist — it should be `hmac.new` → actually `hmac.new` is invalid; the correct API is `hmac.new(key, msg, digestmod)` which Python does support, but the standard spelling is `hmac.new`. Actually Python's hmac module exposes `hmac.new()` as valid, so this is fine. However the Linear verify function also uses `hmac.new` identically — both are consistent and correct.",
+      "file": "app/server/webhook.py",
+      "recommendation": "No change needed for HMAC calls; both use the correct hmac.new() API with timing-safe compare_digest.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "low",
+      "claim": "| `main.py` | FastAPI app, all routes, WebSocket handler, security middleware | ✅ Complete |",
+      "reality": "The Telegram route is implemented in a Next.js API route (dashboard/app/api/telegram/route.ts), not in a Python main.py FastAPI app. The spec implies a Python backend but the actual Telegram handler is TypeScript/Next.js.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Update spec to document that the Telegram bot is implemented as a Next.js API route in TypeScript, not as part of the Python FastAPI main.py.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "low",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "The code implements /start, /help, /status, /build <repo_url>, and /clear — the spec omits /status and /clear from its command listing.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Update spec command list to include /status and /clear alongside /start, /help, and /build.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "low",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "The TELEGRAM_WEBHOOK_SECRET validation only rejects requests when both sides have a non-empty value; if incomingSecret is null/missing, the check passes regardless — this is a security gap not reflected in any spec security claim.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Update the webhook secret check to reject requests where TELEGRAM_WEBHOOK_SECRET is set but incomingSecret is absent, and document this behavior in the spec.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "low",
+      "claim": "| `sessions.py` | Full build lifecycle: 5-phase pipeline, evaluator gate, phase checkpoints, resume | ✅ Complete |",
+      "reality": "restore_sessions() is truncated before completion — the function body ends at status=data.get('status', with no closing logic visible, so persistence/resume correctness cannot be audited.",
+      "file": "app/server/sessions.py",
+      "recommendation": "Ensure the full restore_sessions() implementation handles status remapping for mid-flight sessions (cloning/building → interrupted) and is not silently truncated.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 15,
+    "critical_count": 3,
+    "high_count": 4,
+    "low_count": 8,
+    "duration_s": 90.9,
+    "audited_at": "2026-04-12T22:20:12.902172+00:00",
+    "spec_claims_scanned": 72,
+    "dry_run": false,
+    "linear_tickets_created": [
+      "RA-665",
+      "RA-666",
+      "RA-667",
+      "RA-668",
+      "RA-669",
+      "RA-670",
+      "RA-671"
+    ]
+  }
+}
