@@ -912,6 +912,145 @@ def run_persona_debate_phase(
     return {"phase": "persona_debate", "content": raw}
 
 
+# ── RA-696: Business Velocity Index ──────────────────────────────────────────
+
+_BVI_HISTORY_FILE = _HARNESS_ROOT / "bvi-history.jsonl"
+
+
+def _load_prior_bvi() -> dict[str, Any] | None:
+    """Return the most recent BVI entry from bvi-history.jsonl, or None."""
+    if not _BVI_HISTORY_FILE.exists():
+        return None
+    entries = []
+    for line in _BVI_HISTORY_FILE.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            entries.append(json.loads(line))
+        except json.JSONDecodeError:
+            pass
+    return entries[-1] if entries else None
+
+
+def _count_criticals_resolved(since_iso: str | None = None) -> int:
+    """Count Urgent Linear issues moved to Done since the last board meeting."""
+    api_key = os.environ.get("LINEAR_API_KEY", "")
+    if not api_key:
+        return 0
+    try:
+        filter_extra = ""
+        if since_iso:
+            filter_extra = f', updatedAt: {{gt: "{since_iso}"}}'
+        data = _linear_gql(
+            f"""
+            query CriticalsDone($teamId: ID!) {{
+              issues(filter: {{
+                team: {{id: {{eq: $teamId}}}},
+                priority: {{eq: 1}},
+                state: {{type: {{eq: "completed"}}}}{filter_extra}
+              }}, first: 50) {{
+                nodes {{ identifier }}
+              }}
+            }}
+            """,
+            {"teamId": _LINEAR_TEAM_ID},
+        )
+        return len(data.get("issues", {}).get("nodes", []))
+    except Exception as exc:
+        log.warning("BVI criticals_resolved query failed: %s", exc)
+        return 0
+
+
+def _count_portfolio_improved() -> int:
+    """
+    Count portfolio projects with a positive health delta since last scan.
+    Reads scan JSON files from .harness/projects/*/health-score.json
+    (or infers from latest scan runs).
+    """
+    projects_dir = _HARNESS_ROOT / "projects"
+    if not projects_dir.exists():
+        return 0
+    improved = 0
+    for project_dir in projects_dir.iterdir():
+        if not project_dir.is_dir():
+            continue
+        score_file = project_dir / "health-score.json"
+        if not score_file.exists():
+            continue
+        try:
+            data = json.loads(score_file.read_text(encoding="utf-8"))
+            delta = data.get("delta", 0)
+            if isinstance(delta, (int, float)) and delta > 0:
+                improved += 1
+        except Exception:
+            pass
+    return improved
+
+
+def _count_marathon_completions() -> int:
+    """
+    Count shipped features with positive outcome signal (RA-689 feedback loop).
+    This is the "features delivered to real users" BVI component.
+    """
+    try:
+        from .feedback_loop import get_feedback_summary as _get_fb
+        fb = _get_fb()
+        return fb.get("positive", 0) if fb.get("available") else 0
+    except Exception:
+        return 0
+
+
+def compute_bvi(cycle: int) -> dict[str, Any]:
+    """
+    Compute the Business Velocity Index for the current board meeting cycle.
+    Returns a BVI entry dict ready to append to bvi-history.jsonl.
+    """
+    prior = _load_prior_bvi()
+    prior_date = prior.get("date") if prior else None
+
+    criticals = _count_criticals_resolved(since_iso=prior_date)
+    portfolio = _count_portfolio_improved()
+    marathon = _count_marathon_completions()
+
+    # BVI = sum of all three components (equal weight; can be weighted in future)
+    bvi_score = criticals + portfolio + marathon
+
+    prior_score = prior.get("bvi_score", 0) if prior else 0
+    delta = bvi_score - prior_score
+
+    entry: dict[str, Any] = {
+        "cycle": cycle,
+        "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "criticals_resolved": criticals,
+        "portfolio_projects_improved": portfolio,
+        "marathon_completions": marathon,
+        "bvi_score": bvi_score,
+        "prior_bvi_score": prior_score,
+        "delta": delta,
+        "notes": "",
+    }
+    log.info(
+        "BVI computed: cycle=%d score=%d (criticals=%d portfolio=%d marathon=%d delta=%+d)",
+        cycle, bvi_score, criticals, portfolio, marathon, delta,
+    )
+    return entry
+
+
+def record_bvi_entry(entry: dict[str, Any]) -> None:
+    """Append a BVI entry to .harness/bvi-history.jsonl (atomic write)."""
+    tmp = _BVI_HISTORY_FILE.with_suffix(".tmp")
+    existing = ""
+    if _BVI_HISTORY_FILE.exists():
+        existing = _BVI_HISTORY_FILE.read_text(encoding="utf-8")
+    try:
+        tmp.write_text(existing + json.dumps(entry) + "\n", encoding="utf-8")
+        tmp.replace(_BVI_HISTORY_FILE)
+        log.info("BVI entry recorded: cycle=%d score=%d", entry.get("cycle", 0), entry.get("bvi_score", 0))
+    except OSError as exc:
+        log.warning("Could not write BVI entry: %s", exc)
+
+
 # ── RA-658: Board Meeting Phases 1–5 ─────────────────────────────────────────
 
 def run_status_phase() -> dict[str, Any]:
@@ -981,6 +1120,21 @@ def run_status_phase() -> dict[str, Any]:
         log.info("Phase 1 ZTE v2: %d/%d [%s]", v2["v2_total"], v2["v2_max"], v2["band"])
     except Exception as exc:
         log.warning("ZTE v2 score compute failed (non-fatal): %s", exc)
+
+    # RA-696 — BVI: prior cycle summary for delta display
+    try:
+        prior_bvi = _load_prior_bvi()
+        if prior_bvi:
+            status["bvi_prior"] = {
+                "cycle": prior_bvi.get("cycle"),
+                "score": prior_bvi.get("bvi_score", 0),
+                "criticals_resolved": prior_bvi.get("criticals_resolved", 0),
+                "portfolio_improved": prior_bvi.get("portfolio_projects_improved", 0),
+                "marathon_completions": prior_bvi.get("marathon_completions", 0),
+            }
+        log.info("Phase 1 BVI prior: %s", status.get("bvi_prior", "baseline (no history)"))
+    except Exception as exc:
+        log.warning("Phase 1 BVI prior load failed (non-fatal): %s", exc)
 
     # RA-689 — Shipped features performance (outcome feedback loop)
     try:
@@ -1060,8 +1214,9 @@ def run_swot_phase(
     status: dict[str, Any],
     linear: dict[str, Any],
     persona_debate: dict[str, Any] | None = None,
+    bvi: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Phase 3 — SWOT: analysis informed by lessons.jsonl + live board context + persona debate."""
+    """Phase 3 — SWOT: analysis informed by lessons.jsonl + live board context + persona debate + BVI."""
     lessons = _read_lessons(n=20)
     urgent_issues = status.get("urgent_issues", [])
     stale = linear.get("stale_items", [])
@@ -1072,10 +1227,25 @@ def run_swot_phase(
         f"- ZTE Score (v2): {v2['total']}/{v2['max']} [{v2['band']}]\n"
         if v2 else ""
     )
+
+    # RA-696 — BVI trend context for SWOT
+    bvi_line = ""
+    if bvi:
+        bvi_score = bvi.get("bvi_score", 0)
+        bvi_delta = bvi.get("delta", 0)
+        bvi_delta_str = f"+{bvi_delta}" if bvi_delta > 0 else str(bvi_delta)
+        bvi_line = (
+            f"- BVI (Business Velocity Index): {bvi_score} ({bvi_delta_str} from prior cycle)\n"
+            f"  CRITICALs resolved: {bvi.get('criticals_resolved', 0)} | "
+            f"Portfolio improved: {bvi.get('portfolio_projects_improved', 0)} | "
+            f"MARATHON completions: {bvi.get('marathon_completions', 0)}\n"
+        )
+
     state_section = (
         "## Current State\n"
         f"- ZTE Score (v1): {status.get('zte_score', 'unknown')}\n"
         + v2_line
+        + bvi_line
         + f"- Open Urgent issues: {len(urgent_issues)}\n"
         + f"- Open High issues: {linear.get('high_count', 0)}\n"
         + f"- Stale items (>3d unchanged): {', '.join(stale) or 'None'}\n"
@@ -1153,6 +1323,7 @@ def save_board_minutes(
     recommendations: dict[str, Any],
     gap_audit: dict[str, Any],
     persona_debate: dict[str, Any] | None = None,
+    bvi: dict[str, Any] | None = None,
 ) -> Path:
     """Phase 5 — SAVE MINUTES: write full board minutes to .harness/board-meetings/."""
     board_dir = _HARNESS_ROOT / "board-meetings"
@@ -1170,8 +1341,30 @@ def save_board_minutes(
         if persona_debate else []
     )
 
+    # BVI headline section
+    bvi_score = bvi.get("bvi_score", 0) if bvi else 0
+    bvi_delta = bvi.get("delta", 0) if bvi else 0
+    bvi_delta_str = f"+{bvi_delta}" if bvi_delta > 0 else str(bvi_delta)
+    bvi_section = (
+        [
+            "",
+            "## Business Velocity Index (RA-696)",
+            f"**BVI: {bvi_score}** ({bvi_delta_str} from prior cycle)",
+            f"- CRITICALs resolved: {bvi.get('criticals_resolved', 0)}",
+            f"- Portfolio projects improved: {bvi.get('portfolio_projects_improved', 0)}",
+            f"- MARATHON completions (positive outcomes): {bvi.get('marathon_completions', 0)}",
+            f"- Prior cycle BVI: {bvi.get('prior_bvi_score', 'baseline (first cycle)')}",
+        ]
+        if bvi else [
+            "",
+            "## Business Velocity Index (RA-696)",
+            "BVI: not computed (first cycle or dry-run)",
+        ]
+    )
+
     content = "\n".join([
         f"# Board Meeting Minutes — Cycle {cycle} ({date_str})",
+        *bvi_section,
         "",
         "## Attendees",
         "- Pi CEO Autonomous Agent (Orchestrator)",
@@ -1245,7 +1438,8 @@ def run_full_board_meeting(dry_run: bool = False, cycle: int = 0) -> dict[str, A
     status = run_status_phase()
     linear = run_linear_review_phase()
     persona_debate = run_persona_debate_phase(system_prompt, status, linear)
-    swot = run_swot_phase(system_prompt, status, linear, persona_debate=persona_debate)
+    bvi = compute_bvi(cycle)
+    swot = run_swot_phase(system_prompt, status, linear, persona_debate=persona_debate, bvi=bvi)
     recommendations = run_sprint_recommendations_phase(system_prompt, swot, linear)
     gap_audit = run_gap_audit_phase(dry_run=dry_run)
 
@@ -1253,11 +1447,13 @@ def run_full_board_meeting(dry_run: bool = False, cycle: int = 0) -> dict[str, A
         minutes_path = save_board_minutes(
             cycle, status, linear, swot, recommendations, gap_audit,
             persona_debate=persona_debate,
+            bvi=bvi,
         )
         gap_audit["minutes_path"] = str(minutes_path)
+        record_bvi_entry(bvi)
 
     duration = round(time.monotonic() - start, 1)
-    log.info("=== FULL BOARD MEETING COMPLETE in %.1fs ===", duration)
+    log.info("=== FULL BOARD MEETING COMPLETE in %.1fs BVI=%d ===", duration, bvi.get("bvi_score", 0))
     return {
         "status": status,
         "linear_review": linear,
@@ -1265,6 +1461,7 @@ def run_full_board_meeting(dry_run: bool = False, cycle: int = 0) -> dict[str, A
         "swot": swot,
         "sprint_recommendations": recommendations,
         "gap_audit": gap_audit,
+        "bvi": bvi,
         "duration_s": duration,
     }
 
