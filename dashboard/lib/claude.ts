@@ -108,6 +108,7 @@ async function runPhaseSDK(
   context: string,
   onChunk: PhaseStreamCallback,
   signal?: AbortSignal,
+  maxTokens = 4096,
 ): Promise<string> {
   if (signal?.aborted) throw new Error("Phase aborted before start");
 
@@ -116,7 +117,7 @@ async function runPhaseSDK(
   const stream = await client.messages.stream(
     {
       model,
-      max_tokens: 4096,
+      max_tokens: maxTokens,
       system: SYSTEM,
       messages: [{ role: "user", content: fullPrompt }],
     },
@@ -146,12 +147,13 @@ export async function runPhase(
   context: string,
   onChunk: PhaseStreamCallback,
   signal?: AbortSignal,
+  maxTokens = 4096,
 ): Promise<string> {
   if (getAnalysisMode() === "cli") {
     return runPhaseCLI(model, prompt, context, onChunk, signal);
   }
   if (!client) throw new Error("SDK client required for api mode");
-  return runPhaseSDK(client, model, prompt, context, onChunk, signal);
+  return runPhaseSDK(client, model, prompt, context, onChunk, signal, maxTokens);
 }
 
 // ── Chat (always uses SDK for responsiveness) ─────────────────────────────────

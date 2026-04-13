@@ -106,12 +106,14 @@ export async function GET(req: NextRequest) {
         console.error(`[analyze] ${ctx}:`, err instanceof Error ? err.message : err);
       };
 
-      // ── Graceful budget: abort at 240s, hard stop at 260s ────────────────
-      // AbortController fires at 240s — kills any in-progress phase cleanly.
-      // budgetFired at 260s — prevents new phases from starting.
-      // Vercel hard limit is 300s — we're done by ~255s.
-      const ABORT_MS  = 240_000;
-      const BUDGET_MS = 260_000;
+      // ── Graceful budget: abort at 270s, hard stop at 285s ────────────────
+      // AbortController fires at 270s — kills any in-progress phase cleanly.
+      // budgetFired at 285s — prevents new phases from starting.
+      // Vercel hard limit is 300s — we're done by ~280s.
+      // Phase 7 (CEO mode) is the most token-hungry; 270s gives it ~30s of runway
+      // after phases 1-6 complete in ~230-240s.
+      const ABORT_MS  = 270_000;
+      const BUDGET_MS = 285_000;
       let budgetFired = false;
       const abortController = new AbortController();
       const abortTimer  = setTimeout(() => abortController.abort(), ABORT_MS);
@@ -270,13 +272,16 @@ export async function GET(req: NextRequest) {
           line("system", `  Skill: ${phase.skill}`);
 
           const selectedModel = phaseModel(phase.id, model);
-          line("system", `  Model: ${selectedModel}`);
+          // Phase 7 (CEO Mode) generates sprint plans + board notes — needs headroom.
+          // All other phases fit in 4096 tokens.
+          const phaseMaxTokens = phase.id === 7 ? 8192 : 4096;
+          line("system", `  Model: ${selectedModel} | max_tokens: ${phaseMaxTokens}`);
 
           let phaseOutput = "";
           try {
             phaseOutput = await runPhase(claude, selectedModel, PHASE_PROMPTS[phase.id], enrichedContext(phase.id), (chunk) => {
               chunk.split("\n").forEach((l) => { if (l.trim()) line("agent", `  ${l}`); });
-            }, abortController.signal);
+            }, abortController.signal, phaseMaxTokens);
           } catch (err) {
             const isAbort = abortController.signal.aborted || (err instanceof Error && err.message.includes("aborted"));
             if (isAbort) {
@@ -300,7 +305,7 @@ export async function GET(req: NextRequest) {
             try {
               phaseOutput = await runPhase(claude, selectedModel, retryPrompt, enrichedContext(phase.id), (chunk) => {
                 chunk.split("\n").forEach((l) => { if (l.trim()) line("agent", `  ${l}`); });
-              }, abortController.signal);
+              }, abortController.signal, phaseMaxTokens);
             } catch { /* retry failed — use original output */ }
           }
 
