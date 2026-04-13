@@ -20,8 +20,12 @@ const SIDEBAR_MIN = 220;
 const SIDEBAR_MAX = 640;
 const SIDEBAR_DEFAULT = 320;
 
+const BRIEF_TEMPLATE =
+  "Scope: Full audit — ZTE score, quality gates, leverage points, executive summary\nFocus areas: All components\nContext: ";
+
 export default function Dashboard() {
   const [repo, setRepo] = useState("");
+  const [brief, setBrief] = useState("");
   const [rightTab, setRightTab] = useState<RightTab>("phases");
   const [mobilePane, setMobilePane] = useState<"terminal" | "panel">("terminal");
   // Resizable sidebar state
@@ -73,7 +77,7 @@ export default function Dashboard() {
     if (!repo.trim() || submitting) return;
     setSubmitting(true);
     // GitHub token is read server-side from Supabase settings — no need to pass it here
-    start(sanitize(repo.trim()));
+    start(sanitize(repo.trim()), brief.trim() || undefined);
   }
 
   const running = status === "running" || submitting;
@@ -137,6 +141,39 @@ export default function Dashboard() {
         >
           {running ? "STOP" : "ANALYZE"}
         </button>
+      </div>
+
+      {/* ── Brief bar ─────────────────────────────────────────────── */}
+      <div
+        className="flex flex-col gap-1 px-3 py-2 shrink-0"
+        style={{ borderBottom: "1px solid var(--c-border)", background: "var(--c-bg)" }}
+      >
+        <div className="flex items-center justify-between">
+          <span className="font-mono text-xs" style={{ color: "var(--c-muted)" }}>BRIEF</span>
+          <button
+            type="button"
+            onClick={() => setBrief(BRIEF_TEMPLATE)}
+            disabled={running}
+            className="font-mono text-xs px-2 py-0.5 disabled:opacity-30 transition-opacity"
+            style={{
+              background: "var(--c-panel)",
+              color: "var(--c-chrome)",
+              border: "1px solid var(--c-border)",
+            }}
+          >
+            Use template
+          </button>
+        </div>
+        <textarea
+          value={brief}
+          onChange={(e) => setBrief(e.target.value)}
+          placeholder={`Describe what to analyse. Click "Use template" for a structured format.`}
+          disabled={running}
+          rows={3}
+          className="font-mono text-xs outline-none disabled:opacity-50 px-2 py-1 resize-none"
+          style={{ background: "var(--c-panel)", color: "var(--c-text)", border: "1px solid var(--c-border)" }}
+          aria-label="Analysis brief"
+        />
       </div>
 
       {error && (

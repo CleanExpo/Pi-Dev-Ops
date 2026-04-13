@@ -42,10 +42,13 @@ export function useSSE() {
     retries:    0,
   });
 
+  const briefRef = useRef<string>("");
+
   const connect = useCallback((repoUrl: string, retryCount: number) => {
     esRef.current?.close();
 
     const params = new URLSearchParams({ repo: repoUrl });
+    if (briefRef.current) params.set("brief", briefRef.current);
     const es     = new EventSource(`/api/analyze?${params}`);
     esRef.current = es;
 
@@ -150,11 +153,12 @@ export function useSSE() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const start = useCallback((repoUrl: string) => {
+  const start = useCallback((repoUrl: string, brief?: string) => {
     // Clear any pending retry
     if (retryTimeout.current) { clearTimeout(retryTimeout.current); retryTimeout.current = null; }
 
     repoRef.current = repoUrl;
+    briefRef.current = brief ?? "";
     setState({
       lines:      [],
       phases:     initialPhases(),
