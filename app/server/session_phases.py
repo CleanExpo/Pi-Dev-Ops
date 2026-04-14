@@ -200,6 +200,156 @@ def _check_scope_adherence(
     return True
 
 
+# ── RA-934: 4-file task memory ────────────────────────────────────────────────
+
+async def _write_task_memory(session, brief: str, spec: str) -> None:
+    """Write PROMPT/PLAN/IMPLEMENT.md to .pi-ceo/{session_id}/ in the workspace.
+
+    These files become the cross-session working memory passed to every agent
+    invocation.  STATUS.md is created empty for the generator to populate.
+    Never raises — task memory failure must not block the build pipeline.
+    """
+    from pathlib import Path  # noqa: PLC0415
+    try:
+        pi_dir = Path(session.workspace) / ".pi-ceo" / session.id
+        pi_dir.mkdir(parents=True, exist_ok=True)
+        (pi_dir / "PROMPT.md").write_text(
+            f"# Task Brief\n\n{brief}\n\n## Session: {session.id}\n",
+            encoding="utf-8",
+        )
+        (pi_dir / "PLAN.md").write_text(
+            f"# Implementation Plan\n\n{spec}\n",
+            encoding="utf-8",
+        )
+        (pi_dir / "STATUS.md").write_text(
+            f"# Status Log\n\n_Session {session.id} — update after each milestone._\n",
+            encoding="utf-8",
+        )
+        impl_template = Path(__file__).parent / "templates" / "IMPLEMENT.md"
+        if impl_template.exists():
+            shutil.copy(impl_template, pi_dir / "IMPLEMENT.md")
+        _log.info("RA-934: task memory written to %s", pi_dir)
+    except Exception as exc:
+        _log.warning("RA-934: _write_task_memory failed (non-fatal): %s", exc)
+
+
+# ── RA-936: Structured repair loop helpers ────────────────────────────────────
+
+async def _classify_failure(eval_text: str, diff_text: str, session) -> dict:
+    """Use Haiku to classify the evaluator failure and determine minimal repair scope.
+
+    Returns a dict with: FAILURE_TYPE, IMPLICATED_FILES, REPAIR_SCOPE,
+    REPAIR_INSTRUCTIONS.  Returns {} on any error — caller falls back to
+    the legacy retry_brief format.
+    """
+    haiku_model = getattr(config, "HAIKU_MODEL", "claude-haiku-4-5")
+    classification_prompt = (
+        "You are a code repair classifier. Analyse the evaluator output and diff, "
+        "then classify the failure concisely.\n\n"
+        f"EVALUATOR OUTPUT:\n{eval_text[:2000]}\n\n"
+        f"GIT DIFF SUMMARY:\n{diff_text[:1000]}\n\n"
+        "Respond in JSON only (no markdown fences):\n"
+        "{\n"
+        '  "FAILURE_TYPE": "test_failure|lint_error|type_error|logic_error|incomplete|scope_violation",\n'
+        '  "IMPLICATED_FILES": ["list", "of", "file", "paths"],\n'
+        '  "REPAIR_SCOPE": "minimal|moderate|full_rewrite",\n'
+        '  "REPAIR_INSTRUCTIONS": ["step 1", "step 2", "step 3"]\n'
+        "}"
+    )
+    try:
+        rc, text, _ = await _run_claude_via_sdk(
+            classification_prompt, haiku_model, session.workspace,
+            timeout=45, session_id=session.id, phase="repair_classifier",
+        )
+        if rc == 0 and text.strip():
+            # Strip any accidental markdown fences
+            clean = text.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
+            return json.loads(clean)
+    except Exception as exc:
+        _log.debug("RA-936: _classify_failure error (non-fatal): %s", exc)
+    return {}
+
+
+def _build_repair_brief(
+    spec: str,
+    eval_text: str,
+    classification: dict,
+    threshold: float,
+    weak_dims: list[str],
+) -> str:
+    """Build a targeted repair brief from the failure classification.
+
+    Falls back to the legacy retry format when classification is empty.
+    """
+    if not classification:
+        # Legacy format (existing behaviour preserved)
+        return (
+            spec + "\n\n--- RETRY INSTRUCTIONS ---\n"
+            f"Previous attempt scored below threshold ({threshold}/10).\n"
+            "Issues found:\n" + "\n".join(f"- {w}" for w in weak_dims) + "\n"
+            "Fix these specific issues. Do not rewrite everything.\n--- END RETRY ---"
+        )
+    failure_type = classification.get("FAILURE_TYPE", "unknown")
+    implicated = classification.get("IMPLICATED_FILES", [])
+    scope = classification.get("REPAIR_SCOPE", "minimal")
+    instructions = classification.get("REPAIR_INSTRUCTIONS", [])
+
+    files_line = ", ".join(implicated) if implicated else "see evaluator output"
+    instructions_text = "\n".join(f"  {i+1}. {step}" for i, step in enumerate(instructions))
+
+    return (
+        f"REPAIR TASK — failure type: {failure_type}, scope: {scope}\n\n"
+        f"Do NOT rewrite everything. Touch only the implicated files: {files_line}\n\n"
+        f"Original task spec:\n{spec[:1500]}\n\n"
+        f"Evaluator feedback:\n{eval_text[:1500]}\n\n"
+        f"Specific repair instructions:\n{instructions_text or '  - Fix the issues described in the evaluator feedback above'}\n\n"
+        "Verify your changes with a quick test run if tests exist.\n"
+        "Do not modify files not in the implicated list."
+    )
+
+
+def _send_repair_exhausted_alert(session, score: float, eval_text: str) -> None:
+    """RA-936 — Telegram alert when the repair loop exhausts all retries.
+
+    Lets the operator know a session needs human review rather than silently
+    being marked 'warned'. Never raises.
+    """
+    token = config.TELEGRAM_BOT_TOKEN
+    chat_id = config.TELEGRAM_ALERT_CHAT_ID
+    if not token or not chat_id:
+        return
+    repo = getattr(session, "repo_url", "?").rstrip("/").split("/")[-1]
+    issue_id = getattr(session, "linear_issue_id", None)
+    ticket = f" | {issue_id}" if issue_id else ""
+    # Pull first failing dimension from eval text for the alert
+    failing_dim = ""
+    for line in eval_text.splitlines():
+        if any(d in line for d in ("COMPLETENESS:", "CORRECTNESS:", "CONCISENESS:", "FORMAT:")):
+            if "/10" in line:
+                try:
+                    score_val = float(line.split("/10")[0].split()[-1])
+                    if score_val < 7:
+                        failing_dim = line.strip()[:80]
+                        break
+                except ValueError:
+                    pass
+    msg = (
+        f"🔄 *Repair loop exhausted:* `{repo}`\n"
+        f"Score: {score:.1f}/10 — needs human review{ticket}\n"
+        f"{failing_dim}"
+    )
+    payload = json.dumps({"chat_id": chat_id, "text": msg, "parse_mode": "Markdown",
+                          "disable_web_page_preview": True}).encode()
+    req = urllib.request.Request(
+        f"https://api.telegram.org/bot{token}/sendMessage",
+        data=payload, headers={"Content-Type": "application/json"}, method="POST",
+    )
+    try:
+        urllib.request.urlopen(req, timeout=10)
+    except Exception as exc:
+        _log.debug("RA-936: _send_repair_exhausted_alert failed (non-fatal): %s", exc)
+
+
 def _select_model(phase: str, explicit_model: str = "") -> str:
     """Select model for a build phase using harness config.
     phase: 'planner', 'generator', or 'evaluator'.
@@ -652,15 +802,14 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
             if eval_attempt >= max_retries:
                 session.evaluator_status = "warned"
                 em(session, "error", f"  Evaluator: {session.evaluator_score}/10 \u2014 BELOW THRESHOLD (exhausted {max_retries + 1} attempts)")
+                _send_repair_exhausted_alert(session, session.evaluator_score, eval_text)  # RA-936
                 break
             dimensions = _parse_evaluator_dimensions(eval_text)
             weak_dims = [f"{d}: {s}/10 \u2014 {r}" for d, (s, r) in dimensions.items() if s < threshold]
-            retry_brief = (
-                spec + "\n\n--- RETRY INSTRUCTIONS ---\n"
-                f"Previous attempt scored {session.evaluator_score}/10 (threshold: {threshold}).\n"
-                "Issues found:\n" + "\n".join(f"- {w}" for w in weak_dims) + "\n"
-                "Fix these specific issues. Do not rewrite everything.\n--- END RETRY ---"
-            )
+            # RA-936: fast failure classification before targeted repair
+            em(session, "system", "  Classifying failure (haiku)\u2026")
+            classification = await _classify_failure(eval_text, diff_full or "", session)
+            retry_brief = _build_repair_brief(spec, eval_text, classification, threshold, weak_dims)
             em(session, "error", f"  Evaluator: {session.evaluator_score}/10 \u2014 RETRYING")
             em(session, "phase", f"[4/{total_phases}] Re-running Claude Code (retry {eval_attempt + 1})...")
             session.status = "building"
@@ -821,6 +970,10 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
                    f"({meta['winner_score']:.1f}/10) in {meta['duration_s']}s")
         except Exception as _disc_exc:
             _log.warning("plan_discovery hook failed (non-fatal): %s", _disc_exc)
+
+    # RA-934 — write cross-session task memory files to workspace before generation
+    await _write_task_memory(session, brief, spec)
+    em(session, "system", f"  Task memory: .pi-ceo/{session.id}/PLAN.md written")
 
     if not await _phase_generate(session, spec, model, resume_from):
         _sync_linear_on_completion(session)
