@@ -3,7 +3,6 @@ import json
 import logging
 import os
 import urllib.request as _ur
-import urllib.error
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
