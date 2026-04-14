@@ -767,6 +767,7 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
                 _log.info("eval-cache all-failed — falling back to Agent SDK evaluator")
                 eval_spec = (
                     _EVAL_PROMPT_BASE
+                    + "ORIGINAL BRIEF (what was asked for):\n" + brief_context + "\n\n"
                     + "DIFF SUMMARY:\n" + (diff_out or "(empty)") + "\n\n"
                     + "DIFF DETAIL (truncated to 8000 chars):\n" + diff_context + "\n\n"
                     + _EVAL_PROMPT_DIMS
