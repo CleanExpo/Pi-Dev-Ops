@@ -223,6 +223,34 @@ def _log_cycle(entry: dict) -> None:
         f.write(json.dumps(entry) + "\n")
 
 
+def _read_pr_counter() -> dict:
+    """Read today's autonomous-PR counter from pr_rate_limit.json.
+
+    Resets automatically when the date changes.
+    """
+    counter_file = config.SWARM_LOG_DIR / "pr_rate_limit.json"
+    today = datetime.now(timezone.utc).date().isoformat()
+    try:
+        with open(counter_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if data.get("date") != today:
+            return {"date": today, "count": 0, "limit": config.MAX_AUTONOMOUS_PRS_PER_DAY}
+        return data
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"date": today, "count": 0, "limit": config.MAX_AUTONOMOUS_PRS_PER_DAY}
+
+
+def _increment_pr_counter(counter: dict) -> None:
+    """Atomically persist incremented PR counter (write-tmp→replace)."""
+    counter_file = config.SWARM_LOG_DIR / "pr_rate_limit.json"
+    counter["count"] += 1
+    counter["limit"] = config.MAX_AUTONOMOUS_PRS_PER_DAY
+    tmp_path = str(counter_file) + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(counter, f)
+    os.replace(tmp_path, str(counter_file))
+
+
 def run_cycle(unacked_count: int) -> dict:
     """Execute one Builder observation cycle.
 
@@ -270,7 +298,24 @@ def run_cycle(unacked_count: int) -> dict:
         drafts.append(draft)
 
         if not config.SHADOW_MODE:
-            # Active mode: fire the build
+            # Active mode: check daily PR rate limit before firing
+            pr_counter = _read_pr_counter()
+            if pr_counter["count"] >= config.MAX_AUTONOMOUS_PRS_PER_DAY:
+                log.warning(
+                    "Builder: daily PR limit reached (%d/%d) — skipping %s",
+                    pr_counter["count"], config.MAX_AUTONOMOUS_PRS_PER_DAY, ticket["id"],
+                )
+                send(
+                    message=(
+                        f"<b>Builder: daily PR limit reached</b>\n"
+                        f"{pr_counter['count']}/{config.MAX_AUTONOMOUS_PRS_PER_DAY} PRs today — "
+                        f"{ticket['id']} queued for tomorrow."
+                    ),
+                    severity="info",
+                    bot_name="Builder",
+                )
+                break
+
             session_id = _fire_build(
                 ticket_id=ticket["id"],
                 repo_url=repo_url,
@@ -280,6 +325,7 @@ def run_cycle(unacked_count: int) -> dict:
             draft["session_id"] = session_id
             if session_id:
                 fired.append(draft)
+                _increment_pr_counter(pr_counter)
 
     result: dict = {
         "ts": datetime.now(timezone.utc).isoformat(),

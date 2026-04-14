@@ -30,6 +30,11 @@ MAX_UNACKED_ITERATIONS: int = int(os.environ.get("TAO_SWARM_MAX_UNACKED_ITERS", 
 # Seconds between each bot's observation cycle (default: 5 minutes).
 CYCLE_INTERVAL_S: int = int(os.environ.get("TAO_SWARM_CYCLE_S", "300"))
 
+# Board-mandated rate limit: max autonomous PRs the Builder may open per calendar day.
+# CONTRARIAN's condition — holds until 20 consecutive green supervised merges logged.
+# Override with TAO_SWARM_MAX_DAILY_PRS env var.
+MAX_AUTONOMOUS_PRS_PER_DAY: int = int(os.environ.get("TAO_SWARM_MAX_DAILY_PRS", "3"))
+
 # ── Ollama ────────────────────────────────────────────────────────────────────
 OLLAMA_BASE_URL: str = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_TIMEOUT_S: int = int(os.environ.get("OLLAMA_TIMEOUT_S", "120"))
