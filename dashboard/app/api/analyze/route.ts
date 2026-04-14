@@ -9,7 +9,7 @@ import {
   makeOctokit, parseRepoUrl, getDefaultBranch,
   createBranch, fetchRepoContext, fetchBranchDiffs, pushFile, createPR,
 } from "@/lib/github";
-import { makeClient, buildContext, runPhase, getAnalysisMode, THINK_PHASE_IDS } from "@/lib/claude";
+import { makeClient, buildContext, runPhase, getAnalysisMode, THINK_PHASE_IDS, THINK_SEEDS } from "@/lib/claude";
 import { PHASES, PHASE_PROMPTS, applyPhaseResult } from "@/lib/phases";
 import { phaseModel } from "@/lib/models";
 
@@ -255,7 +255,7 @@ export async function GET(req: NextRequest) {
           try {
             phaseOutput = await runPhase(claude, selectedModel, PHASE_PROMPTS[phase.id], enrichedContext(phase.id), (chunk) => {
               chunk.split("\n").forEach((l) => { if (l.trim()) line("agent", `  ${l}`); });
-            }, abortController.signal, phaseMaxTokens, useThinkPrefill);
+            }, abortController.signal, phaseMaxTokens, useThinkPrefill, THINK_SEEDS[phase.id]);
           } catch (err) {
             const isAbort = abortController.signal.aborted || (err instanceof Error && err.message.includes("aborted"));
             if (isAbort) {
@@ -279,7 +279,7 @@ export async function GET(req: NextRequest) {
             try {
               phaseOutput = await runPhase(claude, selectedModel, retryPrompt, enrichedContext(phase.id), (chunk) => {
                 chunk.split("\n").forEach((l) => { if (l.trim()) line("agent", `  ${l}`); });
-              }, abortController.signal, phaseMaxTokens, useThinkPrefill);
+              }, abortController.signal, phaseMaxTokens, useThinkPrefill, THINK_SEEDS[phase.id]);
             } catch { /* retry failed — use original output */ }
           }
 

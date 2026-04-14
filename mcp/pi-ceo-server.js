@@ -180,10 +180,22 @@ async function findProjectId() {
   throw new Error(`Project "${LINEAR_PROJECT_SLUG}" not found. Available: ${data3.projects.nodes.map(p => p.name).join(", ")}`);
 }
 
+// ── RA-933: Parallel tool execution ─────────────────────────────────────────
+// READ_ONLY_TOOLS: safe to run concurrently — no mutations, no ordering deps.
+const READ_ONLY_TOOLS = new Set([
+  "get_feature_list", "get_last_analysis", "get_project_health",
+  "get_zte_score", "get_sprint_plan", "get_pipeline", "list_harness_files",
+  "linear_list_issues", "linear_search_issues", "linear_status",
+  "get_monitor_digest", "search_lessons",
+]);
+
+// Internal dispatch map for run_parallel — populated as tools are registered.
+const _readHandlers = new Map();
+
 // ── Server Setup ───────────────────────────────────────────────────────────────
 const server = new McpServer({
   name: "pi-ceo",
-  version: "3.2.0",
+  version: "3.3.0",
 });
 
 // ── Harness staleness check ────────────────────────────────────────────────────
@@ -223,6 +235,13 @@ function harnessStalenessBanner() {
 }
 
 // ── Tool: get_last_analysis ────────────────────────────────────────────────────
+const _handle_get_last_analysis = async () => {
+  const spec = readHarness("spec.md");
+  const exec = readHarness("executive-summary.md");
+  const stale = harnessStalenessBanner();
+  return { content: [{ type: "text", text: `${spec}\n\n---\n\n${exec}${stale}` }] };
+};
+_readHandlers.set("get_last_analysis", _handle_get_last_analysis);
 server.registerTool(
   "get_last_analysis",
   {
@@ -231,12 +250,7 @@ server.registerTool(
     inputSchema: {},
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },
-  async () => {
-    const spec = readHarness("spec.md");
-    const exec = readHarness("executive-summary.md");
-    const stale = harnessStalenessBanner();
-    return { content: [{ type: "text", text: `${spec}\n\n---\n\n${exec}${stale}` }] };
-  }
+  _handle_get_last_analysis
 );
 
 // ── Tool: generate_board_notes ─────────────────────────────────────────────────
@@ -306,6 +320,77 @@ server.registerTool(
 );
 
 // ── Tool: search_lessons ──────────────────────────────────────────────────────
+const _handle_search_lessons = async ({ query, n = 5, category }) => {
+  const lessonsPath = path.join(HARNESS_DIR, "lessons.jsonl");
+  if (!fs.existsSync(lessonsPath)) {
+    return { content: [{ type: "text", text: "No lessons.jsonl found. Lessons are added automatically during analysis runs." }] };
+  }
+
+  // Parse JSONL
+  const lines = fs.readFileSync(lessonsPath, "utf8").split("\n").filter(Boolean);
+  let lessons = lines.map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+
+  if (category) {
+    lessons = lessons.filter((e) => (e.category || "").toLowerCase() === category.toLowerCase());
+  }
+
+  if (!lessons.length) {
+    return { content: [{ type: "text", text: `No lessons found${category ? ` in category '${category}'` : ""}.` }] };
+  }
+
+  // Simple BM25-style keyword scoring
+  const queryTerms = query.toLowerCase().match(/[a-z0-9]+/g) || [];
+  if (!queryTerms.length) {
+    // No terms — return newest entries
+    const recent = lessons.slice(-n).reverse();
+    const lines2 = recent.map((e, i) =>
+      `${i + 1}. [${e.severity === "warn" ? "⚠️ " : "  "}${e.category}] ${e.lesson}`
+    ).join("\n\n");
+    return { content: [{ type: "text", text: `${recent.length} most recent lessons:\n\n${lines2}` }] };
+  }
+
+  const N = lessons.length;
+  const df = {};
+  for (const term of queryTerms) {
+    df[term] = lessons.filter((e) => (e.lesson || "").toLowerCase().includes(term)).length;
+  }
+
+  const scored = lessons.map((e) => {
+    const text = (e.lesson || "").toLowerCase();
+    const tokens = text.match(/[a-z0-9]+/g) || [];
+    const tf = {};
+    for (const t of tokens) { tf[t] = (tf[t] || 0) + 1; }
+    let score = 0;
+    for (const term of queryTerms) {
+      const termTf = (tf[term] || 0) / (tokens.length || 1);
+      const idf = Math.log((N + 1) / ((df[term] || 0) + 1));
+      score += termTf * idf;
+    }
+    if (e.severity === "warn") score *= 1.2;
+    return { ...e, _score: score };
+  });
+
+  const top = scored
+    .filter((e) => e._score > 0)
+    .sort((a, b) => b._score - a._score)
+    .slice(0, n);
+
+  if (!top.length) {
+    return { content: [{ type: "text", text: `No lessons matched "${query}". Try broader terms.` }] };
+  }
+
+  const resultLines = top.map((e, i) =>
+    `${i + 1}. [score=${e._score.toFixed(3)}] ${e.severity === "warn" ? "⚠️ " : ""}${e.lesson}\n   category=${e.category} | source=${e.source}`
+  ).join("\n\n");
+
+  return {
+    content: [{
+      type: "text",
+      text: `Found ${top.length} lesson(s) for "${query}":\n\n${resultLines}\n\n---\nFor semantic search: \`python .harness/lessons_search.py "${query}"\``,
+    }],
+  };
+};
+_readHandlers.set("search_lessons", _handle_search_lessons);
 server.registerTool(
   "search_lessons",
   {
@@ -318,79 +403,22 @@ server.registerTool(
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },
-  async ({ query, n = 5, category }) => {
-    const lessonsPath = path.join(HARNESS_DIR, "lessons.jsonl");
-    if (!fs.existsSync(lessonsPath)) {
-      return { content: [{ type: "text", text: "No lessons.jsonl found. Lessons are added automatically during analysis runs." }] };
-    }
-
-    // Parse JSONL
-    const lines = fs.readFileSync(lessonsPath, "utf8").split("\n").filter(Boolean);
-    let lessons = lines.map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
-
-    if (category) {
-      lessons = lessons.filter((e) => (e.category || "").toLowerCase() === category.toLowerCase());
-    }
-
-    if (!lessons.length) {
-      return { content: [{ type: "text", text: `No lessons found${category ? ` in category '${category}'` : ""}.` }] };
-    }
-
-    // Simple BM25-style keyword scoring
-    const queryTerms = query.toLowerCase().match(/[a-z0-9]+/g) || [];
-    if (!queryTerms.length) {
-      // No terms — return newest entries
-      const recent = lessons.slice(-n).reverse();
-      const lines2 = recent.map((e, i) =>
-        `${i + 1}. [${e.severity === "warn" ? "⚠️ " : "  "}${e.category}] ${e.lesson}`
-      ).join("\n\n");
-      return { content: [{ type: "text", text: `${recent.length} most recent lessons:\n\n${lines2}` }] };
-    }
-
-    const N = lessons.length;
-    const df = {};
-    for (const term of queryTerms) {
-      df[term] = lessons.filter((e) => (e.lesson || "").toLowerCase().includes(term)).length;
-    }
-
-    const scored = lessons.map((e) => {
-      const text = (e.lesson || "").toLowerCase();
-      const tokens = text.match(/[a-z0-9]+/g) || [];
-      const tf = {};
-      for (const t of tokens) { tf[t] = (tf[t] || 0) + 1; }
-      let score = 0;
-      for (const term of queryTerms) {
-        const termTf = (tf[term] || 0) / (tokens.length || 1);
-        const idf = Math.log((N + 1) / ((df[term] || 0) + 1));
-        score += termTf * idf;
-      }
-      if (e.severity === "warn") score *= 1.2;
-      return { ...e, _score: score };
-    });
-
-    const top = scored
-      .filter((e) => e._score > 0)
-      .sort((a, b) => b._score - a._score)
-      .slice(0, n);
-
-    if (!top.length) {
-      return { content: [{ type: "text", text: `No lessons matched "${query}". Try broader terms.` }] };
-    }
-
-    const resultLines = top.map((e, i) =>
-      `${i + 1}. [score=${e._score.toFixed(3)}] ${e.severity === "warn" ? "⚠️ " : ""}${e.lesson}\n   category=${e.category} | source=${e.source}`
-    ).join("\n\n");
-
-    return {
-      content: [{
-        type: "text",
-        text: `Found ${top.length} lesson(s) for "${query}":\n\n${resultLines}\n\n---\nFor semantic search: \`python .harness/lessons_search.py "${query}"\``,
-      }],
-    };
-  }
+  _handle_search_lessons
 );
 
 // ── Tool: get_sprint_plan ──────────────────────────────────────────────────────
+const _handle_get_sprint_plan = async () => {
+  // Prefer dedicated sprint_plan.md; fall back to parsing spec.md
+  const sprintPath = path.join(HARNESS_DIR, "sprint_plan.md");
+  if (fs.existsSync(sprintPath)) {
+    return { content: [{ type: "text", text: fs.readFileSync(sprintPath, "utf8") }] };
+  }
+  const spec = readHarness("spec.md");
+  const match = spec.match(/## Sprint Plan([\s\S]*?)(?:\n##|$)/);
+  const sprint = match ? match[1].trim() : spec;
+  return { content: [{ type: "text", text: sprint }] };
+};
+_readHandlers.set("get_sprint_plan", _handle_get_sprint_plan);
 server.registerTool(
   "get_sprint_plan",
   {
@@ -399,20 +427,15 @@ server.registerTool(
     inputSchema: {},
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },
-  async () => {
-    // Prefer dedicated sprint_plan.md; fall back to parsing spec.md
-    const sprintPath = path.join(HARNESS_DIR, "sprint_plan.md");
-    if (fs.existsSync(sprintPath)) {
-      return { content: [{ type: "text", text: fs.readFileSync(sprintPath, "utf8") }] };
-    }
-    const spec = readHarness("spec.md");
-    const match = spec.match(/## Sprint Plan([\s\S]*?)(?:\n##|$)/);
-    const sprint = match ? match[1].trim() : spec;
-    return { content: [{ type: "text", text: sprint }] };
-  }
+  _handle_get_sprint_plan
 );
 
 // ── Tool: get_feature_list ─────────────────────────────────────────────────────
+const _handle_get_feature_list = async () => {
+  const features = readHarness("feature_list.json");
+  return { content: [{ type: "text", text: features }] };
+};
+_readHandlers.set("get_feature_list", _handle_get_feature_list);
 server.registerTool(
   "get_feature_list",
   {
@@ -421,13 +444,23 @@ server.registerTool(
     inputSchema: {},
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },
-  async () => {
-    const features = readHarness("feature_list.json");
-    return { content: [{ type: "text", text: features }] };
-  }
+  _handle_get_feature_list
 );
 
 // ── Tool: list_harness_files ───────────────────────────────────────────────────
+const _handle_list_harness_files = async () => {
+  if (!fs.existsSync(HARNESS_DIR)) {
+    return { content: [{ type: "text", text: "No .harness/ directory found. Run an analysis first at https://dashboard-unite-group.vercel.app/dashboard" }] };
+  }
+  const files = fs.readdirSync(HARNESS_DIR)
+    .map((f) => {
+      const stat = fs.statSync(path.join(HARNESS_DIR, f));
+      return `${f} (${Math.round(stat.size / 1024)}KB, ${stat.mtime.toISOString().slice(0, 10)})`;
+    })
+    .join("\n");
+  return { content: [{ type: "text", text: `Harness files in ${HARNESS_DIR}:\n\n${files}` }] };
+};
+_readHandlers.set("list_harness_files", _handle_list_harness_files);
 server.registerTool(
   "list_harness_files",
   {
@@ -436,21 +469,26 @@ server.registerTool(
     inputSchema: {},
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },
-  async () => {
-    if (!fs.existsSync(HARNESS_DIR)) {
-      return { content: [{ type: "text", text: "No .harness/ directory found. Run an analysis first at https://dashboard-unite-group.vercel.app/dashboard" }] };
-    }
-    const files = fs.readdirSync(HARNESS_DIR)
-      .map((f) => {
-        const stat = fs.statSync(path.join(HARNESS_DIR, f));
-        return `${f} (${Math.round(stat.size / 1024)}KB, ${stat.mtime.toISOString().slice(0, 10)})`;
-      })
-      .join("\n");
-    return { content: [{ type: "text", text: `Harness files in ${HARNESS_DIR}:\n\n${files}` }] };
-  }
+  _handle_list_harness_files
 );
 
 // ── Tool: get_zte_score ────────────────────────────────────────────────────────
+const _handle_get_zte_score = async () => {
+  // Read leverage-audit.md directly — authoritative source, updated each sprint
+  const auditPath = path.join(HARNESS_DIR, "leverage-audit.md");
+  if (fs.existsSync(auditPath)) {
+    return { content: [{ type: "text", text: fs.readFileSync(auditPath, "utf8") }] };
+  }
+  // Fallback: parse spec.md for legacy data
+  const spec = readHarness("spec.md");
+  const match = spec.match(/## ZTE Maturity([\s\S]*?)(?:\n##|$)/);
+  const match2 = spec.match(/## (?:\d+\.\s*)?(?:Current )?Leverage Audit([\s\S]*?)(?:\n##|$)/);
+  const zte = match ? match[1].trim() : "";
+  const leverage = match2 ? match2[1].trim() : "";
+  const text = zte || leverage || "No ZTE data found. Run an analysis first.";
+  return { content: [{ type: "text", text: `## ZTE Maturity\n\n${text}` }] };
+};
+_readHandlers.set("get_zte_score", _handle_get_zte_score);
 server.registerTool(
   "get_zte_score",
   {
@@ -459,24 +497,63 @@ server.registerTool(
     inputSchema: {},
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },
-  async () => {
-    // Read leverage-audit.md directly — authoritative source, updated each sprint
-    const auditPath = path.join(HARNESS_DIR, "leverage-audit.md");
-    if (fs.existsSync(auditPath)) {
-      return { content: [{ type: "text", text: fs.readFileSync(auditPath, "utf8") }] };
-    }
-    // Fallback: parse spec.md for legacy data
-    const spec = readHarness("spec.md");
-    const match = spec.match(/## ZTE Maturity([\s\S]*?)(?:\n##|$)/);
-    const match2 = spec.match(/## (?:\d+\.\s*)?(?:Current )?Leverage Audit([\s\S]*?)(?:\n##|$)/);
-    const zte = match ? match[1].trim() : "";
-    const leverage = match2 ? match2[1].trim() : "";
-    const text = zte || leverage || "No ZTE data found. Run an analysis first.";
-    return { content: [{ type: "text", text: `## ZTE Maturity\n\n${text}` }] };
-  }
+  _handle_get_zte_score
 );
 
 // ── Tool: linear_list_issues ───────────────────────────────────────────────────
+const _handle_linear_list_issues = async ({ status, limit }) => {
+  const project = await findProjectId();
+
+  let statusFilter = "";
+  if (status) {
+    const statusMap = {
+      backlog: "Backlog", todo: "Todo", in_progress: "In Progress",
+      done: "Done", canceled: "Canceled", cancelled: "Canceled",
+    };
+    const mapped = statusMap[status.toLowerCase()] || status;
+    statusFilter = `, state: { name: { eq: "${mapped}" } }`;
+  }
+
+  const data = await linearGql(`{
+    issues(
+      filter: { project: { id: { eq: "${project.id}" } }${statusFilter} }
+      first: ${limit}
+      orderBy: updatedAt
+    ) {
+      nodes {
+        id identifier title
+        state { name type }
+        priority priorityLabel
+        assignee { name }
+        labels { nodes { name } }
+        estimate
+        dueDate
+        createdAt updatedAt
+        description
+      }
+    }
+  }`);
+
+  const issues = data.issues.nodes;
+  if (!issues.length) {
+    return { content: [{ type: "text", text: `No issues found in project "${project.name}"${status ? ` with status "${status}"` : ""}.` }] };
+  }
+
+  const lines = [`# ${project.name} — ${issues.length} Issues${status ? ` (${status})` : ""}`, ""];
+  for (const issue of issues) {
+    const labels = issue.labels?.nodes?.map(l => l.name).join(", ") || "";
+    lines.push(`## ${issue.identifier}: ${issue.title}`);
+    lines.push(`- **Status**: ${issue.state?.name || "Unknown"} | **Priority**: ${issue.priorityLabel || "None"}`);
+    if (issue.assignee) lines.push(`- **Assignee**: ${issue.assignee.name}`);
+    if (labels) lines.push(`- **Labels**: ${labels}`);
+    if (issue.estimate) lines.push(`- **Estimate**: ${issue.estimate}`);
+    if (issue.dueDate) lines.push(`- **Due**: ${issue.dueDate}`);
+    lines.push("");
+  }
+
+  return { content: [{ type: "text", text: lines.join("\n") }] };
+};
+_readHandlers.set("linear_list_issues", _handle_linear_list_issues);
 server.registerTool(
   "linear_list_issues",
   {
@@ -488,58 +565,7 @@ server.registerTool(
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },
-  async ({ status, limit }) => {
-    const project = await findProjectId();
-
-    let statusFilter = "";
-    if (status) {
-      const statusMap = {
-        backlog: "Backlog", todo: "Todo", in_progress: "In Progress",
-        done: "Done", canceled: "Canceled", cancelled: "Canceled",
-      };
-      const mapped = statusMap[status.toLowerCase()] || status;
-      statusFilter = `, state: { name: { eq: "${mapped}" } }`;
-    }
-
-    const data = await linearGql(`{
-      issues(
-        filter: { project: { id: { eq: "${project.id}" } }${statusFilter} }
-        first: ${limit}
-        orderBy: updatedAt
-      ) {
-        nodes {
-          id identifier title
-          state { name type }
-          priority priorityLabel
-          assignee { name }
-          labels { nodes { name } }
-          estimate
-          dueDate
-          createdAt updatedAt
-          description
-        }
-      }
-    }`);
-
-    const issues = data.issues.nodes;
-    if (!issues.length) {
-      return { content: [{ type: "text", text: `No issues found in project "${project.name}"${status ? ` with status "${status}"` : ""}.` }] };
-    }
-
-    const lines = [`# ${project.name} — ${issues.length} Issues${status ? ` (${status})` : ""}`, ""];
-    for (const issue of issues) {
-      const labels = issue.labels?.nodes?.map(l => l.name).join(", ") || "";
-      lines.push(`## ${issue.identifier}: ${issue.title}`);
-      lines.push(`- **Status**: ${issue.state?.name || "Unknown"} | **Priority**: ${issue.priorityLabel || "None"}`);
-      if (issue.assignee) lines.push(`- **Assignee**: ${issue.assignee.name}`);
-      if (labels) lines.push(`- **Labels**: ${labels}`);
-      if (issue.estimate) lines.push(`- **Estimate**: ${issue.estimate}`);
-      if (issue.dueDate) lines.push(`- **Due**: ${issue.dueDate}`);
-      lines.push("");
-    }
-
-    return { content: [{ type: "text", text: lines.join("\n") }] };
-  }
+  _handle_linear_list_issues
 );
 
 // ── Tool: linear_create_issue ──────────────────────────────────────────────────
@@ -697,6 +723,39 @@ server.registerTool(
 );
 
 // ── Tool: linear_search_issues ─────────────────────────────────────────────────
+const _handle_linear_search_issues = async ({ query, limit }) => {
+  const project = await findProjectId();
+
+  const data = await linearGql(`{
+    searchIssues(query: "${query.replace(/"/g, '\\"')}", first: ${limit}) {
+      nodes {
+        id identifier title
+        state { name }
+        priorityLabel
+        assignee { name }
+        project { id name }
+        url
+      }
+    }
+  }`);
+
+  // Filter to our project
+  const issues = data.searchIssues.nodes.filter(
+    i => i.project?.id === project.id
+  );
+
+  if (!issues.length) {
+    return { content: [{ type: "text", text: `No issues found matching "${query}" in ${project.name}.` }] };
+  }
+
+  const lines = [`# Search: "${query}" — ${issues.length} results`, ""];
+  for (const issue of issues) {
+    lines.push(`- **${issue.identifier}**: ${issue.title} [${issue.state?.name}] (${issue.priorityLabel || "No priority"}) ${issue.url}`);
+  }
+
+  return { content: [{ type: "text", text: lines.join("\n") }] };
+};
+_readHandlers.set("linear_search_issues", _handle_linear_search_issues);
 server.registerTool(
   "linear_search_issues",
   {
@@ -708,38 +767,7 @@ server.registerTool(
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },
-  async ({ query, limit }) => {
-    const project = await findProjectId();
-
-    const data = await linearGql(`{
-      searchIssues(query: "${query.replace(/"/g, '\\"')}", first: ${limit}) {
-        nodes {
-          id identifier title
-          state { name }
-          priorityLabel
-          assignee { name }
-          project { id name }
-          url
-        }
-      }
-    }`);
-
-    // Filter to our project
-    const issues = data.searchIssues.nodes.filter(
-      i => i.project?.id === project.id
-    );
-
-    if (!issues.length) {
-      return { content: [{ type: "text", text: `No issues found matching "${query}" in ${project.name}.` }] };
-    }
-
-    const lines = [`# Search: "${query}" — ${issues.length} results`, ""];
-    for (const issue of issues) {
-      lines.push(`- **${issue.identifier}**: ${issue.title} [${issue.state?.name}] (${issue.priorityLabel || "No priority"}) ${issue.url}`);
-    }
-
-    return { content: [{ type: "text", text: lines.join("\n") }] };
-  }
+  _handle_linear_search_issues
 );
 
 // ── Tool: linear_sync_board ────────────────────────────────────────────────────
@@ -808,6 +836,78 @@ server.registerTool(
 );
 
 // ── Tool: linear_status ───────────────────────────────────────────────────────
+const _handle_linear_status = async () => {
+  if (!LINEAR_API_KEY) {
+    return {
+      content: [{
+        type: "text",
+        text: [
+          "## Linear Auth Status: NOT CONFIGURED",
+          "",
+          "LINEAR_API_KEY is not set. The pi-ceo linear_* tools cannot reach Linear.",
+          "",
+          "### How to fix",
+          "",
+          "1. Get a Linear API key from: https://linear.app/settings/api",
+          "2. Add it to your Claude Desktop config at:",
+          "   `%APPDATA%\\Claude\\claude_desktop_config.json`",
+          "",
+          "```json",
+          "{",
+          '  "mcpServers": {',
+          '    "pi-ceo": {',
+          '      "command": "node",',
+          `      "args": ["${path.resolve(__dirname, "pi-ceo-server.js")}"],`,
+          '      "env": {',
+          '        "LINEAR_API_KEY": "lin_api_YOUR_KEY_HERE"',
+          "      }",
+          "    }",
+          "  }",
+          "}",
+          "```",
+          "",
+          "3. Restart Claude Desktop (the MCP server is cached as a subprocess)",
+          "4. Run `linear_status` again to confirm it's working",
+        ].join("\n"),
+      }],
+    };
+  }
+
+  // Test the key with a minimal query
+  try {
+    const data = await linearGql(`{ viewer { id name email } }`);
+    const user = data.viewer;
+    return {
+      content: [{
+        type: "text",
+        text: [
+          "## Linear Auth Status: CONNECTED",
+          "",
+          `Authenticated as: **${user.name}** (${user.email})`,
+          `User ID: ${user.id}`,
+          "",
+          "All linear_* tools are operational.",
+        ].join("\n"),
+      }],
+    };
+  } catch (e) {
+    return {
+      content: [{
+        type: "text",
+        text: [
+          "## Linear Auth Status: AUTH FAILED",
+          "",
+          `Error: ${e.message}`,
+          "",
+          "LINEAR_API_KEY is set but the API rejected it.",
+          "Check that the key is valid and has not been revoked.",
+          "Get a new key at: https://linear.app/settings/api",
+        ].join("\n"),
+      }],
+    };
+  }
+};
+_readHandlers.set("linear_status", _handle_linear_status);
 server.registerTool(
   "linear_status",
   {
@@ -816,80 +916,78 @@ server.registerTool(
     inputSchema: {},
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },
-  async () => {
-    if (!LINEAR_API_KEY) {
-      return {
-        content: [{
-          type: "text",
-          text: [
-            "## Linear Auth Status: NOT CONFIGURED",
-            "",
-            "LINEAR_API_KEY is not set. The pi-ceo linear_* tools cannot reach Linear.",
-            "",
-            "### How to fix",
-            "",
-            "1. Get a Linear API key from: https://linear.app/settings/api",
-            "2. Add it to your Claude Desktop config at:",
-            "   `%APPDATA%\\Claude\\claude_desktop_config.json`",
-            "",
-            "```json",
-            "{",
-            '  "mcpServers": {',
-            '    "pi-ceo": {',
-            '      "command": "node",',
-            `      "args": ["${path.resolve(__dirname, "pi-ceo-server.js")}"],`,
-            '      "env": {',
-            '        "LINEAR_API_KEY": "lin_api_YOUR_KEY_HERE"',
-            "      }",
-            "    }",
-            "  }",
-            "}",
-            "```",
-            "",
-            "3. Restart Claude Desktop (the MCP server is cached as a subprocess)",
-            "4. Run `linear_status` again to confirm it's working",
-          ].join("\n"),
-        }],
-      };
-    }
-
-    // Test the key with a minimal query
-    try {
-      const data = await linearGql(`{ viewer { id name email } }`);
-      const user = data.viewer;
-      return {
-        content: [{
-          type: "text",
-          text: [
-            "## Linear Auth Status: CONNECTED",
-            "",
-            `Authenticated as: **${user.name}** (${user.email})`,
-            `User ID: ${user.id}`,
-            "",
-            "All linear_* tools are operational.",
-          ].join("\n"),
-        }],
-      };
-    } catch (e) {
-      return {
-        content: [{
-          type: "text",
-          text: [
-            "## Linear Auth Status: AUTH FAILED",
-            "",
-            `Error: ${e.message}`,
-            "",
-            "LINEAR_API_KEY is set but the API rejected it.",
-            "Check that the key is valid and has not been revoked.",
-            "Get a new key at: https://linear.app/settings/api",
-          ].join("\n"),
-        }],
-      };
-    }
-  }
+  _handle_linear_status
 );
 
 // ── Tool: get_project_health ──────────────────────────────────────────────────
+const _handle_get_project_health = async ({ project_id }) => {
+  const resultsDir = path.join(HARNESS_DIR, "scan-results");
+  const projectsFile = path.join(HARNESS_DIR, "projects.json");
+
+  let projects;
+  try {
+    projects = JSON.parse(fs.readFileSync(projectsFile, "utf8")).projects;
+  } catch {
+    return { content: [{ type: "text", text: "projects.json not found — run a scan first." }] };
+  }
+
+  if (project_id) {
+    projects = projects.filter(p => p.id === project_id);
+    if (!projects.length) {
+      return { content: [{ type: "text", text: `Project '${project_id}' not found in projects.json` }] };
+    }
+  }
+
+  const scanTypes = ["security", "code_quality", "dependencies", "deployment_health"];
+  const lines = ["# Pi-SEO Project Health", ""];
+
+  for (const proj of projects) {
+    const projDir = path.join(resultsDir, proj.id);
+    const scores = {};
+    const counts = {};
+
+    if (fs.existsSync(projDir)) {
+      for (const st of scanTypes) {
+        const files = fs.readdirSync(projDir).filter(f => f.endsWith(`-${st}.json`)).sort();
+        if (!files.length) continue;
+        try {
+          const data = JSON.parse(fs.readFileSync(path.join(projDir, files[files.length - 1]), "utf8"));
+          scores[st] = data.health_score ?? 100;
+          counts[st] = (data.findings ?? []).length;
+        } catch { /* skip corrupt file */ }
+      }
+    }
+
+    const scoreValues = Object.values(scores);
+    const overall = scoreValues.length
+      ? Math.round(scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length)
+      : null;
+
+    const indicator = overall === null ? "⬜" : overall >= 80 ? "🟢" : overall >= 60 ? "🟡" : "🔴";
+    lines.push(`## ${indicator} ${proj.id} — ${proj.repo}`);
+    lines.push(`**Overall health:** ${overall !== null ? overall + "/100" : "not scanned yet"}`);
+
+    if (Object.keys(scores).length) {
+      lines.push("");
+      lines.push("| Scan Type | Score | Findings |");
+      lines.push("|-----------|-------|----------|");
+      for (const st of scanTypes) {
+        if (scores[st] !== undefined) {
+          lines.push(`| ${st} | ${scores[st]}/100 | ${counts[st] ?? 0} |`);
+        }
+      }
+    }
+
+    if (proj.deployments && Object.keys(proj.deployments).length) {
+      lines.push("");
+      lines.push("**Deployments:** " + Object.entries(proj.deployments).map(([k, v]) => `${k}: ${v}`).join(" · "));
+    }
+    lines.push("");
+  }
+
+  return { content: [{ type: "text", text: lines.join("\n") }] };
+};
+_readHandlers.set("get_project_health", _handle_get_project_health);
 server.registerTool(
   "get_project_health",
   {
@@ -900,73 +998,7 @@ server.registerTool(
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },
-  async ({ project_id }) => {
-    const resultsDir = path.join(HARNESS_DIR, "scan-results");
-    const projectsFile = path.join(HARNESS_DIR, "projects.json");
-
-    let projects;
-    try {
-      projects = JSON.parse(fs.readFileSync(projectsFile, "utf8")).projects;
-    } catch {
-      return { content: [{ type: "text", text: "projects.json not found — run a scan first." }] };
-    }
-
-    if (project_id) {
-      projects = projects.filter(p => p.id === project_id);
-      if (!projects.length) {
-        return { content: [{ type: "text", text: `Project '${project_id}' not found in projects.json` }] };
-      }
-    }
-
-    const scanTypes = ["security", "code_quality", "dependencies", "deployment_health"];
-    const lines = ["# Pi-SEO Project Health", ""];
-
-    for (const proj of projects) {
-      const projDir = path.join(resultsDir, proj.id);
-      const scores = {};
-      const counts = {};
-
-      if (fs.existsSync(projDir)) {
-        for (const st of scanTypes) {
-          const files = fs.readdirSync(projDir).filter(f => f.endsWith(`-${st}.json`)).sort();
-          if (!files.length) continue;
-          try {
-            const data = JSON.parse(fs.readFileSync(path.join(projDir, files[files.length - 1]), "utf8"));
-            scores[st] = data.health_score ?? 100;
-            counts[st] = (data.findings ?? []).length;
-          } catch { /* skip corrupt file */ }
-        }
-      }
-
-      const scoreValues = Object.values(scores);
-      const overall = scoreValues.length
-        ? Math.round(scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length)
-        : null;
-
-      const indicator = overall === null ? "⬜" : overall >= 80 ? "🟢" : overall >= 60 ? "🟡" : "🔴";
-      lines.push(`## ${indicator} ${proj.id} — ${proj.repo}`);
-      lines.push(`**Overall health:** ${overall !== null ? overall + "/100" : "not scanned yet"}`);
-
-      if (Object.keys(scores).length) {
-        lines.push("");
-        lines.push("| Scan Type | Score | Findings |");
-        lines.push("|-----------|-------|----------|");
-        for (const st of scanTypes) {
-          if (scores[st] !== undefined) {
-            lines.push(`| ${st} | ${scores[st]}/100 | ${counts[st] ?? 0} |`);
-          }
-        }
-      }
-
-      if (proj.deployments && Object.keys(proj.deployments).length) {
-        lines.push("");
-        lines.push("**Deployments:** " + Object.entries(proj.deployments).map(([k, v]) => `${k}: ${v}`).join(" · "));
-      }
-      lines.push("");
-    }
-
-    return { content: [{ type: "text", text: lines.join("\n") }] };
-  }
+  _handle_get_project_health
 );
 
 // ── Tool: scan_project ────────────────────────────────────────────────────────
@@ -1042,6 +1074,24 @@ server.registerTool(
 );
 
 // ── Tool: get_monitor_digest ──────────────────────────────────────────────────
+const _handle_get_monitor_digest = async () => {
+  const digestsDir = path.join(HARNESS_DIR, "monitor-digests");
+  if (!fs.existsSync(digestsDir)) {
+    return { content: [{ type: "text", text: "No monitor digests found. Run `run_monitor_cycle` first." }] };
+  }
+  const files = fs.readdirSync(digestsDir).filter(f => f.endsWith(".json")).sort().reverse();
+  if (!files.length) {
+    return { content: [{ type: "text", text: "No monitor digests found. Run `run_monitor_cycle` first." }] };
+  }
+  try {
+    const digest = JSON.parse(fs.readFileSync(path.join(digestsDir, files[0]), "utf8"));
+    const md = digest.digest_markdown || JSON.stringify(digest, null, 2);
+    return { content: [{ type: "text", text: md }] };
+  } catch (e) {
+    return { content: [{ type: "text", text: `Failed to read digest: ${e.message}` }] };
+  }
+};
+_readHandlers.set("get_monitor_digest", _handle_get_monitor_digest);
 server.registerTool(
   "get_monitor_digest",
   {
@@ -1050,23 +1100,7 @@ server.registerTool(
     inputSchema: {},
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },
-  async () => {
-    const digestsDir = path.join(HARNESS_DIR, "monitor-digests");
-    if (!fs.existsSync(digestsDir)) {
-      return { content: [{ type: "text", text: "No monitor digests found. Run `run_monitor_cycle` first." }] };
-    }
-    const files = fs.readdirSync(digestsDir).filter(f => f.endsWith(".json")).sort().reverse();
-    if (!files.length) {
-      return { content: [{ type: "text", text: "No monitor digests found. Run `run_monitor_cycle` first." }] };
-    }
-    try {
-      const digest = JSON.parse(fs.readFileSync(path.join(digestsDir, files[0]), "utf8"));
-      const md = digest.digest_markdown || JSON.stringify(digest, null, 2);
-      return { content: [{ type: "text", text: md }] };
-    } catch (e) {
-      return { content: [{ type: "text", text: `Failed to read digest: ${e.message}` }] };
-    }
-  }
+  _handle_get_monitor_digest
 );
 
 // ── Tool: run_monitor_cycle ───────────────────────────────────────────────────
@@ -1423,6 +1457,42 @@ server.registerTool(
 );
 
 // ── Tool: get_pipeline ────────────────────────────────────────────────────────
+const _handle_get_pipeline = async ({ pipeline_id }) => {
+  try {
+    const { cookie, url } = await _shipLogin();
+    const res = await _shipHttp("GET", `${url}/api/pipeline/${pipeline_id}`, null, { Cookie: cookie });
+    if (res.status === 404) {
+      return { content: [{ type: "text", text: `Pipeline '${pipeline_id}' not found.` }] };
+    }
+    const state = JSON.parse(res.body);
+    const phases = ["spec", "plan", "build", "test", "review", "ship"];
+    const completed = new Set(state.phases_completed || []);
+    const lines = [
+      `**Pipeline: ${state.pipeline_id}** — "${(state.idea || "").slice(0, 80)}"`,
+      `Current phase: **${state.current_phase}**`,
+      "",
+      "**Progress:**",
+      ...phases.map(p => `  ${completed.has(p) ? "✓" : "○"} /${p}`),
+    ];
+    if (state.generated_config) {
+      const tier = state.generated_config.complexity_tier || "?";
+      const preset = state.generated_config.preset || "?";
+      lines.push("", `Auto-config: **${tier}** tier (preset: ${preset}) — config.yaml written`);
+    }
+    if (state.review_score) {
+      lines.push("", `Review score: **${state.review_score.overall_score}/10**`);
+      if (state.review_score.feedback) lines.push(`Feedback: ${state.review_score.feedback.slice(0, 200)}`);
+    }
+    if (state.ship_log?.shipped) {
+      lines.push("", `✅ Shipped at: ${state.ship_log.deployed_at}`);
+      lines.push(`Rollback: \`${state.ship_log.rollback_ref}\``);
+    }
+    return { content: [{ type: "text", text: lines.join("\n") }] };
+  } catch (e) {
+    return { content: [{ type: "text", text: `get_pipeline failed: ${e.message}` }] };
+  }
+};
+_readHandlers.set("get_pipeline", _handle_get_pipeline);
 server.registerTool(
   "get_pipeline",
   {
@@ -1433,40 +1503,59 @@ server.registerTool(
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },
-  async ({ pipeline_id }) => {
-    try {
-      const { cookie, url } = await _shipLogin();
-      const res = await _shipHttp("GET", `${url}/api/pipeline/${pipeline_id}`, null, { Cookie: cookie });
-      if (res.status === 404) {
-        return { content: [{ type: "text", text: `Pipeline '${pipeline_id}' not found.` }] };
-      }
-      const state = JSON.parse(res.body);
-      const phases = ["spec", "plan", "build", "test", "review", "ship"];
-      const completed = new Set(state.phases_completed || []);
-      const lines = [
-        `**Pipeline: ${state.pipeline_id}** — "${(state.idea || "").slice(0, 80)}"`,
-        `Current phase: **${state.current_phase}**`,
-        "",
-        "**Progress:**",
-        ...phases.map(p => `  ${completed.has(p) ? "✓" : "○"} /${p}`),
-      ];
-      if (state.generated_config) {
-        const tier = state.generated_config.complexity_tier || "?";
-        const preset = state.generated_config.preset || "?";
-        lines.push("", `Auto-config: **${tier}** tier (preset: ${preset}) — config.yaml written`);
-      }
-      if (state.review_score) {
-        lines.push("", `Review score: **${state.review_score.overall_score}/10**`);
-        if (state.review_score.feedback) lines.push(`Feedback: ${state.review_score.feedback.slice(0, 200)}`);
-      }
-      if (state.ship_log?.shipped) {
-        lines.push("", `✅ Shipped at: ${state.ship_log.deployed_at}`);
-        lines.push(`Rollback: \`${state.ship_log.rollback_ref}\``);
-      }
-      return { content: [{ type: "text", text: lines.join("\n") }] };
-    } catch (e) {
-      return { content: [{ type: "text", text: `get_pipeline failed: ${e.message}` }] };
-    }
+  _handle_get_pipeline
+);
+
+// ── Tool: run_parallel ────────────────────────────────────────────────────────
+server.registerTool(
+  "run_parallel",
+  {
+    title: "Run Parallel",
+    description:
+      "RA-933: Execute multiple read-only Pi-CEO tools concurrently in a single round-trip. " +
+      "Pass an array of {tool_name, args} objects. Read-only tools run in parallel via Promise.all; " +
+      "write tools are rejected. Returns an array of results in the same order as the input. " +
+      `Supported tools: ${[...READ_ONLY_TOOLS].join(", ")}`,
+    inputSchema: {
+      calls: z
+        .array(
+          z.object({
+            tool_name: z.string().describe("Tool name (must be in READ_ONLY_TOOLS)"),
+            args: z.record(z.unknown()).optional().describe("Tool arguments (pass {} if none)"),
+          })
+        )
+        .min(1)
+        .max(10)
+        .describe("List of tool calls to execute concurrently (max 10)"),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: false },
+  },
+  async ({ calls }) => {
+    /** RA-933: parallel dispatch — read-only tools only. */
+    const results = await Promise.all(
+      calls.map(async ({ tool_name, args = {} }) => {
+        if (!READ_ONLY_TOOLS.has(tool_name)) {
+          return {
+            tool_name,
+            error: `'${tool_name}' is not in READ_ONLY_TOOLS — only read-only tools may run in parallel`,
+          };
+        }
+        const handler = _readHandlers.get(tool_name);
+        if (!handler) {
+          return { tool_name, error: `Handler for '${tool_name}' not registered in _readHandlers` };
+        }
+        try {
+          const result = await handler(args);
+          const text = result?.content?.[0]?.text ?? JSON.stringify(result);
+          return { tool_name, result: text };
+        } catch (e) {
+          return { tool_name, error: e.message };
+        }
+      })
+    );
+    return {
+      content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+    };
   }
 );
 
@@ -1475,7 +1564,7 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   // Server is now running — the SDK handles all MCP protocol negotiation
-  process.stderr.write("Pi CEO MCP Server v3.2.0 started (stdio transport, 23 tools)\n");
+  process.stderr.write("Pi CEO MCP Server v3.3.0 started (stdio transport, 24 tools)\n");
 }
 
 main().catch((err) => {

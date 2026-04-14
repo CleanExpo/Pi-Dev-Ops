@@ -61,6 +61,23 @@ export type PhaseStreamCallback = (chunk: string) => void;
 export const THINK_PHASE_IDS = new Set([3, 5, 6, 7]);
 
 /**
+ * RA-932: Cold-start seeds for think-prefill phases.
+ * Prepended to the prompt before extended reasoning activates so the model
+ * self-organises into problem-decompose → attempt → verify rather than freeform rambling.
+ * Seeding is active when THINK_SEED_ENABLED env var is "1".
+ */
+export const THINK_SEEDS: Partial<Record<number, string>> = {
+  3: "Before analyzing: what patterns or anti-patterns should I look for in this codebase? List them, then analyze.",
+  5: "Before scoring: list every requirement from the brief one by one, check each against the diff, then score.",
+  6: "Before recommending: categorize improvements by impact (high/medium/low) and effort, then prioritize.",
+  7: "Before writing: outline what sections this analysis needs to answer for a technical reader, then write.",
+};
+
+/** RA-932: Whether cold-start seeding is active (set THINK_SEED_ENABLED=1). */
+export const THINK_SEED_ENABLED =
+  typeof process !== "undefined" && process.env.THINK_SEED_ENABLED === "1";
+
+/**
  * Strip the think-block reasoning from a prefilled response before JSON parsing.
  *
  * Handles two forms:
@@ -156,10 +173,13 @@ async function runPhaseSDK(
   signal?: AbortSignal,
   maxTokens = 4096,
   useThinkPrefill = false,
+  thinkSeed?: string,
 ): Promise<string> {
   if (signal?.aborted) throw new Error("Phase aborted before start");
 
-  const fullPrompt = `${prompt}\n\n---\nREPO CONTEXT:\n${context}`;
+  // RA-932: prepend think seed when enabled (cold-start seeding for structured reasoning)
+  const seededPrompt = (thinkSeed && THINK_SEED_ENABLED) ? `${thinkSeed}\n\n${prompt}` : prompt;
+  const fullPrompt = `${seededPrompt}\n\n---\nREPO CONTEXT:\n${context}`;
 
   // RA-928: build message array — add assistant prefill for intelligence phases
   type Message = { role: "user" | "assistant"; content: string };
@@ -219,6 +239,7 @@ export async function runPhase(
   signal?: AbortSignal,
   maxTokens = 4096,
   useThinkPrefill = false,
+  thinkSeed?: string,
 ): Promise<string> {
   if (getAnalysisMode() === "cli") {
     // CLI mode spawns claude subprocess — assistant prefill not supported there.
@@ -226,7 +247,7 @@ export async function runPhase(
     return runPhaseCLI(model, prompt, context, onChunk, signal);
   }
   if (!client) throw new Error("SDK client required for api mode");
-  return runPhaseSDK(client, model, prompt, context, onChunk, signal, maxTokens, useThinkPrefill);
+  return runPhaseSDK(client, model, prompt, context, onChunk, signal, maxTokens, useThinkPrefill, thinkSeed);
 }
 
 // ── Chat (always uses SDK for responsiveness) ─────────────────────────────────

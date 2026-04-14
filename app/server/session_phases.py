@@ -50,6 +50,27 @@ from .session_linear import (
 
 _log = logging.getLogger("pi-ceo.sessions")
 
+# ── RA-932: Think-block cold-start seeds ─────────────────────────────────────
+# Prepend structural prompts before the model enters extended reasoning.
+# Active when THINK_SEED_ENABLED=1 in env (default off until validated).
+_THINK_SEED_ENABLED = os.environ.get("THINK_SEED_ENABLED", "0") == "1"
+
+GENERATOR_THINK_SEED = (
+    "Before editing any files:\n"
+    "1. Which files need to change? List them.\n"
+    "2. What is the minimal diff that satisfies the brief?\n"
+    "3. Which tests need updating?\n"
+    "4. What side-effects could this change have?\n\n"
+)
+
+EVALUATOR_THINK_SEED = (
+    "Before scoring:\n"
+    "1. List every requirement from the brief.\n"
+    "2. Check each requirement against the diff. Note gaps.\n"
+    "3. Identify any bugs, type errors, or logic issues.\n"
+    "4. Check project conventions.\n\n"
+)
+
 # ── Incident history RAG (RA-660) ────────────────────────────────────────────
 
 
@@ -607,7 +628,9 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
     incident_ctx = _build_incident_context(repo_url=getattr(session, "repo_url", ""))
     for attempt in range(2):
         base_spec = spec if attempt == 0 else spec[:4000] + "\n\n[NOTE: Simplified due to previous failure. Focus on core task only.]"
-        current_spec = (incident_ctx + base_spec) if incident_ctx else base_spec
+        # RA-932: prepend generator think seed when enabled
+        seeded_spec = (GENERATOR_THINK_SEED + base_spec) if _THINK_SEED_ENABLED else base_spec
+        current_spec = (incident_ctx + seeded_spec) if incident_ctx else seeded_spec
         try:
             # Try SDK path first if flag enabled
             if use_sdk:
