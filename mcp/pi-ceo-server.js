@@ -23,6 +23,7 @@
  *   - linear_search_issues    — search issues by query text
  *   - linear_sync_board       — full board sync (all statuses)
  *   - write_obsidian_note     — write/overwrite a note in the local Obsidian vault (RA-926)
+ *   - search_lessons          — keyword search over lessons.jsonl institutional memory (RA-927)
  */
 
 const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
@@ -182,7 +183,7 @@ async function findProjectId() {
 // ── Server Setup ───────────────────────────────────────────────────────────────
 const server = new McpServer({
   name: "pi-ceo",
-  version: "3.1.0",
+  version: "3.2.0",
 });
 
 // ── Harness staleness check ────────────────────────────────────────────────────
@@ -301,6 +302,91 @@ server.registerTool(
         isError: true,
       };
     }
+  }
+);
+
+// ── Tool: search_lessons ──────────────────────────────────────────────────────
+server.registerTool(
+  "search_lessons",
+  {
+    title: "Search Lessons",
+    description: "Search the Pi CEO institutional memory (lessons.jsonl) for lessons relevant to a topic. Uses keyword scoring — for semantic search run .harness/lessons_search.py locally.",
+    inputSchema: {
+      query: z.string().describe("Topic or question to search for, e.g. 'Railway deployment restart' or 'session persistence'"),
+      n: z.number().optional().describe("Max results to return (default 5)"),
+      category: z.string().optional().describe("Filter by category, e.g. 'persistence', 'security', 'devops'"),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+  },
+  async ({ query, n = 5, category }) => {
+    const lessonsPath = path.join(HARNESS_DIR, "lessons.jsonl");
+    if (!fs.existsSync(lessonsPath)) {
+      return { content: [{ type: "text", text: "No lessons.jsonl found. Lessons are added automatically during analysis runs." }] };
+    }
+
+    // Parse JSONL
+    const lines = fs.readFileSync(lessonsPath, "utf8").split("\n").filter(Boolean);
+    let lessons = lines.map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+
+    if (category) {
+      lessons = lessons.filter((e) => (e.category || "").toLowerCase() === category.toLowerCase());
+    }
+
+    if (!lessons.length) {
+      return { content: [{ type: "text", text: `No lessons found${category ? ` in category '${category}'` : ""}.` }] };
+    }
+
+    // Simple BM25-style keyword scoring
+    const queryTerms = query.toLowerCase().match(/[a-z0-9]+/g) || [];
+    if (!queryTerms.length) {
+      // No terms — return newest entries
+      const recent = lessons.slice(-n).reverse();
+      const lines2 = recent.map((e, i) =>
+        `${i + 1}. [${e.severity === "warn" ? "⚠️ " : "  "}${e.category}] ${e.lesson}`
+      ).join("\n\n");
+      return { content: [{ type: "text", text: `${recent.length} most recent lessons:\n\n${lines2}` }] };
+    }
+
+    const N = lessons.length;
+    const df = {};
+    for (const term of queryTerms) {
+      df[term] = lessons.filter((e) => (e.lesson || "").toLowerCase().includes(term)).length;
+    }
+
+    const scored = lessons.map((e) => {
+      const text = (e.lesson || "").toLowerCase();
+      const tokens = text.match(/[a-z0-9]+/g) || [];
+      const tf = {};
+      for (const t of tokens) { tf[t] = (tf[t] || 0) + 1; }
+      let score = 0;
+      for (const term of queryTerms) {
+        const termTf = (tf[term] || 0) / (tokens.length || 1);
+        const idf = Math.log((N + 1) / ((df[term] || 0) + 1));
+        score += termTf * idf;
+      }
+      if (e.severity === "warn") score *= 1.2;
+      return { ...e, _score: score };
+    });
+
+    const top = scored
+      .filter((e) => e._score > 0)
+      .sort((a, b) => b._score - a._score)
+      .slice(0, n);
+
+    if (!top.length) {
+      return { content: [{ type: "text", text: `No lessons matched "${query}". Try broader terms.` }] };
+    }
+
+    const resultLines = top.map((e, i) =>
+      `${i + 1}. [score=${e._score.toFixed(3)}] ${e.severity === "warn" ? "⚠️ " : ""}${e.lesson}\n   category=${e.category} | source=${e.source}`
+    ).join("\n\n");
+
+    return {
+      content: [{
+        type: "text",
+        text: `Found ${top.length} lesson(s) for "${query}":\n\n${resultLines}\n\n---\nFor semantic search: \`python .harness/lessons_search.py "${query}"\``,
+      }],
+    };
   }
 );
 
@@ -1389,7 +1475,7 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   // Server is now running — the SDK handles all MCP protocol negotiation
-  process.stderr.write("Pi CEO MCP Server v3.1.0 started (stdio transport, 22 tools)\n");
+  process.stderr.write("Pi CEO MCP Server v3.2.0 started (stdio transport, 23 tools)\n");
 }
 
 main().catch((err) => {
