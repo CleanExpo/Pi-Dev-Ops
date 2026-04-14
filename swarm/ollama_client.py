@@ -23,6 +23,7 @@ def chat(
     system: str,
     user_message: str,
     temperature: float = 0.3,
+    json_format: bool = False,
 ) -> str | None:
     """Send a single chat turn to a local Ollama model.
 
@@ -31,11 +32,12 @@ def chat(
         system:       System prompt defining the bot's role.
         user_message: The user/task message.
         temperature:  Sampling temperature (lower = more deterministic).
+        json_format:  If True, instructs Ollama to return valid JSON output.
 
     Returns:
         The model's response text, or None on any error.
     """
-    payload = json.dumps({
+    body: dict = {
         "model": model,
         "messages": [
             {"role": "system",  "content": system},
@@ -43,7 +45,10 @@ def chat(
         ],
         "stream": False,
         "options": {"temperature": temperature},
-    }).encode()
+    }
+    if json_format:
+        body["format"] = "json"
+    payload = json.dumps(body).encode()
 
     req = urllib.request.Request(
         f"{config.OLLAMA_BASE_URL}/api/chat",
