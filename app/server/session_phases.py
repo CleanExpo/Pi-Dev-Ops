@@ -33,6 +33,7 @@ from . import persistence
 from .brief import classify_intent, build_structured_brief
 from .lessons import append_lesson, load_lessons
 from .supabase_log import log_gate_check
+from .session_recorder import record_episode, retrieve_similar_episodes, format_episodes_as_context
 from .session_model import em
 from .session_sdk import _run_claude_via_sdk, _emit_sdk_canary_metric
 from .session_evaluator import (
@@ -975,10 +976,24 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     from .brief import classify_brief_complexity  # noqa: PLC0415
     resolved_tier = session.complexity_tier or classify_brief_complexity(brief)
     em(session, "system", f"  Brief tier: {resolved_tier.upper()}")
+
+    # RA-931 — inject verified past episodes as context before spec construction
+    _similar_episodes: list = []
+    try:
+        _similar_episodes = await retrieve_similar_episodes(brief, session.repo_url)
+        if _similar_episodes:
+            em(session, "system", f"  Context replay: {len(_similar_episodes)} similar past episode(s) found")
+    except Exception:
+        pass  # never block the pipeline
+
     spec = build_structured_brief(
         brief, resolved_intent, session.repo_url, session.workspace,
         complexity_tier=resolved_tier,
     )
+    # RA-931 — prepend verified past episodes to spec for context replay
+    if _similar_episodes:
+        episode_ctx = format_episodes_as_context(_similar_episodes)
+        spec = episode_ctx + "\n\n" + spec
 
     # RA-679 — optional plan variation discovery (generates 3 approaches, picks best)
     if getattr(session, "plan_discovery", False):
@@ -1060,5 +1075,11 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     # RA-672 Phase 2 — C2 data: log session outcome for ZTE v2 Section C scoring
     try:
         _record_session_outcome(session, push_ok, push_ts)
+    except Exception:
+        pass  # observability must never block the pipeline
+
+    # RA-931 — record this build run as an episode for future context replay
+    try:
+        await record_episode(session, brief)
     except Exception:
         pass  # observability must never block the pipeline
