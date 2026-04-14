@@ -1,7 +1,4 @@
-// app/(main)/layout.tsx — cinematic app shell
-// Design bridge: carries the landing page's Bloomberg terminal aesthetic (Bebas Neue
-// wordmark, orange π accent, warm-dark glow) into every interior page so the user
-// never feels they've left the same visual world.
+// app/(main)/layout.tsx — sidebar nav shell (Linear/Vercel aesthetic)
 "use client";
 
 import { usePathname } from "next/navigation";
@@ -9,189 +6,155 @@ import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const NAV = [
-  { href: "/dashboard", label: "DASHBOARD",  icon: "⊞", key: "dashboard" },
-  { href: "/builds",    label: "BUILDS",     icon: "⚙", key: "builds"    },
-  { href: "/chat",      label: "CHAT",       icon: "◈", key: "chat"      },
-  { href: "/history",   label: "HISTORY",    icon: "☰", key: "history"   },
-  { href: "/settings",  label: "SETTINGS",   icon: "⊙", key: "settings"  },
+  { href: "/dashboard", label: "Dashboard",  icon: "⊞", key: "dashboard" },
+  { href: "/builds",    label: "Builds",     icon: "⚙", key: "builds"    },
+  { href: "/chat",      label: "Chat",       icon: "◉", key: "chat"      },
+  { href: "/history",   label: "History",    icon: "☰", key: "history"   },
+  { href: "/settings",  label: "Settings",   icon: "⊙", key: "settings"  },
 ];
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const path = usePathname();
 
   return (
-    <div
-      className="flex flex-col min-h-screen"
-      style={{
-        /* Ambient warm glow in top-left — subtle reference to landing hero warmth */
-        background: "radial-gradient(ellipse at 0% 0%, rgba(232,117,26,0.04) 0%, transparent 45%), var(--c-bg)",
-        color: "var(--c-text)",
-      }}
-    >
+    <div className="flex min-h-screen bg-background text-text">
 
       {/* ══════════════════════════════════════════════════════════════
-          TOP NAV — desktop (sm+)
-          Design: cinematic header with orange accent underline,
-          Bebas Neue wordmark matching the landing page exactly.
+          SIDEBAR — desktop (md+), 220px fixed left
       ══════════════════════════════════════════════════════════════ */}
-      <nav
-        className="hidden sm:flex items-stretch justify-between h-12 shrink-0 relative"
+      <aside
+        className="hidden md:flex flex-col shrink-0 h-screen sticky top-0"
         style={{
-          background: "linear-gradient(to bottom, rgba(232,117,26,0.03) 0%, transparent 100%), var(--c-bg)",
-          borderBottom: "1px solid var(--c-border)",
+          width: "220px",
+          background: "var(--panel)",
+          borderRight: "1px solid var(--border)",
         }}
       >
-        {/* Thin orange accent line at very bottom of nav */}
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: "1px",
-            background: "linear-gradient(to right, var(--c-orange) 0%, rgba(232,117,26,0.2) 35%, transparent 60%)",
-            zIndex: 1,
-          }}
-        />
-
-        {/* ── Logo wordmark ── */}
+        {/* Logo */}
         <Link
           href="/"
-          className="flex items-center gap-2 px-5 hover:opacity-80 transition-opacity shrink-0 group"
-          style={{ borderRight: "1px solid var(--c-border)" }}
+          className="flex items-center gap-2.5 px-4 h-[52px] shrink-0 hover:opacity-80 transition-opacity"
+          style={{ borderBottom: "1px solid var(--border)" }}
         >
-          {/* Large orange π — same as landing page */}
           <span
-            className="font-mono leading-none group-hover:animate-pulse-orange"
-            style={{ color: "var(--c-orange)", fontSize: "16px", letterSpacing: "0.15em" }}
+            className="font-mono leading-none"
+            style={{ color: "var(--accent)", fontSize: "18px" }}
           >
             π
           </span>
-          {/* PI CEO in Bebas Neue — same typeface as the landing hero */}
-          <span
-            className="font-display leading-none tracking-widest"
-            style={{ fontSize: "20px", color: "var(--c-text)", letterSpacing: "0.12em" }}
-          >
-            PI CEO
-          </span>
-          {/* Tagline — hidden on smaller desktop */}
-          <span
-            className="font-mono hidden lg:block ml-1"
-            style={{ fontSize: "9px", color: "var(--c-chrome)", letterSpacing: "0.2em" }}
-          >
-            AUTONOMOUS DEV PLATFORM
-          </span>
+          <div className="flex flex-col gap-0">
+            <span className="text-sm font-semibold leading-tight" style={{ color: "var(--text)" }}>
+              Pi CEO
+            </span>
+            <span
+              className="uppercase tracking-wider leading-none"
+              style={{ fontSize: "10px", color: "var(--text-dim)" }}
+            >
+              Autonomous
+            </span>
+          </div>
         </Link>
 
-        {/* ── Navigation links ── */}
-        <div className="flex items-stretch">
-          {NAV.map(({ href, label }) => {
-            const active = path === href;
+        {/* Nav links */}
+        <nav className="flex flex-col gap-0.5 px-2 py-3 flex-1">
+          {NAV.map(({ href, label, icon }) => {
+            const active = path === href || (href !== "/dashboard" && path.startsWith(href));
             return (
               <Link
                 key={href}
                 href={href}
-                className="flex items-center px-4 font-mono text-xs tracking-widest transition-colors relative"
+                className="flex items-center gap-2.5 px-3 h-9 text-sm font-medium rounded-md transition-colors"
                 style={{
-                  borderLeft: "1px solid var(--c-border)",
-                  color: active ? "var(--c-orange)" : "var(--c-chrome)",
-                  background: active ? "rgba(232,117,26,0.04)" : "transparent",
-                  minHeight: "100%",
+                  color:      active ? "var(--accent)"      : "var(--text-muted)",
+                  background: active ? "var(--accent-subtle)" : "transparent",
+                }}
+                onMouseEnter={(e) => {
+                  if (!active) {
+                    (e.currentTarget as HTMLAnchorElement).style.color = "var(--text)";
+                    (e.currentTarget as HTMLAnchorElement).style.background = "var(--panel-hover)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) {
+                    (e.currentTarget as HTMLAnchorElement).style.color = "var(--text-muted)";
+                    (e.currentTarget as HTMLAnchorElement).style.background = "transparent";
+                  }
                 }}
               >
-                {active && (
-                  /* Active indicator: orange top border (same aesthetic as bottom tab bar) */
-                  <span
-                    aria-hidden
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: "2px",
-                      background: "var(--c-orange)",
-                    }}
-                  />
-                )}
-                {label}
+                <span className="text-base leading-none w-4 text-center shrink-0">{icon}</span>
+                <span>{label}</span>
               </Link>
             );
           })}
+        </nav>
 
-          {/* ── Theme toggle ── */}
-          <div
-            className="flex items-center px-3"
-            style={{ borderLeft: "1px solid var(--c-border)" }}
-          >
-            <ThemeToggle />
+        {/* Footer: swarm status + theme toggle */}
+        <div
+          className="flex items-center justify-between px-4 py-3 shrink-0"
+          style={{ borderTop: "1px solid var(--border)" }}
+        >
+          <div className="flex items-center gap-2">
+            <span
+              className="w-1.5 h-1.5 rounded-full shrink-0"
+              style={{ background: "var(--success)" }}
+            />
+            <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+              Swarm
+            </span>
           </div>
+          <ThemeToggle />
         </div>
-      </nav>
+      </aside>
 
       {/* ══════════════════════════════════════════════════════════════
           MOBILE TOP BAR — logo + theme toggle only
       ══════════════════════════════════════════════════════════════ */}
       <div
-        className="flex sm:hidden items-center justify-between px-4 h-12 shrink-0 relative"
+        className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-[52px] shrink-0"
         style={{
-          background: "linear-gradient(to bottom, rgba(232,117,26,0.03) 0%, transparent 100%), var(--c-bg)",
-          borderBottom: "1px solid var(--c-border)",
+          background: "var(--panel)",
+          borderBottom: "1px solid var(--border)",
         }}
       >
-        {/* Orange accent line */}
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: "1px",
-            background: "linear-gradient(to right, var(--c-orange) 0%, rgba(232,117,26,0.15) 40%, transparent 65%)",
-          }}
-        />
-
         <Link href="/" className="flex items-center gap-2">
-          <span className="font-mono" style={{ color: "var(--c-orange)", fontSize: "15px", letterSpacing: "0.15em" }}>π</span>
-          <span className="font-display leading-none" style={{ fontSize: "18px", color: "var(--c-text)", letterSpacing: "0.12em" }}>PI CEO</span>
+          <span className="font-mono" style={{ color: "var(--accent)", fontSize: "16px" }}>π</span>
+          <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>Pi CEO</span>
         </Link>
         <ThemeToggle />
       </div>
 
       {/* ══════════════════════════════════════════════════════════════
           PAGE CONTENT
-          Ambient background continues from the nav through the full page.
       ══════════════════════════════════════════════════════════════ */}
-      <div className="flex-1 flex flex-col pb-16 sm:pb-0">
+      <div className="flex-1 flex flex-col min-w-0 md:mt-0 mt-[52px] pb-16 md:pb-0">
         {children}
       </div>
 
       {/* ══════════════════════════════════════════════════════════════
-          MOBILE BOTTOM TAB BAR
+          MOBILE BOTTOM TAB BAR — 5 items
       ══════════════════════════════════════════════════════════════ */}
       <nav
-        className="fixed bottom-0 left-0 right-0 sm:hidden flex z-50 h-16"
+        className="fixed bottom-0 left-0 right-0 md:hidden flex z-50 h-16"
         style={{
-          borderTop: "1px solid var(--c-border)",
-          background: "var(--c-bg)",
+          background: "var(--panel)",
+          borderTop: "1px solid var(--border)",
         }}
       >
         {NAV.map(({ href, label, icon }) => {
-          const active = path === href;
+          const active = path === href || (href !== "/dashboard" && path.startsWith(href));
           return (
             <Link
               key={href}
               href={href}
               className="flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors"
               style={{
-                color: active ? "var(--c-orange)" : "var(--c-chrome)",
-                borderTop: active ? "2px solid var(--c-orange)" : "2px solid transparent",
-                background: active ? "rgba(232,117,26,0.04)" : "transparent",
+                color:       active ? "var(--accent)" : "var(--text-dim)",
+                borderTop:   active ? "2px solid var(--accent)" : "2px solid transparent",
+                background:  active ? "var(--accent-subtle)" : "transparent",
               }}
             >
               <span className="text-base leading-none">{icon}</span>
-              <span className="font-mono text-[9px] tracking-wider">{label}</span>
+              <span className="text-[9px] font-medium tracking-wide leading-tight">{label}</span>
             </Link>
           );
         })}

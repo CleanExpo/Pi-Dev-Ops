@@ -1,4 +1,4 @@
-// components/ui/card.tsx — Bloomberg-aesthetic card with optional orange left-accent bar
+// components/ui/card.tsx — Zinc design token card
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
@@ -9,8 +9,8 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "relative bg-[var(--c-panel)] border border-[var(--c-border)]",
-      accent && "border-l-[var(--c-orange)] border-l-2",
+      "relative rounded-md bg-[var(--panel)] border border-[var(--border)]",
+      accent && "border-l-[var(--accent)] border-l-2",
       className
     )}
     {...props}
@@ -24,7 +24,7 @@ const CardHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex flex-col gap-1 px-4 py-3 border-b border-[var(--c-border)]", className)}
+    className={cn("flex flex-col gap-1 px-4 py-3 border-b border-[var(--border)]", className)}
     {...props}
   />
 ));
@@ -36,7 +36,7 @@ const CardTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <h3
     ref={ref}
-    className={cn("font-mono text-xs font-bold uppercase tracking-widest text-[var(--c-text)]", className)}
+    className={cn("text-sm font-semibold text-[var(--text)]", className)}
     {...props}
   />
 ));
@@ -48,7 +48,7 @@ const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn("font-mono text-[10px] text-[var(--c-chrome)] tracking-wide", className)}
+    className={cn("text-xs text-[var(--text-muted)]", className)}
     {...props}
   />
 ));
@@ -68,7 +68,7 @@ const CardFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex items-center px-4 py-3 border-t border-[var(--c-border)]", className)}
+    className={cn("flex items-center px-4 py-3 border-t border-[var(--border)]", className)}
     {...props}
   />
 ));

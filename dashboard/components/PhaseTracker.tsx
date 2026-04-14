@@ -1,16 +1,16 @@
-// components/PhaseTracker.tsx — Dense phase status table
+// components/PhaseTracker.tsx — phase status table with Zinc tokens
 "use client";
 
 import type { Phase } from "@/lib/types";
 
-const STATUS_COLOR = {
-  pending: "#888480",
-  running: "#E8751A",
-  done:    "#4ADE80",
-  error:   "#F87171",
+const STATUS_COLOR: Record<Phase["status"], string> = {
+  pending: "var(--text-dim)",
+  running: "var(--accent)",
+  done:    "var(--success)",
+  error:   "var(--error)",
 };
 
-const STATUS_CHAR = {
+const STATUS_CHAR: Record<Phase["status"], string> = {
   pending: "○",
   running: "●",
   done:    "✓",
@@ -23,20 +23,26 @@ interface Props {
 
 export default function PhaseTracker({ phases }: Props) {
   return (
-    <div style={{ borderBottom: "1px solid #2A2727" }}>
-      <div className="px-3 py-1.5" style={{ borderBottom: "1px solid #2A2727" }}>
-        <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "#C8C5C0" }}>
-          phases
+    <div
+      className="rounded-md border border-[var(--border)] overflow-hidden"
+      style={{ borderBottom: "1px solid var(--border)" }}
+    >
+      <div className="px-3 py-2" style={{ borderBottom: "1px solid var(--border)" }}>
+        <span
+          className="font-geist-mono text-[10px] uppercase tracking-widest"
+          style={{ color: "var(--text-muted)" }}
+        >
+          Phases
         </span>
       </div>
       <table className="w-full">
         <thead>
-          <tr style={{ borderBottom: "1px solid #1E1C1C" }}>
-            {["#", "PHASE", "SKILL", "STATUS"].map((h) => (
+          <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+            {["#", "Phase", "Skill", "Status"].map((h) => (
               <th
                 key={h}
-                className="font-mono text-[9px] uppercase text-left px-3 py-1"
-                style={{ color: "#C8C5C0" }}
+                className="font-geist-mono text-[9px] uppercase text-left px-3 py-1.5"
+                style={{ color: "var(--text-dim)" }}
               >
                 {h}
               </th>
@@ -48,29 +54,38 @@ export default function PhaseTracker({ phases }: Props) {
             <tr
               key={p.id}
               style={{
-                borderBottom: "1px solid #1E1C1C",
-                background: p.status === "running" ? "rgba(232,117,26,0.07)" : "transparent",
+                borderBottom: "1px solid var(--border-subtle)",
+                background: p.status === "running" ? "var(--accent-subtle)" : "transparent",
               }}
             >
-              <td className="font-mono text-[10px] px-3 py-1.5" style={{ color: "#A8A5A0" }}>
+              <td
+                className="font-geist-mono text-[10px] px-3 py-1.5"
+                style={{ color: "var(--text-dim)" }}
+              >
                 {p.id}
               </td>
               <td
-                className="font-mono text-[11px] px-3 py-1.5"
+                className="font-geist-mono text-[11px] px-3 py-1.5"
                 style={{
-                  color: p.status === "running" ? "#E8751A"
-                       : p.status === "done"    ? "#F0EDE8"
-                       : p.status === "error"   ? "#F87171"
-                       : "#C8C5C0",
+                  color: p.status === "running" ? "var(--accent)"
+                       : p.status === "done"    ? "var(--text)"
+                       : p.status === "error"   ? "var(--error)"
+                       : "var(--text-muted)",
                 }}
               >
                 {p.name}
               </td>
-              <td className="font-mono text-[9px] px-3 py-1.5 hidden sm:table-cell" style={{ color: "#A8A5A0" }}>
+              <td
+                className="font-geist-mono text-[9px] px-3 py-1.5 hidden sm:table-cell"
+                style={{ color: "var(--text-dim)" }}
+              >
                 {p.skill.split("+")[0].trim()}
               </td>
               <td className="px-3 py-1.5">
-                <span className="font-mono text-[11px]" style={{ color: STATUS_COLOR[p.status] }}>
+                <span
+                  className="font-geist-mono text-[11px]"
+                  style={{ color: STATUS_COLOR[p.status] }}
+                >
                   {STATUS_CHAR[p.status]}{" "}
                   <span className="text-[9px] uppercase tracking-wider">{p.status}</span>
                 </span>

@@ -1,11 +1,11 @@
-// components/Terminal.tsx — xterm.js real terminal with Bloomberg aesthetic
+// components/Terminal.tsx — xterm.js terminal (Bloomberg canvas colors preserved)
 "use client";
 
 import { useEffect, useRef } from "react";
 import "xterm/css/xterm.css";
 import type { TermLine, TermLineType } from "@/lib/types";
 
-// ANSI colour codes matching the Bloomberg palette
+// ANSI colour codes — Bloomberg palette kept for terminal canvas readability
 const ANSI: Record<TermLineType, string> = {
   phase:   "\x1b[38;2;232;117;26m",   // #E8751A orange
   success: "\x1b[38;2;74;222;128m",   // #4ADE80 green
@@ -27,6 +27,7 @@ const PREFIX: Record<TermLineType, string> = {
   output:  "  ",
 };
 
+// xterm theme — Bloomberg colors kept unchanged for terminal canvas
 const XTERM_THEME = {
   background:          "#0C0C0C",
   foreground:          "#F0EDE8",
@@ -103,7 +104,7 @@ export default function Terminal({ lines, status }: Props) {
 
       // Write idle hint
       if (renderedRef.current === 0) {
-        term.write(`${ANSI.system}  Paste a GitHub repo URL above and click ANALYZE to begin.${RESET}\r\n`);
+        term.write(`${ANSI.system}  Paste a GitHub repo URL above and click Analyze to begin.${RESET}\r\n`);
       }
 
       // Observe container resize
@@ -134,35 +135,51 @@ export default function Terminal({ lines, status }: Props) {
   }, [lines]);
 
   const statusColor =
-    status === "running" ? "#E8751A" :
-    status === "done"    ? "#4ADE80" :
-    status === "error"   ? "#F87171" : "#888480";
+    status === "running" ? "var(--accent)"  :
+    status === "done"    ? "var(--success)" :
+    status === "error"   ? "var(--error)"   : "var(--text-dim)";
 
   return (
     <div className="flex flex-col h-full" style={{ background: "#0C0C0C" }}>
-      {/* Title bar */}
-      <div className="flex items-center justify-between px-3 py-1.5 shrink-0"
-        style={{ borderBottom: "1px solid #2A2727" }}>
-        <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "#C8C5C0" }}>
-          terminal output
+      {/* Header bar — uses CSS var tokens, rounded top */}
+      <div
+        className="flex items-center justify-between px-3 py-1.5 shrink-0 rounded-t-md"
+        style={{
+          background: "var(--panel)",
+          borderBottom: "1px solid var(--border)",
+        }}
+      >
+        <span
+          className="text-[10px] uppercase tracking-widest font-medium"
+          style={{ color: "var(--text-muted)" }}
+        >
+          Terminal output
         </span>
         <div className="flex items-center gap-2">
           {status === "running" && (
-            <span className="inline-block w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: "#E8751A", animation: "pulse 1.5s infinite" }} />
+            <span
+              className="inline-block w-1.5 h-1.5 rounded-full"
+              style={{ backgroundColor: "var(--accent)", animation: "pulse 1.5s infinite" }}
+            />
           )}
-          <span className="font-mono text-[9px] uppercase tracking-wider" style={{ color: statusColor }}>
+          <span
+            className="text-[9px] uppercase tracking-wider font-medium"
+            style={{ color: statusColor }}
+          >
             {status}
           </span>
-          <span className="font-mono text-[9px]" style={{ color: "#888480" }}>
+          <span className="text-[9px] font-mono" style={{ color: "var(--text-dim)" }}>
             {lines.length}L
           </span>
         </div>
       </div>
 
       {/* xterm.js mount point — fills remaining space */}
-      <div ref={mountRef} className="flex-1 min-h-0 px-1 py-1"
-        style={{ background: "#0C0C0C", overflow: "hidden" }} />
+      <div
+        ref={mountRef}
+        className="flex-1 min-h-0 px-1 py-1"
+        style={{ background: "#0C0C0C", overflow: "hidden" }}
+      />
     </div>
   );
 }
