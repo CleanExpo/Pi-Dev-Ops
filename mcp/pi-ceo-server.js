@@ -24,6 +24,8 @@
  *   - linear_sync_board       — full board sync (all statuses)
  *   - write_obsidian_note     — write/overwrite a note in the local Obsidian vault (RA-926)
  *   - search_lessons          — keyword search over lessons.jsonl institutional memory (RA-927)
+ *   - perplexity_research     — real-time CVE/dep/architecture research via Perplexity Sonar (RA-929)
+ *   - run_parallel            — execute multiple read-only tools concurrently (RA-933)
  */
 
 const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
@@ -49,6 +51,12 @@ const LINEAR_PROJECT_SLUG = process.env.LINEAR_PROJECT_SLUG || "pi-dev-ops";
 // Set OBSIDIAN_URL to override the default (e.g. non-standard port).
 const OBSIDIAN_TOKEN = process.env.OBSIDIAN_TOKEN || "";
 const OBSIDIAN_BASE_URL = process.env.OBSIDIAN_URL || "https://127.0.0.1:27124";
+
+// ── Perplexity Sonar API (RA-929) ─────────────────────────────────────────────
+// Set PERPLEXITY_API_KEY in the MCP env block (claude_desktop_config.json).
+// When unset, perplexity_research returns a clear error rather than failing silently.
+// Models: "sonar" (fast, $0.25/M tokens), "sonar-pro" (deep research, $2.50/M tokens).
+const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY || "";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function readHarness(filename) {
@@ -1506,6 +1514,98 @@ server.registerTool(
   _handle_get_pipeline
 );
 
+// ── Tool: perplexity_research ─────────────────────────────────────────────────
+server.registerTool(
+  "perplexity_research",
+  {
+    title: "Perplexity Research",
+    description:
+      "RA-929: Real-time web research via the Perplexity Sonar API. " +
+      "Use for CVE/dependency vulnerability lookups (model='sonar', domains=['nvd.nist.gov','github.com/advisories']), " +
+      "architecture research before spec_idea/plan_build (model='sonar-pro'), " +
+      "or any question requiring up-to-date information beyond the training cutoff. " +
+      "Returns the answer text plus cited sources. Requires PERPLEXITY_API_KEY in env.",
+    inputSchema: {
+      query:   z.string().min(1).describe("Research question or CVE lookup query"),
+      model:   z.enum(["sonar", "sonar-pro"]).optional().default("sonar")
+               .describe("sonar = fast ($0.25/M tokens); sonar-pro = deep research ($2.50/M tokens)"),
+      domains: z.array(z.string()).optional().default([])
+               .describe("Restrict search to these domains (e.g. ['nvd.nist.gov','github.com/advisories'])"),
+      recency: z.enum(["day", "week", "month", "year"]).optional().default("month")
+               .describe("Limit results to this recency window"),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: false },
+  },
+  async ({ query, model = "sonar", domains = [], recency = "month" }) => {
+    /** RA-929: Perplexity Sonar query — real-time research with citations. */
+    if (!PERPLEXITY_API_KEY) {
+      return {
+        content: [{
+          type: "text",
+          text: "PERPLEXITY_API_KEY not set. Add it to the MCP env block in claude_desktop_config.json:\n" +
+                "  \"env\": { \"PERPLEXITY_API_KEY\": \"pplx-...\" }\n" +
+                "Get a key at: https://www.perplexity.ai/settings/api",
+        }],
+      };
+    }
+
+    try {
+      const body = JSON.stringify({
+        model,
+        messages: [{ role: "user", content: query }],
+        search_recency_filter: recency,
+        ...(domains.length > 0 && { search_domain_filter: domains }),
+        return_citations: true,
+      });
+
+      const response = await new Promise((resolve, reject) => {
+        const req = https.request(
+          {
+            hostname: "api.perplexity.ai",
+            path: "/chat/completions",
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${PERPLEXITY_API_KEY}`,
+              "Content-Length": Buffer.byteLength(body),
+            },
+          },
+          (res) => {
+            let data = "";
+            res.on("data", (chunk) => { data += chunk; });
+            res.on("end", () => resolve({ status: res.statusCode, body: data }));
+          }
+        );
+        req.on("error", reject);
+        req.setTimeout(30000, () => { req.destroy(new Error("Perplexity request timed out after 30s")); });
+        req.write(body);
+        req.end();
+      });
+
+      if (response.status !== 200) {
+        return { content: [{ type: "text", text: `Perplexity API error ${response.status}: ${response.body.slice(0, 300)}` }] };
+      }
+
+      const data = JSON.parse(response.body);
+      const answer = data.choices?.[0]?.message?.content || "(no answer)";
+      const citations = (data.citations || []).slice(0, 8);
+
+      const lines = [
+        `**Perplexity ${model} — "${query.slice(0, 80)}"**`,
+        "",
+        answer,
+      ];
+      if (citations.length > 0) {
+        lines.push("", "**Sources:**");
+        citations.forEach((url, i) => lines.push(`${i + 1}. ${url}`));
+      }
+      return { content: [{ type: "text", text: lines.join("\n") }] };
+    } catch (e) {
+      return { content: [{ type: "text", text: `perplexity_research failed: ${e.message}` }] };
+    }
+  }
+);
+
 // ── Tool: run_parallel ────────────────────────────────────────────────────────
 server.registerTool(
   "run_parallel",
@@ -1564,7 +1664,7 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   // Server is now running — the SDK handles all MCP protocol negotiation
-  process.stderr.write("Pi CEO MCP Server v3.3.0 started (stdio transport, 24 tools)\n");
+  process.stderr.write("Pi CEO MCP Server v3.4.0 started (stdio transport, 25 tools)\n");
 }
 
 main().catch((err) => {
