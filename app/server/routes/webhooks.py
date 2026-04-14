@@ -2,6 +2,8 @@
 import json
 import logging
 import os
+import urllib.request as _ur
+import urllib.error
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -57,6 +59,12 @@ async def webhook(request: Request):
             payload = json.loads(raw_body)
         except json.JSONDecodeError:
             raise HTTPException(400, "Invalid JSON")
+        # RA-847 — CI failure alerting (handled before parse_github_event which
+        # only understands push/PR events and returns None for workflow_run).
+        if gh_event == "workflow_run":
+            await _handle_workflow_run(payload, request)
+            return {"ok": True, "event": "workflow_run"}
+
         event = parse_github_event(gh_event, payload)
         if not event:
             return {"skipped": True, "reason": f"Unsupported event: {gh_event}"}
@@ -113,6 +121,112 @@ async def webhook(request: Request):
 
     else:
         raise HTTPException(400, "Missing webhook signature header (x-hub-signature-256 or Linear-Signature)")
+
+
+# ── RA-847: CI failure alerting helpers ──────────────────────────────────────
+
+_LINEAR_ENDPOINT = "https://api.linear.app/graphql"
+
+
+async def _handle_workflow_run(payload: dict, request: Request) -> None:
+    """Create Linear ticket + Telegram alert when CI fails on main (RA-847)."""
+    run = payload.get("workflow_run", {})
+
+    # Only act on completed + failed runs on main branch
+    if run.get("conclusion") != "failure":
+        return
+    if run.get("head_branch") != "main":
+        return
+
+    repo = payload.get("repository", {}).get("full_name", "unknown/repo")
+    workflow_name = run.get("name", "CI")
+    run_url = run.get("html_url", "")
+    sha = run.get("head_sha", "")[:8]
+    commit_msg = run.get("head_commit", {}).get("message", "")[:80]
+
+    title = f"[CI FAILURE] {repo} — {workflow_name} on main"
+    description = (
+        "## CI Failure — Auto-generated\n\n"
+        f"**Repo:** {repo}\n"
+        f"**Workflow:** {workflow_name}\n"
+        "**Branch:** main\n"
+        f"**Commit:** {sha} — {commit_msg}\n"
+        f"**Run:** {run_url}\n\n"
+        "Auto-created by Pi-CEO GitHub webhook handler (RA-847).\n"
+    )
+
+    linear_key = os.environ.get("LINEAR_API_KEY", "")
+    if linear_key:
+        try:
+            await _create_linear_ci_ticket(title, description, linear_key)
+        except Exception as exc:
+            log.warning("RA-847: Linear ticket creation failed: %s", exc)
+
+    telegram_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    telegram_chat = os.environ.get("TELEGRAM_ALERT_CHAT_ID", "")
+    if telegram_token and telegram_chat:
+        msg = (
+            f"🔴 *CI FAILURE*\n"
+            f"{repo} — {workflow_name}\n"
+            f"`{sha}`: {commit_msg}\n"
+            f"{run_url}"
+        )
+        _telegram_send(telegram_token, telegram_chat, msg)
+
+    log.info(
+        "RA-847 workflow_run processed: repo=%s workflow=%s sha=%s conclusion=failure",
+        repo, workflow_name, sha,
+    )
+
+
+def _create_linear_ci_ticket_sync(title: str, description: str, api_key: str) -> dict:
+    """Create a High-priority Linear ticket in Pi - Dev -Ops (sync, stdlib only)."""
+    mutation = """
+    mutation CreateIssue($input: IssueCreateInput!) {
+        issueCreate(input: $input) {
+            success
+            issue { id identifier url title }
+        }
+    }
+    """
+    variables = {
+        "input": {
+            "teamId": config.LINEAR_TEAM_ID,
+            "projectId": config.LINEAR_PROJECT_ID,
+            "title": title,
+            "description": description,
+            "priority": 2,  # High
+        }
+    }
+    payload = json.dumps({"query": mutation, "variables": variables}).encode()
+    req = _ur.Request(
+        _LINEAR_ENDPOINT,
+        data=payload,
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": api_key,
+        },
+    )
+    with _ur.urlopen(req, timeout=15) as resp:
+        data = json.loads(resp.read())
+    if "errors" in data:
+        raise RuntimeError(f"Linear GraphQL errors: {data['errors']}")
+    result = data.get("data", {}).get("issueCreate", {})
+    if not result.get("success"):
+        raise RuntimeError(f"issueCreate returned success=false for title='{title}'")
+    issue = result.get("issue", {})
+    log.info("RA-847: Linear ticket created: %s %s", issue.get("identifier"), title)
+    return issue
+
+
+async def _create_linear_ci_ticket(title: str, description: str, api_key: str) -> dict:
+    """Async wrapper — runs the sync Linear call in the default executor."""
+    import asyncio
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None, _create_linear_ci_ticket_sync, title, description, api_key
+    )
 
 
 # ── RA-845: Morning AI platform intelligence webhook ──────────────────────────

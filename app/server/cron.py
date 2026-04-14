@@ -196,6 +196,18 @@ async def _fire_intel_refresh_trigger(trigger: dict, log) -> None:
         "intel_refresh id=%s complete: fetched=%d brief=%s",
         trigger["id"], fetched, brief or "none (no delta)",
     )
+    # RA-837 — consolidate anthropic docs into a single digest file
+    import subprocess as _subprocess
+    _repo_root = os.path.join(os.path.dirname(__file__), "..", "..")
+    _consolidate_result = _subprocess.run(
+        ["python", "scripts/consolidate_anthropic_docs.py"],
+        capture_output=True, text=True, timeout=30,
+        cwd=_repo_root,
+    )
+    if _consolidate_result.returncode != 0:
+        log.warning("consolidate_anthropic_docs failed: %s", _consolidate_result.stderr[:200])
+    else:
+        log.info("Anthropic docs consolidated: %s", _consolidate_result.stdout.strip()[:100])
 
 
 async def _fire_script_trigger(trigger: dict, log) -> None:
