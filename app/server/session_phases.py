@@ -892,7 +892,7 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
 
 
 async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
-    """Commit uncommitted changes, push to GitHub. Returns (all-files, push_ok)."""
+    """Commit uncommitted changes, push to GitHub on a feature branch. Returns (all-files, push_ok)."""
     em(session, "phase", f"[{total_phases}/{total_phases}] Pushing to GitHub...")
     af: list[str] = []
     try:
@@ -906,14 +906,28 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
         if commits:
             for c in commits:
                 em(session, "system", f"  {c}")
-            em(session, "system", f"  Pushing {len(commits)} commits...")
-            push_ok = False
+            # ── Embed GITHUB_TOKEN in remote URL for authenticated push ──
+            github_token = os.environ.get("GITHUB_TOKEN", "")
+            if github_token:
+                try:
+                    _, ru, _ = await run_cmd(session.workspace, "git", "remote", "get-url", "origin", timeout=5)
+                    ru = ru.strip()
+                    if "github.com" in ru and "@" not in ru:
+                        authed = ru.replace("https://github.com/", f"https://x-access-token:{github_token}@github.com/")
+                        await run_cmd(session.workspace, "git", "remote", "set-url", "origin", authed.strip(), timeout=5)
+                        em(session, "system", "  Remote: authenticated via GITHUB_TOKEN")
+                except Exception as _auth_err:
+                    em(session, "system", f"  Remote auth setup warning: {_auth_err}")
+            # ── Push to a feature branch (not main) ──
+            sid_short = getattr(session, "id", "auto")[:8]
+            branch_name = f"pidev/auto-{sid_short}"
+            await run_cmd(session.workspace, "git", "checkout", "-b", branch_name, timeout=10)
+            em(session, "system", f"  Pushing {len(commits)} commits on branch {branch_name}...")
             for push_attempt in range(3):
-                rc, _, err = await run_cmd(session.workspace, "git", "push", "origin", "HEAD", timeout=30)
+                rc, _, err = await run_cmd(session.workspace, "git", "push", "origin", branch_name, timeout=30)
                 if rc == 0:
                     push_ok = True
-                    em(session, "success", "  Pushed to GitHub!")
-                    em(session, "success", "  https://github.com/CleanExpo/Pi-Dev-Ops")
+                    em(session, "success", f"  Pushed to GitHub! Branch: {branch_name}")
                     break
                 err_lower = err.lower()
                 if any(s in err_lower for s in ("authentication failed", "could not read username", "permission denied", "403", "401")):
