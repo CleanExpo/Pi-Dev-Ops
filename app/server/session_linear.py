@@ -158,9 +158,9 @@ mutation PostComment($issueId: String!, $body: String!) {
 def _record_session_outcome(session, push_ok: bool, push_ts: float) -> None:
     """RA-672 Phase 2 — Write session outcome to .harness/session-outcomes.jsonl.
 
-    Feeds ZTE v2 C2 (output acceptance) scoring in zte_v2_score.py.
-    Each line: session_id, linear_issue_id, push_ok, push_timestamp,
-    linear_state_after, completed_at.
+    Feeds ZTE v2 C2 (output acceptance) and C1/C3/C5 local-fallback scoring.
+    Each line carries the full set of fields consumed by zte_v2_score.py so the
+    scorer works on Mac Mini without Supabase credentials.
     """
     _harness_dir = Path(config.DATA_DIR).parent.parent / ".harness"
     outcomes_file = _harness_dir / "session-outcomes.jsonl"
@@ -172,14 +172,24 @@ def _record_session_outcome(session, push_ok: bool, push_ts: float) -> None:
     issue_id = getattr(session, "linear_issue_id", None)
     linear_state_after = "In Review" if (issue_id and push_ok) else ""
 
+    started_at = getattr(session, "started_at", None)
+    review_score = float(getattr(session, "evaluator_score", None) or 0)
+    now_iso = datetime.now(timezone.utc).isoformat()
+
     row = {
         "session_id": session.id,
         "linear_issue_id": issue_id,
+        # C1 / gate_checks-compatible fields
+        "shipped": push_ok,
         "push_ok": push_ok,
         "push_timestamp": datetime.fromtimestamp(push_ts, tz=timezone.utc).isoformat() if push_ok else None,
+        "session_started_at": datetime.fromtimestamp(started_at, tz=timezone.utc).isoformat() if started_at else None,
+        "review_score": review_score,   # C5: evaluator average
+        "checked_at": now_iso,          # C1/C3 window filter key
+        # C2 fields
         "linear_state_after": linear_state_after,
         "session_status": getattr(session, "status", ""),
-        "completed_at": datetime.now(timezone.utc).isoformat(),
+        "completed_at": now_iso,
     }
     try:
         with open(outcomes_file, "a", encoding="utf-8") as f:

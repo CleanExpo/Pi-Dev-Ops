@@ -27,14 +27,13 @@ import random
 import shutil
 import time
 import urllib.request
-from typing import Optional
 
 from . import config
 from . import persistence
 from .brief import classify_intent, build_structured_brief
 from .lessons import append_lesson, load_lessons
 from .supabase_log import log_gate_check
-from .session_model import BuildSession, _sessions, em
+from .session_model import em
 from .session_sdk import _run_claude_via_sdk, _emit_sdk_canary_metric
 from .session_evaluator import (
     _parse_evaluator_dimensions,

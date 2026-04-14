@@ -51,6 +51,44 @@ def _supabase_query(table: str, select: str, filters: str = "") -> list[dict]:
         return []
 
 
+def _load_outcomes_as_gate_rows(days: int = 30) -> list[dict]:
+    """Local fallback: read session-outcomes.jsonl as gate_checks-compatible rows.
+
+    Used when Supabase credentials are absent (e.g. Mac Mini dev environment).
+    Returns rows in the same shape that score_c1/c3/c5 expect from Supabase.
+    """
+    outcomes_file = _HARNESS / "session-outcomes.jsonl"
+    if not outcomes_file.exists():
+        return []
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    rows = []
+    try:
+        with open(outcomes_file, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                    ts_str = entry.get("checked_at") or entry.get("completed_at", "")
+                    if ts_str:
+                        ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                        if ts < cutoff:
+                            continue
+                    rows.append({
+                        "shipped":             entry.get("shipped", entry.get("push_ok", False)),
+                        "review_score":        entry.get("review_score", 0),
+                        "session_started_at":  entry.get("session_started_at"),
+                        "push_timestamp":      entry.get("push_timestamp"),
+                        "checked_at":          ts_str,
+                    })
+                except Exception:
+                    pass
+    except Exception:
+        return []
+    return rows
+
+
 def _load_scanner_summary() -> list[dict]:
     """Load latest scan results from .harness/scan-results/ JSON files.
 
@@ -267,12 +305,15 @@ def _load_v1_score() -> tuple[int, int]:
 def compute_v2_score(days: int = 30) -> dict:
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
 
-    # Load gate_checks for the window
+    # Load gate_checks for the window; fall back to local session-outcomes.jsonl
+    # when Supabase credentials are absent (dev / Mac Mini environment).
     rows = _supabase_query(
         "gate_checks",
         "shipped,review_score,session_started_at,push_timestamp,checked_at",
         f"checked_at=gte.{cutoff}&order=checked_at.desc&limit=500",
     )
+    if not rows:
+        rows = _load_outcomes_as_gate_rows(days)
 
     projects = _load_scanner_summary()
     lpw = _lessons_per_week(days)

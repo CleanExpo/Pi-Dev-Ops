@@ -1,6 +1,6 @@
 # Pi Dev Ops — Product Spec
 
-_Last updated: 2026-04-13 (Sprint 10) | ZTE v2: 81/100_
+_Last updated: 2026-04-14 (Sprint 11) | ZTE v2: 84/100_
 
 ---
 
@@ -61,9 +61,33 @@ Browser ← SSE /api/analyze (live event stream)
 
 ### 2.1 Backend (`app/server/`)
 
+Decomposed into focused modules ≤300L each (RA-937). Public contract: `app.server.main:app` is the FastAPI instance — Dockerfile and Railway both reference it.
+
+**Assembler + Factory**
+
+| File | Lines | Responsibility |
+|------|-------|---------------|
+| `main.py` | ~25 | Thin assembler — imports `app`, registers all routers. Only file Dockerfile sees. |
+| `app_factory.py` | ~130 | `app` object, CORS/SecurityHeaders middleware, `_resilient`, startup/shutdown hooks |
+| `models.py` | ~126 | All Pydantic request models (BuildRequest, TriggerRequest, ScanRequest, etc.) |
+
+**Route Modules (`routes/`)**
+
+| File | Lines | Endpoints |
+|------|-------|-----------|
+| `routes/auth.py` | ~48 | `POST /api/login`, `POST /api/logout`, `GET /api/me` |
+| `routes/sessions.py` | ~122 | `/api/build`, `/api/build/parallel`, session list/kill/logs/resume |
+| `routes/webhooks.py` | ~214 | `POST /api/webhook` (GitHub+Linear), morning-intel, Telegram |
+| `routes/triggers.py` | ~32 | Trigger CRUD (`GET/POST/DELETE /api/triggers`) |
+| `routes/scan_monitor.py` | ~111 | `/api/scan`, `/api/projects/health`, `/api/monitor`, `/api/monitor/digest` |
+| `routes/pipeline.py` | ~89 | `/api/spec`, `/api/plan`, `/api/test`, `/api/ship`, `/api/pipeline/{id}` |
+| `routes/utils.py` | ~68 | `/api/gc`, `/api/lessons`, `/api/autonomy/status`, WebSocket `/ws/build/{sid}` |
+| `routes/health.py` | ~125 | `/health`, `/api/health/vercel`, Claude CLI poll, static mount |
+
+**Core Modules**
+
 | File | Responsibility |
 |------|---------------|
-| `main.py` | FastAPI app, all routes, WebSocket handler, security middleware |
 | `auth.py` | bcrypt password verify, HMAC session tokens, rate-limit GC |
 | `config.py` | All env-var config; `TAO_PASSWORD` always rehashes on startup if set |
 | `sessions.py` | Full build lifecycle: 5-phase pipeline, evaluator gate, disk persistence |
@@ -140,9 +164,9 @@ Key tools: `get_zte_score` (reads `leverage-audit.md`), `linear_*` (5 tools), `s
 
 ## 3. ZTE Score (Current)
 
-**ZTE v1: 73/75** | **ZTE v2: 81/100 (Zero Touch band)**
+**ZTE v1: 73/75** | **ZTE v2: 84/100 (Zero Touch band)**
 
-Full breakdown: `.harness/leverage-audit.md`. v2 target: 90/100 by end Cycle 25. Elite threshold: 95.
+Full breakdown: `.harness/leverage-audit.md`. v2 target: 90/100 (Sprint 12), Elite: 95/100 (Sprint 14).
 
 | Dimension | v1 Score | Notes |
 |-----------|----------|-------|
@@ -164,15 +188,24 @@ Full breakdown: `.harness/leverage-audit.md`. v2 target: 90/100 by end Cycle 25.
 
 ---
 
-## 4. Current Sprint (Sprint 10)
+## 4. Current Sprint (Sprint 11)
 
 **Active:**
-- RA-588: MARATHON-4 — 6-hour autonomous self-maintenance run. Reset to Todo 2026-04-13; autonomy poller will auto-start within 5 min.
-- RA-757: SDK Canary Phase A — `AGENT_SDK_CANARY_RATE=0.1` in Railway. 24h window → review at Cycle 26 (2026-04-14 07:40 AEST). Pass criteria: error rate <5%, latency regression <30%.
+- RA-588: MARATHON-4 — 6-hour autonomous self-maintenance run. In Progress.
+- RA-937: main.py decomposed 922L → 11 focused modules ≤300L (Done 2026-04-14). Unlocks route-scoped autonomous sessions.
 
-**Sprint 9 complete (2026-04-13):** RA-674–683, RA-688, RA-690–693. ZTE v2 moved to 81/100. Karpathy enhancement layer: confidence-weighted evaluator, AUTONOMY_BUDGET single-knob, Session Scope Contract, plan variation discovery, progressive brief complexity, layered abstraction, dependency alerting, Vercel drift monitoring, skills manifest.
+**Targets (Sprint 11–14):**
 
-**Sprint 8 complete:** SDK-only execution locked (RA-576), gate_checks Supabase table (RA-651), critical alert escalation chain (RA-633), ZTE v2 framework (RA-661), incident history RAG (RA-660), Linear two-way sync (RA-665/666), Pi-SEO false positive fix 16,042→128 findings (RA-673).
+| Sprint | Theme | ZTE v2 | Portfolio health |
+|--------|-------|--------|-----------------|
+| 11 (now) | RA-937 payoff — route tests, spec refresh, evaluator 8.5 | 85 | 80 |
+| 12 | Section C wiring (C1+C2+C3), portfolio dep fixes | 90 | 86 |
+| 13 | Brief enrichment, portfolio security triage | 92 | 90 |
+| 14 | Elite band push | 95 | 95 |
+
+**Sprint 10 complete (2026-04-14):** ZTE v2 81→84. BVI baseline (RA-814), harness doc regen (RA-815), 28 scanner exclusions (RA-834), carsi credential removed (RA-835), ZTE v2 Section C wired (RA-672), CCW-CRM quality 50→90 (RA-690), Synthex error leakage (RA-786), dep health PRs (RA-843/844).
+
+**Sprint 9 complete (2026-04-13):** Karpathy enhancement layer: confidence-weighted evaluator, AUTONOMY_BUDGET single-knob, Session Scope Contract, plan variation discovery, progressive brief complexity, layered abstraction, dependency alerting, Vercel drift monitoring, skills manifest.
 
 ---
 
@@ -184,7 +217,18 @@ Pi Dev Ops/
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   └── server/
-│       ├── main.py                     ← FastAPI app, routes, WebSocket, security
+│       ├── main.py                     ← Thin assembler (~25L): imports app, registers routers
+│       ├── app_factory.py              ← FastAPI app, CORS/security middleware, startup/shutdown
+│       ├── models.py                   ← All Pydantic request models (~126L)
+│       ├── routes/
+│       │   ├── auth.py                 ← /api/login, /api/logout, /api/me
+│       │   ├── sessions.py             ← /api/build, /api/build/parallel, session CRUD + SSE
+│       │   ├── webhooks.py             ← /api/webhook (GitHub+Linear), morning-intel, Telegram
+│       │   ├── triggers.py             ← /api/triggers CRUD
+│       │   ├── scan_monitor.py         ← /api/scan, /api/projects/health, /api/monitor
+│       │   ├── pipeline.py             ← /api/spec, /api/plan, /api/test, /api/ship
+│       │   ├── utils.py                ← /api/gc, /api/lessons, /api/autonomy/status, WS
+│       │   └── health.py               ← /health, /api/health/vercel, Claude CLI poll
 │       ├── auth.py                     ← HMAC tokens, bcrypt, rate-limit GC
 │       ├── config.py                   ← Env-var config; TAO_PASSWORD always rehashes if set
 │       ├── sessions.py                 ← Build lifecycle: 5-phase pipeline, evaluator, persistence
