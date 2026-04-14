@@ -9,6 +9,10 @@ const config = [
       // (e.g. void fetchData(), conditional tab switches on status change).
       // Downgrade to warn — these are deliberate patterns, not bugs.
       "react-hooks/set-state-in-effect": "warn",
+      // react-compiler fires on accessing ref.current during render for cursor styling.
+      // The isResizing ref is intentionally read during render for a CSS cursor hint only
+      // (not reactive state). Downgrade to warn until React Compiler migration is complete.
+      "react-compiler/react-compiler": "warn",
       // no-anonymous-default-export doesn't apply to config files
       "import/no-anonymous-default-export": "off",
     },
