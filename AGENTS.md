@@ -4,7 +4,7 @@ Defines what an autonomous agent (Claude Code, Pi-CEO generator, board meeting a
 freely modify, must proceed with care on, or must never touch without explicit human approval.
 
 Three tiers apply in every build session. When directories conflict, the more specific
-scope wins (e.g., `app/server/config.py` → ⚠️ overrides the default ✅ for `app/server/`).
+scope wins (e.g., `app/server/config.py` → 🚫 overrides the default ✅ for `app/server/`).
 
 ---
 
@@ -24,6 +24,9 @@ scope wins (e.g., `app/server/config.py` → ⚠️ overrides the default ✅ fo
 
 | Path | What it is |
 |------|-----------|
+| `app/server/routes/` | All 8 focused route modules (auth, sessions, webhooks, triggers, scan_monitor, pipeline, utils, health) |
+| `app/server/models.py` | Pydantic request models — add/edit/remove freely |
+| `app/server/main.py` | Thin assembler (~25L) — only registers routers, safe to reorder |
 | `app/server/agents/` | Board meeting, scout, plan discovery, feedback loop agents |
 | `app/server/session_evaluator.py` | Evaluator runners — safe to tune thresholds |
 | `app/server/session_phases.py` | Build phase pipeline — add/remove phases, tune prompts |
@@ -54,7 +57,7 @@ a clear rationale in the PR body. Evaluator score must be ≥ 8/10 before auto-s
 
 | Path | Risk | What to check |
 |------|------|---------------|
-| `app/server/main.py` | FastAPI routes + startup hooks | Verify `/health`, `/sessions`, `/webhook/*` still respond |
+| `app/server/app_factory.py` | FastAPI app object, middleware, startup/shutdown hooks | Verify `/health`, all routers, CORS still work; run import check |
 | `app/server/sessions.py` | Session lifecycle facade | Run full pytest suite; zero import regressions |
 | `app/server/session_model.py` | `BuildSession` dataclass | Field additions need `persistence.py` migration |
 | `app/server/session_sdk.py` | SDK runner + metrics | Confirm `.harness/agent-sdk-metrics/` still writes |
@@ -101,13 +104,15 @@ a clear rationale in the PR body. Evaluator score must be ≥ 8/10 before auto-s
 
 ```
 ✅ Default for all files in app/server/
-⚠️ Override for: main.py, sessions.py, session_model.py, session_sdk.py,
+✅ Override for: main.py, models.py, routes/ (all modules)
+⚠️ Override for: app_factory.py, sessions.py, session_model.py, session_sdk.py,
                   session_linear.py, orchestrator.py, pipeline.py, autonomy.py,
                   cron.py, autopr.py, gc.py, persistence.py, supabase_log.py
 🚫 Override for: config.py, auth.py
 ```
 
 Run `python -m pytest tests/ -x -q` before committing any change to `app/server/`.
+Also run `python -c "from app.server.main import app"` — must print `<class 'fastapi.applications.FastAPI'>`.
 
 ### `dashboard/app/api/` override
 
@@ -148,4 +153,4 @@ Patterns adapted from Codex four-file task memory (PROMPT/PLAN/IMPLEMENT/STATUS.
 Kimi K2 minimal tool set philosophy (6 orthogonal tools > 20 overlapping), and
 DeepSeek R1 structured reasoning seeding.
 
-Last updated: 2026-04-14 (RA-935)
+Last updated: 2026-04-14 (RA-937)

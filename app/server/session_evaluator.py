@@ -179,6 +179,18 @@ async def _run_eval_with_cache(
     except ImportError:
         return None, ""
 
+    try:
+        from tenacity import (  # noqa: PLC0415
+            retry,
+            stop_after_attempt,
+            wait_random_exponential,
+            retry_if_exception,
+            before_sleep_log,
+        )
+        _HAS_TENACITY = True
+    except ImportError:
+        _HAS_TENACITY = False
+
     api_key = config.ANTHROPIC_API_KEY
     if not api_key:
         return None, ""
@@ -241,14 +253,56 @@ async def _run_eval_with_cache(
 
     t0 = time.monotonic()
     try:
-        client = _anthropic.Anthropic(api_key=api_key)
-        message = client.messages.create(
-            model=full_model,
-            max_tokens=512,
-            system=system_blocks,
-            messages=[{"role": "user", "content": user_content}],
-            timeout=timeout,
-        )
+        client = _anthropic.Anthropic(api_key=api_key, max_retries=0)
+
+        # RA-925: count_tokens dynamic budget guard — prevent silent truncation
+        desired_output = 512
+        safe_max_tokens = desired_output
+        try:
+            tc = client.messages.count_tokens(
+                model=full_model,
+                system=system_blocks,
+                messages=[{"role": "user", "content": user_content}],
+            )
+            safe_max_tokens = min(desired_output, 200_000 - tc.input_tokens - 500)
+            _log.debug("eval count_tokens: input=%d safe_max=%d", tc.input_tokens, safe_max_tokens)
+        except Exception as _ct_exc:
+            _log.debug("count_tokens unavailable (%s), using desired_output=%d", _ct_exc, desired_output)
+
+        def _create_with_retry():
+            if _HAS_TENACITY:
+                from anthropic import RateLimitError, APITimeoutError, APIStatusError  # noqa: PLC0415
+
+                def _is_transient(exc):
+                    if isinstance(exc, APIStatusError):
+                        return exc.status_code in (429, 500, 502, 503, 529)
+                    return isinstance(exc, (RateLimitError, APITimeoutError))
+
+                @retry(
+                    retry=retry_if_exception(_is_transient),
+                    wait=wait_random_exponential(multiplier=2, min=4, max=60),
+                    stop=stop_after_attempt(4),
+                    before_sleep=before_sleep_log(_log, logging.WARNING),
+                )
+                def _inner():
+                    return client.messages.create(
+                        model=full_model,
+                        max_tokens=max(64, safe_max_tokens),
+                        system=system_blocks,
+                        messages=[{"role": "user", "content": user_content}],
+                        timeout=timeout,
+                    )
+                return _inner()
+            else:
+                return client.messages.create(
+                    model=full_model,
+                    max_tokens=max(64, safe_max_tokens),
+                    system=system_blocks,
+                    messages=[{"role": "user", "content": user_content}],
+                    timeout=timeout,
+                )
+
+        message = _create_with_retry()
         text = message.content[0].text if message.content else ""
         usage = message.usage
         _log.info(

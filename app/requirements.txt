@@ -7,3 +7,6 @@ pyyaml>=6
 python-dotenv>=1.0
 bcrypt>=4.0
 claude-agent-sdk>=0.1
+tenacity>=8.2
+PyGithub>=2.0
+anthropic>=0.40

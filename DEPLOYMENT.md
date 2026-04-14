@@ -2,7 +2,7 @@
 
 Single source of truth for production services, hosting, env vars, and rollback procedures.
 
-**Last updated:** 2026-04-12 (RA-634)
+**Last updated:** 2026-04-14 (RA-937)
 
 ---
 

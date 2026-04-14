@@ -276,6 +276,7 @@ async def linear_todo_poller() -> None:
                     brief=brief,
                     model="sonnet",
                     linear_issue_id=issue_id,
+                    autonomy_triggered=True,
                 )
                 log.info("Autonomy: session %s started for %s", session.id, identifier)
                 _log_event({

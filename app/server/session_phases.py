@@ -27,14 +27,14 @@ import random
 import shutil
 import time
 import urllib.request
-from typing import Optional
 
 from . import config
 from . import persistence
 from .brief import classify_intent, build_structured_brief
 from .lessons import append_lesson, load_lessons
 from .supabase_log import log_gate_check
-from .session_model import BuildSession, _sessions, em
+from .session_recorder import record_episode, retrieve_similar_episodes, format_episodes_as_context
+from .session_model import em
 from .session_sdk import _run_claude_via_sdk, _emit_sdk_canary_metric
 from .session_evaluator import (
     _parse_evaluator_dimensions,
@@ -50,6 +50,27 @@ from .session_linear import (
 )
 
 _log = logging.getLogger("pi-ceo.sessions")
+
+# ── RA-932: Think-block cold-start seeds ─────────────────────────────────────
+# Prepend structural prompts before the model enters extended reasoning.
+# Active when THINK_SEED_ENABLED=1 in env (default off until validated).
+_THINK_SEED_ENABLED = os.environ.get("THINK_SEED_ENABLED", "0") == "1"
+
+GENERATOR_THINK_SEED = (
+    "Before editing any files:\n"
+    "1. Which files need to change? List them.\n"
+    "2. What is the minimal diff that satisfies the brief?\n"
+    "3. Which tests need updating?\n"
+    "4. What side-effects could this change have?\n\n"
+)
+
+EVALUATOR_THINK_SEED = (
+    "Before scoring:\n"
+    "1. List every requirement from the brief.\n"
+    "2. Check each requirement against the diff. Note gaps.\n"
+    "3. Identify any bugs, type errors, or logic issues.\n"
+    "4. Check project conventions.\n\n"
+)
 
 # ── Incident history RAG (RA-660) ────────────────────────────────────────────
 
@@ -199,6 +220,156 @@ def _check_scope_adherence(
         pass
     _send_scope_violation_alert(session, modified_files, max_files)
     return True
+
+
+# ── RA-934: 4-file task memory ────────────────────────────────────────────────
+
+async def _write_task_memory(session, brief: str, spec: str) -> None:
+    """Write PROMPT/PLAN/IMPLEMENT.md to .pi-ceo/{session_id}/ in the workspace.
+
+    These files become the cross-session working memory passed to every agent
+    invocation.  STATUS.md is created empty for the generator to populate.
+    Never raises — task memory failure must not block the build pipeline.
+    """
+    from pathlib import Path  # noqa: PLC0415
+    try:
+        pi_dir = Path(session.workspace) / ".pi-ceo" / session.id
+        pi_dir.mkdir(parents=True, exist_ok=True)
+        (pi_dir / "PROMPT.md").write_text(
+            f"# Task Brief\n\n{brief}\n\n## Session: {session.id}\n",
+            encoding="utf-8",
+        )
+        (pi_dir / "PLAN.md").write_text(
+            f"# Implementation Plan\n\n{spec}\n",
+            encoding="utf-8",
+        )
+        (pi_dir / "STATUS.md").write_text(
+            f"# Status Log\n\n_Session {session.id} — update after each milestone._\n",
+            encoding="utf-8",
+        )
+        impl_template = Path(__file__).parent / "templates" / "IMPLEMENT.md"
+        if impl_template.exists():
+            shutil.copy(impl_template, pi_dir / "IMPLEMENT.md")
+        _log.info("RA-934: task memory written to %s", pi_dir)
+    except Exception as exc:
+        _log.warning("RA-934: _write_task_memory failed (non-fatal): %s", exc)
+
+
+# ── RA-936: Structured repair loop helpers ────────────────────────────────────
+
+async def _classify_failure(eval_text: str, diff_text: str, session) -> dict:
+    """Use Haiku to classify the evaluator failure and determine minimal repair scope.
+
+    Returns a dict with: FAILURE_TYPE, IMPLICATED_FILES, REPAIR_SCOPE,
+    REPAIR_INSTRUCTIONS.  Returns {} on any error — caller falls back to
+    the legacy retry_brief format.
+    """
+    haiku_model = getattr(config, "HAIKU_MODEL", "claude-haiku-4-5")
+    classification_prompt = (
+        "You are a code repair classifier. Analyse the evaluator output and diff, "
+        "then classify the failure concisely.\n\n"
+        f"EVALUATOR OUTPUT:\n{eval_text[:2000]}\n\n"
+        f"GIT DIFF SUMMARY:\n{diff_text[:1000]}\n\n"
+        "Respond in JSON only (no markdown fences):\n"
+        "{\n"
+        '  "FAILURE_TYPE": "test_failure|lint_error|type_error|logic_error|incomplete|scope_violation",\n'
+        '  "IMPLICATED_FILES": ["list", "of", "file", "paths"],\n'
+        '  "REPAIR_SCOPE": "minimal|moderate|full_rewrite",\n'
+        '  "REPAIR_INSTRUCTIONS": ["step 1", "step 2", "step 3"]\n'
+        "}"
+    )
+    try:
+        rc, text, _ = await _run_claude_via_sdk(
+            classification_prompt, haiku_model, session.workspace,
+            timeout=45, session_id=session.id, phase="repair_classifier",
+        )
+        if rc == 0 and text.strip():
+            # Strip any accidental markdown fences
+            clean = text.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
+            return json.loads(clean)
+    except Exception as exc:
+        _log.debug("RA-936: _classify_failure error (non-fatal): %s", exc)
+    return {}
+
+
+def _build_repair_brief(
+    spec: str,
+    eval_text: str,
+    classification: dict,
+    threshold: float,
+    weak_dims: list[str],
+) -> str:
+    """Build a targeted repair brief from the failure classification.
+
+    Falls back to the legacy retry format when classification is empty.
+    """
+    if not classification:
+        # Legacy format (existing behaviour preserved)
+        return (
+            spec + "\n\n--- RETRY INSTRUCTIONS ---\n"
+            f"Previous attempt scored below threshold ({threshold}/10).\n"
+            "Issues found:\n" + "\n".join(f"- {w}" for w in weak_dims) + "\n"
+            "Fix these specific issues. Do not rewrite everything.\n--- END RETRY ---"
+        )
+    failure_type = classification.get("FAILURE_TYPE", "unknown")
+    implicated = classification.get("IMPLICATED_FILES", [])
+    scope = classification.get("REPAIR_SCOPE", "minimal")
+    instructions = classification.get("REPAIR_INSTRUCTIONS", [])
+
+    files_line = ", ".join(implicated) if implicated else "see evaluator output"
+    instructions_text = "\n".join(f"  {i+1}. {step}" for i, step in enumerate(instructions))
+
+    return (
+        f"REPAIR TASK — failure type: {failure_type}, scope: {scope}\n\n"
+        f"Do NOT rewrite everything. Touch only the implicated files: {files_line}\n\n"
+        f"Original task spec:\n{spec[:1500]}\n\n"
+        f"Evaluator feedback:\n{eval_text[:1500]}\n\n"
+        f"Specific repair instructions:\n{instructions_text or '  - Fix the issues described in the evaluator feedback above'}\n\n"
+        "Verify your changes with a quick test run if tests exist.\n"
+        "Do not modify files not in the implicated list."
+    )
+
+
+def _send_repair_exhausted_alert(session, score: float, eval_text: str) -> None:
+    """RA-936 — Telegram alert when the repair loop exhausts all retries.
+
+    Lets the operator know a session needs human review rather than silently
+    being marked 'warned'. Never raises.
+    """
+    token = config.TELEGRAM_BOT_TOKEN
+    chat_id = config.TELEGRAM_ALERT_CHAT_ID
+    if not token or not chat_id:
+        return
+    repo = getattr(session, "repo_url", "?").rstrip("/").split("/")[-1]
+    issue_id = getattr(session, "linear_issue_id", None)
+    ticket = f" | {issue_id}" if issue_id else ""
+    # Pull first failing dimension from eval text for the alert
+    failing_dim = ""
+    for line in eval_text.splitlines():
+        if any(d in line for d in ("COMPLETENESS:", "CORRECTNESS:", "CONCISENESS:", "FORMAT:")):
+            if "/10" in line:
+                try:
+                    score_val = float(line.split("/10")[0].split()[-1])
+                    if score_val < 7:
+                        failing_dim = line.strip()[:80]
+                        break
+                except ValueError:
+                    pass
+    msg = (
+        f"🔄 *Repair loop exhausted:* `{repo}`\n"
+        f"Score: {score:.1f}/10 — needs human review{ticket}\n"
+        f"{failing_dim}"
+    )
+    payload = json.dumps({"chat_id": chat_id, "text": msg, "parse_mode": "Markdown",
+                          "disable_web_page_preview": True}).encode()
+    req = urllib.request.Request(
+        f"https://api.telegram.org/bot{token}/sendMessage",
+        data=payload, headers={"Content-Type": "application/json"}, method="POST",
+    )
+    try:
+        urllib.request.urlopen(req, timeout=10)
+    except Exception as exc:
+        _log.debug("RA-936: _send_repair_exhausted_alert failed (non-fatal): %s", exc)
 
 
 def _select_model(phase: str, explicit_model: str = "") -> str:
@@ -458,7 +629,9 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
     incident_ctx = _build_incident_context(repo_url=getattr(session, "repo_url", ""))
     for attempt in range(2):
         base_spec = spec if attempt == 0 else spec[:4000] + "\n\n[NOTE: Simplified due to previous failure. Focus on core task only.]"
-        current_spec = (incident_ctx + base_spec) if incident_ctx else base_spec
+        # RA-932: prepend generator think seed when enabled
+        seeded_spec = (GENERATOR_THINK_SEED + base_spec) if _THINK_SEED_ENABLED else base_spec
+        current_spec = (incident_ctx + seeded_spec) if incident_ctx else seeded_spec
         try:
             # Try SDK path first if flag enabled
             if use_sdk:
@@ -594,6 +767,7 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
                 _log.info("eval-cache all-failed — falling back to Agent SDK evaluator")
                 eval_spec = (
                     _EVAL_PROMPT_BASE
+                    + "ORIGINAL BRIEF (what was asked for):\n" + brief_context + "\n\n"
                     + "DIFF SUMMARY:\n" + (diff_out or "(empty)") + "\n\n"
                     + "DIFF DETAIL (truncated to 8000 chars):\n" + diff_context + "\n\n"
                     + _EVAL_PROMPT_DIMS
@@ -653,15 +827,14 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
             if eval_attempt >= max_retries:
                 session.evaluator_status = "warned"
                 em(session, "error", f"  Evaluator: {session.evaluator_score}/10 \u2014 BELOW THRESHOLD (exhausted {max_retries + 1} attempts)")
+                _send_repair_exhausted_alert(session, session.evaluator_score, eval_text)  # RA-936
                 break
             dimensions = _parse_evaluator_dimensions(eval_text)
             weak_dims = [f"{d}: {s}/10 \u2014 {r}" for d, (s, r) in dimensions.items() if s < threshold]
-            retry_brief = (
-                spec + "\n\n--- RETRY INSTRUCTIONS ---\n"
-                f"Previous attempt scored {session.evaluator_score}/10 (threshold: {threshold}).\n"
-                "Issues found:\n" + "\n".join(f"- {w}" for w in weak_dims) + "\n"
-                "Fix these specific issues. Do not rewrite everything.\n--- END RETRY ---"
-            )
+            # RA-936: fast failure classification before targeted repair
+            em(session, "system", "  Classifying failure (haiku)\u2026")
+            classification = await _classify_failure(eval_text, diff_full or "", session)
+            retry_brief = _build_repair_brief(spec, eval_text, classification, threshold, weak_dims)
             em(session, "error", f"  Evaluator: {session.evaluator_score}/10 \u2014 RETRYING")
             em(session, "phase", f"[4/{total_phases}] Re-running Claude Code (retry {eval_attempt + 1})...")
             session.status = "building"
@@ -804,10 +977,24 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     from .brief import classify_brief_complexity  # noqa: PLC0415
     resolved_tier = session.complexity_tier or classify_brief_complexity(brief)
     em(session, "system", f"  Brief tier: {resolved_tier.upper()}")
+
+    # RA-931 — inject verified past episodes as context before spec construction
+    _similar_episodes: list = []
+    try:
+        _similar_episodes = await retrieve_similar_episodes(brief, session.repo_url)
+        if _similar_episodes:
+            em(session, "system", f"  Context replay: {len(_similar_episodes)} similar past episode(s) found")
+    except Exception:
+        pass  # never block the pipeline
+
     spec = build_structured_brief(
         brief, resolved_intent, session.repo_url, session.workspace,
         complexity_tier=resolved_tier,
     )
+    # RA-931 — prepend verified past episodes to spec for context replay
+    if _similar_episodes:
+        episode_ctx = format_episodes_as_context(_similar_episodes)
+        spec = episode_ctx + "\n\n" + spec
 
     # RA-679 — optional plan variation discovery (generates 3 approaches, picks best)
     if getattr(session, "plan_discovery", False):
@@ -822,6 +1009,10 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
                    f"({meta['winner_score']:.1f}/10) in {meta['duration_s']}s")
         except Exception as _disc_exc:
             _log.warning("plan_discovery hook failed (non-fatal): %s", _disc_exc)
+
+    # RA-934 — write cross-session task memory files to workspace before generation
+    await _write_task_memory(session, brief, spec)
+    em(session, "system", f"  Task memory: .pi-ceo/{session.id}/PLAN.md written")
 
     if not await _phase_generate(session, spec, model, resume_from):
         _sync_linear_on_completion(session)
@@ -885,5 +1076,11 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     # RA-672 Phase 2 — C2 data: log session outcome for ZTE v2 Section C scoring
     try:
         _record_session_outcome(session, push_ok, push_ts)
+    except Exception:
+        pass  # observability must never block the pipeline
+
+    # RA-931 — record this build run as an episode for future context replay
+    try:
+        await record_episode(session, brief)
     except Exception:
         pass  # observability must never block the pipeline

@@ -153,14 +153,84 @@ mutation PostComment($issueId: String!, $body: String!) {
         _log.warning("Linear comment failed for issue %s: %s", issue_id, exc)
 
 
+# ── RA-887: Autonomy outcome Telegram notification ────────────────────────────
+
+def _send_autonomy_outcome_telegram(session) -> None:
+    """Post a Telegram notification when an autonomy-triggered session completes.
+
+    Only fires when session.autonomy_triggered is True.  Never raises — failures
+    are logged and swallowed so a Telegram outage cannot break a build.
+    """
+    if not getattr(session, "autonomy_triggered", False):
+        return
+
+    token = config.TELEGRAM_BOT_TOKEN
+    chat_id = config.TELEGRAM_ALERT_CHAT_ID
+    if not token or not chat_id:
+        _log.debug("RA-887: TELEGRAM_BOT_TOKEN/TELEGRAM_ALERT_CHAT_ID not set — skip autonomy notification")
+        return
+
+    status = getattr(session, "status", "")
+    repo = getattr(session, "repo_url", "?")
+    # Show just the repo name, not the full URL
+    repo_label = repo.rstrip("/").split("/")[-1] if "/" in repo else repo
+    issue_id = getattr(session, "linear_issue_id", None)
+    ticket_label = f" | {issue_id}" if issue_id else ""
+    duration_s = int(time.time() - (session.started_at or time.time()))
+    eval_score = getattr(session, "evaluator_score", None)
+
+    if status == "complete":
+        score_part = f"ZTE: {eval_score}/10" if eval_score else "ZTE: n/a"
+        msg = (
+            f"✅ *Session complete:* `{repo_label}`\n"
+            f"{score_part}{ticket_label}\n"
+            f"Duration: {duration_s}s"
+        )
+    elif status == "failed":
+        error = getattr(session, "error", None) or "see Railway logs"
+        # Truncate error to keep the message readable
+        if len(error) > 120:
+            error = error[:117] + "…"
+        msg = (
+            f"❌ *Session failed:* `{repo_label}`\n"
+            f"Error: {error}{ticket_label}\n"
+            f"Duration: {duration_s}s"
+        )
+    else:
+        # killed / interrupted — no notification
+        return
+
+    payload = json.dumps({
+        "chat_id": chat_id,
+        "text": msg,
+        "parse_mode": "Markdown",
+        "disable_web_page_preview": True,
+    }).encode()
+    req = urllib.request.Request(
+        f"https://api.telegram.org/bot{token}/sendMessage",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            result = json.loads(resp.read().decode())
+            if not result.get("ok"):
+                _log.warning("RA-887: Telegram notification failed: %s", result)
+            else:
+                _log.info("RA-887: Telegram autonomy outcome sent for session %s (%s)", session.id, status)
+    except Exception as exc:
+        _log.warning("RA-887: Telegram notification error for session %s: %s", session.id, exc)
+
+
 # ── Session outcome recording ──────────────────────────────────────────────────
 
 def _record_session_outcome(session, push_ok: bool, push_ts: float) -> None:
     """RA-672 Phase 2 — Write session outcome to .harness/session-outcomes.jsonl.
 
-    Feeds ZTE v2 C2 (output acceptance) scoring in zte_v2_score.py.
-    Each line: session_id, linear_issue_id, push_ok, push_timestamp,
-    linear_state_after, completed_at.
+    Feeds ZTE v2 C2 (output acceptance) and C1/C3/C5 local-fallback scoring.
+    Each line carries the full set of fields consumed by zte_v2_score.py so the
+    scorer works on Mac Mini without Supabase credentials.
     """
     _harness_dir = Path(config.DATA_DIR).parent.parent / ".harness"
     outcomes_file = _harness_dir / "session-outcomes.jsonl"
@@ -172,14 +242,24 @@ def _record_session_outcome(session, push_ok: bool, push_ts: float) -> None:
     issue_id = getattr(session, "linear_issue_id", None)
     linear_state_after = "In Review" if (issue_id and push_ok) else ""
 
+    started_at = getattr(session, "started_at", None)
+    review_score = float(getattr(session, "evaluator_score", None) or 0)
+    now_iso = datetime.now(timezone.utc).isoformat()
+
     row = {
         "session_id": session.id,
         "linear_issue_id": issue_id,
+        # C1 / gate_checks-compatible fields
+        "shipped": push_ok,
         "push_ok": push_ok,
         "push_timestamp": datetime.fromtimestamp(push_ts, tz=timezone.utc).isoformat() if push_ok else None,
+        "session_started_at": datetime.fromtimestamp(started_at, tz=timezone.utc).isoformat() if started_at else None,
+        "review_score": review_score,   # C5: evaluator average
+        "checked_at": now_iso,          # C1/C3 window filter key
+        # C2 fields
         "linear_state_after": linear_state_after,
         "session_status": getattr(session, "status", ""),
-        "completed_at": datetime.now(timezone.utc).isoformat(),
+        "completed_at": now_iso,
     }
     try:
         with open(outcomes_file, "a", encoding="utf-8") as f:
@@ -189,35 +269,38 @@ def _record_session_outcome(session, push_ok: bool, push_ts: float) -> None:
 
 
 def _sync_linear_on_completion(session) -> None:
-    """RA-665/666 — Post build outcome to Linear on every terminal state.
+    """RA-665/666/887 — Post build outcome to Linear + Telegram on every terminal state.
 
-    Called from run_build() finally block so it fires on success AND all
-    early-return failure paths without touching each individual return.
+    Called from run_build() early-return paths and the success path so it fires
+    on every terminal status without touching each individual return site.
     """
-    issue_id = getattr(session, "linear_issue_id", None)
-    if not issue_id:
-        return
     status = getattr(session, "status", "")
     duration_s = int(time.time() - (session.started_at or time.time()))
     eval_score = getattr(session, "evaluator_score", None)
     eval_status = getattr(session, "evaluator_status", "")
 
-    if status == "complete":
-        score_line = f"Evaluator: {eval_score}/10 ({eval_status})\n" if eval_score else ""
-        comment = (
-            f"Pi CEO build **complete** in {duration_s}s.\n\n"
-            f"{score_line}"
-            f"Session: `{session.id}`"
-        )
-        _post_linear_comment(issue_id, comment)
-        # Issue already moved to "In Review" during push phase; leave it there
-        # so a human can review the PR before marking Done.
-    elif status == "failed":
-        comment = (
-            f"Pi CEO build **failed** after {duration_s}s.\n\n"
-            f"Session: `{session.id}` — check Railway logs for details."
-        )
-        _post_linear_comment(issue_id, comment)
-        # Move back to Todo so the issue is visible as needing attention
-        _update_linear_state(issue_id, "Todo")
-    # killed / other terminal states: no Linear update needed
+    # ── Linear sync (only when issue is linked) ───────────────────────────────
+    issue_id = getattr(session, "linear_issue_id", None)
+    if issue_id:
+        if status == "complete":
+            score_line = f"Evaluator: {eval_score}/10 ({eval_status})\n" if eval_score else ""
+            comment = (
+                f"Pi CEO build **complete** in {duration_s}s.\n\n"
+                f"{score_line}"
+                f"Session: `{session.id}`"
+            )
+            _post_linear_comment(issue_id, comment)
+            # Issue already moved to "In Review" during push phase; leave it there
+            # so a human can review the PR before marking Done.
+        elif status == "failed":
+            comment = (
+                f"Pi CEO build **failed** after {duration_s}s.\n\n"
+                f"Session: `{session.id}` — check Railway logs for details."
+            )
+            _post_linear_comment(issue_id, comment)
+            # Move back to Todo so the issue is visible as needing attention
+            _update_linear_state(issue_id, "Todo")
+        # killed / other terminal states: no Linear update needed
+
+    # ── RA-887: Telegram outcome notification (autonomy sessions only) ────────
+    _send_autonomy_outcome_telegram(session)
