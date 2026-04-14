@@ -98,6 +98,7 @@ async def webhook(request: Request):
             session = await create_session(
                 repo_url, brief, config.EVALUATOR_MODEL,
                 linear_issue_id=linear_issue_id,
+                autonomy_triggered=True,  # RA-888: webhook sessions are autonomous
             )
         except RuntimeError as e:
             raise HTTPException(429, str(e))
@@ -105,6 +106,7 @@ async def webhook(request: Request):
             "triggered": True,
             "session_id": session.id,
             "source": "linear",
+            "event": event.get("event", "issue_started"),
             "title": event["title"],
             "linear_issue_id": linear_issue_id,
         }

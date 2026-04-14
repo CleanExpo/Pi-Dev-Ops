@@ -46,26 +46,49 @@ def parse_github_event(event_type: str, payload: dict) -> dict | None:
 
 
 def parse_linear_event(payload: dict) -> dict | None:
-    """Extract issue data from Linear Issue.update webhook events.
-    Only triggers when an issue moves to 'started' (In Progress)."""
+    """Extract issue data from Linear webhook events.
+
+    Handles two triggers:
+      - action=update + state→started  → issue moved to In Progress
+      - action=create + priority≤2 + state=unstarted → Urgent/High issue created (RA-888)
+
+    Returns a normalised dict for both cases, or None to skip the event.
+    """
     action = payload.get("action")
     event_type = payload.get("type")
-    if event_type != "Issue" or action != "update":
+    if event_type != "Issue":
         return None
     data = payload.get("data") or {}
-    # Check if state changed to started
-    updated = payload.get("updatedFrom") or {}
-    # Linear sends updatedFrom.stateId when state changed
-    if "stateId" not in updated:
+
+    if action == "update":
+        # Existing path: only trigger when state changes to "started" (In Progress)
+        updated = payload.get("updatedFrom") or {}
+        if "stateId" not in updated:
+            return None
+        state = (data.get("state") or {})
+        if state.get("type") != "started":
+            return None
+        event_name = "issue_started"
+
+    elif action == "create":
+        # RA-888: instant trigger — fire on Urgent (1) or High (2) new issues in unstarted state
+        priority = data.get("priority", 0)
+        if priority not in (1, 2):
+            return None
+        state = (data.get("state") or {})
+        if state.get("type") != "unstarted":
+            return None
+        event_name = "issue_created"
+
+    else:
         return None
-    state = (data.get("state") or {})
-    if state.get("type") != "started":
-        return None
+
     title = data.get("title", "")
     description = data.get("description", "")
     labels = [lbl.get("name", "") for lbl in (data.get("labels") or [])]
     priority = data.get("priority", 0)
-    # Try to extract repo URL from labels first, then description lines
+
+    # Extract repo URL from labels first, then description lines
     repo_url = ""
     for label in labels:
         if label.startswith("repo:"):
@@ -75,9 +98,10 @@ def parse_linear_event(payload: dict) -> dict | None:
             if line.startswith("repo:"):
                 repo_url = line.replace("repo:", "").strip()
                 break
+
     return {
         "source": "linear",
-        "event": "issue_started",
+        "event": event_name,
         "issue_id": data.get("id", ""),
         "title": title,
         "description": description[:2000],
@@ -88,14 +112,20 @@ def parse_linear_event(payload: dict) -> dict | None:
 
 
 def linear_issue_to_brief(issue_data: dict) -> str:
-    """Convert a Linear issue into a structured build brief."""
+    """Convert a Linear issue event into a structured build brief."""
     title = issue_data.get("title", "Untitled")
     desc = issue_data.get("description", "")
     priority = issue_data.get("priority", 0)
     priority_label = {1: "URGENT", 2: "HIGH", 3: "NORMAL", 4: "LOW"}.get(priority, "NORMAL")
+    event = issue_data.get("event", "issue_started")
+
+    if event == "issue_created":
+        trigger_line = "Triggered automatically: Urgent/High Linear issue created (RA-888 instant webhook)."
+    else:
+        trigger_line = "Triggered automatically from Linear issue moving to In Progress."
 
     brief = f"[{priority_label}] {title}\n\n"
     if desc:
         brief += f"Description:\n{desc}\n\n"
-    brief += "Triggered automatically from Linear issue moving to In Progress."
+    brief += trigger_line
     return brief
