@@ -27,6 +27,29 @@ from pathlib import Path
 
 _HARNESS = Path(__file__).parent.parent / ".harness"
 _OUTPUT = _HARNESS / "zte-v2-score.json"
+_REPO_ROOT = Path(__file__).parent.parent
+
+
+def _load_env_file() -> None:
+    """Load .env from repo root when Supabase vars are absent from the environment.
+
+    Runs at import time so the scorer works on Mac Mini dev without any manual
+    `source .env` step. Uses stdlib only — no python-dotenv dependency.
+    """
+    if os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL"):
+        return  # already present — nothing to do
+    env_file = _REPO_ROOT / ".env"
+    if not env_file.exists():
+        return
+    for raw in env_file.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        os.environ.setdefault(key.strip(), val.strip())
+
+
+_load_env_file()
 
 
 # ─── data sources ─────────────────────────────────────────────────────────────
@@ -37,9 +60,12 @@ def _supabase_query(table: str, select: str, filters: str = "") -> list[dict]:
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
     if not url or not key:
         return []
+    # Supabase REST: percent-encode '+' in ISO timestamps so timezone offset
+    # "+00:00" isn't treated as a space by the HTTP layer.
+    safe_filters = filters.replace("+", "%2B")
     endpoint = f"{url.rstrip('/')}/rest/v1/{table}?select={select}"
-    if filters:
-        endpoint += f"&{filters}"
+    if safe_filters:
+        endpoint += f"&{safe_filters}"
     req = urllib.request.Request(
         endpoint,
         headers={"apikey": key, "Authorization": f"Bearer {key}", "Accept": "application/json"},
