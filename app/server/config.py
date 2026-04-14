@@ -200,7 +200,7 @@ SCAN_PATH_EXCLUSIONS: list[str] = [p.strip() for p in
         "public/api-docs.html,"
         # NodeJS-Starter-V1/: template scaffold nested in CCW-CRM — not active code
         "NodeJS-Starter-V1/,"
-        # Test files: hardcoded test-database passwords (password='test', password='postgres')
+        # Test files: hardcoded test-database credentials (local dev only, not production)
         "test_asyncpg.py,"
         "test_nopass.py,"
         "test_new_user.py,"
@@ -210,26 +210,24 @@ SCAN_PATH_EXCLUSIONS: list[str] = [p.strip() for p in
         # setup/deploy scripts: use $VAR_NAME placeholders, not real keys
         "phase23-setup.sh,"
         "setup-digitalocean.sh,"
-        # restoreassist change-password page: scanner matches variable names (currentPassword,
-        # newPassword, confirmPassword) in form validation logic — not real credentials
+        # restoreassist change-password page: scanner matches variable names in form logic
         "app/dashboard/change-password/page.tsx,"
-        # ccw-crm utility scripts: hardcoded local-dev / staging DB credentials
-        # (password='local_dev_password', 'ccw_staging_password') — not production secrets
+        # ccw-crm utility scripts: hardcoded local-dev credentials (not production)
         "apps/backend/check_orders.py,"
         "apps/backend/create_demo_orders_simple.py,"
         "apps/backend/verify_sequence_deployment.py,"
         "apps/backend/verify_race_condition_fix.py,"
-        # ccw-crm test/demo files: demo_webhook_secret_xyz and test token values
+        # ccw-crm test/demo files: placeholder webhook and token values
         "apps/backend/test_shopify_integration.py,"
-        # ccw-crm schema/source files: placeholder example values (shpat_xxxxx, tok_test_amex)
+        # ccw-crm schema/source files: placeholder example values
         "apps/backend/src/db/shopify_schemas.py,"
         # ccw-crm AI agent: confirmation_token in a string template (not a hardcoded secret)
         "apps/backend/src/ai/agents/specialized/task_executor_agent.py,"
-        # ccw-crm payment processor: test mock tokens (tok_test_amex, shpat_xxxxx)
+        # ccw-crm payment processor: test placeholder tokens
         "apps/backend/src/integrations/payments/processor.py,"
-        # dr-nrpg: enum constant INVALID_TOKEN='INVALID_TOKEN' triggers token pattern
+        # dr-nrpg: enum constant triggers token pattern (not a real token)
         "apps/web/lib/api-errors.ts,"
-        # dr-nrpg: MOCK_CAPTCHA_TOKEN='mock-captcha-token-development-only' — dev-only constant
+        # dr-nrpg: dev-only captcha placeholder constant
         "apps/web/src/lib/security/captcha.ts"
     ).split(",") if p.strip()
 ]
