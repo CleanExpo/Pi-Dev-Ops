@@ -21,3 +21,5 @@ dependencies = [
 [tool.pytest.ini_options]
 # Root is not a Python package — add it to sys.path so `import app.server.*` works.
 pythonpath = ["."]
+# pytest-asyncio: auto mode runs all async test functions as asyncio coroutines.
+asyncio_mode = "auto"
