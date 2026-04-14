@@ -173,3 +173,42 @@ CREATE INDEX IF NOT EXISTS telegram_sessions_last_used_idx
 ALTER TABLE telegram_sessions ENABLE ROW LEVEL SECURITY;
 -- Service role only — anon clients must never read Telegram user mappings.
 CREATE POLICY "service_only" ON telegram_sessions FOR ALL TO service_role USING (true);
+
+-- ── RA-931: build_episodes ────────────────────────────────────────────────────
+-- Experience Recorder: stores structured build run data for context replay.
+-- Trust anchor: only verified=true rows are injected as context (AgentRR pattern).
+-- embedding column uses pgvector (1536-dim) — requires vector extension.
+-- Add via Supabase dashboard: Extensions → vector → Enable.
+
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE IF NOT EXISTS build_episodes (
+  id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id       TEXT        NOT NULL,
+  created_at       TIMESTAMPTZ DEFAULT NOW(),
+  task_type        TEXT,                         -- 'add_feature', 'fix_bug', 'refactor', 'docs', 'test'
+  repo_url         TEXT,
+  files_touched    TEXT[]      DEFAULT '{}',     -- git diff --stat file list
+  outcome          TEXT,                         -- 'complete', 'failed', 'interrupted'
+  evaluator_score  FLOAT,
+  tests_passed     BOOL        DEFAULT FALSE,
+  verified         BOOL        DEFAULT FALSE,    -- TRUE only when outcome=complete AND tests_passed
+  duration_s       INT,
+  error_patterns   TEXT[]      DEFAULT '{}',
+  git_diff_summary TEXT,
+  heuristics       TEXT[]      DEFAULT '{}',     -- async-populated by future Haiku pass
+  embedding        VECTOR(1536)                  -- pgvector: task description embedding
+);
+
+-- Fast recency+repo lookups (primary query pattern)
+CREATE INDEX IF NOT EXISTS build_episodes_repo_verified_idx
+  ON build_episodes (repo_url, verified, created_at DESC);
+
+-- pgvector cosine similarity index (ivfflat — needs ≥100 rows to be useful)
+-- CREATE INDEX build_episodes_embedding_idx
+--   ON build_episodes USING ivfflat (embedding vector_cosine_ops)
+--   WITH (lists = 100);
+-- ↑ Uncomment after 100+ episodes are recorded.
+
+ALTER TABLE build_episodes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "service_only" ON build_episodes FOR ALL TO service_role USING (true);

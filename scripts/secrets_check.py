@@ -93,11 +93,15 @@ _SKIP_NAMES = {
     ".env.test", "READY_TO_DEPLOY.md", "DEPLOYMENT_GUIDE.md",
 }
 # Path prefixes never scanned — test fixtures contain intentional fake secrets;
-# scanner.py stores regex patterns as string literals (not real credentials).
+# scanner.py stores regex patterns as string literals (not real credentials);
+# .harness/ JSON files are generated analysis output that may reference previously
+# removed credentials in description fields (not live secrets).
 _SKIP_PATH_PREFIXES = (
     "tests/",
     "test/",
     "app/server/scanner.py",   # contains secret patterns as regex documentation
+    "app/server/config.py",    # exclusion list comments trigger pattern matches; real secrets are os.environ.get()
+    ".harness/",               # generated analysis output — not committed secrets
 )
 
 

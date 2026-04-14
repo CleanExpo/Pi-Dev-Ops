@@ -47,6 +47,53 @@ Rules:
 
 export type PhaseStreamCallback = (chunk: string) => void;
 
+// ── RA-928: <think> prefill helpers ───────────────────────────────────────────
+// Intelligence-heavy phases (3, 5, 6, 7) inject an assistant-turn prefill so
+// Claude reasons in a scratchpad before emitting JSON output.  The prefill
+// begins the assistant turn; the model continues from that point, producing
+// reasoning content then </think> then the answer.
+//
+// Because the API returns only the CONTINUATION (not the prefill text itself),
+// the streamed output looks like:   <reasoning...>\n</think>\n{...json...}
+// stripThinkBlock() removes everything up to and including </think>.
+
+/** Phases that receive a <think> prefill to force scratchpad reasoning. */
+export const THINK_PHASE_IDS = new Set([3, 5, 6, 7]);
+
+/**
+ * RA-932: Cold-start seeds for think-prefill phases.
+ * Prepended to the prompt before extended reasoning activates so the model
+ * self-organises into problem-decompose → attempt → verify rather than freeform rambling.
+ * Seeding is active when THINK_SEED_ENABLED env var is "1".
+ */
+export const THINK_SEEDS: Partial<Record<number, string>> = {
+  3: "Before analyzing: what patterns or anti-patterns should I look for in this codebase? List them, then analyze.",
+  5: "Before scoring: list every requirement from the brief one by one, check each against the diff, then score.",
+  6: "Before recommending: categorize improvements by impact (high/medium/low) and effort, then prioritize.",
+  7: "Before writing: outline what sections this analysis needs to answer for a technical reader, then write.",
+};
+
+/** RA-932: Whether cold-start seeding is active (set THINK_SEED_ENABLED=1). */
+export const THINK_SEED_ENABLED =
+  typeof process !== "undefined" && process.env.THINK_SEED_ENABLED === "1";
+
+/**
+ * Strip the think-block reasoning from a prefilled response before JSON parsing.
+ *
+ * Handles two forms:
+ *   1. Prefill continuation — output starts with reasoning, ends with </think> then answer.
+ *   2. Full block — output contains a complete <think>…</think> block.
+ */
+export function stripThinkBlock(output: string): string {
+  // Form 1: prefill continuation — find the first </think> and take everything after
+  const closeIdx = output.indexOf("</think>");
+  if (closeIdx !== -1) {
+    return output.slice(closeIdx + "</think>".length).trim();
+  }
+  // Form 2: full <think>…</think> block
+  return output.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+}
+
 // ── CLI mode: spawns claude subprocess (uses Claude Max subscription) ──────────
 function runPhaseCLI(
   model: string,
@@ -125,10 +172,23 @@ async function runPhaseSDK(
   onChunk: PhaseStreamCallback,
   signal?: AbortSignal,
   maxTokens = 4096,
+  useThinkPrefill = false,
+  thinkSeed?: string,
 ): Promise<string> {
   if (signal?.aborted) throw new Error("Phase aborted before start");
 
-  const fullPrompt = `${prompt}\n\n---\nREPO CONTEXT:\n${context}`;
+  // RA-932: prepend think seed when enabled (cold-start seeding for structured reasoning)
+  const seededPrompt = (thinkSeed && THINK_SEED_ENABLED) ? `${thinkSeed}\n\n${prompt}` : prompt;
+  const fullPrompt = `${seededPrompt}\n\n---\nREPO CONTEXT:\n${context}`;
+
+  // RA-928: build message array — add assistant prefill for intelligence phases
+  type Message = { role: "user" | "assistant"; content: string };
+  const messages: Message[] = [{ role: "user", content: fullPrompt }];
+  if (useThinkPrefill) {
+    // Prefill the assistant turn to force scratchpad reasoning before JSON output.
+    // The model continues from this point; we strip the think block before parsing.
+    messages.push({ role: "assistant", content: "<think>\nLet me analyze this systematically:\n" });
+  }
 
   const attempt = async (): Promise<string> => {
     const stream = await client.messages.stream(
@@ -136,7 +196,7 @@ async function runPhaseSDK(
         model,
         max_tokens: maxTokens,
         system: SYSTEM,
-        messages: [{ role: "user", content: fullPrompt }],
+        messages,
       },
       { signal },
     );
@@ -153,7 +213,8 @@ async function runPhaseSDK(
         onChunk(chunk);
       }
     }
-    return full;
+    // Strip the think block before returning so callers receive clean JSON
+    return useThinkPrefill ? stripThinkBlock(full) : full;
   };
 
   // One retry on transient failures (overloaded, rate-limited, network reset).
@@ -177,12 +238,16 @@ export async function runPhase(
   onChunk: PhaseStreamCallback,
   signal?: AbortSignal,
   maxTokens = 4096,
+  useThinkPrefill = false,
+  thinkSeed?: string,
 ): Promise<string> {
   if (getAnalysisMode() === "cli") {
+    // CLI mode spawns claude subprocess — assistant prefill not supported there.
+    // Run normally; the reasoning benefit is API-only.
     return runPhaseCLI(model, prompt, context, onChunk, signal);
   }
   if (!client) throw new Error("SDK client required for api mode");
-  return runPhaseSDK(client, model, prompt, context, onChunk, signal, maxTokens);
+  return runPhaseSDK(client, model, prompt, context, onChunk, signal, maxTokens, useThinkPrefill, thinkSeed);
 }
 
 // ── Chat (always uses SDK for responsiveness) ─────────────────────────────────

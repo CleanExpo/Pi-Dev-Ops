@@ -107,6 +107,7 @@ async def create_session(
     scope: Optional[dict] = None,
     plan_discovery: bool = False,
     complexity_tier: str = "",
+    autonomy_triggered: bool = False,
 ):
     """Create and start a new build session.
 
@@ -146,6 +147,7 @@ async def create_session(
         scope=scope or None,
         plan_discovery=plan_discovery,
         complexity_tier=complexity_tier,
+        autonomy_triggered=autonomy_triggered,
     )
     if scope:
         _log.info(

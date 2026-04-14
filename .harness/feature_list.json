@@ -704,7 +704,7 @@
     {
       "id": "F-088",
       "name": "carsi hardcoded credential removal",
-      "description": "RA-835: DEFAULT_ADMIN_PASSWORD='Rana1199@' removed from src/lib/admin/admin-auth.ts. getAdminPassword() returns '' when ADMIN_PASSWORD env var unset \u2014 safe fail. Committed to CleanExpo/carsi main (commit 5af113e).",
+      "description": "RA-835: DEFAULT_ADMIN_PASSWORD=[redacted] removed from src/lib/admin/admin-auth.ts. getAdminPassword() returns '' when ADMIN_PASSWORD env var unset \u2014 safe fail. Committed to CleanExpo/carsi main (commit 5af113e).",
       "status": "complete",
       "leverage_point": "Security",
       "linear_issue": "RA-835"

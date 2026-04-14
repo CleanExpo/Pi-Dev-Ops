@@ -1,10 +1,10 @@
-# Pi CEO — Solo DevOps Tool
+# Pi CEO — Autonomous DevOps Agent
 
 ![Smoke Test](https://github.com/CleanExpo/Pi-Dev-Ops/actions/workflows/smoke_test.yml/badge.svg)
 
 **Private agentic engineering system powered by Claude Harness.**
 
-Pi CEO turns a GitHub repo URL and a plain-English brief into an autonomous Claude Code execution session — cloning the repo, running Claude against it, streaming live output to the browser, and pushing the result back to GitHub. Zero API cost on Claude Max.
+Pi CEO converts a GitHub repo URL and a plain-English brief into an autonomous Claude Code execution session — cloning the repo, running Claude against it, streaming live output to the browser, and pushing the result back to GitHub. Zero API cost on Claude Max.
 
 ## Architecture
 
@@ -16,17 +16,22 @@ Pi CEO uses a **Tiered Agent Orchestrator (TAO)** model with three Claude tiers:
 | Specialist | Sonnet 4.6 | Complex features, code review |
 | Worker | Haiku 4.5 | Discrete tasks, fast execution |
 
-The system includes **23 skills** organised across 4 layers (Core, Frameworks, Strategic, Foundation) that encode engineering methodology — from tier architecture and agent workflows to ZTE maturity scoring and leverage audits.
+The system includes **33 skills** organised across 4 layers (Core, Frameworks, Strategic, Foundation) that encode engineering methodology — from tier architecture and agent workflows to ZTE maturity scoring and leverage audits.
 
 ## Components
 
 ### Backend (FastAPI)
 
-Local Python server (`app/server/`) running on `http://127.0.0.1:7777`. Handles authentication, build session management, and live WebSocket streaming. Delegates all intelligence to `claude -p` subprocess running inside the Claude Max subscription.
+Python server (`app/server/`) deployed to Railway at `https://pi-dev-ops-production.up.railway.app`. Handles authentication, build session management, and live WebSocket streaming.
+
+The backend is decomposed into focused modules (≤300L each):
+- `app_factory.py` — FastAPI app, CORS/security middleware, startup hooks
+- `models.py` — Pydantic request models
+- `routes/` — 8 route modules (auth, sessions, webhooks, triggers, scan_monitor, pipeline, utils, health)
 
 ### Dashboard (Next.js)
 
-Rich frontend (`dashboard/`) deployed to Vercel. Runs 8 analysis phases against GitHub repos using Claude. Supports dual-mode execution: CLI (Claude Max, zero cost) or SDK (Anthropic API key). Built with Next.js 16, React 19, Tailwind, and Octokit.
+Frontend (`dashboard/`) deployed to Vercel at `https://dashboard-unite-group.vercel.app`. Runs analysis phases against GitHub repos using Claude. Supports dual-mode execution: CLI (Claude Max, zero cost) or SDK (Anthropic API key). Built with Next.js 16, React 19, Tailwind, and Octokit.
 
 ### MCP Server
 
@@ -34,12 +39,12 @@ stdio JSON-RPC 2.0 server (`mcp/pi-ceo-server.js`) that connects Claude Desktop 
 
 ## Quick Start
 
-### Local Backend (Windows)
+### Local Backend
 
-```powershell
-cd "C:\Pi Dev Ops\app"
-$env:TAO_PASSWORD="your-password"
-.\run.ps1
+```bash
+cd app
+source .env.local
+uvicorn server.main:app --host 127.0.0.1 --port 7777
 # Open http://127.0.0.1:7777
 ```
 
@@ -57,47 +62,61 @@ npm run dev
 ### Docker
 
 ```bash
-cd app
 docker build -t pi-ceo .
 docker run -p 7777:7777 -e TAO_PASSWORD=your-password pi-ceo
 ```
 
 ## Environment Variables
 
-| Variable | Location | Description |
+### Backend (Railway)
+
+| Variable | Required | Description |
 |----------|----------|-------------|
-| `TAO_PASSWORD` | Backend | Login password (auto-generated if unset) |
-| `SESSION_SECRET` | Backend | HMAC signing key (auto-generated if unset) |
-| `TAO_ALLOWED_ORIGINS` | Backend | Extra CORS origins (comma-separated) |
-| `NEXT_PUBLIC_API_URL` | Dashboard | Backend URL (default: `http://127.0.0.1:7777`) |
-| `ANALYSIS_MODE` | Dashboard | `cli` (Claude Max) or `api` (Anthropic SDK) |
-| `ANTHROPIC_API_KEY` | Dashboard | Required when `ANALYSIS_MODE=api` |
-| `GITHUB_TOKEN` | Dashboard | GitHub PAT for private repo access |
+| `TAO_PASSWORD` | **Yes** | Dashboard login password |
+| `ANTHROPIC_API_KEY` | **Yes** | `sk-ant-` key — required for Claude sessions |
+| `LINEAR_API_KEY` | **Yes** | `lin_api_` key — required for autonomy poller |
+| `TAO_SESSION_SECRET` | Optional | HMAC signing key (auto-generated on first boot) |
+| `TAO_ALLOWED_ORIGINS` | Optional | Extra CORS origins (comma-separated) |
+| `TAO_AUTONOMY_ENABLED` | Optional | Set to `0` to disable Linear todo poller (default: `1`) |
+| `TAO_WEBHOOK_SECRET` | Optional | HMAC secret for GitHub webhook verification |
+| `TAO_LINEAR_WEBHOOK_SECRET` | Optional | HMAC secret for Linear webhook verification |
+| `TELEGRAM_BOT_TOKEN` | Optional | Telegram bot for alerts and `/ack_alert` |
+| `PI_SEO_ACTIVE` | Optional | Set to `1` to enable Pi-SEO live scans (default: `0`) |
 
-## Deployment
+### Dashboard (Vercel)
 
-The **dashboard** is deployed to Vercel. The root `vercel.json` sets `"rootDirectory": "dashboard"`. The Vercel build runs `npm run build` inside the `dashboard/` directory.
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `PI_CEO_URL` | **Yes** (prod) | Backend URL |
+| `PI_CEO_PASSWORD` | **Yes** (prod) | Same value as `TAO_PASSWORD` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Optional | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Optional | Supabase public anon key |
+| `ANTHROPIC_API_KEY` | Optional | For direct AI calls from dashboard routes |
 
-The **backend** runs locally or on cloud platforms (Railway, Render, Fly.io detected automatically). Cloud mode enables `SameSite=None` + `Secure` cookies for cross-origin requests from the Vercel dashboard.
+## Production URLs
 
-CORS is configured to allow requests from `localhost:3000`, `pi-dev-ops.vercel.app`, and `dashboard-unite-group.vercel.app`.
+| Service | URL |
+|---------|-----|
+| Dashboard | https://dashboard-unite-group.vercel.app |
+| Backend API | https://pi-dev-ops-production.up.railway.app |
+| Health | https://pi-dev-ops-production.up.railway.app/health |
 
 ## MCP Server Setup
 
-Add to `%APPDATA%\Claude\claude_desktop_config.json`:
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "pi-ceo": {
       "command": "node",
-      "args": ["C:\\Pi Dev Ops\\mcp\\pi-ceo-server.js"]
+      "args": ["/path/to/Pi-Dev-Ops/mcp/pi-ceo-server.js"]
     }
   }
 }
 ```
 
-**Available tools in Claude Desktop / Cowork:**
+**Available tools:**
 
 | Tool | Description |
 |------|-------------|
@@ -110,13 +129,13 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json`:
 
 ## Security
 
-- Localhost-only by default (no external exposure)
-- CSP, X-Frame-Options (DENY), X-XSS-Protection headers
-- HttpOnly, SameSite=Strict cookies with HMAC-signed tokens
+- Deployed to Railway (HTTPS) — CSP, X-Frame-Options, X-XSS-Protection headers enforced
+- HttpOnly, SameSite=None cookies (SameSite=Strict locally) with HMAC-signed tokens
 - Rate limiting: 30 req/min per IP
-- Password hashed as SHA-256, compared via `hmac.compare_digest` (timing-safe)
+- bcrypt password hashing with SHA-256 migration path
+- HMAC verification on all webhook endpoints
 
-## Skills (23)
+## Skills (33)
 
 **Core (7):** tier-architect, tier-orchestrator, tier-worker, tier-evaluator, context-compressor, token-budgeter, auto-generator
 
@@ -124,17 +143,19 @@ Add to `%APPDATA%\Claude\claude_desktop_config.json`:
 
 **Strategic (5):** zte-maturity, agent-expert, leverage-audit, agentic-loop, agentic-layer
 
-**Foundation (3):** big-three, claude-max-runtime, pi-integration
+**Pi-SEO (3):** pi-seo-scanner, pi-seo-health-monitor, pi-seo-remediation
 
-**Bonus (2):** ceo-mode, tao-skills
+**Ship Chain (2):** ship-chain, ship-release
+
+**Foundation + Ops (10):** big-three, claude-max-runtime, pi-integration, ceo-mode, tao-skills, maintenance-manager, scheduled-tasks, security-audit, architecture, define-spec
 
 ## Tech Stack
 
 - **Backend:** Python 3.11+, FastAPI, Uvicorn, WebSockets
 - **Dashboard:** Next.js 16, React 19, TypeScript, Tailwind CSS
-- **AI:** Claude Max (Opus 4.6 / Sonnet 4.6 / Haiku 4.5)
-- **Integrations:** @anthropic-ai/sdk, @octokit/rest, MCP (stdio)
-- **Deployment:** Vercel (dashboard), Docker (backend)
+- **AI:** Claude Max (Opus 4.6 / Sonnet 4.6 / Haiku 4.5) via `claude_agent_sdk`
+- **Integrations:** @anthropic-ai/sdk, @octokit/rest, MCP (stdio), Linear, Supabase, Telegram
+- **Deployment:** Vercel (dashboard), Railway (backend, Docker)
 
 ## License
 

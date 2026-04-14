@@ -10,6 +10,7 @@ Pi-Dev-Ops converts a GitHub repo URL + plain-English brief into an autonomous C
 |-------|------|----------|
 | Frontend | Next.js 16.2.2, React 19, Tailwind | `dashboard/` |
 | Backend | FastAPI, Python 3.11+ | `app/server/` |
+| Routes | 8 focused route modules | `app/server/routes/` |
 | MCP Server | Node.js, @modelcontextprotocol/sdk | `mcp/` |
 | TAO Engine | Python (skills, tiers, budget) | `src/tao/` |
 | Harness State | YAML/JSON/Markdown | `.harness/` |
@@ -18,10 +19,28 @@ Pi-Dev-Ops converts a GitHub repo URL + plain-English brief into an autonomous C
 | Deploy (FE) | Vercel | `dashboard/vercel.json` |
 | Deploy (BE) | Railway | `railway.toml`, `Dockerfile` |
 
+## Backend Module Map (`app/server/`)
+
+| File | Lines | Concern |
+|------|-------|---------|
+| `main.py` | ~25 | Thin assembler — imports `app`, registers all routers |
+| `app_factory.py` | ~130 | `app` object, CORS/security middleware, `_resilient`, startup/shutdown hooks |
+| `models.py` | ~126 | All Pydantic request models |
+| `routes/auth.py` | ~48 | `POST /api/login`, `POST /api/logout`, `GET /api/me` |
+| `routes/sessions.py` | ~122 | `/api/build`, `/api/build/parallel`, session list/kill/logs/resume |
+| `routes/webhooks.py` | ~214 | `POST /api/webhook` (GitHub+Linear), morning-intel, Telegram |
+| `routes/triggers.py` | ~32 | Trigger CRUD (`GET/POST/DELETE /api/triggers`) |
+| `routes/scan_monitor.py` | ~111 | `/api/scan`, `/api/projects/health`, `/api/monitor` |
+| `routes/pipeline.py` | ~89 | `/api/spec`, `/api/plan`, `/api/test`, `/api/ship`, `/api/pipeline/{id}` |
+| `routes/utils.py` | ~68 | `/api/gc`, `/api/lessons`, `/api/autonomy/status`, WebSocket `/ws/build/{sid}` |
+| `routes/health.py` | ~125 | `/health`, `/api/health/vercel`, Claude CLI poll, static mount |
+
+Public contract: `app.server.main:app` is the FastAPI instance — Dockerfile and Railway both reference it. `main.py` re-exports `app` from `app_factory`. Never break this import.
+
 ## Development Setup
 
 ```bash
-cd app && uvicorn server.main:app --host 127.0.0.1 --port 7777
+cd app && source .env.local && uvicorn server.main:app --host 127.0.0.1 --port 7777
 cd dashboard && npm run dev
 node mcp/pi-ceo-server.js
 ```
@@ -29,10 +48,14 @@ node mcp/pi-ceo-server.js
 ## Running Tests
 
 ```bash
-python scripts/smoke_test.py --url http://127.0.0.1:7777 --password $TAO_PASSWORD
+python -m pytest tests/ -x -q                # Gate: import check must pass first
+python -c "from app.server.main import app"   # Must print FastAPI
 cd dashboard && npx tsc --noEmit
 cd dashboard && npm run build
+python scripts/smoke_test.py --url http://127.0.0.1:7777 --password $TAO_PASSWORD
 ```
+
+Expected: 3 pre-existing failures in `test_sdk_phase2.py` (claude_agent_sdk not installed locally). All other tests pass.
 
 ## Code Conventions
 
@@ -54,6 +77,7 @@ cd dashboard && npm run build
 - **Path traversal:** `_safe_sid()` strips non-alphanumeric from session IDs before file path use.
 - **Webhook HMAC:** `hmac.compare_digest()` for GitHub (`x-hub-signature-256`) and Linear (`Linear-Signature`).
 - **Analysis mode:** `ANALYSIS_MODE=api` in Vercel forces Max plan subscription token (`sk-ant-oat01-*` from `claude setup-token`).
+- **Route isolation:** Each `routes/*.py` module owns one concern. `_IS_CLOUD` is re-derived from `os.environ` in `routes/auth.py` (not imported from `app_factory`) to avoid coupling. `_find_active_session_for_repo()` lives in `routes/sessions.py` and is imported into `routes/webhooks.py` one-way.
 
 ## SDK Architecture
 
@@ -110,7 +134,7 @@ Three jobs: `python` (pytest + ruff), `frontend` (tsc + eslint + build), `smoke-
 
 **ZTE v2: 84/100 → 85+ projected after next scan → 90 target (C1+C2+C3 when Railway sessions flow)**
 
-Active: RA-588 MARATHON-4 (first 6-hour autonomous self-maintenance run). All Gemini Scheduled Actions live (RA-816–819). Dep health merged across 4 repos (RA-843). Synthex CVEs 28→22 (RA-844). Outstanding: carsi `ADMIN_PASSWORD` env var (DigitalOcean App Platform — requires developer).
+Active: RA-588 MARATHON-4 (first 6-hour autonomous self-maintenance run). All Gemini Scheduled Actions live (RA-816–819). Dep health merged across 4 repos (RA-843). Synthex CVEs 28→22 (RA-844). RA-937 completed: `main.py` decomposed from 922L into 11 focused modules — all ≤300L, zero breaking changes. Outstanding: carsi `ADMIN_PASSWORD` env var (DigitalOcean App Platform — requires developer).
 
 ## Content Rules
 
