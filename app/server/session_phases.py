@@ -447,6 +447,26 @@ def parse_event(line, session):
             em(session, "metric", f"  Cost: ${cost:.4f}")
 
 
+
+# ── RA-1032: Per-phase cost/duration metric helper ────────────────────────────
+
+def _emit_phase_metric(session, phase_name: str, phase_start: float, phase_cost: float = 0.0) -> None:
+    """Append a phase_metric event to session.output_lines (never raises)."""
+    try:
+        duration_s = round(time.monotonic() - phase_start, 1)
+        session.phase_metrics[phase_name] = {"duration_s": duration_s, "cost_usd": phase_cost}
+        session.output_lines.append({
+            "type": "phase_metric",
+            "phase": phase_name,
+            "duration_s": duration_s,
+            "cost_usd": phase_cost,
+            "ts": time.time(),
+            "text": f"  {phase_name}: {duration_s}s · ${phase_cost:.4f}",
+        })
+    except Exception:
+        pass  # metric tracking must never break a phase
+
+
 _PHASE_ORDER = ["clone", "analyze", "claude_check", "sandbox", "plan", "generator", "evaluator", "push"]
 
 
@@ -486,6 +506,7 @@ async def _stream_claude(proc, session):
 
 
 async def _phase_clone(session, resume_from: str) -> bool:
+    phase_start = time.monotonic()
     if _should_skip("clone", resume_from):
         em(session, "system", "  [SKIP] Clone (already completed)")
         if not session.workspace:
@@ -512,6 +533,7 @@ async def _phase_clone(session, resume_from: str) -> bool:
             session.last_completed_phase = "clone"
             em(session, "success", "  Using git worktree (skipped network clone)")
             persistence.save_session(session)
+            _emit_phase_metric(session, "clone", phase_start)
             return True
         stderr_msg = result.stderr.strip() if result is not None else "exception"
         _log.warning("Worktree creation failed, falling back to full clone: %s", stderr_msg)
@@ -531,6 +553,7 @@ async def _phase_clone(session, resume_from: str) -> bool:
                 em(session, "success", "  Clone complete")
                 session.last_completed_phase = "clone"
                 persistence.save_session(session)
+                _emit_phase_metric(session, "clone", phase_start)
                 return True
             em(session, "error", f"  Clone attempt {attempt + 1}/3 failed: {stderr[:200]}")
         except asyncio.TimeoutError:
@@ -539,6 +562,7 @@ async def _phase_clone(session, resume_from: str) -> bool:
             em(session, "error", "  Git not in PATH")
             session.status = "failed"
             persistence.save_session(session)
+            _emit_phase_metric(session, "clone", phase_start)
             return False
         if attempt < 2:
             backoff = 2 * (2 ** attempt)
@@ -550,10 +574,12 @@ async def _phase_clone(session, resume_from: str) -> bool:
     em(session, "error", "  Clone failed after 3 attempts")
     session.status = "failed"
     persistence.save_session(session)
+    _emit_phase_metric(session, "clone", phase_start)
     return False
 
 
 def _phase_analyze(session, resume_from: str) -> None:
+    phase_start = time.monotonic()
     if _should_skip("analyze", resume_from):
         em(session, "system", "  [SKIP] Analyze (already completed)")
         return
@@ -573,6 +599,7 @@ def _phase_analyze(session, resume_from: str) -> None:
         session.repo_context = {}  # never block the pipeline
     session.last_completed_phase = "analyze"
     persistence.save_session(session)
+    _emit_phase_metric(session, "analyze", phase_start)
 
 
 async def _phase_claude_check(session, resume_from: str) -> bool:
@@ -655,6 +682,7 @@ async def _phase_plan(session, spec: str, resume_from: str) -> None:
     Never blocks the pipeline: any error is logged and the function returns
     without setting session.status = "failed".
     """
+    phase_start = time.monotonic()
     if _should_skip("plan", resume_from):
         em(session, "system", "  [SKIP] Plan (already completed)")
         return
@@ -713,12 +741,14 @@ async def _phase_plan(session, spec: str, resume_from: str) -> None:
         em(session, "system", "  Plan phase timed out — continuing without plan")
         session.last_completed_phase = "plan"
         persistence.save_session(session)
+        _emit_phase_metric(session, "plan", phase_start)
         return
     except Exception as exc:
         _log.warning("RA-1026: _phase_plan error (non-fatal): %s", exc)
         em(session, "system", f"  Plan phase error — continuing without plan: {exc}")
         session.last_completed_phase = "plan"
         persistence.save_session(session)
+        _emit_phase_metric(session, "plan", phase_start)
         return
 
     if rc != 0 or not plan_text.strip():
@@ -726,6 +756,7 @@ async def _phase_plan(session, spec: str, resume_from: str) -> None:
         em(session, "system", "  Plan phase returned no output — continuing without plan")
         session.last_completed_phase = "plan"
         persistence.save_session(session)
+        _emit_phase_metric(session, "plan", phase_start)
         return
 
     # Parse JSON — strip accidental markdown fences if the model added them
@@ -738,6 +769,7 @@ async def _phase_plan(session, spec: str, resume_from: str) -> None:
         em(session, "system", "  Plan JSON parse failed — continuing without structured plan")
         session.last_completed_phase = "plan"
         persistence.save_session(session)
+        _emit_phase_metric(session, "plan", phase_start)
         return
 
     # Confidence gate — warn but never block
@@ -799,11 +831,14 @@ async def _phase_plan(session, spec: str, resume_from: str) -> None:
     session.plan = plan_md
     session.last_completed_phase = "plan"
     persistence.save_session(session)
+    _emit_phase_metric(session, "plan", phase_start)
     em(session, "success", "  Plan phase complete")
 
 
 async def _phase_generate(session, spec: str, model: str, resume_from: str) -> bool:
     """Run claude CLI; retry once with simplified prompt on failure."""
+    phase_start = time.monotonic()
+    _generate_cost: float = 0.0
     em(session, "phase", "[4/5] Running Claude Code (live)...")
     em(session, "system", "")
     session.status = "building"
@@ -837,6 +872,7 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
                     current_spec, model, session.workspace,
                     session_id=session.id, phase="generator",
                 )
+                _generate_cost += float(cost or 0.0)
                 if rc == 0:
                     # SDK succeeded — parse output and emit events
                     for line in sdk_output.split("\n"):
@@ -846,6 +882,7 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
                     em(session, "success", "  Claude Code completed")
                     session.last_completed_phase = "generator"
                     persistence.save_session(session)
+                    _emit_phase_metric(session, "generate", phase_start, _generate_cost)
                     # RA-697: emit canary metric on successful canary run
                     if use_canary:
                         _emit_sdk_canary_metric(session.id, success=True)
@@ -874,6 +911,7 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
                 em(session, "success", "  Claude Code completed")
                 session.last_completed_phase = "generator"
                 persistence.save_session(session)
+                _emit_phase_metric(session, "generate", phase_start, _generate_cost)
                 return True
             em(session, "error", f"  Claude exited code {proc.returncode} (attempt {attempt + 1}/2)")
             if attempt == 0:
@@ -885,11 +923,14 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
     em(session, "error", "  Generator failed after 2 attempts")
     session.status = "failed"
     persistence.save_session(session)
+    _emit_phase_metric(session, "generate", phase_start, _generate_cost)
     return False
 
 
 async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_intent: str) -> int:
     """Run closed-loop evaluator. Returns total_phases (6 if evaluator ran, 5 if skipped)."""
+    phase_start = time.monotonic()
+    _evaluate_cost: float = 0.0
     if not (session.evaluator_enabled and config.EVALUATOR_ENABLED):
         return 5
     total_phases = 6
@@ -1116,11 +1157,13 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
         _log.warning("persona review failed (non-fatal): %s", _pf_exc)
     session.last_completed_phase = "evaluator"
     persistence.save_session(session)
+    _emit_phase_metric(session, "evaluate", phase_start, _evaluate_cost)
     return total_phases
 
 
 async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
     """Commit uncommitted changes, push to GitHub on a feature branch. Returns (all-files, push_ok)."""
+    phase_start = time.monotonic()
     em(session, "phase", f"[{total_phases}/{total_phases}] Pushing to GitHub...")
     af: list[str] = []
     try:
@@ -1180,7 +1223,9 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
             em(session, "system", f"    ...+{len(af) - 30} more")
     except Exception as e:
         em(session, "error", f"  Push error: {e}")
+        _emit_phase_metric(session, "push", phase_start)
         return af, False
+    _emit_phase_metric(session, "push", phase_start)
     return af, push_ok
 
 

@@ -21,10 +21,28 @@ interface LogLine {
   type: string;
   text: string;
   ts: number;
+  // phase_metric extras
+  phase?: string;
+  duration_s?: number;
+  cost_usd?: number;
+}
+
+interface PhaseMetric {
+  duration_s: number;
+  cost_usd: number;
 }
 
 const PHASES = ["clone", "analyze", "claude_check", "sandbox", "generator", "evaluator", "push"];
 const PHASE_LABELS = ["Clone", "Analyze", "Check", "Sandbox", "Generate", "Evaluate", "Push"];
+// Map backend metric phase names to PHASES array keys
+const METRIC_PHASE_MAP: Record<string, string> = {
+  clone:    "clone",
+  analyze:  "analyze",
+  plan:     "claude_check",
+  generate: "generator",
+  evaluate: "evaluator",
+  push:     "push",
+};
 
 const STATUS_COLOR: Record<string, string> = {
   created:    "var(--text-dim)",
@@ -68,24 +86,43 @@ function elapsed(started: number): string {
   return `${Math.floor(s / 60)}m ${s % 60}s`;
 }
 
-function PhaseBar({ lastPhase, status }: { lastPhase: string; status: string }) {
+function PhaseBar({
+  lastPhase,
+  status,
+  phaseMetrics,
+}: {
+  lastPhase: string;
+  status: string;
+  phaseMetrics: Record<string, PhaseMetric>;
+}) {
   const doneIdx = PHASES.indexOf(lastPhase);
   const isRunning = ["cloning", "building", "evaluating"].includes(status);
   return (
-    <div className="flex gap-0.5 mt-1.5">
+    <div className="flex gap-1 mt-1.5 flex-wrap">
       {PHASES.map((p, i) => {
         const done = doneIdx >= i;
         const active = isRunning && doneIdx + 1 === i;
+        const metric = phaseMetrics[p];
         return (
-          <div
-            key={p}
-            title={PHASE_LABELS[i]}
-            className="h-1 flex-1 rounded-sm"
-            style={{
-              background: done ? "#4ADE80" : active ? "var(--accent)" : "var(--border)",
-              opacity: done || active ? 1 : 0.4,
-            }}
-          />
+          <div key={p} className="flex items-center gap-0.5">
+            <div
+              title={PHASE_LABELS[i]}
+              className="h-1 w-8 rounded-sm"
+              style={{
+                background: done ? "#4ADE80" : active ? "var(--accent)" : "var(--border)",
+                opacity: done || active ? 1 : 0.4,
+              }}
+            />
+            {metric && (
+              <span
+                className="font-mono text-[9px]"
+                style={{ color: "var(--text-dim)" }}
+                title={`${PHASE_LABELS[i]}: ${metric.duration_s}s · $${metric.cost_usd.toFixed(4)}`}
+              >
+                {metric.duration_s}s{metric.cost_usd > 0 ? ` · $${metric.cost_usd.toFixed(2)}` : ""}
+              </span>
+            )}
+          </div>
         );
       })}
     </div>
@@ -105,12 +142,22 @@ function ScoreBadge({ score, evalStatus }: { score: number | null; evalStatus: s
   );
 }
 
-function LogPanel({ sid, status }: { sid: string; status: string }) {
+function LogPanel({
+  sid,
+  status,
+  onPhaseMetric,
+}: {
+  sid: string;
+  status: string;
+  onPhaseMetric: (phase: string, metric: PhaseMetric) => void;
+}) {
   const [lines, setLines] = useState<LogLine[]>([]);
   const [streaming, setStreaming] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
   const esRef = useRef<EventSource | null>(null);
   const cursorRef = useRef(0);
+  const onPhaseMetricRef = useRef(onPhaseMetric);
+  onPhaseMetricRef.current = onPhaseMetric;
 
   useEffect(() => {
     const terminal = new Set(["done", "complete", "failed", "killed"]);
@@ -129,6 +176,14 @@ function LogPanel({ sid, status }: { sid: string; status: string }) {
             return;
           }
           cursorRef.current = line.i + 1;
+          // Surface phase_metric events to the parent card
+          if (line.type === "phase_metric" && line.phase && line.duration_s !== undefined) {
+            const mappedPhase = METRIC_PHASE_MAP[line.phase] ?? line.phase;
+            onPhaseMetricRef.current(mappedPhase, {
+              duration_s: line.duration_s,
+              cost_usd: line.cost_usd ?? 0,
+            });
+          }
           setLines((prev) => [...prev, line]);
         } catch { /* ignore parse errors */ }
       };
@@ -217,7 +272,12 @@ function ResumeButton({ s, onResumed }: { s: PiSession; onResumed: () => void })
 
 function SessionCard({ s, isChild, onRefresh }: { s: PiSession; isChild?: boolean; onRefresh: () => void }) {
   const [expanded, setExpanded] = useState(false);
+  const [phaseMetrics, setPhaseMetrics] = useState<Record<string, PhaseMetric>>({});
   const isActive = ["cloning", "building", "evaluating"].includes(s.status);
+
+  const handlePhaseMetric = useCallback((phase: string, metric: PhaseMetric) => {
+    setPhaseMetrics((prev) => ({ ...prev, [phase]: metric }));
+  }, []);
 
   return (
     <div
@@ -251,7 +311,7 @@ function SessionCard({ s, isChild, onRefresh }: { s: PiSession; isChild?: boolea
                 </span>
               )}
             </div>
-            <PhaseBar lastPhase={s.last_phase} status={s.status} />
+            <PhaseBar lastPhase={s.last_phase} status={s.status} phaseMetrics={phaseMetrics} />
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -297,7 +357,7 @@ function SessionCard({ s, isChild, onRefresh }: { s: PiSession; isChild?: boolea
       </div>
 
       {/* Log panel */}
-      {expanded && <LogPanel sid={s.id} status={s.status} />}
+      {expanded && <LogPanel sid={s.id} status={s.status} onPhaseMetric={handlePhaseMetric} />}
     </div>
   );
 }
