@@ -2,9 +2,10 @@
 cron_watchdogs.py — Watchdog checks for the cron scheduler (GROUP F).
 
 Contains:
-    _watchdog_check()           — 12h scan/monitor silence alert
-    _watchdog_escalations()     — on-call escalation watchdog (RA-633)
-    _watchdog_docs_staleness()  — Anthropic docs 48h staleness check (RA-635)
+    _watchdog_check()               — 12h scan/monitor silence alert
+    _watchdog_escalations()         — on-call escalation watchdog (RA-633)
+    _watchdog_docs_staleness()      — Anthropic docs 48h staleness check (RA-635)
+    _watchdog_notebooklm_health()   — NotebookLM KB health probe + Telegram alert (RA-820)
 
 The ZTE pipeline-stall watchdog (RA-608) lives in cron_watchdog_zte.py.
 """
@@ -14,6 +15,10 @@ import time
 # Prevents spamming on every 30-minute watchdog check.
 _docs_stale_last_raised: float = 0.0
 _DOCS_STALE_COOLDOWN_H = 24.0  # only raise once per 24 hours
+
+# RA-820 — module-level dedup state for NotebookLM health watchdog.
+_notebooklm_health_last_ran: float = 0.0
+_NOTEBOOKLM_HEALTH_INTERVAL_H = 6.0  # probe each KB at most once per 6 hours
 
 
 async def _watchdog_check(triggers: list[dict], log) -> None:
@@ -238,3 +243,137 @@ async def _watchdog_docs_staleness(log) -> None:
         _docs_stale_last_raised = time.time()
     except Exception as exc:
         log.error("Docs-stale watchdog: failed to create Linear ticket: %s", exc)
+
+
+async def _watchdog_notebooklm_health(log) -> None:
+    """
+    RA-820 — NotebookLM knowledge base health probe.
+
+    Every 6 hours, runs one standard query against each active notebook in
+    .harness/notebooklm-registry.json. Logs results to Supabase notebooklm_health.
+    Sends a Telegram alert if any notebook fails or times out.
+    """
+    global _notebooklm_health_last_ran
+
+    if _notebooklm_health_last_ran and (
+        time.time() - _notebooklm_health_last_ran
+    ) < _NOTEBOOKLM_HEALTH_INTERVAL_H * 3600:
+        return
+
+    import asyncio
+    import hashlib
+    import json as _json
+    from pathlib import Path
+    from . import config
+
+    _REGISTRY = Path(__file__).parent.parent.parent / ".harness" / "notebooklm-registry.json"
+    _HEALTH_QUERY = "What are the top 3 risks for this entity right now?"
+    _QUERY_HASH = hashlib.md5(_HEALTH_QUERY.encode()).hexdigest()[:12]
+    _TIMEOUT_S = 60
+
+    if not _REGISTRY.exists():
+        log.warning("NotebookLM health: registry not found at %s", _REGISTRY)
+        return
+
+    try:
+        registry = _json.loads(_REGISTRY.read_text())
+    except Exception as exc:
+        log.warning("NotebookLM health: failed to load registry: %s", exc)
+        return
+
+    active = [nb for nb in registry.get("notebooks", []) if nb.get("status") == "active"]
+    if not active:
+        log.debug("NotebookLM health: no active notebooks in registry")
+        _notebooklm_health_last_ran = time.time()
+        return
+
+    log.info("NotebookLM health: probing %d active notebook(s)", len(active))
+
+    try:
+        from .supabase_log import log_notebooklm_health
+    except Exception as exc:
+        log.warning("NotebookLM health: supabase_log import failed: %s", exc)
+        return
+
+    failures: list[str] = []
+
+    for nb in active:
+        nb_id = nb.get("id", "")
+        nb_name = nb.get("entity", nb.get("name", nb_id))
+        if not nb_id or nb_id == "TBD":
+            continue
+
+        t_start = time.time()
+        status = "failed"
+        error_msg: str | None = None
+
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "nlm", "notebook", "query", nb_id, _HEALTH_QUERY,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            try:
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=_TIMEOUT_S)
+                elapsed_ms = int((time.time() - t_start) * 1000)
+                if proc.returncode == 0:
+                    status = "ok"
+                    log.info("NotebookLM health: %s OK (%dms)", nb_name, elapsed_ms)
+                else:
+                    error_msg = stderr.decode(errors="replace").strip()[:500]
+                    log.warning("NotebookLM health: %s FAILED rc=%d: %s", nb_name, proc.returncode, error_msg)
+                    failures.append(nb_name)
+            except asyncio.TimeoutError:
+                proc.kill()
+                elapsed_ms = _TIMEOUT_S * 1000
+                status = "timeout"
+                error_msg = f"nlm query timed out after {_TIMEOUT_S}s"
+                log.warning("NotebookLM health: %s TIMEOUT after %ds", nb_name, _TIMEOUT_S)
+                failures.append(nb_name)
+        except Exception as exc:
+            elapsed_ms = int((time.time() - t_start) * 1000)
+            error_msg = str(exc)[:500]
+            log.warning("NotebookLM health: %s subprocess error: %s", nb_name, exc)
+            failures.append(nb_name)
+
+        log_notebooklm_health(
+            notebook_id=nb_id,
+            notebook_name=nb_name,
+            query_hash=_QUERY_HASH,
+            status=status,
+            error_message=error_msg,
+            response_ms=elapsed_ms,
+        )
+
+    _notebooklm_health_last_ran = time.time()
+
+    if not failures or not config.TELEGRAM_BOT_TOKEN or not config.TELEGRAM_ALERT_CHAT_ID:
+        return
+
+    import urllib.request as _ureq
+    names = ", ".join(failures)
+    text = (
+        f"⚠️ *[NotebookLM Health]* KB probe failed\n\n"
+        f"Notebooks unreachable: `{names}`\n"
+        f"Query: _{_HEALTH_QUERY}_\n\n"
+        f"Check `nlm login` session and `.harness/notebooklm-registry.json`.\n"
+        f"_RA-820_"
+    )
+    payload = _json.dumps({
+        "chat_id": config.TELEGRAM_ALERT_CHAT_ID,
+        "text": text,
+        "parse_mode": "Markdown",
+        "disable_web_page_preview": True,
+    }).encode()
+    req = _ureq.Request(
+        f"https://api.telegram.org/bot{config.TELEGRAM_BOT_TOKEN}/sendMessage",
+        data=payload,
+        method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with _ureq.urlopen(req, timeout=10):
+            pass
+        log.info("NotebookLM health: Telegram alert sent for %d failure(s)", len(failures))
+    except Exception as exc:
+        log.warning("NotebookLM health: Telegram send failed: %s", exc)

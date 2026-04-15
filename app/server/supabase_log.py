@@ -278,3 +278,30 @@ def mark_alert_acked(alert_key: str) -> None:
             "acked_at": datetime.now(timezone.utc).isoformat(),
         },
     )
+
+
+# ── RA-820: notebooklm_health ─────────────────────────────────────────────────
+
+def log_notebooklm_health(
+    *,
+    notebook_id: str,
+    notebook_name: str,
+    query_hash: str,
+    status: str,
+    error_message: str | None = None,
+    response_ms: int | None = None,
+) -> None:
+    """
+    RA-820 — Write one notebooklm_health row after each health probe.
+    Called from _watchdog_notebooklm_health() in cron_watchdogs.py.
+    Fire-and-forget — never raises.
+    """
+    _insert("notebooklm_health", {
+        "notebook_id":   notebook_id,
+        "notebook_name": notebook_name,
+        "query_hash":    query_hash,
+        "status":        status,
+        "error_message": error_message,
+        "response_ms":   response_ms,
+        "checked_at":    datetime.now(timezone.utc).isoformat(),
+    })
