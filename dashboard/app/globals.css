@@ -1,129 +1,84 @@
-/* globals.css — base styles, font imports, scrollbar */
-@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:ital,wght@0,400;0,500;0,600;1,400&family=Barlow+Condensed:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
+/* globals.css — Zinc/Geist design system */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ── Dark theme (default) ────────────────────────────────────────────────── */
-:root, html.dark {
-  /* Bloomberg terminal palette */
-  --c-bg:     #0A0A0A;
-  --c-panel:  #111111;
-  --c-term:   #0C0C0C;
-  --c-border: #2A2727;
-  --c-text:   #F0EDE8;
-  --c-cream:  #E8E4DE;
-  --c-muted:  #C8C5C0;
-  --c-dim:    #A8A5A0;
-  --c-chrome: #888480;
-  --c-orange: #E8751A;
+/* ── Light theme (default) ───────────────────────────────────────────────── */
+:root {
+  --background: #ffffff;
+  --panel: #f4f4f5;
+  --panel-hover: #e4e4e7;
+  --border: #e4e4e7;
+  --border-subtle: #f4f4f5;
+  --text: #09090b;
+  --text-muted: #71717a;
+  --text-dim: #a1a1aa;
+  --accent: #ea580c;
+  --accent-subtle: rgba(234,88,12,0.08);
+  --success: #16a34a;
+  --warning: #ca8a04;
+  --error: #dc2626;
+  --info: #2563eb;
+  --radius: 6px;
 
-  --c-scrollbar-track: #0A0A0A;
-  --c-scrollbar-thumb: #3A3632;
-
-  /* shadcn/ui variable aliases — mapped to Bloomberg palette */
-  --background:        0 0% 4%;           /* #0A0A0A */
-  --foreground:        30 11% 94%;        /* #F0EDE8 */
-  --card:              0 0% 7%;           /* #111111 */
-  --card-foreground:   30 11% 94%;
-  --popover:           0 0% 7%;
-  --popover-foreground: 30 11% 94%;
-  --primary:           24 82% 51%;        /* #E8751A orange */
-  --primary-foreground: 0 0% 100%;
-  --secondary:         0 0% 7%;           /* --c-panel */
-  --secondary-foreground: 30 11% 94%;
-  --muted:             0 0% 7%;
-  --muted-foreground:  30 4% 54%;         /* --c-chrome */
-  --accent:            24 82% 51%;
-  --accent-foreground: 0 0% 100%;
-  --destructive:       0 91% 71%;         /* #F87171 */
-  --destructive-foreground: 0 0% 100%;
-  --border:            0 4% 16%;          /* #2A2727 */
-  --input:             0 4% 16%;
-  --ring:              24 82% 51%;
-  --radius:            0rem;              /* Sharp: no border radius */
+  --scrollbar-track: #f4f4f5;
+  --scrollbar-thumb: #d4d4d8;
 }
 
-/* ── Light theme ─────────────────────────────────────────────────────────── */
-html.light {
-  /* Bloomberg terminal palette — light mode */
-  --c-bg:     #F2EFE9;
-  --c-panel:  #E8E4DD;
-  --c-term:   #FAFAF8;
-  --c-border: #D0CCC6;
-  --c-text:   #1A1816;
-  --c-cream:  #4A4744;
-  --c-muted:  #5A5754;
-  --c-dim:    #706E6B;
-  --c-chrome: #888480;
-  --c-orange: #C96310;
+/* ── Dark theme ──────────────────────────────────────────────────────────── */
+.dark {
+  --background: #09090b;
+  --panel: #18181b;
+  --panel-hover: #27272a;
+  --border: #27272a;
+  --border-subtle: #1c1c1f;
+  --text: #fafafa;
+  --text-muted: #a1a1aa;
+  --text-dim: #71717a;
+  --accent: #f97316;
+  --accent-subtle: rgba(249,115,22,0.08);
+  --success: #22c55e;
+  --warning: #eab308;
+  --error: #ef4444;
+  --info: #3b82f6;
 
-  --c-scrollbar-track: #E8E4DD;
-  --c-scrollbar-thumb: #C0BCB8;
-
-  /* shadcn/ui variable aliases — light mode */
-  --background:        33 24% 95%;
-  --foreground:        20 7% 10%;
-  --card:              33 19% 91%;
-  --card-foreground:   20 7% 10%;
-  --popover:           33 19% 91%;
-  --popover-foreground: 20 7% 10%;
-  --primary:           24 72% 42%;        /* #C96310 light orange */
-  --primary-foreground: 0 0% 100%;
-  --secondary:         33 19% 91%;
-  --secondary-foreground: 20 7% 10%;
-  --muted:             33 19% 91%;
-  --muted-foreground:  30 4% 54%;
-  --accent:            24 72% 42%;
-  --accent-foreground: 0 0% 100%;
-  --destructive:       0 84% 60%;
-  --destructive-foreground: 0 0% 100%;
-  --border:            30 8% 82%;
-  --input:             30 8% 82%;
-  --ring:              24 72% 42%;
-  --radius:            0rem;
+  --scrollbar-track: #18181b;
+  --scrollbar-thumb: #3f3f46;
 }
 
 html, body {
-  background-color: var(--c-bg);
-  color: var(--c-text);
-  font-family: "Barlow", sans-serif;
+  background-color: var(--background);
+  color: var(--text);
+  font-family: var(--font-geist, system-ui, sans-serif);
   -webkit-font-smoothing: antialiased;
   transition: background-color 0.15s ease, color 0.15s ease;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 ::-webkit-scrollbar { width: 3px; height: 3px; }
-::-webkit-scrollbar-track { background: var(--c-scrollbar-track); }
-::-webkit-scrollbar-thumb { background: var(--c-scrollbar-thumb); }
-::-webkit-scrollbar-thumb:hover { background: #E8751A66; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); opacity: 0.4; }
 
-::selection { background: #E8751A33; color: var(--c-text); }
+::selection { background: var(--accent-subtle); color: var(--text); }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
 }
 
-/* ── Mobile base fixes ───────────────────────────────────────────────────── */
-
 /* Prevent iOS tap highlight on interactive elements */
 a, button { -webkit-tap-highlight-color: transparent; }
 
-/* Ensure inputs don't zoom on focus on iOS (requires font-size >= 16px effective,
-   but we handle this per-component with minHeight instead of bumping font globally) */
+/* Prevent iOS auto-zoom on inputs */
 @media (max-width: 639px) {
   input[type="text"],
   input[type="password"],
   input[type="email"],
   select,
   textarea {
-    font-size: 16px !important; /* prevents iOS auto-zoom */
+    font-size: 16px !important;
   }
-}
-
-/* Prevent horizontal overflow at the root */
-html, body {
-  overflow-x: hidden;
-  max-width: 100vw;
 }
