@@ -117,6 +117,13 @@ ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS session_started_at TIMESTAMPTZ;
 ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS push_timestamp TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS gate_checks_push_ts_idx ON gate_checks (push_timestamp DESC) WHERE push_timestamp IS NOT NULL;
 
+-- RA-674: evaluator confidence score (0–100%) per gate_check
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS confidence FLOAT8;
+
+-- RA-676: scope contract tracking
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS scope_adhered BOOLEAN;
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS files_modified INTEGER;
+
 -- RA-672 C2: Linear issue state at push time — persists across Railway redeploys
 -- session-outcomes.jsonl is ephemeral in Railway containers; this column makes
 -- C2 (output acceptance) scoring durable.
