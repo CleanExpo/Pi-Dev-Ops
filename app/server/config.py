@@ -154,6 +154,11 @@ AUTONOMY_BUDGET_MINS = int(os.environ.get("TAO_AUTONOMY_BUDGET", "0"))
 ANTHROPIC_API_KEY    = os.environ.get("ANTHROPIC_API_KEY",               "")
 USE_AGENT_SDK        = os.environ.get("TAO_USE_AGENT_SDK", "0") == "1"
 
+# RA-1009 — Prompt caching: set ENABLE_PROMPT_CACHING_1H=1 in Railway to activate.
+# When enabled, SDK calls and direct Anthropic API calls attach cache_control blocks
+# to static system-prompt content, reducing cost up to 90% on repeated sessions.
+ENABLE_PROMPT_CACHING_1H: bool = os.environ.get("ENABLE_PROMPT_CACHING_1H", "0") == "1"
+
 LINEAR_API_KEY       = os.environ.get("LINEAR_API_KEY",                 "")
 AUTONOMY_ENABLED     = os.environ.get("TAO_AUTONOMY_ENABLED", "1") != "0"
 SCAN_WORKSPACE_ROOT  = os.environ.get("SCAN_WORKSPACE_ROOT",

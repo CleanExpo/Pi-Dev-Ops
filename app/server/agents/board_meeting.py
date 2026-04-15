@@ -451,8 +451,14 @@ def _run_prompt_with_cache(
     audit category calls in run_gap_audit_phase(), the shared board context (prior minutes
     + anthropic-docs) hits the cache on calls 2-5, reducing cost ~70%.
 
+    RA-1009 — caching is only active when ENABLE_PROMPT_CACHING_1H=1. When disabled,
+    returns empty string immediately so the caller falls through to SDK/subprocess.
+
     Returns response text, or empty string on any error so caller falls back.
     """
+    if not config.ENABLE_PROMPT_CACHING_1H:
+        return ""
+
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not api_key:
         return ""

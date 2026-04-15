@@ -158,7 +158,20 @@ async def _run_claude_via_sdk(
     try:
         # cwd=workspace so Claude edits files in the right directory.
         # No allowed_tools restriction — generator needs Bash + Edit + Write.
-        options = ClaudeAgentOptions(cwd=workspace, model=model, thinking=_thinking_cfg)
+        # RA-1009 — prompt caching: pass beta flag when ENABLE_PROMPT_CACHING_1H=1.
+        # The claude CLI forwards this beta to the Anthropic API, enabling server-side
+        # cache reads on repeated sessions with the same static prompt prefix.
+        _sdk_betas: list[str] = (
+            ["prompt-caching-2024-07-31"]  # type: ignore[list-item]
+            if config.ENABLE_PROMPT_CACHING_1H
+            else []
+        )
+        options = ClaudeAgentOptions(
+            cwd=workspace,
+            model=model,
+            thinking=_thinking_cfg,
+            betas=_sdk_betas,  # type: ignore[arg-type]
+        )
         client = ClaudeSDKClient(options)
         text_parts: list[str] = []
         try:
