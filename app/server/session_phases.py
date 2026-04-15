@@ -1049,6 +1049,9 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
             "passed", "passed_low_confidence"
         )
         review_score = float(session.evaluator_score or 0)
+        # RA-672 C2: "In Review" after push = PR open, awaiting merge.
+        # Written to Supabase so C2 scoring survives Railway redeploys.
+        _linear_state = "In Review" if (getattr(session, "linear_issue_id", None) and push_ok) else ""
         log_gate_check(
             pipeline_id=session.id,
             session_id=session.id,
@@ -1066,6 +1069,7 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
             confidence=session.evaluator_confidence,  # RA-674: log to Supabase
             scope_adhered=session.scope_adhered,      # RA-676: scope contract result
             files_modified=len(session.modified_files),  # RA-676: modified file count
+            linear_state_after=_linear_state or None,    # RA-672 C2: durable state
         )
     except Exception:
         pass  # observability must never block the pipeline
