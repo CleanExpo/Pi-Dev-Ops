@@ -79,6 +79,7 @@ Expected: 3 pre-existing failures in `test_sdk_phase2.py` (claude_agent_sdk not 
 - **MCP tools:** `mcp/pi-ceo-server.js` — 21 tools for harness reads + Linear operations.
 - **Path traversal:** `_safe_sid()` strips non-alphanumeric from session IDs before file path use.
 - **Webhook HMAC:** `hmac.compare_digest()` for GitHub (`x-hub-signature-256`) and Linear (`Linear-Signature`).
+- **Rate-limit GC:** `_req_log` in `auth.py` accumulates IP keys forever. Prune stale IPs (last request >120 s ago) every 5 min inline inside `check_rate_limit()` — no background task needed in asyncio.
 - **Analysis mode:** `ANALYSIS_MODE=api` in Vercel forces Max plan subscription token (`sk-ant-oat01-*` from `claude setup-token`).
 - **Push auth:** `_phase_push()` injects GITHUB_TOKEN via x-access-token into git remote URL and pushes to `pidev/auto-{sid[:8]}` feature branch. Requires GITHUB_TOKEN + GITHUB_REPO env vars in Railway.
 - **Route isolation:** Each `routes/*.py` module owns one concern. `_IS_CLOUD` is re-derived from `os.environ` in `routes/auth.py` (not imported from `app_factory`) to avoid coupling. `_find_active_session_for_repo()` lives in `routes/sessions.py` and is imported into `routes/webhooks.py` one-way.
@@ -103,6 +104,8 @@ Every SDK invocation emits a row to `.harness/agent-sdk-metrics/YYYY-MM-DD.jsonl
 
 **MCP SDK imports:** Use subpath imports — `@modelcontextprotocol/sdk/server/mcp.js` and `@modelcontextprotocol/sdk/server/stdio.js`. The top-level package does not re-export `McpServer` directly.
 
+**Testing SDK-wrapped functions:** Patch `claude_agent_sdk.ClaudeSDKClient` with `unittest.mock.AsyncMock`. Set `return_value.__aenter__.return_value.receive_response` to an async iterator yielding mock message objects with `.content` attributes. Never call the real API in unit tests.
+
 ## Linear Integration
 
 - **Team:** RestoreAssist (`a8a52f07-63cf-4ece-9ad2-3e3bd3c15673`)
@@ -125,11 +128,13 @@ Every SDK invocation emits a row to `.harness/agent-sdk-metrics/YYYY-MM-DD.jsonl
 - Each task runs in a fresh Cowork sandbox at `/sessions/<random-id>/mnt/<folder>`. Discover the repo dynamically: `find /sessions -type d -name <repo>`.
 - Never escalate CRITICAL from a Cowork sandbox. `ModuleNotFoundError` inside a watchdog is a sandbox environment issue. Real test truth comes from GitHub Actions.
 - **Permission grant for autonomous harnesses:** three layers required — (1) `.claude/settings.json` `permissions.defaultMode=bypassPermissions`, (2) `ClaudeAgentOptions(permission_mode='bypassPermissions')` at every SDK call site, (3) `--dangerously-skip-permissions` in every subprocess `claude -p` call. Missing any one layer causes silent stall at 3 AM.
+- **Cron trigger reset:** `cron-triggers.json` `last_fired_at` resets to git-committed values on Railway redeploy, causing missed windows. Fix: use `abs()` in debounce check and fire any overdue triggers within 10 s of boot (startup catch-up).
 
 ## Persistence
 
 - `_sessions` is in-memory — server restart loses all running sessions. Persist status to disk atomically after every state change.
 - Use write-to-`.tmp`-then-`os.replace()` for JSON writes. Crash-safe on NTFS and POSIX.
+- **Workspace GC:** `app/workspaces/` fills disk if completed sessions are never deleted. Terminal states (complete/failed/killed/interrupted) should be GC'd after `GC_MAX_AGE` (default 4 h). Also scan for orphan dirs not referenced by `_sessions`.
 
 ## Observability
 
