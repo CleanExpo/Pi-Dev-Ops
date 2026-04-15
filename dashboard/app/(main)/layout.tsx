@@ -4,12 +4,14 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
+import CeoHealthPanel from "@/components/CeoHealthPanel";
 import { useEffect, useState } from "react";
 
 const NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: "⊞", key: "dashboard" },
+  { href: "/overview",  label: "Overview",  icon: "◈", key: "overview"  },
+  { href: "/dashboard", label: "Analysis",  icon: "⊞", key: "dashboard" },
   { href: "/builds",    label: "Builds",    icon: "⚙", key: "builds"   },
-  { href: "/projects",  label: "Portfolio", icon: "◈", key: "projects"  },
+  { href: "/projects",  label: "Portfolio", icon: "◫", key: "projects"  },
   { href: "/chat",      label: "Chat",      icon: "◉", key: "chat"     },
   { href: "/history",   label: "History",   icon: "☰", key: "history"  },
   { href: "/settings",  label: "Settings",  icon: "⊙", key: "settings" },
@@ -156,12 +158,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           })}
         </nav>
 
-        {/* Footer: swarm status + theme toggle */}
+        {/* Footer: CEO health panel + theme toggle */}
+        <CeoHealthPanel />
         <div
-          className="flex items-center justify-between px-4 py-3 shrink-0"
+          className="flex items-center justify-end px-4 py-2 shrink-0"
           style={{ borderTop: "1px solid var(--border)" }}
         >
-          <SwarmStatus />
           <ThemeToggle />
         </div>
       </aside>
