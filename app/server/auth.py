@@ -116,7 +116,12 @@ async def require_auth(request: Request) -> bool:
 
 
 async def require_rate_limit(request: Request) -> bool:
-    ip = request.client.host if request.client else "unknown"
+    # Prefer the real client IP from X-Forwarded-For (set by Railway/Nginx proxy).
+    # Fall back to request.client.host which may be a proxy IP.
+    forwarded = request.headers.get("x-forwarded-for", "")
+    ip = forwarded.split(",")[0].strip() if forwarded else (
+        request.client.host if request.client else "unknown"
+    )
     if not check_rate_limit(ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
     return True
