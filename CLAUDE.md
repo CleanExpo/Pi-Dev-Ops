@@ -83,6 +83,9 @@ Expected: 3 pre-existing failures in `test_sdk_phase2.py` (claude_agent_sdk not 
 - **Analysis mode:** `ANALYSIS_MODE=api` in Vercel forces Max plan subscription token (`sk-ant-oat01-*` from `claude setup-token`).
 - **Push auth:** `_phase_push()` injects GITHUB_TOKEN via x-access-token into git remote URL and pushes to `pidev/auto-{sid[:8]}` feature branch. Requires GITHUB_TOKEN + GITHUB_REPO env vars in Railway.
 - **Route isolation:** Each `routes/*.py` module owns one concern. `_IS_CLOUD` is re-derived from `os.environ` in `routes/auth.py` (not imported from `app_factory`) to avoid coupling. `_find_active_session_for_repo()` lives in `routes/sessions.py` and is imported into `routes/webhooks.py` one-way.
+- **Rate-limit cloud IP:** In Railway/Render/Fly, `request.client.host` is the load-balancer's internal IP (varies per LB instance), so per-IP buckets never fill. Trust `X-Forwarded-For` when `_IS_CLOUD` — Railway strips any client-supplied XFF at the edge before injecting the real client IP, so the first entry is safe to use. Use `request.client.host` locally to avoid XFF spoofing.
+- **API key env hygiene:** `ANTHROPIC_API_KEY=""` set by the `claude` CLI in the parent shell is inherited by child processes. In Python, call `os.environ.pop("ANTHROPIC_API_KEY", None)` when no explicit key is provided so subprocesses fall back to CLI OAuth tokens (`~/.claude/`) rather than failing with HTTP 401. In Next.js routes, always call `.trim()` on `process.env.ANTHROPIC_API_KEY` — Vercel stores env vars with a trailing `\n` that silently breaks API auth.
+- **1Password env refs:** `op://vault/item/field` references in `.env` files are only resolved when launched via `op run --`. Python `dotenv.load_dotenv()` reads them as literal strings. Add a Pydantic `field_validator(mode="before")` that detects strings starting with `op://` and returns `None` so the field is treated as absent.
 
 ## SDK Architecture
 
