@@ -139,15 +139,17 @@ Board activation vote carried unanimously on 15 Apr 2026. Swarm flipped to activ
 
 **Open PRs awaiting human merge:** #11 (RA-948 autonomous PR), #12 (swarm active mode + bots), #13 (dashboard redesign), #14 (RA-837/847 CI webhook + docs synthesis).
 
-**Blocker (OPS veto):** RA-950 — carsi `ADMIN_PASSWORD` must be set in DigitalOcean before swarm fires on carsi scope. Other projects (Pi-Dev-Ops, RestoreAssist) unblocked.
-
 **Developer actions required:**
-- Merge PRs #11–14
-- Set `ADMIN_PASSWORD` in DigitalOcean for carsi (RA-950)
-- Set `TAO_USE_AGENT_SDK_CANARY_RATE=0.5` in Railway (RA-838 Phase B)
-- Set `TAO_PASSWORD` in `.env.local` for Builder bot to fire `/api/build`
-- Add `workflow_run` event to GitHub webhooks on all repos (RA-847)
-- Purchase UPS (AUD ≤$500, board approved)
+- Merge PRs #11–14 ← only remaining blocker
+
+**Completed (2026-04-15):**
+- RA-950: `ADMIN_PASSWORD` set in DigitalOcean for carsi ✓
+- RA-838: `TAO_USE_AGENT_SDK_CANARY_RATE=0.5` set in Railway ✓
+- `TAO_PASSWORD` set in `.env.local` ✓
+- RA-847: `workflow_run` webhook event active on Pi-Dev-Ops, CARSI, Synthex, Unite-Group ✓
+- RA-820: NotebookLM health watchdog + Supabase `notebooklm_health` table ✓
+- RA-822/823/824: NotebookLM KBs live for RestoreAssist, Synthex, CleanExpo ✓
+- UPS purchased (AUD ≤$500) ✓
 
 ## Content Rules
 
