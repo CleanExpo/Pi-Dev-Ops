@@ -1,10 +1,11 @@
 """Health routes: /health, /api/health/vercel, Claude CLI poll, static files (RA-937)."""
 import asyncio
+import hmac
 import os
 import logging
 import time
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -58,7 +59,16 @@ async def index():
 
 
 @app.get("/health")
-async def health():
+async def health(request: Request):
+    # RA-1003: If TAO_PASSWORD is configured, require Authorization: Bearer <password>.
+    # Unauthenticated callers receive a minimal response with no internal details.
+    tao_password = os.environ.get("TAO_PASSWORD", "")
+    if tao_password:
+        auth_header = request.headers.get("Authorization", "")
+        provided = auth_header[7:] if auth_header.startswith("Bearer ") else ""
+        if not provided or not hmac.compare_digest(provided, tao_password):
+            return JSONResponse({"status": "ok"}, status_code=200)
+
     uptime_s = int(time.time() - _START_TIME)
     active = sum(
         1 for s in _sessions.values()

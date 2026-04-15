@@ -116,12 +116,15 @@ async def require_auth(request: Request) -> bool:
 
 
 async def require_rate_limit(request: Request) -> bool:
-    # Prefer the real client IP from X-Forwarded-For (set by Railway/Nginx proxy).
-    # Fall back to request.client.host which may be a proxy IP.
-    forwarded = request.headers.get("x-forwarded-for", "")
-    ip = forwarded.split(",")[0].strip() if forwarded else (
-        request.client.host if request.client else "unknown"
-    )
+    # RA-1012: Use the TCP connection IP as the authoritative client address so
+    # that clients cannot spoof their identity by forging X-Forwarded-For.
+    # Only fall back to X-Forwarded-For when request.client is None (i.e. the
+    # server itself is behind a trusted proxy that strips direct connections).
+    if request.client is not None:
+        ip = request.client.host
+    else:
+        forwarded = request.headers.get("x-forwarded-for", "")
+        ip = forwarded.split(",")[0].strip() if forwarded else "unknown"
     if not check_rate_limit(ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
     return True
