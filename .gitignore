@@ -119,6 +119,7 @@ mcp/node_modules/
 .harness/feedback-cache.json
 .harness/scout-seen.json
 .harness/zte-v2-score.json
+.harness/session-outcomes.jsonl
 
 # ── Docker / deployment ───────────────────────────────────────────────
 *.pid

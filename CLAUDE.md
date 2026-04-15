@@ -131,20 +131,23 @@ Every SDK invocation emits a row to `.harness/agent-sdk-metrics/YYYY-MM-DD.jsonl
 
 Three jobs: `python` (pytest + ruff), `frontend` (tsc + eslint + build), `smoke-prod` (post-deploy gate against Railway, main-branch only). `smoke-prod` requires `TAO_PROD_PASSWORD` GitHub secret.
 
-## Current Sprint (Sprint 11 — Complete 2026-04-14)
+## Current Sprint (Sprint 12 — Active 2026-04-15)
 
-**ZTE v2: 85/100 achieved**
+**ZTE v2: 85/100 → target 90**
 
-Done: RA-588 MARATHON-4 completed — first autonomous loop run end-to-end in ~90s (RA-948). All Gemini Scheduled Actions live (RA-816–819). Dep health merged across 4 repos (RA-843). Synthex CVEs 28→22 (RA-844). RA-937 completed: `main.py` decomposed from 922L into 11 focused modules — all ≤300L, zero breaking changes. PR #10: evaluator fixed (`anthropic>=0.40` in `requirements.txt` + `brief_context` in Agent SDK fallback `eval_spec`). PR #11: push auth fixed (`_phase_push()` now injects GITHUB_TOKEN and pushes to `pidev/auto-{sid[:8]}` feature branch). Outstanding: carsi `ADMIN_PASSWORD` env var (DigitalOcean App Platform — requires developer).
+Board activation vote carried unanimously on 15 Apr 2026. Swarm flipped to active mode (`TAO_SWARM_SHADOW=0`). Rate limit: 3 autonomous PRs/day (lifts after 20 consecutive green supervised merges). NotebookLM 5th criterion added: top-3 risks per entity from Linear + Pi-SEO. Next board: 6 May 2026 Enhancement Review (RA-949).
 
-## Sprint 12 — Upcoming
+**Open PRs awaiting human merge:** #11 (RA-948 autonomous PR), #12 (swarm active mode + bots), #13 (dashboard redesign), #14 (RA-837/847 CI webhook + docs synthesis).
 
-**ZTE v2 target: 90**
+**Blocker (OPS veto):** RA-950 — carsi `ADMIN_PASSWORD` must be set in DigitalOcean before swarm fires on carsi scope. Other projects (Pi-Dev-Ops, RestoreAssist) unblocked.
 
-- Shadow mode flip (`TAO_SWARM_SHADOW=0`) — pending Week 3 board sign-off
-- RA-821 entity ranking for NotebookLM — pending owner decision
-- Merge `pidev/auto-0e474d30` PR for RA-948 — pending human review
-- carsi `ADMIN_PASSWORD` (DigitalOcean, developer action required)
+**Developer actions required:**
+- Merge PRs #11–14
+- Set `ADMIN_PASSWORD` in DigitalOcean for carsi (RA-950)
+- Set `TAO_USE_AGENT_SDK_CANARY_RATE=0.5` in Railway (RA-838 Phase B)
+- Set `TAO_PASSWORD` in `.env.local` for Builder bot to fire `/api/build`
+- Add `workflow_run` event to GitHub webhooks on all repos (RA-847)
+- Purchase UPS (AUD ≤$500, board approved)
 
 ## Content Rules
 

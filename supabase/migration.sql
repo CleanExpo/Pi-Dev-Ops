@@ -117,6 +117,19 @@ ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS session_started_at TIMESTAMPTZ;
 ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS push_timestamp TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS gate_checks_push_ts_idx ON gate_checks (push_timestamp DESC) WHERE push_timestamp IS NOT NULL;
 
+-- RA-674: evaluator confidence score (0–100%) per gate_check
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS confidence FLOAT8;
+
+-- RA-676: scope contract tracking
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS scope_adhered BOOLEAN;
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS files_modified INTEGER;
+
+-- RA-672 C2: Linear issue state at push time — persists across Railway redeploys
+-- session-outcomes.jsonl is ephemeral in Railway containers; this column makes
+-- C2 (output acceptance) scoring durable.
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS linear_state_after TEXT;
+CREATE INDEX IF NOT EXISTS gate_checks_linear_state_idx ON gate_checks (linear_state_after) WHERE linear_state_after IS NOT NULL;
+
 -- ── alert_escalations ────────────────────────────────────────────────────────
 -- RA-633: Tracks critical alerts sent via Telegram + escalation/ack state.
 -- Enables the 30-min escalation watchdog: unacked alerts → second louder page.

@@ -151,6 +151,7 @@ def log_gate_check(
     confidence: float | None = None,
     scope_adhered: bool | None = None,
     files_modified: int | None = None,
+    linear_state_after: str | None = None,
 ) -> None:
     """
     Write one gate_check row to Supabase after every /ship phase.
@@ -160,6 +161,8 @@ def log_gate_check(
     used by zte_v2_score.py to compute C3 (mean time to value).
     RA-674: confidence (0-100%) is the evaluator's self-reported certainty score.
     RA-676: scope_adhered (bool) and files_modified (int) track scope contract results.
+    RA-672 C2: linear_state_after persists Linear issue state at push time to Supabase
+    so C2 scoring survives Railway redeploys (session-outcomes.jsonl is ephemeral).
     """
     row: dict = {
         "pipeline_id":    pipeline_id,
@@ -188,6 +191,8 @@ def log_gate_check(
         row["scope_adhered"] = scope_adhered
     if files_modified is not None:
         row["files_modified"] = files_modified
+    if linear_state_after is not None:
+        row["linear_state_after"] = linear_state_after
     _insert("gate_checks", row)
     log.info(
         "gate_check logged: pipeline=%s all_passed=%s score=%.1f confidence=%s "
