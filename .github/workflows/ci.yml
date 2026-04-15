@@ -104,7 +104,7 @@ jobs:
   smoke-prod:
     name: Smoke test (prod)
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 12
     needs: [python, frontend, secrets-scan]
     # Only fire on pushes to main — not on PRs (we don't smoke prod on every PR)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -120,8 +120,9 @@ jobs:
         run: pip install requests
 
       - name: Wait for Railway deploy to settle
-        # Railway deploys typically take 60-90s after a push lands
-        run: sleep 90
+        # CI jobs take ~44s before this runs; Railway deploy needs ~60-90s total.
+        # 60s here + 44s CI overhead = ~104s total settle time.
+        run: sleep 60
 
       - name: Run smoke test against production
         run: python scripts/smoke_test.py --target=prod --emit-metrics
