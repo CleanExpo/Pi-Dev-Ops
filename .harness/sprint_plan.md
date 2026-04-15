@@ -1,19 +1,59 @@
 # Pi Dev Ops — Sprint Plan
 
-_Sprint 12 active | 2026-04-14 | ZTE v2: 85/100 | 98 features shipped_
+_Sprint 12 active | 2026-04-15 | ZTE v2: 85/100 | 98 features shipped_
 
 ---
 
-## Sprint 12 — Active (2026-04-14)
+## Sprint 12 — Active (2026-04-15 → 6 May 2026)
 
-**Theme:** Shadow → Active + ZTE v2 → 90
+**Theme:** Swarm Activation + ZTE v2 → 90 + NotebookLM KB Build
+
+**Board decision (15 Apr 2026):** Unanimous activation. 3-week window is a parallel compounding sprint.
+
+### Blocker (OPS veto — must close before swarm fires on carsi scope)
 
 | Issue | Priority | Title | Status |
 |-------|----------|-------|--------|
-| — | High | Shadow mode flip (`TAO_SWARM_SHADOW=0`) | Pending Week 3 board sign-off |
-| RA-821 | High | NotebookLM entity ranking | Pending owner decision |
-| RA-948 | High | Merge `pidev/auto-0e474d30` PR | Pending human review |
-| — | High | carsi `ADMIN_PASSWORD` (DigitalOcean) | Developer action required |
+| RA-950 | Urgent | OB-4: Set ADMIN_PASSWORD in DigitalOcean for carsi | **Developer action required** |
+
+### Immediate merge queue
+
+| Issue | Priority | Title | Status |
+|-------|----------|-------|--------|
+| PR #11 / RA-948 | Urgent | Merge `pidev/auto-0e474d30` — first autonomous PR | **Pending human review** |
+| PR #12 | High | Merge swarm active mode + bots | **Pending human review** |
+| PR #13 | High | Merge dashboard redesign (Zinc/Geist/sidebar) | **Pending human review** |
+| PR #14 | High | Merge RA-837/847 (docs synthesis + CI webhook) | **Pending human review** |
+
+### Active sprint items
+
+| Issue | Priority | Title | Status |
+|-------|----------|-------|--------|
+| RA-822 | High | NotebookLM KB — RestoreAssist (5 criteria, incl. top-3 risks) | In Review |
+| RA-823 | High | NotebookLM KB — Synthex (5 criteria, incl. top-3 risks) | In Review |
+| RA-824 | High | NotebookLM KB — CleanExpo (5 criteria, incl. top-3 risks) | In Review |
+| RA-838 | High | SDK Canary Phase B — set TAO_USE_AGENT_SDK_CANARY_RATE=0.5 in Railway | **Railway env var required** |
+| RA-886 | High | Branch protection — CI required before merge | In Review |
+| RA-830 | Medium | Google Cloud Next '26 (22-24 Apr) — capture NotebookLM API delta | Todo |
+
+### Swarm activation conditions
+
+| Condition | Status |
+|-----------|--------|
+| `TAO_SWARM_SHADOW=0` in `.env.local` | ✅ Done |
+| `TAO_SWARM_SHADOW=0` in Railway | ⬜ Requires Railway env update after PR #12 merges |
+| OB-4 CARSI ADMIN_PASSWORD | ⬜ Developer action (RA-950) |
+| PR #12 merged | ⬜ Pending human review |
+| 3 PR/day rate limit | ✅ Implemented (`swarm/config.py` + `builder.py`) |
+| 20 green merge tracker | ✅ Created (`.harness/swarm/green_merge_counter.json`) |
+| `TAO_PASSWORD` in `.env.local` | ⬜ Required for builder to fire `/api/build` |
+
+### Board conditions (2026-04-15 activation vote)
+
+- **Rate limit:** 3 autonomous PRs/day (CONTRARIAN). Lifts after 20 consecutive green supervised merges.
+- **NotebookLM 5th criterion (ORACLE):** Top 3 open risks per entity surfaced from Linear + Pi-SEO. Added to RA-822/823/824.
+- **UPS purchase:** AUD ≤$500 approved. Owner action before 6 May board.
+- **Next board:** 6 May 2026 — Enhancement Review (RA-949).
 
 ---
 
@@ -29,12 +69,15 @@ _Sprint 12 active | 2026-04-14 | ZTE v2: 85/100 | 98 features shipped_
 | RA-818 | Urgent | Gemini Scheduled Action — Google Cloud Next '26 daily briefing | **Done** |
 | RA-819 | Urgent | Gemini Scheduled Action — daily calendar and email digest | **Done** |
 | RA-843 | High | Dep health PRs merged — carsi, DR-NRPG, Synthex, unite-group | **Done** |
-| RA-844 | High | Synthex CVE migrations — 6 done (supabase/ssr, nodemailer, zustand, tailwind-merge, lucide-react, date-fns); stripe/ts/eslint/jest deferred | **Done** |
-| RA-588 | High | MARATHON-4: first autonomous loop run — evaluator + push auth fixed (PR #10, PR #11) | **Done** |
-| RA-948 | Urgent | First autonomous loop run — swarm_enabled/swarm_shadow in /health | **Done** |
-| RA-949 | High | MARATHON-4 infra fixes — evaluator SDK + push auth (PR #10, PR #11) | **Done** |
+| RA-844 | High | Synthex CVEs 28→22 (6 migrations done) | **Done** |
+| RA-588 | High | MARATHON-4: first autonomous loop run end-to-end | **Done** |
+| RA-948 | Urgent | First autonomous PR pushed — swarm_enabled/swarm_shadow in /health | **Done** |
+| RA-937 | High | main.py decomposed 922L → 11 focused modules | **Done** |
+| RA-821 | High | NotebookLM entity ranking — RestoreAssist/Synthex/CleanExpo selected | **Done** |
+| RA-837 | High | Anthropic docs synthesis script | **Done** |
+| RA-847 | High | CI failure → Linear ticket webhook handler | **Done** |
 
-**Remaining:** carsi `ADMIN_PASSWORD` (DigitalOcean, developer action required)
+**Remaining:** RA-950 carsi `ADMIN_PASSWORD` (DigitalOcean, developer action required)
 
 ---
 
@@ -60,52 +103,21 @@ _Sprint 12 active | 2026-04-14 | ZTE v2: 85/100 | 98 features shipped_
 
 | Issue | Change |
 |-------|--------|
-| RA-674 | Confidence-weighted evaluator — three-tier routing (auto-accept / review / retry), `CONFIDENCE: N%` parsing |
+| RA-674 | Confidence-weighted evaluator — three-tier routing |
 | RA-675 | Reality-check sprint — closed 19-pt self-scan gap (41/60 → 60/60 ZTE) |
-| RA-676 | AUTONOMY_BUDGET single-knob — unified budget control across generator + evaluator |
-| RA-677 | Session Scope Contract — hard limits on file-touch radius, test-pass gate, reversibility check |
-| RA-678 | Progressive brief complexity — difficulty tiering for autonomous sessions |
-| RA-679 | Plan variation discovery — 3-variant selection before generator runs |
-| RA-680 | Layered abstraction — TAO tier separation enforced in build pipeline |
-| RA-681 | Dependency alerting — CVE + breaking-change detection injected into session context |
-| RA-682 | Vercel drift monitoring — deployed SHA vs git HEAD parity watchdog |
-| RA-683 | Ship Chain Educational Series — 5-doc `docs/ship-chain/` |
-| RA-684 | Scout Agent — Monday 04:30 UTC cron, `agents/scout.py` |
-| RA-686 | CEO Board Skill — 9 personas in `board_meeting.py` |
-| RA-651 | Supabase `gate_checks` table + `log_gate_check()` in `supabase_log.py` |
-| RA-660 | Incident history RAG — `lessons.jsonl` injected into session generator context |
-| RA-696 | BVI framework — Business Velocity Index replaces ZTE as primary board metric Cycle 24+ |
-| RA-694 | Gap Audit — all 9 disconnected components wired |
+| RA-676 | AUTONOMY_BUDGET single-knob |
+| RA-677 | Session Scope Contract |
+| RA-678 | Progressive brief complexity |
+| RA-679 | Plan variation discovery |
+| RA-680 | Layered abstraction |
+| RA-681 | Dependency alerting |
+| RA-682 | Vercel drift monitoring |
+| RA-683 | Ship Chain Educational Series |
+| RA-684 | Scout Agent |
+| RA-686 | CEO Board Skill — 9 personas |
+| RA-651 | Supabase gate_checks table |
+| RA-660 | Incident history RAG |
+| RA-696 | BVI framework |
+| RA-694 | Gap Audit |
 
 **ZTE v2: 81/100**
-
----
-
-## Sprint 8 — Complete (2026-04-11)
-
-| Issue | Change |
-|-------|--------|
-| RA-551–576 | Agent SDK migration — board_meeting.py, sessions.py generator + evaluator, orchestrator.py, pipeline.py; subprocess fallback removed |
-| RA-579 | `cron.py`: startup catch-up + 12h watchdog fires Urgent Linear ticket if scheduler silent |
-| RA-580 | Harness doc staleness watchdog — 48h alert |
-| RA-581–583 | `DEPLOYMENT.md`, `verify_deploy.py`, CI `smoke-prod` job |
-| RA-584 | `autonomy.py`: Linear todo poller, `/api/autonomy/status` |
-| RA-585 | MARATHON-1: 46 pytest tests total |
-
----
-
-## Sprint 7 — Complete (2026-04-10)
-
-Mobile/tablet layout · worktree isolation hooks · @piceoagent_bot Telegram dashboard · Railway agentic Claude bot (RA-546–549)
-
----
-
-## Sprint 6 — Complete (2026-04-10)
-
-Pi-SEO autonomous scanner: 10-repo monitoring, triage engine, auto-PR, health dashboard, 6h cron, 13 MCP tools (RA-531–543)
-
----
-
-## Sprints 1–5 — Complete (2026-04-07–09)
-
-Foundation → Security Hardening → Capability → ZTE Sprint: 0 → 81/100 v2 across 70+ issues.

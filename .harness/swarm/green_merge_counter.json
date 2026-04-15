@@ -1,0 +1,7 @@
+{
+  "consecutive_green": 0,
+  "target": 20,
+  "history": [],
+  "last_updated": "2026-04-15",
+  "note": "CONTRARIAN condition: 20 consecutive supervised green merges required before MAX_AUTONOMOUS_PRS_PER_DAY lifts. Increment consecutive_green on each merge where CI passed + human reviewed. Reset to 0 on any revert or CI failure after merge."
+}

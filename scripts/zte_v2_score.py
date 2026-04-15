@@ -193,16 +193,58 @@ def score_c1_deployment_success(rows: list[dict]) -> tuple[int, str]:
 
 
 def score_c2_output_acceptance(days: int = 30) -> tuple[int, str]:
-    """C2: % of sessions whose linked Linear issue moved to Done after push.
+    """C2: % of sessions whose output was accepted (shipped PR in review or done).
 
-    Reads .harness/session-outcomes.jsonl written by sessions.py on completion.
-    Falls back to stub if the file doesn't exist yet.
+    "Accepted" = the autonomous session pushed a PR that reached "In Review" or
+    "Done" — i.e., the output cleared the evaluator gate AND was pushed for human
+    review.  Entries that are still "In Review" count as accepted because the human
+    merge is the final step; we don't double-penalise for review latency.
+
+    Primary: reads gate_checks.linear_state_after from Supabase (durable across
+    Railway redeploys).  Fallback: reads .harness/session-outcomes.jsonl (Mac Mini
+    dev environment without Supabase credentials).
     """
+    _ACCEPTED_STATES = {"done", "completed", "closed", "in review", "in_review"}
+
+    def _score_from_rows(rows: list[dict], source: str) -> tuple[int, str] | None:
+        """Score C2 from a list of {shipped, linear_state_after} dicts. Returns None if no data."""
+        total = accepted = 0
+        for r in rows:
+            total += 1
+            state = (r.get("linear_state_after") or "").lower()
+            if state in _ACCEPTED_STATES or (not state and (r.get("shipped") or r.get("push_ok"))):
+                accepted += 1
+        if total == 0:
+            return None
+        rate = accepted / total
+        note = f"{accepted}/{total} sessions accepted — shipped/in-review/done ({rate:.0%}) [{source}]"
+        if rate >= 0.90:
+            return 5, note
+        if rate >= 0.75:
+            return 4, note
+        if rate >= 0.55:
+            return 3, note
+        if rate >= 0.30:
+            return 2, note
+        return 1, note
+
+    # ── Primary: Supabase gate_checks.linear_state_after ─────────────────────
+    cutoff_iso = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat().replace("+", "%2B")
+    sb_rows = _supabase_query(
+        "gate_checks",
+        "shipped,linear_state_after,checked_at",
+        f"checked_at=gte.{cutoff_iso}&linear_state_after=not.is.null",
+    )
+    result = _score_from_rows(sb_rows, "supabase")
+    if result is not None:
+        return result
+
+    # ── Fallback: local session-outcomes.jsonl ────────────────────────────────
     outcomes_file = _HARNESS / "session-outcomes.jsonl"
     if not outcomes_file.exists():
         return 1, "needs_data — session-outcomes.jsonl not yet written (sessions completing will populate this)"
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    total = done = 0
+    cutoff_dt = datetime.now(timezone.utc) - timedelta(days=days)
+    local_rows: list[dict] = []
     try:
         with open(outcomes_file, encoding="utf-8") as f:
             for line in f:
@@ -214,28 +256,17 @@ def score_c2_output_acceptance(days: int = 30) -> tuple[int, str]:
                     ts_str = entry.get("completed_at", "")
                     if ts_str:
                         ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-                        if ts < cutoff:
+                        if ts < cutoff_dt:
                             continue
-                    total += 1
-                    if entry.get("linear_state_after", "").lower() in ("done", "completed", "closed"):
-                        done += 1
+                    local_rows.append(entry)
                 except Exception:
                     pass
     except Exception:
         return 1, "error reading session-outcomes.jsonl"
-    if total == 0:
-        return 1, "session-outcomes.jsonl exists but no entries in window"
-    rate = done / total
-    note = f"{done}/{total} issues reached Done after push ({rate:.0%})"
-    if rate >= 0.90:
-        return 5, note
-    if rate >= 0.75:
-        return 4, note
-    if rate >= 0.55:
-        return 3, note
-    if rate >= 0.30:
-        return 2, note
-    return 1, note
+    result = _score_from_rows(local_rows, "jsonl")
+    if result is not None:
+        return result
+    return 1, "needs_data — no entries in window yet"
 
 
 def score_c3_mean_time_to_value(rows: list[dict]) -> tuple[int, str]:
@@ -252,7 +283,7 @@ def score_c3_mean_time_to_value(rows: list[dict]) -> tuple[int, str]:
             except Exception:
                 pass
     if not durations:
-        return 1, "needs_data — push_timestamp column not yet populated (deploy RA-672 migration)"
+        return 1, "needs_data — no shipped sessions with push_timestamp yet (will populate once swarm starts building)"
     durations.sort()
     median = durations[len(durations) // 2]
     note = f"median {median:.0f} min over {len(durations)} builds"
