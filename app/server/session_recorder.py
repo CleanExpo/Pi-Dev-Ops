@@ -93,7 +93,6 @@ async def record_episode(session, brief: str = "") -> None:
 
     try:
         output_lines = getattr(session, "output_lines", [])
-        eval_status = getattr(session, "evaluator_status", "") or ""
         eval_score = float(getattr(session, "evaluator_score", 0) or 0)
         outcome = "complete" if session.status == "complete" else "failed"
         tests_passed = getattr(session, "sandbox_ok", True)  # sandbox phase passed = tests_passed
@@ -180,8 +179,8 @@ async def retrieve_similar_episodes(
 
     try:
         params = (
-            f"verified=eq.true"
-            f"&outcome=eq.complete"
+            "verified=eq.true"
+            "&outcome=eq.complete"
         )
         if repo_url:
             import urllib.parse
