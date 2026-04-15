@@ -431,6 +431,8 @@ async def _fire_trigger(trigger: dict, log) -> None:
         await _fire_scout_trigger(trigger, log)
     elif trigger_type == "feedback_loop":                      # RA-689
         await _fire_feedback_trigger(trigger, log)
+    elif trigger_type == "zte_v2_score":                       # RA-672: daily Section C rescore
+        await _fire_script_trigger(trigger, log)
     else:
         await create_session(
             repo_url=trigger["repo_url"],

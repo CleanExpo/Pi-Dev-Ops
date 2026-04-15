@@ -252,7 +252,7 @@ def score_c3_mean_time_to_value(rows: list[dict]) -> tuple[int, str]:
             except Exception:
                 pass
     if not durations:
-        return 1, "needs_data — push_timestamp column not yet populated (deploy RA-672 migration)"
+        return 1, "needs_data — no shipped sessions with push_timestamp yet (will populate once swarm starts building)"
     durations.sort()
     median = durations[len(durations) // 2]
     note = f"median {median:.0f} min over {len(durations)} builds"
