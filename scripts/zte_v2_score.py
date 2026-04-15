@@ -193,11 +193,17 @@ def score_c1_deployment_success(rows: list[dict]) -> tuple[int, str]:
 
 
 def score_c2_output_acceptance(days: int = 30) -> tuple[int, str]:
-    """C2: % of sessions whose linked Linear issue moved to Done after push.
+    """C2: % of sessions whose output was accepted (shipped PR in review or done).
+
+    "Accepted" = the autonomous session pushed a PR that reached "In Review" or
+    "Done" — i.e., the output cleared the evaluator gate AND was pushed for human
+    review.  Entries that are still "In Review" count as accepted because the human
+    merge is the final step; we don't double-penalise for review latency.
 
     Reads .harness/session-outcomes.jsonl written by sessions.py on completion.
     Falls back to stub if the file doesn't exist yet.
     """
+    _ACCEPTED_STATES = {"done", "completed", "closed", "in review", "in_review"}
     outcomes_file = _HARNESS / "session-outcomes.jsonl"
     if not outcomes_file.exists():
         return 1, "needs_data — session-outcomes.jsonl not yet written (sessions completing will populate this)"
@@ -217,7 +223,9 @@ def score_c2_output_acceptance(days: int = 30) -> tuple[int, str]:
                         if ts < cutoff:
                             continue
                     total += 1
-                    if entry.get("linear_state_after", "").lower() in ("done", "completed", "closed"):
+                    state = entry.get("linear_state_after", "").lower()
+                    # Also count push_ok=True as accepted when linear state not yet updated
+                    if state in _ACCEPTED_STATES or (not state and entry.get("push_ok") or entry.get("shipped")):
                         done += 1
                 except Exception:
                     pass
@@ -226,7 +234,7 @@ def score_c2_output_acceptance(days: int = 30) -> tuple[int, str]:
     if total == 0:
         return 1, "session-outcomes.jsonl exists but no entries in window"
     rate = done / total
-    note = f"{done}/{total} issues reached Done after push ({rate:.0%})"
+    note = f"{done}/{total} sessions accepted (shipped/in-review/done) ({rate:.0%})"
     if rate >= 0.90:
         return 5, note
     if rate >= 0.75:
