@@ -617,6 +617,163 @@ async def _phase_sandbox(session, resume_from: str) -> bool:
     return True
 
 
+async def _phase_plan(session, spec: str, resume_from: str) -> None:
+    """RA-1026 — Lightweight Haiku planning phase between sandbox and generator.
+
+    Converts the structured brief into a JSON implementation plan with up to 8
+    units, then writes it to .pi-ceo/{session_id}/PLAN.md and attaches a
+    markdown summary to session.plan.
+
+    Never blocks the pipeline: any error is logged and the function returns
+    without setting session.status = "failed".
+    """
+    if _should_skip("plan", resume_from):
+        em(session, "system", "  [SKIP] Plan (already completed)")
+        return
+
+    em(session, "phase", "[3.7/5] Planning implementation (haiku)...")
+    haiku_model = getattr(config, "HAIKU_MODEL", "haiku")
+
+    repo_context_snippet = ""
+    if session.workspace and os.path.isdir(session.workspace):
+        try:
+            files = [
+                f for f in os.listdir(session.workspace)
+                if not f.startswith(".") and f not in ("node_modules", "__pycache__")
+            ]
+            repo_context_snippet = "Top-level files: " + ", ".join(sorted(files)[:20])
+        except Exception:
+            pass
+
+    planning_prompt = (
+        "You are a planning agent. Convert this brief into a structured implementation plan.\n\n"
+        f"Brief:\n{spec[:3000]}\n\n"
+        f"Repo context: {repo_context_snippet or 'not available'}\n\n"
+        "Output a JSON object (no markdown fences):\n"
+        "{\n"
+        '  "units": [\n'
+        "    {\n"
+        '      "id": 1,\n'
+        '      "title": "...",\n'
+        '      "files": ["path/to/file.py"],\n'
+        '      "test_scenarios": ["happy path: ...", "edge case: ..."],\n'
+        '      "is_behavioral": true\n'
+        "    }\n"
+        "  ],\n"
+        '  "confidence": 0.0,\n'
+        '  "risk_notes": "..."\n'
+        "}\n\n"
+        "Rules:\n"
+        "- 3-8 units maximum\n"
+        "- Be specific about file paths\n"
+        "- For non-behavioral units (config, scaffolding) set is_behavioral: false "
+        "and omit test_scenarios\n"
+        "- confidence is 0.0-1.0 (your certainty this plan fully covers the brief)\n"
+        "- Respond with JSON only — no explanation, no markdown fences"
+    )
+
+    try:
+        rc, plan_text, _ = await asyncio.wait_for(
+            _run_claude_via_sdk(
+                planning_prompt, haiku_model, session.workspace,
+                timeout=45, session_id=session.id, phase="planner",
+            ),
+            timeout=50,
+        )
+    except asyncio.TimeoutError:
+        _log.warning("RA-1026: _phase_plan timed out (non-fatal) — continuing without plan")
+        em(session, "system", "  Plan phase timed out — continuing without plan")
+        session.last_completed_phase = "plan"
+        persistence.save_session(session)
+        return
+    except Exception as exc:
+        _log.warning("RA-1026: _phase_plan error (non-fatal): %s", exc)
+        em(session, "system", f"  Plan phase error — continuing without plan: {exc}")
+        session.last_completed_phase = "plan"
+        persistence.save_session(session)
+        return
+
+    if rc != 0 or not plan_text.strip():
+        _log.warning("RA-1026: planner returned rc=%d or empty text — continuing without plan", rc)
+        em(session, "system", "  Plan phase returned no output — continuing without plan")
+        session.last_completed_phase = "plan"
+        persistence.save_session(session)
+        return
+
+    # Parse JSON — strip accidental markdown fences if the model added them
+    plan_data: dict = {}
+    try:
+        clean = plan_text.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
+        plan_data = json.loads(clean)
+    except Exception as exc:
+        _log.warning("RA-1026: plan JSON parse failed (non-fatal): %s — raw: %.200s", exc, plan_text)
+        em(session, "system", "  Plan JSON parse failed — continuing without structured plan")
+        session.last_completed_phase = "plan"
+        persistence.save_session(session)
+        return
+
+    # Confidence gate — warn but never block
+    confidence = float(plan_data.get("confidence", 1.0))
+    if confidence < 0.7:
+        _log.warning(
+            "RA-1026: plan confidence=%.2f < 0.7 for session=%s — proceeding with low-confidence plan",
+            confidence, session.id,
+        )
+        em(session, "system", f"  Plan confidence low ({confidence:.0%}) — proceeding with caution")
+
+    # Build markdown summary for session.plan and PLAN.md
+    units = plan_data.get("units", [])
+    risk_notes = plan_data.get("risk_notes", "")
+
+    md_lines = [
+        "# Implementation Plan\n",
+        f"**Session:** {session.id}  ",
+        f"**Confidence:** {confidence:.0%}",
+        "",
+    ]
+    if risk_notes:
+        md_lines += [f"**Risk notes:** {risk_notes}", ""]
+
+    for unit in units:
+        uid = unit.get("id", "?")
+        title = unit.get("title", "Untitled")
+        files = unit.get("files", [])
+        scenarios = unit.get("test_scenarios", [])
+        is_behavioral = unit.get("is_behavioral", True)
+
+        md_lines.append(f"## Unit {uid}: {title}")
+        if files:
+            md_lines.append("**Files:** " + ", ".join(f"`{f}`" for f in files))
+        if is_behavioral and scenarios:
+            md_lines.append("**Test scenarios:**")
+            for s in scenarios:
+                md_lines.append(f"  - {s}")
+        md_lines.append("")
+
+    plan_md = "\n".join(md_lines)
+
+    # Write PLAN.md to .pi-ceo/{session_id}/ (create dirs if needed)
+    try:
+        from pathlib import Path  # noqa: PLC0415
+        pi_dir = Path(session.workspace) / ".pi-ceo" / session.id
+        pi_dir.mkdir(parents=True, exist_ok=True)
+        plan_path = pi_dir / "PLAN.md"
+        plan_path.write_text(plan_md, encoding="utf-8")
+        _log.info(
+            "RA-1026: plan written to %s (%d units, confidence=%.2f)",
+            plan_path, len(units), confidence,
+        )
+        em(session, "system", f"  Plan: {len(units)} unit(s) written → .pi-ceo/{session.id}/PLAN.md")
+    except Exception as exc:
+        _log.warning("RA-1026: PLAN.md write failed (non-fatal): %s", exc)
+
+    # Attach plan to session for generator injection
+    session.plan = plan_md
+    session.last_completed_phase = "plan"
+    persistence.save_session(session)
+    em(session, "success", "  Plan phase complete")
+
+
 async def _phase_generate(session, spec: str, model: str, resume_from: str) -> bool:
     """Run claude CLI; retry once with simplified prompt on failure."""
     em(session, "phase", "[4/5] Running Claude Code (live)...")
@@ -1039,6 +1196,17 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     # RA-934 — write cross-session task memory files to workspace before generation
     await _write_task_memory(session, brief, spec)
     em(session, "system", f"  Task memory: .pi-ceo/{session.id}/PLAN.md written")
+
+    # RA-1026 — structured planning phase (haiku) before generator
+    await _phase_plan(session, spec, resume_from)
+    if session.plan:
+        plan_header = (
+            "## Implementation Plan (pre-computed)\n"
+            f"{session.plan}\n\n"
+            "Follow this plan. Implement each unit in order. "
+            "Do not introduce components outside the plan units.\n\n"
+        )
+        spec = plan_header + spec
 
     if not await _phase_generate(session, spec, model, resume_from):
         _sync_linear_on_completion(session)
