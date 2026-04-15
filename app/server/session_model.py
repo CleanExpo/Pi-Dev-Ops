@@ -68,6 +68,8 @@ class BuildSession:
     autonomy_triggered: bool = False                # RA-887: True when started by autonomy poller
     repo_context: dict = field(default_factory=dict)  # RA-1025: grounded repo scan result
     plan: str = ""                                  # RA-1026: structured implementation plan (written by _phase_plan)
+    evaluator_findings: list = field(default_factory=list)  # RA-1027: structured JSON findings from persona review
+    shared_workspace: str = ""                      # RA-1029: path to parent's cloned workspace (worktree source)
 
 
 # ── In-memory session store ────────────────────────────────────────────────────

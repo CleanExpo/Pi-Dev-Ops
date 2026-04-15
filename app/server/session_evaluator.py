@@ -418,6 +418,194 @@ async def _run_single_eval(
     return _extract_eval_score(text), text
 
 
+async def _run_persona_review(session, workspace_path: str) -> list[dict]:
+    """RA-1027 — Run 4 review personas in parallel and return structured JSON findings.
+
+    Each persona runs a Haiku SDK call against the brief + a compact diff/file listing.
+    Results are merged, fingerprint-deduplicated (confidence boosted on consensus),
+    filtered (confidence < 0.55 dropped), and sorted high → medium → low.
+
+    Returns [] when the API key is missing, all persona calls fail, or workspace has no diff.
+    """
+    try:
+        import anthropic as _anthropic  # noqa: PLC0415
+    except ImportError:
+        _log.debug("persona review: anthropic not installed — skipping")
+        return []
+
+    api_key = config.ANTHROPIC_API_KEY
+    if not api_key:
+        _log.debug("persona review: ANTHROPIC_API_KEY missing — skipping")
+        return []
+
+    _HAIKU = "claude-haiku-4-5-20251001"
+    _SEVERITY_ORDER = {"high": 0, "medium": 1, "low": 2}
+
+    _PERSONAS: list[tuple[str, str]] = [
+        (
+            "correctness",
+            "You review code for logical errors, off-by-one errors, wrong assumptions, and runtime "
+            "exceptions. Focus on whether the implementation actually does what the brief requires. "
+            "Be specific: name the file, approximate line, and describe the bug clearly.",
+        ),
+        (
+            "testing",
+            "You review code for test coverage. Check whether happy paths, edge cases, and error "
+            "paths are tested. Flag untested code paths and missing assertions. Be specific: name "
+            "the file and the missing scenario.",
+        ),
+        (
+            "scope",
+            "You review code for scope creep. Check whether the implementation adds code not "
+            "required by the brief, modifies files outside the stated scope, or introduces "
+            "unnecessary abstractions. Flag anything that goes beyond the stated requirements.",
+        ),
+        (
+            "standards",
+            "You review code for project standards. Check commit message format, naming "
+            "conventions, import ordering, and whether the code matches the style of the "
+            "surrounding codebase. Flag deviations from established patterns.",
+        ),
+    ]
+
+    # ── Gather diff context (compact, under 4000 chars total) ────────────────
+    try:
+        diff_stat_proc = await asyncio.create_subprocess_exec(
+            "git", "diff", "HEAD~1", "--stat",
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            cwd=workspace_path,
+        )
+        stat_out, _ = await asyncio.wait_for(diff_stat_proc.communicate(), timeout=10)
+        diff_stat = stat_out.decode("utf-8", errors="replace").strip()
+    except Exception as _e:
+        _log.debug("persona review: git diff --stat failed: %s", _e)
+        diff_stat = ""
+
+    # Read up to 3 most-changed files (by line count in stat output)
+    changed_files: list[str] = []
+    try:
+        for line in diff_stat.splitlines():
+            # stat lines: "  path/to/file.py | 42 +++..."
+            if "|" in line and not line.strip().startswith("git diff"):
+                parts = line.split("|")
+                if len(parts) >= 2:
+                    fname = parts[0].strip()
+                    if fname:
+                        changed_files.append(fname)
+        changed_files = changed_files[:3]
+    except Exception:
+        changed_files = []
+
+    file_snippets: list[str] = []
+    total_chars = len(diff_stat)
+    for fname in changed_files:
+        if total_chars >= 3800:
+            break
+        try:
+            fpath = os.path.join(workspace_path, fname)
+            with open(fpath, encoding="utf-8", errors="replace") as fh:
+                content = fh.read(800)
+            snippet = f"### {fname}\n```\n{content}\n```"
+            file_snippets.append(snippet)
+            total_chars += len(snippet)
+        except Exception:
+            pass
+
+    brief_text = getattr(session, "_brief_context_for_persona", "") or ""
+    diff_context = (
+        f"DIFF STAT:\n{diff_stat}\n\n"
+        + ("\n\n".join(file_snippets) if file_snippets else "")
+    )[:4000]
+
+    _JSON_INSTRUCTION = (
+        "\n\nReturn ONLY a JSON array. No prose, no markdown fences, no explanation.\n"
+        "Format: [{\"file\": \"path/to/file.py\", \"line\": 42, \"issue\": \"...\", "
+        "\"severity\": \"high|medium|low\", \"confidence\": 0.0}]\n"
+        "Return [] if you find no issues."
+    )
+
+    # ── Per-persona Haiku call ────────────────────────────────────────────────
+    async def _call_persona(name: str, system_prompt: str) -> tuple[str, list[dict]]:
+        t0 = time.monotonic()
+        user_msg = (
+            (f"BRIEF:\n{brief_text}\n\n" if brief_text else "")
+            + diff_context
+            + _JSON_INSTRUCTION
+        )
+        try:
+            client = _anthropic.AsyncAnthropic(api_key=api_key, max_retries=0)
+            message = await client.messages.create(
+                model=_HAIKU,
+                max_tokens=512,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_msg}],
+                timeout=60,
+            )
+            raw = message.content[0].text if message.content else "[]"
+            _log.debug("persona=%s latency=%.1fs raw=%s", name, time.monotonic() - t0, raw[:120])
+            findings: list[dict] = json.loads(raw)
+            if not isinstance(findings, list):
+                findings = []
+            return name, findings
+        except json.JSONDecodeError as jex:
+            _log.warning("persona=%s JSON parse failed: %s — returning []", name, jex)
+            return name, []
+        except Exception as exc:
+            _log.warning("persona=%s call failed: %s — returning []", name, exc)
+            return name, []
+
+    # ── Run all 4 in parallel ─────────────────────────────────────────────────
+    results: list[tuple[str, list[dict]]] = list(
+        await asyncio.gather(*[_call_persona(name, prompt) for name, prompt in _PERSONAS])
+    )
+
+    # ── Merge + fingerprint boost ─────────────────────────────────────────────
+    fingerprint_count: dict[tuple, int] = {}
+    all_findings: list[dict] = []
+
+    for persona_name, findings in results:
+        for f in findings:
+            if not isinstance(f, dict):
+                continue
+            # Normalise required fields
+            f.setdefault("file", "unknown")
+            f.setdefault("line", 0)
+            f.setdefault("issue", "")
+            sev = str(f.get("severity", "low")).lower()
+            if sev not in _SEVERITY_ORDER:
+                sev = "low"
+            f["severity"] = sev
+            try:
+                conf = float(f.get("confidence", 0.7))
+                conf = max(0.0, min(1.0, conf))
+            except (TypeError, ValueError):
+                conf = 0.7
+            f["confidence"] = conf
+            f["persona"] = persona_name
+
+            fp = (f["file"], sev, f["issue"][:40])
+            fingerprint_count[fp] = fingerprint_count.get(fp, 0) + 1
+            all_findings.append(f)
+
+    # Apply confidence boost for consensus (2+ personas flagged same fingerprint)
+    for f in all_findings:
+        fp = (f["file"], f["severity"], f["issue"][:40])
+        if fingerprint_count.get(fp, 0) >= 2:
+            f["confidence"] = min(1.0, f["confidence"] + 0.15)
+
+    # Filter low-confidence findings
+    filtered = [f for f in all_findings if f["confidence"] >= 0.55]
+
+    # Sort: high → medium → low
+    filtered.sort(key=lambda f: _SEVERITY_ORDER.get(f["severity"], 2))
+
+    _log.info(
+        "persona review: %d raw findings → %d after filter (session=%s)",
+        len(all_findings), len(filtered), getattr(session, "id", ""),
+    )
+    return filtered
+
+
 async def _run_parallel_eval(session, eval_spec: str) -> tuple[Optional[float], str, str, str]:
     """Run Sonnet + Haiku in parallel; escalate to Opus when |delta| > 2.
 
