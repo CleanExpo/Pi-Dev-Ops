@@ -145,6 +145,8 @@ Run `npx tsc --noEmit && npm run build` before committing any change to `dashboa
    `SUPABASE_`, `postgres://`, or `Bearer ` (token patterns) must be rejected by the
    evaluator with a mandatory flag comment.
 
+6. **Push target.** All autonomous sessions push to a `pidev/auto-{sid[:8]}` feature branch — never directly to `main`. If GITHUB_TOKEN is not set in the environment, the push phase will fail silently and log an error. Verify GITHUB_TOKEN and GITHUB_REPO are set in Railway environment variables.
+
 ---
 
 ## Source
@@ -153,4 +155,4 @@ Patterns adapted from Codex four-file task memory (PROMPT/PLAN/IMPLEMENT/STATUS.
 Kimi K2 minimal tool set philosophy (6 orthogonal tools > 20 overlapping), and
 DeepSeek R1 structured reasoning seeding.
 
-Last updated: 2026-04-14 (RA-937)
+Last updated: 2026-04-14 (MARATHON-4 / RA-588)

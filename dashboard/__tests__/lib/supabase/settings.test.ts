@@ -138,7 +138,7 @@ describe("getSettings", () => {
     const s = await getSettings();
 
     // No key named 'unknown_key_xyz' on AppSettings — should not throw
-    expect((s as Record<string, unknown>)["unknown_key_xyz"]).toBeUndefined();
+    expect((s as unknown as Record<string, unknown>)["unknown_key_xyz"]).toBeUndefined();
   });
 
   // ── cron_repos JSON parsing ─────────────────────────────────────────────

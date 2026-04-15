@@ -224,6 +224,7 @@ export default function Dashboard() {
       <div
         ref={containerRef}
         className="flex min-h-0"
+        // eslint-disable-next-line react-hooks/refs -- isResizing.current is intentionally read during render for CSS cursor hint only (non-reactive, no state needed)
         style={{ flex: 1, overflow: "hidden", cursor: isResizing.current ? "col-resize" : undefined }}
         onPointerMove={onResizePointerMove}
         onPointerUp={onResizePointerUp}

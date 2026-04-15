@@ -71,12 +71,13 @@ Expected: 3 pre-existing failures in `test_sdk_phase2.py` (claude_agent_sdk not 
 - **Password auth:** bcrypt with transparent SHA-256 migration (`auth.py`). `TAO_PASSWORD` set → hash regenerated on every startup so Railway env changes take effect immediately.
 - **Session secret:** Persisted to `app/data/.session-secret`.
 - **SSE streaming:** `dashboard/hooks/useSSE.ts` with exponential backoff reconnection.
-- **Phase pipeline:** 5–6 phases in `sessions.py`, parsed by `dashboard/lib/phases.ts`.
+- **Phase pipeline:** 5–6 phases in `sessions.py`, parsed by `dashboard/lib/phases.ts`. Phase 5: git push to `pidev/auto-{sid}` feature branch with GITHUB_TOKEN auth (3-attempt backoff; auth failure → hard stop).
 - **Settings:** Supabase-backed via `dashboard/lib/supabase/settings.ts`.
 - **MCP tools:** `mcp/pi-ceo-server.js` — 21 tools for harness reads + Linear operations.
 - **Path traversal:** `_safe_sid()` strips non-alphanumeric from session IDs before file path use.
 - **Webhook HMAC:** `hmac.compare_digest()` for GitHub (`x-hub-signature-256`) and Linear (`Linear-Signature`).
 - **Analysis mode:** `ANALYSIS_MODE=api` in Vercel forces Max plan subscription token (`sk-ant-oat01-*` from `claude setup-token`).
+- **Push auth:** `_phase_push()` injects GITHUB_TOKEN via x-access-token into git remote URL and pushes to `pidev/auto-{sid[:8]}` feature branch. Requires GITHUB_TOKEN + GITHUB_REPO env vars in Railway.
 - **Route isolation:** Each `routes/*.py` module owns one concern. `_IS_CLOUD` is re-derived from `os.environ` in `routes/auth.py` (not imported from `app_factory`) to avoid coupling. `_find_active_session_for_repo()` lives in `routes/sessions.py` and is imported into `routes/webhooks.py` one-way.
 
 ## SDK Architecture
@@ -130,11 +131,20 @@ Every SDK invocation emits a row to `.harness/agent-sdk-metrics/YYYY-MM-DD.jsonl
 
 Three jobs: `python` (pytest + ruff), `frontend` (tsc + eslint + build), `smoke-prod` (post-deploy gate against Railway, main-branch only). `smoke-prod` requires `TAO_PROD_PASSWORD` GitHub secret.
 
-## Current Sprint (Sprint 11 — 2026-04-14)
+## Current Sprint (Sprint 11 — Complete 2026-04-14)
 
-**ZTE v2: 84/100 → 85+ projected after next scan → 90 target (C1+C2+C3 when Railway sessions flow)**
+**ZTE v2: 85/100 achieved**
 
-Active: RA-588 MARATHON-4 (first 6-hour autonomous self-maintenance run). All Gemini Scheduled Actions live (RA-816–819). Dep health merged across 4 repos (RA-843). Synthex CVEs 28→22 (RA-844). RA-937 completed: `main.py` decomposed from 922L into 11 focused modules — all ≤300L, zero breaking changes. Outstanding: carsi `ADMIN_PASSWORD` env var (DigitalOcean App Platform — requires developer).
+Done: RA-588 MARATHON-4 completed — first autonomous loop run end-to-end in ~90s (RA-948). All Gemini Scheduled Actions live (RA-816–819). Dep health merged across 4 repos (RA-843). Synthex CVEs 28→22 (RA-844). RA-937 completed: `main.py` decomposed from 922L into 11 focused modules — all ≤300L, zero breaking changes. PR #10: evaluator fixed (`anthropic>=0.40` in `requirements.txt` + `brief_context` in Agent SDK fallback `eval_spec`). PR #11: push auth fixed (`_phase_push()` now injects GITHUB_TOKEN and pushes to `pidev/auto-{sid[:8]}` feature branch). Outstanding: carsi `ADMIN_PASSWORD` env var (DigitalOcean App Platform — requires developer).
+
+## Sprint 12 — Upcoming
+
+**ZTE v2 target: 90**
+
+- Shadow mode flip (`TAO_SWARM_SHADOW=0`) — pending Week 3 board sign-off
+- RA-821 entity ranking for NotebookLM — pending owner decision
+- Merge `pidev/auto-0e474d30` PR for RA-948 — pending human review
+- carsi `ADMIN_PASSWORD` (DigitalOcean, developer action required)
 
 ## Content Rules
 

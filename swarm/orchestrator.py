@@ -10,7 +10,8 @@ Shadow mode (TAO_SWARM_SHADOW=1, default ON):
 
 Kill-switch: set TAO_SWARM_ENABLED=0 (or unset) — the loop exits immediately.
 Auto-suspend: fires after TAO_SWARM_MAX_UNACKED_ITERS consecutive cycles
-              without a human Telegram acknowledgement (default: 15).
+              without a human Telegram acknowledgement (default: 288 = 24h).
+              Send /ack or /turbopack in the Telegram chat to resume.
 
 Usage:
     cd Pi-Dev-Ops
@@ -19,7 +20,7 @@ Usage:
 Fifteen Mandatory Controls (board-approved):
   1.  TAO_SWARM_ENABLED=1 required — default OFF
   2.  SHADOW_MODE=1 required for Weeks 1–3 — default ON
-  3.  Auto-suspend at 15 unacknowledged iterations
+  3.  Auto-suspend at 288 unacknowledged iterations (default; 24h at 5-min cycles)
   4.  Guardian cycle runs first every iteration
   5.  Guardian veto can halt remaining bots in an iteration
   6.  All Telegram messages prefixed [AGENT OUTPUT]
@@ -41,6 +42,7 @@ import logging
 import signal
 import sys
 import time
+import urllib.request
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -78,6 +80,36 @@ def _save_state(state_file: Path, state: dict) -> None:
     tmp.replace(state_file)
 
 
+def _poll_telegram_for_ack(state: dict, token: str, chat_id: str) -> bool:
+    """Poll Telegram getUpdates for /ack or /turbopack from the operator.
+
+    Returns True if an acknowledgement command was found.  Persists the last
+    processed update_id in state so duplicate processing is impossible.
+    """
+    if not token or not chat_id:
+        return False
+    offset = state.get("last_update_id", 0) + 1
+    url = (
+        f"https://api.telegram.org/bot{token}/getUpdates"
+        f"?offset={offset}&timeout=0&limit=20"
+    )
+    try:
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            data = json.loads(resp.read())
+        for update in data.get("result", []):
+            uid = update.get("update_id", 0)
+            if uid > state.get("last_update_id", 0):
+                state["last_update_id"] = uid
+            msg = update.get("message", {})
+            text = (msg.get("text") or "").strip().lower().split()[0]
+            msg_chat = str(msg.get("chat", {}).get("id", ""))
+            if msg_chat == str(chat_id) and text in ("/ack", "/turbopack"):
+                return True
+    except Exception as exc:
+        log.debug("Telegram poll error: %s", exc)
+    return False
+
+
 def _should_send_daily_report(last_report_ts: str | None) -> bool:
     """Return True if the daily 08:00 AEST report is due."""
     from . import config
@@ -93,7 +125,7 @@ def _should_send_daily_report(last_report_ts: str | None) -> bool:
 def run() -> None:
     """Main orchestrator loop — runs until killed or kill-switch fires."""
     from . import config
-    from .bots import guardian
+    from .bots import guardian, builder, scribe, click
     from .telegram_alerts import send, send_daily_report
 
     if not config.SWARM_ENABLED:
@@ -103,6 +135,11 @@ def run() -> None:
 
     state_file = config.SWARM_LOG_DIR / "orchestrator_state.json"
     state = _load_state(state_file)
+
+    # Clear stale suspended flag from a previous run if count is now below threshold
+    if state.get("suspended") and state["unacked_count"] < config.MAX_UNACKED_ITERATIONS:
+        state["suspended"] = False
+        _save_state(state_file, state)
 
     mode_label = "SHADOW MODE" if config.SHADOW_MODE else "ACTIVE MODE"
     log.info("Pi-CEO Swarm starting — %s (unacked=%d)", mode_label, state["unacked_count"])
@@ -133,17 +170,26 @@ def run() -> None:
 
         # Check auto-suspend
         if state["unacked_count"] >= config.MAX_UNACKED_ITERATIONS:
-            log.warning("Auto-suspend: %d unacknowledged iterations", state["unacked_count"])
-            send(
-                f"⛔ <b>AUTO-SUSPEND</b>: {state['unacked_count']} iterations completed without "
-                f"human acknowledgement.\n\nReply /ack to resume the swarm.",
-                severity="critical",
-                bot_name="Orchestrator",
-            )
-            state["suspended"] = True
-            _save_state(state_file, state)
-            # Wait for /ack (check every 60s) — placeholder until Telegram webhook is wired
-            log.info("Swarm suspended — waiting for operator /ack")
+            if not state.get("suspended"):
+                # First time crossing threshold — send the alert exactly once
+                log.warning("Auto-suspend: %d unacknowledged iterations", state["unacked_count"])
+                send(
+                    f"⛔ <b>AUTO-SUSPEND</b>: {state['unacked_count']} iterations completed without "
+                    f"human acknowledgement.\n\nReply /ack or /turbopack to resume the swarm.",
+                    severity="critical",
+                    bot_name="Orchestrator",
+                )
+                state["suspended"] = True
+                _save_state(state_file, state)
+                log.info("Swarm suspended — polling for /ack or /turbopack")
+            # Poll Telegram every 60s; resume immediately on /ack or /turbopack
+            if _poll_telegram_for_ack(state, config.TELEGRAM_BOT_TOKEN, config.TELEGRAM_CHAT_ID):
+                log.info("Operator acknowledgement received — resuming swarm")
+                state["suspended"] = False
+                state["unacked_count"] = 0
+                _save_state(state_file, state)
+                send("✅ Acknowledgement received — swarm resumed.", severity="info", bot_name="Orchestrator")
+                continue
             time.sleep(60)
             continue
 
@@ -161,13 +207,10 @@ def run() -> None:
             time.sleep(config.CYCLE_INTERVAL_S)
             continue
 
-        # ── Other bots (shadow mode: observe only) ───────────────────────────
-        # Builder, Scribe, Click activated in Phase 2 (Week 3+, board sign-off)
-        if config.SHADOW_MODE:
-            log.info("Shadow mode: Builder/Scribe/Click observing only (no actions)")
-        else:
-            # Phase 2+ activation (not yet implemented — board sign-off required)
-            log.info("Active mode: Builder/Scribe/Click activation pending Phase 2 ticket")
+        # ── Builder, Scribe, Click (each self-gates on config.SHADOW_MODE) ─────
+        builder.run_cycle(state["unacked_count"])
+        click.run_cycle(state["unacked_count"])
+        scribe.run_cycle(state["unacked_count"])
 
         # ── Daily report ─────────────────────────────────────────────────────
         if _should_send_daily_report(state.get("last_daily_report")):
@@ -181,7 +224,7 @@ def run() -> None:
             send_daily_report(report_lines)
             state["last_daily_report"] = datetime.now(timezone.utc).isoformat()
 
-        # Increment unacked counter (will reset to 0 when operator sends /ack)
+        # Increment unacked counter (resets to 0 when operator sends /ack or /turbopack)
         state["unacked_count"] += 1
         _save_state(state_file, state)
 

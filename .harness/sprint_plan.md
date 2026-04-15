@@ -1,10 +1,23 @@
 # Pi Dev Ops — Sprint Plan
 
-_Sprint 11 active | 2026-04-14 | ZTE v2: 84/100 (projected 85+ after next scan) | 95 features shipped_
+_Sprint 12 active | 2026-04-14 | ZTE v2: 85/100 | 98 features shipped_
 
 ---
 
-## Sprint 11 — Active (2026-04-14)
+## Sprint 12 — Active (2026-04-14)
+
+**Theme:** Shadow → Active + ZTE v2 → 90
+
+| Issue | Priority | Title | Status |
+|-------|----------|-------|--------|
+| — | High | Shadow mode flip (`TAO_SWARM_SHADOW=0`) | Pending Week 3 board sign-off |
+| RA-821 | High | NotebookLM entity ranking | Pending owner decision |
+| RA-948 | High | Merge `pidev/auto-0e474d30` PR | Pending human review |
+| — | High | carsi `ADMIN_PASSWORD` (DigitalOcean) | Developer action required |
+
+---
+
+## Sprint 11 — Complete (2026-04-14)
 
 **Theme:** Gemini Automation Layer + Dep Health + ZTE v2 → 90
 
@@ -17,9 +30,11 @@ _Sprint 11 active | 2026-04-14 | ZTE v2: 84/100 (projected 85+ after next scan) 
 | RA-819 | Urgent | Gemini Scheduled Action — daily calendar and email digest | **Done** |
 | RA-843 | High | Dep health PRs merged — carsi, DR-NRPG, Synthex, unite-group | **Done** |
 | RA-844 | High | Synthex CVE migrations — 6 done (supabase/ssr, nodemailer, zustand, tailwind-merge, lucide-react, date-fns); stripe/ts/eslint/jest deferred | **Done** |
-| RA-588 | High | MARATHON-4: first 6-hour autonomous self-maintenance run | **In Progress** |
+| RA-588 | High | MARATHON-4: first autonomous loop run — evaluator + push auth fixed (PR #10, PR #11) | **Done** |
+| RA-948 | Urgent | First autonomous loop run — swarm_enabled/swarm_shadow in /health | **Done** |
+| RA-949 | High | MARATHON-4 infra fixes — evaluator SDK + push auth (PR #10, PR #11) | **Done** |
 
-**Remaining:** MARATHON-4 completion · carsi `ADMIN_PASSWORD` (DigitalOcean, developer action required)
+**Remaining:** carsi `ADMIN_PASSWORD` (DigitalOcean, developer action required)
 
 ---
 
