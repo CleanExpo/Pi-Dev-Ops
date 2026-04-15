@@ -70,6 +70,7 @@ class BuildSession:
     plan: str = ""                                  # RA-1026: structured implementation plan (written by _phase_plan)
     evaluator_findings: list = field(default_factory=list)  # RA-1027: structured JSON findings from persona review
     shared_workspace: str = ""                      # RA-1029: path to parent's cloned workspace (worktree source)
+    phase_metrics: dict = field(default_factory=dict)  # RA-1032: per-phase {duration_s, cost_usd}
 
 
 # ── In-memory session store ────────────────────────────────────────────────────

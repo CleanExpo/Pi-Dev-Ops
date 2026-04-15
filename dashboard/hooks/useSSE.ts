@@ -5,17 +5,23 @@ import { useCallback, useRef, useState } from "react";
 import type { TermLine, Phase, AnalysisResult, PhaseStatus } from "@/lib/types";
 import { PHASES } from "@/lib/phases";
 
+interface PhaseMetric {
+  duration_s: number;
+  cost_usd: number;
+}
+
 interface SSEState {
-  lines:      TermLine[];
-  phases:     Phase[];
-  result:     Partial<AnalysisResult>;
-  branch:     string | null;
-  prUrl:      string | null;
-  linearUrl:  string | null;
-  linearId:   string | null;
-  status:     "idle" | "running" | "done" | "error";
-  error:      string | null;
-  retries:    number;
+  lines:        TermLine[];
+  phases:       Phase[];
+  result:       Partial<AnalysisResult>;
+  branch:       string | null;
+  prUrl:        string | null;
+  linearUrl:    string | null;
+  linearId:     string | null;
+  status:       "idle" | "running" | "done" | "error";
+  error:        string | null;
+  retries:      number;
+  phaseMetrics: Record<string, PhaseMetric>;
 }
 
 const initialPhases = (): Phase[] =>
@@ -30,16 +36,17 @@ export function useSSE() {
   const repoRef      = useRef<string>("");
 
   const [state, setState] = useState<SSEState>({
-    lines:      [],
-    phases:     initialPhases(),
-    result:     {},
-    branch:     null,
-    prUrl:      null,
-    linearUrl:  null,
-    linearId:   null,
-    status:     "idle",
-    error:      null,
-    retries:    0,
+    lines:        [],
+    phases:       initialPhases(),
+    result:       {},
+    branch:       null,
+    prUrl:        null,
+    linearUrl:    null,
+    linearId:     null,
+    status:       "idle",
+    error:        null,
+    retries:      0,
+    phaseMetrics: {},
   });
 
   const briefRef = useRef<string>("");
@@ -75,6 +82,18 @@ export function useSSE() {
               }
             : p
         ),
+      }));
+    });
+
+    es.addEventListener("phase_metric", (e) => {
+      const { phase, duration_s, cost_usd } = JSON.parse(e.data) as {
+        phase: string;
+        duration_s: number;
+        cost_usd: number;
+      };
+      setState((s) => ({
+        ...s,
+        phaseMetrics: { ...s.phaseMetrics, [phase]: { duration_s, cost_usd } },
       }));
     });
 
@@ -160,16 +179,17 @@ export function useSSE() {
     repoRef.current = repoUrl;
     briefRef.current = brief ?? "";
     setState({
-      lines:      [],
-      phases:     initialPhases(),
-      result:     {},
-      branch:     null,
-      prUrl:      null,
-      linearUrl:  null,
-      linearId:   null,
-      status:     "running",
-      error:      null,
-      retries:    0,
+      lines:        [],
+      phases:       initialPhases(),
+      result:       {},
+      branch:       null,
+      prUrl:        null,
+      linearUrl:    null,
+      linearId:     null,
+      status:       "running",
+      error:        null,
+      retries:      0,
+      phaseMetrics: {},
     });
     connect(repoUrl, 0);
   }, [connect]);
