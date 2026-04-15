@@ -36,10 +36,10 @@ function healthIndicator(score: number | undefined): string {
 }
 
 function ScoreBar({ score }: { score: number | undefined }) {
-  if (score === undefined) return <span style={{ color: "#888480", fontFamily: "monospace" }}>not scanned</span>;
+  if (score === undefined) return <span style={{ color: "var(--text-muted)", fontFamily: "monospace" }}>not scanned</span>;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-      <div style={{ width: 60, height: 4, background: "#2A2727", borderRadius: 2, overflow: "hidden" }}>
+      <div style={{ width: 60, height: 4, background: "var(--border)", borderRadius: 2, overflow: "hidden" }}>
         <div style={{ width: `${score}%`, height: "100%", background: healthColor(score), transition: "width 0.3s" }} />
       </div>
       <span style={{ color: healthColor(score), fontFamily: "monospace", fontSize: 11 }}>{score}</span>
@@ -98,22 +98,22 @@ export default function ProjectsPage() {
   return (
     <div
       className="flex flex-col"
-      style={{ height: "calc(100vh - 40px)", overflow: "auto", background: "#0A0A0A" }}
+      style={{ height: "calc(100vh - 40px)", overflow: "auto", background: "var(--background)" }}
     >
       {/* ── Header ── */}
       <div
         className="flex items-center justify-between px-4 py-3 shrink-0"
-        style={{ borderBottom: "1px solid #2A2727", background: "#0D0D0D" }}
+        style={{ borderBottom: "1px solid var(--border)", background: "var(--panel)" }}
       >
         <div className="flex items-center gap-3">
-          <span className="font-mono text-[11px] font-bold" style={{ color: "#E8751A", letterSpacing: "0.1em" }}>
+          <span className="font-mono text-[11px] font-bold" style={{ color: "var(--accent)", letterSpacing: "0.1em" }}>
             PI-SEO
           </span>
-          <span className="font-mono text-[11px]" style={{ color: "#888480" }}>PROJECT HEALTH</span>
+          <span className="font-mono text-[11px]" style={{ color: "var(--text-muted)" }}>PROJECT HEALTH</span>
           {avgHealth !== null && (
             <span
               className="font-mono text-[11px] px-2 py-0.5"
-              style={{ background: "#1A1A1A", color: healthColor(avgHealth), border: `1px solid ${healthColor(avgHealth)}33` }}
+              style={{ background: "var(--panel-hover)", color: healthColor(avgHealth), border: `1px solid ${healthColor(avgHealth)}33` }}
             >
               avg {avgHealth}/100
             </span>
@@ -121,7 +121,7 @@ export default function ProjectsPage() {
         </div>
         <div className="flex items-center gap-3">
           {lastUpdated && (
-            <span className="font-mono text-[10px]" style={{ color: "#555" }}>
+            <span className="font-mono text-[10px]" style={{ color: "var(--text-dim)" }}>
               updated {lastUpdated.toLocaleTimeString()}
             </span>
           )}
@@ -129,14 +129,14 @@ export default function ProjectsPage() {
             onClick={() => triggerScan()}
             disabled={scanning}
             className="font-mono text-[10px] px-3 py-1 disabled:opacity-40"
-            style={{ background: scanning ? "#1A1A1A" : "#1A1A1A", color: "#E8751A", border: "1px solid #E8751A44" }}
+            style={{ background: "var(--panel-hover)", color: "var(--accent)", border: "1px solid var(--accent)44" }}
           >
             {scanning ? "SCANNING…" : "SCAN ALL"}
           </button>
           <button
             onClick={fetchHealth}
             className="font-mono text-[10px] px-3 py-1"
-            style={{ background: "#1A1A1A", color: "#888480", border: "1px solid #2A2727" }}
+            style={{ background: "var(--panel-hover)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
           >
             REFRESH
           </button>
@@ -144,7 +144,7 @@ export default function ProjectsPage() {
       </div>
 
       {error && (
-        <div className="px-4 py-2 font-mono text-[11px]" style={{ background: "#1a0808", color: "#F87171", borderBottom: "1px solid #F8717133" }}>
+        <div className="px-4 py-2 font-mono text-[11px]" style={{ background: "var(--panel)", color: "#F87171", borderBottom: "1px solid #F8717133" }}>
           ✗ {error}
         </div>
       )}
@@ -152,21 +152,21 @@ export default function ProjectsPage() {
       {/* ── Table ── */}
       <div className="flex-1 overflow-auto">
         {loading ? (
-          <div className="flex items-center justify-center h-32 font-mono text-[11px]" style={{ color: "#555" }}>
+          <div className="flex items-center justify-center h-32 font-mono text-[11px]" style={{ color: "var(--text-dim)" }}>
             loading…
           </div>
         ) : (
           <table className="w-full font-mono text-[11px]" style={{ borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ borderBottom: "1px solid #2A2727" }}>
-                <th className="text-left px-4 py-2" style={{ color: "#555", fontWeight: 400 }}>PROJECT</th>
-                <th className="text-left px-4 py-2" style={{ color: "#555", fontWeight: 400 }}>OVERALL</th>
+              <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                <th className="text-left px-4 py-2" style={{ color: "var(--text-dim)", fontWeight: 400 }}>PROJECT</th>
+                <th className="text-left px-4 py-2" style={{ color: "var(--text-dim)", fontWeight: 400 }}>OVERALL</th>
                 {SCAN_TYPES.map(st => (
-                  <th key={st} className="text-left px-4 py-2" style={{ color: "#555", fontWeight: 400 }}>
+                  <th key={st} className="text-left px-4 py-2" style={{ color: "var(--text-dim)", fontWeight: 400 }}>
                     {SCAN_LABELS[st].toUpperCase()}
                   </th>
                 ))}
-                <th className="text-left px-4 py-2" style={{ color: "#555", fontWeight: 400 }}>DEPLOYMENTS</th>
+                <th className="text-left px-4 py-2" style={{ color: "var(--text-dim)", fontWeight: 400 }}>DEPLOYMENTS</th>
                 <th className="px-4 py-2" />
               </tr>
             </thead>
@@ -175,13 +175,13 @@ export default function ProjectsPage() {
                 <tr
                   key={proj.project_id}
                   style={{
-                    borderBottom: "1px solid #1A1A1A",
-                    background: i % 2 === 0 ? "transparent" : "#0D0D0D",
+                    borderBottom: "1px solid var(--border-subtle)",
+                    background: i % 2 === 0 ? "transparent" : "var(--panel)",
                   }}
                 >
                   <td className="px-4 py-2.5">
-                    <div style={{ color: "#F0EDE8" }}>{proj.project_id}</div>
-                    <div style={{ color: "#555", fontSize: 10 }}>{proj.repo.split("/")[1]}</div>
+                    <div style={{ color: "var(--text)" }}>{proj.project_id}</div>
+                    <div style={{ color: "var(--text-dim)", fontSize: 10 }}>{proj.repo.split("/")[1]}</div>
                   </td>
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-2">
@@ -197,7 +197,7 @@ export default function ProjectsPage() {
                     <td key={st} className="px-4 py-2.5">
                       <ScoreBar score={proj.scores[st]} />
                       {proj.findings_count[st] !== undefined && (
-                        <div style={{ color: "#555", fontSize: 10, marginTop: 2 }}>
+                        <div style={{ color: "var(--text-dim)", fontSize: 10, marginTop: 2 }}>
                           {proj.findings_count[st]} finding{proj.findings_count[st] !== 1 ? "s" : ""}
                         </div>
                       )}
@@ -206,11 +206,11 @@ export default function ProjectsPage() {
                   <td className="px-4 py-2.5">
                     {Object.entries(proj.deployments).map(([name, url]) => (
                       <div key={name} style={{ color: "#4ADE80", fontSize: 10 }}>
-                        {name}: <span style={{ color: "#555" }}>{url.replace("https://", "")}</span>
+                        {name}: <span style={{ color: "var(--text-dim)" }}>{url.replace("https://", "")}</span>
                       </div>
                     ))}
                     {Object.keys(proj.deployments).length === 0 && (
-                      <span style={{ color: "#333" }}>—</span>
+                      <span style={{ color: "var(--text-dim)" }}>—</span>
                     )}
                   </td>
                   <td className="px-4 py-2.5">
@@ -218,7 +218,7 @@ export default function ProjectsPage() {
                       onClick={() => triggerScan(proj.project_id)}
                       disabled={scanning}
                       className="font-mono text-[10px] px-2 py-0.5 disabled:opacity-30"
-                      style={{ background: "transparent", color: "#E8751A", border: "1px solid #E8751A44" }}
+                      style={{ background: "transparent", color: "var(--accent)", border: "1px solid var(--accent)44" }}
                     >
                       scan
                     </button>

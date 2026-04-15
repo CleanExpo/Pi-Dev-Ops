@@ -8,7 +8,7 @@ interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const variantColor: Record<string, string> = {
-  default: "var(--c-orange)",
+  default: "var(--accent)",
   success: "#4ADE80",
   warning: "#FFD166",
   error:   "#F87171",
@@ -23,7 +23,7 @@ const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(
       aria-valuemin={0}
       aria-valuemax={100}
       className={cn(
-        "relative h-0.5 w-full overflow-hidden bg-[var(--c-border)]",
+        "relative h-0.5 w-full overflow-hidden bg-[var(--border)]",
         className
       )}
       {...props}
