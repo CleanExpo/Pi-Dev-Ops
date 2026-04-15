@@ -25,13 +25,15 @@ import logging
 import os
 import random
 import shutil
+import subprocess
 import time
 import urllib.request
+from pathlib import Path
 
 from . import config
 from . import persistence
 from .brief import classify_intent, build_structured_brief, scan_repo_context
-from .lessons import append_lesson, load_lessons
+from .lessons import append_lesson, load_lessons, extract_lesson_from_eval, append_lesson_dedup
 from .supabase_log import log_gate_check
 from .session_recorder import record_episode, retrieve_similar_episodes, format_episodes_as_context
 from .session_model import em
@@ -42,6 +44,7 @@ from .session_evaluator import (
     _send_low_confidence_alert,
     _run_parallel_eval,
     _run_parallel_eval_cached,
+    _run_persona_review,
 )
 from .session_linear import (
     _update_linear_state,
@@ -488,6 +491,31 @@ async def _phase_clone(session, resume_from: str) -> bool:
         if not session.workspace:
             session.workspace = os.path.join(config.WORKSPACE_ROOT, session.id)
         return True
+
+    # RA-1029: use git worktree if this is a worker session with a shared parent workspace
+    if session.shared_workspace and session.parent_session_id:
+        branch_name = f"worker-{session.id[:8]}"
+        worktree_path = Path(session.shared_workspace).parent / session.id
+        try:
+            result = await asyncio.to_thread(
+                subprocess.run,
+                ["git", "-C", session.shared_workspace, "worktree", "add",
+                 str(worktree_path), "-b", branch_name],
+                capture_output=True, text=True,
+            )
+        except Exception as exc:
+            _log.warning("Worktree creation raised exception, falling back to full clone: %s", exc)
+            result = None
+        if result is not None and result.returncode == 0:
+            session.workspace = str(worktree_path)
+            session.status = "cloning"
+            session.last_completed_phase = "clone"
+            em(session, "success", "  Using git worktree (skipped network clone)")
+            persistence.save_session(session)
+            return True
+        stderr_msg = result.stderr.strip() if result is not None else "exception"
+        _log.warning("Worktree creation failed, falling back to full clone: %s", stderr_msg)
+
     em(session, "phase", "[1/5] Cloning repository...")
     session.status = "cloning"
     persistence.save_session(session)
@@ -873,6 +901,8 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
         em(session, "system", f"  Budget: {_bp.get('budget_minutes', '?')}min"
            f" → threshold={threshold}/10 retries={max_retries}")
     brief_context = (brief[:2000] + "...") if len(brief) > 2000 else brief
+    # RA-1027 — stash brief so _run_persona_review can include it in persona prompts
+    session._brief_context_for_persona = brief_context
     _EVAL_PROMPT_BASE = (
         "You are a senior code reviewer evaluating AI-generated changes. "
         "Be rigorous — your job is to catch every gap and flaw.\n\n"
@@ -969,6 +999,22 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
                         severity="warn")
             except Exception:
                 pass
+            # RA-1028 — auto-extract structured lesson from evaluator output
+            try:
+                extracted = extract_lesson_from_eval(
+                    session.brief or "",
+                    eval_text,
+                    session.evaluator_score or 0.0,
+                )
+                if extracted:
+                    append_lesson_dedup(
+                        extracted["text"],
+                        category=extracted["category"],
+                        repo=getattr(session, "repo_url", "") or "",
+                        severity=extracted.get("severity", "info"),
+                    )
+            except Exception:
+                pass
             if passed:
                 # RA-674 — Three-tier routing based on score + confidence
                 if (session.evaluator_score >= config.EVAL_AUTOSHIP_SCORE
@@ -1054,6 +1100,20 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
             session.evaluator_status = "error"
             em(session, "error", f"  Evaluator error: {e}")
             break
+    # RA-1027 — run multi-persona parallel review and emit structured findings
+    try:
+        findings = await _run_persona_review(session, session.workspace)
+        session.evaluator_findings = findings
+        if findings:
+            import time as _time  # noqa: PLC0415
+            session.output_lines.append({
+                "type": "evaluator_findings",
+                "findings": findings,
+                "ts": _time.time(),
+            })
+            em(session, "system", f"  Persona review: {len(findings)} finding(s) (RA-1027)")
+    except Exception as _pf_exc:
+        _log.warning("persona review failed (non-fatal): %s", _pf_exc)
     session.last_completed_phase = "evaluator"
     persistence.save_session(session)
     return total_phases
