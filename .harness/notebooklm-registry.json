@@ -3,7 +3,7 @@
   "last_updated": "2026-04-15",
   "notebooks": [
     {
-      "id": "TBD",
+      "id": "e2d607ca-38cd-41c5-a172-01a72ce681e3",
       "entity": "RestoreAssist",
       "name": "Pi-CEO — RestoreAssist Knowledge Base",
       "purpose": "Core business entity — Linear project docs, Pi-CEO pipeline, billing & estimation platform",
@@ -13,12 +13,13 @@
         "Architecture docs, CLAUDE.md",
         "Pi-Dev-Ops sprint plans"
       ],
-      "status": "pending_creation",
+      "status": "active",
+      "created_at": "2026-04-15",
       "acceptance_criteria": "10/10 standard queries pass + top-3-risks criterion (RA-822)",
       "linked_issue": "RA-822"
     },
     {
-      "id": "TBD",
+      "id": "7742cc83-0c5e-4486-bab9-333f0992ce4c",
       "entity": "Synthex",
       "name": "Pi-CEO — Synthex Knowledge Base",
       "purpose": "Active security work — CVE reduction programme 28→22",
@@ -27,12 +28,13 @@
         "Security architecture docs",
         "Dependency health tracking files"
       ],
-      "status": "pending_creation",
+      "status": "active",
+      "created_at": "2026-04-15",
       "acceptance_criteria": "10/10 standard queries pass + top-3-risks criterion (RA-823)",
       "linked_issue": "RA-823"
     },
     {
-      "id": "TBD",
+      "id": "1b446605-87eb-438f-8688-944332d0bb83",
       "entity": "CleanExpo",
       "name": "Pi-CEO — CleanExpo Knowledge Base",
       "purpose": "Primary GitHub org, core business entity",
@@ -41,7 +43,8 @@
         "Business documentation",
         "Project overviews and architecture notes"
       ],
-      "status": "pending_creation",
+      "status": "active",
+      "created_at": "2026-04-15",
       "acceptance_criteria": "10/10 standard queries pass + top-3-risks criterion (RA-824)",
       "linked_issue": "RA-824"
     },
