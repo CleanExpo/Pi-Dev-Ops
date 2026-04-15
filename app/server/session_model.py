@@ -66,6 +66,8 @@ class BuildSession:
     retry_count: int = 0                            # Evaluator retry count (GROUP C)
     linear_issue_id: Optional[str] = None           # Linear issue ID for two-way sync
     autonomy_triggered: bool = False                # RA-887: True when started by autonomy poller
+    repo_context: dict = field(default_factory=dict)  # RA-1025: grounded repo scan result
+    plan: str = ""                                  # RA-1026: structured implementation plan (written by _phase_plan)
 
 
 # ── In-memory session store ────────────────────────────────────────────────────

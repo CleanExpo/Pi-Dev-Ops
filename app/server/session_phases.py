@@ -30,7 +30,7 @@ import urllib.request
 
 from . import config
 from . import persistence
-from .brief import classify_intent, build_structured_brief
+from .brief import classify_intent, build_structured_brief, scan_repo_context
 from .lessons import append_lesson, load_lessons
 from .supabase_log import log_gate_check
 from .session_recorder import record_episode, retrieve_similar_episodes, format_episodes_as_context
@@ -444,7 +444,7 @@ def parse_event(line, session):
             em(session, "metric", f"  Cost: ${cost:.4f}")
 
 
-_PHASE_ORDER = ["clone", "analyze", "claude_check", "sandbox", "generator", "evaluator", "push"]
+_PHASE_ORDER = ["clone", "analyze", "claude_check", "sandbox", "plan", "generator", "evaluator", "push"]
 
 
 def _should_skip(phase: str, resume_from: str) -> bool:
@@ -532,6 +532,17 @@ def _phase_analyze(session, resume_from: str) -> None:
     em(session, "phase", "[2/5] Analyzing workspace...")
     files = [f for f in os.listdir(session.workspace) if not f.startswith(".")]
     em(session, "system", f"  Files: {', '.join(files[:15]) or '(empty)'}")
+    # RA-1025 — grounded repo scan: detect language, test framework, CI commands
+    try:
+        repo_ctx = scan_repo_context(str(session.workspace))
+        session.repo_context = repo_ctx
+        em(session, "system", (
+            f"  Repo context: lang={repo_ctx['primary_language']} "
+            f"test={repo_ctx['test_framework']} "
+            f"has_claude_md={repo_ctx['has_claude_md']}"
+        ))
+    except Exception:
+        session.repo_context = {}  # never block the pipeline
     session.last_completed_phase = "analyze"
     persistence.save_session(session)
 
@@ -1004,6 +1015,7 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     spec = build_structured_brief(
         brief, resolved_intent, session.repo_url, session.workspace,
         complexity_tier=resolved_tier,
+        repo_context=getattr(session, "repo_context", None) or None,
     )
     # RA-931 — prepend verified past episodes to spec for context replay
     if _similar_episodes:

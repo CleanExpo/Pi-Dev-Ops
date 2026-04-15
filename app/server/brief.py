@@ -18,6 +18,8 @@ RA-681: Three-tier complexity system.
 Use classify_brief_complexity() to detect tier, or pass complexity_tier=
 to build_structured_brief() to override.
 """
+import glob as _glob
+import json
 import os
 import sys
 
@@ -27,6 +29,124 @@ if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
 from .lessons import load_lessons  # noqa: E402
+
+
+# ── RA-1025: Grounded repo context scanner ────────────────────────────────────
+
+def scan_repo_context(workspace_path: str) -> dict:
+    """Scan a workspace directory and return repo-specific context for brief construction.
+
+    Detects primary language, test framework, CI commands, and reads CLAUDE.md /
+    README.md summaries.  Pure file reads — no external calls, target <500ms.
+    Missing files are silently skipped.
+
+    Returns a dict with keys:
+        primary_language   str  — e.g. "python", "typescript", "javascript", "unknown"
+        test_framework     str  — e.g. "pytest", "jest", "vitest", "unittest", "unknown"
+        ci_commands        list[str]  — CI commands detected from .github/workflows/*.yml
+        claude_md_summary  str  — first 800 chars of CLAUDE.md (or "")
+        readme_summary     str  — first 400 chars of README.md (or "")
+        has_claude_md      bool
+    """
+    result: dict = {
+        "primary_language": "unknown",
+        "test_framework": "unknown",
+        "ci_commands": [],
+        "claude_md_summary": "",
+        "readme_summary": "",
+        "has_claude_md": False,
+    }
+
+    if not workspace_path or not os.path.isdir(workspace_path):
+        return result
+
+    # ── Language detection via file-extension counts ──────────────────────────
+    ext_counts: dict[str, int] = {"py": 0, "ts": 0, "js": 0}
+    try:
+        for root, dirs, files in os.walk(workspace_path):
+            # Skip hidden dirs and common noise dirs
+            dirs[:] = [d for d in dirs if not d.startswith(".") and d not in ("node_modules", "__pycache__", ".git", "dist", "build")]
+            for fname in files:
+                ext = fname.rsplit(".", 1)[-1].lower() if "." in fname else ""
+                if ext in ext_counts:
+                    ext_counts[ext] += 1
+    except OSError:
+        pass
+
+    if ext_counts:
+        dominant_ext = max(ext_counts, key=lambda e: ext_counts[e])
+        if ext_counts[dominant_ext] > 0:
+            result["primary_language"] = {"py": "python", "ts": "typescript", "js": "javascript"}.get(dominant_ext, "unknown")
+
+    # ── package.json — test script + devDependency framework ─────────────────
+    pkg_path = os.path.join(workspace_path, "package.json")
+    try:
+        with open(pkg_path, encoding="utf-8") as f:
+            pkg = json.load(f)
+        scripts = pkg.get("scripts", {})
+        dev_deps = {**pkg.get("devDependencies", {}), **pkg.get("dependencies", {})}
+        # Check test script for framework hints
+        test_script = scripts.get("test", "") + scripts.get("test:unit", "") + scripts.get("test:e2e", "")
+        for fw in ("vitest", "jest", "mocha", "jasmine"):
+            if fw in test_script.lower() or fw in dev_deps:
+                result["test_framework"] = fw
+                break
+    except (OSError, json.JSONDecodeError, ValueError):
+        pass
+
+    # ── pyproject.toml / setup.cfg — Python test framework ───────────────────
+    if result["test_framework"] == "unknown":
+        for cfg_name in ("pyproject.toml", "setup.cfg"):
+            cfg_path = os.path.join(workspace_path, cfg_name)
+            try:
+                content = open(cfg_path, encoding="utf-8").read().lower()
+                if "pytest" in content:
+                    result["test_framework"] = "pytest"
+                    break
+                if "unittest" in content:
+                    result["test_framework"] = "unittest"
+                    break
+            except OSError:
+                continue
+
+    # Fall back: presence of pytest.ini or conftest.py
+    if result["test_framework"] == "unknown":
+        for indicator in ("pytest.ini", "conftest.py", "setup.cfg"):
+            if os.path.isfile(os.path.join(workspace_path, indicator)):
+                result["test_framework"] = "pytest"
+                break
+
+    # ── .github/workflows/*.yml — CI commands ────────────────────────────────
+    workflows_dir = os.path.join(workspace_path, ".github", "workflows")
+    _ci_keywords = ["pytest", "npm test", "jest", "vitest", "yarn test", "pnpm test", "npm run test", "make test"]
+    try:
+        yml_files = sorted(_glob.glob(os.path.join(workflows_dir, "*.yml")) + _glob.glob(os.path.join(workflows_dir, "*.yaml")))
+        if yml_files:
+            ci_text = open(yml_files[0], encoding="utf-8").read()
+            result["ci_commands"] = [kw for kw in _ci_keywords if kw in ci_text.lower()]
+    except OSError:
+        pass
+
+    # ── CLAUDE.md ────────────────────────────────────────────────────────────
+    claude_md_path = os.path.join(workspace_path, "CLAUDE.md")
+    try:
+        text = open(claude_md_path, encoding="utf-8").read()
+        result["claude_md_summary"] = text[:800]
+        result["has_claude_md"] = True
+    except OSError:
+        pass
+
+    # ── README.md ────────────────────────────────────────────────────────────
+    for readme_name in ("README.md", "readme.md", "Readme.md"):
+        readme_path = os.path.join(workspace_path, readme_name)
+        try:
+            text = open(readme_path, encoding="utf-8").read()
+            result["readme_summary"] = text[:400]
+            break
+        except OSError:
+            continue
+
+    return result
 
 # ── PITER Intent Classification ───────────────────────────────────────────────
 _INTENT_KEYWORDS = {
@@ -365,6 +485,7 @@ def build_structured_brief(
     repo_url: str = "",
     workspace: str = "",
     complexity_tier: str = "",
+    repo_context: dict | None = None,
 ) -> str:
     """Compose a structured spec string for claude -p from a raw brief + intent.
 
@@ -397,6 +518,23 @@ def build_structured_brief(
         lesson_context = _get_lesson_context(intent)
         intent_context = _load_intent_files(workspace)  # RA-678
 
+    # RA-1025 — Repo context section injected before the user brief
+    repo_context_section = ""
+    if repo_context:
+        lang = repo_context.get("primary_language", "unknown")
+        fw = repo_context.get("test_framework", "unknown")
+        ci = ", ".join(repo_context.get("ci_commands", [])) or "none detected"
+        conventions = (repo_context.get("claude_md_summary", "") or "")[:400]
+        repo_context_section = (
+            "## Repo Context (auto-detected)\n"
+            f"- Primary language: {lang}\n"
+            f"- Test framework: {fw}\n"
+            f"- CI commands: {ci}\n"
+            f"- Conventions: {conventions}\n\n"
+            "Use this context to choose the correct test framework, commit style, and file "
+            "conventions. Do not introduce new frameworks or tools not already present.\n\n"
+        )
+
     # Tier label in the header so the evaluator knows what was sent
     tier_label = f" [{complexity_tier.upper()} BRIEF]"
 
@@ -405,6 +543,7 @@ def build_structured_brief(
         f"Project: {repo_url}\n"
         f"Intent: {intent.upper()} — {template['name']}\n\n"
         f"{template['instructions']}\n\n"
+        f"{repo_context_section}"
         f"{skill_context}"
         f"{lesson_context}"
         f"{intent_context}"
