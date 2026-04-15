@@ -6,6 +6,7 @@ import Terminal from "@/components/Terminal";
 import PhaseTracker from "@/components/PhaseTracker";
 import ResultCards from "@/components/ResultCards";
 import ActionsPanel from "@/components/ActionsPanel";
+import BriefBuilder from "@/components/BriefBuilder";
 import { Badge } from "@/components/ui/badge";
 import { useSSE } from "@/hooks/useSSE";
 
@@ -19,8 +20,6 @@ const SIDEBAR_MIN = 220;
 const SIDEBAR_MAX = 640;
 const SIDEBAR_DEFAULT = 320;
 
-const BRIEF_TEMPLATE =
-  "Scope: Full audit — ZTE score, quality gates, leverage points, executive summary\nFocus areas: All components\nContext: ";
 
 export default function Dashboard() {
   const [repo, setRepo] = useState("");
@@ -131,22 +130,6 @@ export default function Dashboard() {
           onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
           onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
         />
-        <input
-          type="text"
-          value={brief}
-          onChange={(e) => setBrief(e.target.value)}
-          placeholder="Brief (optional)"
-          disabled={running}
-          className="w-48 h-9 rounded-md px-3 text-sm disabled:opacity-50 transition-colors outline-none hidden sm:block min-h-[44px] sm:min-h-[36px]"
-          style={{
-            background: "var(--panel)",
-            color: "var(--text)",
-            border: "1px solid var(--border)",
-          }}
-          aria-label="Analysis brief"
-          onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
-          onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-        />
         <button
           onClick={running ? stop : handleAnalyze}
           disabled={!running && !repo.trim()}
@@ -160,26 +143,16 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* Brief — mobile only (shown below launch bar) */}
+      {/* Brief — BriefBuilder (desktop + mobile, below launch bar) */}
       <div
-        className="sm:hidden flex px-4 py-2 shrink-0"
+        className="flex px-4 py-2.5 shrink-0"
         style={{ borderBottom: "1px solid var(--border)", background: "var(--background)" }}
       >
-        <input
-          type="text"
+        <BriefBuilder
+          repoUrl={repo}
           value={brief}
-          onChange={(e) => setBrief(e.target.value)}
-          placeholder="Brief (optional)"
+          onChange={setBrief}
           disabled={running}
-          className="flex-1 h-9 rounded-md px-3 text-sm disabled:opacity-50 transition-colors outline-none min-h-[44px]"
-          style={{
-            background: "var(--panel)",
-            color: "var(--text)",
-            border: "1px solid var(--border)",
-          }}
-          aria-label="Analysis brief"
-          onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
-          onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
         />
       </div>
 
