@@ -119,18 +119,31 @@ def test_run_claude_falls_back_to_subprocess_on_empty():
 
 @pytest.mark.asyncio
 async def test_decompose_brief_tries_sdk():
-    """_decompose_brief uses SDK path when TAO_USE_AGENT_SDK=1."""
-    from app.server import orchestrator, config
+    """_decompose_brief uses SDK path when TAO_USE_AGENT_SDK=1.
 
-    sdk_json_output = '["Sub-task 1: do A", "Sub-task 2: do B"]'
+    RA-1030: SDK output is now expected to be a JSON array of task dicts.
+    The function returns list[dict] on success; the test verifies the SDK
+    path is taken and the result matches the new schema.
+    """
+    from app.server import orchestrator, config
+    import json as _json
+
+    sdk_rich_output = _json.dumps([
+        {"id": 1, "title": "Sub-task 1", "brief": "do A", "depends_on": [], "test_scenarios": [], "is_behavioral": False},
+        {"id": 2, "title": "Sub-task 2", "brief": "do B", "depends_on": [], "test_scenarios": [], "is_behavioral": False},
+    ])
 
     with patch.object(config, "USE_AGENT_SDK", True):
-        with patch.object(orchestrator, "_run_claude_via_sdk", return_value=(0, sdk_json_output, 0.0)):
+        with patch.object(orchestrator, "_run_claude_via_sdk", return_value=(0, sdk_rich_output, 0.0)):
             import tempfile
             with tempfile.TemporaryDirectory() as tmpdir:
                 result = await orchestrator._decompose_brief(
                     "build X", n_workers=2, repo_url="https://github.com/test/repo", workspace=tmpdir
                 )
                 assert len(result) == 2
-                assert "Sub-task 1" in result[0]
-                assert "Sub-task 2" in result[1]
+                # RA-1030: result is list[dict] with rich task schema
+                assert isinstance(result[0], dict)
+                assert result[0]["brief"] == "do A"
+                assert result[1]["brief"] == "do B"
+                assert result[0].get("depends_on") == []
+                assert result[0].get("test_scenarios") == []
