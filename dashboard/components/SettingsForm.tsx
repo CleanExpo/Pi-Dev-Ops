@@ -39,19 +39,19 @@ function Badge({ set }: { set: boolean }) {
 function Field({ label, children, hint }: { label: React.ReactNode; children: React.ReactNode; hint?: string }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "var(--c-muted)" }}>
+      <label className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
         {label}
       </label>
       {children}
-      {hint && <p className="font-mono text-[10px]" style={{ color: "var(--c-chrome)" }}>{hint}</p>}
+      {hint && <p className="font-mono text-[10px]" style={{ color: "var(--text-dim)" }}>{hint}</p>}
     </div>
   );
 }
 
 const inputBaseStyle: React.CSSProperties = {
-  background: "var(--c-panel)",
-  color: "var(--c-text)",
-  border: "1px solid var(--c-border)",
+  background: "var(--panel)",
+  color: "var(--text)",
+  border: "1px solid var(--border)",
   padding: "10px 12px",
   fontFamily: "monospace",
   fontSize: "13px",
@@ -156,7 +156,7 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
             style={{ ...inputBaseStyle, cursor: "pointer" }}
           >
             {MODELS.map((m) => (
-              <option key={m} value={m} style={{ background: "var(--c-panel)" }}>{m}</option>
+              <option key={m} value={m} style={{ background: "var(--panel)" }}>{m}</option>
             ))}
           </select>
         </Field>
@@ -265,7 +265,7 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
           disabled={saving}
           className="font-mono text-xs px-6 disabled:opacity-40 transition-opacity w-full sm:w-auto"
           style={{
-            background: "var(--c-orange)",
+            background: "var(--accent)",
             color: "#FFFFFF",
             fontWeight: 700,
             letterSpacing: "0.1em",
@@ -285,8 +285,8 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mb-8">
-      <div className="mb-4 pb-2" style={{ borderBottom: "1px solid var(--c-border)" }}>
-        <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "var(--c-orange)" }}>
+      <div className="mb-4 pb-2" style={{ borderBottom: "1px solid var(--border)" }}>
+        <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "var(--accent)" }}>
           {title}
         </span>
       </div>

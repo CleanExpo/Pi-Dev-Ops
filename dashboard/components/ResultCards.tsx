@@ -14,18 +14,18 @@ function Bar({ value, max = 10 }: { value: number; max?: number }) {
   const pct = Math.round((value / max) * 10);
   return (
     <span className="font-mono text-[11px]">
-      <span style={{ color: "#E8751A" }}>{"█".repeat(pct)}</span>
-      <span style={{ color: "#2E2B2B" }}>{"░".repeat(10 - pct)}</span>
-      <span style={{ color: "#A8A5A0" }}> {value}/{max}</span>
+      <span style={{ color: "var(--accent)" }}>{"█".repeat(pct)}</span>
+      <span style={{ color: "var(--border)" }}>{"░".repeat(10 - pct)}</span>
+      <span style={{ color: "var(--text-muted)" }}> {value}/{max}</span>
     </span>
   );
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ borderBottom: "1px solid #2A2727" }}>
-      <div className="px-3 py-1.5" style={{ borderBottom: "1px solid #1E1C1C" }}>
-        <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "#C8C5C0" }}>
+    <div style={{ borderBottom: "1px solid var(--border)" }}>
+      <div className="px-3 py-1.5" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+        <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
           {title}
         </span>
       </div>
@@ -40,7 +40,7 @@ interface Props {
 
 export default function ResultCards({ result }: Props) {
   return (
-    <div style={{ background: "#111111" }}>
+    <div style={{ background: "var(--panel)" }}>
       {/* Tech Stack */}
       {result.techStack && (
         <Section title="tech stack">
@@ -49,7 +49,7 @@ export default function ResultCards({ result }: Props) {
               <span
                 key={t}
                 className="font-mono text-[10px] px-2 py-0.5"
-                style={{ background: "#252525", color: "#F0EDE8", border: "1px solid #3A3632" }}
+                style={{ background: "var(--background)", color: "var(--text)", border: "1px solid var(--border)" }}
               >
                 {t}
               </span>
@@ -62,8 +62,8 @@ export default function ResultCards({ result }: Props) {
                 .slice(0, 6)
                 .map(([lang, loc]) => (
                   <div key={lang} className="flex items-center justify-between">
-                    <span className="font-mono text-[10px]" style={{ color: "#E8E4DE" }}>{lang}</span>
-                    <span className="font-mono text-[10px]" style={{ color: "#A8A5A0" }}>{loc.toLocaleString()}L</span>
+                    <span className="font-mono text-[10px]" style={{ color: "var(--text)" }}>{lang}</span>
+                    <span className="font-mono text-[10px]" style={{ color: "var(--text-muted)" }}>{loc.toLocaleString()}L</span>
                   </div>
                 ))}
             </div>
@@ -82,7 +82,7 @@ export default function ResultCards({ result }: Props) {
               ["Docs",         result.quality.documentation],
             ].map(([label, val]) => (
               <div key={label as string}>
-                <span className="font-mono text-[10px]" style={{ color: "#C8C5C0" }}>{label as string}</span>
+                <span className="font-mono text-[10px]" style={{ color: "var(--text-muted)" }}>{label as string}</span>
                 <div className="mt-0.5">
                   <Bar value={val as number} />
                 </div>
@@ -96,7 +96,7 @@ export default function ResultCards({ result }: Props) {
       {result.zteScore !== undefined && (
         <Section title="zte maturity">
           <div className="flex items-baseline gap-3 mb-2">
-            <span className="font-display text-3xl" style={{ color: "#E8751A" }}>
+            <span className="font-display text-3xl" style={{ color: "var(--accent)" }}>
               L{result.zteLevel}
             </span>
             <div>
@@ -106,7 +106,7 @@ export default function ResultCards({ result }: Props) {
               >
                 {ZTE_LABELS[result.zteLevel ?? 1]?.label ?? "—"}
               </div>
-              <div className="font-mono text-[9px]" style={{ color: "#A8A5A0" }}>
+              <div className="font-mono text-[9px]" style={{ color: "var(--text-muted)" }}>
                 {result.zteScore}/60 · band {ZTE_LABELS[result.zteLevel ?? 1]?.band ?? "—"}
               </div>
             </div>
@@ -115,8 +115,8 @@ export default function ResultCards({ result }: Props) {
             <div className="space-y-0.5">
               {result.leveragePoints.map((lp) => (
                 <div key={lp.id} className="flex items-center gap-2">
-                  <span className="font-mono text-[9px] w-4 text-right" style={{ color: "#A8A5A0" }}>{lp.id}</span>
-                  <span className="font-mono text-[9px] flex-1 truncate" style={{ color: "#E8E4DE" }}>{lp.name}</span>
+                  <span className="font-mono text-[9px] w-4 text-right" style={{ color: "var(--text-muted)" }}>{lp.id}</span>
+                  <span className="font-mono text-[9px] flex-1 truncate" style={{ color: "var(--text)" }}>{lp.name}</span>
                   <span
                     className="font-mono text-[9px]"
                     style={{ color: lp.score >= 4 ? "#4ADE80" : lp.score >= 3 ? "#FFD166" : "#F87171" }}
@@ -137,10 +137,10 @@ export default function ResultCards({ result }: Props) {
             {result.sprints.slice(0, 3).map((s) => (
               <div key={s.id}>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="font-mono text-[10px]" style={{ color: "#F0EDE8" }}>
+                  <span className="font-mono text-[10px]" style={{ color: "var(--text)" }}>
                     S{s.id}: {s.name}
                   </span>
-                  <span className="font-mono text-[9px]" style={{ color: "#A8A5A0" }}>{s.duration}</span>
+                  <span className="font-mono text-[9px]" style={{ color: "var(--text-muted)" }}>{s.duration}</span>
                 </div>
                 <div className="space-y-0.5">
                   {s.items.slice(0, 3).map((item, i) => (
@@ -151,7 +151,7 @@ export default function ResultCards({ result }: Props) {
                       >
                         {item.size}
                       </span>
-                      <span className="font-mono text-[9px] truncate" style={{ color: "#E8E4DE" }}>{item.title}</span>
+                      <span className="font-mono text-[9px] truncate" style={{ color: "var(--text)" }}>{item.title}</span>
                     </div>
                   ))}
                 </div>
@@ -164,7 +164,7 @@ export default function ResultCards({ result }: Props) {
       {/* Executive Summary */}
       {result.executiveSummary && (
         <Section title="exec summary">
-          <p className="font-body text-[11px] leading-relaxed mb-2" style={{ color: "#E8E4DE" }}>
+          <p className="font-body text-[11px] leading-relaxed mb-2" style={{ color: "var(--text)" }}>
             {result.executiveSummary.slice(0, 300)}
             {result.executiveSummary.length > 300 ? "…" : ""}
           </p>
@@ -172,8 +172,8 @@ export default function ResultCards({ result }: Props) {
             <div className="space-y-1">
               {result.nextActions.slice(0, 3).map((a, i) => (
                 <div key={i} className="flex items-start gap-1.5">
-                  <span className="font-mono text-[9px] mt-0.5" style={{ color: "#E8751A" }}>{i + 1}.</span>
-                  <span className="font-mono text-[9px]" style={{ color: "#E8E4DE" }}>{a}</span>
+                  <span className="font-mono text-[9px] mt-0.5" style={{ color: "var(--accent)" }}>{i + 1}.</span>
+                  <span className="font-mono text-[9px]" style={{ color: "var(--text)" }}>{a}</span>
                 </div>
               ))}
             </div>
@@ -184,7 +184,7 @@ export default function ResultCards({ result }: Props) {
       {/* Empty state */}
       {!result.techStack && !result.quality && (
         <div className="px-3 py-8 text-center">
-          <p className="font-mono text-[10px]" style={{ color: "#888480" }}>
+          <p className="font-mono text-[10px]" style={{ color: "var(--text-muted)" }}>
             Results populate as phases complete.
           </p>
         </div>
