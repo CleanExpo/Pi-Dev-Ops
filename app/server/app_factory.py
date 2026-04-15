@@ -6,6 +6,7 @@ Route registration happens in main.py (thin assembler).
 import asyncio
 import os
 import logging
+from datetime import date
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,14 +28,36 @@ _IS_CLOUD = bool(
 )
 
 # Allowed origins: local Next.js dev + Vercel deployments
-# Append extra origins via TAO_ALLOWED_ORIGINS (comma-separated)
+# Append extra origins via TAO_ALLOWED_ORIGINS (comma-separated).
+# Each entry is validated before use — bare "*" and non-HTTP(S) origins are
+# rejected to prevent a misconfigured env var from opening CORS to all origins.
+
+def _validate_origin(origin: str) -> bool:
+    """Return True only for absolute http:// or https:// origins (not bare *)."""
+    return origin.startswith(("http://", "https://")) and origin != "*"
+
+
 _extra = os.environ.get("TAO_ALLOWED_ORIGINS", "")
+_extra_origins: list[str] = []
+for _o in _extra.split(","):
+    _o = _o.strip()
+    if not _o:
+        continue
+    if _validate_origin(_o):
+        _extra_origins.append(_o)
+    else:
+        log.warning(
+            "TAO_ALLOWED_ORIGINS entry %r rejected — must start with http:// or https:// "
+            "and must not be bare '*'. Entry skipped.",
+            _o,
+        )
+
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "https://pi-dev-ops.vercel.app",
     "https://dashboard-unite-group.vercel.app",
-] + [o.strip() for o in _extra.split(",") if o.strip()]
+] + _extra_origins
 
 
 class SecurityHeaders(BaseHTTPMiddleware):
@@ -105,6 +128,16 @@ async def on_startup():
         log.warning("TAO_WEBHOOK_SECRET not set — GitHub webhook endpoint is unprotected")
     if not config.LINEAR_WEBHOOK_SECRET:
         log.warning("TAO_LINEAR_WEBHOOK_SECRET not set — Linear webhook endpoint is unprotected")
+    if config.SUPABASE_SERVICE_ROLE_KEY:
+        log.warning(
+            "SECURITY: SUPABASE_SERVICE_ROLE_KEY is configured — this key bypasses all RLS. "
+            "Ensure it is scoped to observability tables only and rotated quarterly. "
+            "See .harness/SECURITY.md for rotation procedure."
+        )
+        today = date.today()
+        quarterly_months = {1, 4, 7, 10}
+        if today.month in quarterly_months and today.day <= 7:
+            log.warning("SECURITY REMINDER: Quarterly key rotation due. See .harness/SECURITY.md")
     log.info("Pi CEO ready on %s:%s", config.HOST, config.PORT)
 
 
