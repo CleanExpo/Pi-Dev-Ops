@@ -68,6 +68,9 @@ Expected: 3 pre-existing failures in `test_sdk_phase2.py` (claude_agent_sdk not 
 
 ## Key Patterns
 
+- **Parallel agent dispatch:** Dispatch multiple `Agent` tool calls in a single message for independent tasks — ~8× faster than sequential. Agents must not share target files; partition by file ownership.
+- **Reconnaissance-first:** Always read current `.harness/` state before drafting new plans or briefs. Stale plans produce orphan work and file conflicts.
+- **detect-secrets:** Run `detect-secrets scan` pre-commit on every portfolio repo. Pi-SEO activation found 6 exposed keys in docs/runbooks across dr-nrpg, synthex, ccw-crm.
 - **Password auth:** bcrypt with transparent SHA-256 migration (`auth.py`). `TAO_PASSWORD` set → hash regenerated on every startup so Railway env changes take effect immediately.
 - **Session secret:** Persisted to `app/data/.session-secret`.
 - **SSE streaming:** `dashboard/hooks/useSSE.ts` with exponential backoff reconnection.
@@ -96,6 +99,10 @@ Every SDK invocation emits a row to `.harness/agent-sdk-metrics/YYYY-MM-DD.jsonl
 
 **Fallback (Risk Register R-02):** `TAO_USE_FALLBACK=1` activates direct Anthropic Python SDK. Test quarterly via `scripts/fallback_dryrun.py`.
 
+**SDK receive loop:** Use `async for message in client.receive_response()` — NOT `client._query.receive_messages()`. The latter is a private API that breaks on SDK upgrades.
+
+**MCP SDK imports:** Use subpath imports — `@modelcontextprotocol/sdk/server/mcp.js` and `@modelcontextprotocol/sdk/server/stdio.js`. The top-level package does not re-export `McpServer` directly.
+
 ## Linear Integration
 
 - **Team:** RestoreAssist (`a8a52f07-63cf-4ece-9ad2-3e3bd3c15673`)
@@ -117,6 +124,7 @@ Every SDK invocation emits a row to `.harness/agent-sdk-metrics/YYYY-MM-DD.jsonl
 - Scheduled-tasks MCP runs inside the desktop Claude session and does **not** inherit `.claude/settings.json`. Keep every task to a single shell command calling a standalone Python helper.
 - Each task runs in a fresh Cowork sandbox at `/sessions/<random-id>/mnt/<folder>`. Discover the repo dynamically: `find /sessions -type d -name <repo>`.
 - Never escalate CRITICAL from a Cowork sandbox. `ModuleNotFoundError` inside a watchdog is a sandbox environment issue. Real test truth comes from GitHub Actions.
+- **Permission grant for autonomous harnesses:** three layers required — (1) `.claude/settings.json` `permissions.defaultMode=bypassPermissions`, (2) `ClaudeAgentOptions(permission_mode='bypassPermissions')` at every SDK call site, (3) `--dangerously-skip-permissions` in every subprocess `claude -p` call. Missing any one layer causes silent stall at 3 AM.
 
 ## Persistence
 
@@ -131,25 +139,29 @@ Every SDK invocation emits a row to `.harness/agent-sdk-metrics/YYYY-MM-DD.jsonl
 
 Three jobs: `python` (pytest + ruff), `frontend` (tsc + eslint + build), `smoke-prod` (post-deploy gate against Railway, main-branch only). `smoke-prod` requires `TAO_PROD_PASSWORD` GitHub secret.
 
-## Current Sprint (Sprint 12 — Active 2026-04-15)
+## Current Sprint (Sprint 12 — Active 2026-04-16)
 
 **ZTE v2: 85/100 → target 90**
 
 Board activation vote carried unanimously on 15 Apr 2026. Swarm flipped to active mode (`TAO_SWARM_SHADOW=0`). Rate limit: 3 autonomous PRs/day (lifts after 20 consecutive green supervised merges). NotebookLM 5th criterion added: top-3 risks per entity from Linear + Pi-SEO. Next board: 6 May 2026 Enhancement Review (RA-949).
 
-**Open PRs awaiting human merge:** #11 (RA-948 autonomous PR), #12 (swarm active mode + bots), #13 (dashboard redesign), #14 (RA-837/847 CI webhook + docs synthesis).
+**Open PRs awaiting human merge (2026-04-16):**
+- Pi-Dev-Ops #17–32 — Security hardening (RA-1003–1032), compound-engineering features, Routine prototype
+- CARSI #17 — GP-311–319 security hardening
+- Synthex #59 SYN-695, #60 SYN-696/697, #61 SYN-698–703
 
 **Developer actions required:**
-- Merge PRs #11–14 ← only remaining blocker
+- Set `ENABLE_PROMPT_CACHING_1H=1` in Railway (RA-1009 code merged, env var not yet set)
+- Merge all open PRs above
+- Register SYN-694 Routine in Claude Code (see `.harness/routines/SYN-694-deploy-verify.md`)
 
-**Completed (2026-04-15):**
-- RA-950: `ADMIN_PASSWORD` set in DigitalOcean for carsi ✓
-- RA-838: `TAO_USE_AGENT_SDK_CANARY_RATE=0.5` set in Railway ✓
-- `TAO_PASSWORD` set in `.env.local` ✓
-- RA-847: `workflow_run` webhook event active on Pi-Dev-Ops, CARSI, Synthex, Unite-Group ✓
-- RA-820: NotebookLM health watchdog + Supabase `notebooklm_health` table ✓
-- RA-822/823/824: NotebookLM KBs live for RestoreAssist, Synthex, CleanExpo ✓
-- UPS purchased (AUD ≤$500) ✓
+**Completed (2026-04-16):**
+- RA-1003–1032: Security + compound-engineering sprint (PRs #17–32) ✓
+- GP-311–319: CARSI security hardening (CARSI PR #17) ✓
+- SYN-694–703: Synthex security hardening (Synthex PRs #59–61) ✓
+- RA-1010: Claude Code Routines evaluation complete (`.harness/RA-1010-routines-eval.md`) ✓
+- SYN-694: Deploy-verify Routine prototype (`.harness/routines/`) ✓
+- RA-981: Pi-SEO false positive closed (backend confirmed live) ✓
 
 ## Content Rules
 
