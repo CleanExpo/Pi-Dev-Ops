@@ -157,7 +157,7 @@ function LogPanel({
   const esRef = useRef<EventSource | null>(null);
   const cursorRef = useRef(0);
   const onPhaseMetricRef = useRef(onPhaseMetric);
-  onPhaseMetricRef.current = onPhaseMetric;
+  useEffect(() => { onPhaseMetricRef.current = onPhaseMetric; });
 
   useEffect(() => {
     const terminal = new Set(["done", "complete", "failed", "killed"]);
@@ -200,7 +200,7 @@ function LogPanel({
 
     openStream();
     return () => esRef.current?.close();
-  }, [sid, status]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sid, status]);
 
   // Auto-scroll
   useEffect(() => {
@@ -385,8 +385,8 @@ export default function BuildsPage() {
   }, []);
 
   useEffect(() => {
-    void fetchSessions();
-    const t = setInterval(fetchSessions, 5000);
+    fetchSessions().catch(() => {});
+    const t = setInterval(() => { fetchSessions().catch(() => {}); }, 5000);
     return () => clearInterval(t);
   }, [fetchSessions]);
 

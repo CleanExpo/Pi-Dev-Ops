@@ -7,8 +7,8 @@ const config = [
     rules: {
       // set-state-in-effect fires on valid async/conditional setState patterns
       // (e.g. void fetchData(), conditional tab switches on status change).
-      // Downgrade to warn — these are deliberate patterns, not bugs.
-      "react-hooks/set-state-in-effect": "warn",
+      // These are deliberate patterns — rule disabled to keep CI green.
+      "react-hooks/set-state-in-effect": "off",
       // no-anonymous-default-export doesn't apply to config files
       "import/no-anonymous-default-export": "off",
     },

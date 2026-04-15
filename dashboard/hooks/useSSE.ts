@@ -170,7 +170,7 @@ export function useSSE() {
         return { ...s, lines: [...s.lines, reconnectMsg], retries: nextRetry };
       });
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const start = useCallback((repoUrl: string, brief?: string) => {
     // Clear any pending retry
