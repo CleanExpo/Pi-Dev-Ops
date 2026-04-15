@@ -25,11 +25,11 @@ export default function ThemeToggle() {
       title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
       className="font-mono text-[13px] transition-all hover:opacity-80"
       style={{
-        color: "var(--c-text)",
+        color: "var(--text)",
         padding: "4px 10px",
         lineHeight: "1",
         background: "rgba(128,120,112,0.12)",
-        border: "1px solid var(--c-border)",
+        border: "1px solid var(--border)",
         borderRadius: "3px",
         cursor: "pointer",
         display: "flex",

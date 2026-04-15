@@ -24,13 +24,13 @@ export default async function SettingsPage() {
   };
 
   return (
-    <div className="flex flex-col flex-1 overflow-y-auto" style={{ background: "var(--c-bg)" }}>
+    <div className="flex flex-col flex-1 overflow-y-auto" style={{ background: "var(--background)" }}>
       {/* Header */}
-      <div className="px-4 sm:px-6 py-4 shrink-0" style={{ borderBottom: "1px solid var(--c-border)" }}>
-        <h1 className="font-mono text-xs uppercase tracking-widest" style={{ color: "var(--c-muted)" }}>
+      <div className="px-4 sm:px-6 py-4 shrink-0" style={{ borderBottom: "1px solid var(--border)" }}>
+        <h1 className="font-mono text-xs uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
           Configuration
         </h1>
-        <p className="font-mono text-[10px] mt-1" style={{ color: "var(--c-chrome)" }}>
+        <p className="font-mono text-[10px] mt-1" style={{ color: "var(--text-dim)" }}>
           Credentials are stored in Supabase and never exposed to the browser.
         </p>
       </div>
