@@ -6,8 +6,6 @@ import re
 import urllib.request as _ur
 from pathlib import Path
 
-_DATE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
-
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from ..auth import require_rate_limit
@@ -22,6 +20,8 @@ from ..webhook import (
 )
 from .. import config
 from .sessions import _find_active_session_for_repo
+
+_DATE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 
 log = logging.getLogger("pi-ceo.main")
 

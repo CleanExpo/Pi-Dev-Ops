@@ -59,9 +59,7 @@ interface Props {
 
 export default function Terminal({ lines, status }: Props) {
   const mountRef      = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const termRef       = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fitRef        = useRef<any>(null);
   const renderedRef   = useRef(0);
   const resizeObsRef  = useRef<ResizeObserver | null>(null);
