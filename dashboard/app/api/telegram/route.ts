@@ -258,22 +258,11 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
 }
 
 async function ceoAgentCall(history: Turn[]): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  // Trim is critical: ANTHROPIC_API_KEY may have a trailing newline from Vercel env
+  // pull, or be an empty string (set by claude CLI in shell env).
+  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
   if (!apiKey) {
-    // Fallback: plain chat without tools
-    const client = new Anthropic({ apiKey: "" });
-    try {
-      const response = await client.messages.create({
-        model: MODELS.DEFAULT,
-        max_tokens: 1024,
-        system: CEO_SYSTEM,
-        messages: history,
-      });
-      const block = response.content[0];
-      return block.type === "text" ? block.text : "(no response)";
-    } catch {
-      return "ANTHROPIC_API_KEY not set — cannot process free-form messages.";
-    }
+    return "ANTHROPIC_API_KEY not configured — ask admin to set it in Vercel environment settings.";
   }
 
   const client = new Anthropic({ apiKey });
