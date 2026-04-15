@@ -225,3 +225,28 @@ CREATE INDEX IF NOT EXISTS build_episodes_repo_verified_idx
 
 ALTER TABLE build_episodes ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "service_only" ON build_episodes FOR ALL TO service_role USING (true);
+
+-- ── RA-820: notebooklm_health ─────────────────────────────────────────────────
+-- Health probe results for active NotebookLM knowledge bases.
+-- Written by _watchdog_notebooklm_health() in cron_watchdogs.py every 6 hours.
+-- Telegram alert fires when any notebook returns status = 'failed' or 'timeout'.
+CREATE TABLE IF NOT EXISTS notebooklm_health (
+  id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  notebook_id    TEXT        NOT NULL,
+  notebook_name  TEXT        NOT NULL,
+  query_hash     TEXT        NOT NULL,    -- MD5 of query string for dedup analytics
+  status         TEXT        NOT NULL CHECK (status IN ('ok', 'failed', 'timeout')),
+  error_message  TEXT,
+  response_ms    INTEGER,
+  checked_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS notebooklm_health_notebook_idx
+  ON notebooklm_health (notebook_id, checked_at DESC);
+CREATE INDEX IF NOT EXISTS notebooklm_health_failures_idx
+  ON notebooklm_health (status, checked_at DESC)
+  WHERE status != 'ok';
+
+ALTER TABLE notebooklm_health ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_read"    ON notebooklm_health FOR SELECT USING (true);
+CREATE POLICY "service_insert" ON notebooklm_health FOR INSERT TO service_role WITH CHECK (true);

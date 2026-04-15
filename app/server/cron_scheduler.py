@@ -17,6 +17,7 @@ from .cron_watchdogs import (
     _watchdog_check,
     _watchdog_docs_staleness,
     _watchdog_escalations,
+    _watchdog_notebooklm_health,
 )
 from .cron_watchdog_zte import _watchdog_zte_reality_check
 
@@ -69,9 +70,10 @@ async def cron_loop() -> None:
             if _watchdog_interval >= 30:
                 _watchdog_interval = 0
                 await _watchdog_check(triggers, _log)
-                await _watchdog_docs_staleness(_log)      # RA-635
-                await _watchdog_escalations(_log)          # RA-633
-                await _watchdog_zte_reality_check(_log)    # RA-608
+                await _watchdog_docs_staleness(_log)          # RA-635
+                await _watchdog_escalations(_log)              # RA-633
+                await _watchdog_zte_reality_check(_log)        # RA-608
+                await _watchdog_notebooklm_health(_log)        # RA-820
 
         except Exception as exc:
             _log.error("Loop error: %s", exc)
