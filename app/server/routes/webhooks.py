@@ -127,6 +127,13 @@ async def webhook(request: Request):
 _LINEAR_ENDPOINT = "https://api.linear.app/graphql"
 
 
+
+# Deduplication: track run IDs we've already processed to avoid one ticket
+# per workflow job when a single commit fails multiple workflows.
+_processed_run_ids: set[int] = set()
+_DEDUP_MAX = 500  # cap memory growth
+
+
 async def _handle_workflow_run(payload: dict, request: Request) -> None:
     """Create Linear ticket + Telegram alert when CI fails on main (RA-847)."""
     run = payload.get("workflow_run", {})
@@ -137,10 +144,25 @@ async def _handle_workflow_run(payload: dict, request: Request) -> None:
     if run.get("head_branch") != "main":
         return
 
+    # Deduplicate: one ticket per (repo, sha) pair, not per workflow job.
+    # GitHub fires one webhook per job; a single broken commit can trigger
+    # 3+ deliveries (CI, Security Scanning, Deploy) all for the same SHA.
     repo = payload.get("repository", {}).get("full_name", "unknown/repo")
+    sha_full = run.get("head_sha", "")
+    dedup_key = hash((repo, sha_full))
+    if dedup_key in _processed_run_ids:
+        log.debug("RA-847 dedup: skipping duplicate workflow_run repo=%s sha=%s", repo, sha_full[:8])
+        return
+    _processed_run_ids.add(dedup_key)
+    if len(_processed_run_ids) > _DEDUP_MAX:
+        # Evict oldest half to avoid unbounded growth on long-running server
+        to_remove = list(_processed_run_ids)[:_DEDUP_MAX // 2]
+        for k in to_remove:
+            _processed_run_ids.discard(k)
+
     workflow_name = run.get("name", "CI")
     run_url = run.get("html_url", "")
-    sha = run.get("head_sha", "")[:8]
+    sha = sha_full[:8]
     commit_msg = run.get("head_commit", {}).get("message", "")[:80]
 
     title = f"[CI FAILURE] {repo} — {workflow_name} on main"
