@@ -1,21 +1,26 @@
 """
-cron_triggers.py — Trigger fire-functions, schedule matching, and dispatcher (GROUP F).
+cron_triggers.py — Schedule matching, core fire functions, and dispatcher (GROUP F).
 
 Contains:
-    _matches()                       — cron schedule matching with debounce
-    _should_catch_up()               — startup catch-up check for overdue triggers
-    _fire_scan_trigger()             — Pi-SEO scanner
-    _fire_monitor_trigger()          — Pi-SEO monitor agent
-    _fire_intel_refresh_trigger()    — Anthropic intel refresh (RA-587)
-    _fire_script_trigger()           — generic script subprocess
-    _fire_board_meeting_trigger()    — full board meeting
-    _fire_scout_trigger()            — Scout Agent (RA-684)
-    _fire_feedback_trigger()         — outcome feedback loop (RA-689)
-    _fire_trigger()                  — type-based dispatcher
+    _matches()                      — cron schedule matching with debounce
+    _should_catch_up()              — startup catch-up check for overdue triggers
+    _fire_scan_trigger()            — Pi-SEO scanner
+    _fire_monitor_trigger()         — Pi-SEO monitor agent
+    _fire_intel_refresh_trigger()   — Anthropic intel refresh (RA-587)
+    _fire_script_trigger()          — generic script subprocess
+    _fire_trigger()                 — type-based dispatcher
+
+Agent fire functions with Telegram summaries live in cron_fire_agents.py.
 """
 import asyncio
 import os
 import time
+
+from .cron_fire_agents import (
+    _fire_board_meeting_trigger,
+    _fire_feedback_trigger,
+    _fire_scout_trigger,
+)
 
 
 def _matches(
@@ -34,12 +39,15 @@ def _matches(
     h = trigger.get("hour")
     if h is not None and h != now_hour:
         return False
+    # Optional weekday gate (0=Monday per Python convention, matches cron spec)
     wd = trigger.get("weekday")
     if wd is not None and now_weekday is not None and wd != now_weekday:
         return False
+    # Optional day-of-month gate (RA-634: quarterly triggers)
     dom = trigger.get("day_of_month")
     if dom is not None and now_day is not None and dom != now_day:
         return False
+    # Optional month gate: int or list[int] (RA-634: [1, 4, 7, 10] = quarterly)
     months = trigger.get("month")
     if months is not None and now_month is not None:
         if isinstance(months, list):
@@ -48,6 +56,7 @@ def _matches(
         elif now_month != months:
             return False
     # Debounce: don't fire twice in the same minute.
+    # Use abs() to guard against bogus future last_fired_at values.
     last = trigger.get("last_fired_at")
     if last and abs(time.time() - last) < 90:
         return False
@@ -165,167 +174,6 @@ async def _fire_script_trigger(trigger: dict, log) -> None:
         )
     else:
         log.info("Script trigger id=%s complete (rc=0)", trigger["id"])
-
-
-async def _fire_board_meeting_trigger(trigger: dict, log) -> None:
-    """Fire the full board meeting (all 6 phases) in a thread executor, then Telegram summary."""
-    import json as _json
-    from . import config
-
-    log.info("Firing board_meeting trigger id=%s", trigger["id"])
-    loop = asyncio.get_event_loop()
-
-    from .agents.board_meeting import run_full_board_meeting
-    result: dict = await loop.run_in_executor(None, run_full_board_meeting)
-
-    swot     = result.get("swot") or {}
-    recs     = result.get("sprint_recommendations") or {}
-    gap      = result.get("gap_audit") or {}
-    status   = result.get("status") or {}
-    duration = result.get("duration_s", 0)
-
-    critical_n = len(gap.get("critical", []))
-    high_n     = len(gap.get("high", []))
-    zte_v2     = status.get("zte_v2") or {}
-    zte_str    = (
-        f"ZTE v2: *{zte_v2['total']}/{zte_v2['max']}* ({zte_v2['band']})"
-        if zte_v2 else
-        f"ZTE v1: *{status.get('zte_score', '?')}*"
-    )
-
-    def _short(text: str, n: int = 400) -> str:
-        return (text[:n] + "…") if len(text) > n else text
-
-    summary_text = (
-        "🏛 *Pi-CEO Weekly Board Meeting — Complete*\n\n"
-        + zte_str + "\n"
-        + f"Duration: {duration:.0f}s\n\n"
-        + "*SWOT Summary*\n"
-        + _short(swot.get("summary", swot.get("analysis", "—")), 300) + "\n\n"
-        + "*Sprint Recommendations*\n"
-        + _short(recs.get("summary", recs.get("recommendations", "—")), 300) + "\n\n"
-        + f"*Gap Audit:* {critical_n} critical, {high_n} high findings"
-        + (" → Linear tickets created" if not gap.get("dry_run") else " (dry-run)")
-    )
-
-    token   = config.TELEGRAM_BOT_TOKEN
-    chat_id = config.TELEGRAM_ALERT_CHAT_ID
-    if token and chat_id:
-        import urllib.request as _ureq
-        payload = _json.dumps({
-            "chat_id": chat_id, "text": summary_text,
-            "parse_mode": "Markdown", "disable_web_page_preview": True,
-        }).encode()
-        req = _ureq.Request(
-            f"https://api.telegram.org/bot{token}/sendMessage",
-            data=payload, method="POST",
-            headers={"Content-Type": "application/json"},
-        )
-        try:
-            with _ureq.urlopen(req, timeout=10):
-                pass
-            log.info("Board meeting Telegram summary sent")
-        except Exception as exc:
-            log.warning("Board meeting Telegram send failed: %s", exc)
-
-    log.info("Board meeting trigger id=%s complete in %.1fs", trigger["id"], duration)
-
-
-async def _fire_scout_trigger(trigger: dict, log) -> None:
-    """RA-684 — Fire the Scout Agent (GitHub/ArXiv/HN intel) and send a Telegram summary."""
-    import json as _json
-    from . import config
-
-    log.info("Firing scout trigger id=%s", trigger["id"])
-    loop = asyncio.get_event_loop()
-
-    from .agents.scout import run_scout_cycle
-    result: dict = await loop.run_in_executor(None, run_scout_cycle)
-
-    findings = result.get("findings", 0)
-    created  = result.get("issues_created", [])
-    src_str  = ", ".join(f"{k}={v}" for k, v in result.get("sources", {}).items())
-
-    summary_text = (
-        "🔍 *Pi-CEO Scout Agent — Complete*\n\n"
-        f"New findings: *{findings}*\n"
-        f"Sources: {src_str}\n"
-        f"Linear issues created: *{len(created)}*"
-        + (f"\n{chr(10).join(created[:10])}" if created else "")
-    )
-
-    token   = config.TELEGRAM_BOT_TOKEN
-    chat_id = config.TELEGRAM_ALERT_CHAT_ID
-    if token and chat_id:
-        import urllib.request as _ureq
-        payload = _json.dumps({
-            "chat_id": chat_id, "text": summary_text,
-            "parse_mode": "Markdown", "disable_web_page_preview": True,
-        }).encode()
-        req = _ureq.Request(
-            f"https://api.telegram.org/bot{token}/sendMessage",
-            data=payload, method="POST",
-            headers={"Content-Type": "application/json"},
-        )
-        try:
-            with _ureq.urlopen(req, timeout=10):
-                pass
-            log.info("Scout Telegram summary sent")
-        except Exception as exc:
-            log.warning("Scout Telegram send failed: %s", exc)
-
-    log.info("Scout trigger id=%s complete: findings=%d issues=%d", trigger["id"], findings, len(created))
-
-
-async def _fire_feedback_trigger(trigger: dict, log) -> None:
-    """RA-689 — Fire the outcome feedback loop and send a Telegram summary."""
-    import json as _json
-    from . import config
-
-    log.info("Firing feedback trigger id=%s", trigger["id"])
-    loop = asyncio.get_event_loop()
-
-    from .agents.feedback_loop import run_feedback_cycle
-    result: dict = await loop.run_in_executor(None, run_feedback_cycle)
-
-    analysed     = result.get("features_analysed", 0)
-    bvi          = result.get("bvi_contribution", {})
-    stale_issues = result.get("stale_issues_created", [])
-    patterns     = result.get("patterns", [])
-
-    summary_text = (
-        "🔄 *Pi-CEO Feedback Loop — Complete*\n\n"
-        f"Features analysed: *{analysed}*\n"
-        f"Positive outcomes: {bvi.get('features_with_positive_outcome', 0)}\n"
-        f"Negative outcomes: {bvi.get('features_with_negative_outcome', 0)}\n"
-        f"Stale (>30 days): {bvi.get('features_stale', 0)}\n"
-        f"Pending signal: {bvi.get('features_pending_signal', 0)}\n"
-        f"Stale review issues created: *{len(stale_issues)}*"
-        + (f"\nPatterns: {', '.join(p['pattern'] for p in patterns[:3])}" if patterns else "")
-    )
-
-    token   = config.TELEGRAM_BOT_TOKEN
-    chat_id = config.TELEGRAM_ALERT_CHAT_ID
-    if token and chat_id:
-        import urllib.request as _ureq
-        payload = _json.dumps({
-            "chat_id": chat_id, "text": summary_text,
-            "parse_mode": "Markdown", "disable_web_page_preview": True,
-        }).encode()
-        req = _ureq.Request(
-            f"https://api.telegram.org/bot{token}/sendMessage",
-            data=payload, method="POST",
-            headers={"Content-Type": "application/json"},
-        )
-        try:
-            with _ureq.urlopen(req, timeout=10):
-                pass
-            log.info("Feedback loop Telegram summary sent")
-        except Exception as exc:
-            log.warning("Feedback loop Telegram send failed: %s", exc)
-
-    log.info("Feedback trigger id=%s complete: analysed=%d stale_issues=%d",
-             trigger["id"], analysed, len(stale_issues))
 
 
 async def _fire_trigger(trigger: dict, log) -> None:
