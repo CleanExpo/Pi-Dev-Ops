@@ -108,6 +108,7 @@ async def create_session(
     plan_discovery: bool = False,
     complexity_tier: str = "",
     autonomy_triggered: bool = False,
+    shared_workspace: str = "",  # RA-1029: path to parent's cloned workspace for worktree reuse
 ):
     """Create and start a new build session.
 
@@ -148,6 +149,7 @@ async def create_session(
         plan_discovery=plan_discovery,
         complexity_tier=complexity_tier,
         autonomy_triggered=autonomy_triggered,
+        shared_workspace=shared_workspace,  # RA-1029: worktree source path for worker sessions
     )
     if scope:
         _log.info(
@@ -178,7 +180,15 @@ async def kill_session(sid):
 
 
 def cleanup_session(sid):
+    import subprocess as _subprocess  # noqa: PLC0415 — local import avoids top-level cycle risk
     s = _sessions.pop(sid, None)
     if s and s.workspace and os.path.exists(s.workspace):
+        # RA-1029: deregister git worktree before removing the directory for worker sessions
+        if s.shared_workspace and s.parent_session_id:
+            _subprocess.run(
+                ["git", "-C", s.shared_workspace, "worktree", "remove",
+                 "--force", s.workspace],
+                capture_output=True,
+            )
         shutil.rmtree(s.workspace, ignore_errors=True)
     persistence.delete_session_file(sid)
