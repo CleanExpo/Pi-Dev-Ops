@@ -11,6 +11,7 @@ const NAV = [
   { href: "/overview",  label: "Overview",  icon: "◈", key: "overview"  },
   { href: "/dashboard", label: "Analysis",  icon: "⊞", key: "dashboard" },
   { href: "/builds",    label: "Builds",    icon: "⚙", key: "builds"   },
+  { href: "/routines",  label: "Routines",  icon: "↻", key: "routines"  },
   { href: "/projects",  label: "Portfolio", icon: "◫", key: "projects"  },
   { href: "/chat",      label: "Chat",      icon: "◉", key: "chat"     },
   { href: "/history",   label: "History",   icon: "☰", key: "history"  },
