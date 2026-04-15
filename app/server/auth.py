@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+import os
 import time
 import logging
 import bcrypt
@@ -8,6 +9,14 @@ from fastapi import Request, HTTPException
 from . import config
 
 log = logging.getLogger("pi-ceo.auth")
+
+# True when running on Railway / Render / Fly — these platforms sit behind a
+# trusted edge that sets X-Forwarded-For to the actual client IP.
+_IS_CLOUD = bool(
+    os.environ.get("RAILWAY_ENVIRONMENT")
+    or os.environ.get("RENDER")
+    or os.environ.get("FLY_APP_NAME")
+)
 
 # ---------------------------------------------------------------------------
 # Password hashing — bcrypt with transparent migration from legacy SHA-256
@@ -116,15 +125,24 @@ async def require_auth(request: Request) -> bool:
 
 
 async def require_rate_limit(request: Request) -> bool:
-    # RA-1012: Use the TCP connection IP as the authoritative client address so
-    # that clients cannot spoof their identity by forging X-Forwarded-For.
-    # Only fall back to X-Forwarded-For when request.client is None (i.e. the
-    # server itself is behind a trusted proxy that strips direct connections).
-    if request.client is not None:
-        ip = request.client.host
-    else:
+    # IP resolution strategy:
+    #
+    # In cloud (Railway/Render/Fly): The app sits behind a trusted edge proxy
+    # that injects X-Forwarded-For with the real client IP.  Using
+    # request.client.host in these environments gives the *load-balancer* IP
+    # (e.g. 10.x.x.x), which may differ per-instance, so the per-IP bucket
+    # never fills and rate limiting silently breaks.  Trust XFF here because
+    # Railway strips any client-supplied XFF before adding its own.
+    #
+    # Locally: Direct TCP connection — use request.client.host so we never
+    # accidentally trust a crafted X-Forwarded-For header in dev.
+    if _IS_CLOUD:
         forwarded = request.headers.get("x-forwarded-for", "")
         ip = forwarded.split(",")[0].strip() if forwarded else "unknown"
+    elif request.client is not None:
+        ip = request.client.host
+    else:
+        ip = "unknown"
     if not check_rate_limit(ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
     return True
