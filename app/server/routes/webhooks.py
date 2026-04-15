@@ -126,6 +126,23 @@ async def webhook(request: Request):
 
 _LINEAR_ENDPOINT = "https://api.linear.app/graphql"
 
+# Per-repo routing: CI failure tickets go to the correct team + project.
+# Default falls back to the Pi-Dev-Ops project (env-configured).
+_REPO_LINEAR_ROUTING: dict[str, dict[str, str]] = {
+    "CleanExpo/CARSI": {
+        "teamId":    "91b3cd04-86eb-422d-81e2-9aa37db2f2f5",  # G-Pilot
+        "projectId": "20538e04-ba27-467d-b632-1fb346063089",  # CARSI
+    },
+    "CleanExpo/Synthex": {
+        "teamId":    "b887971b-6761-4260-a111-b94dbb628ebe",  # Synthex (SYN)
+        "projectId": "3125c6e4-b729-48d4-a718-400a2b83ddc5",  # Synthex project
+    },
+    "CleanExpo/Pi-Dev-Ops": {
+        "teamId":    "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673",  # RestoreAssist (RA)
+        "projectId": "f45212be-3259-4bfb-89b1-54c122c939a7",  # Pi - Dev -Ops
+    },
+}
+
 
 
 # Deduplication: track run IDs we've already processed to avoid one ticket
@@ -178,8 +195,12 @@ async def _handle_workflow_run(payload: dict, request: Request) -> None:
 
     linear_key = os.environ.get("LINEAR_API_KEY", "")
     if linear_key:
+        routing = _REPO_LINEAR_ROUTING.get(repo, {
+            "teamId":    config.LINEAR_TEAM_ID,
+            "projectId": config.LINEAR_PROJECT_ID,
+        })
         try:
-            await _create_linear_ci_ticket(title, description, linear_key)
+            await _create_linear_ci_ticket(title, description, linear_key, routing)
         except Exception as exc:
             log.warning("RA-847: Linear ticket creation failed: %s", exc)
 
@@ -200,8 +221,10 @@ async def _handle_workflow_run(payload: dict, request: Request) -> None:
     )
 
 
-def _create_linear_ci_ticket_sync(title: str, description: str, api_key: str) -> dict:
-    """Create a High-priority Linear ticket in Pi - Dev -Ops (sync, stdlib only)."""
+def _create_linear_ci_ticket_sync(
+    title: str, description: str, api_key: str, routing: dict
+) -> dict:
+    """Create a High-priority Linear ticket routed to the correct team/project."""
     mutation = """
     mutation CreateIssue($input: IssueCreateInput!) {
         issueCreate(input: $input) {
@@ -212,8 +235,8 @@ def _create_linear_ci_ticket_sync(title: str, description: str, api_key: str) ->
     """
     variables = {
         "input": {
-            "teamId": config.LINEAR_TEAM_ID,
-            "projectId": config.LINEAR_PROJECT_ID,
+            "teamId":    routing.get("teamId",    config.LINEAR_TEAM_ID),
+            "projectId": routing.get("projectId", config.LINEAR_PROJECT_ID),
             "title": title,
             "description": description,
             "priority": 2,  # High
@@ -241,12 +264,14 @@ def _create_linear_ci_ticket_sync(title: str, description: str, api_key: str) ->
     return issue
 
 
-async def _create_linear_ci_ticket(title: str, description: str, api_key: str) -> dict:
+async def _create_linear_ci_ticket(
+    title: str, description: str, api_key: str, routing: dict
+) -> dict:
     """Async wrapper — runs the sync Linear call in the default executor."""
     import asyncio
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(
-        None, _create_linear_ci_ticket_sync, title, description, api_key
+        None, _create_linear_ci_ticket_sync, title, description, api_key, routing
     )
 
 
