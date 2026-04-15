@@ -27,26 +27,26 @@ const PHASES = ["clone", "analyze", "claude_check", "sandbox", "generator", "eva
 const PHASE_LABELS = ["Clone", "Analyze", "Check", "Sandbox", "Generate", "Evaluate", "Push"];
 
 const STATUS_COLOR: Record<string, string> = {
-  created:    "var(--c-chrome)",
-  cloning:    "var(--c-orange)",
-  building:   "var(--c-orange)",
+  created:    "var(--text-dim)",
+  cloning:    "var(--accent)",
+  building:   "var(--accent)",
   evaluating: "#FFD166",
   complete:   "#4ADE80",
   done:       "#4ADE80",
   failed:     "#F87171",
-  interrupted:"var(--c-chrome)",
-  killed:     "var(--c-chrome)",
+  interrupted:"var(--text-dim)",
+  killed:     "var(--text-dim)",
 };
 
 const LINE_COLOR: Record<string, string> = {
-  phase:   "var(--c-orange)",
+  phase:   "var(--accent)",
   success: "#4ADE80",
   error:   "#F87171",
   tool:    "#6B8CFF",
-  agent:   "var(--c-muted)",
+  agent:   "var(--text-muted)",
   metric:  "#FFD166",
-  system:  "var(--c-chrome)",
-  output:  "var(--c-dim)",
+  system:  "var(--text-dim)",
+  output:  "var(--text-dim)",
   stderr:  "#F87171",
   done:    "#4ADE80",
 };
@@ -54,7 +54,7 @@ const LINE_COLOR: Record<string, string> = {
 const EVAL_COLOR: Record<string, string> = {
   passed: "#4ADE80",
   warned: "#FFD166",
-  pending: "var(--c-chrome)",
+  pending: "var(--text-dim)",
 };
 
 function repoName(url: string): string {
@@ -82,7 +82,7 @@ function PhaseBar({ lastPhase, status }: { lastPhase: string; status: string }) 
             title={PHASE_LABELS[i]}
             className="h-1 flex-1 rounded-sm"
             style={{
-              background: done ? "#4ADE80" : active ? "var(--c-orange)" : "var(--c-border)",
+              background: done ? "#4ADE80" : active ? "var(--accent)" : "var(--border)",
               opacity: done || active ? 1 : 0.4,
             }}
           />
@@ -98,7 +98,7 @@ function ScoreBadge({ score, evalStatus }: { score: number | null; evalStatus: s
   return (
     <span
       className="font-mono text-[10px] px-1.5 py-0.5 rounded"
-      style={{ background: "var(--c-panel)", color, border: `1px solid ${EVAL_COLOR[evalStatus] ?? "var(--c-border)"}` }}
+      style={{ background: "var(--panel)", color, border: `1px solid ${EVAL_COLOR[evalStatus] ?? "var(--border)"}` }}
     >
       {score.toFixed(1)}/10
     </span>
@@ -156,22 +156,22 @@ function LogPanel({ sid, status }: { sid: string; status: string }) {
     <div
       className="font-mono text-xs overflow-y-auto"
       style={{
-        background: "var(--c-term)",
-        borderTop: "1px solid var(--c-border)",
+        background: "#0c0c0c",
+        borderTop: "1px solid var(--border)",
         maxHeight: "240px",
         padding: "8px 12px",
       }}
     >
       {lines.length === 0 && streaming && (
-        <span style={{ color: "var(--c-chrome)" }}>Connecting…</span>
+        <span style={{ color: "var(--text-dim)" }}>Connecting…</span>
       )}
       {lines.map((l, idx) => (
-        <div key={idx} style={{ color: LINE_COLOR[l.type] ?? "var(--c-dim)", lineHeight: "1.5" }}>
+        <div key={idx} style={{ color: LINE_COLOR[l.type] ?? "var(--text-dim)", lineHeight: "1.5" }}>
           {l.text}
         </div>
       ))}
       {!streaming && lines.length > 0 && (
-        <div style={{ color: "var(--c-chrome)", marginTop: "4px" }}>— stream closed —</div>
+        <div style={{ color: "var(--text-dim)", marginTop: "4px" }}>— stream closed —</div>
       )}
       <div ref={bottomRef} />
     </div>
@@ -206,7 +206,7 @@ function ResumeButton({ s, onResumed }: { s: PiSession; onResumed: () => void })
         onClick={(e) => { e.stopPropagation(); void resume(); }}
         disabled={loading}
         className="font-mono text-[10px] px-2 min-h-[36px] rounded transition-opacity hover:opacity-70 disabled:opacity-40"
-        style={{ border: "1px solid var(--c-orange)", color: "var(--c-orange)", background: "transparent" }}
+        style={{ border: "1px solid var(--accent)", color: "var(--accent)", background: "transparent" }}
       >
         {loading ? "…" : `RESUME from ${s.last_phase || "start"}`}
       </button>
@@ -222,8 +222,8 @@ function SessionCard({ s, isChild, onRefresh }: { s: PiSession; isChild?: boolea
   return (
     <div
       style={{
-        borderBottom: "1px solid var(--c-border)",
-        borderLeft: isChild ? "2px solid var(--c-border)" : "none",
+        borderBottom: "1px solid var(--border)",
+        borderLeft: isChild ? "2px solid var(--border)" : "none",
         marginLeft: isChild ? "12px" : 0,
       }}
     >
@@ -231,7 +231,7 @@ function SessionCard({ s, isChild, onRefresh }: { s: PiSession; isChild?: boolea
       <div
         className="px-3 sm:px-4 py-3 cursor-pointer transition-colors"
         style={{ background: "transparent" }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--c-panel)")}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--panel-hover)")}
         onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
         onClick={() => setExpanded((v) => !v)}
       >
@@ -239,14 +239,14 @@ function SessionCard({ s, isChild, onRefresh }: { s: PiSession; isChild?: boolea
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-xs sm:text-[11px] break-all" style={{ color: "var(--c-text)" }}>
+              <span className="font-mono text-xs sm:text-[11px] break-all" style={{ color: "var(--text)" }}>
                 {repoName(s.repo)}
               </span>
               {isChild && (
-                <span className="font-mono text-[10px]" style={{ color: "var(--c-chrome)" }}>[child]</span>
+                <span className="font-mono text-[10px]" style={{ color: "var(--text-dim)" }}>[child]</span>
               )}
               {isActive && (
-                <span className="font-mono text-[10px] px-1 rounded" style={{ background: "var(--c-panel)", color: "var(--c-orange)" }}>
+                <span className="font-mono text-[10px] px-1 rounded" style={{ background: "var(--panel)", color: "var(--accent)" }}>
                   LIVE
                 </span>
               )}
@@ -256,15 +256,15 @@ function SessionCard({ s, isChild, onRefresh }: { s: PiSession; isChild?: boolea
 
           <div className="flex items-center gap-2 shrink-0">
             {s.retry_count > 0 && (
-              <span className="font-mono text-[10px] px-1 py-0.5 rounded hidden sm:inline" style={{ background: "var(--c-panel)", color: "#FFD166" }}>
+              <span className="font-mono text-[10px] px-1 py-0.5 rounded hidden sm:inline" style={{ background: "var(--panel)", color: "#FFD166" }}>
                 {s.retry_count}x
               </span>
             )}
             <ScoreBadge score={s.evaluator_score} evalStatus={s.evaluator_status} />
-            <span className="font-mono text-[10px] uppercase" style={{ color: STATUS_COLOR[s.status] ?? "var(--c-chrome)" }}>
+            <span className="font-mono text-[10px] uppercase" style={{ color: STATUS_COLOR[s.status] ?? "var(--text-dim)" }}>
               {s.status}
             </span>
-            <span className="font-mono text-[10px]" style={{ color: "var(--c-chrome)" }}>
+            <span className="font-mono text-[10px]" style={{ color: "var(--text-dim)" }}>
               {expanded ? "▲" : "▼"}
             </span>
           </div>
@@ -272,18 +272,18 @@ function SessionCard({ s, isChild, onRefresh }: { s: PiSession; isChild?: boolea
 
         {/* Meta row */}
         <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-          <span className="font-mono text-[10px]" style={{ color: "var(--c-chrome)" }}>
+          <span className="font-mono text-[10px]" style={{ color: "var(--text-dim)" }}>
             {elapsed(s.started)} ago
           </span>
-          <span className="font-mono text-[10px] hidden sm:inline" style={{ color: "var(--c-chrome)" }}>
+          <span className="font-mono text-[10px] hidden sm:inline" style={{ color: "var(--text-dim)" }}>
             {s.lines} lines
           </span>
           {s.last_phase && (
-            <span className="font-mono text-[10px]" style={{ color: "var(--c-chrome)" }}>
+            <span className="font-mono text-[10px]" style={{ color: "var(--text-dim)" }}>
               {s.last_phase}
             </span>
           )}
-          <span className="font-mono text-[9px] sm:hidden" style={{ color: "var(--c-chrome)" }}>
+          <span className="font-mono text-[9px] sm:hidden" style={{ color: "var(--text-dim)" }}>
             {s.id.slice(0, 8)}
           </span>
         </div>
@@ -342,30 +342,30 @@ export default function BuildsPage() {
       {/* Header */}
       <div
         className="flex items-center justify-between px-3 sm:px-4 py-2 shrink-0 flex-wrap gap-2"
-        style={{ borderBottom: "1px solid var(--c-border)" }}
+        style={{ borderBottom: "1px solid var(--border)" }}
       >
         <div className="flex items-center gap-3">
-          <span className="font-mono text-xs uppercase tracking-widest" style={{ color: "var(--c-muted)" }}>
+          <span className="font-mono text-xs uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
             Builds
             <span className="hidden sm:inline"> — {sessions.length} sessions</span>
             <span className="sm:hidden"> ({sessions.length})</span>
           </span>
           {activeCount > 0 && (
-            <span className="font-mono text-[10px] px-2 py-0.5 rounded" style={{ background: "var(--c-panel)", color: "var(--c-orange)" }}>
+            <span className="font-mono text-[10px] px-2 py-0.5 rounded" style={{ background: "var(--panel)", color: "var(--accent)" }}>
               {activeCount} active
             </span>
           )}
         </div>
         <div className="flex items-center gap-3">
           {lastFetch > 0 && (
-            <span className="font-mono text-[10px] hidden sm:inline" style={{ color: "var(--c-chrome)" }}>
-              {new Date(lastFetch).toLocaleTimeString()}
+            <span className="font-mono text-[10px] hidden sm:inline" style={{ color: "var(--text-dim)" }}>
+             {new Date(lastFetch).toLocaleTimeString()}
             </span>
           )}
           <button
             onClick={() => void fetchSessions()}
             className="font-mono text-[10px] px-3 min-h-[36px] transition-opacity hover:opacity-70"
-            style={{ border: "1px solid var(--c-border)", color: "var(--c-muted)" }}
+            style={{ border: "1px solid var(--border)", color: "var(--text-muted)" }}
           >
             REFRESH
           </button>
@@ -374,14 +374,14 @@ export default function BuildsPage() {
 
       {/* Error state */}
       {error && (
-        <div className="px-3 sm:px-4 py-3" style={{ borderBottom: "1px solid var(--c-border)" }}>
+        <div className="px-3 sm:px-4 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
           <span className="font-mono text-xs" style={{ color: "#F87171" }}>
             {error.includes("unreachable") || error.includes("502")
               ? "Pi CEO server offline. Start with: cd app && uvicorn server.main:app --host 127.0.0.1 --port 7777"
               : error}
           </span>
           <div className="mt-1">
-            <span className="font-mono text-[10px]" style={{ color: "var(--c-chrome)" }}>
+            <span className="font-mono text-[10px]" style={{ color: "var(--text-dim)" }}>
               Set PI_CEO_URL and PI_CEO_PASSWORD in dashboard .env.local
             </span>
           </div>
@@ -391,8 +391,8 @@ export default function BuildsPage() {
       {/* Empty state */}
       {!error && sessions.length === 0 && (
         <div className="flex flex-col flex-1 items-center justify-center px-4 text-center">
-          <p className="font-mono text-xs" style={{ color: "var(--c-muted)" }}>No build sessions yet.</p>
-          <p className="font-mono text-[10px] mt-2" style={{ color: "var(--c-chrome)" }}>
+          <p className="font-mono text-xs" style={{ color: "var(--text-muted)" }}>No build sessions yet.</p>
+          <p className="font-mono text-[10px] mt-2" style={{ color: "var(--text-dim)" }}>
             Trigger a build via POST /api/build on the Pi CEO server.
           </p>
         </div>

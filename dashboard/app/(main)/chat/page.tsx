@@ -70,18 +70,18 @@ export default function ChatPage() {
       {/* Header */}
       <div
         className="flex items-center justify-between px-3 sm:px-4 py-2 shrink-0"
-        style={{ borderBottom: "1px solid var(--c-border)" }}
+        style={{ borderBottom: "1px solid var(--border)" }}
       >
-        <span className="font-mono text-xs uppercase tracking-widest" style={{ color: "var(--c-muted)" }}>
+        <span className="font-mono text-xs uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
           Claude Chat
           <span className="hidden sm:inline"> — Pi CEO Engineering Team</span>
         </span>
         <button
           onClick={clearChat}
           className="font-mono text-[10px] transition-colors min-h-[36px] px-2"
-          style={{ color: "var(--c-chrome)" }}
+          style={{ color: "var(--text-dim)" }}
           onMouseOver={(e) => (e.currentTarget.style.color = "#F87171")}
-          onMouseOut={(e) => (e.currentTarget.style.color = "var(--c-chrome)")}
+          onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-dim)")}
         >
           CLEAR
         </button>
@@ -90,7 +90,7 @@ export default function ChatPage() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-4">
         {messages.length === 0 && (
-          <p className="font-mono text-xs sm:text-[11px] mt-6 sm:mt-8 leading-relaxed" style={{ color: "var(--c-chrome)" }}>
+          <p className="font-mono text-xs sm:text-[11px] mt-6 sm:mt-8 leading-relaxed" style={{ color: "var(--text-dim)" }}>
             Ask anything about the codebase, architecture, or how to proceed.
             <br />
             e.g. &quot;Explain the authentication flow&quot; or &quot;Start building sprint 1&quot;
@@ -100,14 +100,14 @@ export default function ChatPage() {
           <div key={i} className={`flex gap-2 sm:gap-3 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
             <span
               className="font-mono text-[10px] shrink-0 mt-1"
-              style={{ minWidth: "2.5rem", color: "var(--c-chrome)" }}
+              style={{ minWidth: "2.5rem", color: "var(--text-dim)" }}
             >
               {m.role === "user" ? "YOU" : "CEO"}
             </span>
             <div
               className="font-mono text-xs sm:text-[12px] leading-relaxed max-w-[85%] sm:max-w-2xl whitespace-pre-wrap break-words"
               style={{
-                color: m.role === "user" ? "var(--c-text)" : "var(--c-cream)",
+                color: m.role === "user" ? "var(--text)" : "var(--text)",
                 textAlign: m.role === "user" ? "right" : "left",
               }}
             >
@@ -117,8 +117,8 @@ export default function ChatPage() {
         ))}
         {loading && (
           <div className="flex gap-2 sm:gap-3">
-            <span className="font-mono text-[10px] mt-1" style={{ color: "var(--c-chrome)" }}>CEO</span>
-            <span className="font-mono text-xs" style={{ color: "var(--c-chrome)" }}>thinking…</span>
+            <span className="font-mono text-[10px] mt-1" style={{ color: "var(--text-dim)" }}>CEO</span>
+            <span className="font-mono text-xs" style={{ color: "var(--text-dim)" }}>thinking…</span>
           </div>
         )}
         <div ref={bottomRef} />
@@ -133,7 +133,7 @@ export default function ChatPage() {
       {/* Input */}
       <div
         className="flex items-end gap-2 px-3 sm:px-4 py-2 shrink-0"
-        style={{ borderTop: "1px solid var(--c-border)" }}
+        style={{ borderTop: "1px solid var(--border)" }}
       >
         <textarea
           value={input}
@@ -145,9 +145,9 @@ export default function ChatPage() {
           rows={2}
           className="flex-1 font-mono text-xs sm:text-[12px] border-0 outline-none resize-none px-3 py-2"
           style={{
-            background: "var(--c-panel)",
-            color: "var(--c-text)",
-            border: "1px solid var(--c-border)",
+            background: "var(--panel)",
+            color: "var(--text)",
+            border: "1px solid var(--border)",
             minHeight: "60px",
           }}
         />
@@ -156,7 +156,7 @@ export default function ChatPage() {
           disabled={loading || !input.trim()}
           className="font-mono text-xs px-4 disabled:opacity-30 transition-opacity shrink-0"
           style={{
-            background: "var(--c-orange)",
+            background: "var(--accent)",
             color: "#FFFFFF",
             fontWeight: 700,
             minHeight: "44px",

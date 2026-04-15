@@ -4,14 +4,82 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
+import { useEffect, useState } from "react";
 
 const NAV = [
-  { href: "/dashboard", label: "Dashboard",  icon: "⊞", key: "dashboard" },
-  { href: "/builds",    label: "Builds",     icon: "⚙", key: "builds"    },
-  { href: "/chat",      label: "Chat",       icon: "◉", key: "chat"      },
-  { href: "/history",   label: "History",    icon: "☰", key: "history"   },
-  { href: "/settings",  label: "Settings",   icon: "⊙", key: "settings"  },
+  { href: "/dashboard", label: "Dashboard", icon: "⊞", key: "dashboard" },
+  { href: "/builds",    label: "Builds",    icon: "⚙", key: "builds"   },
+  { href: "/projects",  label: "Portfolio", icon: "◈", key: "projects"  },
+  { href: "/chat",      label: "Chat",      icon: "◉", key: "chat"     },
+  { href: "/history",   label: "History",   icon: "☰", key: "history"  },
+  { href: "/settings",  label: "Settings",  icon: "⊙", key: "settings" },
 ];
+
+interface HealthData {
+  swarm_enabled: boolean;
+  swarm_shadow: boolean;
+}
+
+function SwarmStatus() {
+  const [health, setHealth] = useState<HealthData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchHealth() {
+      try {
+        const res = await fetch("/api/pi-ceo/api/health");
+        if (res.ok) {
+          const data = await res.json() as HealthData;
+          setHealth(data);
+        } else {
+          setHealth(null);
+        }
+      } catch {
+        setHealth(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    void fetchHealth();
+    const t = setInterval(() => { void fetchHealth(); }, 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "var(--text-dim)" }} />
+        <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Connecting…</span>
+      </div>
+    );
+  }
+
+  if (!health || !health.swarm_enabled) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "var(--error)" }} />
+        <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Swarm Off</span>
+      </div>
+    );
+  }
+
+  if (health.swarm_shadow) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "var(--warning)" }} />
+        <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Swarm Shadow</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "var(--success)" }} />
+      <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>Swarm Active</span>
+    </div>
+  );
+}
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const path = usePathname();
@@ -93,15 +161,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           className="flex items-center justify-between px-4 py-3 shrink-0"
           style={{ borderTop: "1px solid var(--border)" }}
         >
-          <div className="flex items-center gap-2">
-            <span
-              className="w-1.5 h-1.5 rounded-full shrink-0"
-              style={{ background: "var(--success)" }}
-            />
-            <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-              Swarm
-            </span>
-          </div>
+          <SwarmStatus />
           <ThemeToggle />
         </div>
       </aside>
