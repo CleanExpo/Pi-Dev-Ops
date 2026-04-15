@@ -1,6 +1,7 @@
 """Session routes: build, list, kill, SSE logs, resume (RA-937)."""
 import asyncio
 import json
+import time
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -69,13 +70,23 @@ async def stop_session(sid: str):
     return {"ok": True}
 
 
+_SSE_AFTER_MAX = 100_000
+_SSE_TERMINAL_TIMEOUT = 300.0  # seconds before closing a completed session's SSE
+
+
 @router.get("/api/sessions/{sid}/logs", dependencies=[Depends(require_auth)])
 async def stream_session_logs(sid: str, after: int = 0):
     """SSE stream of build log events for a session.
 
     Query param `after` = index of the last event the client has seen (0 = all).
+    Clamped to [0, 100_000] (RA-1022).
     Streams existing events immediately, then polls for new ones until terminal.
+    Sessions that have been in a terminal state for >5 minutes are closed with
+    a final "closed" event rather than polling indefinitely (RA-1022).
     """
+    # RA-1022: clamp unbounded `after` parameter
+    after = min(max(after, 0), _SSE_AFTER_MAX)
+
     session = get_session(sid)
     if not session:
         raise HTTPException(404, "Session not found")
@@ -84,6 +95,7 @@ async def stream_session_logs(sid: str, after: int = 0):
 
     async def generate():
         cursor = after
+        terminal_since: float | None = None
         while True:
             lines = session.output_lines
             while cursor < len(lines):
@@ -91,6 +103,13 @@ async def stream_session_logs(sid: str, after: int = 0):
                 yield f"data: {json.dumps({'i': cursor, **event})}\n\n"
                 cursor += 1
             if session.status in terminal:
+                # RA-1022: track when the session first entered a terminal state
+                if terminal_since is None:
+                    terminal_since = time.monotonic()
+                elapsed = time.monotonic() - terminal_since
+                if elapsed >= _SSE_TERMINAL_TIMEOUT:
+                    yield "data: {\"type\":\"closed\",\"reason\":\"session_complete\"}\n\n"
+                    break
                 yield "data: {\"type\":\"done\",\"text\":\"\"}\n\n"
                 break
             await asyncio.sleep(0.3)

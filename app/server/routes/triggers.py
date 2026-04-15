@@ -8,7 +8,7 @@ from ..models import TriggerRequest
 router = APIRouter()
 
 
-@router.get("/api/triggers", dependencies=[Depends(require_auth)])
+@router.get("/api/triggers", dependencies=[Depends(require_auth), Depends(require_rate_limit)])
 async def get_triggers():
     return list_triggers()
 
@@ -25,7 +25,7 @@ async def add_trigger(body: TriggerRequest):
     return trigger
 
 
-@router.delete("/api/triggers/{tid}", dependencies=[Depends(require_auth)])
+@router.delete("/api/triggers/{tid}", dependencies=[Depends(require_auth), Depends(require_rate_limit)])
 async def remove_trigger(tid: str):
     if not delete_trigger(tid):
         raise HTTPException(404, "Trigger not found")
