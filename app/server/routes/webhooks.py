@@ -2,8 +2,11 @@
 import json
 import logging
 import os
+import re
 import urllib.request as _ur
 from pathlib import Path
+
+_DATE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
@@ -313,6 +316,10 @@ async def morning_intel_webhook(request: Request):
 
     date_str = payload.get("date") or datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
+    # RA-1007: Validate date_str before using as a filename to prevent path traversal.
+    if not _DATE_RE.match(date_str):
+        raise HTTPException(400, f"Invalid date format: {date_str!r}")
+
     intel_dir = Path(config.DATA_DIR).parent.parent / ".harness" / "morning-intel"
     intel_dir.mkdir(parents=True, exist_ok=True)
 
@@ -342,8 +349,13 @@ async def telegram_webhook(request: Request):
     """
     token = config.TELEGRAM_BOT_TOKEN
     expected_secret = config.TELEGRAM_WEBHOOK_SECRET
+    # RA-1004: Require the secret to be configured. If it is absent the endpoint
+    # would otherwise be open to anyone — mirror the pattern used for GitHub
+    # webhook secret (lines 53-54).
+    if not expected_secret:
+        raise HTTPException(500, "Telegram webhook secret not configured")
     secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
-    if expected_secret and secret != expected_secret:
+    if secret != expected_secret:
         raise HTTPException(401, "Invalid Telegram webhook secret")
 
     try:
