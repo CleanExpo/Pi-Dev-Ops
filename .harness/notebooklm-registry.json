@@ -1,0 +1,76 @@
+{
+  "version": "1.0",
+  "last_updated": "2026-04-15",
+  "notebooks": [
+    {
+      "id": "TBD",
+      "entity": "RestoreAssist",
+      "name": "Pi-CEO — RestoreAssist Knowledge Base",
+      "purpose": "Core business entity — Linear project docs, Pi-CEO pipeline, billing & estimation platform",
+      "sources": [
+        "Linear project documentation",
+        "GitHub repos (CleanExpo org)",
+        "Architecture docs, CLAUDE.md",
+        "Pi-Dev-Ops sprint plans"
+      ],
+      "status": "pending_creation",
+      "acceptance_criteria": "10/10 standard queries pass + top-3-risks criterion (RA-822)",
+      "linked_issue": "RA-822"
+    },
+    {
+      "id": "TBD",
+      "entity": "Synthex",
+      "name": "Pi-CEO — Synthex Knowledge Base",
+      "purpose": "Active security work — CVE reduction programme 28→22",
+      "sources": [
+        "CVE audit reports and remediation notes",
+        "Security architecture docs",
+        "Dependency health tracking files"
+      ],
+      "status": "pending_creation",
+      "acceptance_criteria": "10/10 standard queries pass + top-3-risks criterion (RA-823)",
+      "linked_issue": "RA-823"
+    },
+    {
+      "id": "TBD",
+      "entity": "CleanExpo",
+      "name": "Pi-CEO — CleanExpo Knowledge Base",
+      "purpose": "Primary GitHub org, core business entity",
+      "sources": [
+        "GitHub org repositories and README files",
+        "Business documentation",
+        "Project overviews and architecture notes"
+      ],
+      "status": "pending_creation",
+      "acceptance_criteria": "10/10 standard queries pass + top-3-risks criterion (RA-824)",
+      "linked_issue": "RA-824"
+    },
+    {
+      "id": "TBD",
+      "entity": "Intel",
+      "name": "Pi-CEO Intel — Google Cloud Next '26",
+      "purpose": "Capture and synthesise Google Cloud Next '26 announcements (22-24 Apr 2026) — especially NotebookLM API, Gemini updates, MCP/agent announcements",
+      "sources": [
+        "Google Workspace Updates blog (workspaceupdates.googleblog.com)",
+        "Conference session recordings and keynote transcripts",
+        "Post-conference briefings loaded after April 24"
+      ],
+      "status": "pending_creation",
+      "acceptance_criteria": "Post-conference intelligence query returns structured delta report for RA-830",
+      "linked_issue": "RA-828"
+    }
+  ],
+  "standard_queries": [
+    "What are the top 3 risks for this entity right now?",
+    "What work is currently in progress?",
+    "What is the current health score / ZTE score?",
+    "What are the most recent completed milestones?",
+    "What are the next priority actions?",
+    "What dependencies or blockers exist?",
+    "What integrations does this entity use?",
+    "Who are the key stakeholders?",
+    "What is the deployment topology?",
+    "What are the known failure modes?"
+  ],
+  "notes": "Notebook IDs are populated once notebooks are created in NotebookLM. Update 'status' to 'active' and 'id' field after creation. Run standard_queries acceptance test before marking linked_issue Done."
+}
