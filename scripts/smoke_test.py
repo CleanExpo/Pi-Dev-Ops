@@ -158,9 +158,13 @@ def delete(path, **kw): return _req("DELETE", path, **kw)
 # ---------------------------------------------------------------------------
 async def _ws_connect_check(sid: str) -> bool:
     """Open the WebSocket, read at least one JSON frame, close cleanly."""
+    use_ssl = BASE.startswith("https://")
     host = BASE.replace("http://", "").replace("https://", "")
     host_part, _, port_str = host.partition(":")
-    port = int(port_str) if port_str else 80
+    if port_str:
+        port = int(port_str)
+    else:
+        port = 443 if use_ssl else 80
     # Get tao_session cookie value
     cookie_val = None
     for c in _jar:
@@ -173,7 +177,7 @@ async def _ws_connect_check(sid: str) -> bool:
     ws_key = "dGhlIHNhbXBsZSBub25jZQ=="
     headers = (
         f"GET /ws/build/{sid} HTTP/1.1\r\n"
-        f"Host: {host_part}:{port}\r\n"
+        f"Host: {host_part}\r\n"
         f"Upgrade: websocket\r\n"
         f"Connection: Upgrade\r\n"
         f"Sec-WebSocket-Key: {ws_key}\r\n"
@@ -182,15 +186,17 @@ async def _ws_connect_check(sid: str) -> bool:
         f"\r\n"
     )
     try:
+        import ssl as _ssl
+        ssl_ctx = _ssl.create_default_context() if use_ssl else None
         reader, writer = await asyncio.wait_for(
-            asyncio.open_connection(host_part, port), timeout=5
+            asyncio.open_connection(host_part, port, ssl=ssl_ctx), timeout=10
         )
         writer.write(headers.encode())
         await writer.drain()
         # Read HTTP upgrade response
         buf = b""
         while b"\r\n\r\n" not in buf:
-            chunk = await asyncio.wait_for(reader.read(256), timeout=5)
+            chunk = await asyncio.wait_for(reader.read(256), timeout=10)
             if not chunk:
                 break
             buf += chunk
@@ -348,8 +354,11 @@ check("Webhook with invalid signature returns 401 or 500", sc in (401, 500), f"g
 
 # ── 9. Rate limiting ──────────────────────────────────────────────────────
 print("\n[9/9] Rate Limiting  (sends rapid POST /api/login — this is the last check)")
+# Send well above RATE_LIMIT_PER_MIN (default 30). Railway runs a single container
+# so the in-memory sliding window should trigger. We send 60 to have a comfortable
+# margin even if a few early requests fall outside the 60s window due to latency.
 hit_429 = False
-for _ in range(35):
+for _ in range(60):
     sc, _ = _req("POST", "/api/login", body={"password": "wrong-password-rate-limit-test"}, use_cookie=False)
     if sc == 429:
         hit_429 = True
