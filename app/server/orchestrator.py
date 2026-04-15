@@ -140,6 +140,7 @@ async def fan_out(
                 evaluator_enabled=evaluator_enabled,
                 intent=resolved_intent,
                 parent_session_id=parent_id,
+                shared_workspace=shared_ws,  # RA-1029: worker uses worktree from shared clone
             )
             worker_ids.append(s.id)
             em(parent, "system", f"  Launched worker {i+1}: {s.id}")
@@ -155,6 +156,7 @@ async def fan_out(
                     evaluator_enabled=evaluator_enabled,
                     intent=resolved_intent,
                     parent_session_id=parent_id,
+                    shared_workspace=shared_ws,  # RA-1029: worker uses worktree from shared clone
                 )
                 worker_ids.append(s2.id)
                 escalated.append(s2.id)
