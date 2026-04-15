@@ -1,4 +1,4 @@
-// components/ui/input.tsx — Bloomberg terminal input
+// components/ui/input.tsx — Zinc design token input
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
@@ -10,14 +10,14 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       <input
         type={type}
         className={cn(
-          "flex h-9 w-full bg-[var(--c-panel)] border border-[var(--c-border)]",
-          "px-3 py-2 font-mono text-xs text-[var(--c-text)]",
-          "placeholder:text-[var(--c-chrome)] placeholder:tracking-widest",
-          "focus:outline-none focus:border-[var(--c-orange)] focus:ring-0",
+          "flex h-9 w-full rounded-md bg-[var(--panel)] border border-[var(--border)]",
+          "px-3 py-2 text-sm text-[var(--text)]",
+          "placeholder:text-[var(--text-dim)]",
+          "focus:outline-none focus:border-[var(--accent)] focus:ring-0",
           "disabled:cursor-not-allowed disabled:opacity-50",
           "transition-colors",
           /* iOS zoom prevention */
-          "text-base sm:text-xs",
+          "text-base sm:text-sm",
           className
         )}
         ref={ref}

@@ -1,4 +1,4 @@
-// tailwind.config.ts — Bloomberg terminal design tokens (CSS variable–backed for theming)
+// tailwind.config.ts — Zinc/Geist design tokens (CSS variable–backed for theming)
 import type { Config } from "tailwindcss";
 
 const config: Config = {
@@ -9,66 +9,49 @@ const config: Config = {
   darkMode: "class",
   theme: {
     extend: {
-      /* ── Bloomberg terminal tokens ── */
       colors: {
-        bg:     "var(--c-bg)",
-        panel:  "var(--c-panel)",
-        term:   "var(--c-term)",
-        border: "var(--c-border)",
-        text:   "var(--c-text)",
-        cream:  "var(--c-cream)",
-        muted:  "var(--c-muted)",
-        dim:    "var(--c-dim)",
-        chrome: "var(--c-chrome)",
-        orange: "var(--c-orange)",
-        green:  "#4ADE80",
-        red:    "#F87171",
-        yellow: "#FFD166",
-        blue:   "#6B8CFF",
-        /* shadcn semantic tokens */
-        background:  "hsl(var(--background))",
-        foreground:  "hsl(var(--foreground))",
-        card: {
-          DEFAULT:     "hsl(var(--card))",
-          foreground:  "hsl(var(--card-foreground))",
-        },
-        popover: {
-          DEFAULT:     "hsl(var(--popover))",
-          foreground:  "hsl(var(--popover-foreground))",
-        },
-        primary: {
-          DEFAULT:     "hsl(var(--primary))",
-          foreground:  "hsl(var(--primary-foreground))",
-        },
-        secondary: {
-          DEFAULT:     "hsl(var(--secondary))",
-          foreground:  "hsl(var(--secondary-foreground))",
+        background:   "var(--background)",
+        panel:        "var(--panel)",
+        "panel-hover": "var(--panel-hover)",
+        border:       "var(--border)",
+        "border-subtle": "var(--border-subtle)",
+        text: {
+          DEFAULT: "var(--text)",
+          muted:   "var(--text-muted)",
+          dim:     "var(--text-dim)",
         },
         accent: {
-          DEFAULT:     "hsl(var(--accent))",
-          foreground:  "hsl(var(--accent-foreground))",
+          DEFAULT: "var(--accent)",
+          subtle:  "var(--accent-subtle)",
         },
-        destructive: {
-          DEFAULT:     "hsl(var(--destructive))",
-          foreground:  "hsl(var(--destructive-foreground))",
-        },
-        input:  "hsl(var(--input))",
-        ring:   "hsl(var(--ring))",
+        success: "var(--success)",
+        warning: "var(--warning)",
+        error:   "var(--error)",
+        info:    "var(--info)",
+        /* Keep legacy aliases so any remaining Bloomberg refs don't hard-break */
+        "c-orange": "var(--accent)",
+        "c-border": "var(--border)",
+        "c-panel":  "var(--panel)",
+        "c-bg":     "var(--background)",
+        "c-text":   "var(--text)",
+        "c-chrome": "var(--text-dim)",
+        "c-muted":  "var(--text-muted)",
       },
       borderRadius: {
-        lg:  "var(--radius)",
-        md:  "var(--radius)",
-        sm:  "var(--radius)",
+        lg:   "var(--radius)",
+        md:   "var(--radius)",
+        sm:   "calc(var(--radius) - 2px)",
+        full: "9999px",
       },
       fontFamily: {
-        mono:         ["'IBM Plex Mono'", "monospace"],
-        display:      ["'Bebas Neue'", "sans-serif"],
-        body:         ["'Barlow'", "sans-serif"],
-        condensed:    ["'Barlow Condensed'", "sans-serif"],
-        sans:         ["'Barlow'", "sans-serif"],  /* shadcn default font */
-      },
-      backgroundImage: {
-        "ambient-glow": "radial-gradient(ellipse at 0% 0%, rgba(232,117,26,0.04) 0%, transparent 50%)",
+        sans:      ["var(--font-geist)", "system-ui", "sans-serif"],
+        mono:      ["var(--font-geist-mono)", "'IBM Plex Mono'", "monospace"],
+        geist:     ["var(--font-geist)", "system-ui", "sans-serif"],
+        "geist-mono": ["var(--font-geist-mono)", "monospace"],
+        /* Legacy — keep so any leftover font-display/font-body/font-condensed refs don't break */
+        display:   ["var(--font-geist)", "system-ui", "sans-serif"],
+        body:      ["var(--font-geist)", "system-ui", "sans-serif"],
+        condensed: ["var(--font-geist)", "system-ui", "sans-serif"],
       },
       keyframes: {
         "fade-in": {
