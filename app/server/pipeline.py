@@ -30,8 +30,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from . import config
-
 log = logging.getLogger("pi-ceo.pipeline")
 
 _HARNESS_ROOT = Path(__file__).parent.parent.parent / ".harness"
