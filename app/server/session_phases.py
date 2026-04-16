@@ -898,13 +898,22 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
         "1. COMPLETENESS \u2014 Does the diff address EVERY requirement in the brief? List any unmet requirements. Partial = ≤6.\n"
         "2. CORRECTNESS \u2014 Any bugs, logic errors, type issues, null refs, security vulnerabilities, or broken tests? One confirmed bug = ≤6.\n"
         "3. CONCISENESS \u2014 Any dead code, debug prints, TODO stubs, or over-engineered abstractions? Tight, purposeful code = 9-10.\n"
-        "4. FORMAT \u2014 Does it match the project's existing conventions exactly? Style violations or inconsistent naming = ≤6.\n\n"
-        "OUTPUT FORMAT: Respond with exactly 4 dimension lines, the overall, then a confidence line:\n"
+        "4. FORMAT \u2014 Does it match the project's existing conventions exactly? Style violations or inconsistent naming = ≤6.\n"
+        "5. KARPATHY ADHERENCE \u2014 Score the four Karpathy principles together "
+        "(CLAUDE.md lines 184\u2013246):\n"
+        "   \u2022 Surgical: every changed line traces to the brief\n"
+        "   \u2022 Simple: minimum code, no speculative abstractions\n"
+        "   \u2022 Goal-verified: tests/checks defined before implementation\n"
+        "   \u2022 Assumption-surfaced: assumptions stated upfront, not silently chosen\n"
+        "   10 = all four honoured; ≤5 if any principle is violated. "
+        "Soft axis: reported for learning, not a merge blocker on its own.\n\n"
+        "OUTPUT FORMAT: Respond with exactly 5 dimension lines, the overall, then a confidence line:\n"
         "COMPLETENESS: <score>/10 \u2014 <reason>\n"
         "CORRECTNESS: <score>/10 \u2014 <reason>\n"
         "CONCISENESS: <score>/10 \u2014 <reason>\n"
         "FORMAT: <score>/10 \u2014 <reason>\n"
-        f"OVERALL: <average>/10 \u2014 PASS or FAIL (threshold: {threshold}/10)\n"
+        "KARPATHY: <score>/10 \u2014 <reason>\n"
+        f"OVERALL: <average of first 4>/10 \u2014 PASS or FAIL (threshold: {threshold}/10)\n"
         "CONFIDENCE: <0-100>% \u2014 <how certain are you? consider: diff clarity, "
         "requirements ambiguity, borderline score, incomplete context. "
         "100% = unambiguous; 50% = borderline; <60% = genuinely uncertain>"
@@ -963,12 +972,18 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
                 session.evaluator_status = "error"
                 em(session, "error", "  Evaluator: could not parse score")
                 break
+            # Karpathy is a *soft* axis (CLAUDE.md lines 184–246): it feeds
+            # lessons but does not block merge on its own. OVERALL comes from the
+            # evaluator (average of the 4 hard axes); karpathy failures surface
+            # as lessons so operators can tighten the gate later without a
+            # regression risk today.
             passed = session.evaluator_score >= threshold
             try:
                 dimensions = _parse_evaluator_dimensions(eval_text)
                 for dim_name, (score, reason) in dimensions.items():
                     if score < threshold:
-                        append_lesson(source="evaluator", category=resolved_intent,
+                        lesson_category = "karpathy" if dim_name == "karpathy" else resolved_intent
+                        append_lesson(source="evaluator", category=lesson_category,
                             lesson=f"{dim_name} scored {score}/10: {reason}",
                             severity="warn" if score < threshold - 1 else "info")
                 if not passed:
