@@ -245,66 +245,14 @@ def _skill_prefix(skill_names: list[str]) -> str:
         return ""
 
 
-def _resolve_claude_bin() -> str:
-    """Resolve the claude CLI path, searching common nvm/node locations."""
-    import shutil
-    # Honour config override first
-    configured = config.CLAUDE_CMD
-    if configured != "claude":
-        return configured
-    # Try PATH as-is
-    found = shutil.which("claude")
-    if found:
-        return found
-    # Common nvm/homebrew locations
-    candidates = [
-        os.path.expanduser("~/.nvm/versions/node/v24.14.1/bin/claude"),
-        os.path.expanduser("~/.nvm/versions/node/v23.14.1/bin/claude"),
-        "/opt/homebrew/bin/claude",
-        "/usr/local/bin/claude",
-    ]
-    for c in candidates:
-        if os.path.isfile(c) and os.access(c, os.X_OK):
-            return c
-    # Glob for any nvm node version
-    import glob
-    for g in glob.glob(os.path.expanduser("~/.nvm/versions/node/*/bin/claude")):
-        if os.path.isfile(g) and os.access(g, os.X_OK):
-            return g
-    raise RuntimeError("claude CLI not found — ensure Claude Code is installed")
-
-
 _MODEL_MAP = {
     "opus":   "claude-opus-4-6",
     "sonnet": "claude-sonnet-4-6",
     "haiku":  "claude-haiku-4-5-20251001",
 }
 
-
-def _run_claude_subprocess(brief: str, model: str = "sonnet", timeout: int = 300) -> str:
-    """Run claude -p subprocess and return output. Raises RuntimeError on failure."""
-    claude_bin = _resolve_claude_bin()
-    model_flag = _MODEL_MAP.get(model, model) if not model.startswith("claude-") else model
-    cmd = [claude_bin, *config.CLAUDE_EXTRA_FLAGS, "-p", brief,
-           "--model", model_flag, "--output-format", "text"]
-    log.info("Running claude subprocess: bin=%s model=%s brief_len=%d", claude_bin, model, len(brief))
-    # Pass current environment so ANTHROPIC_API_KEY and PATH are available
-    env = os.environ.copy()
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            env=env,
-        )
-        if result.returncode != 0:
-            raise RuntimeError(f"claude exited {result.returncode}: {result.stderr[:500]}")
-        return result.stdout.strip()
-    except FileNotFoundError:
-        raise RuntimeError(f"claude CLI not found at {claude_bin}")
-    except subprocess.TimeoutExpired:
-        raise RuntimeError(f"claude timed out after {timeout}s")
+# RA-1094B — _resolve_claude_bin / _run_claude_subprocess removed.
+# The Agent SDK is the only execution path (SDK-only mandate, RA-576).
 
 
 async def _run_claude_via_sdk_async(
@@ -400,26 +348,23 @@ def _write_pipeline_sdk_metric(
 
 
 def _run_claude(brief: str, model: str = "sonnet", timeout: int = 300, phase: str = "") -> str:
-    """Run Claude and return output. Tries SDK first when TAO_USE_AGENT_SDK=1.
+    """Run Claude via the Agent SDK and return output. Raises RuntimeError on failure.
 
-    Falls back to subprocess if SDK is unavailable or raises. Raises RuntimeError on failure.
+    SDK-only path since RA-576 / RA-1094B.
     """
-    if config.USE_AGENT_SDK:
-        try:
-            success, output = asyncio.run(
-                _run_claude_via_sdk_async(brief, model=model, timeout=timeout, phase=phase)
-            )
-            if success and output.strip():
-                log.info("Pipeline SDK call succeeded: phase=%s model=%s chars=%d",
-                         phase, model, len(output))
-                return output
-            if success:
-                log.warning("SDK returned empty output for phase=%s — falling back", phase)
-        except Exception as exc:
-            log.warning("SDK asyncio.run failed: %s — falling back to subprocess", exc)
-
-    # Subprocess fallback (original implementation below)
-    return _run_claude_subprocess(brief, model=model, timeout=timeout)
+    try:
+        success, output = asyncio.run(
+            _run_claude_via_sdk_async(brief, model=model, timeout=timeout, phase=phase)
+        )
+    except Exception as exc:
+        raise RuntimeError(f"Agent SDK call failed for phase={phase}: {exc}") from exc
+    if not success:
+        raise RuntimeError(f"Agent SDK returned failure for phase={phase}: {output[:500]}")
+    if not output.strip():
+        raise RuntimeError(f"Agent SDK returned empty output for phase={phase}")
+    log.info("Pipeline SDK call succeeded: phase=%s model=%s chars=%d",
+             phase, model, len(output))
+    return output
 
 
 # ── Phase implementations ─────────────────────────────────────────────────────
