@@ -23,6 +23,13 @@ ANALYSIS_MODEL=claude-opus-4-7
 npm run dev   # http://localhost:3000
 ```
 
+### Local dev auth
+
+`npm run dev` uses `scripts/dev-env.sh`, which sources `.env.local` and auto-detects
+unresolved `op://` 1Password references (created by `vercel env pull`). If `op` CLI
+is signed in, secrets resolve via `op run`; otherwise the login password falls back
+to **`dev`**. To override, set `DASHBOARD_PASSWORD=<plaintext>` in `.env.local`.
+
 ## Deploy to Vercel
 
 `vercel.json` in the repo root sets `rootDirectory: "dashboard"` — Vercel picks this up automatically.

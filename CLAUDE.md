@@ -45,6 +45,12 @@ cd dashboard && npm run dev
 node mcp/pi-ceo-server.js
 ```
 
+### Local dev auth
+- Login password defaults to **`dev`** when `.env.local` contains unresolved `op://` refs (the Vercel CLI creates these by default)
+- Override by setting `DASHBOARD_PASSWORD=<plaintext>` in `dashboard/.env.local`
+- `dashboard/scripts/dev-env.sh` auto-detects and resolves — no manual 1Password CLI required
+- Never commit plaintext passwords; `.env.local` is gitignored
+
 ## Running Tests
 
 ```bash
