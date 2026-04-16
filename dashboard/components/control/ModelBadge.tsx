@@ -1,7 +1,8 @@
-// components/control/ModelBadge.tsx — Panel 2: model + ZTE score + SDK mode (RA-1092)
+// components/control/ModelBadge.tsx — Panel 2: model + ZTE score ring + SDK mode (RA-1092)
 "use client";
 
 import { useEffect, useState } from "react";
+import ProgressRing from "./ProgressRing";
 
 interface ZteData {
   score: number;
@@ -13,8 +14,16 @@ interface ZteData {
 
 function scoreColour(score: number): string {
   if (score >= 90) return "var(--success)";
-  if (score >= 70) return "var(--warning)";
+  if (score >= 70) return "var(--accent)";
   return "var(--error)";
+}
+
+function scoreLabel(score: number): string {
+  if (score >= 90) return "Excellent";
+  if (score >= 80) return "Strong";
+  if (score >= 70) return "Good";
+  if (score >= 60) return "Fair";
+  return "Needs work";
 }
 
 export default function ModelBadge() {
@@ -77,7 +86,7 @@ export default function ModelBadge() {
         )}
       </header>
 
-      <div className="flex-1 overflow-auto p-4 space-y-4">
+      <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
         {loading && (
           <p className="text-xs" style={{ color: "var(--text-dim)" }}>
             Loading…
@@ -85,68 +94,68 @@ export default function ModelBadge() {
         )}
 
         {error && !loading && (
-          <p className="text-xs" style={{ color: "var(--error)" }}>
-            {error}
+          <p className="text-xs font-mono" style={{ color: "var(--error)" }}>
+            <span aria-hidden="true">⚠ </span>{error}
           </p>
         )}
 
         {data && !loading && (
           <>
-            <div>
-              <div className="text-[11px] mb-1" style={{ color: "var(--text-dim)" }}>
-                Current model
+            {/* Model name with amber left-accent */}
+            <div
+              className="pl-3 py-1"
+              style={{ borderLeft: "3px solid var(--accent)" }}
+            >
+              <div className="text-[10px] mb-0.5" style={{ color: "var(--text-dim)" }}>
+                Active model
               </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-lg font-semibold" style={{ color: "var(--text)" }}>
-                  {data.model}
-                </span>
-                <span className="text-[10px] font-mono" style={{ color: "var(--text-dim)" }}>
-                  {data.model_id}
-                </span>
+              <div className="text-base font-semibold leading-tight" style={{ color: "var(--text)" }}>
+                {data.model}
+              </div>
+              <div className="text-[10px] font-mono mt-0.5" style={{ color: "var(--text-muted)" }}>
+                {data.model_id}
               </div>
             </div>
 
-            <div className="pt-3" style={{ borderTop: "1px solid var(--border)" }}>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[11px]" style={{ color: "var(--text-dim)" }}>
-                  ZTE v2 score
-                </span>
-                <span
-                  className="text-lg font-mono font-semibold"
-                  style={{ color: scoreColour(data.score) }}
-                >
-                  {data.score}
-                  <span className="text-xs" style={{ color: "var(--text-dim)" }}>
-                    /100
-                  </span>
-                </span>
-              </div>
-              <div
-                className="w-full h-1.5 rounded-full overflow-hidden"
-                style={{ background: "var(--border)" }}
-                role="progressbar"
-                aria-valuenow={data.score}
-                aria-valuemin={0}
-                aria-valuemax={100}
-              >
-                <div
-                  className="h-full transition-all"
-                  style={{ width: `${Math.max(0, Math.min(100, data.score))}%`, background: scoreColour(data.score) }}
+            {/* ZTE ring — centred hero */}
+            <div className="flex items-center justify-center py-2">
+              <div className="flex flex-col items-center gap-2">
+                <ProgressRing
+                  value={data.score}
+                  size={96}
+                  strokeWidth={7}
+                  colour={scoreColour(data.score)}
+                  label={`${data.score}`}
+                  sublabel="/100"
                 />
+                <div className="text-center">
+                  <span
+                    className="text-[10px] font-semibold uppercase tracking-wide"
+                    style={{ color: scoreColour(data.score) }}
+                  >
+                    {scoreLabel(data.score)}
+                  </span>
+                  <span className="text-[10px] ml-1" style={{ color: "var(--text-dim)" }}>
+                    ZTE v2
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="pt-3" style={{ borderTop: "1px solid var(--border)" }}>
-              <div className="text-[11px] mb-1" style={{ color: "var(--text-dim)" }}>
+            {/* SDK mode */}
+            <div
+              className="flex items-center justify-between pt-3"
+              style={{ borderTop: "1px solid var(--border)" }}
+            >
+              <span className="text-[11px]" style={{ color: "var(--text-dim)" }}>
                 SDK mode
-              </div>
+              </span>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-mono" style={{ color: "var(--text)" }}>
+                <span className="text-[11px] font-mono" style={{ color: "var(--text)" }}>
                   TAO_USE_AGENT_SDK={data.sdk_mode ? "1" : "0"}
                 </span>
                 <span
-                  className="text-xs"
-                  style={{ color: data.sdk_mode ? "var(--success)" : "var(--text-dim)" }}
+                  style={{ color: data.sdk_mode ? "var(--success)" : "var(--text-dim)", fontSize: 13 }}
                   aria-hidden="true"
                 >
                   {data.sdk_mode ? "✓" : "○"}

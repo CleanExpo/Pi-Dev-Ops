@@ -1,4 +1,4 @@
-// components/control/BuildForm.tsx — Panel 4 top: compact brief form + terminal modal (RA-1092)
+// components/control/BuildForm.tsx — Panel 4 top: terminal-style brief form + live modal (RA-1092)
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -14,6 +14,8 @@ export default function BuildForm() {
   const [brief, setBrief] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [terminalOpen, setTerminalOpen] = useState(false);
+  const [repoFocused, setRepoFocused] = useState(false);
+  const [briefFocused, setBriefFocused] = useState(false);
   const { lines, status, error, branch, prUrl, start, stop } = useSSE();
   const escRef = useRef<HTMLDivElement>(null);
 
@@ -23,7 +25,6 @@ export default function BuildForm() {
     if (status !== "idle") setSubmitting(false);
   }, [status]);
 
-  // Auto-open terminal when a run starts
   useEffect(() => {
     if (status === "running") setTerminalOpen(true);
   }, [status]);
@@ -43,11 +44,37 @@ export default function BuildForm() {
     start(sanitize(repo.trim()), brief.trim() || undefined);
   }
 
+  const inputBase: React.CSSProperties = {
+    background: "var(--panel-hover)",
+    color: "var(--text)",
+    border: "1px solid var(--border)",
+    fontFamily: "var(--font-mono, monospace)",
+    fontSize: "11px",
+    outline: "none",
+    transition: "border-color 0.15s ease",
+  };
+
+  const inputFocused: React.CSSProperties = {
+    borderColor: "var(--accent)",
+    boxShadow: "0 0 0 2px var(--accent-subtle)",
+  };
+
   return (
     <div className="flex flex-col gap-2">
+      <style>{`
+        @keyframes pi-caret-blink {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0; }
+        }
+      `}</style>
+
       <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
-          Run a build
+        <span className="text-[10px] uppercase tracking-widest font-mono" style={{ color: "var(--text-dim)" }}>
+          {/* Amber prompt caret */}
+          <span style={{ color: "var(--accent)" }} aria-hidden="true">
+            {running ? "▸ " : "$ "}
+          </span>
+          {running ? "build running…" : "run a build"}
         </span>
         <button
           onClick={() => setTerminalOpen(true)}
@@ -55,56 +82,87 @@ export default function BuildForm() {
           style={{ color: running ? "var(--accent)" : "var(--text-muted)" }}
           disabled={lines.length === 0 && !running}
         >
-          {running ? "live ▸" : "show terminal"}
+          {running ? "live ▸" : "terminal"}
         </button>
       </div>
 
-      <input
-        type="text"
-        value={repo}
-        onChange={(e) => setRepo(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !running) submit();
-        }}
-        placeholder="https://github.com/owner/repo"
-        disabled={running}
-        className="h-9 rounded-md px-3 text-xs outline-none disabled:opacity-50"
-        style={{
-          background: "var(--panel-hover)",
-          color: "var(--text)",
-          border: "1px solid var(--border)",
-        }}
-        aria-label="Repository URL"
-      />
+      {/* Repo input with prompt prefix */}
+      <div className="flex items-center rounded-md overflow-hidden" style={{ ...inputBase, ...(repoFocused ? inputFocused : {}) }}>
+        <span
+          className="px-2 text-[11px] font-mono shrink-0 select-none"
+          style={{
+            color: "var(--accent)",
+            borderRight: "1px solid var(--border)",
+            background: "var(--panel)",
+            padding: "0 8px",
+            lineHeight: "36px",
+          }}
+          aria-hidden="true"
+        >
+          repo
+        </span>
+        <input
+          type="text"
+          value={repo}
+          onChange={(e) => setRepo(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !running) submit(); }}
+          onFocus={() => setRepoFocused(true)}
+          onBlur={() => setRepoFocused(false)}
+          placeholder="https://github.com/owner/repo"
+          disabled={running}
+          className="flex-1 h-9 px-2.5 bg-transparent outline-none disabled:opacity-50 text-[11px]"
+          style={{ color: "var(--text)", fontFamily: "var(--font-mono, monospace)" }}
+          aria-label="Repository URL"
+        />
+      </div>
 
-      <textarea
-        value={brief}
-        onChange={(e) => setBrief(e.target.value)}
-        placeholder="Brief (optional) — scope, focus areas, context"
-        disabled={running}
-        rows={3}
-        className="rounded-md px-3 py-2 text-xs outline-none resize-none disabled:opacity-50"
-        style={{
-          background: "var(--panel-hover)",
-          color: "var(--text)",
-          border: "1px solid var(--border)",
-          fontFamily: "inherit",
-          lineHeight: "1.4",
-        }}
-        aria-label="Build brief"
-      />
+      {/* Brief textarea with terminal prompt prefix */}
+      <div
+        className="flex rounded-md overflow-hidden"
+        style={{ ...inputBase, ...(briefFocused ? inputFocused : {}), alignItems: "flex-start" }}
+      >
+        <span
+          className="text-[11px] font-mono shrink-0 select-none pt-2"
+          style={{
+            color: "var(--accent)",
+            borderRight: "1px solid var(--border)",
+            background: "var(--panel)",
+            padding: "8px 8px 0",
+            lineHeight: 1.4,
+          }}
+          aria-hidden="true"
+        >
+          msg
+        </span>
+        <textarea
+          value={brief}
+          onChange={(e) => setBrief(e.target.value)}
+          onFocus={() => setBriefFocused(true)}
+          onBlur={() => setBriefFocused(false)}
+          placeholder="Brief (optional) — scope, focus areas, context"
+          disabled={running}
+          rows={3}
+          className="flex-1 px-2.5 py-2 bg-transparent outline-none resize-none disabled:opacity-50 text-[11px]"
+          style={{
+            color: "var(--text)",
+            fontFamily: "var(--font-mono, monospace)",
+            lineHeight: "1.4",
+          }}
+          aria-label="Build brief"
+        />
+      </div>
 
       <div className="flex items-center gap-2">
         <button
           onClick={running ? stop : submit}
           disabled={!running && !repo.trim()}
-          className="h-8 px-3 rounded-md text-xs font-medium disabled:opacity-30 transition-colors"
+          className="h-8 px-3 rounded-md text-xs font-mono font-medium disabled:opacity-30 transition-colors"
           style={{
             background: running ? "var(--error)" : "var(--accent)",
             color: "#fff",
           }}
         >
-          {running ? "Stop" : "Run ▶"}
+          {running ? "■ stop" : "▶ run"}
         </button>
 
         {status !== "idle" && (
@@ -121,6 +179,15 @@ export default function BuildForm() {
                       : "var(--text-dim)",
             }}
           >
+            {/* Blinking cursor when running */}
+            {status === "running" && (
+              <span
+                aria-hidden="true"
+                style={{ animation: "pi-caret-blink 1s step-end infinite", marginRight: 4 }}
+              >
+                ▮
+              </span>
+            )}
             {status}
           </span>
         )}
@@ -145,8 +212,8 @@ export default function BuildForm() {
       </div>
 
       {error && (
-        <p className="text-[11px]" style={{ color: "var(--error)" }}>
-          {error}
+        <p className="text-[11px] font-mono" style={{ color: "var(--error)" }}>
+          <span aria-hidden="true">⚠ </span>{error}
         </p>
       )}
 
@@ -154,7 +221,7 @@ export default function BuildForm() {
       {terminalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.7)" }}
+          style={{ background: "rgba(0,0,0,0.75)" }}
           onClick={() => setTerminalOpen(false)}
           role="dialog"
           aria-modal="true"
@@ -163,23 +230,33 @@ export default function BuildForm() {
           <div
             ref={escRef}
             className="w-full max-w-4xl h-[70vh] flex flex-col rounded-lg overflow-hidden"
-            style={{ background: "var(--panel)", border: "1px solid var(--border)" }}
+            style={{
+              background: "var(--panel)",
+              border: "1px solid var(--border)",
+              boxShadow: "0 24px 64px rgba(0,0,0,0.5)",
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <div
               className="flex items-center justify-between px-4 py-2 shrink-0"
-              style={{ borderBottom: "1px solid var(--border)" }}
+              style={{ borderBottom: "1px solid var(--border)", background: "var(--panel)" }}
             >
-              <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
-                Live Build Terminal
-              </span>
+              {/* macOS-style traffic lights */}
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-full" style={{ background: "#ef4444" }} aria-hidden="true" />
+                <span className="w-3 h-3 rounded-full" style={{ background: "#f59e0b" }} aria-hidden="true" />
+                <span className="w-3 h-3 rounded-full" style={{ background: "#22c55e" }} aria-hidden="true" />
+                <span className="text-[10px] font-mono ml-3" style={{ color: "var(--text-dim)" }}>
+                  pi-ceo build — live output
+                </span>
+              </div>
               <button
                 onClick={() => setTerminalOpen(false)}
                 className="text-xs"
                 style={{ color: "var(--text-muted)" }}
-                aria-label="Close terminal"
+                aria-label="Close terminal (Escape)"
               >
-                ✕
+                esc ✕
               </button>
             </div>
             <div className="flex-1 min-h-0">

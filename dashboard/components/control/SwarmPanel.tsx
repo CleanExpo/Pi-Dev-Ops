@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import ProgressRing from "./ProgressRing";
 
 interface SwarmStatus {
   state: "SHADOW" | "ACTIVE" | "RATE_LIMITED" | "OFF";
@@ -23,8 +24,7 @@ const STATE_COLOUR: Record<SwarmStatus["state"], string> = {
 function fmtTs(ts: string | null): string {
   if (!ts) return "never";
   try {
-    const d = new Date(ts);
-    return d.toLocaleString(undefined, {
+    return new Date(ts).toLocaleString(undefined, {
       month: "short",
       day: "2-digit",
       hour: "2-digit",
@@ -80,12 +80,24 @@ export default function SwarmPanel() {
       style={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 8 }}
       aria-label="Swarm status"
     >
+      {/* Amber pulse keyframe — injected once */}
+      <style>{`
+        @keyframes pi-swarm-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(249,115,22,0.55); }
+          60%       { box-shadow: 0 0 0 7px rgba(249,115,22,0); }
+        }
+        @keyframes pi-dot-pulse {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0.35; }
+        }
+      `}</style>
+
       <header
         className="flex items-center justify-between px-4 py-2.5"
         style={{ borderBottom: "1px solid var(--border)" }}
       >
         <h2 className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
-          Swarm Status
+          Swarm
         </h2>
         {data && (
           <span
@@ -94,14 +106,31 @@ export default function SwarmPanel() {
               color: STATE_COLOUR[data.state],
               background: "var(--panel-hover)",
               border: `1px solid ${STATE_COLOUR[data.state]}33`,
+              animation: data.state === "ACTIVE" ? "pi-swarm-pulse 2.2s ease-in-out infinite" : undefined,
             }}
           >
+            {/* Pulsing dot only for ACTIVE */}
+            {data.state === "ACTIVE" && (
+              <span
+                aria-hidden="true"
+                style={{
+                  display: "inline-block",
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: STATE_COLOUR[data.state],
+                  marginRight: 5,
+                  verticalAlign: "middle",
+                  animation: "pi-dot-pulse 1.4s ease-in-out infinite",
+                }}
+              />
+            )}
             {data.state}
           </span>
         )}
       </header>
 
-      <div className="flex-1 overflow-auto p-4 space-y-4">
+      <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
         {loading && (
           <p className="text-xs" style={{ color: "var(--text-dim)" }}>
             Loading…
@@ -109,65 +138,46 @@ export default function SwarmPanel() {
         )}
 
         {error && !loading && (
-          <p className="text-xs" style={{ color: "var(--error)" }}>
-            {error}
+          <p className="text-xs font-mono" style={{ color: "var(--error)" }}>
+            <span aria-hidden="true">⚠ </span>{error}
           </p>
         )}
 
         {data && !loading && (
           <>
-            {/* Autonomous PRs today */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[11px]" style={{ color: "var(--text-dim)" }}>
-                  Autonomous PRs today
-                </span>
-                <span className="text-xs font-mono" style={{ color: "var(--text)" }}>
-                  {data.autonomous_prs_today} / {data.autonomous_prs_limit}
-                </span>
-              </div>
-              <div
-                className="w-full h-1.5 rounded-full overflow-hidden"
-                style={{ background: "var(--border)" }}
-                role="progressbar"
-                aria-valuenow={prPct}
-                aria-valuemin={0}
-                aria-valuemax={100}
-              >
-                <div
-                  className="h-full transition-all"
-                  style={{ width: `${prPct}%`, background: "var(--accent)" }}
+            {/* Progress rings row */}
+            <div className="flex items-center justify-around pt-1">
+              <div className="flex flex-col items-center gap-1.5">
+                <ProgressRing
+                  value={prPct}
+                  size={80}
+                  colour="var(--accent)"
+                  label={`${data.autonomous_prs_today}/${data.autonomous_prs_limit}`}
+                  sublabel="PRs today"
                 />
+                <span className="text-[10px]" style={{ color: "var(--text-dim)" }}>
+                  Autonomous PRs
+                </span>
               </div>
-            </div>
 
-            {/* Green merge progress */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[11px]" style={{ color: "var(--text-dim)" }}>
+              <div className="w-px self-stretch" style={{ background: "var(--border)" }} aria-hidden="true" />
+
+              <div className="flex flex-col items-center gap-1.5">
+                <ProgressRing
+                  value={mergePct}
+                  size={80}
+                  colour="var(--success)"
+                  label={`${data.green_merges}/${data.green_merges_target}`}
+                  sublabel="merges"
+                />
+                <span className="text-[10px]" style={{ color: "var(--text-dim)" }}>
                   Green merges
                 </span>
-                <span className="text-xs font-mono" style={{ color: "var(--text)" }}>
-                  {data.green_merges} / {data.green_merges_target}
-                </span>
-              </div>
-              <div
-                className="w-full h-1.5 rounded-full overflow-hidden"
-                style={{ background: "var(--border)" }}
-                role="progressbar"
-                aria-valuenow={mergePct}
-                aria-valuemin={0}
-                aria-valuemax={100}
-              >
-                <div
-                  className="h-full transition-all"
-                  style={{ width: `${mergePct}%`, background: "var(--success)" }}
-                />
               </div>
             </div>
 
             {/* Last autonomous PR */}
-            <div className="pt-2" style={{ borderTop: "1px solid var(--border)" }}>
+            <div className="pt-3" style={{ borderTop: "1px solid var(--border)" }}>
               <div className="text-[11px] mb-1" style={{ color: "var(--text-dim)" }}>
                 Last autonomous PR
               </div>
