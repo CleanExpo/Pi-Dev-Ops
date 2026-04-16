@@ -134,37 +134,5 @@ async def test_phase_generate_sdk_succeeds():
                             assert mock_sdk.called
 
 
-@pytest.mark.asyncio
-@pytest.mark.xfail(strict=False, reason="claude_agent_sdk mock incompatibility — pre-existing, claude_agent_sdk not fully testable in CI")
-async def test_phase_generate_sdk_fallback():
-    """_phase_generate falls back to subprocess when SDK fails."""
-    from app.server import sessions, config
-    from app.server.sessions import BuildSession
-    import tempfile
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        session = BuildSession(
-            repo_url="https://test.repo",
-            workspace=tmpdir,
-        )
-
-        # Mock SDK failure, subprocess success
-        with patch.object(sessions, "_run_claude_via_sdk") as mock_sdk:
-            mock_sdk.return_value = (1, "", 0.0)
-            with patch.object(config, "USE_AGENT_SDK", True):
-                with patch("asyncio.create_subprocess_exec") as mock_subprocess:
-                    mock_proc = AsyncMock()
-                    mock_proc.returncode = 0
-                    mock_proc.stdout.readline = AsyncMock(return_value=b"")
-                    mock_proc.stderr.readline = AsyncMock(return_value=b"")
-                    mock_proc.wait = AsyncMock()
-                    mock_subprocess.return_value = mock_proc
-
-                    with patch("app.server.sessions._stream_claude"):
-                        with patch("app.server.sessions.em"):
-                            with patch("app.server.sessions.persistence"):
-                                result = await sessions._phase_generate(session, "test spec", "sonnet", "")
-                                # Should have tried SDK then subprocess, and succeeded
-                                assert mock_sdk.called
-                                # Subprocess would be called as fallback
-                                assert mock_subprocess.called or result is False
+# RA-1094B — test_phase_generate_sdk_fallback removed. SDK-only mandate:
+# there is no subprocess fallback to test. See test_phase_generate_sdk_success.

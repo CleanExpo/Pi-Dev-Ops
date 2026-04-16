@@ -113,36 +113,20 @@ async def _decompose_brief(
                 pass
         return None
 
-    # SDK path — try first when TAO_USE_AGENT_SDK=1
-    if config.USE_AGENT_SDK:
-        try:
-            rc, out, _ = await _run_claude_via_sdk(
-                decompose_prompt, model=_select_model("planner"),
-                workspace=workspace, timeout=90,
-                session_id="", phase="orchestrator.decompose",
-            )
-            if rc == 0 and out.strip():
-                parsed = _parse_tasks(out)
-                if parsed:
-                    _log.info("Decomposed into %d tasks via SDK", len(parsed))
-                    return parsed
-        except Exception:
-            pass  # fall through to subprocess
-
-    # Subprocess fallback
+    # SDK-only path (RA-1094B). Subprocess fallback removed — SDK is mandatory.
     try:
-        rc, out, _ = await run_cmd(
-            workspace, config.CLAUDE_CMD, *config.CLAUDE_EXTRA_FLAGS, "-p", decompose_prompt,
-            "--model", _select_model("planner"), "--output-format", "text",
-            timeout=90
+        rc, out, _ = await _run_claude_via_sdk(
+            decompose_prompt, model=_select_model("planner"),
+            workspace=workspace, timeout=90,
+            session_id="", phase="orchestrator.decompose",
         )
         if rc == 0 and out.strip():
             parsed = _parse_tasks(out)
             if parsed:
-                _log.info("Decomposed into %d tasks via subprocess", len(parsed))
+                _log.info("Decomposed into %d tasks via SDK", len(parsed))
                 return parsed
-    except Exception:
-        pass
+    except Exception as exc:
+        _log.warning("SDK decomposition failed: %s", exc)
 
     # Final fallback — plain strings, backward compatible
     _log.warning("Decomposition failed; falling back to %d copies of brief", n_workers)
