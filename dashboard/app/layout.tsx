@@ -1,12 +1,15 @@
-// app/layout.tsx — root layout with Geist font + ToastProvider
+// app/layout.tsx — root layout with Inter + JetBrains Mono + ToastProvider
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/Toast";
 
-const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
-const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
+// Inter: primary UI font. JetBrains Mono: code/terminal companion.
+// CSS variables are named generically (--font-sans / --font-mono) so future
+// font swaps don't require touching component classNames.
+const sans = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
+const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
 
 export const metadata: Metadata = {
   title: "Pi CEO — Autonomous Dev Platform",
@@ -15,13 +18,13 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const nonce = (await headers()).get("x-nonce") ?? "";
-  const themeInit = `(function(){try{var t=localStorage.getItem('pi-theme');document.documentElement.className=(t==='dark'?'dark':'light')+' ${geist.variable} ${geistMono.variable}';}catch(e){}})();`;
+  const themeInit = `(function(){try{var t=localStorage.getItem('pi-theme');document.documentElement.className=(t==='dark'?'dark':'light')+' ${sans.variable} ${mono.variable}';}catch(e){}})();`;
   return (
     // suppressHydrationWarning on <html>: the theme-init script below intentionally
     // mutates <html>.className from localStorage before React hydrates. Without this
     // attribute, React would warn about the className mismatch. Standard pattern for
     // localStorage-driven themes (next-themes uses the same technique).
-    <html lang="en" className={`${geist.variable} ${geistMono.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${sans.variable} ${mono.variable}`} suppressHydrationWarning>
       <head>
         {/* Raw <script> (not next/script) so suppressHydrationWarning can be applied
             directly. Placed in <head> so it runs synchronously before hydration,
