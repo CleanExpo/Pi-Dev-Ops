@@ -139,8 +139,10 @@ Source: `app/server/brief.py::classify_brief_complexity()`
 # Core layer — no enhancement layer required
 from app.server.core import classify, build_spec, generate, evaluate, decide
 
-# Enhancement layer — each module independently importable
-from app.server.advanced import budget, plan_discovery, complexity
+# Enhancement modules — each independently importable
+from app.server import budget
+from app.server.agents import plan_discovery
+from app.server.brief import classify_brief_complexity
 ```
 
 ---
