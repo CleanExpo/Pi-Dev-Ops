@@ -61,8 +61,7 @@ from app.server.core import generate
 success = generate(spec, workspace="/tmp/my-repo", model="sonnet")
 ```
 
-Source: `app/server/core/_chain.py::generate()`  
-Production path: `app/server/sessions.py::_phase_generate()` (uses Agent SDK)
+Source: `app/server/sessions.py::_phase_generate()` (Agent SDK — SDK-only since RA-576/RA-1094B)
 
 ---
 
@@ -80,8 +79,7 @@ score, text = evaluate(workspace="/tmp/my-repo", brief="fix login crash", thresh
 # text  = "COMPLETENESS: 9/10 — ...\nOVERALL: 8.7/10 — PASS"
 ```
 
-Source: `app/server/core/_chain.py::evaluate()`  
-Production path: `app/server/sessions.py::_run_single_eval()` (SDK, parallel Sonnet+Haiku)
+Source: `app/server/sessions.py::_run_single_eval()` (Agent SDK, parallel Sonnet+Haiku — SDK-only since RA-576/RA-1094B)
 
 ---
 
@@ -103,7 +101,7 @@ decide(6.2, threshold=8.0, attempt=0, max_retries=2)  # → "retry"
 decide(6.2, threshold=8.0, attempt=2, max_retries=2)  # → "warn"
 ```
 
-Source: `app/server/core/_chain.py::decide()`
+Source: `app/server/pipeline.py::decide()`
 
 ---
 

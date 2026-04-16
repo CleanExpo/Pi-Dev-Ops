@@ -6,9 +6,9 @@ Tests:
   - _run_claude_via_sdk_async returns (False, "") on SDK exception
   - _run_claude_via_sdk_async returns (False, "") when SDK not importable
   - _run_claude_via_sdk_async handles timeout
-  - _run_claude() tries SDK when TAO_USE_AGENT_SDK=1 and succeeds
-  - _run_claude() falls back to subprocess when SDK returns empty output
-  - _decompose_brief tries SDK when TAO_USE_AGENT_SDK=1
+  - _run_claude() tries SDK and succeeds (SDK-only since RA-1094B)
+  - _run_claude() raises RuntimeError when SDK returns empty output
+  - _decompose_brief uses SDK path
 """
 import asyncio
 import sys
@@ -104,17 +104,23 @@ def test_run_claude_uses_sdk_when_flag_on():
                 assert "# Plan:" in result
 
 
-def test_run_claude_falls_back_to_subprocess_on_empty():
-    """_run_claude() falls back to subprocess when SDK returns empty output."""
-    from app.server import pipeline, config
+def test_run_claude_raises_on_empty_sdk_output():
+    """_run_claude() raises RuntimeError when SDK returns empty output (RA-1094B)."""
+    from app.server import pipeline
 
-    with patch.object(config, "USE_AGENT_SDK", True):
-        # SDK returns success=True but empty output
-        with patch("asyncio.run", return_value=(True, "")):
-            with patch.object(pipeline, "_run_claude_subprocess", return_value="subprocess output") as mock_sub:
-                result = pipeline._run_claude("write spec", model="sonnet", phase="spec")
-                assert mock_sub.called
-                assert result == "subprocess output"
+    # SDK returns success=True but empty output — SDK-only mandate means this fails loudly
+    with patch("asyncio.run", return_value=(True, "")):
+        with pytest.raises(RuntimeError, match="empty output"):
+            pipeline._run_claude("write spec", model="sonnet", phase="spec")
+
+
+def test_run_claude_raises_on_sdk_failure():
+    """_run_claude() raises RuntimeError when SDK reports failure (RA-1094B)."""
+    from app.server import pipeline
+
+    with patch("asyncio.run", return_value=(False, "error output")):
+        with pytest.raises(RuntimeError, match="failure"):
+            pipeline._run_claude("write spec", model="sonnet", phase="spec")
 
 
 @pytest.mark.asyncio
