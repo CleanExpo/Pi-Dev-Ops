@@ -2,8 +2,8 @@
 board_meeting.py — Board Meeting Gap Audit
 
 Compares the Pi-CEO spec against actual source code and raises Linear tickets
-for any discrepancies found. Uses claude_agent_sdk (TAO_USE_AGENT_SDK=1) or
-falls back to the claude CLI subprocess.
+for any discrepancies found. Runs via claude_agent_sdk exclusively
+(SDK-only mandate, RA-1094B).
 
 Usage:
     python -m app.server.agents.board_meeting [--dry-run] [--cycle N]
@@ -15,7 +15,6 @@ import json
 import logging
 import os
 import re
-import subprocess
 import time
 import urllib.request
 from datetime import datetime, timezone
@@ -559,7 +558,7 @@ If there are no discrepancies, output: []
 Output ONLY the JSON array.
 """
 
-    use_sdk = os.environ.get("TAO_USE_AGENT_SDK", "0") == "1"
+    # RA-1094B — SDK-only mandate: subprocess fallback removed.
     raw = ""
 
     # RA-655 — prefer cached direct API path when system_prompt + ANTHROPIC_API_KEY available
@@ -603,21 +602,10 @@ Output ONLY the JSON array.
         if not raw:
             log.info("board-cache returned empty — falling back for category=%s", audit_target["category"])
 
-    if not raw and use_sdk:
+    if not raw:
         raw = _run_prompt_via_sdk(prompt, model="claude-sonnet-4-6", timeout=120)
         if not raw:
-            log.info("SDK returned empty — retrying via subprocess for category=%s", audit_target["category"])
-
-    if not raw:
-        cmd = [config.CLAUDE_CMD, *config.CLAUDE_EXTRA_FLAGS, "-p", prompt,
-               "--output-format", "text", "--model", "claude-sonnet-4-6"]
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
-        raw = result.stdout.strip()
+            log.info("SDK returned empty for category=%s", audit_target["category"])
 
     if not raw:
         log.warning("claude returned empty output for category=%s", audit_target["category"])
@@ -767,11 +755,6 @@ def run_gap_audit_phase(dry_run: bool = False) -> dict[str, Any]:
             )
             log.info("category=%s discrepancies=%d", target["category"], len(items))
             all_discrepancies.extend(items)
-        except subprocess.TimeoutExpired:
-            log.warning("claude CLI timed out for category=%s", target["category"])
-        except FileNotFoundError:
-            log.error("claude CLI not found — is it on PATH?")
-            break
         except Exception as exc:
             log.warning("Gap audit error for category=%s: %s", target["category"], exc)
 
