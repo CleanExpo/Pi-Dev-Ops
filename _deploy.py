@@ -37,7 +37,7 @@ w("pyproject.toml", "[build-system]\nrequires = [\"hatchling\"]\nbuild-backend =
 
 w(".harness/config.yaml", "project: pi-dev-ops\nharness_version: 1.0\nagents:\n  planner: {model: opus, temperature: 0.3}\n  generator: {model: sonnet, temperature: 0.2}\n  evaluator: {model: sonnet, temperature: 0.1}\nqa:\n  max_rounds: 3\n  auto_escalate: true\n")
 
-w(".harness/spec.md", "# Pi Dev Ops - Product Spec\n\nTiered Agent Orchestrator (TAO) with 23 skills on Claude Max.\n\n## Tiers\n- Orchestrator: Opus 4.6 (1M ctx)\n- Specialist: Sonnet 4.6 (200K ctx)\n- Worker: Haiku 4.5 (200K ctx)\n")
+w(".harness/spec.md", "# Pi Dev Ops - Product Spec\n\nTiered Agent Orchestrator (TAO) with 23 skills on Claude Max.\n\n## Tiers\n- Orchestrator: Opus 4.7 (1M ctx)\n- Specialist: Sonnet 4.6 (200K ctx)\n- Worker: Haiku 4.5 (200K ctx)\n")
 
 w(".harness/handoff.md", "# Handoff\n\n## Project: Pi Dev Ops\n## Status: Initial deployment\n## Next: Run first build via web UI\n")
 
@@ -55,7 +55,7 @@ w("skills/tier-evaluator/SKILL.md", "---\nname: tier-evaluator\ndescription: QA 
 
 w("skills/context-compressor/SKILL.md", "---\nname: context-compressor\ndescription: Compress context at tier boundaries to save tokens.\n---\n\n# Context Compressor\n\n## Strategies\n1. Truncate - Keep first/last N chars (free)\n2. Extract - Pull keyword-relevant sections (free)\n3. Summarize - AI summary via Haiku (cheap)\n")
 
-w("skills/token-budgeter/SKILL.md", "---\nname: token-budgeter\ndescription: Track and enforce token budgets per tier.\n---\n\n# Token Budgeter\n\n## Model Costs (April 2026)\n- Opus 4.6: / per M tokens\n- Sonnet 4.6: / per M tokens\n- Haiku 4.5: .80/ per M tokens\n\nOn Claude Max:  for everything.\n")
+w("skills/token-budgeter/SKILL.md", "---\nname: token-budgeter\ndescription: Track and enforce token budgets per tier.\n---\n\n# Token Budgeter\n\n## Model Costs (April 2026)\n- Opus 4.7: / per M tokens\n- Sonnet 4.6: / per M tokens\n- Haiku 4.5: .80/ per M tokens\n\nOn Claude Max:  for everything.\n")
 
 w("skills/auto-generator/SKILL.md", "---\nname: auto-generator\ndescription: Generate tier configs from project briefs automatically.\n---\n\n# Auto Generator\n\nGiven a brief, recommends the optimal tier configuration.\n\n## Presets\n- 2-tier-codereview: Sonnet reviewer + Haiku workers\n- 3-tier-webapp: Opus orchestrator + Sonnet specialist + Haiku workers\n- 4-tier-research: Full hierarchy with research tier\n")
 
@@ -81,7 +81,7 @@ w("skills/agentic-loop/SKILL.md", "---\nname: agentic-loop\ndescription: Infinit
 
 w("skills/agentic-layer/SKILL.md", "---\nname: agentic-layer\ndescription: Design products with agent-native architecture.\n---\n\n# The Agentic Layer\n\nEvery product needs two interfaces:\n- Human Layer: HTML/CSS/JS, visual, interactive\n- Agentic Layer: JSON I/O, structured, deterministic\n\n## Design Principles\n1. Structured over visual (JSON not HTML)\n2. Actions as named operations\n3. State as machine-readable document\n4. Feedback as structured result\n5. Self-describing API (capabilities endpoint)\n")
 
-w("skills/claude-max-runtime/SKILL.md", "---\nname: claude-max-runtime\ndescription: Execute TAO natively within Claude Max subscription.\n---\n\n# Claude Max Runtime\n\n## Tier Mapping\n- Orchestrator: Main Claude Code session (Opus 4.6, 1M ctx)\n- Specialist: Subagent (Sonnet 4.6)\n- Worker: Subagent (Haiku 4.5)\n- Evaluator: Subagent (Sonnet 4.6, read-only)\n\nZero API cost. Everything included in Max subscription.\n")
+w("skills/claude-max-runtime/SKILL.md", "---\nname: claude-max-runtime\ndescription: Execute TAO natively within Claude Max subscription.\n---\n\n# Claude Max Runtime\n\n## Tier Mapping\n- Orchestrator: Main Claude Code session (Opus 4.7, 1M ctx)\n- Specialist: Subagent (Sonnet 4.6)\n- Worker: Subagent (Haiku 4.5)\n- Evaluator: Subagent (Sonnet 4.6, read-only)\n\nZero API cost. Everything included in Max subscription.\n")
 
 w("skills/pi-integration/SKILL.md", "---\nname: pi-integration\ndescription: Bridge TAO to pi-mono runtime for multi-provider support.\n---\n\n# Pi Integration\n\nFor multi-provider setups (Anthropic + OpenAI + Ollama).\nUse claude-max-runtime instead if you are on Max plan.\n\npi-mono provides: unified LLM API, session trees, hooks, packages.\n")
 
@@ -96,7 +96,7 @@ w("src/tao/tiers/__init__.py", "")
 
 w("src/tao/schemas/artifacts.py", "from dataclasses import dataclass, field\nfrom typing import Optional, Any\nimport uuid, time\n\n@dataclass\nclass TaskSpec:\n    description: str\n    tier: str\n    task_id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])\n    context: str = ''\n    parent_task_id: Optional[str] = None\n    expected_output: str = ''\n    max_tokens: int = 4096\n\n@dataclass\nclass TaskResult:\n    task_id: str\n    tier: str\n    content: str\n    success: bool = True\n    tokens_used: int = 0\n    model: str = ''\n    duration_seconds: float = 0.0\n\n@dataclass\nclass Escalation:\n    task_id: str\n    from_tier: str\n    reason: str\n    context_needed: str = ''\n    partial_result: Optional[str] = None\n")
 
-w("src/tao/tiers/config.py", "import yaml\nfrom dataclasses import dataclass, field\nfrom typing import Optional\n\nMODEL_MAP = {'opus':'claude-opus-4-6','sonnet':'claude-sonnet-4-6','haiku':'claude-haiku-4-5-20251001'}\n\n@dataclass\nclass TierConfig:\n    name: str\n    model: str\n    role: str = ''\n    parent: Optional[str] = None\n    max_concurrency: int = 1\n    token_budget_pct: int = 0\n    fallback_model: Optional[str] = None\n\ndef load_config(path):\n    with open(path) as f:\n        raw = yaml.safe_load(f)\n    tiers = []\n    for t in raw.get('tiers', []):\n        tiers.append(TierConfig(**{k:v for k,v in t.items() if k in TierConfig.__dataclass_fields__}))\n    return {'total_token_budget': raw.get('total_token_budget', 100000), 'tiers': tiers}\n")
+w("src/tao/tiers/config.py", "import yaml\nfrom dataclasses import dataclass, field\nfrom typing import Optional\n\nMODEL_MAP = {'opus':'claude-opus-4-7','sonnet':'claude-sonnet-4-6','haiku':'claude-haiku-4-5-20251001'}\n\n@dataclass\nclass TierConfig:\n    name: str\n    model: str\n    role: str = ''\n    parent: Optional[str] = None\n    max_concurrency: int = 1\n    token_budget_pct: int = 0\n    fallback_model: Optional[str] = None\n\ndef load_config(path):\n    with open(path) as f:\n        raw = yaml.safe_load(f)\n    tiers = []\n    for t in raw.get('tiers', []):\n        tiers.append(TierConfig(**{k:v for k,v in t.items() if k in TierConfig.__dataclass_fields__}))\n    return {'total_token_budget': raw.get('total_token_budget', 100000), 'tiers': tiers}\n")
 
 w("src/tao/budget/tracker.py", "from dataclasses import dataclass, field\nimport time\n\n@dataclass\nclass BudgetTracker:\n    total_budget: int = 100000\n    used: int = 0\n    per_tier: dict = field(default_factory=dict)\n    \n    def record(self, tier, tokens):\n        self.used += tokens\n        self.per_tier.setdefault(tier, 0)\n        self.per_tier[tier] += tokens\n    \n    def remaining(self): return self.total_budget - self.used\n    def pct_used(self): return (self.used / self.total_budget * 100) if self.total_budget else 0\n")
 
