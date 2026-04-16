@@ -30,7 +30,9 @@ const COOKIE_NAME = "pi_session";
 const LOGIN_PATH = "/";
 
 const PROTECTED_PAGE_PREFIXES = [
+  "/control",
   "/dashboard",
+  "/health",
   "/builds",
   "/chat",
   "/settings",

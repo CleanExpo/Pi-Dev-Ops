@@ -18,11 +18,11 @@ export default function NotFound() {
           The requested route does not exist in Pi CEO.
         </p>
         <Link
-          href="/dashboard"
+          href="/control"
           className="font-mono text-[11px] px-6 py-2 tracking-wider"
           style={{ background: "#E8751A", color: "#FFF", fontWeight: 700 }}
         >
-          ← DASHBOARD
+          ← CONTROL
         </Link>
       </div>
     </div>

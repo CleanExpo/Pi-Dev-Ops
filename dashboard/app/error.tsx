@@ -51,11 +51,11 @@ export default function GlobalError({
             RETRY
           </button>
           <a
-            href="/dashboard"
+            href="/control"
             className="font-mono text-[10px] px-5 py-2 tracking-wider"
             style={{ background: "#141414", color: "#C8C5C0", border: "1px solid #3A3632" }}
           >
-            ← DASHBOARD
+            ← CONTROL
           </a>
         </div>
       </div>

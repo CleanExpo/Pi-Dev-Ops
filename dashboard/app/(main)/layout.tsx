@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 
 const NAV = [
   { href: "/overview",  label: "Overview",  icon: "◈", key: "overview"  },
-  { href: "/dashboard", label: "Analysis",  icon: "⊞", key: "dashboard" },
+  { href: "/control",   label: "Control",   icon: "⊞", key: "control"   },
   { href: "/builds",    label: "Builds",    icon: "⚙", key: "builds"   },
   { href: "/routines",  label: "Routines",  icon: "↻", key: "routines"  },
   { href: "/projects",  label: "Portfolio", icon: "◫", key: "projects"  },
@@ -128,7 +128,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         {/* Nav links */}
         <nav className="flex flex-col gap-0.5 px-2 py-3 flex-1">
           {NAV.map(({ href, label, icon }) => {
-            const active = path === href || (href !== "/dashboard" && path.startsWith(href));
+            const active = path === href || (href !== "/control" && path.startsWith(href));
             return (
               <Link
                 key={href}
@@ -204,7 +204,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         }}
       >
         {NAV.map(({ href, label, icon }) => {
-          const active = path === href || (href !== "/dashboard" && path.startsWith(href));
+          const active = path === href || (href !== "/control" && path.startsWith(href));
           return (
             <Link
               key={href}
