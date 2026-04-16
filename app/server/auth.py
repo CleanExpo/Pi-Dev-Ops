@@ -19,6 +19,41 @@ _IS_CLOUD = bool(
 )
 
 # ---------------------------------------------------------------------------
+# Token revocation — in-memory set (RA-1014)
+# Entries are (token_hash, expiry_timestamp). Cleaned up lazily on verify.
+# Safe to lose on restart — Railway restarts invalidate all sessions anyway.
+# ---------------------------------------------------------------------------
+
+_revoked_tokens: dict[str, float] = {}  # token_hash -> expiry_timestamp
+_revoked_last_gc: float = 0.0
+
+
+def _token_hash(token: str) -> str:
+    """SHA-256 fingerprint of a token — used as the revocation key."""
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def revoke_token(token: str) -> None:
+    """Add a token to the revocation set. Expiry matches SESSION_TTL."""
+    key = _token_hash(token)
+    _revoked_tokens[key] = time.time() + config.SESSION_TTL
+
+
+def _is_token_revoked(token: str) -> bool:
+    """Return True if token has been explicitly revoked. Prunes stale entries."""
+    global _revoked_last_gc
+    now = time.time()
+    # Prune expired entries every 5 minutes
+    if now - _revoked_last_gc > 300.0:
+        _revoked_last_gc = now
+        stale = [k for k, exp in _revoked_tokens.items() if exp < now]
+        for k in stale:
+            del _revoked_tokens[k]
+    key = _token_hash(token)
+    entry = _revoked_tokens.get(key)
+    return entry is not None and entry >= now
+
+# ---------------------------------------------------------------------------
 # Password hashing — bcrypt with transparent migration from legacy SHA-256
 # ---------------------------------------------------------------------------
 
@@ -77,7 +112,12 @@ def verify_session_token(token: str) -> bool:
         expected = hmac.new(config.SESSION_SECRET.encode(), data.encode(), hashlib.sha256).hexdigest()
         if not hmac.compare_digest(sig, expected):
             return False
-        return json.loads(data).get("exp", 0) >= time.time()
+        if json.loads(data).get("exp", 0) < time.time():
+            return False
+        # RA-1014: reject tokens that have been explicitly revoked on logout
+        if _is_token_revoked(token):
+            return False
+        return True
     except Exception:
         return False
 

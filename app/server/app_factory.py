@@ -9,7 +9,9 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 
 from .sessions import restore_sessions, _sessions
 from .gc import gc_loop
@@ -37,6 +39,19 @@ ALLOWED_ORIGINS = [
 ] + [o.strip() for o in _extra.split(",") if o.strip()]
 
 
+_MAX_REQUEST_BODY = 10 * 1024 * 1024  # 10 MB — RA-1019
+
+
+class RequestSizeLimit(BaseHTTPMiddleware):
+    """Reject requests whose Content-Length exceeds _MAX_REQUEST_BODY (RA-1019)."""
+
+    async def dispatch(self, request: Request, call_next):
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > _MAX_REQUEST_BODY:
+            return JSONResponse({"detail": "Request too large"}, status_code=413)
+        return await call_next(request)
+
+
 class SecurityHeaders(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         response = await call_next(request)
@@ -45,7 +60,9 @@ class SecurityHeaders(BaseHTTPMiddleware):
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline'; "
+            # RA-1016: 'unsafe-inline' removed from script-src. Next.js dashboard
+            # must not rely on inline scripts — use external bundles only.
+            "script-src 'self'; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "connect-src 'self' ws: wss: https://*.vercel.app https://*.railway.app; "
@@ -74,6 +91,7 @@ async def _resilient(coro_factory, name: str, restart_delay: float = 10.0):
 app = FastAPI(title="Pi CEO", docs_url=None, redoc_url=None, openapi_url=None)
 
 app.add_middleware(SecurityHeaders)
+app.add_middleware(RequestSizeLimit)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
