@@ -3,7 +3,10 @@
 Pi-CEO Enhanced — Health Check & Telegram Alerting
 RA-640 | Runs every 5 minutes via launchd
 Checks: Ollama /api/tags + n8n /healthz
-Alerts: Telegram via @piceoagent_bot
+
+Alert rules:
+  - Only fires after 2 consecutive failures (avoids restart false positives)
+  - 30-minute cooldown between alerts for the same service
 """
 
 import urllib.request
@@ -22,8 +25,11 @@ SERVICES = {
     "n8n":    "http://localhost:5678/healthz",
 }
 
-TIMEOUT  = 10   # seconds per request
-LOG_FILE = os.path.expanduser("~/pi-ceo/logs/health_check.log")
+TIMEOUT             = 10    # seconds per request
+FAILURE_THRESHOLD   = 2     # consecutive failures before alert
+COOLDOWN_MINUTES    = 30    # minutes between repeat alerts per service
+LOG_FILE            = os.path.expanduser("~/pi-ceo/logs/health_check.log")
+STATE_FILE          = os.path.expanduser("~/pi-ceo/logs/health_check_state.json")
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -34,6 +40,20 @@ def log(msg: str):
     print(line)
     with open(LOG_FILE, "a") as f:
         f.write(line + "\n")
+
+
+def load_state() -> dict:
+    try:
+        with open(STATE_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def save_state(state: dict):
+    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
+    with open(STATE_FILE, "w") as f:
+        json.dump(state, f)
 
 
 def send_telegram(message: str):
@@ -57,27 +77,48 @@ def check_service(name: str, url: str) -> bool:
         if resp.status in (200, 201):
             log(f"OK  {name} ({resp.status})")
             return True
-        else:
-            log(f"WARN {name} returned HTTP {resp.status}")
-            return False
+        log(f"WARN {name} returned HTTP {resp.status}")
+        return False
     except urllib.error.URLError as e:
-        log(f"DOWN {name}: {e.reason}")
+        log(f"FAIL {name}: {e.reason}")
         return False
     except Exception as e:
-        log(f"DOWN {name}: {e}")
+        log(f"FAIL {name}: {e}")
         return False
+
+
+def should_alert(state: dict, name: str) -> bool:
+    svc = state.get(name, {})
+    last_alert = svc.get("last_alert")
+    if not last_alert:
+        return True
+    elapsed = (datetime.datetime.now() - datetime.datetime.fromisoformat(last_alert)).total_seconds()
+    return elapsed >= COOLDOWN_MINUTES * 60
 
 
 def main():
     log("── health check start ──")
-    failed = []
+    state = load_state()
+    now_iso = datetime.datetime.now().isoformat()
+    to_alert = []
 
     for name, url in SERVICES.items():
-        if not check_service(name, url):
-            failed.append(name)
+        svc = state.setdefault(name, {"failures": 0, "last_alert": None})
+        if check_service(name, url):
+            if svc["failures"] > 0:
+                log(f"RECOVERED {name} (was {svc['failures']} consecutive failures)")
+            svc["failures"] = 0
+        else:
+            svc["failures"] += 1
+            log(f"Consecutive failures for {name}: {svc['failures']}/{FAILURE_THRESHOLD}")
+            if svc["failures"] >= FAILURE_THRESHOLD and should_alert(state, name):
+                to_alert.append(name)
+                svc["last_alert"] = now_iso
 
-    if failed:
-        names = ", ".join(failed)
+    save_state(state)
+
+    if to_alert:
+        names = ", ".join(to_alert)
         msg = (
             f"🚨 <b>Pi-CEO Alert</b>\n\n"
             f"Service(s) DOWN: <b>{names}</b>\n"

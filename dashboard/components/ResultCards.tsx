@@ -16,7 +16,7 @@ function Bar({ value, max = 10 }: { value: number; max?: number }) {
     <span className="font-mono text-[11px]">
       <span style={{ color: "var(--accent)" }}>{"█".repeat(pct)}</span>
       <span style={{ color: "var(--border)" }}>{"░".repeat(10 - pct)}</span>
-      <span style={{ color: "var(--text-muted)" }}> {value}/{max}</span>
+      <span style={{ color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}> {value}/{max}</span>
     </span>
   );
 }
@@ -63,7 +63,7 @@ export default function ResultCards({ result }: Props) {
                 .map(([lang, loc]) => (
                   <div key={lang} className="flex items-center justify-between">
                     <span className="font-mono text-[10px]" style={{ color: "var(--text)" }}>{lang}</span>
-                    <span className="font-mono text-[10px]" style={{ color: "var(--text-muted)" }}>{loc.toLocaleString()}L</span>
+                    <span className="font-mono text-[10px]" style={{ color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>{loc.toLocaleString()}L</span>
                   </div>
                 ))}
             </div>
@@ -106,7 +106,7 @@ export default function ResultCards({ result }: Props) {
               >
                 {ZTE_LABELS[result.zteLevel ?? 1]?.label ?? "—"}
               </div>
-              <div className="font-mono text-[9px]" style={{ color: "var(--text-muted)" }}>
+              <div className="font-mono text-[9px]" style={{ color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
                 {result.zteScore}/60 · band {ZTE_LABELS[result.zteLevel ?? 1]?.band ?? "—"}
               </div>
             </div>
@@ -119,7 +119,7 @@ export default function ResultCards({ result }: Props) {
                   <span className="font-mono text-[9px] flex-1 truncate" style={{ color: "var(--text)" }}>{lp.name}</span>
                   <span
                     className="font-mono text-[9px]"
-                    style={{ color: lp.score >= 4 ? "#4ADE80" : lp.score >= 3 ? "#FFD166" : "#F87171" }}
+                    style={{ color: lp.score >= 4 ? "#4ADE80" : lp.score >= 3 ? "#FFD166" : "#F87171", fontVariantNumeric: "tabular-nums" }}
                   >
                     {lp.score}/5
                   </span>

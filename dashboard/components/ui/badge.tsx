@@ -24,9 +24,22 @@ const badgeVariants = cva(
 
 export interface BadgeProps
   extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {}
+    VariantProps<typeof badgeVariants> {
+  accentLine?: boolean;
+}
 
-function Badge({ className, variant, ...props }: BadgeProps) {
+function Badge({ className, variant, accentLine, ...props }: BadgeProps) {
+  if (accentLine) {
+    return (
+      <div className={cn(badgeVariants({ variant }), "relative overflow-hidden", className)} {...props}>
+        {props.children}
+        <div
+          className="absolute bottom-0 left-0 right-0 h-[2px] pointer-events-none"
+          style={{ background: "linear-gradient(90deg, var(--accent, #f59e0b), transparent)" }}
+        />
+      </div>
+    );
+  }
   return (
     <div className={cn(badgeVariants({ variant }), className)} {...props} />
   );
