@@ -220,7 +220,7 @@ function LoginForm() {
 
         {/* Footer tagline */}
         <p className="font-mono mt-8" style={{ fontSize: "9px", color: "#fafafa", opacity: 0.35, letterSpacing: "0.2em" }}>
-          8 ANALYSIS PHASES · CLAUDE OPUS 4.6 · TAO FRAMEWORK
+          8 ANALYSIS PHASES · CLAUDE OPUS 4.7 · TAO FRAMEWORK
         </p>
       </div>
     </div>
