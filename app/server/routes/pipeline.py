@@ -68,7 +68,10 @@ async def run_ship(body: ShipRequest):
         ship_log = state.ship_log or {}
         return {"ok": ship_log.get("shipped", False), "pipeline_id": body.pipeline_id, "ship_log": ship_log}
     except ValueError as exc:
-        return {"ok": False, "error": str(exc)}
+        # RA-1023: log full detail internally, return generic message to caller
+        # to avoid leaking internal filesystem paths or implementation details.
+        log.error("Ship phase ValueError: pipeline=%s err=%s", body.pipeline_id, exc)
+        raise HTTPException(status_code=400, detail="Invalid ship request")
 
 
 @router.get("/api/pipeline/{pipeline_id}", dependencies=[Depends(require_auth)])

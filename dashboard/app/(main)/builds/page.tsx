@@ -21,7 +21,7 @@ interface LogLine {
   type: string;
   text: string;
   ts: number;
-  // phase_metric extras
+  // phase_metric extras (optional fields present only for type === "phase_metric")
   phase?: string;
   duration_s?: number;
   cost_usd?: number;
@@ -200,7 +200,7 @@ function LogPanel({
 
     openStream();
     return () => esRef.current?.close();
-  }, [sid, status]);
+  }, [sid, status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-scroll
   useEffect(() => {
@@ -385,8 +385,8 @@ export default function BuildsPage() {
   }, []);
 
   useEffect(() => {
-    fetchSessions().catch(() => {});
-    const t = setInterval(() => { fetchSessions().catch(() => {}); }, 5000);
+    void fetchSessions();
+    const t = setInterval(fetchSessions, 5000);
     return () => clearInterval(t);
   }, [fetchSessions]);
 

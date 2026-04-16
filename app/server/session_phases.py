@@ -447,7 +447,6 @@ def parse_event(line, session):
             em(session, "metric", f"  Cost: ${cost:.4f}")
 
 
-
 # ── RA-1032: Per-phase cost/duration metric helper ────────────────────────────
 
 def _emit_phase_metric(session, phase_name: str, phase_start: float, phase_cost: float = 0.0) -> None:

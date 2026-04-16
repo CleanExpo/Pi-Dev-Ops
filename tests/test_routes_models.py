@@ -79,13 +79,21 @@ def test_parallel_build_valid_workers():
 
 
 def test_parallel_build_zero_workers():
-    with pytest.raises(ValidationError, match="n_workers must be 1"):
+    # RA-1021: 0 is below the ge=1 Field constraint.
+    with pytest.raises(ValidationError):
         ParallelBuildRequest(repo_url="https://github.com/x/y", n_workers=0)
 
 
 def test_parallel_build_nine_workers():
-    with pytest.raises(ValidationError, match="n_workers must be 1"):
-        ParallelBuildRequest(repo_url="https://github.com/x/y", n_workers=9)
+    # RA-1021: cap raised from 8 to 10 — 9 is now valid.
+    r = ParallelBuildRequest(repo_url="https://github.com/x/y", n_workers=9)
+    assert r.n_workers == 9
+
+
+def test_parallel_build_eleven_workers():
+    # RA-1021: 11 exceeds the le=10 Field constraint.
+    with pytest.raises(ValidationError):
+        ParallelBuildRequest(repo_url="https://github.com/x/y", n_workers=11)
 
 
 # ── TriggerRequest ────────────────────────────────────────────────────────────

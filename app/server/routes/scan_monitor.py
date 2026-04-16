@@ -13,6 +13,10 @@ log = logging.getLogger("pi-ceo.main")
 
 router = APIRouter()
 
+# RA-1018: keep strong references to fire-and-forget scan tasks so GC cannot
+# collect them mid-run.  Keyed by repo_url (or "all" for portfolio scans).
+_scan_tasks: dict[str, asyncio.Task] = {}
+
 
 @router.post("/api/scan", dependencies=[Depends(require_auth), Depends(require_rate_limit)])
 async def trigger_scan(body: ScanRequest):
@@ -68,7 +72,15 @@ async def trigger_scan(body: ScanRequest):
                 out["auto_pr"] = await run_autopr_all(dry_run=dry_run)
             return out
 
-    asyncio.create_task(_run())
+    task_key = body.project_id or "all"
+    # RA-1018: store the Task so GC cannot collect it before completion.
+    task = asyncio.create_task(_run())
+    _scan_tasks[task_key] = task
+
+    def _cleanup(t: asyncio.Task) -> None:
+        _scan_tasks.pop(task_key, None)
+
+    task.add_done_callback(_cleanup)
     return {"ok": True, "message": "Scan started — results will be saved to .harness/scan-results/"}
 
 
