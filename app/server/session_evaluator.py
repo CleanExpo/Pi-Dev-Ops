@@ -62,12 +62,20 @@ def _get_claude_md() -> str:
 # ── Score / confidence parsers ─────────────────────────────────────────────────
 
 def _parse_evaluator_dimensions(eval_text: str) -> dict:
-    """Parse all 4 evaluator dimension scores from output text.
-    Returns {dimension_name: (score, reason)}."""
+    """Parse evaluator dimension scores from output text.
+
+    Returns {dimension_name: (score, reason)}.
+
+    Dimensions: completeness, correctness, conciseness, format, and
+    karpathy (5th axis — surgical/simple/goal-verified/assumption-surfaced).
+    Karpathy is a *soft* axis: it is returned here for lesson capture but
+    callers intentionally do not gate merge on it alone (see session_phases
+    lesson-append loop and pass/fail logic).
+    """
     dimensions = {}
     for line in eval_text.split("\n"):
         line_upper = line.strip().upper()
-        for dim in ("COMPLETENESS", "CORRECTNESS", "CONCISENESS", "FORMAT"):
+        for dim in ("COMPLETENESS", "CORRECTNESS", "CONCISENESS", "FORMAT", "KARPATHY"):
             if line_upper.startswith(dim + ":"):
                 try:
                     rest = line.split(":", 1)[1].strip()
@@ -219,13 +227,22 @@ async def _run_eval_with_cache(
         "3. CONCISENESS \u2014 Any dead code, debug prints, TODO stubs, or over-engineered "
         "abstractions? Tight, purposeful code = 9-10.\n"
         "4. FORMAT \u2014 Does it match the project's existing conventions exactly? "
-        "Style violations or inconsistent naming = \u22646.\n\n"
-        "OUTPUT FORMAT: Respond with exactly 4 dimension lines, the overall, then a confidence line:\n"
+        "Style violations or inconsistent naming = \u22646.\n"
+        "5. KARPATHY ADHERENCE \u2014 Score the four Karpathy principles together "
+        "(CLAUDE.md lines 184\u2013246):\n"
+        "   \u2022 Surgical: every changed line traces to the brief\n"
+        "   \u2022 Simple: minimum code, no speculative abstractions\n"
+        "   \u2022 Goal-verified: tests/checks defined before implementation\n"
+        "   \u2022 Assumption-surfaced: assumptions stated upfront, not silently chosen\n"
+        "   10 = all four honoured; \u22645 if any principle is violated. "
+        "Soft axis: reported for learning, not a merge blocker on its own.\n\n"
+        "OUTPUT FORMAT: Respond with exactly 5 dimension lines, the overall, then a confidence line:\n"
         "COMPLETENESS: <score>/10 \u2014 <reason>\n"
         "CORRECTNESS: <score>/10 \u2014 <reason>\n"
         "CONCISENESS: <score>/10 \u2014 <reason>\n"
         "FORMAT: <score>/10 \u2014 <reason>\n"
-        f"OVERALL: <average>/10 \u2014 PASS or FAIL (threshold: {threshold}/10)\n"
+        "KARPATHY: <score>/10 \u2014 <reason>\n"
+        f"OVERALL: <average of first 4>/10 \u2014 PASS or FAIL (threshold: {threshold}/10)\n"
         "CONFIDENCE: <0-100>% \u2014 <how certain are you? consider: diff clarity, "
         "requirements ambiguity, borderline score, incomplete context. "
         "100% = unambiguous; 50% = borderline; <60% = genuinely uncertain>"

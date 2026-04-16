@@ -479,6 +479,19 @@ _QUALITY_GATES = {
 }
 
 
+# Karpathy constraints — always-on engineering guardrails. ~150 tokens,
+# trivial vs. the rest of the context, so no gating needed.
+# Source of truth: CLAUDE.md lines 184-246.
+KARPATHY_CONSTRAINTS = """\
+ENGINEERING CONSTRAINTS (Karpathy, always on):
+- Minimum code. No speculative abstractions, no features beyond the request.
+- Surgical diffs. Every changed line must trace to the stated goal.
+- State assumptions upfront. If unclear, ASK before coding.
+- Define success criteria before implementing; verify with tests.
+- Match existing code style. Do not refactor adjacent unbroken code.
+"""
+
+
 def build_structured_brief(
     raw_brief: str,
     intent: str,
@@ -549,6 +562,7 @@ def build_structured_brief(
         f"{intent_context}"
         f"--- USER BRIEF ---\n{raw_brief}\n--- END BRIEF ---\n\n"
         f"{gate}\n"
+        f"{KARPATHY_CONSTRAINTS}\n"
         f"RULES:\n"
         f"- Follow the workflow steps above in order\n"
         f"- Show your thinking at each step\n"
