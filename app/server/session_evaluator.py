@@ -387,35 +387,19 @@ async def _run_single_eval(
     timeout: int = 120,
     session_id: str = "",
 ) -> tuple[Optional[float], str]:
-    """Run one evaluator pass. Returns (score_or_None, full_output_text).
+    """Run one evaluator pass via the Agent SDK.
 
-    When TAO_USE_AGENT_SDK=1, tries the SDK path first (text-only response).
-    Falls back to subprocess on SDK error.
+    Returns (score_or_None, full_output_text). RA-1094B: SDK-only mandate —
+    the subprocess fallback was removed.
     """
-    # ── SDK path ─────────────────────────────────────────────────────────────
-    if config.USE_AGENT_SDK:
-        rc, sdk_text, _ = await _run_claude_via_sdk(
-            eval_spec, model, workspace, timeout=timeout,
-            session_id=session_id, phase="evaluator",
-        )
-        if rc == 0 and sdk_text.strip():
-            return _extract_eval_score(sdk_text), sdk_text
-        # RA-576: SDK required — do not fall back to subprocess evaluator.
-        _log.warning("SDK evaluator failed rc=%d — returning None (no subprocess fallback) [RA-576]", rc)
-        return None, ""
-
-    # ── Subprocess path — only reached when USE_AGENT_SDK=0 ──────────────
-    cmd = [config.CLAUDE_CMD, *config.CLAUDE_EXTRA_FLAGS, "-p", eval_spec,
-           "--model", model, "--output-format", "text"]
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, cwd=workspace,
-        )
-        out, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-        text = out.decode("utf-8", errors="replace").strip()
-    except (asyncio.TimeoutError, Exception):
-        return None, ""
-    return _extract_eval_score(text), text
+    rc, sdk_text, _ = await _run_claude_via_sdk(
+        eval_spec, model, workspace, timeout=timeout,
+        session_id=session_id, phase="evaluator",
+    )
+    if rc == 0 and sdk_text.strip():
+        return _extract_eval_score(sdk_text), sdk_text
+    _log.warning("SDK evaluator failed rc=%d", rc)
+    return None, ""
 
 
 async def _run_persona_review(session, workspace_path: str) -> list[dict]:

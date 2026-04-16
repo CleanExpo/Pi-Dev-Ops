@@ -80,7 +80,6 @@ from .session_phases import (  # noqa: F401
     _TAO_AVAILABLE,
     _PHASE_ORDER,
     _should_skip,
-    _stream_claude,
     _phase_clone,
     _phase_analyze,
     _phase_claude_check,

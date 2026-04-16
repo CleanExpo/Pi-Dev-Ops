@@ -152,7 +152,18 @@ AUTONOMY_BUDGET_MINS = int(os.environ.get("TAO_AUTONOMY_BUDGET", "0"))
 # ---------------------------------------------------------------------------
 
 ANTHROPIC_API_KEY    = os.environ.get("ANTHROPIC_API_KEY",               "")
-USE_AGENT_SDK        = os.environ.get("TAO_USE_AGENT_SDK", "0") == "1"
+
+# RA-1094B — SDK-only mandate. The Agent SDK has been the production path
+# since RA-576 (subprocess `claude -p` fallbacks removed from sessions.py).
+# Default is True; an explicit "0" setting raises ImportError at module load.
+# The flag is retained only for telemetry / test patching.
+if os.environ.get("TAO_USE_AGENT_SDK") == "0":
+    raise ImportError(
+        "TAO_USE_AGENT_SDK=0 is not supported since RA-1094B. "
+        "The Agent SDK has been the only supported path since RA-576. "
+        "Unset the variable or set it to 1."
+    )
+USE_AGENT_SDK        = True
 
 # RA-1009 — Prompt caching: set ENABLE_PROMPT_CACHING_1H=1 in Railway to activate.
 # When enabled, SDK calls and direct Anthropic API calls attach cache_control blocks

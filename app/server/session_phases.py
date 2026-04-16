@@ -482,26 +482,8 @@ def _should_skip(phase: str, resume_from: str) -> bool:
 # ── Phase helpers (RA-529) ────────────────────────────────────────────────────
 
 
-async def _stream_claude(proc, session):
-    """Stream stdout (parsed JSON events) and stderr from a claude subprocess."""
-    async def _out(p, s):
-        while True:
-            line = await p.stdout.readline()
-            if not line:
-                break
-            parse_event(line.decode("utf-8", errors="replace").rstrip(), s)
-
-    async def _err(p, s):
-        while True:
-            line = await p.stderr.readline()
-            if not line:
-                break
-            t = line.decode("utf-8", errors="replace").rstrip()
-            if t and "warn" not in t.lower():
-                em(s, "stderr", f"  {t[:200]}")
-
-    await asyncio.gather(_out(proc, session), _err(proc, session))
-    await proc.wait()
+# RA-1094B — _stream_claude() removed. SDK-only mandate: no more claude CLI
+# subprocess, so no need to parse its stream-json output.
 
 
 async def _phase_clone(session, resume_from: str) -> bool:
@@ -607,35 +589,20 @@ async def _phase_claude_check(session, resume_from: str) -> bool:
         return True
     em(session, "phase", "[3/5] Checking Claude Code...")
 
-    if config.USE_AGENT_SDK:
-        # SDK mode — no claude CLI needed; verify the SDK package is importable
-        try:
-            import claude_agent_sdk as _sdk  # noqa: PLC0415
-            version = getattr(_sdk, "__version__", "installed")
-            em(session, "success", f"  claude_agent_sdk {version} (SDK mode)")
-            session.last_completed_phase = "claude_check"
-            persistence.save_session(session)
-            return True
-        except ImportError:
-            em(session, "error", "  claude_agent_sdk not installed — TAO_USE_AGENT_SDK=1 requires it")
-            session.status = "failed"
-            persistence.save_session(session)
-            return False
-
-    # Subprocess mode — check for claude CLI binary
+    # SDK-only path (RA-1094B). The subprocess `claude --version` fallback was
+    # removed — the Agent SDK is the only supported execution path.
     try:
-        rc, out, err = await run_cmd(session.workspace, config.CLAUDE_CMD, "--version", timeout=10)
-        if rc == 0:
-            em(session, "success", f"  {(out.strip() or err.strip())[:80]}")
-            session.last_completed_phase = "claude_check"
-            persistence.save_session(session)
-            return True
-        em(session, "error", "  Claude Code error")
-    except FileNotFoundError:
-        em(session, "error", "  Claude Code NOT FOUND")
-    session.status = "failed"
-    persistence.save_session(session)
-    return False
+        import claude_agent_sdk as _sdk  # noqa: PLC0415
+        version = getattr(_sdk, "__version__", "installed")
+        em(session, "success", f"  claude_agent_sdk {version} (SDK mode)")
+        session.last_completed_phase = "claude_check"
+        persistence.save_session(session)
+        return True
+    except ImportError:
+        em(session, "error", "  claude_agent_sdk not installed — required by SDK-only mandate (RA-1094B)")
+        session.status = "failed"
+        persistence.save_session(session)
+        return False
 
 
 async def _phase_sandbox(session, resume_from: str) -> bool:
@@ -854,7 +821,7 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
             "Session %s: canary path selected (rate=%.2f)",
             session.id, config.AGENT_SDK_CANARY_RATE,
         )
-    use_sdk = config.USE_AGENT_SDK
+    # RA-1094B — SDK-only mandate: subprocess generator path removed.
     # RA-660 — prepend recent institutional memory so generator avoids known pitfalls
     incident_ctx = _build_incident_context(repo_url=getattr(session, "repo_url", ""))
     for attempt in range(2):
@@ -863,56 +830,28 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
         seeded_spec = (GENERATOR_THINK_SEED + base_spec) if _THINK_SEED_ENABLED else base_spec
         current_spec = (incident_ctx + seeded_spec) if incident_ctx else seeded_spec
         try:
-            # Try SDK path first if flag enabled
-            if use_sdk:
-                em(session, "tool", f"  $ claude --model {model} (via SDK)")
-                em(session, "system", "")
-                rc, sdk_output, cost = await _run_claude_via_sdk(
-                    current_spec, model, session.workspace,
-                    session_id=session.id, phase="generator",
-                )
-                _generate_cost += float(cost or 0.0)
-                if rc == 0:
-                    # SDK succeeded — parse output and emit events
-                    for line in sdk_output.split("\n"):
-                        if line.strip():
-                            parse_event(line, session)
-                    em(session, "system", "")
-                    em(session, "success", "  Claude Code completed")
-                    session.last_completed_phase = "generator"
-                    persistence.save_session(session)
-                    _emit_phase_metric(session, "generate", phase_start, _generate_cost)
-                    # RA-697: emit canary metric on successful canary run
-                    if use_canary:
-                        _emit_sdk_canary_metric(session.id, success=True)
-                    return True
-                else:
-                    # RA-576: SDK path required — no subprocess fallback.
-                    # Retry with simplified spec on attempt 0; fail on attempt 1.
-                    _log.warning("SDK path failed rc=%d (attempt %d/2) — no subprocess fallback", rc, attempt + 1)
-                    em(session, "error", f"  SDK failed rc={rc} (attempt {attempt + 1}/2) — no subprocess fallback [RA-576]")
-                    if attempt == 0:
-                        em(session, "system", "  Retrying with simplified prompt...")
-                    continue  # skip subprocess block; proceed to next attempt
-
-            # ── Subprocess path — only reached when USE_AGENT_SDK=0 ──────────
-            cmd = [config.CLAUDE_CMD, *config.CLAUDE_EXTRA_FLAGS, "-p", current_spec,
-                   "--model", model, "--verbose", "--output-format", "stream-json"]
-            em(session, "tool", f"  $ claude --model {model} --verbose --stream-json")
+            em(session, "tool", f"  $ claude --model {model} (via SDK)")
             em(session, "system", "")
-            proc = await asyncio.create_subprocess_exec(
-                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, cwd=session.workspace,
+            rc, sdk_output, cost = await _run_claude_via_sdk(
+                current_spec, model, session.workspace,
+                session_id=session.id, phase="generator",
             )
-            session.process = proc
-            await _stream_claude(proc, session)
-            em(session, "system", "")
-            if proc.returncode == 0:
+            _generate_cost += float(cost or 0.0)
+            if rc == 0:
+                for line in sdk_output.split("\n"):
+                    if line.strip():
+                        parse_event(line, session)
+                em(session, "system", "")
                 em(session, "success", "  Claude Code completed")
                 session.last_completed_phase = "generator"
                 persistence.save_session(session)
                 _emit_phase_metric(session, "generate", phase_start, _generate_cost)
+                # RA-697: emit canary metric on successful canary run
+                if use_canary:
+                    _emit_sdk_canary_metric(session.id, success=True)
                 return True
-            em(session, "error", f"  Claude exited code {proc.returncode} (attempt {attempt + 1}/2)")
+            _log.warning("SDK generator failed rc=%d (attempt %d/2)", rc, attempt + 1)
+            em(session, "error", f"  SDK failed rc={rc} (attempt {attempt + 1}/2)")
             if attempt == 0:
                 em(session, "system", "  Retrying with simplified prompt...")
         except Exception as e:
@@ -1094,44 +1033,22 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
             session.status = "building"
             persistence.save_session(session)
 
-            # Try SDK path first if flag enabled (same pattern as _phase_generate)
-            use_sdk = config.USE_AGENT_SDK
-            retry_success = False
-            if use_sdk:
-                em(session, "tool", f"  $ claude --model {model} (via SDK, retry)")
-                em(session, "system", "")
-                rc, sdk_output, cost = await _run_claude_via_sdk(
-                    retry_brief, model, session.workspace,
-                    session_id=session.id, phase="generator_retry",
-                )
-                if rc == 0:
-                    # SDK succeeded — parse output and emit events
-                    for line in sdk_output.split("\n"):
-                        if line.strip():
-                            parse_event(line, session)
-                    em(session, "system", "")
-                    em(session, "success", "  Retry generation complete")
-                    retry_success = True
-                else:
-                    # RA-576: SDK retry required — no subprocess fallback.
-                    _log.warning("SDK retry failed rc=%d — aborting evaluator retry [RA-576]", rc)
-                    em(session, "error", f"  SDK retry failed rc={rc} — no subprocess fallback [RA-576]")
-                    break
-
-            # ── Subprocess retry path — only reached when USE_AGENT_SDK=0 ──
-            if not use_sdk and not retry_success:
-                retry_cmd = [config.CLAUDE_CMD, *config.CLAUDE_EXTRA_FLAGS, "-p", retry_brief,
-                             "--model", model, "--verbose", "--output-format", "stream-json"]
-                retry_proc = await asyncio.create_subprocess_exec(
-                    *retry_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, cwd=session.workspace,
-                )
-                session.process = retry_proc
-                await _stream_claude(retry_proc, session)
-                await retry_proc.wait()
-                if retry_proc.returncode != 0:
-                    em(session, "error", "  Retry generation failed")
-                    break
-                em(session, "success", "  Retry generation complete")
+            # RA-1094B — SDK-only mandate: subprocess retry path removed.
+            em(session, "tool", f"  $ claude --model {model} (via SDK, retry)")
+            em(session, "system", "")
+            rc, sdk_output, cost = await _run_claude_via_sdk(
+                retry_brief, model, session.workspace,
+                session_id=session.id, phase="generator_retry",
+            )
+            if rc != 0:
+                _log.warning("SDK retry failed rc=%d — aborting evaluator retry", rc)
+                em(session, "error", f"  SDK retry failed rc={rc}")
+                break
+            for line in sdk_output.split("\n"):
+                if line.strip():
+                    parse_event(line, session)
+            em(session, "system", "")
+            em(session, "success", "  Retry generation complete")
         except asyncio.TimeoutError:
             session.evaluator_status = "timeout"
             em(session, "error", "  Evaluator timed out (120s)")
