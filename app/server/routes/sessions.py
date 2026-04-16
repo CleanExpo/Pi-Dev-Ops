@@ -41,9 +41,11 @@ async def build_parallel(body: ParallelBuildRequest):
     if not body.brief:
         raise HTTPException(400, "brief required for parallel builds")
     evaluator_enabled = body.evaluator_enabled if body.evaluator_enabled is not None else config.EVALUATOR_ENABLED
+    # RA-1021: enforce server-side cap regardless of model validation path.
+    n_workers = min(body.n_workers, 10)
     result = await fan_out(
         body.repo_url, body.brief,
-        n_workers=body.n_workers, model=body.model,
+        n_workers=n_workers, model=body.model,
         intent=body.intent, evaluator_enabled=evaluator_enabled,
     )
     return result
