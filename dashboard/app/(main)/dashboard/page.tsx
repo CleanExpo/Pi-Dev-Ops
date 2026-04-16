@@ -345,8 +345,8 @@ export default function Dashboard() {
               href={linearUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 flex items-center gap-1"
-              style={{ color: "var(--info)" }}
+              className="shrink-0 flex items-center gap-1 font-mono"
+              style={{ color: "var(--accent)" }}
             >
               <span>◈</span>
               <span>{linearId} ↗</span>
@@ -355,7 +355,7 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-3 shrink-0 font-mono">
           <span className="hidden sm:inline">
-            Lines: <span style={{ color: "var(--text-muted)" }}>{lines.length}</span>
+            Lines: <span style={{ color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>{lines.length}</span>
           </span>
           <span
             style={{

@@ -91,12 +91,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     <div className="flex min-h-screen bg-background text-text">
 
       {/* ══════════════════════════════════════════════════════════════
-          SIDEBAR — desktop (md+), 220px fixed left
+          SIDEBAR — icon-only at sm (48px), full at lg (220px)
       ══════════════════════════════════════════════════════════════ */}
       <aside
-        className="hidden md:flex flex-col shrink-0 h-screen sticky top-0"
+        className="hidden sm:flex flex-col shrink-0 h-screen sticky top-0 w-12 lg:w-[220px]"
         style={{
-          width: "220px",
           background: "var(--panel)",
           borderRight: "1px solid var(--border)",
         }}
@@ -104,7 +103,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         {/* Logo */}
         <Link
           href="/"
-          className="flex items-center gap-2.5 px-4 h-[52px] shrink-0 hover:opacity-80 transition-opacity"
+          className="flex items-center justify-center lg:justify-start gap-2.5 px-0 lg:px-4 h-[52px] shrink-0 hover:opacity-80 transition-opacity"
           style={{ borderBottom: "1px solid var(--border)" }}
         >
           <span
@@ -113,7 +112,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           >
             π
           </span>
-          <div className="flex flex-col gap-0">
+          <div className="hidden lg:flex flex-col gap-0">
             <span className="text-sm font-semibold leading-tight" style={{ color: "var(--text)" }}>
               Pi CEO
             </span>
@@ -134,7 +133,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               <Link
                 key={href}
                 href={href}
-                className="flex items-center gap-2.5 px-3 h-9 text-sm font-medium rounded-md transition-colors"
+                title={label}
+                className="flex items-center justify-center lg:justify-start gap-2.5 px-0 lg:px-3 h-9 text-sm font-medium rounded-md transition-colors"
                 style={{
                   color:      active ? "var(--accent)"      : "var(--text-muted)",
                   background: active ? "var(--accent-subtle)" : "transparent",
@@ -153,7 +153,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 }}
               >
                 <span className="text-base leading-none w-4 text-center shrink-0">{icon}</span>
-                <span>{label}</span>
+                <span className="hidden lg:inline">{label}</span>
               </Link>
             );
           })}
@@ -173,7 +173,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           MOBILE TOP BAR — logo + theme toggle only
       ══════════════════════════════════════════════════════════════ */}
       <div
-        className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-[52px] shrink-0"
+        className="sm:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-[52px] shrink-0"
         style={{
           background: "var(--panel)",
           borderBottom: "1px solid var(--border)",
@@ -189,7 +189,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       {/* ══════════════════════════════════════════════════════════════
           PAGE CONTENT
       ══════════════════════════════════════════════════════════════ */}
-      <div className="flex-1 flex flex-col min-w-0 md:mt-0 mt-[52px] pb-16 md:pb-0">
+      <div className="flex-1 flex flex-col min-w-0 sm:mt-0 mt-[52px] pb-16 sm:pb-0">
         {children}
       </div>
 
@@ -197,7 +197,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           MOBILE BOTTOM TAB BAR — 5 items
       ══════════════════════════════════════════════════════════════ */}
       <nav
-        className="fixed bottom-0 left-0 right-0 md:hidden flex z-50 h-16"
+        className="fixed bottom-0 left-0 right-0 sm:hidden flex z-50 h-16"
         style={{
           background: "var(--panel)",
           borderTop: "1px solid var(--border)",
