@@ -1,8 +1,12 @@
 # Pi Dev Ops — Leverage Audit
 
-## Current Score: 73 / 75 — Zero Touch Band (Operational Extension) — App: 98% Operational
+## Current Score: 85 / 100 (ZTE v2) — Zero Touch Band
 
-*Last updated: 2026-04-13 (Cycle 23 / Sprint 9 close — RA-684 + RA-686 + RA-689 + RA-696 + RA-675)*
+_ZTE v2 framework: 100-point scale (Section A: AI Pipeline 60pts + Section B: Operational Health 15pts + Section C: External Validation 25pts). See `.harness/zte-framework-v2.md`._
+
+_ZTE v1 reference (75-point): 73/75. Updated to v2 as of Sprint 9. Historical changelog below uses v1 scoring._
+
+*Last updated: 2026-04-16 (Sprint 12 active)*
 
 > **RA-675 resolution note:** Previous self-scan returned 41/60 ZTE due to stale spec.md (RA-685).
 > spec.md regenerated 2026-04-13. Automated ZTE v2 score: 81/100 (73/75 + 8/25 Section C).

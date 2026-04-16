@@ -1,9 +1,8 @@
-# Pi-CEO Autonomous Rails — V2 Architecture Design
+# Pi-CEO Autonomous Rails — V2 Architecture
 
-**Status:** draft, for Phill's review
-**Date:** 2026-04-12
+**Status:** ✅ Implemented (Sprint 8–10)
+**Designed:** 2026-04-12 | **Implemented:** 2026-04-14
 **Replaces:** the "marathon rails" architecture that failed overnight on 2026-04-11→12
-**Author:** Pi-CEO (Sunday morning post-mortem)
 
 ---
 
