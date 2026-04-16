@@ -9,10 +9,28 @@
 // These must be SEPARATE: PI_CEO_PASSWORD is a random 30-char secret that no human
 // should be expected to type. Set DASHBOARD_PASSWORD in Vercel env to whatever
 // password you want to use on the login screen.
-const DASHBOARD_PASSWORD =
-  process.env.DASHBOARD_PASSWORD ||
-  process.env.PI_CEO_PASSWORD ||
-  "";
+//
+// DEV-AUTH LOCK-IN: If the env var starts with "op://", it's an unresolved
+// 1Password CLI reference (the Vercel CLI creates these by default when you run
+// `vercel env pull`). In that case we fall back to a dev password in non-production
+// so local dev isn't blocked. In production, we refuse to authenticate and return
+// a clear 503 with remediation steps.
+function resolvePassword(): { value: string; dev: boolean } {
+  const raw = process.env.DASHBOARD_PASSWORD || process.env.PI_CEO_PASSWORD || "";
+  const isUnresolvedOpRef = raw.startsWith("op://");
+  if (!raw || isUnresolvedOpRef) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        `[auth] DASHBOARD_PASSWORD ${isUnresolvedOpRef ? "is an unresolved 1Password ref" : "is unset"}. Falling back to dev password "dev". Set DASHBOARD_PASSWORD=<plaintext> in .env.local to override.`,
+      );
+      return { value: "dev", dev: true };
+    }
+    return { value: "", dev: false };
+  }
+  return { value: raw, dev: false };
+}
+
+const { value: DASHBOARD_PASSWORD, dev: isDevMode } = resolvePassword();
 const SESSION_TTL_SECONDS = 86_400; // 24 hours
 const COOKIE_NAME = "pi_session";
 
@@ -34,7 +52,10 @@ async function hmac(key: string, data: string): Promise<string> {
 export async function POST(request: Request): Promise<Response> {
   if (!DASHBOARD_PASSWORD) {
     return Response.json(
-      { error: "DASHBOARD_PASSWORD env var not set on Vercel" },
+      {
+        error:
+          "Auth not configured: DASHBOARD_PASSWORD env var is missing or contains an unresolved 1Password reference. Set DASHBOARD_PASSWORD=<plaintext> in Vercel env.",
+      },
       { status: 503 },
     );
   }
@@ -71,11 +92,16 @@ export async function POST(request: Request): Promise<Response> {
     .filter(Boolean)
     .join("; ");
 
-  return new Response(JSON.stringify({ ok: true }), {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "Set-Cookie": cookieHeader,
+  };
+  if (isDevMode) {
+    headers["X-Auth-Mode"] = "dev";
+  }
+
+  return new Response(JSON.stringify({ ok: true, devMode: isDevMode }), {
     status: 200,
-    headers: {
-      "Content-Type": "application/json",
-      "Set-Cookie": cookieHeader,
-    },
+    headers,
   });
 }
