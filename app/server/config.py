@@ -244,7 +244,63 @@ SCAN_PATH_EXCLUSIONS: list[str] = [p.strip() for p in
         # dr-nrpg: enum constant triggers token pattern (not a real token)
         "apps/web/lib/api-errors.ts,"
         # dr-nrpg: dev-only captcha placeholder constant
-        "apps/web/src/lib/security/captcha.ts"
+        "apps/web/src/lib/security/captcha.ts,"
+        # RA-834 (Pi-Dev-Ops / Pi-CEO) — FP exclusions confirmed 2026-04-17
+        # .harness/scan-results/: scanner scanning its own archived output JSON (self-match)
+        ".harness/scan-results/,"
+        # .harness/monitor-digests/: monitor digest JSON contains quoted scan findings
+        ".harness/monitor-digests/,"
+        # .harness/lessons.jsonl: historical lessons reference API key patterns in examples
+        ".harness/lessons.jsonl,"
+        # .harness/board-meetings/: meeting notes quote credentials as illustrative examples
+        ".harness/board-meetings/,"
+        # .harness/handoff.md: session handoff doc references key names, not values
+        ".harness/handoff.md,"
+        # .harness/agent-sdk-metrics/: generated metric JSON includes example tokens
+        ".harness/agent-sdk-metrics/,"
+        # .harness/feature_list.json: feature descriptions quote scanner regex patterns
+        ".harness/feature_list.json,"
+        # .harness/pipeline/: pipeline artefacts include quoted credential-shaped strings
+        ".harness/pipeline/,"
+        # skills/pi-seo-*/SKILL.md: skill docs describe scanner patterns (self-match)
+        "skills/pi-seo-remediation/,"
+        "skills/pi-seo-scanner/,"
+        "skills/pi-seo-health-monitor/,"
+        "skills/security-audit/,"
+        "skills/ship-release/,"
+        # app/server/triage.py + autopr.py: contain scanner regex patterns (self-match, like scanner.py)
+        "app/server/triage.py,"
+        "app/server/autopr.py,"
+        # tests/: test fixtures use mock tokens and placeholder API keys
+        "tests/fixtures/,"
+        "tests/test_webhook.py,"
+        # scripts/smoke_test*.py: smoke tests carry inline sample tokens for assertions
+        "scripts/smoke_test.py,"
+        "scripts/smoke_test_critical.py,"
+        # scripts/fetch_anthropic_docs.py: fetches API docs containing example key shapes
+        "scripts/fetch_anthropic_docs.py,"
+        # scripts/analyze.sh + deploy scripts: reference env var names in shell
+        "scripts/analyze.sh,"
+        "scripts/deploy_railway.sh,"
+        # dashboard/scripts/: build-time scripts with placeholder secrets
+        "dashboard/scripts/,"
+        # dashboard/.next/: Next.js build artefacts — generated, not source
+        "dashboard/.next/,"
+        # node_modules/: third-party deps — not our code
+        "node_modules/,"
+        # docs/ship-chain/: educational examples with illustrative tokens
+        "docs/ship-chain/,"
+        # Top-level deployment docs: describe env vars and deployment procedures
+        "DEPLOYMENT_GUIDE.md,"
+        "DEPLOYMENT.md,"
+        "READY_TO_DEPLOY.md,"
+        "DEPLOYMENT_STATUS.md,"
+        "CLAUDE.md,"
+        "README.md,"
+        # _deploy.py: legacy deploy helper with env var references
+        "_deploy.py,"
+        # archive/: archived historical code, not deployed
+        "archive/run_parallel_board.py"
     ).split(",") if p.strip()
 ]
 
