@@ -48,10 +48,26 @@ function fmtTs(ts: string): string {
   }
 }
 
+function EmptyState() {
+  return (
+    <div className="px-1 py-3 font-mono">
+      <span className="text-[11px]" style={{ color: "var(--text-dim)" }}>
+        <span style={{ color: "var(--accent)" }}>$ </span>
+        pi-ceo routines --last 10
+      </span>
+      <br />
+      <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+        No runs recorded yet.
+      </span>
+    </div>
+  );
+}
+
 export default function RoutineTable() {
   const [runs, setRuns] = useState<RoutineRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hovered, setHovered] = useState<number | null>(null);
 
   const fetchRuns = useCallback(async () => {
     try {
@@ -98,16 +114,12 @@ export default function RoutineTable() {
       )}
 
       {error && !loading && (
-        <p className="text-xs px-1 py-2" style={{ color: "var(--error)" }}>
-          {error}
+        <p className="text-xs px-1 py-2 font-mono" style={{ color: "var(--error)" }}>
+          <span aria-hidden="true">⚠ </span>{error}
         </p>
       )}
 
-      {!loading && !error && runs.length === 0 && (
-        <p className="text-xs px-1 py-2" style={{ color: "var(--text-dim)" }}>
-          No runs recorded.
-        </p>
-      )}
+      {!loading && !error && runs.length === 0 && <EmptyState />}
 
       {!loading && !error && runs.length > 0 && (
         <div className="overflow-y-auto flex-1">
@@ -135,13 +147,23 @@ export default function RoutineTable() {
               {runs.map((r, i) => {
                 const colour = STATUS_COLOUR[r.status] ?? "var(--text-dim)";
                 const sid = r.session_id ?? r.routine_name;
+                const isHovered = hovered === i;
                 return (
                   <tr
                     key={`${sid}-${r.ts}-${i}`}
-                    style={{ borderBottom: "1px solid var(--border)" }}
+                    onMouseEnter={() => setHovered(i)}
+                    onMouseLeave={() => setHovered(null)}
+                    style={{
+                      borderBottom: "1px solid var(--border)",
+                      background: isHovered ? "var(--accent-subtle)" : "transparent",
+                      transition: "background 0.12s ease",
+                    }}
                   >
                     <td className="px-1 py-1.5">
-                      <div className="truncate max-w-[120px]" style={{ color: "var(--text)" }}>
+                      <div
+                        className="truncate max-w-[120px]"
+                        style={{ color: isHovered ? "var(--accent)" : "var(--text)" }}
+                      >
                         {sid.slice(0, 12)}
                       </div>
                       <div className="text-[9px]" style={{ color: "var(--text-dim)" }}>

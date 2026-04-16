@@ -1,7 +1,8 @@
 // app/(main)/control/page.tsx — unified command centre (RA-1092)
-// Replaces /dashboard and /health with a 4-panel 2x2 grid.
+// Replaces /dashboard and /health with sticky TopBar + 2×2 panel grid.
 "use client";
 
+import TopBar from "@/components/control/TopBar";
 import SwarmPanel from "@/components/control/SwarmPanel";
 import ModelBadge from "@/components/control/ModelBadge";
 import HealthGrid from "@/components/control/HealthGrid";
@@ -10,28 +11,13 @@ import RoutineTable from "@/components/control/RoutineTable";
 
 export default function ControlPage() {
   return (
-    <div
-      className="flex flex-col"
-      style={{ height: "calc(100vh - 52px)", overflow: "hidden" }}
-    >
-      {/* Header */}
-      <div
-        className="flex items-center justify-between px-4 h-[52px] shrink-0"
-        style={{ borderBottom: "1px solid var(--border)", background: "var(--background)" }}
-      >
-        <div className="flex flex-col justify-center gap-0.5">
-          <h1 className="text-lg font-semibold leading-none" style={{ color: "var(--text)" }}>
-            Control
-          </h1>
-          <p className="text-xs leading-none" style={{ color: "var(--text-dim)" }}>
-            Swarm · Model · Portfolio · Builds
-          </p>
-        </div>
-      </div>
+    <div className="flex flex-col" style={{ height: "100vh", overflow: "hidden" }}>
+      {/* Sticky global top bar */}
+      <TopBar />
 
-      {/* 2x2 grid — stacks on mobile */}
-      <div className="flex-1 overflow-auto p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-[minmax(280px,1fr)]">
+      {/* 2×2 grid — fills remaining viewport height */}
+      <div className="flex-1 overflow-auto p-4" style={{ minHeight: 0 }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-[minmax(300px,1fr)]">
           {/* Panel 1 — Swarm */}
           <SwarmPanel />
 

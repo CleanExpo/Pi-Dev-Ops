@@ -1,7 +1,8 @@
-// components/control/HealthGrid.tsx — Panel 3: Pi-SEO portfolio health tiles (RA-1092)
+// components/control/HealthGrid.tsx — Panel 3: Pi-SEO portfolio health tiles + sparklines (RA-1092)
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Sparkline from "./Sparkline";
 
 interface ProjectHealth {
   project_id: string;
@@ -19,18 +20,50 @@ function healthColour(score: number | undefined): string {
   return "#F87171";
 }
 
+// Empty state with terminal aesthetic
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="flex flex-col items-start gap-1 py-4 px-1 font-mono">
+      <span className="text-[11px]" style={{ color: "var(--text-dim)" }}>
+        <span style={{ color: "var(--accent)" }}>$ </span>
+        pi-ceo health --portfolio
+      </span>
+      <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+        {message}
+      </span>
+      <span
+        className="text-[10px] inline-block w-1.5 h-3 align-middle"
+        style={{ background: "var(--text-dim)", animation: "pi-cursor-blink 1.1s step-end infinite" }}
+        aria-hidden="true"
+      />
+    </div>
+  );
+}
+
 export default function HealthGrid() {
   const [projects, setProjects] = useState<ProjectHealth[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<ProjectHealth | null>(null);
 
+  // Rolling health history buffer: project_id → last 10 scores
+  const historyRef = useRef<Map<string, number[]>>(new Map());
+
   const fetchHealth = useCallback(async () => {
     try {
       const res = await fetch("/api/pi-ceo/api/projects/health");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as ProjectHealth[];
-      setProjects(Array.isArray(data) ? data : []);
+      const arr = Array.isArray(data) ? data : [];
+
+      // Append to rolling history (max 12 samples)
+      arr.forEach((p) => {
+        const prev = historyRef.current.get(p.project_id) ?? [];
+        const next = [...prev, p.overall_health].slice(-12);
+        historyRef.current.set(p.project_id, next);
+      });
+
+      setProjects(arr);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load project health");
@@ -55,6 +88,13 @@ export default function HealthGrid() {
       style={{ background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 8 }}
       aria-label="Portfolio health"
     >
+      <style>{`
+        @keyframes pi-cursor-blink {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0; }
+        }
+      `}</style>
+
       <header
         className="flex items-center justify-between px-4 py-2.5"
         style={{ borderBottom: "1px solid var(--border)" }}
@@ -84,48 +124,61 @@ export default function HealthGrid() {
         )}
 
         {error && !loading && (
-          <p className="text-xs" style={{ color: "var(--error)" }}>
-            {error}
+          <p className="text-xs font-mono" style={{ color: "var(--error)" }}>
+            <span aria-hidden="true">⚠ </span>{error}
           </p>
         )}
 
         {!loading && !error && projects.length === 0 && (
-          <p className="text-xs" style={{ color: "var(--text-dim)" }}>
-            No projects registered yet.
-          </p>
+          <EmptyState message="No projects registered." />
         )}
 
         {!loading && !error && projects.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {projects.map((p) => (
-              <button
-                key={p.project_id}
-                onClick={() => setSelected(p)}
-                className="text-left p-2.5 rounded transition-colors hover:opacity-90"
-                style={{
-                  background: "var(--panel-hover)",
-                  border: "1px solid var(--border)",
-                }}
-                aria-label={`${p.project_id} health ${p.overall_health} out of 100`}
-              >
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span
-                    className="w-1.5 h-1.5 rounded-full shrink-0"
-                    style={{ background: healthColour(p.overall_health) }}
-                    aria-hidden="true"
-                  />
-                  <span className="text-[11px] font-medium truncate" style={{ color: "var(--text)" }}>
-                    {p.project_id}
-                  </span>
-                </div>
-                <div className="font-mono text-sm" style={{ color: healthColour(p.overall_health) }}>
-                  {p.overall_health}
-                  <span className="text-[10px]" style={{ color: "var(--text-dim)" }}>
-                    /100
-                  </span>
-                </div>
-              </button>
-            ))}
+            {projects.map((p) => {
+              const history = historyRef.current.get(p.project_id) ?? [p.overall_health];
+              return (
+                <button
+                  key={p.project_id}
+                  onClick={() => setSelected(p)}
+                  className="text-left p-2.5 rounded transition-colors"
+                  style={{
+                    background: "var(--panel-hover)",
+                    border: "1px solid var(--border)",
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = `${healthColour(p.overall_health)}66`;
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border)";
+                  }}
+                  aria-label={`${p.project_id} health ${p.overall_health} out of 100`}
+                >
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span
+                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                      style={{ background: healthColour(p.overall_health) }}
+                      aria-hidden="true"
+                    />
+                    <span className="text-[11px] font-medium truncate flex-1" style={{ color: "var(--text)" }}>
+                      {p.project_id}
+                    </span>
+                  </div>
+                  <div className="flex items-end justify-between">
+                    <div className="font-mono text-sm leading-none" style={{ color: healthColour(p.overall_health) }}>
+                      {p.overall_health}
+                      <span className="text-[10px]" style={{ color: "var(--text-dim)" }}>
+                        /100
+                      </span>
+                    </div>
+                    <Sparkline
+                      data={history}
+                      colour={healthColour(p.overall_health)}
+                    />
+                  </div>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
