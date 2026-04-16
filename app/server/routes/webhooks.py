@@ -1,4 +1,4 @@
-"""Webhook routes: GitHub, Linear, morning-intel, Telegram (RA-937)."""
+"""Webhook routes: GitHub, Linear, morning-intel, Telegram, routine-complete (RA-937, RA-1011)."""
 import json
 import logging
 import os
@@ -6,9 +6,10 @@ import re
 import urllib.request as _ur
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel, field_validator
 
-from ..auth import require_rate_limit
+from ..auth import require_auth, require_rate_limit
 from ..sessions import create_session
 from ..supabase_log import mark_alert_acked
 from ..webhook import (
@@ -386,3 +387,155 @@ async def telegram_webhook(request: Request):
             _telegram_send(token, chat_id, f"✅ Alert `{alert_key}` acknowledged — re-paging stopped.")
 
     return {"ok": True}
+
+
+# ── RA-1011: Routine run outcome tracker ─────────────────────────────────────
+
+_ROUTINE_RUNS_DIR_NAME = "routine-runs"
+
+_VALID_TRIGGERS: frozenset[str] = frozenset({"api", "schedule", "github"})
+_VALID_STATUSES: frozenset[str] = frozenset({"success", "failure", "timeout"})
+
+
+class RoutineCompletePayload(BaseModel):
+    routine_name: str
+    repo: str
+    trigger: str
+    status: str
+    duration_s: int | float
+    run_url: str = ""
+    summary: str = ""
+    ts: str = ""
+
+    @field_validator("trigger")
+    @classmethod
+    def _check_trigger(cls, v: str) -> str:
+        if v not in _VALID_TRIGGERS:
+            raise ValueError(f"trigger must be one of {sorted(_VALID_TRIGGERS)}")
+        return v
+
+    @field_validator("status")
+    @classmethod
+    def _check_status(cls, v: str) -> str:
+        if v not in _VALID_STATUSES:
+            raise ValueError(f"status must be one of {sorted(_VALID_STATUSES)}")
+        return v
+
+
+@router.post("/api/webhook/routine-complete", dependencies=[Depends(require_rate_limit)])
+async def routine_complete_webhook(request: Request):
+    """
+    RA-1011 — Receive Claude Code Routine completion events.
+
+    Protected by X-Pi-CEO-Secret header == TAO_WEBHOOK_SECRET.
+    Writes one JSONL entry per run to .harness/routine-runs/YYYY-MM-DD.jsonl.
+    Creates a Linear ticket when status == 'failure'.
+    """
+    import hmac as _hmac
+    from datetime import datetime, timezone
+
+    secret_header = request.headers.get("x-pi-ceo-secret", "")
+    if config.WEBHOOK_SECRET:
+        if not secret_header:
+            raise HTTPException(401, "X-Pi-CEO-Secret header required")
+        if not _hmac.compare_digest(secret_header, config.WEBHOOK_SECRET):
+            raise HTTPException(401, "Invalid secret")
+
+    raw_body = await request.body()
+    try:
+        body = json.loads(raw_body)
+    except json.JSONDecodeError:
+        raise HTTPException(400, "Invalid JSON")
+
+    try:
+        payload = RoutineCompletePayload(**body)
+    except Exception as exc:
+        raise HTTPException(422, str(exc))
+
+    now_utc = datetime.now(timezone.utc)
+    ts = payload.ts or now_utc.isoformat()
+    date_str = now_utc.strftime("%Y-%m-%d")
+
+    runs_dir = Path(config.DATA_DIR).parent.parent / ".harness" / _ROUTINE_RUNS_DIR_NAME
+    runs_dir.mkdir(parents=True, exist_ok=True)
+
+    entry = {
+        "routine_name": payload.routine_name,
+        "repo":         payload.repo,
+        "trigger":      payload.trigger,
+        "status":       payload.status,
+        "duration_s":   payload.duration_s,
+        "run_url":      payload.run_url,
+        "summary":      payload.summary,
+        "ts":           ts,
+    }
+    run_file = runs_dir / f"{date_str}.jsonl"
+    tmp = run_file.with_suffix(".tmp")
+    # Atomic append: read existing + new entry → write to tmp → replace.
+    existing = run_file.read_text() if run_file.exists() else ""
+    tmp.write_text(existing + json.dumps(entry) + "\n")
+    os.replace(tmp, run_file)
+
+    log.info(
+        "RA-1011 routine run logged: routine=%s repo=%s status=%s duration=%ss",
+        payload.routine_name, payload.repo, payload.status, payload.duration_s,
+    )
+
+    if payload.status == "failure":
+        linear_key = os.environ.get("LINEAR_API_KEY", "")
+        if linear_key:
+            routing = _REPO_LINEAR_ROUTING.get(payload.repo, {
+                "teamId":    config.LINEAR_TEAM_ID,
+                "projectId": config.LINEAR_PROJECT_ID,
+            })
+            title = f"[ROUTINE FAILURE] {payload.routine_name} — {payload.repo}"
+            description = (
+                "## Routine Failure — Auto-generated\n\n"
+                f"**Routine:** {payload.routine_name}\n"
+                f"**Repo:** {payload.repo}\n"
+                f"**Trigger:** {payload.trigger}\n"
+                f"**Duration:** {payload.duration_s}s\n"
+                f"**Run URL:** {payload.run_url}\n"
+                f"**Timestamp:** {ts}\n\n"
+                f"**Summary:**\n{payload.summary or '_No summary provided._'}\n\n"
+                "Auto-created by Pi-CEO routine-complete webhook (RA-1011).\n"
+            )
+            try:
+                await _create_linear_ci_ticket(title, description, linear_key, routing)
+            except Exception as exc:
+                log.warning("RA-1011: Linear ticket creation failed: %s", exc)
+
+    return {"ok": True, "logged": True}
+
+
+@router.get("/api/routines")
+async def get_routine_runs(
+    limit: int = Query(default=50, ge=1, le=500),
+    _auth: bool = Depends(require_auth),
+):
+    """
+    RA-1011 — Return recent routine run history.
+
+    Reads all .harness/routine-runs/*.jsonl files, merges and sorts by timestamp
+    descending, returns the top `limit` entries.
+    """
+    runs_dir = Path(config.DATA_DIR).parent.parent / ".harness" / _ROUTINE_RUNS_DIR_NAME
+    runs: list[dict] = []
+
+    if runs_dir.exists():
+        for jsonl_file in sorted(runs_dir.glob("*.jsonl")):
+            try:
+                for line in jsonl_file.read_text().splitlines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        runs.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        log.warning("RA-1011: Skipping malformed JSONL line in %s", jsonl_file)
+            except OSError as exc:
+                log.warning("RA-1011: Could not read %s: %s", jsonl_file, exc)
+
+    runs.sort(key=lambda r: r.get("ts", ""), reverse=True)
+    total = len(runs)
+    return {"runs": runs[:limit], "total": total}
