@@ -1,6 +1,6 @@
 """Pydantic request models for the Pi CEO API (RA-937)."""
 from typing import Literal
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class BuildRequest(BaseModel):
@@ -31,14 +31,15 @@ class BuildRequest(BaseModel):
 
 
 class ParallelBuildRequest(BuildRequest):
-    n_workers: int = 2
+    # RA-1021: hard cap at 10 via Field constraint; validator enforces the same
+    # server-side so even clients that bypass OpenAPI validation are rejected.
+    n_workers: int = Field(default=2, ge=1, le=10)
 
     @field_validator("n_workers")
     @classmethod
     def valid_workers(cls, v: int) -> int:
-        if not (1 <= v <= 8):
-            raise ValueError("n_workers must be 1–8")
-        return v
+        # Clamp defensively in case the Field constraint is bypassed.
+        return min(max(v, 1), 10)
 
 
 class TriggerRequest(BaseModel):
