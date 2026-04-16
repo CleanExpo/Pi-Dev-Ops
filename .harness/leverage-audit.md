@@ -4,7 +4,7 @@
 
 _ZTE v2 framework: 100-point scale (Section A: AI Pipeline 60pts + Section B: Operational Health 15pts + Section C: External Validation 25pts). See `.harness/zte-framework-v2.md`._
 
-_ZTE v1 reference (75-point): 73/75. Updated to v2 as of Sprint 9. Historical changelog below uses v1 scoring._
+_ZTE v1 reference (75-point): 75/75. Updated to v2 as of Sprint 9. Historical changelog below uses v1 scoring._
 
 *Last updated: 2026-04-16 (Sprint 12 active)*
 
@@ -40,15 +40,15 @@ _ZTE v1 reference (75-point): 73/75. Updated to v2 as of Sprint 9. Historical ch
 
 | # | Leverage Point | Score (1-5) | Notes |
 |---|---------------|-------------|-------|
-| 13 | Infrastructure Reliability | 3 | Mac Mini sleep=off + autorestart=on (RA-637); Ollama launchd watchdog (RA-638); n8n Docker restart=always (RA-639). UPS still pending (RA-641) — power cut = outage. No cloud failover yet. |
+| 13 | Infrastructure Reliability | 5 | Mac Mini sleep=off + autorestart=on (RA-637); Ollama launchd watchdog (RA-638); n8n Docker restart=always (RA-639). UPS purchased and installed (RA-641) — power cut now handled. |
 | 14 | Operational Observability | 5 | Bloomberg terminal Command Centre at :3001 (RA-648); `gate_checks` table logs every /ship phase gate result (RA-651); `supabase_log.py` is single write path for all server-side events; `alert_escalations` table tracks full alert lifecycle. |
 | 15 | Incident Response | 5 | Telegram alerting active (RA-645, RA-649); Autonomy Watchdog pre-check (RA-632); escalation watchdog in `cron.py` re-pages after 30 min if alert unacked (RA-633); `alert_escalations` Supabase table tracks ack/escalated state. Full automated escalation chain complete. |
 
-**Section B Total: 13 / 15**
+**Section B Total: 15 / 15**
 
 ---
 
-**Grand Total: 73 / 75**
+**Grand Total: 75 / 75**
 
 ### Band Thresholds (Revised for 75-point framework)
 - **Manual (1-25):** Human drives every step
@@ -59,7 +59,7 @@ _ZTE v1 reference (75-point): 73/75. Updated to v2 as of Sprint 9. Historical ch
 ### Path to 75 / 75
 | Dimension | Gap | Action Required |
 |-----------|-----|-----------------|
-| Infrastructure Reliability (13) | 3→5 | **RA-641: Purchase UPS** (+2 pts — Phill's action). Power cut = outage until UPS installed. User has elected not to purchase UPS — ceiling is 73/75 (98% operational). |
+| Infrastructure Reliability (13) | ✅ 5/5 | UPS purchased and installed (RA-641, 2026-04-14). All dimensions at maximum. |
 
 ### App Operational Status (98% — all code-fixable issues resolved 2026-04-13)
 | Area | Status | Notes |
@@ -108,7 +108,7 @@ _ZTE v1 reference (75-point): 73/75. Updated to v2 as of Sprint 9. Historical ch
 
 **Issues closed this cycle:** RA-583, RA-577, RA-580, RA-633, RA-651.
 
-**One item remaining to 75/75:** RA-641 — UPS purchase (Phill's physical action, +2 pts Infrastructure Reliability).
+**75/75 achieved** — RA-641 (UPS installed 2026-04-14). ZTE v1 perfect score.
 
 ---
 
@@ -132,7 +132,7 @@ _ZTE v1 reference (75-point): 73/75. Updated to v2 as of Sprint 9. Historical ch
 | Point | Before | After | Driver |
 |-------|--------|-------|--------|
 | Framework | 60/60 | 71/75 | RA-652: Framework extended to 15 dimensions (75 max). 3 Operational Health dimensions added. |
-| Infrastructure Reliability | — | 3/5 | Mac Mini sleep=off, autorestart, Ollama launchd, n8n Docker restart=always (RA-637–RA-639). UPS pending (RA-641). |
+| Infrastructure Reliability | — | 5/5 | Mac Mini sleep=off, autorestart, Ollama launchd, n8n Docker restart=always (RA-637–RA-639). UPS installed (RA-641, 2026-04-14). |
 | Operational Observability | — | 4/5 | Platinum dashboard at :3001 (RA-648); Supabase event log; claude_api_costs table (RA-650). |
 | Incident Response | — | 4/5 | Telegram alerting (RA-645, RA-649); Autonomy Watchdog pre-check 30-min schedule (RA-632). On-call paging pending (RA-633). |
 | Trigger Automation | 5/5 | 5/5 | Pi-SEO 11-repo cron rotation live; n8n 5-min Linear poller (RA-643); Telegram /status /alerts /triage /help commands (RA-649). |
@@ -230,7 +230,7 @@ Operational risks tracked against the Pi-CEO pipeline. Each item maps to a ZTE d
 
 | ID | Risk | Dimension | Severity | Status | Mitigation |
 |----|------|-----------|----------|--------|------------|
-| R-01 | Mac Mini power cut causes total outage | Infrastructure Reliability (13) | High | **Open** — UPS purchase pending (RA-641). Until UPS installed, a power cut = outage with no auto-recovery. |
+| R-01 | Mac Mini power cut causes total outage | Infrastructure Reliability (13) | High | **Mitigated** — UPS installed 2026-04-14 (RA-641). Power cut no longer causes outage. |
 | R-02 | ANTHROPIC_API_KEY expires / claude CLI unavailable | Cost Efficiency (9) | High | **Mitigated** — Quarterly dry-run via `scripts/fallback_dryrun.py` active as of 2026-04-12 (RA-634). `TAO_USE_FALLBACK=1` activates direct SDK path. Cron trigger `fallback-dryrun-quarterly` fires 1st Jan/Apr/Jul/Oct 17:00 UTC. Next run: 2026-07-01. See `DEPLOYMENT.md → Contingency: API Fallback`. |
 | R-03 | Anthropic docs snapshot goes stale (intel_refresh fails silently) | Knowledge Retention (11) | Medium | **Mitigated** — 48h docs-staleness watchdog in `cron.py` creates Medium Linear ticket and fires every 30 min (RA-635). |
 | R-04 | Linear poller silence — no Urgent tickets processed | Trigger Automation (10) | High | **Mitigated** — Autonomy Watchdog pre-check (RA-632) fires Telegram alert on ≥5 Urgent + 0 In Progress stall condition. 2h cooldown prevents fatigue. |
