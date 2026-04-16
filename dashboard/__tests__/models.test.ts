@@ -29,9 +29,9 @@ describe("MODELS constants", () => {
     expect(MODELS.ANALYST).toBe("claude-sonnet-4-6");
   });
 
-  it("ORCHESTRATOR default is claude-opus-4-6", async () => {
+  it("ORCHESTRATOR default is claude-opus-4-7", async () => {
     const { MODELS } = await import("@/lib/models");
-    expect(MODELS.ORCHESTRATOR).toBe("claude-opus-4-6");
+    expect(MODELS.ORCHESTRATOR).toBe("claude-opus-4-7");
   });
 
   it("DEFAULT matches ANALYST (sonnet-4-6)", async () => {
@@ -97,16 +97,16 @@ describe("phaseModel()", () => {
 
   it("custom analyst model overrides non-worker phases", async () => {
     const { phaseModel } = await import("@/lib/models");
-    expect(phaseModel(5, "claude-opus-4-6")).toBe("claude-opus-4-6");
-    expect(phaseModel(7, "claude-opus-4-6")).toBe("claude-opus-4-6");
+    expect(phaseModel(5, "claude-opus-4-7")).toBe("claude-opus-4-7");
+    expect(phaseModel(7, "claude-opus-4-7")).toBe("claude-opus-4-7");
   });
 
   it("custom analyst model does NOT affect worker phases", async () => {
     const { phaseModel, MODELS } = await import("@/lib/models");
     // Worker phases always use MODELS.WORKER regardless of analyst override
-    expect(phaseModel(1, "claude-opus-4-6")).toBe(MODELS.WORKER);
-    expect(phaseModel(2, "claude-opus-4-6")).toBe(MODELS.WORKER);
-    expect(phaseModel(4, "claude-opus-4-6")).toBe(MODELS.WORKER);
+    expect(phaseModel(1, "claude-opus-4-7")).toBe(MODELS.WORKER);
+    expect(phaseModel(2, "claude-opus-4-7")).toBe(MODELS.WORKER);
+    expect(phaseModel(4, "claude-opus-4-7")).toBe(MODELS.WORKER);
   });
 
   it("unknown phase defaults to analyst model", async () => {

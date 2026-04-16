@@ -137,7 +137,7 @@ export async function GET(): Promise<NextResponse<CapabilitiesResponse>> {
       "manual",
     ],
     supportedModels: [
-      process.env.ORCHESTRATOR_MODEL || "claude-opus-4-6",
+      process.env.ORCHESTRATOR_MODEL || "claude-opus-4-7",
       process.env.ANALYST_MODEL || "claude-sonnet-4-6",
       process.env.WORKER_MODEL || "claude-haiku-4-5-20251001",
       process.env.ANALYSIS_MODEL || "claude-sonnet-4-6",

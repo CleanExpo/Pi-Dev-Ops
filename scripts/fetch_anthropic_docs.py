@@ -50,6 +50,11 @@ DOCS = [
         "url": "https://docs.anthropic.com/en/api/getting-started",
         "title": "API Reference — Getting Started",
     },
+    {
+        "key": "opus-4-7-release-notes",
+        "url": "https://docs.anthropic.com/en/release-notes/models/claude-opus-4-7",
+        "title": "Claude Opus 4.7 Release Notes",
+    },
 ]
 
 _HEADERS = {

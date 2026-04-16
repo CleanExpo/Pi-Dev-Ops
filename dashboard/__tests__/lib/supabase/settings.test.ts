@@ -45,13 +45,13 @@ describe("getSettings", () => {
   it("returns env-var defaults when createServerClient throws", async () => {
     mockCreateServerClient.mockImplementation(() => { throw new Error("no config"); });
     vi.stubEnv("GITHUB_TOKEN", "gh-token-from-env");
-    vi.stubEnv("ANALYSIS_MODEL", "claude-opus-4-6");
+    vi.stubEnv("ANALYSIS_MODEL", "claude-opus-4-7");
 
     const { getSettings } = await import("@/lib/supabase/settings");
     const s = await getSettings();
 
     expect(s.githubToken).toBe("gh-token-from-env");
-    expect(s.analysisModel).toBe("claude-opus-4-6");
+    expect(s.analysisModel).toBe("claude-opus-4-7");
   });
 
   it("returns DEFAULTS when Supabase query returns an error", async () => {

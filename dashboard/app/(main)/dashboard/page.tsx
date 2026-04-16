@@ -100,7 +100,7 @@ export default function Dashboard() {
             Dashboard
           </h1>
           <p className="text-xs leading-none" style={{ color: "var(--text-dim)" }}>
-            Analysis pipeline · Claude Opus 4.6
+            Analysis pipeline · Claude Opus 4.7
           </p>
         </div>
         <Badge variant={badgeVariant}>
