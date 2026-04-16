@@ -14,7 +14,7 @@ Pi-Dev-Ops converts a GitHub repo URL + plain-English brief into an autonomous C
 | MCP Server | Node.js, @modelcontextprotocol/sdk | `mcp/` |
 | TAO Engine | Python (skills, tiers, budget) | `src/tao/` |
 | Harness State | YAML/JSON/Markdown | `.harness/` |
-| Skills | 33 SKILL.md files | `skills/` |
+| Skills | 48 SKILL.md files | `skills/` |
 | Database | Supabase (PostgreSQL) | `supabase/` |
 | Deploy (FE) | Vercel | `dashboard/vercel.json` |
 | Deploy (BE) | Railway | `railway.toml`, `Dockerfile` |
