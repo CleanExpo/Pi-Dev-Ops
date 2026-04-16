@@ -1,0 +1,91 @@
+# dns_takeover_scan.yml — always-on portfolio www/apex DNS takeover scan.
+#
+# Motivation
+# ----------
+# RA-1098: a dangling `www.restoreassist.app` CNAME pointed at a dead
+# `*.ondigitalocean.app` app platform instance. Had DigitalOcean released that
+# app name, an attacker could have claimed it and served arbitrary content
+# under `https://www.restoreassist.app` with a valid auto-provisioned cert.
+# No monitor caught this because every existing monitor looked only at apex.
+#
+# Why GitHub Actions rather than Pi-CEO cron or scheduled-tasks MCP
+# -----------------------------------------------------------------
+# CLAUDE.md "Always-on requirement": anything that depends on the Mac staying
+# awake or a local process running is not autonomous. Railway + Vercel +
+# GitHub Actions is the hardened path. This scanner is a pure-stdlib Python
+# script with no server dependency, so a cron-scheduled Action is the
+# lowest-overhead always-on surface.
+#
+# Cadence: every 6 hours. Same cadence as the main Pi-SEO scan. Short enough
+# that a freshly released subdomain name is caught within one attacker window.
+
+name: DNS Takeover Scan
+
+on:
+  schedule:
+    # Every 6 hours, aligned to top-of-hour UTC
+    - cron: "15 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      disable_telegram:
+        description: "Skip Telegram alert even on finding"
+        required: false
+        default: "false"
+
+permissions:
+  contents: read
+  issues: write  # so the step can create a Linear-mirror issue on finding
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run DNS takeover scan
+        id: scan
+        env:
+          # Pass Telegram bot credentials only when the secret is configured.
+          # Missing secret = scanner still runs but skips the push; scan failures
+          # still surface via the Action status.
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          ALLOWED_USERS: ${{ secrets.TELEGRAM_ALLOWED_USERS }}
+          DNS_SCAN_TELEGRAM: ${{ github.event.inputs.disable_telegram == 'true' && '0' || '1' }}
+        # Do not fail the whole workflow on findings — we want the summary step
+        # to always run so the findings are visible in the Actions UI. The
+        # scanner's own exit code is captured so the job result reflects state.
+        continue-on-error: true
+        run: |
+          set +e
+          python3 scripts/dns_takeover_scan.py | tee scan_output.jsonl
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Summarise findings
+        if: always()
+        run: |
+          {
+            echo "# DNS Takeover Scan"
+            echo ""
+            if [ ! -s scan_output.jsonl ]; then
+              echo "✅ No findings."
+            else
+              echo "🚨 Findings:"
+              echo ""
+              echo '```json'
+              cat scan_output.jsonl
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail job on finding
+        if: steps.scan.outputs.exit_code != '0'
+        run: |
+          echo "::error::DNS takeover scan found at least one warn/critical finding — see summary."
+          exit 1
