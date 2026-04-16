@@ -22,7 +22,7 @@ interface InitialSettings {
 }
 
 const MODELS = [
-  "claude-opus-4-5-20250514",
+  "claude-opus-4-7",
   "claude-sonnet-4-5-20250929",
   "claude-sonnet-4-6",
   "claude-haiku-4-5",

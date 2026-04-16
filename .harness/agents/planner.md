@@ -2,7 +2,7 @@
 
 **Role:** Orchestrator. Receives raw briefs, classifies intent, decomposes into sub-tasks, assigns to worker agents.
 
-**Model:** `claude-opus-4-6` (complex reasoning required)
+**Model:** `claude-opus-4-7` (complex reasoning required)
 
 **Responsibilities:**
 1. Run PITER classification on incoming brief (intent: feature/bug/chore/spike/hotfix)

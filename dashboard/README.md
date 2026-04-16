@@ -14,7 +14,7 @@ Create `.env.local`:
 ANTHROPIC_API_KEY=sk-ant-...
 GITHUB_TOKEN=ghp_...
 TELEGRAM_BOT_TOKEN=...   # optional
-ANALYSIS_MODEL=claude-opus-4-5-20250514
+ANALYSIS_MODEL=claude-opus-4-7
 ```
 
 ## Run locally
