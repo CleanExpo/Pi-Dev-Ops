@@ -1,42 +1,73 @@
 ---
 name: design-system
-description: Bootstrap or extend a component design system using Tailwind + shadcn/ui patterns for Pi-CEO's Next.js dashboard.
+description: Design stack orchestrator for Pi-CEO. Routes UI work to the correct specialist skill (design-intelligence, ui-component-builder, design-audit, visual-qa). Start here for any design task.
 automation: manual
-anthropic_skill: anthropic-skills:design-system-to-production-quick-start
 intents: design, feature
 ---
 
 # Design System Skill
 
-Scaffolds consistent UI components, tokens, and patterns for Pi-CEO's
-Next.js 16 + Tailwind CSS dashboard. Uses the Anthropic Cloud Skill
-`anthropic-skills:design-system-to-production-quick-start` for production-ready output.
+The entry point for all UI work in the Unite-Group Nexus. This skill does not build components directly — it routes to the correct specialist and ensures every design decision is grounded in `DESIGN.md`.
 
-## When to use
+**The four-layer design stack:**
 
-- Adding new dashboard pages or panels
-- Ensuring a new component matches existing colour/spacing tokens
-- Migrating ad-hoc styles to the design system
+| Layer | Skill | When |
+|-------|-------|------|
+| 1. Context | `design-intelligence` | Start of any UI work — read/create DESIGN.md |
+| 2. Build | `ui-component-builder` | Building or updating React components |
+| 3. Audit | `design-audit` | Before marking any component done |
+| 4. Verify | `visual-qa` | After build — screenshot + regression check |
 
-## Stack
+---
 
-- Next.js 16.2.2 + React 19
-- Tailwind CSS (config in `dashboard/tailwind.config.ts`)
-- Component conventions: `dashboard/components/`
-- Tokens: defined in `dashboard/lib/theme.ts` (or equivalent)
+## Quick Routing Guide
 
-## Usage
+**"Build me a [component]"**
+→ `design-intelligence` (read DESIGN.md) → `ui-component-builder` (generate 3 variants) → `design-audit` (/audit) → `visual-qa` (screenshot matrix)
 
-Invoke via the Skill tool or reference in a brief:
+**"Does this look right?"**
+→ `design-audit` (/critique) — UX + visual review, no edits
+
+**"Make this better"**
+→ `design-audit` (/polish) — targeted improvements, or (/bolder) for more presence
+
+**"Match the look of [brand/site]"**
+→ `design-intelligence` (reference brand archetypes, run npxskillui) → update DESIGN.md
+
+**"Check for visual regressions"**
+→ `visual-qa` — run screenshot matrix, diff against baselines
+
+---
+
+## Project Design Tokens (summary)
+
+Defined in full at `Pi-Dev-Ops/DESIGN.md`. Key values for quick reference:
 
 ```
-Use the design-system skill to build a StatusBadge component that shows
-build status with colour-coded variants: running (blue), passed (green),
-failed (red), warned (yellow).
+Canvas:    #09090b   Surface-1: #18181b   Surface-2: #27272a
+Accent:    #f59e0b   (amber — only accent colour)
+Text:      #fafafa (primary) · #a1a1aa (secondary) · #71717a (tertiary)
+Border:    rgba(255,255,255,0.06) subtle · rgba(255,255,255,0.10) default
+Font:      Geist (UI) + Geist Mono (data/code/IDs)
+Status:    #22c55e success · #ef4444 error · #3b82f6 info · #f59e0b warning
 ```
 
-## Constraints
+---
 
-- Match existing component naming conventions (`PascalCase`)
-- Import tokens from the shared theme; do not hardcode hex colours
-- Components must be server-renderable by default (no `"use client"` unless needed)
+## Stack Requirements
+
+- `DESIGN.md` must exist in the project root before any UI work starts
+- Run `npx impeccable detect src/` after every component build to catch anti-patterns
+- Visual baselines must be generated on Linux (CI), not macOS — font hinting differs
+
+---
+
+## What This Skill No Longer Does
+
+The old `design-system` skill referenced `anthropic-skills:design-system-to-production-quick-start`
+and generic shadcn/ui scaffolding. That is retired. The Nexus design stack is now:
+- Token-first (DESIGN.md → Tailwind CSS variables)
+- OKLCH colour evaluation (not HSL)
+- Anti-pattern detection (impeccable 24-pattern set)
+- Visual regression CI (Playwright, always Linux)
+- Brand archetype grounded (getdesign.md + 66 references)
