@@ -49,6 +49,34 @@ _LINEAR_PROJECT_ID = "f45212be-3259-4bfb-89b1-54c122c939a7"  # Pi - Dev -Ops
 _LOCK_FILE = _HARNESS / ".analyse-lessons-last-run"
 _RUN_COOLDOWN_HOURS = 20  # Must be at least 20h between ticket-creating runs
 
+# Consolidation marker — if .harness/lesson-patterns.md was updated recently,
+# suppress per-category ticket creation for categories already consolidated there.
+# Prevents the weekly cron from re-creating RA-1066/1067/1080/1081/1082/1083/1084/1085
+# style tickets after they've been closed via consolidation.
+_CONSOLIDATION_MARKER = _HARNESS / "lesson-patterns.md"
+_CONSOLIDATION_FRESH_DAYS = 7
+_CONSOLIDATED_CATEGORIES = {
+    "architecture",
+    "unknown",
+    "security",
+    "deployment",
+    "claude",
+    "persistence",
+    "rate-limit",
+    "scheduled-tasks",
+}
+
+
+def _consolidation_marker_fresh() -> bool:
+    """True if lesson-patterns.md exists and was modified within the last 7 days."""
+    if not _CONSOLIDATION_MARKER.exists():
+        return False
+    try:
+        mtime = datetime.fromtimestamp(_CONSOLIDATION_MARKER.stat().st_mtime, tz=timezone.utc)
+    except OSError:
+        return False
+    return (datetime.now(timezone.utc) - mtime) < timedelta(days=_CONSOLIDATION_FRESH_DAYS)
+
 
 # ─── lesson loading ────────────────────────────────────────────────────────────
 
@@ -345,6 +373,15 @@ def main() -> None:
 
     log.info("Found %d recurring categories: %s", len(recurring), list(recurring))
 
+    marker_fresh = _consolidation_marker_fresh()
+    if marker_fresh:
+        log.info(
+            "Consolidation marker %s is fresh (<%dd) — suppressing per-category "
+            "ticketing for consolidated categories: %s",
+            _CONSOLIDATION_MARKER, _CONSOLIDATION_FRESH_DAYS,
+            sorted(_CONSOLIDATED_CATEGORIES),
+        )
+
     api_key = os.environ.get("LINEAR_API_KEY", "")
     client = LinearClient(api_key) if (api_key and not args.dry_run) else None
 
@@ -353,6 +390,13 @@ def main() -> None:
         content = build_proposal(category, entries)
         write_proposal(category, content)
         proposals_written += 1
+
+        if marker_fresh and category in _CONSOLIDATED_CATEGORIES:
+            log.info(
+                "Skipping Linear ticket for %s — superseded by lesson-patterns.md",
+                category,
+            )
+            continue
 
         if client:
             create_linear_ticket(client, category, content)
