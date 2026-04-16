@@ -1,7 +1,6 @@
 // app/layout.tsx — root layout with Geist font + ToastProvider
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/Toast";
@@ -16,15 +15,23 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const nonce = (await headers()).get("x-nonce") ?? "";
+  const themeInit = `(function(){try{var t=localStorage.getItem('pi-theme');document.documentElement.className=(t==='dark'?'dark':'light')+' ${geist.variable} ${geistMono.variable}';}catch(e){}})();`;
   return (
-    <html lang="en" className={`${geist.variable} ${geistMono.variable}`}>
+    // suppressHydrationWarning on <html>: the theme-init script below intentionally
+    // mutates <html>.className from localStorage before React hydrates. Without this
+    // attribute, React would warn about the className mismatch. Standard pattern for
+    // localStorage-driven themes (next-themes uses the same technique).
+    <html lang="en" className={`${geist.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <head>
-        {/* Reads localStorage before first paint to avoid theme flash */}
-        <Script
+        {/* Raw <script> (not next/script) so suppressHydrationWarning can be applied
+            directly. Placed in <head> so it runs synchronously before hydration,
+            preventing theme flash. */}
+        <script
           id="theme-init"
-          strategy="beforeInteractive"
-          {...(nonce ? { nonce } : {})}
-        >{`(function(){try{var t=localStorage.getItem('pi-theme');document.documentElement.className=(t==='dark'?'dark':'light')+' ${geist.variable} ${geistMono.variable}';}catch(e){}})();`}</Script>
+          nonce={nonce || undefined}
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: themeInit }}
+        />
       </head>
       <body
         className="bg-background text-text font-sans min-h-screen flex flex-col"
