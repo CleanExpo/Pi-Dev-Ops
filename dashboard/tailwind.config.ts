@@ -1,4 +1,4 @@
-// tailwind.config.ts — Zinc/Geist design tokens (CSS variable–backed for theming)
+// tailwind.config.ts — Zinc design tokens + Inter / JetBrains Mono typography (CSS variable–backed)
 import type { Config } from "tailwindcss";
 
 const config: Config = {
@@ -44,14 +44,18 @@ const config: Config = {
         full: "9999px",
       },
       fontFamily: {
-        sans:      ["var(--font-geist)", "system-ui", "sans-serif"],
-        mono:      ["var(--font-geist-mono)", "'IBM Plex Mono'", "monospace"],
-        geist:     ["var(--font-geist)", "system-ui", "sans-serif"],
-        "geist-mono": ["var(--font-geist-mono)", "monospace"],
-        /* Legacy — keep so any leftover font-display/font-body/font-condensed refs don't break */
-        display:   ["var(--font-geist)", "system-ui", "sans-serif"],
-        body:      ["var(--font-geist)", "system-ui", "sans-serif"],
-        condensed: ["var(--font-geist)", "system-ui", "sans-serif"],
+        sans:      ["var(--font-sans)", "system-ui", "sans-serif"],
+        mono:      ["var(--font-mono)", "'JetBrains Mono'", "'IBM Plex Mono'", "monospace"],
+        inter:     ["var(--font-sans)", "system-ui", "sans-serif"],
+        "inter-mono": ["var(--font-mono)", "monospace"],
+        /* Back-compat aliases — kept so legacy classNames like `font-geist-mono`
+           (PhaseTracker.tsx) keep rendering the current Inter/JetBrains Mono stack
+           without touching every component. Remove in a future cleanup sprint. */
+        geist:     ["var(--font-sans)", "system-ui", "sans-serif"],
+        "geist-mono": ["var(--font-mono)", "monospace"],
+        display:   ["var(--font-sans)", "system-ui", "sans-serif"],
+        body:      ["var(--font-sans)", "system-ui", "sans-serif"],
+        condensed: ["var(--font-sans)", "system-ui", "sans-serif"],
       },
       keyframes: {
         "fade-in": {

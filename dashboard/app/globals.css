@@ -1,4 +1,4 @@
-/* globals.css — Zinc/Geist design system */
+/* globals.css — Zinc design system + Inter / JetBrains Mono typography */
 
 @tailwind base;
 @tailwind components;
@@ -50,7 +50,7 @@
 html, body {
   background-color: var(--background);
   color: var(--text);
-  font-family: var(--font-geist, system-ui, sans-serif);
+  font-family: var(--font-sans, "Inter", system-ui, sans-serif);
   -webkit-font-smoothing: antialiased;
   transition: background-color 0.15s ease, color 0.15s ease;
   overflow-x: hidden;
