@@ -8,7 +8,7 @@ import Image from "next/image";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/dashboard";
+  const redirect = searchParams.get("redirect") || "/control";
 
   const [mode, setMode] = useState<"hero" | "login">("hero");
   const [password, setPassword] = useState("");
