@@ -43,6 +43,8 @@ This document replaces the 8 per-category "Self-Improvement — Review X lessons
 4. **`.trim()` every env-sourced API key** before passing to an SDK / Authorization header. Vercel-stored keys frequently carry trailing newlines that cause opaque 401s.
 5. **Removing a hardcoded fallback secret is a two-step commit.** (a) `gh secret set <NAME>`, (b) wire it into the workflow env block. Missing step (b) breaks the next CI push.
 6. **Run `detect-secrets` pre-commit in every portfolio repo.** The 2026-04-10 Pi-SEO scan found 6 exposed keys, mostly in docs — treat docs as prod for secrets.
+7. **Monitor www AND apex for every custom domain.** (RA-1098, 2026-04-17). Google flagged a real attack: legacy `www` CNAME pointed at a decommissioned Azure web app → the name got recycled → attacker grabbed it → valid-SSL spam site redirected users for ~24 h until reconsideration lifted the manual action. Our own portfolio had the same pattern live: `www.restoreassist.app` CNAME pointed at a dead `*.ondigitalocean.app` app. `scripts/dns_takeover_scan.py` now checks the full portfolio every 6 h.
+8. **Decommissioning a cloud app is a two-step action.** Remove the custom-domain mapping BEFORE deleting the app. Never rely on "that subdomain gets no traffic" — once the DNS points into platform infrastructure and the upstream is released, traffic arrives whether you want it or not.
 
 ### Enforcement hooks
 - `app/server/auth.py` (HMAC compare_digest, sanitiser)
@@ -50,12 +52,15 @@ This document replaces the 8 per-category "Self-Improvement — Review X lessons
 - `.pre-commit-config.yaml` (detect-secrets)
 - `.gitignore` (settings.local.json)
 - `.github/workflows/*.yml` (secrets wiring)
+- `scripts/dns_takeover_scan.py` (www + apex + cloud-platform CNAME takeover check)
 
 ### Anti-patterns
 - `==` comparison on HMAC digests.
 - Logging request bodies that may contain secrets.
 - Committing `settings.local.json` "just this once".
 - Trusting `os.environ[...]` without `.strip()` before HTTP headers.
+- Monitoring only `example.com` and assuming `www.example.com` is equivalent — DNS asymmetry is where the breach lives.
+- Leaving dangling CNAMEs to `*.ondigitalocean.app`, `*.azurewebsites.net`, `*.herokuapp.com`, `*.netlify.app`, `*.up.railway.app`, or any other platform that recycles subdomain names.
 
 ---
 
