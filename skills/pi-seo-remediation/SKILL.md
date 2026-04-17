@@ -97,8 +97,9 @@ Cards for each of the scanner's 10 secret patterns and 10 dangerous patterns:
 - **After**: `element.textContent = req.body.content` for plain text, or DOMPurify for HTML
 - **Effort**: S
 
-**debug=True**
+**Debug mode enabled**
 - **Tier**: 2
+- **Risk**: Exposes internal stack traces and disables security hardening (e.g. secret key warnings, detailed error pages). Must never be set in production.
 - **Steps**:
   1. Replace literal `debug=True` with `debug=os.environ.get("DEBUG", "false").lower() == "true"`
   2. Ensure `DEBUG` is not set to `true` in production env vars
