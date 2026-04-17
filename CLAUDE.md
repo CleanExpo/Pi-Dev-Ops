@@ -95,6 +95,28 @@ Expected: 3 pre-existing failures in `test_sdk_phase2.py` (claude_agent_sdk not 
 - **Anthropic docs redirects:** `docs.claude.com` redirects to `platform.claude.com` and `code.claude.com`. Any `httpx` fetcher hitting Anthropic docs must set `follow_redirects=True`. Filename collisions occur if URLs are keyed by last path segment alone — use two-segment extraction or a full URL hash.
 - **Telegram minimal push:** Sending a Telegram message from a sandboxed Python env requires only `TELEGRAM_BOT_TOKEN` + a `chat_id`. The full `python-telegram-bot` package is not required — `urllib` + `POST api.telegram.org/bot{token}/sendMessage` is sufficient. See `scripts/send_telegram.py`.
 
+## Surface Treatment Prohibition (RA-1109 — hardwired 2026-04-17)
+
+**A feature isn't shipped until the user-visible outcome is demonstrable.** HTTP 200 is not shipping. Types compiling is not shipping. Lint green is not shipping. If a button exists and a user presses it, they must SEE something change — a spinner, a streamed log, a navigation, a persisted state change, an error. Silent success is indistinguishable from a placeholder and destroys trust.
+
+**Banned patterns — reviewer must reject on sight:**
+- `.catch(() => {})` on a user action — swallows failures the user needs to know about.
+- Fire-and-forget button that returns `ok` in console but never updates the UI.
+- "Backend returned 200 so it works" without an end-to-end click-test on the live deploy.
+- Toast that disappears in 3 seconds as the only feedback for a long-running action.
+- Label on a button that overstates its actual effect (e.g. "Fix with Claude" that only spawns a background session with no viewing surface).
+
+**Required patterns:**
+- Any write action: either immediate UI state change, OR a subscribable progress surface (SSE stream, polling status, phase tracker).
+- Any async action >2 s: a live progress surface with a visible terminal or status chip, NOT a toast.
+- Any destructive action: confirmation + success toast with undo OR error state with actionable next step.
+- Any spawn action (Fix with Claude, Run, Redeploy, etc.): inline live-log streamer OR link to a page where the user can watch it work.
+
+**Enforcement:**
+- `.github/PULL_REQUEST_TEMPLATE.md` requires an explicit "Manual verification path" describing the live click-through.
+- Evaluator gate: any PR that adds / modifies an interactive surface but doesn't describe a verified manual click-test in the PR body is flagged, regardless of lint/type/test status.
+- The Fix-with-Claude incident (PR #48 → fixed in PR #56) is the exemplar: lint was clean, CI was green, endpoint returned 200, yet the feature was unusable. The fix was adding an inline SSE streamer showing live session output.
+
 ## Model Routing Policy (RA-1099 — hardwired 2026-04-17)
 
 **Opus 4.7 is reserved for Senior PM (`planner`) + Senior Orchestrator (`orchestrator`) ONLY.** Every other agent role uses Sonnet 4.6 or Haiku 4.5.
