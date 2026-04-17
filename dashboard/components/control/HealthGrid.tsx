@@ -33,19 +33,23 @@ interface FindingsResponse {
   error?: string;
 }
 
+// Use theme-aware CSS vars so contrast stays WCAG-AA on both platinum
+// (light) and zinc (dark). Globals define darker values on light theme
+// (--success:#16a34a, --warning:#ca8a04, --error:#dc2626) and brighter
+// ones on dark (--success:#22c55e, --warning:#eab308, --error:#ef4444).
 function healthColour(score: number | undefined): string {
   if (score === undefined) return "var(--text-dim)";
-  if (score >= 80) return "#4ADE80";
-  if (score >= 60) return "#FFD166";
-  return "#F87171";
+  if (score >= 80) return "var(--success)";
+  if (score >= 60) return "var(--warning)";
+  return "var(--error)";
 }
 
 const SEVERITY_COLOUR: Record<Finding["severity"], string> = {
-  critical: "#F87171",
-  high:     "#FFA94D",
-  medium:   "#FFD166",
-  low:      "#A3A3A3",
-  info:     "#71717A",
+  critical: "var(--error)",
+  high:     "var(--accent)",   // amber — distinct from error + theme-aware
+  medium:   "var(--warning)",
+  low:      "var(--text-muted)",
+  info:     "var(--text-dim)",
 };
 
 // Empty state with terminal aesthetic

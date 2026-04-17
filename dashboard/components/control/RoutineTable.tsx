@@ -22,10 +22,11 @@ interface RoutineRunsResponse {
   total: number;
 }
 
+// Theme-aware — see HealthGrid for the light/dark contrast rationale.
 const STATUS_COLOUR: Record<string, string> = {
-  success: "#4ADE80",
-  failure: "#F87171",
-  timeout: "#FFD166",
+  success: "var(--success)",
+  failure: "var(--error)",
+  timeout: "var(--warning)",
 };
 
 const STATUS_ICON: Record<string, string> = {
