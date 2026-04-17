@@ -1189,6 +1189,84 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
     return total_phases
 
 
+def _route_linear_ticket_to_target_project(
+    session, owner_repo: str, pr_url: str, pr_number: int | None, pr_title: str,
+) -> None:
+    """RA-1184 — create a Linear ticket in the TARGET repo's project.
+
+    Reads .harness/projects.json for repo → (linear_team_id, linear_project_id)
+    mapping. Creates a ticket titled with the PR name, description linking to
+    the PR + session ID + evaluator score. Ticket lands in the correct project
+    board (e.g. Disaster-Recovery's Linear project, not Pi-Dev-Ops's) so teams
+    see autonomous fixes on their own kanban.
+
+    No-ops if LINEAR_API_KEY is missing, projects.json has no entry, or the
+    ticket creation fails for any reason (triage continues).
+    """
+    from pathlib import Path  # noqa: PLC0415
+    import json as _json  # noqa: PLC0415
+    from .triage import LinearClient  # noqa: PLC0415
+
+    api_key = os.environ.get("LINEAR_API_KEY", "")
+    if not api_key:
+        em(session, "system", "  Linear ticket skipped: LINEAR_API_KEY not set")
+        return
+
+    # Load projects.json; look up by repo name (case-insensitive)
+    projects_path = Path(__file__).parent.parent.parent / ".harness" / "projects.json"
+    if not projects_path.exists():
+        em(session, "system", "  Linear ticket skipped: projects.json not found")
+        return
+    with open(projects_path) as _fh:
+        data = _json.load(_fh)
+    projects = data.get("projects", [])
+    # owner_repo is "owner/repo"; take the last path segment
+    repo_name = owner_repo.split("/")[-1].lower()
+    match = None
+    for p in projects:
+        if p.get("repo", "").split("/")[-1].lower() == repo_name:
+            match = p
+            break
+    if not match:
+        em(session, "system", f"  Linear ticket skipped: no projects.json entry for {repo_name}")
+        return
+
+    team_id = match.get("linear_team_id")
+    proj_id = match.get("linear_project_id")
+    if not team_id:
+        em(session, "system", f"  Linear ticket skipped: no team_id for {repo_name}")
+        return
+
+    client = LinearClient(api_key)
+    score = getattr(session, "evaluator_score", None)
+    confidence = getattr(session, "evaluator_confidence", None)
+    description = (
+        f"**Autonomous Pi-CEO session:** `{session.id}`\n\n"
+        f"**PR:** {pr_url}\n\n"
+        + (f"**Evaluator score:** {score}/10 @ {confidence}% confidence\n\n" if score else "")
+        + "This ticket was auto-created by Pi-CEO's autonomous fix pipeline. "
+        "Review the linked PR; close this ticket when the PR is merged.\n\n"
+        "🤖 Pi-CEO"
+    )
+    try:
+        issue = client.create_issue(
+            team_id=team_id,
+            title=f"[Pi-CEO] {pr_title[:200]}",
+            description=description,
+            priority=3,
+            project_id=proj_id,
+        )
+        _id = issue.get("identifier", "?")
+        _url = issue.get("url", "")
+        em(session, "success", f"  🎫 Linear ticket created: {_id} → {_url}")
+        try:
+            session.linear_issue_id = issue.get("id")  # type: ignore[attr-defined]
+        except Exception:
+            pass
+    except Exception as exc:
+        raise RuntimeError(f"Linear issueCreate failed: {exc}") from exc
+
+
 async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
     """Commit uncommitted changes, push to GitHub on a feature branch. Returns (all-files, push_ok)."""
     phase_start = time.monotonic()
@@ -1299,6 +1377,18 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
                                     session.pr_url = pr_url  # type: ignore[attr-defined]
                                 except Exception:
                                     pass
+                                # RA-1184 — route Linear ticket to the TARGET
+                                # repo's Linear project (not Pi-Dev-Ops). Reads
+                                # projects.json for team_id + linear_project_id.
+                                # Only creates a ticket when we don't already
+                                # have one (linear_issue_id unset).
+                                if not getattr(session, "linear_issue_id", None):
+                                    try:
+                                        _route_linear_ticket_to_target_project(
+                                            session, owner_repo, pr_url, pr_number, pr_title,
+                                        )
+                                    except Exception as _lin_exc:
+                                        em(session, "system", f"  Linear auto-ticket skipped: {_lin_exc}")
                         except Exception as _pr_exc:
                             em(session, "system", f"  PR auto-open skipped: {_pr_exc}")
                     else:
