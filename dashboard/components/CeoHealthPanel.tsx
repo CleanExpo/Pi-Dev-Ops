@@ -3,20 +3,25 @@
 
 import { useEffect, useState } from "react";
 
+// All fields except `status` are optional — Railway's /health currently only
+// returns {"status":"ok"} (the minimal liveness probe). Richer state lives on
+// /api/autonomy/status, /api/sessions, etc. The panel renders `—` when fields
+// are missing rather than crashing. Future: enrich the backend /health to
+// return all of this so the panel doesn't have to fan out fetches.
 interface HealthData {
   status: string;
-  uptime_s: number;
-  sessions: { active: number; total: number; max: number };
-  claude_cli: boolean;
-  anthropic_key: boolean;
-  linear_key: boolean;
-  autonomy: {
+  uptime_s?: number;
+  sessions?: { active: number; total: number; max: number };
+  claude_cli?: boolean;
+  anthropic_key?: boolean;
+  linear_key?: boolean;
+  autonomy?: {
     enabled: boolean;
     armed: boolean;
     poll_count: number;
     seconds_since_last_poll: number | null;
   };
-  disk_free_gb: number | null;
+  disk_free_gb?: number | null;
   swarm_enabled?: boolean;
   swarm_shadow?: boolean;
 }
@@ -116,7 +121,8 @@ export default function CeoHealthPanel() {
   const ok = health.status === "ok";
   const swarmOn = health.swarm_enabled !== false;
   const swarmShadow = health.swarm_shadow === true;
-  const autonomyArmed = health.autonomy.armed;
+  const autonomyArmed = health.autonomy?.armed ?? false;
+  const autonomyKnown = health.autonomy !== undefined;
 
   const swarmLabel = !swarmOn ? "Off" : swarmShadow ? "Shadow" : "Active";
   const swarmDot: "green" | "amber" | "red" =
@@ -143,27 +149,37 @@ export default function CeoHealthPanel() {
         </span>
       </div>
 
-      <StatRow label="Uptime" value={formatUptime(health.uptime_s)} dot={ok ? "green" : "red"} />
       <StatRow
-        label="Builds"
-        value={`${health.sessions.active} active / ${health.sessions.max} max`}
-        dot={health.sessions.active > 0 ? "green" : "dim"}
+        label="Uptime"
+        value={health.uptime_s !== undefined ? formatUptime(health.uptime_s) : "—"}
+        dot={ok ? "green" : "red"}
       />
+      {health.sessions && (
+        <StatRow
+          label="Builds"
+          value={`${health.sessions.active} active / ${health.sessions.max} max`}
+          dot={health.sessions.active > 0 ? "green" : "dim"}
+        />
+      )}
       <StatRow
         label="Swarm"
         value={swarmLabel}
         dot={swarmDot}
       />
-      <StatRow
-        label="Autonomy"
-        value={autonomyArmed ? "Armed" : "Disarmed"}
-        dot={autonomyArmed ? "green" : "amber"}
-      />
-      <StatRow
-        label="Last poll"
-        value={formatPollAge(health.autonomy.seconds_since_last_poll)}
-      />
-      {health.disk_free_gb !== null && (
+      {autonomyKnown && (
+        <>
+          <StatRow
+            label="Autonomy"
+            value={autonomyArmed ? "Armed" : "Disarmed"}
+            dot={autonomyArmed ? "green" : "amber"}
+          />
+          <StatRow
+            label="Last poll"
+            value={formatPollAge(health.autonomy?.seconds_since_last_poll ?? null)}
+          />
+        </>
+      )}
+      {health.disk_free_gb !== null && health.disk_free_gb !== undefined && (
         <StatRow
           label="Disk free"
           value={`${health.disk_free_gb} GB`}
