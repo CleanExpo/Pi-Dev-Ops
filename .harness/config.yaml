@@ -2,10 +2,17 @@ project: pi-dev-ops
 harness_version: 1.3
 # Last updated: 2026-04-14 (RA-937 Sprint 11) — evaluator threshold 8.0→8.5, routes decomposition
 
+# ── MODEL ROUTING POLICY (RA-1099 — hardwired 2026-04-17) ──────────────────
+# OPUS-ALLOWED ROLES: Senior PM (planner) + Senior Orchestrator only.
+# Every other agent runs on Sonnet 4.6 (default) or Haiku 4.5 (cost-tier).
+# Enforced by config.OPUS_ALLOWED_ROLES + budget.assert_model_allowed().
 agents:
-  planner:   {model: opus,   temperature: 0.3}
-  generator: {model: sonnet, temperature: 0.2, sdk: true}
-  evaluator: {model: sonnet, temperature: 0.1, sdk: true, parallel: true}
+  planner:      {model: opus,   temperature: 0.3}    # Senior PM        → Opus
+  orchestrator: {model: opus,   temperature: 0.2}    # Senior Orchestrator → Opus
+  generator:    {model: sonnet, temperature: 0.2, sdk: true}
+  evaluator:    {model: sonnet, temperature: 0.1, sdk: true, parallel: true}
+  board:        {model: sonnet, temperature: 0.4}    # board meeting → Sonnet
+  monitor:      {model: haiku,  temperature: 0.1}    # Pi-SEO monitor → Haiku
 
 # RA-674 — Confidence-weighted evaluator gate thresholds.
 # Override per-project via TAO_EVAL_* env vars (see config.py).
@@ -68,12 +75,15 @@ autonomy_budget:
   env_var: TAO_AUTONOMY_BUDGET
   default: 0
   module:  app/server/budget.py
+  # NOTE: anchors only set the GENERATOR model. Generator is never an
+  # opus-allowed role per the model-routing policy. Higher budget tiers
+  # therefore lift retries + threshold + timeout, NOT the model.
   anchors:
     - {minutes:  10, eval_threshold: 7.5, max_retries: 1, model: haiku,  timeout_min:   8}
     - {minutes:  30, eval_threshold: 8.5, max_retries: 2, model: sonnet, timeout_min:  25}
     - {minutes:  60, eval_threshold: 9.0, max_retries: 3, model: sonnet, timeout_min:  50}
-    - {minutes: 120, eval_threshold: 9.0, max_retries: 4, model: opus,   timeout_min: 100}
-    - {minutes: 240, eval_threshold: 9.5, max_retries: 5, model: opus,   timeout_min: 200}
+    - {minutes: 120, eval_threshold: 9.0, max_retries: 4, model: sonnet, timeout_min: 100}
+    - {minutes: 240, eval_threshold: 9.5, max_retries: 5, model: sonnet, timeout_min: 200}
 
 staleness:
   # RA-580: harness docs regeneration policy

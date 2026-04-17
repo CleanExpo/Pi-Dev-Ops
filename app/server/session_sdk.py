@@ -119,6 +119,18 @@ async def _run_claude_via_sdk(
     On any error or import failure, returns (1, "", 0.0) for transparent fallback to subprocess.
     Emits one row to .harness/agent-sdk-metrics/YYYY-MM-DD.jsonl on every invocation.
     """
+    # RA-1099 — Hard policy gate. Map the call-site `phase` to a role and
+    # assert the model is allowed for that role. Opus is reserved for Senior
+    # PM (planner) + Senior Orchestrator. Any other role attempting opus
+    # fails loudly here rather than running expensively in production.
+    from .model_policy import assert_model_allowed  # noqa: PLC0415
+    _role = (phase or "").split(".")[0] or "generator"
+    try:
+        assert_model_allowed(_role, model)
+    except ValueError as policy_err:
+        _log.error("RA-1099 model policy violation in _run_claude_via_sdk: %s", policy_err)
+        raise
+
     try:
         from claude_agent_sdk import (  # noqa: PLC0415
             AssistantMessage,
