@@ -730,11 +730,16 @@ async def _phase_plan(session, spec: str, resume_from: str) -> None:
         except Exception:
             pass
 
+    # RA-1177 — prompt hardening. Sonnet (smarter than Haiku) was responding
+    # with prose clarification questions when the brief seemed ambiguous,
+    # producing empty JSON that broke the plan phase. Hardened rules below
+    # force assumption-based output regardless of brief quality.
     planning_prompt = (
-        "You are a planning agent. Convert this brief into a structured implementation plan.\n\n"
+        "You are a planning agent. Your ONLY output is a JSON object — no prose, "
+        "no questions, no markdown, no explanation.\n\n"
         f"Brief:\n{spec[:3000]}\n\n"
         f"Repo context: {repo_context_snippet or 'not available'}\n\n"
-        "Output a JSON object (no markdown fences):\n"
+        "Output this JSON shape EXACTLY (no markdown fences):\n"
         "{\n"
         '  "units": [\n'
         "    {\n"
@@ -749,12 +754,16 @@ async def _phase_plan(session, spec: str, resume_from: str) -> None:
         '  "risk_notes": "..."\n'
         "}\n\n"
         "Rules:\n"
-        "- 3-8 units maximum\n"
-        "- Be specific about file paths\n"
-        "- For non-behavioral units (config, scaffolding) set is_behavioral: false "
-        "and omit test_scenarios\n"
-        "- confidence is 0.0-1.0 (your certainty this plan fully covers the brief)\n"
-        "- Respond with JSON only — no explanation, no markdown fences"
+        "- 3-8 units maximum.\n"
+        "- Be specific about file paths based on the repo context.\n"
+        "- For non-behavioral units (config, scaffolding, docs) set "
+        "is_behavioral: false and omit test_scenarios.\n"
+        "- confidence is 0.0-1.0 (your certainty this plan fully covers the brief).\n"
+        "- If the brief is ambiguous, STILL produce a plan — make reasonable "
+        "assumptions, record them in risk_notes, and lower confidence. DO NOT "
+        "ask for clarification. DO NOT output any text outside the JSON object.\n"
+        "- Your very first character MUST be `{` and your very last character "
+        "MUST be `}`. Anything else is a hard failure."
     )
 
     try:
