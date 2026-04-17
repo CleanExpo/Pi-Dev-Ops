@@ -16,7 +16,10 @@
 // so local dev isn't blocked. In production, we refuse to authenticate and return
 // a clear 503 with remediation steps.
 function resolvePassword(): { value: string; dev: boolean } {
-  const raw = process.env.DASHBOARD_PASSWORD || process.env.PI_CEO_PASSWORD || "";
+  // .trim() — Vercel stores env vars with trailing \n on save in some flows,
+  // which makes string comparison silently fail with a 401 even though the
+  // user typed the right password. See CLAUDE.md "API key env hygiene".
+  const raw = (process.env.DASHBOARD_PASSWORD || process.env.PI_CEO_PASSWORD || "").trim();
   const isUnresolvedOpRef = raw.startsWith("op://");
   if (!raw || isUnresolvedOpRef) {
     if (process.env.NODE_ENV !== "production") {
