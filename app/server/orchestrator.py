@@ -23,8 +23,9 @@ import uuid
 from . import config
 from .sessions import create_session, em, run_cmd, BuildSession, _sessions, _run_claude_via_sdk
 from .brief import classify_intent
-from .sessions import _select_model
 from .model_policy import select_model  # RA-1099: hardwired model routing policy
+# Note: _select_model (legacy harness-only selector in sessions.py) was replaced
+# by select_model from model_policy throughout this file (RA-1099 enforcement).
 
 _log = logging.getLogger("pi-ceo.orchestrator")
 
