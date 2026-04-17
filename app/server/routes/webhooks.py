@@ -72,6 +72,22 @@ async def webhook(request: Request):
         if not event:
             return {"skipped": True, "reason": f"Unsupported event: {gh_event}"}
         repo_url = event["repo_url"]
+        # RA-1182 — skip webhook-triggered sessions on Pi-CEO's own auto-
+        # branches (pidev/auto-<sid>, pidev/analysis-*). Without this, every
+        # push from a previous session's fix spawns a NEW session that
+        # analyses the repo and pushes another auto-branch — recursive
+        # self-modification that produced the 43-zombie-branch pile-up.
+        ref = event.get("ref", "")
+        if "pidev/" in ref:
+            log.info("Skipping webhook session for own auto-branch: %s", ref)
+            return {"skipped": True, "reason": f"Pi-CEO auto-branch: {ref}"}
+        # RA-1182 — skip self-modification. Pi-Dev-Ops is the harness itself;
+        # webhook-fired sessions against its own repo just commit random
+        # "fixes" to scripts/* that were never requested. Portfolio repos
+        # (carsi, dr-nrpg, restoreassist, etc.) still trigger normally.
+        if "CleanExpo/Pi-Dev-Ops" in repo_url or "pi-dev-ops" in repo_url.lower():
+            log.info("Skipping webhook session against Pi-CEO harness itself: %s", repo_url)
+            return {"skipped": True, "reason": "Pi-CEO harness self-modification blocked"}
         existing_id = _find_active_session_for_repo(repo_url)
         if existing_id:
             log.info("Skipping duplicate webhook for %s — session %s already active", repo_url, existing_id)
