@@ -879,8 +879,15 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
         try:
             em(session, "tool", f"  $ claude --model {model} (via SDK)")
             em(session, "system", "")
+            # RA-1174 — tier-aware generator timeout. The default 300 s was
+            # tripping on advanced-tier briefs (full feature overhauls) that
+            # legitimately need 5-15 min of Claude thinking + file writing.
+            # Basic stays at 300 s; detailed gets 600 s; advanced gets 900 s.
+            _tier = (getattr(session, "complexity_tier", "") or "").lower()
+            _gen_timeout = 900 if _tier == "advanced" else (600 if _tier == "detailed" else 300)
             rc, sdk_output, cost = await _run_claude_via_sdk(
                 current_spec, model, session.workspace,
+                timeout=_gen_timeout,
                 session_id=session.id, phase="generator",
             )
             _generate_cost += float(cost or 0.0)
