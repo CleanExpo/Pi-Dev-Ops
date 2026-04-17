@@ -171,6 +171,35 @@ This document replaces the 8 per-category "Self-Improvement — Review X lessons
 
 ---
 
+## Deployment (continued — RA-1159 pattern, 2026-04-17)
+
+### Rules
+9. **A Vercel project without `link: github` will not auto-deploy on main push — and nothing visible says so.** (2026-04-17.) `vercel --prod` from a linked `.vercel/` directory still works. The UI says "● Ready" on the last manual deploy. Meanwhile the production alias serves stale code for hours after merges land. Symptom surfaced as a runtime error (`Cannot read properties of undefined (reading 'armed')`) on `/control` — the live deploy pre-dated the defensive-guard PR that fixed it.
+10. **Check Git link state as part of deploy health**, not just deploy readiness:
+    ```bash
+    TOKEN=$(python3 -c "import json;print(json.load(open('/Users/phill-mac/Library/Application Support/com.vercel.cli/auth.json')).get('token',''))")
+    curl -s -H "Authorization: Bearer $TOKEN" \
+      "https://api.vercel.com/v9/projects/<projectId>?teamId=<teamId>" \
+      | python3 -c "import json,sys;d=json.load(sys.stdin);print('link:', d.get('link'));print('rootDirectory:', d.get('rootDirectory'))"
+    ```
+    `link: null` means broken auto-deploy. `rootDirectory: null` on a monorepo subapp means build-from-repo-root instead of the app directory.
+11. **Fix recipe:**
+    ```bash
+    vercel git connect https://github.com/<owner>/<repo> --yes
+    # then via API — CLI cannot set rootDirectory:
+    curl -s -X PATCH -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+      "https://api.vercel.com/v9/projects/<projectId>?teamId=<teamId>" \
+      -d '{"rootDirectory":"<subapp-directory>"}'
+    ```
+12. **Verify with a canary:** commit any no-op change to main and confirm a fresh production deploy appears within 60s via `vercel ls --prod`. "Ready" status on a recent manual deploy is NOT proof the webhook works.
+
+### Anti-patterns
+- Assuming Vercel auto-deploys because `vercel --prod` succeeded. They're independent paths.
+- Relying on "the deploy was Ready 5h ago" as evidence the pipeline is healthy — that's the snapshot of a stale build, not pipeline health.
+- Auditing only `vercel ls --prod` output. Age-of-latest-deploy relative to commit-landed times is the actual signal.
+
+---
+
 ## Unknown / Uncategorised (7 lessons)
 
 These lessons lack an explicit category but cluster around **topology & observability of long-running loops**. The unifying rule: *autonomous systems fail silently unless the health surface reports the work they're supposed to do.*
