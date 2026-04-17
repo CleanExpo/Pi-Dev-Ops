@@ -4,12 +4,20 @@
 import { useEffect, useRef, useState } from "react";
 import { useSSE } from "@/hooks/useSSE";
 import Terminal from "@/components/Terminal";
+import { useActiveProject } from "./ProjectSelector";
 
 function sanitize(s: string): string {
   return s.replace(/[<>"&]/g, "");
 }
 
+function repoToUrl(repo: string): string {
+  if (!repo) return "";
+  if (repo.startsWith("http")) return repo;
+  return `https://github.com/${repo}`;
+}
+
 export default function BuildForm() {
+  const activeProject = useActiveProject();
   const [repo, setRepo] = useState("");
   const [brief, setBrief] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -18,6 +26,14 @@ export default function BuildForm() {
   const [briefFocused, setBriefFocused] = useState(false);
   const { lines, status, error, branch, prUrl, start, stop } = useSSE();
   const escRef = useRef<HTMLDivElement>(null);
+
+  // RA-1103 — pre-fill repo from active project when user picks one in TopBar.
+  // Only overwrite empty / unedited input — don't clobber what the user is typing.
+  useEffect(() => {
+    if (!activeProject) return;
+    const url = repoToUrl(activeProject.repo);
+    setRepo((current) => (current ? current : url));
+  }, [activeProject]);
 
   const running = status === "running" || submitting;
 

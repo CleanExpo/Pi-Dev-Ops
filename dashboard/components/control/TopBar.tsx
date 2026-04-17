@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
+import ProjectSelector from "./ProjectSelector";
 
 interface ZteData {
   model: string;
@@ -81,8 +82,11 @@ export default function TopBar() {
         </span>
       </div>
 
-      {/* Right: clock + model + theme */}
+      {/* Right: project selector + clock + model + theme */}
       <div className="flex items-center gap-3">
+        {/* RA-1103 — active project picker for remote/multi-project work */}
+        <ProjectSelector />
+
         {/* Live clock */}
         <span
           className="hidden sm:inline text-[11px] font-mono tabular-nums"
