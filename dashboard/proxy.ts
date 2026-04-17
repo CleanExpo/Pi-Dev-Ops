@@ -20,11 +20,14 @@ export const config = {
   ],
 };
 
-// Must match the key used to sign the session token in app/api/auth/login/route.ts
-const DASHBOARD_PASSWORD =
+// Must match the key used to sign the session token in app/api/auth/login/route.ts.
+// .trim() — Vercel env vars sometimes carry trailing \n. login/route.ts trims its
+// copy; this one MUST trim too, or HMAC verification fails for valid cookies.
+const DASHBOARD_PASSWORD = (
   process.env.DASHBOARD_PASSWORD ||
   process.env.PI_CEO_PASSWORD ||
-  "";
+  ""
+).trim();
 const SESSION_TTL_SECONDS = 86_400; // 24h — must match login/route.ts
 const COOKIE_NAME = "pi_session";
 const LOGIN_PATH = "/";
