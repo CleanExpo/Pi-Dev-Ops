@@ -24,6 +24,7 @@ from . import config
 from .sessions import create_session, em, run_cmd, BuildSession, _sessions, _run_claude_via_sdk
 from .brief import classify_intent
 from .sessions import _select_model
+from .model_policy import select_model  # RA-1099: hardwired model routing policy
 
 _log = logging.getLogger("pi-ceo.orchestrator")
 
@@ -114,9 +115,10 @@ async def _decompose_brief(
         return None
 
     # SDK-only path (RA-1094B). Subprocess fallback removed — SDK is mandatory.
+    # RA-1099: Decomposition is the Senior Orchestrator's job → opus per policy.
     try:
         rc, out, _ = await _run_claude_via_sdk(
-            decompose_prompt, model=_select_model("planner"),
+            decompose_prompt, model=select_model("orchestrator"),
             workspace=workspace, timeout=90,
             session_id="", phase="orchestrator.decompose",
         )
@@ -171,13 +173,17 @@ async def _launch_wave(
             worker_ids.append(s.id)
             em(parent, "system", f"  Wave {wave_num} — launched {label}: {s.id}")
         except RuntimeError as e:
-            em(parent, "error", f"  Wave {wave_num} — {label} failed ({e}) — escalating to opus")
-            opus_model = _select_model("planner")
+            # RA-1099: workers are 'generator' role — opus is policy-blocked here.
+            # Retry once with the configured generator model (sonnet by default).
+            retry_model = select_model("generator")
+            em(parent, "error",
+               f"  Wave {wave_num} — {label} failed ({e}) — retrying with {retry_model} "
+               f"(opus policy-blocked for non-PM/orchestrator roles)")
             try:
                 s2 = await create_session(
                     repo_url=repo_url,
                     brief=sub_brief,
-                    model=opus_model,
+                    model=retry_model,
                     evaluator_enabled=evaluator_enabled,
                     intent=resolved_intent,
                     parent_session_id=parent_id,
@@ -185,9 +191,9 @@ async def _launch_wave(
                 )
                 worker_ids.append(s2.id)
                 escalated.append(s2.id)
-                em(parent, "system", f"  Wave {wave_num} — escalated {label} (opus): {s2.id}")
+                em(parent, "system", f"  Wave {wave_num} — retried {label} ({retry_model}): {s2.id}")
             except RuntimeError as e2:
-                em(parent, "error", f"  Wave {wave_num} — escalated {label} also failed: {e2}")
+                em(parent, "error", f"  Wave {wave_num} — retry {label} also failed: {e2}")
 
     return worker_ids, escalated
 
