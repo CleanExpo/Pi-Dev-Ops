@@ -149,18 +149,25 @@ This document replaces the 8 per-category "Self-Improvement — Review X lessons
 2. **`claude -p` requires the CLI on PATH.** Cloud (Railway) has no Claude Code CLI → use `ANTHROPIC_API_KEY` + SDK. Gate with `ANALYSIS_MODE` env var.
 3. **MCP SDK needs subpath imports.** Use `@modelcontextprotocol/sdk/server/mcp.js` and `.../server/stdio.js`. The top-level `@modelcontextprotocol/sdk` does not export `McpServer`.
 4. **Use the public `ClaudeSDKClient.receive_response()` loop.** Never call `client._query.receive_messages()` — that private API (currently in `telegram-bot/src/claude/sdk_integration.py:405`) will break on the next SDK upgrade.
+5. **Claude-in-Chrome binding is account-scoped, not device-scoped** (2026-04-17, ~2 h debug loss). The extension's cloud relay matches tab-create requests to whatever Anthropic account the extension was signed in with. Two non-obvious consequences:
+   - The **Claude Code CLI account** (`~/.claude/.credentials.json`) and the **Claude-in-Chrome extension account** (shown in the extension popup) MUST be the same Anthropic email. Otherwise the bind silently lands on whichever Chrome elsewhere happens to hold a grant for the CLI's account — typically the user's other Mac/PC.
+   - "Log out of all devices" on claude.ai kills **website** sessions only. Extension OAuth grants survive. Reinstalling the extension on the local machine does **not** invalidate grants on remote machines; those remain active and keep winning first-responder races.
+6. **Always screenshot-verify a Claude-in-Chrome bind** (`mcp__computer-use__screenshot` looking for a probe-marker URL in the on-screen Chrome tab strip). Tool calls returning success (`tabs_context_mcp` → tabId, `navigate` → OK) are NOT evidence the bind is on the correct machine — the MCP returns success whenever *any* Chrome on the relay responds. The `/bind-chrome` global slash command (`~/.claude/commands/bind-chrome.md`) encodes the full verify-retry-escalate loop, including the account-alignment precheck.
 
 ### Enforcement hooks
 - `app/server/triage.py` (mode switch)
 - `app/mcp/*.ts` (subpath imports)
 - `telegram-bot/src/claude/sdk_integration.py` (migrate off `_query`)
 - Agent Expert skill rules
+- `~/.claude/commands/bind-chrome.md` (deterministic device binding)
 
 ### Anti-patterns
 - Importing from `src/tao/` expecting real logic.
 - Shipping `claude -p` paths into a Railway Dockerfile.
 - Top-level `@modelcontextprotocol/sdk` import.
 - Depending on `_query.receive_messages()`.
+- Trusting a Claude-in-Chrome MCP tool result ("tab created / navigated") as proof of the destination machine — only a screenshot proves it.
+- Attempting to fix wrong-machine binds by retrying `tabs_context_mcp` under identical conditions — without killing the ghost grant, every retry loses the same race.
 
 ---
 
