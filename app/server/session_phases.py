@@ -541,6 +541,43 @@ async def _phase_clone(session, resume_from: str) -> bool:
                 session.repo_url, session.workspace, timeout=60,
             )
             if rc == 0:
+                # RA-1173 — verify the cloned repo's origin matches session.repo_url.
+                # When WORKSPACE_ROOT sits inside a parent git repo, the commands
+                # further down the pipeline (commit, push) were using the PARENT
+                # repo's .git instead of the cloned child's, silently pushing to
+                # the wrong remote. Catch that mismatch loudly here.
+                _, origin_ru, _ = await run_cmd(
+                    session.workspace, "git", "remote", "get-url", "origin", timeout=5,
+                )
+                origin_ru = origin_ru.strip()
+                # Strip x-access-token auth if any, then compare host+path
+                def _canon(u: str) -> str:
+                    u = u.replace("https://x-access-token:", "https://").rstrip("/")
+                    if "@github.com/" in u:
+                        u = "https://github.com/" + u.split("@github.com/", 1)[1]
+                    return u.removesuffix(".git")
+                if _canon(origin_ru) != _canon(session.repo_url):
+                    em(session, "error",
+                       f"  Clone contamination: workspace origin={origin_ru} but expected {session.repo_url}. "
+                       "Aborting — fix TAO_WORKSPACE to a path outside any parent git repo.")
+                    session.status = "failed"
+                    persistence.save_session(session)
+                    _emit_phase_metric(session, "clone", phase_start)
+                    return False
+                # Plant a stub CLAUDE.md so Claude Code doesn't walk upward
+                # into an ancestor repo's CLAUDE.md when the cloned repo has
+                # no CLAUDE.md at the root.
+                stub_md = os.path.join(session.workspace, "CLAUDE.md")
+                if not os.path.exists(stub_md):
+                    try:
+                        with open(stub_md, "w", encoding="utf-8") as _fh:
+                            _fh.write(
+                                "# Scoped Pi-CEO workspace\n\n"
+                                "This is an isolated autonomous workspace. Only read and edit files\n"
+                                "inside this directory. Do not walk upward into parent directories.\n"
+                            )
+                    except OSError:
+                        pass
                 em(session, "success", "  Clone complete")
                 session.last_completed_phase = "clone"
                 persistence.save_session(session)
