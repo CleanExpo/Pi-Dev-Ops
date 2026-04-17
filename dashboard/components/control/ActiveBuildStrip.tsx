@@ -64,12 +64,19 @@ function formatElapsed(startedUnix: number): string {
 }
 
 function BuildRow({ s }: { s: Session }) {
-  // Force re-render once per second for elapsed ticker + lines delta.
-  const [, setTick] = useState(0);
+  // Force re-render once per second — `now` ticking also gives us a pure
+  // render-time reference for the "lines activity age" calc below, which
+  // satisfies React 19's `react-hooks/purity` rule (no Date.now() calls
+  // during render).
+  const [now, setNow] = useState<number>(() => Date.now());
   const prevLines = useRef<number>(s.lines);
-  const prevLinesTime = useRef<number>(Date.now());
+  // Lazy-init in effect to avoid Date.now() during render. `0` means
+  // "not yet observed"; the first render will compute a near-zero age,
+  // which is fine — the indeterminate animation trips on `< 30_000`.
+  const prevLinesTime = useRef<number>(0);
   useEffect(() => {
-    const id = setInterval(() => setTick((n) => n + 1), 1000);
+    if (prevLinesTime.current === 0) prevLinesTime.current = Date.now();
+    const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
 
@@ -85,7 +92,7 @@ function BuildRow({ s }: { s: Session }) {
   // 5-8 min generator phase). Rather than show a stuck percentage,
   // run an indeterminate animation whenever the session is actively
   // building and the last log event was recent (<30 s).
-  const linesAgeMs = Date.now() - prevLinesTime.current;
+  const linesAgeMs = now - prevLinesTime.current;
   const indeterminate = s.status === "building" && linesAgeMs < 30_000;
 
   const phaseIdx = PHASE_ORDER[s.last_phase] ?? 0;
