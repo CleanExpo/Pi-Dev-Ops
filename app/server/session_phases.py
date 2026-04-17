@@ -700,8 +700,24 @@ async def _phase_plan(session, spec: str, resume_from: str) -> None:
         em(session, "system", "  [SKIP] Plan (already completed)")
         return
 
-    em(session, "phase", "[3.7/5] Planning implementation (haiku)...")
-    haiku_model = getattr(config, "HAIKU_MODEL", "haiku")
+    # RA-1175 — tier-aware plan model. Haiku is fine for simple briefs
+    # (dep bump, typo fix, doc tweak) but produces 5% confidence plans or
+    # times out at 45 s on complex briefs (feature overhauls, multi-file
+    # refactors). Escalate to Sonnet for detailed/advanced tiers so the
+    # plan actually captures the brief.
+    _tier = (getattr(session, "complexity_tier", "") or "").lower()
+    if _tier in ("detailed", "advanced"):
+        plan_model = getattr(config, "SONNET_MODEL", "sonnet")
+        _model_label = "sonnet"
+        _plan_sdk_timeout = 120
+        _plan_wait_timeout = 130
+    else:
+        plan_model = getattr(config, "HAIKU_MODEL", "haiku")
+        _model_label = "haiku"
+        _plan_sdk_timeout = 45
+        _plan_wait_timeout = 50
+    em(session, "phase", f"[3.7/5] Planning implementation ({_model_label})...")
+    haiku_model = plan_model  # name kept for rest-of-file compatibility
 
     repo_context_snippet = ""
     if session.workspace and os.path.isdir(session.workspace):
@@ -745,9 +761,9 @@ async def _phase_plan(session, spec: str, resume_from: str) -> None:
         rc, plan_text, _ = await asyncio.wait_for(
             _run_claude_via_sdk(
                 planning_prompt, haiku_model, session.workspace,
-                timeout=45, session_id=session.id, phase="planner",
+                timeout=_plan_sdk_timeout, session_id=session.id, phase="planner",
             ),
-            timeout=50,
+            timeout=_plan_wait_timeout,
         )
     except asyncio.TimeoutError:
         _log.warning("RA-1026: _phase_plan timed out (non-fatal) — continuing without plan")
