@@ -5,21 +5,26 @@
 @tailwind utilities;
 
 /* ── Light theme (default) ───────────────────────────────────────────────── */
+/* All semantic tokens on the light ("platinum") theme tuned for WCAG-AA
+ * (>=4.5:1 contrast) on the panel bg #f4f4f5. Pre-tune values failed AA
+ * for small text — text-dim was 2.74:1 (near invisible), warning 3.2:1,
+ * border nearly the same colour as panel. Tightened on 2026-04-17
+ * after the Portfolio Health container was reported unreadable. */
 :root {
   --background: #ffffff;
   --panel: #f4f4f5;
   --panel-hover: #e4e4e7;
-  --border: #e4e4e7;
-  --border-subtle: #f4f4f5;
+  --border: #d4d4d8;           /* zinc-300; visible edge on panel (was e4e4e7) */
+  --border-subtle: #e4e4e7;
   --text: #09090b;
-  --text-muted: #71717a;
-  --text-dim: #a1a1aa;
-  --accent: #ea580c;
+  --text-muted: #52525b;       /* zinc-600; ≈5.7:1 on panel (was 71717a) */
+  --text-dim: #71717a;         /* zinc-500; ≈4.05:1 on panel (was a1a1aa / 2.74:1 fail) */
+  --accent: #c2410c;           /* orange-700; ≈4.8:1 (was ea580c / 3.9:1) */
   --accent-subtle: rgba(234,88,12,0.08);
-  --success: #16a34a;
-  --warning: #ca8a04;
-  --error: #dc2626;
-  --info: #2563eb;
+  --success: #15803d;          /* green-700; ≈5.2:1 (was 16a34a / 4.1:1) */
+  --warning: #a16207;          /* yellow-700; ≈4.6:1 (was ca8a04 / 3.2:1) */
+  --error: #b91c1c;            /* red-700; ≈5.1:1 (was dc2626 / 4.2:1) */
+  --info: #1d4ed8;             /* blue-700; ≈6.1:1 */
   --radius: 6px;
 
   --scrollbar-track: #f4f4f5;

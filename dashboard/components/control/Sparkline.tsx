@@ -16,19 +16,25 @@ export default function Sparkline({
   colour = "var(--accent)",
 }: SparklineProps) {
   if (data.length < 2) {
-    // Flat dashed placeholder
+    // Not enough samples yet — render an explicit "no history" label rather
+    // than a flat dashed line (which was being read as a real flat trend).
+    // History accumulates via the HealthGrid rolling buffer on each 60 s poll.
     return (
-      <svg width={width} height={height} aria-hidden="true">
-        <line
-          x1={2}
-          y1={height / 2}
-          x2={width - 2}
-          y2={height / 2}
-          stroke="var(--border)"
-          strokeWidth={1}
-          strokeDasharray="3 2"
-        />
-      </svg>
+      <span
+        aria-label="no trend data yet"
+        style={{
+          display: "inline-block",
+          width,
+          height,
+          fontSize: 10,
+          lineHeight: `${height}px`,
+          color: "var(--text-dim)",
+          textAlign: "right",
+          fontFamily: "var(--font-mono, monospace)",
+        }}
+      >
+        — no trend
+      </span>
     );
   }
 
