@@ -1,0 +1,10 @@
+{
+  "ticket": "RA-1154",
+  "type": "smoke-probe",
+  "ts": "2026-04-17T18:14:47",
+  "result": "pipeline_responded",
+  "tests": {"passed": 137, "failed": 1, "xfailed": 2},
+  "pre_existing_failures": ["test_sdk_phase2.py::test_run_claude_via_sdk_success"],
+  "import_check": "ok",
+  "note": "No-op probe — brief was 'do nothing, just verify the pipeline responds'. All invariants hold."
+}
