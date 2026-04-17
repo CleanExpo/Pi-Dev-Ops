@@ -9,7 +9,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface Session {
   id: string;
@@ -64,15 +64,32 @@ function formatElapsed(startedUnix: number): string {
 }
 
 function BuildRow({ s }: { s: Session }) {
-  // Force re-render once per second for elapsed ticker.
+  // Force re-render once per second for elapsed ticker + lines delta.
   const [, setTick] = useState(0);
+  const prevLines = useRef<number>(s.lines);
+  const prevLinesTime = useRef<number>(Date.now());
   useEffect(() => {
     const id = setInterval(() => setTick((n) => n + 1), 1000);
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    if (s.lines !== prevLines.current) {
+      prevLines.current = s.lines;
+      prevLinesTime.current = Date.now();
+    }
+  }, [s.lines]);
+
+  // Server-side `last_phase` only updates on phase-end metrics, so it
+  // lags behind what's really happening (e.g. stays "plan" during the
+  // 5-8 min generator phase). Rather than show a stuck percentage,
+  // run an indeterminate animation whenever the session is actively
+  // building and the last log event was recent (<30 s).
+  const linesAgeMs = Date.now() - prevLinesTime.current;
+  const indeterminate = s.status === "building" && linesAgeMs < 30_000;
+
   const phaseIdx = PHASE_ORDER[s.last_phase] ?? 0;
-  const pct = Math.min(100, Math.round(((phaseIdx + 1) / PHASE_TOTAL) * 100));
+  const pct = indeterminate ? 0 : Math.min(100, Math.round(((phaseIdx + 1) / PHASE_TOTAL) * 100));
 
   return (
     <div
@@ -109,29 +126,46 @@ function BuildRow({ s }: { s: Session }) {
         </span>
       </div>
 
-      {/* Striped animated progress bar — always moving even if percent doesn't change */}
+      {/* Progress bar.
+          - indeterminate mode: sliding gradient across full width — clearly
+            signals "working, phase unknown" without faking a percentage.
+          - determinate mode: filled to pct% based on last-known phase. */}
       <div
-        aria-label={`${phaseLabel(s.last_phase)} — ${pct}%`}
+        aria-label={indeterminate ? "building — working" : `${phaseLabel(s.last_phase)} — ${pct}%`}
         style={{
           height: 6,
           borderRadius: 3,
           overflow: "hidden",
           background: "var(--panel-hover)",
           border: "1px solid var(--border-subtle)",
+          position: "relative",
         }}
       >
-        <div
-          style={{
-            width: `${pct}%`,
-            height: "100%",
-            background: "var(--accent)",
-            backgroundImage:
-              "repeating-linear-gradient(45deg, rgba(255,255,255,0.15) 0, rgba(255,255,255,0.15) 6px, transparent 6px, transparent 12px)",
-            backgroundSize: "24px 24px",
-            animation: "pi-strip-stripe 800ms linear infinite",
-            transition: "width 600ms ease-out",
-          }}
-        />
+        {indeterminate ? (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: `linear-gradient(90deg, transparent 0%, var(--accent) 40%, var(--accent) 60%, transparent 100%)`,
+              backgroundSize: "50% 100%",
+              backgroundRepeat: "no-repeat",
+              animation: "pi-strip-indet 1.6s ease-in-out infinite",
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: `${pct}%`,
+              height: "100%",
+              background: "var(--accent)",
+              backgroundImage:
+                "repeating-linear-gradient(45deg, rgba(255,255,255,0.15) 0, rgba(255,255,255,0.15) 6px, transparent 6px, transparent 12px)",
+              backgroundSize: "24px 24px",
+              animation: "pi-strip-stripe 800ms linear infinite",
+              transition: "width 600ms ease-out",
+            }}
+          />
+        )}
       </div>
     </div>
   );
@@ -180,6 +214,10 @@ export default function ActiveBuildStrip() {
         @keyframes pi-strip-stripe {
           from { background-position: 0 0; }
           to   { background-position: 24px 0; }
+        }
+        @keyframes pi-strip-indet {
+          0%   { background-position: -50% 0; }
+          100% { background-position: 150% 0; }
         }
       `}</style>
       <section
