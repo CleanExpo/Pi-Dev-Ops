@@ -117,6 +117,25 @@ CLAUDE_CMD           = os.environ.get("TAO_CLAUDE_CMD",                 "claude"
 _INTERACTIVE         = os.environ.get("TAO_CLAUDE_INTERACTIVE", "0") == "1"
 CLAUDE_EXTRA_FLAGS   = [] if _INTERACTIVE else ["--dangerously-skip-permissions"]
 ALLOWED_MODELS       = ["opus", "sonnet", "haiku"]
+
+# ── MODEL ROUTING POLICY (RA-1099 — hardwired 2026-04-17) ──────────────────
+# Opus 4.7 is reserved for Senior PM (planner) and Senior Orchestrator agents.
+# Every other agent role MUST use Sonnet 4.6 or Haiku 4.5.
+# Override via TAO_OPUS_ALLOWED_ROLES if you ever need to widen this — but the
+# default is strict by design (cost + latency).
+OPUS_ALLOWED_ROLES   = set(
+    os.environ.get("TAO_OPUS_ALLOWED_ROLES", "planner,orchestrator").split(",")
+)
+# Long-form model IDs returned by _resolve_model_id() in pipeline.py and
+# session_evaluator.py. Kept here so a single edit changes both readers.
+MODEL_ID_OPUS        = "claude-opus-4-7"
+MODEL_ID_SONNET      = "claude-sonnet-4-6"
+MODEL_ID_HAIKU       = "claude-haiku-4-5-20251001"
+MODEL_SHORT_TO_ID    = {
+    "opus":   MODEL_ID_OPUS,
+    "sonnet": MODEL_ID_SONNET,
+    "haiku":  MODEL_ID_HAIKU,
+}
 MAX_CONCURRENT_SESSIONS = int(os.environ.get("TAO_MAX_SESSIONS",        "3"))
 RATE_LIMIT_PER_MIN   = int(os.environ.get("TAO_RATE_LIMIT",             "30"))
 WORKSPACE_ROOT       = os.environ.get("TAO_WORKSPACE",

@@ -95,6 +95,28 @@ Expected: 3 pre-existing failures in `test_sdk_phase2.py` (claude_agent_sdk not 
 - **Anthropic docs redirects:** `docs.claude.com` redirects to `platform.claude.com` and `code.claude.com`. Any `httpx` fetcher hitting Anthropic docs must set `follow_redirects=True`. Filename collisions occur if URLs are keyed by last path segment alone — use two-segment extraction or a full URL hash.
 - **Telegram minimal push:** Sending a Telegram message from a sandboxed Python env requires only `TELEGRAM_BOT_TOKEN` + a `chat_id`. The full `python-telegram-bot` package is not required — `urllib` + `POST api.telegram.org/bot{token}/sendMessage` is sufficient. See `scripts/send_telegram.py`.
 
+## Model Routing Policy (RA-1099 — hardwired 2026-04-17)
+
+**Opus 4.7 is reserved for Senior PM (`planner`) + Senior Orchestrator (`orchestrator`) ONLY.** Every other agent role uses Sonnet 4.6 or Haiku 4.5.
+
+| Role | Model | Where configured |
+|------|-------|------------------|
+| `planner` | Opus 4.7 | `.harness/config.yaml` agents.planner |
+| `orchestrator` | Opus 4.7 | `.harness/config.yaml` agents.orchestrator |
+| `generator` | Sonnet 4.6 | `.harness/config.yaml` agents.generator |
+| `evaluator` | Sonnet 4.6 | `.harness/config.yaml` agents.evaluator |
+| `board` | Sonnet 4.6 | `.harness/config.yaml` agents.board |
+| `monitor` | Haiku 4.5 | `.harness/config.yaml` agents.monitor |
+
+**Enforcement is in three layers:**
+1. `app/server/model_policy.py` — `select_model(role, requested)` reads config and downshifts opus → sonnet for non-allowed roles, recording violations to `.harness/model-policy-violations.jsonl`.
+2. `app/server/session_sdk.py:_run_claude_via_sdk()` — calls `assert_model_allowed(role, model)` before the SDK request hits the wire. Raises `ValueError` on violation.
+3. `app/server/config.py` — `OPUS_ALLOWED_ROLES` env-overridable set, default `{"planner", "orchestrator"}`.
+
+**Never bypass the policy.** If you need to widen opus access for a one-off, set `TAO_OPUS_ALLOWED_ROLES=planner,orchestrator,foo` and document why. Do not pass `model="claude-opus-4-7"` directly to the SDK — `assert_model_allowed` will reject it.
+
+**Budget tier escalations** (`autonomy_budget.anchors`) only escalate retries / threshold / timeout, never the model. Generator stays on sonnet at every tier.
+
 ## SDK Architecture
 
 `TAO_USE_AGENT_SDK=1` is the only supported mode.
