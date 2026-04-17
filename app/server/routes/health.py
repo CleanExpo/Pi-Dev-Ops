@@ -117,6 +117,19 @@ async def health(request: Request):
     return JSONResponse(payload, status_code=200 if healthy else 503)
 
 
+@app.get("/api/integrations/health")
+async def integrations_health():
+    """RA-1293 — Integration health snapshot.
+
+    Public (no auth) so the dashboard can render it without a session, and so
+    `/health` consumers can flag degraded auth state without credentials. The
+    snapshot contains no secrets — only probe names, ok/fail, and short detail
+    strings like 'HTTP 401' or 'last_poll_age_s=370'.
+    """
+    from ..integration_health import get_snapshot
+    return get_snapshot()
+
+
 @app.get("/api/health/vercel", dependencies=[Depends(require_auth)])
 async def vercel_health():
     """RA-692 — Vercel deployment drift check."""

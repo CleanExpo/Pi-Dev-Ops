@@ -13,7 +13,8 @@
     {"name": "proxy-routines",   "path": "/api/pi-ceo/api/routines?limit=1",               "method": "GET",  "auth": true,  "expected_status": 200, "body_contains": ["runs"]},
     {"name": "proxy-autonomy",   "path": "/api/pi-ceo/api/autonomy/status",                "method": "GET",  "auth": true,  "expected_status": 200, "body_contains": ["enabled"]},
     {"name": "proxy-findings",   "path": "/api/pi-ceo/api/projects/pi-dev-ops/findings?limit=1", "method": "GET", "auth": true, "expected_status": 200},
-    {"name": "proxy-sessions",   "path": "/api/pi-ceo/api/sessions",                        "method": "GET",  "auth": true,  "expected_status": 200, "_comment": "Backs ActiveBuildStrip poll (RA-1181)."}
+    {"name": "proxy-sessions",   "path": "/api/pi-ceo/api/sessions",                        "method": "GET",  "auth": true,  "expected_status": 200, "_comment": "Backs ActiveBuildStrip poll (RA-1181)."},
+    {"name": "integrations-health", "path": "/api/pi-ceo/api/integrations/health",          "method": "GET",  "auth": false, "expected_status": 200, "body_contains": ["checks"], "_comment": "RA-1293 integration health — public, no secrets."}
   ],
 
   "vertical": {
