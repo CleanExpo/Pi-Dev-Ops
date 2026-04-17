@@ -120,7 +120,12 @@ _DANGEROUS_PATTERNS: list[tuple[str, str, str]] = [
     (r"(?<!log\.)console\.log\(", "console.log in production", "info"),
     (r"(?<!\w)print\s*\((?!.*#\s*noqa)", "print() in production (Python)", "info"),
     (r"#\s*nosec\b", "security check suppressed (# nosec)", "medium"),
-    (r"(?i)TODO.*(?:auth|password|secret|token|key)", "TODO near sensitive keyword", "medium"),
+    # RA-687 — require actual comment markers (#, //, /*) before TODO so identifiers
+    # like `fetch_todo_issues(LINEAR_API_KEY)` don't trigger false positives. The point
+    # of this rule is to flag forgotten work near sensitive surfaces, not to flag any
+    # function or variable whose name happens to contain "todo".
+    (r"(?im)(?:^|\s)(?:#|//|/\*)\s*TODO\b[^\n]*?(?:auth|password|secret|token|key)\b",
+     "TODO near sensitive keyword", "medium"),
     (r"0\.0\.0\.0", "Binding to 0.0.0.0", "info"),
     (r"(?i)debug\s*=\s*True", "Debug mode enabled", "high"),
 ]
@@ -277,12 +282,24 @@ class SecurityScanner:
         return findings
 
     def _check_dangerous(self, text: str, rel: str) -> list[Finding]:
-        basename = rel.split("/")[-1].split("\\")[-1]
+        rel_norm = rel.replace("\\", "/")
+        basename = rel_norm.split("/")[-1]
         if basename in _SKIP_DANGEROUS_FILENAMES:
             return []
         # Skip markdown/RST — code-snippet examples trigger eval/nosec/TODO patterns
         ext = "." + basename.rsplit(".", 1)[-1] if "." in basename else ""
         if ext.lower() in _SECRET_SKIP_EXTS:
+            return []
+        # RA-687 — _check_secrets honours SCAN_PATH_EXCLUSIONS; mirror that here so
+        # files in the exclusion list (e.g. app/server/scanner.py self-scan false
+        # positives, intentional dashboard/app/layout.tsx theme-init script) are
+        # uniformly silenced across both scanners.
+        try:
+            from . import config as _cfg
+            exclusions = _cfg.SCAN_PATH_EXCLUSIONS
+        except Exception:
+            exclusions = []
+        if any(rel_norm.endswith(excl.replace("\\", "/")) for excl in exclusions):
             return []
         findings = []
         for pattern, title, severity in _DANGEROUS_PATTERNS:

@@ -222,6 +222,11 @@ SCAN_PATH_EXCLUSIONS: list[str] = [p.strip() for p in
         "railway.toml,"
         "app/server/scanner.py,"
         "archive/,"
+        # RA-687 — dashboard/app/layout.tsx:21 contains an intentional
+        # dangerouslySetInnerHTML for the theme-init script (CSP-nonce-protected,
+        # prevents FOUC on theme load). React 19 + Next.js 16 require the raw
+        # <script> path here — suppressHydrationWarning + nonce keep it safe.
+        "dashboard/app/layout.tsx,"
         # RA-834 — portfolio-wide false positive patterns confirmed 2026-04-14
         # supabase/config.toml: local dev placeholder anon/service keys (not production)
         "supabase/config.toml,"
