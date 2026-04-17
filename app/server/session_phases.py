@@ -700,24 +700,30 @@ async def _phase_plan(session, spec: str, resume_from: str) -> None:
         em(session, "system", "  [SKIP] Plan (already completed)")
         return
 
-    # RA-1175 — tier-aware plan model. Haiku is fine for simple briefs
-    # (dep bump, typo fix, doc tweak) but produces 5% confidence plans or
-    # times out at 45 s on complex briefs (feature overhauls, multi-file
-    # refactors). Escalate to Sonnet for detailed/advanced tiers so the
-    # plan actually captures the brief.
+    # RA-1178 — always use Sonnet for the plan phase regardless of tier.
+    #
+    # RA-1175 originally tried to use Haiku for basic briefs to save cost,
+    # but (a) on Claude Max we pay $0.0000 per call so there's no cost
+    # pressure, and (b) "Fix with Claude" buttons and many webhook-fired
+    # sessions arrive with no complexity_tier set, silently degrading them
+    # to Haiku which then emits 5% confidence plans, prose questions, or
+    # times out at 45 s. Net: Haiku was the source of every bad plan we
+    # saw today. Sonnet is fast enough (30 s observed) and reliable.
+    #
+    # Budgets scaled by tier (generator budget still tier-aware in
+    # RA-1174). advanced/detailed get a longer plan window because their
+    # briefs legitimately require more thinking.
     _tier = (getattr(session, "complexity_tier", "") or "").lower()
+    plan_model = getattr(config, "SONNET_MODEL", "sonnet")
+    _model_label = "sonnet"
     if _tier in ("detailed", "advanced"):
-        plan_model = getattr(config, "SONNET_MODEL", "sonnet")
-        _model_label = "sonnet"
         _plan_sdk_timeout = 120
         _plan_wait_timeout = 130
     else:
-        plan_model = getattr(config, "HAIKU_MODEL", "haiku")
-        _model_label = "haiku"
-        _plan_sdk_timeout = 45
-        _plan_wait_timeout = 50
+        _plan_sdk_timeout = 60
+        _plan_wait_timeout = 70
     em(session, "phase", f"[3.7/5] Planning implementation ({_model_label})...")
-    haiku_model = plan_model  # name kept for rest-of-file compatibility
+    haiku_model = plan_model  # legacy variable name; kept for diff minimality
 
     repo_context_snippet = ""
     if session.workspace and os.path.isdir(session.workspace):
