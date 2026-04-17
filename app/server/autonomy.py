@@ -34,6 +34,47 @@ _PROJECT_ID = "f45212be-3259-4bfb-89b1-54c122c939a7"
 _TEAM_ID    = "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673"
 _DEFAULT_REPO_URL = "https://github.com/CleanExpo/Pi-Dev-Ops"
 
+# RA-1289 — portfolio registry. Poller spans every project in .harness/projects.json
+# so Urgent/High Todos on target-repo boards (Synthex, Unite-Group, CARSI, DR-NRPG…)
+# trigger autonomous builds — not just Pi-Dev-Ops's own board.
+_PROJECTS_JSON = (
+    Path(os.path.dirname(__file__)).parents[1] / ".harness" / "projects.json"
+)
+
+
+def _load_portfolio_projects() -> list[dict]:
+    """Load `.harness/projects.json` → list of dicts with the fields the poller needs.
+
+    Each entry: {project_id, team_id, repo_url, name}.
+    Projects without `linear_project_id` are skipped (can't filter by project).
+    The Pi-Dev-Ops entry is always included as the first item for backwards compat.
+    """
+    try:
+        registry = json.loads(_PROJECTS_JSON.read_text(encoding="utf-8"))
+    except Exception as exc:
+        log.warning("Autonomy: projects.json load failed (%s) — falling back to Pi-Dev-Ops only", exc)
+        return [{
+            "project_id": _PROJECT_ID,
+            "team_id": _TEAM_ID,
+            "repo_url": _DEFAULT_REPO_URL,
+            "name": "Pi - Dev -Ops",
+        }]
+
+    out: list[dict] = []
+    for p in registry.get("projects", []):
+        project_id = p.get("linear_project_id")
+        team_id    = p.get("linear_team_id")
+        repo       = p.get("repo")
+        if not project_id or not team_id or not repo:
+            continue
+        out.append({
+            "project_id": project_id,
+            "team_id":    team_id,
+            "repo_url":   f"https://github.com/{repo}",
+            "name":       p.get("linear_project_name") or p.get("id") or repo,
+        })
+    return out
+
 # In-memory state (for /api/autonomy/status)
 _last_poll_at: float = 0.0
 _poll_count: int = 0
@@ -80,35 +121,78 @@ def _log_event(event: dict) -> None:
 # Linear API calls
 # ---------------------------------------------------------------------------
 
-def fetch_todo_issues(api_key: str) -> list[dict]:
-    """Fetch Urgent + High priority Todo issues from the Pi-Dev-Ops project."""
-    query = """
-    query TodoIssues($projectId: String!) {
-        project(id: $projectId) {
-            issues(filter: {
-                state: { type: { in: ["unstarted"] } }
-                priority: { lte: 2 }
-            }, first: 10, orderBy: updatedAt) {
-                nodes {
-                    id
-                    identifier
-                    title
-                    description
-                    priority
-                    url
-                    state { id name type }
-                    labels { nodes { name } }
-                }
+_TODO_ISSUES_QUERY = """
+query TodoIssues($projectId: String!) {
+    project(id: $projectId) {
+        issues(filter: {
+            state: { type: { in: ["unstarted"] } }
+            priority: { lte: 2 }
+        }, first: 10, orderBy: updatedAt) {
+            nodes {
+                id
+                identifier
+                title
+                description
+                priority
+                url
+                state { id name type }
+                labels { nodes { name } }
             }
         }
     }
+}
+"""
+
+
+def fetch_todo_issues(api_key: str) -> list[dict]:
+    """Fetch Urgent + High priority Todo issues across every portfolio project.
+
+    RA-1289 — iterates `.harness/projects.json` so the poller picks up tickets
+    filed in target-repo boards (Synthex, Unite-Group, CARSI, DR-NRPG, …), not
+    just Pi-Dev-Ops. Each returned issue is annotated with `_repo_url`,
+    `_team_id`, and `_project_name` so downstream transitions / comments /
+    session creation route to the correct board.
+
+    Per-project fetch failures are logged but don't abort the full poll cycle.
+    Issues are deduped by id (should never collide, but belt-and-braces).
     """
-    data = _gql(api_key, query, {"projectId": _PROJECT_ID})
-    return (data.get("project") or {}).get("issues", {}).get("nodes", [])
+    projects = _load_portfolio_projects()
+    seen: set[str] = set()
+    merged: list[dict] = []
+
+    for p in projects:
+        try:
+            data = _gql(api_key, _TODO_ISSUES_QUERY, {"projectId": p["project_id"]})
+        except Exception as exc:
+            log.warning("Autonomy: project %s fetch failed: %s", p["name"], exc)
+            continue
+
+        nodes = (data.get("project") or {}).get("issues", {}).get("nodes") or []
+        for issue in nodes:
+            iid = issue.get("id")
+            if not iid or iid in seen:
+                continue
+            seen.add(iid)
+            # Annotate with mapped project context so the poller can route
+            # transitions/comments to the correct team and start the session
+            # against the right repo without a `repo:` label.
+            issue["_repo_url"]     = p["repo_url"]
+            issue["_team_id"]      = p["team_id"]
+            issue["_project_name"] = p["name"]
+            merged.append(issue)
+
+    # Sort: priority asc (1=Urgent first), then updatedAt (already queried ordered)
+    merged.sort(key=lambda i: i.get("priority", 3))
+    return merged
 
 
-def _resolve_state_id(api_key: str, state_name: str) -> str:
-    """Resolve a human-readable state name to a Linear state ID."""
+def _resolve_state_id(api_key: str, state_name: str, team_id: str = _TEAM_ID) -> str:
+    """Resolve a human-readable state name to a Linear state ID for a given team.
+
+    RA-1289 — accepts `team_id` so transitions work on any portfolio team, not
+    just Pi-Dev-Ops. Defaults to `_TEAM_ID` for backwards compat with any caller
+    still operating on the Pi-Dev-Ops board.
+    """
     query = """
     query TeamStates($teamId: String!) {
         team(id: $teamId) {
@@ -116,17 +200,21 @@ def _resolve_state_id(api_key: str, state_name: str) -> str:
         }
     }
     """
-    data = _gql(api_key, query, {"teamId": _TEAM_ID})
+    data = _gql(api_key, query, {"teamId": team_id})
     states = (data.get("team") or {}).get("states", {}).get("nodes", [])
     target = next((s for s in states if s["name"].lower() == state_name.lower()), None)
     if not target:
-        raise RuntimeError(f"State '{state_name}' not found in team workflow")
+        raise RuntimeError(f"State '{state_name}' not found in team {team_id} workflow")
     return target["id"]
 
 
-def transition_issue(api_key: str, issue_id: str, state_name: str) -> None:
-    """Move a Linear issue to the named state (e.g. 'In Progress', 'Todo')."""
-    state_id = _resolve_state_id(api_key, state_name)
+def transition_issue(api_key: str, issue_id: str, state_name: str, team_id: str = _TEAM_ID) -> None:
+    """Move a Linear issue to the named state (e.g. 'In Progress', 'Todo').
+
+    RA-1289 — `team_id` defaults to Pi-Dev-Ops for compat; poller passes the
+    issue's mapped team so cross-project tickets transition correctly.
+    """
+    state_id = _resolve_state_id(api_key, state_name, team_id=team_id)
     mutation = """
     mutation UpdateIssue($id: String!, $stateId: String!) {
         issueUpdate(id: $id, input: { stateId: $stateId }) { success }
@@ -150,7 +238,19 @@ def comment_on_issue(api_key: str, issue_id: str, body: str) -> None:
 # ---------------------------------------------------------------------------
 
 def _extract_repo_url(issue: dict) -> str:
-    """Extract repo URL from issue labels or description lines. Falls back to Pi-Dev-Ops repo."""
+    """Resolve repo URL for an issue.
+
+    Priority (highest first):
+      1. `repo:` label (explicit override on the ticket)
+      2. `repo:` line in the description (legacy override)
+      3. RA-1289 — mapped `_repo_url` annotation from `fetch_todo_issues`
+         (picked up from `.harness/projects.json` for the issue's project)
+      4. Pi-Dev-Ops default
+
+    Overrides 1+2 still win because some cross-project tickets target a
+    different repo than their Linear project's default (e.g. a ticket in the
+    Pi-Dev-Ops project that asks for a fix in a sibling repo).
+    """
     labels = [ln["name"] for ln in (issue.get("labels") or {}).get("nodes", [])]
     for label in labels:
         if label.startswith("repo:"):
@@ -159,7 +259,9 @@ def _extract_repo_url(issue: dict) -> str:
     for line in desc.splitlines():
         if line.startswith("repo:"):
             return line.replace("repo:", "").strip()
-    # Default: this is a Pi-Dev-Ops ticket, point at our own repo
+    mapped = issue.get("_repo_url")
+    if mapped:
+        return mapped
     return _DEFAULT_REPO_URL
 
 
@@ -245,12 +347,16 @@ async def linear_todo_poller() -> None:
             identifier = issue.get("identifier", "?")
             title      = issue.get("title", "?")
             repo_url   = _extract_repo_url(issue)
+            team_id    = issue.get("_team_id", _TEAM_ID)  # RA-1289 — mapped team
 
-            log.info("Autonomy: processing %s '%s' repo=%s", identifier, title, repo_url)
+            log.info(
+                "Autonomy: processing %s '%s' repo=%s team=%s",
+                identifier, title, repo_url, team_id,
+            )
 
             # --- Transition to In Progress ---
             try:
-                transition_issue(config.LINEAR_API_KEY, issue_id, "In Progress")
+                transition_issue(config.LINEAR_API_KEY, issue_id, "In Progress", team_id=team_id)
             except Exception as exc:
                 log.error("Autonomy: transition failed for %s: %s", identifier, exc)
                 _log_event({
@@ -310,7 +416,7 @@ async def linear_todo_poller() -> None:
                     "error": str(exc),
                 })
                 try:
-                    transition_issue(config.LINEAR_API_KEY, issue_id, "Todo")
+                    transition_issue(config.LINEAR_API_KEY, issue_id, "Todo", team_id=team_id)
                     comment_on_issue(
                         config.LINEAR_API_KEY,
                         issue_id,
