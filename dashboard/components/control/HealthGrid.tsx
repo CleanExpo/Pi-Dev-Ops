@@ -230,6 +230,10 @@ function ProjectDrillDown({
   const [error, setError] = useState<string | null>(null);
   const [fixing, setFixing] = useState<string | null>(null); // finding title being fixed
   const [fixResult, setFixResult] = useState<string | null>(null);
+  // RA-1108: track the active session so we can stream its live output inline,
+  // turning "fire-and-forget silence" into "watch it work live".
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [activeFindingTitle, setActiveFindingTitle] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -268,8 +272,13 @@ function ProjectDrillDown({
         const j = JSON.parse(body) as { id?: string; session_id?: string };
         const sid = j.id ?? j.session_id ?? "unknown";
         setFixResult(`✅ Build session ${sid.slice(0, 12)} started`);
+        // RA-1108: open inline live-log streamer so the user SEES it running
+        if (sid !== "unknown") {
+          setActiveSessionId(sid);
+          setActiveFindingTitle(finding.title);
+        }
       } else {
-        setFixResult(`❌ HTTP ${res.status} — ${body.slice(0, 120)}`);
+        setFixResult(`❌ HTTP ${res.status} — ${body.slice(0, 200)}`);
       }
     } catch (e) {
       setFixResult(`❌ ${String(e)}`);
@@ -420,8 +429,8 @@ function ProjectDrillDown({
           )}
         </div>
 
-        {/* Footer status */}
-        {fixResult && (
+        {/* Footer status — error case only. Success shows the live streamer below. */}
+        {fixResult && !activeSessionId && (
           <div
             className="px-4 py-2 text-[11px] font-mono shrink-0"
             style={{
@@ -432,7 +441,166 @@ function ProjectDrillDown({
             {fixResult}
           </div>
         )}
+
+        {/* RA-1108 live session streamer — shows output from /api/sessions/{sid}/logs */}
+        {activeSessionId && (
+          <FixSessionLive
+            sessionId={activeSessionId}
+            findingTitle={activeFindingTitle ?? ""}
+            onClose={() => {
+              setActiveSessionId(null);
+              setActiveFindingTitle(null);
+            }}
+          />
+        )}
       </div>
     </div>
   );
+}
+
+// ─── RA-1108 Live session streamer ────────────────────────────────────────
+// Opens an SSE connection to /api/pi-ceo/api/sessions/{sid}/logs and prints
+// each event as it arrives. Status chip at top shows building / done / error.
+// This is what makes "Fix with Claude" feel like it's actually doing something.
+interface SessionEvent {
+  i?: number;
+  type?: string;
+  text?: string;
+  reason?: string;
+}
+
+function FixSessionLive({
+  sessionId,
+  findingTitle,
+  onClose,
+}: {
+  sessionId: string;
+  findingTitle: string;
+  onClose: () => void;
+}) {
+  const [events, setEvents] = useState<SessionEvent[]>([]);
+  const [status, setStatus] = useState<"connecting" | "running" | "done" | "error">("connecting");
+  const [err, setErr] = useState<string | null>(null);
+  const logRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const es = new EventSource(`/api/pi-ceo/api/sessions/${sessionId}/logs`);
+    setStatus("running");
+
+    es.onmessage = (e) => {
+      try {
+        const ev: SessionEvent = JSON.parse(e.data);
+        if (ev.type === "closed" || ev.type === "done") {
+          setStatus("done");
+          es.close();
+          return;
+        }
+        setEvents((prev) => [...prev, ev]);
+      } catch {
+        // Ignore JSON parse errors on keepalives
+      }
+    };
+
+    es.onerror = () => {
+      setStatus("error");
+      setErr("Connection lost — session may still be running on the server.");
+      es.close();
+    };
+
+    return () => es.close();
+  }, [sessionId]);
+
+  // Auto-scroll to bottom on new events
+  useEffect(() => {
+    if (logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight;
+    }
+  }, [events]);
+
+  const statusColour: Record<typeof status, string> = {
+    connecting: "var(--text-dim)",
+    running:    "var(--accent)",
+    done:       "var(--success)",
+    error:      "var(--error)",
+  };
+  const statusLabel: Record<typeof status, string> = {
+    connecting: "connecting…",
+    running:    "● running",
+    done:       "✓ complete",
+    error:      "⚠ disconnected",
+  };
+
+  return (
+    <div
+      className="shrink-0 flex flex-col"
+      style={{
+        borderTop: `2px solid var(--accent)`,
+        background: "var(--panel)",
+        maxHeight: "35vh",
+      }}
+    >
+      {/* Header */}
+      <div
+        className="flex items-center justify-between px-4 py-2 shrink-0"
+        style={{ borderBottom: "1px solid var(--border)", background: "var(--panel-hover)" }}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <span
+            className="text-[10px] font-mono font-semibold"
+            style={{ color: statusColour[status] }}
+          >
+            {statusLabel[status]}
+          </span>
+          <span className="text-[10px] font-mono truncate" style={{ color: "var(--text-dim)" }}>
+            · sid <span style={{ color: "var(--text)" }}>{sessionId.slice(0, 12)}</span>
+          </span>
+          <span className="hidden sm:inline text-[10px] truncate" style={{ color: "var(--text-muted)" }}>
+            · {findingTitle.slice(0, 60)}
+          </span>
+        </div>
+        <button
+          onClick={onClose}
+          className="text-[10px] font-mono px-2 py-0.5 rounded hover:opacity-70"
+          style={{ color: "var(--text-muted)", background: "var(--border)" }}
+        >
+          close
+        </button>
+      </div>
+
+      {/* Live log */}
+      <div
+        ref={logRef}
+        className="flex-1 overflow-y-auto p-3 font-mono text-[10px] leading-tight"
+        style={{ background: "var(--background)", minHeight: 120 }}
+      >
+        {events.length === 0 && (
+          <span style={{ color: "var(--text-dim)" }}>
+            Waiting for session output…
+          </span>
+        )}
+        {events.map((ev, i) => (
+          <div key={i} style={{ color: eventColour(ev.type) }}>
+            <span style={{ color: "var(--text-dim)" }}>[{ev.type ?? "?"}]</span>{" "}
+            {(ev.text ?? "").toString()}
+          </div>
+        ))}
+        {err && (
+          <div style={{ color: "var(--error)" }} className="mt-2">
+            ⚠ {err}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function eventColour(type: string | undefined): string {
+  switch (type) {
+    case "error":   return "var(--error)";
+    case "success": return "var(--success)";
+    case "phase":   return "var(--accent)";
+    case "tool":    return "var(--text-muted)";
+    case "system":  return "var(--text-dim)";
+    default:        return "var(--text)";
+  }
 }
