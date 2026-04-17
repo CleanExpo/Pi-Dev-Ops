@@ -1,0 +1,73 @@
+# smoke_surface_gate.yml — RA-1154 — block PRs that add surfaces without
+# updating the surface map.
+#
+# Motivation: PR #48 shipped "Fix with Claude" that returned HTTP 200 but
+# had no user-visible feedback. Lint + types + CI all passed because
+# smoke_test.py doesn't know about new UI features. This gate catches the
+# "added an interactive surface, didn't declare it in smoke-surfaces.yml"
+# case at PR time, before merge.
+
+name: Smoke Surface Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "dashboard/components/**"
+      - "dashboard/app/api/**"
+      - "app/server/routes/**"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if smoke-surfaces.yml was updated
+        id: check
+        run: |
+          set -e
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          CHANGED_INTERACTIVE=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" \
+            | grep -E "^(dashboard/components/|dashboard/app/api/|app/server/routes/)" || true)
+
+          MAP_UPDATED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" \
+            | grep -x ".github/smoke-surfaces.json" || true)
+
+          if [ -n "$CHANGED_INTERACTIVE" ] && [ -z "$MAP_UPDATED" ]; then
+            echo ""
+            echo "🛑 SMOKE SURFACE GATE: this PR touches interactive surfaces but does NOT"
+            echo "   update .github/smoke-surfaces.json."
+            echo ""
+            echo "Files touched (interactive):"
+            echo "$CHANGED_INTERACTIVE" | sed 's/^/   /'
+            echo ""
+            echo "Why this matters: scripts/smoke_test_e2e.py reads smoke-surfaces.json to"
+            echo "verify every declared surface works end-to-end on the live deploy."
+            echo "Without your entry, nothing exercises the new surface and the next"
+            echo "surface-treatment bug ships silently (see Pi-Dev-Ops PR #48 history)."
+            echo ""
+            echo "How to fix: add an entry under 'horizontal:' for each new endpoint or"
+            echo "button with expected status + body_contains assertions. Format:"
+            echo ""
+            echo "   - {name: my-feature, path: /api/.., method: GET|POST, auth: true|false,"
+            echo "      expected_status: 200, body_contains: [\"expected\", \"keys\"]}"
+            echo ""
+            echo "See CLAUDE.md § Surface Treatment Prohibition."
+            exit 1
+          fi
+
+          if [ -z "$CHANGED_INTERACTIVE" ]; then
+            echo "No interactive surfaces changed — gate passes."
+          else
+            echo "smoke-surfaces.json updated alongside the interactive changes — gate passes."
+          fi
