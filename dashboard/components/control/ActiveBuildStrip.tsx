@@ -64,26 +64,24 @@ function formatElapsed(startedUnix: number): string {
 }
 
 function BuildRow({ s }: { s: Session }) {
-  // Force re-render once per second — `now` ticking also gives us a pure
-  // render-time reference for the "lines activity age" calc below, which
-  // satisfies React 19's `react-hooks/purity` rule (no Date.now() calls
-  // during render).
+  // React 19's `react-hooks/purity` + `no-ref-access-in-render` rules
+  // reject `Date.now()` and ref `.current` reads during render. We use
+  // two state slots — `now` (ticks every 1 s) and `prevLinesTime` (set
+  // when s.lines changes) — so render is pure arithmetic.
   const [now, setNow] = useState<number>(() => Date.now());
-  const prevLines = useRef<number>(s.lines);
-  // Lazy-init in effect to avoid Date.now() during render. `0` means
-  // "not yet observed"; the first render will compute a near-zero age,
-  // which is fine — the indeterminate animation trips on `< 30_000`.
-  const prevLinesTime = useRef<number>(0);
+  const [prevLinesTime, setPrevLinesTime] = useState<number>(() => Date.now());
+  // Ref is fine because we only touch .current inside effects, not in render.
+  const prevLinesRef = useRef<number>(s.lines);
+
   useEffect(() => {
-    if (prevLinesTime.current === 0) prevLinesTime.current = Date.now();
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
-    if (s.lines !== prevLines.current) {
-      prevLines.current = s.lines;
-      prevLinesTime.current = Date.now();
+    if (s.lines !== prevLinesRef.current) {
+      prevLinesRef.current = s.lines;
+      setPrevLinesTime(Date.now());
     }
   }, [s.lines]);
 
@@ -92,7 +90,7 @@ function BuildRow({ s }: { s: Session }) {
   // 5-8 min generator phase). Rather than show a stuck percentage,
   // run an indeterminate animation whenever the session is actively
   // building and the last log event was recent (<30 s).
-  const linesAgeMs = now - prevLinesTime.current;
+  const linesAgeMs = now - prevLinesTime;
   const indeterminate = s.status === "building" && linesAgeMs < 30_000;
 
   const phaseIdx = PHASE_ORDER[s.last_phase] ?? 0;
