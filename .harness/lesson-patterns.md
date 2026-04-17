@@ -238,6 +238,28 @@ These did not meet the `min_count=2` threshold individually but are listed here 
 
 ---
 
+## Deployment (continued — RA-1160 pattern, 2026-04-17)
+
+### Context
+CCW-CRM had `main` (pre-monorepo, no `apps/web/`) and `ai-updates` (monorepo trunk with `apps/web/`). Vercel was building from `main` preview + `ccw-crm-sandbox` production, both failing with "Root Directory does not exist." GitHub `default_branch` was already `ai-updates`.
+
+### Rules
+13. **Vercel `productionBranch` is NOT updatable via `PATCH /v9/projects/{id}` — the `link` field is rejected.** Use `DELETE /v9/projects/{id}/link` then `POST /v9/projects/{id}/link` with `{type, repo, org, repoId, productionBranch, gitCredentialId, sourceless}` to reconnect with the correct branch. `POST /link` alone (without DELETE first) also works if the project is already linked — it re-creates the link record.
+14. **GitHub branch renames propagate automatically: default branch, PR base refs, and Vercel webhook tracking all update after a rename.** Use `POST /repos/{owner}/{repo}/branches/{branch}/rename` with `{"new_name": "..."}`. PRs targeting the renamed branch are retargeted by GitHub automatically.
+15. **When `ai-updates` is the de facto trunk, the cleanest fix is Option B (rename), not Option C (cherry-pick).** Cherry-picking the monorepo scaffold onto stale `main` is a band-aid — it creates permanent divergence. Renaming is atomic: one `POST` for each branch rename + one API call to update Vercel = done in under 60 seconds.
+16. **Preserve stale branches as `{name}-legacy` before renaming.** `git branch -m main main-legacy` via GitHub API keeps old commit history reachable, gives the team a rollback anchor, and avoids force-push into any clone's remote-tracking refs.
+
+### Enforcement hooks
+- Pre-build check: `GET /v9/projects/{id}` → verify `link.productionBranch` matches GitHub `default_branch`
+- `app/server/vercel_monitor.py` can be extended to alert on branch mismatch
+
+### Anti-patterns
+- Assuming `PATCH /v9/projects/{id}` accepts a `link` object — it does not.
+- Cherry-picking monorepo scaffold onto stale `main` and accepting permanent divergence.
+- Leaving `ai-updates` as prod branch after the team has moved to a monorepo structure.
+
+---
+
 ## How to use this document
 
 - **Brief-injection source.** Agent Expert skill / pre-generator prompts should pull the top 3 rules for the matched category and inject them before a task that touches that surface.
