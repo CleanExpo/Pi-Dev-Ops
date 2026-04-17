@@ -1,0 +1,61 @@
+# smoke_test_e2e.yml — RA-1154 — run horizontal + vertical e2e against live prod.
+#
+# The existing Smoke Test workflow (smoke_test.yml) boots a local server
+# and runs scripts/smoke_test.py against it. That validates the Python
+# server can be imported and the backend endpoints respond. It does NOT
+# validate the Vercel routing layer, the proxy auth dance, or the SSE
+# streaming chain.
+#
+# This workflow fills that gap. Runs AFTER a production deploy and:
+#   - horizontal: probes every endpoint in .github/smoke-surfaces.yml
+#   - vertical:   exercises the full build-lifecycle SSE flow
+#
+# Triggers:
+#   - push to main (after Vercel finishes its own deploy — hence the initial
+#     sleep to let the deploy propagate)
+#   - manual workflow_dispatch for on-demand verification
+
+name: Smoke Test E2E (production)
+
+on:
+  push:
+    branches: [main]
+    # Only re-run when something user-facing changes — don't spend CI on doc-only pushes
+    paths:
+      - "dashboard/**"
+      - "app/server/**"
+      - ".github/smoke-surfaces.json"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "horizontal | vertical | full"
+        required: false
+        default: "full"
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Wait for Vercel prod deploy to propagate
+        # Only needed for push-triggered runs — Vercel auto-deploys and we
+        # want its build to finish first. 90 s matches the observed median.
+        if: github.event_name == 'push'
+        run: sleep 90
+
+      - name: Run smoke test e2e
+        env:
+          DASHBOARD_URL:      https://pi-dev-ops.vercel.app
+          DASHBOARD_PASSWORD: ${{ secrets.DASHBOARD_PASSWORD }}
+        run: |
+          python3 scripts/smoke_test_e2e.py \
+            --mode "${{ github.event.inputs.mode || 'full' }}"

@@ -1,0 +1,38 @@
+{
+  "_comment": "RA-1154 declarative surface map. Every interactive surface (dashboard button, API endpoint, streaming route) MUST have an entry. A CI gate fails PRs touching dashboard/components, dashboard/app/api, or app/server/routes without updating this file. Read by scripts/smoke_test_e2e.py. Keep stdlib-parseable (no comments in the JSON itself — use _comment fields if needed).",
+  "version": 1,
+
+  "horizontal": [
+    {"name": "landing",          "path": "/",                                              "method": "GET",  "auth": false, "expected_status": 200},
+    {"name": "control-redirect", "path": "/control",                                       "method": "GET",  "auth": false, "expected_status": 307},
+    {"name": "api-zte",          "path": "/api/zte",                                       "method": "GET",  "auth": false, "expected_status": 200, "body_contains": ["score", "model"]},
+    {"name": "api-swarm-status", "path": "/api/swarm-status",                              "method": "GET",  "auth": false, "expected_status": 200, "body_contains": ["state"]},
+    {"name": "login-wrong-pw",   "path": "/api/auth/login",                                "method": "POST", "auth": false, "expected_status": 401, "body": {"password": "definitely-wrong"}},
+    {"name": "proxy-health",     "path": "/api/pi-ceo/health",                             "method": "GET",  "auth": true,  "expected_status": 200, "body_contains": ["status"]},
+    {"name": "proxy-projects",   "path": "/api/pi-ceo/api/projects/health",                "method": "GET",  "auth": true,  "expected_status": 200},
+    {"name": "proxy-routines",   "path": "/api/pi-ceo/api/routines?limit=1",               "method": "GET",  "auth": true,  "expected_status": 200, "body_contains": ["runs"]},
+    {"name": "proxy-autonomy",   "path": "/api/pi-ceo/api/autonomy/status",                "method": "GET",  "auth": true,  "expected_status": 200, "body_contains": ["enabled"]},
+    {"name": "proxy-findings",   "path": "/api/pi-ceo/api/projects/pi-dev-ops/findings?limit=1", "method": "GET", "auth": true, "expected_status": 200}
+  ],
+
+  "vertical": {
+    "flow": "build_lifecycle",
+    "steps": [
+      {"action": "login",
+       "path":   "/api/auth/login",
+       "expected": {"status": 200}},
+      {"action": "post",
+       "path":   "/api/pi-ceo/api/build",
+       "body":   {"repo_url": "https://github.com/CleanExpo/Pi-Dev-Ops",
+                  "brief":    "RA-1154 smoke test probe — do nothing, just verify the pipeline responds",
+                  "intent":   "smoke"},
+       "expected": {"status": 200, "body_contains": ["session_id"]}},
+      {"action": "sse",
+       "path_template": "/api/pi-ceo/api/sessions/{session_id}/logs",
+       "expected": {"min_events": 1, "timeout_s": 30}},
+      {"action": "kill",
+       "path_template": "/api/pi-ceo/api/sessions/{session_id}/kill",
+       "expected": {"status": 200}}
+    ]
+  }
+}
