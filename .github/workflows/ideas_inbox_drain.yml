@@ -1,0 +1,71 @@
+# ideas_inbox_drain.yml — RA-1102 — daily Telegram /idea inbox → Linear
+#
+# Walks .harness/ideas-from-phone/*.jsonl, creates a Linear ticket for each
+# unprocessed entry, marks them processed in-place. Triage happens in Linear
+# afterwards (route to correct project, set priority, schedule into board
+# meeting).
+#
+# Always-on requirement (CLAUDE.md): GitHub Actions is the sanctioned cron
+# surface for tasks that don't need a long-running server. This script is
+# stdlib-only Python — no Vercel function or Railway service required.
+#
+# Cadence: 05:00 Sydney = 19:00 UTC (Sydney is UTC+10 in standard time;
+# AEST. We don't switch DST). Picks up overnight ideas before the user starts
+# their day.
+
+name: Drain Telegram Ideas Inbox
+
+on:
+  schedule:
+    - cron: "47 19 * * *"  # 19:47 UTC = 05:47 AEST. Off-:00 minute to avoid clustering.
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry-run (don't call Linear, just print what would happen)"
+        required: false
+        default: "false"
+  push:
+    # Also run on every push to .harness/ideas-from-phone/ — captures the case
+    # where the user adds an idea via git commit (e.g. from a desktop editor)
+    paths:
+      - ".harness/ideas-from-phone/**"
+
+permissions:
+  contents: write   # so we can commit the updated processed=true flags
+  issues: write     # so we can create issues if Linear is misconfigured
+
+jobs:
+  drain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout (full history so we can commit)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Drain inbox
+        env:
+          LINEAR_API_KEY:      ${{ secrets.LINEAR_API_KEY }}
+          IDEAS_INBOX_DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
+        run: python3 scripts/process_ideas_inbox.py
+
+      - name: Commit processed=true flags
+        if: success()
+        run: |
+          set -e
+          if [[ -n $(git status --porcelain .harness/ideas-from-phone/) ]]; then
+            git config user.name "Pi CEO Ideas Drain"
+            git config user.email "pi-ceo@pi-dev-ops.internal"
+            git add .harness/ideas-from-phone/
+            git commit -m "chore(ideas): mark processed entries (RA-1102 drain)"
+            git push
+          else
+            echo "No changes to commit."
+          fi
