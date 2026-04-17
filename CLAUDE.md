@@ -171,7 +171,21 @@ Every SDK invocation emits a row to `.harness/agent-sdk-metrics/YYYY-MM-DD.jsonl
 
 ## Observability
 
-`supabase_log.py` is the single write path for all server-side Supabase events. Tables: `gate_checks`, `alert_escalations`, `heartbeat_log`, `triage_log`, `workflow_runs`, `claude_api_costs`. All writes are fire-and-forget — observability failures must never block the build pipeline.
+`supabase_log.py` is the single write path for all server-side Supabase events. All writes are fire-and-forget — observability failures must never block the build pipeline.
+
+**Tables actually written today** (verified RA-1105 audit 2026-04-17):
+- `gate_checks` — every quality-gate result on `/ship` phase (declared `supabase/migration.sql:93`)
+- `notebooklm_health` — NotebookLM source-freshness audit (declared `supabase/migration.sql:233`)
+
+**Declared in `migration.sql` but no current writer**:
+- `sessions` — placeholder for future cross-instance session sync
+- `alert_escalations` — aspirational; tracked locally in `app/data/.escalation-state.json`
+- `telegram_sessions` — telegram-bot writes its own SQLite, not this Supabase
+
+**Documented historically but never created/wired** (cleanup target):
+- `heartbeat_log`, `triage_log`, `workflow_runs`, `claude_api_costs`
+
+If you add a new logger to `supabase_log.py`, add the matching `CREATE TABLE IF NOT EXISTS …` to `supabase/migration.sql` in the same PR. The migration is idempotent; safe to re-run on any Supabase project.
 
 ## CI Pipeline
 
