@@ -1,0 +1,61 @@
+# morning_briefing.yml — RA-1107 — 7am AEST Telegram briefing
+#
+# Pi-CEO's daily overnight-activity summary to Phill's Telegram.
+# Runs the existing scripts/morning_briefing.py — assembles:
+#   1. ZTE score (latest)
+#   2. Overnight Claude Code sessions (last 12h)
+#   3. Open PRs awaiting merge
+#   4. Latest Pi-SEO monitor digest
+#
+# Why GitHub Actions not Railway cron:
+# - Always-on requirement per CLAUDE.md (Railway restarts reset cron state)
+# - Script is standalone (stdlib + urllib), no long-running server needed
+# - Easy visibility via Actions UI — you can see every 7am fire in history
+#
+# Schedule: 21:00 UTC = 07:00 AEST Brisbane (UTC+10, no DST in QLD).
+# If you move to NSW or anywhere observing DST, add conditional cron or
+# accept a 1-hour summer/winter swing.
+
+name: Morning Briefing (07:00 AEST)
+
+on:
+  schedule:
+    - cron: "3 21 * * *"   # 21:03 UTC = 07:03 AEST. Off-minute to avoid cron clustering.
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Print brief only (don't send to Telegram)"
+        required: false
+        default: "false"
+
+permissions:
+  contents: read
+
+jobs:
+  brief:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Assemble + send brief
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          ALLOWED_USERS:      ${{ secrets.TELEGRAM_ALLOWED_USERS }}
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            python3 -c "
+          import sys
+          sys.path.insert(0, '.')
+          from scripts.morning_briefing import build_brief
+          print(build_brief())
+          "
+          else
+            python3 scripts/morning_briefing.py
+          fi
