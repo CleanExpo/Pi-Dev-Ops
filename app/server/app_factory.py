@@ -17,6 +17,7 @@ from .sessions import restore_sessions, _sessions
 from .gc import gc_loop
 from .cron import cron_loop
 from .autonomy import linear_todo_poller
+from .agents.build_stall_watchdog import stall_watchdog_loop  # RA-1104
 from . import config
 
 log = logging.getLogger("pi-ceo.main")
@@ -109,6 +110,7 @@ async def on_startup():
     asyncio.create_task(_resilient(lambda: gc_loop(_sessions), "gc_loop"))
     asyncio.create_task(_resilient(cron_loop, "cron_loop"))
     asyncio.create_task(_resilient(linear_todo_poller, "linear_todo_poller"))
+    asyncio.create_task(_resilient(stall_watchdog_loop, "stall_watchdog_loop"))  # RA-1104
     if config.AUTONOMY_ENABLED:
         log.info("Autonomy poller enabled — polling Linear every 5 min for Todo issues")
     else:
