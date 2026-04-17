@@ -186,18 +186,31 @@ async def _run_claude_via_sdk(
         )
         client = ClaudeSDKClient(options)
         text_parts: list[str] = []
-        try:
-            await client.connect()
-            await client.query(prompt)
-            async for msg in client.receive_messages():
-                if isinstance(msg, AssistantMessage):
-                    for block in msg.content:
-                        if isinstance(block, TextBlock):
-                            text_parts.append(block.text)
-                elif isinstance(msg, ResultMessage):
-                    break
-        finally:
-            await client.disconnect()
+
+        # RA-1170 — the `timeout` parameter was declared but never enforced.
+        # When the Claude API hung or the message stream stalled (observed
+        # 2026-04-17: 8+ min with zero assistant-message output across 4
+        # concurrent DR-NRPG sessions), the whole generator phase hung
+        # forever. Wrap the connect/query/receive loop in asyncio.wait_for
+        # so the outer TimeoutError handler actually fires.
+        async def _run_stream() -> None:
+            try:
+                await client.connect()
+                await client.query(prompt)
+                async for msg in client.receive_messages():
+                    if isinstance(msg, AssistantMessage):
+                        for block in msg.content:
+                            if isinstance(block, TextBlock):
+                                text_parts.append(block.text)
+                    elif isinstance(msg, ResultMessage):
+                        break
+            finally:
+                try:
+                    await client.disconnect()
+                except Exception:  # disconnect shouldn't mask the real error
+                    pass
+
+        await asyncio.wait_for(_run_stream(), timeout=timeout)
         output_text = "\n".join(text_parts)
         _write_sdk_metric(
             session_id=session_id, phase=phase, model=model,
