@@ -199,11 +199,19 @@ async def _run_claude_via_sdk(
         if os.environ.get("ANTHROPIC_API_KEY") == "":
             os.environ.pop("ANTHROPIC_API_KEY", None)
 
+        # RA-1172 — permission_mode='bypassPermissions' is MANDATORY for
+        # autonomous sessions. Without it Claude hits tool-permission
+        # prompts and emits text like "Let me know once permission is
+        # granted and I'll handle the rest." — which looks to the evaluator
+        # like an empty diff, causing Phase 5 to score 1/10 and retry
+        # forever. CLAUDE.md documents this as the 3rd of 3 required
+        # layers (settings.json + ClaudeAgentOptions + CLI flag).
         options = ClaudeAgentOptions(
             cwd=workspace,
             model=model,
             thinking=_thinking_cfg,
             betas=_sdk_betas,  # type: ignore[arg-type]
+            permission_mode="bypassPermissions",
         )
         text_parts: list[str] = []
 
