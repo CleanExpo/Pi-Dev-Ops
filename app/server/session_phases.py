@@ -402,6 +402,16 @@ def parse_event(line, session):
         if line.strip():
             em(session, "output", line)
         return
+    # RA-1169 — json.loads accepts ANY valid JSON value, not just objects.
+    # If the stream contains a bare JSON string (e.g. a line like
+    # `"Bash(npm audit)"` from a tool_result rendering a permission list),
+    # `evt` is a str and `evt.get(...)` crashes the entire generator phase
+    # with `'str' object has no attribute 'get'`. Treat any non-dict as
+    # raw output and move on.
+    if not isinstance(evt, dict):
+        if line.strip():
+            em(session, "output", line)
+        return
     t = evt.get("type","")
     if t == "system":
         m = evt.get("message","")
@@ -855,7 +865,19 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
             if attempt == 0:
                 em(session, "system", "  Retrying with simplified prompt...")
         except Exception as e:
-            em(session, "error", f"  Error: {e} (attempt {attempt + 1}/2)")
+            # RA-1169 — capture the traceback so post-mortem debugging can
+            # pinpoint the exact SDK call-site that raised. Without this the
+            # log just shows `'str' object has no attribute 'get'` with no
+            # way to tell whether it came from parse_event, _run_claude_via_sdk,
+            # or the SDK itself.
+            import traceback  # noqa: PLC0415
+            _tb = traceback.format_exc()
+            em(session, "error", f"  Error: {type(e).__name__}: {e} (attempt {attempt + 1}/2)")
+            # Emit last few traceback frames so we can see where it came from.
+            for ln in _tb.strip().split("\n")[-8:]:
+                if ln.strip():
+                    em(session, "output", f"    {ln[:200]}")
+            _log.exception("Generator attempt %d/2 raised", attempt + 1)
             if attempt > 0:
                 break
     em(session, "error", "  Generator failed after 2 attempts")
