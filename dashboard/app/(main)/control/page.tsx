@@ -8,12 +8,18 @@ import ModelBadge from "@/components/control/ModelBadge";
 import HealthGrid from "@/components/control/HealthGrid";
 import BuildForm from "@/components/control/BuildForm";
 import RoutineTable from "@/components/control/RoutineTable";
+import ActiveBuildStrip from "@/components/control/ActiveBuildStrip";
 
 export default function ControlPage() {
   return (
     <div className="flex flex-col" style={{ height: "100vh", overflow: "hidden" }}>
       {/* Sticky global top bar */}
       <TopBar />
+
+      {/* Always-visible live-build strip (only renders when a build is active) */}
+      <div className="px-4 pt-4" style={{ background: "var(--background)" }}>
+        <ActiveBuildStrip />
+      </div>
 
       {/* 2×2 grid — fills remaining viewport height */}
       <div className="flex-1 overflow-auto p-4" style={{ minHeight: 0 }}>
