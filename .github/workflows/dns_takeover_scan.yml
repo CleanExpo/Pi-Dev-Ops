@@ -62,10 +62,15 @@ jobs:
         # to always run so the findings are visible in the Actions UI. The
         # scanner's own exit code is captured so the job result reflects state.
         continue-on-error: true
+        # Capture the Python script's exit code via PIPESTATUS[0], not $?.
+        # $? after a pipe reflects `tee` (always 0), so the previous version
+        # silently swallowed findings. `set -o pipefail` alone is not enough
+        # because `continue-on-error: true` already prevents job failure —
+        # we want to EXPOSE the real exit code to the follow-up step.
         run: |
           set +e
           python3 scripts/dns_takeover_scan.py | tee scan_output.jsonl
-          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
 
       - name: Summarise findings
         if: always()
