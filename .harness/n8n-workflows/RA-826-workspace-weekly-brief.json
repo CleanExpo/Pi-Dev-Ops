@@ -1,0 +1,258 @@
+{
+  "name": "RA-826 — Weekly Workspace Update Brief",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 0"
+            }
+          ]
+        }
+      },
+      "id": "schedule-weekly",
+      "name": "Schedule — Sunday 09:00 UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "notes": "Fires every Sunday at 09:00 UTC (7 PM AEST). Produces the weekly Workspace Update brief."
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.PI_CEO_RAILWAY_URL }}/api/workspace-intel?limit=30",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Pi-CEO-Secret",
+              "value": "={{ $env.PI_CEO_WEBHOOK_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "fetch-intel",
+      "name": "Fetch Recent Workspace Intel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─── RA-826: Build Qwen 3 14B prompt from recent workspace intel ─────────────\nconst response = $input.first().json;\nconst entries = response.entries || [];\nconst since   = response.since   || '7 days ago';\n\nif (entries.length === 0) {\n  console.log('RA-826: no workspace intel entries found for this week — skipping brief');\n  return [{ json: { skip: true, reason: 'no_entries' } }];\n}\n\n// Build readable intel block\nconst lines = [`# Google Workspace Updates — last 7 days (${entries.length} entries)\\n`];\nfor (const batch of entries) {\n  for (const item of (batch.items || [])) {\n    lines.push(`## ${item.title}`);\n    lines.push(`Date: ${item.pub_date}`);\n    lines.push(`URL: ${item.link}`);\n    lines.push(`Keywords: ${(item.keywords_matched || []).join(', ')}`);\n    lines.push(`Summary: ${item.summary}\\n`);\n  }\n}\nconst intelBlock = lines.join('\\n');\n\nconst systemPrompt = `You are a senior technology advisor briefing a founder. Write a concise executive brief on recent Google Workspace updates. Rules:\n- Maximum 400 words\n- Lead with the most strategically important items\n- Flag anything directly relevant to: MCP integrations, AI agent workflows, NotebookLM, n8n automation\n- No filler words. No \"In summary\". Direct, specific, actionable\n- Format: 3-5 bullet points, each starting with an emoji that matches the type of update`;\n\nconst userPrompt = `Here are this week's Google Workspace updates:\\n\\n${intelBlock}\\n\\nWrite the weekly executive brief now.`;\n\nconsole.log(`RA-826: preparing Qwen brief for ${entries.length} batches covering ${since}`);\n\nreturn [{\n  json: {\n    skip:         false,\n    entry_count:  entries.length,\n    system:       systemPrompt,\n    user:         userPrompt,\n    since,\n  }\n}];"
+      },
+      "id": "build-prompt",
+      "name": "Build Qwen Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.skip }}",
+              "value2": false
+            }
+          ]
+        },
+        "combineOperation": "all"
+      },
+      "id": "check-skip",
+      "name": "Has Intel This Week?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [960, 300],
+      "notes": "Skips brief generation if no intel entries found for the past 7 days."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OLLAMA_BASE_URL || 'http://localhost:11434' }}/api/chat",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $env.OLLAMA_BRIEF_MODEL || 'qwen3:14b', messages: [ { role: 'system', content: $json.system }, { role: 'user', content: $json.user } ], stream: false, options: { temperature: 0.4, num_predict: 600 } }) }}",
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "call-qwen",
+      "name": "Generate Brief (Qwen 3 14B)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 200],
+      "notes": "Calls Ollama local API. Requires Ollama running with qwen3:14b model. Set OLLAMA_BASE_URL env var if Ollama is not on localhost. Set OLLAMA_BRIEF_MODEL to override model name."
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─── RA-826: Extract brief from Ollama response ──────────────────────────────\nconst ollamaRes = $input.first().json;\n\n// Ollama /api/chat returns { message: { role, content }, ... }\nconst content = ollamaRes?.message?.content || ollamaRes?.choices?.[0]?.message?.content || '';\nif (!content) {\n  throw new Error(`Ollama returned empty content: ${JSON.stringify(ollamaRes)}`);\n}\n\nconst today   = new Date().toISOString().split('T')[0];\nconst brief   = content.trim();\nconst message = `📋 *Weekly Workspace Update Brief — ${today}*\\n\\n${brief}\\n\\n_Source: workspaceupdates.googleblog.com via Pi-CEO RA-826_`;\n\nconsole.log(`RA-826: brief generated (${brief.length} chars)`);\n\nreturn [{ json: { brief, message, date: today } }];"
+      },
+      "id": "format-brief",
+      "name": "Format Brief",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID || $env.ALLOWED_USERS.split(',')[0].trim(), text: $json.message, parse_mode: 'Markdown', disable_web_page_preview: true }) }}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "send-telegram",
+      "name": "Send to Telegram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1680, 200],
+      "notes": "Posts the weekly brief to the @piceoagent_bot chat. Uses TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID (or first entry of ALLOWED_USERS)."
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $input.first().json;\nif (!res.ok) {\n  throw new Error(`Telegram sendMessage failed: ${JSON.stringify(res)}`);\n}\nconsole.log(`✅ RA-826: weekly Workspace Update brief delivered to Telegram | message_id=${res.result?.message_id}`);\nreturn [{ json: { success: true, message_id: res.result?.message_id } }];"
+      },
+      "id": "log-telegram",
+      "name": "Log Telegram Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1920, 200]
+    }
+  ],
+  "connections": {
+    "Schedule — Sunday 09:00 UTC": {
+      "main": [
+        [
+          {
+            "node": "Fetch Recent Workspace Intel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Recent Workspace Intel": {
+      "main": [
+        [
+          {
+            "node": "Build Qwen Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Qwen Prompt": {
+      "main": [
+        [
+          {
+            "node": "Has Intel This Week?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Intel This Week?": {
+      "main": [
+        [
+          {
+            "node": "Generate Brief (Qwen 3 14B)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Generate Brief (Qwen 3 14B)": {
+      "main": [
+        [
+          {
+            "node": "Format Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Brief": {
+      "main": [
+        [
+          {
+            "node": "Send to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Telegram": {
+      "main": [
+        [
+          {
+            "node": "Log Telegram Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "meta": {
+    "description": "RA-826 — Every Sunday at 09:00 UTC, fetches the past week's filtered Google Workspace updates from Pi-CEO, generates an executive brief via Qwen 3 14B (Ollama), and posts it to Telegram @piceoagent_bot.",
+    "version": "1.0.0",
+    "linked_issue": "RA-826"
+  },
+  "_setup": {
+    "environment_variables_required": [
+      "PI_CEO_RAILWAY_URL — e.g. https://pi-ceo-production.up.railway.app",
+      "PI_CEO_WEBHOOK_SECRET — value of TAO_WEBHOOK_SECRET from Railway env vars",
+      "TELEGRAM_BOT_TOKEN — bot API token for @piceoagent_bot",
+      "TELEGRAM_CHAT_ID — chat ID for weekly brief delivery (or set ALLOWED_USERS)",
+      "OLLAMA_BASE_URL — default: http://localhost:11434 (must be reachable from n8n host)",
+      "OLLAMA_BRIEF_MODEL — default: qwen3:14b (run 'ollama pull qwen3:14b' first)"
+    ],
+    "prerequisites": [
+      "1. RA-826-workspace-rss-monitor workflow must be active and have run at least once",
+      "2. Ollama must be running with Qwen 3 14B: ollama run qwen3:14b",
+      "3. n8n must be on the same host as Ollama, or OLLAMA_BASE_URL must point to the Ollama host"
+    ],
+    "import_instructions": "In n8n: Workflows → Import from file → select this JSON. Set env vars. Run the RSS monitor workflow first to populate intel data. Then activate this workflow."
+  },
+  "id": "c7f82d3e-9a6b-5c4f-b7d8-0e3f2a1b4c5d",
+  "active": false,
+  "versionId": "ra826-workspace-weekly-brief-v1",
+  "updatedAt": "2026-04-18T00:00:00.000Z",
+  "createdAt": "2026-04-18T00:00:00.000Z"
+}
