@@ -524,6 +524,156 @@ async def routine_complete_webhook(request: Request):
     return {"ok": True, "logged": True}
 
 
+# ── RA-826: Google Workspace Intel endpoints ─────────────────────────────────
+
+_WORKSPACE_INTEL_DIR_NAME = "workspace-intel"
+
+
+class _WorkspaceIntelItem(BaseModel):
+    title: str
+    link: str
+    pub_date: str = ""
+    summary: str = ""
+    keywords_matched: list[str] = []
+    categories: list[str] = []
+    guid: str = ""
+
+
+class _WorkspaceIntelBatch(BaseModel):
+    items: list[_WorkspaceIntelItem]
+    batch_date: str = ""
+    count: int = 0
+    source: str = "n8n:workspace-rss-monitor"
+
+
+@router.post("/api/webhook/workspace-intel-refresh", dependencies=[Depends(require_rate_limit)])
+async def workspace_intel_refresh(request: Request):
+    """
+    RA-826 — Receive filtered Google Workspace update batch from n8n RSS monitor.
+
+    Payload (application/json):
+      {
+        "batch_date": "2026-04-18",
+        "count": 2,
+        "items": [
+          {
+            "title":            "New Gemini feature in Docs",
+            "link":             "https://workspaceupdates.googleblog.com/...",
+            "pub_date":         "2026-04-18T10:00:00Z",
+            "summary":          "...",
+            "keywords_matched": ["gemini", "agent"],
+            "categories":       ["Google Docs", "Gemini"],
+            "guid":             "tag:blogger.com,1999:blog-xxx.post-yyy"
+          }
+        ],
+        "source": "n8n:workspace-rss-monitor"
+      }
+
+    Stores one JSONL entry per batch to .harness/workspace-intel/YYYY-MM-DD.jsonl (atomic).
+    Protected by X-Pi-CEO-Secret header == TAO_WEBHOOK_SECRET.
+    """
+    import hmac as _hmac
+    from datetime import datetime, timezone
+
+    secret_header = request.headers.get("x-pi-ceo-secret", "")
+    if config.WEBHOOK_SECRET:
+        if not secret_header:
+            raise HTTPException(401, "X-Pi-CEO-Secret header required")
+        if not _hmac.compare_digest(secret_header, config.WEBHOOK_SECRET):
+            raise HTTPException(401, "Invalid secret")
+
+    raw_body = await request.body()
+    try:
+        body = json.loads(raw_body)
+    except json.JSONDecodeError:
+        raise HTTPException(400, "Invalid JSON")
+
+    try:
+        batch = _WorkspaceIntelBatch(**body)
+    except Exception as exc:
+        raise HTTPException(422, str(exc))
+
+    if not batch.items:
+        return {"ok": True, "stored": False, "reason": "empty_items"}
+
+    now_utc = datetime.now(timezone.utc)
+    date_str = batch.batch_date or now_utc.strftime("%Y-%m-%d")
+
+    if not _DATE_RE.match(date_str):
+        raise HTTPException(400, f"Invalid batch_date format: {date_str!r}")
+
+    intel_dir = Path(config.DATA_DIR).parent.parent / ".harness" / _WORKSPACE_INTEL_DIR_NAME
+    intel_dir.mkdir(parents=True, exist_ok=True)
+
+    entry = {
+        "batch_date": date_str,
+        "count":      len(batch.items),
+        "items":      [item.model_dump() for item in batch.items],
+        "source":     batch.source,
+        "ts":         now_utc.isoformat(),
+    }
+    run_file = intel_dir / f"{date_str}.jsonl"
+    existing = run_file.read_text(encoding="utf-8") if run_file.exists() else ""
+    tmp = run_file.with_suffix(".tmp")
+    tmp.write_text(existing + json.dumps(entry) + "\n", encoding="utf-8")
+    os.replace(tmp, run_file)
+
+    log.info(
+        "RA-826 workspace intel stored: date=%s count=%d source=%s",
+        date_str, len(batch.items), batch.source,
+    )
+    return {"ok": True, "stored": True, "batch_date": date_str, "count": len(batch.items)}
+
+
+@router.get("/api/workspace-intel", dependencies=[Depends(require_rate_limit)])
+async def get_workspace_intel(
+    request: Request,
+    limit: int = Query(default=30, ge=1, le=100),
+):
+    """
+    RA-826 — Return recent workspace intel batches for the weekly brief workflow.
+
+    Protected by X-Pi-CEO-Secret header (same token used by n8n webhooks).
+    Returns up to `limit` most-recent batches sorted newest-first.
+    """
+    import hmac as _hmac
+
+    secret_header = request.headers.get("x-pi-ceo-secret", "")
+    if config.WEBHOOK_SECRET:
+        if not secret_header:
+            raise HTTPException(401, "X-Pi-CEO-Secret header required")
+        if not _hmac.compare_digest(secret_header, config.WEBHOOK_SECRET):
+            raise HTTPException(401, "Invalid secret")
+
+    intel_dir = Path(config.DATA_DIR).parent.parent / ".harness" / _WORKSPACE_INTEL_DIR_NAME
+    entries: list[dict] = []
+
+    if intel_dir.exists():
+        for jsonl_file in sorted(intel_dir.glob("*.jsonl"), reverse=True):
+            try:
+                for line in jsonl_file.read_text(encoding="utf-8").splitlines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        entries.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        log.warning("RA-826: Skipping malformed JSONL line in %s", jsonl_file)
+            except OSError as exc:
+                log.warning("RA-826: Could not read %s: %s", jsonl_file, exc)
+
+    entries.sort(key=lambda e: e.get("ts", ""), reverse=True)
+    total = len(entries)
+    from datetime import datetime, timedelta, timezone
+    week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    return {
+        "entries": entries[:limit],
+        "total":   total,
+        "since":   "7 days",
+        "limit":   limit,
+    }
+
+
 @router.get("/api/routines")
 async def get_routine_runs(
     limit: int = Query(default=50, ge=1, le=500),
