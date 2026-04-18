@@ -135,6 +135,7 @@ query TodoIssues($projectId: String!) {
                 description
                 priority
                 url
+                estimate
                 state { id name type }
                 labels { nodes { name } }
             }
@@ -281,6 +282,155 @@ def _build_brief(issue: dict) -> str:
     return brief
 
 
+# RA-1373 — intent + scope inference from Linear labels
+# ---------------------------------------------------------------------------
+# session_phases.py only calls classify_intent(brief) when `intent` is empty
+# and the classifier defaults to BUG when signals are ambiguous. That's wrong
+# for UI/UX tickets (SYN-753 first run logged Intent=BUG, plan_confidence=20%).
+# Linear labels carry the truth — read them in the poller and pass through.
+
+# Label → intent mapping. First match wins; extend as the portfolio grows.
+_INTENT_BY_LABEL = {
+    "ui-ux":             "refactor",
+    "ui":                "refactor",
+    "design-tokens":     "refactor",
+    "foundation":        "feature",
+    "feature":           "feature",
+    "enhancement":       "feature",
+    "bug":               "bug",
+    "regression":        "bug",
+    "security":          "bug",
+    "performance":       "refactor",
+    "refactor":          "refactor",
+    "docs":              "docs",
+    "test":              "test",
+    "ci":                "bug",
+    "dependencies":      "chore",
+    "chore":             "chore",
+}
+
+
+def _infer_intent(issue: dict) -> str:
+    """Derive generator intent from Linear labels. Empty string = let classifier decide."""
+    labels = [ln.get("name", "") for ln in (issue.get("labels") or {}).get("nodes", [])]
+    for label in labels:
+        normalised = label.lower().strip()
+        if normalised in _INTENT_BY_LABEL:
+            return _INTENT_BY_LABEL[normalised]
+    return ""
+
+
+_IN_PROGRESS_QUERY = """
+query InProgressPiCeoIssues($projectId: String!) {
+    project(id: $projectId) {
+        issues(filter: {
+            state: { type: { in: ["started"] } }
+        }, first: 30, orderBy: updatedAt) {
+            nodes {
+                id
+                identifier
+                title
+                updatedAt
+                state { name type }
+                comments(first: 5, orderBy: createdAt) { nodes { body } }
+            }
+        }
+    }
+}
+"""
+
+
+def _is_pi_ceo_orphan(issue: dict, live_session_ids: set[str]) -> bool:
+    """True iff the issue was claimed by Pi-CEO but its session is gone.
+
+    Detection: scan last 5 comments for the Pi-CEO session-start marker
+    `Session ID: `<id>``. If any session_id referenced is NOT in live_session_ids,
+    the ticket is orphaned (previous session died; nothing is working on it now).
+    """
+    comments = (issue.get("comments") or {}).get("nodes", [])
+    referenced_ids: list[str] = []
+    for c in comments:
+        body = c.get("body", "")
+        # Match `Session ID: `<12hex>`` (our session-started comment format)
+        import re
+        for m in re.finditer(r"Session ID:\s*`([0-9a-f]{8,})`", body):
+            referenced_ids.append(m.group(1)[:12])
+    if not referenced_ids:
+        return False
+    # Orphan if NONE of the referenced sessions are currently live
+    return not any(sid in live_session_ids for sid in referenced_ids)
+
+
+async def _orphan_recovery(api_key: str) -> None:
+    """RA-1373 — reconcile tickets left In Progress with live sessions.
+
+    Railway restarts, platform scale-downs, and process crashes all leave
+    Linear tickets stuck In Progress forever because _sessions is in-memory
+    and the session's exception handler only catches RuntimeError, not SIGKILL.
+
+    Runs ONCE at poller startup (after startup_delay). For each "started"
+    state issue in any portfolio project that has a Pi-CEO session_id in its
+    recent comments but no live session: transition it back to Todo with an
+    explanatory comment. Next poll cycle will re-pick it up.
+    """
+    from .sessions import _sessions  # late import to avoid circular
+    live_ids = {s[:12] for s in _sessions.keys()}
+
+    projects = _load_portfolio_projects()
+    reverted = 0
+    checked  = 0
+
+    for p in projects:
+        try:
+            data = _gql(api_key, _IN_PROGRESS_QUERY, {"projectId": p["project_id"]})
+        except Exception as exc:
+            log.warning("orphan-recovery: project %s fetch failed: %s", p["name"], exc)
+            continue
+
+        nodes = (data.get("project") or {}).get("issues", {}).get("nodes") or []
+        for issue in nodes:
+            checked += 1
+            if not _is_pi_ceo_orphan(issue, live_ids):
+                continue
+            iid   = issue["id"]
+            ident = issue.get("identifier", "?")
+            try:
+                transition_issue(api_key, iid, "Todo", team_id=p["team_id"])
+                comment_on_issue(api_key, iid,
+                    "🤖 **Pi-CEO orphan recovery.** Previous session died unexpectedly "
+                    "(likely a Railway restart or process crash). Ticket has been returned "
+                    "to Todo and will be re-claimed on the next poll.")
+                reverted += 1
+                log.info("orphan-recovery: reverted %s to Todo", ident)
+                _log_event({"action": "orphan_recovered", "ticket": ident})
+            except Exception as exc:
+                log.warning("orphan-recovery: revert %s failed: %s", ident, exc)
+
+    log.info("orphan-recovery complete: checked=%d reverted=%d live_sessions=%d",
+             checked, reverted, len(live_ids))
+
+
+def _infer_scope(issue: dict) -> dict:
+    """Default scope contract for autonomy sessions.
+
+    Without a scope contract the evaluator has no file-count ceiling and a
+    session can produce a sprawling 40-file diff that never gets reviewed
+    properly. Derive from Linear estimate when available; otherwise cap at
+    15 files (conservative default for autonomous work).
+
+    Linear `estimate` semantics vary team-to-team but the convention inside
+    this workspace is roughly 1 point = 1–3 files of touching. 3x gives a
+    generous ceiling; cap at 30 to keep catastrophic blast radius impossible.
+    """
+    estimate = issue.get("estimate")
+    try:
+        pts = int(estimate) if estimate else 0
+    except (TypeError, ValueError):
+        pts = 0
+    max_files = min(max(pts * 3, 15), 30)
+    return {"type": "auto-routine", "max_files_modified": max_files}
+
+
 # ---------------------------------------------------------------------------
 # Poller
 # ---------------------------------------------------------------------------
@@ -311,9 +461,21 @@ async def linear_todo_poller() -> None:
     # Do-while: first iteration fires after `startup_delay` seconds, subsequent
     # iterations wait the full `interval`.
     first_iter = True
+    orphan_recovery_done = False  # RA-1373 — run once per process lifetime
     while True:
         await asyncio.sleep(startup_delay if first_iter else interval)
         first_iter = False
+
+        # RA-1373 — orphan-transition recovery, once at startup. Any ticket
+        # left In Progress by a previous process instance (Railway restart /
+        # crash) with no live session gets reverted to Todo + explanatory
+        # comment, so the next poll reclaims it instead of it sitting stuck.
+        if not orphan_recovery_done and config.AUTONOMY_ENABLED and config.LINEAR_API_KEY:
+            try:
+                await _orphan_recovery(config.LINEAR_API_KEY)
+            except Exception as exc:
+                log.error("orphan-recovery crashed: %s", exc)
+            orphan_recovery_done = True
 
         if not config.AUTONOMY_ENABLED:
             log.debug("Autonomy poller: disabled (TAO_AUTONOMY_ENABLED=0)")
@@ -376,11 +538,18 @@ async def linear_todo_poller() -> None:
 
             # --- Fire build session ---
             brief = _build_brief(issue)
+            # RA-1373 — infer intent + scope from Linear labels so the generator
+            # doesn't default to BUG on every ticket and the evaluator has a
+            # real file-count ceiling.
+            inferred_intent = _infer_intent(issue)
+            inferred_scope  = _infer_scope(issue)
             try:
                 session = await create_session(
                     repo_url=repo_url,
                     brief=brief,
                     model="sonnet",
+                    intent=inferred_intent,
+                    scope=inferred_scope,
                     linear_issue_id=issue_id,
                     autonomy_triggered=True,
                 )
