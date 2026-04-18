@@ -122,10 +122,17 @@ async def create_session(
     RA-681: complexity_tier overrides automatic brief complexity detection.
     Values: 'basic' | 'detailed' | 'advanced'. Empty string = auto-detect.
     """
+    # RA-1375 — the concurrency limiter previously checked status == "running"
+    # which was never set by any code path (real statuses are cloning /
+    # building / complete / failed / killed / interrupted). Result: _running
+    # was always 0 and MAX_CONCURRENT_SESSIONS did nothing. Pi-CEO could spawn
+    # unbounded sessions. Observed 33 concurrent on 2026-04-18. Fix: count
+    # both cloning + building as "consuming a concurrency slot".
+    _ACTIVE_STATES = ("cloning", "building")
     _running = sum(
         1 for s in _sessions.values()
-        if (isinstance(s, BuildSession) and s.status == "running")
-        or (isinstance(s, dict) and s.get("status") == "running")
+        if (isinstance(s, BuildSession) and s.status in _ACTIVE_STATES)
+        or (isinstance(s, dict) and s.get("status") in _ACTIVE_STATES)
     )
     if _running >= config.MAX_CONCURRENT_SESSIONS:
         raise RuntimeError("Max sessions reached")
