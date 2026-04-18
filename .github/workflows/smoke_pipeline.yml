@@ -1,0 +1,55 @@
+name: Pipeline Smoke (E2E)
+
+# RA-1154 — the smoke test that would have caught RA-1294.
+#
+# Fires one real autonomous build against prod end-to-end and asserts it
+# reaches `complete` with files_modified > 0 and a PR URL. Detects the
+# 305-second-generator-timeout class of regression (RA-1294 signature).
+#
+# Schedule: every 6 hours, so a bad deploy breaks within a quarter-day.
+# Manual: `workflow_dispatch` for pre-release gating.
+# Failure: pings Telegram via scripts/send_telegram.py.
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # Every 6 h
+  workflow_dispatch:
+
+jobs:
+  pipeline-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run pipeline smoke
+        id: smoke
+        env:
+          PI_CEO_URL:         https://pi-dev-ops-production.up.railway.app
+          DASHBOARD_PASSWORD: ${{ secrets.TAO_PROD_PASSWORD }}
+          SMOKE_MAX_WAIT_S:   "1200"
+        run: |
+          python3 scripts/smoke_test_pipeline.py | tee smoke_output.txt
+        continue-on-error: true
+
+      - name: Notify Telegram on failure
+        if: steps.smoke.outcome == 'failure'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          ALLOWED_USERS:      ${{ secrets.TELEGRAM_ALLOWED_USERS }}
+        run: |
+          {
+            echo "🚨 Pi-CEO pipeline smoke FAILED"
+            echo ""
+            echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo ""
+            tail -40 smoke_output.txt
+          } | python3 scripts/send_telegram.py
+
+      - name: Fail the job if smoke failed
+        if: steps.smoke.outcome == 'failure'
+        run: exit 1
