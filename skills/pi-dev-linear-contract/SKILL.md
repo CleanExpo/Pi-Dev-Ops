@@ -181,6 +181,6 @@ Read-only first, single-write, single-issue autonomy, scale. Each layer proves t
 - ❌ On-fail transition is back to `Todo`, not `Pi-Dev: Blocked` + reason label (contract violation — needs RA-1297).
 - ❌ No `Pi-Dev Run ID` custom field population (contract violation — needs RA-1297).
 - ❌ Standard footer block not appended to poller-created tickets (contract violation — needs RA-1297).
-- ❌ Workspace statuses + labels not created yet on any project (Part 1 setup — needs RA-1298 human action).
+- ⬜ Workspace statuses + labels not yet applied to any team (automation script available: `scripts/linear_workspace_setup.py`; run with `LINEAR_API_KEY` set — RA-1298 / RA-1370).  Custom field 'Pi-Dev Run ID' always requires Linear UI (Settings → Custom fields).
 
 RA-1297 is the single ticket that brings Pi-Dev-Ops code into contract compliance. RA-1298 is the human-side workspace setup (can only be done via Linear UI or admin API with workspace-admin auth).
