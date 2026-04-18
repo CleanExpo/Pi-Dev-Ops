@@ -1447,6 +1447,15 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     # RA-681 — resolve brief complexity tier (explicit override or auto-detect)
     from .brief import classify_brief_complexity  # noqa: PLC0415
     resolved_tier = session.complexity_tier or classify_brief_complexity(brief)
+    # RA-1294 — persist the resolved tier on the session so the generator phase
+    # (line ~918) can scale its timeout by tier. Without this write-back the
+    # generator reads session.complexity_tier, finds it still empty (the
+    # autonomy poller's create_session call doesn't pass a tier), and defaults
+    # to the 300 s basic timeout — every advanced/detailed autonomy-triggered
+    # session died at 305 s in the generate phase. Verified by 60+ failed
+    # sessions with last_phase=plan, SDK rc=1 @ exactly 305 s × 2 attempts
+    # (2026-04-18).
+    session.complexity_tier = resolved_tier
     em(session, "system", f"  Brief tier: {resolved_tier.upper()}")
 
     # RA-931 — inject verified past episodes as context before spec construction
