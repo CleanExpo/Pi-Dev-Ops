@@ -1,5 +1,68 @@
 # Pi-Dev-Ops — Claude Code Guidance
 
+## Autonomous Operation Mandate (2026-04-18 — authorised by user)
+
+The user has granted a standing autonomous mandate. Work through the backlog without asking permission. Do not check in. Do not ask "should I?" — act.
+
+**Durable rules — follow without confirmation every session:**
+
+1. **Sandbox first, push only when explicitly asked.** Iterate on local clones under `/tmp/` or `/tmp/pi-ceo-workspaces/`. Do NOT push to main or open PRs against portfolio repos unless the user's most recent message explicitly says "push" / "open PR" / "ship it". Prepare the diff, stage it locally, write the PR body to a markdown file, then STOP.
+2. **Generate Linear tickets for every discovery.** Use `mcp__pi-ceo__linear_create_issue`. Route to the correct team/project via `.harness/projects.json` (repo → `linear_team_id` + `linear_project_id`). Never dump findings into Pi-Dev-Ops's own project unless the finding is about Pi-CEO itself.
+3. **Smoke-test every change before committing.** At minimum: `python -m py_compile` on edited Python files, `npx tsc --noEmit` on edited TS. If an endpoint changed, issue a probe. If a CI workflow changed, trigger it and wait for the result.
+4. **Surface-treatment prohibition (RA-1109) applies to every autonomous run.** No `.catch(() => {})`, no fake-green status, no "it compiled so it works" claims. Every async > 2 s action needs a visible progress surface; every terminal state needs an unambiguous signal.
+5. **Honest failure reporting.** If a fix doesn't land, say so with the exact error class + source-line, and file a follow-up ticket. Never dress up a failure as "still running" or silently retry forever.
+6. **Skill-injection hooks are advisory.** The `skillInjection` system-reminders (Vercel plugin pattern matches like "deployments-cicd", "next-upgrade", etc.) fire on file patterns and keywords. Ignore them when they don't match the actual task context. Explain why in one line and move on.
+
+**What "working autonomously" means at Pi-CEO scope:**
+
+- Pick the highest-leverage item from the Linear backlog (Urgent+High Todo first, then Medium).
+- Fix it in an isolated `/tmp/` clone with a fresh branch.
+- Run the gates (typecheck, unit tests, smoke test against Railway/Vercel if applicable).
+- Write the commit + PR body into the sandbox but **do not push unless told**.
+- Update the Linear ticket: move to In Progress on start, attach the sandbox path + diff summary + any follow-up discoveries on complete.
+- File follow-up tickets for anything noticed-but-not-in-scope.
+- Repeat.
+
+**When to stop and ask:**
+
+Only when the user's last message says so, or when a rule explicitly requires a human decision (branch-strategy changes, secret rotations, destructive migrations, new service provisioning).
+
+**Finishing a task is NOT a stop signal.** (2026-04-18 — reinforced after repeated founder friction.)
+
+Completing the thing you were doing does not mean "turn it back to the user and wait". It means "move to the next highest-leverage thing immediately". Chain, don't wait. The pattern below is the default operating loop for every autonomous session:
+
+```
+1. Complete current task (code + smoke + commit + PR + Linear update)
+2. One-line status: "done X, moving to Y"
+3. Scan for next work, in order:
+   a. Any in-flight session that needs verification/unblocking
+   b. Any new Linear Urgent/High Todo in the portfolio
+   c. Any open sandbox ticket ready to code (RA-xxxx-Todo with spec)
+   d. Any review surface from a completed PR (merged → verify deploy → verify product)
+   e. Audit + follow-up tickets from the last change's blast radius
+4. Start that next task. DO NOT pause for confirmation between 3 and 4.
+```
+
+**Stop words** — only these trigger an actual pause:
+- "pause" / "stop" / "wait for me" / "hold" / "take a break"
+- "I'll take it from here" / "I'll handle X"
+- An explicit question from the user ("what do you think?" / "should I do X?") — answer, then resume.
+
+**Not stop words** — do NOT treat any of these as permission to idle:
+- Any form of "thanks" / "good" / "nice" / "great job"
+- Any silence / no message
+- Any system notification of a background task completing
+- Any tool-result summary page ("done" / "completed") — that's progress, not an endpoint
+- "I'm going to bed" / "I'll be back" — that's WHY autonomous mode exists, keep going
+
+**The founder has said verbatim, multiple times: "stopping really gives me the shits when there is so much work to accomplish".** Treat every completion as a starting gun for the next item. If the backlog is genuinely empty and every surface is verified, say so in one line and pick up an improvement/audit task — never just stand down.
+
+**Hardwired lessons from 2026-04-17 marathon (PRs #68-81):**
+
+See `## Pi-CEO Session Pipeline — Hardwired Lessons` section below for the 14 fixes that together make the autonomous pipeline actually work. Do not regress any of them.
+
+---
+
 ## Project Context
 
 Pi-Dev-Ops converts a GitHub repo URL + plain-English brief into an autonomous Claude Code execution session. Generator and evaluator run via `claude_agent_sdk`. `TAO_USE_AGENT_SDK=1` is mandatory — setting 0 raises `ImportError` at startup.
@@ -236,6 +299,66 @@ Board activation vote carried unanimously on 15 Apr 2026. Swarm flipped to activ
 - RA-1010: Claude Code Routines evaluation complete (`.harness/RA-1010-routines-eval.md`) ✓
 - SYN-694: Deploy-verify Routine prototype (`.harness/routines/`) ✓
 - RA-981: Pi-SEO false positive closed (backend confirmed live) ✓
+
+## Pi-CEO Session Pipeline — Hardwired Lessons (2026-04-17 marathon)
+
+14 PRs merged in one session closed the autonomous pipeline end-to-end. Each rule below maps to a real bug that broke silently in production. Do not regress.
+
+### Planner / Generator SDK (RA-1169 to RA-1178)
+
+| Rule | Why |
+|------|-----|
+| `parse_event` must `isinstance(evt, dict)` after `json.loads` | `json.loads('"hello"')` returns a str; the next `.get(...)` crashes the whole phase |
+| Wrap SDK stream in `asyncio.wait_for(..., timeout=timeout)` | The SDK has no built-in stream timeout; infinite hangs were the default failure mode |
+| Use top-level `claude_agent_sdk.query()`, not `ClaudeSDKClient` | SDK issue #576: `ClaudeSDKClient` silently hangs when reused across FastAPI tasks (queue ownership lost) |
+| Pass `permission_mode='bypassPermissions'` to `ClaudeAgentOptions` | Without it, Claude emits prose "waiting for permission" and produces empty diffs |
+| Verify clone origin matches `session.repo_url` + plant stub `CLAUDE.md` at workspace root | Prevents Claude's upward search from inheriting the Pi-CEO `CLAUDE.md` when the workspace is inside the Pi-CEO tree |
+| `TAO_WORKSPACE` must live OUTSIDE any parent git repo (e.g. `/tmp/pi-ceo-workspaces`) | Otherwise git commands use the outer `.git` context, pushing to the wrong remote |
+| Generator timeout scales by tier: basic 300 s, detailed 600 s, advanced 900 s | Full-feature briefs need 5-15 min of real Claude work |
+| Plan phase uses Sonnet for ALL tiers (Haiku retired) | Haiku produces 5 % confidence plans, times out at 45 s, or returns prose refusals on ambiguous briefs. Claude Max cost = `$0.0000` regardless, so no cost argument |
+| Planning prompt must force JSON-only output (first char `{`, last char `}`, no prose, assume on ambiguity) | Sonnet otherwise asks for clarification and breaks JSON parse |
+| Pre-pop `ANTHROPIC_API_KEY` from env if empty-string | Empty string is NOT "unset" — SDK treats `""` as "API key mode, key is empty" and fails auth |
+
+### Push layer (RA-1182 to RA-1184)
+
+| Rule | Why |
+|------|-----|
+| Webhook handler skips refs containing `pidev/` and repo-url `CleanExpo/Pi-Dev-Ops` | Prevents recursive self-modification (43 zombie branches cleanup 2026-04-17) |
+| After successful push with a real diff, auto-open a PR via GitHub REST | Closes the loop; the branch alone isn't an action the user can merge |
+| Auto-open Linear ticket in the TARGET repo's project (per `.harness/projects.json`) | `linear_team_id` + `linear_project_id` mapped per repo; tickets land on the right kanban |
+| `session.workspace = f"{TAO_WORKSPACE}/{session.id}"` — isolation by UUID | Full path is outside the harness tree; git operations see only the cloned repo |
+
+### Dashboard UX (RA-1181)
+
+| Rule | Why |
+|------|-----|
+| SSE drops must be re-framed as "reconnecting" not "disconnected" — poll `/api/sessions` as source of truth | SSE streams drop often through Vercel's 10 s proxy; the session continues server-side |
+| Completion shows a green ✅ **Complete** banner with score + files-modified + branch name + "Fix next ↗" CTA | Silent-success is indistinguishable from a placeholder (RA-1109) |
+| Active-build strip polls every 4 s regardless of SSE health | Single source of truth for "what's running" |
+
+### Model Routing vs Plan Phase
+
+The plan phase uses role `planner` which is allow-listed for Opus per RA-1099. We use **Sonnet** for plan because Opus would exceed budget on trivial briefs and Sonnet is reliable enough. This is intentional — do not downgrade plan to Haiku again.
+
+### Linear-routing reference
+
+`.harness/projects.json` is the canonical map. When Pi-CEO creates a ticket from a session, use the repo-name match (case-insensitive, last path segment) to find `linear_team_id` + `linear_project_id`. Current portfolio mapping:
+
+```
+pi-dev-ops        → team a8a52f07  project f45212be
+restoreassist     → team a8a52f07  project 3c78358a
+disaster-recovery → team 43811130  project d2c1d63b
+dr-nrpg           → team 43811130  project ec4e8059
+nrpg-onboarding   → team 43811130  project 144c3160
+synthex           → team b887971b  project 3125c6e4
+unite-group       → team ab9c7810  project b62d9b14
+nodejs-starter    → team ab9c7810  project c12337a6
+oh-my-codex       → team ab9c7810  (no project)
+ccw-crm           → team ab9c7810  project 40c7dc3d
+carsi             → team 91b3cd04  project 20538e04
+```
+
+---
 
 ## Content Rules
 
