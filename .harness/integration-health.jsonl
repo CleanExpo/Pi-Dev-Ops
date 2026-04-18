@@ -1,6 +1,18 @@
-{"ts": "2026-04-18T05:08:23Z", "tick": 1, "all_healthy": true, "checks": {"linear_api_key": {"ok": true, "detail": "ok"}, "github_token": {"ok": true, "detail": "login=bot"}, "linear_poll_live": {"ok": true, "detail": "last_poll_age_s=12"}}}
-{"ts": "2026-04-18T05:08:23Z", "tick": 1, "all_healthy": true, "checks": {"linear_api_key": {"ok": true, "detail": "ok"}}}
-{"ts": "2026-04-18T05:08:23Z", "tick": 2, "all_healthy": false, "checks": {"linear_api_key": {"ok": false, "detail": "HTTP 401"}}}
-{"ts": "2026-04-18T05:08:23Z", "tick": 3, "all_healthy": false, "checks": {"linear_api_key": {"ok": false, "detail": "HTTP 401"}}}
-{"ts": "2026-04-18T05:08:23Z", "tick": 1, "all_healthy": false, "checks": {"linear_api_key": {"ok": false, "detail": "probe crashed: boom"}}}
-{"ts": "2026-04-18T05:08:23Z", "tick": 1, "all_healthy": false, "checks": {"linear_api_key": {"ok": false, "detail": "HTTP 401"}}}
+{"ts": "2026-04-18T05:08:06Z", "tick": 1, "all_healthy": true, "checks": {"linear_api_key": {"ok": true, "detail": "ok"}, "github_token": {"ok": true, "detail": "login=bot"}, "linear_poll_live": {"ok": true, "detail": "last_poll_age_s=12"}}}
+{"ts": "2026-04-18T05:08:06Z", "tick": 1, "all_healthy": true, "checks": {"linear_api_key": {"ok": true, "detail": "ok"}}}
+{"ts": "2026-04-18T05:08:06Z", "tick": 2, "all_healthy": false, "checks": {"linear_api_key": {"ok": false, "detail": "HTTP 401"}}}
+{"ts": "2026-04-18T05:08:06Z", "tick": 3, "all_healthy": false, "checks": {"linear_api_key": {"ok": false, "detail": "HTTP 401"}}}
+{"ts": "2026-04-18T05:08:06Z", "tick": 1, "all_healthy": false, "checks": {"linear_api_key": {"ok": false, "detail": "probe crashed: boom"}}}
+{"ts": "2026-04-18T05:08:06Z", "tick": 1, "all_healthy": false, "checks": {"linear_api_key": {"ok": false, "detail": "HTTP 401"}}}
+{"ts": "2026-04-18T05:09:17Z", "tick": 1, "all_healthy": true, "checks": {"linear_api_key": {"ok": true, "detail": "ok"}, "github_token": {"ok": true, "detail": "login=bot"}, "linear_poll_live": {"ok": true, "detail": "last_poll_age_s=12"}}}
+{"ts": "2026-04-18T05:09:17Z", "tick": 1, "all_healthy": true, "checks": {"linear_api_key": {"ok": true, "detail": "ok"}}}
+{"ts": "2026-04-18T05:09:17Z", "tick": 2, "all_healthy": false, "checks": {"linear_api_key": {"ok": false, "detail": "HTTP 401"}}}
+{"ts": "2026-04-18T05:09:17Z", "tick": 3, "all_healthy": false, "checks": {"linear_api_key": {"ok": false, "detail": "HTTP 401"}}}
+{"ts": "2026-04-18T05:09:17Z", "tick": 1, "all_healthy": false, "checks": {"linear_api_key": {"ok": false, "detail": "probe crashed: boom"}}}
+{"ts": "2026-04-18T05:09:17Z", "tick": 1, "all_healthy": false, "checks": {"linear_api_key": {"ok": false, "detail": "HTTP 401"}}}
+{"ts": "2026-04-18T05:10:23Z", "tick": 1, "all_healthy": true, "checks": {"linear_api_key": {"ok": true, "detail": "ok"}, "github_token": {"ok": true, "detail": "login=bot"}, "linear_poll_live": {"ok": true, "detail": "last_poll_age_s=12"}}}
+{"ts": "2026-04-18T05:10:23Z", "tick": 1, "all_healthy": true, "checks": {"linear_api_key": {"ok": true, "detail": "ok"}}}
+{"ts": "2026-04-18T05:10:23Z", "tick": 2, "all_healthy": false, "checks": {"linear_api_key": {"ok": false, "detail": "HTTP 401"}}}
+{"ts": "2026-04-18T05:10:23Z", "tick": 3, "all_healthy": false, "checks": {"linear_api_key": {"ok": false, "detail": "HTTP 401"}}}
+{"ts": "2026-04-18T05:10:23Z", "tick": 1, "all_healthy": false, "checks": {"linear_api_key": {"ok": false, "detail": "probe crashed: boom"}}}
+{"ts": "2026-04-18T05:10:23Z", "tick": 1, "all_healthy": false, "checks": {"linear_api_key": {"ok": false, "detail": "HTTP 401"}}}
