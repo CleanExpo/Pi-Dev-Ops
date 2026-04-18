@@ -664,8 +664,6 @@ async def get_workspace_intel(
 
     entries.sort(key=lambda e: e.get("ts", ""), reverse=True)
     total = len(entries)
-    from datetime import datetime, timedelta, timezone
-    week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
     return {
         "entries": entries[:limit],
         "total":   total,
