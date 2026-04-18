@@ -241,27 +241,69 @@ def run_pipeline_smoke() -> int:
     except Exception as exc:
         pa.fail(f"stream error: {exc}")
 
-    # A4: reach complete — query session status
-    code, body = s.post(f"/api/sessions/{sid}", {})  # we only POST; GET helper isn't needed for this
-    # Fallback: hit sessions list and find this sid
+    # A4: reach complete — poll /api/sessions until the session hits terminal,
+    # not a one-shot. SSE can drop at the Vercel 10 s proxy while the server
+    # session continues; the one-shot check would false-fail.
     import urllib.request as _ur
-    req = _ur.Request(f"{PI_CEO_URL}/api/sessions")
-    for cookie in s.jar:
-        req.add_header("Cookie", f"{cookie.name}={cookie.value}")
-    with _ur.urlopen(req, timeout=10) as resp:
-        sessions = json.loads(resp.read())
-    sessions = sessions if isinstance(sessions, list) else sessions.get("sessions", [])
-    me = next((ss for ss in sessions if ss.get("id","").startswith(sid[:8])), None)
-    if me:
+
+    def _get_session(sid: str) -> dict | None:
+        req = _ur.Request(f"{PI_CEO_URL}/api/sessions")
+        for cookie in s.jar:
+            req.add_header("Cookie", f"{cookie.name}={cookie.value}")
+        try:
+            with _ur.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read())
+        except Exception:
+            return None
+        ss_list = data if isinstance(data, list) else data.get("sessions", [])
+        return next((x for x in ss_list if x.get("id", "").startswith(sid[:8])), None)
+
+    # Poll up to MAX_WAIT_S total (including SSE time already elapsed).
+    budget_remaining = max(60, MAX_WAIT_S - int(time.time() - start))
+    print(f"[poll] waiting up to {budget_remaining}s for terminal state...")
+    terminal = {"complete", "failed", "killed", "interrupted"}
+    poll_deadline = time.time() + budget_remaining
+    me = None
+    while time.time() < poll_deadline:
+        me = _get_session(sid)
+        if me and me.get("status") in terminal:
+            break
+        if me is None:
+            # Session GC'd but may have succeeded just before — give it a
+            # moment and retry once; otherwise treat as lost.
+            time.sleep(5)
+            me = _get_session(sid)
+            if me is None:
+                pa.fail(f"session {sid[:8]} not in /api/sessions (lost to GC or redeploy)")
+                break
+        time.sleep(15)
+
+    if me and me.get("status"):
         pa.last_status = me.get("status")
         pa.files_modified = max(pa.files_modified, me.get("files_modified", 0) or 0)
         if pa.last_status == "complete":
             pa.reached_complete = True
-            print(f"[A4 PASS] session reached 'complete'")
+            print(f"[A4 PASS] session reached 'complete' with files_modified={pa.files_modified}")
+        elif pa.last_status in terminal:
+            pa.fail(f"session terminal={pa.last_status} (not complete)")
         else:
-            pa.fail(f"session did not reach complete (status={pa.last_status})")
-    else:
-        pa.fail(f"session {sid[:8]} not in /api/sessions list")
+            pa.fail(f"session still {pa.last_status} after {budget_remaining}s — polling budget exhausted")
+
+    # A7 — ALWAYS try to kill the session if not already terminal. This keeps
+    # the smoke test from leaving zombie Claude work running on prod. Safe to
+    # call on a completed session (Pi-CEO returns 200 or 404).
+    try:
+        kill_req = _ur.Request(f"{PI_CEO_URL}/api/sessions/{sid}/kill", method="POST",
+                                data=b"")
+        for cookie in s.jar:
+            kill_req.add_header("Cookie", f"{cookie.name}={cookie.value}")
+        with _ur.urlopen(kill_req, timeout=10) as resp:
+            print(f"[cleanup] kill session → {resp.status}")
+    except _ur.HTTPError as exc:
+        # 404 is expected if session was already complete
+        print(f"[cleanup] kill session → {exc.code} (acceptable)")
+    except Exception as exc:
+        print(f"[cleanup] kill failed: {exc}")
 
     # Final report
     print()
