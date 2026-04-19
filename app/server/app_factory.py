@@ -20,6 +20,7 @@ from .autonomy import linear_todo_poller
 from .agents.build_stall_watchdog import stall_watchdog_loop  # RA-1104
 from .integration_health import integration_health_loop      # RA-1293
 from . import config
+from . import persistence
 
 log = logging.getLogger("pi-ceo.main")
 
@@ -149,5 +150,9 @@ async def on_shutdown():
                     proc.terminate()
                 except Exception:
                     pass
+            # RA-1376: persist interrupted state immediately so restore_sessions()
+            # reads the correct status on next boot rather than a stale
+            # cloning/building/evaluating that will never resume.
+            persistence.save_session(session)
         await asyncio.sleep(2)
     log.info("Shutdown complete")

@@ -65,6 +65,23 @@ async def get_sessions():
     return list_sessions()
 
 
+@router.get("/api/sessions/persistence", dependencies=[Depends(require_auth)])
+async def sessions_persistence_status():
+    """RA-1376: Persistence state observable.
+
+    Returns the number of session JSON files on disk vs sessions held
+    in memory.  A mismatch (file_count > memory_count) means sessions
+    survived a restart that have not yet been GC'd.  Consumed by /health
+    dashboards and the autonomy watchdog.
+    """
+    disk_sessions = persistence.load_all_sessions()
+    return {
+        "file_count": len(disk_sessions),
+        "memory_count": len(_sessions),
+        "sessions_dir": persistence._sessions_dir(),
+    }
+
+
 @router.post("/api/sessions/{sid}/kill", dependencies=[Depends(require_auth)])
 async def stop_session(sid: str):
     if not await kill_session(sid):
