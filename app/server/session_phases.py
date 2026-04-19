@@ -578,6 +578,25 @@ async def _phase_clone(session, resume_from: str) -> bool:
                             )
                     except OSError:
                         pass
+                # RA-1374 — append `.pi-ceo/` to the cloned repo's .gitignore
+                # so task-memory files (PLAN.md, IMPLEMENT.md, PROMPT.md,
+                # STATUS.md) don't get committed when the generator stages
+                # changes. Observed on DR-NRPG PR #96 and others. Idempotent:
+                # we only add the line if not already present.
+                try:
+                    gi_path = os.path.join(session.workspace, ".gitignore")
+                    gi_existing = ""
+                    if os.path.exists(gi_path):
+                        with open(gi_path, "r", encoding="utf-8") as _fh:
+                            gi_existing = _fh.read()
+                    if ".pi-ceo/" not in gi_existing.splitlines():
+                        with open(gi_path, "a", encoding="utf-8") as _fh:
+                            if gi_existing and not gi_existing.endswith("\n"):
+                                _fh.write("\n")
+                            _fh.write("# Pi-CEO task-memory (auto-added by Pi-CEO session bootstrap, RA-1374)\n")
+                            _fh.write(".pi-ceo/\n")
+                except OSError:
+                    pass
                 em(session, "success", "  Clone complete")
                 session.last_completed_phase = "clone"
                 persistence.save_session(session)
@@ -1189,6 +1208,84 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
     return total_phases
 
 
+def _route_linear_ticket_to_target_project(
+    session, owner_repo: str, pr_url: str, pr_number: int | None, pr_title: str,
+) -> None:
+    """RA-1184 — create a Linear ticket in the TARGET repo's project.
+
+    Reads .harness/projects.json for repo → (linear_team_id, linear_project_id)
+    mapping. Creates a ticket titled with the PR name, description linking to
+    the PR + session ID + evaluator score. Ticket lands in the correct project
+    board (e.g. Disaster-Recovery's Linear project, not Pi-Dev-Ops's) so teams
+    see autonomous fixes on their own kanban.
+
+    No-ops if LINEAR_API_KEY is missing, projects.json has no entry, or the
+    ticket creation fails for any reason (triage continues).
+    """
+    from pathlib import Path  # noqa: PLC0415
+    import json as _json  # noqa: PLC0415
+    from .triage import LinearClient  # noqa: PLC0415
+
+    api_key = os.environ.get("LINEAR_API_KEY", "")
+    if not api_key:
+        em(session, "system", "  Linear ticket skipped: LINEAR_API_KEY not set")
+        return
+
+    # Load projects.json; look up by repo name (case-insensitive)
+    projects_path = Path(__file__).parent.parent.parent / ".harness" / "projects.json"
+    if not projects_path.exists():
+        em(session, "system", "  Linear ticket skipped: projects.json not found")
+        return
+    with open(projects_path) as _fh:
+        data = _json.load(_fh)
+    projects = data.get("projects", [])
+    # owner_repo is "owner/repo"; take the last path segment
+    repo_name = owner_repo.split("/")[-1].lower()
+    match = None
+    for p in projects:
+        if p.get("repo", "").split("/")[-1].lower() == repo_name:
+            match = p
+            break
+    if not match:
+        em(session, "system", f"  Linear ticket skipped: no projects.json entry for {repo_name}")
+        return
+
+    team_id = match.get("linear_team_id")
+    proj_id = match.get("linear_project_id")
+    if not team_id:
+        em(session, "system", f"  Linear ticket skipped: no team_id for {repo_name}")
+        return
+
+    client = LinearClient(api_key)
+    score = getattr(session, "evaluator_score", None)
+    confidence = getattr(session, "evaluator_confidence", None)
+    description = (
+        f"**Autonomous Pi-CEO session:** `{session.id}`\n\n"
+        f"**PR:** {pr_url}\n\n"
+        + (f"**Evaluator score:** {score}/10 @ {confidence}% confidence\n\n" if score else "")
+        + "This ticket was auto-created by Pi-CEO's autonomous fix pipeline. "
+        "Review the linked PR; close this ticket when the PR is merged.\n\n"
+        "🤖 Pi-CEO"
+    )
+    try:
+        issue = client.create_issue(
+            team_id=team_id,
+            title=f"[Pi-CEO] {pr_title[:200]}",
+            description=description,
+            priority=3,
+            project_id=proj_id,
+        )
+        _id = issue.get("identifier", "?")
+        _url = issue.get("url", "")
+        em(session, "success", f"  🎫 Linear ticket created: {_id} → {_url}")
+        try:
+            session.linear_issue_id = issue.get("id")  # type: ignore[attr-defined]
+        except Exception:
+            pass
+    except Exception as exc:
+        raise RuntimeError(f"Linear issueCreate failed: {exc}") from exc
+
+
 async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
     """Commit uncommitted changes, push to GitHub on a feature branch. Returns (all-files, push_ok)."""
     phase_start = time.monotonic()
@@ -1239,6 +1336,84 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
                     await asyncio.sleep(backoff)
             if not push_ok:
                 em(session, "error", "  Push failed — changes committed locally, push manually")
+
+            # RA-1183 — auto-open a PR from pidev/auto-<sid> → main.
+            # Only when push succeeded AND the branch has a real diff vs main
+            # (avoids empty PRs from sessions that correctly decided nothing
+            # needed fixing). Uses GitHub REST API with x-access-token auth
+            # from the embedded remote URL.
+            if push_ok and github_token:
+                try:
+                    # Check there's actually a diff to PR
+                    rc_diff, diff_out, _ = await run_cmd(
+                        session.workspace, "git", "diff", "--name-only", "origin/main", branch_name, timeout=10,
+                    )
+                    if rc_diff == 0 and diff_out.strip():
+                        # Derive owner/repo from remote URL
+                        _, ru, _ = await run_cmd(session.workspace, "git", "remote", "get-url", "origin", timeout=5)
+                        ru = ru.strip().rstrip("/")
+                        # Strip token auth + .git suffix
+                        ru = ru.replace(f"https://x-access-token:{github_token}@", "https://")
+                        if ru.endswith(".git"):
+                            ru = ru[:-4]
+                        owner_repo = ru.replace("https://github.com/", "")
+                        # Latest commit message for PR title
+                        _, last_msg, _ = await run_cmd(
+                            session.workspace, "git", "log", "-1", "--pretty=%s", branch_name, timeout=5,
+                        )
+                        pr_title = last_msg.strip() or f"feat: Pi CEO autonomous fix ({session.id[:8]})"
+                        pr_body = (
+                            f"Autonomous Pi-CEO session `{session.id}`.\n\n"
+                            f"Evaluator score: {getattr(session, 'evaluator_score', 'n/a')}/10 "
+                            f"@ {getattr(session, 'evaluator_confidence', 'n/a')}% confidence.\n\n"
+                            f"🤖 Generated by Pi-CEO"
+                        )
+                        import urllib.request as _ur  # noqa: PLC0415
+                        import json as _json  # noqa: PLC0415
+                        req = _ur.Request(
+                            f"https://api.github.com/repos/{owner_repo}/pulls",
+                            data=_json.dumps({
+                                "title": pr_title,
+                                "body": pr_body,
+                                "head": branch_name,
+                                "base": "main",
+                            }).encode(),
+                            headers={
+                                "Authorization": f"Bearer {github_token}",
+                                "Accept": "application/vnd.github+json",
+                                "Content-Type": "application/json",
+                            },
+                            method="POST",
+                        )
+                        try:
+                            with _ur.urlopen(req, timeout=15) as resp:
+                                pr_data = _json.loads(resp.read())
+                                pr_url = pr_data.get("html_url", "")
+                                pr_number = pr_data.get("number")
+                                em(session, "success", f"  ✨ PR opened: #{pr_number} → {pr_url}")
+                                # Persist PR URL on session for the dashboard
+                                try:
+                                    session.pr_url = pr_url  # type: ignore[attr-defined]
+                                except Exception:
+                                    pass
+                                # RA-1184 — route Linear ticket to the TARGET
+                                # repo's Linear project (not Pi-Dev-Ops). Reads
+                                # projects.json for team_id + linear_project_id.
+                                # Only creates a ticket when we don't already
+                                # have one (linear_issue_id unset).
+                                if not getattr(session, "linear_issue_id", None):
+                                    try:
+                                        _route_linear_ticket_to_target_project(
+                                            session, owner_repo, pr_url, pr_number, pr_title,
+                                        )
+                                    except Exception as _lin_exc:
+                                        em(session, "system", f"  Linear auto-ticket skipped: {_lin_exc}")
+                        except Exception as _pr_exc:
+                            em(session, "system", f"  PR auto-open skipped: {_pr_exc}")
+                    else:
+                        em(session, "system", "  No diff vs main — skipping PR open")
+                except Exception as _pr_err:
+                    em(session, "system", f"  PR auto-open check failed: {_pr_err}")
         em(session, "system", "")
         em(session, "phase", "  Project structure:")
         for r, dirs, fns in os.walk(session.workspace):
@@ -1291,6 +1466,15 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     # RA-681 — resolve brief complexity tier (explicit override or auto-detect)
     from .brief import classify_brief_complexity  # noqa: PLC0415
     resolved_tier = session.complexity_tier or classify_brief_complexity(brief)
+    # RA-1294 — persist the resolved tier on the session so the generator phase
+    # (line ~918) can scale its timeout by tier. Without this write-back the
+    # generator reads session.complexity_tier, finds it still empty (the
+    # autonomy poller's create_session call doesn't pass a tier), and defaults
+    # to the 300 s basic timeout — every advanced/detailed autonomy-triggered
+    # session died at 305 s in the generate phase. Verified by 60+ failed
+    # sessions with last_phase=plan, SDK rc=1 @ exactly 305 s × 2 attempts
+    # (2026-04-18).
+    session.complexity_tier = resolved_tier
     em(session, "system", f"  Brief tier: {resolved_tier.upper()}")
 
     # RA-931 — inject verified past episodes as context before spec construction
