@@ -14,7 +14,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1775952090.0903811
+    "last_fired_at": 1776578110.754602
   },
   {
     "id": "scan-high-0600",
@@ -31,7 +31,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1775887250.3202062
+    "last_fired_at": 1776578413.5236611
   },
   {
     "id": "scan-high-1200",
@@ -48,7 +48,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1775908882.062293
+    "last_fired_at": 1776578110.754703
   },
   {
     "id": "scan-high-1800",
@@ -65,7 +65,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1775930455.130702
+    "last_fired_at": 1776578110.754743
   },
   {
     "id": "scan-medium-0200",
@@ -80,7 +80,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1775872874.345698
+    "last_fired_at": 1776578110.754782
   },
   {
     "id": "scan-low-0300",
@@ -94,7 +94,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1775876418.5656278
+    "last_fired_at": 1776578110.754821
   },
   {
     "id": "monitor-0100",
@@ -105,7 +105,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1775955630.308446
+    "last_fired_at": 1776578110.75486
   },
   {
     "id": "monitor-0700",
@@ -116,7 +116,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1775890850.524554
+    "last_fired_at": 1776582037.9600158
   },
   {
     "id": "monitor-1300",
@@ -127,7 +127,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1775912422.374037
+    "last_fired_at": 1776578110.754936
   },
   {
     "id": "monitor-1900",
@@ -138,7 +138,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1775934055.480764
+    "last_fired_at": 1776578110.754974
   },
   {
     "id": "analyse-lessons-weekly",
@@ -150,30 +150,18 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1775804551,
-    "last_fired_at": null
+    "last_fired_at": 1776578110.827669
   },
   {
-    "id": "intel-refresh-monday",
-    "type": "intel_refresh",
-    "name": "Anthropic Intelligence: Refresh docs snapshot \u2014 Monday 02:00 UTC",
-    "weekday": 0,
-    "hour": 2,
-    "minute": 0,
-    "enabled": true,
-    "created_at": 1775865600,
-    "last_fired_at": null
-  },
-  {
-    "id": "board-meeting-weekly",
+    "id": "board-meeting-daily",
     "type": "board_meeting",
-    "name": "Pi-CEO: Weekly board meeting \u2014 Monday 05:00 UTC (15:00 AEST)",
-    "weekday": 0,
+    "name": "Board: quality review \u2014 daily 05:00 UTC",
     "hour": 5,
     "minute": 0,
     "enabled": true,
     "created_at": 1744588800,
     "last_fired_at": null,
-    "note": "Runs all 6 phases: STATUS \u2192 LINEAR REVIEW \u2192 SWOT \u2192 RECOMMENDATIONS \u2192 SAVE MINUTES \u2192 GAP AUDIT. Result sent to Telegram."
+    "note": "Daily board sync \u2014 reviews in-flight PRs, evaluator scores, flagged risks"
   },
   {
     "id": "fallback-dryrun-quarterly",
@@ -193,18 +181,6 @@
     "created_at": 1775865600,
     "last_fired_at": null,
     "note": "RA-634 \u2014 tests direct Anthropic SDK path (TAO_USE_FALLBACK contingency). See DEPLOYMENT.md \u2192 Contingency: API Fallback."
-  },
-  {
-    "id": "scout-weekly-monday",
-    "type": "scout",
-    "name": "Scout Agent: External intelligence gathering \u2014 Monday 04:30 UTC (pre-board)",
-    "weekday": 0,
-    "hour": 4,
-    "minute": 30,
-    "enabled": true,
-    "created_at": 1744502400,
-    "last_fired_at": null,
-    "note": "RA-684 \u2014 searches GitHub/ArXiv/HN, scores against ZTE dimensions, creates scout-labelled Linear issues before Monday board meeting."
   },
   {
     "id": "feedback-loop-monthly",
@@ -228,5 +204,60 @@
     "enabled": true,
     "created_at": 1776108628,
     "last_fired_at": null
+  },
+  {
+    "id": "intel-refresh-daily-0200",
+    "type": "intel_refresh",
+    "name": "Anthropic Intel: refresh docs \u2014 daily 02:00 UTC",
+    "hour": 2,
+    "minute": 0,
+    "enabled": true,
+    "created_at": 1776582512,
+    "last_fired_at": 1776582569.025568,
+    "note": "Feeds fresh Anthropic docs + release notes into planner/orchestrator context"
+  },
+  {
+    "id": "scout-daily-0430",
+    "type": "scout",
+    "name": "Scout: GitHub/ArXiv/HN intel \u2014 daily 04:30 UTC",
+    "hour": 4,
+    "minute": 30,
+    "enabled": true,
+    "created_at": 1776582512,
+    "last_fired_at": null,
+    "note": "RA-684 \u2014 external tooling discovery, scores against ZTE, creates scout-tagged Linear tickets"
+  },
+  {
+    "id": "scout-daily-1630",
+    "type": "scout",
+    "name": "Scout: afternoon intel refresh \u2014 daily 16:30 UTC",
+    "hour": 16,
+    "minute": 30,
+    "enabled": true,
+    "created_at": 1776582512,
+    "last_fired_at": null,
+    "note": "Second daily sweep \u2014 catches west-coast / overnight releases"
+  },
+  {
+    "id": "plan-discovery-daily-0300",
+    "type": "plan_discovery",
+    "name": "Plan Discovery: research brief for today's backlog \u2014 daily 03:00 UTC",
+    "hour": 3,
+    "minute": 0,
+    "enabled": true,
+    "created_at": 1776582512,
+    "last_fired_at": null,
+    "note": "Perplexity + web search for every Urgent/High ticket; output feeds planner context"
+  },
+  {
+    "id": "feedback-loop-daily-1200",
+    "type": "feedback_loop",
+    "name": "Feedback Loop: what worked / what failed \u2014 daily noon UTC",
+    "hour": 12,
+    "minute": 0,
+    "enabled": true,
+    "created_at": 1776582512,
+    "last_fired_at": null,
+    "note": "Analyses last 24h session outcomes; surfaces patterns to evaluator + board"
   }
 ]
