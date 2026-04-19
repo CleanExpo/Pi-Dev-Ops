@@ -280,7 +280,11 @@ async def _run_claude_via_sdk_async(
     error_msg: Optional[str] = None
     output_text = ""
     try:
-        options = ClaudeAgentOptions(model=model)
+        # RA-1420 — pop ANTHROPIC_API_KEY if OAuth token (same as session_sdk.py)
+        _k = os.environ.get("ANTHROPIC_API_KEY", "")
+        if _k == "" or _k.startswith("sk-ant-oat01-"):
+            os.environ.pop("ANTHROPIC_API_KEY", None)
+        options = ClaudeAgentOptions(model=model, permission_mode="bypassPermissions")
         client = ClaudeSDKClient(options)
         text_parts: list[str] = []
         try:

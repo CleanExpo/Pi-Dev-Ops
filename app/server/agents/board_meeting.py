@@ -387,6 +387,13 @@ def _run_prompt_via_sdk(
         log.warning("claude_agent_sdk not installed — falling back to subprocess")
         return ""
 
+    # RA-1420 — pop ANTHROPIC_API_KEY if empty OR an OAuth token. sk-ant-oat01-*
+    # tokens belong in ~/.claude/ keychain OAuth, not the env var. When set as env,
+    # the bundled CLI rejects them with "Invalid API key · Fix external API key".
+    _k = os.environ.get("ANTHROPIC_API_KEY", "")
+    if _k == "" or _k.startswith("sk-ant-oat01-"):
+        os.environ.pop("ANTHROPIC_API_KEY", None)
+
     # RA-659 — build thinking config
     if thinking == "adaptive":
         _thinking_cfg = ThinkingConfigAdaptive(type="adaptive")
@@ -414,7 +421,7 @@ def _run_prompt_via_sdk(
             "PreToolUse": [HookMatcher(hooks=[_on_pre_tool])],
             "PostToolUse": [HookMatcher(hooks=[_on_post_tool])],
         }
-        options = ClaudeAgentOptions(model=model, max_turns=1, thinking=_thinking_cfg, hooks=hooks)
+        options = ClaudeAgentOptions(model=model, max_turns=1, thinking=_thinking_cfg, hooks=hooks, permission_mode="bypassPermissions")
         client = ClaudeSDKClient(options)
         text_parts: list[str] = []
         try:
@@ -1073,7 +1080,8 @@ def compute_bvi(cycle: int) -> dict[str, Any]:
     # BVI = sum of all three components (equal weight; can be weighted in future)
     bvi_score = criticals + portfolio + marathon
 
-    prior_score = prior.get("bvi_score", 0) if prior else 0
+    # RA-1419 — guard against None priors (first cycle, or history written before bvi_score was tracked)
+    prior_score = (prior.get("bvi_score") if prior else None) or 0
     delta = bvi_score - prior_score
 
     entry: dict[str, Any] = {

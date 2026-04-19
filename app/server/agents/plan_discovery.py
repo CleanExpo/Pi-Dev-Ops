@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import os
 import json
 import logging
 import time
@@ -107,9 +108,13 @@ async def _generate_plan_variant(
     except ImportError:
         return ""
 
+    # RA-1420 — pop ANTHROPIC_API_KEY if OAuth token
+    _k = os.environ.get("ANTHROPIC_API_KEY", "")
+    if _k == "" or _k.startswith("sk-ant-oat01-"):
+        os.environ.pop("ANTHROPIC_API_KEY", None)
     prompt = _PLAN_GEN_PROMPT_TMPL.format(brief=brief[:1500], approach=approach)
     try:
-        options = ClaudeAgentOptions(model="haiku")
+        options = ClaudeAgentOptions(model="haiku", permission_mode="bypassPermissions")
         client = ClaudeSDKClient(options)
         parts: list[str] = []
         try:
@@ -142,9 +147,13 @@ async def _score_plan(brief: str, plan: str) -> float:
     except ImportError:
         return 5.0  # neutral default
 
+    # RA-1420 — pop ANTHROPIC_API_KEY if OAuth token
+    _k = os.environ.get("ANTHROPIC_API_KEY", "")
+    if _k == "" or _k.startswith("sk-ant-oat01-"):
+        os.environ.pop("ANTHROPIC_API_KEY", None)
     prompt = _PLAN_SCORE_PROMPT_TMPL.format(brief=brief[:800], plan=plan[:1200])
     try:
-        options = ClaudeAgentOptions(model="haiku")
+        options = ClaudeAgentOptions(model="haiku", permission_mode="bypassPermissions")
         client = ClaudeSDKClient(options)
         parts: list[str] = []
         try:
