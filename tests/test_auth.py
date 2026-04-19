@@ -126,3 +126,27 @@ def test_is_legacy_hash():
     assert _is_legacy_hash("a" * 64) is True
     assert _is_legacy_hash("$2b$12$" + "x" * 53) is False
     assert _is_legacy_hash("short") is False
+
+
+def test_rate_limit_gc_prunes_stale_ips(monkeypatch):
+    """Stale IPs (last request >120 s ago) are pruned from _req_log on the next call."""
+    import app.server.auth as auth_mod
+    auth_mod._req_log.clear()
+    now = time.time()
+    # Seed a stale entry (130 s old — beyond the 120 s threshold)
+    auth_mod._req_log["stale-ip"] = [now - 130]
+    # Seed an active entry (5 s old — must survive GC)
+    auth_mod._req_log["active-ip"] = [now - 5]
+    # Reset the GC clock so the next call definitely runs GC
+    monkeypatch.setattr(auth_mod, "_last_gc", 0.0)
+    auth_mod.check_rate_limit("trigger-ip")
+    assert "stale-ip" not in auth_mod._req_log, "stale IP should have been pruned"
+    assert "active-ip" in auth_mod._req_log, "active IP must survive GC"
+
+
+def test_rate_limit_gc_empty_log_no_error(monkeypatch):
+    """GC on an empty _req_log does not raise KeyError or any other error."""
+    import app.server.auth as auth_mod
+    auth_mod._req_log.clear()
+    monkeypatch.setattr(auth_mod, "_last_gc", 0.0)
+    auth_mod.check_rate_limit("trigger-ip")  # must not raise
