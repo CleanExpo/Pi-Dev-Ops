@@ -19,12 +19,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 async def test_run_claude_via_sdk_success():
     """SDK succeeds and returns (0, text, cost).
 
-    Mocks the REAL method used by sessions.py: `client.receive_messages()`.
-    The code path checks `isinstance(msg, AssistantMessage)` and iterates
-    `msg.content` for `TextBlock` instances — so we use real SDK types here
-    rather than plain MagicMocks, which would fail the isinstance check.
+    RA-1171 migrated from `ClaudeSDKClient` to the top-level `query()` async
+    iterator (SDK issue anthropics/claude-agent-sdk-python#576 — the client
+    hangs when reused across FastAPI tasks). The test now mocks `query()`
+    directly, not the client class. Code path still checks
+    `isinstance(msg, AssistantMessage)` and iterates `msg.content` for
+    `TextBlock` instances, so we use real SDK types here.
     """
-    from app.server.sessions import _run_claude_via_sdk
+    from app.server.session_sdk import _run_claude_via_sdk
     from claude_agent_sdk import AssistantMessage, TextBlock, ResultMessage
 
     text_block = TextBlock(text="Generated code")
@@ -32,17 +34,11 @@ async def test_run_claude_via_sdk_success():
     # Minimal ResultMessage — kwargs vary across SDK versions, so build via MagicMock
     result_msg = MagicMock(spec=ResultMessage)
 
-    async def mock_receive():
+    async def mock_query(prompt=None, options=None):  # noqa: ARG001
         yield assistant_msg
         yield result_msg
 
-    mock_client = AsyncMock()
-    mock_client.connect = AsyncMock()
-    mock_client.query = AsyncMock()
-    mock_client.receive_messages = mock_receive
-    mock_client.disconnect = AsyncMock()
-
-    with patch("claude_agent_sdk.ClaudeSDKClient", return_value=mock_client):
+    with patch("claude_agent_sdk.query", mock_query):
         rc, text, cost = await _run_claude_via_sdk("test prompt", "sonnet", "/tmp/ws")
         assert rc == 0
         assert "Generated code" in text
@@ -52,12 +48,13 @@ async def test_run_claude_via_sdk_success():
 @pytest.mark.asyncio
 async def test_run_claude_via_sdk_exception():
     """SDK raises exception, returns (1, "", 0.0)."""
-    from app.server.sessions import _run_claude_via_sdk
+    from app.server.session_sdk import _run_claude_via_sdk
 
-    mock_client = AsyncMock()
-    mock_client.connect = AsyncMock(side_effect=RuntimeError("Connection failed"))
+    async def mock_query_raises(prompt=None, options=None):  # noqa: ARG001
+        raise RuntimeError("Query failed")
+        yield  # unreachable but keeps it an async generator
 
-    with patch("claude_agent_sdk.ClaudeSDKClient", return_value=mock_client):
+    with patch("claude_agent_sdk.query", mock_query_raises):
         rc, text, cost = await _run_claude_via_sdk("test prompt", "sonnet", "/tmp/ws")
         assert rc == 1
         assert text == ""
@@ -85,22 +82,18 @@ async def test_run_claude_via_sdk_import_error():
 async def test_run_claude_via_sdk_timeout():
     """SDK timeout returns (1, "", 0.0).
 
-    Mocks `receive_messages` (the real method) to raise TimeoutError on first
-    iteration, which should be caught and surfaced as rc=1.
+    RA-1170 wraps the query() iterator in `asyncio.wait_for(..., timeout=timeout)`,
+    so a slow query raises `asyncio.TimeoutError` — caught as rc=1. Here we
+    simulate a never-ending async iterator; `wait_for(timeout=1)` cancels it
+    at the 1-second mark.
     """
-    from app.server.sessions import _run_claude_via_sdk
+    from app.server.session_sdk import _run_claude_via_sdk
 
-    async def mock_receive_timeout():
-        raise asyncio.TimeoutError("Query timeout")
-        yield  # Never reached but keeps this an async generator
+    async def mock_query_hangs(prompt=None, options=None):  # noqa: ARG001
+        await asyncio.sleep(10)  # far longer than the test's 1 s budget
+        yield  # unreachable
 
-    mock_client = AsyncMock()
-    mock_client.connect = AsyncMock()
-    mock_client.query = AsyncMock()
-    mock_client.receive_messages = mock_receive_timeout
-    mock_client.disconnect = AsyncMock()
-
-    with patch("claude_agent_sdk.ClaudeSDKClient", return_value=mock_client):
+    with patch("claude_agent_sdk.query", mock_query_hangs):
         rc, text, cost = await _run_claude_via_sdk("test", "sonnet", "/tmp", timeout=1)
         assert rc == 1
         assert text == ""

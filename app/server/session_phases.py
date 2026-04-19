@@ -578,6 +578,25 @@ async def _phase_clone(session, resume_from: str) -> bool:
                             )
                     except OSError:
                         pass
+                # RA-1374 — append `.pi-ceo/` to the cloned repo's .gitignore
+                # so task-memory files (PLAN.md, IMPLEMENT.md, PROMPT.md,
+                # STATUS.md) don't get committed when the generator stages
+                # changes. Observed on DR-NRPG PR #96 and others. Idempotent:
+                # we only add the line if not already present.
+                try:
+                    gi_path = os.path.join(session.workspace, ".gitignore")
+                    gi_existing = ""
+                    if os.path.exists(gi_path):
+                        with open(gi_path, "r", encoding="utf-8") as _fh:
+                            gi_existing = _fh.read()
+                    if ".pi-ceo/" not in gi_existing.splitlines():
+                        with open(gi_path, "a", encoding="utf-8") as _fh:
+                            if gi_existing and not gi_existing.endswith("\n"):
+                                _fh.write("\n")
+                            _fh.write("# Pi-CEO task-memory (auto-added by Pi-CEO session bootstrap, RA-1374)\n")
+                            _fh.write(".pi-ceo/\n")
+                except OSError:
+                    pass
                 em(session, "success", "  Clone complete")
                 session.last_completed_phase = "clone"
                 persistence.save_session(session)
@@ -1447,6 +1466,15 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     # RA-681 — resolve brief complexity tier (explicit override or auto-detect)
     from .brief import classify_brief_complexity  # noqa: PLC0415
     resolved_tier = session.complexity_tier or classify_brief_complexity(brief)
+    # RA-1294 — persist the resolved tier on the session so the generator phase
+    # (line ~918) can scale its timeout by tier. Without this write-back the
+    # generator reads session.complexity_tier, finds it still empty (the
+    # autonomy poller's create_session call doesn't pass a tier), and defaults
+    # to the 300 s basic timeout — every advanced/detailed autonomy-triggered
+    # session died at 305 s in the generate phase. Verified by 60+ failed
+    # sessions with last_phase=plan, SDK rc=1 @ exactly 305 s × 2 attempts
+    # (2026-04-18).
+    session.complexity_tier = resolved_tier
     em(session, "system", f"  Brief tier: {resolved_tier.upper()}")
 
     # RA-931 — inject verified past episodes as context before spec construction
