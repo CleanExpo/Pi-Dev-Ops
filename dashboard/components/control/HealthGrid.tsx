@@ -33,19 +33,23 @@ interface FindingsResponse {
   error?: string;
 }
 
+// Use theme-aware CSS vars so contrast stays WCAG-AA on both platinum
+// (light) and zinc (dark). Globals define darker values on light theme
+// (--success:#16a34a, --warning:#ca8a04, --error:#dc2626) and brighter
+// ones on dark (--success:#22c55e, --warning:#eab308, --error:#ef4444).
 function healthColour(score: number | undefined): string {
   if (score === undefined) return "var(--text-dim)";
-  if (score >= 80) return "#4ADE80";
-  if (score >= 60) return "#FFD166";
-  return "#F87171";
+  if (score >= 80) return "var(--success)";
+  if (score >= 60) return "var(--warning)";
+  return "var(--error)";
 }
 
 const SEVERITY_COLOUR: Record<Finding["severity"], string> = {
-  critical: "#F87171",
-  high:     "#FFA94D",
-  medium:   "#FFD166",
-  low:      "#A3A3A3",
-  info:     "#71717A",
+  critical: "var(--error)",
+  high:     "var(--accent)",   // amber — distinct from error + theme-aware
+  medium:   "var(--warning)",
+  low:      "var(--text-muted)",
+  info:     "var(--text-dim)",
 };
 
 // Empty state with terminal aesthetic
@@ -451,6 +455,20 @@ function ProjectDrillDown({
               setActiveSessionId(null);
               setActiveFindingTitle(null);
             }}
+            onFixNext={(() => {
+              // RA-1181 — pick the next unfixed finding (by position after the
+              // one currently in the streamer) and kick off a new session.
+              if (!data) return undefined;
+              const idx = data.findings.findIndex((x) => x.title === activeFindingTitle);
+              const next = idx >= 0 ? data.findings.slice(idx + 1).find(Boolean) : data.findings[0];
+              if (!next) return undefined;
+              return () => {
+                setActiveSessionId(null);
+                setActiveFindingTitle(null);
+                // Defer one tick so the unmount completes, then spawn next
+                setTimeout(() => { void fixWithClaude(next); }, 100);
+              };
+            })()}
           />
         )}
       </div>
@@ -469,20 +487,38 @@ interface SessionEvent {
   reason?: string;
 }
 
+// RA-1181 — Poll-backed completion detection. SSE drops often on Vercel
+// proxy (10 s AbortSignal) but the session keeps running server-side.
+// Rather than flipping to "error" on drop, poll /api/sessions for the
+// session's actual status and update accordingly.
+interface PollSession {
+  id: string;
+  status: string;
+  last_phase?: string;
+  evaluator_score?: number | null;
+  files_modified?: number;
+}
+
 function FixSessionLive({
   sessionId,
   findingTitle,
   onClose,
+  onFixNext,
 }: {
   sessionId: string;
   findingTitle: string;
   onClose: () => void;
+  onFixNext?: () => void;
 }) {
   const [events, setEvents] = useState<SessionEvent[]>([]);
-  const [status, setStatus] = useState<"connecting" | "running" | "done" | "error">("connecting");
+  const [status, setStatus] = useState<
+    "connecting" | "running" | "done" | "error" | "reconnecting"
+  >("connecting");
   const [err, setErr] = useState<string | null>(null);
+  const [pollState, setPollState] = useState<PollSession | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
 
+  // SSE stream — best-effort, always-live
   useEffect(() => {
     const es = new EventSource(`/api/pi-ceo/api/sessions/${sessionId}/logs`);
     setStatus("running");
@@ -490,10 +526,16 @@ function FixSessionLive({
     es.onmessage = (e) => {
       try {
         const ev: SessionEvent = JSON.parse(e.data);
-        if (ev.type === "closed" || ev.type === "done") {
+        // RA-1181 — detect true completion from text patterns the server
+        // actually emits ("=== SESSION COMPLETE ===", phase=Summary).
+        const text = (ev.text ?? "").toString();
+        if (
+          ev.type === "closed" ||
+          ev.type === "done" ||
+          /SESSION\s+COMPLETE/i.test(text)
+        ) {
           setStatus("done");
-          es.close();
-          return;
+          // keep events visible; don't close es here — server emits Summary events after
         }
         setEvents((prev) => [...prev, ev]);
       } catch {
@@ -502,12 +544,45 @@ function FixSessionLive({
     };
 
     es.onerror = () => {
-      setStatus("error");
-      setErr("Connection lost — session may still be running on the server.");
+      // RA-1181 — DO NOT flip to "error" on SSE drop. The session almost
+      // always keeps running server-side (Vercel proxy has a 10 s timeout
+      // but Railway is happy). Mark as "reconnecting" and let the poller
+      // below surface the real status.
+      setStatus((prev) => (prev === "done" ? "done" : "reconnecting"));
       es.close();
     };
 
     return () => es.close();
+  }, [sessionId]);
+
+  // RA-1181 — /api/sessions poller. Source of truth when SSE drops.
+  useEffect(() => {
+    let alive = true;
+    async function poll() {
+      try {
+        const res = await fetch(`/api/pi-ceo/api/sessions`, { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as PollSession[];
+        if (!alive) return;
+        const mine = data.find((s) => s.id === sessionId);
+        if (mine) {
+          setPollState(mine);
+          if (mine.status === "complete") setStatus("done");
+          else if (mine.status === "failed" || mine.status === "killed") {
+            setStatus("error");
+            setErr(`Session ended: ${mine.status}`);
+          }
+        }
+      } catch {
+        // Ignore transient errors
+      }
+    }
+    void poll();
+    const id = setInterval(poll, 4000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
   }, [sessionId]);
 
   // Auto-scroll to bottom on new events
@@ -518,16 +593,18 @@ function FixSessionLive({
   }, [events]);
 
   const statusColour: Record<typeof status, string> = {
-    connecting: "var(--text-dim)",
-    running:    "var(--accent)",
-    done:       "var(--success)",
-    error:      "var(--error)",
+    connecting:   "var(--text-dim)",
+    running:      "var(--accent)",
+    reconnecting: "var(--warning)",
+    done:         "var(--success)",
+    error:        "var(--error)",
   };
   const statusLabel: Record<typeof status, string> = {
-    connecting: "connecting…",
-    running:    "● running",
-    done:       "✓ complete",
-    error:      "⚠ disconnected",
+    connecting:   "connecting…",
+    running:      "● running",
+    reconnecting: "◌ reconnecting (backend still running)",
+    done:         "✓ Complete",
+    error:        "⚠ session ended with error",
   };
 
   return (
@@ -567,6 +644,64 @@ function FixSessionLive({
         </button>
       </div>
 
+      {/* RA-1181 — Success banner on completion. Shown ABOVE the log so
+          the user gets an immediate clear signal + action path. */}
+      {status === "done" && (
+        <div
+          className="flex items-center justify-between px-4 py-3 shrink-0 gap-3"
+          style={{
+            background: "rgba(21, 128, 61, 0.08)",
+            borderBottom: "1px solid var(--success)",
+          }}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <span style={{ fontSize: 20, lineHeight: 1 }} aria-hidden="true">✅</span>
+            <div className="min-w-0">
+              <div
+                className="text-[12px] font-semibold font-mono"
+                style={{ color: "var(--success)" }}
+              >
+                Complete
+              </div>
+              <div
+                className="text-[10px] font-mono truncate"
+                style={{ color: "var(--text-muted)" }}
+              >
+                {pollState?.evaluator_score != null && (
+                  <>score {pollState.evaluator_score.toFixed(1)}/10 · </>
+                )}
+                {pollState?.files_modified != null && pollState.files_modified > 0 && (
+                  <>{pollState.files_modified} file{pollState.files_modified > 1 ? "s" : ""} modified · </>
+                )}
+                branch <span style={{ color: "var(--text)" }}>pidev/auto-{sessionId.slice(0, 8)}</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {onFixNext && (
+              <button
+                onClick={onFixNext}
+                className="text-[11px] font-mono font-semibold px-3 py-1.5 rounded transition-opacity hover:opacity-90"
+                style={{ background: "var(--accent)", color: "#fff" }}
+              >
+                Fix next ↗
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="text-[11px] font-mono px-3 py-1.5 rounded"
+              style={{
+                background: "var(--panel-hover)",
+                color: "var(--text-muted)",
+                border: "1px solid var(--border)",
+              }}
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Live log */}
       <div
         ref={logRef}
@@ -584,7 +719,12 @@ function FixSessionLive({
             {(ev.text ?? "").toString()}
           </div>
         ))}
-        {err && (
+        {status === "reconnecting" && (
+          <div style={{ color: "var(--warning)" }} className="mt-2">
+            ◌ SSE stream closed — polling for session status. Build continues on server.
+          </div>
+        )}
+        {err && status === "error" && (
           <div style={{ color: "var(--error)" }} className="mt-2">
             ⚠ {err}
           </div>

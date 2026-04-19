@@ -402,6 +402,16 @@ def parse_event(line, session):
         if line.strip():
             em(session, "output", line)
         return
+    # RA-1169 — json.loads accepts ANY valid JSON value, not just objects.
+    # If the stream contains a bare JSON string (e.g. a line like
+    # `"Bash(npm audit)"` from a tool_result rendering a permission list),
+    # `evt` is a str and `evt.get(...)` crashes the entire generator phase
+    # with `'str' object has no attribute 'get'`. Treat any non-dict as
+    # raw output and move on.
+    if not isinstance(evt, dict):
+        if line.strip():
+            em(session, "output", line)
+        return
     t = evt.get("type","")
     if t == "system":
         m = evt.get("message","")
@@ -531,6 +541,62 @@ async def _phase_clone(session, resume_from: str) -> bool:
                 session.repo_url, session.workspace, timeout=60,
             )
             if rc == 0:
+                # RA-1173 — verify the cloned repo's origin matches session.repo_url.
+                # When WORKSPACE_ROOT sits inside a parent git repo, the commands
+                # further down the pipeline (commit, push) were using the PARENT
+                # repo's .git instead of the cloned child's, silently pushing to
+                # the wrong remote. Catch that mismatch loudly here.
+                _, origin_ru, _ = await run_cmd(
+                    session.workspace, "git", "remote", "get-url", "origin", timeout=5,
+                )
+                origin_ru = origin_ru.strip()
+                # Strip x-access-token auth if any, then compare host+path
+                def _canon(u: str) -> str:
+                    u = u.replace("https://x-access-token:", "https://").rstrip("/")
+                    if "@github.com/" in u:
+                        u = "https://github.com/" + u.split("@github.com/", 1)[1]
+                    return u.removesuffix(".git")
+                if _canon(origin_ru) != _canon(session.repo_url):
+                    em(session, "error",
+                       f"  Clone contamination: workspace origin={origin_ru} but expected {session.repo_url}. "
+                       "Aborting — fix TAO_WORKSPACE to a path outside any parent git repo.")
+                    session.status = "failed"
+                    persistence.save_session(session)
+                    _emit_phase_metric(session, "clone", phase_start)
+                    return False
+                # Plant a stub CLAUDE.md so Claude Code doesn't walk upward
+                # into an ancestor repo's CLAUDE.md when the cloned repo has
+                # no CLAUDE.md at the root.
+                stub_md = os.path.join(session.workspace, "CLAUDE.md")
+                if not os.path.exists(stub_md):
+                    try:
+                        with open(stub_md, "w", encoding="utf-8") as _fh:
+                            _fh.write(
+                                "# Scoped Pi-CEO workspace\n\n"
+                                "This is an isolated autonomous workspace. Only read and edit files\n"
+                                "inside this directory. Do not walk upward into parent directories.\n"
+                            )
+                    except OSError:
+                        pass
+                # RA-1374 — append `.pi-ceo/` to the cloned repo's .gitignore
+                # so task-memory files (PLAN.md, IMPLEMENT.md, PROMPT.md,
+                # STATUS.md) don't get committed when the generator stages
+                # changes. Observed on DR-NRPG PR #96 and others. Idempotent:
+                # we only add the line if not already present.
+                try:
+                    gi_path = os.path.join(session.workspace, ".gitignore")
+                    gi_existing = ""
+                    if os.path.exists(gi_path):
+                        with open(gi_path, "r", encoding="utf-8") as _fh:
+                            gi_existing = _fh.read()
+                    if ".pi-ceo/" not in gi_existing.splitlines():
+                        with open(gi_path, "a", encoding="utf-8") as _fh:
+                            if gi_existing and not gi_existing.endswith("\n"):
+                                _fh.write("\n")
+                            _fh.write("# Pi-CEO task-memory (auto-added by Pi-CEO session bootstrap, RA-1374)\n")
+                            _fh.write(".pi-ceo/\n")
+                except OSError:
+                    pass
                 em(session, "success", "  Clone complete")
                 session.last_completed_phase = "clone"
                 persistence.save_session(session)
@@ -653,8 +719,30 @@ async def _phase_plan(session, spec: str, resume_from: str) -> None:
         em(session, "system", "  [SKIP] Plan (already completed)")
         return
 
-    em(session, "phase", "[3.7/5] Planning implementation (haiku)...")
-    haiku_model = getattr(config, "HAIKU_MODEL", "haiku")
+    # RA-1178 — always use Sonnet for the plan phase regardless of tier.
+    #
+    # RA-1175 originally tried to use Haiku for basic briefs to save cost,
+    # but (a) on Claude Max we pay $0.0000 per call so there's no cost
+    # pressure, and (b) "Fix with Claude" buttons and many webhook-fired
+    # sessions arrive with no complexity_tier set, silently degrading them
+    # to Haiku which then emits 5% confidence plans, prose questions, or
+    # times out at 45 s. Net: Haiku was the source of every bad plan we
+    # saw today. Sonnet is fast enough (30 s observed) and reliable.
+    #
+    # Budgets scaled by tier (generator budget still tier-aware in
+    # RA-1174). advanced/detailed get a longer plan window because their
+    # briefs legitimately require more thinking.
+    _tier = (getattr(session, "complexity_tier", "") or "").lower()
+    plan_model = getattr(config, "SONNET_MODEL", "sonnet")
+    _model_label = "sonnet"
+    if _tier in ("detailed", "advanced"):
+        _plan_sdk_timeout = 120
+        _plan_wait_timeout = 130
+    else:
+        _plan_sdk_timeout = 60
+        _plan_wait_timeout = 70
+    em(session, "phase", f"[3.7/5] Planning implementation ({_model_label})...")
+    haiku_model = plan_model  # legacy variable name; kept for diff minimality
 
     repo_context_snippet = ""
     if session.workspace and os.path.isdir(session.workspace):
@@ -667,11 +755,16 @@ async def _phase_plan(session, spec: str, resume_from: str) -> None:
         except Exception:
             pass
 
+    # RA-1177 — prompt hardening. Sonnet (smarter than Haiku) was responding
+    # with prose clarification questions when the brief seemed ambiguous,
+    # producing empty JSON that broke the plan phase. Hardened rules below
+    # force assumption-based output regardless of brief quality.
     planning_prompt = (
-        "You are a planning agent. Convert this brief into a structured implementation plan.\n\n"
+        "You are a planning agent. Your ONLY output is a JSON object — no prose, "
+        "no questions, no markdown, no explanation.\n\n"
         f"Brief:\n{spec[:3000]}\n\n"
         f"Repo context: {repo_context_snippet or 'not available'}\n\n"
-        "Output a JSON object (no markdown fences):\n"
+        "Output this JSON shape EXACTLY (no markdown fences):\n"
         "{\n"
         '  "units": [\n'
         "    {\n"
@@ -686,21 +779,25 @@ async def _phase_plan(session, spec: str, resume_from: str) -> None:
         '  "risk_notes": "..."\n'
         "}\n\n"
         "Rules:\n"
-        "- 3-8 units maximum\n"
-        "- Be specific about file paths\n"
-        "- For non-behavioral units (config, scaffolding) set is_behavioral: false "
-        "and omit test_scenarios\n"
-        "- confidence is 0.0-1.0 (your certainty this plan fully covers the brief)\n"
-        "- Respond with JSON only — no explanation, no markdown fences"
+        "- 3-8 units maximum.\n"
+        "- Be specific about file paths based on the repo context.\n"
+        "- For non-behavioral units (config, scaffolding, docs) set "
+        "is_behavioral: false and omit test_scenarios.\n"
+        "- confidence is 0.0-1.0 (your certainty this plan fully covers the brief).\n"
+        "- If the brief is ambiguous, STILL produce a plan — make reasonable "
+        "assumptions, record them in risk_notes, and lower confidence. DO NOT "
+        "ask for clarification. DO NOT output any text outside the JSON object.\n"
+        "- Your very first character MUST be `{` and your very last character "
+        "MUST be `}`. Anything else is a hard failure."
     )
 
     try:
         rc, plan_text, _ = await asyncio.wait_for(
             _run_claude_via_sdk(
                 planning_prompt, haiku_model, session.workspace,
-                timeout=45, session_id=session.id, phase="planner",
+                timeout=_plan_sdk_timeout, session_id=session.id, phase="planner",
             ),
-            timeout=50,
+            timeout=_plan_wait_timeout,
         )
     except asyncio.TimeoutError:
         _log.warning("RA-1026: _phase_plan timed out (non-fatal) — continuing without plan")
@@ -832,8 +929,15 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
         try:
             em(session, "tool", f"  $ claude --model {model} (via SDK)")
             em(session, "system", "")
+            # RA-1174 — tier-aware generator timeout. The default 300 s was
+            # tripping on advanced-tier briefs (full feature overhauls) that
+            # legitimately need 5-15 min of Claude thinking + file writing.
+            # Basic stays at 300 s; detailed gets 600 s; advanced gets 900 s.
+            _tier = (getattr(session, "complexity_tier", "") or "").lower()
+            _gen_timeout = 900 if _tier == "advanced" else (600 if _tier == "detailed" else 300)
             rc, sdk_output, cost = await _run_claude_via_sdk(
                 current_spec, model, session.workspace,
+                timeout=_gen_timeout,
                 session_id=session.id, phase="generator",
             )
             _generate_cost += float(cost or 0.0)
@@ -855,7 +959,19 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
             if attempt == 0:
                 em(session, "system", "  Retrying with simplified prompt...")
         except Exception as e:
-            em(session, "error", f"  Error: {e} (attempt {attempt + 1}/2)")
+            # RA-1169 — capture the traceback so post-mortem debugging can
+            # pinpoint the exact SDK call-site that raised. Without this the
+            # log just shows `'str' object has no attribute 'get'` with no
+            # way to tell whether it came from parse_event, _run_claude_via_sdk,
+            # or the SDK itself.
+            import traceback  # noqa: PLC0415
+            _tb = traceback.format_exc()
+            em(session, "error", f"  Error: {type(e).__name__}: {e} (attempt {attempt + 1}/2)")
+            # Emit last few traceback frames so we can see where it came from.
+            for ln in _tb.strip().split("\n")[-8:]:
+                if ln.strip():
+                    em(session, "output", f"    {ln[:200]}")
+            _log.exception("Generator attempt %d/2 raised", attempt + 1)
             if attempt > 0:
                 break
     em(session, "error", "  Generator failed after 2 attempts")
@@ -1092,6 +1208,84 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
     return total_phases
 
 
+def _route_linear_ticket_to_target_project(
+    session, owner_repo: str, pr_url: str, pr_number: int | None, pr_title: str,
+) -> None:
+    """RA-1184 — create a Linear ticket in the TARGET repo's project.
+
+    Reads .harness/projects.json for repo → (linear_team_id, linear_project_id)
+    mapping. Creates a ticket titled with the PR name, description linking to
+    the PR + session ID + evaluator score. Ticket lands in the correct project
+    board (e.g. Disaster-Recovery's Linear project, not Pi-Dev-Ops's) so teams
+    see autonomous fixes on their own kanban.
+
+    No-ops if LINEAR_API_KEY is missing, projects.json has no entry, or the
+    ticket creation fails for any reason (triage continues).
+    """
+    from pathlib import Path  # noqa: PLC0415
+    import json as _json  # noqa: PLC0415
+    from .triage import LinearClient  # noqa: PLC0415
+
+    api_key = os.environ.get("LINEAR_API_KEY", "")
+    if not api_key:
+        em(session, "system", "  Linear ticket skipped: LINEAR_API_KEY not set")
+        return
+
+    # Load projects.json; look up by repo name (case-insensitive)
+    projects_path = Path(__file__).parent.parent.parent / ".harness" / "projects.json"
+    if not projects_path.exists():
+        em(session, "system", "  Linear ticket skipped: projects.json not found")
+        return
+    with open(projects_path) as _fh:
+        data = _json.load(_fh)
+    projects = data.get("projects", [])
+    # owner_repo is "owner/repo"; take the last path segment
+    repo_name = owner_repo.split("/")[-1].lower()
+    match = None
+    for p in projects:
+        if p.get("repo", "").split("/")[-1].lower() == repo_name:
+            match = p
+            break
+    if not match:
+        em(session, "system", f"  Linear ticket skipped: no projects.json entry for {repo_name}")
+        return
+
+    team_id = match.get("linear_team_id")
+    proj_id = match.get("linear_project_id")
+    if not team_id:
+        em(session, "system", f"  Linear ticket skipped: no team_id for {repo_name}")
+        return
+
+    client = LinearClient(api_key)
+    score = getattr(session, "evaluator_score", None)
+    confidence = getattr(session, "evaluator_confidence", None)
+    description = (
+        f"**Autonomous Pi-CEO session:** `{session.id}`\n\n"
+        f"**PR:** {pr_url}\n\n"
+        + (f"**Evaluator score:** {score}/10 @ {confidence}% confidence\n\n" if score else "")
+        + "This ticket was auto-created by Pi-CEO's autonomous fix pipeline. "
+        "Review the linked PR; close this ticket when the PR is merged.\n\n"
+        "🤖 Pi-CEO"
+    )
+    try:
+        issue = client.create_issue(
+            team_id=team_id,
+            title=f"[Pi-CEO] {pr_title[:200]}",
+            description=description,
+            priority=3,
+            project_id=proj_id,
+        )
+        _id = issue.get("identifier", "?")
+        _url = issue.get("url", "")
+        em(session, "success", f"  🎫 Linear ticket created: {_id} → {_url}")
+        try:
+            session.linear_issue_id = issue.get("id")  # type: ignore[attr-defined]
+        except Exception:
+            pass
+    except Exception as exc:
+        raise RuntimeError(f"Linear issueCreate failed: {exc}") from exc
+
+
 async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
     """Commit uncommitted changes, push to GitHub on a feature branch. Returns (all-files, push_ok)."""
     phase_start = time.monotonic()
@@ -1142,6 +1336,84 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
                     await asyncio.sleep(backoff)
             if not push_ok:
                 em(session, "error", "  Push failed — changes committed locally, push manually")
+
+            # RA-1183 — auto-open a PR from pidev/auto-<sid> → main.
+            # Only when push succeeded AND the branch has a real diff vs main
+            # (avoids empty PRs from sessions that correctly decided nothing
+            # needed fixing). Uses GitHub REST API with x-access-token auth
+            # from the embedded remote URL.
+            if push_ok and github_token:
+                try:
+                    # Check there's actually a diff to PR
+                    rc_diff, diff_out, _ = await run_cmd(
+                        session.workspace, "git", "diff", "--name-only", "origin/main", branch_name, timeout=10,
+                    )
+                    if rc_diff == 0 and diff_out.strip():
+                        # Derive owner/repo from remote URL
+                        _, ru, _ = await run_cmd(session.workspace, "git", "remote", "get-url", "origin", timeout=5)
+                        ru = ru.strip().rstrip("/")
+                        # Strip token auth + .git suffix
+                        ru = ru.replace(f"https://x-access-token:{github_token}@", "https://")
+                        if ru.endswith(".git"):
+                            ru = ru[:-4]
+                        owner_repo = ru.replace("https://github.com/", "")
+                        # Latest commit message for PR title
+                        _, last_msg, _ = await run_cmd(
+                            session.workspace, "git", "log", "-1", "--pretty=%s", branch_name, timeout=5,
+                        )
+                        pr_title = last_msg.strip() or f"feat: Pi CEO autonomous fix ({session.id[:8]})"
+                        pr_body = (
+                            f"Autonomous Pi-CEO session `{session.id}`.\n\n"
+                            f"Evaluator score: {getattr(session, 'evaluator_score', 'n/a')}/10 "
+                            f"@ {getattr(session, 'evaluator_confidence', 'n/a')}% confidence.\n\n"
+                            f"🤖 Generated by Pi-CEO"
+                        )
+                        import urllib.request as _ur  # noqa: PLC0415
+                        import json as _json  # noqa: PLC0415
+                        req = _ur.Request(
+                            f"https://api.github.com/repos/{owner_repo}/pulls",
+                            data=_json.dumps({
+                                "title": pr_title,
+                                "body": pr_body,
+                                "head": branch_name,
+                                "base": "main",
+                            }).encode(),
+                            headers={
+                                "Authorization": f"Bearer {github_token}",
+                                "Accept": "application/vnd.github+json",
+                                "Content-Type": "application/json",
+                            },
+                            method="POST",
+                        )
+                        try:
+                            with _ur.urlopen(req, timeout=15) as resp:
+                                pr_data = _json.loads(resp.read())
+                                pr_url = pr_data.get("html_url", "")
+                                pr_number = pr_data.get("number")
+                                em(session, "success", f"  ✨ PR opened: #{pr_number} → {pr_url}")
+                                # Persist PR URL on session for the dashboard
+                                try:
+                                    session.pr_url = pr_url  # type: ignore[attr-defined]
+                                except Exception:
+                                    pass
+                                # RA-1184 — route Linear ticket to the TARGET
+                                # repo's Linear project (not Pi-Dev-Ops). Reads
+                                # projects.json for team_id + linear_project_id.
+                                # Only creates a ticket when we don't already
+                                # have one (linear_issue_id unset).
+                                if not getattr(session, "linear_issue_id", None):
+                                    try:
+                                        _route_linear_ticket_to_target_project(
+                                            session, owner_repo, pr_url, pr_number, pr_title,
+                                        )
+                                    except Exception as _lin_exc:
+                                        em(session, "system", f"  Linear auto-ticket skipped: {_lin_exc}")
+                        except Exception as _pr_exc:
+                            em(session, "system", f"  PR auto-open skipped: {_pr_exc}")
+                    else:
+                        em(session, "system", "  No diff vs main — skipping PR open")
+                except Exception as _pr_err:
+                    em(session, "system", f"  PR auto-open check failed: {_pr_err}")
         em(session, "system", "")
         em(session, "phase", "  Project structure:")
         for r, dirs, fns in os.walk(session.workspace):
@@ -1194,6 +1466,15 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     # RA-681 — resolve brief complexity tier (explicit override or auto-detect)
     from .brief import classify_brief_complexity  # noqa: PLC0415
     resolved_tier = session.complexity_tier or classify_brief_complexity(brief)
+    # RA-1294 — persist the resolved tier on the session so the generator phase
+    # (line ~918) can scale its timeout by tier. Without this write-back the
+    # generator reads session.complexity_tier, finds it still empty (the
+    # autonomy poller's create_session call doesn't pass a tier), and defaults
+    # to the 300 s basic timeout — every advanced/detailed autonomy-triggered
+    # session died at 305 s in the generate phase. Verified by 60+ failed
+    # sessions with last_phase=plan, SDK rc=1 @ exactly 305 s × 2 attempts
+    # (2026-04-18).
+    session.complexity_tier = resolved_tier
     em(session, "system", f"  Brief tier: {resolved_tier.upper()}")
 
     # RA-931 — inject verified past episodes as context before spec construction

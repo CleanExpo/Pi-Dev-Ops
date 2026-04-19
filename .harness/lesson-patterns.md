@@ -149,18 +149,54 @@ This document replaces the 8 per-category "Self-Improvement — Review X lessons
 2. **`claude -p` requires the CLI on PATH.** Cloud (Railway) has no Claude Code CLI → use `ANTHROPIC_API_KEY` + SDK. Gate with `ANALYSIS_MODE` env var.
 3. **MCP SDK needs subpath imports.** Use `@modelcontextprotocol/sdk/server/mcp.js` and `.../server/stdio.js`. The top-level `@modelcontextprotocol/sdk` does not export `McpServer`.
 4. **Use the public `ClaudeSDKClient.receive_response()` loop.** Never call `client._query.receive_messages()` — that private API (currently in `telegram-bot/src/claude/sdk_integration.py:405`) will break on the next SDK upgrade.
+5. **Claude-in-Chrome binding is account-scoped, not device-scoped** (2026-04-17, ~2 h debug loss). The extension's cloud relay matches tab-create requests to whatever Anthropic account the extension was signed in with. Two non-obvious consequences:
+   - The **Claude Code CLI account** (`~/.claude/.credentials.json`) and the **Claude-in-Chrome extension account** (shown in the extension popup) MUST be the same Anthropic email. Otherwise the bind silently lands on whichever Chrome elsewhere happens to hold a grant for the CLI's account — typically the user's other Mac/PC.
+   - "Log out of all devices" on claude.ai kills **website** sessions only. Extension OAuth grants survive. Reinstalling the extension on the local machine does **not** invalidate grants on remote machines; those remain active and keep winning first-responder races.
+6. **Always screenshot-verify a Claude-in-Chrome bind** (`mcp__computer-use__screenshot` looking for a probe-marker URL in the on-screen Chrome tab strip). Tool calls returning success (`tabs_context_mcp` → tabId, `navigate` → OK) are NOT evidence the bind is on the correct machine — the MCP returns success whenever *any* Chrome on the relay responds. The `/bind-chrome` global slash command (`~/.claude/commands/bind-chrome.md`) encodes the full verify-retry-escalate loop, including the account-alignment precheck.
 
 ### Enforcement hooks
 - `app/server/triage.py` (mode switch)
 - `app/mcp/*.ts` (subpath imports)
 - `telegram-bot/src/claude/sdk_integration.py` (migrate off `_query`)
 - Agent Expert skill rules
+- `~/.claude/commands/bind-chrome.md` (deterministic device binding)
 
 ### Anti-patterns
 - Importing from `src/tao/` expecting real logic.
 - Shipping `claude -p` paths into a Railway Dockerfile.
 - Top-level `@modelcontextprotocol/sdk` import.
 - Depending on `_query.receive_messages()`.
+- Trusting a Claude-in-Chrome MCP tool result ("tab created / navigated") as proof of the destination machine — only a screenshot proves it.
+- Attempting to fix wrong-machine binds by retrying `tabs_context_mcp` under identical conditions — without killing the ghost grant, every retry loses the same race.
+
+---
+
+## Deployment (continued — RA-1159 pattern, 2026-04-17)
+
+### Rules
+9. **A Vercel project without `link: github` will not auto-deploy on main push — and nothing visible says so.** (2026-04-17.) `vercel --prod` from a linked `.vercel/` directory still works. The UI says "● Ready" on the last manual deploy. Meanwhile the production alias serves stale code for hours after merges land. Symptom surfaced as a runtime error (`Cannot read properties of undefined (reading 'armed')`) on `/control` — the live deploy pre-dated the defensive-guard PR that fixed it.
+10. **Check Git link state as part of deploy health**, not just deploy readiness:
+    ```bash
+    TOKEN=$(python3 -c "import json;print(json.load(open('/Users/phill-mac/Library/Application Support/com.vercel.cli/auth.json')).get('token',''))")
+    curl -s -H "Authorization: Bearer $TOKEN" \
+      "https://api.vercel.com/v9/projects/<projectId>?teamId=<teamId>" \
+      | python3 -c "import json,sys;d=json.load(sys.stdin);print('link:', d.get('link'));print('rootDirectory:', d.get('rootDirectory'))"
+    ```
+    `link: null` means broken auto-deploy. `rootDirectory: null` on a monorepo subapp means build-from-repo-root instead of the app directory.
+11. **Fix recipe:**
+    ```bash
+    vercel git connect https://github.com/<owner>/<repo> --yes
+    # then via API — CLI cannot set rootDirectory:
+    curl -s -X PATCH -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+      "https://api.vercel.com/v9/projects/<projectId>?teamId=<teamId>" \
+      -d '{"rootDirectory":"<subapp-directory>"}'
+    ```
+12. **Verify with a canary:** commit any no-op change to main and confirm a fresh production deploy appears within 60s via `vercel ls --prod`. "Ready" status on a recent manual deploy is NOT proof the webhook works.
+
+### Anti-patterns
+- Assuming Vercel auto-deploys because `vercel --prod` succeeded. They're independent paths.
+- Relying on "the deploy was Ready 5h ago" as evidence the pipeline is healthy — that's the snapshot of a stale build, not pipeline health.
+- Auditing only `vercel ls --prod` output. Age-of-latest-deploy relative to commit-landed times is the actual signal.
 
 ---
 
@@ -199,6 +235,28 @@ These did not meet the `min_count=2` threshold individually but are listed here 
 - **Testing.** Unit-test SDK wrappers by patching `claude_agent_sdk.ClaudeSDKClient` with `AsyncMock`, set `return_value.__aenter__.return_value.receive_response` to an async iterator of mock messages with `.content`. Never hit the real API.
 - **Permissions.** Long-running autonomous harnesses must pre-grant permissions at three layers: (1) `.claude/settings.json` `permissions.defaultMode=bypassPermissions` + allow list, (2) `ClaudeAgentOptions(permission_mode='bypassPermissions')` at every SDK call site, (3) `--dangerously-skip-permissions` on every subprocess `claude -p` via `CLAUDE_EXTRA_FLAGS`. Missing any layer = 3am cron stall.
 - **Scheduler.** Pi-SEO cron silent regression was caused by (1) `last_fired_at` resetting to git values on Railway redeploy and (2) debounce using `(time.time() - last) < 90` without `abs()`. Fix: `abs()` in debounce, startup catch-up within 10s of boot, 30-min watchdog creates Urgent Linear ticket on 12h scan gap.
+
+---
+
+## Deployment (continued — RA-1160 pattern, 2026-04-17)
+
+### Context
+CCW-CRM had `main` (pre-monorepo, no `apps/web/`) and `ai-updates` (monorepo trunk with `apps/web/`). Vercel was building from `main` preview + `ccw-crm-sandbox` production, both failing with "Root Directory does not exist." GitHub `default_branch` was already `ai-updates`.
+
+### Rules
+13. **Vercel `productionBranch` is NOT updatable via `PATCH /v9/projects/{id}` — the `link` field is rejected.** Use `DELETE /v9/projects/{id}/link` then `POST /v9/projects/{id}/link` with `{type, repo, org, repoId, productionBranch, gitCredentialId, sourceless}` to reconnect with the correct branch. `POST /link` alone (without DELETE first) also works if the project is already linked — it re-creates the link record.
+14. **GitHub branch renames propagate automatically: default branch, PR base refs, and Vercel webhook tracking all update after a rename.** Use `POST /repos/{owner}/{repo}/branches/{branch}/rename` with `{"new_name": "..."}`. PRs targeting the renamed branch are retargeted by GitHub automatically.
+15. **When `ai-updates` is the de facto trunk, the cleanest fix is Option B (rename), not Option C (cherry-pick).** Cherry-picking the monorepo scaffold onto stale `main` is a band-aid — it creates permanent divergence. Renaming is atomic: one `POST` for each branch rename + one API call to update Vercel = done in under 60 seconds.
+16. **Preserve stale branches as `{name}-legacy` before renaming.** `git branch -m main main-legacy` via GitHub API keeps old commit history reachable, gives the team a rollback anchor, and avoids force-push into any clone's remote-tracking refs.
+
+### Enforcement hooks
+- Pre-build check: `GET /v9/projects/{id}` → verify `link.productionBranch` matches GitHub `default_branch`
+- `app/server/vercel_monitor.py` can be extended to alert on branch mismatch
+
+### Anti-patterns
+- Assuming `PATCH /v9/projects/{id}` accepts a `link` object — it does not.
+- Cherry-picking monorepo scaffold onto stale `main` and accepting permanent divergence.
+- Leaving `ai-updates` as prod branch after the team has moved to a monorepo structure.
 
 ---
 

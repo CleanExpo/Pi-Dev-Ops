@@ -135,9 +135,9 @@ async def _run_claude_via_sdk(
         from claude_agent_sdk import (  # noqa: PLC0415
             AssistantMessage,
             ClaudeAgentOptions,
-            ClaudeSDKClient,
             ResultMessage,
             TextBlock,
+            query,
         )
         from claude_agent_sdk.types import (  # noqa: PLC0415
             ThinkingConfigAdaptive,
@@ -178,26 +178,55 @@ async def _run_claude_via_sdk(
             if config.ENABLE_PROMPT_CACHING_1H
             else []
         )
+        # RA-1171 — Switch from ClaudeSDKClient to top-level query() per
+        # Anthropic SDK issue #576 (https://github.com/anthropics/claude-agent-sdk-python/issues/576):
+        # ClaudeSDKClient silently hangs when reused across FastAPI/ASGI
+        # request tasks because the subprocess is spawned in task A's anyio
+        # scope but subsequent receive_messages() calls run in task B whose
+        # queue is owned by a dead task. We saw this as 8+ min of silence
+        # in Phase 4 generator, zero AssistantMessage events, no error.
+        #
+        # Top-level query() is stateless — each call spawns a fresh
+        # subprocess in the CURRENT task's scope and returns an async
+        # iterator that terminates on ResultMessage. It's the documented
+        # pattern for one-shot generation inside a request handler.
+        #
+        # RA-1169-adjacent — explicitly pop ANTHROPIC_API_KEY when empty.
+        # The `claude` CLI sets it to "" in some contexts; SDK treats ""
+        # as "use API key mode, key is empty" rather than falling back to
+        # OAuth. Ensure it's genuinely absent so the SDK picks up the
+        # `claude setup-token` credentials from ~/.claude/.
+        if os.environ.get("ANTHROPIC_API_KEY") == "":
+            os.environ.pop("ANTHROPIC_API_KEY", None)
+
+        # RA-1172 — permission_mode='bypassPermissions' is MANDATORY for
+        # autonomous sessions. Without it Claude hits tool-permission
+        # prompts and emits text like "Let me know once permission is
+        # granted and I'll handle the rest." — which looks to the evaluator
+        # like an empty diff, causing Phase 5 to score 1/10 and retry
+        # forever. CLAUDE.md documents this as the 3rd of 3 required
+        # layers (settings.json + ClaudeAgentOptions + CLI flag).
         options = ClaudeAgentOptions(
             cwd=workspace,
             model=model,
             thinking=_thinking_cfg,
             betas=_sdk_betas,  # type: ignore[arg-type]
+            permission_mode="bypassPermissions",
         )
-        client = ClaudeSDKClient(options)
         text_parts: list[str] = []
-        try:
-            await client.connect()
-            await client.query(prompt)
-            async for msg in client.receive_messages():
+
+        # RA-1170 — enforce timeout on the async iterator. query() has no
+        # built-in stream timeout (tracked upstream as SDK #666).
+        async def _run_stream() -> None:
+            async for msg in query(prompt=prompt, options=options):
                 if isinstance(msg, AssistantMessage):
                     for block in msg.content:
                         if isinstance(block, TextBlock):
                             text_parts.append(block.text)
                 elif isinstance(msg, ResultMessage):
                     break
-        finally:
-            await client.disconnect()
+
+        await asyncio.wait_for(_run_stream(), timeout=timeout)
         output_text = "\n".join(text_parts)
         _write_sdk_metric(
             session_id=session_id, phase=phase, model=model,

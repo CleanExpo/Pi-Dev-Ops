@@ -182,8 +182,42 @@ def run_horizontal(session: Session, password: str, surfaces: list[dict]) -> Tes
     login_ok = session.login(password)
     run.check("cookie issued by login", login_ok, "POST /api/auth/login")
 
+    # RA-1165 warmup: first auth-required request pays two cold starts stacked
+    # (Vercel Next.js function + Railway /api/login called by the proxy on
+    # cache miss). That blew the 15 s read deadline on scheduled runs.
+    # One throw-away GET pre-warms both + populates the proxy's module-level
+    # cookie cache so the timed probes below don't eat the cold-start tax.
+    try:
+        session.request("GET", "/api/pi-ceo/health", timeout=45.0)
+    except Exception:  # noqa: BLE001 — warmup is best-effort; real probe below will fail loudly if needed
+        pass
+
     for s in auth_surfaces:
-        probe(s)
+        # Auth probes still cold-start-sensitive on Railway wake-ups; give
+        # them 30 s read deadline (was 15 s).
+        t0 = time.perf_counter()
+        status, resp_body = session.request(
+            s.get("method", "GET").upper(),
+            s["path"],
+            body=s.get("body"),
+            timeout=30.0,
+        )
+        dt_ms = int((time.perf_counter() - t0) * 1000)
+        expected = s.get("expected_status", 200)
+        ok = status == expected
+        run.check(
+            f"[{s.get('name','unnamed')}] {s.get('method','GET')} {s['path'][:60]} → {status}",
+            ok, f"expected {expected}, got {status}", dt_ms,
+        )
+        if ok:
+            needs = s.get("body_contains") or []
+            missing = [n for n in needs if n not in resp_body]
+            if needs:
+                run.check(
+                    f"[{s.get('name','unnamed')}] body contains expected strings",
+                    not missing,
+                    f"missing: {missing}" if missing else "",
+                )
 
     return run
 
