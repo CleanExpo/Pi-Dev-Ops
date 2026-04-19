@@ -1,0 +1,247 @@
+{
+  "name": "RA-826 — Google Workspace Update Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 */6 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-rss",
+      "name": "Schedule — every 6 hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "notes": "Fires every 6 hours. Adjust cron or pause workflow if polling should stop."
+    },
+    {
+      "parameters": {
+        "url": "https://workspaceupdates.googleblog.com/feeds/posts/default?max-results=20",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "fetch-rss",
+      "name": "Fetch RSS Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─── RA-826: Parse + filter Google Workspace Updates Atom feed ──────────────\n// Blogger publishes Atom 1.0 — entries have <entry> blocks, not <item>.\n\nconst rssXml = $input.first().json.data || '';\n\nconst KEYWORDS = [\n  'gemini', 'mcp', 'model context protocol', 'agent', 'notebooklm',\n  'scheduled actions', 'scheduled action', 'automation', 'ai features',\n  'workspace ai', 'ai assistant', 'vertex ai', 'duet ai'\n];\n\nfunction extractTag(block, tag) {\n  // Prefer CDATA content, then plain text, then strip HTML tags\n  const cdata = block.match(new RegExp(`<${tag}[^>]*><!\\\\[CDATA\\\\[([\\\\s\\\\S]*?)\\\\]\\\\]><\\/${tag}>`));\n  if (cdata) return cdata[1].trim();\n  const plain = block.match(new RegExp(`<${tag}[^>]*>([\\\\s\\\\S]*?)<\\/${tag}>`));\n  if (!plain) return '';\n  return plain[1]\n    .replace(/<!\\/CDATA[^>]*>/g, '')\n    .replace(/<[^>]+>/g, ' ')\n    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')\n    .replace(/&nbsp;/g, ' ').replace(/\\s+/g, ' ')\n    .trim();\n}\n\nfunction extractAlternateLink(block) {\n  // <link rel='alternate' type='text/html' href='https://...'/>\n  const m = block.match(/<link[^>]+rel=['\"]alternate['\"][^>]+href=['\"]([^'\"]+)['\"]/);\n  if (m) return m[1];\n  // fallback: any link with http\n  const m2 = block.match(/<link[^>]+href=['\"]([^'\"]+http[^'\"]+)['\"]/);\n  return m2 ? m2[1] : '';\n}\n\nfunction extractCategories(block) {\n  const matches = [...block.matchAll(/term=['\"]([^'\"]+)['\"](?:[^/]|$)/g)];\n  return matches\n    .map(m => m[1])\n    .filter(t => !t.startsWith('http') && t.length < 80);\n}\n\n// Parse Atom <entry> blocks\nconst entryRegex = /<entry>([\\s\\S]*?)<\\/entry>/g;\nconst filtered = [];\nlet m;\n\nwhile ((m = entryRegex.exec(rssXml)) !== null) {\n  const block = m[1];\n\n  const title      = extractTag(block, 'title');\n  const summary    = (extractTag(block, 'summary') || extractTag(block, 'content')).slice(0, 600);\n  const published  = extractTag(block, 'published') || extractTag(block, 'updated') || '';\n  const guid       = extractTag(block, 'id') || '';\n  const link       = extractAlternateLink(block);\n  const categories = extractCategories(block);\n\n  // Keyword match across title + summary + categories\n  const searchText = (title + ' ' + summary + ' ' + categories.join(' ')).toLowerCase();\n  const matched    = KEYWORDS.filter(kw => searchText.includes(kw));\n\n  if (matched.length === 0) continue;\n\n  filtered.push({ title, link, pub_date: published, summary, keywords_matched: matched, categories, guid });\n}\n\nif (filtered.length === 0) {\n  console.log('RA-826: no keyword-matching entries found in this poll cycle');\n  return [{ json: { matched: false, count: 0, items: [] } }];\n}\n\n// Format combined doc entry for Google Docs append\nconst batchDate = new Date().toISOString().split('T')[0];\nconst docLines = [`\\n\\n## ${batchDate} — ${filtered.length} update(s) from workspaceupdates.googleblog.com\\n`];\nfor (const item of filtered) {\n  docLines.push(`### ${item.title}`);\n  docLines.push(`📅 ${item.pub_date}`);\n  docLines.push(`🔗 ${item.link}`);\n  docLines.push(`🏷️  Keywords matched: ${item.keywords_matched.join(', ')}`);\n  if (item.categories.length) docLines.push(`📂 Categories: ${item.categories.join(', ')}`);\n  docLines.push(`\\n${item.summary}\\n`);\n  docLines.push('---');\n}\n\nconsole.log(`RA-826: ${filtered.length} keyword-matching entries found`);\n\nreturn [{\n  json: {\n    matched:  true,\n    count:    filtered.length,\n    items:    filtered,\n    docEntry: docLines.join('\\n'),\n    batch_date: batchDate,\n    source:   'n8n:workspace-rss-monitor',\n  }\n}];"
+      },
+      "id": "filter-keywords",
+      "name": "Filter Keywords",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.matched }}",
+              "value2": true
+            }
+          ]
+        },
+        "combineOperation": "all"
+      },
+      "id": "check-matched",
+      "name": "Has Matching Items?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [960, 300],
+      "notes": "Only proceeds if at least one entry matched the keyword filter."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.WORKSPACE_INTEL_DOC_ID }}",
+          "mode": "id"
+        },
+        "content": "={{ $json.docEntry }}"
+      },
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "CONFIGURE_IN_N8N",
+          "name": "Google Docs (Pi-CEO)"
+        }
+      },
+      "id": "append-google-doc",
+      "name": "Append to Google Doc",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [1200, 200],
+      "notes": "Appends filtered updates to the Pi-CEO Workspace Intel Google Doc. Requires Google Docs OAuth credentials configured in n8n. Set WORKSPACE_INTEL_DOC_ID env var to the Google Doc ID from its URL."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.PI_CEO_RAILWAY_URL }}/api/webhook/workspace-intel-refresh",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Pi-CEO-Secret",
+              "value": "={{ $env.PI_CEO_WEBHOOK_SECRET }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ items: $json.items, batch_date: $json.batch_date, count: $json.count, source: $json.source }) }}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "notify-piceo",
+      "name": "Notify Pi-CEO Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $input.first().json;\nif (!res.ok) {\n  throw new Error(`Pi-CEO workspace-intel POST failed: ${JSON.stringify(res)}`);\n}\nconsole.log(`✅ RA-826: workspace intel stored | batch_date=${res.batch_date} | stored=${res.stored} | count=${res.count}`);\n\n// ⚠️ NotebookLM has no public API — manual refresh required.\n// After this runs, open the Pi-CEO Intel notebook in NotebookLM and click\n// \"Sync\" on the Pi-CEO Workspace Intel Google Doc source to reflect new content.\nconsole.log('📓 NotebookLM manual action required: refresh Pi-CEO Workspace Intel notebook source');\n\nreturn [{ json: { success: true, ...res } }];"
+      },
+      "id": "log-result",
+      "name": "Log Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, 200]
+    }
+  ],
+  "connections": {
+    "Schedule — every 6 hours": {
+      "main": [
+        [
+          {
+            "node": "Fetch RSS Feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch RSS Feed": {
+      "main": [
+        [
+          {
+            "node": "Filter Keywords",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Keywords": {
+      "main": [
+        [
+          {
+            "node": "Has Matching Items?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Matching Items?": {
+      "main": [
+        [
+          {
+            "node": "Append to Google Doc",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Append to Google Doc": {
+      "main": [
+        [
+          {
+            "node": "Notify Pi-CEO Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Pi-CEO Webhook": {
+      "main": [
+        [
+          {
+            "node": "Log Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "meta": {
+    "description": "RA-826 — Polls Google Workspace Updates RSS/Atom feed every 6 hours. Filters entries by keywords (Gemini, MCP, agent, NotebookLM, scheduled actions, automation). Appends matched entries to the Pi-CEO Workspace Intel Google Doc and notifies the Pi-CEO Railway backend.",
+    "version": "1.0.0",
+    "linked_issue": "RA-826"
+  },
+  "_setup": {
+    "environment_variables_required": [
+      "PI_CEO_RAILWAY_URL — e.g. https://pi-ceo-production.up.railway.app",
+      "PI_CEO_WEBHOOK_SECRET — value of TAO_WEBHOOK_SECRET from Railway env vars",
+      "WORKSPACE_INTEL_DOC_ID — Google Doc ID from the URL of the 'Pi-CEO Workspace Intel' doc"
+    ],
+    "n8n_credentials_required": [
+      "Google Docs OAuth2 — set up in n8n Settings > Credentials > Google Docs account. Name it 'Google Docs (Pi-CEO)'. Update the credential ID in the 'Append to Google Doc' node after creation."
+    ],
+    "google_doc_setup": [
+      "1. Create a Google Doc named 'Pi-CEO Workspace Intel'",
+      "2. Add initial heading: '# Pi-CEO Workspace Intel'",
+      "3. Share with the Google account used in n8n OAuth",
+      "4. Copy the Doc ID from the URL (the long alphanumeric string after /d/) and set as WORKSPACE_INTEL_DOC_ID"
+    ],
+    "notebooklm_setup": [
+      "1. Open the Pi-CEO Intel notebook in NotebookLM",
+      "2. Add the 'Pi-CEO Workspace Intel' Google Doc as a source",
+      "3. After each workflow run, manually click Sync on the source to refresh NotebookLM content",
+      "NOTE: NotebookLM has no public API for programmatic refresh — this step remains manual"
+    ],
+    "import_instructions": "In n8n: Workflows → Import from file → select this JSON. Set the three env vars in n8n Settings → Environment Variables. Configure Google Docs credentials before activating."
+  },
+  "id": "b4e91c2d-8f5a-4b3e-a6c7-9d2e1f0a3b4c",
+  "active": false,
+  "versionId": "ra826-workspace-rss-monitor-v1",
+  "updatedAt": "2026-04-18T00:00:00.000Z",
+  "createdAt": "2026-04-18T00:00:00.000Z"
+}

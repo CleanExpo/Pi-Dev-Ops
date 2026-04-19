@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "last_updated": "2026-04-15",
+  "last_updated": "2026-04-18",
   "notebooks": [
     {
       "id": "e2d607ca-38cd-41c5-a172-01a72ce681e3",
@@ -61,6 +61,32 @@
       "status": "pending_creation",
       "acceptance_criteria": "Post-conference intelligence query returns structured delta report for RA-830",
       "linked_issue": "RA-828"
+    },
+    {
+      "id": "TBD",
+      "entity": "WorkspaceIntel",
+      "name": "Pi-CEO Workspace Intel — Ongoing",
+      "purpose": "Ongoing Google Workspace update monitoring — tracks feature announcements matching keywords: Gemini, MCP, agent, NotebookLM, scheduled actions, automation",
+      "sources": [
+        "Pi-CEO Workspace Intel Google Doc (auto-updated by RA-826 n8n workflow every 6 hours)",
+        "Google Workspace Updates blog (workspaceupdates.googleblog.com)"
+      ],
+      "status": "pending_creation",
+      "created_at": "2026-04-18",
+      "acceptance_criteria": "RSS workflow active, at least 1 filtered entry appended to Google Doc, weekly brief delivered via Telegram",
+      "linked_issue": "RA-826",
+      "automation": {
+        "rss_feed": "https://workspaceupdates.googleblog.com/feeds/posts/default",
+        "poll_interval": "every 6 hours",
+        "n8n_workflows": [
+          "RA-826-workspace-rss-monitor — RSS poll + Google Doc append + Pi-CEO webhook",
+          "RA-826-workspace-weekly-brief — Sunday 09:00 UTC Qwen brief + Telegram post"
+        ],
+        "google_doc_id": "CONFIGURE: Create a Google Doc named 'Pi-CEO Workspace Intel', share with n8n OAuth account, paste Doc ID here",
+        "notebooklm_refresh": "MANUAL: After doc is updated by n8n, open NotebookLM and click Sync on the source document. NotebookLM has no public API for programmatic refresh.",
+        "backend_endpoint": "POST /api/webhook/workspace-intel-refresh — receives n8n payload, stores to .harness/workspace-intel/YYYY-MM-DD.jsonl",
+        "brief_script": "scripts/workspace_intel_brief.py — standalone fallback for brief generation"
+      }
     }
   ],
   "standard_queries": [
