@@ -35,5 +35,6 @@
 - [ ] New endpoint? → existing frontend surface wired to it in the SAME PR
 - [ ] New table? → `supabase/migration.sql` updated + CLAUDE.md observability table updated in SAME PR (per RA-1105)
 - [ ] Model usage? → respects RA-1099 policy (Opus only for planner/orchestrator)
+- [ ] Interactive surface added/changed? → `.github/smoke-surfaces.json` updated in this PR (RA-1154 gate will block merge if not)
 
 <!-- Only skip the above if the change is pure docs / refactor / config. Note why here. -->

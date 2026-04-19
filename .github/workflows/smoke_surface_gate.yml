@@ -41,7 +41,7 @@ jobs:
             | grep -E "^(dashboard/components/|dashboard/app/api/|app/server/routes/)" || true)
 
           MAP_UPDATED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" \
-            | grep -x ".github/smoke-surfaces.json" || true)
+            | grep -Fx ".github/smoke-surfaces.json" || true)
 
           if [ -n "$CHANGED_INTERACTIVE" ] && [ -z "$MAP_UPDATED" ]; then
             echo ""
