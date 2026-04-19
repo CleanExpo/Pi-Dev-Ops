@@ -15,7 +15,9 @@
     {"name": "proxy-findings",   "path": "/api/pi-ceo/api/projects/pi-dev-ops/findings?limit=1", "method": "GET", "auth": true, "expected_status": 200},
     {"name": "proxy-sessions",   "path": "/api/pi-ceo/api/sessions",                        "method": "GET",  "auth": true,  "expected_status": 200, "_comment": "Backs ActiveBuildStrip poll (RA-1181)."},
     {"name": "integrations-health", "path": "/api/pi-ceo/api/integrations/health",          "method": "GET",  "auth": true, "expected_status": 200, "body_contains": ["checks"], "_comment": "RA-1293 integration health — public, no secrets."},
-    {"name": "mission-control",     "path": "/api/pi-ceo/api/mission-control/live",          "method": "GET",  "auth": true, "expected_status": 200, "body_contains": ["hourly_throughput", "queue", "pulse"], "_comment": "RA-1440 Mission Control live feed — backs LiveActivityFeed's 5s poll on /control. Added retroactively with PR #124 lint-unblock."}
+    {"name": "mission-control",     "path": "/api/pi-ceo/api/mission-control/live",          "method": "GET",  "auth": true, "expected_status": 200, "body_contains": ["hourly_throughput", "queue", "pulse"], "_comment": "RA-1440 Mission Control live feed — backs LiveActivityFeed's 5s poll on /control. Added retroactively with PR #124 lint-unblock."},
+    {"name": "phone-gate-unauth",   "path": "/api/phone/gate",                                "method": "POST", "auth": false, "expected_status": 401, "body": {"session_id": "smoke", "tool_name": "Bash", "tool_input_summary": "smoke", "reason": "smoke"}, "_comment": "Phone companion: destructive-tool approval gate. 401 without TAO_PASSWORD auth proves route exists + auth enforced without creating a real Telegram card (body is ignored on 401)."},
+    {"name": "phone-progress-unauth", "path": "/api/phone/progress",                          "method": "POST", "auth": false, "expected_status": 401, "body": {"session_id": "smoke", "project": "x", "branch": "x", "current_task": "x", "last_tool": "x", "last_file": "x", "elapsed_s": 0}, "_comment": "Phone companion: live 'Now Working' card update. 401 smoke — see above."}
   ],
 
   "vertical": {
