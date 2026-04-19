@@ -138,3 +138,5 @@ sessions/
 *.temp
 /tmp/
 .vercel
+# Pi-CEO task-memory (auto-added by Pi-CEO session bootstrap, RA-1374)
+.pi-ceo/
