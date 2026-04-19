@@ -1,5 +1,6 @@
 """Health routes: /health, /api/health/vercel, Claude CLI poll, static files (RA-937)."""
 import asyncio
+import datetime
 import hmac
 import os
 import logging
@@ -95,6 +96,12 @@ async def health(request: Request):
     last_poll_at = getattr(_autonomy, "_last_poll_at", 0.0) or 0.0
     poll_count   = getattr(_autonomy, "_poll_count", 0)
     seconds_since_last_poll = int(time.time() - last_poll_at) if last_poll_at else None
+    # ISO8601 UTC timestamp of last successful autonomy poll tick, or null if none yet.
+    # Required by CLAUDE.md: "/health must surface … timestamp of last successful tick."
+    last_tick: str | None = (
+        datetime.datetime.fromtimestamp(last_poll_at, tz=datetime.timezone.utc).isoformat()
+        if last_poll_at else None
+    )
 
     healthy = disk_free_gb is not None
     payload = {
@@ -103,11 +110,17 @@ async def health(request: Request):
         "sessions":         {"active": active, "total": total, "max": config.MAX_CONCURRENT_SESSIONS},
         "claude_cli":       _claude_ok,
         "anthropic_key":    anthropic_key_ok,
+        # linear_key kept for dashboard backward-compat (CeoHealthPanel.tsx, overview/page.tsx)
         "linear_key":       linear_key_ok,
+        # linear_api_key is the canonical name per CLAUDE.md ("Always surface linear_api_key: bool")
+        "linear_api_key":   linear_key_ok,
         "autonomy": {
             "enabled":                 autonomy_enabled,
             "armed":                   autonomy_armed,
             "poll_count":              poll_count,
+            # last_tick: ISO8601 UTC of last poll, null if poller has never fired.
+            # CLAUDE.md: "/health must surface … timestamp of last successful tick."
+            "last_tick":               last_tick,
             "seconds_since_last_poll": seconds_since_last_poll,
         },
         "disk_free_gb":     disk_free_gb,
