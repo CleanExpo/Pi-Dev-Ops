@@ -9,6 +9,7 @@ import HealthGrid from "@/components/control/HealthGrid";
 import BuildForm from "@/components/control/BuildForm";
 import RoutineTable from "@/components/control/RoutineTable";
 import ActiveBuildStrip from "@/components/control/ActiveBuildStrip";
+import LiveActivityFeed from "@/components/control/LiveActivityFeed";
 
 export default function ControlPage() {
   return (
@@ -16,8 +17,13 @@ export default function ControlPage() {
       {/* Sticky global top bar */}
       <TopBar />
 
+      {/* RA-1440 — Mission Control live activity (throughput + queue + completions) */}
+      <div className="px-4 pt-4 pb-2" style={{ background: "var(--background)" }}>
+        <LiveActivityFeed />
+      </div>
+
       {/* Always-visible live-build strip (only renders when a build is active) */}
-      <div className="px-4 pt-4" style={{ background: "var(--background)" }}>
+      <div className="px-4 pt-2" style={{ background: "var(--background)" }}>
         <ActiveBuildStrip />
       </div>
 
