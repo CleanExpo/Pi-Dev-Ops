@@ -48,6 +48,8 @@ async def cron_loop() -> None:
 
     # --- Main loop ---
     _watchdog_interval = 0
+    _pulse_interval = 0
+    _last_digest_day = None
     while True:
         await asyncio.sleep(60)
         try:
@@ -74,6 +76,43 @@ async def cron_loop() -> None:
                 await _watchdog_escalations(_log)              # RA-633
                 await _watchdog_zte_reality_check(_log)        # RA-608
                 await _watchdog_notebooklm_health(_log)        # RA-820
+
+            # Linear pulse every 15 min — mandatory single-pane-of-glass for
+            # the founder, per explicit requirement (2026-04-19).
+            _pulse_interval += 1
+            if _pulse_interval >= 15:
+                _pulse_interval = 0
+                try:
+                    from .linear_pulse import run_pulse
+
+                    await asyncio.get_event_loop().run_in_executor(None, run_pulse)
+                except Exception as exc:
+                    _log.error("Linear pulse failed: %s", exc)
+
+            # Daily digest push at 08:00 and 20:00 UTC (override with
+            # PI_CEO_DIGEST_HOURS="6,14,22" if needed).
+            import os as _os
+
+            digest_hours_env = _os.environ.get("PI_CEO_DIGEST_HOURS", "8,20")
+            digest_hours = {
+                int(h) for h in digest_hours_env.split(",") if h.strip().isdigit()
+            }
+            today_key = (now.day, now.hour)
+            if (
+                now.hour in digest_hours
+                and now.minute < 5
+                and _last_digest_day != today_key
+            ):
+                _last_digest_day = today_key
+                try:
+                    from .digest import push_digest_to_telegram
+
+                    await asyncio.get_event_loop().run_in_executor(
+                        None, push_digest_to_telegram
+                    )
+                    _log.info("Daily digest pushed at %s UTC", now.isoformat())
+                except Exception as exc:
+                    _log.error("Daily digest push failed: %s", exc)
 
         except Exception as exc:
             _log.error("Loop error: %s", exc)

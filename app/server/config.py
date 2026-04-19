@@ -15,8 +15,44 @@ from dotenv import load_dotenv
 # regardless of how the server was launched.
 # ---------------------------------------------------------------------------
 _root = Path(__file__).resolve().parents[2]  # Pi-Dev-Ops/
-load_dotenv(_root / ".env", override=True)
-load_dotenv(_root / ".env.local", override=True)  # local overrides win
+# Selective override — only replace empty strings (the claude CLI sets
+# ANTHROPIC_API_KEY="" in the parent shell; treat that as unset) and plain
+# op:// refs (stale values that were never resolved). Leave already-resolved
+# values untouched so `op run`-injected secrets aren't clobbered by the file.
+def _load_env_file(path: Path) -> None:
+    if not path.is_file():
+        return
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, _, v = line.partition("=")
+        k = k.strip()
+        v = v.strip().strip('"').strip("'")
+        cur = os.environ.get(k, "<unset>")
+        if cur == "<unset>" or cur == "" or cur.startswith("op://"):
+            os.environ[k] = v
+_load_env_file(_root / ".env")
+_load_env_file(_root / ".env.local")
+
+# ---------------------------------------------------------------------------
+# 1Password op:// ref guard (hardwired lesson, RA-1169+)
+# dotenv reads "op://vault/item/field" as a literal string, not a resolved
+# secret. Detect unresolved refs and either (a) treat them as absent when the
+# caller has a sensible default, or (b) fail hard with a clear error pointing
+# at the fix: launch via `op run --env-file=.env.local -- uvicorn ...`
+# ---------------------------------------------------------------------------
+_OP_REF_PREFIX = "op://"
+_unresolved_refs: list[str] = []
+for _k, _v in list(os.environ.items()):
+    if isinstance(_v, str) and _v.startswith(_OP_REF_PREFIX):
+        _unresolved_refs.append(_k)
+        # Scrub it so downstream config sees it as unset rather than feeding
+        # the literal ref into API clients (which would produce opaque auth
+        # errors like "invalid bearer token").
+        os.environ.pop(_k, None)
+
+# Warning deferred to after logger init below — see _emit_op_ref_warning().
 
 # ---------------------------------------------------------------------------
 # Structured JSON logging — replaces all print() calls
@@ -41,6 +77,15 @@ def _setup_logging() -> None:
 
 _setup_logging()
 log = logging.getLogger("pi-ceo.config")
+
+if _unresolved_refs:
+    log.warning(
+        "1Password op:// refs detected but UNRESOLVED for: %s — "
+        "launch with `op run --env-file=.env.local -- uvicorn app.server.main:app` "
+        "(local) or set OP_SERVICE_ACCOUNT_TOKEN + wrap Dockerfile CMD with `op run` "
+        "(Railway). These env vars will be treated as unset for this process.",
+        ", ".join(sorted(_unresolved_refs)),
+    )
 
 # ---------------------------------------------------------------------------
 # Password — bcrypt-ready.  If TAO_PASSWORD not set, auto-generate and print.
