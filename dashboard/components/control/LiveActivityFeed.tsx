@@ -149,6 +149,12 @@ export default function LiveActivityFeed() {
   const [data, setData] = useState<LiveData | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<number>(0);
+  // `now` is the component's idempotent view of wall-clock time. Calling
+  // Date.now() directly in render violates React's components-must-be-pure
+  // rule — the render would see a different value on every re-render even
+  // with identical props/state. Storing it in state and ticking once a
+  // second keeps render deterministic for any given commit.
+  const [now, setNow] = useState<number>(() => Date.now());
 
   useEffect(() => {
     let mounted = true;
@@ -180,7 +186,12 @@ export default function LiveActivityFeed() {
     };
   }, []);
 
-  const isLive = lastUpdate > 0 && Date.now() - lastUpdate < 15000;
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const isLive = lastUpdate > 0 && now - lastUpdate < 15000;
 
   if (!data && !err) {
     return (

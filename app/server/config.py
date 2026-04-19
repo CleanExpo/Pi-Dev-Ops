@@ -4,7 +4,10 @@ import hashlib
 import logging
 import json
 from pathlib import Path
-from dotenv import load_dotenv
+# NB: the dotenv loader was replaced with a custom `_load_env_file()` below
+# (which only overrides empty strings / unresolved op:// refs so `op run`
+# injected values aren't clobbered). The `from dotenv import load_dotenv`
+# import was left over and broke `ruff`.
 
 # ---------------------------------------------------------------------------
 # Load .env files before reading any os.environ values.
