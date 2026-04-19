@@ -5,21 +5,31 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+//
+// The backend /health currently returns {status: "ok"} only (Railway:
+// pi-dev-ops-production.up.railway.app/health). Expanding the payload to
+// the full HealthData shape is tracked separately. Until then, this page
+// must render gracefully when most fields are missing — so every nested
+// access on `health` is guarded and degrades to "—" rather than crashing
+// the entire route with "Cannot read properties of undefined".
+
+interface SessionsSlice { active: number; total: number; max: number }
+interface AutonomySlice {
+  enabled: boolean;
+  armed: boolean;
+  poll_count: number;
+  seconds_since_last_poll: number | null;
+}
 
 interface HealthData {
   status: string;
-  uptime_s: number;
-  sessions: { active: number; total: number; max: number };
-  claude_cli: boolean;
-  anthropic_key: boolean;
-  linear_key: boolean;
-  autonomy: {
-    enabled: boolean;
-    armed: boolean;
-    poll_count: number;
-    seconds_since_last_poll: number | null;
-  };
-  disk_free_gb: number | null;
+  uptime_s?: number;
+  sessions?: Partial<SessionsSlice>;
+  claude_cli?: boolean;
+  anthropic_key?: boolean;
+  linear_key?: boolean;
+  autonomy?: Partial<AutonomySlice>;
+  disk_free_gb?: number | null;
   vercel_token?: boolean;
   swarm_enabled?: boolean;
   swarm_shadow?: boolean;
@@ -245,23 +255,51 @@ export default function OverviewPage() {
       >
         {health ? (
           <>
-            <StatChip label="Uptime" value={formatUptime(health.uptime_s)} color="var(--success)" />
+            <StatChip
+              label="Uptime"
+              value={health.uptime_s !== undefined ? formatUptime(health.uptime_s) : "—"}
+              color="var(--success)"
+            />
             <StatChip
               label="Active Builds"
-              value={`${health.sessions.active} / ${health.sessions.max}`}
-              color={health.sessions.active > 0 ? "var(--accent)" : "var(--text)"}
+              value={
+                health.sessions && typeof health.sessions.active === "number"
+                  ? `${health.sessions.active} / ${health.sessions.max ?? "?"}`
+                  : "—"
+              }
+              color={
+                (health.sessions?.active ?? 0) > 0
+                  ? "var(--accent)"
+                  : "var(--text)"
+              }
             />
             <StatChip label="Swarm" value={swarmLabel} color={swarmColor} />
             <StatChip
               label="Autonomy"
-              value={health.autonomy.armed ? "Armed" : "Disarmed"}
-              color={health.autonomy.armed ? "var(--success)" : "var(--warning)"}
+              value={
+                health.autonomy === undefined
+                  ? "—"
+                  : health.autonomy.armed
+                    ? "Armed"
+                    : "Disarmed"
+              }
+              color={
+                health.autonomy?.armed
+                  ? "var(--success)"
+                  : health.autonomy === undefined
+                    ? "var(--text-dim)"
+                    : "var(--warning)"
+              }
             />
             <StatChip
               label="Polls"
-              value={String(health.autonomy.poll_count)}
+              value={
+                typeof health.autonomy?.poll_count === "number"
+                  ? String(health.autonomy.poll_count)
+                  : "—"
+              }
             />
-            {health.disk_free_gb !== null && (
+            {health.disk_free_gb != null && (
               <StatChip
                 label="Disk Free"
                 value={`${health.disk_free_gb} GB`}
@@ -390,7 +428,7 @@ export default function OverviewPage() {
                   { label: "Anthropic API Key", ok: health?.anthropic_key ?? false },
                   { label: "Linear API Key", ok: health?.linear_key ?? false },
                   { label: "Vercel Token", ok: health?.vercel_token ?? false },
-                  { label: "Autonomy Loop", ok: health?.autonomy.armed ?? false },
+                  { label: "Autonomy Loop", ok: health?.autonomy?.armed ?? false },
                 ].map(({ label, ok }) => (
                   <div key={label} className="flex items-center justify-between py-1" style={{ borderBottom: "1px solid var(--border)" }}>
                     <span className="text-xs" style={{ color: "var(--text-muted)" }}>{label}</span>
@@ -413,10 +451,13 @@ export default function OverviewPage() {
                   <div className="flex flex-col gap-1">
                     {[
                       ["State", health.autonomy.armed ? "Armed" : "Disarmed"],
-                      ["Poll count", String(health.autonomy.poll_count)],
-                      ["Last poll", health.autonomy.seconds_since_last_poll !== null
-                        ? `${health.autonomy.seconds_since_last_poll}s ago`
-                        : "Never"],
+                      ["Poll count", String(health.autonomy.poll_count ?? "—")],
+                      [
+                        "Last poll",
+                        health.autonomy.seconds_since_last_poll == null
+                          ? "Never"
+                          : `${health.autonomy.seconds_since_last_poll}s ago`,
+                      ],
                     ].map(([k, v]) => (
                       <div key={k} className="flex justify-between text-xs">
                         <span style={{ color: "var(--text-dim)" }}>{k}</span>
@@ -424,6 +465,25 @@ export default function OverviewPage() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Backend-shape warning banner — surfaces when /health returns
+                  the minimal {status:"ok"} shape instead of the full payload.
+                  RA-1109: silent success is indistinguishable from broken —
+                  tell the user why all the fields are "—". */}
+              {health && !health.autonomy && !health.sessions && (
+                <div
+                  className="text-[10px] px-2.5 py-2 rounded"
+                  style={{
+                    background: "rgba(245,158,11,0.08)",
+                    border: "1px solid rgba(245,158,11,0.3)",
+                    color: "var(--warning)",
+                  }}
+                >
+                  <strong>Limited health payload</strong> — backend <code>/health</code> is
+                  returning <code>{"{status:\"ok\"}"}</code> only. Tracked separately; Overview
+                  renders the shell so the page doesn&apos;t crash.
                 </div>
               )}
 
