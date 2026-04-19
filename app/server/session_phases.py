@@ -578,6 +578,25 @@ async def _phase_clone(session, resume_from: str) -> bool:
                             )
                     except OSError:
                         pass
+                # RA-1374 — append `.pi-ceo/` to the cloned repo's .gitignore
+                # so task-memory files (PLAN.md, IMPLEMENT.md, PROMPT.md,
+                # STATUS.md) don't get committed when the generator stages
+                # changes. Observed on DR-NRPG PR #96 and others. Idempotent:
+                # we only add the line if not already present.
+                try:
+                    gi_path = os.path.join(session.workspace, ".gitignore")
+                    gi_existing = ""
+                    if os.path.exists(gi_path):
+                        with open(gi_path, "r", encoding="utf-8") as _fh:
+                            gi_existing = _fh.read()
+                    if ".pi-ceo/" not in gi_existing.splitlines():
+                        with open(gi_path, "a", encoding="utf-8") as _fh:
+                            if gi_existing and not gi_existing.endswith("\n"):
+                                _fh.write("\n")
+                            _fh.write("# Pi-CEO task-memory (auto-added by Pi-CEO session bootstrap, RA-1374)\n")
+                            _fh.write(".pi-ceo/\n")
+                except OSError:
+                    pass
                 em(session, "success", "  Clone complete")
                 session.last_completed_phase = "clone"
                 persistence.save_session(session)
