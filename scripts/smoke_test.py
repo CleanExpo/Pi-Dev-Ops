@@ -1,6 +1,7 @@
 """
 smoke_test.py — Pi CEO E2E regression smoke test
 Run against a live server to verify all API surface checks.
+RA-1154: pipeline probe — canary marker, no functional change.
 
 Usage:
     python scripts/smoke_test.py [--url http://127.0.0.1:7777] [--password <pw>]
