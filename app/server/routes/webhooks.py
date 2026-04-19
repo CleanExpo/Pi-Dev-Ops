@@ -555,3 +555,127 @@ async def get_routine_runs(
     runs.sort(key=lambda r: r.get("ts", ""), reverse=True)
     total = len(runs)
     return {"runs": runs[:limit], "total": total}
+
+
+# ── RA-826: Workspace Intel webhook + reader ──────────────────────────────────
+
+_WORKSPACE_INTEL_DIR_NAME = "workspace-intel"
+
+
+@router.post("/api/webhook/workspace-intel", dependencies=[Depends(require_rate_limit)])
+async def workspace_intel_webhook(request: Request):
+    """
+    RA-826 — Receive filtered Google Workspace update items from n8n (6-hourly).
+
+    Payload: JSON array of items, each:
+      {
+        "title": "...",
+        "link": "...",
+        "published": "2026-04-19T...",
+        "summary": "...",
+        "keywords": ["gemini", "mcp", ...]
+      }
+
+    Protected by X-Pi-CEO-Secret header == TAO_WEBHOOK_SECRET.
+    Atomically appends to .harness/workspace-intel/YYYY-MM-DD.jsonl.
+    """
+    import hmac as _hmac
+    from datetime import datetime, timezone
+
+    secret_header = request.headers.get("x-pi-ceo-secret", "")
+    if config.WEBHOOK_SECRET:
+        if not secret_header:
+            raise HTTPException(401, "X-Pi-CEO-Secret header required")
+        if not _hmac.compare_digest(secret_header, config.WEBHOOK_SECRET):
+            raise HTTPException(401, "Invalid secret")
+
+    raw_body = await request.body()
+    try:
+        payload = json.loads(raw_body)
+    except json.JSONDecodeError:
+        raise HTTPException(400, "Invalid JSON")
+
+    if not isinstance(payload, list):
+        raise HTTPException(422, "Payload must be a JSON array of items")
+
+    now_utc = datetime.now(timezone.utc)
+    date_str = now_utc.strftime("%Y-%m-%d")
+    intel_dir = Path(config.DATA_DIR).parent.parent / ".harness" / _WORKSPACE_INTEL_DIR_NAME
+    intel_dir.mkdir(parents=True, exist_ok=True)
+    intel_file = intel_dir / f"{date_str}.jsonl"
+
+    entries: list[dict] = []
+    for item in payload[:50]:  # cap at 50 items per call to limit abuse
+        if not isinstance(item, dict):
+            continue
+        entries.append({
+            "title":     str(item.get("title", ""))[:200],
+            "link":      str(item.get("link", ""))[:500],
+            "published": str(item.get("published", ""))[:30],
+            "summary":   str(item.get("summary", ""))[:2000],
+            "keywords":  [str(k)[:50] for k in item.get("keywords", []) if isinstance(k, str)][:10],
+            "stored_at": now_utc.isoformat(),
+        })
+
+    if entries:
+        tmp = intel_file.with_suffix(".tmp")
+        existing = intel_file.read_text() if intel_file.exists() else ""
+        tmp.write_text(existing + "".join(json.dumps(e) + "\n" for e in entries))
+        os.replace(tmp, intel_file)
+        log.info("RA-826: workspace intel stored: date=%s count=%d", date_str, len(entries))
+
+    return {"ok": True, "stored": len(entries)}
+
+
+@router.get("/api/workspace-intel/recent")
+async def workspace_intel_recent(
+    request: Request,
+    days: int = Query(default=7, ge=1, le=30),
+):
+    """
+    RA-826 — Return recent Google Workspace update items for brief generation.
+
+    Protected by X-Pi-CEO-Secret header == TAO_WEBHOOK_SECRET (same as write path).
+    Called by the n8n weekly brief workflow before Qwen 3 14B summarisation.
+
+    Query params:
+      days: lookback window in days (1–30, default 7)
+    """
+    import hmac as _hmac
+    from datetime import datetime, timezone, timedelta
+
+    secret_header = request.headers.get("x-pi-ceo-secret", "")
+    if config.WEBHOOK_SECRET:
+        if not secret_header:
+            raise HTTPException(401, "X-Pi-CEO-Secret header required")
+        if not _hmac.compare_digest(secret_header, config.WEBHOOK_SECRET):
+            raise HTTPException(401, "Invalid secret")
+
+    intel_dir = Path(config.DATA_DIR).parent.parent / ".harness" / _WORKSPACE_INTEL_DIR_NAME
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    entries: list[dict] = []
+
+    if intel_dir.exists():
+        for jsonl_file in sorted(intel_dir.glob("*.jsonl")):
+            try:
+                file_date = datetime.strptime(jsonl_file.stem, "%Y-%m-%d").replace(
+                    tzinfo=timezone.utc
+                )
+            except ValueError:
+                continue
+            if file_date < cutoff:
+                continue
+            try:
+                for line in jsonl_file.read_text().splitlines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        entries.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        log.warning("RA-826: Skipping malformed JSONL line in %s", jsonl_file)
+            except OSError as exc:
+                log.warning("RA-826: Could not read %s: %s", jsonl_file, exc)
+
+    entries.sort(key=lambda e: e.get("published", ""), reverse=True)
+    return {"ok": True, "days": days, "count": len(entries), "entries": entries}

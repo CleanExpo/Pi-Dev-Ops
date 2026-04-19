@@ -61,6 +61,28 @@
       "status": "pending_creation",
       "acceptance_criteria": "Post-conference intelligence query returns structured delta report for RA-830",
       "linked_issue": "RA-828"
+    },
+    {
+      "id": "TBD",
+      "entity": "Intel",
+      "name": "Pi-CEO Workspace Intel",
+      "purpose": "Ongoing Google Workspace platform monitoring — Gemini, MCP, AI agents, NotebookLM, automation changes captured 6-hourly via RSS (RA-826)",
+      "sources": [
+        "Google Doc: Pi-CEO Workspace Intel (updated 6-hourly by n8n RA-826 monitor workflow)",
+        "RSS feed: https://workspaceupdates.googleblog.com/feeds/posts/default"
+      ],
+      "status": "pending_creation",
+      "created_at": "2026-04-19",
+      "setup_notes": [
+        "1. Create Google Doc titled 'Pi-CEO Workspace Intel' in Google Drive",
+        "2. Set WORKSPACE_INTEL_DOC_ID in n8n env vars (Document ID from URL)",
+        "3. Import and activate RA-826-workspace-intel-monitor.json in n8n",
+        "4. Add the Google Doc as a source in a new NotebookLM notebook",
+        "5. Update this registry entry: set 'id' to the NotebookLM notebook ID, 'status' to 'active'",
+        "6. NotebookLM refreshes when the doc is updated — no public API; sync is manual or via NotebookLM UI"
+      ],
+      "acceptance_criteria": "Weekly brief query returns structured Workspace platform update delta; n8n monitor workflow shows green executions",
+      "linked_issue": "RA-826"
     }
   ],
   "standard_queries": [

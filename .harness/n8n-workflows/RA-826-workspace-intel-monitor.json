@@ -1,0 +1,258 @@
+{
+  "name": "Pi-CEO Workspace Intel Monitor (RA-826)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 */6 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule — Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "notes": "Fires at 00:00, 06:00, 12:00, 18:00 UTC daily."
+    },
+    {
+      "parameters": {
+        "url": "https://workspaceupdates.googleblog.com/feeds/posts/default",
+        "options": {}
+      },
+      "id": "rss-feed",
+      "name": "RSS — Google Workspace Updates",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ── RA-826: Keyword filter + deduplication ───────────────────────────────────\n// Reads all RSS items, skips anything seen on previous runs (via static data),\n// applies keyword filter, and outputs a single aggregated item for downstream nodes.\n\nconst staticData = this.getWorkflowStaticData('global');\nconst lastRunIso = staticData.lastRunAt || null;\nconst lastRunMs  = lastRunIso ? new Date(lastRunIso).getTime() : 0;\n\nconst KEYWORDS = [\n  'gemini', 'mcp', 'model context protocol', 'scheduled action',\n  'notebooklm', 'ai agent', 'automation', 'vertex ai', 'workspace ai',\n  'google ai', 'google one ai',\n];\n\nconst items = $input.all();\nconst filtered = [];\n\nfor (const item of items) {\n  const pub    = item.json.isoDate || item.json.pubDate || '';\n  const pubMs  = pub ? new Date(pub).getTime() : 0;\n\n  // Skip items published before or at our last run (dedup)\n  if (lastRunMs > 0 && pubMs <= lastRunMs) continue;\n\n  const titleText   = (item.json.title || '').toLowerCase();\n  const snippetText = (item.json.contentSnippet || item.json.content || '').toLowerCase();\n  const fullText    = titleText + ' ' + snippetText;\n\n  const matched = KEYWORDS.filter(kw => fullText.includes(kw));\n  if (matched.length === 0) continue;\n\n  filtered.push({\n    title:     item.json.title || '',\n    link:      item.json.link  || '',\n    published: pub,\n    summary:   (item.json.contentSnippet || '').slice(0, 600),\n    keywords:  matched,\n  });\n}\n\n// Advance the watermark to the most-recent item's pubDate (or now if items found)\nif (filtered.length > 0 || items.length > 0) {\n  const newestMs = items.reduce((acc, i) => {\n    const ms = new Date(i.json.isoDate || i.json.pubDate || 0).getTime();\n    return ms > acc ? ms : acc;\n  }, 0);\n  staticData.lastRunAt = newestMs > 0 ? new Date(newestMs).toISOString() : new Date().toISOString();\n}\n\n// Format Google Doc append text\nconst google_doc_text = filtered.length > 0\n  ? filtered.map(f =>\n      `\\n---\\n**${f.title}**\\nPublished: ${f.published}\\nLink: ${f.link}\\nKeywords: ${f.keywords.join(', ')}\\n\\n${f.summary}`\n    ).join('\\n')\n  : '';\n\nreturn [{\n  json: {\n    filtered_items:  filtered,\n    filtered_count:  filtered.length,\n    google_doc_text,\n    run_at:          new Date().toISOString(),\n  }\n}];"
+      },
+      "id": "filter-deduplicate",
+      "name": "Code — Filter & Deduplicate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-items",
+              "leftValue": "={{ $json.filtered_count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-items",
+      "name": "IF — Has Filtered Items",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $env.WORKSPACE_INTEL_DOC_ID }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $json.google_doc_text }}"
+            }
+          ]
+        }
+      },
+      "id": "google-docs-append",
+      "name": "Google Docs — Append Updates",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [1200, 180],
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "google-oauth2",
+          "name": "Google OAuth2"
+        }
+      },
+      "notes": "Appends filtered items to the Pi-CEO Workspace Intel Google Doc. Requires Google OAuth2 credentials in n8n and WORKSPACE_INTEL_DOC_ID env var."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.PI_CEO_RAILWAY_URL }}/api/webhook/workspace-intel",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Pi-CEO-Secret",
+              "value": "={{ $env.PI_CEO_WEBHOOK_SECRET }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.filtered_items) }}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "post-to-piceo",
+      "name": "POST to Pi-CEO — Store Intel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res  = $input.first().json;\nconst ok   = res.ok === true;\nconst count = res.stored || 0;\n\nif (!ok) {\n  throw new Error(`Pi-CEO workspace-intel POST failed: ${JSON.stringify(res)}`);\n}\n\nconsole.log(`✅ Workspace intel stored: ${count} item(s) at ${new Date().toISOString()}`);\nreturn [{ json: { success: true, stored: count } }];"
+      },
+      "id": "log-result",
+      "name": "Code — Log Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log(`ℹ️ No new keyword-matching Workspace updates at ${new Date().toISOString()}`);\nreturn [{ json: { skipped: true } }];"
+      },
+      "id": "no-op",
+      "name": "Code — No New Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 420]
+    }
+  ],
+  "connections": {
+    "Schedule — Every 6 Hours": {
+      "main": [
+        [
+          {
+            "node": "RSS — Google Workspace Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS — Google Workspace Updates": {
+      "main": [
+        [
+          {
+            "node": "Code — Filter & Deduplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code — Filter & Deduplicate": {
+      "main": [
+        [
+          {
+            "node": "IF — Has Filtered Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF — Has Filtered Items": {
+      "main": [
+        [
+          {
+            "node": "Google Docs — Append Updates",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "POST to Pi-CEO — Store Intel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code — No New Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST to Pi-CEO — Store Intel": {
+      "main": [
+        [
+          {
+            "node": "Code — Log Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": {
+    "description": "RA-826 — Polls the Google Workspace Updates RSS feed every 6 hours, filters for AI-relevant posts (Gemini, MCP, NotebookLM, agents, automation), appends matching items to a Google Doc (NotebookLM source), and stores them via Pi-CEO for weekly brief generation.",
+    "version": "1.0.0",
+    "ticket": "RA-826"
+  },
+  "_setup": {
+    "environment_variables_required": [
+      "PI_CEO_RAILWAY_URL      — e.g. https://pi-ceo-production.up.railway.app",
+      "PI_CEO_WEBHOOK_SECRET   — value of TAO_WEBHOOK_SECRET from Railway env vars",
+      "WORKSPACE_INTEL_DOC_ID  — Google Doc ID from URL: docs.google.com/document/d/<ID>/edit"
+    ],
+    "credentials_required": [
+      "Google OAuth2 — create in n8n Settings → Credentials → New → Google OAuth2 API. Scope: https://www.googleapis.com/auth/documents"
+    ],
+    "google_doc_setup": [
+      "1. Create a new Google Doc titled 'Pi-CEO Workspace Intel'",
+      "2. Copy the Document ID from the URL (the long string between /d/ and /edit)",
+      "3. Set WORKSPACE_INTEL_DOC_ID in n8n env vars",
+      "4. Add this Google Doc as a source in the NotebookLM 'Pi-CEO Intel' notebook",
+      "5. NotebookLM will pick up new content on the next notebook sync (manual trigger in NotebookLM UI)"
+    ],
+    "import_instructions": "In n8n: Workflows → Import from file → select this JSON. Configure env vars in n8n Settings → Environment Variables. Activate the workflow."
+  },
+  "id": "ra826-workspace-intel-monitor",
+  "active": false,
+  "versionId": "1.0.0",
+  "updatedAt": "2026-04-19T00:00:00.000Z",
+  "createdAt": "2026-04-19T00:00:00.000Z"
+}

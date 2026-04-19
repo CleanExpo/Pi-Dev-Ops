@@ -1,0 +1,312 @@
+{
+  "name": "Pi-CEO Weekly Workspace Brief (RA-826)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 22 * * 0"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule — Sunday 22:00 UTC (Mon 8AM AEST)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "notes": "Fires Sunday 22:00 UTC = Monday 08:00 AEST. Delivers weekly Workspace update brief."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.PI_CEO_RAILWAY_URL }}/api/workspace-intel/recent?days=7",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Pi-CEO-Secret",
+              "value": "={{ $env.PI_CEO_WEBHOOK_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "fetch-intel",
+      "name": "GET — Fetch Recent Intel (7 days)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── RA-826: Format Qwen 3 14B prompt from stored intel entries ───────────────\nconst res     = $input.first().json;\nconst entries = (res.entries || []).slice(0, 20); // cap at 20 items for context window\n\nif (entries.length === 0) {\n  return [{\n    json: {\n      has_entries: false,\n      system: '',\n      user: '',\n    }\n  }];\n}\n\nconst system = [\n  'Produce a concise \"Weekly Workspace Update\" executive brief for the Pi-CEO Intelligence Report.',\n  'Focus on: Gemini and AI capability changes, MCP or agent protocol updates, NotebookLM enhancements,',\n  'Workspace automation and scheduling changes, pricing or policy shifts.',\n  'Output 200–300 words. No filler words (delve, tapestry, landscape, leverage, robust, seamless, elevate).',\n  'No first-person language. Bullet points for key items. End with a \"Recommended Actions\" section (max 3 items).',\n].join(' ');\n\nconst itemLines = entries.map((e, i) =>\n  `${i + 1}. ${e.title} (${(e.published || '').slice(0, 10)}): ${e.summary.slice(0, 300)}`\n).join('\\n');\n\nconst user = `Summarise these ${entries.length} Google Workspace updates into the weekly brief:\\n\\n${itemLines}`;\n\nreturn [{ json: { has_entries: true, system, user, entry_count: entries.length } }];"
+      },
+      "id": "format-prompt",
+      "name": "Code — Format Qwen Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-entries",
+              "leftValue": "={{ $json.has_entries }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-entries",
+      "name": "IF — Has Entries",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.OLLAMA_BASE_URL || 'http://localhost:11434' }}/api/chat",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $env.QWEN_MODEL || 'qwen3:14b', messages: [{ role: 'system', content: $json.system }, { role: 'user', content: $json.user }], stream: false, options: { temperature: 0.3 } }) }}",
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "ollama-qwen",
+      "name": "POST — Ollama Qwen 3 14B",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 180],
+      "notes": "Calls local Ollama. Requires OLLAMA_BASE_URL env var (default: http://localhost:11434) and qwen3:14b model pulled via 'ollama pull qwen3:14b'."
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── RA-826: Format Telegram message from Qwen response ───────────────────────\nconst ollamaRes = $input.first().json;\nconst brief     = (ollamaRes.message || {}).content || '';\n\nif (!brief.trim()) {\n  throw new Error('Qwen 3 14B returned empty brief — check Ollama is running and qwen3:14b is pulled');\n}\n\nconst today = new Date().toLocaleDateString('en-AU', {\n  weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Australia/Sydney'\n});\n\nconst message = `📋 *Weekly Workspace Intel*\\n_${today}_\\n\\n${brief}\\n\\n_Source: workspaceupdates.googleblog.com via Pi-CEO RA-826_`;\n\n// Telegram 4096-char limit — truncate with notice if needed\nconst maxLen = 4000;\nconst truncated = message.length > maxLen ? message.slice(0, maxLen) + '\\n\\n…_(truncated)_' : message;\n\nreturn [{ json: { message: truncated } }];"
+      },
+      "id": "format-telegram",
+      "name": "Code — Format Telegram Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, text: $json.message, parse_mode: 'Markdown' }) }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": false
+            }
+          }
+        }
+      },
+      "id": "telegram-send",
+      "name": "POST — Telegram sendMessage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1680, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $input.first().json;\nconst ok  = res.ok === true;\nif (!ok) {\n  throw new Error(`Telegram sendMessage failed: ${JSON.stringify(res)}`);\n}\nconsole.log(`✅ Weekly Workspace brief sent via Telegram: message_id=${res.result?.message_id}`);\nreturn [{ json: { success: true, message_id: res.result?.message_id } }];"
+      },
+      "id": "log-sent",
+      "name": "Code — Log Sent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1920, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: $env.TELEGRAM_CHAT_ID, text: '📋 *Weekly Workspace Intel*\\n\\nNo keyword-matching updates captured this week. RSS feed polled — no Gemini, MCP, NotebookLM or agent-related posts found.', parse_mode: 'Markdown' }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "telegram-no-items",
+      "name": "POST — Telegram No Items Notice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 420]
+    }
+  ],
+  "connections": {
+    "Schedule — Sunday 22:00 UTC (Mon 8AM AEST)": {
+      "main": [
+        [
+          {
+            "node": "GET — Fetch Recent Intel (7 days)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET — Fetch Recent Intel (7 days)": {
+      "main": [
+        [
+          {
+            "node": "Code — Format Qwen Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code — Format Qwen Prompt": {
+      "main": [
+        [
+          {
+            "node": "IF — Has Entries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF — Has Entries": {
+      "main": [
+        [
+          {
+            "node": "POST — Ollama Qwen 3 14B",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "POST — Telegram No Items Notice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST — Ollama Qwen 3 14B": {
+      "main": [
+        [
+          {
+            "node": "Code — Format Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code — Format Telegram Message": {
+      "main": [
+        [
+          {
+            "node": "POST — Telegram sendMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST — Telegram sendMessage": {
+      "main": [
+        [
+          {
+            "node": "Code — Log Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": {
+    "description": "RA-826 — Every Monday 8AM AEST, fetches the last 7 days of stored Google Workspace intel from Pi-CEO, generates an executive brief via Qwen 3 14B (Ollama), and delivers it to Telegram.",
+    "version": "1.0.0",
+    "ticket": "RA-826"
+  },
+  "_setup": {
+    "environment_variables_required": [
+      "PI_CEO_RAILWAY_URL     — e.g. https://pi-ceo-production.up.railway.app",
+      "PI_CEO_WEBHOOK_SECRET  — value of TAO_WEBHOOK_SECRET from Railway env vars",
+      "TELEGRAM_BOT_TOKEN     — piceoagent_bot token",
+      "TELEGRAM_CHAT_ID       — target chat/user ID for @piceoagent_bot",
+      "OLLAMA_BASE_URL        — default: http://localhost:11434 (Ollama must be running locally with n8n)",
+      "QWEN_MODEL             — default: qwen3:14b (run 'ollama pull qwen3:14b' to download)"
+    ],
+    "prerequisites": [
+      "Ollama installed and running: https://ollama.com",
+      "Qwen model downloaded: ollama pull qwen3:14b",
+      "RA-826 monitor workflow (workspace-intel-monitor.json) must be active to populate intel"
+    ],
+    "import_instructions": "In n8n: Workflows → Import from file → select this JSON. Configure env vars in n8n Settings → Environment Variables. Activate the workflow. Test manually via 'Execute Workflow' button."
+  },
+  "id": "ra826-workspace-intel-weekly-brief",
+  "active": false,
+  "versionId": "1.0.0",
+  "updatedAt": "2026-04-19T00:00:00.000Z",
+  "createdAt": "2026-04-19T00:00:00.000Z"
+}
