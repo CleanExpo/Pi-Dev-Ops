@@ -196,7 +196,7 @@ async def _run_claude_via_sdk(
         # as "use API key mode, key is empty" rather than falling back to
         # OAuth. Ensure it's genuinely absent so the SDK picks up the
         # `claude setup-token` credentials from ~/.claude/.
-        if os.environ.get("ANTHROPIC_API_KEY") == "":
+        if (_k := os.environ.get("ANTHROPIC_API_KEY", "")) == "" or _k.startswith("sk-ant-oat01-"):
             os.environ.pop("ANTHROPIC_API_KEY", None)
 
         # RA-1172 — permission_mode='bypassPermissions' is MANDATORY for
