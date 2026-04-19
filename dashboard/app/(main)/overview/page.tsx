@@ -428,7 +428,7 @@ export default function OverviewPage() {
                   { label: "Anthropic API Key", ok: health?.anthropic_key ?? false },
                   { label: "Linear API Key", ok: health?.linear_key ?? false },
                   { label: "Vercel Token", ok: health?.vercel_token ?? false },
-                  { label: "Autonomy Loop", ok: health?.autonomy.armed ?? false },
+                  { label: "Autonomy Loop", ok: health?.autonomy?.armed ?? false },
                 ].map(({ label, ok }) => (
                   <div key={label} className="flex items-center justify-between py-1" style={{ borderBottom: "1px solid var(--border)" }}>
                     <span className="text-xs" style={{ color: "var(--text-muted)" }}>{label}</span>
