@@ -1,12 +1,29 @@
 """
-autonomy.py — Linear Todo poller + autonomous build pickup (RA-584).
+autonomy.py — Linear autonomy-queue poller + autonomous build pickup (RA-584, RA-1369).
 
-Polls the Pi-Dev-Ops Linear project every TAO_AUTONOMY_POLL_INTERVAL seconds
-(default 300) for Urgent/High priority Todo issues. For each one:
-  1. Transition → In Progress
+Polls every portfolio Linear project on a TAO_AUTONOMY_POLL_INTERVAL cadence
+(default 300 s) for the autonomous-work queue and starts a build session per
+ticket. The autonomy-pickup signal is defined by the Pi-Dev × Linear contract
+(skills/pi-dev-linear-contract/SKILL.md) and requires BOTH:
+
+  1. Linear status name == "Ready for Pi-Dev"  (dedicated autonomy status)
+  2. Label "pi-dev:autonomous" present          (explicit human authorisation)
+
+Neither alone is sufficient. The previous filter (state.type=unstarted +
+priority<=2) accidentally claimed every high-priority Todo across the
+workspace, including triage-pending tickets.
+
+Per ticket:
+  1. Transition → Pi-Dev: In Progress (fallback: In Progress)
   2. Build a structured brief
-  3. Trigger create_session() to start the 5-phase build pipeline
-  4. On failure, revert → Todo + comment + retry counter
+  3. Infer intent + scope from labels / estimate
+  4. Trigger create_session() to start the 5-phase build pipeline
+  5. On failure, revert → Ready for Pi-Dev (fallback: Todo) + explanatory comment
+
+Startup recovery:
+  6. Any ticket left In Progress by a prior process instance with no live
+     session → transition to Pi-Dev: Blocked + label
+     pi-dev:blocked-reason:session-lost + comment explaining.
 
 All actions logged to .harness/autonomy.jsonl.
 
@@ -121,12 +138,27 @@ def _log_event(event: dict) -> None:
 # Linear API calls
 # ---------------------------------------------------------------------------
 
+# RA-1369 — Linear contract compliance.
+# Per skills/pi-dev-linear-contract/SKILL.md, autonomy pickup REQUIRES
+# BOTH conditions:
+#   1. status name == "Ready for Pi-Dev"  (not just any unstarted state)
+#   2. label "pi-dev:autonomous" present  (explicit human authorisation)
+#
+# The previous filter (state.type=unstarted + priority<=2) accidentally
+# claimed any high-priority Todo across the workspace — including tickets
+# that hadn't been triaged for autonomous execution. Status-name + label
+# is the only authorised signal.
+_AUTONOMY_LABEL = "pi-dev:autonomous"
+_READY_STATUS_NAME = "Ready for Pi-Dev"
+_BLOCKED_STATUS_NAME = "Pi-Dev: Blocked"
+_BLOCKED_REASON_SESSION_LOST = "pi-dev:blocked-reason:session-lost"
+
 _TODO_ISSUES_QUERY = """
-query TodoIssues($projectId: String!) {
+query AutonomyQueueIssues($projectId: String!, $statusName: String!, $autonomyLabel: String!) {
     project(id: $projectId) {
         issues(filter: {
-            state: { type: { in: ["unstarted"] } }
-            priority: { lte: 2 }
+            state: { name: { eq: $statusName } }
+            labels: { name: { eq: $autonomyLabel } }
         }, first: 10, orderBy: updatedAt) {
             nodes {
                 id
@@ -163,7 +195,15 @@ def fetch_todo_issues(api_key: str) -> list[dict]:
 
     for p in projects:
         try:
-            data = _gql(api_key, _TODO_ISSUES_QUERY, {"projectId": p["project_id"]})
+            data = _gql(
+                api_key,
+                _TODO_ISSUES_QUERY,
+                {
+                    "projectId":     p["project_id"],
+                    "statusName":    _READY_STATUS_NAME,
+                    "autonomyLabel": _AUTONOMY_LABEL,
+                },
+            )
         except Exception as exc:
             log.warning("Autonomy: project %s fetch failed: %s", p["name"], exc)
             continue
@@ -232,6 +272,74 @@ def comment_on_issue(api_key: str, issue_id: str, body: str) -> None:
     }
     """
     _gql(api_key, mutation, {"issueId": issue_id, "body": body})
+
+
+def _resolve_or_create_label(api_key: str, team_id: str, label_name: str) -> str | None:
+    """Resolve a label name to a label id on the given team; create if missing.
+
+    Returns the label id or None on failure (caller logs and continues — we do
+    NOT block the transition just because label creation fails).
+    """
+    query = """
+    query TeamLabels($teamId: String!) {
+        team(id: $teamId) { labels { nodes { id name } } }
+    }
+    """
+    try:
+        data   = _gql(api_key, query, {"teamId": team_id})
+        labels = (data.get("team") or {}).get("labels", {}).get("nodes", [])
+        for lb in labels:
+            if lb.get("name", "").lower() == label_name.lower():
+                return lb.get("id")
+        # Not found — create it.
+        mutation = """
+        mutation CreateLabel($teamId: String!, $name: String!, $color: String!) {
+            issueLabelCreate(input: { teamId: $teamId, name: $name, color: $color })
+            { issueLabel { id } }
+        }
+        """
+        created = _gql(api_key, mutation,
+                       {"teamId": team_id, "name": label_name, "color": "#EF4444"})
+        return (created.get("issueLabelCreate", {})
+                       .get("issueLabel", {}) or {}).get("id")
+    except Exception as exc:
+        log.warning("label resolve/create failed (team=%s name=%s): %s",
+                    team_id, label_name, exc)
+        return None
+
+
+def add_label_to_issue(api_key: str, issue_id: str, team_id: str, label_name: str) -> bool:
+    """Add `label_name` to the issue's existing label set. Returns True on success.
+
+    Reads current labels first so existing labels are preserved (issueUpdate
+    replaces the full set).
+    """
+    label_id = _resolve_or_create_label(api_key, team_id, label_name)
+    if not label_id:
+        return False
+    # Fetch existing label ids so we preserve them.
+    fetch = """
+    query IssueLabels($id: String!) {
+        issue(id: $id) { labels { nodes { id } } }
+    }
+    """
+    try:
+        data     = _gql(api_key, fetch, {"id": issue_id})
+        existing = [n.get("id") for n in
+                    ((data.get("issue") or {}).get("labels", {}).get("nodes", []))
+                    if n.get("id")]
+        merged   = sorted(set(existing + [label_id]))
+        mutation = """
+        mutation AddLabel($id: String!, $labelIds: [String!]!) {
+            issueUpdate(id: $id, input: { labelIds: $labelIds }) { success }
+        }
+        """
+        _gql(api_key, mutation, {"id": issue_id, "labelIds": merged})
+        return True
+    except Exception as exc:
+        log.warning("add_label_to_issue failed (issue=%s label=%s): %s",
+                    issue_id, label_name, exc)
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -362,7 +470,7 @@ def _is_pi_ceo_orphan(issue: dict, live_session_ids: set[str]) -> bool:
 
 
 async def _orphan_recovery(api_key: str) -> None:
-    """RA-1373 — reconcile tickets left In Progress with live sessions.
+    """RA-1369 — reconcile tickets left In Progress with live sessions.
 
     Railway restarts, platform scale-downs, and process crashes all leave
     Linear tickets stuck In Progress forever because _sessions is in-memory
@@ -370,8 +478,15 @@ async def _orphan_recovery(api_key: str) -> None:
 
     Runs ONCE at poller startup (after startup_delay). For each "started"
     state issue in any portfolio project that has a Pi-CEO session_id in its
-    recent comments but no live session: transition it back to Todo with an
-    explanatory comment. Next poll cycle will re-pick it up.
+    recent comments but no live session: transition it to "Pi-Dev: Blocked",
+    attach the `pi-dev:blocked-reason:session-lost` label, and post an
+    explanatory comment. A human (or the next contract-audit pass) decides
+    whether to re-queue via `Ready for Pi-Dev`.
+
+    Rationale: per skills/pi-dev-linear-contract/SKILL.md the failure-mode
+    for a lost session is `Pi-Dev: Blocked` + blocked-reason label. Silently
+    reverting to Todo masked the failure and let the same ticket get picked
+    up again by the next poll without human review.
     """
     from .sessions import _sessions  # late import to avoid circular
     live_ids = {s[:12] for s in _sessions.keys()}
@@ -392,21 +507,44 @@ async def _orphan_recovery(api_key: str) -> None:
             checked += 1
             if not _is_pi_ceo_orphan(issue, live_ids):
                 continue
-            iid   = issue["id"]
-            ident = issue.get("identifier", "?")
+            iid     = issue["id"]
+            ident   = issue.get("identifier", "?")
+            team_id = p["team_id"]
             try:
-                transition_issue(api_key, iid, "Todo", team_id=p["team_id"])
-                comment_on_issue(api_key, iid,
-                    "🤖 **Pi-CEO orphan recovery.** Previous session died unexpectedly "
-                    "(likely a Railway restart or process crash). Ticket has been returned "
-                    "to Todo and will be re-claimed on the next poll.")
+                transition_issue(api_key, iid, _BLOCKED_STATUS_NAME, team_id=team_id)
+                label_ok = add_label_to_issue(
+                    api_key, iid, team_id, _BLOCKED_REASON_SESSION_LOST,
+                )
+                comment_on_issue(
+                    api_key, iid,
+                    "🤖 **Pi-CEO orphan recovery — session lost.**\n\n"
+                    "The previous Pi-CEO session claimed this ticket but is no "
+                    "longer running (likely a Railway restart or process crash "
+                    "— in-memory session state did not survive).\n\n"
+                    f"- Transitioned to `{_BLOCKED_STATUS_NAME}`.\n"
+                    f"- Label `{_BLOCKED_REASON_SESSION_LOST}` attached "
+                    f"({'OK' if label_ok else 'attach failed — see server log'}).\n\n"
+                    "A human (or the next contract-audit pass) should confirm "
+                    "state, then move back to `Ready for Pi-Dev` to re-queue.",
+                )
                 reverted += 1
-                log.info("orphan-recovery: reverted %s to Todo", ident)
-                _log_event({"action": "orphan_recovered", "ticket": ident})
+                log.info("orphan-recovery: blocked %s (session-lost)", ident)
+                _log_event({
+                    "action": "orphan_recovered",
+                    "ticket": ident,
+                    "transition": _BLOCKED_STATUS_NAME,
+                    "reason_label": _BLOCKED_REASON_SESSION_LOST,
+                    "label_attached": label_ok,
+                })
             except Exception as exc:
-                log.warning("orphan-recovery: revert %s failed: %s", ident, exc)
+                log.warning("orphan-recovery: block %s failed: %s", ident, exc)
+                _log_event({
+                    "action": "orphan_recovery_error",
+                    "ticket": ident,
+                    "error": str(exc),
+                })
 
-    log.info("orphan-recovery complete: checked=%d reverted=%d live_sessions=%d",
+    log.info("orphan-recovery complete: checked=%d blocked=%d live_sessions=%d",
              checked, reverted, len(live_ids))
 
 
@@ -516,9 +654,47 @@ async def linear_todo_poller() -> None:
                 identifier, title, repo_url, team_id,
             )
 
-            # --- Transition to In Progress ---
+            # --- Transition to In Progress (RA-1369 — prefer contract status) ---
+            # Contract says `Pi-Dev: In Progress`. Not every project has that
+            # status configured yet (RA-1298 human-side workspace setup), so
+            # fall back to generic "In Progress" if the contract status is
+            # missing. Missing-state errors raise RuntimeError from
+            # _resolve_state_id, which is distinguishable from network errors.
+            transitioned_to: str | None = None
             try:
-                transition_issue(config.LINEAR_API_KEY, issue_id, "In Progress", team_id=team_id)
+                transition_issue(config.LINEAR_API_KEY, issue_id,
+                                 "Pi-Dev: In Progress", team_id=team_id)
+                transitioned_to = "Pi-Dev: In Progress"
+            except RuntimeError as exc:
+                if "not found" in str(exc).lower():
+                    log.info(
+                        "Autonomy: 'Pi-Dev: In Progress' not configured for team %s — "
+                        "falling back to 'In Progress' (RA-1298 workspace-setup pending)",
+                        team_id,
+                    )
+                    try:
+                        transition_issue(config.LINEAR_API_KEY, issue_id,
+                                         "In Progress", team_id=team_id)
+                        transitioned_to = "In Progress"
+                    except Exception as inner:
+                        log.error("Autonomy: fallback transition failed for %s: %s",
+                                  identifier, inner)
+                        _log_event({
+                            "action": "transition_error",
+                            "ticket": identifier,
+                            "title": title,
+                            "error": str(inner),
+                        })
+                        continue
+                else:
+                    log.error("Autonomy: transition failed for %s: %s", identifier, exc)
+                    _log_event({
+                        "action": "transition_error",
+                        "ticket": identifier,
+                        "title": title,
+                        "error": str(exc),
+                    })
+                    continue
             except Exception as exc:
                 log.error("Autonomy: transition failed for %s: %s", identifier, exc)
                 _log_event({
@@ -534,6 +710,7 @@ async def linear_todo_poller() -> None:
                 "ticket": identifier,
                 "title": title,
                 "repo_url": repo_url,
+                "target_state": transitioned_to,
             })
 
             # --- Fire build session ---
@@ -576,7 +753,8 @@ async def linear_todo_poller() -> None:
                     log.warning("Autonomy: comment post failed for %s: %s", identifier, exc)
 
             except RuntimeError as exc:
-                # Max sessions or recoverable error — revert to Todo
+                # Max sessions or recoverable error — revert to the
+                # contract "Ready for Pi-Dev" status (or "Todo" fallback).
                 log.warning("Autonomy: session start failed for %s: %s", identifier, exc)
                 _log_event({
                     "action": "session_error",
@@ -585,11 +763,19 @@ async def linear_todo_poller() -> None:
                     "error": str(exc),
                 })
                 try:
-                    transition_issue(config.LINEAR_API_KEY, issue_id, "Todo", team_id=team_id)
+                    try:
+                        transition_issue(config.LINEAR_API_KEY, issue_id,
+                                         _READY_STATUS_NAME, team_id=team_id)
+                        revert_to = _READY_STATUS_NAME
+                    except RuntimeError:
+                        transition_issue(config.LINEAR_API_KEY, issue_id,
+                                         "Todo", team_id=team_id)
+                        revert_to = "Todo"
                     comment_on_issue(
                         config.LINEAR_API_KEY,
                         issue_id,
-                        f"⚠️ Pi-CEO session start failed — reverted to Todo.\nError: `{exc}`",
+                        f"⚠️ Pi-CEO session start failed — reverted to `{revert_to}`.\n"
+                        f"Error: `{exc}`",
                     )
                 except Exception:
                     pass
