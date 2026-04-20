@@ -337,7 +337,7 @@ export async function GET(req: NextRequest) {
             body: JSON.stringify({
               query: `mutation { commentCreate(input: { issueId: "${linearTicket}", body: "Analysis complete: branch \`${branchName}\` · ZTE ${result.zteScore}/60 L${result.zteLevel ?? "?"} · Correctness ${result.quality?.correctness ?? "?"}/10" }) { success } }`
             }),
-          }).catch(() => {});
+          }).catch((e) => console.error("[analyze] Linear comment post failed", e));
         }
 
         // ── Auto-create Linear triage ticket ─────────────────────

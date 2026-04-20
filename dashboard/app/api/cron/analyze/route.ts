@@ -26,7 +26,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const analyzeUrl = `${protocol}://${host}/api/analyze?repo=${encodeURIComponent(repoUrl)}`;
     try {
       // Fire-and-forget — the SSE stream runs as a separate Vercel function invocation
-      fetch(analyzeUrl, { method: "GET", headers: { "x-cron-trigger": "true" } }).catch(() => {});
+      fetch(analyzeUrl, { method: "GET", headers: { "x-cron-trigger": "true" } }).catch((e) => console.error(`[cron/analyze] trigger failed for ${repoSlug}`, e));
       results.push({ repo: repoSlug, status: "triggered" });
     } catch {
       results.push({ repo: repoSlug, status: "failed" });
