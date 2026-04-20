@@ -63,7 +63,23 @@ async def cron_loop() -> None:
                         trigger["last_fired_at"] = time.time()
                         fired = True
                     except RuntimeError as exc:
+                        # Expected skip path (e.g., gated triggers raising RuntimeError)
                         _log.warning("Trigger skipped id=%s reason=%s", trigger["id"], exc)
+                    except Exception as exc:
+                        # RA-1484/RA-1493/RA-1497: previously only RuntimeError was caught,
+                        # so any other exception (network, subprocess, monitor cycle, etc.)
+                        # propagated to the outer handler — aborting the rest of this
+                        # minute's triggers and, crucially, never updating last_fired_at.
+                        # The watchdog then alerted forever. Now we isolate per-trigger
+                        # failures and keep iterating. last_fired_at stays unchanged on
+                        # failure (intentional) so operators can see the stale timestamp,
+                        # but we still advance the loop so one broken trigger cannot
+                        # starve the others.
+                        _log.error(
+                            "Trigger failed id=%s type=%s: %s",
+                            trigger.get("id"), trigger.get("type"), exc,
+                            exc_info=True,
+                        )
             if fired:
                 _save_triggers(triggers)
 
