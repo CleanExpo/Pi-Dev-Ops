@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from ..app_factory import app, _resilient
-from ..auth import require_auth
+from ..auth import require_auth, verify_session_token
 from ..sessions import _sessions
 from ..vercel_monitor import check_deployment_drift
 from .. import config
@@ -61,14 +61,31 @@ async def index():
 
 @app.get("/health")
 async def health(request: Request):
-    # RA-1003: If TAO_PASSWORD is configured, require Authorization: Bearer <password>.
-    # Unauthenticated callers receive a minimal response with no internal details.
+    # RA-1003 + RA-1463: /health accepts either
+    #   (a) Authorization: Bearer <TAO_PASSWORD>  — designed for external
+    #       uptime monitors (UptimeRobot etc.) that can set a fixed bearer,
+    #   (b) the signed `tao_session` cookie — set by the Vercel dashboard
+    #       proxy (/api/pi-ceo/health) after it logs in with PI_CEO_PASSWORD,
+    #   (c) a session-token Bearer for the same cookie value.
+    #
+    # If none of the above authenticate, return the minimal `{status:"ok"}`
+    # shape with no internal details. Dashboard Overview falls back gracefully
+    # on that shape but the full payload is what's useful.
     tao_password = os.environ.get("TAO_PASSWORD", "")
-    if tao_password:
-        auth_header = request.headers.get("Authorization", "")
-        provided = auth_header[7:] if auth_header.startswith("Bearer ") else ""
-        if not provided or not hmac.compare_digest(provided, tao_password):
-            return JSONResponse({"status": "ok"}, status_code=200)
+    auth_header = request.headers.get("Authorization", "")
+    bearer = auth_header[7:] if auth_header.startswith("Bearer ") else ""
+    cookie_token = request.cookies.get("tao_session", "")
+
+    authed = False
+    if bearer and tao_password and hmac.compare_digest(bearer, tao_password):
+        authed = True
+    elif bearer and verify_session_token(bearer):
+        authed = True
+    elif cookie_token and verify_session_token(cookie_token):
+        authed = True
+
+    if tao_password and not authed:
+        return JSONResponse({"status": "ok"}, status_code=200)
 
     uptime_s = int(time.time() - _START_TIME)
     active = sum(
@@ -103,6 +120,12 @@ async def health(request: Request):
         if last_poll_at else None
     )
 
+    # Swarm state — read env at request time (not module load) so Railway
+    # restart-for-env-change takes effect immediately. The dashboard Overview
+    # reads these as optional fields and falls back to "Active" when absent.
+    swarm_enabled = os.environ.get("TAO_SWARM_ENABLED", "1") not in ("0", "false", "False", "")
+    swarm_shadow = os.environ.get("TAO_SWARM_SHADOW", "0") not in ("0", "false", "False", "")
+
     healthy = disk_free_gb is not None
     payload = {
         "status":           "ok" if healthy else "degraded",
@@ -125,7 +148,9 @@ async def health(request: Request):
         },
         "disk_free_gb":     disk_free_gb,
         "version":          "1.0.0",
-        "vercel_token": bool(config.VERCEL_TOKEN),
+        "vercel_token":     bool(config.VERCEL_TOKEN),
+        "swarm_enabled":    swarm_enabled,
+        "swarm_shadow":     swarm_shadow,
     }
     return JSONResponse(payload, status_code=200 if healthy else 503)
 

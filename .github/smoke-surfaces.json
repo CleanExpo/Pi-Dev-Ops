@@ -8,7 +8,7 @@
     {"name": "api-zte",          "path": "/api/zte",                                       "method": "GET",  "auth": false, "expected_status": 200, "body_contains": ["score", "model"]},
     {"name": "api-swarm-status", "path": "/api/swarm-status",                              "method": "GET",  "auth": false, "expected_status": 200, "body_contains": ["state"]},
     {"name": "login-wrong-pw",   "path": "/api/auth/login",                                "method": "POST", "auth": false, "expected_status": 401, "body": {"password": "definitely-wrong"}},
-    {"name": "proxy-health",     "path": "/api/pi-ceo/health",                             "method": "GET",  "auth": true,  "expected_status": 200, "body_contains": ["status"]},
+    {"name": "proxy-health",     "path": "/api/pi-ceo/health",                             "method": "GET",  "auth": true,  "expected_status": 200, "body_contains": ["status", "sessions", "autonomy", "swarm_enabled"], "_comment": "RA-1463: session-cookie auth now unlocks the full payload (was minimal shape via cookie path). body_contains gates against regression to {status:ok}."},
     {"name": "proxy-projects",   "path": "/api/pi-ceo/api/projects/health",                "method": "GET",  "auth": true,  "expected_status": 200},
     {"name": "proxy-routines",   "path": "/api/pi-ceo/api/routines?limit=1",               "method": "GET",  "auth": true,  "expected_status": 200, "body_contains": ["runs"]},
     {"name": "proxy-autonomy",   "path": "/api/pi-ceo/api/autonomy/status",                "method": "GET",  "auth": true,  "expected_status": 200, "body_contains": ["enabled"]},
