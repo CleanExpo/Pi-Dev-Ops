@@ -38,15 +38,18 @@
     },
     {
       "id": "disaster-recovery",
-      "repo": "CleanExpo/Disaster-Recovery",
+      "repo": "CleanExpo/DR-Sandbox",
+      "role": "sandbox",
+      "auto_pr_target_branch": "main",
+      "previous_repo": "CleanExpo/Disaster-Recovery",
+      "redirected_at": "2026-04-20",
+      "redirection_ticket": "DR-185",
       "linear_project_id": "d2c1d63b-1e85-424d-9278-efff15b0d46b",
       "linear_project_name": "DR Client Website (disasterrecovery.com.au)",
       "linear_team_id": "43811130-ac12-47d3-9433-330320a76205",
       "linear_team_key": "DR",
       "stack": ["Next.js", "TypeScript"],
-      "deployments": {
-        "frontend": "https://disasterrecovery.com.au"
-      },
+      "deployments": {},
       "scan_priority": "high",
       "scan_schedule": "0 */6 * * *"
     },
