@@ -84,11 +84,11 @@ def _load_recent_entries(days: int) -> list[dict]:
     return entries
 
 
-def _format_intel_for_prompt(entries: list[dict]) -> str:
+def _format_intel_for_prompt(entries: list[dict], days: int = _DEFAULT_DAYS) -> str:
     """Convert raw batches into a readable intel block for the LLM prompt."""
     if not entries:
         return ""
-    lines: list[str] = [f"# Google Workspace Updates — last {_DEFAULT_DAYS} days\n"]
+    lines: list[str] = [f"# Google Workspace Updates — last {days} days\n"]
     for batch in entries:
         for item in batch.get("items", []):
             lines.append(f"## {item.get('title', 'Untitled')}")
@@ -233,7 +233,7 @@ def main() -> int:
     total_items = sum(len(b.get("items", [])) for b in entries)
     print(f"Loaded {len(entries)} batches / {total_items} items from the last {args.days} days")
 
-    intel_block = _format_intel_for_prompt(entries)
+    intel_block = _format_intel_for_prompt(entries, args.days)
     user_prompt = f"{intel_block}\n\nWrite the weekly executive brief now."
 
     ollama_url   = os.environ.get("OLLAMA_BASE_URL",     _OLLAMA_DEFAULT_URL)
