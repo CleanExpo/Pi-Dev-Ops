@@ -1,0 +1,60 @@
+# workspace_intel_brief.yml — RA-826 — Weekly Workspace Update Brief (always-on fallback)
+#
+# Always-on path for the weekly Workspace Update brief when n8n's Qwen 3 14B
+# path is unavailable (n8n paused, Ollama unreachable, or Mac sleeping).
+#
+# The primary scheduler is the n8n "RA-826 — Weekly Workspace Update Brief"
+# workflow (Sunday 09:00 UTC via Ollama + Qwen 3 14B). This workflow is the
+# always-on fallback: uses Railway backend + Claude Haiku, no local LLM needed.
+#
+# Trigger: workflow_dispatch only — avoids duplicate Sunday deliveries.
+# Run manually from Actions tab when n8n isn't delivering the brief.
+#
+# Always-on requirement (CLAUDE.md): Railway + GitHub Actions, no Mac dependency.
+#
+# Required GitHub Secrets (Settings → Secrets → Actions):
+#   TELEGRAM_BOT_TOKEN        — @piceoagent_bot API token
+#   TELEGRAM_ALLOWED_USERS    — comma-separated chat IDs (first used for brief)
+#   PI_CEO_RAILWAY_URL        — e.g. https://pi-ceo-production.up.railway.app
+#   PI_CEO_WEBHOOK_SECRET     — value of TAO_WEBHOOK_SECRET from Railway env
+#   ANTHROPIC_API_KEY         — for Claude Haiku brief generation
+
+name: Weekly Workspace Update Brief — RA-826 (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Print brief only (don't send to Telegram)"
+        required: false
+        default: "false"
+
+permissions:
+  contents: read
+
+jobs:
+  brief:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Generate and deliver brief
+        env:
+          PI_CEO_RAILWAY_URL:    ${{ secrets.PI_CEO_RAILWAY_URL }}
+          PI_CEO_WEBHOOK_SECRET: ${{ secrets.PI_CEO_WEBHOOK_SECRET }}
+          ANTHROPIC_API_KEY:     ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN:    ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          ALLOWED_USERS:         ${{ secrets.TELEGRAM_ALLOWED_USERS }}
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            python3 scripts/workspace_intel_brief_ci.py --dry-run
+          else
+            python3 scripts/workspace_intel_brief_ci.py
+          fi

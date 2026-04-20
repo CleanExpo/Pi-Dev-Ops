@@ -128,11 +128,14 @@ async def test_terminal_statuses_do_not_count_toward_cap(status: str):
 # ── boundary test ─────────────────────────────────────────────────────────────
 
 async def test_cap_at_exact_boundary():
-    """2 active sessions → allowed; add a 3rd (the new one) → now at limit, next raises."""
+    """(cap-1) active sessions → allowed; next create fills the slot; one more raises."""
+    from app.server import config as _cfg
+    cap = _cfg.MAX_CONCURRENT_SESSIONS
     original = dict(_model_mod._sessions)
     try:
         _model_mod._sessions.clear()
-        for _ in range(2):
+        # Pre-fill cap-1 active sessions so the next create is the last allowed slot.
+        for _ in range(cap - 1):
             s = _make_bs("building")
             _model_mod._sessions[s.id] = s
 
@@ -142,11 +145,11 @@ async def test_cap_at_exact_boundary():
             patch("app.server.sessions._select_model", return_value="claude-sonnet-4-5"),
         ):
             from app.server.sessions import create_session
-            # 2 active → should succeed (creates the 3rd slot)
+            # cap-1 active → should succeed (fills the last slot)
             session = await create_session("https://github.com/org/repo")
             assert session is not None
 
-            # Now 3 active (including the session we just created which is "created") → must block
+            # Now at cap → must block
             with pytest.raises(RuntimeError, match="Max sessions reached"):
                 await create_session("https://github.com/org/repo")
     finally:

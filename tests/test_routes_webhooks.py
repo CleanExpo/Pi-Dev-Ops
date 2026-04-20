@@ -1,12 +1,16 @@
 """
-test_routes_webhooks.py — Unit tests for routes/webhooks.py helpers (RA-937).
+test_routes_webhooks.py — Unit tests for routes/webhooks.py helpers (RA-937, RA-826).
 
 Covers _telegram_send (fire-and-forget Telegram helper) with mocked HTTP,
-and verifies the morning-intel path resolution logic.
+morning-intel path resolution logic, and RA-826 workspace intel endpoints.
 """
 import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 
 # ── _telegram_send ────────────────────────────────────────────────────────────
@@ -138,3 +142,147 @@ def test_is_cloud_true_on_railway():
             or os.environ.get("FLY_APP_NAME")
         )
         assert is_cloud is True
+
+
+# ── RA-826: workspace intel endpoints ─────────────────────────────────────────
+
+def _make_webhook_app() -> FastAPI:
+    """Minimal FastAPI app with webhooks router, rate-limit bypassed."""
+    from app.server.routes.webhooks import router
+    from app.server.auth import require_rate_limit
+
+    app = FastAPI()
+    app.include_router(router)
+    app.dependency_overrides[require_rate_limit] = lambda: None
+    return app
+
+
+@pytest.fixture()
+def webhook_client() -> TestClient:
+    return TestClient(_make_webhook_app(), raise_server_exceptions=True)
+
+
+def _intel_dir(tmp_path: Path) -> Path:
+    """Return the expected workspace-intel dir given our patched DATA_DIR."""
+    # Route uses: Path(config.DATA_DIR).parent.parent / ".harness" / "workspace-intel"
+    # We set DATA_DIR = tmp_path / "app" / "data"  →  .parent.parent == tmp_path
+    return tmp_path / ".harness" / "workspace-intel"
+
+
+def _sample_payload(batch_date: str = "2026-04-19") -> dict:
+    return {
+        "batch_date": batch_date,
+        "count": 1,
+        "source": "n8n:workspace-rss-monitor",
+        "items": [
+            {
+                "title": "Gemini in Google Docs",
+                "link": "https://workspaceupdates.googleblog.com/test",
+                "pub_date": "2026-04-19T10:00:00Z",
+                "summary": "New AI features.",
+                "keywords_matched": ["gemini"],
+                "categories": ["Google Docs"],
+                "guid": "tag:blogger.com,1999:blog-1.post-2",
+            }
+        ],
+    }
+
+
+def test_workspace_intel_refresh_stores_batch(webhook_client, tmp_path, monkeypatch):
+    """POST stores one JSONL entry and returns ok + correct count."""
+    import app.server.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path / "app" / "data"))
+    monkeypatch.setattr(cfg, "WEBHOOK_SECRET", "")
+
+    resp = webhook_client.post(
+        "/api/webhook/workspace-intel-refresh", json=_sample_payload()
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data == {"ok": True, "stored": True, "batch_date": "2026-04-19", "count": 1}
+
+    intel_file = _intel_dir(tmp_path) / "2026-04-19.jsonl"
+    assert intel_file.exists()
+    entry = json.loads(intel_file.read_text().strip())
+    assert entry["count"] == 1
+    assert entry["items"][0]["title"] == "Gemini in Google Docs"
+
+
+def test_workspace_intel_refresh_empty_items_not_stored(webhook_client, tmp_path, monkeypatch):
+    """POST with empty items list returns stored=False and writes nothing to disk."""
+    import app.server.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path / "app" / "data"))
+    monkeypatch.setattr(cfg, "WEBHOOK_SECRET", "")
+
+    payload = {"batch_date": "2026-04-19", "count": 0, "items": [], "source": "test"}
+    resp = webhook_client.post("/api/webhook/workspace-intel-refresh", json=payload)
+    assert resp.status_code == 200
+    assert resp.json() == {"ok": True, "stored": False, "reason": "empty_items"}
+    assert not _intel_dir(tmp_path).exists()
+
+
+def test_workspace_intel_refresh_invalid_date_returns_400(webhook_client, tmp_path, monkeypatch):
+    """POST with a malformed batch_date returns HTTP 400."""
+    import app.server.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path / "app" / "data"))
+    monkeypatch.setattr(cfg, "WEBHOOK_SECRET", "")
+
+    payload = _sample_payload()
+    payload["batch_date"] = "not-a-date"
+    resp = webhook_client.post("/api/webhook/workspace-intel-refresh", json=payload)
+    assert resp.status_code == 400
+
+
+def test_workspace_intel_refresh_requires_secret_when_configured(webhook_client, tmp_path, monkeypatch):
+    """POST returns 401 when WEBHOOK_SECRET is set but header is absent."""
+    import app.server.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path / "app" / "data"))
+    monkeypatch.setattr(cfg, "WEBHOOK_SECRET", "correct-secret")
+
+    resp = webhook_client.post("/api/webhook/workspace-intel-refresh", json=_sample_payload())
+    assert resp.status_code == 401
+
+
+def test_workspace_intel_refresh_wrong_secret_returns_401(webhook_client, tmp_path, monkeypatch):
+    """POST returns 401 when provided secret does not match configured secret."""
+    import app.server.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path / "app" / "data"))
+    monkeypatch.setattr(cfg, "WEBHOOK_SECRET", "correct-secret")
+
+    resp = webhook_client.post(
+        "/api/webhook/workspace-intel-refresh",
+        json=_sample_payload(),
+        headers={"X-Pi-CEO-Secret": "wrong-secret"},
+    )
+    assert resp.status_code == 401
+
+
+def test_get_workspace_intel_returns_stored_entries(webhook_client, tmp_path, monkeypatch):
+    """GET /api/workspace-intel returns batches previously stored via POST."""
+    import app.server.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path / "app" / "data"))
+    monkeypatch.setattr(cfg, "WEBHOOK_SECRET", "")
+
+    # Store a batch first
+    webhook_client.post("/api/webhook/workspace-intel-refresh", json=_sample_payload())
+
+    resp = webhook_client.get("/api/workspace-intel")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 1
+    assert len(data["entries"]) == 1
+    assert data["entries"][0]["batch_date"] == "2026-04-19"
+    assert data["entries"][0]["count"] == 1
+
+
+def test_get_workspace_intel_empty_when_no_data(webhook_client, tmp_path, monkeypatch):
+    """GET returns empty entries list when no intel has been stored yet."""
+    import app.server.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path / "app" / "data"))
+    monkeypatch.setattr(cfg, "WEBHOOK_SECRET", "")
+
+    resp = webhook_client.get("/api/workspace-intel")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["entries"] == []
+    assert data["total"] == 0
