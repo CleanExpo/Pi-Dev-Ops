@@ -1,0 +1,83 @@
+# RSS Sources — Pi-CEO Intelligence Pipeline
+# Format: each entry is polled by n8n on the schedule defined in rss-to-docs-pipeline.json
+# Add / remove entries freely; keyword-filters.yaml controls which items are forwarded.
+
+sources:
+  - id: hackernews-best
+    name: Hacker News Best Stories
+    url: https://hnrss.org/best
+    category: tech
+    poll_interval_minutes: 30
+
+  - id: hackernews-ai
+    name: Hacker News — AI tag
+    url: https://hnrss.org/newest?tags=ask_hn,show_hn&q=AI+LLM+agent
+    category: ai
+    poll_interval_minutes: 60
+
+  - id: anthropic-blog
+    name: Anthropic Blog
+    url: https://www.anthropic.com/rss.xml
+    category: ai
+    poll_interval_minutes: 120
+
+  - id: openai-blog
+    name: OpenAI Blog
+    url: https://openai.com/blog/rss.xml
+    category: ai
+    poll_interval_minutes: 120
+
+  - id: github-trending-python
+    name: GitHub Trending Python (unofficial)
+    url: https://github-rss.alexi.ch/trending/daily/python
+    category: oss
+    poll_interval_minutes: 720
+
+  - id: github-trending-typescript
+    name: GitHub Trending TypeScript (unofficial)
+    url: https://github-rss.alexi.ch/trending/daily/typescript
+    category: oss
+    poll_interval_minutes: 720
+
+  - id: tldr-tech
+    name: TLDR Tech Newsletter
+    url: https://tldr.tech/rss
+    category: tech
+    poll_interval_minutes: 1440
+
+  - id: the-batch
+    name: The Batch (DeepLearning.AI)
+    url: https://www.deeplearning.ai/the-batch/feed/
+    category: ai
+    poll_interval_minutes: 1440
+
+  - id: verge-ai
+    name: The Verge — AI
+    url: https://www.theverge.com/rss/ai-artificial-intelligence/index.xml
+    category: ai
+    poll_interval_minutes: 60
+
+  - id: linear-changelog
+    name: Linear Changelog
+    url: https://linear.app/changelog/rss
+    category: tools
+    poll_interval_minutes: 1440
+
+  - id: railway-blog
+    name: Railway Blog
+    url: https://railway.app/blog/rss
+    category: infra
+    poll_interval_minutes: 1440
+
+  - id: vercel-blog
+    name: Vercel Blog
+    url: https://vercel.com/atom
+    category: infra
+    poll_interval_minutes: 1440
+
+# Disabled sources (set active: false to skip without removing)
+disabled:
+  - id: example-disabled
+    name: Example (disabled)
+    url: https://example.com/rss
+    active: false
