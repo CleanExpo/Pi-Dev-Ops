@@ -20,6 +20,12 @@ _DOCS_STALE_COOLDOWN_H = 24.0  # only raise once per 24 hours
 _notebooklm_health_last_ran: float = 0.0
 _NOTEBOOKLM_HEALTH_INTERVAL_H = 6.0  # probe each KB at most once per 6 hours
 
+# RA-1484/RA-1493/RA-1497 — dedup for the Pi-SEO scheduler-silent watchdog.
+# Without this, each 30-min watchdog tick creates a new Linear ticket with the
+# same root cause (3 duplicate tickets in one incident prompted this guard).
+_scheduler_silent_last_raised: float = 0.0
+_SCHEDULER_SILENT_COOLDOWN_H = 6.0
+
 
 async def _watchdog_check(triggers: list[dict], log) -> None:
     """
@@ -38,6 +44,15 @@ async def _watchdog_check(triggers: list[dict], log) -> None:
         return
     log.warning("Watchdog: no scan/monitor has fired in %.1fh — raising alert", silence_h)
     if not config.LINEAR_API_KEY:
+        return
+    # RA-1484 — dedup: don't spam duplicate tickets on every 30-min tick.
+    global _scheduler_silent_last_raised
+    hours_since_last = (time.time() - _scheduler_silent_last_raised) / 3600
+    if _scheduler_silent_last_raised and hours_since_last < _SCHEDULER_SILENT_COOLDOWN_H:
+        log.info(
+            "Watchdog: Pi-SEO silence ticket suppressed (cooldown %.1fh < %.1fh)",
+            hours_since_last, _SCHEDULER_SILENT_COOLDOWN_H,
+        )
         return
     try:
         import urllib.request
@@ -73,6 +88,7 @@ async def _watchdog_check(triggers: list[dict], log) -> None:
             result = _json.loads(resp.read())
         identifier = (result.get("data", {}).get("issueCreate", {}).get("issue") or {}).get("identifier", "?")
         log.info("Watchdog: created Linear ticket %s", identifier)
+        _scheduler_silent_last_raised = time.time()
     except Exception as exc:
         log.error("Watchdog: failed to create Linear ticket: %s", exc)
 
