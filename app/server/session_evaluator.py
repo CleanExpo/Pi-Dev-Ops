@@ -384,15 +384,8 @@ async def _run_parallel_eval_cached(
 
     delta = abs(s_score - h_score)
     consensus = f"sonnet={s_score:.1f} haiku={h_score:.1f} delta={delta:.1f}"
-    if delta <= 2:
-        return (s_score + h_score) / 2, s_text, "sonnet+haiku(cached)", consensus
-
-    em(session, "agent", f"  Evaluator delta={delta:.1f} > 2 — escalating to Opus (cached)")
-    o_score, o_text = await _run_eval_with_cache(model="opus", timeout=180, **kwargs)
-    if o_score is None:
-        return (s_score + h_score) / 2, s_text, "sonnet+haiku(cached)", f"{consensus} opus-failed"
-    weighted = o_score * 0.6 + s_score * 0.3 + h_score * 0.1
-    return weighted, o_text, "opus+sonnet+haiku(cached)", f"{consensus} opus={o_score:.1f}"
+    # RA-1099: evaluator role cannot use Opus; average sonnet+haiku regardless of delta.
+    return (s_score + h_score) / 2, s_text, "sonnet+haiku(cached)", consensus
 
 
 # ── SDK / subprocess evaluator runners ────────────────────────────────────────
@@ -627,11 +620,7 @@ async def _run_parallel_eval(session, eval_spec: str) -> tuple[Optional[float], 
         return s_score, s_text, "sonnet", "haiku-failed"
     delta = abs(s_score - h_score)
     consensus = f"sonnet={s_score:.1f} haiku={h_score:.1f} delta={delta:.1f}"
-    if delta <= 2:
-        return (s_score + h_score) / 2, s_text, "sonnet+haiku", consensus
-    em(session, "agent", f"  Evaluator delta={delta:.1f} > 2 — escalating to Opus")
-    o_score, o_text = await _run_single_eval(session.workspace, eval_spec, "opus", timeout=180, session_id=sid)
-    if o_score is None:
-        return (s_score + h_score) / 2, s_text, "sonnet+haiku", f"{consensus} opus-failed"
-    weighted = o_score * 0.6 + s_score * 0.3 + h_score * 0.1
-    return weighted, o_text, "opus-escalated", f"{consensus} opus={o_score:.1f} weighted={weighted:.1f}"
+    # RA-1099: evaluator role is not in OPUS_ALLOWED_ROLES, so the prior
+    # delta>2 escalation to Opus violated model policy. Average sonnet+haiku
+    # regardless of delta; the consensus field still records the disagreement.
+    return (s_score + h_score) / 2, s_text, "sonnet+haiku", consensus
