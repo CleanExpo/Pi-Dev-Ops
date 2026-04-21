@@ -1,0 +1,192 @@
+{
+  "name": "NotebookLM Refresh Trigger",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "nlm-webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "notebooklm-refresh",
+      "notes": "Called by rss-to-docs-pipeline after Google Docs append succeeds. Payload: { doc_id, doc_title, items_added }"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate incoming payload from RSS pipeline\nconst body = $input.first().json.body || $input.first().json;\nconst { doc_id, doc_title, items_added } = body;\n\nif (!doc_id) {\n  throw new Error('Missing doc_id in webhook payload');\n}\n\nreturn [{\n  json: {\n    doc_id,\n    doc_title: doc_title || 'Pi-CEO Intelligence',\n    items_added: items_added || 0,\n    refresh_requested_at: new Date().toISOString()\n  }\n}];\n"
+      },
+      "id": "nlm-validate",
+      "name": "Validate Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.NOTEBOOKLM_API_URL || 'https://notebooklm.google.com/api/v1' }}/notebooks/refresh",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.NOTEBOOKLM_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "source_doc_id",
+              "value": "={{ $json.doc_id }}"
+            },
+            {
+              "name": "notebook_id",
+              "value": "={{ $env.NOTEBOOKLM_NOTEBOOK_ID }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "nlm-refresh-api",
+      "name": "Refresh NotebookLM Source",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300],
+      "notes": "Calls NotebookLM API to re-index the Google Doc. Falls through to error handler on non-2xx."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "status-check",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 299,
+              "operator": {
+                "type": "number",
+                "operation": "lte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "nlm-status-check",
+      "name": "Refresh Succeeded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nreturn [{\n  json: {\n    status: 'ok',\n    doc_id: $('Validate Payload').first().json.doc_id,\n    items_added: $('Validate Payload').first().json.items_added,\n    refreshed_at: new Date().toISOString(),\n    notebooklm_response: input.body || input\n  }\n}];\n"
+      },
+      "id": "nlm-success",
+      "name": "Build Success Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "nlm-respond-ok",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst err = {\n  status: 'error',\n  doc_id: $('Validate Payload').first().json.doc_id,\n  error: `NotebookLM refresh returned HTTP ${input.statusCode}`,\n  body: input.body || null,\n  failed_at: new Date().toISOString()\n};\nconsole.error('[notebooklm-refresh] Error:', JSON.stringify(err));\nreturn [{ json: err }];\n"
+      },
+      "id": "nlm-error-handler",
+      "name": "Handle Refresh Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "id": "nlm-respond-error",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [{ "node": "Validate Payload", "type": "main", "index": 0 }]
+      ]
+    },
+    "Validate Payload": {
+      "main": [
+        [{ "node": "Refresh NotebookLM Source", "type": "main", "index": 0 }]
+      ]
+    },
+    "Refresh NotebookLM Source": {
+      "main": [
+        [{ "node": "Refresh Succeeded?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Refresh Succeeded?": {
+      "main": [
+        [{ "node": "Build Success Response", "type": "main", "index": 0 }],
+        [{ "node": "Handle Refresh Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Success Response": {
+      "main": [
+        [{ "node": "Respond OK", "type": "main", "index": 0 }]
+      ]
+    },
+    "Handle Refresh Error": {
+      "main": [
+        [{ "node": "Respond Error", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "pi-ceo"
+  },
+  "tags": ["pi-ceo", "notebooklm", "rss-pipeline"]
+}

@@ -1,0 +1,102 @@
+# Keyword Filters — Pi-CEO Intelligence Pipeline
+# Items that match at least one INCLUDE rule AND zero EXCLUDE rules are forwarded.
+# Matching is case-insensitive substring match against: title + description combined.
+# Minimum score: each matched include keyword adds 1 point; item must reach `min_score`.
+
+filter:
+  min_score: 1          # item passes if ≥1 include keyword matches
+  max_items_per_run: 20 # cap forwarded to Google Docs per poll cycle to avoid spam
+
+include:
+  # AI / LLM core
+  - keyword: "claude"
+    weight: 3
+  - keyword: "anthropic"
+    weight: 3
+  - keyword: "openai"
+    weight: 2
+  - keyword: "llm"
+    weight: 2
+  - keyword: "large language model"
+    weight: 2
+  - keyword: "gpt"
+    weight: 2
+  - keyword: "gemini"
+    weight: 2
+  - keyword: "qwen"
+    weight: 2
+  - keyword: "mistral"
+    weight: 2
+
+  # Agents / autonomy
+  - keyword: "agent"
+    weight: 2
+  - keyword: "agentic"
+    weight: 2
+  - keyword: "autonomous"
+    weight: 2
+  - keyword: "mcp"
+    weight: 2
+  - keyword: "model context protocol"
+    weight: 3
+
+  # Coding / dev tools
+  - keyword: "cursor"
+    weight: 1
+  - keyword: "github copilot"
+    weight: 1
+  - keyword: "codebase"
+    weight: 1
+  - keyword: "developer tool"
+    weight: 1
+  - keyword: "fastapi"
+    weight: 1
+  - keyword: "next.js"
+    weight: 1
+  - keyword: "vercel"
+    weight: 1
+  - keyword: "railway"
+    weight: 1
+
+  # Business / SaaS
+  - keyword: "saas"
+    weight: 1
+  - keyword: "bootstrapped"
+    weight: 1
+  - keyword: "indie hacker"
+    weight: 1
+  - keyword: "mrr"
+    weight: 1
+  - keyword: "arr"
+    weight: 1
+
+  # Disaster recovery / NRPG domain
+  - keyword: "disaster recovery"
+    weight: 2
+  - keyword: "restore"
+    weight: 1
+  - keyword: "emergency management"
+    weight: 2
+
+exclude:
+  # Noise / off-topic
+  - keyword: "sports"
+  - keyword: "recipe"
+  - keyword: "fashion"
+  - keyword: "celebrity"
+  - keyword: "movie review"
+  - keyword: "real estate"
+  - keyword: "crypto"
+  - keyword: "nft"
+  - keyword: "web3"
+
+  # Legal / political noise (keep these out of intelligence briefs)
+  - keyword: "lawsuit"
+  - keyword: "congressional"
+  - keyword: "senate hearing"
+
+# Source-level overrides: bypass keyword filter for high-trust sources
+trusted_sources:
+  # Items from these source IDs are always forwarded regardless of keyword score
+  - anthropic-blog
+  - linear-changelog

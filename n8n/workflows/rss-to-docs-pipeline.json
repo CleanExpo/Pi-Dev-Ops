@@ -1,0 +1,364 @@
+{
+  "name": "RSS → Google Docs → NotebookLM → Qwen Brief → Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "rss-cron",
+      "name": "Poll Every 30 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 400],
+      "notes": "Adjust interval per source. Trusted sources run every 30 min; slow sources (changelog, newsletter) run every 24 h via their own cron expressions."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Load RSS sources from config/rss-sources.yaml at runtime.\n// In production the YAML is pre-baked into an env var RSS_SOURCES_JSON by a startup script.\n// Fallback: use a minimal hardcoded list so the workflow boots without config.\nconst sourcesJson = $env.RSS_SOURCES_JSON || null;\nlet sources;\nif (sourcesJson) {\n  sources = JSON.parse(sourcesJson);\n} else {\n  sources = [\n    { id: 'hackernews-best', name: 'Hacker News Best', url: 'https://hnrss.org/best', category: 'tech' },\n    { id: 'anthropic-blog', name: 'Anthropic Blog', url: 'https://www.anthropic.com/rss.xml', category: 'ai' },\n    { id: 'verge-ai', name: 'The Verge AI', url: 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml', category: 'ai' }\n  ];\n}\nreturn sources.map(s => ({ json: s }));\n"
+      },
+      "id": "rss-load-sources",
+      "name": "Load RSS Sources",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "rss-fetch",
+      "name": "Fetch RSS Feed",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [680, 400],
+      "continueOnFail": true,
+      "notes": "Runs once per source. continueOnFail=true so one dead feed does not abort the whole run."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Attach source metadata to each item so the filter node can use it.\nconst sourceId = $('Load RSS Sources').item.json.id;\nconst sourceName = $('Load RSS Sources').item.json.name;\nconst category = $('Load RSS Sources').item.json.category;\n\nconst items = $input.all();\nif (!items || items.length === 0) return [];\n\nreturn items.map(item => ({\n  json: {\n    ...item.json,\n    feed_id: sourceId,\n    feed_name: sourceName,\n    feed_category: category,\n    fetched_at: new Date().toISOString()\n  }\n}));\n"
+      },
+      "id": "rss-attach-source",
+      "name": "Attach Source Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Keyword filter — mirrors config/keyword-filters.yaml logic.\n// INCLUDE: item must score >= 1 on weighted include keyword list.\n// EXCLUDE: item is dropped if any exclude keyword matches.\n// TRUSTED: items from trusted_sources bypass keyword check.\n\nconst TRUSTED_SOURCES = ['anthropic-blog', 'linear-changelog'];\nconst MAX_ITEMS_PER_RUN = 20;\n\nconst INCLUDE = [\n  { kw: 'claude', w: 3 }, { kw: 'anthropic', w: 3 },\n  { kw: 'openai', w: 2 }, { kw: 'llm', w: 2 }, { kw: 'large language model', w: 2 },\n  { kw: 'gpt', w: 2 }, { kw: 'gemini', w: 2 }, { kw: 'qwen', w: 2 }, { kw: 'mistral', w: 2 },\n  { kw: 'agent', w: 2 }, { kw: 'agentic', w: 2 }, { kw: 'autonomous', w: 2 },\n  { kw: 'mcp', w: 2 }, { kw: 'model context protocol', w: 3 },\n  { kw: 'cursor', w: 1 }, { kw: 'github copilot', w: 1 }, { kw: 'developer tool', w: 1 },\n  { kw: 'fastapi', w: 1 }, { kw: 'next.js', w: 1 }, { kw: 'vercel', w: 1 }, { kw: 'railway', w: 1 },\n  { kw: 'saas', w: 1 }, { kw: 'bootstrapped', w: 1 }, { kw: 'mrr', w: 1 },\n  { kw: 'disaster recovery', w: 2 }, { kw: 'restore', w: 1 }, { kw: 'emergency management', w: 2 }\n];\n\nconst EXCLUDE = [\n  'sports', 'recipe', 'fashion', 'celebrity', 'movie review',\n  'real estate', 'crypto', 'nft', 'web3', 'lawsuit',\n  'congressional', 'senate hearing'\n];\n\nfunction scoreItem(item) {\n  const haystack = ((item.title || '') + ' ' + (item.contentSnippet || item.content || '')).toLowerCase();\n  for (const ex of EXCLUDE) {\n    if (haystack.includes(ex)) return -1;\n  }\n  if (TRUSTED_SOURCES.includes(item.feed_id)) return 999;\n  let score = 0;\n  for (const { kw, w } of INCLUDE) {\n    if (haystack.includes(kw)) score += w;\n  }\n  return score;\n}\n\nconst items = $input.all();\nconst scored = items\n  .map(i => ({ ...i, _score: scoreItem(i.json) }))\n  .filter(i => i._score >= 1)\n  .sort((a, b) => b._score - a._score)\n  .slice(0, MAX_ITEMS_PER_RUN);\n\nreturn scored.map(i => ({ json: { ...i.json, relevance_score: i._score } }));\n"
+      },
+      "id": "rss-keyword-filter",
+      "name": "Keyword Filter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 400],
+      "notes": "Drops off-topic items. Trusted sources (anthropic-blog, linear-changelog) bypass keyword scoring."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false },
+          "conditions": [
+            {
+              "id": "has-items",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "rss-has-items",
+      "name": "Any Items Pass Filter?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1340, 400],
+      "notes": "Short-circuits the run if nothing passed the keyword filter. Prevents empty Google Docs appends."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate all filtered items into a single list for Google Docs append.\nconst all = $input.all().map(i => i.json);\nreturn [{ json: { items: all, count: all.length, aggregated_at: new Date().toISOString() } }];\n"
+      },
+      "id": "rss-aggregate",
+      "name": "Aggregate Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "resource": "document",
+        "operation": "get",
+        "documentId": "={{ $env.GDOC_INTELLIGENCE_DOC_ID }}"
+      },
+      "id": "gdoc-get",
+      "name": "Get Google Doc",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [1780, 300],
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "google-service-account",
+          "name": "Google Service Account"
+        }
+      },
+      "notes": "Retrieves document to find the current end index for append. GDOC_INTELLIGENCE_DOC_ID env var must be set."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build a Google Docs batchUpdate append request.\n// Appends a timestamped header + bulleted item list after the last character.\nconst doc = $('Get Google Doc').first().json;\nconst endIndex = doc.body.content.slice(-1)[0]?.endIndex - 1 || 1;\nconst items = $('Aggregate Items').first().json.items;\nconst now = new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';\n\nconst requests = [];\n\n// Section header\nrequests.push({\n  insertText: {\n    location: { index: endIndex },\n    text: `\\n\\n── ${now} (${items.length} items) ──\\n`\n  }\n});\n\nlet insertAt = endIndex + `\\n\\n── ${now} (${items.length} items) ──\\n`.length;\n\n// One line per item\nfor (const item of items) {\n  const line = `[${item.feed_name}] ${item.title || '(untitled)'} — ${item.link || item.url || ''}\\n`;\n  requests.push({ insertText: { location: { index: insertAt }, text: line } });\n  insertAt += line.length;\n}\n\nreturn [{ json: { requests, doc_id: doc.documentId, doc_title: doc.title, items_added: items.length } }];\n"
+      },
+      "id": "gdoc-build-request",
+      "name": "Build Append Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "resource": "document",
+        "operation": "update",
+        "documentId": "={{ $json.doc_id }}",
+        "actionsUi": {
+          "actionFields": []
+        },
+        "updateFields": {
+          "requests": "={{ JSON.stringify($json.requests) }}"
+        }
+      },
+      "id": "gdoc-append",
+      "name": "Append to Google Doc",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [2220, 300],
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "google-service-account",
+          "name": "Google Service Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.N8N_WEBHOOK_BASE_URL }}/webhook/notebooklm-refresh",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "doc_id", "value": "={{ $('Build Append Request').first().json.doc_id }}" },
+            { "name": "doc_title", "value": "={{ $('Build Append Request').first().json.doc_title }}" },
+            { "name": "items_added", "value": "={{ $('Build Append Request').first().json.items_added }}" }
+          ]
+        },
+        "options": { "timeout": 35000 }
+      },
+      "id": "nlm-trigger",
+      "name": "Trigger NotebookLM Refresh",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 300],
+      "continueOnFail": true,
+      "notes": "Calls the notebooklm-refresh-trigger webhook. continueOnFail=true — brief generation proceeds even if NLM refresh fails."
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.QWEN_API_URL || 'http://localhost:11434/v1' }}/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.QWEN_API_KEY || 'ollama' }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $env.QWEN_MODEL || 'qwen3:14b' }}"
+            },
+            {
+              "name": "messages",
+              "value": "={{ JSON.stringify([\n  {\n    role: 'system',\n    content: 'You are an intelligence analyst for a software engineering team. Receive filtered RSS items. Produce a concise brief as valid JSON only — no prose, no markdown fences. Schema: { date, headline, sections: [{title, items:[{summary,source,url,relevance}]}], action_items, risk_flags }. Return raw JSON only.'\n  },\n  {\n    role: 'user',\n    content: JSON.stringify($('Aggregate Items').first().json.items)\n  }\n]) }}"
+            },
+            { "name": "temperature", "value": "0.3" },
+            { "name": "max_tokens", "value": "2048" }
+          ]
+        },
+        "options": { "timeout": 120000 }
+      },
+      "id": "qwen-brief",
+      "name": "Generate Qwen Brief",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2660, 300],
+      "notes": "Calls Qwen 3 14B via OpenAI-compatible endpoint. 120 s timeout. Set QWEN_API_URL, QWEN_API_KEY, QWEN_MODEL in n8n env."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Qwen response and validate structure.\nconst resp = $input.first().json;\nconst raw = resp.choices?.[0]?.message?.content?.trim();\nif (!raw) throw new Error('Qwen returned empty content');\n\nlet brief;\ntry {\n  brief = JSON.parse(raw);\n} catch (e) {\n  throw new Error(`Qwen output is not valid JSON: ${raw.slice(0, 200)}`);\n}\n\n// Basic schema validation\nconst required = ['date', 'headline', 'sections', 'action_items', 'risk_flags'];\nfor (const key of required) {\n  if (!(key in brief)) throw new Error(`Brief missing key: ${key}`);\n}\nif (!Array.isArray(brief.sections) || brief.sections.length === 0) {\n  throw new Error('Brief.sections must be a non-empty array');\n}\n\nreturn [{ json: { brief, valid: true, generated_at: new Date().toISOString() } }];\n"
+      },
+      "id": "qwen-parse",
+      "name": "Parse & Validate Brief",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2880, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format the Telegram message from the validated brief.\nconst { brief } = $input.first().json;\nconst gdocUrl = $env.GDOC_BRIEF_URL || '';\nconst docLink = gdocUrl ? `\\n📄 [Full brief](${gdocUrl})` : '';\n\nlet text = `*Pi-CEO Intelligence Brief — ${brief.date}*\\n\\n_${brief.headline}_`;\n\nfor (const section of brief.sections) {\n  text += `\\n\\n*${section.title}*`;\n  for (const item of (section.items || [])) {\n    const link = item.url ? `[${item.source}](${item.url})` : item.source;\n    text += `\\n• ${item.summary} — ${link}`;\n  }\n}\n\nif (brief.action_items?.length) {\n  text += '\\n\\n*Actions*\\n' + brief.action_items.map(a => `  • ${a}`).join('\\n');\n}\nif (brief.risk_flags?.length) {\n  text += '\\n\\n*Risk flags*\\n' + brief.risk_flags.map(r => `  ⚠️ ${r}`).join('\\n');\n}\ntext += docLink;\n\nreturn [{ json: { text, brief } }];\n"
+      },
+      "id": "telegram-format",
+      "name": "Format Telegram Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3100, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "chat_id", "value": "={{ $env.TELEGRAM_CHAT_ID }}" },
+            { "name": "text", "value": "={{ $json.text }}" },
+            { "name": "parse_mode", "value": "Markdown" },
+            { "name": "disable_web_page_preview", "value": "true" }
+          ]
+        },
+        "options": { "timeout": 15000 }
+      },
+      "id": "telegram-send",
+      "name": "Send to Telegram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3320, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const resp = $input.first().json;\nif (!resp.ok) {\n  throw new Error(`Telegram send failed: ${JSON.stringify(resp)}`);\n}\nconsole.log('[rss-pipeline] Telegram message sent, message_id:', resp.result?.message_id);\nreturn [{ json: { status: 'delivered', message_id: resp.result?.message_id, finished_at: new Date().toISOString() } }];\n"
+      },
+      "id": "pipeline-done",
+      "name": "Pipeline Complete",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3540, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// No items passed the keyword filter — log and exit cleanly.\nconsole.log('[rss-pipeline] No items passed keyword filter this run.');\nreturn [{ json: { status: 'skipped', reason: 'no_items_after_filter', skipped_at: new Date().toISOString() } }];\n"
+      },
+      "id": "rss-no-items",
+      "name": "No Items — Skip",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 500]
+    }
+  ],
+  "connections": {
+    "Poll Every 30 Minutes": {
+      "main": [
+        [{ "node": "Load RSS Sources", "type": "main", "index": 0 }]
+      ]
+    },
+    "Load RSS Sources": {
+      "main": [
+        [{ "node": "Fetch RSS Feed", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch RSS Feed": {
+      "main": [
+        [{ "node": "Attach Source Metadata", "type": "main", "index": 0 }]
+      ]
+    },
+    "Attach Source Metadata": {
+      "main": [
+        [{ "node": "Keyword Filter", "type": "main", "index": 0 }]
+      ]
+    },
+    "Keyword Filter": {
+      "main": [
+        [{ "node": "Any Items Pass Filter?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Any Items Pass Filter?": {
+      "main": [
+        [{ "node": "Aggregate Items", "type": "main", "index": 0 }],
+        [{ "node": "No Items — Skip", "type": "main", "index": 0 }]
+      ]
+    },
+    "Aggregate Items": {
+      "main": [
+        [{ "node": "Get Google Doc", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Google Doc": {
+      "main": [
+        [{ "node": "Build Append Request", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Append Request": {
+      "main": [
+        [{ "node": "Append to Google Doc", "type": "main", "index": 0 }]
+      ]
+    },
+    "Append to Google Doc": {
+      "main": [
+        [{ "node": "Trigger NotebookLM Refresh", "type": "main", "index": 0 }]
+      ]
+    },
+    "Trigger NotebookLM Refresh": {
+      "main": [
+        [{ "node": "Generate Qwen Brief", "type": "main", "index": 0 }]
+      ]
+    },
+    "Generate Qwen Brief": {
+      "main": [
+        [{ "node": "Parse & Validate Brief", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse & Validate Brief": {
+      "main": [
+        [{ "node": "Format Telegram Message", "type": "main", "index": 0 }]
+      ]
+    },
+    "Format Telegram Message": {
+      "main": [
+        [{ "node": "Send to Telegram", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send to Telegram": {
+      "main": [
+        [{ "node": "Pipeline Complete", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "pi-ceo"
+  },
+  "tags": ["pi-ceo", "rss", "google-docs", "notebooklm", "qwen", "telegram"]
+}
