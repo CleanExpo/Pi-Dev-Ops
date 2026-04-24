@@ -1,0 +1,87 @@
+# .gitleaks.toml — Pi-Dev-Ops secret detection configuration
+#
+# Run: gitleaks detect --source . --config .gitleaks.toml
+# CI:  gitleaks detect --source . --config .gitleaks.toml --exit-code 1
+#
+# Rules follow the gitleaks v8 TOML schema.
+# See https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml
+# for the upstream ruleset this extends.
+
+title = "Pi-Dev-Ops gitleaks config"
+
+[extend]
+# Extend the built-in ruleset rather than replace it.
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# DigitalOcean credential rules
+# Added: 2026-04-24 — DigitalOcean recon audit (session 7cb284e367f8)
+# ---------------------------------------------------------------------------
+
+[[rules]]
+id          = "digitalocean-pat"
+description = "DigitalOcean Personal Access Token"
+# Format: dop_v1_ followed by exactly 64 lowercase hex characters.
+regex       = "dop_v1_[0-9a-f]{64}"
+tags        = ["digitalocean", "api-token", "high"]
+
+  [rules.allowlist]
+  description = "Exclude test fixture files and scanner false-positive exclusion list"
+  paths       = [
+    # Known test fixtures and scanner config exclusions
+    "app/server/scanner\\.py",
+  ]
+
+[[rules]]
+id          = "digitalocean-oauth"
+description = "DigitalOcean OAuth Token"
+regex       = "doo_v1_[0-9a-f]{64}"
+tags        = ["digitalocean", "oauth-token", "high"]
+
+[[rules]]
+id          = "digitalocean-spaces-access-key"
+description = "DigitalOcean Spaces access key (S3-compatible, 20-char uppercase)"
+# Context-anchored: only flag when adjacent to DO_SPACES or spaces.digitaloceanspaces.com
+# Bare 20-char uppercase strings are too broad without context (matches AWS keys too).
+regex       = """(?i)DO_SPACES[_A-Z]*\s*[=:]\s*[\"']?[A-Z0-9]{20}[\"']?"""
+tags        = ["digitalocean", "spaces", "high"]
+
+[[rules]]
+id          = "digitalocean-spaces-secret-key"
+description = "DigitalOcean Spaces secret key (S3-compatible, 40-char mixed)"
+regex       = """(?i)DO_SPACES_SECRET[_A-Z]*\s*[=:]\s*[\"']?[A-Za-z0-9/+=]{40}[\"']?"""
+tags        = ["digitalocean", "spaces", "high"]
+
+# ---------------------------------------------------------------------------
+# False-positive suppressions
+# ---------------------------------------------------------------------------
+
+[allowlist]
+description = "Global allowlist for known false positives across the Pi-CEO portfolio"
+paths = [
+  # Archive docs — these are documented historical findings, not live secrets.
+  # Any real credentials found during the 2026-04-24 audit are tracked in
+  # docs/proposals/digitalocean-recon.md §2 and §5.
+  "docs/archive/.*",
+
+  # DR-NRPG: setup-digitalocean.sh flagged at line 119 by pi-seo scanner.
+  # Pattern matched a shell variable assignment (token=). Manual review logged
+  # in docs/proposals/digitalocean-recon.md §2 Finding A.
+  # If the value at line 119 is confirmed as a real credential, this suppression
+  # must be removed and the file cleaned from git history before re-enabling.
+  "setup-digitalocean\\.sh",
+
+  # Scanner self-scan false positives (regex patterns that match their own rules)
+  "app/server/scanner\\.py",
+  "\\.harness/scan-results/.*",
+]
+
+regexes = [
+  # Placeholder / example tokens that appear in documentation and test fixtures.
+  "your[_-]?(api[_-]?)?token",
+  "example[_-]?token",
+  "<your[_-]?token>",
+  "\\$\\{?[A-Z_]+_TOKEN\\}?",   # shell variable references like $DO_TOKEN or ${DO_TOKEN}
+  "\\$DO_",                       # any $DO_ shell variable reference
+  "op://",                        # 1Password secret references
+]
