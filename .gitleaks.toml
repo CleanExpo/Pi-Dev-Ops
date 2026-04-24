@@ -48,8 +48,11 @@ tags        = ["digitalocean", "spaces", "high"]
 
 [[rules]]
 id          = "digitalocean-spaces-secret-key"
-description = "DigitalOcean Spaces secret key (S3-compatible, 40-char mixed)"
-regex       = """(?i)DO_SPACES_SECRET[_A-Z]*\s*[=:]\s*[\"']?[A-Za-z0-9/+=]{40}[\"']?"""
+description = "DigitalOcean Spaces secret key (S3-compatible, exactly 40-char)"
+# Anchored to DO_SPACES_SECRET variable prefix to avoid matching arbitrary base64.
+# Trailing boundary ([\"'\s]|$) prevents matching strings longer than 40 chars
+# that happen to start with a valid base64 sequence.
+regex       = """(?i)DO_SPACES_SECRET[_A-Z]*\s*[=:]\s*[\"']?[A-Za-z0-9/+=]{40}(?:[\"'\s]|$)"""
 tags        = ["digitalocean", "spaces", "high"]
 
 # ---------------------------------------------------------------------------
@@ -64,17 +67,18 @@ paths = [
   # docs/proposals/digitalocean-recon.md §2 and §5.
   "docs/archive/.*",
 
-  # DR-NRPG: setup-digitalocean.sh flagged at line 119 by pi-seo scanner.
-  # Pattern matched a shell variable assignment (token=). Manual review logged
-  # in docs/proposals/digitalocean-recon.md §2 Finding A.
-  # If the value at line 119 is confirmed as a real credential, this suppression
-  # must be removed and the file cleaned from git history before re-enabling.
-  "setup-digitalocean\\.sh",
+  # NOTE: setup-digitalocean.sh (DR-NRPG Finding A, line 119) is intentionally
+  # NOT suppressed globally — the file must be scanned to detect any real token.
+  # If manual review confirms line 119 is a placeholder (not a real credential),
+  # add a per-rule allowlist entry on the specific rule that fires, with a comment
+  # referencing the review date and reviewer. Never suppress the whole file globally.
 
-  # Scanner self-scan false positives (regex patterns that match their own rules)
-  "app/server/scanner\\.py",
   "\\.harness/scan-results/.*",
 ]
+
+# NOTE: app/server/scanner.py is excluded per-rule in [[rules.allowlist]] on
+# digitalocean-pat only (scanner regex patterns cause self-match). It is not in
+# this global list to avoid blanket suppression of other rules against that file.
 
 regexes = [
   # Placeholder / example tokens that appear in documentation and test fixtures.
