@@ -713,7 +713,7 @@ server.registerTool(
     if (!issue) {
       // Try searching by identifier prefix
       const searchData2 = await linearGql(`{
-        searchIssues(query: "${identifier}", first: 1) {
+        searchIssues(term: "${identifier}", first: 1) {
           nodes { id identifier team { id } }
         }
       }`);
@@ -766,7 +766,7 @@ const _handle_linear_search_issues = async ({ query, limit }) => {
   const project = await findProjectId();
 
   const data = await linearGql(`{
-    searchIssues(query: "${query.replace(/"/g, '\\"')}", first: ${limit}) {
+    searchIssues(term: "${query.replace(/"/g, '\\"')}", first: ${limit}) {
       nodes {
         id identifier title
         state { name }
@@ -825,7 +825,7 @@ server.registerTool(
       issues(
         filter: { project: { id: { eq: "${project.id}" } } }
         first: 250
-        orderBy: priority
+        orderBy: updatedAt
       ) {
         nodes {
           identifier title

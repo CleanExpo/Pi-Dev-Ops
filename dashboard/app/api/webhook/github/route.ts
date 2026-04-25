@@ -56,7 +56,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   fetch(analyzeUrl, {
     method:  "GET",
     headers: { "x-webhook-trigger": "github" },
-  }).catch(() => {});
+  }).catch((e) => console.error("[webhook/github] analyze trigger failed", e));
 
   return NextResponse.json({ triggered: true, repo: `${owner}/${repo}`, event });
 }

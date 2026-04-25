@@ -125,6 +125,7 @@ Pi-Dev-Ops converts a GitHub repo URL + plain-English brief into an autonomous C
 | `routes/pipeline.py` | ~89 | `/api/spec`, `/api/plan`, `/api/test`, `/api/ship`, `/api/pipeline/{id}` |
 | `routes/utils.py` | ~68 | `/api/gc`, `/api/lessons`, `/api/autonomy/status`, WebSocket `/ws/build/{sid}` |
 | `routes/health.py` | ~125 | `/health`, `/api/health/vercel`, Claude CLI poll, static mount |
+| `routes/mission_control.py` | ~258 | `GET /api/mission-control/live` — single aggregator powering the dashboard live-autonomy view (throughput, active sessions, recent completions, Linear queue, pulse). All Linear calls fail-soft to keep the dashboard alive. |
 
 Public contract: `app.server.main:app` is the FastAPI instance — Dockerfile and Railway both reference it. `main.py` re-exports `app` from `app_factory`. Never break this import.
 
@@ -173,7 +174,7 @@ Expected: 3 pre-existing failures in `test_sdk_phase2.py` (claude_agent_sdk not 
 - **SSE streaming:** `dashboard/hooks/useSSE.ts` with exponential backoff reconnection.
 - **Phase pipeline:** 5–6 phases in `sessions.py`, parsed by `dashboard/lib/phases.ts`. Phase 5: git push to `pidev/auto-{sid}` feature branch with GITHUB_TOKEN auth (3-attempt backoff; auth failure → hard stop).
 - **Settings:** Supabase-backed via `dashboard/lib/supabase/settings.ts`.
-- **MCP tools:** `mcp/pi-ceo-server.js` — 21 tools for harness reads + Linear operations.
+- **MCP tools:** `mcp/pi-ceo-server.js` — 27 tools for harness reads + Linear operations.
 - **Path traversal:** `_safe_sid()` strips non-alphanumeric from session IDs before file path use.
 - **Webhook HMAC:** `hmac.compare_digest()` for GitHub (`x-hub-signature-256`) and Linear (`Linear-Signature`).
 - **Rate-limit GC:** `_req_log` in `auth.py` accumulates IP keys forever. Prune stale IPs (last request >120 s ago) every 5 min inline inside `check_rate_limit()` — no background task needed in asyncio.
@@ -316,9 +317,11 @@ Board activation vote carried unanimously on 15 Apr 2026. Swarm flipped to activ
 - Synthex #59 SYN-695, #60 SYN-696/697, #61 SYN-698–703
 
 **Developer actions required:**
-- Set `ENABLE_PROMPT_CACHING_1H=1` in Railway (RA-1009 code merged, env var not yet set)
 - Merge all open PRs above
 - Register SYN-694 Routine in Claude Code (see `.harness/routines/SYN-694-deploy-verify.md`)
+
+**Open as of 2026-04-20:**
+- `ENABLE_PROMPT_CACHING_1H=1` — RA-1009 code merged, Railway env var status could not be verified by this audit (Railway CLI unauthorized); leave on checklist until someone with Railway access confirms.
 
 **Completed (2026-04-16):**
 - RA-1003–1032: Security + compound-engineering sprint (PRs #17–32) ✓
