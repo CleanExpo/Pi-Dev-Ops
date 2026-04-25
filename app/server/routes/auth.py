@@ -5,7 +5,10 @@ import os
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from ..auth import verify_password, create_session_token, require_auth, require_rate_limit, revoke_token
+from ..auth import (
+    verify_password, create_session_token, require_auth, require_rate_limit, revoke_token,
+    check_login_lockout, record_login_failure, clear_login_failures,
+)
 from .. import config
 
 log = logging.getLogger("pi-ceo.auth")
@@ -23,13 +26,17 @@ router = APIRouter()
 @router.post("/api/login")
 async def login(request: Request, _=Depends(require_rate_limit)):
     client_ip = request.client.host if request.client else "unknown"
+    # RA-1017: reject locked-out IPs before touching password
+    if check_login_lockout(client_ip):
+        log.warning("Login blocked: ip=%s reason=lockout", client_ip)
+        raise HTTPException(429, "Too many failed attempts — try again later")
     body = await request.json()
     if not verify_password(body.get("password", "")):
-        # RA-1017: structured audit log on failure
+        record_login_failure(client_ip)
         log.warning("Login failed: ip=%s reason=bad_password", client_ip)
         raise HTTPException(401, "Invalid password")
+    clear_login_failures(client_ip)
     token = create_session_token()
-    # RA-1017: structured audit log on success
     log.info("Login success: ip=%s", client_ip)
     response = JSONResponse({"ok": True})
     # Cross-origin cookies require SameSite=None + Secure (HTTPS only)

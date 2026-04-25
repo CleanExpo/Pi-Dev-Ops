@@ -123,6 +123,48 @@ def verify_session_token(token: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Login lockout — RA-1017
+# 5 failed attempts within 15 min → 15-min lockout per IP.
+# ---------------------------------------------------------------------------
+
+_LOCKOUT_WINDOW = 900.0   # 15 minutes
+_LOCKOUT_THRESHOLD = 5
+_LOCKOUT_DURATION = 900.0
+
+_login_failures: dict[str, list[float]] = {}  # ip -> timestamps of recent failures
+_locked_ips: dict[str, float] = {}            # ip -> lockout expiry
+
+
+def check_login_lockout(ip: str) -> bool:
+    """Return True if ip is currently locked out from login."""
+    now = time.time()
+    expiry = _locked_ips.get(ip, 0.0)
+    if expiry > now:
+        return True
+    if expiry:
+        del _locked_ips[ip]
+    return False
+
+
+def record_login_failure(ip: str) -> None:
+    """Record a failed login attempt. Lock the IP if threshold exceeded."""
+    now = time.time()
+    _login_failures.setdefault(ip, [])
+    _login_failures[ip] = [t for t in _login_failures[ip] if now - t < _LOCKOUT_WINDOW]
+    _login_failures[ip].append(now)
+    if len(_login_failures[ip]) >= _LOCKOUT_THRESHOLD:
+        _locked_ips[ip] = now + _LOCKOUT_DURATION
+        _login_failures[ip] = []
+        log.warning("Login lockout triggered: ip=%s", ip)
+
+
+def clear_login_failures(ip: str) -> None:
+    """Clear failure record on successful login."""
+    _login_failures.pop(ip, None)
+    _locked_ips.pop(ip, None)
+
+
+# ---------------------------------------------------------------------------
 # Rate limiting — sliding-window per IP
 # ---------------------------------------------------------------------------
 
