@@ -165,10 +165,29 @@ _REPO_LINEAR_ROUTING: dict[str, dict[str, str]] = {
 
 
 
-# Deduplication: track run IDs we've already processed to avoid one ticket
-# per workflow job when a single commit fails multiple workflows.
-_processed_run_ids: set[int] = set()
-_DEDUP_MAX = 500  # cap memory growth
+# RA-1008: Persist dedup set so restarts don't emit duplicate CI tickets.
+# Stored as a JSON list of integers in DATA_DIR/dedup-run-ids.json.
+_DEDUP_FILE = Path(config.DATA_DIR) / "dedup-run-ids.json"
+_DEDUP_MAX = 500  # cap size; oldest half evicted when full
+
+
+def _load_dedup_set() -> set[int]:
+    try:
+        return set(json.loads(_DEDUP_FILE.read_text()))
+    except Exception:
+        return set()
+
+
+def _save_dedup_set(s: set[int]) -> None:
+    try:
+        tmp = _DEDUP_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(list(s)))
+        os.replace(tmp, _DEDUP_FILE)
+    except Exception:
+        pass
+
+
+_processed_run_ids: set[int] = _load_dedup_set()
 
 
 async def _handle_workflow_run(payload: dict, request: Request) -> None:
@@ -192,10 +211,10 @@ async def _handle_workflow_run(payload: dict, request: Request) -> None:
         return
     _processed_run_ids.add(dedup_key)
     if len(_processed_run_ids) > _DEDUP_MAX:
-        # Evict oldest half to avoid unbounded growth on long-running server
         to_remove = list(_processed_run_ids)[:_DEDUP_MAX // 2]
         for k in to_remove:
             _processed_run_ids.discard(k)
+    _save_dedup_set(_processed_run_ids)
 
     workflow_name = run.get("name", "CI")
     run_url = run.get("html_url", "")

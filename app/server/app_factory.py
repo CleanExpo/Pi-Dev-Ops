@@ -32,14 +32,20 @@ _IS_CLOUD = bool(
 )
 
 # Allowed origins: local Next.js dev + Vercel deployments
-# Append extra origins via TAO_ALLOWED_ORIGINS (comma-separated)
+# Append extra origins via TAO_ALLOWED_ORIGINS (comma-separated).
+# RA-1020: validate each extra origin starts with http:// or https://
+# to prevent wildcard patterns or bare-domain injection.
 _extra = os.environ.get("TAO_ALLOWED_ORIGINS", "")
+_extra_origins = [
+    o.strip() for o in _extra.split(",")
+    if o.strip() and o.strip().startswith(("http://", "https://"))
+]
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "https://pi-dev-ops.vercel.app",
     "https://dashboard-unite-group.vercel.app",
-] + [o.strip() for o in _extra.split(",") if o.strip()]
+] + _extra_origins
 
 
 _MAX_REQUEST_BODY = 10 * 1024 * 1024  # 10 MB — RA-1019
