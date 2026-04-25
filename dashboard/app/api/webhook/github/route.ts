@@ -16,12 +16,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const sig256   = req.headers.get("x-hub-signature-256") ?? "";
   const event    = req.headers.get("x-github-event") ?? "";
 
-  // Only handle push and pull_request events
-  if (!["push", "pull_request"].includes(event)) {
-    return NextResponse.json({ skipped: true, reason: `Unsupported event: ${event}` });
-  }
-
-  // Verify HMAC-SHA256 signature
+  // Verify HMAC-SHA256 signature before processing event type
   const settings = await getSettings();
   if (!settings.webhookSecret) {
     return NextResponse.json({ error: "Webhook secret not configured — add it in Settings" }, { status: 500 });
@@ -36,6 +31,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const expBuf  = Buffer.from(expected.padEnd(maxLen));
   if (!timingSafeEqual(sigBuf, expBuf)) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  }
+
+  // Only handle push and pull_request events
+  if (!["push", "pull_request"].includes(event)) {
+    return NextResponse.json({ skipped: true, reason: `Unsupported event: ${event}` });
   }
 
   // Parse payload
