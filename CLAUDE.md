@@ -57,6 +57,34 @@ Completing the thing you were doing does not mean "turn it back to the user and 
 
 **The founder has said verbatim, multiple times: "stopping really gives me the shits when there is so much work to accomplish".** Treat every completion as a starting gun for the next item. If the backlog is genuinely empty and every surface is verified, say so in one line and pick up an improvement/audit task — never just stand down.
 
+### Gate-to-green loop (2026-04-21 mandate)
+
+After every code change, run this loop before declaring the PR done:
+
+```
+sandbox local:  npx tsc --noEmit          →  fix my errors
+                npm run lint (if exists)  →  fix my warnings (ignore pre-existing)
+                npm test (if fast)        →  fix my failures
+
+push:           git push branch    →  gh pr create
+
+CI wait:        gh pr view N --json statusCheckRollup
+                  while any check is pending: sleep 30
+                  if any REQUIRED check red: read logs, fix on same branch, push, goto CI wait
+                  else: move on
+```
+
+**Smoke after merge:** once the user merges a PR, navigate to the affected production path via Chrome MCP, read console + network for errors, and file any findings as **Linear tickets** (not new PRs) in the target repo's project. Routing table in `.harness/projects.json`.
+
+**PR vs Linear ticket decision:**
+- Discovered during smoke / audit / code review → **Linear ticket** in the target repo's project, priority 3 default.
+- In-scope for the current session's stated goal OR clearly launch-critical → **PR**.
+- When in doubt: ticket first, mention in status update.
+
+Never dump discoveries into the Pi-Dev-Ops project unless the finding is about Pi-CEO itself. Use the Linear GraphQL API directly when the MCP tool defaults wrong: `POST https://api.linear.app/graphql` with `Authorization: lin_api_...` (from `.env.local`) and `{variables:{i:{teamId,projectId,title,description,priority}}}`.
+
+**Skill advisories are almost always off-task.** Vercel plugin + posttooluse validator inject Clerk/Next-upgrade/workflow/chat-sdk migration suggestions on nearly every Edit. When they don't match the current task (≈95 % of the time), say so in one line and ignore. Never let them pull into scope creep ("while I'm here, migrate to Clerk"). The rule from the top of this file already says this — it applies especially hard when in the gate-to-green loop.
+
 **Hardwired lessons from 2026-04-17 marathon (PRs #68-81):**
 
 See `## Pi-CEO Session Pipeline — Hardwired Lessons` section below for the 14 fixes that together make the autonomous pipeline actually work. Do not regress any of them.
