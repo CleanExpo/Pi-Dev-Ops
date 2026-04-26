@@ -126,6 +126,15 @@ async def health(request: Request):
     swarm_enabled = os.environ.get("TAO_SWARM_ENABLED", "1") not in ("0", "false", "False", "")
     swarm_shadow = os.environ.get("TAO_SWARM_SHADOW", "0") not in ("0", "false", "False", "")
 
+    # Pi-SEO scheduler gate — RA-1469. The cron loop fires every 60s but
+    # `cron_triggers._fire_scan_trigger` and `_fire_monitor_trigger` skip
+    # silently when PI_SEO_ACTIVE=0 (the default). When the flag is off,
+    # the scheduler appears alive but no scans/monitors ever fire — the
+    # exact failure mode that produced 161h of silent skipping pre-fix.
+    # Surface it on /health so the watchdog (and operator dashboards) can
+    # see "scheduler armed: false" instead of guessing at Railway env state.
+    pi_seo_active = os.environ.get("PI_SEO_ACTIVE", "0") == "1"
+
     healthy = disk_free_gb is not None
     payload = {
         "status":           "ok" if healthy else "degraded",
@@ -151,6 +160,7 @@ async def health(request: Request):
         "vercel_token":     bool(config.VERCEL_TOKEN),
         "swarm_enabled":    swarm_enabled,
         "swarm_shadow":     swarm_shadow,
+        "pi_seo_active":    pi_seo_active,
     }
     return JSONResponse(payload, status_code=200 if healthy else 503)
 
