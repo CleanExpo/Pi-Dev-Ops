@@ -213,6 +213,20 @@ def push_digest_to_telegram(chat_id: str | None = None) -> bool:
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             return resp.status == 200
+    except urllib.error.HTTPError as exc:
+        # 401 from Telegram = bot token revoked (manual revoke via @BotFather
+        # or auto-revoke on detected leak). Surface a distinct, actionable
+        # error so the operator rotates the token instead of grepping logs
+        # for a generic "push failed". Tracked under RA-1671.
+        if exc.code == 401:
+            log.critical(
+                "digest: TELEGRAM_BOT_TOKEN REVOKED — Telegram returned 401 Unauthorized. "
+                "Rotate the token via @BotFather, then update TELEGRAM_BOT_TOKEN in Railway env. "
+                "Until rotated, all morning briefings and digest pushes will fail silently."
+            )
+        else:
+            log.error("digest: telegram HTTP %s: %s", exc.code, exc.read().decode("utf-8", errors="replace")[:200])
+        return False
     except (urllib.error.URLError, TimeoutError) as exc:
         log.error("digest: telegram push failed: %s", exc)
         return False

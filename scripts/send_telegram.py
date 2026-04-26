@@ -178,6 +178,14 @@ def send_telegram(
                 body = json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             error_body = exc.read().decode("utf-8", errors="replace")
+            # 401 = token revoked. Distinct error message so the operator
+            # rotates via @BotFather instead of debugging the wider stack.
+            # See RA-1671.
+            if exc.code == 401:
+                raise RuntimeError(
+                    "Telegram HTTP 401: TELEGRAM_BOT_TOKEN REVOKED. Rotate via @BotFather, "
+                    f"then update the env var. Server response: {error_body[:200]}"
+                ) from exc
             raise RuntimeError(f"Telegram HTTP {exc.code}: {error_body}") from exc
 
         if not body.get("ok"):
