@@ -26,6 +26,26 @@ _NOTEBOOKLM_HEALTH_INTERVAL_H = 6.0  # probe each KB at most once per 6 hours
 _scheduler_silent_last_raised: float = 0.0
 _SCHEDULER_SILENT_COOLDOWN_H = 6.0
 
+# RA-1472 — Board meeting silence watchdog. The pi-dev-ops-board-meeting
+# Cowork task went silent 2026-04-14 → 2026-04-20 (24 missed cycles, 6 days)
+# without alerting. The fix: every 30 min, check the newest file in
+# .harness/board-meetings/. If older than 12 h, fire a Telegram alert +
+# Linear ticket. Cooldown prevents storming if the gap persists.
+_board_meeting_silent_last_raised: float = 0.0
+_BOARD_MEETING_SILENT_THRESHOLD_H = 12.0
+_BOARD_MEETING_SILENT_COOLDOWN_H = 12.0
+
+
+def _board_meetings_dir():
+    """Return the on-disk directory holding board-meeting markdown files.
+
+    Pulled out so tests can monkeypatch this single function without having
+    to reach into the watchdog body's `Path(__file__).parent.parent.parent...`
+    chain.
+    """
+    from pathlib import Path
+    return Path(__file__).parent.parent.parent / ".harness" / "board-meetings"
+
 
 async def _watchdog_check(triggers: list[dict], log) -> None:
     """
@@ -393,3 +413,127 @@ async def _watchdog_notebooklm_health(log) -> None:
         log.info("NotebookLM health: Telegram alert sent for %d failure(s)", len(failures))
     except Exception as exc:
         log.warning("NotebookLM health: Telegram send failed: %s", exc)
+
+
+async def _watchdog_board_meeting_silence(log) -> None:
+    """
+    RA-1472 — Board-meeting silence watchdog.
+
+    Cycles 28–51 (2026-04-14 → 2026-04-20, ~6 days, 24 missed 6-hour windows)
+    went silent without alerting because the pi-dev-ops-board-meeting Cowork
+    task lost its workspace mount and the failure was never surfaced.
+
+    This watchdog runs alongside the others on the 30-minute tick. It checks
+    the most recent board-meeting markdown file:
+      - .harness/board-meetings/*.md  (current location)
+    If the newest is older than 12 h (or none exist at all), it raises a
+    Telegram alert + Linear ticket. Cooldown matches the threshold so we
+    don't storm during a multi-day outage.
+    """
+    global _board_meeting_silent_last_raised
+    from . import config
+
+    if _board_meeting_silent_last_raised and (
+        time.time() - _board_meeting_silent_last_raised
+    ) < _BOARD_MEETING_SILENT_COOLDOWN_H * 3600:
+        return
+
+    meetings_dir = _board_meetings_dir()
+    silence_h: float | None = None
+    if not meetings_dir.exists():
+        silence_h = float("inf")
+    else:
+        md_files = [p for p in meetings_dir.iterdir() if p.is_file() and p.suffix == ".md"]
+        if not md_files:
+            silence_h = float("inf")
+        else:
+            newest = max(md_files, key=lambda p: p.stat().st_mtime)
+            silence_h = (time.time() - newest.stat().st_mtime) / 3600
+
+    if silence_h is None or silence_h < _BOARD_MEETING_SILENT_THRESHOLD_H:
+        return
+
+    age_desc = "never written" if silence_h == float("inf") else f"{silence_h:.0f}h old"
+    log.warning(
+        "Board-meeting watchdog: newest .harness/board-meetings/*.md is %s "
+        "(threshold %.0fh) — pi-dev-ops-board-meeting Cowork task may be silent",
+        age_desc, _BOARD_MEETING_SILENT_THRESHOLD_H,
+    )
+
+    # Telegram first — fastest signal to the operator's phone.
+    if config.TELEGRAM_BOT_TOKEN and config.TELEGRAM_ALERT_CHAT_ID:
+        import urllib.request as _ureq
+        import json as _json
+        payload = _json.dumps({
+            "chat_id": config.TELEGRAM_ALERT_CHAT_ID,
+            "text": (
+                "🚨 *Board-meeting automation silent*\n\n"
+                f"Newest `.harness/board-meetings/*.md` is *{age_desc}* "
+                f"(threshold: {_BOARD_MEETING_SILENT_THRESHOLD_H:.0f}h).\n\n"
+                "Likely cause: pi-dev-ops-board-meeting Cowork task lost its "
+                "workspace mount or was disabled.\n\n"
+                "_RA-1472_"
+            ),
+            "parse_mode": "Markdown",
+            "disable_web_page_preview": True,
+        }).encode()
+        try:
+            req = _ureq.Request(
+                f"https://api.telegram.org/bot{config.TELEGRAM_BOT_TOKEN}/sendMessage",
+                data=payload, method="POST",
+                headers={"Content-Type": "application/json"},
+            )
+            with _ureq.urlopen(req, timeout=10):
+                pass
+            log.info("Board-meeting watchdog: Telegram alert sent")
+        except Exception as exc:
+            log.warning("Board-meeting watchdog: Telegram send failed: %s", exc)
+
+    # Linear ticket — durable record + dedup via the cooldown.
+    if config.LINEAR_API_KEY:
+        try:
+            import urllib.request as _ureq
+            import json as _json
+            mutation = """
+            mutation CreateIssue($input: IssueCreateInput!) {
+                issueCreate(input: $input) { success issue { identifier } }
+            }
+            """
+            variables = {
+                "input": {
+                    "teamId": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673",
+                    "projectId": "f45212be-3259-4bfb-89b1-54c122c939a7",
+                    "title": (
+                        f"[WATCHDOG] Board-meeting silence: {age_desc} — "
+                        "pi-dev-ops-board-meeting task not running?"
+                    ),
+                    "description": (
+                        f"`.harness/board-meetings/` newest file is **{age_desc}** "
+                        f"(threshold: {_BOARD_MEETING_SILENT_THRESHOLD_H:.0f}h).\n\n"
+                        "**Likely causes** (per RA-1472 RCA):\n"
+                        "1. Cowork scheduled task `pi-dev-ops-board-meeting` paused "
+                        "or disabled.\n"
+                        "2. Cowork session lost workspace mount; static path in task "
+                        "prompt no longer matches the live `mnt/Pi Dev Ops/` folder.\n"
+                        "3. Task ran in memory but couldn't persist the markdown "
+                        "(workspace path mismatch).\n\n"
+                        "**Action:** check Cowork scheduled tasks dashboard. Cooldown "
+                        f"prevents re-raising for {_BOARD_MEETING_SILENT_COOLDOWN_H:.0f}h."
+                    ),
+                    "priority": 2,  # High
+                    "stateId": None,
+                }
+            }
+            payload = _json.dumps({"query": mutation, "variables": variables}).encode()
+            req = _ureq.Request(
+                "https://api.linear.app/graphql", data=payload, method="POST",
+                headers={"Content-Type": "application/json", "Authorization": config.LINEAR_API_KEY},
+            )
+            with _ureq.urlopen(req, timeout=10) as resp:
+                result = _json.loads(resp.read())
+            identifier = (result.get("data", {}).get("issueCreate", {}).get("issue") or {}).get("identifier", "?")
+            log.info("Board-meeting watchdog: created Linear ticket %s", identifier)
+        except Exception as exc:
+            log.error("Board-meeting watchdog: Linear ticket create failed: %s", exc)
+
+    _board_meeting_silent_last_raised = time.time()
