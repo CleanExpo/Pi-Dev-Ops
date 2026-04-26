@@ -42,8 +42,13 @@ async function proxyRequest(method: string, path: string, body?: string): Promis
 
   const upstream = `${PI_CEO_URL}${path}`;
 
+  // 10 s was too short for Railway cold-start — RA-1699 smoke test
+  // (`GET /api/pi-ceo/api/routines?limit=1`) returned 502 because the
+  // upstream container hadn't booted by the time AbortSignal fired.
+  // Bumped to 25 s, which sits inside Vercel's default 30 s function
+  // limit while giving Railway enough headroom for a cold boot.
   const doFetch = () =>
-    fetch(upstream, { method, headers, body, signal: AbortSignal.timeout(10_000) });
+    fetch(upstream, { method, headers, body, signal: AbortSignal.timeout(25_000) });
 
   let res = await doFetch().catch(() => null);
   if (!res) {
