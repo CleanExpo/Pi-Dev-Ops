@@ -36,6 +36,17 @@ _BOARD_MEETING_SILENT_THRESHOLD_H = 12.0
 _BOARD_MEETING_SILENT_COOLDOWN_H = 12.0
 
 
+def _board_meetings_dir():
+    """Return the on-disk directory holding board-meeting markdown files.
+
+    Pulled out so tests can monkeypatch this single function without having
+    to reach into the watchdog body's `Path(__file__).parent.parent.parent...`
+    chain.
+    """
+    from pathlib import Path
+    return Path(__file__).parent.parent.parent / ".harness" / "board-meetings"
+
+
 async def _watchdog_check(triggers: list[dict], log) -> None:
     """
     12-hour watchdog. If no scan/monitor trigger has fired in the last 12h,
@@ -421,14 +432,13 @@ async def _watchdog_board_meeting_silence(log) -> None:
     """
     global _board_meeting_silent_last_raised
     from . import config
-    from pathlib import Path
 
     if _board_meeting_silent_last_raised and (
         time.time() - _board_meeting_silent_last_raised
     ) < _BOARD_MEETING_SILENT_COOLDOWN_H * 3600:
         return
 
-    meetings_dir = Path(__file__).parent.parent.parent / ".harness" / "board-meetings"
+    meetings_dir = _board_meetings_dir()
     silence_h: float | None = None
     if not meetings_dir.exists():
         silence_h = float("inf")
