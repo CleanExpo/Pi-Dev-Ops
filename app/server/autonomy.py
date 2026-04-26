@@ -448,6 +448,43 @@ query InProgressPiCeoIssues($projectId: String!) {
 """
 
 
+# RA-1495 — autonomous poller filter for non-code tickets.
+# DR-535 (a legal-process escalation explicitly tagged "not a code change")
+# was picked up by the poller in 2026-04-20 and triggered a 28%-confidence
+# planner session against non-existent files. Time + tokens wasted with no
+# code committed. The fix: skip tickets that are:
+#   1. Labelled `no-code` / `manual-action` / `legal`
+#   2. Body contains the phrase "not a code change" or "manual escalation"
+# These tickets stay in the operator's view but the engineering pipeline
+# never claims them.
+_NO_CODE_LABELS = frozenset({"no-code", "manual-action", "legal"})
+_NO_CODE_PHRASES = ("not a code change", "manual escalation")
+
+
+def _should_skip_no_code(issue: dict) -> tuple[bool, str | None]:
+    """Return (skip, reason) — skip=True if this ticket isn't engineering work.
+
+    Reason is a short tag suitable for log + jsonl: "label:legal", "phrase:..."
+    or None when not skipped.
+    """
+    label_nodes = (issue.get("labels") or {}).get("nodes") or []
+    label_names = {(n.get("name") or "").strip().lower() for n in label_nodes}
+    matched = label_names & _NO_CODE_LABELS
+    if matched:
+        return True, f"label:{sorted(matched)[0]}"
+
+    haystack_parts = [
+        issue.get("title") or "",
+        issue.get("description") or "",
+    ]
+    haystack = " ".join(haystack_parts).lower()
+    for phrase in _NO_CODE_PHRASES:
+        if phrase in haystack:
+            return True, f"phrase:{phrase}"
+
+    return False, None
+
+
 def _is_pi_ceo_orphan(issue: dict, live_session_ids: set[str]) -> bool:
     """True iff the issue was claimed by Pi-CEO but its session is gone.
 
@@ -653,6 +690,22 @@ async def linear_todo_poller() -> None:
                 "Autonomy: processing %s '%s' repo=%s team=%s",
                 identifier, title, repo_url, team_id,
             )
+
+            # RA-1495 — skip manual-escalation / non-engineering tickets.
+            # Logged at INFO (not WARN) since this is intentional, not a bug.
+            skip_no_code, skip_reason = _should_skip_no_code(issue)
+            if skip_no_code:
+                log.info(
+                    "Autonomy: skipping %s '%s' — non-code ticket (reason=%s)",
+                    identifier, title, skip_reason,
+                )
+                _log_event({
+                    "action": "skip_no_code",
+                    "ticket": identifier,
+                    "title": title,
+                    "reason": skip_reason,
+                })
+                continue
 
             # --- Transition to In Progress (RA-1369 — prefer contract status) ---
             # Contract says `Pi-Dev: In Progress`. Not every project has that
