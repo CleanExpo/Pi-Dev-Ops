@@ -34,10 +34,43 @@ import urllib.request
 from typing import Optional
 
 from . import config
-from .session_model import em
+from .session_model import em, _sessions
 from .session_sdk import _write_sdk_metric, _run_claude_via_sdk
 
 _log = logging.getLogger("pi-ceo.session_evaluator")
+
+
+# ── Budget tracking (RA-1682) ─────────────────────────────────────────────────
+def _record_evaluator_tokens(
+    session_id: str, model: str, input_tokens: int, output_tokens: int
+) -> None:
+    """Record evaluator token usage on the session's BudgetTracker.
+
+    RA-1682 — `session.budget` was instantiated in session_phases._phase_plan
+    (line 1447) but never received a single `.record()` call, so the tracker
+    always reported `used=0` regardless of real spend. This helper closes the
+    gap on the evaluator hot path: every direct-API eval round contributes
+    its actual usage, scoped by model name (sonnet / haiku / opus).
+
+    Quietly no-ops when:
+      - session_id is empty (eg. one-off probe / standalone test invocation)
+      - the session has been GC'd between request and response
+      - `session.budget` is None (only happens for sessions that bypassed
+        the plan phase entirely — uncommon, but graceful is correct)
+    """
+    if not session_id:
+        return
+    session = _sessions.get(session_id)
+    if session is None:
+        return
+    budget = getattr(session, "budget", None)
+    if budget is None:
+        return
+    try:
+        budget.record(model, int(input_tokens) + int(output_tokens))
+    except Exception as exc:  # noqa: BLE001
+        # Budget recording must never break the evaluator. Log once + move on.
+        _log.warning("budget.record(%s) failed: %s", model, exc)
 
 # ── Prompt caching (RA-655) ───────────────────────────────────────────────────
 
@@ -322,15 +355,20 @@ async def _run_eval_with_cache(
         message = _create_with_retry()
         text = message.content[0].text if message.content else ""
         usage = message.usage
+        _input_tokens = getattr(usage, "input_tokens", 0)
+        _output_tokens = getattr(usage, "output_tokens", 0)
         _log.info(
             "eval-cache model=%s input=%d cache_write=%d cache_read=%d output=%d latency=%.1fs",
             model,
-            getattr(usage, "input_tokens", 0),
+            _input_tokens,
             getattr(usage, "cache_creation_input_tokens", 0),
             getattr(usage, "cache_read_input_tokens", 0),
-            getattr(usage, "output_tokens", 0),
+            _output_tokens,
             time.monotonic() - t0,
         )
+        # RA-1682: feed the session's BudgetTracker. Without this the tracker
+        # is dead weight — instantiated but `used` stays 0 forever.
+        _record_evaluator_tokens(session_id, model, _input_tokens, _output_tokens)
         _write_sdk_metric(
             session_id=session_id, phase=f"evaluator_cached_{model}",
             model=model, success=True,
