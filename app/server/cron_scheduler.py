@@ -14,6 +14,7 @@ import time
 from .cron_store import _load_triggers, _save_triggers
 from .cron_triggers import _fire_trigger, _matches, _should_catch_up
 from .cron_watchdogs import (
+    _watchdog_board_meeting_silence,
     _watchdog_check,
     _watchdog_docs_staleness,
     _watchdog_escalations,
@@ -92,6 +93,7 @@ async def cron_loop() -> None:
                 await _watchdog_escalations(_log)              # RA-633
                 await _watchdog_zte_reality_check(_log)        # RA-608
                 await _watchdog_notebooklm_health(_log)        # RA-820
+                await _watchdog_board_meeting_silence(_log)    # RA-1472
 
             # Linear pulse every 15 min — mandatory single-pane-of-glass for
             # the founder, per explicit requirement (2026-04-19).
