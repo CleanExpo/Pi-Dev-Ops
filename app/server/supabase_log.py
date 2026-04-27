@@ -296,6 +296,60 @@ def _iso_or_now(ts: Any) -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+# ── RA-1439: cron_state — durable last_fired_at per trigger ──────────────────
+
+def save_cron_last_fired(trigger_id: str, last_fired_at: float) -> bool:
+    """RA-1439 — Persist a single trigger's last_fired_at to Supabase cron_state.
+
+    Survives Railway redeploys. The committed `.harness/cron-triggers.json`
+    otherwise resets last_fired_at on every container boot, defeating
+    catch-up because the next deploy reverts again before save persists.
+
+    Fire-and-forget: returns False on any failure but never raises.
+    """
+    if not trigger_id or last_fired_at is None or last_fired_at <= 0:
+        return False
+    try:
+        ts = datetime.fromtimestamp(float(last_fired_at), tz=timezone.utc).isoformat(timespec="seconds")
+        return _upsert("cron_state", {
+            "trigger_id": trigger_id,
+            "last_fired_at": ts,
+            "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        })
+    except Exception as exc:
+        log.warning("RA-1439 save_cron_last_fired failed (non-fatal): %s", exc)
+        return False
+
+
+def load_cron_state() -> dict[str, float]:
+    """RA-1439 — Return {trigger_id: last_fired_at_epoch_seconds} from Supabase.
+
+    Used by `cron_store._load_triggers()` to overlay durable state onto the
+    schedule defined in `.harness/cron-triggers.json`. Empty dict on
+    Supabase outage — caller falls back to JSON's value (which may be
+    frozen but at least lets the system keep running).
+    """
+    try:
+        rows = _select("cron_state", "select=trigger_id,last_fired_at&limit=200")
+        out: dict[str, float] = {}
+        for r in rows:
+            tid = r.get("trigger_id", "")
+            ts_str = r.get("last_fired_at", "")
+            if not tid or not ts_str:
+                continue
+            try:
+                # Postgres returns ISO with offset; fromisoformat accepts
+                # trailing Z on Python 3.11+, normalise just in case.
+                ts_norm = ts_str.replace("Z", "+00:00")
+                out[tid] = datetime.fromisoformat(ts_norm).timestamp()
+            except Exception:
+                continue
+        return out
+    except Exception as exc:
+        log.warning("RA-1439 load_cron_state failed (non-fatal): %s", exc)
+        return {}
+
+
 # ── RA-633: alert_escalations ─────────────────────────────────────────────────
 
 def log_alert_escalation(

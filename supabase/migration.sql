@@ -64,6 +64,27 @@ CREATE POLICY "public_read"    ON sessions FOR SELECT USING (true);
 CREATE POLICY "service_write"  ON sessions FOR INSERT TO service_role WITH CHECK (true);
 CREATE POLICY "service_update" ON sessions FOR UPDATE TO service_role USING (true);
 
+-- ── RA-1439 — cron_state ─────────────────────────────────────────────────────
+-- Persistent last_fired_at per trigger, durable across Railway redeploys.
+-- The schedule definitions live in `.harness/cron-triggers.json` (committed).
+-- The runtime `last_fired_at` lives HERE so Railway deploys don't reset it
+-- to the frozen git state. Without this, every redeploy reverts every
+-- trigger's last_fired_at to whatever was committed, defeating catch-up
+-- because the next deploy reverts again before save_triggers persists.
+CREATE TABLE IF NOT EXISTS cron_state (
+  trigger_id     TEXT        PRIMARY KEY,
+  last_fired_at  TIMESTAMPTZ NOT NULL,
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE cron_state ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "cron_state_public_read"    ON cron_state;
+DROP POLICY IF EXISTS "cron_state_service_write"  ON cron_state;
+DROP POLICY IF EXISTS "cron_state_service_update" ON cron_state;
+CREATE POLICY "cron_state_public_read"    ON cron_state FOR SELECT USING (true);
+CREATE POLICY "cron_state_service_write"  ON cron_state FOR INSERT TO service_role WITH CHECK (true);
+CREATE POLICY "cron_state_service_update" ON cron_state FOR UPDATE TO service_role USING (true);
+
 -- ── terminal_lines ────────────────────────────────────────────────────────────
 -- Persisted terminal output lines per session (enables replay on reconnect)
 CREATE TABLE IF NOT EXISTS terminal_lines (
