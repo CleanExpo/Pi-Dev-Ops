@@ -23,7 +23,7 @@ from .cron_watchdogs import (
 )
 from .cron_watchdog_zte import _watchdog_zte_reality_check
 # RA-1668 — weekly NotebookLM source-refresh (driven by freshness staleness check).
-from .agents.notebooklm_refresh import refresh_all_notebooks, _load_freshness
+from .agents.notebooklm_refresh import refresh_all_notebooks
 
 
 _notebooklm_weekly_last_ran: float = 0.0
