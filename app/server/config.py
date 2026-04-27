@@ -172,8 +172,10 @@ ALLOWED_MODELS       = ["opus", "sonnet", "haiku"]
 # Override via TAO_OPUS_ALLOWED_ROLES if you ever need to widen this — but the
 # default is strict by design (cost + latency).
 OPUS_ALLOWED_ROLES   = set(
-    os.environ.get("TAO_OPUS_ALLOWED_ROLES", "planner,orchestrator").split(",")
+    os.environ.get("TAO_OPUS_ALLOWED_ROLES", "planner,orchestrator,adversary").split(",")
 )
+# RA-1743 — `adversary` runs the pre-push opus-adversary review gate. Opus 4.7
+# is required for genuine model-diversity vs Sonnet 4.6 generator/evaluator.
 # Long-form model IDs returned by _resolve_model_id() in pipeline.py and
 # session_evaluator.py. Kept here so a single edit changes both readers.
 MODEL_ID_OPUS        = "claude-opus-4-7"
