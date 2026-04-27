@@ -35,6 +35,17 @@ _board_meeting_silent_last_raised: float = 0.0
 _BOARD_MEETING_SILENT_THRESHOLD_H = 12.0
 _BOARD_MEETING_SILENT_COOLDOWN_H = 12.0
 
+# RA-1742 — Vercel deploy-failure watchdog. The 2026-04-27 outage left
+# both restoreassist + restoreassist-sandbox stuck on Prisma P3009 for
+# 6 days / 11 h respectively while every prod deploy errored. /health
+# stayed green (it polls the DB, not the deploy state). This watchdog
+# polls the Vercel API for the most-recent prod deployment per project
+# in `.harness/projects.json` and alerts when the latest is `ERROR` and
+# >2 h old. Cooldown: 6 h to avoid storming during a multi-day outage.
+_vercel_deploy_failure_last_raised: float = 0.0
+_VERCEL_DEPLOY_FAILURE_THRESHOLD_H = 2.0
+_VERCEL_DEPLOY_FAILURE_COOLDOWN_H = 6.0
+
 
 def _board_meetings_dir():
     """Return the on-disk directory holding board-meeting markdown files.
@@ -537,3 +548,209 @@ async def _watchdog_board_meeting_silence(log) -> None:
             log.error("Board-meeting watchdog: Linear ticket create failed: %s", exc)
 
     _board_meeting_silent_last_raised = time.time()
+
+
+def _vercel_projects_to_monitor():
+    """Return [{name, project_id, team_id}] for portfolio repos with
+    Vercel deployments worth monitoring. Read from .harness/projects.json
+    so the watchdog automatically picks up new repos as the portfolio grows.
+
+    Pulled into a function so tests can monkeypatch this single seam.
+    """
+    from pathlib import Path
+    import json as _json
+
+    candidate = Path(__file__).parent.parent.parent / ".harness" / "projects.json"
+    if not candidate.exists():
+        return []
+    try:
+        registry = _json.loads(candidate.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return []
+    out = []
+    for p in registry.get("projects", []):
+        # Only repos that explicitly opt in via vercel_project_id get watched.
+        # Avoids hitting Vercel API for repos that have no deploy presence
+        # (e.g. internal docs / scripts repos).
+        vp = p.get("vercel_project_id")
+        if not vp:
+            continue
+        out.append({
+            "name": p.get("id") or p.get("repo") or vp,
+            "project_id": vp,
+            "team_id": p.get("vercel_team_id"),
+        })
+    return out
+
+
+async def _watchdog_vercel_deploy_failures(log) -> None:
+    """
+    RA-1742 — Vercel deploy-failure watchdog.
+
+    Polls the Vercel API for the most-recent Production deployment per
+    monitored project. When the latest is in `ERROR` state and was created
+    > 2 h ago, fire a Telegram alert + Linear ticket. Cooldown 6 h.
+
+    The 2026-04-27 RestoreAssist outage left both prod + sandbox stuck for
+    days because Prisma's `migrate deploy` failed silently — the build's
+    HTTP /health endpoint stayed green (DB was reachable, just schema
+    drifted), so UptimeRobot kept passing while every deploy errored.
+    This watchdog catches that shape: deploy=ERROR for >2h is the canary.
+
+    Requires VERCEL_TOKEN in env. Soft-fails if missing.
+    """
+    global _vercel_deploy_failure_last_raised
+    from . import config
+
+    if _vercel_deploy_failure_last_raised and (
+        time.time() - _vercel_deploy_failure_last_raised
+    ) < _VERCEL_DEPLOY_FAILURE_COOLDOWN_H * 3600:
+        return
+
+    vercel_token = getattr(config, "VERCEL_TOKEN", "") or ""
+    if not vercel_token:
+        log.debug("Vercel watchdog: VERCEL_TOKEN not set — skipping")
+        return
+
+    projects = _vercel_projects_to_monitor()
+    if not projects:
+        log.debug("Vercel watchdog: no monitored projects in .harness/projects.json")
+        return
+
+    import urllib.request as _ureq
+    import urllib.parse as _uparse
+    import json as _json
+
+    failures: list[dict] = []
+    for project in projects:
+        params: dict[str, str] = {
+            "projectId": project["project_id"],
+            "target": "production",
+            "limit": "1",
+        }
+        if project.get("team_id"):
+            params["teamId"] = project["team_id"]
+        url = "https://api.vercel.com/v6/deployments?" + _uparse.urlencode(params)
+        try:
+            req = _ureq.Request(url, headers={"Authorization": f"Bearer {vercel_token}"})
+            with _ureq.urlopen(req, timeout=10) as resp:
+                body = _json.loads(resp.read())
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Vercel watchdog: %s API fetch failed: %s", project["name"], exc)
+            continue
+
+        deployments = body.get("deployments") or []
+        if not deployments:
+            continue
+        latest = deployments[0]
+        # Vercel returns ms-epoch in `created`; state in `state` (READY|ERROR|...)
+        state = (latest.get("state") or "").upper()
+        if state != "ERROR":
+            continue
+        created_ms = latest.get("created") or 0
+        age_h = (time.time() - created_ms / 1000.0) / 3600.0
+        if age_h < _VERCEL_DEPLOY_FAILURE_THRESHOLD_H:
+            continue
+        failures.append({
+            "name": project["name"],
+            "deployment_id": latest.get("uid", "?"),
+            "url": latest.get("url", "?"),
+            "age_h": age_h,
+            "commit_msg": (latest.get("meta") or {}).get("githubCommitMessage", "")[:120],
+        })
+
+    if not failures:
+        return
+
+    log.warning(
+        "Vercel watchdog: %d project(s) have stale ERROR prod deploys",
+        len(failures),
+    )
+
+    # Telegram first.
+    if config.TELEGRAM_BOT_TOKEN and config.TELEGRAM_ALERT_CHAT_ID:
+        lines = ["🚨 *Vercel prod deploys ERRORed*", ""]
+        for f in failures:
+            lines.append(
+                f"• *{f['name']}* — {f['age_h']:.0f}h ago — "
+                f"`{f['deployment_id'][:12]}` — {f['commit_msg']}"
+            )
+        lines.append("")
+        lines.append("_RA-1742_")
+        text = "\n".join(lines)
+        payload = _json.dumps({
+            "chat_id": config.TELEGRAM_ALERT_CHAT_ID,
+            "text": text,
+            "parse_mode": "Markdown",
+            "disable_web_page_preview": True,
+        }).encode()
+        try:
+            req = _ureq.Request(
+                f"https://api.telegram.org/bot{config.TELEGRAM_BOT_TOKEN}/sendMessage",
+                data=payload, method="POST",
+                headers={"Content-Type": "application/json"},
+            )
+            with _ureq.urlopen(req, timeout=10):
+                pass
+            log.info("Vercel watchdog: Telegram alert sent for %d project(s)", len(failures))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Vercel watchdog: Telegram send failed: %s", exc)
+
+    # Linear ticket.
+    if config.LINEAR_API_KEY:
+        try:
+            mutation = """
+            mutation CreateIssue($input: IssueCreateInput!) {
+                issueCreate(input: $input) { success issue { identifier } }
+            }
+            """
+            failure_lines = "\n".join(
+                f"- **{f['name']}** — {f['age_h']:.1f}h old — "
+                f"deployment `{f['deployment_id']}` — {f['commit_msg']}"
+                for f in failures
+            )
+            variables = {
+                "input": {
+                    "teamId": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673",
+                    "projectId": "f45212be-3259-4bfb-89b1-54c122c939a7",
+                    "title": (
+                        f"[WATCHDOG] {len(failures)} Vercel prod deploy(s) ERROR > "
+                        f"{_VERCEL_DEPLOY_FAILURE_THRESHOLD_H:.0f}h"
+                    ),
+                    "description": (
+                        f"The most-recent Production deployment(s) for the following "
+                        f"project(s) are in `ERROR` state and older than "
+                        f"{_VERCEL_DEPLOY_FAILURE_THRESHOLD_H:.0f}h:\n\n"
+                        f"{failure_lines}\n\n"
+                        "**Common causes** (per RA-1742 RCA):\n"
+                        "1. Prisma migration P3009 — see `feedback_prisma_migration_recovery.md`\n"
+                        "2. Build-time env var missing\n"
+                        "3. TypeScript compile error introduced in a merged PR\n\n"
+                        "**Action:** open Vercel deployments view, read the build log "
+                        "tail, fix forward.\n\n"
+                        f"Cooldown: this watchdog re-raises at most every "
+                        f"{_VERCEL_DEPLOY_FAILURE_COOLDOWN_H:.0f}h."
+                    ),
+                    "priority": 1,  # Urgent — a stale prod deploy is real outage risk
+                    "stateId": None,
+                }
+            }
+            payload = _json.dumps({"query": mutation, "variables": variables}).encode()
+            req = _ureq.Request(
+                "https://api.linear.app/graphql", data=payload, method="POST",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": config.LINEAR_API_KEY,
+                },
+            )
+            with _ureq.urlopen(req, timeout=10) as resp:
+                result = _json.loads(resp.read())
+            identifier = (
+                (result.get("data", {}).get("issueCreate", {}).get("issue") or {})
+                .get("identifier", "?")
+            )
+            log.info("Vercel watchdog: created Linear ticket %s", identifier)
+        except Exception as exc:  # noqa: BLE001
+            log.error("Vercel watchdog: Linear ticket create failed: %s", exc)
+
+    _vercel_deploy_failure_last_raised = time.time()
