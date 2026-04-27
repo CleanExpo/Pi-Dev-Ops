@@ -44,8 +44,20 @@ CREATE TABLE IF NOT EXISTS sessions (
   completed_at TIMESTAMPTZ
 );
 
+-- RA-1407 — Session checkpointing for cross-deploy persistence (Option B).
+-- The original status check accepted only running/done/error, but the
+-- autonomous build pipeline uses a richer lifecycle (created, cloning,
+-- building, evaluating, complete, failed, killed, interrupted, blocked).
+-- Drop the strict constraint and add a `checkpoint` JSONB column to hold
+-- last_completed_phase + retry_count + evaluator_status/score/model + linear
+-- + workspace + error so a fresh container can resume.
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS checkpoint JSONB;
+ALTER TABLE sessions DROP CONSTRAINT IF EXISTS sessions_status_check;
+
 CREATE INDEX IF NOT EXISTS sessions_started_at_idx ON sessions (started_at DESC);
 CREATE INDEX IF NOT EXISTS sessions_repo_name_idx  ON sessions (repo_name);
+-- RA-1407 — Status index so startup recovery can quickly find interrupted rows.
+CREATE INDEX IF NOT EXISTS sessions_status_idx     ON sessions (status);
 
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_read"    ON sessions FOR SELECT USING (true);
