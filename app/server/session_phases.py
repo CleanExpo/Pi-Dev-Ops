@@ -20,6 +20,7 @@ Public API (re-exported by sessions.py for backward compatibility):
 from __future__ import annotations
 
 import asyncio
+import datetime
 import json
 import logging
 import os
@@ -1286,6 +1287,136 @@ def _route_linear_ticket_to_target_project(
         raise RuntimeError(f"Linear issueCreate failed: {exc}") from exc
 
 
+# ── RA-1743 — opus-adversary pre-push gate ─────────────────────────────────
+
+async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
+    """RA-1743 — Pre-push opus-adversary review gate.
+
+    Runs Opus 4.7 on the diff produced by generator+evaluator with adversarial
+    framing per ~/.claude/skills/opus-adversary/SKILL.md. Verdict APPROVE /
+    APPROVE WITH NOTES / BLOCK; BLOCK halts push. Logs every run to
+    .harness/adversary-runs/YYYY-MM-DD.jsonl for the training pipeline (RA-1745).
+
+    Returns (proceed_ok, verdict_data) where:
+        proceed_ok: True if push should proceed (APPROVE or APPROVE WITH NOTES or skipped)
+                    False if BLOCK
+        verdict_data: dict with verdict, concerns, raw_output for logging
+    """
+    phase_start = time.monotonic()
+    em(session, "phase", "[Adversary] Opus 4.7 challenging Sonnet's work...")
+
+    # ── Get diff to review ───────────────────────────────────────────────
+    rc, diff_out, _ = await run_cmd(session.workspace, "git", "diff", "HEAD", "--")
+    if not diff_out.strip():
+        em(session, "system", "  No diff to review — skipping adversary phase")
+        _emit_phase_metric(session, "adversary", phase_start, 0.0)
+        return True, {"verdict": "SKIP_NO_DIFF", "concerns": []}
+
+    # ── Skip on docs-only / test-only diffs (low signal-to-cost) ────────
+    rc, stat_out, _ = await run_cmd(session.workspace, "git", "diff", "--stat", "HEAD")
+    files_changed = [
+        line.split("|")[0].strip()
+        for line in stat_out.strip().split("\n")
+        if "|" in line
+    ]
+    code_files = [
+        f for f in files_changed
+        if not (
+            f.startswith("docs/") or f.startswith("README")
+            or f.endswith(".md") or f.startswith("tests/")
+            or "/test_" in f or f.endswith(".lock") or f == "package-lock.json"
+        )
+    ]
+    if not code_files:
+        em(session, "system", f"  Docs/test-only diff ({len(files_changed)} files) — skipping adversary")
+        _emit_phase_metric(session, "adversary", phase_start, 0.0)
+        return True, {"verdict": "SKIP_DOCS_ONLY", "files": files_changed}
+
+    # ── Build adversarial prompt (mirrors ~/.claude/skills/opus-adversary/SKILL.md) ──
+    brief_excerpt = ""
+    for attr in ("brief", "_brief_context_for_persona"):
+        v = getattr(session, attr, "")
+        if v:
+            brief_excerpt = (v[:600] + "...") if len(v) > 600 else v
+            break
+
+    prompt = (
+        "You are reviewing a change Sonnet 4.6 just made. Your job is to find what "
+        "I missed — not to validate. Be skeptical, not agreeable.\n\n"
+        f"## What was asked for\n{brief_excerpt}\n\n"
+        f"## Diff\n```\n{diff_out[:8000]}\n```\n\n"
+        "## Your job\n"
+        "For each concern, dig into the actual code and report:\n"
+        "1. Race conditions, ordering bugs, concurrency assumptions that may not hold\n"
+        "2. Error paths I didn't handle, or handled wrong\n"
+        "3. Edge cases at boundaries (empty, max, null, unicode, timezone, large input)\n"
+        "4. Hidden assumptions about caller behavior, env state, or data shape\n"
+        "5. Reversibility — can this be rolled back cleanly if wrong?\n"
+        "6. Tests that would have caught a real bug here but don't exist\n"
+        "7. Anywhere the obvious approach was picked when a different design would be safer\n\n"
+        "Format: numbered concerns with file:line citations. End with verdict on its own line:\n"
+        "  APPROVE   /   APPROVE WITH NOTES   /   BLOCK\n"
+        "followed by a one-sentence reason. Be terse. No preamble, no praise."
+    )
+
+    # ── Call SDK with model=opus, role=adversary ─────────────────────────
+    # Use module-level _run_claude_via_sdk (imported at top) so test mocks
+    # via patch("app.server.session_phases._run_claude_via_sdk", ...) apply.
+    rc, output_text, cost = await _run_claude_via_sdk(
+        prompt=prompt,
+        model="opus",
+        workspace=session.workspace,
+        timeout=180,
+        session_id=session.id,
+        phase="adversary",
+        thinking="adaptive",
+    )
+
+    # ── Parse verdict from final lines ───────────────────────────────────
+    verdict = "UNKNOWN"
+    if rc == 0 and output_text:
+        last_block = "\n".join(output_text.strip().split("\n")[-6:]).upper()
+        if "BLOCK" in last_block:
+            verdict = "BLOCK"
+        elif "APPROVE WITH NOTES" in last_block:
+            verdict = "APPROVE_WITH_NOTES"
+        elif "APPROVE" in last_block:
+            verdict = "APPROVE"
+
+    # ── Log to .harness/adversary-runs/YYYY-MM-DD.jsonl ──────────────────
+    try:
+        runs_dir = Path(__file__).resolve().parents[2] / ".harness" / "adversary-runs"
+        runs_dir.mkdir(parents=True, exist_ok=True)
+        today = datetime.date.today().isoformat()
+        log_path = runs_dir / f"{today}.jsonl"
+        with log_path.open("a") as f:
+            f.write(json.dumps({
+                "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+                "session_id": session.id,
+                "verdict": verdict,
+                "rc": rc,
+                "cost_usd": cost,
+                "duration_s": round(time.monotonic() - phase_start, 2),
+                "files_changed": files_changed,
+                "raw_output": output_text[:4000],
+            }) + "\n")
+    except Exception as exc:
+        _log.warning("RA-1743 adversary log write failed: %s", exc)
+
+    _emit_phase_metric(session, "adversary", phase_start, cost)
+
+    # ── Halt on BLOCK ────────────────────────────────────────────────────
+    if verdict == "BLOCK":
+        em(session, "error", "  Adversary BLOCK — halting push. See .harness/adversary-runs/")
+        return False, {"verdict": verdict, "raw_output": output_text}
+
+    em(
+        session, "success",
+        f"  Adversary verdict: {verdict} (cost ${cost:.3f}, {round(time.monotonic() - phase_start, 1)}s)",
+    )
+    return True, {"verdict": verdict, "raw_output": output_text}
+
+
 async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
     """Commit uncommitted changes, push to GitHub on a feature branch. Returns (all-files, push_ok)."""
     phase_start = time.monotonic()
@@ -1529,6 +1660,17 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
         _sync_linear_on_completion(session)
         return
     total_phases = await _phase_evaluate(session, brief, model, spec, resolved_intent)
+
+    # RA-1743 — opus-adversary pre-push gate. BLOCK halts push.
+    adversary_ok, _adv_verdict = await _phase_adversary(session, total_phases)
+    if not adversary_ok:
+        session.last_completed_phase = "adversary_block"
+        session.status = "blocked"
+        session.adversary_verdict = _adv_verdict
+        persistence.save_session(session)
+        _sync_linear_on_completion(session)
+        return
+
     push_ts = time.time()
     af, push_ok = await _phase_push(session, total_phases)
 

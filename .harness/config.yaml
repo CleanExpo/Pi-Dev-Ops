@@ -11,6 +11,7 @@ agents:
   orchestrator: {model: opus,   temperature: 0.2}    # Senior Orchestrator → Opus
   generator:    {model: sonnet, temperature: 0.2, sdk: true}
   evaluator:    {model: sonnet, temperature: 0.1, sdk: true, parallel: true}
+  adversary:    {model: opus,   temperature: 0.2, sdk: true}    # RA-1743 pre-push opus-adversary review → Opus
   board:        {model: sonnet, temperature: 0.4}    # board meeting → Sonnet
   monitor:      {model: haiku,  temperature: 0.1}    # Pi-SEO monitor → Haiku
 
