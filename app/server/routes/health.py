@@ -93,6 +93,12 @@ async def health(request: Request):
         if getattr(s, "status", "") in ("created", "cloning", "building", "evaluating")
     )
     total = len(_sessions)
+    # RA-1407 PR 2 — count sessions auto-recovered from Supabase on startup.
+    try:
+        from ..session_model import get_recovered_count
+        recovered = get_recovered_count()
+    except Exception:
+        recovered = 0
 
     disk_free_gb: float | None = None
     try:
@@ -139,7 +145,7 @@ async def health(request: Request):
     payload = {
         "status":           "ok" if healthy else "degraded",
         "uptime_s":         uptime_s,
-        "sessions":         {"active": active, "total": total, "max": config.MAX_CONCURRENT_SESSIONS},
+        "sessions":         {"active": active, "total": total, "max": config.MAX_CONCURRENT_SESSIONS, "recovered": recovered},
         "claude_cli":       _claude_ok,
         "anthropic_key":    anthropic_key_ok,
         # linear_key kept for dashboard backward-compat (CeoHealthPanel.tsx, overview/page.tsx)
