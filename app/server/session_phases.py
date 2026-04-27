@@ -1360,7 +1360,8 @@ async def _phase_adversary(session, total_phases: int) -> tuple[bool, dict]:
     )
 
     # ── Call SDK with model=opus, role=adversary ─────────────────────────
-    from .session_sdk import _run_claude_via_sdk  # noqa: PLC0415
+    # Use module-level _run_claude_via_sdk (imported at top) so test mocks
+    # via patch("app.server.session_phases._run_claude_via_sdk", ...) apply.
     rc, output_text, cost = await _run_claude_via_sdk(
         prompt=prompt,
         model="opus",
