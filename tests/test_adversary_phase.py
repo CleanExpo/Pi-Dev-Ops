@@ -52,12 +52,13 @@ def sandbox(tmp_path, monkeypatch):
     (runs_root / ".harness").mkdir(parents=True)
     monkeypatch.setenv("TAO_TEST_HARNESS_ROOT", str(runs_root))
 
-    # Build a minimal session stand-in
+    # Build a minimal session stand-in. session_model.em() appends to output_lines.
     session = SimpleNamespace(
         id="test-sid-001",
         workspace=str(repo),
         brief="Add a goodbye function",
         evaluator_enabled=True,
+        output_lines=[],
     )
     return session, runs_root
 
@@ -121,6 +122,7 @@ def test_phase_adversary_skips_no_diff(tmp_path):
         workspace=str(repo),
         brief="",
         evaluator_enabled=True,
+        output_lines=[],
     )
 
     sdk_mock = AsyncMock(return_value=(0, "should not be called", 0.0))
@@ -152,6 +154,7 @@ def test_phase_adversary_skips_docs_only(tmp_path):
         workspace=str(repo),
         brief="Docs update",
         evaluator_enabled=True,
+        output_lines=[],
     )
 
     sdk_mock = AsyncMock(return_value=(0, "should not be called", 0.0))
