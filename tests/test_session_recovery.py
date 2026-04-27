@@ -11,7 +11,7 @@ Covers:
   - rehydrated session has expected fields from checkpoint JSONB
 """
 import asyncio
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 
 import pytest
 
@@ -51,7 +51,7 @@ def test_recovery_schedules_resume_for_each_row():
     from app.server import session_model
 
     rows = [_row("s1"), _row("s2")]
-    fake_run_build = MagicMock(return_value=asyncio.sleep(0))
+    fake_run_build = AsyncMock(return_value=None)
 
     with patch("app.server.supabase_log.fetch_interrupted_sessions", return_value=rows), \
          patch("app.server.session_phases.run_build", new=fake_run_build):
@@ -69,7 +69,7 @@ def test_recovery_caps_at_max_concurrent():
     from app.server import session_model
 
     rows = [_row(f"s{i}") for i in range(10)]
-    fake_run_build = MagicMock(return_value=asyncio.sleep(0))
+    fake_run_build = AsyncMock(return_value=None)
 
     with patch("app.server.supabase_log.fetch_interrupted_sessions", return_value=rows), \
          patch("app.server.session_phases.run_build", new=fake_run_build):
@@ -87,7 +87,7 @@ def test_recovery_skips_already_local():
     session_model._sessions["s1"] = session_model.BuildSession(id="s1", status="interrupted")
 
     rows = [_row("s1"), _row("s2")]
-    fake_run_build = MagicMock(return_value=asyncio.sleep(0))
+    fake_run_build = AsyncMock(return_value=None)
 
     with patch("app.server.supabase_log.fetch_interrupted_sessions", return_value=rows), \
          patch("app.server.session_phases.run_build", new=fake_run_build):
@@ -105,7 +105,7 @@ def test_recovery_skips_rows_without_last_phase():
     bad_row = _row("s1")
     bad_row["checkpoint"]["last_completed_phase"] = ""
     rows = [bad_row, _row("s2")]
-    fake_run_build = MagicMock(return_value=asyncio.sleep(0))
+    fake_run_build = AsyncMock(return_value=None)
 
     with patch("app.server.supabase_log.fetch_interrupted_sessions", return_value=rows), \
          patch("app.server.session_phases.run_build", new=fake_run_build):
@@ -142,7 +142,7 @@ def test_get_recovered_count_reflects_last_run():
     from app.server import session_model
 
     rows = [_row("s1"), _row("s2"), _row("s3")]
-    fake_run_build = MagicMock(return_value=asyncio.sleep(0))
+    fake_run_build = AsyncMock(return_value=None)
 
     with patch("app.server.supabase_log.fetch_interrupted_sessions", return_value=rows), \
          patch("app.server.session_phases.run_build", new=fake_run_build):
@@ -162,7 +162,7 @@ def test_recovery_fail_soft_on_individual_rehydrate_error():
         {"id": "bad", "repo_url": "", "status": "interrupted", "checkpoint": {"last_completed_phase": ""}},
         _row("s2"),
     ]
-    fake_run_build = MagicMock(return_value=asyncio.sleep(0))
+    fake_run_build = AsyncMock(return_value=None)
 
     with patch("app.server.supabase_log.fetch_interrupted_sessions", return_value=rows), \
          patch("app.server.session_phases.run_build", new=fake_run_build):
