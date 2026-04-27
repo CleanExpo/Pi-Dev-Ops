@@ -162,6 +162,15 @@ async def health(request: Request):
         "swarm_shadow":     swarm_shadow,
         "pi_seo_active":    pi_seo_active,
     }
+
+    # RA-1668 — NotebookLM source freshness (weekly refresh). Fail-soft so a
+    # missing/corrupt freshness file never breaks /health.
+    try:
+        from ..agents.notebooklm_refresh import get_notebooklm_freshness_summary
+        payload["notebooklm"] = get_notebooklm_freshness_summary()
+    except Exception:
+        payload["notebooklm"] = {"notebooks_tracked": 0, "stale_count_24h": 0, "stale_count_7d": 0, "summary": []}
+
     return JSONResponse(payload, status_code=200 if healthy else 503)
 
 
