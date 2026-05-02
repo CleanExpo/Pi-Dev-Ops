@@ -98,6 +98,16 @@ def _route(intent_payload: dict[str, Any]) -> dict[str, Any]:
     intent = intent_payload["intent"]
     fields = intent_payload.get("fields", {})
 
+    if intent == "margot":
+        # Wave 5.1 — Margot personal-assistant turn. Direct send (no
+        # draft_review HITL — Margot talking to the founder, not
+        # outbound to others). Async-runs the full margot turn pipeline.
+        try:
+            from . import margot as margot_bot_wrapper  # noqa: PLC0415
+            return margot_bot_wrapper.handle_telegram_intent(intent_payload)
+        except Exception as exc:  # noqa: BLE001
+            return {"action": "failed", "reason": f"margot route failed: {exc}"}
+
     if intent == "research":
         # Wave 2: dispatch to Margot via mcp__margot__deep_research / _max
         # In shadow mode, just log and surface a draft summarising what would happen.

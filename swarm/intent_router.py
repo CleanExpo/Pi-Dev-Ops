@@ -18,13 +18,18 @@ an action.
 from __future__ import annotations
 
 import logging
+import os
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
 
 log = logging.getLogger("swarm.intent_router")
 
-Intent = Literal["research", "ticket", "reply", "reminder", "flow", "unknown"]
+Intent = Literal[
+    "research", "ticket", "reply", "reminder", "flow",
+    "margot",     # Wave 5.1 — conversational personal-assistant turn
+    "unknown",
+]
 
 # ── PII guard regexes (forced unknown if any hit) ────────────────────────────
 _LUHN_RE = re.compile(r"\b(?:\d[ -]*?){13,19}\b")
@@ -63,6 +68,34 @@ _FLOW_PATTERNS = [
     re.compile(r"\brun the (\w+ )?flow\b", re.I),
     re.compile(r"\b/flow\b", re.I),
 ]
+
+# ── Margot personal-assistant addressing (Wave 5.1) ──────────────────────────
+# Three triggers (matched in order, highest priority first):
+#   1. Explicit prefix: "Margot, ..." / "@margot" / "/margot"
+#   2. Whole-message DM in MARGOT_DM_CHAT_ID env (configured per deploy)
+#   3. (Wave 6) dedicated MargotBot username
+_MARGOT_PREFIX_PATTERNS = [
+    re.compile(r"^\s*margot[,:\s]", re.I),
+    re.compile(r"^\s*@margot\b", re.I),
+    re.compile(r"^\s*/margot\b", re.I),
+    re.compile(r"\bhey\s+margot\b", re.I),
+]
+
+
+def _is_margot_dm_chat(chat_id: str | None) -> bool:
+    """True when this chat_id is the configured Margot DM thread."""
+    if not chat_id:
+        return False
+    target = (os.environ.get("MARGOT_DM_CHAT_ID") or "").strip()
+    return bool(target) and str(chat_id) == target
+
+
+def _strip_margot_prefix(text: str) -> str:
+    """Remove the 'Margot, ' / '@margot ' / '/margot ' prefix from the
+    message so the actual prompt is what flows downstream."""
+    for pat in _MARGOT_PREFIX_PATTERNS:
+        text = pat.sub("", text, count=1).lstrip()
+    return text
 
 
 def _has_pii(text: str) -> bool:
@@ -146,6 +179,27 @@ def classify(
         log.warning("PII detected in inbound — forcing intent=unknown")
         base["fields"]["pii_guard"] = True
         return base
+
+    # ── Margot intent (highest priority — personal assistant addressing) ──
+    margot_addressed = (
+        any(p.search(text) for p in _MARGOT_PREFIX_PATTERNS)
+        or _is_margot_dm_chat(chat_id)
+    )
+    if margot_addressed:
+        prompt = _strip_margot_prefix(text) if any(
+            p.search(text) for p in _MARGOT_PREFIX_PATTERNS
+        ) else text
+        return {
+            **base, "intent": "margot", "confidence": 0.95,
+            "fields": {
+                "prompt": prompt,
+                "addressed_by": (
+                    "prefix"
+                    if any(p.search(text) for p in _MARGOT_PREFIX_PATTERNS)
+                    else "dm_chat"
+                ),
+            },
+        }
 
     if any(p.search(text) for p in _FLOW_PATTERNS):
         return {**base, "intent": "flow", "confidence": 0.8,
