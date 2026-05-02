@@ -391,6 +391,66 @@ carsi             → team 91b3cd04  project 20538e04
 
 ---
 
+## Senior-Agent Topology (Wave 4 Phase A — RA-1858, 2026-05-02)
+
+Four senior-agent bots run inside the orchestrator main loop alongside the existing Guardian / Builder / Click / Scribe / CoS bots. Each bot owns one slice of daily executive visibility plus a dual-key approval gate.
+
+| Bot | Module | Skill | Owns | Dual-key gate |
+|---|---|---|---|---|
+| CFO | `swarm/bots/cfo.py` (engine `swarm/cfo.py`) | `skills/cfo/SKILL.md` | Burn / NRR / GM / runway / model-spend ratio | Spend > $1,000 |
+| CMO | `swarm/bots/cmo.py` (engine `swarm/cmo.py`) | `skills/cmo-growth/SKILL.md` | LTV:CAC / blended CPA / channel HHI / attr decay | Ad-spend > $5,000/day |
+| CTO | `swarm/bots/cto.py` (engine `swarm/cto.py`) | `skills/cto/SKILL.md` | DORA quartet + p99 + uptime + cost-per-request | Production PR merge |
+| CS | `swarm/bots/cs.py` (engine `swarm/cs.py`) | `skills/cs-tier1/SKILL.md` | NPS / FCR / GRR / first-response / enterprise threats | Refund > $100 |
+
+Each bot follows the same shape: pure-Python engine (compute / detect_breaches / assemble_daily_brief / approve_<action>) + thin bot wrapper (run_cycle gating on `TAO_SWARM_ENABLED` + kill-switch) + jsonl ledger at `.harness/swarm/<bot>_state.jsonl` + per-bot daily-fire window (default 06:00 UTC).
+
+### Pluggable provider envs
+
+All four bots default to a deterministic synthetic provider seeded from `.harness/projects.json` so the orchestrator's daily-fire window is non-empty from day 0. Flip to real-data via env:
+
+| Env var | Values | Status |
+|---|---|---|
+| `TAO_CFO_PROVIDER` | `synthetic` (default) \| `stripe_xero` | Stripe MRR + Xero cash/COGS/revenue real; rest synthetic |
+| `TAO_CMO_PROVIDER` | `synthetic` (default) \| `ad_platforms` | `ad_platforms` is stub — falls back to synthetic with warning |
+| `TAO_CTO_PROVIDER` | `synthetic` (default) \| `github_actions` | `github_actions` is stub — falls back to synthetic with warning |
+| `TAO_CS_PROVIDER` | `synthetic` (default) \| `zendesk` \| `intercom` | both stubs — fall back to synthetic with warning |
+
+Per-bot dual-key ceiling overrides:
+- `TAO_CFO_SPEND_CEILING` (default `1000`)
+- `TAO_CMO_ADSPEND_CEILING` (default `5000`)
+- `TAO_CS_REFUND_CEILING` (default `100`)
+
+Stripe-Xero specific:
+- `STRIPE_API_KEY` — required when `TAO_CFO_PROVIDER=stripe_xero`
+- `STRIPE_ACCOUNT_<BID>` — optional Stripe Connect account per business (`<BID>` = projects.json id uppercased, non-alpha → `_`)
+- `XERO_ACCESS_TOKEN` — current OAuth bearer (refresh sidecar required for production; tokens expire in 30 min)
+- `XERO_TENANT_<BID>` — required to pull Xero data for that business
+
+### Multi-agent debate scaffold (RA-1867)
+
+`swarm/debate_runner.py` runs a drafter + adversarial red-team in parallel via `asyncio.gather` over the existing Claude Agent SDK. Both go through `model_policy.select_model` so neither leaks into Opus (the opus allowlist is preserved). On success, a Hermes Kanban card is emitted via `swarm/kanban_adapter.py` so the founder sees the debate without Telegram noise. Mid-debate `/panic` cancels the gather and persists `debate_aborted`.
+
+### Daily 6-pager (RA-1863)
+
+`swarm/six_pager.py` composes a Stripe-style executive page from the four senior-bot jsonl ledgers + latest Margot insight + RA-1842 status. Pure file-read composition — no SDK or external API calls.
+
+`swarm/six_pager_dispatcher.py` owns the side effects: PII redact → optional voice variant via `swarm/voice_compose.py` → `draft_review.post_draft` HITL → audit emit. Fired by the orchestrator main loop when the daily window opens (default 06:00 UTC).
+
+Voice variant requires `ELEVENLABS_API_KEY` (and optional `ELEVENLABS_VOICE_ID`); without it the dispatcher gracefully sends text-only.
+
+### Cycle order in `swarm/orchestrator.py`
+
+1. Guardian (veto)
+2. Builder, Click, Scribe (each self-gates on `SHADOW_MODE`)
+3. Chief of Staff (Telegram intent routing)
+4. CFO → CMO → CTO → CS (each self-gates on `TAO_SWARM_ENABLED` + kill-switch)
+5. 6-pager dispatcher (fires only inside the daily window with 23h debounce)
+6. Daily report
+
+Adding a new senior agent? Mirror the cfo.py shape: engine + bot wrapper + skill + provider stub + audit type whitelist. Wire-in is one `try/except` block in `orchestrator.run()`.
+
+---
+
 ## Content Rules
 
 - No first-person business language (We/Our/I/Us/My)
