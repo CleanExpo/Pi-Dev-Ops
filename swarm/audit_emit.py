@@ -64,6 +64,10 @@ _VALID_TYPES: set[str] = {
     "cto_metric_snapshot", "cto_alert",
     "cto_pr_merge_approved", "cto_pr_merge_blocked",
     "cto_brief_emitted",
+    # CS-tier1 (RA-1862, Wave 4 A4)
+    "cs_metric_snapshot", "cs_alert",
+    "cs_refund_approved", "cs_refund_blocked",
+    "cs_brief_emitted",
 }
 
 # Fields we never redact (safe-by-construction)
