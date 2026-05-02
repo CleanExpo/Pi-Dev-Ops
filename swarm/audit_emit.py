@@ -77,6 +77,7 @@ _VALID_TYPES: set[str] = {
     "board_directive_emitted",
     "board_hitl_requested",
     "board_session_complete",
+    "board_directive_consumed",
 }
 
 # Fields we never redact (safe-by-construction)

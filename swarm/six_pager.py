@@ -180,6 +180,75 @@ def _margot_section(repo_root: Path) -> str:
     )
 
 
+def _board_section(repo_root: Path) -> str:
+    """Board pending + recent directives + open HITL.
+
+    Reads .harness/board/{pending,sessions,directives}/. Degrades to a
+    single 'no recent activity' line when nothing is pending or completed.
+    """
+    try:
+        from . import board as _b  # noqa: PLC0415
+    except Exception:  # noqa: BLE001
+        return "🏛 Board — module unavailable."
+
+    pending = _b.get_pending(repo_root=repo_root)
+
+    # Find the last 5 completed sessions and their HITL flags
+    sessions_dir = repo_root / _b.SESSIONS_DIR_REL
+    recent_completed: list[dict[str, Any]] = []
+    if sessions_dir.exists():
+        for p in sorted(sessions_dir.glob("*.json"))[-5:]:
+            try:
+                row = json.loads(p.read_text(encoding="utf-8"))
+                recent_completed.append(row)
+            except Exception:
+                continue
+
+    open_hitl = [
+        s for s in recent_completed
+        if s.get("hitl_required")
+    ]
+    recent_directives_count = sum(
+        len(s.get("directives") or []) for s in recent_completed
+    )
+
+    lines = [
+        f"🏛 Board — {len(pending)} pending · "
+        f"{len(recent_completed)} recent sessions · "
+        f"{recent_directives_count} directives · "
+        f"{len(open_hitl)} HITL"
+    ]
+
+    if pending:
+        lines.append("")
+        lines.append("Pending deliberations:")
+        for sid in pending[:5]:
+            lines.append(f"- {sid}")
+
+    if open_hitl:
+        lines.append("")
+        lines.append("⏳ Awaiting founder decision:")
+        for s in open_hitl[:3]:
+            q = s.get("hitl_question") or "(no question)"
+            topic = (s.get("brief") or {}).get("topic", "")[:60]
+            lines.append(f"- [{s.get('session_id', '?')}] {topic}: {q}")
+
+    if recent_completed and not open_hitl and not pending:
+        # Show the two most recent decisions when nothing is queued
+        latest = recent_completed[-2:]
+        lines.append("")
+        lines.append("Recent decisions:")
+        for s in latest:
+            topic = (s.get("brief") or {}).get("topic", "")[:60]
+            n_dir = len(s.get("directives") or [])
+            lines.append(
+                f"- [{s.get('session_id', '?')}] {topic} → "
+                f"{n_dir} directive{'s' if n_dir != 1 else ''}"
+            )
+
+    return "\n".join(lines)
+
+
 def _ra_1842_section(repo_root: Path) -> str:
     status = _load_ra_1842_status(repo_root)
     if not status:
@@ -449,6 +518,8 @@ def assemble_six_pager(*, repo_root: Path | None = None,
         "5. " + _margot_section(rr),
         "",
         "6. " + _ra_1842_section(rr),
+        "",
+        "7. " + _board_section(rr),
         "",
         "—",
         "React 👍 to ack · ❌ to flag · ⏳ to defer per section.",

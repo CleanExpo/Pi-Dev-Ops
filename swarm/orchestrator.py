@@ -39,6 +39,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import signal
 import sys
 import time
@@ -296,11 +297,31 @@ def run() -> None:
         except Exception as exc:  # noqa: BLE001
             log.warning("CS cycle failed (continuing): %s", exc)
 
+        # ── RA-1868 — Pi-CEO Board (Layer 2): process pending deliberations.
+        # Async pattern — bots / Margot / founder queue requests via
+        # board_bot.escalate / from_margot / from_founder; orchestrator
+        # pulls one off the queue per cycle. Bounded latency (one Board
+        # session can take 30-120s; running >1 per cycle would stretch
+        # the cycle past CYCLE_INTERVAL_S).
+        try:
+            from . import board  # noqa: PLC0415
+            limit = int(os.environ.get("TAO_BOARD_PROCESS_PER_CYCLE", "1"))
+            sessions = asyncio.run(
+                board.process_pending(limit=max(1, limit)),
+            )
+            if sessions:
+                log.info(
+                    "board: processed %d session(s) — pending=%d",
+                    len(sessions), len(board.get_pending()),
+                )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Board process_pending failed (continuing): %s", exc)
+
         # ── RA-1863 — Daily 6-pager: composes CFO + CMO + CTO + CS daily
-        # snippets + Margot insight + RA-1842 status. Cron-fired at user-
-        # local 06:00 UTC (configurable). Routes through pii_redactor +
-        # draft_review HITL gate. Voice variant attached when ELEVENLABS_
-        # API_KEY is in env (B3 RA-1866).
+        # snippets + Margot insight + RA-1842 status + Board pending +
+        # recent Board directives. Cron-fired at user-local 06:00 UTC
+        # (configurable). Routes through pii_redactor + draft_review HITL
+        # gate. Voice variant attached when ELEVENLABS_API_KEY is in env.
         try:
             from . import six_pager_dispatcher  # noqa: PLC0415
             six_pager_dispatcher.maybe_fire_daily(state)
