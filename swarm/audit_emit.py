@@ -53,6 +53,9 @@ _VALID_TYPES: set[str] = {
     "cfo_metric_snapshot", "cfo_alert",
     "cfo_invoice_approved", "cfo_spend_blocked",
     "cfo_brief_emitted",
+    # Debate runner (RA-1867, Wave 4 B4)
+    "debate_started", "debate_drafter_done", "debate_redteam_done",
+    "debate_summarised", "debate_aborted",
 }
 
 # Fields we never redact (safe-by-construction)
