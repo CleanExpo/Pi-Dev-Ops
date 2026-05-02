@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS settings (
 
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 -- Service role only — anon cannot read or write secrets
+DROP POLICY IF EXISTS "service_only_write" ON settings;
 CREATE POLICY "service_only_write" ON settings FOR ALL TO service_role USING (true);
 
 -- Seed default rows so GET /api/settings always returns something
@@ -62,6 +63,7 @@ CREATE INDEX IF NOT EXISTS sessions_status_idx     ON sessions (status);
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_read"    ON sessions FOR SELECT USING (true);
 CREATE POLICY "service_write"  ON sessions FOR INSERT TO service_role WITH CHECK (true);
+DROP POLICY IF EXISTS "service_update" ON sessions;
 CREATE POLICY "service_update" ON sessions FOR UPDATE TO service_role USING (true);
 
 -- ── RA-1439 — cron_state ─────────────────────────────────────────────────────
@@ -80,9 +82,9 @@ CREATE TABLE IF NOT EXISTS cron_state (
 ALTER TABLE cron_state ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "cron_state_public_read"    ON cron_state;
 DROP POLICY IF EXISTS "cron_state_service_write"  ON cron_state;
-DROP POLICY IF EXISTS "cron_state_service_update" ON cron_state;
 CREATE POLICY "cron_state_public_read"    ON cron_state FOR SELECT USING (true);
 CREATE POLICY "cron_state_service_write"  ON cron_state FOR INSERT TO service_role WITH CHECK (true);
+DROP POLICY IF EXISTS "cron_state_service_update" ON cron_state;
 CREATE POLICY "cron_state_service_update" ON cron_state FOR UPDATE TO service_role USING (true);
 
 -- ── terminal_lines ────────────────────────────────────────────────────────────
@@ -101,6 +103,7 @@ CREATE INDEX IF NOT EXISTS terminal_lines_session_idx ON terminal_lines (session
 
 ALTER TABLE terminal_lines ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_read"    ON terminal_lines FOR SELECT USING (true);
+DROP POLICY IF EXISTS "service_insert" ON terminal_lines;
 CREATE POLICY "service_insert" ON terminal_lines FOR INSERT TO service_role WITH CHECK (true);
 
 -- ── phase_states ──────────────────────────────────────────────────────────────
@@ -117,7 +120,9 @@ CREATE TABLE IF NOT EXISTS phase_states (
 
 ALTER TABLE phase_states ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_read"    ON phase_states FOR SELECT USING (true);
+DROP POLICY IF EXISTS "service_insert" ON phase_states;
 CREATE POLICY "service_insert" ON phase_states FOR INSERT TO service_role WITH CHECK (true);
+DROP POLICY IF EXISTS "service_update" ON phase_states;
 CREATE POLICY "service_update" ON phase_states FOR UPDATE TO service_role USING (true);
 
 -- ── gate_checks ───────────────────────────────────────────────────────────────
@@ -143,6 +148,7 @@ CREATE INDEX IF NOT EXISTS gate_checks_pipeline_id_idx ON gate_checks (pipeline_
 
 ALTER TABLE gate_checks ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_read"    ON gate_checks FOR SELECT USING (true);
+DROP POLICY IF EXISTS "service_insert" ON gate_checks;
 CREATE POLICY "service_insert" ON gate_checks FOR INSERT TO service_role WITH CHECK (true);
 
 -- RA-672: ZTE v2 timing columns — trigger-to-deploy measurement (C3)
@@ -188,7 +194,9 @@ CREATE INDEX IF NOT EXISTS alert_escalations_unacked_idx
 
 ALTER TABLE alert_escalations ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_read"    ON alert_escalations FOR SELECT USING (true);
+DROP POLICY IF EXISTS "service_insert" ON alert_escalations;
 CREATE POLICY "service_insert" ON alert_escalations FOR INSERT TO service_role WITH CHECK (true);
+DROP POLICY IF EXISTS "service_update" ON alert_escalations;
 CREATE POLICY "service_update" ON alert_escalations FOR UPDATE TO service_role USING (true);
 
 -- ── telegram_sessions ─────────────────────────────────────────────────────────
@@ -218,6 +226,7 @@ CREATE INDEX IF NOT EXISTS telegram_sessions_last_used_idx
 
 ALTER TABLE telegram_sessions ENABLE ROW LEVEL SECURITY;
 -- Service role only — anon clients must never read Telegram user mappings.
+DROP POLICY IF EXISTS "service_only" ON telegram_sessions;
 CREATE POLICY "service_only" ON telegram_sessions FOR ALL TO service_role USING (true);
 
 -- ── RA-931: build_episodes ────────────────────────────────────────────────────
@@ -257,6 +266,7 @@ CREATE INDEX IF NOT EXISTS build_episodes_repo_verified_idx
 -- ↑ Uncomment after 100+ episodes are recorded.
 
 ALTER TABLE build_episodes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "service_only" ON build_episodes;
 CREATE POLICY "service_only" ON build_episodes FOR ALL TO service_role USING (true);
 
 -- ── RA-820: notebooklm_health ─────────────────────────────────────────────────
@@ -282,4 +292,5 @@ CREATE INDEX IF NOT EXISTS notebooklm_health_failures_idx
 
 ALTER TABLE notebooklm_health ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_read"    ON notebooklm_health FOR SELECT USING (true);
+DROP POLICY IF EXISTS "service_insert" ON notebooklm_health;
 CREATE POLICY "service_insert" ON notebooklm_health FOR INSERT TO service_role WITH CHECK (true);
