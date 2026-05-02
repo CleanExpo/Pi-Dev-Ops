@@ -36,6 +36,31 @@ def select_provider() -> ProviderFn:
     return synthetic_provider
 
 
+# ── CS-tier1 provider (RA-1862, Wave 4 A4) ──────────────────────────────────
+
+
+def select_cs_provider():
+    """Pick a CS provider by ``TAO_CS_PROVIDER`` env.
+
+    Values:
+    * ``synthetic`` (default)
+    * ``zendesk`` / ``intercom`` — real helpdesk pull (stub today; falls
+      back to synthetic with a warning until connector wired)
+    """
+    name = (os.environ.get("TAO_CS_PROVIDER") or "synthetic").strip().lower()
+    if name in ("zendesk", "intercom"):
+        log.warning(
+            "provider: %s selected but not yet implemented — using synthetic_cs",
+            name,
+        )
+    if name not in ("synthetic", "zendesk", "intercom", ""):
+        log.warning(
+            "provider: unknown TAO_CS_PROVIDER=%r — using synthetic_cs", name,
+        )
+    from .synthetic_cs import synthetic_cs_provider
+    return synthetic_cs_provider
+
+
 # ── CTO platform provider (RA-1861, Wave 4 A3) ──────────────────────────────
 
 
@@ -93,5 +118,6 @@ def select_marketing_provider():
 
 __all__ = [
     "select_provider", "select_marketing_provider",
-    "select_platform_provider", "ProviderFn",
+    "select_platform_provider", "select_cs_provider",
+    "ProviderFn",
 ]
