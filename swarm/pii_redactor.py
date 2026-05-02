@@ -196,6 +196,21 @@ def redact(
     text = _normalize(payload)
     regex_hits = _scan_regex(text)
 
+    # RA-1847: when strictness=high and no classifier supplied, auto-resolve
+    # the default Claude-backed classifier from swarm.pii_classify. Caller can
+    # still override by passing claude_classify explicitly (e.g. tests inject
+    # a deterministic stub).
+    if strictness == "high" and claude_classify is None:
+        try:
+            from .pii_classify import default_classifier  # noqa: PLC0415
+            claude_classify = default_classifier()
+        except Exception as exc:
+            log.warning(
+                "strictness=high requested but default_classifier unavailable "
+                "(continuing regex-only, precision will reflect degradation): %s",
+                exc,
+            )
+
     classify_hits: list[Hit] = []
     if claude_classify is not None:
         try:
