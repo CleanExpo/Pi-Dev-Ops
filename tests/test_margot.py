@@ -246,7 +246,7 @@ def test_parse_board_triggers_no_sentinel():
 
 def _stub_llm(monkeypatch, *, response_text: str, rc: int = 0,
                 cost: float = 0.05):
-    async def fake(*, prompt, timeout_s=120, workspace=None, turn_id=""):
+    async def fake(*, prompt, timeout_s=120, workspace=None, turn_id="", **kw):
         return rc, response_text, cost, None
     monkeypatch.setattr(margot_bot, "_call_llm", fake)
 
@@ -271,7 +271,7 @@ def test_handle_turn_happy_path(tmp_path, monkeypatch):
 
 
 def test_handle_turn_llm_failure(tmp_path, monkeypatch):
-    async def fake(*, prompt, timeout_s=120, workspace=None, turn_id=""):
+    async def fake(*, prompt, timeout_s=120, workspace=None, turn_id="", **kw):
         return 1, "", 0.0, "sdk_call_raised: boom"
     monkeypatch.setattr(margot_bot, "_call_llm", fake)
 
