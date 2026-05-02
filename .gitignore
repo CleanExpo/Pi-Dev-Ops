@@ -140,3 +140,8 @@ sessions/
 .vercel
 # Pi-CEO task-memory (auto-added by Pi-CEO session bootstrap, RA-1374)
 .pi-ceo/
+
+# Composio CLI auth (added 2026-04-27)
+.composio/
+.composio.json
+composio.json

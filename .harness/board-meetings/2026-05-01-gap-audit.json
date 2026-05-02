@@ -1,0 +1,46 @@
+{
+  "critical": [
+    {
+      "severity": "critical",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "app/server/webhook.py contains only inbound parsing (parse_linear_event, linear_issue_to_brief) and HMAC verification. There are zero outbound HTTP calls to api.linear.app, no issueUpdate GraphQL mutation, and no linear_update_issue helper anywhere in the provided files. The sync is one-way only: Linear → Pi-CEO.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Implement an outbound helper (e.g. async def linear_update_issue_state(issue_id, state_id, LINEAR_API_KEY)) that POSTs the issueUpdate mutation to https://api.linear.app/graphql, then call it from routes/webhooks.py after a session completes or reaches a terminal state.",
+      "category": "Linear two-way sync"
+    }
+  ],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "Sprint 10 complete (2026-04-14): ... GitHub integration features implemented and wired",
+      "reality": "The pushFile function in dashboard/lib/github.ts is truncated mid-statement — ends with `if (!Array.isArray(data)) sha = d` which is syntactically incomplete; the SHA retrieval for existing files and subsequent createOrUpdateFileContents call are missing, making any write path that relies on this function broken",
+      "file": "dashboard/lib/github.ts",
+      "recommendation": "Complete the pushFile function body to capture the existing file SHA (`data.sha`) and call octokit.repos.createOrUpdateFileContents with the correct sha, content (base64), message, and branch parameters",
+      "category": "multi-branch reads"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "spec claims GitHub integration reads branches (multi-branch iteration/comparison)",
+      "reality": "fetchBranchDiffs correctly implements multi-branch reads — it lists up to 50 branches, filters pidev/* and branches older than 30 days, caps at 5 candidates, and calls compareCommits against the default branch for each — the implementation matches the claim; however there is no evidence in the provided source that fetchBranchDiffs is actually called from any route or session flow, leaving open the possibility it is defined but not wired",
+      "file": "dashboard/lib/github.ts",
+      "recommendation": "Confirm fetchBranchDiffs is invoked in the session context-building flow (e.g. in the build route or repo-context assembler) and add a call site if it is currently dead code",
+      "category": "multi-branch reads"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 3,
+    "critical_count": 1,
+    "high_count": 1,
+    "low_count": 1,
+    "duration_s": 296.0,
+    "audited_at": "2026-05-01T05:08:14.507832+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": [
+      "RA-1836",
+      "RA-1837"
+    ]
+  }
+}

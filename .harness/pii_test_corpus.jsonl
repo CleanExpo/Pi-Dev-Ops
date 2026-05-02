@@ -1,0 +1,250 @@
+{"id": "pii-0001", "category": "CARD", "expected_pii": true, "text": "Charge to card 4104332181960018 for invoice 4421.", "expected_categories": ["CARD"]}
+{"id": "pii-0002", "category": "CARD", "expected_pii": true, "text": "Charge to card 4338908386379407 for invoice 4421.", "expected_categories": ["CARD"]}
+{"id": "pii-0003", "category": "CARD", "expected_pii": true, "text": "Charge to card 4265423511615599 for invoice 4421.", "expected_categories": ["CARD"]}
+{"id": "pii-0004", "category": "CARD", "expected_pii": true, "text": "Charge to card 4407816184959310 for invoice 4421.", "expected_categories": ["CARD"]}
+{"id": "pii-0005", "category": "CARD", "expected_pii": true, "text": "Charge to card 4034131647525539 for invoice 4421.", "expected_categories": ["CARD"]}
+{"id": "pii-0006", "category": "CARD", "expected_pii": true, "text": "Charge to card 4419283276483509 for invoice 4421.", "expected_categories": ["CARD"]}
+{"id": "pii-0007", "category": "CARD", "expected_pii": true, "text": "Charge to card 4305641395376721 for invoice 4421.", "expected_categories": ["CARD"]}
+{"id": "pii-0008", "category": "CARD", "expected_pii": true, "text": "Charge to card 4423884969653284 for invoice 4421.", "expected_categories": ["CARD"]}
+{"id": "pii-0009", "category": "CARD", "expected_pii": true, "text": "Charge to card 4710122691669787 for invoice 4421.", "expected_categories": ["CARD"]}
+{"id": "pii-0010", "category": "CARD", "expected_pii": true, "text": "Charge to card 4480184514627044 for invoice 4421.", "expected_categories": ["CARD"]}
+{"id": "pii-0011", "category": "CARD", "expected_pii": true, "text": "Customer card on file: 5182814893252885, expires 06/29.", "expected_categories": ["CARD"]}
+{"id": "pii-0012", "category": "CARD", "expected_pii": true, "text": "Customer card on file: 5109570154303912, expires 06/29.", "expected_categories": ["CARD"]}
+{"id": "pii-0013", "category": "CARD", "expected_pii": true, "text": "Customer card on file: 5117182278248963, expires 06/29.", "expected_categories": ["CARD"]}
+{"id": "pii-0014", "category": "CARD", "expected_pii": true, "text": "Customer card on file: 5138346578713316, expires 06/29.", "expected_categories": ["CARD"]}
+{"id": "pii-0015", "category": "CARD", "expected_pii": true, "text": "Customer card on file: 5150983930103100, expires 06/29.", "expected_categories": ["CARD"]}
+{"id": "pii-0016", "category": "CARD", "expected_pii": true, "text": "Customer card on file: 5151834738299732, expires 06/29.", "expected_categories": ["CARD"]}
+{"id": "pii-0017", "category": "CARD", "expected_pii": true, "text": "Customer card on file: 5176311656670104, expires 06/29.", "expected_categories": ["CARD"]}
+{"id": "pii-0018", "category": "CARD", "expected_pii": true, "text": "Customer card on file: 5165133387262479, expires 06/29.", "expected_categories": ["CARD"]}
+{"id": "pii-0019", "category": "CARD", "expected_pii": true, "text": "Amex 373178108013262 declined at the till.", "expected_categories": ["CARD"]}
+{"id": "pii-0020", "category": "CARD", "expected_pii": true, "text": "Amex 377736026064745 declined at the till.", "expected_categories": ["CARD"]}
+{"id": "pii-0021", "category": "CARD", "expected_pii": true, "text": "Amex 376872343098057 declined at the till.", "expected_categories": ["CARD"]}
+{"id": "pii-0022", "category": "CARD", "expected_pii": true, "text": "Amex 370097882081217 declined at the till.", "expected_categories": ["CARD"]}
+{"id": "pii-0023", "category": "CARD", "expected_pii": true, "text": "Amex 379136193990913 declined at the till.", "expected_categories": ["CARD"]}
+{"id": "pii-0024", "category": "CARD", "expected_pii": true, "text": "Amex 376998543534623 declined at the till.", "expected_categories": ["CARD"]}
+{"id": "pii-0025", "category": "CARD", "expected_pii": true, "text": "Amex 374751079911836 declined at the till.", "expected_categories": ["CARD"]}
+{"id": "pii-0026", "category": "SSN", "expected_pii": true, "text": "Verify SSN 618-43-3170 before processing the loan application.", "expected_categories": ["SSN"]}
+{"id": "pii-0027", "category": "SSN", "expected_pii": true, "text": "Verify SSN 457-18-5002 before processing the loan application.", "expected_categories": ["SSN"]}
+{"id": "pii-0028", "category": "SSN", "expected_pii": true, "text": "Verify SSN 478-46-3584 before processing the loan application.", "expected_categories": ["SSN"]}
+{"id": "pii-0029", "category": "SSN", "expected_pii": true, "text": "Verify SSN 548-79-5956 before processing the loan application.", "expected_categories": ["SSN"]}
+{"id": "pii-0030", "category": "SSN", "expected_pii": true, "text": "Verify SSN 726-93-9666 before processing the loan application.", "expected_categories": ["SSN"]}
+{"id": "pii-0031", "category": "SSN", "expected_pii": true, "text": "Verify SSN 108-95-5905 before processing the loan application.", "expected_categories": ["SSN"]}
+{"id": "pii-0032", "category": "SSN", "expected_pii": true, "text": "Verify SSN 779-23-3200 before processing the loan application.", "expected_categories": ["SSN"]}
+{"id": "pii-0033", "category": "SSN", "expected_pii": true, "text": "Verify SSN 370-24-2753 before processing the loan application.", "expected_categories": ["SSN"]}
+{"id": "pii-0034", "category": "SSN", "expected_pii": true, "text": "Verify SSN 860-80-3546 before processing the loan application.", "expected_categories": ["SSN"]}
+{"id": "pii-0035", "category": "SSN", "expected_pii": true, "text": "Verify SSN 378-46-4450 before processing the loan application.", "expected_categories": ["SSN"]}
+{"id": "pii-0036", "category": "SSN", "expected_pii": true, "text": "Verify SSN 834-53-4335 before processing the loan application.", "expected_categories": ["SSN"]}
+{"id": "pii-0037", "category": "SSN", "expected_pii": true, "text": "Verify SSN 803-91-5325 before processing the loan application.", "expected_categories": ["SSN"]}
+{"id": "pii-0038", "category": "SSN", "expected_pii": true, "text": "Verify SSN 617-72-5114 before processing the loan application.", "expected_categories": ["SSN"]}
+{"id": "pii-0039", "category": "SSN", "expected_pii": true, "text": "Verify SSN 152-21-7939 before processing the loan application.", "expected_categories": ["SSN"]}
+{"id": "pii-0040", "category": "SSN", "expected_pii": true, "text": "Verify SSN 383-15-1058 before processing the loan application.", "expected_categories": ["SSN"]}
+{"id": "pii-0041", "category": "KEY", "expected_pii": true, "text": "export ANTHROPIC_API_KEY=sk-ant-LE9FQYTD8YEBMTPBM79BMXXMT59Z7HF3", "expected_categories": ["KEY"]}
+{"id": "pii-0042", "category": "KEY", "expected_pii": true, "text": "export ANTHROPIC_API_KEY=sk-ant-FPF73PXZHFYNBRG7M45HXNJC2MSX4LA6", "expected_categories": ["KEY"]}
+{"id": "pii-0043", "category": "KEY", "expected_pii": true, "text": "export ANTHROPIC_API_KEY=sk-ant-JU9BVM3P9D6GBPS3X8ZGP87VXD6SXLYT", "expected_categories": ["KEY"]}
+{"id": "pii-0044", "category": "KEY", "expected_pii": true, "text": "export ANTHROPIC_API_KEY=sk-ant-GXNZFUN4KG3VLQXS38ZXKXVC8HK3EB9V", "expected_categories": ["KEY"]}
+{"id": "pii-0045", "category": "KEY", "expected_pii": true, "text": "GitHub PAT for CI: ghp_7TbX5QRF4bab7J84TXcEFTWXN6S8bScSGaT6 \u2014 rotate quarterly.", "expected_categories": ["KEY"]}
+{"id": "pii-0046", "category": "KEY", "expected_pii": true, "text": "GitHub PAT for CI: ghp_9L7UKS5JNbDFQFJRNTC9Q7dAbXUdMQb9W58c \u2014 rotate quarterly.", "expected_categories": ["KEY"]}
+{"id": "pii-0047", "category": "KEY", "expected_pii": true, "text": "GitHub PAT for CI: ghp_ULUQ3859cfWcY3DSaGKNTNbLeS9T6BeJCeBB \u2014 rotate quarterly.", "expected_categories": ["KEY"]}
+{"id": "pii-0048", "category": "KEY", "expected_pii": true, "text": "GitHub PAT for CI: ghp_K9ZKTEeTKQZe57GMXdXcQdHY9K4M488XBW3C \u2014 rotate quarterly.", "expected_categories": ["KEY"]}
+{"id": "pii-0049", "category": "KEY", "expected_pii": true, "text": "Detected leaked AWS key: AKIAN0FHFDWG56INMXRG in the build logs.", "expected_categories": ["KEY"]}
+{"id": "pii-0050", "category": "KEY", "expected_pii": true, "text": "Detected leaked AWS key: AKIATLB8XAGRKOCHBHC9 in the build logs.", "expected_categories": ["KEY"]}
+{"id": "pii-0051", "category": "KEY", "expected_pii": true, "text": "Detected leaked AWS key: AKIAALVKI68EJ8HPG0AE in the build logs.", "expected_categories": ["KEY"]}
+{"id": "pii-0052", "category": "KEY", "expected_pii": true, "text": "Use sk-HXMTM9TMQKHZLZ8YGZJU2V94 for the staging OpenAI account.", "expected_categories": ["KEY"]}
+{"id": "pii-0053", "category": "KEY", "expected_pii": true, "text": "Use sk-KMKYEBBK8W2DAKRL8J5DCRUX for the staging OpenAI account.", "expected_categories": ["KEY"]}
+{"id": "pii-0054", "category": "KEY", "expected_pii": true, "text": "Slack bot token from incident channel: xoxb-F49CJUPVW3N7KVQUB9D3WJCHUFPY.", "expected_categories": ["KEY"]}
+{"id": "pii-0055", "category": "KEY", "expected_pii": true, "text": "Slack bot token from incident channel: xoxb-RBKK6CHJ4V4GDHEJEB4V58QRLPJT.", "expected_categories": ["KEY"]}
+{"id": "pii-0056", "category": "EMAIL", "expected_pii": true, "text": "Forward the recap to design@unite-group.com.au when ready.", "expected_categories": ["EMAIL"]}
+{"id": "pii-0057", "category": "EMAIL", "expected_pii": true, "text": "Forward the recap to alice@agency.io when ready.", "expected_categories": ["EMAIL"]}
+{"id": "pii-0058", "category": "EMAIL", "expected_pii": true, "text": "Forward the recap to margot@studio.dev when ready.", "expected_categories": ["EMAIL"]}
+{"id": "pii-0059", "category": "EMAIL", "expected_pii": true, "text": "Forward the recap to phill@unite-group.com.au when ready.", "expected_categories": ["EMAIL"]}
+{"id": "pii-0060", "category": "EMAIL", "expected_pii": true, "text": "Forward the recap to bob@client.example when ready.", "expected_categories": ["EMAIL"]}
+{"id": "pii-0061", "category": "EMAIL", "expected_pii": true, "text": "Forward the recap to alice@mail.test when ready.", "expected_categories": ["EMAIL"]}
+{"id": "pii-0062", "category": "EMAIL", "expected_pii": true, "text": "Forward the recap to alice@client.example when ready.", "expected_categories": ["EMAIL"]}
+{"id": "pii-0063", "category": "EMAIL", "expected_pii": true, "text": "Forward the recap to design@studio.dev when ready.", "expected_categories": ["EMAIL"]}
+{"id": "pii-0064", "category": "EMAIL", "expected_pii": true, "text": "Forward the recap to design@mail.test when ready.", "expected_categories": ["EMAIL"]}
+{"id": "pii-0065", "category": "EMAIL", "expected_pii": true, "text": "Forward the recap to ceo@studio.dev when ready.", "expected_categories": ["EMAIL"]}
+{"id": "pii-0066", "category": "EMAIL", "expected_pii": true, "text": "Forward the recap to j.smith@agency.io when ready.", "expected_categories": ["EMAIL"]}
+{"id": "pii-0067", "category": "EMAIL", "expected_pii": true, "text": "Forward the recap to bob@agency.io when ready.", "expected_categories": ["EMAIL"]}
+{"id": "pii-0068", "category": "EMAIL", "expected_pii": true, "text": "Forward the recap to margot@agency.io when ready.", "expected_categories": ["EMAIL"]}
+{"id": "pii-0069", "category": "EMAIL", "expected_pii": true, "text": "Forward the recap to margot@mail.test when ready.", "expected_categories": ["EMAIL"]}
+{"id": "pii-0070", "category": "EMAIL", "expected_pii": true, "text": "Forward the recap to bob@client.example when ready.", "expected_categories": ["EMAIL"]}
+{"id": "pii-0071", "category": "BEARER", "expected_pii": true, "text": "curl -H 'Authorization: Bearer VsT92jcUV_Zg-qjaMXwnwNj8btH_mQKjjF-7' https://api/x", "expected_categories": ["BEARER"]}
+{"id": "pii-0072", "category": "BEARER", "expected_pii": true, "text": "curl -H 'Authorization: Bearer dG3fugS3_QjY8f54Sya9f2STl-eJhWjjcUMt' https://api/x", "expected_categories": ["BEARER"]}
+{"id": "pii-0073", "category": "BEARER", "expected_pii": true, "text": "curl -H 'Authorization: Bearer kPxCvtzYr2_fCfl55bhcuaqKd_Vsq444YUuw' https://api/x", "expected_categories": ["BEARER"]}
+{"id": "pii-0074", "category": "BEARER", "expected_pii": true, "text": "curl -H 'Authorization: Bearer 5CEp8-wbFp5cs7CyTYJhkyLE5nQ7JdQRAz7r' https://api/x", "expected_categories": ["BEARER"]}
+{"id": "pii-0075", "category": "BEARER", "expected_pii": true, "text": "curl -H 'Authorization: Bearer KcWlpbQ3MYePkk-T_qSksvCmf7SzmWpnruq3' https://api/x", "expected_categories": ["BEARER"]}
+{"id": "pii-0076", "category": "BEARER", "expected_pii": true, "text": "curl -H 'Authorization: Bearer p7qUclvFTwLHh_h72R2ezwVG.J_4u__zXyAh' https://api/x", "expected_categories": ["BEARER"]}
+{"id": "pii-0077", "category": "BEARER", "expected_pii": true, "text": "curl -H 'Authorization: Bearer crrl29GPB6k8PD27TaJ9TfF6Jcrv9avKaFea' https://api/x", "expected_categories": ["BEARER"]}
+{"id": "pii-0078", "category": "BEARER", "expected_pii": true, "text": "curl -H 'Authorization: Bearer .BXc.4Fsj_XZMH4crpmByQHkExNN5VJ7A4JH' https://api/x", "expected_categories": ["BEARER"]}
+{"id": "pii-0079", "category": "BEARER", "expected_pii": true, "text": "curl -H 'Authorization: Bearer QLrBAyQVLDvhvexgGf9Cy5gd.DeZse7EEmDS' https://api/x", "expected_categories": ["BEARER"]}
+{"id": "pii-0080", "category": "BEARER", "expected_pii": true, "text": "curl -H 'Authorization: Bearer pjV-hcmFt4qxuNcPVcaFbrYK8D3FFvzjlkVH' https://api/x", "expected_categories": ["BEARER"]}
+{"id": "pii-0081", "category": "PHONE", "expected_pii": true, "text": "Call +1 8949 023151 after 14:00.", "expected_categories": ["PHONE"]}
+{"id": "pii-0082", "category": "PHONE", "expected_pii": true, "text": "Call +33 2183 758898 after 14:00.", "expected_categories": ["PHONE"]}
+{"id": "pii-0083", "category": "PHONE", "expected_pii": true, "text": "Call +44 6660 279311 after 14:00.", "expected_categories": ["PHONE"]}
+{"id": "pii-0084", "category": "PHONE", "expected_pii": true, "text": "Call +33 0790 534133 after 14:00.", "expected_categories": ["PHONE"]}
+{"id": "pii-0085", "category": "PHONE", "expected_pii": true, "text": "Call +44 8170 044642 after 14:00.", "expected_categories": ["PHONE"]}
+{"id": "pii-0086", "category": "PHONE", "expected_pii": true, "text": "Call +44 3165 532902 after 14:00.", "expected_categories": ["PHONE"]}
+{"id": "pii-0087", "category": "PHONE", "expected_pii": true, "text": "Call +61 7721 441525 after 14:00.", "expected_categories": ["PHONE"]}
+{"id": "pii-0088", "category": "PHONE", "expected_pii": true, "text": "Call +1 0800 985574 after 14:00.", "expected_categories": ["PHONE"]}
+{"id": "pii-0089", "category": "PHONE", "expected_pii": true, "text": "Call +44 4919 463414 after 14:00.", "expected_categories": ["PHONE"]}
+{"id": "pii-0090", "category": "PHONE", "expected_pii": true, "text": "Call +33 5333 315159 after 14:00.", "expected_categories": ["PHONE"]}
+{"id": "pii-0091", "category": "PASSWORD", "expected_pii": true, "text": "db config: password=M366IFGi40G5 username=admin", "expected_categories": ["PASSWORD"]}
+{"id": "pii-0092", "category": "PASSWORD", "expected_pii": true, "text": "db config: password=e44c!g0i8iFC username=admin", "expected_categories": ["PASSWORD"]}
+{"id": "pii-0093", "category": "PASSWORD", "expected_pii": true, "text": "db config: password=cKJBeKcB7C87 username=admin", "expected_categories": ["PASSWORD"]}
+{"id": "pii-0094", "category": "PASSWORD", "expected_pii": true, "text": "db config: password=iedg59c60LdF username=admin", "expected_categories": ["PASSWORD"]}
+{"id": "pii-0095", "category": "PASSWORD", "expected_pii": true, "text": "db config: password=CD9M3eGIccfF username=admin", "expected_categories": ["PASSWORD"]}
+{"id": "pii-0096", "category": "PASSWORD", "expected_pii": true, "text": "db config: password=aJbLh50CD1J3 username=admin", "expected_categories": ["PASSWORD"]}
+{"id": "pii-0097", "category": "PASSWORD", "expected_pii": true, "text": "db config: password=098LhEM@2ah! username=admin", "expected_categories": ["PASSWORD"]}
+{"id": "pii-0098", "category": "PASSWORD", "expected_pii": true, "text": "db config: password=Ka561731f0bM username=admin", "expected_categories": ["PASSWORD"]}
+{"id": "pii-0099", "category": "PASSWORD", "expected_pii": true, "text": "db config: password=MGH@eHEC7D47 username=admin", "expected_categories": ["PASSWORD"]}
+{"id": "pii-0100", "category": "PASSWORD", "expected_pii": true, "text": "db config: password=8BL4EaF746Fc username=admin", "expected_categories": ["PASSWORD"]}
+{"id": "pii-0101", "category": "CLEAN", "expected_pii": false, "text": "Skills live in Pi-Dev-Ops/skills/ as SKILL.md files (item 374)", "expected_categories": []}
+{"id": "pii-0102", "category": "CLEAN", "expected_pii": false, "text": "Postcode SW1A 1AA is the central London address (item 737)", "expected_categories": []}
+{"id": "pii-0103", "category": "CLEAN", "expected_pii": false, "text": "Hermes v0.12 introduced the autonomous Curator agent (item 993)", "expected_categories": []}
+{"id": "pii-0104", "category": "CLEAN", "expected_pii": false, "text": "Flow YAMLs sit in Pi-Dev-Ops/flows/ (item 626)", "expected_categories": []}
+{"id": "pii-0105", "category": "CLEAN", "expected_pii": false, "text": "Telegram bot-to-bot visibility is blocked by design (item 771)", "expected_categories": []}
+{"id": "pii-0106", "category": "CLEAN", "expected_pii": false, "text": "The board approved Path C as the verdict (item 803)", "expected_categories": []}
+{"id": "pii-0107", "category": "CLEAN", "expected_pii": false, "text": "Flow YAMLs sit in Pi-Dev-Ops/flows/ (item 240)", "expected_categories": []}
+{"id": "pii-0108", "category": "CLEAN", "expected_pii": false, "text": "Audit log lives at .harness/swarm/swarm.jsonl (item 245)", "expected_categories": []}
+{"id": "pii-0109", "category": "CLEAN", "expected_pii": false, "text": "Telegram bot-to-bot visibility is blocked by design (item 989)", "expected_categories": []}
+{"id": "pii-0110", "category": "CLEAN", "expected_pii": false, "text": "The kill-switch is TAO_SWARM_ENABLED (item 926)", "expected_categories": []}
+{"id": "pii-0111", "category": "CLEAN", "expected_pii": false, "text": "Pi-CEO runs on Railway plus Vercel for the dashboard (item 377)", "expected_categories": []}
+{"id": "pii-0112", "category": "CLEAN", "expected_pii": false, "text": "Postcode SW1A 1AA is the central London address (item 970)", "expected_categories": []}
+{"id": "pii-0113", "category": "CLEAN", "expected_pii": false, "text": "Linear team RestoreAssist owns the Pi-Dev-Ops project (item 452)", "expected_categories": []}
+{"id": "pii-0114", "category": "CLEAN", "expected_pii": false, "text": "Flow YAMLs sit in Pi-Dev-Ops/flows/ (item 788)", "expected_categories": []}
+{"id": "pii-0115", "category": "CLEAN", "expected_pii": false, "text": "Telegram bot-to-bot visibility is blocked by design (item 797)", "expected_categories": []}
+{"id": "pii-0116", "category": "CLEAN", "expected_pii": false, "text": "We use Composio as the cross-environment substrate (item 515)", "expected_categories": []}
+{"id": "pii-0117", "category": "CLEAN", "expected_pii": false, "text": "Shadow mode is the safe default for the first three weeks (item 429)", "expected_categories": []}
+{"id": "pii-0118", "category": "CLEAN", "expected_pii": false, "text": "Auto-suspend fires after 288 unacked iterations (item 837)", "expected_categories": []}
+{"id": "pii-0119", "category": "CLEAN", "expected_pii": false, "text": "Pi-CEO runs on Railway plus Vercel for the dashboard (item 821)", "expected_categories": []}
+{"id": "pii-0120", "category": "CLEAN", "expected_pii": false, "text": "The plan file is at /Users/phill-mac/.claude/plans/breezy-wiggling-map.md (item 142)", "expected_categories": []}
+{"id": "pii-0121", "category": "CLEAN", "expected_pii": false, "text": "Sprint 12 is currently active with rate limits in place (item 54)", "expected_categories": []}
+{"id": "pii-0122", "category": "CLEAN", "expected_pii": false, "text": "Margot's MCP exposes five tools (item 493)", "expected_categories": []}
+{"id": "pii-0123", "category": "CLEAN", "expected_pii": false, "text": "Wave 2 includes email-listener and calendar-watcher (item 568)", "expected_categories": []}
+{"id": "pii-0124", "category": "CLEAN", "expected_pii": false, "text": "Linear ticket RA-1839 covers the Wave 1 + Wave 2 work (item 729)", "expected_categories": []}
+{"id": "pii-0125", "category": "CLEAN", "expected_pii": false, "text": "Shadow mode is the safe default for the first three weeks (item 872)", "expected_categories": []}
+{"id": "pii-0126", "category": "CLEAN", "expected_pii": false, "text": "Linear ticket RA-1839 covers the Wave 1 + Wave 2 work (item 292)", "expected_categories": []}
+{"id": "pii-0127", "category": "CLEAN", "expected_pii": false, "text": "Margot's deep_research takes 5-20 min typically (item 782)", "expected_categories": []}
+{"id": "pii-0128", "category": "CLEAN", "expected_pii": false, "text": "Auto-suspend fires after 288 unacked iterations (item 280)", "expected_categories": []}
+{"id": "pii-0129", "category": "CLEAN", "expected_pii": false, "text": "Flow YAMLs sit in Pi-Dev-Ops/flows/ (item 928)", "expected_categories": []}
+{"id": "pii-0130", "category": "CLEAN", "expected_pii": false, "text": "Shadow mode is the safe default for the first three weeks (item 151)", "expected_categories": []}
+{"id": "pii-0131", "category": "CLEAN", "expected_pii": false, "text": "Skills live in Pi-Dev-Ops/skills/ as SKILL.md files (item 94)", "expected_categories": []}
+{"id": "pii-0132", "category": "CLEAN", "expected_pii": false, "text": "Hermes v0.12 introduced the autonomous Curator agent (item 837)", "expected_categories": []}
+{"id": "pii-0133", "category": "CLEAN", "expected_pii": false, "text": "Flow YAMLs sit in Pi-Dev-Ops/flows/ (item 906)", "expected_categories": []}
+{"id": "pii-0134", "category": "CLEAN", "expected_pii": false, "text": "Wave 2 includes email-listener and calendar-watcher (item 953)", "expected_categories": []}
+{"id": "pii-0135", "category": "CLEAN", "expected_pii": false, "text": "Phase 4 ships on Thursday with budget under review (item 425)", "expected_categories": []}
+{"id": "pii-0136", "category": "CLEAN", "expected_pii": false, "text": "Run the dispatcher with 3 retries before abort (item 406)", "expected_categories": []}
+{"id": "pii-0137", "category": "CLEAN", "expected_pii": false, "text": "Shadow mode is the safe default for the first three weeks (item 383)", "expected_categories": []}
+{"id": "pii-0138", "category": "CLEAN", "expected_pii": false, "text": "Hermes v0.12 introduced the autonomous Curator agent (item 396)", "expected_categories": []}
+{"id": "pii-0139", "category": "CLEAN", "expected_pii": false, "text": "Margot's deep_research takes 5-20 min typically (item 384)", "expected_categories": []}
+{"id": "pii-0140", "category": "CLEAN", "expected_pii": false, "text": "Hermes v0.12 introduced the autonomous Curator agent (item 29)", "expected_categories": []}
+{"id": "pii-0141", "category": "CLEAN", "expected_pii": false, "text": "The CoS bot polls Telegram for non-acknowledgement messages (item 954)", "expected_categories": []}
+{"id": "pii-0142", "category": "CLEAN", "expected_pii": false, "text": "Linear ticket RA-1839 covers the Wave 1 + Wave 2 work (item 860)", "expected_categories": []}
+{"id": "pii-0143", "category": "CLEAN", "expected_pii": false, "text": "Postcode 2000 belongs to Sydney CBD (item 666)", "expected_categories": []}
+{"id": "pii-0144", "category": "CLEAN", "expected_pii": false, "text": "The CoS bot polls Telegram for non-acknowledgement messages (item 811)", "expected_categories": []}
+{"id": "pii-0145", "category": "CLEAN", "expected_pii": false, "text": "The orchestrator polls every 5 minutes by default (item 141)", "expected_categories": []}
+{"id": "pii-0146", "category": "CLEAN", "expected_pii": false, "text": "Run the dispatcher with 3 retries before abort (item 294)", "expected_categories": []}
+{"id": "pii-0147", "category": "CLEAN", "expected_pii": false, "text": "The kill-switch is TAO_SWARM_ENABLED (item 713)", "expected_categories": []}
+{"id": "pii-0148", "category": "CLEAN", "expected_pii": false, "text": "The orchestrator polls every 5 minutes by default (item 778)", "expected_categories": []}
+{"id": "pii-0149", "category": "CLEAN", "expected_pii": false, "text": "Postcode 2000 belongs to Sydney CBD (item 481)", "expected_categories": []}
+{"id": "pii-0150", "category": "CLEAN", "expected_pii": false, "text": "Flow YAMLs sit in Pi-Dev-Ops/flows/ (item 631)", "expected_categories": []}
+{"id": "pii-0151", "category": "CLEAN", "expected_pii": false, "text": "Phase 4 ships on Thursday with budget under review (item 928)", "expected_categories": []}
+{"id": "pii-0152", "category": "CLEAN", "expected_pii": false, "text": "Margot's deep_research takes 5-20 min typically (item 20)", "expected_categories": []}
+{"id": "pii-0153", "category": "CLEAN", "expected_pii": false, "text": "Sprint 12 is currently active with rate limits in place (item 221)", "expected_categories": []}
+{"id": "pii-0154", "category": "CLEAN", "expected_pii": false, "text": "The orchestrator polls every 5 minutes by default (item 562)", "expected_categories": []}
+{"id": "pii-0155", "category": "CLEAN", "expected_pii": false, "text": "The board approved Path C as the verdict (item 624)", "expected_categories": []}
+{"id": "pii-0156", "category": "CLEAN", "expected_pii": false, "text": "Shadow mode is the safe default for the first three weeks (item 434)", "expected_categories": []}
+{"id": "pii-0157", "category": "CLEAN", "expected_pii": false, "text": "Linear ticket RA-1839 covers the Wave 1 + Wave 2 work (item 795)", "expected_categories": []}
+{"id": "pii-0158", "category": "CLEAN", "expected_pii": false, "text": "Telegram bot-to-bot visibility is blocked by design (item 244)", "expected_categories": []}
+{"id": "pii-0159", "category": "CLEAN", "expected_pii": false, "text": "Telegram bot-to-bot visibility is blocked by design (item 125)", "expected_categories": []}
+{"id": "pii-0160", "category": "CLEAN", "expected_pii": false, "text": "Run the dispatcher with 3 retries before abort (item 245)", "expected_categories": []}
+{"id": "pii-0161", "category": "CLEAN", "expected_pii": false, "text": "Skills live in Pi-Dev-Ops/skills/ as SKILL.md files (item 655)", "expected_categories": []}
+{"id": "pii-0162", "category": "CLEAN", "expected_pii": false, "text": "The plan file is at /Users/phill-mac/.claude/plans/breezy-wiggling-map.md (item 469)", "expected_categories": []}
+{"id": "pii-0163", "category": "CLEAN", "expected_pii": false, "text": "Margot's deep_research takes 5-20 min typically (item 114)", "expected_categories": []}
+{"id": "pii-0164", "category": "CLEAN", "expected_pii": false, "text": "The kill-switch is TAO_SWARM_ENABLED (item 612)", "expected_categories": []}
+{"id": "pii-0165", "category": "CLEAN", "expected_pii": false, "text": "Audit log lives at .harness/swarm/swarm.jsonl (item 17)", "expected_categories": []}
+{"id": "pii-0166", "category": "CLEAN", "expected_pii": false, "text": "Margot's MCP exposes five tools (item 528)", "expected_categories": []}
+{"id": "pii-0167", "category": "CLEAN", "expected_pii": false, "text": "Linear team RestoreAssist owns the Pi-Dev-Ops project (item 248)", "expected_categories": []}
+{"id": "pii-0168", "category": "CLEAN", "expected_pii": false, "text": "Postcode 2000 belongs to Sydney CBD (item 148)", "expected_categories": []}
+{"id": "pii-0169", "category": "CLEAN", "expected_pii": false, "text": "Telegram bot-to-bot visibility is blocked by design (item 440)", "expected_categories": []}
+{"id": "pii-0170", "category": "CLEAN", "expected_pii": false, "text": "Phase 4 ships on Thursday with budget under review (item 630)", "expected_categories": []}
+{"id": "pii-0171", "category": "CLEAN", "expected_pii": false, "text": "Wave 2 includes email-listener and calendar-watcher (item 247)", "expected_categories": []}
+{"id": "pii-0172", "category": "CLEAN", "expected_pii": false, "text": "Linear team RestoreAssist owns the Pi-Dev-Ops project (item 427)", "expected_categories": []}
+{"id": "pii-0173", "category": "CLEAN", "expected_pii": false, "text": "Auto-suspend fires after 288 unacked iterations (item 681)", "expected_categories": []}
+{"id": "pii-0174", "category": "CLEAN", "expected_pii": false, "text": "Postcode SW1A 1AA is the central London address (item 88)", "expected_categories": []}
+{"id": "pii-0175", "category": "CLEAN", "expected_pii": false, "text": "Shadow mode is the safe default for the first three weeks (item 999)", "expected_categories": []}
+{"id": "pii-0176", "category": "CLEAN", "expected_pii": false, "text": "Wave 2 includes email-listener and calendar-watcher (item 70)", "expected_categories": []}
+{"id": "pii-0177", "category": "CLEAN", "expected_pii": false, "text": "Shadow mode is the safe default for the first three weeks (item 558)", "expected_categories": []}
+{"id": "pii-0178", "category": "CLEAN", "expected_pii": false, "text": "Shadow mode is the safe default for the first three weeks (item 806)", "expected_categories": []}
+{"id": "pii-0179", "category": "CLEAN", "expected_pii": false, "text": "Shadow mode is the safe default for the first three weeks (item 568)", "expected_categories": []}
+{"id": "pii-0180", "category": "CLEAN", "expected_pii": false, "text": "Phase 4 ships on Thursday with budget under review (item 400)", "expected_categories": []}
+{"id": "pii-0181", "category": "CLEAN", "expected_pii": false, "text": "The kill-switch is TAO_SWARM_ENABLED (item 45)", "expected_categories": []}
+{"id": "pii-0182", "category": "CLEAN", "expected_pii": false, "text": "Margot's MCP exposes five tools (item 397)", "expected_categories": []}
+{"id": "pii-0183", "category": "CLEAN", "expected_pii": false, "text": "Wave 2 includes email-listener and calendar-watcher (item 260)", "expected_categories": []}
+{"id": "pii-0184", "category": "CLEAN", "expected_pii": false, "text": "The board approved Path C as the verdict (item 17)", "expected_categories": []}
+{"id": "pii-0185", "category": "CLEAN", "expected_pii": false, "text": "Wave 2 includes email-listener and calendar-watcher (item 808)", "expected_categories": []}
+{"id": "pii-0186", "category": "CLEAN", "expected_pii": false, "text": "Margot's deep_research takes 5-20 min typically (item 354)", "expected_categories": []}
+{"id": "pii-0187", "category": "CLEAN", "expected_pii": false, "text": "Hermes v0.12 introduced the autonomous Curator agent (item 751)", "expected_categories": []}
+{"id": "pii-0188", "category": "CLEAN", "expected_pii": false, "text": "Postcode SW1A 1AA is the central London address (item 644)", "expected_categories": []}
+{"id": "pii-0189", "category": "CLEAN", "expected_pii": false, "text": "Linear ticket RA-1839 covers the Wave 1 + Wave 2 work (item 791)", "expected_categories": []}
+{"id": "pii-0190", "category": "CLEAN", "expected_pii": false, "text": "Linear team RestoreAssist owns the Pi-Dev-Ops project (item 753)", "expected_categories": []}
+{"id": "pii-0191", "category": "CLEAN", "expected_pii": false, "text": "Spike gate due 2026-05-08 covers the v0.12 plugin bridge (item 341)", "expected_categories": []}
+{"id": "pii-0192", "category": "CLEAN", "expected_pii": false, "text": "The orchestrator polls every 5 minutes by default (item 46)", "expected_categories": []}
+{"id": "pii-0193", "category": "CLEAN", "expected_pii": false, "text": "Wave 2 includes email-listener and calendar-watcher (item 560)", "expected_categories": []}
+{"id": "pii-0194", "category": "CLEAN", "expected_pii": false, "text": "The CoS bot polls Telegram for non-acknowledgement messages (item 834)", "expected_categories": []}
+{"id": "pii-0195", "category": "CLEAN", "expected_pii": false, "text": "Margot's MCP exposes five tools (item 180)", "expected_categories": []}
+{"id": "pii-0196", "category": "CLEAN", "expected_pii": false, "text": "Spike gate due 2026-05-08 covers the v0.12 plugin bridge (item 702)", "expected_categories": []}
+{"id": "pii-0197", "category": "CLEAN", "expected_pii": false, "text": "Flow YAMLs sit in Pi-Dev-Ops/flows/ (item 713)", "expected_categories": []}
+{"id": "pii-0198", "category": "CLEAN", "expected_pii": false, "text": "The kill-switch is TAO_SWARM_ENABLED (item 647)", "expected_categories": []}
+{"id": "pii-0199", "category": "CLEAN", "expected_pii": false, "text": "Auto-suspend fires after 288 unacked iterations (item 831)", "expected_categories": []}
+{"id": "pii-0200", "category": "CLEAN", "expected_pii": false, "text": "The orchestrator polls every 5 minutes by default (item 65)", "expected_categories": []}
+{"id": "pii-0201", "category": "AMBIGUOUS", "expected_pii": false, "text": "PR #42 was merged at 09:15 AEST", "expected_categories": []}
+{"id": "pii-0202", "category": "AMBIGUOUS", "expected_pii": false, "text": "Sprint 12 closes on 2026-05-15", "expected_categories": []}
+{"id": "pii-0203", "category": "AMBIGUOUS", "expected_pii": false, "text": "Reference number 12345678 is on the invoice", "expected_categories": []}
+{"id": "pii-0204", "category": "AMBIGUOUS", "expected_pii": false, "text": "Compile times jumped from 4.2 to 5.6 seconds yesterday", "expected_categories": []}
+{"id": "pii-0205", "category": "AMBIGUOUS", "expected_pii": false, "text": "The retry backoff is 1, 2, 4, 8 seconds", "expected_categories": []}
+{"id": "pii-0206", "category": "AMBIGUOUS", "expected_pii": false, "text": "Build #1234 deployed at 14:32 today", "expected_categories": []}
+{"id": "pii-0207", "category": "AMBIGUOUS", "expected_pii": false, "text": "Compile times jumped from 4.2 to 5.6 seconds yesterday", "expected_categories": []}
+{"id": "pii-0208", "category": "AMBIGUOUS", "expected_pii": false, "text": "Sprint 12 closes on 2026-05-15", "expected_categories": []}
+{"id": "pii-0209", "category": "AMBIGUOUS", "expected_pii": false, "text": "Build #1234 deployed at 14:32 today", "expected_categories": []}
+{"id": "pii-0210", "category": "AMBIGUOUS", "expected_pii": false, "text": "Cycle 288 is the auto-suspend threshold", "expected_categories": []}
+{"id": "pii-0211", "category": "AMBIGUOUS", "expected_pii": false, "text": "Compile times jumped from 4.2 to 5.6 seconds yesterday", "expected_categories": []}
+{"id": "pii-0212", "category": "AMBIGUOUS", "expected_pii": false, "text": "Postcode 90210 is for Beverly Hills", "expected_categories": []}
+{"id": "pii-0213", "category": "AMBIGUOUS", "expected_pii": false, "text": "Cycle 288 is the auto-suspend threshold", "expected_categories": []}
+{"id": "pii-0214", "category": "AMBIGUOUS", "expected_pii": false, "text": "The retry backoff is 1, 2, 4, 8 seconds", "expected_categories": []}
+{"id": "pii-0215", "category": "AMBIGUOUS", "expected_pii": false, "text": "Order ID 5550199 is in dispatch", "expected_categories": []}
+{"id": "pii-0216", "category": "AMBIGUOUS", "expected_pii": false, "text": "ZIP 10001 covers part of midtown Manhattan", "expected_categories": []}
+{"id": "pii-0217", "category": "AMBIGUOUS", "expected_pii": false, "text": "Fiscal year quarter 4 ends June 30", "expected_categories": []}
+{"id": "pii-0218", "category": "AMBIGUOUS", "expected_pii": false, "text": "Order ID 5550199 is in dispatch", "expected_categories": []}
+{"id": "pii-0219", "category": "AMBIGUOUS", "expected_pii": false, "text": "Reference number 12345678 is on the invoice", "expected_categories": []}
+{"id": "pii-0220", "category": "AMBIGUOUS", "expected_pii": false, "text": "The retry backoff is 1, 2, 4, 8 seconds", "expected_categories": []}
+{"id": "pii-0221", "category": "AMBIGUOUS", "expected_pii": false, "text": "Compile times jumped from 4.2 to 5.6 seconds yesterday", "expected_categories": []}
+{"id": "pii-0222", "category": "AMBIGUOUS", "expected_pii": false, "text": "Sprint 12 closes on 2026-05-15", "expected_categories": []}
+{"id": "pii-0223", "category": "AMBIGUOUS", "expected_pii": false, "text": "The 200-OK response time averaged 230ms", "expected_categories": []}
+{"id": "pii-0224", "category": "AMBIGUOUS", "expected_pii": false, "text": "Build #1234 deployed at 14:32 today", "expected_categories": []}
+{"id": "pii-0225", "category": "AMBIGUOUS", "expected_pii": false, "text": "The retry backoff is 1, 2, 4, 8 seconds", "expected_categories": []}
+{"id": "pii-0226", "category": "AMBIGUOUS", "expected_pii": false, "text": "Postcode 90210 is for Beverly Hills", "expected_categories": []}
+{"id": "pii-0227", "category": "AMBIGUOUS", "expected_pii": false, "text": "Fiscal year quarter 4 ends June 30", "expected_categories": []}
+{"id": "pii-0228", "category": "AMBIGUOUS", "expected_pii": false, "text": "Sprint 12 closes on 2026-05-15", "expected_categories": []}
+{"id": "pii-0229", "category": "AMBIGUOUS", "expected_pii": false, "text": "Compile times jumped from 4.2 to 5.6 seconds yesterday", "expected_categories": []}
+{"id": "pii-0230", "category": "AMBIGUOUS", "expected_pii": false, "text": "Fiscal year quarter 4 ends June 30", "expected_categories": []}
+{"id": "pii-0231", "category": "AMBIGUOUS", "expected_pii": false, "text": "The 200-OK response time averaged 230ms", "expected_categories": []}
+{"id": "pii-0232", "category": "AMBIGUOUS", "expected_pii": false, "text": "Postcode 90210 is for Beverly Hills", "expected_categories": []}
+{"id": "pii-0233", "category": "AMBIGUOUS", "expected_pii": false, "text": "The retry backoff is 1, 2, 4, 8 seconds", "expected_categories": []}
+{"id": "pii-0234", "category": "AMBIGUOUS", "expected_pii": false, "text": "Issue tracker shows 12 open and 27 closed", "expected_categories": []}
+{"id": "pii-0235", "category": "AMBIGUOUS", "expected_pii": false, "text": "Sprint 12 closes on 2026-05-15", "expected_categories": []}
+{"id": "pii-0236", "category": "AMBIGUOUS", "expected_pii": false, "text": "Postcode 90210 is for Beverly Hills", "expected_categories": []}
+{"id": "pii-0237", "category": "AMBIGUOUS", "expected_pii": false, "text": "ZIP 10001 covers part of midtown Manhattan", "expected_categories": []}
+{"id": "pii-0238", "category": "AMBIGUOUS", "expected_pii": false, "text": "Cycle 288 is the auto-suspend threshold", "expected_categories": []}
+{"id": "pii-0239", "category": "AMBIGUOUS", "expected_pii": false, "text": "ZIP 10001 covers part of midtown Manhattan", "expected_categories": []}
+{"id": "pii-0240", "category": "AMBIGUOUS", "expected_pii": false, "text": "PR #42 was merged at 09:15 AEST", "expected_categories": []}
+{"id": "pii-0241", "category": "AMBIGUOUS", "expected_pii": false, "text": "Reference number 12345678 is on the invoice", "expected_categories": []}
+{"id": "pii-0242", "category": "AMBIGUOUS", "expected_pii": false, "text": "Cycle 288 is the auto-suspend threshold", "expected_categories": []}
+{"id": "pii-0243", "category": "AMBIGUOUS", "expected_pii": false, "text": "ZIP 10001 covers part of midtown Manhattan", "expected_categories": []}
+{"id": "pii-0244", "category": "AMBIGUOUS", "expected_pii": false, "text": "Postcode 90210 is for Beverly Hills", "expected_categories": []}
+{"id": "pii-0245", "category": "AMBIGUOUS", "expected_pii": false, "text": "Server uptime is 99.97 percent over 30 days", "expected_categories": []}
+{"id": "pii-0246", "category": "AMBIGUOUS", "expected_pii": false, "text": "Reference number 12345678 is on the invoice", "expected_categories": []}
+{"id": "pii-0247", "category": "AMBIGUOUS", "expected_pii": false, "text": "PR #42 was merged at 09:15 AEST", "expected_categories": []}
+{"id": "pii-0248", "category": "AMBIGUOUS", "expected_pii": false, "text": "Reference number 12345678 is on the invoice", "expected_categories": []}
+{"id": "pii-0249", "category": "AMBIGUOUS", "expected_pii": false, "text": "Postcode 90210 is for Beverly Hills", "expected_categories": []}
+{"id": "pii-0250", "category": "AMBIGUOUS", "expected_pii": false, "text": "Cycle 288 is the auto-suspend threshold", "expected_categories": []}

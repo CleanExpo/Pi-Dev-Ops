@@ -1,0 +1,37 @@
+{
+  "critical": [
+    {
+      "severity": "critical",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "webhook.py contains only inbound parsing (verify_linear_signature, parse_linear_event, linear_issue_to_brief) — no outbound Linear API calls exist in any provided file. There is no issueUpdate GraphQL mutation, no linear_update_issue helper, and no HTTP call to api.linear.app that would push state changes (e.g. In Progress on build start, Done on build complete) back to Linear.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Add an async helper (e.g. async def linear_set_issue_state(issue_id, state_id)) that POSTs the issueUpdate mutation to https://api.linear.app/graphql with LINEAR_API_KEY auth, and call it from routes/webhooks.py at build-start and build-complete events.",
+      "category": "Linear two-way sync"
+    }
+  ],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec claims Linear two-way sync — state updates flow back to Linear (implying issue lifecycle is managed: Todo → In Progress → Done)",
+      "reality": "parse_linear_event only reads inbound state transitions (action=update stateId change, action=create for Urgent/High). The outbound half — updating the Linear issue state when the Pi-CEO session transitions (started, completed, failed) — is absent from all provided source files.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Wire linear_set_issue_state calls into the session lifecycle hooks in routes/sessions.py at the points where session.status transitions to 'running', 'complete', and 'failed'.",
+      "category": "Linear two-way sync"
+    }
+  ],
+  "low": [],
+  "summary": {
+    "total_discrepancies": 2,
+    "critical_count": 1,
+    "high_count": 1,
+    "low_count": 0,
+    "duration_s": 295.3,
+    "audited_at": "2026-04-27T05:07:59.616120+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": [
+      "RA-1755",
+      "RA-1756"
+    ]
+  }
+}

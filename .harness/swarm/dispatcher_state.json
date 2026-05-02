@@ -1,0 +1,265 @@
+{
+  "bc19452375d3": {
+    "flow_id": "bc19452375d3",
+    "name": "research-and-summarise",
+    "started_at": "2026-05-01T10:39:28.823951+00:00",
+    "status": "completed",
+    "context": {
+      "topic": "Vercel Workflow DevKit",
+      "time_budget": "quick",
+      "original_chat_id": "smoke-chat",
+      "intent_id": "smoke-intent-1"
+    },
+    "step_state": {
+      "classify": {
+        "status": "skipped_dry_run",
+        "started_at": "2026-05-01T10:39:28.824927+00:00",
+        "completed_at": "2026-05-01T10:39:28.825124+00:00",
+        "output": {
+          "_dry_run": true
+        }
+      },
+      "draft": {
+        "status": "skipped_dry_run",
+        "started_at": "2026-05-01T10:39:28.825161+00:00",
+        "completed_at": "2026-05-01T10:39:28.825326+00:00",
+        "output": {
+          "_dry_run": true
+        }
+      }
+    },
+    "completed_at": "2026-05-01T10:39:28.825356+00:00"
+  },
+  "5a3499047606": {
+    "flow_id": "5a3499047606",
+    "name": "research-and-summarise",
+    "started_at": "2026-05-01T10:39:28.825517+00:00",
+    "status": "completed",
+    "context": {
+      "topic": "Vercel Workflow DevKit",
+      "time_budget": "quick",
+      "original_chat_id": "smoke-chat",
+      "intent_id": "smoke-intent-2"
+    },
+    "step_state": {
+      "classify": {
+        "status": "completed",
+        "started_at": "2026-05-01T10:39:28.825728+00:00",
+        "completed_at": "2026-05-01T10:39:28.825896+00:00",
+        "output": {
+          "intent": "unknown",
+          "confidence": 0.0,
+          "fields": {},
+          "raw_message": "Vercel Workflow DevKit",
+          "originating_chat_id": "smoke-chat",
+          "originating_message_id": null,
+          "received_at": "2026-05-01T10:39:28.825886+00:00"
+        }
+      },
+      "draft": {
+        "status": "completed",
+        "started_at": "2026-05-01T10:39:28.826048+00:00",
+        "completed_at": "2026-05-01T10:39:28.826418+00:00",
+        "output": {
+          "draft_id": "17ec228b023b",
+          "review_message_id": "test-msg-4e1f7d13",
+          "status": "pending"
+        }
+      }
+    },
+    "completed_at": "2026-05-01T10:39:28.826562+00:00"
+  },
+  "74edd03b4b74": {
+    "flow_id": "74edd03b4b74",
+    "name": "morning-briefing",
+    "started_at": "2026-05-01T11:00:33.308639+00:00",
+    "status": "completed",
+    "context": {
+      "original_chat_id": "smoke-chat"
+    },
+    "step_state": {
+      "classify": {
+        "status": "skipped_dry_run",
+        "started_at": "2026-05-01T11:00:33.309405+00:00",
+        "completed_at": "2026-05-01T11:00:33.309586+00:00",
+        "output": {
+          "_dry_run": true
+        }
+      },
+      "draft": {
+        "status": "skipped_dry_run",
+        "started_at": "2026-05-01T11:00:33.309622+00:00",
+        "completed_at": "2026-05-01T11:00:33.309781+00:00",
+        "output": {
+          "_dry_run": true
+        }
+      }
+    },
+    "completed_at": "2026-05-01T11:00:33.309811+00:00"
+  },
+  "7304256ee491": {
+    "flow_id": "7304256ee491",
+    "name": "test-linear-ticket",
+    "started_at": "2026-05-01T11:12:54.234667+00:00",
+    "status": "completed",
+    "context": {
+      "smoke_marker": "[DRY]"
+    },
+    "step_state": {
+      "list_open": {
+        "status": "skipped_dry_run",
+        "started_at": "2026-05-01T11:12:54.235470+00:00",
+        "completed_at": "2026-05-01T11:12:54.235690+00:00",
+        "output": {
+          "_dry_run": true
+        }
+      },
+      "create_ticket": {
+        "status": "skipped_dry_run",
+        "started_at": "2026-05-01T11:12:54.235747+00:00",
+        "completed_at": "2026-05-01T11:12:54.235944+00:00",
+        "output": {
+          "_dry_run": true
+        }
+      },
+      "comment": {
+        "status": "skipped_dry_run",
+        "started_at": "2026-05-01T11:12:54.235979+00:00",
+        "completed_at": "2026-05-01T11:12:54.236115+00:00",
+        "output": {
+          "_dry_run": true
+        }
+      }
+    },
+    "completed_at": "2026-05-01T11:12:54.236143+00:00"
+  },
+  "7a943e2e1bf1": {
+    "flow_id": "7a943e2e1bf1",
+    "name": "test-linear-ticket",
+    "started_at": "2026-05-01T11:13:12.634107+00:00",
+    "status": "completed",
+    "context": {
+      "smoke_marker": "[SMOKE]"
+    },
+    "step_state": {
+      "list_open": {
+        "status": "completed",
+        "started_at": "2026-05-01T11:13:12.634725+00:00",
+        "completed_at": "2026-05-01T11:13:13.103694+00:00",
+        "output": {
+          "team": "RA",
+          "issues": [
+            {
+              "id": "RA-1838",
+              "title": "Hermes Path C verdict \u2014 spike-gate + user-answer gate before Sprint 1",
+              "state": "Todo",
+              "priority": 2,
+              "updated": "2026-05-01T10:12:36.688Z",
+              "assignee": "unassigned"
+            }
+          ]
+        }
+      },
+      "create_ticket": {
+        "status": "completed",
+        "started_at": "2026-05-01T11:13:13.105067+00:00",
+        "completed_at": "2026-05-01T11:13:13.552111+00:00",
+        "output": {
+          "status": "created",
+          "id": "af035dfa-c769-4c8c-ba9c-544aa631e268",
+          "identifier": "RA-1840",
+          "title": "[SMOKE] flow_engine + linear_tools E2E \u2014 2026-05-01",
+          "url": "https://linear.app/unite-group/issue/RA-1840/smoke-flow-engine-linear-tools-e2e-2026-05-01",
+          "priority": 4
+        }
+      },
+      "comment": {
+        "status": "completed",
+        "started_at": "2026-05-01T11:13:13.553288+00:00",
+        "completed_at": "2026-05-01T11:13:14.593342+00:00",
+        "output": {
+          "status": "commented",
+          "comment_id": "c05e9f53-283b-43e6-9347-5e243f7bffbb",
+          "url": "https://linear.app/unite-group/issue/RA-1840/smoke-flow-engine-linear-tools-e2e-2026-05-01#comment-c05e9f53"
+        }
+      }
+    },
+    "completed_at": "2026-05-01T11:13:14.595025+00:00"
+  },
+  "67816c3c53b9": {
+    "flow_id": "67816c3c53b9",
+    "name": "file-ticket-from-telegram",
+    "started_at": "2026-05-01T11:16:41.266872+00:00",
+    "status": "completed",
+    "context": {
+      "message_text": "file a P3 ticket about flow_engine smoke",
+      "original_chat_id": "smoke-chat",
+      "original_message_id": "smoke-msg-1"
+    },
+    "step_state": {
+      "classify": {
+        "status": "skipped_dry_run",
+        "started_at": "2026-05-01T11:16:41.267585+00:00",
+        "completed_at": "2026-05-01T11:16:41.267811+00:00",
+        "output": {
+          "_dry_run": true
+        }
+      },
+      "create_issue": {
+        "status": "skipped_dry_run",
+        "started_at": "2026-05-01T11:16:41.267865+00:00",
+        "completed_at": "2026-05-01T11:16:41.268533+00:00",
+        "output": {
+          "_dry_run": true
+        }
+      },
+      "draft_confirmation": {
+        "status": "skipped_dry_run",
+        "started_at": "2026-05-01T11:16:41.268650+00:00",
+        "completed_at": "2026-05-01T11:16:41.269089+00:00",
+        "output": {
+          "_dry_run": true
+        }
+      }
+    },
+    "completed_at": "2026-05-01T11:16:41.269131+00:00"
+  },
+  "f7f202578448": {
+    "flow_id": "f7f202578448",
+    "name": "file-ticket-from-telegram",
+    "started_at": "2026-05-01T11:23:09.468519+00:00",
+    "status": "completed",
+    "context": {
+      "message_text": "file a P3 ticket about flow_engine smoke",
+      "original_chat_id": "smoke-final",
+      "original_message_id": "smoke-final-msg"
+    },
+    "step_state": {
+      "classify": {
+        "status": "skipped_dry_run",
+        "started_at": "2026-05-01T11:23:09.469471+00:00",
+        "completed_at": "2026-05-01T11:23:09.469767+00:00",
+        "output": {
+          "_dry_run": true
+        }
+      },
+      "create_issue": {
+        "status": "skipped_dry_run",
+        "started_at": "2026-05-01T11:23:09.469919+00:00",
+        "completed_at": "2026-05-01T11:23:09.470246+00:00",
+        "output": {
+          "_dry_run": true
+        }
+      },
+      "draft_confirmation": {
+        "status": "skipped_dry_run",
+        "started_at": "2026-05-01T11:23:09.470333+00:00",
+        "completed_at": "2026-05-01T11:23:09.470623+00:00",
+        "output": {
+          "_dry_run": true
+        }
+      }
+    },
+    "completed_at": "2026-05-01T11:23:09.470699+00:00"
+  }
+}

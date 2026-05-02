@@ -152,6 +152,13 @@ def scan_repo_context(workspace_path: str) -> dict:
 _INTENT_KEYWORDS = {
     "hotfix": ["hotfix", "urgent fix", "critical fix", "production down", "p0", "emergency"],
     "bug": ["bug", "fix", "broken", "error", "crash", "failing", "doesn't work", "not working", "issue", "defect", "regression"],
+    "video": [
+        "explainer", "promo video", "promo reel", "marketing video", "training video",
+        "release video", "feature video", "social cut", "social ad", "video ad",
+        "remotion", "render video", "branded video", "intro video", "outro video",
+        "60s video", "30s video", "15s video", "linkedin video", "youtube video",
+        "instagram reel", "tiktok",
+    ],
     "feature": ["add", "implement", "create", "build", "new", "feature", "enhance", "integrate", "support"],
     "chore": ["chore", "cleanup", "refactor", "rename", "update deps", "upgrade", "lint", "format", "migrate", "move"],
     "spike": ["research", "investigate", "explore", "spike", "prototype", "evaluate", "compare", "benchmark", "analyze"],
@@ -160,14 +167,20 @@ _INTENT_KEYWORDS = {
 
 def classify_intent(brief: str) -> str:
     """Classify a brief's intent using keyword matching.
-    Returns one of: feature, bug, chore, spike, hotfix.
-    Checks hotfix first (highest priority), then bug, feature, chore, spike.
-    Default: feature."""
+    Returns one of: feature, bug, chore, spike, hotfix, video.
+    Checks hotfix first (highest priority), then bug, video, chore, spike, feature.
+    Default: feature.
+
+    `video` sits between bug and chore so that explicit video keywords
+    (explainer, promo, social cut, remotion, etc.) route to the
+    remotion-orchestrator skill ahead of the broad "feature" fallback. Video
+    keywords are intentionally narrow — bare "video" is not enough; the brief
+    must name a video format or platform."""
     lower = brief.lower()
-    # Check hotfix/bug first (highest priority), then chore/spike before feature.
-    # Feature is the fallback — its broad keywords ("new", "build") would otherwise
-    # swallow chore and spike briefs if checked first.
-    for intent in ["hotfix", "bug", "chore", "spike", "feature"]:
+    # Order matters: hotfix/bug guard production work; video must beat the
+    # generic "feature" keywords ("create", "build", "new") which otherwise
+    # swallow every video brief.
+    for intent in ["hotfix", "bug", "video", "chore", "spike", "feature"]:
         for kw in _INTENT_KEYWORDS[intent]:
             if kw in lower:
                 return intent
@@ -233,6 +246,24 @@ _ADW_TEMPLATES = {
             "3. FIX: Apply minimal fix, no scope creep\n"
             "4. VERIFY: Confirm fix, check for side effects\n"
             "5. COMMIT: Stage with conventional commit (fix: ...)"
+        ),
+    },
+    "video": {
+        "name": "Branded Video Render",
+        "steps": ["orchestrate", "research", "storyboard", "build", "render"],
+        "instructions": (
+            "WORKFLOW: Branded Video Render\n"
+            "Use the remotion-orchestrator skill as the entry point. It will\n"
+            "read the brief, classify (brand, composition, channel, duration),\n"
+            "and dispatch sub-skills in waves via the existing P3-B fan-out.\n"
+            "1. ORCHESTRATE: remotion-orchestrator emits wave plan JSON\n"
+            "2. RESEARCH: remotion-brand-research + remotion-marketing-strategist (wave 1)\n"
+            "3. STORYBOARD: remotion-screen-storyteller + colour-family + motion-language (wave 2)\n"
+            "4. BUILD: remotion-brand-codify + remotion-designer + remotion-composition-builder (wave 3-4)\n"
+            "5. RENDER: remotion-render-pipeline runs `npx tsx render/render.ts`,\n"
+            "   synthesises ElevenLabs voiceover, validates MP4, ships to\n"
+            "   Telegram via app.server.telegram_video.send_telegram_video,\n"
+            "   uploads to Supabase, opens Linear ticket per .harness/projects.json."
         ),
     },
 }

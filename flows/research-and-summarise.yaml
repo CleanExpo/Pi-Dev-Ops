@@ -1,0 +1,42 @@
+flow:
+  name: research-and-summarise
+  description: |
+    Margot deep-researches a topic; Scribe drafts a Telegram summary
+    routed through the HITL review gate.
+  trigger: manual
+  context_schema:
+    - name: topic
+      type: string
+      required: true
+    - name: time_budget
+      type: enum[quick,deep]
+      default: deep
+    - name: original_chat_id
+      type: string
+      required: true
+    - name: intent_id
+      type: string
+      required: false
+  tool_allowlist:
+    - skill.intent-parser
+    - skill.telegram-draft-for-review
+  max_runtime_minutes: 30
+  steps:
+    # NOTE: skill.margot-bridge is registered in flow_engine in a later wave
+    # (depends on Margot MCP being callable from inside the orchestrator
+    # process — Wave 2 wiring). Today's flow demonstrates the contract.
+    - id: classify
+      tool: skill.intent-parser
+      args:
+        message_text: "{{ctx.topic}}"
+        chat_id: "{{ctx.original_chat_id}}"
+      on_error: abort
+    - id: draft
+      tool: skill.telegram-draft-for-review
+      args:
+        draft_text: "Research dispatched. Topic: {{ctx.topic}} · Budget: {{ctx.time_budget}}. (Wave 2 will replace this stub with Margot output.)"
+        destination_chat_id: "{{ctx.original_chat_id}}"
+        drafted_by_role: Dispatcher
+        originating_intent_id: "{{ctx.intent_id}}"
+      depends_on: [classify]
+      on_error: log_and_continue

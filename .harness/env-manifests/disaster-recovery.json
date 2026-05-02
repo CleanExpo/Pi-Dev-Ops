@@ -1,0 +1,261 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-05-02T08:38:29Z",
+  "vercel_team": "unite-group",
+  "vercel_project_name": "disaster-recovery",
+  "project_slug": "disaster-recovery",
+  "repo": "CleanExpo/DR-Sandbox",
+  "vars": [
+    {
+      "name": "ANTIGRAVITY_UI",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "CLAIM_NOTIFICATION_EMAIL",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "optional"
+    },
+    {
+      "name": "CRON_SECRET",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "DATABASE_URL",
+      "target": "production",
+      "category": "database",
+      "criticality": "blocker"
+    },
+    {
+      "name": "DIRECT_URL",
+      "target": "production",
+      "category": "database",
+      "criticality": "blocker"
+    },
+    {
+      "name": "ELEVENLABS_AGENT_ID_OLIVIA",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "ENCRYPTION_SECRET",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "blocker"
+    },
+    {
+      "name": "GOOGLE_GENAI_API_KEY",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "blocker"
+    },
+    {
+      "name": "GOOGLE_REVIEW_URL",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "optional"
+    },
+    {
+      "name": "JWT_SECRET_KEY",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "blocker"
+    },
+    {
+      "name": "NEXTAUTH_SECRET",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "blocker"
+    },
+    {
+      "name": "NEXTAUTH_URL",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "NEXT_PUBLIC_APP_URL",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NEXT_PUBLIC_GA4_MEASUREMENT_ID",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NEXT_PUBLIC_GA_ID",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NEXT_PUBLIC_GA_MEASUREMENT_ID",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NEXT_PUBLIC_GTM_ID",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NEXT_PUBLIC_VOICE_WIDGET_ENABLED",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NODE_ENV",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "RESEND_API_KEY",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "RESEND_FROM_EMAIL",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "optional"
+    },
+    {
+      "name": "RESEND_FROM_NAME",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "optional"
+    },
+    {
+      "name": "RESEND_REPLY_TO",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_APPLICATION_FEE_PRICE_ID",
+      "target": "production",
+      "category": "payments",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_CALLOUT_FEE_PRICE_ID",
+      "target": "production",
+      "category": "payments",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_JOINING_FEE_PRICE_ID",
+      "target": "production",
+      "category": "payments",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_PERFORMANCE_BOND_PRICE_ID",
+      "target": "production",
+      "category": "payments",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_SECRET_KEY",
+      "target": "production",
+      "category": "payments",
+      "criticality": "blocker"
+    },
+    {
+      "name": "STRIPE_SUB_MONTH_1_PRICE_ID",
+      "target": "production",
+      "category": "payments",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_SUB_MONTH_2_PRICE_ID",
+      "target": "production",
+      "category": "payments",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_SUB_MONTH_3_PRICE_ID",
+      "target": "production",
+      "category": "payments",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_SUB_REGULAR_PRICE_ID",
+      "target": "production",
+      "category": "payments",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_SUB_TIER_100KM_PRICE_ID",
+      "target": "production",
+      "category": "payments",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_SUB_TIER_25KM_PRICE_ID",
+      "target": "production",
+      "category": "payments",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_SUB_TIER_50KM_PRICE_ID",
+      "target": "production",
+      "category": "payments",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_SUB_TIER_75KM_PRICE_ID",
+      "target": "production",
+      "category": "payments",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_WEBHOOK_SECRET",
+      "target": "production",
+      "category": "payments",
+      "criticality": "blocker"
+    },
+    {
+      "name": "TWILIO_ACCOUNT_SID",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    }
+  ],
+  "skipped": [
+    "DASHBOARD_PASSWORD",
+    "TAO_PASSWORD",
+    "PI_CEO_PASSWORD",
+    "CCW_ACCESS_PASSWORD",
+    "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_CHAT_ID",
+    "TELEGRAM_WEBHOOK_SECRET",
+    "PLAUSIBLE_*",
+    "POSTHOG_*",
+    "NEXT_PUBLIC_*",
+    "VERCEL_TOKEN",
+    "VERCEL_TEAM_ID",
+    "VERCEL_GIT_*",
+    "_DEPLOY_HOOK_*"
+  ],
+  "notes": "Generated 2026-05-02 from `vercel env ls production` against unite-group/disaster-recovery. Auto-classified by criticality + category. Operator review required before first Sandcastle run against this project."
+}

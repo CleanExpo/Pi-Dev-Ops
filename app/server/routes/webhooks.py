@@ -722,3 +722,103 @@ async def get_routine_runs(
     runs.sort(key=lambda r: r.get("ts", ""), reverse=True)
     total = len(runs)
     return {"runs": runs[:limit], "total": total}
+
+
+# ── RA-1839 — Gmail + Calendar push triggers (Wave 2) ────────────────────────
+# Specs: Pi-Dev-Ops/skills/email-listener/SKILL.md
+#        Pi-Dev-Ops/skills/calendar-watcher/SKILL.md
+#
+# Gmail: subscribed via Pub/Sub on label `pi-ceo/inbox`. Pub/Sub posts a
+# base64-encoded message; we decode + ack + dispatch.
+# Calendar: subscribed via events.watch; webhook receives a sync token
+# header — no body — and we re-fetch the changed events list.
+#
+# Both routes are *intake only* in this commit. Sender-allowlist + intent
+# classification + Margot dispatch land in the next session once Composio
+# OAuth + Pub/Sub topic + REVIEW_CHAT_ID are configured.
+
+import base64
+
+_GMAIL_INTAKE_LOG = Path(__file__).resolve().parents[3] / ".harness" / "swarm" / "gmail_intake.jsonl"
+_CALENDAR_INTAKE_LOG = Path(__file__).resolve().parents[3] / ".harness" / "swarm" / "calendar_intake.jsonl"
+
+
+def _append_intake(p: Path, row: dict) -> None:
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with p.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+@router.post("/api/webhook/gmail", dependencies=[Depends(require_rate_limit)])
+async def webhook_gmail(request: Request):
+    """RA-1839 — Gmail Pub/Sub push for label `pi-ceo/inbox`.
+
+    Pub/Sub envelope shape:
+      {"message": {"data": "<base64>", "messageId": "...", "publishTime": "..."},
+       "subscription": "..."}
+
+    The decoded data is a Gmail history-watch notification:
+      {"emailAddress": "...", "historyId": "..."}
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid JSON")
+
+    msg = body.get("message") or {}
+    raw_b64 = msg.get("data") or ""
+    decoded = {}
+    try:
+        decoded = json.loads(base64.b64decode(raw_b64).decode("utf-8")) if raw_b64 else {}
+    except Exception as exc:
+        log.warning("RA-1839 gmail: base64 decode failed: %s", exc)
+
+    intake = {
+        "ts": json.loads(json.dumps({"now": str(__import__("datetime").datetime.utcnow().isoformat())}))["now"],
+        "type": "gmail_push",
+        "subscription": body.get("subscription"),
+        "message_id": msg.get("messageId"),
+        "publish_time": msg.get("publishTime"),
+        "email_address": decoded.get("emailAddress"),
+        "history_id": decoded.get("historyId"),
+    }
+    _append_intake(_GMAIL_INTAKE_LOG, intake)
+    log.info("RA-1839 gmail intake: history_id=%s addr=%s",
+             decoded.get("historyId"), decoded.get("emailAddress"))
+
+    # ACK the Pub/Sub message — actual dispatch happens in next-session wiring.
+    return {"ok": True, "intake": "queued"}
+
+
+@router.post("/api/webhook/calendar", dependencies=[Depends(require_rate_limit)])
+async def webhook_calendar(request: Request):
+    """RA-1839 — Google Calendar push for events.watch.
+
+    Calendar push has no body — the headers carry the channel state:
+      X-Goog-Channel-Id, X-Goog-Resource-Id, X-Goog-Resource-State,
+      X-Goog-Resource-URI, X-Goog-Message-Number.
+
+    On state == 'sync' we ack and do nothing (initial handshake).
+    On state == 'exists' we record an intake row; the calendar-watcher
+    cycle pulls the changed events on its next pass.
+    """
+    headers = {k.lower(): v for k, v in request.headers.items()}
+    channel_id = headers.get("x-goog-channel-id")
+    resource_state = headers.get("x-goog-resource-state")
+    if not channel_id or not resource_state:
+        raise HTTPException(400, "Missing X-Goog-Channel-Id or X-Goog-Resource-State")
+
+    intake = {
+        "ts": str(__import__("datetime").datetime.utcnow().isoformat()),
+        "type": "calendar_push",
+        "channel_id": channel_id,
+        "resource_state": resource_state,
+        "resource_id": headers.get("x-goog-resource-id"),
+        "resource_uri": headers.get("x-goog-resource-uri"),
+        "message_number": headers.get("x-goog-message-number"),
+    }
+    _append_intake(_CALENDAR_INTAKE_LOG, intake)
+    log.info("RA-1839 calendar intake: state=%s channel=%s",
+             resource_state, channel_id)
+
+    return {"ok": True, "intake": "queued", "state": resource_state}

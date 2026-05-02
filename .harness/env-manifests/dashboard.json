@@ -1,0 +1,123 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-05-02T08:38:29Z",
+  "vercel_team": "unite-group",
+  "vercel_project_name": "dashboard",
+  "project_slug": "dashboard",
+  "repo": "CleanExpo/Pi-Dev-Ops",
+  "vars": [
+    {
+      "name": "ANALYSIS_MODE",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "ANALYSIS_MODEL",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "ANTHROPIC_API_KEY",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "blocker"
+    },
+    {
+      "name": "DASHBOARD_PASSWORD",
+      "target": "production",
+      "category": "dashboard-only",
+      "criticality": "skip"
+    },
+    {
+      "name": "GITHUB_TOKEN",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "LINEAR_API_KEY",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NEXT_PUBLIC_SUPABASE_URL",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "ORCHESTRATOR_MODEL",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "PI_CEO_PASSWORD",
+      "target": "production",
+      "category": "dashboard-only",
+      "criticality": "skip"
+    },
+    {
+      "name": "PI_CEO_URL",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "optional"
+    },
+    {
+      "name": "SUPABASE_SERVICE_ROLE_KEY",
+      "target": "production",
+      "category": "database",
+      "criticality": "blocker"
+    },
+    {
+      "name": "TELEGRAM_BOT_TOKEN",
+      "target": "production",
+      "category": "telegram-only",
+      "criticality": "skip"
+    },
+    {
+      "name": "TELEGRAM_WEBHOOK_SECRET",
+      "target": "production",
+      "category": "telegram-only",
+      "criticality": "skip"
+    },
+    {
+      "name": "WORKER_MODEL",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    }
+  ],
+  "skipped": [
+    "DASHBOARD_PASSWORD",
+    "TAO_PASSWORD",
+    "PI_CEO_PASSWORD",
+    "CCW_ACCESS_PASSWORD",
+    "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_CHAT_ID",
+    "TELEGRAM_WEBHOOK_SECRET",
+    "PLAUSIBLE_*",
+    "POSTHOG_*",
+    "NEXT_PUBLIC_*",
+    "VERCEL_TOKEN",
+    "VERCEL_TEAM_ID",
+    "VERCEL_GIT_*",
+    "_DEPLOY_HOOK_*"
+  ],
+  "notes": "Generated 2026-05-02 from `vercel env ls production` against unite-group/dashboard. Auto-classified by criticality + category. Operator review required before first Sandcastle run against this project."
+}

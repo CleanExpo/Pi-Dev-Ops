@@ -1,0 +1,165 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-05-02T08:38:29Z",
+  "vercel_team": "unite-group",
+  "vercel_project_name": "ccw-crm-web",
+  "project_slug": "ccw-crm-web",
+  "repo": "CleanExpo/CCW-CRM",
+  "vars": [
+    {
+      "name": "ANTHROPIC_API_KEY",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "blocker"
+    },
+    {
+      "name": "APIFY_API_TOKEN",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "CRON_SECRET",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "ELEVENLABS_API_KEY",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "ELEVENLABS_VOICE_ID",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "LINEAR_API_KEY",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "LINEAR_BOARDROOM_ISSUE_ID",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "NEXT_PUBLIC_BACKEND_URL",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NEXT_PUBLIC_SUPABASE_URL",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "PERPLEXITY_API_KEY",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "SHOPIFY_API_SECRET",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "SHOPIFY_API_VERSION",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "SHOPIFY_CLIENT_ID",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "SHOPIFY_SHOP_DOMAIN",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "optional"
+    },
+    {
+      "name": "SHOPIFY_WEBHOOK_SECRET",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "SUPABASE_SERVICE_ROLE_KEY",
+      "target": "production",
+      "category": "database",
+      "criticality": "blocker"
+    },
+    {
+      "name": "XERO_CLIENT_ID",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "XERO_CLIENT_SECRET",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "XERO_REDIRECT_URI",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "XERO_WEBHOOK",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "YOUTUBE_CHANNEL_ID",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    }
+  ],
+  "skipped": [
+    "DASHBOARD_PASSWORD",
+    "TAO_PASSWORD",
+    "PI_CEO_PASSWORD",
+    "CCW_ACCESS_PASSWORD",
+    "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_CHAT_ID",
+    "TELEGRAM_WEBHOOK_SECRET",
+    "PLAUSIBLE_*",
+    "POSTHOG_*",
+    "NEXT_PUBLIC_*",
+    "VERCEL_TOKEN",
+    "VERCEL_TEAM_ID",
+    "VERCEL_GIT_*",
+    "_DEPLOY_HOOK_*"
+  ],
+  "notes": "Generated 2026-05-02 from `vercel env ls production` against unite-group/ccw-crm-web. Auto-classified by criticality + category. Operator review required before first Sandcastle run against this project."
+}

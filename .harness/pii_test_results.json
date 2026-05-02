@@ -1,0 +1,13 @@
+{
+  "corpus_path": ".harness/pii_test_corpus.jsonl",
+  "pii_precision": 1.0,
+  "clean_fp_rate": 0.0,
+  "ambiguous_over_rate": 0.0,
+  "pii_total": 100,
+  "pii_hit": 100,
+  "clean_total": 100,
+  "clean_fp": 0,
+  "ambiguous_total": 50,
+  "ambiguous_hit": 0,
+  "passed": true
+}

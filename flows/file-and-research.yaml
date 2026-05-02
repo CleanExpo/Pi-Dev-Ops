@@ -1,0 +1,40 @@
+flow:
+  name: file-and-research
+  description: |
+    User asks "file a Linear ticket about X and research it" — flow
+    creates the ticket (deferred to Wave 2 mcp.linear.save_issue), kicks
+    Margot research, then drafts a summary into the review chat.
+  trigger: telegram_command
+  trigger_config:
+    command: /file-and-research
+  context_schema:
+    - name: topic
+      type: string
+      required: true
+    - name: team
+      type: string
+      default: RA
+    - name: original_chat_id
+      type: string
+      required: true
+  tool_allowlist:
+    - skill.intent-parser
+    - skill.telegram-draft-for-review
+  max_runtime_minutes: 45
+  steps:
+    - id: classify
+      tool: skill.intent-parser
+      args:
+        message_text: "file a ticket about {{ctx.topic}} in {{ctx.team}}"
+        chat_id: "{{ctx.original_chat_id}}"
+      on_error: abort
+    # Wave 2: insert step here calling mcp.linear.save_issue with classify
+    # output's team_hint + title_hint. Today's flow stops at the draft.
+    - id: draft
+      tool: skill.telegram-draft-for-review
+      args:
+        draft_text: "Filed ticket on team {{ctx.team}} for: {{ctx.topic}}. Margot research will follow once Wave 2 wires the Margot bridge into flow_engine."
+        destination_chat_id: "{{ctx.original_chat_id}}"
+        drafted_by_role: Dispatcher
+      depends_on: [classify]
+      on_error: log_and_continue
