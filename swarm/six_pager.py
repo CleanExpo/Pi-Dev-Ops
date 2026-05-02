@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -193,6 +194,128 @@ def _ra_1842_section(repo_root: Path) -> str:
     )
 
 
+# ── Telegram chunking ───────────────────────────────────────────────────────
+
+TELEGRAM_MESSAGE_LIMIT = 4096
+# Reserve a few chars for the chunk header "[3/5]\n" so we don't push past
+# the limit when the receiver re-prepends the marker.
+TELEGRAM_CHUNK_BUDGET = TELEGRAM_MESSAGE_LIMIT - 32
+
+
+def chunk_for_telegram(brief: str, *,
+                        max_chars: int = TELEGRAM_CHUNK_BUDGET
+                        ) -> list[str]:
+    """Split a 6-pager into Telegram-safe chunks.
+
+    Splits on section boundaries first (lines matching ``\\d+\\. `` at the
+    start), then within an over-large section on paragraph boundaries
+    (blank lines), then within an over-large paragraph on line boundaries.
+    Hard-cuts mid-line only as a last resort — the caller can rely on
+    every chunk being <= max_chars.
+
+    A short message (≤ max_chars) returns as a single-element list. The
+    caller decides whether to prepend "[i/N]" markers.
+    """
+    if len(brief) <= max_chars:
+        return [brief]
+
+    # Try section-boundary splitting first
+    sections = _split_on_section_boundary(brief)
+    chunks: list[str] = []
+    current = ""
+    for sec in sections:
+        candidate = (current + ("\n\n" if current else "") + sec).strip()
+        if len(candidate) <= max_chars:
+            current = candidate
+            continue
+        # `current` is what fits; flush it and start a new chunk with `sec`
+        if current:
+            chunks.append(current)
+            current = ""
+        if len(sec) <= max_chars:
+            current = sec
+        else:
+            # The section itself is too big — recurse on paragraphs
+            for para_chunk in _split_oversize(sec, max_chars=max_chars):
+                if not current:
+                    current = para_chunk
+                elif len(current) + 2 + len(para_chunk) <= max_chars:
+                    current = current + "\n\n" + para_chunk
+                else:
+                    chunks.append(current)
+                    current = para_chunk
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+_SECTION_BOUNDARY = re.compile(r"^(?=\d+\.\s+)", re.MULTILINE)
+
+
+def _split_on_section_boundary(text: str) -> list[str]:
+    """Split right before each `<digit>. ` line. Preserve order; drop empties."""
+    parts = _SECTION_BOUNDARY.split(text)
+    return [p.strip() for p in parts if p.strip()]
+
+
+def _split_oversize(section: str, *, max_chars: int) -> list[str]:
+    """Split an over-large section: paragraphs, then lines, then hard cut."""
+    if len(section) <= max_chars:
+        return [section]
+
+    # Paragraph boundary first
+    paragraphs = section.split("\n\n")
+    out: list[str] = []
+    current = ""
+    for para in paragraphs:
+        candidate = (current + ("\n\n" if current else "") + para)
+        if len(candidate) <= max_chars:
+            current = candidate
+            continue
+        if current:
+            out.append(current)
+            current = ""
+        if len(para) <= max_chars:
+            current = para
+        else:
+            # Line-boundary split inside one over-large paragraph
+            for line_chunk in _split_by_line(para, max_chars=max_chars):
+                if not current:
+                    current = line_chunk
+                elif len(current) + 1 + len(line_chunk) <= max_chars:
+                    current = current + "\n" + line_chunk
+                else:
+                    out.append(current)
+                    current = line_chunk
+    if current:
+        out.append(current)
+    return out
+
+
+def _split_by_line(paragraph: str, *, max_chars: int) -> list[str]:
+    out: list[str] = []
+    current = ""
+    for line in paragraph.split("\n"):
+        if len(line) > max_chars:
+            # Hard cut a single over-long line
+            if current:
+                out.append(current)
+                current = ""
+            for i in range(0, len(line), max_chars):
+                out.append(line[i:i + max_chars])
+            continue
+        candidate = (current + ("\n" if current else "") + line)
+        if len(candidate) <= max_chars:
+            current = candidate
+        else:
+            if current:
+                out.append(current)
+            current = line
+    if current:
+        out.append(current)
+    return out
+
+
 # ── Public API ──────────────────────────────────────────────────────────────
 
 
@@ -228,4 +351,9 @@ def assemble_six_pager(*, repo_root: Path | None = None,
     return "\n".join(sections)
 
 
-__all__ = ["assemble_six_pager"]
+__all__ = [
+    "assemble_six_pager",
+    "chunk_for_telegram",
+    "TELEGRAM_MESSAGE_LIMIT",
+    "TELEGRAM_CHUNK_BUDGET",
+]

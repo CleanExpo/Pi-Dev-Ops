@@ -87,29 +87,38 @@ def maybe_fire_daily(state: dict, *,
     except Exception as exc:  # noqa: BLE001
         log.debug("6-pager: voice compose suppressed: %s", exc)
 
-    # PII redact + draft_review post
+    # PII redact + draft_review post (chunked for Telegram 4096-char cap)
     try:
-        from . import draft_review, pii_redactor  # noqa: PLC0415
+        from . import draft_review, pii_redactor, six_pager  # noqa: PLC0415
         # pii_redactor signature varies across the codebase; degrade safely
         try:
             redacted = pii_redactor.redact(brief)  # type: ignore[attr-defined]
         except Exception:
             redacted = brief
 
-        # Attach audio file path in metadata so the Telegram side can pick
-        # it up; draft_review.post_draft signature is text-first today.
-        attachments: list[str] = []
-        if audio_path is not None:
-            attachments.append(str(audio_path))
+        chunks = six_pager.chunk_for_telegram(redacted)
+        total_chunks = len(chunks)
+        log.info("6-pager: redacted %d chars → %d chunk(s)",
+                 len(redacted), total_chunks)
 
-        draft = draft_review.post_draft(
-            draft_text=redacted,
-            destination_chat_id=os.environ.get("REVIEW_CHAT_ID", "review"),
-            drafted_by_role="CoS",
-            originating_intent_id=f"six-pager-{now.strftime('%Y-%m-%d')}",
-        )
-        log.info("6-pager fired: draft_id=%s audio=%s",
+        draft: dict = {}
+        date_key = now.strftime("%Y-%m-%d")
+        for idx, chunk_text in enumerate(chunks, start=1):
+            prefix = (f"[{idx}/{total_chunks}]\n"
+                      if total_chunks > 1 else "")
+            draft = draft_review.post_draft(
+                draft_text=prefix + chunk_text,
+                destination_chat_id=os.environ.get("REVIEW_CHAT_ID", "review"),
+                drafted_by_role="CoS",
+                originating_intent_id=(
+                    f"six-pager-{date_key}-{idx}of{total_chunks}"
+                    if total_chunks > 1 else f"six-pager-{date_key}"
+                ),
+            )
+
+        log.info("6-pager fired: last_draft_id=%s chunks=%d audio=%s",
                  draft.get("draft_id"),
+                 total_chunks,
                  audio_path is not None)
     except Exception as exc:  # noqa: BLE001
         if not _is_test_mode():
