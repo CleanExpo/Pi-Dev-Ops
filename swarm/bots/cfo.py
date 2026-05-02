@@ -126,6 +126,32 @@ def run_cycle(unacked_count: int, *, state: dict | None = None) -> dict:
     if not _is_test_mode() and not _gates_open():
         return {"status": "skipped", "reason": "gates_closed"}
 
+    # ── RA-1868 — consume Board directives for CFO before metrics work.
+    # Each directive is logged to audit + included in the cycle's return
+    # status so the 6-pager can surface "CFO acted on N Board directives".
+    cfo_directives_acted = 0
+    try:
+        from .. import board_directive_consumer  # noqa: PLC0415
+        new_directives = board_directive_consumer.consume_for(
+            "CFO", state=state, repo_root=REPO_ROOT,
+        )
+        for d in new_directives:
+            cfo_directives_acted += 1
+            try:
+                from .. import audit_emit
+                audit_emit.row(
+                    "board_directive_consumed", "CFO",
+                    session_id=d.session_id,
+                    action=d.action[:200],
+                    deadline=d.deadline,
+                )
+            except Exception:
+                pass
+            log.info("cfo: board directive %s — %s",
+                     d.session_id, d.action[:80])
+    except Exception as exc:  # noqa: BLE001
+        log.debug("cfo: directive consume suppressed (%s)", exc)
+
     raw_list = _provider()
     if not raw_list:
         return {"status": "skipped", "reason": "no_data"}
