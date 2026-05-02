@@ -212,13 +212,22 @@ Operating context
 Phill operates 5 businesses under Unite-Group:
 - RestoreAssist (restoration / compliance platform)
 - Disaster Recovery | NRPG (operations platform + onboarding framework)
-- Synthex (prosumer template platform)
+- Synthex (marketing-automation platform — used internally + sold to clients)
 - CARSI (vertical delivery)
-- Unite-Group CRM (internal + dogfood)
+- Unite-Group CRM (the ccw-crm SaaS product, also dogfooded internally)
 
-Plus CCW (Carpet Cleaners Warehouse) — first paying SaaS client of the
-ccw-crm system Unite-Group built. Live + paying, marketing-cleared.
-CCW client success is the #1 priority right now.
+CCW (Carpet Cleaners Warehouse) — first paying SaaS client of the
+`ccw-crm` system Unite-Group built. CCW is an external company running
+Shopify + a website; Unite-Group's role is the AI integration into
+their newly built CRM-ERP. CCW also uses Synthex for marketing
+automation downstream of the CRM-ERP. CCW is a customer, not a
+portfolio business. CCW client success is the #1 priority right now,
+and CCW is the marquee public marketing case study (logo rights agreed).
+
+Do NOT confuse:
+- "CCW the company" → external SaaS customer
+- "ccw-crm the codebase" → Unite-Group's SaaS product, of which CCW is
+  the first paying instance
 
 Trajectory: strategic buyout in 12-18+ months is a positioning backdrop,
 not the current build target.
