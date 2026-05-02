@@ -271,6 +271,23 @@ def run() -> None:
         except Exception as exc:  # noqa: BLE001 - never let CoS crash the loop
             log.warning("CoS cycle failed (continuing): %s", exc)
 
+        # ── RA-1848 — Curator reconciliation: walk pending curator proposals
+        # against the latest draft_review snapshot. 👍 → write SKILL.md;
+        # ❌ → append to rejected.jsonl (activates 30d cooloff); ⏳ → expire.
+        # Cheap (file reads only) + idempotent + logs to audit_emit.
+        try:
+            from . import meta_curator  # noqa: PLC0415
+            _reconcile = meta_curator.reconcile_proposals()
+            if _reconcile["accepted"] or _reconcile["rejected"] or _reconcile["expired"]:
+                log.info(
+                    "curator reconcile: accepted=%d rejected=%d expired=%d",
+                    len(_reconcile["accepted"]),
+                    len(_reconcile["rejected"]),
+                    len(_reconcile["expired"]),
+                )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("curator reconcile failed (continuing): %s", exc)
+
         # ── RA-1850 — CFO: financial visibility across the 11 businesses.
         # Computes burn / NRR / GM / runway from a pluggable metrics provider
         # (TAO_CFO_PROVIDER selects synthetic | stripe_xero).
