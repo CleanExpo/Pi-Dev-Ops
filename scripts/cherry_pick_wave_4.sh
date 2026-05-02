@@ -41,21 +41,30 @@ done
 # `feat/wave4-RA-1859-...` style branch names; PR titles are pulled from
 # the commit subject by `git log --format=%s`.
 declare -a SLICES=(
-  "b12be04 RA-1859 feat/wave4-cfo-stripe-xero"
-  "21e1bf4 RA-1867 feat/wave4-debate-runner"
-  "5628b95 RA-1860 feat/wave4-cmo-growth"
-  "33e0747 RA-1861 feat/wave4-cto-dora"
-  "1d61192 RA-1862 feat/wave4-cs-tier1"
-  "fdfd0c6 RA-1863 feat/wave4-daily-6pager"
-  "f87d063 RA-1864 chore/wave4-honcho-setup-helper"
-  "9eb9669 RA-1865 feat/wave4-kanban-adapter"
-  "02e258f RA-1866 feat/wave4-voice-composer"
-  "870fc03 RA-1858 feat/wave4-orchestrator-wireup"
+  # ── Wave 4 Phase A foundations (the 9 children) ───────────────────
+  "b12be04 RA-1859  feat/wave4-cfo-stripe-xero"
+  "21e1bf4 RA-1867  feat/wave4-debate-runner"
+  "5628b95 RA-1860  feat/wave4-cmo-growth"
+  "33e0747 RA-1861  feat/wave4-cto-dora"
+  "1d61192 RA-1862  feat/wave4-cs-tier1"
+  "fdfd0c6 RA-1863  feat/wave4-daily-6pager"
+  "f87d063 RA-1864  chore/wave4-honcho-setup-helper"
+  "9eb9669 RA-1865  feat/wave4-kanban-adapter"
+  "02e258f RA-1866  feat/wave4-voice-composer"
+  # ── Track 1 wire-up + Xero shim (last night) ──────────────────────
+  "870fc03 RA-1858  feat/wave4-orchestrator-wireup"
   "9325bb1 RA-1859b feat/wave4-xero-shim"
-  # NOTE: the docs/script commit (CLAUDE.md + this script itself) is
-  # intentionally NOT sliced — cherry-pick it manually onto the wireup
-  # branch with: git cherry-pick <docs-hash>. It's a chicken-and-egg
-  # otherwise (the slice list lives inside the commit it would slice).
+  # ── 1→2→4 sweep (this morning) ────────────────────────────────────
+  "a80acc3 RA-1860b feat/wave4-google-ads-cmo"
+  "62cb48f RA-1861b feat/wave4-github-actions-cto"
+  "785d50d RA-1863b feat/wave4-six-pager-chunking"
+  # ── #1+#2+#3 final pass (this morning) ────────────────────────────
+  "ee6efc7 RA-1862b feat/wave4-cs-zendesk-intercom"
+  "62055b8 RA-1859c feat/wave4-oauth-refresh-sidecar"
+  # NOTE: the docs/script commits (CLAUDE.md + this script itself) are
+  # intentionally NOT sliced — cherry-pick them manually onto the wireup
+  # branch with: git cherry-pick <docs-hash>. Chicken-and-egg otherwise
+  # (the slice list lives inside the commit that would update it).
 )
 
 if [ ! -d "$TARGET_REPO/.git" ]; then
