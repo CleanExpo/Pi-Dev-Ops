@@ -40,15 +40,28 @@ MetricsProvider = Callable[[], list[_cfo.RawMetrics]]
 
 
 def _default_metrics_provider() -> list[_cfo.RawMetrics]:
-    """Production provider stub. Wired to Stripe + Xero MCP in Wave 4.1b.
+    """Production provider — routes through ``swarm.providers.select_provider``.
 
-    Returns an empty list today — bot self-skips when no data flows through.
-    The wire-up ticket will replace this with calls to:
-      mcp_stripe.list_subscriptions(), mcp_stripe.list_payment_intents(),
-      mcp_xero.invoices(), mcp_xero.accounts() etc.
+    Wave 4.1b (RA-1859) replaced the empty-list stub. Defaults to the
+    synthetic provider so the daily brief is never empty; flip to real data
+    with ``TAO_CFO_PROVIDER=stripe_xero`` once ``STRIPE_API_KEY`` (and
+    per-business ``STRIPE_ACCOUNT_<BID>`` / ``XERO_*`` envs) are populated.
+    Per-business synthetic fallback keeps a partially-wired portfolio
+    coherent.
+
+    Never raises — any provider failure degrades to empty list and the bot
+    self-skips that cycle.
     """
-    log.debug("cfo: default provider returning [] — wire Stripe/Xero in 4.1b")
-    return []
+    try:
+        from ..providers import select_provider
+    except Exception as exc:  # noqa: BLE001
+        log.warning("cfo: provider registry import failed (%s) — empty list", exc)
+        return []
+    try:
+        return select_provider()()
+    except Exception as exc:  # noqa: BLE001 — never crash the cycle
+        log.warning("cfo: provider call failed (%s) — empty list", exc)
+        return []
 
 
 _provider: MetricsProvider = _default_metrics_provider
