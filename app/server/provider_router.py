@@ -56,14 +56,26 @@ from typing import Literal
 
 log = logging.getLogger("app.server.provider_router")
 
-Provider = Literal["anthropic", "openrouter"]
+Provider = Literal["anthropic", "openrouter", "ollama"]
 
 
 # ── Defaults — all env-overridable ──────────────────────────────────────────
 
 DEFAULT_TOP_MODEL = "claude-opus-4-7"
 DEFAULT_MID_MODEL = "claude-sonnet-4-6"
-DEFAULT_CHEAP_MODEL = "google/gemma-3-27b-it"
+
+# Cheap tier resolution:
+#   1. Probe Ollama at localhost:11434 (or OLLAMA_BASE_URL).
+#   2. If reachable → ollama:DEFAULT_CHEAP_LOCAL_MODEL (free, private, fast).
+#   3. If not reachable → openrouter:DEFAULT_CHEAP_REMOTE_MODEL (paid fallback).
+#
+# Founder can:
+#   - Override the local model via TAO_CHEAP_LOCAL_MODEL=<ollama-model-tag>
+#   - Override the remote model via TAO_CHEAP_REMOTE_MODEL=<openrouter-id>
+#   - Force one or the other via TAO_CHEAP_PROVIDER=ollama|openrouter (skips probe)
+#   - Override per-role via TAO_MODEL_<ROLE> (highest precedence)
+DEFAULT_CHEAP_LOCAL_MODEL = "gemma4:latest"
+DEFAULT_CHEAP_REMOTE_MODEL = "google/gemma-3-27b-it"
 
 # Role → tier mapping (top/mid/cheap). Roles not listed default to "mid".
 ROLE_TIER: dict[str, str] = {
@@ -106,14 +118,18 @@ def _env_role_key(role: str) -> str:
 
 
 def _parse_provider_spec(spec: str) -> tuple[Provider, str] | None:
-    """Parse '<provider>:<model_id>' env value. Returns None on malformed."""
+    """Parse '<provider>:<model_id>' env value. Returns None on malformed.
+
+    OpenRouter model_ids contain colons (e.g. "openrouter:google/gemma-3"),
+    so we split on the first colon only.
+    """
     spec = (spec or "").strip()
     if ":" not in spec:
         return None
     prov, model = spec.split(":", 1)
     prov = prov.strip().lower()
     model = model.strip()
-    if prov not in ("anthropic", "openrouter"):
+    if prov not in ("anthropic", "openrouter", "ollama"):
         log.warning("provider_router: unknown provider %r in spec %r — skipping",
                     prov, spec)
         return None
@@ -123,20 +139,87 @@ def _parse_provider_spec(spec: str) -> tuple[Provider, str] | None:
 
 
 def _tier_default(tier: str) -> tuple[Provider, str]:
-    """Resolve tier → (provider, model_id) using env overrides."""
+    """Resolve tier → (provider, model_id) using env overrides.
+
+    Cheap tier resolution order:
+      1. Legacy TAO_CHEAP_MODEL env (honoured for backwards compat;
+         routed via Anthropic if claude-*, OpenRouter if "/" in id,
+         Ollama otherwise).
+      2. TAO_CHEAP_PROVIDER=ollama|openrouter explicit pin.
+      3. Ollama reachability probe → if reachable, use local.
+      4. Otherwise → OpenRouter remote.
+    """
     if tier == "top":
         model = (os.environ.get("TAO_TOP_MODEL") or DEFAULT_TOP_MODEL).strip()
         return "anthropic", model
     if tier == "mid":
         model = (os.environ.get("TAO_MID_MODEL") or DEFAULT_MID_MODEL).strip()
         return "anthropic", model
-    # cheap
-    model = (os.environ.get("TAO_CHEAP_MODEL") or DEFAULT_CHEAP_MODEL).strip()
-    # Cheap tier defaults to OpenRouter unless model_id starts with "claude-"
-    # (founder may override TAO_CHEAP_MODEL to an Anthropic Haiku, in which
-    # case we route via Anthropic).
-    provider: Provider = "anthropic" if model.startswith("claude-") else "openrouter"
-    return provider, model
+
+    # Cheap tier — multi-step resolution
+    return _resolve_cheap_tier()
+
+
+def _resolve_cheap_tier() -> tuple[Provider, str]:
+    """Pick (provider, model_id) for the cheap tier.
+
+    Layers (most specific wins):
+      1. TAO_CHEAP_MODEL — legacy single-knob (provider auto-detected
+         from model_id shape).
+      2. TAO_CHEAP_PROVIDER=ollama|openrouter explicit pin combined with
+         TAO_CHEAP_LOCAL_MODEL / TAO_CHEAP_REMOTE_MODEL.
+      3. Ollama reachability probe → local if up, OpenRouter if not.
+    """
+    # Layer 1: legacy single-knob
+    legacy = (os.environ.get("TAO_CHEAP_MODEL") or "").strip()
+    if legacy:
+        if legacy.startswith("claude-"):
+            return "anthropic", legacy
+        if "/" in legacy:
+            # OpenRouter style (vendor/model)
+            return "openrouter", legacy
+        # Otherwise treat as a local Ollama tag
+        return "ollama", legacy
+
+    # Layer 2: explicit provider pin
+    pinned = (os.environ.get("TAO_CHEAP_PROVIDER") or "").strip().lower()
+    local_model = (
+        os.environ.get("TAO_CHEAP_LOCAL_MODEL") or DEFAULT_CHEAP_LOCAL_MODEL
+    ).strip()
+    remote_model = (
+        os.environ.get("TAO_CHEAP_REMOTE_MODEL") or DEFAULT_CHEAP_REMOTE_MODEL
+    ).strip()
+
+    if pinned == "ollama":
+        return "ollama", local_model
+    if pinned == "openrouter":
+        return "openrouter", remote_model
+    if pinned and pinned not in ("ollama", "openrouter"):
+        log.warning(
+            "provider_router: unknown TAO_CHEAP_PROVIDER=%r — falling through to probe",
+            pinned,
+        )
+
+    # Layer 3: probe-based selection
+    try:
+        import sys as _sys  # noqa: PLC0415
+        ollama_mod = _sys.modules.get("app.server.provider_ollama")
+        if ollama_mod is None:
+            from . import provider_ollama as ollama_mod  # noqa: PLC0415
+        if ollama_mod.is_reachable():
+            log.debug(
+                "provider_router: cheap tier → ollama:%s (local reachable)",
+                local_model,
+            )
+            return "ollama", local_model
+    except Exception as exc:  # noqa: BLE001
+        log.debug("provider_router: ollama probe failed (%s)", exc)
+
+    log.debug(
+        "provider_router: cheap tier → openrouter:%s (local unreachable)",
+        remote_model,
+    )
+    return "openrouter", remote_model
 
 
 # ── Public API ──────────────────────────────────────────────────────────────
@@ -189,6 +272,10 @@ def is_openrouter(pm: ProviderModel) -> bool:
     return pm.provider == "openrouter"
 
 
+def is_ollama(pm: ProviderModel) -> bool:
+    return pm.provider == "ollama"
+
+
 # ── Unified async entry ─────────────────────────────────────────────────────
 
 
@@ -233,7 +320,21 @@ async def run_via_provider(prompt: str, *, role: str,
         except Exception as exc:  # noqa: BLE001
             return 1, "", 0.0, f"anthropic_sdk_call_raised: {exc}"
 
-    # OpenRouter path
+    # Ollama path (local; free)
+    if pm.provider == "ollama":
+        try:
+            import sys as _sys  # noqa: PLC0415
+            provider_ollama = _sys.modules.get("app.server.provider_ollama")
+            if provider_ollama is None:
+                from . import provider_ollama  # noqa: PLC0415
+        except Exception as exc:  # noqa: BLE001
+            return 1, "", 0.0, f"ollama_import_failed: {exc}"
+        return await provider_ollama.call(
+            prompt=prompt, model_id=pm.model_id,
+            timeout_s=timeout_s, role=role, session_id=session_id,
+        )
+
+    # OpenRouter path (remote; paid)
     try:
         import sys as _sys  # noqa: PLC0415
         provider_openrouter = _sys.modules.get("app.server.provider_openrouter")
@@ -249,7 +350,8 @@ async def run_via_provider(prompt: str, *, role: str,
 
 __all__ = [
     "Provider", "ProviderModel", "ROLE_TIER",
-    "DEFAULT_TOP_MODEL", "DEFAULT_MID_MODEL", "DEFAULT_CHEAP_MODEL",
+    "DEFAULT_TOP_MODEL", "DEFAULT_MID_MODEL",
+    "DEFAULT_CHEAP_LOCAL_MODEL", "DEFAULT_CHEAP_REMOTE_MODEL",
     "select_provider_model", "run_via_provider",
-    "is_anthropic", "is_openrouter",
+    "is_anthropic", "is_openrouter", "is_ollama",
 ]
