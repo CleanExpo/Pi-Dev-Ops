@@ -44,16 +44,19 @@ def select_cs_provider():
 
     Values:
     * ``synthetic`` (default)
-    * ``zendesk`` / ``intercom`` — real helpdesk pull (stub today; falls
-      back to synthetic with a warning until connector wired)
+    * ``zendesk`` — real Zendesk pull + per-business synthetic fallback
+    * ``intercom`` — real Intercom pull + per-business synthetic fallback
     """
     name = (os.environ.get("TAO_CS_PROVIDER") or "synthetic").strip().lower()
-    if name in ("zendesk", "intercom"):
-        log.warning(
-            "provider: %s selected but not yet implemented — using synthetic_cs",
-            name,
-        )
-    if name not in ("synthetic", "zendesk", "intercom", ""):
+    if name == "zendesk":
+        from .zendesk import zendesk_provider
+        log.debug("provider: zendesk selected")
+        return zendesk_provider
+    if name == "intercom":
+        from .zendesk import intercom_provider
+        log.debug("provider: intercom selected")
+        return intercom_provider
+    if name not in ("synthetic", ""):
         log.warning(
             "provider: unknown TAO_CS_PROVIDER=%r — using synthetic_cs", name,
         )
