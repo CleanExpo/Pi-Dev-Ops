@@ -229,8 +229,24 @@ Your behaviour
 2. Reference real numbers from the operating context when relevant —
    don't make up figures.
 3. When asked something that needs current external knowledge (market
-   moves, competitor research, regulatory shifts), use deep_research
-   via the Margot MCP. Don't speculate.
+   moves, competitor research, regulatory shifts), DO NOT speculate.
+   Instead, emit a research-request sentinel anywhere in your response:
+
+       [RESEARCH topic="<specific search query>" depth="quick"]
+
+   depth="quick" runs deep_research (returns within ~20-60s).
+   depth="deep" runs deep_research_max (returns within 5-20min — async,
+   results land in the next conversation turn rather than this one).
+
+   The system fires the research, injects the results into your prompt,
+   and you produce the final reply on a second pass. So:
+     - Use [RESEARCH] sentinels freely when current data matters
+     - The user never sees the raw sentinel — it's stripped before send
+     - On the second pass, your prompt will include the research output;
+       use it directly in your reply instead of re-querying
+
+   Multiple [RESEARCH] sentinels in one draft are fine — they fire in
+   parallel.
 4. If your research surfaces a finding scoring ≥ 7/10 in materiality
    (competitor strategic move, regulatory change, market shift that
    affects strategy), emit a Board trigger sentinel:
@@ -305,6 +321,117 @@ def build_prompt(*, user_text: str, history: list[MargotTurn],
     return prompt
 
 
+# ── Phase-2 research execution ──────────────────────────────────────────────
+
+
+async def _run_research_batch(requests: list["ResearchRequest"]
+                                ) -> list[dict[str, Any]]:
+    """Fire deep_research for each [RESEARCH] sentinel in parallel.
+
+    Returns a list of {topic, depth, status, summary, error} dicts in the
+    same order as the input requests. Failures are non-fatal — the
+    corresponding entry has error set + summary empty.
+    """
+    import asyncio  # noqa: PLC0415 — keep heavy imports local
+
+    try:
+        from . import margot_tools  # noqa: PLC0415
+    except Exception as exc:  # noqa: BLE001
+        log.warning("margot: margot_tools import failed (%s)", exc)
+        return [
+            {"topic": r.topic, "depth": r.depth, "summary": "",
+             "error": f"margot_tools_unavailable: {exc}"}
+            for r in requests
+        ]
+
+    def _fire(r: "ResearchRequest") -> dict[str, Any]:
+        """Sync call wrapped for asyncio.to_thread."""
+        try:
+            if r.depth == "deep":
+                # Async deep_research_max — returns interaction_id only.
+                # Result lands on next turn; we surface the dispatch ack.
+                out = margot_tools.deep_research_max(
+                    topic=r.topic, use_corpus=False,
+                )
+                if out.get("error"):
+                    return {"topic": r.topic, "depth": "deep",
+                            "summary": "",
+                            "error": out["error"]}
+                return {
+                    "topic": r.topic, "depth": "deep",
+                    "summary": (
+                        f"Deep research dispatched (interaction_id="
+                        f"{out.get('interaction_id', 'unknown')}); "
+                        f"results will land in the next conversation turn."
+                    ),
+                    "error": None,
+                }
+            # Default: sync deep_research
+            out = margot_tools.deep_research(
+                topic=r.topic, use_corpus=False,
+            )
+            if out.get("error"):
+                return {"topic": r.topic, "depth": "quick",
+                        "summary": "",
+                        "error": out["error"]}
+            return {
+                "topic": r.topic, "depth": "quick",
+                "summary": out.get("summary") or out.get("body") or "",
+                "error": None,
+            }
+        except Exception as exc:  # noqa: BLE001
+            return {"topic": r.topic, "depth": r.depth, "summary": "",
+                    "error": f"research_call_raised: {exc}"}
+
+    findings = await asyncio.gather(
+        *(asyncio.to_thread(_fire, r) for r in requests),
+    )
+    return list(findings)
+
+
+def build_prompt_with_research(*, user_text: str,
+                                  history: list[MargotTurn],
+                                  context: dict[str, Any],
+                                  draft: str,
+                                  research_findings: list[dict[str, Any]]
+                                  ) -> str:
+    """Construct the Phase-2 prompt — Phase 1 prompt + draft + research."""
+    base = build_prompt(user_text=user_text, history=history,
+                         context=context)
+
+    findings_block = ""
+    for i, f in enumerate(research_findings, start=1):
+        findings_block += (
+            f"\n--- Research finding {i} "
+            f"(topic: {f['topic']!r}, depth: {f.get('depth', 'quick')}) ---\n"
+        )
+        if f.get("error"):
+            findings_block += f"[error: {f['error']}]\n"
+        else:
+            summary = f.get("summary") or "(empty)"
+            # Bound size — research summaries can be huge
+            findings_block += (
+                summary[:4000] + ("…" if len(summary) > 4000 else "")
+            )
+            findings_block += "\n"
+
+    return (
+        f"{base}\n\n"
+        f"==============================================================\n"
+        f"PHASE 2 — research has been performed. Your Phase 1 draft was:\n"
+        f"==============================================================\n\n"
+        f"{draft}\n\n"
+        f"Research findings:\n"
+        f"{findings_block}\n"
+        f"==============================================================\n"
+        f"Produce the FINAL reply now, integrating the research findings.\n"
+        f"Do NOT emit [RESEARCH] sentinels in this Phase 2 response — the\n"
+        f"research is already done. [BOARD-TRIGGER] sentinels are still\n"
+        f"valid if any finding scores ≥7/10 material.\n"
+        f"=============================================================="
+    )
+
+
 # ── Response parsing ────────────────────────────────────────────────────────
 
 
@@ -313,6 +440,40 @@ _BOARD_TRIGGER_RE = re.compile(
     r"\s*([\s\S]*?)\s*\[/BOARD-TRIGGER\]",
     re.MULTILINE,
 )
+
+_RESEARCH_REQUEST_RE = re.compile(
+    r"\[RESEARCH(?:\s+depth\s*=\s*\"(quick|deep)\")?\s*"
+    r"topic\s*=\s*\"([^\"]+)\"\]",
+    re.MULTILINE,
+)
+
+
+@dataclass
+class ResearchRequest:
+    """A [RESEARCH] sentinel parsed out of Margot's draft response."""
+    topic: str
+    depth: str = "quick"  # "quick" → deep_research; "deep" → deep_research_max
+
+
+def parse_research_requests(response_text: str
+                              ) -> tuple[list[ResearchRequest], str]:
+    """Extract [RESEARCH] sentinels from Margot's draft response.
+
+    Format:
+        [RESEARCH topic="..." depth="quick"]
+    or  [RESEARCH topic="..."]                     (defaults to quick)
+
+    Returns (requests, cleaned_text). Sentinels stripped from cleaned_text
+    so the user-facing reply never shows the raw markup.
+    """
+    requests: list[ResearchRequest] = []
+    for m in _RESEARCH_REQUEST_RE.finditer(response_text):
+        depth_group = m.group(1) or "quick"
+        topic = m.group(2).strip()
+        if topic:
+            requests.append(ResearchRequest(topic=topic, depth=depth_group))
+    cleaned = _RESEARCH_REQUEST_RE.sub("", response_text).strip()
+    return requests, cleaned
 
 
 def parse_board_triggers(response_text: str
@@ -376,26 +537,79 @@ async def _call_llm(*, prompt: str, timeout_s: int = 120,
 # ── Telegram delivery ───────────────────────────────────────────────────────
 
 
+def _voice_reply_enabled() -> bool:
+    return os.environ.get("MARGOT_VOICE_REPLY_ENABLED", "0") == "1"
+
+
+def _maybe_compose_voice(*, text: str, turn_id: str,
+                          repo_root: Path) -> Path | None:
+    """Compose a voice variant for Margot's reply when enabled + short enough.
+
+    Returns the audio path or None. Failure is non-fatal — caller falls
+    back to text-only.
+    """
+    if not _voice_reply_enabled():
+        return None
+    try:
+        # Look up via sys.modules first so test monkeypatches via
+        # monkeypatch.setitem(sys.modules, "swarm.voice_compose", ...) win
+        # over the cached import binding.
+        import sys as _sys  # noqa: PLC0415
+        voice_compose = _sys.modules.get("swarm.voice_compose")
+        if voice_compose is None:
+            from . import voice_compose  # noqa: PLC0415
+        out_dir = repo_root / ".harness/swarm/voice/margot"
+        _, audio_path = voice_compose.compose_margot_voice_reply(
+            text, out_dir=out_dir, filename_stem=turn_id,
+        )
+        return audio_path
+    except Exception as exc:  # noqa: BLE001
+        log.debug("margot voice: compose suppressed (%s)", exc)
+        return None
+
+
 def _send_telegram(*, chat_id: str, text: str,
-                    reply_to_message_id: str | None = None) -> bool:
+                    reply_to_message_id: str | None = None,
+                    audio_path: Path | None = None) -> bool:
     """Direct send to Telegram. Uses the existing telegram_alerts helper
-    when available; falls back to log-only in test environments."""
+    when available; falls back to log-only in test environments.
+
+    When audio_path is provided, the caller's intent is voice + text. The
+    underlying telegram_alerts.send signature may or may not support audio
+    attachments — this wrapper passes the path as a kwarg and lets the
+    sender decide. If the sender doesn't support audio, the text still
+    sends (audio is best-effort).
+    """
     try:
         from . import telegram_alerts  # noqa: PLC0415
     except Exception as exc:  # noqa: BLE001
         log.warning("margot: telegram_alerts unavailable (%s) — log only", exc)
-        log.info("margot reply (chat=%s): %s", chat_id, text[:500])
+        log.info("margot reply (chat=%s, audio=%s): %s",
+                 chat_id, audio_path is not None, text[:500])
         return False
     try:
-        # telegram_alerts.send signature varies; degrade safely
         sender = getattr(telegram_alerts, "send", None)
         if not callable(sender):
             log.info("margot reply (chat=%s, no send fn): %s",
                      chat_id, text[:500])
             return False
-        sender(text, severity="info", bot_name="Margot",
-                chat_id=chat_id)
+        kwargs: dict[str, Any] = {
+            "severity": "info", "bot_name": "Margot",
+            "chat_id": chat_id,
+        }
+        if audio_path is not None:
+            kwargs["audio_path"] = str(audio_path)
+        sender(text, **kwargs)
         return True
+    except TypeError:
+        # Fallback: sender doesn't accept audio_path / chat_id → call
+        # without the optional kwargs.
+        try:
+            sender(text, severity="info", bot_name="Margot")
+            return True
+        except Exception as exc:  # noqa: BLE001
+            log.warning("margot: telegram send fallback failed (%s)", exc)
+            return False
     except Exception as exc:  # noqa: BLE001
         log.warning("margot: telegram send failed (%s)", exc)
         return False
@@ -442,10 +656,45 @@ async def handle_turn(*, chat_id: str, user_text: str,
     prompt = build_prompt(user_text=user_text, history=history,
                            context=context)
 
+    # ── Phase 1: draft response ────────────────────────────────────────
     rc, response_text, cost, error = await _call_llm(
         prompt=prompt, turn_id=turn.turn_id,
     )
     turn.cost_usd = cost
+
+    # ── Phase 2: research-on-demand ────────────────────────────────────
+    # If Phase 1 contained [RESEARCH] sentinels, fire deep_research for
+    # each (in parallel), inject results into a follow-up prompt, and
+    # call the LLM again. The user-facing reply is the Phase 2 output.
+    if rc == 0 and not error:
+        research_requests, draft_clean = parse_research_requests(response_text)
+        if research_requests:
+            log.info("margot %s: phase 2 — %d research request(s)",
+                     turn.turn_id, len(research_requests))
+            turn.research_called = True
+            research_findings = await _run_research_batch(research_requests)
+
+            phase2_prompt = build_prompt_with_research(
+                user_text=user_text, history=history,
+                context=context, draft=draft_clean,
+                research_findings=research_findings,
+            )
+            rc2, response_text2, cost2, error2 = await _call_llm(
+                prompt=phase2_prompt, turn_id=f"{turn.turn_id}-p2",
+            )
+            turn.cost_usd += cost2
+            if rc2 == 0 and not error2:
+                response_text = response_text2
+            else:
+                # Phase 2 failure → use the Phase 1 draft (sentinels
+                # already stripped). Don't propagate Phase 2's error to
+                # the turn — Phase 1 succeeded, so the turn succeeded;
+                # the user gets the draft instead of the integrated
+                # research, but the conversation continues.
+                log.warning("margot %s: phase 2 failed (%s) — using draft",
+                            turn.turn_id, error2 or f"rc={rc2}")
+                response_text = draft_clean
+
     turn.ended_at = _now_iso()
 
     if rc != 0 or error:
@@ -456,12 +705,18 @@ async def handle_turn(*, chat_id: str, user_text: str,
                 turn_id=turn.turn_id, chat_id=str(chat_id),
                 error=turn.error)
         if _send:
+            # No voice on failure — text-only fallback message
             _send_telegram(chat_id=str(chat_id), text=turn.margot_text,
                             reply_to_message_id=message_id)
         return turn
 
     triggers, cleaned = parse_board_triggers(response_text)
     turn.margot_text = cleaned
+
+    # Optional voice variant (enabled via MARGOT_VOICE_REPLY_ENABLED=1)
+    audio_path = _maybe_compose_voice(
+        text=cleaned, turn_id=turn.turn_id, repo_root=rr,
+    )
 
     # Queue Board deliberations for any ≥-threshold triggers
     threshold = int(os.environ.get(
@@ -487,20 +742,26 @@ async def handle_turn(*, chat_id: str, user_text: str,
             log.warning("margot: from_margot raised (%s)", exc)
 
     if _send:
-        _send_telegram(chat_id=str(chat_id), text=cleaned,
-                        reply_to_message_id=message_id)
+        _send_telegram(
+            chat_id=str(chat_id), text=cleaned,
+            reply_to_message_id=message_id,
+            audio_path=audio_path,
+        )
 
     append_turn(turn, repo_root=rr)
     _audit("margot_turn_complete",
             turn_id=turn.turn_id, chat_id=str(chat_id),
-            cost_usd=cost,
-            board_triggers=len(turn.board_session_ids))
+            cost_usd=turn.cost_usd,
+            board_triggers=len(turn.board_session_ids),
+            voice_attached=audio_path is not None,
+            research_called=turn.research_called)
     return turn
 
 
 __all__ = [
-    "MargotTurn", "BoardTrigger",
+    "MargotTurn", "BoardTrigger", "ResearchRequest",
     "handle_turn", "load_history", "append_turn",
-    "build_context", "build_prompt", "parse_board_triggers",
+    "build_context", "build_prompt", "build_prompt_with_research",
+    "parse_board_triggers", "parse_research_requests",
     "DEFAULT_HISTORY_TURNS", "DEFAULT_BOARD_TRIGGER_THRESHOLD",
 ]
