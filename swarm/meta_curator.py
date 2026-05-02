@@ -515,6 +515,220 @@ def list_proposals(status: str | None = None) -> list[dict[str, Any]]:
     return rows
 
 
+def _latest_proposal_state(proposal_id: str) -> tuple[int, dict[str, Any] | None]:
+    """Return (line_index, latest_record) for the most recent proposal row.
+
+    Each accept/reject/expire appends a NEW row with the same proposal_id and
+    an updated `status` — we read the most recent one to determine current
+    state. The returned `line_index` is unused today but kept for future
+    `_rewrite_jsonl` semantics if we ever switch to in-place edits.
+    """
+    rows = _read_jsonl(PROPOSALS_FILE)
+    latest = None
+    latest_idx = -1
+    for i, row in enumerate(rows):
+        if row.get("proposal_id") == proposal_id:
+            latest = row
+            latest_idx = i
+    return latest_idx, latest
+
+
+def accept_proposal(proposal_id: str) -> dict[str, Any]:
+    """Materialise a curator proposal — write SKILL.md + flip ledger to accepted.
+
+    RA-1848. Idempotent: if already accepted, returns the existing record
+    without re-writing the file.
+    """
+    _, current = _latest_proposal_state(proposal_id)
+    if current is None:
+        raise KeyError(f"proposal_id {proposal_id} not found in {PROPOSALS_FILE}")
+    if current.get("status") == "accepted":
+        return current
+
+    name = current["proposed_skill_name"]
+    body = current.get("proposed_skill_content") or ""
+    skill_dir = SKILLS_DIR / name
+    skill_dir.mkdir(parents=True, exist_ok=True)
+    skill_path = skill_dir / "SKILL.md"
+    skill_path.write_text(body, encoding="utf-8")
+
+    accepted = {
+        "ts": _now_iso(),
+        "proposal_id": proposal_id,
+        "cluster_id": current.get("cluster_id"),
+        "proposed_skill_name": name,
+        "proposed_skill_path": f"skills/{name}/SKILL.md",
+        "status": "accepted",
+        "accepted_at": _now_iso(),
+        "skill_path_written": str(skill_path.relative_to(REPO_ROOT)),
+    }
+    _append_jsonl(PROPOSALS_FILE, accepted)
+
+    try:
+        from . import audit_emit  # noqa: PLC0415
+        audit_emit.row(
+            "curator_accepted", "Curator",
+            proposal_id=proposal_id,
+            cluster_id=current.get("cluster_id"),
+            skill_path=accepted["skill_path_written"],
+        )
+    except Exception:
+        pass
+
+    return accepted
+
+
+def reject_proposal(proposal_id: str, *, reason: str | None = None) -> dict[str, Any]:
+    """Reject a curator proposal — append to rejected.jsonl + flip ledger.
+
+    RA-1848. The 30d cooloff window in `_is_in_cooloff()` reads
+    `rejected.jsonl`, so this is what activates the cooloff.
+    """
+    _, current = _latest_proposal_state(proposal_id)
+    if current is None:
+        raise KeyError(f"proposal_id {proposal_id} not found")
+    if current.get("status") == "rejected":
+        return current
+
+    rejected = {
+        "ts": _now_iso(),
+        "proposal_id": proposal_id,
+        "cluster_id": current.get("cluster_id"),
+        "proposed_skill_name": current.get("proposed_skill_name"),
+        "status": "rejected",
+        "rejected_at": _now_iso(),
+        "reason": reason or "operator reaction ❌",
+    }
+    _append_jsonl(PROPOSALS_FILE, rejected)
+    # rejected.jsonl is the file `_is_in_cooloff()` reads
+    _append_jsonl(REJECTED_FILE, {
+        "ts": _now_iso(),
+        "cluster_id": current.get("cluster_id"),
+        "proposal_id": proposal_id,
+        "reason": rejected["reason"],
+    })
+
+    try:
+        from . import audit_emit  # noqa: PLC0415
+        audit_emit.row(
+            "curator_rejected", "Curator",
+            proposal_id=proposal_id,
+            cluster_id=current.get("cluster_id"),
+            reason=rejected["reason"],
+        )
+    except Exception:
+        pass
+
+    return rejected
+
+
+def expire_proposal(proposal_id: str) -> dict[str, Any]:
+    """Expire a curator proposal — append to expired.jsonl + flip ledger.
+
+    RA-1848. Called for proposals whose draft hit `expired` status without a
+    reaction within the draft_review.expire_overdue() window.
+    """
+    _, current = _latest_proposal_state(proposal_id)
+    if current is None:
+        raise KeyError(f"proposal_id {proposal_id} not found")
+    if current.get("status") == "expired":
+        return current
+
+    expired = {
+        "ts": _now_iso(),
+        "proposal_id": proposal_id,
+        "cluster_id": current.get("cluster_id"),
+        "proposed_skill_name": current.get("proposed_skill_name"),
+        "status": "expired",
+        "expired_at": _now_iso(),
+    }
+    _append_jsonl(PROPOSALS_FILE, expired)
+    _append_jsonl(EXPIRED_FILE, expired)
+
+    try:
+        from . import audit_emit  # noqa: PLC0415
+        audit_emit.row(
+            "curator_expired", "Curator",
+            proposal_id=proposal_id,
+            cluster_id=current.get("cluster_id"),
+        )
+    except Exception:
+        pass
+
+    return expired
+
+
+def reconcile_proposals() -> dict[str, Any]:
+    """Sweep pending curator proposals against current draft_review state.
+
+    RA-1848. Polled from the orchestrator main loop. For each proposal still
+    in `pending` status:
+      * draft_review status `sent`     → accept_proposal() + write SKILL.md
+      * draft_review status `revise`   → reject_proposal() + populate cooloff
+      * draft_review status `expired`  → expire_proposal()
+
+    Returns a summary dict suitable for daily-brief inclusion.
+    """
+    from . import draft_review  # noqa: PLC0415
+
+    snap = draft_review._load_snapshot()  # type: ignore[attr-defined]
+    rows = _read_jsonl(PROPOSALS_FILE)
+
+    # Walk forward; keep the latest status per proposal_id.
+    latest: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        pid = row.get("proposal_id")
+        if pid:
+            latest[pid] = row
+
+    accepted: list[str] = []
+    rejected: list[str] = []
+    expired: list[str] = []
+    skipped: list[str] = []
+
+    for pid, prop in latest.items():
+        if prop.get("status") != "pending":
+            continue
+        draft_id = prop.get("draft_id")
+        if not draft_id:
+            skipped.append(pid)
+            continue
+        draft = snap.get(draft_id)
+        if not draft:
+            skipped.append(pid)
+            continue
+        ds = draft.get("status")
+        if ds == "sent":
+            try:
+                accept_proposal(pid)
+                accepted.append(pid)
+            except Exception as exc:  # pragma: no cover — safety net
+                log.warning("accept_proposal failed for %s: %s", pid, exc)
+        elif ds == "revise":
+            try:
+                reject_proposal(pid, reason="operator reacted ❌ on draft")
+                rejected.append(pid)
+            except Exception as exc:
+                log.warning("reject_proposal failed for %s: %s", pid, exc)
+        elif ds == "expired":
+            try:
+                expire_proposal(pid)
+                expired.append(pid)
+            except Exception as exc:
+                log.warning("expire_proposal failed for %s: %s", pid, exc)
+        else:
+            # still pending / deferred — leave alone
+            continue
+
+    return {
+        "ts": _now_iso(),
+        "accepted": accepted,
+        "rejected": rejected,
+        "expired": expired,
+        "skipped": skipped,
+    }
+
+
 def run_now(dry_run: bool = False) -> dict[str, Any]:
     """Trigger one full curator cycle. Used by /curator:run-now Telegram cmd."""
     lessons_clusters = scan_lessons()
@@ -536,4 +750,7 @@ def run_now(dry_run: bool = False) -> dict[str, Any]:
 __all__ = [
     "Cluster", "scan_lessons", "scan_pr_diffs",
     "propose_from_cluster", "list_proposals", "run_now",
+    # RA-1848 acceptance handler
+    "accept_proposal", "reject_proposal", "expire_proposal",
+    "reconcile_proposals",
 ]
