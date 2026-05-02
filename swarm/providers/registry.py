@@ -36,6 +36,33 @@ def select_provider() -> ProviderFn:
     return synthetic_provider
 
 
+# ── CTO platform provider (RA-1861, Wave 4 A3) ──────────────────────────────
+
+
+def select_platform_provider():
+    """Pick a CTO platform provider by ``TAO_CTO_PROVIDER`` env.
+
+    Values:
+    * ``synthetic`` (default) — deterministic fixtures
+    * ``github_actions`` — real GitHub Actions / Vercel pull (stub today;
+      falls back to synthetic with a warning until connector wired)
+    """
+    name = (os.environ.get("TAO_CTO_PROVIDER") or "synthetic").strip().lower()
+    if name == "github_actions":
+        log.warning(
+            "provider: github_actions selected but not yet implemented — "
+            "using synthetic_platform"
+        )
+    if name not in ("synthetic", "github_actions", ""):
+        log.warning(
+            "provider: unknown TAO_CTO_PROVIDER=%r — using synthetic_platform",
+            name,
+        )
+    from .synthetic_platform import synthetic_platform_provider
+    log.debug("provider: synthetic_platform selected")
+    return synthetic_platform_provider
+
+
 # ── CMO marketing provider (RA-1860, Wave 4 A2) ─────────────────────────────
 
 
@@ -64,4 +91,7 @@ def select_marketing_provider():
     return synthetic_marketing_provider
 
 
-__all__ = ["select_provider", "select_marketing_provider", "ProviderFn"]
+__all__ = [
+    "select_provider", "select_marketing_provider",
+    "select_platform_provider", "ProviderFn",
+]
