@@ -1,0 +1,55 @@
+{
+  "critical": [
+    {
+      "severity": "critical",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The actual test files shown are test_auth.py (14 auth unit tests) and test_webhook.py (10 webhook signature unit tests). Neither covers sessions, evaluator, or the push pipeline. scripts/smoke_test.py is an HTTP smoke test against a live server, not an integration test, and the file is truncated mid-function so the claimed 22 checks cannot be verified from source.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Audit smoke_test.py to count and document each check, then add dedicated integration tests in tests/ that exercise the session→evaluate→push pipeline without requiring a live server.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "critical",
+      "claim": "E2E or integration tests covering the full build pipeline (sessions, evaluator, push)",
+      "reality": "No test file covering the session lifecycle, evaluator execution, or git push phase exists in the shown test suite. The CLAUDE.md itself acknowledges 'test_sdk_phase2.py' has 3 pre-existing failures because claude_agent_sdk is not installed locally, meaning the SDK path tests are known-broken, not complete.",
+      "file": "tests/",
+      "recommendation": "Create tests/test_sessions_integration.py with mocked SDK and git calls covering the full build phase sequence (plan → build → evaluate → push) and fix or document the pre-existing test_sdk_phase2.py failures.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "22-check smoke test suite",
+      "reality": "smoke_test.py is truncated at the _req() helper function definition — the actual test check implementations are not visible in the provided source, making the count of 22 checks unverifiable. The file structure shows HTTP-level checks against a running server, which is not the same as integration tests and cannot run in CI without a live deployment.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Ensure smoke_test.py is complete in source control (not truncated), add a comment block listing all 22 named checks, and wire --agent-sdk flag checks to cover the session/evaluator/push surface specifically.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "high",
+      "claim": "Sprint 10 complete (2026-04-14): ZTE v2 Section C wired (RA-672)",
+      "reality": "No test file validates ZTE Section C wiring. The test suite contains only auth and webhook unit tests; there is no test asserting that ZTE v2 Section C criteria are actually evaluated and scored correctly at runtime.",
+      "file": "tests/",
+      "recommendation": "Add a unit test in tests/test_zte.py that imports the ZTE v2 Section C scoring logic and asserts expected scores for known fixture inputs.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "low": [],
+  "summary": {
+    "total_discrepancies": 4,
+    "critical_count": 2,
+    "high_count": 2,
+    "low_count": 0,
+    "duration_s": 223.1,
+    "audited_at": "2026-05-02T05:06:29.944515+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": [
+      "RA-1843",
+      "RA-1844",
+      "RA-1845",
+      "RA-1846"
+    ]
+  }
+}

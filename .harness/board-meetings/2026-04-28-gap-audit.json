@@ -1,0 +1,73 @@
+{
+  "critical": [
+    {
+      "severity": "critical",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "webhook.py contains only inbound webhook verification and parsing (Linear → Pi-CEO direction). There are no outbound Linear API calls in either file — no issueUpdate mutation, no linear_update_issue call, no HTTP client hitting api.linear.app to set issue state after a build completes or fails.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Add an outbound Linear state-update function (e.g. `update_linear_issue_state(issue_id, state_id)`) called from the session completion handler in routes/sessions.py after each build reaches a terminal state, using the LINEAR_API_KEY env var and the GraphQL issueUpdate mutation.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "critical",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "No integration or E2E tests exist for the full build pipeline (session creation, evaluator execution, git push phase). test_auth.py and test_webhook.py cover only isolated unit concerns. scripts/smoke_test.py is a live-server HTTP probe that requires a running Railway/local instance — it is not executable in CI without a deployed server and TAO_PASSWORD secret, and the file is truncated before the 22 checks can be verified.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Add pytest integration tests in tests/test_pipeline_e2e.py that mock claude_agent_sdk and GitHub push, then assert the full session state machine transitions from 'queued' → 'running' → 'complete' with a diff and PR body present.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "dashboard/app/api/telegram/route.ts contains Linear integration, Pi CEO session querying, and a partial triggerBuild() function, but no visible command-dispatch logic routing /start or /help text commands to handler functions. The file is truncated so /build may be handled below the cut, but /start and /help have no handlers in the visible code.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Add an explicit command router (e.g. a switch on message.text starting with '/') that handles /start, /help, and /build before falling through to the Claude delegation path, and ensure /help returns a current command list.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The 22-check count cannot be verified because scripts/smoke_test.py is truncated in the provided source; the visible portion only covers arg parsing, metrics emission, and HTTP helpers — none of the actual check functions are present in the excerpt. The CI pipeline references this script for smoke-prod but there is no guard confirming exactly 22 checks are registered.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Add a self-test assertion at the bottom of smoke_test.py that prints the total check count and fails with a clear message if it deviates from the expected 22, so regressions in check coverage are caught in CI.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "No test file covers the evaluator path (_run_single_eval), SDK metric emission, or the phase-5 git push (_phase_push) — the three highest-risk pipeline stages. CLAUDE.md itself notes 'test_sdk_phase2.py has 3 pre-existing failures' but that file is not present in the provided source, and its failures indicate known broken coverage rather than passing coverage.",
+      "file": "tests/",
+      "recommendation": "Create tests/test_sdk_pipeline.py with AsyncMock patches on claude_agent_sdk.query() and subprocess.run() to exercise _run_single_eval and _phase_push in isolation, asserting correct state transitions and Linear ticket creation.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "smoke_test.py uses --emit-metrics and _raise_linear_failure_ticket helpers that depend on LINEAR_API_KEY being present at runtime; if missing, failures are silently swallowed rather than surfaced as test failures, meaning a broken production environment can produce a false-green smoke run.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "In PROD_MODE, assert LINEAR_API_KEY is set and treat its absence as a check failure rather than silently skipping ticket creation, so CI cannot produce a green result without the key configured.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 6,
+    "critical_count": 2,
+    "high_count": 3,
+    "low_count": 1,
+    "duration_s": 201.5,
+    "audited_at": "2026-04-28T05:05:40.177021+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": [
+      "RA-1775",
+      "RA-1776",
+      "RA-1777",
+      "RA-1778",
+      "RA-1779"
+    ]
+  }
+}

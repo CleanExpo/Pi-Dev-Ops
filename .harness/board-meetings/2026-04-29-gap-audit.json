@@ -1,0 +1,73 @@
+{
+  "critical": [
+    {
+      "severity": "critical",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "app/server/webhook.py implements only the inbound direction: parsing Linear webhooks to trigger builds. There are zero outbound Linear API calls — no issueUpdate GraphQL mutation, no HTTP client posting back to api.linear.app, no function that updates issue state (e.g. moving to In Progress or Done) after a session completes. The outbound half of the two-way sync does not exist in any provided file.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Add a send_linear_state_update(issue_id, state_id) helper using httpx + LINEAR_API_KEY that fires the issueUpdate mutation, then call it from the session completion handler in routes/sessions.py after a build reaches terminal state.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "critical",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The only test files provided are test_auth.py (auth unit tests) and test_webhook.py (webhook signature unit tests). Neither covers the build pipeline, session lifecycle, evaluator, or push phases. smoke_test.py is an E2E probe against a live server (not an automated test suite) and is truncated before the actual check list, so the claimed 22-check count cannot be verified from the codebase.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Add integration tests in tests/ that exercise the full pipeline path (POST /api/build → session state transitions → evaluator → phase 5 push) using mocked SDK and git clients, then update the spec claim to reflect actual coverage.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "parse_linear_event() correctly extracts issue_id from the inbound payload and returns it in the normalised dict, but there is no downstream consumer visible that stores or uses issue_id to make any callback — the data is parsed but never acted on for the return leg.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Persist issue_id on the session object when a Linear-triggered build is created so routes/sessions.py can retrieve it at completion and call the Linear issueUpdate mutation.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "CLAUDE.md explicitly states '3 pre-existing failures in test_sdk_phase2.py (claude_agent_sdk not installed locally)' — the SDK integration tests are persistently failing, meaning the portion of the pipeline that matters most (SDK-driven session execution) has no passing automated coverage.",
+      "file": "tests/test_sdk_phase2.py",
+      "recommendation": "Either install claude_agent_sdk in CI and fix the 3 failing tests, or replace them with mocked equivalents that can run in any environment, and remove the 'Complete' claim until all tests pass.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "No test file covering sessions.py route logic, evaluator invocation, or the phase 5 git push is present in the provided source. The smoke test only probes the HTTP API surface against a running server; it does not assert correctness of session state transitions, evaluator scoring, or push authentication.",
+      "file": "app/server/routes/sessions.py",
+      "recommendation": "Create tests/test_sessions_integration.py that mocks the SDK and git layer, then drives a full session lifecycle from POST /api/build through all phases to terminal state, asserting correct state transitions at each phase boundary.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "smoke_test.py is a CLI script requiring a live server (--url / --target=prod), not a pytest-runnable integration test. It cannot be executed in CI without a deployed Railway instance, making the '22-check' coverage claim misleading for the standard pytest gate described in CLAUDE.md.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Either add a pytest fixture that spins up the FastAPI app with TestClient and runs equivalent checks, or clearly distinguish smoke_test.py as a post-deploy gate (not a CI test) in the spec.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 6,
+    "critical_count": 2,
+    "high_count": 3,
+    "low_count": 1,
+    "duration_s": 160.1,
+    "audited_at": "2026-04-29T05:04:48.370982+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": [
+      "RA-1813",
+      "RA-1814",
+      "RA-1815",
+      "RA-1816",
+      "RA-1817"
+    ]
+  }
+}

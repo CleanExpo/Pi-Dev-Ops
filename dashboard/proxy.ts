@@ -13,6 +13,11 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 
+// Secret resolution lives in lib/auth-secret.ts so this verifier and the
+// cookie signer (app/api/auth/login/route.ts) stay in sync. Edit there to
+// change behaviour.
+import { resolvePassword } from "./lib/auth-secret";
+
 export const config = {
   matcher: [
     // All routes except static assets and Next.js internals
@@ -21,10 +26,7 @@ export const config = {
 };
 
 // Must match the key used to sign the session token in app/api/auth/login/route.ts
-const DASHBOARD_PASSWORD =
-  process.env.DASHBOARD_PASSWORD ||
-  process.env.PI_CEO_PASSWORD ||
-  "";
+const DASHBOARD_PASSWORD = resolvePassword().value;
 const SESSION_TTL_SECONDS = 86_400; // 24h — must match login/route.ts
 const COOKIE_NAME = "pi_session";
 const LOGIN_PATH = "/";

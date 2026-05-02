@@ -1,0 +1,49 @@
+flow:
+  name: test-linear-ticket
+  description: |
+    Smoke test for the Linear flow tool. Lists current open issues in
+    Pi-Dev-Ops, then creates one tiny test ticket, then comments on it.
+    Used once per Linear-tool change to validate end-to-end. Never run
+    in production; the ticket created has [SMOKE] in the title.
+  trigger: manual
+  context_schema:
+    - name: smoke_marker
+      type: string
+      default: "[SMOKE]"
+  tool_allowlist:
+    - mcp.linear.list_issues
+    - mcp.linear.save_issue
+    - mcp.linear.save_comment
+  max_runtime_minutes: 2
+  steps:
+    - id: list_open
+      tool: mcp.linear.list_issues
+      args:
+        team: RA
+        state: Todo
+        limit: 5
+      on_error: abort
+    - id: create_ticket
+      tool: mcp.linear.save_issue
+      args:
+        team: RA
+        project: Pi - Dev -Ops
+        title: "{{ctx.smoke_marker}} flow_engine + linear_tools E2E — {{date}}"
+        description: |
+          Synthetic ticket created by the test-linear-ticket flow during
+          flow_engine + linear_tools smoke verification. Safe to close.
+
+          Generated at {{utc_now}} as part of RA-1839.
+        priority: 4
+      depends_on: [list_open]
+      on_error: abort
+    - id: comment
+      tool: mcp.linear.save_comment
+      args:
+        issue_id: "{{create_ticket.output.identifier}}"
+        body: |
+          Smoke comment via flow_engine. Linear flow tool is reachable
+          from inside the dispatcher. Closing immediately — this ticket
+          exists only to prove the contract.
+      depends_on: [create_ticket]
+      on_error: log_and_continue

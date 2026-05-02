@@ -1,0 +1,52 @@
+flow:
+  name: morning-briefing
+  description: |
+    Replaces the hardcoded morning-briefing-7am cron with a declarative
+    flow. Pulls open-PR + ZTE + active-session state, optionally
+    runs Margot quick research on overnight industry news, drafts a
+    Telegram digest gated through the HITL review chat.
+  trigger: cron
+  trigger_config:
+    cron: "0 7 * * *"          # 07:00 user-local
+    timezone: "Australia/Sydney"
+  context_schema:
+    - name: original_chat_id
+      type: string
+      required: true            # set to REVIEW_CHAT_ID at trigger time
+    - name: include_industry_news
+      type: bool
+      default: true
+  tool_allowlist:
+    - skill.intent-parser
+    - skill.telegram-draft-for-review
+    # When wired in next session:
+    #   - mcp.linear.list_issues
+    #   - mcp.margot.deep_research
+  max_runtime_minutes: 5
+  steps:
+    # Wave 2 stub: classify "morning briefing" so the flow exercises the
+    # whole stack including PII guard before drafting. Real briefing
+    # composition lands once mcp.linear.list_issues + Margot are wired
+    # into flow_engine.
+    - id: classify
+      tool: skill.intent-parser
+      args:
+        message_text: "morning briefing for {{date}} — open PRs, ZTE score, overnight industry news"
+        chat_id: "{{ctx.original_chat_id}}"
+      on_error: log_and_continue
+    - id: draft
+      tool: skill.telegram-draft-for-review
+      args:
+        draft_text: |
+          🌅 Morning briefing — {{date}}
+
+          (Wave 2 stub: this is the placeholder body. Wave 3 will inline:
+            • Open PRs awaiting human merge (mcp.linear.list_issues)
+            • Current ZTE score + delta vs yesterday
+            • Active autonomous sessions
+            • Overnight industry news (Margot quick research)
+          )
+        destination_chat_id: "{{ctx.original_chat_id}}"
+        drafted_by_role: Dispatcher
+      depends_on: [classify]
+      on_error: abort

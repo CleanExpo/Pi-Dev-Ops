@@ -1,0 +1,1188 @@
+manifest_version: 1
+package:
+  name: pi-ceo-skills
+  version: 0.1.0
+  generated_at: "2026-05-01T11:23:09.517437+00:00"
+  source: github.com/CleanExpo/Pi-Dev-Ops
+skills:
+  - id: afk-agent
+    description: Run agents unattended with stop guards and notifications.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/afk-agent/SKILL.md
+    sha256: 222bab78eb5f5327b0edbc163dd9d845cf3a5574ad977309395a797098b001f0
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+  - id: agent-expert
+    description: Act-Learn-Reuse cycle for agent improvement over time.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/agent-expert/SKILL.md
+    sha256: a13fcfbb64a5bcc3646b48ab20121ba6199fd32a53a58ccd1dfb9410040d490f
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+  - id: agent-workflow
+    description: ADWs - reusable workflow templates from trigger to deploy.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/agent-workflow/SKILL.md
+    sha256: f8366e05ca6326763249c7ca03f84893e43d4e55bf1497180145d8512a3bce73
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+  - id: agentic-layer
+    description: Design products with agent-native architecture.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/agentic-layer/SKILL.md
+    sha256: 2aa8174c9c291a335ed34e2e8303ef779b430cdb94ab9e81057dc83c92e32a90
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+  - id: agentic-loop
+    description: Infinite self-correcting iteration until completion criteria met.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/agentic-loop/SKILL.md
+    sha256: fbb38a51ef851d921537e3aa74c0c5a3719f2472beb069176a9940534daedd2e
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+  - id: agentic-review
+    description: Review agent output for quality, not just correctness.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/agentic-review/SKILL.md
+    sha256: 84fe7cc6d3699e3925a358f67c4ef7a605a0d3aa7abc5de1eedbfe902f4287f6
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+  - id: agentskills-manifest
+    description: "Export Pi-CEO's skill registry as an agentskills.io-format manifest. Closes Hermes RA-1838 SWARM-009 (open question #5 from the original Hermes brief \u2014 answered yes). Future-proofs Pi-CEO if/when it adopts the Hermes runtime via Path C."
+    owner_role: Curator
+    status: wave-3
+    path: skills/agentskills-manifest/SKILL.md
+    sha256: 5fb7ff8453962da0b0b6758d8813039c11d70b1bf0cc29b5d163e63c257eb5c6
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: true
+      requires_hitl_gate: true
+      pii_handling: redacts
+    inferred: true
+    low_confidence: true
+  - id: analyzing-customer-patterns
+    description: "Outcome feedback loop analyser. Reads shipped feature records + post-ship signals, detects patterns in what worked vs what didn't, and writes outcome lessons back into the build pipeline. Feeds the BVI \"features delivered\" component."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/analyzing-customer-patterns/SKILL.md
+    sha256: e4ccf32b07cb55320c59c043b5d82ed96adb554855f96b69ad9e345fa8a455a6
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: architecture
+    description: Architectural conventions and anti-patterns specific to Pi-Dev-Ops — companion model, sandbox isolation, ZTE leverage, CLAUDE.md hygiene, parallel dispatch, topology-first autonomy.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/architecture/SKILL.md
+    sha256: b218cf50c45b182252b41e7c0b29067765d36b6fdf3b3441d9889009a0501d92
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: audit-emit
+    description: Centralised audit emitter sitting in front of every Dispatcher step + every Scribe send + every CoS routing decision. Writes to .harness/swarm/swarm.jsonl (existing immutable append) and optionally fires Langfuse webhooks for off-Pi-CEO observability. Closes Hermes Sprint 1 SWARM-006 + the audit-immutable safety control.
+    owner_role: Dispatcher (binds in front of every cross-tool step)
+    status: wave-3
+    path: skills/audit-emit/SKILL.md
+    sha256: bbe014f664be997f0ea7ff52a0e6a8815e549b06e808743f0d0129902b28a652
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: true
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: auto-generator
+    description: Generate tier configs from project briefs automatically.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/auto-generator/SKILL.md
+    sha256: c181bd6efbde95b1c537e188959db6b3c2204bb50ceaaea441d207918848a9cf
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+  - id: big-three
+    description: The foundational framework - Model, Prompt, Context. Every decision maps to one of these.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/big-three/SKILL.md
+    sha256: a6ef67fecf682260ef041c3aec99322080c3fcb87f2b6b3b3caefe48c9d14721
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: brand-ambassador
+    description: Generate brand-consistent content, copy, and messaging aligned with Pi-CEO tone and values.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/brand-ambassador/SKILL.md
+    sha256: 58b6cdaccb16a1eafce6ad94a44d024f09d4514afd18a9c854a458d0270fead9
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: calendar-watcher
+    description: "Convert calendar event creation/modification/deletion into Pi-CEO actions. Use for time-anchored triggers \u2014 meeting prep 30min before, post-meeting summary, conflict detection, schedule reflow when an urgent block lands. Pairs with email-listener for the \"calendar invite arrived in email\" pattern."
+    owner_role: Chief of Staff
+    status: wave-2
+    path: skills/calendar-watcher/SKILL.md
+    sha256: e3ad31320a34bba3f346d44102b40733e6ea8d3d7ab69d9f36ff5af3d4136d44
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: true
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: ceo-mode
+    description: CEO-level strategic analysis and executive communication. Direct, evidence-based, no filler.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/ceo-mode/SKILL.md
+    sha256: 6cdd8161740397c66c9ba4eca84de252fd501a82ac5a3658fbd125687cbe25d6
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: claude
+    description: Correct patterns for Claude SDK usage, subprocess vs API mode selection, MCP SDK imports, and streaming API call conventions in the Pi-Dev-Ops codebase.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/claude/SKILL.md
+    sha256: 73f70a55cf3b7edf29b46e308283dbb7a0a93927be04e737f4fe121212acc255
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: claude-max-runtime
+    description: Execute TAO natively within Claude Max subscription.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/claude-max-runtime/SKILL.md
+    sha256: a65f6e3659c6a8d5d3ade0334da1b783325b9df1aab1bc459eb07e893956702a
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+  - id: claude-runtime
+    description: Rules for invoking Claude correctly — subprocess vs SDK mode, stream-json parsing, MCP SDK imports, Railway vs local environment differences.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/claude-runtime/SKILL.md
+    sha256: 5b9bfab0038e5f0475e472615a492b510f666b8f967d32f4d863d5713b58ba78
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: closed-loop-prompt
+    description: Self-correcting prompts with embedded verification.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/closed-loop-prompt/SKILL.md
+    sha256: 9a945aa7cd6404ef7546a3e09ae51d963d31aaea4353ce06754c13647bacd572
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+  - id: context-compressor
+    description: Compress context at tier boundaries to save tokens.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/context-compressor/SKILL.md
+    sha256: 1dae94eaeb938443fd657ab2195687db970d1d3ffe48d93c030aed65a04569bf
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+  - id: cross-tool-flow
+    description: Declarative YAML/JSON authoring surface over dispatcher-core. Lets the user (or Margot, or Scribe) define multi-step cross-tool flows in plain text — chain Linear, Gmail, Calendar, Margot, Composio MCP tools — and run them via Dispatcher. Wave 2 surface; engine is dispatcher-core in Wave 1.
+    owner_role: Dispatcher
+    status: wave-2
+    path: skills/cross-tool-flow/SKILL.md
+    sha256: e2b99fd48857428d9ebdbe1262e07a07f2ac3010f63e2fd3615c9a38c3bcc597
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: true
+      requires_hitl_gate: true
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: define-spec
+    description: Spec writer. Converts a raw idea into a structured specification with PITER classification, goals/non-goals, Given/When/Then acceptance criteria, and explicit constraints. Output is a spec.md ready for the /plan phase.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/define-spec/SKILL.md
+    sha256: eea0d718f8a7b9e58208ad6e882c1e6b1bd1ee3d54abc47165313c005044f3bc
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: deployment
+    description: Deployment constraints and runtime behaviour for Railway (backend) and Vercel (frontend) — proxy config, redirects, Telegram, SSE limits, and model routing.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/deployment/SKILL.md
+    sha256: 8e78a93294ed76a653d565931622daa74481de96e5f9b622c48efcac84c8f710
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: design-audit
+    description: Design quality auditor. Detects 24 anti-patterns in UI code (impeccable patterns), critiques visual hierarchy and UX, polishes components to shipping quality. Provides /critique, /audit, /polish, and /bolder commands.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/design-audit/SKILL.md
+    sha256: 1261e3c8517b404e2e2c8c7afc3e977eeb6591a202825f8d2fefd10e26c38d1f
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: design-intelligence
+    description: Master design context skill. Reads/writes DESIGN.md, references 66 brand archetypes from getdesign.md, reverse-engineers any design system from a live site using npxskillui, and ensures every UI decision is grounded in explicit design intent rather than AI defaults.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/design-intelligence/SKILL.md
+    sha256: 2d351b525cd1e0c6b2cc8dd2e52d7949f8c6961950ac3c52eded990167b762ea
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: design-system
+    description: Design stack orchestrator for Pi-CEO. Routes UI work to the correct specialist skill (design-intelligence, ui-component-builder, design-audit, visual-qa). Start here for any design task.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/design-system/SKILL.md
+    sha256: 9234d84337bdbef317187ba34388db8392e6f8f9fcaf26f9c9eaf6cca9742833
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: dispatcher-core
+    description: "Cross-tool workflow primitive. Executes a declared sequence of steps that chain Linear, Gmail, Calendar, Margot, Composio, or any registered MCP tool. State persisted to .harness/dispatcher_state.json so kill-switch + crashes don't lose progress."
+    owner_role: Dispatcher
+    status: wave-1
+    path: skills/dispatcher-core/SKILL.md
+    sha256: febba7bc3d6c89628deee7677597583ea2f6870bba082c66c80268b630c7450e
+    dependencies:
+      tools: []
+      skills:
+        - skill.linear-comment-draft
+        - skill.telegram-draft-for-review
+    safety:
+      requires_kill_switch: true
+      requires_hitl_gate: true
+      pii_handling: pass-through
+  - id: email-listener
+    description: "Convert inbound Gmail messages into Pi-CEO sessions via webhook \u2192 intent-parser \u2192 orchestrator. Closes the \"no email-triggered session creation\" gap. Use this when Phill wants Pi-CEO to act on emails \u2014 replies, ticket creation, research dispatch \u2014 without him CC-ing it manually."
+    owner_role: Chief of Staff
+    status: wave-2
+    path: skills/email-listener/SKILL.md
+    sha256: f9c5afea7ff3d0ead13b1979cdc20f79ec45c88d6f79bc9709f2dd1be4f09152
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: true
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: hooks-system
+    description: Lifecycle hooks for agent observability and safety.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/hooks-system/SKILL.md
+    sha256: ff405e7f93bfd1c5126eac4b929ea3da1110d24647ac1ca4ac5c98a0d77b54d6
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+  - id: intent-parser
+    description: Classify an inbound Telegram message into one of six intent types so the Chief of Staff can route to the right role. Use this on every Telegram message that lands in Pi-CEO before any routing decision.
+    owner_role: Chief of Staff
+    status: wave-1
+    path: skills/intent-parser/SKILL.md
+    sha256: 67eee7dc2c06c7144e37e673f0d4ac817ab433837261c67c12df0c50d4e52b60
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: true
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: kill-switch-binding
+    description: Telegram /panic command + dashboard kill button. Halts every role (CoS, Margot bridge, Scribe sends, Dispatcher mid-flow, Curator) within one cycle. Two-of-N + 2FA enforcement on dashboard side; Telegram side trusts only the configured operator chat_id. Closes the kill-switch safety control.
+    owner_role: Chief of Staff (entry point) + Guardian (enforcer)
+    status: wave-3
+    path: skills/kill-switch-binding/SKILL.md
+    sha256: f1f5072b761c40a8649a29e8b585fca3ce46fac75ef42bc6f91a989b558e7d13
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: true
+      requires_hitl_gate: true
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: leverage-audit
+    description: 12 Leverage Points diagnostic for agent autonomy — with explicit scoring rubrics and ROI guidance.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/leverage-audit/SKILL.md
+    sha256: c31e7f38d8dd66a94e857704de1f9a805b9025af660f46bd17813679df77c2bc
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: maintenance-manager
+    description: Senior Maintenance Manager (15+ years production systems). Evaluates dependency freshness, technical debt severity, upgrade paths, observability coverage, and produces a maintenance calendar with prioritised debt items and SLA recommendations.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/maintenance-manager/SKILL.md
+    sha256: cdb51543216d02092a6b2ff7aaf581a022e0771fafb928abad74d7bac7315ac1
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: margot-bridge
+    description: "Bridge from Pi-CEO orchestrator to Margot's standalone Gemini-powered research MCP server at ~/.margot/. Use when intent is research-shaped (deep_research / deep_research_max) or image-gen, or when corpus diagnostic is needed. Margot is owned separately; this skill never modifies her source."
+    owner_role: Margot
+    status: wave-1
+    path: skills/margot-bridge/SKILL.md
+    sha256: 6e90e8e74d3b84e93f7ddfd6abf2345ad58d64c749e7bb9fcbf0fa551b65d948
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: true
+      requires_hitl_gate: false
+      pii_handling: redacts
+    inferred: true
+    low_confidence: true
+  - id: marketing-analytics-attribution
+    description: "Designs the UTM scheme, attribution model, and KPI dashboard for a campaign \u2014 before launch, not after. Use when a brief asks for \"UTM\", \"tracking\", \"attribution\", \"analytics\", \"dashboard\", \"KPI\", \"ROI\", \"measurement plan\". Outputs a UTM-builder spec, an attribution-model decision, a per-channel KPI dashboard structure, and a retro template. Composes with marketing-channel-strategist (per-channel UTM tags) and marketing-launch-runbook (gate at T-7)."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/marketing-analytics-attribution/SKILL.md
+    sha256: 089e61cd40341d3188a620532ab674ea3dba4f74f5b3f1fdacdb87ee0193c8f3
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: marketing-campaign-planner
+    description: "Designs an end-to-end marketing campaign \u2014 objectives, audience, channels, creative concept, timeline, budget, success metrics \u2014 for any portfolio or customer brand. Use when a brief asks for a \"campaign\", \"marketing plan\", \"promo\", \"GTM motion\", or \"launch plan\" beyond a single artifact. Triggered by marketing-orchestrator wave 1 or directly by name. Produces a structured Campaign Plan markdown + JSON consumed by every downstream marketing skill."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/marketing-campaign-planner/SKILL.md
+    sha256: cc58e5c3c000d2deb5856e8152d18d599a55c8a5c87b8abfeac2233abde28700
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: marketing-channel-strategist
+    description: "Selects the channel mix and per-channel cadence for a campaign \u2014 LinkedIn, YouTube, X, email, paid ads, SEO, partnerships, podcasts, communities. Use when a brief asks \"what channel\", \"where should we post\", \"channel strategy\", \"cadence\", or upstream of any content production. Reads BrandConfig.defaultChannel and ICP watering-holes; outputs a per-channel spec consumed by copywriter, social-content, copywriter, and remotion-orchestrator (channel sets aspect ratio / duration)."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/marketing-channel-strategist/SKILL.md
+    sha256: aabb63c24344cb6f543057430fa0f246366437ef81afa014bc8d6807d01c4ebc
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: marketing-copywriter
+    description: "Writes long-form marketing copy \u2014 landing pages, blog posts, email sequences, ad copy, sales-page sections \u2014 strictly aligned to BrandConfig voice, positioning hierarchy, and ICP vocabulary. Use when a brief asks for \"landing page\", \"blog post\", \"email sequence\", \"ad copy\", \"sales copy\", \"long-form copy\". Reads positioning + ICP + channel-plan; never writes blind. Composes with marketing-seo-researcher (keywords) and remotion-orchestrator (CTA video assets)."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/marketing-copywriter/SKILL.md
+    sha256: 131e082990382a0c41b55db4b316ec861fb33ef7600b945d11403bafcb686ead
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: marketing-icp-research
+    description: "Builds an Ideal Customer Profile (ICP) \u2014 firmographics, role, pains, triggers, vocabulary, watering holes, decision process \u2014 for a brand or feature. Use when a brief asks for \"ICP\", \"target audience\", \"buyer persona\", \"customer research\", \"user research\", or before any campaign / copy / channel work. Reads BrandConfig.audience as the seed; outputs structured ICP consumed by copywriter, channel-strategist, seo-researcher."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/marketing-icp-research/SKILL.md
+    sha256: e85bafc57e1979abed524447961b18e67cb8e2c8c93a3e4d7918dac7f929ef06
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: marketing-launch-runbook
+    description: "Builds a T-30 to T+30 product-launch runbook with a per-day timeline, owners, asset dependencies, gate checks, contingencies, and post-launch attribution. Use when a brief mentions \"launch\", \"GTM\", \"go-to-market\", \"ship a product\", \"release campaign\", \"launch playbook\". Reads campaign-plan + positioning + channel-plan + all content artifacts; calls remotion-orchestrator for launch-day video assets. Outputs the single source of truth that orchestrates every other skill on the calendar."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/marketing-launch-runbook/SKILL.md
+    sha256: 425d7d050c3faac387bbeb1ea16596cb3378e168af26a99aae57fd07ab56ab97
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: marketing-orchestrator
+    description: "ENTRY POINT for the Marketing Skills Package. Use the moment a brief mentions \"marketing skills package\", \"marketing package\", \"use marketing\", \"campaign\", \"launch\", \"positioning\", \"go-to-market\", \"GTM\", \"marketing strategy\", \"marketing plan\", or asks to produce marketing assets (landing page, ad creative, blog post, email sequence, launch runbook, social content) for one of the portfolio brands (DR, NRPG, RestoreAssist/RA, CARSI, CCW, Synthex, Unite) or any customer brand. Globally available at ~/.claude/skills/marketing-* (symlinked to /Users/phill-mac/Pi-CEO/Pi-Dev-Ops/skills/marketing-*). Reads the brief, classifies (campaign type, brand, audience, channel mix, budget, timeline), emits a wave-plan JSON, dispatches sub-skills in topological order. Composes with the Remotion Skills Package \u2014 calls remotion-orchestrator for any video output."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/marketing-orchestrator/SKILL.md
+    sha256: d10394678ae3d9818f0e3c37f02feab8f980fa30b0ed515cd32727394b0bec47
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: marketing-positioning
+    description: "Develops value proposition, competitive positioning, and Jobs-to-be-Done articulation for a brand or feature. Use when a brief asks for \"positioning\", \"value prop\", \"messaging\", \"JTBD\", \"competitive analysis\", \"category creation\", or before any landing page or campaign starts. Reads the brand's existing voice and audience from BrandConfig; produces positioning artifacts every downstream copywriter / strategist skill consumes."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/marketing-positioning/SKILL.md
+    sha256: 948b113ea12fede9470433a78a501a0408f7343c957ef5aee0b09386e8af4f98
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: marketing-seo-researcher
+    description: "Performs keyword research, search-intent classification, SERP analysis, and content-gap discovery for a brand or topic cluster. Use when a brief asks for \"SEO\", \"keywords\", \"search intent\", \"SERP\", \"content gap\", \"ranking strategy\", or upstream of any blog / landing-page work that targets organic search. Outputs a structured SEO brief consumed by copywriter and channel-strategist."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/marketing-seo-researcher/SKILL.md
+    sha256: 9a02cb5596ae76526044f0d9710dacd49f1d6069ea9733507048fe9bb1069a34
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: marketing-social-content
+    description: "Writes short-form social content \u2014 LinkedIn posts, X/Twitter threads, Instagram captions, TikTok hooks \u2014 and dispatches video shorts to remotion-orchestrator. Use when a brief asks for \"social post\", \"LinkedIn post\", \"thread\", \"tweet\", \"Reels caption\", \"social campaign\", \"social calendar\". Reads positioning + ICP vocabulary + channel-plan; cross-pack composes with remotion-orchestrator for any video output."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/marketing-social-content/SKILL.md
+    sha256: bd7a93086e91b198bb3f743ec5e6895dc06c87932a3668ac449cdae3b23b8721
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: meta-curator
+    description: Skill self-authoring agent. Reads .harness/lessons.jsonl (weekly) and merged-PR diffs (daily), proposes new SKILL.md drafts via the existing skill-creator skill, and surfaces them through Scribe → telegram-draft-for-review for user 👍 before adding to the registry.
+    owner_role: Curator
+    status: wave-3
+    path: skills/meta-curator/SKILL.md
+    sha256: f337c6b458705615ff1684f647f4cc2dad11363af6be1e42ad8bdc547dae81ef
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: true
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: pi-dev-linear-contract
+    description: ""
+    owner_role: (unset)
+    status: (unset)
+    path: skills/pi-dev-linear-contract/SKILL.md
+    sha256: 23529dd86915e648b1219ccd948174889ca830c0ae1f3dc81bc2a00062a31795
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: pi-integration
+    description: Bridge TAO to pi-mono runtime for multi-provider support.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/pi-integration/SKILL.md
+    sha256: 19daf275bd94bc2bff29c7767ecb29ee62f6204d4f104000818a74c4533f5aff
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+  - id: pi-seo-health-monitor
+    description: Portfolio health trend analyst for Pi-SEO. Reads scan history from .harness/scan-results/, detects regressions and sustained degradation, identifies cross-repo systemic issues, computes portfolio health score, and generates alert digests.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/pi-seo-health-monitor/SKILL.md
+    sha256: 3ee74b6355451ade6b2c3f9eb5aa4045606be6ddba83d04341951e70f8cb0bda
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: pi-seo-remediation
+    description: Remediation advisor for Pi-SEO findings that cannot be auto-fixed. Produces per-finding remediation cards with tier classification, step-by-step fix instructions, before/after code examples, verification commands, and effort estimates.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/pi-seo-remediation/SKILL.md
+    sha256: 88e0b58365fb3338b35bfbb18c40a2f31e346e6dac9c83400bc617eeb648abe2
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: pi-seo-scanner
+    description: Scan interpretation specialist for Pi-SEO findings. Applies blast-radius scoring to prioritise findings, detects false positives, classifies into fix-now/schedule/suppress/investigate buckets, and recommends scan config changes per project.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/pi-seo-scanner/SKILL.md
+    sha256: 57e533791f36e9703f448af2c1705489e86b0d9035a30779fd00c530eadd1bca
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: pii-redactor
+    description: Detect and redact personally identifiable information from any payload before it enters logs, prompts, or outbound messages. ≥95% precision, ≤5% false-positive rate. Non-negotiable in front of every Scribe send and every email-listener intake. Closes Hermes Sprint 1 SWARM-005 requirement.
+    owner_role: Scribe (binds in front of every send)
+    status: wave-2
+    path: skills/pii-redactor/SKILL.md
+    sha256: 827ddc9d02c6c0dbcb6c3a59be78edbf065758d1332b2e64c4386bbe6a2769aa
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: true
+      pii_handling: redacts
+    inferred: true
+    low_confidence: true
+  - id: piter-framework
+    description: 5-pillar AFK agent setup - Prompt, Intent, Trigger, Environment, Review.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/piter-framework/SKILL.md
+    sha256: 5887cbe8df7f0c6236455d2013720bf24e1cd5fede41618e7e9fe17517176b04
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+  - id: product-manager
+    description: Senior Product Manager Engineer (15+ years SaaS delivery). Audits feature completeness vs advertised capabilities, identifies user journey gaps, evaluates documentation quality, and produces a prioritised product backlog aligned with business outcomes.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/product-manager/SKILL.md
+    sha256: 771456c9fa061247f6024ad79f44a0dee21a8dc79b426ea15f3b181b7afd17b1
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: remotion-brand-codify
+    description: "Converts a BrandResearch dossier into a typed BrandConfig TypeScript file at remotion-studio/src/brands/{slug}.ts. Triggered after remotion-brand-research, or when the user pastes brand assets and says \"codify\". PRs are auto-merge:false \u2014 a human reviews before merge."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/remotion-brand-codify/SKILL.md
+    sha256: 2e96f8473694c816bd29970483caeb4b65fe5443e9678d27f9317df48d7bb108
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: remotion-brand-research
+    description: "Researches a portfolio company's visual identity from public sources (homepage, about page, marketing copy, GitHub README) and produces a structured BrandResearch dossier. Triggered when `remotion-studio/src/brands/{slug}.ts` is missing, older than 90 days, or the user explicitly says \"refresh brand for {brand}\". Output feeds remotion-brand-codify."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/remotion-brand-research/SKILL.md
+    sha256: 44eedbb71e9a077e56a0eb6ef26db8d06b4df8de910914c849109ecc74be44ce
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: remotion-colour-family
+    description: Generates a complete, accessible palette (primary, secondary, accent, 4-step neutral, semantic, and dark variant) from one to three hex anchors plus a colour-family classification. Validates WCAG-AA contrast for all text-on-background pairs. Triggered when a BrandConfig has fewer than 5 defined colours or contrast fails.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/remotion-colour-family/SKILL.md
+    sha256: 76ab56a352799ed6224d6c50df5056935aa2a3c7e78f3476a51185b4761122b9
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: remotion-composition-builder
+    description: Authors or extends a Remotion composition (.tsx) wired to BrandConfig + Storyboard + layout spec + motion. The actual builder skill — runs as Sonnet 4.7 worker. Triggered after brand, storyboard, designer, and motion-language outputs are ready. Produces the file under remotion-studio/src/compositions/ and registers it in src/Root.tsx.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/remotion-composition-builder/SKILL.md
+    sha256: 394b2376db662ff814a258632bd0cbea959dd1d2b5fa6cebf47101dee433b1fb
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: remotion-designer
+    description: Visual-design specialist for Remotion compositions. Sets layout grid, typography hierarchy, white-space, scene framing, and visual rhythm for a given composition + brand. Triggered after remotion-composition-builder for QA, or upfront when authoring a new composition type. Produces a layout spec consumed by remotion-composition-builder.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/remotion-designer/SKILL.md
+    sha256: 6471c224d198be6dfeb05f78def0bd1fb2c34db16aa2c5b19bdd78e6690b42d9
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: remotion-marketing-strategist
+    description: "Tunes a video's format and message for the target channel \u2014 LinkedIn, YouTube, Instagram Reel, internal training. Sets aspect ratio, total duration, hook timing, CTA timing, and pacing. Triggered when the brief mentions a specific channel or campaign goal. Output feeds remotion-screen-storyteller and remotion-composition-builder."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/remotion-marketing-strategist/SKILL.md
+    sha256: cecdee32fbc420ccbe6438fe8ee3ea21f730322b7c40c5d39faa44237f02c8cc
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: remotion-motion-language
+    description: Designs a brand-specific motion vocabulary — easing curves, default scene durations, signature entry/exit, transition frames. Each brand gets one signature move (rise / sweep / pulse / iris / whip) that recurs across compositions to build motion-recognition. Triggered when BrandConfig.motion is empty.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/remotion-motion-language/SKILL.md
+    sha256: f532e4247f9bd215dfd981b4a698e9b2cae5de9b6ed7cf6befed7fd1b8f92df3
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: remotion-orchestrator
+    description: "ENTRY POINT for the Remotion Skills Package. Use the moment a brief mentions \"remotion skills package\", \"remotion package\", \"use remotion\", or any of the video keywords \u2014 video, explainer, ad, promo, reel, intro, social cut, 60s/30s/15s spot, or any rendered marketing/training video for one of the portfolio brands (DR, NRPG, RestoreAssist/RA, CARSI, CCW) or for a customer brand. Globally available across every project under /Users/phill-mac/. Reads the brief, classifies intent (composition type, brand, channel, duration), emits a wave-plan JSON, and dispatches the right sub-skills in topological order. Always invoked first."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/remotion-orchestrator/SKILL.md
+    sha256: a1abc40e03d06e5523f78d9d93721cd87bc24687b086f116454e9ab97afb5104
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: remotion-render-pipeline
+    description: Final step. Synthesises ElevenLabs voiceover for each scene, runs `npx tsx render/render.ts` to produce an MP4, validates duration / codec / resolution / size, uploads to Supabase storage, ships the result via Telegram, and opens a Linear ticket. Triggered after remotion-composition-builder reports ready. Failure modes (timeout, hang, type error) escalate to Linear.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/remotion-render-pipeline/SKILL.md
+    sha256: 0a48d795f5567815c8862bddf69c361ffe7150207093f85415ee1c25fed639ad
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: remotion-screen-storyteller
+    description: Writes the on-screen script for a video — scene-by-scene voiceover, on-screen text, b-roll callouts, and CTA. Triggered when the brief is a goal or topic but lacks scene structure. Produces a Storyboard JSON consumed by remotion-composition-builder and remotion-render-pipeline (for ElevenLabs voiceover synthesis).
+    owner_role: (unset)
+    status: (unset)
+    path: skills/remotion-screen-storyteller/SKILL.md
+    sha256: 14fe82b010c46e6aa5fa5e31612ad2bec11e4b6857f04aab105acd69a2863e3e
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: scheduled-tasks
+    description: Guidelines for writing reliable scheduled task prompts via the Claude scheduled-tasks MCP.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/scheduled-tasks/SKILL.md
+    sha256: 63150928acfa13ce3f176b85f14efde4d009c310484800e524ab7514ae22e7e0
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: security
+    description: Security patterns and anti-patterns for the Pi-Dev-Ops codebase — path traversal, HMAC webhooks, secrets hygiene, timing-safe comparisons, autonomous permission grants.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/security/SKILL.md
+    sha256: d874bf0ed42390bf3f81ff1d6f7c8d3e8a7a1b2e5d08d836da249208ba09b3a3
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: security-audit
+    description: Senior Security Officer (15+ years white/black hat experience). Deep-audits codebases for OWASP Top 10, supply-chain risks, secrets exposure, auth flaws, injection vectors, CSP misconfigs, and weak crypto. Produces a prioritised CVE-style finding report with CVSS scores and remediation steps.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/security-audit/SKILL.md
+    sha256: d15d6fe125700f671b5d3fc12c53aaabbec6c1c1cf9ddf21563bd6bbf9eee23a
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: ship-chain
+    description: Ship Chain orchestrator. Routes /spec /plan /build /test /review /ship commands to the correct pipeline phase, enforces gate requirements between phases, and validates artifact completeness before allowing progression.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/ship-chain/SKILL.md
+    sha256: dc58719b5662bdd263cd33a2023e7af4d0622b566e7c7b7c576436ea15727d27
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: ship-release
+    description: Release gatekeeper. Validates all pipeline phases are complete, enforces the review score ≥ 8/10 hard gate, documents the ship event, and updates the Linear ticket to Done. Produces a ship-log.json.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/ship-release/SKILL.md
+    sha256: 32276c701e689d0a9d9eefa3cf9bd84bcd807644a54dbddf01a41977f5b23f4b
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: tao-skills
+    description: Master index of all 31 TAO skills.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/tao-skills/SKILL.md
+    sha256: 138a685bd29c019d12d1f8364f2401df8dca972b1e3fc1ea4bffb295efe2bc09
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: technical-plan
+    description: "Technical planner. Reads a spec.md and produces a concrete implementation plan: files to change, approach, effort sizing, dependency order, risk flags, and test plan stub. Output is a plan.md ready for the /build phase."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/technical-plan/SKILL.md
+    sha256: 269257831923f91a9c2749a9c79fddd0e710ae3a5af7dd364180320c1f766f7c
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: telegram-draft-for-review
+    description: Draft an outbound Telegram message and gate it behind a human reaction (👍 send, ❌ revise) before any actual send happens. Sits in front of swarm/telegram_alerts.py for human-addressed messages. Required path for every Scribe outbound.
+    owner_role: Scribe (CoS shares)
+    status: wave-1
+    path: skills/telegram-draft-for-review/SKILL.md
+    sha256: 4240eef47782b80b2dceac7ad7e7cf2babe97d699af0c5203f0b48bccdf06072
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: true
+      requires_hitl_gate: true
+      pii_handling: redacts
+    inferred: true
+    low_confidence: true
+  - id: tier-architect
+    description: Design tier configurations - which models for which roles.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/tier-architect/SKILL.md
+    sha256: deea753af7536d007896906a82f812789965999289e3699907818038dd69294d
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+  - id: tier-evaluator
+    description: QA agent that grades output against explicit acceptance criteria. Skeptical by default. Blocks on failure.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/tier-evaluator/SKILL.md
+    sha256: a54766853d945d7cae3be3c7c1f1a164788a68e206256c5c4b77d84aa7fe0208
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: tier-orchestrator
+    description: The orchestrator plans, decomposes briefs, and delegates to lower tiers.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/tier-orchestrator/SKILL.md
+    sha256: 86ec91e295330404c6091c52800e9655327c1000339de2364aa96251706d31d1
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+  - id: tier-worker
+    description: Workers execute discrete, well-scoped tasks quickly.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/tier-worker/SKILL.md
+    sha256: 4a814af39501d5e4ed7af6fe3f1c2a758f60fb0d83d5b4e55f9465a52ab500cc
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+  - id: token-budgeter
+    description: Track and enforce token budgets per tier.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/token-budgeter/SKILL.md
+    sha256: d278b5f41734bde8d85c7b739e0e98c0723ca022c262afb2d7c57b92f664f89c
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+  - id: ui-component-builder
+    description: Senior-level UI implementation skill. Generates multi-variant React/Tailwind components grounded in DESIGN.md, applies taste-skill quality constraints (banning AI-default slop), and uses 21st.dev Magic patterns for component discovery and generation.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/ui-component-builder/SKILL.md
+    sha256: 95a7c32e161fa3ec103723414dceda0f160b5aedb14495184b8be9bc369d2785
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: ui-ux-pro-max
+    description: Full-stack design workflow skill. Orchestrates all four design layers (intelligence, build, audit, visual-qa) end-to-end with maximum quality settings. Use for ambitious UI work — new pages, design system extensions, and design sprints.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/ui-ux-pro-max/SKILL.md
+    sha256: 200489cd31fb9f24f28bfd487df777b9eaa567097e1c9be5ab09532f985c8562
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: verify-test
+    description: Test verifier. Interprets smoke test and CI results, classifies pass/fail, detects flaky tests and coverage regressions, and produces a structured verdict with a recommendation for the /review gate.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/verify-test/SKILL.md
+    sha256: e2f67c4e7801e123de7ce47db8fea275a841b75f6042f45a96f2f3280c6978d3
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: visual-qa
+    description: Playwright-powered visual testing skill. Captures screenshots at multiple breakpoints and colour schemes, runs visual regression tests, validates design implementation against DESIGN.md, and generates baseline snapshots for CI.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/visual-qa/SKILL.md
+    sha256: 5b08f1959a867caf7fff4836c9f97ec8524df27553dcbf9ef487d672904708b1
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: zte-maturity
+    description: Zero Touch Engineering maturity model — 4-level assessment with explicit scoring criteria per dimension.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/zte-maturity/SKILL.md
+    sha256: d22110bbc66373511fb838365b8fc3af2580d2955220b87ddceaef23f106d7c4
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true

@@ -10,6 +10,7 @@ import BuildForm from "@/components/control/BuildForm";
 import RoutineTable from "@/components/control/RoutineTable";
 import ActiveBuildStrip from "@/components/control/ActiveBuildStrip";
 import LiveActivityFeed from "@/components/control/LiveActivityFeed";
+import CuratorProposalsPanel from "@/components/control/CuratorProposalsPanel";
 
 export default function ControlPage() {
   return (
@@ -63,6 +64,11 @@ export default function ControlPage() {
               </div>
             </div>
           </section>
+
+          {/* Panel 5 — RA-1839 Curator proposals (spans both columns) */}
+          <div className="md:col-span-2">
+            <CuratorProposalsPanel />
+          </div>
         </div>
       </div>
     </div>

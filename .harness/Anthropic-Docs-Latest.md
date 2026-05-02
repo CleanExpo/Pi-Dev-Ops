@@ -1,9 +1,9 @@
 # Anthropic Docs — Latest Snapshot
-**Generated:** 2026-04-14T13:41:42Z
-**Source files:** 9 files in .harness/anthropic-docs/
+**Generated:** 2026-05-02T02:00:58Z
+**Source files:** 59 files in .harness/anthropic-docs/
 
 ## What Changed Since Last Snapshot
-**Line changes:** +1284 / -444 lines across all files
+**Line changes:** +1304 / -444 lines across all files
 
 ## New SDK Features & MCP Updates
 - )</script><div class="max-lg:contents lg:flex lg:w-full" data-docs-theme="mint"><div class="max-lg:contents lg:flex-1 lg:min-w-0 lg:overflow-x-clip"><div id="na
@@ -35,9 +35,59 @@
 2. Model availability has changed — update `.harness/config.yaml` default model references if newer Claude versions are now preferred.
 
 ## Full Document Index
-- `2026-04-13/claude-code-overview.md` — 2026-04-13 02:06 UTC — Claude Code Overview (snapshot: 2026-04-13)
-- `2026-04-13/api-overview.md` — 2026-04-13 02:06 UTC — Api Overview (snapshot: 2026-04-13)
-- `2026-04-13/release-notes-overview.md` — 2026-04-13 02:06 UTC — Release Notes Overview (snapshot: 2026-04-13)
+- `2026-05-02/claude-code-overview.md` — 2026-05-02 02:00 UTC — Claude Code Overview (snapshot: 2026-05-02)
+- `2026-05-02/api-overview.md` — 2026-05-02 02:00 UTC — Api Overview (snapshot: 2026-05-02)
+- `2026-05-02/release-notes-overview.md` — 2026-05-02 02:00 UTC — Release Notes Overview (snapshot: 2026-05-02)
+- `2026-05-01/claude-code-overview.md` — 2026-05-01 02:00 UTC — Claude Code Overview (snapshot: 2026-05-01)
+- `2026-05-01/api-overview.md` — 2026-05-01 02:00 UTC — Api Overview (snapshot: 2026-05-01)
+- `2026-05-01/release-notes-overview.md` — 2026-05-01 02:00 UTC — Release Notes Overview (snapshot: 2026-05-01)
+- `2026-04-30/claude-code-overview.md` — 2026-04-30 02:00 UTC — Claude Code Overview (snapshot: 2026-04-30)
+- `2026-04-30/api-overview.md` — 2026-04-30 02:00 UTC — Api Overview (snapshot: 2026-04-30)
+- `2026-04-30/release-notes-overview.md` — 2026-04-30 02:00 UTC — Release Notes Overview (snapshot: 2026-04-30)
+- `2026-04-29/claude-code-overview.md` — 2026-04-29 23:58 UTC — Claude Code Overview (snapshot: 2026-04-29)
+- `2026-04-29/api-overview.md` — 2026-04-29 23:58 UTC — Api Overview (snapshot: 2026-04-29)
+- `2026-04-29/release-notes-overview.md` — 2026-04-29 23:58 UTC — Release Notes Overview (snapshot: 2026-04-29)
+- `2026-04-28/claude-code-overview.md` — 2026-04-28 02:00 UTC — Claude Code Overview (snapshot: 2026-04-28)
+- `2026-04-28/api-overview.md` — 2026-04-28 02:00 UTC — Api Overview (snapshot: 2026-04-28)
+- `2026-04-28/release-notes-overview.md` — 2026-04-28 02:00 UTC — Release Notes Overview (snapshot: 2026-04-28)
+- `2026-04-27/claude-code-overview.md` — 2026-04-27 17:09 UTC — Claude Code Overview (snapshot: 2026-04-27)
+- `2026-04-27/api-overview.md` — 2026-04-27 17:09 UTC — Api Overview (snapshot: 2026-04-27)
+- `2026-04-27/release-notes-overview.md` — 2026-04-27 17:09 UTC — Release Notes Overview (snapshot: 2026-04-27)
+- `2026-04-26/claude-code-overview.md` — 2026-04-26 02:00 UTC — Claude Code Overview (snapshot: 2026-04-26)
+- `2026-04-26/api-overview.md` — 2026-04-26 02:00 UTC — Api Overview (snapshot: 2026-04-26)
+- `2026-04-26/release-notes-overview.md` — 2026-04-26 02:00 UTC — Release Notes Overview (snapshot: 2026-04-26)
+- `2026-04-25/claude-code-overview.md` — 2026-04-25 02:00 UTC — Claude Code Overview (snapshot: 2026-04-25)
+- `2026-04-25/api-overview.md` — 2026-04-25 02:00 UTC — Api Overview (snapshot: 2026-04-25)
+- `2026-04-25/release-notes-overview.md` — 2026-04-25 02:00 UTC — Release Notes Overview (snapshot: 2026-04-25)
+- `2026-04-24/claude-code-overview.md` — 2026-04-24 20:46 UTC — Claude Code Overview (snapshot: 2026-04-24)
+- `2026-04-24/api-overview.md` — 2026-04-24 20:46 UTC — Api Overview (snapshot: 2026-04-24)
+- `2026-04-24/release-notes-overview.md` — 2026-04-24 20:46 UTC — Release Notes Overview (snapshot: 2026-04-24)
+- `2026-04-23/claude-code-overview.md` — 2026-04-23 02:00 UTC — Claude Code Overview (snapshot: 2026-04-23)
+- `2026-04-23/api-overview.md` — 2026-04-23 02:00 UTC — Api Overview (snapshot: 2026-04-23)
+- `2026-04-23/release-notes-overview.md` — 2026-04-23 02:00 UTC — Release Notes Overview (snapshot: 2026-04-23)
+- `2026-04-22/claude-code-overview.md` — 2026-04-22 02:00 UTC — Claude Code Overview (snapshot: 2026-04-22)
+- `2026-04-22/api-overview.md` — 2026-04-22 02:00 UTC — Api Overview (snapshot: 2026-04-22)
+- `2026-04-22/release-notes-overview.md` — 2026-04-22 02:00 UTC — Release Notes Overview (snapshot: 2026-04-22)
+- `2026-04-21/claude-code-overview.md` — 2026-04-21 02:00 UTC — Claude Code Overview (snapshot: 2026-04-21)
+- `2026-04-21/api-overview.md` — 2026-04-21 02:00 UTC — Api Overview (snapshot: 2026-04-21)
+- `2026-04-21/release-notes-overview.md` — 2026-04-21 02:00 UTC — Release Notes Overview (snapshot: 2026-04-21)
+- `2026-04-20/claude-code-overview.md` — 2026-04-20 02:00 UTC — Claude Code Overview (snapshot: 2026-04-20)
+- `2026-04-20/api-overview.md` — 2026-04-20 02:00 UTC — Api Overview (snapshot: 2026-04-20)
+- `2026-04-20/release-notes-overview.md` — 2026-04-20 02:00 UTC — Release Notes Overview (snapshot: 2026-04-20)
+- `2026-04-20-research/10-claude-opus-4-7.md` — 2026-04-19 19:50 UTC — 10 Claude Opus 4 7 (snapshot: 2026-04-20-research)
+- `2026-04-20-research/09-skilljar-anthropic-api-course.md` — 2026-04-19 19:50 UTC — 09 Skilljar Anthropic Api Course (snapshot: 2026-04-20-research)
+- `2026-04-20-research/08-claude-design-anthropic-labs.md` — 2026-04-19 19:50 UTC — 08 Claude Design Anthropic Labs (snapshot: 2026-04-20-research)
+- `2026-04-20-research/07-harness-design-long-running-apps.md` — 2026-04-19 19:49 UTC — 07 Harness Design Long Running Apps (snapshot: 2026-04-20-research)
+- `2026-04-20-research/06-claude-code-product.md` — 2026-04-19 19:49 UTC — 06 Claude Code Product (snapshot: 2026-04-20-research)
+- `2026-04-20-research/05-anthropic-cli.md` — 2026-04-19 19:49 UTC — 05 Anthropic Cli (snapshot: 2026-04-20-research)
+- `2026-04-20-research/04-code-execution-with-mcp.md` — 2026-04-19 19:48 UTC — 04 Code Execution With Mcp (snapshot: 2026-04-20-research)
+- `2026-04-20-research/03-remote-mcp-servers.md` — 2026-04-19 19:48 UTC — 03 Remote Mcp Servers (snapshot: 2026-04-20-research)
+- `2026-04-20-research/02-mcp-announcement.md` — 2026-04-19 19:48 UTC — 02 Mcp Announcement (snapshot: 2026-04-20-research)
+- `2026-04-20-research/01-agent-skills.md` — 2026-04-19 19:48 UTC — 01 Agent Skills (snapshot: 2026-04-20-research)
+- `2026-04-20-research/INDEX.md` — 2026-04-19 19:47 UTC — Index (snapshot: 2026-04-20-research)
+- `2026-04-19/claude-code-overview.md` — 2026-04-19 07:09 UTC — Claude Code Overview (snapshot: 2026-04-19)
+- `2026-04-19/api-overview.md` — 2026-04-19 07:09 UTC — Api Overview (snapshot: 2026-04-19)
+- `2026-04-19/release-notes-overview.md` — 2026-04-19 07:09 UTC — Release Notes Overview (snapshot: 2026-04-19)
 - `tool-use.md` — 2026-04-12 20:57 UTC — Tool Use
 - `models-overview.md` — 2026-04-12 20:57 UTC — Models Overview
 - `mcp-overview.md` — 2026-04-12 20:57 UTC — Mcp Overview

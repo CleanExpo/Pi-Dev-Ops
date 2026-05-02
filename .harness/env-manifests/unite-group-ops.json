@@ -1,0 +1,99 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-05-02T08:38:29Z",
+  "vercel_team": "unite-group",
+  "vercel_project_name": "unite-group-ops",
+  "project_slug": "unite-group-ops",
+  "repo": "CleanExpo/Unite-Group",
+  "vars": [
+    {
+      "name": "ANTHROPIC_API_KEY",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "blocker"
+    },
+    {
+      "name": "CIN7_API_KEY",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "CIN7_USERNAME",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "GITHUB_TOKEN",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "LINEAR_API_KEY",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "LINEAR_TEAM",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "SUPABASE_MGMT_TOKEN",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "SUPABASE_TRACKED_PROJECTS",
+      "target": "production",
+      "category": "database",
+      "criticality": "blocker"
+    },
+    {
+      "name": "UGO_SUPABASE_SERVICE_KEY",
+      "target": "production",
+      "category": "database",
+      "criticality": "blocker"
+    },
+    {
+      "name": "UGO_SUPABASE_URL",
+      "target": "production",
+      "category": "database",
+      "criticality": "blocker"
+    },
+    {
+      "name": "VERCEL_TEAM_ID",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "skip"
+    },
+    {
+      "name": "VERCEL_TOKEN",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "skip"
+    }
+  ],
+  "skipped": [
+    "DASHBOARD_PASSWORD",
+    "TAO_PASSWORD",
+    "PI_CEO_PASSWORD",
+    "CCW_ACCESS_PASSWORD",
+    "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_CHAT_ID",
+    "TELEGRAM_WEBHOOK_SECRET",
+    "PLAUSIBLE_*",
+    "POSTHOG_*",
+    "NEXT_PUBLIC_*",
+    "VERCEL_TOKEN",
+    "VERCEL_TEAM_ID",
+    "VERCEL_GIT_*",
+    "_DEPLOY_HOOK_*"
+  ],
+  "notes": "Generated 2026-05-02 from `vercel env ls production` against unite-group/unite-group-ops. Auto-classified by criticality + category. Operator review required before first Sandcastle run against this project."
+}

@@ -1,8 +1,10 @@
 // components/control/SwarmPanel.tsx — Panel 1: swarm state + autonomous PR progress (RA-1092)
+// RA-1839 — Kill-switch panel embedded after the PR progress block.
 "use client";
 
 import { useEffect, useState } from "react";
 import ProgressRing from "./ProgressRing";
+import KillSwitchPanel from "./KillSwitchPanel";
 
 interface SwarmStatus {
   state: "SHADOW" | "ACTIVE" | "RATE_LIMITED" | "OFF";
@@ -143,6 +145,10 @@ export default function SwarmPanel() {
           </p>
         )}
 
+        {/* RA-1839 — Kill-switch must mount independently of swarm-status fetch
+            so the operator can halt even when /api/autonomy/status is down. */}
+        {!loading && (error || !data) && <KillSwitchPanel />}
+
         {data && !loading && (
           <>
             {/* Progress rings row */}
@@ -198,6 +204,9 @@ export default function SwarmPanel() {
                 </span>
               )}
             </div>
+
+            {/* RA-1839 — Kill-switch status + Halt/Resume controls */}
+            <KillSwitchPanel />
           </>
         )}
       </div>

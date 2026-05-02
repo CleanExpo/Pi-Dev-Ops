@@ -1,0 +1,79 @@
+flow:
+  name: file-ticket-from-telegram
+  description: |
+    Canonical ticket-intent flow.
+      Telegram inbound → intent-parser classifies → if intent=ticket
+      and confidence ≥ 0.6, create the Linear issue, then route a
+      confirmation draft through the HITL review gate.
+
+    Wires intent_router + linear_tools + draft_review into one
+    declarative spec. This is what CoS dispatches when a Telegram
+    message classifies as `ticket`.
+  trigger: telegram_command
+  trigger_config:
+    command: /file
+  context_schema:
+    - name: message_text
+      type: string
+      required: true
+    - name: original_chat_id
+      type: string
+      required: true
+    - name: original_message_id
+      type: string
+      required: false
+    - name: default_team
+      type: string
+      default: RA
+    - name: default_project
+      type: string
+      default: Pi - Dev -Ops
+    - name: default_priority
+      type: int
+      default: 3
+  tool_allowlist:
+    - skill.intent-parser
+    - mcp.linear.save_issue
+    - skill.telegram-draft-for-review
+  max_runtime_minutes: 3
+  steps:
+    - id: classify
+      tool: skill.intent-parser
+      args:
+        message_text: "{{ctx.message_text}}"
+        chat_id: "{{ctx.original_chat_id}}"
+        message_id: "{{ctx.original_message_id}}"
+      on_error: abort
+    # Wave 3 add-on: a `when` condition would let us skip create+draft
+    # if classify.output.intent != "ticket". For now the flow trusts the
+    # caller (CoS) to only invoke this flow on ticket intents.
+    - id: create_issue
+      tool: mcp.linear.save_issue
+      args:
+        team: "{{ctx.default_team}}"
+        project: "{{ctx.default_project}}"
+        title: "{{classify.output.fields.title_hint}}"
+        description: |
+          Auto-filed via Pi-CEO file-ticket-from-telegram flow.
+
+          Source message: {{ctx.message_text}}
+          Originating chat: {{ctx.original_chat_id}}
+          Classified at: {{utc_now}}
+        priority: "{{ctx.default_priority}}"
+      depends_on: [classify]
+      on_error: abort
+    - id: draft_confirmation
+      tool: skill.telegram-draft-for-review
+      args:
+        draft_text: |
+          📝 Filed: {{create_issue.output.identifier}}
+          Title: {{create_issue.output.title}}
+          Priority: {{create_issue.output.priority}}
+          Link: {{create_issue.output.url}}
+
+          React 👍 to send this confirmation to your chat.
+        destination_chat_id: "{{ctx.original_chat_id}}"
+        drafted_by_role: Dispatcher
+        originating_intent_id: "{{ctx.original_message_id}}"
+      depends_on: [create_issue]
+      on_error: log_and_continue

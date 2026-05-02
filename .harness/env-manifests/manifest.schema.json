@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Pi-CEO Vercel Env Manifest",
+  "description": "Per-project env-var manifest. Stores NAMES + targets only — never values. Used by sandcastle-runner skill to inject secrets into Sandcastle sandboxes at launch time without writing values to disk in Pi-CEO.",
+  "type": "object",
+  "required": ["version", "vercel_team", "vercel_project_name", "project_slug", "vars", "skipped"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "vercel_team": {
+      "type": "string",
+      "examples": ["unite-group"]
+    },
+    "vercel_project_name": {
+      "type": "string"
+    },
+    "vercel_project_id": {
+      "type": "string",
+      "pattern": "^prj_[A-Za-z0-9]+$"
+    },
+    "project_slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Slug matching .harness/projects.json id"
+    },
+    "repo": {
+      "type": "string",
+      "examples": ["CleanExpo/RestoreAssist"]
+    },
+    "vars": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "target", "category", "criticality"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$"
+          },
+          "target": {
+            "type": "string",
+            "enum": ["production", "preview", "development"]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "ai-provider",
+              "database",
+              "payments",
+              "observability",
+              "analytics",
+              "client-public",
+              "dashboard-only",
+              "telegram-only",
+              "unknown"
+            ]
+          },
+          "criticality": {
+            "type": "string",
+            "enum": ["blocker", "degraded", "optional", "skip"],
+            "description": "blocker = halt all in-flight runs on auth-failure; degraded = continue + alert; optional = silent fallback; skip = never injected"
+          }
+        }
+      }
+    },
+    "skipped": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "Glob patterns or exact names that are NEVER injected"
+      }
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}

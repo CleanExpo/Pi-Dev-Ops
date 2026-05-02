@@ -1,0 +1,82 @@
+{"ts": "2026-05-01T10:39:28.824851+00:00", "type": "flow_start", "flow_id": "bc19452375d3", "name": "research-and-summarise", "dry_run": true}
+{"ts": "2026-05-01T10:39:28.825081+00:00", "type": "step_start", "flow_id": "bc19452375d3", "step_id": "classify", "tool": "skill.intent-parser"}
+{"ts": "2026-05-01T10:39:28.825126+00:00", "type": "step_complete", "flow_id": "bc19452375d3", "step_id": "classify", "dry_run": true}
+{"ts": "2026-05-01T10:39:28.825294+00:00", "type": "step_start", "flow_id": "bc19452375d3", "step_id": "draft", "tool": "skill.telegram-draft-for-review"}
+{"ts": "2026-05-01T10:39:28.825327+00:00", "type": "step_complete", "flow_id": "bc19452375d3", "step_id": "draft", "dry_run": true}
+{"ts": "2026-05-01T10:39:28.825468+00:00", "type": "flow_end", "flow_id": "bc19452375d3", "status": "completed"}
+{"ts": "2026-05-01T10:39:28.825696+00:00", "type": "flow_start", "flow_id": "5a3499047606", "name": "research-and-summarise", "dry_run": false}
+{"ts": "2026-05-01T10:39:28.825845+00:00", "type": "step_start", "flow_id": "5a3499047606", "step_id": "classify", "tool": "skill.intent-parser"}
+{"ts": "2026-05-01T10:39:28.826018+00:00", "type": "step_complete", "flow_id": "5a3499047606", "step_id": "classify"}
+{"ts": "2026-05-01T10:39:28.826165+00:00", "type": "step_start", "flow_id": "5a3499047606", "step_id": "draft", "tool": "skill.telegram-draft-for-review"}
+{"ts": "2026-05-01T10:39:28.826207+00:00", "type": "draft_posted", "draft_id": "17ec228b023b", "drafted_by_role": "Dispatcher", "destination_chat_id": "smoke-chat"}
+{"ts": "2026-05-01T10:39:28.826532+00:00", "type": "step_complete", "flow_id": "5a3499047606", "step_id": "draft"}
+{"ts": "2026-05-01T10:39:28.826672+00:00", "type": "flow_end", "flow_id": "5a3499047606", "status": "completed"}
+{"ts": "2026-05-01T11:00:33.309341+00:00", "type": "flow_start", "flow_id": "74edd03b4b74", "name": "morning-briefing", "dry_run": true}
+{"ts": "2026-05-01T11:00:33.309550+00:00", "type": "step_start", "flow_id": "74edd03b4b74", "step_id": "classify", "tool": "skill.intent-parser"}
+{"ts": "2026-05-01T11:00:33.309588+00:00", "type": "step_complete", "flow_id": "74edd03b4b74", "step_id": "classify", "dry_run": true}
+{"ts": "2026-05-01T11:00:33.309750+00:00", "type": "step_start", "flow_id": "74edd03b4b74", "step_id": "draft", "tool": "skill.telegram-draft-for-review"}
+{"ts": "2026-05-01T11:00:33.309782+00:00", "type": "step_complete", "flow_id": "74edd03b4b74", "step_id": "draft", "dry_run": true}
+{"ts": "2026-05-01T11:00:33.309925+00:00", "type": "flow_end", "flow_id": "74edd03b4b74", "status": "completed"}
+{"ts": "2026-05-01T11:12:54.235395+00:00", "type": "flow_start", "flow_id": "7304256ee491", "name": "test-linear-ticket", "dry_run": true}
+{"ts": "2026-05-01T11:12:54.235645+00:00", "type": "step_start", "flow_id": "7304256ee491", "step_id": "list_open", "tool": "mcp.linear.list_issues"}
+{"ts": "2026-05-01T11:12:54.235692+00:00", "type": "step_complete", "flow_id": "7304256ee491", "step_id": "list_open", "dry_run": true}
+{"ts": "2026-05-01T11:12:54.235903+00:00", "type": "step_start", "flow_id": "7304256ee491", "step_id": "create_ticket", "tool": "mcp.linear.save_issue"}
+{"ts": "2026-05-01T11:12:54.235946+00:00", "type": "step_complete", "flow_id": "7304256ee491", "step_id": "create_ticket", "dry_run": true}
+{"ts": "2026-05-01T11:12:54.236085+00:00", "type": "step_start", "flow_id": "7304256ee491", "step_id": "comment", "tool": "mcp.linear.save_comment"}
+{"ts": "2026-05-01T11:12:54.236116+00:00", "type": "step_complete", "flow_id": "7304256ee491", "step_id": "comment", "dry_run": true}
+{"ts": "2026-05-01T11:12:54.236249+00:00", "type": "flow_end", "flow_id": "7304256ee491", "status": "completed"}
+{"ts": "2026-05-01T11:13:12.634663+00:00", "type": "flow_start", "flow_id": "7a943e2e1bf1", "name": "test-linear-ticket", "dry_run": false}
+{"ts": "2026-05-01T11:13:12.634898+00:00", "type": "step_start", "flow_id": "7a943e2e1bf1", "step_id": "list_open", "tool": "mcp.linear.list_issues"}
+{"ts": "2026-05-01T11:13:13.104773+00:00", "type": "step_complete", "flow_id": "7a943e2e1bf1", "step_id": "list_open"}
+{"ts": "2026-05-01T11:13:13.105649+00:00", "type": "step_start", "flow_id": "7a943e2e1bf1", "step_id": "create_ticket", "tool": "mcp.linear.save_issue"}
+{"ts": "2026-05-01T11:13:13.553065+00:00", "type": "step_complete", "flow_id": "7a943e2e1bf1", "step_id": "create_ticket"}
+{"ts": "2026-05-01T11:13:13.553917+00:00", "type": "step_start", "flow_id": "7a943e2e1bf1", "step_id": "comment", "tool": "mcp.linear.save_comment"}
+{"ts": "2026-05-01T11:13:14.594674+00:00", "type": "step_complete", "flow_id": "7a943e2e1bf1", "step_id": "comment"}
+{"ts": "2026-05-01T11:13:14.595961+00:00", "type": "flow_end", "flow_id": "7a943e2e1bf1", "status": "completed"}
+{"ts": "2026-05-01T11:16:41.267522+00:00", "type": "flow_start", "flow_id": "67816c3c53b9", "name": "file-ticket-from-telegram", "dry_run": true}
+{"ts": "2026-05-01T11:16:41.267768+00:00", "type": "step_start", "flow_id": "67816c3c53b9", "step_id": "classify", "tool": "skill.intent-parser"}
+{"ts": "2026-05-01T11:16:41.267813+00:00", "type": "step_complete", "flow_id": "67816c3c53b9", "step_id": "classify", "dry_run": true}
+{"ts": "2026-05-01T11:16:41.268259+00:00", "type": "step_start", "flow_id": "67816c3c53b9", "step_id": "create_issue", "tool": "mcp.linear.save_issue"}
+{"ts": "2026-05-01T11:16:41.268543+00:00", "type": "step_complete", "flow_id": "67816c3c53b9", "step_id": "create_issue", "dry_run": true}
+{"ts": "2026-05-01T11:16:41.269024+00:00", "type": "step_start", "flow_id": "67816c3c53b9", "step_id": "draft_confirmation", "tool": "skill.telegram-draft-for-review"}
+{"ts": "2026-05-01T11:16:41.269091+00:00", "type": "step_complete", "flow_id": "67816c3c53b9", "step_id": "draft_confirmation", "dry_run": true}
+{"ts": "2026-05-01T11:16:41.269347+00:00", "type": "flow_end", "flow_id": "67816c3c53b9", "status": "completed"}
+{"ts": "2026-05-01T11:16:41.269415+00:00", "type": "flow_start", "actor_role": "Dispatcher", "flow_id": "smoke-f1", "fields": {"name": "test-flow"}}
+{"ts": "2026-05-01T11:16:41.269546+00:00", "type": "step_start", "actor_role": "Dispatcher", "flow_id": "smoke-f1", "step_id": "s1", "fields": {"tool": "mcp.linear.save_issue"}}
+{"ts": "2026-05-01T11:16:41.269629+00:00", "type": "draft_posted", "actor_role": "Scribe", "draft_id": "smoke-d1", "fields": {"draft_text": "A short message under 32 chars"}}
+{"ts": "2026-05-01T11:16:41.269698+00:00", "type": "step_complete", "actor_role": "Dispatcher", "flow_id": "smoke-f1", "step_id": "s1", "fields": {"output_summary": "A long message that crosses the redactor boundary A long message that crosses the redactor boundary A long message that crosses the redactor boundary A long message that crosses the redactor boundary A long message that crosses the redactor boundary "}}
+{"ts": "2026-05-01T11:16:41.269824+00:00", "type": "draft_posted", "actor_role": "Scribe", "draft_id": "smoke-d2", "fields": {"draft_text": "Charge card [CARD-REDACTED] to email [EMAIL-REDACTED] please"}}
+{"ts": "2026-05-01T11:21:07.125047+00:00", "type": "kill_switch_triggered", "actor_role": "CoS", "fields": {"trigger_source": "telegram_panic", "reason": "smoke test", "approvers": [], "action": "engaged", "loop_guard_locked": false}}
+{"ts": "2026-05-01T11:21:07.125586+00:00", "type": "kill_switch_resumed", "actor_role": "CoS", "fields": {"trigger_source": "telegram_resume", "reason": "smoke clear", "action": "resumed", "had_escalation_lock": false}}
+{"ts": "2026-05-01T11:21:07.125928+00:00", "type": "kill_switch_triggered", "actor_role": "CoS", "fields": {"trigger_source": "telegram_panic", "reason": "flap-0", "approvers": [], "action": "engaged", "loop_guard_locked": false}}
+{"ts": "2026-05-01T11:21:07.126141+00:00", "type": "kill_switch_triggered", "actor_role": "CoS", "fields": {"trigger_source": "telegram_panic", "reason": "flap-1", "approvers": [], "action": "already_engaged", "loop_guard_locked": false}}
+{"ts": "2026-05-01T11:21:07.126332+00:00", "type": "kill_switch_triggered", "actor_role": "CoS", "fields": {"trigger_source": "telegram_panic", "reason": "flap-2", "approvers": [], "action": "already_engaged", "loop_guard_locked": false}}
+{"ts": "2026-05-01T11:21:07.126527+00:00", "type": "kill_switch_triggered", "actor_role": "CoS", "fields": {"trigger_source": "telegram_panic", "reason": "flap-3", "approvers": [], "action": "already_engaged", "loop_guard_locked": false}}
+{"ts": "2026-05-01T11:21:07.126759+00:00", "type": "kill_switch_triggered", "actor_role": "CoS", "fields": {"trigger_source": "telegram_panic", "reason": "flap-4", "approvers": [], "action": "already_engaged", "loop_guard_locked": true}}
+{"ts": "2026-05-01T11:21:07.126936+00:00", "type": "kill_switch_resumed", "actor_role": "CoS", "fields": {"trigger_source": "telegram_resume_confirm", "reason": "manual review complete", "action": "resumed", "had_escalation_lock": true}}
+{"ts": "2026-05-01T11:21:07.127232+00:00", "type": "kill_switch_triggered", "actor_role": "Dashboard", "fields": {"trigger_source": "dashboard_2fa", "reason": "incident-X", "approvers": ["alice", "bob"], "action": "engaged", "loop_guard_locked": true}}
+{"ts": "2026-05-01T11:21:07.127414+00:00", "type": "kill_switch_resumed", "actor_role": "CoS", "fields": {"trigger_source": "telegram_resume_confirm", "reason": "post-smoke clean", "action": "resumed", "had_escalation_lock": true}}
+{"ts": "2026-05-01T11:22:44.189623+00:00", "type": "draft_posted", "actor_role": "Curator", "draft_id": "ba744da79197", "fields": {"destination_chat_id": "smoke-curator"}}
+{"ts": "2026-05-01T11:22:44.190420+00:00", "type": "curator_proposal", "actor_role": "Curator", "fields": {"cluster_id": "d1f35f203d897ef3", "proposed_skill_name": "curator-prisma-migration-restoreassist", "evidence_count": 4}}
+{"ts": "2026-05-01T11:22:44.192277+00:00", "type": "draft_posted", "actor_role": "Curator", "draft_id": "4ff4debd916a", "fields": {"destination_chat_id": "smoke-curator"}}
+{"ts": "2026-05-01T11:22:44.192711+00:00", "type": "curator_proposal", "actor_role": "Curator", "fields": {"cluster_id": "d1f35f203d897ef3", "proposed_skill_name": "curator-prisma-migration-restoreassist", "evidence_count": 4}}
+{"ts": "2026-05-01T11:22:44.193219+00:00", "type": "draft_posted", "actor_role": "Curator", "draft_id": "a24dd907fe53", "fields": {"destination_chat_id": "smoke-curator"}}
+{"ts": "2026-05-01T11:22:44.193656+00:00", "type": "curator_proposal", "actor_role": "Curator", "fields": {"cluster_id": "d1f35f203d897ef3", "proposed_skill_name": "curator-prisma-migration-restoreassist", "evidence_count": 4}}
+{"ts": "2026-05-01T11:23:09.469318+00:00", "type": "flow_start", "actor_role": "Dispatcher", "flow_id": "f7f202578448", "fields": {"name": "file-ticket-from-telegram", "dry_run": true}}
+{"ts": "2026-05-01T11:23:09.469674+00:00", "type": "step_start", "actor_role": "Dispatcher", "flow_id": "f7f202578448", "step_id": "classify", "fields": {"tool": "skill.intent-parser"}}
+{"ts": "2026-05-01T11:23:09.469772+00:00", "type": "step_complete", "actor_role": "Dispatcher", "flow_id": "f7f202578448", "step_id": "classify", "fields": {"dry_run": true}}
+{"ts": "2026-05-01T11:23:09.470153+00:00", "type": "step_start", "actor_role": "Dispatcher", "flow_id": "f7f202578448", "step_id": "create_issue", "fields": {"tool": "mcp.linear.save_issue"}}
+{"ts": "2026-05-01T11:23:09.470249+00:00", "type": "step_complete", "actor_role": "Dispatcher", "flow_id": "f7f202578448", "step_id": "create_issue", "fields": {"dry_run": true}}
+{"ts": "2026-05-01T11:23:09.470543+00:00", "type": "step_start", "actor_role": "Dispatcher", "flow_id": "f7f202578448", "step_id": "draft_confirmation", "fields": {"tool": "skill.telegram-draft-for-review"}}
+{"ts": "2026-05-01T11:23:09.470625+00:00", "type": "step_complete", "actor_role": "Dispatcher", "flow_id": "f7f202578448", "step_id": "draft_confirmation", "fields": {"dry_run": true}}
+{"ts": "2026-05-01T11:23:09.470901+00:00", "type": "flow_end", "actor_role": "Dispatcher", "flow_id": "f7f202578448", "fields": {"status": "completed"}}
+{"ts": "2026-05-01T11:23:28.581079+00:00", "type": "draft_posted", "actor_role": "Curator", "draft_id": "post-migration-smoke", "fields": {"destination_chat_id": "0"}}
+{"ts": "2026-05-02T06:43:16.893185+00:00", "type": "draft_posted", "actor_role": "Scribe", "draft_id": "0fe89ddeb5da", "fields": {"destination_chat_id": "STUB-CHAT"}}
+{"ts": "2026-05-02T06:43:16.894217+00:00", "type": "draft_posted", "actor_role": "Scribe", "draft_id": "09ed0940d873", "fields": {"destination_chat_id": "STUB-CHAT"}}
+{"ts": "2026-05-02T06:52:20.450524+00:00", "type": "draft_posted", "actor_role": "Curator", "draft_id": "ed730b86f019", "fields": {"destination_chat_id": "smoke-curator"}}
+{"ts": "2026-05-02T06:52:20.451343+00:00", "type": "curator_proposal", "actor_role": "Curator", "fields": {"cluster_id": "a6b47bbf6f9f8053", "proposed_skill_name": "curator-smoke-cluster-synthetic-repo", "evidence_count": 5}}
+{"ts": "2026-05-02T06:52:20.452094+00:00", "type": "draft_posted", "actor_role": "Curator", "draft_id": "55982ac6531e", "fields": {"destination_chat_id": "smoke-curator"}}
+{"ts": "2026-05-02T06:52:20.452631+00:00", "type": "curator_proposal", "actor_role": "Curator", "fields": {"cluster_id": "a6b47bbf6f9f8053", "proposed_skill_name": "curator-smoke-cluster-synthetic-repo", "evidence_count": 5}}
+{"ts": "2026-05-02T07:15:24.895581+00:00", "type": "cfo_invoice_approved", "actor_role": "CFO", "fields": {"business_id": "pi-dev-ops", "amount_usd": 500, "vendor": "GitHub Inc.", "status": "approved"}}
+{"ts": "2026-05-02T07:15:24.898712+00:00", "type": "draft_posted", "actor_role": "CFO", "draft_id": "46b62d1b3858", "fields": {"destination_chat_id": "review"}}
+{"ts": "2026-05-02T07:15:24.899238+00:00", "type": "cfo_spend_blocked", "actor_role": "CFO", "draft_id": "46b62d1b3858", "fields": {"business_id": "restoreassist", "amount_usd": 5000, "vendor": "OpenAI Inc.", "status": "pending"}}

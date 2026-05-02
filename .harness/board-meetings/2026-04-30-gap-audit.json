@@ -1,0 +1,81 @@
+{
+  "critical": [
+    {
+      "severity": "critical",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The two test files present (test_auth.py, test_webhook.py) are pure unit tests covering auth and webhook signature verification only. There are zero E2E or integration tests that exercise the full build pipeline — session creation, evaluator invocation, or the git-push phase. No test_sessions.py, test_evaluator.py, or test_pipeline.py exists in the provided source.",
+      "file": "tests/",
+      "recommendation": "Add integration tests in tests/test_pipeline_e2e.py that mock the SDK client and exercise the session create → evaluate → push flow end-to-end, then update the spec claim to reflect actual coverage scope.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "The provided route.ts file is truncated mid-function (cuts off inside triggerBuild()). No command-routing/dispatch logic is visible — there is no if/switch block parsing text starting with '/start', '/help', or '/build'. The helper functions (triggerBuild, getPiCeoStatus) exist but whether they are wired to named slash commands cannot be confirmed from the available code.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Read the full file to locate the POST handler's message dispatcher and confirm /start, /help, and /build branches exist; if absent, add explicit command routing before the catch-all AI delegation path.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "scripts/smoke_test.py requires a live running server (--url / --target=prod) and is invoked manually; it is not part of the pytest suite under tests/ and will not run in CI unless explicitly called. The CI pipeline runs 'python -m pytest tests/ -x -q' which never executes the smoke test, meaning the '22-check' coverage is invisible to automated gates.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Either add a pytest wrapper in tests/ that calls the smoke test against a locally-started test server, or explicitly document in the spec that the 22-check suite is a manual post-deploy gate, not part of automated CI coverage.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "CLAUDE.md states 'Expected: 3 pre-existing failures in test_sdk_phase2.py (claude_agent_sdk not installed locally)' — meaning the SDK integration tests are known-broken in the standard test environment. A test suite with acknowledged failing tests cannot be marked Complete for E2E coverage.",
+      "file": "tests/test_sdk_phase2.py",
+      "recommendation": "Either fix the test environment so claude_agent_sdk is available and all tests pass, or mark those tests as xfail with a documented reason and remove the 'Complete' claim from the spec until they pass.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The evaluator path (_run_single_eval via SDK) and the push phase (_phase_push — the git clone, diff, and pidev/auto-{sid} branch push) have no corresponding test coverage in any of the provided test files. These are the two highest-risk stages in the pipeline per the CLAUDE.md hardwired lessons.",
+      "file": "app/server/routes/sessions.py",
+      "recommendation": "Add tests/test_evaluator.py and tests/test_phase_push.py using unittest.mock.AsyncMock to patch claude_agent_sdk.query and subprocess git calls, covering happy path and failure modes for both phases.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "No /start or /help handler function exists in the visible portion of the file; unlike /build which has a backing triggerBuild() helper, /start and /help have no dedicated helpers, making it likely they are either unimplemented or handled only by the generic Claude AI delegation path rather than returning structured command responses.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Add explicit /start (welcome + command list) and /help (usage text) branches in the POST handler's command dispatcher before delegating to the AI path.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "scripts/smoke_test.py is truncated in the provided source (the _req helper is cut off mid-function), so the actual number of checks cannot be verified from source. The '22-check' claim in the spec is unverifiable against the code as provided.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Verify the full smoke_test.py actually contains 22 distinct assertions and add a comment block listing them by name at the top of the file so future audits can confirm the count without reading the full script.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 7,
+    "critical_count": 1,
+    "high_count": 4,
+    "low_count": 2,
+    "duration_s": 256.8,
+    "audited_at": "2026-04-30T05:07:40.334708+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": [
+      "RA-1825",
+      "RA-1826",
+      "RA-1827",
+      "RA-1828",
+      "RA-1829"
+    ]
+  }
+}

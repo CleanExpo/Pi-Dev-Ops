@@ -5,8 +5,53 @@ Contains:
     _fire_board_meeting_trigger()   — full board meeting + Telegram summary
     _fire_scout_trigger()           — Scout Agent + Telegram summary (RA-684)
     _fire_feedback_trigger()        — outcome feedback loop + Telegram summary (RA-689)
+    _fire_meta_curator_trigger()    — meta-curator scan + propose (RA-1839)
 """
 import asyncio
+
+
+async def _fire_meta_curator_trigger(trigger: dict, log) -> None:
+    """RA-1839 — Run meta-curator scan for the configured source, post HITL drafts.
+
+    Trigger fields:
+      * ``source`` (str): "lessons" | "prs" | "both" (default "both")
+      * Other standard schedule fields (hour, minute, weekday, ...)
+
+    Output is a curator_proposal audit row per cluster + draft posted to
+    REVIEW_CHAT_ID via draft_review. No Telegram summary here — every
+    draft already lands in the review chat individually.
+    """
+    log.info("Firing meta_curator trigger id=%s source=%s",
+             trigger.get("id"), trigger.get("source", "both"))
+
+    source = (trigger.get("source") or "both").lower()
+    loop = asyncio.get_event_loop()
+
+    def _run() -> dict:
+        # Import inside the executor — keeps the swarm package optional
+        # at module load time and lets the cron module fail gracefully
+        # if Pi-Dev-Ops is checked out without `swarm/`.
+        from swarm import meta_curator
+        if source == "lessons":
+            clusters = meta_curator.scan_lessons()
+        elif source == "prs":
+            clusters = meta_curator.scan_pr_diffs(since_days=1)
+        else:
+            clusters = (meta_curator.scan_lessons() +
+                        meta_curator.scan_pr_diffs(since_days=1))
+        results = [meta_curator.propose_from_cluster(c) for c in clusters]
+        return {"clusters": len(clusters), "results": results}
+
+    try:
+        out = await loop.run_in_executor(None, _run)
+        proposed = sum(1 for r in out["results"] if r.get("status") == "pending")
+        log.info(
+            "meta_curator id=%s clusters=%d proposed=%d",
+            trigger.get("id"), out["clusters"], proposed,
+        )
+    except Exception as exc:  # noqa: BLE001 — never raise from cron path
+        log.warning("meta_curator trigger id=%s failed: %s",
+                    trigger.get("id"), exc)
 
 
 async def _fire_board_meeting_trigger(trigger: dict, log) -> None:

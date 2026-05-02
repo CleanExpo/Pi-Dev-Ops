@@ -1,0 +1,111 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-05-02T08:38:29Z",
+  "vercel_team": "unite-group",
+  "vercel_project_name": "carsi-web",
+  "project_slug": "carsi-web",
+  "repo": "CleanExpo/CARSI",
+  "vars": [
+    {
+      "name": "CCW_ACCESS_PASSWORD",
+      "target": "production",
+      "category": "dashboard-only",
+      "criticality": "skip"
+    },
+    {
+      "name": "CRON_SECRET",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "GOOGLE_CLIENT_ID",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "GOOGLE_CLIENT_SECRET",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "NEXT_PUBLIC_API_URL",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NEXT_PUBLIC_BACKEND_URL",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NEXT_PUBLIC_FRONTEND_URL",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NEXT_PUBLIC_GA_MEASUREMENT_ID",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NEXT_PUBLIC_SUPABASE_URL",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "STRIPE_SECRET_KEY",
+      "target": "production",
+      "category": "payments",
+      "criticality": "blocker"
+    },
+    {
+      "name": "STRIPE_WEBHOOK_SECRET",
+      "target": "production",
+      "category": "payments",
+      "criticality": "blocker"
+    },
+    {
+      "name": "WEBHOOK_SECRET",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    }
+  ],
+  "skipped": [
+    "DASHBOARD_PASSWORD",
+    "TAO_PASSWORD",
+    "PI_CEO_PASSWORD",
+    "CCW_ACCESS_PASSWORD",
+    "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_CHAT_ID",
+    "TELEGRAM_WEBHOOK_SECRET",
+    "PLAUSIBLE_*",
+    "POSTHOG_*",
+    "NEXT_PUBLIC_*",
+    "VERCEL_TOKEN",
+    "VERCEL_TEAM_ID",
+    "VERCEL_GIT_*",
+    "_DEPLOY_HOOK_*"
+  ],
+  "notes": "Generated 2026-05-02 from `vercel env ls production` against unite-group/carsi-web. Auto-classified by criticality + category. Operator review required before first Sandcastle run against this project."
+}

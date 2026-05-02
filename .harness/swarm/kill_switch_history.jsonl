@@ -1,0 +1,10 @@
+{"ts": "2026-05-01T11:21:07.124816+00:00", "event": "trigger", "source": "telegram_panic", "reason": "smoke test", "approvers": [], "action": "engaged", "loop_guard_locked": false}
+{"ts": "2026-05-01T11:21:07.125529+00:00", "event": "resume", "source": "telegram_resume", "reason": "smoke clear", "action": "resumed", "had_escalation_lock": false}
+{"ts": "2026-05-01T11:21:07.125877+00:00", "event": "trigger", "source": "telegram_panic", "reason": "flap-0", "approvers": [], "action": "engaged", "loop_guard_locked": false}
+{"ts": "2026-05-01T11:21:07.126091+00:00", "event": "trigger", "source": "telegram_panic", "reason": "flap-1", "approvers": [], "action": "already_engaged", "loop_guard_locked": false}
+{"ts": "2026-05-01T11:21:07.126290+00:00", "event": "trigger", "source": "telegram_panic", "reason": "flap-2", "approvers": [], "action": "already_engaged", "loop_guard_locked": false}
+{"ts": "2026-05-01T11:21:07.126484+00:00", "event": "trigger", "source": "telegram_panic", "reason": "flap-3", "approvers": [], "action": "already_engaged", "loop_guard_locked": false}
+{"ts": "2026-05-01T11:21:07.126722+00:00", "event": "trigger", "source": "telegram_panic", "reason": "flap-4", "approvers": [], "action": "already_engaged", "loop_guard_locked": true}
+{"ts": "2026-05-01T11:21:07.126907+00:00", "event": "resume", "source": "telegram_resume_confirm", "reason": "manual review complete", "action": "resumed", "had_escalation_lock": true}
+{"ts": "2026-05-01T11:21:07.127194+00:00", "event": "trigger", "source": "dashboard_2fa", "reason": "incident-X", "approvers": ["alice", "bob"], "action": "engaged", "loop_guard_locked": true}
+{"ts": "2026-05-01T11:21:07.127384+00:00", "event": "resume", "source": "telegram_resume_confirm", "reason": "post-smoke clean", "action": "resumed", "had_escalation_lock": true}

@@ -10,30 +10,18 @@
 // should be expected to type. Set DASHBOARD_PASSWORD in Vercel env to whatever
 // password you want to use on the login screen.
 //
-// DEV-AUTH LOCK-IN: If the env var starts with "op://", it's an unresolved
-// 1Password CLI reference (the Vercel CLI creates these by default when you run
-// `vercel env pull`). In that case we fall back to a dev password in non-production
-// so local dev isn't blocked. In production, we refuse to authenticate and return
-// a clear 503 with remediation steps.
-function resolvePassword(): { value: string; dev: boolean } {
-  // .trim() — Vercel stores env vars with trailing \n on save in some flows,
-  // which makes string comparison silently fail with a 401 even though the
-  // user typed the right password. See CLAUDE.md "API key env hygiene".
-  const raw = (process.env.DASHBOARD_PASSWORD || process.env.PI_CEO_PASSWORD || "").trim();
-  const isUnresolvedOpRef = raw.startsWith("op://");
-  if (!raw || isUnresolvedOpRef) {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn(
-        `[auth] DASHBOARD_PASSWORD ${isUnresolvedOpRef ? "is an unresolved 1Password ref" : "is unset"}. Falling back to dev password "dev". Set DASHBOARD_PASSWORD=<plaintext> in .env.local to override.`,
-      );
-      return { value: "dev", dev: true };
-    }
-    return { value: "", dev: false };
-  }
-  return { value: raw, dev: false };
-}
+// Secret resolution lives in lib/auth-secret.ts so proxy.ts (cookie verifier)
+// and this route (cookie signer) stay in sync. Diverging logic caused a
+// redirect loop in local dev — the cookie was signed with one secret and
+// the proxy validated with a different one. Edit there to change behaviour.
+import { resolvePassword } from "@/lib/auth-secret";
 
-const { value: DASHBOARD_PASSWORD, dev: isDevMode } = resolvePassword();
+const { value: DASHBOARD_PASSWORD, dev: isDevMode, reason: secretReason } = resolvePassword();
+if (isDevMode) {
+  console.warn(
+    `[auth] DASHBOARD_PASSWORD ${secretReason === "unresolved-1password" ? "is an unresolved 1Password ref" : "is unset"}. Falling back to dev password "dev". Set DASHBOARD_PASSWORD=<plaintext> in .env.local to override.`,
+  );
+}
 const SESSION_TTL_SECONDS = 86_400; // 24 hours
 const COOKIE_NAME = "pi_session";
 

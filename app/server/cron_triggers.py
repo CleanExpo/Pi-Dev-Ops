@@ -19,6 +19,7 @@ import time
 from .cron_fire_agents import (
     _fire_board_meeting_trigger,
     _fire_feedback_trigger,
+    _fire_meta_curator_trigger,
     _fire_scout_trigger,
 )
 
@@ -194,6 +195,8 @@ async def _fire_trigger(trigger: dict, log) -> None:
         await _fire_scout_trigger(trigger, log)
     elif trigger_type == "feedback_loop":                      # RA-689
         await _fire_feedback_trigger(trigger, log)
+    elif trigger_type == "meta_curator":                       # RA-1839
+        await _fire_meta_curator_trigger(trigger, log)
     else:
         await create_session(
             repo_url=trigger["repo_url"],

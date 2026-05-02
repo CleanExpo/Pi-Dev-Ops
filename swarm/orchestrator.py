@@ -55,12 +55,23 @@ log = logging.getLogger("swarm.orchestrator")
 
 
 def _check_kill_switch() -> bool:
-    """Re-read TAO_SWARM_ENABLED from environment on every cycle.
+    """Re-read TAO_SWARM_ENABLED + .harness/swarm/kill_switch.flag every cycle.
 
     Returns True if the swarm should continue running.
+
+    RA-1839 — file-flag added so /panic from Telegram halts the running
+    process even though env vars don't propagate to live subprocesses.
     """
     import os
-    return os.environ.get("TAO_SWARM_ENABLED", "0") == "1"
+    if os.environ.get("TAO_SWARM_ENABLED", "0") != "1":
+        return False
+    try:
+        from . import kill_switch
+        if kill_switch.is_active():
+            return False
+    except Exception:
+        pass
+    return True
 
 
 def _load_state(state_file: Path) -> dict:
@@ -125,7 +136,7 @@ def _should_send_daily_report(last_report_ts: str | None) -> bool:
 def run() -> None:
     """Main orchestrator loop — runs until killed or kill-switch fires."""
     from . import config
-    from .bots import guardian, builder, scribe, click
+    from .bots import guardian, builder, scribe, click, chief_of_staff, cfo
     from .telegram_alerts import send, send_daily_report
 
     if not config.SWARM_ENABLED:
@@ -211,6 +222,23 @@ def run() -> None:
         builder.run_cycle(state["unacked_count"])
         click.run_cycle(state["unacked_count"])
         scribe.run_cycle(state["unacked_count"])
+
+        # ── RA-1839 — Chief of Staff: poll Telegram for non-/ack messages,
+        # classify via intent_router, route to specialist roles via
+        # draft_review (HITL gate). Self-gates on TAO_SWARM_ENABLED + SHADOW.
+        try:
+            chief_of_staff.run_cycle(state["unacked_count"])
+        except Exception as exc:  # noqa: BLE001 - never let CoS crash the loop
+            log.warning("CoS cycle failed (continuing): %s", exc)
+
+        # ── RA-1850 — CFO: financial visibility across the 11 businesses.
+        # Computes burn / NRR / GM / runway from a pluggable metrics provider
+        # (Stripe + Xero MCP in prod; empty by default until Wave 4.1b wires).
+        # Self-gates on TAO_SWARM_ENABLED + kill-switch.
+        try:
+            cfo.run_cycle(state["unacked_count"], state=state)
+        except Exception as exc:  # noqa: BLE001 - never let CFO crash the loop
+            log.warning("CFO cycle failed (continuing): %s", exc)
 
         # ── Daily report ─────────────────────────────────────────────────────
         if _should_send_daily_report(state.get("last_daily_report")):

@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentskills.io/schemas/v1/manifest.schema.json",
+  "title": "agentskills.io Manifest v1",
+  "type": "object",
+  "required": [
+    "manifest_version",
+    "package",
+    "skills"
+  ],
+  "properties": {
+    "manifest_version": {
+      "const": 1
+    },
+    "package": {
+      "type": "object",
+      "required": [
+        "name",
+        "version",
+        "generated_at",
+        "source"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "source": {
+          "type": "string"
+        }
+      }
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "description",
+          "owner_role",
+          "status",
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "owner_role": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "dependencies": {
+            "type": "object",
+            "properties": {
+              "tools": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "skills": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "safety": {
+            "type": "object",
+            "properties": {
+              "requires_kill_switch": {
+                "type": "boolean"
+              },
+              "requires_hitl_gate": {
+                "type": "boolean"
+              },
+              "pii_handling": {
+                "enum": [
+                  "pass-through",
+                  "redacts",
+                  "tokenizes"
+                ]
+              }
+            }
+          },
+          "inferred": {
+            "type": "boolean"
+          },
+          "low_confidence": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}
