@@ -78,6 +78,8 @@ _VALID_TYPES: set[str] = {
     "board_hitl_requested",
     "board_session_complete",
     "board_directive_consumed",
+    # Margot personal-assistant (RA-1868 Wave 5.1)
+    "margot_turn_complete", "margot_turn_failed",
 }
 
 # Fields we never redact (safe-by-construction)
