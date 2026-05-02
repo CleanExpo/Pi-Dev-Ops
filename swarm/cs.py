@@ -187,25 +187,41 @@ def detect_breaches(curr: CsMetrics,
             note=f"GRR {curr.grr_pct:.0%} < {ALERT_GRR_PCT:.0%} — "
                  f"retention drift.",
         ))
-    if curr.avg_first_response_minutes > CRITICAL_FIRST_RESPONSE_MINUTES:
+    # Per-business SLA — first clients (e.g. CCW) get tighter thresholds
+    # via swarm.client_priority. Standard portfolio uses module defaults.
+    try:
+        from . import client_priority as _cp  # noqa: PLC0415
+        is_first = _cp.is_first_client(curr.business_id)
+        alert_min = _cp.first_client_first_response_alert(curr.business_id)
+        critical_min = _cp.first_client_first_response_critical(
+            curr.business_id,
+        )
+    except Exception:  # noqa: BLE001
+        is_first = False
+        alert_min = ALERT_FIRST_RESPONSE_MINUTES
+        critical_min = CRITICAL_FIRST_RESPONSE_MINUTES
+
+    fc_tag = " [FIRST CLIENT]" if is_first else ""
+
+    if curr.avg_first_response_minutes > critical_min:
         out.append(CsBreach(
             business_id=curr.business_id,
             metric="avg_first_response_minutes",
             value=curr.avg_first_response_minutes,
-            threshold=CRITICAL_FIRST_RESPONSE_MINUTES,
+            threshold=critical_min,
             severity="critical",
             note=f"First response {curr.avg_first_response_minutes:.0f}m > "
-                 f"{CRITICAL_FIRST_RESPONSE_MINUTES:.0f}m — SLA breach.",
+                 f"{critical_min:.0f}m — SLA breach{fc_tag}.",
         ))
-    elif curr.avg_first_response_minutes > ALERT_FIRST_RESPONSE_MINUTES:
+    elif curr.avg_first_response_minutes > alert_min:
         out.append(CsBreach(
             business_id=curr.business_id,
             metric="avg_first_response_minutes",
             value=curr.avg_first_response_minutes,
-            threshold=ALERT_FIRST_RESPONSE_MINUTES,
+            threshold=alert_min,
             severity="warning",
             note=f"First response {curr.avg_first_response_minutes:.0f}m > "
-                 f"{ALERT_FIRST_RESPONSE_MINUTES:.0f}m — staffing gap.",
+                 f"{alert_min:.0f}m — staffing gap{fc_tag}.",
         ))
     if curr.open_enterprise_churn_threats > 0:
         out.append(CsBreach(

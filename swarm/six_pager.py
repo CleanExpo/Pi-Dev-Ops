@@ -194,6 +194,107 @@ def _ra_1842_section(repo_root: Path) -> str:
     )
 
 
+def _first_client_section(repo_root: Path) -> str | None:
+    """Top-of-page banner for any first-client business with active state.
+
+    Scans CFO + CMO + CTO + CS ledgers for rows whose business_id is in
+    the first-client list (default: ccw-crm). If found, renders a
+    one-glance summary with the highest-priority signals — first-response
+    time, NPS, runway band, recent CS alerts.
+
+    Returns None when no first-client has data in any ledger (suppresses
+    the banner — no point taking up section 0 if there's nothing to say).
+    """
+    try:
+        from . import client_priority  # noqa: PLC0415
+    except Exception:  # noqa: BLE001
+        return None
+
+    first_clients = client_priority.list_first_clients()
+    if not first_clients:
+        return None
+
+    # Pull last per-business rows from all four senior-bot ledgers.
+    cfo_rows = {r.get("business_id"): r
+                for r in _load_last_per_business(
+                    ".harness/swarm/cfo_state.jsonl", repo_root=repo_root)}
+    cmo_rows = {r.get("business_id"): r
+                for r in _load_last_per_business(
+                    ".harness/swarm/cmo_state.jsonl", repo_root=repo_root)}
+    cto_rows = {r.get("business_id"): r
+                for r in _load_last_per_business(
+                    ".harness/swarm/cto_state.jsonl", repo_root=repo_root)}
+    cs_rows = {r.get("business_id"): r
+               for r in _load_last_per_business(
+                   ".harness/swarm/cs_state.jsonl", repo_root=repo_root)}
+
+    have_data = False
+    blocks: list[str] = []
+    for bid in first_clients:
+        rows = {
+            "cfo": cfo_rows.get(bid),
+            "cmo": cmo_rows.get(bid),
+            "cto": cto_rows.get(bid),
+            "cs": cs_rows.get(bid),
+        }
+        if not any(rows.values()):
+            continue
+        have_data = True
+        block = [f"⭐ FIRST CLIENT — {bid}"]
+        cs_row = rows["cs"]
+        if cs_row:
+            fr = cs_row.get("avg_first_response_minutes")
+            nps = cs_row.get("nps")
+            grr = cs_row.get("grr_pct")
+            threats = cs_row.get("open_enterprise_churn_threats", 0)
+            sla_alert = client_priority.first_client_first_response_alert(bid)
+            sla_critical = (
+                client_priority.first_client_first_response_critical(bid)
+            )
+            sla_state = "✅ within SLA"
+            if fr is not None and fr > sla_critical:
+                sla_state = f"🔴 SLA BREACH ({fr:.0f}m > {sla_critical:.0f}m)"
+            elif fr is not None and fr > sla_alert:
+                sla_state = f"🟡 watching ({fr:.0f}m > {sla_alert:.0f}m)"
+            if nps is not None and grr is not None and fr is not None:
+                block.append(
+                    f"  CS: NPS {nps:.0f} | GRR {grr:.0%} | "
+                    f"first-response {fr:.0f}m | {threats} churn-threats | "
+                    f"{sla_state}"
+                )
+            else:
+                block.append("  CS: partial data — see section 4.")
+        cfo_row = rows["cfo"]
+        if cfo_row:
+            mrr = cfo_row.get("mrr")
+            nrr = cfo_row.get("nrr")
+            if mrr is not None and nrr is not None:
+                block.append(f"  CFO: ${mrr:,.0f} MRR | NRR {nrr:.0%}")
+        cto_row = rows["cto"]
+        if cto_row:
+            band = cto_row.get("dora_band")
+            uptime = cto_row.get("uptime_pct")
+            if band and uptime is not None:
+                block.append(
+                    f"  CTO: DORA {band} | uptime {uptime:.4%}"
+                )
+        cmo_row = rows["cmo"]
+        if cmo_row:
+            spend = cmo_row.get("total_spend_usd")
+            ratio = cmo_row.get("ltv_cac_ratio")
+            if spend is not None:
+                ratio_str = (f"L:C {ratio:.2f}"
+                             if ratio is not None else "L:C n/a")
+                block.append(
+                    f"  CMO: ${spend:,.0f} attributed spend | {ratio_str}"
+                )
+        blocks.append("\n".join(block))
+
+    if not have_data:
+        return None
+    return "\n\n".join(blocks)
+
+
 # ── Telegram chunking ───────────────────────────────────────────────────────
 
 TELEGRAM_MESSAGE_LIMIT = 4096
@@ -330,9 +431,13 @@ def assemble_six_pager(*, repo_root: Path | None = None,
     rr = repo_root or REPO_ROOT
     date_str = date_str or _now_utc_date()
 
-    sections = [
-        f"📋 Pi-CEO daily 6-pager — {date_str}",
-        "",
+    sections: list[str] = [f"📋 Pi-CEO daily 6-pager — {date_str}", ""]
+
+    first_client = _first_client_section(rr)
+    if first_client:
+        sections.extend([first_client, ""])
+
+    sections.extend([
         "1. " + _cfo_section(rr),
         "",
         "2. " + _cmo_section(rr),
@@ -347,7 +452,7 @@ def assemble_six_pager(*, repo_root: Path | None = None,
         "",
         "—",
         "React 👍 to ack · ❌ to flag · ⏳ to defer per section.",
-    ]
+    ])
     return "\n".join(sections)
 
 
