@@ -56,6 +56,10 @@ _VALID_TYPES: set[str] = {
     # Debate runner (RA-1867, Wave 4 B4)
     "debate_started", "debate_drafter_done", "debate_redteam_done",
     "debate_summarised", "debate_aborted",
+    # CMO (RA-1860, Wave 4 A2)
+    "cmo_metric_snapshot", "cmo_alert",
+    "cmo_adspend_approved", "cmo_adspend_blocked",
+    "cmo_brief_emitted",
 }
 
 # Fields we never redact (safe-by-construction)
