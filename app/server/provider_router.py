@@ -1,0 +1,255 @@
+"""provider_router.py — RA-1868 Wave 5.2: multi-provider model routing.
+
+Three-tier cost-aware router that picks the right (provider, model_id)
+per role/task class. Anthropic is reserved for the highest-quality work
+(top tier — planner, orchestrator, Board deliberation, multi-agent
+debate). OpenRouter handles the cheap tier (Margot conversational
+turns, intent classification, monitor cycles).
+
+Tier mapping (defaults; all overridable via env):
+
+  TIER 1 — TOP    Anthropic Opus 4.7
+                  Roles: planner, orchestrator, board, debate.drafter,
+                  debate.redteam, margot.synthesis (Phase 2)
+                  Env: TAO_TOP_MODEL=claude-opus-4-7
+
+  TIER 2 — MID    Anthropic Sonnet 4.6
+                  Roles: generator, evaluator, senior-brief
+                  Env: TAO_MID_MODEL=claude-sonnet-4-6
+
+  TIER 3 — CHEAP  OpenRouter → Gemma 3 27B (default; configurable)
+                  Roles: margot.casual, intent_classify, monitor,
+                  guardian, scribe.draft
+                  Env: TAO_CHEAP_MODEL=google/gemma-3-27b-it
+
+Per-role override:
+
+  Each role can override its tier model via env:
+    TAO_MODEL_<ROLE_UPPERCASED>=<provider>:<model_id>
+
+  Example:
+    TAO_MODEL_MARGOT_CASUAL=openrouter:meta-llama/llama-3.3-70b-instruct
+    TAO_MODEL_INTENT_CLASSIFY=openrouter:mistralai/mistral-small-3.1
+
+  Provider prefix is required: ``anthropic:`` or ``openrouter:``.
+
+The router does NOT enforce model_policy.OPUS_ALLOWED_ROLES — that gate
+still fires inside session_sdk._run_claude_via_sdk for Anthropic calls.
+The router just picks; the existing policy still polices.
+
+Public API:
+  select_provider_model(role, task_class="default") -> ProviderModel
+  is_anthropic(provider_model) -> bool
+  is_openrouter(provider_model) -> bool
+
+  run_via_provider(prompt, *, role, task_class, ...)
+      -> tuple[rc, text, cost_usd, error]
+      Async unified entry that dispatches to the right SDK.
+"""
+from __future__ import annotations
+
+import logging
+import os
+import re
+from dataclasses import dataclass
+from typing import Literal
+
+log = logging.getLogger("app.server.provider_router")
+
+Provider = Literal["anthropic", "openrouter"]
+
+
+# ── Defaults — all env-overridable ──────────────────────────────────────────
+
+DEFAULT_TOP_MODEL = "claude-opus-4-7"
+DEFAULT_MID_MODEL = "claude-sonnet-4-6"
+DEFAULT_CHEAP_MODEL = "google/gemma-3-27b-it"
+
+# Role → tier mapping (top/mid/cheap). Roles not listed default to "mid".
+ROLE_TIER: dict[str, str] = {
+    # Top tier — quality-critical reasoning
+    "planner":           "top",
+    "orchestrator":      "top",
+    "board":             "top",
+    "debate.drafter":    "top",
+    "debate.redteam":    "top",
+    "margot.synthesis":  "top",  # Phase-2 research integration
+    # Mid tier — production-quality output
+    "generator":         "mid",
+    "evaluator":         "mid",
+    "senior_brief":      "mid",
+    # Cheap tier — high-throughput, lower stakes
+    "margot.casual":     "cheap",
+    "intent_classify":   "cheap",
+    "monitor":           "cheap",
+    "guardian":          "cheap",
+    "scribe.draft":      "cheap",
+}
+
+
+@dataclass
+class ProviderModel:
+    """One concrete (provider, model_id, tier) selection."""
+    provider: Provider
+    model_id: str
+    tier: str  # "top" | "mid" | "cheap"
+    role: str
+    source: str  # "default" | "env_role_override" | "env_tier_default"
+
+
+# ── Helpers ─────────────────────────────────────────────────────────────────
+
+
+def _env_role_key(role: str) -> str:
+    """Convert role string to env var key."""
+    return "TAO_MODEL_" + re.sub(r"[^A-Za-z0-9]+", "_", role).strip("_").upper()
+
+
+def _parse_provider_spec(spec: str) -> tuple[Provider, str] | None:
+    """Parse '<provider>:<model_id>' env value. Returns None on malformed."""
+    spec = (spec or "").strip()
+    if ":" not in spec:
+        return None
+    prov, model = spec.split(":", 1)
+    prov = prov.strip().lower()
+    model = model.strip()
+    if prov not in ("anthropic", "openrouter"):
+        log.warning("provider_router: unknown provider %r in spec %r — skipping",
+                    prov, spec)
+        return None
+    if not model:
+        return None
+    return prov, model  # type: ignore[return-value]
+
+
+def _tier_default(tier: str) -> tuple[Provider, str]:
+    """Resolve tier → (provider, model_id) using env overrides."""
+    if tier == "top":
+        model = (os.environ.get("TAO_TOP_MODEL") or DEFAULT_TOP_MODEL).strip()
+        return "anthropic", model
+    if tier == "mid":
+        model = (os.environ.get("TAO_MID_MODEL") or DEFAULT_MID_MODEL).strip()
+        return "anthropic", model
+    # cheap
+    model = (os.environ.get("TAO_CHEAP_MODEL") or DEFAULT_CHEAP_MODEL).strip()
+    # Cheap tier defaults to OpenRouter unless model_id starts with "claude-"
+    # (founder may override TAO_CHEAP_MODEL to an Anthropic Haiku, in which
+    # case we route via Anthropic).
+    provider: Provider = "anthropic" if model.startswith("claude-") else "openrouter"
+    return provider, model
+
+
+# ── Public API ──────────────────────────────────────────────────────────────
+
+
+def select_provider_model(role: str,
+                            task_class: str = "default") -> ProviderModel:
+    """Pick the (provider, model_id) for one role.
+
+    Resolution order:
+      1. Per-role env override: TAO_MODEL_<ROLE>=provider:model_id
+      2. Tier mapping → tier env (TAO_TOP_MODEL / TAO_MID_MODEL / TAO_CHEAP_MODEL)
+      3. Hardcoded defaults
+
+    task_class is reserved for future per-task fan-out (e.g.
+    margot.casual.classify could route differently from margot.casual.reply
+    even within the same role). Today it's a no-op label that lands in
+    audit + cost-tracking metadata.
+    """
+    # 1. Per-role env override
+    env_key = _env_role_key(role)
+    raw = os.environ.get(env_key) or ""
+    if raw:
+        parsed = _parse_provider_spec(raw)
+        if parsed is not None:
+            prov, model = parsed
+            log.debug("provider_router: %s overridden via %s = %s:%s",
+                      role, env_key, prov, model)
+            return ProviderModel(
+                provider=prov, model_id=model,
+                tier=ROLE_TIER.get(role, "mid"),
+                role=role, source="env_role_override",
+            )
+
+    # 2. Tier mapping → tier defaults
+    tier = ROLE_TIER.get(role, "mid")
+    prov, model = _tier_default(tier)
+    return ProviderModel(
+        provider=prov, model_id=model,
+        tier=tier, role=role,
+        source="env_tier_default",
+    )
+
+
+def is_anthropic(pm: ProviderModel) -> bool:
+    return pm.provider == "anthropic"
+
+
+def is_openrouter(pm: ProviderModel) -> bool:
+    return pm.provider == "openrouter"
+
+
+# ── Unified async entry ─────────────────────────────────────────────────────
+
+
+async def run_via_provider(prompt: str, *, role: str,
+                             task_class: str = "default",
+                             timeout_s: int = 120,
+                             workspace: str | None = None,
+                             session_id: str = "",
+                             thinking: str = "adaptive",
+                             ) -> tuple[int, str, float, str | None]:
+    """Single dispatch entry. Returns (rc, text, cost_usd, error_or_None).
+
+    Picks (provider, model_id) via select_provider_model, then routes to
+    the right SDK. Anthropic still fires through session_sdk to preserve
+    the model_policy gate; OpenRouter goes through provider_openrouter.
+    """
+    pm = select_provider_model(role, task_class=task_class)
+
+    if pm.provider == "anthropic":
+        try:
+            # Look up via sys.modules first so test monkeypatches via
+            # monkeypatch.setitem(sys.modules, "app.server.session_sdk", ...)
+            # win over the cached import binding.
+            import sys as _sys  # noqa: PLC0415
+            session_sdk = _sys.modules.get("app.server.session_sdk")
+            if session_sdk is None:
+                from . import session_sdk  # noqa: PLC0415
+            _run_claude_via_sdk = session_sdk._run_claude_via_sdk
+        except Exception as exc:  # noqa: BLE001
+            return 1, "", 0.0, f"anthropic_sdk_import_failed: {exc}"
+        try:
+            rc, text, cost = await _run_claude_via_sdk(
+                prompt=prompt,
+                model=pm.model_id,
+                workspace=workspace or "",
+                timeout=timeout_s,
+                session_id=session_id,
+                phase=role,
+                thinking=thinking,
+            )
+            return int(rc), text or "", float(cost or 0.0), None
+        except Exception as exc:  # noqa: BLE001
+            return 1, "", 0.0, f"anthropic_sdk_call_raised: {exc}"
+
+    # OpenRouter path
+    try:
+        import sys as _sys  # noqa: PLC0415
+        provider_openrouter = _sys.modules.get("app.server.provider_openrouter")
+        if provider_openrouter is None:
+            from . import provider_openrouter  # noqa: PLC0415
+    except Exception as exc:  # noqa: BLE001
+        return 1, "", 0.0, f"openrouter_import_failed: {exc}"
+    return await provider_openrouter.call(
+        prompt=prompt, model_id=pm.model_id,
+        timeout_s=timeout_s, role=role, session_id=session_id,
+    )
+
+
+__all__ = [
+    "Provider", "ProviderModel", "ROLE_TIER",
+    "DEFAULT_TOP_MODEL", "DEFAULT_MID_MODEL", "DEFAULT_CHEAP_MODEL",
+    "select_provider_model", "run_via_provider",
+    "is_anthropic", "is_openrouter",
+]

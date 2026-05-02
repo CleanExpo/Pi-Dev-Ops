@@ -512,15 +512,34 @@ def parse_board_triggers(response_text: str
 
 async def _call_llm(*, prompt: str, timeout_s: int = 120,
                      workspace: str | None = None,
-                     turn_id: str = "") -> tuple[int, str, float, str | None]:
-    """Call Claude via the Agent SDK. Returns (rc, text, cost_usd, error).
+                     turn_id: str = "",
+                     role: str = "margot.casual",
+                     ) -> tuple[int, str, float, str | None]:
+    """Margot's LLM call — routed via provider_router for cost control.
 
-    Margot uses the same orchestrator-role model as the Board (Opus-allowed
-    per RA-1099). Adaptive thinking for conversational latency.
+    Default role="margot.casual" → cheap tier (OpenRouter Gemma by
+    default). Phase 2 callers pass role="margot.synthesis" → top tier
+    (Anthropic Opus) for quality on research integration.
+
+    Falls back to direct Anthropic SDK if provider_router is unavailable.
     """
     import tempfile
 
     workspace = workspace or tempfile.mkdtemp(prefix="pi-ceo-margot-")
+
+    # Preferred path: provider_router (multi-provider, cost-aware)
+    try:
+        from app.server.provider_router import run_via_provider  # noqa: PLC0415
+        return await run_via_provider(
+            prompt=prompt, role=role,
+            timeout_s=timeout_s, workspace=workspace,
+            session_id=turn_id, thinking="adaptive",
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.debug("margot: provider_router unavailable (%s) — Anthropic fallback",
+                  exc)
+
+    # Fallback: direct Anthropic SDK call (Opus, role=orchestrator)
     try:
         from app.server.model_policy import (  # noqa: PLC0415
             select_model, resolve_to_id,
@@ -666,8 +685,11 @@ async def handle_turn(*, chat_id: str, user_text: str,
                            context=context)
 
     # ── Phase 1: draft response ────────────────────────────────────────
+    # role=margot.casual → cheap tier by default (OpenRouter Gemma).
+    # If the message is clearly research-needing, the Phase 1 model will
+    # emit a [RESEARCH] sentinel; Phase 2 then runs on top tier.
     rc, response_text, cost, error = await _call_llm(
-        prompt=prompt, turn_id=turn.turn_id,
+        prompt=prompt, turn_id=turn.turn_id, role="margot.casual",
     )
     turn.cost_usd = cost
 
@@ -688,8 +710,13 @@ async def handle_turn(*, chat_id: str, user_text: str,
                 context=context, draft=draft_clean,
                 research_findings=research_findings,
             )
+            # Phase 2 uses role=margot.synthesis → top tier (Anthropic Opus)
+            # for quality on research integration. Cost is justified — this
+            # is the path that produces the user-visible reply when real
+            # research is in play.
             rc2, response_text2, cost2, error2 = await _call_llm(
                 prompt=phase2_prompt, turn_id=f"{turn.turn_id}-p2",
+                role="margot.synthesis",
             )
             turn.cost_usd += cost2
             if rc2 == 0 and not error2:

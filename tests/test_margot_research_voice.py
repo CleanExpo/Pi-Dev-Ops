@@ -214,7 +214,7 @@ Standby.'''
 
     call_count = [0]
 
-    async def fake_llm(*, prompt, timeout_s=120, workspace=None, turn_id=""):
+    async def fake_llm(*, prompt, timeout_s=120, workspace=None, turn_id="", **kw):
         call_count[0] += 1
         if call_count[0] == 1:
             return 0, phase1, 0.05, None
@@ -249,7 +249,7 @@ def test_handle_turn_no_research_single_phase(tmp_path, monkeypatch):
     """No [RESEARCH] sentinel → only Phase 1 fires."""
     call_count = [0]
 
-    async def fake_llm(*, prompt, timeout_s=120, workspace=None, turn_id=""):
+    async def fake_llm(*, prompt, timeout_s=120, workspace=None, turn_id="", **kw):
         call_count[0] += 1
         return 0, "Direct answer, no research needed.", 0.04, None
 
@@ -273,7 +273,7 @@ Hold on.'''
 
     call_count = [0]
 
-    async def fake_llm(*, prompt, timeout_s=120, workspace=None, turn_id=""):
+    async def fake_llm(*, prompt, timeout_s=120, workspace=None, turn_id="", **kw):
         call_count[0] += 1
         if call_count[0] == 1:
             return 0, phase1, 0.05, None
@@ -417,7 +417,7 @@ def test_compose_margot_voice_reply_env_override_max_chars(tmp_path, monkeypatch
 def test_handle_turn_voice_disabled_by_default(tmp_path, monkeypatch):
     monkeypatch.delenv("MARGOT_VOICE_REPLY_ENABLED", raising=False)
 
-    async def fake_llm(*, prompt, timeout_s=120, workspace=None, turn_id=""):
+    async def fake_llm(*, prompt, timeout_s=120, workspace=None, turn_id="", **kw):
         return 0, "Short reply.", 0.01, None
 
     monkeypatch.setattr(margot_bot, "_call_llm", fake_llm)
@@ -440,7 +440,7 @@ def test_handle_turn_voice_disabled_by_default(tmp_path, monkeypatch):
 def test_handle_turn_voice_enabled_attaches_audio(tmp_path, monkeypatch):
     monkeypatch.setenv("MARGOT_VOICE_REPLY_ENABLED", "1")
 
-    async def fake_llm(*, prompt, timeout_s=120, workspace=None, turn_id=""):
+    async def fake_llm(*, prompt, timeout_s=120, workspace=None, turn_id="", **kw):
         return 0, "Short reply about MRR.", 0.01, None
 
     monkeypatch.setattr(margot_bot, "_call_llm", fake_llm)
@@ -478,7 +478,7 @@ def test_handle_turn_voice_compose_failure_falls_back_to_text(
 ):
     monkeypatch.setenv("MARGOT_VOICE_REPLY_ENABLED", "1")
 
-    async def fake_llm(*, prompt, timeout_s=120, workspace=None, turn_id=""):
+    async def fake_llm(*, prompt, timeout_s=120, workspace=None, turn_id="", **kw):
         return 0, "Short reply.", 0.01, None
 
     monkeypatch.setattr(margot_bot, "_call_llm", fake_llm)
