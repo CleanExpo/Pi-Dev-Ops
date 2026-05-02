@@ -91,6 +91,8 @@ class DebateInput:
     role: str = "drafter"             # senior-agent role label (CFO, CMO, …)
     business_id: str = "portfolio"
     context: str | None = None        # extra grounding for both sides
+    goal_id: str | None = None        # if set, advance this persistent goal
+                                       # with the resulting artifacts
     timeout_s: int = 180
     workspace: str | None = None      # directory for SDK; tempdir if None
     debate_id: str = field(default_factory=lambda: f"deb-{uuid.uuid4().hex[:10]}")
@@ -385,6 +387,19 @@ async def run_debate(inp: DebateInput) -> DebateResult:
         except Exception as exc:  # noqa: BLE001
             log.debug("debate %s: kanban emit suppressed: %s",
                       inp.debate_id, exc)
+
+        # If this debate advances a persistent goal, append the new turn.
+        if inp.goal_id:
+            try:
+                from . import persistent_goals  # noqa: PLC0415
+                persistent_goals.advance_goal(
+                    inp.goal_id,
+                    drafter_text=drafter_res.artifact,
+                    redteam_text=redteam_res.artifact,
+                )
+            except Exception as exc:  # noqa: BLE001
+                log.debug("debate %s: goal advance suppressed: %s",
+                          inp.debate_id, exc)
 
     return result
 

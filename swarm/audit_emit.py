@@ -70,6 +70,8 @@ _VALID_TYPES: set[str] = {
     "cs_brief_emitted",
     # 6-pager dispatcher (RA-1863, Wave 4 A5)
     "six_pager_emitted",
+    # Persistent goals (RA-1858 Wave 5 prep — Ralph loop)
+    "goal_created", "goal_advanced", "goal_resolved", "goal_aborted",
 }
 
 # Fields we never redact (safe-by-construction)
