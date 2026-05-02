@@ -391,7 +391,10 @@ async def telegram_webhook(request: Request):
     if not expected_secret:
         raise HTTPException(500, "Telegram webhook secret not configured")
     secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
-    if secret != expected_secret:
+    # RA-1004 follow-up: use hmac.compare_digest to avoid a timing-side-channel
+    # leak of the configured secret. Same pattern as morning-intel handler above.
+    import hmac as _hmac  # noqa: PLC0415
+    if not _hmac.compare_digest(secret, expected_secret):
         raise HTTPException(401, "Invalid Telegram webhook secret")
 
     try:
