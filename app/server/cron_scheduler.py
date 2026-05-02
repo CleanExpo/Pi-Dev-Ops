@@ -19,8 +19,42 @@ from .cron_watchdogs import (
     _watchdog_docs_staleness,
     _watchdog_escalations,
     _watchdog_notebooklm_health,
+    _watchdog_vercel_deploy_failures,
 )
 from .cron_watchdog_zte import _watchdog_zte_reality_check
+# RA-1668 — weekly NotebookLM source-refresh (driven by freshness staleness check).
+from .agents.notebooklm_refresh import refresh_all_notebooks
+
+
+_notebooklm_weekly_last_ran: float = 0.0
+_NOTEBOOKLM_WEEKLY_INTERVAL_S = 7 * 24 * 3600  # 7 days
+
+
+async def _watchdog_notebooklm_refresh_weekly(log) -> None:
+    """RA-1668 — fire `refresh_all_notebooks()` at most once per 7 days.
+
+    Self-throttled module-level dedup so it survives the 30-min watchdog
+    cadence without firing more than weekly. The `refresh_all_notebooks`
+    function records its own outcome to `.harness/notebooklm-freshness.json`
+    so subsequent /health calls reflect the result.
+    """
+    global _notebooklm_weekly_last_ran
+    if _notebooklm_weekly_last_ran and (
+        time.time() - _notebooklm_weekly_last_ran < _NOTEBOOKLM_WEEKLY_INTERVAL_S
+    ):
+        return
+    try:
+        result = await refresh_all_notebooks(dry_run=False)
+        _notebooklm_weekly_last_ran = time.time()
+        log.info(
+            "RA-1668 weekly notebooklm refresh: %d active, %d ok, %d need-creds, %d errors",
+            result.get("active_count", 0),
+            len(result.get("succeeded", [])),
+            len(result.get("needs_credentials", [])),
+            len(result.get("errors", [])),
+        )
+    except Exception as exc:
+        log.error("RA-1668 notebooklm weekly refresh failed: %s", exc)
 
 
 async def cron_loop() -> None:
@@ -93,7 +127,9 @@ async def cron_loop() -> None:
                 await _watchdog_escalations(_log)              # RA-633
                 await _watchdog_zte_reality_check(_log)        # RA-608
                 await _watchdog_notebooklm_health(_log)        # RA-820
+                await _watchdog_notebooklm_refresh_weekly(_log)  # RA-1668
                 await _watchdog_board_meeting_silence(_log)    # RA-1472
+                await _watchdog_vercel_deploy_failures(_log)   # RA-1742
 
             # Linear pulse every 15 min — mandatory single-pane-of-glass for
             # the founder, per explicit requirement (2026-04-19).
