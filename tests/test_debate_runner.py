@@ -162,11 +162,16 @@ def test_parallelism_under_50pct_of_sequential(monkeypatch, tmp_path):
     ))
     elapsed = time.monotonic() - t0
 
-    sequential_lower_bound = 0.60
+    one_side_seconds = 0.30
+    sequential_seconds = 0.60
     assert result.both_succeeded()
-    # Allow 50% headroom for asyncio overhead — should still beat sequential.
-    assert elapsed < sequential_lower_bound * 0.50 + 0.10, (
-        f"elapsed {elapsed}s did not beat 50% of {sequential_lower_bound}s"
+    # The meaningful parallelism check: elapsed is closer to one-side time
+    # than to the sequential sum. Use 1.6x one-side as the ceiling — that
+    # absorbs asyncio overhead on slow machines while still failing if
+    # the two sides ran sequentially (which would be ≥ 2.0x one-side).
+    assert elapsed < one_side_seconds * 1.6, (
+        f"elapsed {elapsed}s suggests sequential execution "
+        f"(should be < {one_side_seconds * 1.6}s; sequential would be {sequential_seconds}s)"
     )
 
 

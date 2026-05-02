@@ -364,6 +364,28 @@ async def run_debate(inp: DebateInput) -> DebateResult:
         aborted=aborted, abort_reason=abort_reason,
     )
     _persist(_result_to_record(result))
+
+    # Surface successful debates on the Hermes Kanban board so the founder
+    # can read them without flooding Telegram. Idempotent on debate_id.
+    # Failures are non-fatal — the debate result is still returned.
+    if result.both_succeeded():
+        try:
+            from . import kanban_adapter  # noqa: PLC0415
+            card_id = kanban_adapter.emit_debate_card(
+                role=inp.role,
+                business_id=inp.business_id,
+                topic=inp.topic,
+                drafter_artifact=drafter_res.artifact,
+                redteam_artifact=redteam_res.artifact,
+                debate_id=inp.debate_id,
+            )
+            if card_id:
+                log.info("debate %s: kanban card %s emitted",
+                         inp.debate_id, card_id)
+        except Exception as exc:  # noqa: BLE001
+            log.debug("debate %s: kanban emit suppressed: %s",
+                      inp.debate_id, exc)
+
     return result
 
 
