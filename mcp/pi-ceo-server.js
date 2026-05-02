@@ -1690,12 +1690,106 @@ server.registerTool(
   }
 );
 
+// ── Tool: margot_turn (RA-1871) ────────────────────────────────────────────────
+// Drives one Margot turn through the Wave-4/5 swarm.margot_bot.handle_turn
+// pipeline (operating context + 2-phase research + Board triggers + 3-tier
+// provider routing). Caller (Hermes) is responsible for delivering the
+// returned `reply` to Telegram — the route runs handle_turn with _send=False.
+//
+// Env required:
+//   PI_CEO_API_BASE        — production API base, e.g. https://pi-dev-ops-production.up.railway.app
+//   TAO_WEBHOOK_SECRET     — same secret already in Railway, used as X-Pi-CEO-Secret
+const PI_CEO_API_BASE  = (process.env.PI_CEO_API_BASE || "").replace(/\/+$/, "");
+const TAO_WEBHOOK_SECRET = process.env.TAO_WEBHOOK_SECRET || "";
+
+server.registerTool(
+  "margot_turn",
+  {
+    title: "Margot Turn (Wave-4/5 enriched)",
+    description:
+      "RA-1871: Run one Margot turn through Pi-CEO's swarm.margot_bot.handle_turn — " +
+      "loads conversation history + senior-bot operating context + Board state, runs " +
+      "2-phase research if [RESEARCH] sentinels appear, parses [BOARD-TRIGGER] markers, " +
+      "and returns the user-facing reply. Use this when answering as Margot in a " +
+      "Telegram-style chat where you want the full Wave-4/5 enrichment instead of a " +
+      "stateless Anthropic call. Caller delivers the returned reply themselves.",
+    inputSchema: {
+      chat_id: z.string().describe("Telegram chat_id (string)"),
+      user_text: z.string().min(1).max(4000).describe("The user's message text"),
+      message_id: z.string().optional().describe("Telegram message_id for traceability"),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  },
+  async ({ chat_id, user_text, message_id }) => {
+    if (!PI_CEO_API_BASE) {
+      throw new Error("PI_CEO_API_BASE not set in MCP env (claude_desktop_config.json or shell)");
+    }
+    if (!TAO_WEBHOOK_SECRET) {
+      throw new Error("TAO_WEBHOOK_SECRET not set in MCP env");
+    }
+    const body = JSON.stringify({
+      chat_id: String(chat_id),
+      user_text,
+      ...(message_id ? { message_id: String(message_id) } : {}),
+    });
+    const url = new URL(`${PI_CEO_API_BASE}/api/margot/turn`);
+    return new Promise((resolve, reject) => {
+      const req = https.request(
+        {
+          method: "POST",
+          host: url.host,
+          path: url.pathname + url.search,
+          headers: {
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(body),
+            "X-Pi-CEO-Secret": TAO_WEBHOOK_SECRET,
+          },
+          // handle_turn can be slow on Phase 2 (deep_research). The Pi-CEO
+          // route caps at 120s; give the HTTP client 130s slack.
+          timeout: 130_000,
+        },
+        (res) => {
+          let data = "";
+          res.on("data", (chunk) => (data += chunk));
+          res.on("end", () => {
+            if (res.statusCode < 200 || res.statusCode >= 300) {
+              return reject(new Error(`Pi-CEO /api/margot/turn HTTP ${res.statusCode}: ${data}`));
+            }
+            try {
+              const parsed = JSON.parse(data);
+              resolve({
+                content: [
+                  { type: "text", text: parsed.reply || "" },
+                  {
+                    type: "text",
+                    text: `\n[turn_id=${parsed.turn_id} cost_usd=${parsed.cost_usd} ` +
+                      `research_called=${parsed.research_called} ` +
+                      `board_session_ids=${JSON.stringify(parsed.board_session_ids)}]`,
+                  },
+                ],
+              });
+            } catch (e) {
+              reject(new Error(`Pi-CEO /api/margot/turn returned non-JSON: ${data.slice(0, 200)}`));
+            }
+          });
+        }
+      );
+      req.on("error", reject);
+      req.on("timeout", () => {
+        req.destroy(new Error("Pi-CEO /api/margot/turn timed out after 130s"));
+      });
+      req.write(body);
+      req.end();
+    });
+  }
+);
+
 // ── Start Server ───────────────────────────────────────────────────────────────
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   // Server is now running — the SDK handles all MCP protocol negotiation
-  process.stderr.write("Pi CEO MCP Server v3.4.0 started (stdio transport, 25 tools)\n");
+  process.stderr.write("Pi CEO MCP Server v3.5.0 started (stdio transport, 26 tools)\n");
 }
 
 main().catch((err) => {

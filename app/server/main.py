@@ -10,7 +10,7 @@ Public contract (Dockerfile + Railway reference `app.server.main:app`):
 """
 from .app_factory import app  # noqa: F401  (re-exported for uvicorn / callers)
 
-from .routes import auth, sessions, webhooks, triggers, scan_monitor, pipeline, utils, telegram_proxy, mission_control, phone, swarm
+from .routes import auth, sessions, webhooks, triggers, scan_monitor, pipeline, utils, telegram_proxy, mission_control, phone, swarm, margot
 # health registers its routes directly on `app` via @app.get/@app.on_event decorators
 from .routes import health  # noqa: F401
 
@@ -25,5 +25,6 @@ app.include_router(telegram_proxy.router)
 app.include_router(mission_control.router)
 app.include_router(phone.router)
 app.include_router(swarm.router)
+app.include_router(margot.router)  # RA-1871
 
 __all__ = ["app"]
