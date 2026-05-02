@@ -224,11 +224,12 @@ def test_per_role_override_role_with_dot(monkeypatch):
     """Role names with dots (e.g. 'debate.redteam') become DEBATE_REDTEAM env."""
     monkeypatch.setenv(
         "TAO_MODEL_DEBATE_REDTEAM",
-        "openrouter:google/gemma-3-27b-it",
+        "openrouter:google/gemma-4-26b-a4b-it",
     )
     pm = PR.select_provider_model("debate.redteam")
     assert pm.source == "env_role_override"
     assert pm.provider == "openrouter"
+    assert pm.model_id == "google/gemma-4-26b-a4b-it"
 
 
 def test_per_role_override_malformed_falls_through(monkeypatch):

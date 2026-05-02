@@ -75,7 +75,15 @@ DEFAULT_MID_MODEL = "claude-sonnet-4-6"
 #   - Force one or the other via TAO_CHEAP_PROVIDER=ollama|openrouter (skips probe)
 #   - Override per-role via TAO_MODEL_<ROLE> (highest precedence)
 DEFAULT_CHEAP_LOCAL_MODEL = "gemma4:latest"
-DEFAULT_CHEAP_REMOTE_MODEL = "google/gemma-3-27b-it"
+
+# OpenRouter remote-fallback default: Gemma 4 26B A4B (instruction-tuned).
+# OpenRouter offers four Gemma 4 variants — pick by use case:
+#   google/gemma-4-26b-a4b-it       — paid, ~$0.06/M in, $0.33/M out (default)
+#   google/gemma-4-26b-a4b-it:free  — free tier, rate-limited
+#   google/gemma-4-31b-it           — paid, ~$0.13/M in, $0.38/M out
+#   google/gemma-4-31b-it:free      — free tier, rate-limited
+# Override via TAO_CHEAP_REMOTE_MODEL env at deploy time.
+DEFAULT_CHEAP_REMOTE_MODEL = "google/gemma-4-26b-a4b-it"
 
 # Role → tier mapping (top/mid/cheap). Roles not listed default to "mid".
 ROLE_TIER: dict[str, str] = {
