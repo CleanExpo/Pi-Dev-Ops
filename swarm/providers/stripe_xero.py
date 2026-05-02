@@ -45,6 +45,7 @@ from .synthetic import _load_business_ids, synthetic_one
 log = logging.getLogger("swarm.providers.stripe_xero")
 
 STRIPE_API_BASE = "https://api.stripe.com/v1"
+XERO_API_BASE = "https://api.xero.com/api.xro/2.0"
 HTTP_TIMEOUT_S = 8.0
 
 
@@ -108,12 +109,124 @@ def _stripe_mrr_for_account(api_key: str, stripe_account: str | None) -> float:
     return round(out_mrr, 2)
 
 
+def _xero_get(path: str, *, access_token: str, tenant_id: str,
+               params: dict[str, Any] | None = None) -> dict[str, Any]:
+    """One Xero GET. Raises on HTTP error so caller can fall back.
+
+    Xero OAuth 2.0 access tokens expire in 30 minutes. Production
+    deployments need a refresh-token flow that's out of scope for the
+    Wave 4.1c shim — caller is expected to provide a current token via
+    ``XERO_ACCESS_TOKEN`` env, refreshed by an external sidecar
+    (separate ticket).
+
+    httpx imported lazily — this function is the only Xero entry point.
+    """
+    import httpx  # noqa: PLC0415
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "xero-tenant-id": tenant_id,
+        "Accept": "application/json",
+    }
+    with httpx.Client(timeout=HTTP_TIMEOUT_S) as client:
+        r = client.get(f"{XERO_API_BASE}{path}",
+                       headers=headers, params=params)
+        r.raise_for_status()
+        return r.json()
+
+
+def _xero_cash_and_cogs(*, access_token: str, tenant_id: str
+                          ) -> tuple[float, float, float] | None:
+    """Pull (cash_on_hand_usd, cogs_window_usd, revenue_window_usd) from Xero.
+
+    Reads BalanceSheet for cash and ProfitAndLoss for COGS + revenue.
+    Both reports are pulled at the org's report currency — multi-currency
+    consolidation is a follow-up.
+
+    Returns None on any HTTP / parse error; caller falls back to synthetic.
+    """
+    try:
+        bs = _xero_get(
+            "/Reports/BalanceSheet",
+            access_token=access_token, tenant_id=tenant_id,
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.warning("xero: BalanceSheet failed (%s)", exc)
+        return None
+
+    cash = _scrape_xero_value(bs, row_titles=("Total Bank", "Bank"))
+    if cash is None:
+        log.debug("xero: cash row not found in BalanceSheet")
+        cash = 0.0
+
+    try:
+        pl = _xero_get(
+            "/Reports/ProfitAndLoss",
+            access_token=access_token, tenant_id=tenant_id,
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.warning("xero: ProfitAndLoss failed (%s)", exc)
+        return None
+
+    cogs = _scrape_xero_value(
+        pl, row_titles=("Total Cost of Sales", "Cost of Goods Sold",
+                        "Total COGS"),
+    ) or 0.0
+    revenue = _scrape_xero_value(
+        pl, row_titles=("Total Revenue", "Total Income", "Total Operating Income"),
+    ) or 0.0
+
+    return float(cash), float(cogs), float(revenue)
+
+
+def _scrape_xero_value(report: dict[str, Any], *,
+                        row_titles: tuple[str, ...]) -> float | None:
+    """Walk the Xero report rows tree to find a row whose Title matches one
+    of ``row_titles`` and return its first numeric cell value.
+
+    Xero reports are deeply nested: Reports[0].Rows[].Rows[].Cells[].Value.
+    Title matching is case-insensitive and trim-tolerant.
+    """
+    titles_lower = {t.lower().strip() for t in row_titles}
+
+    def _walk(rows: Any) -> float | None:
+        if not isinstance(rows, list):
+            return None
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            title = (row.get("Title") or "").lower().strip()
+            if title in titles_lower:
+                cells = row.get("Cells") or []
+                for cell in cells:
+                    val = cell.get("Value")
+                    try:
+                        return float(str(val).replace(",", ""))
+                    except (TypeError, ValueError):
+                        continue
+            inner = _walk(row.get("Rows"))
+            if inner is not None:
+                return inner
+        return None
+
+    reports = report.get("Reports")
+    if not reports:
+        return None
+    for r in reports:
+        out = _walk(r.get("Rows"))
+        if out is not None:
+            return out
+    return None
+
+
 def _real_for_business(bid: str, api_key: str) -> RawMetrics | None:
     """Build RawMetrics for one business from Stripe + Xero. None on failure.
 
-    Today: Stripe MRR is real; the rest is filled from synthetic_one(bid)
-    so the brief stays coherent. Xero cash/COGS/COGS-bearing fields are
-    synthetic until ``swarm/providers/xero.py`` lands (follow-up ticket).
+    Stripe MRR is real (Stripe REST). Xero cash, COGS, and revenue are real
+    when ``XERO_ACCESS_TOKEN`` + ``XERO_TENANT_<BID>`` are present in env;
+    otherwise those fields fall back to synthetic for that business.
+    Everything else (expansion, churn, customers_acquired, inference_cost)
+    stays on synthetic until each is wired in follow-up tickets.
     """
     stripe_account = os.environ.get(f"STRIPE_ACCOUNT_{_bid_key(bid)}")
     try:
@@ -138,6 +251,26 @@ def _real_for_business(bid: str, api_key: str) -> RawMetrics | None:
         base.churn_mrr = round(base.churn_mrr * ratio, 2)
         base.new_mrr = round(base.new_mrr * ratio, 2)
         base.revenue = round(base.revenue * ratio, 2)
+
+    # Xero pull — cash + COGS + revenue when configured.
+    xero_token = (os.environ.get("XERO_ACCESS_TOKEN") or "").strip()
+    xero_tenant = (os.environ.get(f"XERO_TENANT_{_bid_key(bid)}") or "").strip()
+    if xero_token and xero_tenant:
+        xero_data = _xero_cash_and_cogs(
+            access_token=xero_token, tenant_id=xero_tenant,
+        )
+        if xero_data is not None:
+            cash, cogs, revenue = xero_data
+            base.cash_on_hand = round(cash, 2)
+            if cogs > 0:
+                base.cogs = round(cogs, 2)
+            if revenue > 0:
+                base.revenue = round(revenue, 2)
+        else:
+            log.debug("stripe_xero: %s Xero call returned None — keeping synthetic", bid)
+    else:
+        log.debug("stripe_xero: %s no Xero creds — keeping synthetic cash/COGS", bid)
+
     return base
 
 
