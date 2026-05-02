@@ -136,7 +136,10 @@ def _should_send_daily_report(last_report_ts: str | None) -> bool:
 def run() -> None:
     """Main orchestrator loop — runs until killed or kill-switch fires."""
     from . import config
-    from .bots import guardian, builder, scribe, click, chief_of_staff, cfo
+    from .bots import (
+        guardian, builder, scribe, click, chief_of_staff,
+        cfo, cmo, cto, cs,
+    )
     from .telegram_alerts import send, send_daily_report
 
     if not config.SWARM_ENABLED:
@@ -233,12 +236,47 @@ def run() -> None:
 
         # ── RA-1850 — CFO: financial visibility across the 11 businesses.
         # Computes burn / NRR / GM / runway from a pluggable metrics provider
-        # (Stripe + Xero MCP in prod; empty by default until Wave 4.1b wires).
+        # (TAO_CFO_PROVIDER selects synthetic | stripe_xero).
         # Self-gates on TAO_SWARM_ENABLED + kill-switch.
         try:
             cfo.run_cycle(state["unacked_count"], state=state)
         except Exception as exc:  # noqa: BLE001 - never let CFO crash the loop
             log.warning("CFO cycle failed (continuing): %s", exc)
+
+        # ── RA-1860 — CMO/Growth: marketing visibility (LTV:CAC, blended CPA,
+        # channel HHI, attr decay). TAO_CMO_PROVIDER selects synthetic |
+        # ad_platforms. Ad-spend > $5k/day routes through draft_review.
+        try:
+            cmo.run_cycle(state["unacked_count"], state=state)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("CMO cycle failed (continuing): %s", exc)
+
+        # ── RA-1861 — CTO: platform health (DORA quartet + p99 + uptime).
+        # TAO_CTO_PROVIDER selects synthetic | github_actions. Production
+        # PR merges route through draft_review.
+        try:
+            cto.run_cycle(state["unacked_count"], state=state)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("CTO cycle failed (continuing): %s", exc)
+
+        # ── RA-1862 — CS-tier1: NPS, FCR, GRR, first-response, enterprise
+        # churn threats. TAO_CS_PROVIDER selects synthetic | zendesk |
+        # intercom. Refunds > $100 route through draft_review.
+        try:
+            cs.run_cycle(state["unacked_count"], state=state)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("CS cycle failed (continuing): %s", exc)
+
+        # ── RA-1863 — Daily 6-pager: composes CFO + CMO + CTO + CS daily
+        # snippets + Margot insight + RA-1842 status. Cron-fired at user-
+        # local 06:00 UTC (configurable). Routes through pii_redactor +
+        # draft_review HITL gate. Voice variant attached when ELEVENLABS_
+        # API_KEY is in env (B3 RA-1866).
+        try:
+            from . import six_pager_dispatcher  # noqa: PLC0415
+            six_pager_dispatcher.maybe_fire_daily(state)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("6-pager fire failed (continuing): %s", exc)
 
         # ── Daily report ─────────────────────────────────────────────────────
         if _should_send_daily_report(state.get("last_daily_report")):

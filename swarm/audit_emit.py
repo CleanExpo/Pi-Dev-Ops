@@ -68,6 +68,8 @@ _VALID_TYPES: set[str] = {
     "cs_metric_snapshot", "cs_alert",
     "cs_refund_approved", "cs_refund_blocked",
     "cs_brief_emitted",
+    # 6-pager dispatcher (RA-1863, Wave 4 A5)
+    "six_pager_emitted",
 }
 
 # Fields we never redact (safe-by-construction)
