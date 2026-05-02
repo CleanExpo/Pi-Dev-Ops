@@ -69,16 +69,15 @@ def select_platform_provider():
 
     Values:
     * ``synthetic`` (default) — deterministic fixtures
-    * ``github_actions`` — real GitHub Actions / Vercel pull (stub today;
-      falls back to synthetic with a warning until connector wired)
+    * ``github_actions`` — real DORA quartet from GitHub Actions
+      workflow_runs + per-business synthetic fallback for p99/uptime/cost
     """
     name = (os.environ.get("TAO_CTO_PROVIDER") or "synthetic").strip().lower()
     if name == "github_actions":
-        log.warning(
-            "provider: github_actions selected but not yet implemented — "
-            "using synthetic_platform"
-        )
-    if name not in ("synthetic", "github_actions", ""):
+        from .github_actions import github_actions_provider
+        log.debug("provider: github_actions selected")
+        return github_actions_provider
+    if name not in ("synthetic", ""):
         log.warning(
             "provider: unknown TAO_CTO_PROVIDER=%r — using synthetic_platform",
             name,
@@ -96,17 +95,17 @@ def select_marketing_provider():
 
     Values:
     * ``synthetic`` (default) — deterministic fixtures, no external calls
-    * ``ad_platforms`` — real Google Ads / LinkedIn / Meta + per-business
-      synthetic fallback (follow-up ticket; not implemented yet → falls back
-      to synthetic with a warning)
+    * ``google_ads`` — real Google Ads spend per business + synthetic
+      fallback for non-Google channels and businesses without a customer ID
+    * ``ad_platforms`` — alias kept for backwards-compat; today routes to
+      ``google_ads`` (LinkedIn / Meta connectors land as follow-ups)
     """
     name = (os.environ.get("TAO_CMO_PROVIDER") or "synthetic").strip().lower()
-    if name == "ad_platforms":
-        log.warning(
-            "provider: ad_platforms selected but not yet implemented — "
-            "using synthetic_marketing"
-        )
-    if name not in ("synthetic", "ad_platforms", ""):
+    if name in ("google_ads", "ad_platforms"):
+        from .google_ads import google_ads_provider
+        log.debug("provider: google_ads selected")
+        return google_ads_provider
+    if name not in ("synthetic", ""):
         log.warning(
             "provider: unknown TAO_CMO_PROVIDER=%r — using synthetic_marketing",
             name,
