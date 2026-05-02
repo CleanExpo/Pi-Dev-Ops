@@ -210,8 +210,74 @@ def compose_voice_variant(
     return spoken, written
 
 
+# ── Margot reply voice variant ──────────────────────────────────────────────
+
+
+# Default cap — anything longer than this becomes a 60s+ voice clip,
+# which is awkward for conversational interface. Founder can override
+# via MARGOT_VOICE_REPLY_MAX_CHARS env.
+MARGOT_VOICE_MAX_CHARS_DEFAULT = 800
+
+
+def margot_reply_friendly_text(reply: str) -> str:
+    """Lighter version of voice_friendly_text for Margot's conversational
+    replies. The reply is already prose (not a structured 6-pager), so
+    we skip section-transition rewriting and bullet flattening; only
+    emoji-strip + abbreviation expansion + currency/percentage are useful.
+    """
+    out = _strip_emoji(reply)
+    out = _normalise_currency(out)
+    out = _normalise_percentage(out)
+    out = _normalise_abbreviations(out)
+    # Collapse multiple blank lines (no section headers in conversation)
+    out = re.sub(r"\n{2,}", "\n\n", out)
+    return out.strip()
+
+
+def compose_margot_voice_reply(
+    reply_text: str, *,
+    out_dir: Path,
+    filename_stem: str,
+    max_chars: int | None = None,
+) -> tuple[str, Path | None]:
+    """Produce (voice_friendly_text, audio_path_or_None) for a Margot
+    conversational reply.
+
+    Returns (voice_text, None) when:
+      - ELEVENLABS_API_KEY missing
+      - reply exceeds max_chars (default 800; voice would be too long)
+      - httpx unavailable
+      - TTS call fails
+
+    The caller's job: if audio_path is not None, send voice + text
+    together; otherwise send text only.
+    """
+    cap = max_chars or int(
+        os.environ.get(
+            "MARGOT_VOICE_REPLY_MAX_CHARS",
+            MARGOT_VOICE_MAX_CHARS_DEFAULT,
+        )
+    )
+
+    spoken = margot_reply_friendly_text(reply_text)
+    if len(spoken) > cap:
+        log.info(
+            "margot voice: reply %d chars > cap %d — text-only",
+            len(spoken), cap,
+        )
+        return spoken, None
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    audio_path = out_dir / f"{filename_stem}.mp3"
+    written = synthesise_voice(spoken, out_path=audio_path)
+    return spoken, written
+
+
 __all__ = [
     "voice_friendly_text",
+    "margot_reply_friendly_text",
     "synthesise_voice",
     "compose_voice_variant",
+    "compose_margot_voice_reply",
+    "MARGOT_VOICE_MAX_CHARS_DEFAULT",
 ]
