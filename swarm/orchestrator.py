@@ -155,6 +155,21 @@ def run() -> None:
         state["suspended"] = False
         _save_state(state_file, state)
 
+    # OAuth refresh — push current Xero / Google Ads access tokens into env
+    # before any senior bot reads them. Per-provider failure is non-fatal
+    # (the relevant provider just falls back to synthetic for that bot).
+    try:
+        from . import oauth_refresh  # noqa: PLC0415
+        from pathlib import Path as _Path  # noqa: PLC0415
+        _rr = _Path(__file__).resolve().parents[1]
+        for _provider in ("xero", "google_ads"):
+            try:
+                oauth_refresh.export_to_env(_provider, _rr)
+            except Exception as _exc:  # noqa: BLE001
+                log.debug("oauth: %s export skipped (%s)", _provider, _exc)
+    except Exception as _exc:  # noqa: BLE001
+        log.debug("oauth: refresh module skipped at startup (%s)", _exc)
+
     mode_label = "SHADOW MODE" if config.SHADOW_MODE else "ACTIVE MODE"
     log.info("Pi-CEO Swarm starting — %s (unacked=%d)", mode_label, state["unacked_count"])
     send(
@@ -209,6 +224,20 @@ def run() -> None:
 
         cycle_start = time.time()
         log.info("── Cycle start (unacked=%d, shadow=%s) ──", state["unacked_count"], config.SHADOW_MODE)
+
+        # ── OAuth refresh — opportunistic per-cycle. needs_refresh() checks
+        # the stored expiry against now+skew, so we only hit the token
+        # endpoint when the access token is actually about to lapse.
+        try:
+            from . import oauth_refresh  # noqa: PLC0415
+            from pathlib import Path as _Path  # noqa: PLC0415
+            _rr = _Path(__file__).resolve().parents[1]
+            for _provider in ("xero", "google_ads"):
+                _stored = oauth_refresh.load_token(_provider, _rr) or {}
+                if oauth_refresh.needs_refresh(_stored):
+                    oauth_refresh.export_to_env(_provider, _rr)
+        except Exception as _exc:  # noqa: BLE001
+            log.debug("oauth: per-cycle refresh skipped (%s)", _exc)
 
         # ── Control 4: Guardian runs first ──────────────────────────────────
         guardian_result = guardian.run_cycle(state["unacked_count"])
