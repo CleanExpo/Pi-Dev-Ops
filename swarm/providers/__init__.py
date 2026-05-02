@@ -7,6 +7,14 @@ a custom test provider based on ``TAO_CFO_PROVIDER``.
 """
 from __future__ import annotations
 
-from .registry import select_marketing_provider, select_provider
+from .registry import (
+    select_marketing_provider,
+    select_platform_provider,
+    select_provider,
+)
 
-__all__ = ["select_provider", "select_marketing_provider"]
+__all__ = [
+    "select_provider",
+    "select_marketing_provider",
+    "select_platform_provider",
+]
