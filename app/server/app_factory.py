@@ -130,6 +130,32 @@ async def on_startup():
     asyncio.create_task(_resilient(linear_todo_poller, "linear_todo_poller"))
     asyncio.create_task(_resilient(stall_watchdog_loop, "stall_watchdog_loop"))  # RA-1104
     asyncio.create_task(_resilient(integration_health_loop, "integration_health_loop"))  # RA-1293
+
+    # RA-1869 — Wave-4/5 swarm orchestrator startup. Without this hook the
+    # FastAPI server runs but swarm/orchestrator.py:run() never fires —
+    # meaning CoS Telegram poller, senior bots, Margot, and Board are all
+    # dormant. Gated on TAO_SWARM_ENABLED so it's reversible.
+    #
+    # orchestrator.run() is a sync function with a while-True loop; we wrap
+    # it in asyncio.to_thread so it gets its own thread without blocking
+    # the FastAPI event loop. _resilient adds restart-on-crash semantics
+    # consistent with the other long-running daemons above.
+    if os.environ.get("TAO_SWARM_ENABLED") == "1":
+        try:
+            from swarm import orchestrator as _swarm_orchestrator  # noqa: PLC0415
+
+            async def _run_swarm() -> None:
+                await asyncio.to_thread(_swarm_orchestrator.run)
+
+            asyncio.create_task(_resilient(_run_swarm, "swarm_orchestrator"))
+            log.info("Swarm orchestrator scheduled (TAO_SWARM_ENABLED=1)")
+        except Exception as exc:
+            log.warning(
+                "Swarm orchestrator startup failed (non-fatal, FastAPI continues): %s",
+                exc,
+            )
+    else:
+        log.info("Swarm orchestrator NOT started (TAO_SWARM_ENABLED != 1)")
     if config.AUTONOMY_ENABLED:
         log.info("Autonomy poller enabled — polling Linear every 5 min for Todo issues")
     else:
