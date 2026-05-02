@@ -182,14 +182,21 @@ def run() -> None:
         bot_name="Orchestrator",
     )
 
-    # Graceful shutdown on SIGTERM/SIGINT
+    # Graceful shutdown on SIGTERM/SIGINT.
+    # signal.signal() only works from the main thread. When the orchestrator is
+    # spawned via asyncio.to_thread() from FastAPI startup (RA-1869), we run
+    # in a worker thread — FastAPI's lifespan handles SIGTERM in that case.
     _running = [True]
     def _handle_signal(sig, frame):
         log.info("Shutdown signal received — stopping swarm cleanly")
         _running[0] = False
         send("Swarm received shutdown signal — stopping cleanly.", severity="info", bot_name="Orchestrator")
-    signal.signal(signal.SIGTERM, _handle_signal)
-    signal.signal(signal.SIGINT,  _handle_signal)
+    try:
+        signal.signal(signal.SIGTERM, _handle_signal)
+        signal.signal(signal.SIGINT,  _handle_signal)
+    except ValueError as exc:
+        # ValueError: signal only works in main thread of the main interpreter
+        log.info("Skipping signal handler registration (worker thread): %s", exc)
 
     while _running[0]:
         # Re-read kill-switch every cycle
