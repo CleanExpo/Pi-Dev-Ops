@@ -44,13 +44,46 @@ CREATE TABLE IF NOT EXISTS sessions (
   completed_at TIMESTAMPTZ
 );
 
+-- RA-1407 — Session checkpointing for cross-deploy persistence (Option B).
+-- The original status check accepted only running/done/error, but the
+-- autonomous build pipeline uses a richer lifecycle (created, cloning,
+-- building, evaluating, complete, failed, killed, interrupted, blocked).
+-- Drop the strict constraint and add a `checkpoint` JSONB column to hold
+-- last_completed_phase + retry_count + evaluator_status/score/model + linear
+-- + workspace + error so a fresh container can resume.
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS checkpoint JSONB;
+ALTER TABLE sessions DROP CONSTRAINT IF EXISTS sessions_status_check;
+
 CREATE INDEX IF NOT EXISTS sessions_started_at_idx ON sessions (started_at DESC);
 CREATE INDEX IF NOT EXISTS sessions_repo_name_idx  ON sessions (repo_name);
+-- RA-1407 — Status index so startup recovery can quickly find interrupted rows.
+CREATE INDEX IF NOT EXISTS sessions_status_idx     ON sessions (status);
 
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_read"    ON sessions FOR SELECT USING (true);
 CREATE POLICY "service_write"  ON sessions FOR INSERT TO service_role WITH CHECK (true);
 CREATE POLICY "service_update" ON sessions FOR UPDATE TO service_role USING (true);
+
+-- ── RA-1439 — cron_state ─────────────────────────────────────────────────────
+-- Persistent last_fired_at per trigger, durable across Railway redeploys.
+-- The schedule definitions live in `.harness/cron-triggers.json` (committed).
+-- The runtime `last_fired_at` lives HERE so Railway deploys don't reset it
+-- to the frozen git state. Without this, every redeploy reverts every
+-- trigger's last_fired_at to whatever was committed, defeating catch-up
+-- because the next deploy reverts again before save_triggers persists.
+CREATE TABLE IF NOT EXISTS cron_state (
+  trigger_id     TEXT        PRIMARY KEY,
+  last_fired_at  TIMESTAMPTZ NOT NULL,
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE cron_state ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "cron_state_public_read"    ON cron_state;
+DROP POLICY IF EXISTS "cron_state_service_write"  ON cron_state;
+DROP POLICY IF EXISTS "cron_state_service_update" ON cron_state;
+CREATE POLICY "cron_state_public_read"    ON cron_state FOR SELECT USING (true);
+CREATE POLICY "cron_state_service_write"  ON cron_state FOR INSERT TO service_role WITH CHECK (true);
+CREATE POLICY "cron_state_service_update" ON cron_state FOR UPDATE TO service_role USING (true);
 
 -- ── terminal_lines ────────────────────────────────────────────────────────────
 -- Persisted terminal output lines per session (enables replay on reconnect)

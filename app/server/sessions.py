@@ -86,6 +86,7 @@ from .session_phases import (  # noqa: F401
     _phase_sandbox,
     _phase_generate,
     _phase_evaluate,
+    _phase_adversary,
     _phase_push,
 )
 

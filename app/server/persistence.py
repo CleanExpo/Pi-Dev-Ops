@@ -75,6 +75,17 @@ def save_session(session) -> None:
         # Non-fatal — persistence failure should not crash the session
         pass
 
+    # RA-1407 — dual-write to Supabase for cross-deploy persistence (Option B).
+    # Local JSON above remains the canonical local cache; Supabase is the
+    # cross-deploy source of truth so a fresh Railway container can resume
+    # interrupted sessions. Both writes are fire-and-forget so a Supabase
+    # outage cannot block the build pipeline (RA-1109).
+    try:
+        from . import supabase_log
+        supabase_log.save_session_checkpoint(session)
+    except Exception:
+        pass
+
 
 def load_all_sessions() -> list[dict]:
     """Read all session JSON files from disk. Returns list of dicts."""

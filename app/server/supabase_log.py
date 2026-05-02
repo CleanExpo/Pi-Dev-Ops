@@ -203,6 +203,153 @@ def log_gate_check(
     )
 
 
+# ── RA-1407: sessions table checkpointing ────────────────────────────────────
+
+def _repo_name_from_url(repo_url: str) -> str:
+    """Extract repo_name (e.g. 'CleanExpo/Pi-Dev-Ops') from a github URL."""
+    if not repo_url:
+        return "unknown"
+    s = repo_url.rstrip("/").rstrip(".git")
+    parts = s.split("/")
+    if len(parts) >= 2:
+        return f"{parts[-2]}/{parts[-1]}"
+    return s
+
+
+def save_session_checkpoint(session) -> bool:
+    """RA-1407 — Persist session checkpoint to Supabase `sessions` table.
+
+    Fire-and-forget: any failure logs WARN and returns False. The build
+    pipeline must NEVER block on observability writes (RA-1109 surface
+    treatment compliance — but unlike a dashboard surface, this is the
+    canonical persistence path. JSON local file remains the fallback).
+
+    Uses the `_upsert` helper so repeated calls during a build update the
+    same row (keyed by `id` PK). The full resume state lives in the
+    `checkpoint` JSONB column added by the RA-1407 migration.
+
+    Returns True on success, False on Supabase unavailable / error.
+    """
+    if session is None or not getattr(session, "id", ""):
+        return False
+    try:
+        repo_url = getattr(session, "repo_url", "") or ""
+        status = (getattr(session, "status", "") or "running").lower()
+        terminal_states = {
+            "complete", "done", "failed", "error",
+            "killed", "interrupted", "blocked",
+        }
+        row: dict[str, Any] = {
+            "id": session.id,
+            "repo_url": repo_url,
+            "repo_name": _repo_name_from_url(repo_url),
+            "branch": getattr(session, "branch", "") or "",
+            "status": status,
+            "trigger": getattr(session, "trigger", "manual") or "manual",
+            "started_at": _iso_or_now(getattr(session, "started_at", None)),
+            "checkpoint": {
+                "last_completed_phase": getattr(session, "last_completed_phase", "") or "",
+                "retry_count":       int(getattr(session, "retry_count", 0) or 0),
+                "evaluator_status":  getattr(session, "evaluator_status", "pending") or "pending",
+                "evaluator_score":   getattr(session, "evaluator_score", None),
+                "evaluator_model":   getattr(session, "evaluator_model", "") or "",
+                "evaluator_consensus": getattr(session, "evaluator_consensus", "") or "",
+                "linear_issue_id":   getattr(session, "linear_issue_id", None),
+                "workspace":         getattr(session, "workspace", "") or "",
+                "error":             getattr(session, "error", "") or "",
+                "output_line_count": len(getattr(session, "output_lines", []) or []),
+            },
+        }
+        if status in terminal_states:
+            row["completed_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        return _upsert("sessions", row)
+    except Exception as exc:
+        log.warning("RA-1407 save_session_checkpoint failed (non-fatal): %s", exc)
+        return False
+
+
+def fetch_interrupted_sessions(limit: int = 20) -> list[dict[str, Any]]:
+    """RA-1407 — Return sessions in `status='interrupted'` for startup recovery.
+
+    Used by the startup hook (RA-1407 PR 2) to auto-enqueue resume calls.
+    Fail-soft: returns empty list if Supabase unavailable.
+    """
+    try:
+        return _select(
+            "sessions",
+            f"status=eq.interrupted&order=started_at.desc&limit={int(limit)}",
+        )
+    except Exception as exc:
+        log.warning("RA-1407 fetch_interrupted_sessions failed: %s", exc)
+        return []
+
+
+def _iso_or_now(ts: Any) -> str:
+    """Best-effort ISO timestamp from a float epoch / str / None."""
+    try:
+        if isinstance(ts, (int, float)) and ts > 0:
+            return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat(timespec="seconds")
+        if isinstance(ts, str) and ts:
+            return ts
+    except Exception:
+        pass
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+# ── RA-1439: cron_state — durable last_fired_at per trigger ──────────────────
+
+def save_cron_last_fired(trigger_id: str, last_fired_at: float) -> bool:
+    """RA-1439 — Persist a single trigger's last_fired_at to Supabase cron_state.
+
+    Survives Railway redeploys. The committed `.harness/cron-triggers.json`
+    otherwise resets last_fired_at on every container boot, defeating
+    catch-up because the next deploy reverts again before save persists.
+
+    Fire-and-forget: returns False on any failure but never raises.
+    """
+    if not trigger_id or last_fired_at is None or last_fired_at <= 0:
+        return False
+    try:
+        ts = datetime.fromtimestamp(float(last_fired_at), tz=timezone.utc).isoformat(timespec="seconds")
+        return _upsert("cron_state", {
+            "trigger_id": trigger_id,
+            "last_fired_at": ts,
+            "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        })
+    except Exception as exc:
+        log.warning("RA-1439 save_cron_last_fired failed (non-fatal): %s", exc)
+        return False
+
+
+def load_cron_state() -> dict[str, float]:
+    """RA-1439 — Return {trigger_id: last_fired_at_epoch_seconds} from Supabase.
+
+    Used by `cron_store._load_triggers()` to overlay durable state onto the
+    schedule defined in `.harness/cron-triggers.json`. Empty dict on
+    Supabase outage — caller falls back to JSON's value (which may be
+    frozen but at least lets the system keep running).
+    """
+    try:
+        rows = _select("cron_state", "select=trigger_id,last_fired_at&limit=200")
+        out: dict[str, float] = {}
+        for r in rows:
+            tid = r.get("trigger_id", "")
+            ts_str = r.get("last_fired_at", "")
+            if not tid or not ts_str:
+                continue
+            try:
+                # Postgres returns ISO with offset; fromisoformat accepts
+                # trailing Z on Python 3.11+, normalise just in case.
+                ts_norm = ts_str.replace("Z", "+00:00")
+                out[tid] = datetime.fromisoformat(ts_norm).timestamp()
+            except Exception:
+                continue
+        return out
+    except Exception as exc:
+        log.warning("RA-1439 load_cron_state failed (non-fatal): %s", exc)
+        return {}
+
+
 # ── RA-633: alert_escalations ─────────────────────────────────────────────────
 
 def log_alert_escalation(

@@ -115,6 +115,16 @@ app.add_middleware(
 @app.on_event("startup")
 async def on_startup():
     restore_sessions()
+    # RA-1407 PR 2 — cross-deploy recovery from Supabase. Local JSON restore
+    # above handles same-container restarts; this catches sessions whose
+    # local JSON was lost when the Railway container was replaced.
+    try:
+        from .session_model import recover_interrupted_sessions_from_supabase  # noqa: PLC0415
+        recovered = recover_interrupted_sessions_from_supabase()
+        if recovered:
+            log.info("RA-1407 startup: scheduled %d session(s) for resume from Supabase", recovered)
+    except Exception as exc:
+        log.warning("RA-1407 startup recovery failed (non-fatal): %s", exc)
     asyncio.create_task(_resilient(lambda: gc_loop(_sessions), "gc_loop"))
     asyncio.create_task(_resilient(cron_loop, "cron_loop"))
     asyncio.create_task(_resilient(linear_todo_poller, "linear_todo_poller"))
