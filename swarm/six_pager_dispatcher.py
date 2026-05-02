@@ -90,9 +90,14 @@ def maybe_fire_daily(state: dict, *,
     # PII redact + draft_review post (chunked for Telegram 4096-char cap)
     try:
         from . import draft_review, pii_redactor, six_pager  # noqa: PLC0415
-        # pii_redactor signature varies across the codebase; degrade safely
+        # pii_redactor.redact() returns a Result dataclass with a
+        # `.redacted_payload` field. Test stubs may return a bare string
+        # (pre-Result codepath); accept either to keep the seam working.
         try:
-            redacted = pii_redactor.redact(brief)  # type: ignore[attr-defined]
+            result = pii_redactor.redact(brief)  # type: ignore[attr-defined]
+            redacted = getattr(result, "redacted_payload", result)
+            if not isinstance(redacted, str):
+                redacted = brief
         except Exception:
             redacted = brief
 
