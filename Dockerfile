@@ -28,6 +28,12 @@ COPY app/server/ ./app/server/
 # TAO engine (imported by sessions.py via sys.path manipulation)
 COPY src/ ./src/
 
+# RA-1869 — Wave-4/5 swarm orchestrator + bots (CoS Telegram poller, senior
+# bots, Board, Margot, debate runner, kanban adapter, voice composer).
+# Imported from app/server/app_factory.py:on_startup. Without this COPY,
+# `from swarm import orchestrator` fails at runtime with ModuleNotFoundError.
+COPY swarm/ ./swarm/
+
 # Harness data: lessons seed, TAO config, skills
 COPY .harness/ ./.harness/
 COPY skills/ ./skills/
