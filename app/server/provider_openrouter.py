@@ -31,7 +31,6 @@ httpx imported lazily so the module loads in environments without it.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
 from typing import Any

@@ -1,4 +1,5 @@
 """Webhook routes: GitHub, Linear, morning-intel, Telegram, routine-complete (RA-937, RA-1011)."""
+import base64
 import json
 import logging
 import os
@@ -739,8 +740,6 @@ async def get_routine_runs(
 # Both routes are *intake only* in this commit. Sender-allowlist + intent
 # classification + Margot dispatch land in the next session once Composio
 # OAuth + Pub/Sub topic + REVIEW_CHAT_ID are configured.
-
-import base64
 
 _GMAIL_INTAKE_LOG = Path(__file__).resolve().parents[3] / ".harness" / "swarm" / "gmail_intake.jsonl"
 _CALENDAR_INTAKE_LOG = Path(__file__).resolve().parents[3] / ".harness" / "swarm" / "calendar_intake.jsonl"
