@@ -151,6 +151,35 @@ async def _fire_intel_refresh_trigger(trigger: dict, log) -> None:
         log.info("Anthropic docs consolidated: %s", _consolidate_result.stdout.strip()[:100])
 
 
+async def _fire_portfolio_pulse_trigger(trigger: dict, log) -> None:
+    """Fire the daily Portfolio Pulse — RA-1888.
+
+    Calls swarm.portfolio_pulse.run_all_projects() which builds one
+    markdown briefing per project under .harness/portfolio-pulse/.
+    Sibling tickets (RA-1889..1893) plug section providers + delivery.
+    Failure of any single project does NOT raise — the whole batch
+    completes and the log surfaces per-project errors.
+    """
+    log.info("Firing portfolio_pulse id=%s", trigger["id"])
+    try:
+        from swarm.portfolio_pulse import run_all_projects  # noqa: PLC0415
+    except Exception as exc:  # noqa: BLE001
+        log.error("portfolio_pulse import failed: %s", exc)
+        return
+
+    projects = trigger.get("projects")  # optional override; None → DEFAULT_PROJECTS
+    # Run sync function in a worker thread — keeps the cron loop async-clean.
+    results = await asyncio.to_thread(
+        run_all_projects, projects=projects,
+    )
+    ok = sum(1 for r in results if not r.error)
+    err = sum(1 for r in results if r.error)
+    log.info(
+        "portfolio_pulse id=%s complete: %d ok, %d errored",
+        trigger["id"], ok, err,
+    )
+
+
 async def _fire_script_trigger(trigger: dict, log) -> None:
     """Fire a script-based trigger (analyse_lessons, etc.) as a subprocess."""
     script = trigger.get("script", "")
@@ -197,6 +226,8 @@ async def _fire_trigger(trigger: dict, log) -> None:
         await _fire_feedback_trigger(trigger, log)
     elif trigger_type == "meta_curator":                       # RA-1839
         await _fire_meta_curator_trigger(trigger, log)
+    elif trigger_type == "portfolio_pulse":                    # RA-1888
+        await _fire_portfolio_pulse_trigger(trigger, log)
     else:
         await create_session(
             repo_url=trigger["repo_url"],
