@@ -46,6 +46,16 @@ _vercel_deploy_failure_last_raised: float = 0.0
 _VERCEL_DEPLOY_FAILURE_THRESHOLD_H = 2.0
 _VERCEL_DEPLOY_FAILURE_COOLDOWN_H = 6.0
 
+# RA-1908 — Linear API auth watchdog. On 2026-05-03 the local Hermes
+# `LINEAR_API_KEY` returned "Not authenticated" twice (errors.log 03:38
+# + 06:00). Cron jobs (board-meeting, intel refresh, scout queue) lost
+# Linear capability silently. This watchdog probes Linear daily with a
+# no-op `viewer { id email }` query and fires a Telegram alert when
+# auth fails. Skips Linear ticket creation deliberately — Linear is
+# the broken component. 24h cooldown so a slow rotation doesn't spam.
+_linear_auth_last_raised: float = 0.0
+_LINEAR_AUTH_COOLDOWN_H = 24.0
+
 
 def _board_meetings_dir():
     """Return the on-disk directory holding board-meeting markdown files.
@@ -548,6 +558,109 @@ async def _watchdog_board_meeting_silence(log) -> None:
             log.error("Board-meeting watchdog: Linear ticket create failed: %s", exc)
 
     _board_meeting_silent_last_raised = time.time()
+
+
+async def _watchdog_linear_auth(log) -> None:
+    """
+    RA-1908 — Linear API auth watchdog.
+
+    Issues a no-op `viewer { id email }` GraphQL query against Linear.
+    If the response carries an auth error (no_api_key, request_failed
+    with 401, or "Not authenticated" body), fires a Telegram alert.
+    Does NOT create a Linear ticket — Linear is the broken component.
+    24h cooldown.
+    """
+    global _linear_auth_last_raised
+    from . import config
+
+    if _linear_auth_last_raised and (
+        time.time() - _linear_auth_last_raised
+    ) < _LINEAR_AUTH_COOLDOWN_H * 3600:
+        return
+
+    # Probe Linear via the existing helper. _gql() catches network errors
+    # and returns a structured dict — never raises.
+    try:
+        from swarm.linear_tools import _gql  # noqa: PLC0415
+    except Exception as exc:  # noqa: BLE001
+        log.debug("Linear-auth watchdog: linear_tools import failed (%s)", exc)
+        return
+
+    res = _gql("query { viewer { id email } }")
+
+    auth_failed = False
+    reason = ""
+    if "error" in res:
+        err = (res.get("error") or "").lower()
+        if err == "no_api_key":
+            auth_failed = True
+            reason = "no_api_key"
+        elif err == "request_failed":
+            # Only flag as auth failure when the exception mentions 401 /
+            # authentication. Pure network errors (ConnectionReset, DNS,
+            # timeout) trip request_failed too — treating those as
+            # auth-failed would produce false alerts during network blips.
+            exc_text = str(res.get("exception", ""))
+            if (
+                "401" in exc_text
+                or "not authenticated" in exc_text.lower()
+                or "unauthorized" in exc_text.lower()
+            ):
+                auth_failed = True
+                reason = "http_401"
+    elif "errors" in res:
+        # Linear returns GraphQL-level errors as `errors: [...]`
+        errs = res.get("errors") or []
+        for e in errs:
+            msg = (e.get("message") or "").lower()
+            if "authent" in msg or "unauthor" in msg or "401" in msg:
+                auth_failed = True
+                reason = e.get("message", "")[:120]
+                break
+    elif res.get("data", {}).get("viewer") is None:
+        # Empty data + no error = ambiguous; treat as healthy unless errors
+        pass
+
+    if not auth_failed:
+        return
+
+    log.warning(
+        "Linear-auth watchdog: Linear MCP auth failed (reason=%s) — "
+        "rotate LINEAR_API_KEY in ~/.hermes/.env + Railway env",
+        reason,
+    )
+
+    # Telegram alert only — Linear is broken so we can't file a ticket there.
+    if config.TELEGRAM_BOT_TOKEN and config.TELEGRAM_ALERT_CHAT_ID:
+        import urllib.request as _ureq
+        import json as _json
+        payload = _json.dumps({
+            "chat_id": config.TELEGRAM_ALERT_CHAT_ID,
+            "text": (
+                "🚨 *Linear API auth failed*\n\n"
+                f"Reason: `{reason}`\n\n"
+                "Action: regenerate `LINEAR_API_KEY` on linear.app, "
+                "update `~/.hermes/.env` and Railway env, restart Hermes.\n\n"
+                "Cron jobs depending on Linear (board-meeting, intel refresh, "
+                "scout queue, autonomy poller) are degraded until rotated.\n\n"
+                "_RA-1908_ — 24h cooldown active."
+            ),
+            "parse_mode": "Markdown",
+            "disable_web_page_preview": True,
+        }).encode()
+        try:
+            req = _ureq.Request(
+                f"https://api.telegram.org/bot{config.TELEGRAM_BOT_TOKEN}/sendMessage",
+                data=payload, method="POST",
+                headers={"Content-Type": "application/json"},
+            )
+            with _ureq.urlopen(req, timeout=10):
+                pass
+            log.info("Linear-auth watchdog: Telegram alert sent")
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Linear-auth watchdog: Telegram send failed: %s", exc)
+
+    _linear_auth_last_raised = time.time()
 
 
 def _vercel_projects_to_monitor():
