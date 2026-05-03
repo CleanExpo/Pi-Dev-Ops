@@ -427,6 +427,39 @@ def mark_alert_acked(alert_key: str) -> None:
     )
 
 
+# ── RA-1905: margot_conversations — durable Margot memory ────────────────────
+
+def insert_margot_conversation(row: dict[str, Any]) -> bool:
+    """RA-1905 — Insert a Margot turn into the durable margot_conversations
+    table. Fire-and-forget: any failure logs WARN and returns False.
+
+    JSONL on Railway disk is a hot cache; this table is the source of truth
+    that survives redeploys.
+    """
+    return _insert("margot_conversations", row)
+
+
+def select_margot_conversations(
+    *,
+    chat_id: str,
+    limit: int = 10,
+    tenant_id: str = "pi-ceo",
+) -> list[dict[str, Any]]:
+    """RA-1905 — Return up to `limit` most-recent Margot turns for `chat_id`,
+    ordered by started_at desc. Returns [] when Supabase is unconfigured or
+    on any error (caller falls back to JSONL cache).
+    """
+    if not chat_id:
+        return []
+    params = (
+        f"tenant_id=eq.{tenant_id}"
+        f"&chat_id=eq.{chat_id}"
+        f"&order=started_at.desc"
+        f"&limit={int(limit)}"
+    )
+    return _select("margot_conversations", params)
+
+
 # ── RA-820: notebooklm_health ─────────────────────────────────────────────────
 
 def log_notebooklm_health(
