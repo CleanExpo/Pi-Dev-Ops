@@ -167,6 +167,18 @@ async def _fire_portfolio_pulse_trigger(trigger: dict, log) -> None:
         log.error("portfolio_pulse import failed: %s", exc)
         return
 
+    # Import sibling section providers so they self-register before run.
+    # Each is fail-soft: missing dep / module-level raise → placeholder
+    # foundation provider stays in place for that section.
+    for _mod in ("portfolio_pulse_linear",):
+        try:
+            __import__(f"swarm.{_mod}")
+        except Exception as exc:  # noqa: BLE001
+            log.warning(
+                "portfolio_pulse: section provider swarm.%s failed to load: %s",
+                _mod, exc,
+            )
+
     projects = trigger.get("projects")  # optional override; None → DEFAULT_PROJECTS
     # Run sync function in a worker thread — keeps the cron loop async-clean.
     results = await asyncio.to_thread(
