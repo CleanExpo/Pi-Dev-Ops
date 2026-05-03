@@ -284,5 +284,13 @@
     "created_at": 1777704664,
     "last_fired_at": null,
     "note": "RA-1839 \u2014 clusters merged PRs touching the same file path and proposes skills from recurrence patterns. HITL-gated."
+  },
+  {
+    "id": "portfolio-pulse-daily",
+    "type": "portfolio_pulse",
+    "name": "Portfolio Pulse \u2014 daily 20:00 UTC (06:00 AEST)",
+    "hour": 20,
+    "minute": 0,
+    "enabled": true
   }
 ]
