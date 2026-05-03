@@ -276,6 +276,19 @@ Your behaviour
    - 5-6: notable — interesting but routine; mention without trigger.
    - 1-4: minor — answer the question, no trigger.
 
+5b. TRUTH-CHECK CAPABILITY (Grok 4.3, contrarian / red-team voice):
+   For any question that genuinely benefits from a different-threshold
+   perspective (strategic decisions, claims to verify, devil's advocate
+   review, founder making a call where blind spots matter), emit:
+
+       [TRUTH-CHECK topic="<concise question or claim>"]
+
+   The system fires Grok 4.3 with the topic; Grok's reply is injected
+   into the Phase-2 prompt and you weave the contrarian view into your
+   final reply. Use SPARINGLY — only when divergent perspective adds
+   real value. Not for every question; not for chitchat. Multiple
+   sentinels fire in parallel.
+
 6. Never use first-person business language ("we / our / my company").
    Refer to "Unite-Group" or "the portfolio". Phill's strict rule.
 
@@ -398,13 +411,71 @@ async def _run_research_batch(requests: list["ResearchRequest"]
     return list(findings)
 
 
+async def _run_truth_check_batch(requests: list["TruthCheckRequest"]
+                                   ) -> list[dict[str, Any]]:
+    """Fire Grok 4.3 (margot.truth_check role) for each TRUTH-CHECK
+    sentinel in parallel. Returns a list of {topic, response, error} dicts.
+
+    Failures are non-fatal — the corresponding entry has error set + an
+    empty response. The Phase-2 prompt builder handles missing results.
+    """
+    import asyncio  # noqa: PLC0415
+
+    try:
+        from app.server.provider_router import run_via_provider  # noqa: PLC0415
+    except Exception as exc:  # noqa: BLE001
+        log.warning("margot truth-check: provider_router import failed (%s)", exc)
+        return [
+            {"topic": r.topic, "response": "",
+             "error": f"provider_router_unavailable: {exc}"}
+            for r in requests
+        ]
+
+    async def _fire(r: "TruthCheckRequest") -> dict[str, Any]:
+        # Frame the topic for Grok — explicit contrarian / truth-seeker brief.
+        prompt = (
+            "You are a contrarian / red-team voice. Phill McGurk's chief-of-staff "
+            "Margot has flagged the following for a different-threshold "
+            "perspective. Your job: surface what other models would soften, "
+            "miss, or refuse to say. Be direct, evidence-grounded, and concise "
+            "(≤400 words). If the claim is solid, say so plainly — don't "
+            "invent disagreement.\n\n"
+            f"Topic: {r.topic}\n\n"
+            "Contrarian response:"
+        )
+        try:
+            rc, text, _cost, error = await run_via_provider(
+                prompt=prompt, role="margot.truth_check",
+                timeout_s=60, session_id=f"truth-{r.topic[:30]}",
+                thinking="adaptive",
+            )
+            if rc != 0 or error:
+                return {"topic": r.topic, "response": "",
+                        "error": error or f"rc={rc}"}
+            return {"topic": r.topic, "response": text, "error": None}
+        except Exception as exc:  # noqa: BLE001
+            return {"topic": r.topic, "response": "",
+                    "error": f"truth_check_raised: {exc}"}
+
+    return list(await asyncio.gather(*(_fire(r) for r in requests)))
+
+
 def build_prompt_with_research(*, user_text: str,
                                   history: list[MargotTurn],
                                   context: dict[str, Any],
                                   draft: str,
-                                  research_findings: list[dict[str, Any]]
+                                  research_findings: list[dict[str, Any]],
+                                  truth_check_findings: (
+                                      list[dict[str, Any]] | None
+                                  ) = None,
                                   ) -> str:
-    """Construct the Phase-2 prompt — Phase 1 prompt + draft + research."""
+    """Construct the Phase-2 prompt — Phase 1 prompt + draft + research +
+    optional truth-check findings.
+
+    truth_check_findings is a list of {topic, response, error} dicts from
+    _run_truth_check_batch. Pass None or [] when no TRUTH-CHECK sentinels
+    were emitted.
+    """
     base = build_prompt(user_text=user_text, history=history,
                          context=context)
 
@@ -424,21 +495,41 @@ def build_prompt_with_research(*, user_text: str,
             )
             findings_block += "\n"
 
-    return (
+    truth_block = ""
+    for i, f in enumerate(truth_check_findings or [], start=1):
+        truth_block += (
+            f"\n--- Truth-check (Grok 4.3) finding {i} "
+            f"(topic: {f['topic']!r}) ---\n"
+        )
+        if f.get("error"):
+            truth_block += f"[error: {f['error']}]\n"
+        else:
+            response = f.get("response") or "(empty)"
+            truth_block += response[:3000] + ("…" if len(response) > 3000 else "")
+            truth_block += "\n"
+
+    sections = (
         f"{base}\n\n"
         f"==============================================================\n"
-        f"PHASE 2 — research has been performed. Your Phase 1 draft was:\n"
+        f"PHASE 2 — research / truth-check completed. Your Phase 1 draft was:\n"
         f"==============================================================\n\n"
         f"{draft}\n\n"
-        f"Research findings:\n"
-        f"{findings_block}\n"
-        f"==============================================================\n"
-        f"Produce the FINAL reply now, integrating the research findings.\n"
-        f"Do NOT emit [RESEARCH] sentinels in this Phase 2 response — the\n"
-        f"research is already done. [BOARD-TRIGGER] sentinels are still\n"
-        f"valid if any finding scores ≥7/10 material.\n"
-        f"=============================================================="
     )
+    if research_findings:
+        sections += f"Research findings:\n{findings_block}\n"
+    if truth_check_findings:
+        sections += (
+            f"Truth-check (Grok 4.3 contrarian) findings:\n{truth_block}\n"
+        )
+    sections += (
+        "==============================================================\n"
+        "Produce the FINAL reply now, integrating the findings above.\n"
+        "Do NOT emit [RESEARCH] or [TRUTH-CHECK] sentinels in this\n"
+        "Phase 2 response — those calls are already done. [BOARD-TRIGGER]\n"
+        "sentinels are still valid if any finding scores ≥7/10 material.\n"
+        "=============================================================="
+    )
+    return sections
 
 
 # ── Response parsing ────────────────────────────────────────────────────────
@@ -450,11 +541,24 @@ _BOARD_TRIGGER_RE = re.compile(
     re.MULTILINE,
 )
 
+# Order-agnostic sentinel match — RA-1885 fix.
+# Captures everything between [TAG and ] and the caller parses attrs.
 _RESEARCH_REQUEST_RE = re.compile(
-    r"\[RESEARCH(?:\s+depth\s*=\s*\"(quick|deep)\")?\s*"
-    r"topic\s*=\s*\"([^\"]+)\"\]",
+    r"\[RESEARCH(\s+[^\]]*)?\]",
     re.MULTILINE,
 )
+_TRUTH_CHECK_REQUEST_RE = re.compile(
+    r"\[TRUTH-CHECK(\s+[^\]]*)?\]",
+    re.MULTILINE,
+)
+_ATTR_RE = re.compile(r'(\w+)\s*=\s*"([^"]*)"')
+
+
+def _parse_attrs(attr_str: str | None) -> dict[str, str]:
+    """Parse `key="value" key2="value2"` into dict. Order-agnostic."""
+    if not attr_str:
+        return {}
+    return {m.group(1): m.group(2) for m in _ATTR_RE.finditer(attr_str)}
 
 
 @dataclass
@@ -464,24 +568,63 @@ class ResearchRequest:
     depth: str = "quick"  # "quick" → deep_research; "deep" → deep_research_max
 
 
+@dataclass
+class TruthCheckRequest:
+    """A [TRUTH-CHECK] sentinel parsed out of Margot's draft response.
+
+    RA-1886: when Margot wants a contrarian / truth-seeker view (Grok 4.3
+    via TAO_MODEL_MARGOT_TRUTH_CHECK), she emits:
+
+        [TRUTH-CHECK topic="<concise question/claim to red-team>"]
+
+    The system fires the truth-check call and injects the response into
+    Phase-2 so Margot can weave the contrarian view into her final reply.
+    """
+    topic: str
+
+
 def parse_research_requests(response_text: str
                               ) -> tuple[list[ResearchRequest], str]:
     """Extract [RESEARCH] sentinels from Margot's draft response.
 
-    Format:
+    Format (order-agnostic, RA-1885):
         [RESEARCH topic="..." depth="quick"]
-    or  [RESEARCH topic="..."]                     (defaults to quick)
+        [RESEARCH depth="deep" topic="..."]
+        [RESEARCH topic="..."]                  (defaults to quick)
 
     Returns (requests, cleaned_text). Sentinels stripped from cleaned_text
     so the user-facing reply never shows the raw markup.
     """
     requests: list[ResearchRequest] = []
     for m in _RESEARCH_REQUEST_RE.finditer(response_text):
-        depth_group = m.group(1) or "quick"
-        topic = m.group(2).strip()
-        if topic:
-            requests.append(ResearchRequest(topic=topic, depth=depth_group))
+        attrs = _parse_attrs(m.group(1))
+        topic = (attrs.get("topic") or "").strip()
+        if not topic:
+            continue
+        depth = (attrs.get("depth") or "quick").strip().lower()
+        if depth not in ("quick", "deep"):
+            depth = "quick"
+        requests.append(ResearchRequest(topic=topic, depth=depth))
     cleaned = _RESEARCH_REQUEST_RE.sub("", response_text).strip()
+    return requests, cleaned
+
+
+def parse_truth_check_requests(response_text: str
+                                  ) -> tuple[list[TruthCheckRequest], str]:
+    """Extract [TRUTH-CHECK] sentinels from Margot's draft response.
+
+    Format:
+        [TRUTH-CHECK topic="<concise question/claim>"]
+
+    Returns (requests, cleaned_text). Sentinels stripped from cleaned_text.
+    """
+    requests: list[TruthCheckRequest] = []
+    for m in _TRUTH_CHECK_REQUEST_RE.finditer(response_text):
+        attrs = _parse_attrs(m.group(1))
+        topic = (attrs.get("topic") or "").strip()
+        if topic:
+            requests.append(TruthCheckRequest(topic=topic))
+    cleaned = _TRUTH_CHECK_REQUEST_RE.sub("", response_text).strip()
     return requests, cleaned
 
 
@@ -693,27 +836,39 @@ async def handle_turn(*, chat_id: str, user_text: str,
     )
     turn.cost_usd = cost
 
-    # ── Phase 2: research-on-demand ────────────────────────────────────
-    # If Phase 1 contained [RESEARCH] sentinels, fire deep_research for
-    # each (in parallel), inject results into a follow-up prompt, and
-    # call the LLM again. The user-facing reply is the Phase 2 output.
+    # ── Phase 2: research-on-demand + truth-check ─────────────────────
+    # If Phase 1 contained [RESEARCH] or [TRUTH-CHECK] sentinels, fire
+    # the corresponding calls in parallel, inject results into a follow-up
+    # prompt, and call the LLM again. The user-facing reply is Phase 2.
     if rc == 0 and not error:
-        research_requests, draft_clean = parse_research_requests(response_text)
-        if research_requests:
-            log.info("margot %s: phase 2 — %d research request(s)",
-                     turn.turn_id, len(research_requests))
-            turn.research_called = True
-            research_findings = await _run_research_batch(research_requests)
+        research_requests, after_research = parse_research_requests(response_text)
+        truth_requests, draft_clean = parse_truth_check_requests(after_research)
+
+        if research_requests or truth_requests:
+            log.info(
+                "margot %s: phase 2 — %d research, %d truth-check request(s)",
+                turn.turn_id, len(research_requests), len(truth_requests),
+            )
+            turn.research_called = bool(research_requests)
+            # Fire research + truth-check in parallel
+            import asyncio as _aio  # noqa: PLC0415
+            research_findings, truth_findings = await _aio.gather(
+                _run_research_batch(research_requests) if research_requests
+                else _aio.sleep(0, result=[]),
+                _run_truth_check_batch(truth_requests) if truth_requests
+                else _aio.sleep(0, result=[]),
+            )
 
             phase2_prompt = build_prompt_with_research(
                 user_text=user_text, history=history,
                 context=context, draft=draft_clean,
                 research_findings=research_findings,
+                truth_check_findings=truth_findings,
             )
             # Phase 2 uses role=margot.synthesis → top tier (Anthropic Opus)
-            # for quality on research integration. Cost is justified — this
-            # is the path that produces the user-visible reply when real
-            # research is in play.
+            # for quality on integration. Cost is justified — this is the
+            # path that produces the user-visible reply when real research
+            # or truth-check is in play.
             rc2, response_text2, cost2, error2 = await _call_llm(
                 prompt=phase2_prompt, turn_id=f"{turn.turn_id}-p2",
                 role="margot.synthesis",
@@ -725,8 +880,8 @@ async def handle_turn(*, chat_id: str, user_text: str,
                 # Phase 2 failure → use the Phase 1 draft (sentinels
                 # already stripped). Don't propagate Phase 2's error to
                 # the turn — Phase 1 succeeded, so the turn succeeded;
-                # the user gets the draft instead of the integrated
-                # research, but the conversation continues.
+                # the user gets the draft instead of integrated findings,
+                # but the conversation continues.
                 log.warning("margot %s: phase 2 failed (%s) — using draft",
                             turn.turn_id, error2 or f"rc={rc2}")
                 response_text = draft_clean
@@ -795,9 +950,10 @@ async def handle_turn(*, chat_id: str, user_text: str,
 
 
 __all__ = [
-    "MargotTurn", "BoardTrigger", "ResearchRequest",
+    "MargotTurn", "BoardTrigger", "ResearchRequest", "TruthCheckRequest",
     "handle_turn", "load_history", "append_turn",
     "build_context", "build_prompt", "build_prompt_with_research",
     "parse_board_triggers", "parse_research_requests",
+    "parse_truth_check_requests",
     "DEFAULT_HISTORY_TURNS", "DEFAULT_BOARD_TRIGGER_THRESHOLD",
 ]

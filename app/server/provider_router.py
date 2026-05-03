@@ -94,6 +94,7 @@ ROLE_TIER: dict[str, str] = {
     "debate.drafter":    "top",
     "debate.redteam":    "top",
     "margot.synthesis":  "top",  # Phase-2 research integration
+    "margot.truth_check": "top",  # RA-1886: Grok contrarian/truth-seeker voice
     # Mid tier — production-quality output
     "generator":         "mid",
     "evaluator":         "mid",

@@ -1785,6 +1785,106 @@ server.registerTool(
   }
 );
 
+// ── Tool: margot_voice_turn (RA-1886) ─────────────────────────────────────────
+// Drives one Margot voice turn end-to-end. Caller passes a Telegram file_id
+// (NOT the audio bytes — Pi-CEO downloads from Telegram via Bot API). Pi-CEO
+// then transcribes via OpenRouter Whisper Large v3 Turbo and runs the same
+// handle_turn pipeline as margot_turn. Returns reply + transcript so the
+// caller can echo the transcript back if desired.
+//
+// Hermes-side usage pattern:
+//   1. Receive an inbound Telegram voice message with attachment_file_id
+//   2. Call this tool with chat_id="<chat_id>" and file_id="<that file_id>"
+//   3. Hermes delivers the returned `reply` to Telegram (this tool sets _send=False
+//      on the underlying handle_turn call — we just return text + transcript)
+
+server.registerTool(
+  "margot_voice_turn",
+  {
+    title: "Margot Voice Turn (Whisper STT + Wave-4/5 enriched)",
+    description:
+      "RA-1886: Process one Telegram voice message through Margot. Pi-CEO " +
+      "downloads the audio by file_id (using TELEGRAM_BOT_TOKEN env on the " +
+      "Pi-CEO server), transcribes via OpenRouter Whisper Large v3 Turbo, " +
+      "then runs the full Wave-4/5 enriched handle_turn pipeline. Use this " +
+      "when answering as Margot to a voice note in Telegram. Returns the " +
+      "transcript alongside the reply so you can echo back what Phill said.",
+    inputSchema: {
+      chat_id: z.string().describe("Telegram chat_id (string)"),
+      file_id: z.string().min(1).describe(
+        "Telegram file_id of the voice/audio attachment",
+      ),
+      message_id: z.string().optional().describe(
+        "Telegram message_id for traceability",
+      ),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  },
+  async ({ chat_id, file_id, message_id }) => {
+    if (!PI_CEO_API_BASE) {
+      throw new Error("PI_CEO_API_BASE not set in MCP env");
+    }
+    if (!TAO_WEBHOOK_SECRET) {
+      throw new Error("TAO_WEBHOOK_SECRET not set in MCP env");
+    }
+    const body = JSON.stringify({
+      chat_id: String(chat_id),
+      file_id: String(file_id),
+      ...(message_id ? { message_id: String(message_id) } : {}),
+    });
+    const url = new URL(`${PI_CEO_API_BASE}/api/margot/voice`);
+    return new Promise((resolve, reject) => {
+      const req = https.request(
+        {
+          method: "POST",
+          host: url.host,
+          path: url.pathname + url.search,
+          headers: {
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(body),
+            "X-Pi-CEO-Secret": TAO_WEBHOOK_SECRET,
+          },
+          // download (~5-15s) + transcribe (~3-10s) + handle_turn (~5-120s).
+          // Cap at 200s to leave slack over the route's own 120s + 70s budget.
+          timeout: 200_000,
+        },
+        (res) => {
+          let data = "";
+          res.on("data", (chunk) => (data += chunk));
+          res.on("end", () => {
+            if (res.statusCode < 200 || res.statusCode >= 300) {
+              return reject(new Error(`Pi-CEO /api/margot/voice HTTP ${res.statusCode}: ${data}`));
+            }
+            try {
+              const parsed = JSON.parse(data);
+              resolve({
+                content: [
+                  { type: "text", text: parsed.reply || "" },
+                  {
+                    type: "text",
+                    text: `\n[transcript=${JSON.stringify(parsed.transcript || "")} ` +
+                      `turn_id=${parsed.turn_id} cost_usd=${parsed.cost_usd} ` +
+                      `research_called=${parsed.research_called} ` +
+                      `board_session_ids=${JSON.stringify(parsed.board_session_ids)}]`,
+                  },
+                ],
+              });
+            } catch (e) {
+              reject(new Error(`Pi-CEO /api/margot/voice returned non-JSON: ${data.slice(0, 200)}`));
+            }
+          });
+        }
+      );
+      req.on("error", reject);
+      req.on("timeout", () => {
+        req.destroy(new Error("Pi-CEO /api/margot/voice timed out after 200s"));
+      });
+      req.write(body);
+      req.end();
+    });
+  }
+);
+
 // ── Tool: code_execute (RA-1458) ──────────────────────────────────────────────
 // Per Anthropic's 2025 "Code Execution with MCP" paper — 98.7% token savings
 // measured. Instead of "Claude asks linear_list_issues → 500 rows flow through
