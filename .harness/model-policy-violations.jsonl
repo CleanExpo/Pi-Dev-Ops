@@ -1,0 +1,2 @@
+{"ts": "2026-05-03T12:55:12.807084+00:00", "role": "evaluator", "requested": "claude-opus-4-7", "granted": "REJECTED", "reason": "assert_model_allowed: opus violation", "caller": "test_unrelated_role_still_rejected"}
+{"ts": "2026-05-03T12:55:12.978825+00:00", "role": "portfolio", "requested": "claude-opus-4-7", "granted": "REJECTED", "reason": "assert_model_allowed: opus violation", "caller": "test_env_override_can_still_remove_portfolio"}
