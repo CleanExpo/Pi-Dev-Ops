@@ -289,6 +289,36 @@ Your behaviour
    real value. Not for every question; not for chitchat. Multiple
    sentinels fire in parallel.
 
+5c. REALTIME CAPABILITY (Perplexity Sonar Pro, live web data):
+   Founder directive: "without real-time data we are 3 months behind".
+   Your training cutoff is stale. For ANY question where current
+   external data matters — competitor announcements, market moves,
+   regulatory changes today, product releases this week, current
+   pricing, news today — emit:
+
+       [REALTIME topic="<specific search query, framed as a real query>"]
+
+   The system fires Perplexity Sonar Pro (live web + citations), and the
+   findings are injected into Phase-2 so you can produce an answer with
+   FRESH data. Use this LIBERALLY — anything that might have changed
+   recently is a candidate. Cheap, fast (~3-8s), and the alternative is
+   you confidently citing 6-month-old training knowledge as fact, which
+   is worse than saying nothing.
+
+   Examples that warrant [REALTIME]:
+     - "What did Anthropic announce this week?"
+     - "Current Claude API pricing"
+     - "Latest Sonar Pro vs sonar-deep-research benchmarks"
+     - "Has X competitor raised since their Series B?"
+     - "Today's AUD/USD" / "this morning's market open"
+   Examples that do NOT need [REALTIME]:
+     - Questions about CCW / Unite-Group operating context (you have it)
+     - Conversation continuity / personal scheduling
+     - Code explanations / pure reasoning
+
+   Multiple [REALTIME] sentinels fire in parallel. Citations from Sonar
+   come through to Phase-2 — preserve them inline so Phill can verify.
+
 6. Never use first-person business language ("we / our / my company").
    Refer to "Unite-Group" or "the portfolio". Phill's strict rule.
 
@@ -460,12 +490,63 @@ async def _run_truth_check_batch(requests: list["TruthCheckRequest"]
     return list(await asyncio.gather(*(_fire(r) for r in requests)))
 
 
+async def _run_realtime_batch(requests: list["RealtimeRequest"]
+                                ) -> list[dict[str, Any]]:
+    """Fire Perplexity Sonar (realtime_lookup role) for each REALTIME
+    sentinel in parallel — RA-1903.
+
+    Returns a list of {topic, response, citations, error} dicts. Failures
+    are non-fatal. Sonar's reply already includes citations inline; we
+    surface them in the response field as the model returned them.
+    """
+    import asyncio  # noqa: PLC0415
+
+    try:
+        from app.server.provider_router import run_via_provider  # noqa: PLC0415
+    except Exception as exc:  # noqa: BLE001
+        log.warning("margot realtime: provider_router import failed (%s)", exc)
+        return [
+            {"topic": r.topic, "response": "", "citations": [],
+             "error": f"provider_router_unavailable: {exc}"}
+            for r in requests
+        ]
+
+    async def _fire(r: "RealtimeRequest") -> dict[str, Any]:
+        # Sonar Pro is built for direct queries — minimal framing wins.
+        prompt = (
+            "Search the live web and answer this query. Be concise (≤350 "
+            "words), include citations inline (Sonar does this natively), "
+            "and prefer recency — the user needs current data, not "
+            "training-era knowledge.\n\n"
+            f"Query: {r.topic}"
+        )
+        try:
+            rc, text, _cost, error = await run_via_provider(
+                prompt=prompt, role="realtime_lookup",
+                timeout_s=60, session_id=f"realtime-{r.topic[:30]}",
+                thinking="adaptive",
+            )
+            if rc != 0 or error:
+                return {"topic": r.topic, "response": "", "citations": [],
+                        "error": error or f"rc={rc}"}
+            return {"topic": r.topic, "response": text,
+                    "citations": [], "error": None}
+        except Exception as exc:  # noqa: BLE001
+            return {"topic": r.topic, "response": "", "citations": [],
+                    "error": f"realtime_call_raised: {exc}"}
+
+    return list(await asyncio.gather(*(_fire(r) for r in requests)))
+
+
 def build_prompt_with_research(*, user_text: str,
                                   history: list[MargotTurn],
                                   context: dict[str, Any],
                                   draft: str,
                                   research_findings: list[dict[str, Any]],
                                   truth_check_findings: (
+                                      list[dict[str, Any]] | None
+                                  ) = None,
+                                  realtime_findings: (
                                       list[dict[str, Any]] | None
                                   ) = None,
                                   ) -> str:
@@ -508,10 +589,23 @@ def build_prompt_with_research(*, user_text: str,
             truth_block += response[:3000] + ("…" if len(response) > 3000 else "")
             truth_block += "\n"
 
+    realtime_block = ""
+    for i, f in enumerate(realtime_findings or [], start=1):
+        realtime_block += (
+            f"\n--- Realtime (Perplexity Sonar) finding {i} "
+            f"(topic: {f['topic']!r}) ---\n"
+        )
+        if f.get("error"):
+            realtime_block += f"[error: {f['error']}]\n"
+        else:
+            response = f.get("response") or "(empty)"
+            realtime_block += response[:3500] + ("…" if len(response) > 3500 else "")
+            realtime_block += "\n"
+
     sections = (
         f"{base}\n\n"
         f"==============================================================\n"
-        f"PHASE 2 — research / truth-check completed. Your Phase 1 draft was:\n"
+        f"PHASE 2 — research / truth-check / realtime completed. Your Phase 1 draft was:\n"
         f"==============================================================\n\n"
         f"{draft}\n\n"
     )
@@ -521,12 +615,18 @@ def build_prompt_with_research(*, user_text: str,
         sections += (
             f"Truth-check (Grok 4.3 contrarian) findings:\n{truth_block}\n"
         )
+    if realtime_findings:
+        sections += (
+            f"Realtime (Perplexity Sonar — current web) findings:\n{realtime_block}\n"
+        )
     sections += (
         "==============================================================\n"
         "Produce the FINAL reply now, integrating the findings above.\n"
-        "Do NOT emit [RESEARCH] or [TRUTH-CHECK] sentinels in this\n"
-        "Phase 2 response — those calls are already done. [BOARD-TRIGGER]\n"
-        "sentinels are still valid if any finding scores ≥7/10 material.\n"
+        "Do NOT emit [RESEARCH] / [TRUTH-CHECK] / [REALTIME] sentinels in\n"
+        "this Phase 2 response — those calls are already done. Preserve\n"
+        "any citations from realtime findings inline so Phill can verify.\n"
+        "[BOARD-TRIGGER] sentinels are still valid if any finding scores\n"
+        "≥7/10 material.\n"
         "=============================================================="
     )
     return sections
@@ -549,6 +649,11 @@ _RESEARCH_REQUEST_RE = re.compile(
 )
 _TRUTH_CHECK_REQUEST_RE = re.compile(
     r"\[TRUTH-CHECK(\s+[^\]]*)?\]",
+    re.MULTILINE,
+)
+# RA-1903: real-time web data via Perplexity Sonar Pro.
+_REALTIME_REQUEST_RE = re.compile(
+    r"\[REALTIME(\s+[^\]]*)?\]",
     re.MULTILINE,
 )
 _ATTR_RE = re.compile(r'(\w+)\s*=\s*"([^"]*)"')
@@ -579,6 +684,24 @@ class TruthCheckRequest:
 
     The system fires the truth-check call and injects the response into
     Phase-2 so Margot can weave the contrarian view into her final reply.
+    """
+    topic: str
+
+
+@dataclass
+class RealtimeRequest:
+    """A [REALTIME] sentinel parsed out of Margot's draft response.
+
+    RA-1903: when Margot needs current web data the LLM's training cutoff
+    can't see (today's news, market moves, current pricing, competitor
+    announcements, regulatory updates), she emits:
+
+        [REALTIME topic="<specific search query>"]
+
+    The system fires Perplexity Sonar Pro via the realtime_lookup role
+    (TAO_MODEL_REALTIME_LOOKUP=openrouter:perplexity/sonar-pro) and
+    injects the live findings + citations into Phase-2 so Margot's final
+    reply uses fresh data instead of stale training knowledge.
     """
     topic: str
 
@@ -625,6 +748,25 @@ def parse_truth_check_requests(response_text: str
         if topic:
             requests.append(TruthCheckRequest(topic=topic))
     cleaned = _TRUTH_CHECK_REQUEST_RE.sub("", response_text).strip()
+    return requests, cleaned
+
+
+def parse_realtime_requests(response_text: str
+                              ) -> tuple[list[RealtimeRequest], str]:
+    """Extract [REALTIME] sentinels from Margot's draft response — RA-1903.
+
+    Format:
+        [REALTIME topic="<specific search query>"]
+
+    Returns (requests, cleaned_text). Sentinels stripped from cleaned_text.
+    """
+    requests: list[RealtimeRequest] = []
+    for m in _REALTIME_REQUEST_RE.finditer(response_text):
+        attrs = _parse_attrs(m.group(1))
+        topic = (attrs.get("topic") or "").strip()
+        if topic:
+            requests.append(RealtimeRequest(topic=topic))
+    cleaned = _REALTIME_REQUEST_RE.sub("", response_text).strip()
     return requests, cleaned
 
 
@@ -836,26 +978,31 @@ async def handle_turn(*, chat_id: str, user_text: str,
     )
     turn.cost_usd = cost
 
-    # ── Phase 2: research-on-demand + truth-check ─────────────────────
-    # If Phase 1 contained [RESEARCH] or [TRUTH-CHECK] sentinels, fire
-    # the corresponding calls in parallel, inject results into a follow-up
-    # prompt, and call the LLM again. The user-facing reply is Phase 2.
+    # ── Phase 2: research / truth-check / realtime-on-demand ──────────
+    # If Phase 1 contained [RESEARCH], [TRUTH-CHECK], or [REALTIME]
+    # sentinels, fire the corresponding calls in parallel, inject results
+    # into a follow-up prompt, and call the LLM again. User-facing reply
+    # is Phase 2 output.
     if rc == 0 and not error:
         research_requests, after_research = parse_research_requests(response_text)
-        truth_requests, draft_clean = parse_truth_check_requests(after_research)
+        truth_requests, after_truth = parse_truth_check_requests(after_research)
+        realtime_requests, draft_clean = parse_realtime_requests(after_truth)
 
-        if research_requests or truth_requests:
+        if research_requests or truth_requests or realtime_requests:
             log.info(
-                "margot %s: phase 2 — %d research, %d truth-check request(s)",
-                turn.turn_id, len(research_requests), len(truth_requests),
+                "margot %s: phase 2 — %d research, %d truth-check, %d realtime request(s)",
+                turn.turn_id, len(research_requests),
+                len(truth_requests), len(realtime_requests),
             )
-            turn.research_called = bool(research_requests)
-            # Fire research + truth-check in parallel
+            turn.research_called = bool(research_requests or realtime_requests)
+            # Fire research + truth-check + realtime in parallel
             import asyncio as _aio  # noqa: PLC0415
-            research_findings, truth_findings = await _aio.gather(
+            research_findings, truth_findings, realtime_findings = await _aio.gather(
                 _run_research_batch(research_requests) if research_requests
                 else _aio.sleep(0, result=[]),
                 _run_truth_check_batch(truth_requests) if truth_requests
+                else _aio.sleep(0, result=[]),
+                _run_realtime_batch(realtime_requests) if realtime_requests
                 else _aio.sleep(0, result=[]),
             )
 
@@ -864,6 +1011,7 @@ async def handle_turn(*, chat_id: str, user_text: str,
                 context=context, draft=draft_clean,
                 research_findings=research_findings,
                 truth_check_findings=truth_findings,
+                realtime_findings=realtime_findings,
             )
             # Phase 2 uses role=margot.synthesis → top tier (Anthropic Opus)
             # for quality on integration. Cost is justified — this is the
@@ -951,9 +1099,10 @@ async def handle_turn(*, chat_id: str, user_text: str,
 
 __all__ = [
     "MargotTurn", "BoardTrigger", "ResearchRequest", "TruthCheckRequest",
+    "RealtimeRequest",
     "handle_turn", "load_history", "append_turn",
     "build_context", "build_prompt", "build_prompt_with_research",
     "parse_board_triggers", "parse_research_requests",
-    "parse_truth_check_requests",
+    "parse_truth_check_requests", "parse_realtime_requests",
     "DEFAULT_HISTORY_TURNS", "DEFAULT_BOARD_TRIGGER_THRESHOLD",
 ]
