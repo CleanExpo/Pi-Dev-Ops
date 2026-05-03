@@ -30,7 +30,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from . import linear_tools, portfolio_pulse
+from . import portfolio_pulse
+
+# linear_tools is imported lazily inside _fetch_movement / linear_section_provider
+# because it triggers flow_engine.register_with_flow_engine() at module load,
+# which transitively imports swarm.draft_review. Eager import would pollute
+# sys.modules before tests can monkeypatch draft_review.
 
 log = logging.getLogger("swarm.portfolio_pulse.linear")
 
@@ -142,6 +147,8 @@ def _fetch_movement(linear_project_id: str,
 
     On error returns {"error": "..."}.
     """
+    from . import linear_tools  # noqa: PLC0415 — lazy import (see header)
+
     now = datetime.now(timezone.utc)
     since_iso = (now - timedelta(hours=lookback_hours)).isoformat()
     stale_before_iso = (now - timedelta(days=STALE_DAYS)).isoformat()
@@ -270,7 +277,13 @@ def _render_section(movement: dict[str, Any]) -> str:
 def linear_section_provider(project_id: str,
                               repo_root: Path) -> tuple[str, str | None]:
     """Section provider — registered at module import."""
-    if not linear_tools._api_key():
+    # Read env directly rather than via linear_tools._api_key(), so the
+    # graceful-fallback paths (no key / missing project) don't trigger
+    # the linear_tools import chain that pulls in flow_engine + draft_review.
+    # That eager registration breaks test isolation for swarm.draft_review
+    # monkeypatching elsewhere in the test suite.
+    import os as _os  # noqa: PLC0415
+    if not (_os.environ.get("LINEAR_API_KEY") or "").strip():
         return "_(linear: no API key)_", "no_api_key"
 
     projects = _load_projects(repo_root)
