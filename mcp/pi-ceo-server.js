@@ -1758,16 +1758,20 @@ server.registerTool(
             }
             try {
               const parsed = JSON.parse(data);
+              // RA-1907: keep metadata out of content[] so text-rendering MCP
+              // clients (e.g. Hermes' agent loop, which concatenates content
+              // blocks) don't surface it to the user. Programmatic callers can
+              // still read result.structuredContent.
               resolve({
                 content: [
                   { type: "text", text: parsed.reply || "" },
-                  {
-                    type: "text",
-                    text: `\n[turn_id=${parsed.turn_id} cost_usd=${parsed.cost_usd} ` +
-                      `research_called=${parsed.research_called} ` +
-                      `board_session_ids=${JSON.stringify(parsed.board_session_ids)}]`,
-                  },
                 ],
+                structuredContent: {
+                  turn_id: parsed.turn_id,
+                  cost_usd: parsed.cost_usd,
+                  research_called: parsed.research_called,
+                  board_session_ids: parsed.board_session_ids,
+                },
               });
             } catch (e) {
               reject(new Error(`Pi-CEO /api/margot/turn returned non-JSON: ${data.slice(0, 200)}`));
@@ -1857,17 +1861,21 @@ server.registerTool(
             }
             try {
               const parsed = JSON.parse(data);
+              // RA-1907: keep metadata out of content[] so text-rendering MCP
+              // clients don't surface it to the user. Programmatic callers can
+              // still read result.structuredContent (transcript included so
+              // callers can echo what Phill said if desired).
               resolve({
                 content: [
                   { type: "text", text: parsed.reply || "" },
-                  {
-                    type: "text",
-                    text: `\n[transcript=${JSON.stringify(parsed.transcript || "")} ` +
-                      `turn_id=${parsed.turn_id} cost_usd=${parsed.cost_usd} ` +
-                      `research_called=${parsed.research_called} ` +
-                      `board_session_ids=${JSON.stringify(parsed.board_session_ids)}]`,
-                  },
                 ],
+                structuredContent: {
+                  transcript: parsed.transcript || "",
+                  turn_id: parsed.turn_id,
+                  cost_usd: parsed.cost_usd,
+                  research_called: parsed.research_called,
+                  board_session_ids: parsed.board_session_ids,
+                },
               });
             } catch (e) {
               reject(new Error(`Pi-CEO /api/margot/voice returned non-JSON: ${data.slice(0, 200)}`));
