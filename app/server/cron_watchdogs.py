@@ -9,6 +9,7 @@ Contains:
 
 The ZTE pipeline-stall watchdog (RA-608) lives in cron_watchdog_zte.py.
 """
+import asyncio
 import time
 
 # RA-635 — module-level dedup state for docs-stale watchdog.
@@ -867,3 +868,103 @@ async def _watchdog_vercel_deploy_failures(log) -> None:
             log.error("Vercel watchdog: Linear ticket create failed: %s", exc)
 
     _vercel_deploy_failure_last_raised = time.time()
+
+
+# RA-1910 — /api/health/full pinger watchdog state.
+# Per-component cooldown (30 min) prevents alert storms when a component
+# stays red. Recovery state lets us send "X recovered" exactly once when a
+# previously-red component flips back to green.
+_health_alert_cooldowns: dict[str, float] = {}
+_health_red_components: set[str] = set()
+_HEALTH_COOLDOWN_S = 30 * 60
+_HEALTH_FULL_URL = "http://127.0.0.1:8000/api/health/full"
+
+
+def _health_full_send_telegram(text: str, log) -> None:
+    """Best-effort Telegram alert via the shared swarm helper.
+
+    Uses bot_name="Margot" per RA-1910 spec. Falls back silently if the
+    swarm helper isn't importable or the env vars aren't configured —
+    we never want a missing token to crash the watchdog.
+    """
+    try:
+        from swarm.telegram_alerts import send  # noqa: PLC0415
+        send(text, severity="high", bot_name="Margot")
+    except Exception as exc:  # noqa: BLE001
+        log.debug("health_full watchdog: telegram send skipped (%s)", exc)
+
+
+async def _watchdog_health_full(log) -> None:
+    """RA-1910 — poll /api/health/full and alert on red components.
+
+    For each component currently red:
+      - if cooldown expired (or first sighting), send Telegram alert and
+        bump the cooldown timestamp.
+      - track in _health_red_components.
+
+    For each component that was red previously and is now green:
+      - send a "Component X recovered" Telegram and clear cooldown.
+
+    Uses stdlib urllib so we don't add a new dependency. The local FastAPI
+    instance binds to 127.0.0.1:8000 in Railway/dev — soft-fails if the
+    request errors so a watchdog crash never silences the rest of the loop.
+    """
+    global _health_red_components
+
+    import json as _json
+    import urllib.request as _ureq
+
+    body: dict | None = None
+    try:
+        req = _ureq.Request(_HEALTH_FULL_URL, headers={"Accept": "application/json"})
+        # urlopen is sync — wrap in to_thread so we don't block the loop.
+        loop = asyncio.get_running_loop()
+
+        def _fetch() -> dict:
+            with _ureq.urlopen(req, timeout=5) as resp:  # noqa: S310
+                return _json.loads(resp.read())
+
+        body = await loop.run_in_executor(None, _fetch)
+    except Exception as exc:  # noqa: BLE001
+        log.debug("health_full watchdog: fetch failed (%s)", exc)
+        return
+
+    if not isinstance(body, dict):
+        return
+    components = body.get("components") or {}
+    if not isinstance(components, dict):
+        return
+
+    now = time.time()
+    current_red: set[str] = set()
+    for name, payload in components.items():
+        if not isinstance(payload, dict):
+            continue
+        if not bool(payload.get("ok", True)):
+            current_red.add(name)
+
+    # Alerts for red components (with per-component cooldown).
+    for name in sorted(current_red):
+        last = _health_alert_cooldowns.get(name, 0.0)
+        if now - last <= _HEALTH_COOLDOWN_S:
+            continue
+        err = (components.get(name) or {}).get("error", "")
+        msg = (
+            f"health_full: component <b>{name}</b> RED"
+            + (f"\nerror: <code>{err}</code>" if err else "")
+        )
+        _health_full_send_telegram(msg, log)
+        _health_alert_cooldowns[name] = now
+        log.warning("health_full watchdog: %s RED — alert sent", name)
+
+    # Recovery messages for components that just flipped red→green.
+    recovered = _health_red_components - current_red
+    for name in sorted(recovered):
+        _health_full_send_telegram(
+            f"health_full: component <b>{name}</b> recovered (now green)",
+            log,
+        )
+        _health_alert_cooldowns.pop(name, None)
+        log.info("health_full watchdog: %s recovered", name)
+
+    _health_red_components = current_red
