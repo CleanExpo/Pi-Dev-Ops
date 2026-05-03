@@ -97,6 +97,7 @@ ROLE_TIER: dict[str, str] = {
     "margot.truth_check": "top",  # RA-1886: Grok contrarian/truth-seeker voice
     "realtime_lookup":   "top",  # RA-1903: Perplexity Sonar real-time web data
     "research.realtime": "top",  # RA-1903: Sonar deep research live multi-step
+    "portfolio.synthesis": "top",  # RA-1892: cross-portfolio daily pulse synthesis
     # Mid tier — production-quality output
     "generator":         "mid",
     "evaluator":         "mid",
