@@ -146,3 +146,6 @@ sessions/
 .composio/
 .composio.json
 composio.json
+
+# RA-1922 — runtime audit log written by tests/test_portfolio_synthesis_opus_policy.py
+.harness/model-policy-violations.jsonl

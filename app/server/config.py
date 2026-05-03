@@ -172,10 +172,18 @@ ALLOWED_MODELS       = ["opus", "sonnet", "haiku"]
 # Override via TAO_OPUS_ALLOWED_ROLES if you ever need to widen this — but the
 # default is strict by design (cost + latency).
 OPUS_ALLOWED_ROLES   = set(
-    os.environ.get("TAO_OPUS_ALLOWED_ROLES", "planner,orchestrator,adversary").split(",")
+    os.environ.get(
+        "TAO_OPUS_ALLOWED_ROLES",
+        "planner,orchestrator,adversary,portfolio",
+    ).split(",")
 )
 # RA-1743 — `adversary` runs the pre-push opus-adversary review gate. Opus 4.7
 # is required for genuine model-diversity vs Sonnet 4.6 generator/evaluator.
+# RA-1922 — `portfolio` is the role bucket for the cross-portfolio synthesis
+# (RA-1892, the "10x layer" of the daily Portfolio Pulse). session_sdk.py:127
+# strips dot-suffixes via `phase.split(".")[0]`, so `portfolio.synthesis`
+# arrives at the policy check as bare `portfolio`. Synthesis runs once per
+# day across the whole portfolio (~365 calls/year) — cost is bounded.
 # Long-form model IDs returned by _resolve_model_id() in pipeline.py and
 # session_evaluator.py. Kept here so a single edit changes both readers.
 MODEL_ID_OPUS        = "claude-opus-4-7"
