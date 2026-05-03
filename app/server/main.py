@@ -13,6 +13,7 @@ from .app_factory import app  # noqa: F401  (re-exported for uvicorn / callers)
 from .routes import auth, sessions, webhooks, triggers, scan_monitor, pipeline, utils, telegram_proxy, mission_control, phone, swarm, margot, cost_report
 # health registers its routes directly on `app` via @app.get/@app.on_event decorators
 from .routes import health  # noqa: F401
+from .routes import health_full  # RA-1910 — /api/health/full endpoint
 
 app.include_router(auth.router)
 app.include_router(sessions.router)
@@ -27,5 +28,6 @@ app.include_router(phone.router)
 app.include_router(swarm.router)
 app.include_router(margot.router)  # RA-1871
 app.include_router(cost_report.router)  # RA-1909
+app.include_router(health_full.router)  # RA-1910
 
 __all__ = ["app"]
