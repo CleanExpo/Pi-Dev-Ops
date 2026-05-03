@@ -16,10 +16,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const sig256   = req.headers.get("x-hub-signature-256") ?? "";
   const event    = req.headers.get("x-github-event") ?? "";
 
-  // Verify HMAC-SHA256 signature before processing event type
+  // Verify HMAC-SHA256 signature before processing event type.
+  // RA-1916: when no webhook secret is configured the server cannot verify
+  // any inbound request — reject as unauthorized (401) rather than leaking
+  // server-side config state with 500. Smoke contract: rejected-unsigned
+  // = 401 regardless of server config.
   const settings = await getSettings();
   if (!settings.webhookSecret) {
-    return NextResponse.json({ error: "Webhook secret not configured — add it in Settings" }, { status: 500 });
+    return NextResponse.json({ error: "Webhook secret not configured" }, { status: 401 });
   }
 
   const expectedHex = createHmac("sha256", settings.webhookSecret).update(rawBody).digest("hex");
