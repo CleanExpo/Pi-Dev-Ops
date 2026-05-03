@@ -18,13 +18,13 @@ def client(monkeypatch, tmp_path):
     """Build a minimal FastAPI app mounting only the cost_report router."""
     monkeypatch.setenv("TAO_WEBHOOK_SECRET", "test-secret")
     monkeypatch.setenv("BUDGET_TRACKER_LOG_PATH", str(tmp_path / "llm-cost.jsonl"))
-    # Force module reload so config picks up the env var
-    for m in [
-        "app.server.config",
-        "app.server.routes.cost_report",
-        "swarm.budget_tracker",
-    ]:
-        sys.modules.pop(m, None)
+    # config reads env at module import time; reloading isn't reliable in
+    # tests because config has side effects (writes session secret etc.).
+    # Monkeypatching the resolved attribute is the cleanest path.
+    sys.modules.pop("swarm.budget_tracker", None)
+    from app.server import config as _config  # noqa: PLC0415
+    monkeypatch.setattr(_config, "WEBHOOK_SECRET", "test-secret", raising=False)
+    sys.modules.pop("app.server.routes.cost_report", None)
     from app.server.routes import cost_report  # noqa: PLC0415
     app = FastAPI()
     app.include_router(cost_report.router)
