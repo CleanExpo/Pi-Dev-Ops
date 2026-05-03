@@ -328,7 +328,14 @@ async def run_via_provider(prompt: str, *, role: str,
                 phase=role,
                 thinking=thinking,
             )
-            return int(rc), text or "", float(cost or 0.0), None
+            rc_i = int(rc)
+            cost_f = float(cost or 0.0)
+            if rc_i == 0 and cost_f > 0:
+                _record_cost_safe(
+                    provider="anthropic", role=role, model=pm.model_id,
+                    cost_usd=cost_f,
+                )
+            return rc_i, text or "", cost_f, None
         except Exception as exc:  # noqa: BLE001
             return 1, "", 0.0, f"anthropic_sdk_call_raised: {exc}"
 
@@ -341,10 +348,17 @@ async def run_via_provider(prompt: str, *, role: str,
                 from . import provider_ollama  # noqa: PLC0415
         except Exception as exc:  # noqa: BLE001
             return 1, "", 0.0, f"ollama_import_failed: {exc}"
-        return await provider_ollama.call(
+        result = await provider_ollama.call(
             prompt=prompt, model_id=pm.model_id,
             timeout_s=timeout_s, role=role, session_id=session_id,
         )
+        # Ollama is free (cost_usd=0.0) but we still record for completeness
+        if int(result[0]) == 0:
+            _record_cost_safe(
+                provider="ollama", role=role, model=pm.model_id,
+                cost_usd=float(result[2] or 0.0),
+            )
+        return result
 
     # OpenRouter path (remote; paid)
     try:
@@ -354,10 +368,34 @@ async def run_via_provider(prompt: str, *, role: str,
             from . import provider_openrouter  # noqa: PLC0415
     except Exception as exc:  # noqa: BLE001
         return 1, "", 0.0, f"openrouter_import_failed: {exc}"
-    return await provider_openrouter.call(
+    result = await provider_openrouter.call(
         prompt=prompt, model_id=pm.model_id,
         timeout_s=timeout_s, role=role, session_id=session_id,
     )
+    if int(result[0]) == 0:
+        _record_cost_safe(
+            provider="openrouter", role=role, model=pm.model_id,
+            cost_usd=float(result[2] or 0.0),
+        )
+    return result
+
+
+def _record_cost_safe(
+    *, provider: str, role: str, model: str, cost_usd: float,
+    tokens_in: int = 0, tokens_out: int = 0,
+) -> None:
+    """Best-effort budget tracker hook — must never raise."""
+    try:
+        import sys as _sys  # noqa: PLC0415
+        bt = _sys.modules.get("swarm.budget_tracker")
+        if bt is None:
+            from swarm import budget_tracker as bt  # noqa: PLC0415
+        bt.record_cost(
+            provider=provider, role=role, model=model,
+            cost_usd=cost_usd, tokens_in=tokens_in, tokens_out=tokens_out,
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.debug("provider_router: budget_tracker hook failed: %s", exc)
 
 
 __all__ = [
