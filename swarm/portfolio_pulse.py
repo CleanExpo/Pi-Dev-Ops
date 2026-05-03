@@ -182,6 +182,34 @@ def render_pulse_md(result: PulseResult) -> str:
 # ── Public API ──────────────────────────────────────────────────────────────
 
 
+_SIBLINGS_LOADED = False
+
+
+def _load_sibling_providers() -> None:
+    """Lazy-import every ``portfolio_pulse_*`` sibling so that each one's
+    self-registration runs and replaces the foundation placeholders.
+
+    Idempotent — siblings register via ``set_section_provider``, which
+    is also idempotent. Errors are logged but never raised; a broken
+    sibling must not prevent the rest of the pulse from running.
+    """
+    global _SIBLINGS_LOADED  # noqa: PLW0603
+    if _SIBLINGS_LOADED:
+        return
+    _SIBLINGS_LOADED = True
+    import importlib  # noqa: PLC0415
+    import pkgutil  # noqa: PLC0415
+    pkg_path = Path(__file__).parent
+    for mod in pkgutil.iter_modules([str(pkg_path)]):
+        if not mod.name.startswith("portfolio_pulse_"):
+            continue
+        try:
+            importlib.import_module(f"swarm.{mod.name}")
+        except Exception as exc:  # noqa: BLE001
+            log.warning("portfolio_pulse: sibling %s import failed (%s)",
+                        mod.name, exc)
+
+
 def build_pulse(project_id: str, *,
                   repo_root: Path | None = None,
                   date: str | None = None) -> PulseResult:
@@ -192,6 +220,7 @@ def build_pulse(project_id: str, *,
     catastrophic errors (e.g. inability to write the markdown file) put
     a top-level error on the result.
     """
+    _load_sibling_providers()
     rr = repo_root or REPO_ROOT
     when = date or _today_utc()
     result = PulseResult(project_id=project_id, date=when)
