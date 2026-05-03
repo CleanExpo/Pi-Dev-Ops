@@ -18,6 +18,7 @@ from .cron_watchdogs import (
     _watchdog_check,
     _watchdog_docs_staleness,
     _watchdog_escalations,
+    _watchdog_linear_auth,
     _watchdog_notebooklm_health,
     _watchdog_vercel_deploy_failures,
 )
@@ -130,6 +131,7 @@ async def cron_loop() -> None:
                 await _watchdog_notebooklm_refresh_weekly(_log)  # RA-1668
                 await _watchdog_board_meeting_silence(_log)    # RA-1472
                 await _watchdog_vercel_deploy_failures(_log)   # RA-1742
+                await _watchdog_linear_auth(_log)              # RA-1908
 
             # Linear pulse every 15 min — mandatory single-pane-of-glass for
             # the founder, per explicit requirement (2026-04-19).
