@@ -92,33 +92,115 @@ def _conversation_path(chat_id: str, repo_root: Path) -> Path:
     return p
 
 
+def _supabase_payload(turn: MargotTurn) -> dict[str, Any]:
+    """Map MargotTurn → margot_conversations row. tenant_id default 'pi-ceo'
+    per RA-1838 forward-compat (per-tenant verdict)."""
+    return {
+        "turn_id": turn.turn_id,
+        "chat_id": turn.chat_id,
+        "tenant_id": "pi-ceo",
+        "user_text": turn.user_text,
+        "margot_text": turn.margot_text,
+        "user_message_id": turn.user_message_id,
+        "board_session_ids": list(turn.board_session_ids or []),
+        "research_called": bool(turn.research_called),
+        "cost_usd": float(turn.cost_usd or 0.0),
+        "started_at": turn.started_at or None,
+        "ended_at": turn.ended_at or None,
+        "error": turn.error,
+    }
+
+
+def _row_to_turn(row: dict[str, Any]) -> MargotTurn | None:
+    """Map margot_conversations row → MargotTurn, tolerating missing fields."""
+    try:
+        return MargotTurn(
+            turn_id=row.get("turn_id") or f"mt-{uuid.uuid4().hex[:10]}",
+            chat_id=str(row.get("chat_id") or ""),
+            user_text=row.get("user_text") or "",
+            margot_text=row.get("margot_text") or "",
+            user_message_id=row.get("user_message_id"),
+            board_session_ids=list(row.get("board_session_ids") or []),
+            research_called=bool(row.get("research_called") or False),
+            cost_usd=float(row.get("cost_usd") or 0.0),
+            started_at=row.get("started_at") or "",
+            ended_at=row.get("ended_at") or "",
+            error=row.get("error"),
+        )
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def append_turn(turn: MargotTurn, *, repo_root: Path | None = None) -> Path:
+    """Persist a turn to BOTH the JSONL hot cache and Supabase (RA-1905).
+
+    JSONL is on Railway ephemeral disk and is wiped on redeploy; Supabase is
+    the durable source of truth. Supabase write is fire-and-forget — failures
+    log WARN and never raise (matches the existing supabase_log pattern). If
+    Supabase is unconfigured (test envs), only the JSONL is written.
+    """
     rr = repo_root or REPO_ROOT
     p = _conversation_path(turn.chat_id, rr)
     with p.open("a", encoding="utf-8") as f:
         f.write(json.dumps(asdict(turn), ensure_ascii=False) + "\n")
+
+    try:
+        from app.server import supabase_log  # noqa: PLC0415
+        supabase_log.insert_margot_conversation(_supabase_payload(turn))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("margot: supabase insert suppressed (%s)", exc)
     return p
 
 
 def load_history(chat_id: str, *,
                   limit: int = DEFAULT_HISTORY_TURNS,
                   repo_root: Path | None = None) -> list[MargotTurn]:
+    """Load the last `limit` turns for a chat.
+
+    RA-1905: Reads Supabase first (durable, survives redeploys). Falls back to
+    the JSONL hot cache when Supabase is unconfigured (test envs) or returns
+    nothing. After a Railway redeploy, JSONL is empty but Supabase rehydrates
+    the conversation history.
+    """
     rr = repo_root or REPO_ROOT
+
+    # Supabase: source of truth (post-redeploy hydration path).
+    rows: list[dict[str, Any]] = []
+    try:
+        from app.server import supabase_log  # noqa: PLC0415
+        rows = supabase_log.select_margot_conversations(
+            chat_id=chat_id, limit=limit,
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.warning("margot: supabase select suppressed (%s)", exc)
+        rows = []
+
+    if rows:
+        # Supabase returned rows ordered started_at desc → reverse to chrono.
+        out: list[MargotTurn] = []
+        for row in reversed(rows):
+            t = _row_to_turn(row)
+            if t is not None:
+                out.append(t)
+        if out:
+            return out
+
+    # Fallback: JSONL hot cache (test envs, Supabase outage, or pre-RA-1905).
     p = _conversation_path(chat_id, rr)
     if not p.exists():
         return []
     lines = p.read_text(encoding="utf-8").splitlines()
-    out: list[MargotTurn] = []
+    out_jsonl: list[MargotTurn] = []
     for line in lines[-limit:]:
         line = line.strip()
         if not line:
             continue
         try:
             row = json.loads(line)
-            out.append(MargotTurn(**row))
+            out_jsonl.append(MargotTurn(**row))
         except Exception:  # noqa: BLE001
             continue
-    return out
+    return out_jsonl
 
 
 # ── Context assembly ────────────────────────────────────────────────────────
