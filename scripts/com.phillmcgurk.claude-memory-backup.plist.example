@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  RA-1912 — Daily LaunchAgent for claude_memory_backup.sh
+
+  Install (this file is committed as `.plist.example`; copy to a real
+  `.plist` in your LaunchAgents dir before loading):
+    cp scripts/com.phillmcgurk.claude-memory-backup.plist.example \
+       ~/Library/LaunchAgents/com.phillmcgurk.claude-memory-backup.plist
+    launchctl load ~/Library/LaunchAgents/com.phillmcgurk.claude-memory-backup.plist
+
+  Verify:
+    launchctl list | grep claude-memory
+    tail ~/Library/Logs/claude-memory-backup.log
+
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.phillmcgurk.claude-memory-backup.plist
+    rm ~/Library/LaunchAgents/com.phillmcgurk.claude-memory-backup.plist
+
+  Schedule: 03:14 local every day (off-the-hour to spread load).
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.phillmcgurk.claude-memory-backup</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-l</string>
+        <string>/Users/phill-mac/Pi-CEO/scripts/claude_memory_backup.sh</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>CLAUDE_MEMORY_REMOTE</key>
+        <string>git@github.com:CleanExpo/claude-memory.git</string>
+        <key>CLAUDE_MEMORY_BRANCH</key>
+        <string>main</string>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>3</integer>
+        <key>Minute</key>
+        <integer>14</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/phill-mac/Library/Logs/claude-memory-backup.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/phill-mac/Library/Logs/claude-memory-backup.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
