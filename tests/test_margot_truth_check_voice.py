@@ -138,8 +138,13 @@ def test_whisper_missing_file(monkeypatch):
 
 
 def test_voice_route_missing_secret_returns_401(monkeypatch):
-    """Missing X-Pi-CEO-Secret → 401, regardless of payload."""
-    monkeypatch.setenv("TAO_WEBHOOK_SECRET", "test-secret")
+    """Missing X-Pi-CEO-Secret → 401, regardless of payload.
+
+    config.WEBHOOK_SECRET is module-level so we patch the attribute, not
+    just the env var (env-set after import is too late).
+    """
+    from app.server import config
+    monkeypatch.setattr(config, "WEBHOOK_SECRET", "test-secret")
     from fastapi.testclient import TestClient
     from app.server.routes.margot import router
 
@@ -157,7 +162,8 @@ def test_voice_route_missing_secret_returns_401(monkeypatch):
 
 def test_voice_route_wrong_secret_returns_401(monkeypatch):
     """Wrong X-Pi-CEO-Secret → 401."""
-    monkeypatch.setenv("TAO_WEBHOOK_SECRET", "test-secret")
+    from app.server import config
+    monkeypatch.setattr(config, "WEBHOOK_SECRET", "test-secret")
     from fastapi.testclient import TestClient
     from app.server.routes.margot import router
 
