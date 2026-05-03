@@ -21,7 +21,8 @@
     {"name": "phone-progress-unauth", "path": "/api/phone/progress",                          "method": "POST", "auth": false, "expected_status": 401, "body": {"session_id": "smoke", "project": "x", "branch": "x", "current_task": "x", "last_tool": "x", "last_file": "x", "elapsed_s": 0}, "_comment": "Phone companion: live 'Now Working' card update. 401 smoke — see above."},
     {"name": "webhook-github-nosig",  "path": "/api/webhook/github",                           "method": "POST", "auth": false, "expected_status": 401, "_comment": "RA-1504: webhook rejects unsigned requests. Surfaces the route for the RA-1109 .catch cleanup."},
     {"name": "cron-analyze-unauth",   "path": "/api/cron/analyze",                             "method": "GET",  "auth": false, "expected_status": 401, "_comment": "RA-1504: cron requires Bearer CRON_SECRET. Surfaces the route for the RA-1109 .catch cleanup."},
-    {"name": "analyze-missing-repo",  "path": "/api/analyze",                                  "method": "GET",  "auth": false, "expected_status": 401, "_comment": "RA-1504: analyze SSE route requires ?repo=. Surfaces the route for the RA-1109 .catch cleanup."}
+    {"name": "analyze-missing-repo",  "path": "/api/analyze",                                  "method": "GET",  "auth": false, "expected_status": 401, "_comment": "RA-1504: analyze SSE route requires ?repo=. Surfaces the route for the RA-1109 .catch cleanup."},
+    {"name": "margot-voice-nosig",     "path": "/api/margot/voice",                              "method": "POST", "auth": false, "expected_status": 401, "body": {"chat_id": "smoke", "file_id": "smoke"}, "_comment": "RA-1886: voice route requires X-Pi-CEO-Secret. 401 smoke — body is ignored on 401."}
   ],
 
   "vertical": {
