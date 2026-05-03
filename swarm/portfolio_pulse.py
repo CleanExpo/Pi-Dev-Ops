@@ -64,6 +64,15 @@ class PulseResult:
     error: str | None = None
 
 
+class PortfolioPulseRun(list):
+    """List of per-project PulseResults plus cross-portfolio synthesis (RA-1892).
+
+    Subclasses ``list`` so existing call sites that iterate / index / check
+    ``len()`` keep working. Adds ``cross_portfolio_synthesis`` attribute.
+    """
+    cross_portfolio_synthesis: str = ""
+
+
 # ── Section providers (plug-points for sibling children) ────────────────────
 
 
@@ -213,12 +222,21 @@ def build_pulse(project_id: str, *,
 
 def run_all_projects(*, projects: tuple[str, ...] | list[str] | None = None,
                        repo_root: Path | None = None,
-                       date: str | None = None) -> list[PulseResult]:
+                       date: str | None = None,
+                       include_synthesis: bool = True) -> list[PulseResult]:
     """Build the daily pulse for every project. Sequential (project list
     is small and per-project work is mostly I/O-bound; parallelisation
-    can land in a sibling child if pulse runtime grows beyond 60s)."""
+    can land in a sibling child if pulse runtime grows beyond 60s).
+
+    Returns the per-project list. The cross-portfolio synthesis (RA-1892)
+    runs once after fan-out and is attached to the returned list as a
+    ``cross_portfolio_synthesis`` attribute (also written to
+    ``.harness/portfolio-pulse/_synthesis/<date>.md``).
+    """
     pids = tuple(projects) if projects is not None else DEFAULT_PROJECTS
-    results: list[PulseResult] = []
+    rr = repo_root or REPO_ROOT
+    when = date or _today_utc()
+    results: PortfolioPulseRun = PortfolioPulseRun()
     for pid in pids:
         try:
             results.append(build_pulse(
@@ -227,7 +245,7 @@ def run_all_projects(*, projects: tuple[str, ...] | list[str] | None = None,
         except Exception as exc:  # noqa: BLE001
             log.exception("portfolio_pulse: build_pulse raised for %s", pid)
             results.append(PulseResult(
-                project_id=pid, date=date or _today_utc(),
+                project_id=pid, date=when,
                 error=f"build_pulse_raised: {exc}",
             ))
     log.info(
@@ -236,11 +254,33 @@ def run_all_projects(*, projects: tuple[str, ...] | list[str] | None = None,
         sum(1 for r in results if not r.error),
         sum(1 for r in results if r.error),
     )
+
+    synthesis_md = ""
+    if include_synthesis:
+        try:
+            from . import portfolio_pulse_synthesis  # noqa: PLC0415
+            per_project = {r.project_id: r for r in results}
+            synthesis_md = portfolio_pulse_synthesis.synthesize(per_project)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("portfolio_pulse: synthesis raised (%s)", exc)
+            synthesis_md = f"_(synthesis unavailable: {exc})_"
+
+        try:
+            synth_path = rr / PULSE_DIR_REL / "_synthesis" / f"{when}.md"
+            synth_path.parent.mkdir(parents=True, exist_ok=True)
+            synth_path.write_text(
+                f"# Cross-Portfolio Synthesis — {when}\n\n{synthesis_md}\n",
+                encoding="utf-8",
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("portfolio_pulse: synthesis write failed (%s)", exc)
+
+    results.cross_portfolio_synthesis = synthesis_md
     return results
 
 
 __all__ = [
-    "PulseSection", "PulseResult",
+    "PulseSection", "PulseResult", "PortfolioPulseRun",
     "DEFAULT_PROJECTS", "SectionProvider",
     "set_section_provider",
     "build_pulse", "run_all_projects",
