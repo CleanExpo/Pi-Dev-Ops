@@ -58,6 +58,64 @@ _linear_auth_last_raised: float = 0.0
 _LINEAR_AUTH_COOLDOWN_H = 24.0
 
 
+# RA-1939 — Linear-side dedup guard. Module-level cooldowns reset to 0.0
+# on every gateway restart, which bypasses the in-process cooldown and
+# files duplicate watchdog tickets. On 2026-05-03/04 this produced 6
+# duplicate auto-noise tickets (RA-1879/1880 → RA-1924/1925/1935/1936/1937).
+# This helper queries Linear for an existing OPEN issue whose title starts
+# with the given prefix, and returns True when one exists so the caller
+# can skip ticket creation. Pairs with the existing module-level cooldown
+# (cooldown stops same-process spam; this stops cross-restart spam).
+def _has_open_linear_issue_with_prefix(title_prefix: str, log) -> bool:
+    """Return True if Linear already has an OPEN issue starting with prefix.
+
+    Defensive: any error returns False (fail-open) so the watchdog still
+    fires its ticket — duplicates are noisier than missed alerts.
+    """
+    from . import config
+    if not config.LINEAR_API_KEY:
+        return False
+    import urllib.request as _ureq
+    import json as _json
+    query = """
+    query OpenIssuesByPrefix($prefix: String!) {
+        issues(
+            first: 5,
+            filter: {
+                title: { startsWith: $prefix },
+                state: { type: { in: ["backlog", "unstarted", "started"] } },
+                project: { id: { eq: "f45212be-3259-4bfb-89b1-54c122c939a7" } }
+            }
+        ) {
+            nodes { identifier title state { name type } }
+        }
+    }
+    """
+    payload = _json.dumps({
+        "query": query,
+        "variables": {"prefix": title_prefix},
+    }).encode()
+    try:
+        req = _ureq.Request(
+            "https://api.linear.app/graphql", data=payload, method="POST",
+            headers={"Content-Type": "application/json", "Authorization": config.LINEAR_API_KEY},
+        )
+        with _ureq.urlopen(req, timeout=10) as resp:
+            result = _json.loads(resp.read())
+        nodes = (result.get("data", {}).get("issues") or {}).get("nodes") or []
+        if nodes:
+            log.info(
+                "Watchdog dedup: %d open Linear issue(s) match prefix '%s' — "
+                "skipping ticket creation (existing: %s)",
+                len(nodes), title_prefix, ", ".join(n.get("identifier", "?") for n in nodes),
+            )
+            return True
+        return False
+    except Exception as exc:
+        log.warning("Watchdog dedup: Linear query failed (%s) — proceeding with ticket creation", exc)
+        return False
+
+
 def _board_meetings_dir():
     """Return the on-disk directory holding board-meeting markdown files.
 
@@ -256,6 +314,11 @@ async def _watchdog_docs_staleness(log) -> None:
     )
 
     if not config.LINEAR_API_KEY:
+        _docs_stale_last_raised = time.time()
+        return
+
+    # RA-1939 — skip ticket creation when an open one already exists.
+    if _has_open_linear_issue_with_prefix("[WATCHDOG][DOCS-STALE]", log):
         _docs_stale_last_raised = time.time()
         return
 
@@ -511,8 +574,12 @@ async def _watchdog_board_meeting_silence(log) -> None:
         except Exception as exc:
             log.warning("Board-meeting watchdog: Telegram send failed: %s", exc)
 
-    # Linear ticket — durable record + dedup via the cooldown.
-    if config.LINEAR_API_KEY:
+    # Linear ticket — durable record. RA-1939: skip when an OPEN issue with
+    # the same prefix already exists (prevents cross-restart duplicates that
+    # the in-process cooldown can't catch).
+    if config.LINEAR_API_KEY and not _has_open_linear_issue_with_prefix(
+        "[WATCHDOG] Board-meeting silence", log,
+    ):
         try:
             import urllib.request as _ureq
             import json as _json
