@@ -149,3 +149,7 @@ composio.json
 
 # RA-1922 — runtime audit log written by tests/test_portfolio_synthesis_opus_policy.py
 .harness/model-policy-violations.jsonl
+
+# Python virtualenvs (added 2026-05-04)
+.venv*/
+venv/

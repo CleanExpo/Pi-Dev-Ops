@@ -1,0 +1,16 @@
+{
+  "critical": [],
+  "high": [],
+  "low": [],
+  "summary": {
+    "total_discrepancies": 0,
+    "critical_count": 0,
+    "high_count": 0,
+    "low_count": 0,
+    "duration_s": 25.2,
+    "audited_at": "2026-05-03T05:00:59.889546+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": []
+  }
+}
