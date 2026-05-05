@@ -101,7 +101,10 @@ def test_orphan_recovery_transitions_to_blocked_with_reason_label():
         # Return the orphan when _IN_PROGRESS_QUERY is issued.
         return {"project": {"issues": {"nodes": [orphan_issue]}}}
 
-    projects = [{"project_id": "p1", "team_id": "t1", "repo_url": "x", "name": "P1"}]
+    # RA-1973 — orphan recovery now picks per-team state. Use the RA team UUID
+    # so the original "Pi-Dev: Blocked" contract still applies (other teams
+    # default to "Todo").
+    projects = [{"project_id": "p1", "team_id": autonomy._RA_TEAM_ID, "repo_url": "x", "name": "P1"}]
 
     with patch.object(autonomy, "_load_portfolio_projects", return_value=projects), \
          patch.object(autonomy, "_gql", side_effect=fake_gql), \
@@ -111,8 +114,8 @@ def test_orphan_recovery_transitions_to_blocked_with_reason_label():
          patch("app.server.sessions._sessions", {}, create=True):
         asyncio.run(autonomy._orphan_recovery("k"))
 
-    assert transitions  == [("iss-1", "Pi-Dev: Blocked", "t1")]
-    assert labels_added == [("iss-1", "t1", "pi-dev:blocked-reason:session-lost")]
+    assert transitions  == [("iss-1", "Pi-Dev: Blocked", autonomy._RA_TEAM_ID)]
+    assert labels_added == [("iss-1", autonomy._RA_TEAM_ID, "pi-dev:blocked-reason:session-lost")]
     assert len(comments) == 1
     _, body = comments[0]
     assert "session-lost" in body or "session lost" in body.lower()
@@ -137,7 +140,10 @@ def test_orphan_recovery_skips_live_sessions():
     def fake_gql(api_key, query, variables=None):
         return {"project": {"issues": {"nodes": [live_issue]}}}
 
-    projects = [{"project_id": "p1", "team_id": "t1", "repo_url": "x", "name": "P1"}]
+    # RA-1973 — orphan recovery now picks per-team state. Use the RA team UUID
+    # so the original "Pi-Dev: Blocked" contract still applies (other teams
+    # default to "Todo").
+    projects = [{"project_id": "p1", "team_id": autonomy._RA_TEAM_ID, "repo_url": "x", "name": "P1"}]
     live = {"abcdef123456": object()}
 
     with patch.object(autonomy, "_load_portfolio_projects", return_value=projects), \
@@ -166,7 +172,7 @@ def test_orphan_recovery_label_failure_does_not_block_transition():
         return {"project": {"issues": {"nodes": [orphan]}}}
 
     with patch.object(autonomy, "_load_portfolio_projects",
-                      return_value=[{"project_id":"p","team_id":"t","repo_url":"x","name":"n"}]), \
+                      return_value=[{"project_id":"p","team_id":autonomy._RA_TEAM_ID,"repo_url":"x","name":"n"}]), \
          patch.object(autonomy, "_gql", side_effect=fake_gql), \
          patch.object(autonomy, "transition_issue", side_effect=fake_transition), \
          patch.object(autonomy, "add_label_to_issue", side_effect=fake_add_label), \
