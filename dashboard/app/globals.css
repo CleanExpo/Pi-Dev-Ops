@@ -1,8 +1,11 @@
-/* globals.css — Zinc design system + Inter / JetBrains Mono typography */
+/* globals.css — Zinc design system + Inter / JetBrains Mono typography
+ * Tailwind v4 — theme tokens declared via @theme inline (see RA-1962 Phase 2.3).
+ * The tailwind.config.ts file is gone; everything below replaces theme.extend.
+ */
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
 
 /* ── Light theme (default) ───────────────────────────────────────────────── */
 /* All semantic tokens on the light ("platinum") theme tuned for WCAG-AA
@@ -50,6 +53,69 @@
 
   --scrollbar-track: #18181b;
   --scrollbar-thumb: #3f3f46;
+}
+
+/* ── Tailwind v4 theme tokens ────────────────────────────────────────────── */
+/* Ports tailwind.config.ts theme.extend → CSS. Names align with v4 utility
+ * generators: --color-foo → bg-foo / text-foo / border-foo, etc. */
+@theme inline {
+  /* Semantic colours */
+  --color-background: var(--background);
+  --color-panel: var(--panel);
+  --color-panel-hover: var(--panel-hover);
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-dim: var(--text-dim);
+  --color-accent: var(--accent);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --color-info: var(--info);
+
+  /* Legacy Bloomberg-era aliases — kept so any remaining `c-*` classes
+   * don't hard-break. Remove in a future cleanup sprint. */
+  --color-c-orange: var(--accent);
+  --color-c-border: var(--border);
+  --color-c-panel: var(--panel);
+  --color-c-bg: var(--background);
+  --color-c-text: var(--text);
+  --color-c-chrome: var(--text-dim);
+  --color-c-muted: var(--text-muted);
+
+  /* Radii */
+  --radius-lg: var(--radius);
+  --radius-md: var(--radius);
+  --radius-sm: calc(var(--radius) - 2px);
+
+  /* Font stacks (var(--font-sans/mono) injected by next/font in layout.tsx) */
+  --font-sans: var(--font-sans), system-ui, sans-serif;
+  --font-mono: var(--font-mono), "JetBrains Mono", "IBM Plex Mono", monospace;
+  --font-inter: var(--font-sans), system-ui, sans-serif;
+  --font-inter-mono: var(--font-mono), monospace;
+  /* Back-compat aliases — kept so legacy classNames like `font-geist-mono`
+   * (PhaseTracker.tsx) keep rendering the current Inter/JetBrains Mono stack
+   * without touching every component. Remove in a future cleanup sprint. */
+  --font-geist: var(--font-sans), system-ui, sans-serif;
+  --font-geist-mono: var(--font-mono), monospace;
+  --font-display: var(--font-sans), system-ui, sans-serif;
+  --font-body: var(--font-sans), system-ui, sans-serif;
+  --font-condensed: var(--font-sans), system-ui, sans-serif;
+
+  /* Animations */
+  --animate-fade-in: fade-in 0.3s ease-out;
+  --animate-pulse-orange: pulse-orange 2s ease-in-out infinite;
+
+  @keyframes fade-in {
+    0%   { opacity: 0; transform: translateY(4px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse-orange {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.5; }
+  }
 }
 
 html, body {

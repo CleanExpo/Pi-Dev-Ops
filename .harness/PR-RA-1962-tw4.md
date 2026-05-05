@@ -1,0 +1,93 @@
+# PR Body — RA-1962 Phase 2.3 / Dashboard Tailwind 3.4.17 → 4.1.9
+
+**Branch:** `feature/ra-1962-tailwind-v4-dashboard`
+**Sandbox:** `/tmp/ra-1962-tw4`
+**Linear:** [RA-1962](https://linear.app/unite-group/issue/RA-1962) (Phase 2.3 of Wave 2 [RA-1988])
+**Status:** Local commit only. NOT pushed (per CLAUDE.md sandbox-first rule).
+
+## Summary
+
+Upgrade `dashboard/` from `tailwindcss@^3.4.17` to `tailwindcss@4.1.9` to match the rest of the portfolio (RestoreAssist already on 4.1.9 — used as the template). Migration is config-only: zero changes to component class usage, all custom theme tokens preserved.
+
+DR-NRPG and Synthex migrations are out of scope (separate Windows-machine ticket per `project_machine_split.md`).
+
+## Version bump
+
+| Package | Before | After |
+|---|---|---|
+| `tailwindcss` | `^3.4.17` (devDeps) | `4.1.9` (devDeps) |
+| `@tailwindcss/postcss` | — | `4.1.9` (devDeps, new) |
+| `autoprefixer` | `^10.4.20` (devDeps) | removed (handled by `@tailwindcss/postcss` in v4) |
+| `postcss` | `^8` (devDeps) | `^8.5` (devDeps) |
+
+## Files changed
+
+| File | Δ | Purpose |
+|---|---|---|
+| `dashboard/package.json` | +2 / −2 | Bump tailwindcss → 4.1.9, add `@tailwindcss/postcss`, drop autoprefixer, postcss → ^8.5 |
+| `dashboard/package-lock.json` | regen | npm install with new deps |
+| `dashboard/postcss.config.js` | deleted | v3 plugin shape (`tailwindcss: {}, autoprefixer: {}`) |
+| `dashboard/postcss.config.mjs` | new | v4 shape: `"@tailwindcss/postcss": {}` (matches RestoreAssist) |
+| `dashboard/tailwind.config.ts` | deleted | All theme.extend ported into `@theme inline` in globals.css |
+| `dashboard/app/globals.css` | +66 / −8 | `@tailwind` directives → `@import "tailwindcss";`; added `@custom-variant dark`; added `@theme inline` block porting every theme.extend entry from the deleted config (semantic colours, legacy `c-*` aliases, radii, font stacks incl. `geist`/`geist-mono`/`display`/`body`/`condensed` back-compat aliases, `fade-in`/`pulse-orange` keyframes + animations) |
+
+Diff stat: `5 files changed, 825 insertions(+), 765 deletions(-)` (the `package-lock.json` regen accounts for ~99% of churn).
+
+## What was ported into `@theme inline`
+
+Every entry from `theme.extend` in the deleted `tailwind.config.ts`:
+
+- **Semantic colours** — `background`, `panel`, `panel-hover`, `border`, `border-subtle`, `text`, `text-muted`, `text-dim`, `accent`, `accent-subtle`, `success`, `warning`, `error`, `info` — all still pointing at the existing CSS vars (so the WCAG-AA tunings from 2026-04-17 stay intact).
+- **Legacy `c-*` aliases** — `c-orange`, `c-border`, `c-panel`, `c-bg`, `c-text`, `c-chrome`, `c-muted` (kept so any remaining Bloomberg-era refs don't hard-break).
+- **Radii** — `lg` / `md` / `sm` from `--radius`.
+- **Font stacks** — `sans`, `mono`, `inter`, `inter-mono`, plus back-compat aliases `geist`, `geist-mono`, `display`, `body`, `condensed` (PhaseTracker.tsx + ResultCards.tsx use these).
+- **Animations** — `fade-in`, `pulse-orange` (with their `@keyframes` declarations co-located inside the `@theme inline` block).
+
+`darkMode: "class"` is replaced with `@custom-variant dark (&:is(.dark *));` (RestoreAssist pattern).
+
+## Verification
+
+```
+$ cd dashboard && npm install
+added 543 packages, and audited 544 packages in 9s
+2 moderate severity vulnerabilities  # pre-existing transitive (xterm-addon-* deprecations); not auto-fixed
+
+$ npm run lint
+✖ 1 problem (0 errors, 1 warning)   # pre-existing eslint-disable warning in app/(main)/builds/page.tsx, unrelated
+
+$ npx tsc --noEmit
+(clean)
+
+$ PI_CEO_URL=… PI_CEO_PASSWORD=… npm run build
+▲ Next.js 16.2.3 (Turbopack)
+✓ Compiled successfully in 1732ms
+✓ Generating static pages using 9 workers (15/15)
+# 31 routes built (15 static + dynamic)
+```
+
+CSS bundle: `.next/static/chunks/0_jb-nr_pg7p3.css` = **44 KB** (+ 4 KB chunk = 48 KB total).
+
+CSS sniff (utilities present in compiled output):
+
+```
+.animate-fade-in   .bg-background   .font-body   .font-display
+.font-geist-mono   .font-mono       .font-sans
+.rounded-lg        .rounded-md      .rounded-sm   .text-text
+```
+
+All dashboard-specific custom utilities are emitted — confirms the `@theme inline` port wired correctly. Standard utilities (`flex-*`, `grid`, `bg-slate-*`, etc.) all present.
+
+## Reference
+
+RestoreAssist's Tailwind 4 setup at `/Users/phill-mac/pi-seo-workspace/restoreassist/` was used as the template — same `@tailwindcss/postcss` 4.1.9, same `postcss.config.mjs` shape, same `@import "tailwindcss";` + `@custom-variant dark` + `@theme inline` pattern. The dashboard's existing CSS-var design system already maps cleanly onto v4's `--color-*` token convention; only the directive shape and the bridging `@theme inline` block are new.
+
+## Gotchas / deviations
+
+- **None on class usage.** Every component class found in the codebase pre-migration (`bg-background`, `text-text`, `font-geist-mono`, `font-display`, `font-body`, `animate-fade-in`, `rounded-md/lg/sm`, the `c-*` legacy aliases) is generated by the new `@theme inline` block — verified in compiled CSS.
+- **Vulnerabilities** — `npm install` reports 2 moderate vulnerabilities (pre-existing transitive deps from deprecated `xterm-addon-*`). NOT auto-fixed; flagged here per task instructions.
+- **`autoprefixer` removed** — Tailwind v4's `@tailwindcss/postcss` handles vendor prefixing internally; matches RestoreAssist's setup. No additional plugin needed.
+- **No visual gate** — agent didn't render. Vercel preview deploy on the PR is the visual smoke test (per task brief).
+
+## Push gate
+
+NOT pushed. Per CLAUDE.md: sandbox first, push only when explicitly asked. User runs `git -C /tmp/ra-1962-tw4 push origin feature/ra-1962-tailwind-v4-dashboard` when ready.
