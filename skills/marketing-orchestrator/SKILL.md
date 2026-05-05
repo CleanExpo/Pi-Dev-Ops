@@ -9,6 +9,32 @@ intents: marketing, campaign, launch, gtm, go-to-market, positioning, value-prop
 
 Single entry point for the Marketing Skills Package — 10 sibling skills (`marketing-orchestrator`, `marketing-campaign-planner`, `marketing-positioning`, `marketing-icp-research`, `marketing-channel-strategist`, `marketing-copywriter`, `marketing-seo-researcher`, `marketing-social-content`, `marketing-launch-runbook`, `marketing-analytics-attribution`) installed globally at `~/.claude/skills/marketing-*` (symlinked to `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/skills/marketing-*`). Available in every project, not just Pi-Dev-Ops.
 
+## Discovery brief gate (turn 1, mandatory)
+
+Adopted from `nexu-io/open-design` (Apache-2.0). Before *any* sub-skill is dispatched, the orchestrator emits a structured brief and refuses to proceed until every required field is filled. No "I'll work it out as I go" — the brief locks scope and prevents downstream skills from inventing audience, tone, or channel mid-stream.
+
+### Required fields
+
+| Field | Type | Notes |
+|---|---|---|
+| `brand` | `BrandSlug` | Must resolve in `remotion-studio/src/brands/`. Unknown brand → dispatch `remotion-brand-research` first; do not guess. |
+| `surface` | `landing` \| `email` \| `social` \| `video` \| `blog` \| `ad` \| `mixed` | The artifact type. |
+| `audience` | string | One sentence describing who reads this. Vagueness ("decision-makers") is rejected — must name role + context. |
+| `tone` | array | Subset of brand's `voice.tone`. Cannot include any tone outside the brand's allowed set. |
+| `channels` | array | Subset of `linkedin` / `youtube` / `instagram` / `tiktok` / `x` / `email` / `web`. |
+| `scale` | `single` \| `batch` \| `launch` | Drives wave-count discipline (≤3 / ≤5 / ≤8 waves respectively). |
+| `outcome` | string | One sentence on the campaign's measurable goal. "Awareness" alone is rejected — must say "+X% to Y over Z weeks" or equivalent. |
+
+Optional but recommended: `topic`, `competitors`, `forbiddenAngles`, `linearTicket`.
+
+### Hard stop conditions
+
+- Any required field missing or vague → orchestrator returns the brief with `blocked: true` and a per-field reason. Founder fills in, re-runs.
+- `tone` includes a value outside the brand's `voice.tone` → block.
+- `outcome` is unfalsifiable ("be impactful") → block.
+
+This is the single most reliable lever to keep downstream wave plans short and sub-skills focused. Do not relax it.
+
 ## Invocation
 
 The user can invoke the package by:
@@ -128,3 +154,21 @@ It only plans + delegates.
 1. Add a row to the routing table above.
 2. Define the wave plan template for that type (which skills, in what order).
 3. Document in `PACKAGE.md`.
+
+## 5-D critique gate (mandatory before final wave emission)
+
+Adopted from `nexu-io/open-design` (Apache-2.0). After the final wave's deliverables land in `<calling-project>/.marketing/{job_id}/`, spawn an Opus 4.7 subagent via `opus-adversary` to score the campaign across five dimensions, each 0–10 with cited evidence:
+
+1. **Philosophy consistency** — does the campaign carry one positioning thesis through every artifact (landing page hook, email sequence opening line, social hook, video script)? Cite the thesis from `marketing-positioning` output and check each artifact echoes it.
+2. **Visual hierarchy** — across artifacts, does the eye land on the same hero stat/promise first? Cite which artifact breaks the order.
+3. **Detail execution** — UTMs present and parameterised, no broken anchors, no AI-filler words leaked through, no "We/Our/I/Us/My" lead-ins (per Pi-CEO content rule).
+4. **Functionality** — does the channel mix actually serve the audience surfaced by `marketing-icp-research`? Email cadence within sustainable bounds set by `marketing-channel-strategist`?
+5. **Innovation** — one campaign move that earns memory (specific stat, contrarian framing, unusual CTA), or generic-launch median?
+
+### Pass / fail
+
+- **Pass**: every dimension ≥ 6 AND mean ≥ 7 → wave plan emits, Linear ticket opens.
+- **Fail**: any ≤ 5 OR mean < 7 → loop back: assign Fix list to the responsible sub-skill (positioning / copywriter / channel-strategist / social-content) and re-run that wave only.
+- **Override**: founder may force-pass via explicit message. Logged to `marketing-studio/.research/wave-plans/{job_id}.critique.json`.
+
+Use `opus-adversary` for the spawn — do not write a parallel harness. The critique JSON sits beside the wave plan; the founder reviews before any external dispatch (paid ads, scheduled email blast, Linear publication).

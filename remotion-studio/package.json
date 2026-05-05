@@ -14,6 +14,7 @@
     "@remotion/bundler": "^4.0.0",
     "@remotion/cli": "^4.0.0",
     "@remotion/renderer": "^4.0.0",
+    "@unite-group/brand-config": "file:../packages/brand-config",
     "elevenlabs": "^0.8.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

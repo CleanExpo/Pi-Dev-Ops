@@ -1,19 +1,4 @@
-import { BrandConfig, BrandSlug } from './types';
-import { ra } from './ra';
-import { dr } from './dr';
-import { nrpg } from './nrpg';
-import { carsi } from './carsi';
-import { ccw } from './ccw';
-import { synthex } from './synthex';
-import { unite } from './unite';
-
-export const brands: Record<BrandSlug, BrandConfig> = {
-  ra,
-  dr,
-  nrpg,
-  carsi,
-  ccw,
-  synthex,
-  unite,
-};
-export type { BrandConfig, BrandSlug } from './types';
+// Re-export shim. Source of truth lives at @unite-group/brand-config.
+// Existing consumers (`from '../brands'`, `from './brands/types'`) continue working
+// unchanged; this file forwards to the package without behavioural change.
+export * from '@unite-group/brand-config';

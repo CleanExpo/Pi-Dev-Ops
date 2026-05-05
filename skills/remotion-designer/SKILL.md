@@ -43,6 +43,32 @@ Two artifacts:
 1. A layout spec JSON written to `.research/design/{compositionId}-{brandSlug}.json` capturing the resolved grid, type scale, and safe-area decisions.
 2. Inline edits to the composition's TSX (if QA-ing).
 
+## 5-D critique gate (mandatory before emitting layout spec)
+
+Adopted from `nexu-io/open-design` (Apache-2.0). Spawn an Opus 4.7 subagent via the `opus-adversary` pattern to score the proposed layout across five orthogonal dimensions, each 0–10 with cited evidence. Write the verdict to `.research/design/{compositionId}-{brandSlug}.critique.json` alongside the layout spec.
+
+### Dimensions
+
+1. **Philosophy consistency** — does the layout argue for one direction (e.g. tech-utility, editorial-monocle) or three styles in a trench coat? Cite specific elements.
+2. **Visual hierarchy** — can a stranger figure out what to read first/second/third without being told? Cite the largest element vs. the most important element.
+3. **Detail execution** — alignment, leading, kerning at large sizes, image framing, edge-case spacing. Cite specific frames.
+4. **Functionality** — does it work for the intended channel? Vertical 9:16 hero readable on a phone? CTA inside the safe area? Cite frame numbers + measurements.
+5. **Innovation** — one unexpected move that's *earned by the brief*, or 100% generic? An accent that wasn't required but locks the identity? Cite the move.
+
+### Bands
+
+`0–4` Broken · `5–6` Functional · `7–8` Strong · `9–10` Exceptional. Don't grade-inflate — overall mean above 8 is suspicious; double-check.
+
+### Pass / fail
+
+- **Pass**: every dimension ≥ 6, AND mean ≥ 7.
+- **Fail**: any dimension ≤ 5, OR mean < 7. Return to `remotion-composition-builder` with the per-dimension Keep/Fix/Quick-win lists for revision before re-running the gate.
+- **Override**: founder may force-pass via explicit message ("ship it anyway"). Override is logged to `.research/design/{compositionId}-{brandSlug}.critique.json` with timestamp and reason.
+
+### Reused pattern
+
+Use the `opus-adversary` skill — same Opus 4.7 subagent spawn, same evidence-citation discipline. Do not write a parallel critique harness.
+
 ## Boundaries
 
 - Never override `BrandConfig` values — propose changes via `remotion-brand-codify`.
