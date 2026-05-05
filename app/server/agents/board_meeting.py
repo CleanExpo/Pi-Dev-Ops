@@ -17,7 +17,7 @@ import os
 import re
 import time
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -912,15 +912,817 @@ CEO_BOARD_PERSONAS = {
 }
 
 
+# ── RA-1972: Phase 2.4 — Research Brief (evidence before debate) ─────────────
+
+# RA-1974 — Margot deep-research mode selector. Set TAO_BOARD_RESEARCH_MODE
+# in env to one of:
+#   fast   (default) — RA-1972 path: 180s WebSearch + WebFetch subagent
+#   hybrid           — fast this cycle + dispatch Margot for next cycle's harvest
+#   deep             — Margot only; this cycle has no fresh research; next cycle harvests
+_VALID_RESEARCH_MODES = {"fast", "hybrid", "deep"}
+
+
+def _resolve_board_research_mode() -> str:
+    """Read + validate TAO_BOARD_RESEARCH_MODE env. Invalid → fast + warn."""
+    mode = (os.environ.get("TAO_BOARD_RESEARCH_MODE") or "fast").lower().strip()
+    if mode not in _VALID_RESEARCH_MODES:
+        log.warning(
+            "TAO_BOARD_RESEARCH_MODE=%r invalid (expect one of %s) — defaulting to 'fast'",
+            mode, sorted(_VALID_RESEARCH_MODES),
+        )
+        return "fast"
+    return mode
+
+
+def _run_research_via_sdk(
+    prompt: str,
+    *,
+    model: str = "claude-sonnet-4-6",
+    timeout: int = 180,
+    max_turns: int = 10,
+) -> str:
+    """RA-1972 — Sibling of _run_prompt_via_sdk that allows WebSearch + WebFetch tools.
+
+    The base _run_prompt_via_sdk hard-codes max_turns=1 and exposes no allowed_tools,
+    which is correct for single-shot persona-debate calls. Research needs multi-turn
+    tool use: search → fetch → maybe search again → answer. This helper opens that
+    door without mutating the existing helper's signature.
+
+    Returns the model's final text response (concatenated TextBlocks across all
+    turns). Empty string on any SDK failure — caller treats that as
+    `research_required: false` with `failure_reason` populated.
+    """
+    try:
+        from claude_agent_sdk import (
+            AssistantMessage,
+            ClaudeAgentOptions,
+            ClaudeSDKClient,
+            ResultMessage,
+            TextBlock,
+        )
+        from claude_agent_sdk.types import ThinkingConfigAdaptive
+    except ImportError:
+        log.warning("claude_agent_sdk not installed — research phase unavailable")
+        return ""
+
+    # RA-1420 hygiene — same env handling as _run_prompt_via_sdk
+    _k = os.environ.get("ANTHROPIC_API_KEY", "")
+    if _k == "" or _k.startswith("sk-ant-oat01-"):
+        os.environ.pop("ANTHROPIC_API_KEY", None)
+
+    async def _run() -> str:
+        options = ClaudeAgentOptions(
+            model=model,
+            max_turns=max_turns,
+            thinking=ThinkingConfigAdaptive(type="adaptive"),
+            allowed_tools=["WebSearch", "WebFetch"],
+            permission_mode="bypassPermissions",
+        )
+        client = ClaudeSDKClient(options)
+        text_parts: list[str] = []
+        try:
+            await client.connect()
+            await client.query(prompt)
+            async for msg in client.receive_messages():
+                if isinstance(msg, AssistantMessage):
+                    for block in msg.content:
+                        if isinstance(block, TextBlock):
+                            text_parts.append(block.text)
+                elif isinstance(msg, ResultMessage):
+                    break
+        finally:
+            await client.disconnect()
+        return "".join(text_parts)
+
+    try:
+        return asyncio.run(asyncio.wait_for(_run(), timeout=timeout))
+    except Exception as exc:
+        log.warning("research SDK call failed: %s", exc)
+        return ""
+
+
+def _extract_json_object(text: str) -> dict[str, Any] | None:
+    """Pull the first balanced JSON object out of a model response.
+
+    Models often wrap JSON in ```json fences or precede it with prose. This walks the
+    string, finds the first `{`, then matches braces (respecting strings) until balance
+    hits zero. Returns the parsed dict, or None if no valid JSON object found.
+    """
+    if not text:
+        return None
+    start = text.find("{")
+    if start == -1:
+        return None
+    depth = 0
+    in_str = False
+    escape = False
+    for i in range(start, len(text)):
+        ch = text[i]
+        if escape:
+            escape = False
+            continue
+        if ch == "\\" and in_str:
+            escape = True
+            continue
+        if ch == '"':
+            in_str = not in_str
+            continue
+        if in_str:
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    return json.loads(text[start : i + 1])
+                except json.JSONDecodeError:
+                    return None
+    return None
+
+
+def _validate_research_brief(brief: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    """Enforce contract: every finding has ≥1 source URL with fetched-date.
+
+    Drops malformed findings into open_questions. Returns (cleaned_brief, warnings).
+    """
+    warnings: list[str] = []
+    findings_in = brief.get("findings", []) or []
+    cleaned_findings: list[dict[str, Any]] = []
+    promoted_to_open: list[str] = list(brief.get("open_questions", []) or [])
+
+    for idx, f in enumerate(findings_in):
+        if not isinstance(f, dict):
+            warnings.append(f"finding #{idx} not a dict — dropped")
+            continue
+        sources = f.get("sources", []) or []
+        valid_sources = [
+            s for s in sources
+            if isinstance(s, dict) and s.get("url") and s.get("fetched")
+        ]
+        if not valid_sources:
+            q = str(f.get("question", "")) or f"finding #{idx}"
+            promoted_to_open.append(f"{q} (claim had no cited source)")
+            warnings.append(f"finding #{idx} dropped — no cited source with fetched-date")
+            continue
+        f["sources"] = valid_sources
+        if f.get("confidence") not in ("high", "medium", "low"):
+            f["confidence"] = "low"
+        cleaned_findings.append(f)
+
+    brief["findings"] = cleaned_findings
+    brief["open_questions"] = promoted_to_open
+    if not cleaned_findings and not promoted_to_open:
+        brief["research_required"] = False
+        brief["failure_reason"] = "no findings survived validation"
+    return brief, warnings
+
+
+def _render_findings_block(findings: list[dict[str, Any]], opens: list[str], header: str) -> str:
+    """Shared renderer for a single findings + opens section. Used by both the
+    current-cycle brief and the prior-cycle Margot harvest."""
+    parts = [header]
+    for i, f in enumerate(findings or [], start=1):
+        conf = f.get("confidence", "low").upper()
+        parts.append(f"\n**Finding #{i}** [{conf}] — _{f.get('question', '')}_")
+        parts.append(f"\n  {f.get('claim', '')}")
+        for s in f.get("sources", []):
+            url = s.get("url", "")
+            title = s.get("title", url)
+            fetched = s.get("fetched", "")
+            parts.append(f"\n  - [{title}]({url}) (fetched {fetched})")
+    if opens:
+        parts.append("\n\n**Open questions** (research could not resolve):")
+        for q in opens:
+            parts.append(f"\n  - {q}")
+    return "".join(parts)
+
+
+def _format_research_brief_for_personas(brief: dict[str, Any]) -> str:
+    """Render the research brief as a markdown block ready to inject into the
+    persona-debate user_content. Returns empty string if research_required is False
+    AND no prior_deep_research is attached."""
+    has_prior = bool(brief.get("prior_deep_research"))
+    if not brief.get("research_required") and not has_prior:
+        reason = brief.get("failure_reason") or "brief was self-contained"
+        return (
+            "\n\n## RESEARCH BRIEF (Phase 2.4)\n\n"
+            f"_Stage skipped — {reason}._ Personas argue from priors only this cycle.\n"
+        )
+
+    out: list[str] = ["\n\n## RESEARCH BRIEF (Phase 2.4)"]
+
+    # RA-1974 — prior-cycle Margot harvest, if present, is rendered first so
+    # personas see the deep evidence before the (often shallower) current-cycle
+    # fast research.
+    if has_prior:
+        prior = brief["prior_deep_research"]
+        if isinstance(prior, dict):
+            prior = [prior]
+        for p in prior:
+            mode = p.get("mode", "margot")
+            dispatched = p.get("dispatched_at", "?")
+            completed = p.get("completed_at", "?")
+            header = (
+                f"\n\n### DEEP RESEARCH ({mode}, dispatched {dispatched}, completed {completed})\n"
+                "_Note: this research was dispatched at the prior monthly cycle. "
+                "Some claims may have moved on; weight accordingly._\n"
+            )
+            out.append(_render_findings_block(
+                p.get("findings", []), p.get("open_questions", []), header,
+            ))
+
+    if brief.get("research_required"):
+        cost = brief.get("cost_seconds", "?")
+        mode = brief.get("mode", "fast")
+        header = f"\n\n### CURRENT-CYCLE RESEARCH ({mode}, {cost}s)\n"
+        out.append(_render_findings_block(
+            brief.get("findings", []), brief.get("open_questions", []), header,
+        ))
+    elif brief.get("failure_reason"):
+        # Current cycle has no fresh research but prior was harvested — note it
+        out.append(
+            f"\n\n_Current cycle: {brief['failure_reason']}._\n"
+        )
+
+    out.append(
+        "\n\n_Personas: cite findings by `#N` when your position depends on a fact. "
+        "The Contrarian MUST flag at least one open question or low-confidence claim._"
+    )
+    return "".join(out)
+
+
+# ── RA-1974: Margot deep-research wiring ─────────────────────────────────────
+
+def _margot_kill_switch_active() -> bool:
+    """Margot is gated on TAO_SWARM_ENABLED=1 (project-wide kill switch)."""
+    return os.environ.get("TAO_SWARM_ENABLED", "0") != "1"
+
+
+def _board_originating_session_id(cycle: int, date_str: str) -> str:
+    """Stable tag for inflight entries we own. Filtered on harvest."""
+    return f"board_meeting:{cycle}:{date_str}"
+
+
+def _dispatch_margot_for_next_cycle(
+    topic: str, *, cycle: int, date_str: str, use_corpus: bool = True,
+) -> dict[str, Any] | None:
+    """Fire-and-forget dispatch to Margot's deep_research_max.
+
+    Returns the dispatch dict (`{interaction_id, status, dispatched_at, ...}`)
+    on success, or None on any failure (kill switch, Margot unreachable, exception).
+    margot_tools already records the inflight entry; no extra disk write here.
+    """
+    if _margot_kill_switch_active():
+        log.info("Margot dispatch skipped — TAO_SWARM_ENABLED=0 (kill switch)")
+        return None
+    try:
+        from swarm.margot_tools import deep_research_max  # local import; optional dep
+    except ImportError as exc:
+        log.warning("Margot dispatch skipped — swarm.margot_tools import failed: %s", exc)
+        return None
+    try:
+        result = deep_research_max(
+            topic=topic,
+            use_corpus=use_corpus,
+            originating_session_id=_board_originating_session_id(cycle, date_str),
+        )
+        if isinstance(result, dict) and result.get("error"):
+            log.warning("Margot dispatch returned error: %s", result.get("error"))
+            return None
+        log.info(
+            "Margot dispatched: interaction_id=%s cycle=%s",
+            result.get("interaction_id"), cycle,
+        )
+        return result
+    except Exception as exc:  # pragma: no cover — defensive
+        log.warning("Margot dispatch raised: %s", exc)
+        return None
+
+
+def _normalize_margot_to_research_brief(
+    margot_result: dict[str, Any],
+    *,
+    questions: list[str] | None = None,
+    dispatched_at: str | None = None,
+    completed_at: str | None = None,
+) -> dict[str, Any]:
+    """Transform Margot's check_research output into the RA-1972 brief contract.
+
+    Margot returns a markdown report + citations list. We split the report into
+    findings using the input questions as anchors (heuristic: a section header
+    matching or containing a question maps that question to the surrounding
+    claim text). Surplus questions → open_questions.
+
+    Always passes through _validate_research_brief, so sourceless findings get
+    promoted to open_questions automatically.
+    """
+    questions = questions or []
+    report = (
+        margot_result.get("report")
+        or margot_result.get("text")
+        or margot_result.get("summary")
+        or margot_result.get("content")
+        or ""
+    )
+    citations = margot_result.get("citations") or margot_result.get("sources") or []
+
+    # Build a single shared sources[] from Margot citations
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    sources: list[dict[str, Any]] = []
+    for c in citations:
+        if not isinstance(c, dict):
+            continue
+        url = c.get("url") or c.get("uri") or c.get("link")
+        if not url:
+            continue
+        sources.append({
+            "url": url,
+            "title": c.get("title") or url,
+            "fetched": c.get("fetched") or completed_at or today,
+            "excerpt": (c.get("excerpt") or c.get("snippet") or "")[:200],
+        })
+
+    # Heuristic question-to-section split. Margot tends to use ## or ### headers
+    # that paraphrase or quote the question. We slice the report on header lines
+    # and assign each slice to the closest-matching question.
+    findings: list[dict[str, Any]] = []
+    open_questions: list[str] = []
+    if report and questions:
+        # Split on markdown headers (## or ### at line start)
+        sections = re.split(r"\n(?=#{2,3} )", "\n" + report)
+        sections = [s.strip() for s in sections if s.strip()]
+        used_questions: set[int] = set()
+        for sec in sections:
+            sec_lower = sec.lower()
+            best_idx = -1
+            best_score = 0
+            for i, q in enumerate(questions):
+                if i in used_questions:
+                    continue
+                # Score = count of question keywords (≥4 chars) appearing in section header line
+                first_line = sec.split("\n", 1)[0].lower()
+                keywords = [w for w in re.findall(r"\w+", q.lower()) if len(w) >= 4]
+                score = sum(1 for k in keywords if k in first_line)
+                if score > best_score:
+                    best_score = score
+                    best_idx = i
+            if best_idx >= 0 and best_score >= 1:
+                used_questions.add(best_idx)
+                # Strip the header line from the claim
+                _, _, claim_body = sec.partition("\n")
+                findings.append({
+                    "question": questions[best_idx],
+                    "claim": (claim_body.strip() or sec)[:500],
+                    "confidence": "high",
+                    "sources": list(sources),  # all Margot citations attach to every finding
+                })
+        for i, q in enumerate(questions):
+            if i not in used_questions:
+                open_questions.append(f"{q} (Margot report did not address)")
+    elif report and not questions:
+        # No questions provided; emit one wholesale finding
+        findings.append({
+            "question": "Margot deep-research synthesis",
+            "claim": report[:500],
+            "confidence": "high",
+            "sources": list(sources),
+        })
+
+    brief = {
+        "research_required": True,
+        "mode": "margot",
+        "questions": list(questions),
+        "findings": findings,
+        "open_questions": open_questions,
+        "dispatched_at": dispatched_at,
+        "completed_at": completed_at or datetime.now(timezone.utc).isoformat(),
+        "cost_seconds": None,
+        "failure_reason": None,
+    }
+    if dispatched_at and completed_at:
+        try:
+            d = datetime.fromisoformat(dispatched_at.replace("Z", "+00:00"))
+            c = datetime.fromisoformat(completed_at.replace("Z", "+00:00"))
+            brief["cost_seconds"] = round((c - d).total_seconds(), 1)
+        except Exception:
+            pass
+
+    cleaned, warnings = _validate_research_brief(brief)
+    if warnings:
+        log.warning("Margot brief validation warnings: %s", "; ".join(warnings))
+    return cleaned
+
+
+def _read_inflight_entries() -> list[dict[str, Any]]:
+    """Read margot_inflight.jsonl, return list of dicts (skip malformed lines)."""
+    path = _HARNESS_ROOT.parent / "swarm" / ".." / ".harness" / "swarm" / "margot_inflight.jsonl"
+    # Resolve to the canonical path used by margot_tools
+    path = (_HARNESS_ROOT / "swarm" / "margot_inflight.jsonl").resolve()
+    if not path.exists():
+        return []
+    entries: list[dict[str, Any]] = []
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entries.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    except Exception as exc:
+        log.warning("could not read margot_inflight.jsonl: %s", exc)
+    return entries
+
+
+def _write_inflight_entries(entries: list[dict[str, Any]]) -> None:
+    """Atomic rewrite of the inflight log (used to mark entries 'harvested')."""
+    path = (_HARNESS_ROOT / "swarm" / "margot_inflight.jsonl").resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".jsonl.tmp")
+    tmp.write_text(
+        "\n".join(json.dumps(e, ensure_ascii=False) for e in entries) + ("\n" if entries else ""),
+        encoding="utf-8",
+    )
+    os.replace(tmp, path)
+
+
+def _harvest_completed_margot_briefs(max_age_days: int = 32) -> list[dict[str, Any]]:
+    """Scan inflight log for completed Margot board-research dispatches.
+
+    Returns a list of normalized briefs (RA-1972 contract shape, with
+    `mode: "margot"`). Marks consumed entries `status: "harvested"` and rewrites
+    the inflight log atomically. Failed entries are marked
+    `status: "harvested:failed"` so they're not re-checked next cycle.
+    """
+    if _margot_kill_switch_active():
+        return []
+    try:
+        from swarm.margot_tools import check_research
+    except ImportError:
+        return []
+
+    entries = _read_inflight_entries()
+    if not entries:
+        return []
+
+    now = datetime.now(timezone.utc)
+    cutoff_iso = (now - timedelta(days=max_age_days)).isoformat()
+    harvested_briefs: list[dict[str, Any]] = []
+    mutated = False
+
+    for entry in entries:
+        sid = entry.get("originating_session_id") or ""
+        if not sid.startswith("board_meeting:"):
+            continue
+        if entry.get("status") not in (None, "dispatched"):
+            continue  # already harvested or in some other state
+        ts = entry.get("ts", "")
+        if ts and ts < cutoff_iso:
+            entry["status"] = "harvested:expired"
+            mutated = True
+            continue
+
+        interaction_id = entry.get("interaction_id")
+        if not interaction_id:
+            continue
+        try:
+            result = check_research(interaction_id)
+        except Exception as exc:
+            log.warning("check_research(%s) raised: %s", interaction_id, exc)
+            continue
+
+        if not isinstance(result, dict):
+            continue
+        if result.get("error"):
+            log.warning(
+                "check_research(%s) returned error: %s",
+                interaction_id, result.get("error"),
+            )
+            continue
+
+        status = (result.get("status") or "").lower()
+        if status in ("processing", "dispatched", "pending", "running"):
+            continue  # will be harvested next cycle
+        if status in ("failed", "error"):
+            entry["status"] = "harvested:failed"
+            mutated = True
+            log.warning(
+                "Margot interaction %s failed; marking inflight entry harvested:failed",
+                interaction_id,
+            )
+            continue
+        if status not in ("completed", "complete", "done", "success"):
+            # Unknown status — leave entry alone, try again next cycle
+            log.info("Margot interaction %s has unknown status %r — will retry", interaction_id, status)
+            continue
+
+        # Completed — normalize and mark harvested
+        # The original questions aren't in the inflight log, but the topic is.
+        # We treat the topic as a single-question fallback if no questions were stored.
+        questions = entry.get("questions") or [entry.get("topic", "")]
+        questions = [q for q in questions if q]
+        brief = _normalize_margot_to_research_brief(
+            result,
+            questions=questions,
+            dispatched_at=entry.get("ts"),
+            completed_at=result.get("completed_at"),
+        )
+        brief["interaction_id"] = interaction_id
+        harvested_briefs.append(brief)
+        entry["status"] = "harvested"
+        entry["harvested_at"] = now.isoformat()
+        mutated = True
+
+    if mutated:
+        try:
+            _write_inflight_entries(entries)
+        except Exception as exc:  # pragma: no cover
+            log.warning("could not rewrite margot_inflight.jsonl: %s", exc)
+
+    return harvested_briefs
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _run_fast_research(
+    status: dict[str, Any],
+    linear: dict[str, Any],
+    *,
+    timeout: int,
+) -> dict[str, Any]:
+    """RA-1972 fast-research path, extracted from run_board_research_phase so the
+    mode dispatcher in RA-1974 can call it cleanly. Behaviourally identical to
+    the prior single-mode implementation.
+    """
+    start = time.monotonic()
+
+    def _empty(reason: str) -> dict[str, Any]:
+        return {
+            "research_required": False,
+            "questions": [],
+            "findings": [],
+            "open_questions": [],
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+            "cost_seconds": round(time.monotonic() - start, 1),
+            "failure_reason": reason,
+            "mode": "fast",
+        }
+
+    # ── Step 1: identify empirical questions ──────────────────────────────────
+    urgent_lines = "\n".join(
+        f"  - {i.get('id', '?')} [{i.get('state', '?')}] {i.get('title', '')}"
+        for i in status.get("urgent_issues", [])[:10]
+    ) or "  None"
+    zte = status.get("zte_score", "unknown")
+
+    question_prompt = (
+        "You are the Senior Project Manager preparing a CEO Board meeting. "
+        "Inspect the brief below and decide whether the board needs FRESH external "
+        "evidence (web search, public sources) before the personas debate.\n\n"
+        "## Intelligence Brief\n"
+        f"- ZTE Score: {zte}\n"
+        f"- Open Urgent issues: {len(status.get('urgent_issues', []))}\n"
+        f"- Open High issues: {linear.get('high_count', 0)}\n"
+        f"- Stale items (>3d): {', '.join(linear.get('stale_items', [])) or 'None'}\n"
+        "\n## Urgent Issues\n"
+        f"{urgent_lines}\n\n"
+        "## Decision\n"
+        "Return a JSON object — and ONLY a JSON object, no prose — matching:\n"
+        '{"questions": ["<sharp empirical question 1>", "..."]}\n\n'
+        "RULES:\n"
+        "- Empty list `[]` if the brief is purely internal (no competitors, vendors, "
+        "regulations, public events, or factual claims that need external verification).\n"
+        "- 2-5 questions otherwise. Each question is ONE sentence ending in '?'. "
+        "Each must be answerable with a web source. Bad: 'research the market'. "
+        'Good: "What did Anthropic ship in the last 30 days that affects the Pi-CEO orchestrator?"\n'
+        "- Do NOT ask questions about internal Pi-CEO state — those are answered from priors."
+    )
+
+    try:
+        q_raw = _run_prompt_via_sdk(question_prompt, timeout=60, thinking="disabled")
+    except Exception as exc:  # pragma: no cover — defensive
+        log.warning("Phase 2.4 question step raised: %s", exc)
+        return _empty(f"question step exception: {exc}")
+
+    q_obj = _extract_json_object(q_raw or "")
+    questions = (q_obj or {}).get("questions") or []
+    questions = [q for q in questions if isinstance(q, str) and q.strip()]
+
+    if not questions:
+        log.info("Phase 2.4 RESEARCH skipped — no empirical questions surfaced")
+        out = _empty("no empirical questions surfaced from intelligence brief")
+        _persist_research_brief(out, today)
+        return out
+
+    log.info("Phase 2.4 RESEARCH — %d question(s) to investigate", len(questions))
+
+    # ── Step 2: dispatch research subagent ────────────────────────────────────
+    questions_block = "\n".join(f"{i+1}. {q}" for i, q in enumerate(questions))
+    research_prompt = (
+        "You are a research analyst preparing evidence for a strategic board meeting. "
+        "Investigate each question below using WebSearch and WebFetch. Return ONE JSON "
+        "object — no prose, no fences — matching this schema exactly:\n\n"
+        "```\n"
+        "{\n"
+        '  "research_required": true,\n'
+        f'  "questions": {json.dumps(questions)},\n'
+        '  "findings": [\n'
+        '    {\n'
+        '      "question": "<the question this answers>",\n'
+        '      "claim": "<one or two sentences stating what you found>",\n'
+        '      "confidence": "high" | "medium" | "low",\n'
+        '      "sources": [\n'
+        '        { "url": "<absolute url>", "title": "<page title>", "fetched": "YYYY-MM-DD", "excerpt": "<≤200 chars>" }\n'
+        '      ]\n'
+        '    }\n'
+        '  ],\n'
+        '  "open_questions": ["<questions you could not answer or could not source>"]\n'
+        "}\n"
+        "```\n\n"
+        "## Questions\n"
+        f"{questions_block}\n\n"
+        "HARD RULES:\n"
+        "- Every claim has at least one source with both `url` and `fetched` populated.\n"
+        "- If you cannot find a citable source for a question, put the question in "
+        "`open_questions` instead of inventing a finding.\n"
+        "- `confidence: low` is acceptable; `confidence: high` requires a primary source "
+        "(vendor docs, official announcement, regulator filing) — not a third-party blog.\n"
+        "- Stop investigating once you have a finding or have exhausted reasonable searches "
+        "(3 searches per question max). Time budget is tight."
+    )
+
+    research_raw = _run_research_via_sdk(research_prompt, timeout=timeout)
+    if not research_raw:
+        out = _empty("research subagent returned empty (timeout or SDK failure)")
+        out["questions"] = questions
+        out["open_questions"] = list(questions)  # personas should know what was unanswered
+        _persist_research_brief(out, today)
+        return out
+
+    brief = _extract_json_object(research_raw)
+    if not isinstance(brief, dict):
+        out = _empty("research subagent output was not parseable JSON")
+        out["questions"] = questions
+        out["open_questions"] = list(questions)
+        _persist_research_brief(out, today)
+        return out
+
+    brief.setdefault("research_required", True)
+    brief.setdefault("questions", questions)
+    brief.setdefault("findings", [])
+    brief.setdefault("open_questions", [])
+    brief["completed_at"] = datetime.now(timezone.utc).isoformat()
+    brief["cost_seconds"] = round(time.monotonic() - start, 1)
+    brief["failure_reason"] = None
+    brief["mode"] = "fast"
+
+    cleaned, warnings = _validate_research_brief(brief)
+    if warnings:
+        log.warning("Phase 2.4 validation warnings: %s", "; ".join(warnings))
+
+    log.info(
+        "Phase 2.4 RESEARCH (fast) complete: %d findings, %d open_questions, %.1fs",
+        len(cleaned.get("findings", [])),
+        len(cleaned.get("open_questions", [])),
+        cleaned["cost_seconds"],
+    )
+    return cleaned
+
+
+def run_board_research_phase(
+    status: dict[str, Any],
+    linear: dict[str, Any],
+    *,
+    timeout: int = 180,
+    cycle: int = 0,
+    mode: str | None = None,
+) -> dict[str, Any]:
+    """Phase 2.4 — RESEARCH BRIEF orchestrator (RA-1972 + RA-1974).
+
+    Dispatches to one of three modes:
+      * fast   (default) — RA-1972 path: 180s WebSearch + WebFetch subagent
+      * hybrid           — fast this cycle + dispatch Margot for next cycle
+      * deep             — Margot only; this cycle has no fresh research
+
+    On every call: harvest any completed prior-cycle Margot dispatches from
+    `.harness/swarm/margot_inflight.jsonl` and prepend them as
+    `prior_deep_research`. This is the async-pickup half of the two-cycle pattern.
+
+    Always returns a dict matching the RA-1972 contract (research_required,
+    questions, findings, open_questions, completed_at, cost_seconds,
+    failure_reason) plus optional `mode` and `prior_deep_research` fields.
+    Persisted to `.harness/board-meetings/{date}-research.json`.
+    """
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    resolved_mode = (mode or _resolve_board_research_mode()).lower()
+    if resolved_mode not in _VALID_RESEARCH_MODES:
+        log.warning("Invalid mode %r passed to run_board_research_phase — defaulting to fast", mode)
+        resolved_mode = "fast"
+
+    log.info("Phase 2.4 RESEARCH start: mode=%s cycle=%s", resolved_mode, cycle)
+
+    # ── Harvest prior-cycle Margot dispatches ─────────────────────────────────
+    prior_deep = _harvest_completed_margot_briefs()
+    if prior_deep:
+        log.info(
+            "Phase 2.4 harvested %d prior-cycle Margot brief(s): interaction_ids=%s",
+            len(prior_deep),
+            [p.get("interaction_id", "?") for p in prior_deep],
+        )
+
+    # ── Run the current cycle's research per mode ─────────────────────────────
+    if resolved_mode == "deep":
+        # Skip fast research entirely. Dispatch Margot for next cycle.
+        topic = _build_margot_topic(status, linear)
+        dispatch = _dispatch_margot_for_next_cycle(topic, cycle=cycle, date_str=today)
+        current = {
+            "research_required": False,
+            "mode": "deep",
+            "questions": [],
+            "findings": [],
+            "open_questions": [],
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+            "cost_seconds": 0.0,
+            "failure_reason": (
+                f"deep mode — Margot dispatched ({dispatch.get('interaction_id')}), will harvest next cycle"
+                if dispatch else
+                "deep mode — Margot dispatch failed (kill switch active or Margot unreachable)"
+            ),
+            "pending_interaction_id": dispatch.get("interaction_id") if dispatch else None,
+        }
+    else:
+        # fast or hybrid — both run fast synchronously
+        current = _run_fast_research(status, linear, timeout=timeout)
+        if resolved_mode == "hybrid":
+            topic = _build_margot_topic(status, linear)
+            dispatch = _dispatch_margot_for_next_cycle(topic, cycle=cycle, date_str=today)
+            current["mode"] = "hybrid"
+            current["next_cycle_dispatch"] = (
+                dispatch.get("interaction_id") if dispatch else None
+            )
+
+    # Attach harvested briefs (if any)
+    if prior_deep:
+        current["prior_deep_research"] = prior_deep
+
+    _persist_research_brief(current, today)
+    return current
+
+
+def _build_margot_topic(status: dict[str, Any], linear: dict[str, Any]) -> str:
+    """Compose a Margot research brief from the autonomous board's intelligence
+    payload. Margot expects a free-text research brief, not a question list."""
+    urgent_titles = "; ".join(
+        i.get("title", "") for i in status.get("urgent_issues", [])[:8]
+    ) or "none"
+    return (
+        "Strategic intelligence brief for the Pi-CEO autonomous board meeting. "
+        f"ZTE score: {status.get('zte_score', 'unknown')}. "
+        f"Open Urgent issues ({len(status.get('urgent_issues', []))}): {urgent_titles}. "
+        f"Open High issues: {linear.get('high_count', 0)}. "
+        f"Stale items: {', '.join(linear.get('stale_items', [])) or 'none'}. "
+        "Research the external context the board needs to deliberate effectively: "
+        "competitor moves, regulatory changes, vendor announcements, market signals "
+        "relevant to the open issues above. Focus on facts the board cannot derive "
+        "from internal Pi-CEO state. Cite sources."
+    )
+
+
+def _persist_research_brief(brief: dict[str, Any], date_str: str) -> None:
+    """Write the research brief to .harness/board-meetings/{date}-research.json.
+    Atomic write via .tmp + os.replace per CLAUDE.md persistence convention.
+    """
+    try:
+        out_dir = _HARNESS_ROOT / "board-meetings"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / f"{date_str}-research.json"
+        tmp_path = out_path.with_suffix(".json.tmp")
+        tmp_path.write_text(json.dumps(brief, indent=2, ensure_ascii=False), encoding="utf-8")
+        os.replace(tmp_path, out_path)
+    except Exception as exc:  # pragma: no cover — disk failures shouldn't break debate
+        log.warning("could not persist research brief: %s", exc)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+
 def run_persona_debate_phase(
     system_prompt: str,
     status: dict[str, Any],
     linear: dict[str, Any],
+    research: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Phase 2.5 — PERSONA DEBATE (RA-686): 9 CEO Board personas deliberate on the intelligence brief.
 
     A single SDK/API call generates all 9 persona responses in one structured document.
     The synthesis is then passed to Phase 3 (SWOT) as additional context.
+
+    RA-1972 — `research` is the optional Phase 2.4 output. When present and
+    `research_required: true`, the research brief is injected verbatim into the
+    user_content and personas are required to cite findings by question number.
     """
     urgent_issues = "\n".join(
         f"  - {i['id']} [{i['state']}] {i['title']}"
@@ -939,6 +1741,14 @@ def run_persona_debate_phase(
         for name, desc in CEO_BOARD_PERSONAS.items()
     )
 
+    research_block = _format_research_brief_for_personas(research) if research else ""
+    research_required = bool(research and research.get("research_required"))
+    citation_rule = (
+        "Each persona MUST cite at least one Research Brief finding by `#N` when "
+        "their position depends on a fact. The Contrarian MUST flag at least one "
+        "claim with `confidence: low` or one entry in `open_questions`.\n"
+    ) if research_required else ""
+
     user_content = (
         "Run Phase 2.5 — CEO BOARD PERSONA DEBATE.\n\n"
         "## Intelligence Brief\n"
@@ -949,12 +1759,14 @@ def run_persona_debate_phase(
         f"- Stale items (>3d): {', '.join(linear.get('stale_items', [])) or 'None'}\n\n"
         "## Open Urgent Issues\n"
         + urgent_issues
+        + research_block
         + "\n\n## Board Personas\n\n"
         + personas_block
         + "\n\n## Instructions\n"
         "Each persona gives their single most important observation or challenge in 2–3 sentences.\n"
         "The Contrarian MUST challenge at least one recommendation from another persona by name.\n"
-        "End with a CEO SYNTHESIS (3 sentences): the highest-signal insight from the debate.\n\n"
+        + citation_rule
+        + "End with a CEO SYNTHESIS (3 sentences): the highest-signal insight from the debate.\n\n"
         "Format strictly as:\n"
         "**CEO:** [2–3 sentences]\n"
         "**Revenue:** [2–3 sentences]\n"
@@ -972,8 +1784,16 @@ def run_persona_debate_phase(
     if not raw:
         raw = _run_prompt_via_sdk(user_content, timeout=120, thinking="adaptive")
 
-    log.info("Phase 2.5 PERSONA DEBATE complete (%d chars)", len(raw))
-    return {"phase": "persona_debate", "content": raw}
+    log.info(
+        "Phase 2.5 PERSONA DEBATE complete (%d chars, research_injected=%s)",
+        len(raw),
+        research_required,
+    )
+    return {
+        "phase": "persona_debate",
+        "content": raw,
+        "research_injected": research_required,
+    }
 
 
 # ── RA-696: Business Velocity Index ──────────────────────────────────────────
@@ -1389,6 +2209,7 @@ def save_board_minutes(
     gap_audit: dict[str, Any],
     persona_debate: dict[str, Any] | None = None,
     bvi: dict[str, Any] | None = None,
+    research: dict[str, Any] | None = None,
 ) -> Path:
     """Phase 5 — SAVE MINUTES: write full board minutes to .harness/board-meetings/."""
     board_dir = _HARNESS_ROOT / "board-meetings"
@@ -1400,6 +2221,18 @@ def save_board_minutes(
     audit_summary = gap_audit.get("summary", {})
     cron = status.get("cron_health", {})
     cron_status = cron.get("status", "unknown") if isinstance(cron, dict) else str(cron)
+
+    # RA-1972 — Phase 2.4 research brief (if any)
+    research_section = (
+        [
+            "",
+            "## Phase 2.4 — RESEARCH BRIEF (RA-1972)",
+            _format_research_brief_for_personas(research).lstrip("\n").replace(
+                "## RESEARCH BRIEF (Phase 2.4)\n", "", 1
+            ).lstrip(),
+        ]
+        if research else []
+    )
 
     persona_section = (
         ["", "## Phase 2.5 — CEO BOARD PERSONA DEBATE (RA-686)", persona_debate.get("content", "(not available)")]
@@ -1462,6 +2295,7 @@ def save_board_minutes(
         f"- Urgent: {linear.get('urgent_count', 0)} | High: {linear.get('high_count', 0)}",
         f"- Stale: {', '.join(linear.get('stale_items', [])) or 'None'}",
         f"- Unassigned: {', '.join(linear.get('unassigned', [])) or 'None'}",
+        *research_section,
         *persona_section,
         "",
         "## Phase 3 — SWOT",
@@ -1502,7 +2336,8 @@ def run_full_board_meeting(dry_run: bool = False, cycle: int = 0) -> dict[str, A
 
     status = run_status_phase()
     linear = run_linear_review_phase()
-    persona_debate = run_persona_debate_phase(system_prompt, status, linear)
+    research = run_board_research_phase(status, linear, cycle=cycle)
+    persona_debate = run_persona_debate_phase(system_prompt, status, linear, research=research)
     bvi = compute_bvi(cycle)
     swot = run_swot_phase(system_prompt, status, linear, persona_debate=persona_debate, bvi=bvi)
     recommendations = run_sprint_recommendations_phase(system_prompt, swot, linear)
@@ -1513,6 +2348,7 @@ def run_full_board_meeting(dry_run: bool = False, cycle: int = 0) -> dict[str, A
             cycle, status, linear, swot, recommendations, gap_audit,
             persona_debate=persona_debate,
             bvi=bvi,
+            research=research,
         )
         gap_audit["minutes_path"] = str(minutes_path)
         record_bvi_entry(bvi)
@@ -1522,6 +2358,7 @@ def run_full_board_meeting(dry_run: bool = False, cycle: int = 0) -> dict[str, A
     return {
         "status": status,
         "linear_review": linear,
+        "research": research,
         "persona_debate": persona_debate,
         "swot": swot,
         "sprint_recommendations": recommendations,

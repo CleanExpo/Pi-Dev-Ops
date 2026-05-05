@@ -253,6 +253,18 @@ Every SDK invocation emits a row to `.harness/agent-sdk-metrics/YYYY-MM-DD.jsonl
 
 **Testing SDK-wrapped functions:** Patch `claude_agent_sdk.ClaudeSDKClient` with `unittest.mock.AsyncMock`. Set `return_value.__aenter__.return_value.receive_response` to an async iterator yielding mock message objects with `.content` attributes. Never call the real API in unit tests.
 
+## Board research mode (RA-1974)
+
+`TAO_BOARD_RESEARCH_MODE` env flag controls Phase 2.4 in the autonomous board meeting (`app/server/agents/board_meeting.py`):
+
+- `fast` (default) — RA-1972 path, 180s WebSearch + WebFetch via Anthropic Agent SDK.
+- `hybrid` (recommended) — fast research this cycle + dispatches Margot deep_research_max for next cycle's harvest. Two-cycle pattern; Margot results land in the following monthly meeting.
+- `deep` — Margot only; this cycle has `research_required: false, pending_interaction_id: <id>`; next cycle harvests.
+
+Margot dispatch is gated on `TAO_SWARM_ENABLED=1` (kill switch) and `swarm.margot_tools` reachability. Failures fall back to fast silently with a logged bypass. Harvested briefs auto-prepend to the next cycle's research as `prior_deep_research`.
+
+Interactive Skill (`~/.claude/skills/ceo-board/SKILL.md`) Stage 1.5 supports the same modes — fast by default, deep when the brief contains `[deep-research]` or the founder says "deep research first".
+
 ## Linear Integration
 
 - **Team:** RestoreAssist (`a8a52f07-63cf-4ece-9ad2-3e3bd3c15673`)
