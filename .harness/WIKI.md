@@ -1,4 +1,4 @@
-# app — Wiki
+# .harness — Wiki
 
 _Last updated: 2026-05-05T11:32:16Z (commits 9046c74..88ec41c)_
 
