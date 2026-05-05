@@ -110,6 +110,11 @@ Pi-Dev-Ops converts a GitHub repo URL + plain-English brief into an autonomous C
 | Deploy (FE) | Vercel | `dashboard/vercel.json` |
 | Deploy (BE) | Railway | `railway.toml`, `Dockerfile` |
 
+## Shared packages
+
+- `packages/brand-config/` — `@unite-group/brand-config` — single source of truth for brand tokens; exposes `themeFactory(brand)` for Tailwind/CSS-var consumption.
+- `packages/ui/` — `@unite-group/ui` — shadcn New York primitives (Button, Card, Dialog, Form) consuming `@unite-group/brand-config/theme-factory`. Built via `tsup` (CJS+ESM+.d.ts). Consume via `"@unite-group/ui": "file:../packages/ui"`.
+
 ## Backend Module Map (`app/server/`)
 
 | File | Lines | Concern |
