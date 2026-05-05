@@ -21,6 +21,15 @@ Owns "who exactly buys, what they call the problem, where they hang out, who els
 - `feature` (optional) — if researching for a specific feature's adopter segment
 - `seed` (optional) — known customers / quotes / interview transcripts
 - `competitorReviews` (optional) — G2 / Capterra review URLs to mine for vocabulary
+- `documents` (optional) — list of local PDF / DOCX / TXT paths (customer
+  interview transcripts, market reports, regulatory docs). When supplied,
+  call `app.server.pi_ceo_docparser.parse_document(path)` to extract
+  text + metadata before LLM analysis. The parser is deterministic and
+  preserves page boundaries (`doc.pages`) so the LLM can cite
+  `"p. 3 of interview-2026-05-06.pdf"` when surfacing pain quotes.
+  See `skills/pi-ceo-docparser/SKILL.md` for the contract. Skip + log
+  when `doc.error` is populated; never let a missing PDF dep break the
+  research workflow.
 
 ## Method
 
