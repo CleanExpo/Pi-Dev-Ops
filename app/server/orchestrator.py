@@ -200,12 +200,24 @@ async def _launch_wave(
 
 
 async def _wait_for_wave(session_ids: list[str], parent: BuildSession, wave_num: int) -> None:
-    """Poll until all sessions in a wave reach a terminal state."""
+    """Poll until all sessions in a wave reach a terminal state.
+
+    RA-1966 — TAO kill-switch: every poll checks TAO_HARD_STOP_FILE so an
+    operator can abort an in-flight wave without restarting the server.
+    """
     from .session_model import _sessions as _sess_store  # noqa: PLC0415
+    from . import kill_switch as _ks                       # noqa: PLC0415
     terminal = {"complete", "failed", "killed", "interrupted", "error"}
     poll_interval = 5  # seconds
     em(parent, "phase", f"  Waiting for wave {wave_num} ({len(session_ids)} workers) to finish...")
+    counter = _ks.LoopCounter()
     while True:
+        try:
+            counter.tick()
+        except _ks.KillSwitchAbort as abort:
+            em(parent, "error",
+               f"  Wave {wave_num} aborted by TAO kill-switch: {abort.reason} {abort.snapshot}")
+            raise
         states = {sid: _sess_store.get(sid) for sid in session_ids}
         done = all(
             (s is None or (hasattr(s, "status") and s.status in terminal))

@@ -224,6 +224,21 @@ LINEAR_WEBHOOK_SECRET = os.environ.get("TAO_LINEAR_WEBHOOK_SECRET",     "")
 # When set, auto-tunes eval_threshold, max_retries, model, and timeout.
 AUTONOMY_BUDGET_MINS = int(os.environ.get("TAO_AUTONOMY_BUDGET", "0"))
 
+# RA-1966 — TAO-level kill-switch primitive (Wave 1 / 0).
+# These three knobs gate any iteration loop inside a single TAO session
+# (planner → generator → evaluator retry, future tao-judge / tao-loop).
+# Implementation in `app.server.kill_switch`.
+#
+# Distinct from `swarm/kill_switch.py` (which is the per-bot-cycle file-flag
+# panic switch driven by Telegram /panic).
+#
+# Defaults are intentionally generous so existing flows are not impacted on
+# rollout. Operators tighten via Railway env in production.
+TAO_MAX_ITERS        = int(os.environ.get("TAO_MAX_ITERS",        "25"))
+TAO_MAX_COST_USD     = float(os.environ.get("TAO_MAX_COST_USD",   "5.00"))
+TAO_HARD_STOP_FILE   = os.environ.get("TAO_HARD_STOP_FILE",
+                            os.path.join(os.path.expanduser("~"), ".claude", "HARD_STOP"))
+
 # ---------------------------------------------------------------------------
 # Pi-SEO scanner settings
 # ---------------------------------------------------------------------------
