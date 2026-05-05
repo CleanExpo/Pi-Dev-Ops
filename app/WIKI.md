@@ -1,8 +1,8 @@
 # app — Wiki
 
-_Last updated: 2026-05-05T23:31:44Z (commits 3f23cbd..ff58a6d)_
+_Last updated: 2026-05-05T23:47:48Z (commits 44d2939..071aebe)_
 
 ## Recent changes
-- ff58a6d — feat(tao): RA-1992 — tao-tdd-pipeline (test-first iteration discipline) (#194)
+- 071aebe — feat(tao): RA-1995 — pi-ceo-docparser (PDF/DOCX/TXT for ICP research) (#195)
 
 Not logged in · Please run /login
