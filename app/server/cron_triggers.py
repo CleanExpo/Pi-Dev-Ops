@@ -152,16 +152,27 @@ async def _fire_intel_refresh_trigger(trigger: dict, log) -> None:
 
 
 async def _fire_portfolio_pulse_trigger(trigger: dict, log) -> None:
-    """Fire the daily Portfolio Pulse — RA-1888.
+    """Fire the Portfolio Pulse — RA-1888 (daily) or RA-2006 (weekly recap).
 
     Calls swarm.portfolio_pulse.run_all_projects() which builds one
     markdown briefing per project under .harness/portfolio-pulse/.
     Sibling tickets (RA-1889..1893) plug section providers + delivery.
     Failure of any single project does NOT raise — the whole batch
     completes and the log surfaces per-project errors.
+
+    Trigger fields:
+      * ``projects`` (list[str], optional) — override DEFAULT_PROJECTS
+      * ``lookback_hours`` (int, optional, default 24) — RA-2006: pass 168
+        on the Friday weekly trigger so section providers query 7 days
+        instead of 24h. The window flows through `lookback_window()` so
+        every provider sees the same value without per-provider plumbing.
+      * ``recap_label`` (str, optional) — used by Telegram delivery
+        (RA-1893) for distinct framing. Defaults to "Daily" / "Weekly"
+        based on lookback_hours.
     """
     log.info("Firing portfolio_pulse id=%s", trigger["id"])
     try:
+        from swarm import portfolio_pulse as _pp  # noqa: PLC0415
         from swarm.portfolio_pulse import run_all_projects  # noqa: PLC0415
     except Exception as exc:  # noqa: BLE001
         log.error("portfolio_pulse import failed: %s", exc)
@@ -180,16 +191,74 @@ async def _fire_portfolio_pulse_trigger(trigger: dict, log) -> None:
             )
 
     projects = trigger.get("projects")  # optional override; None → DEFAULT_PROJECTS
+    lookback_hours = int(trigger.get("lookback_hours") or 24)
+    if lookback_hours <= 0:
+        lookback_hours = 24
+
     # Run sync function in a worker thread — keeps the cron loop async-clean.
-    results = await asyncio.to_thread(
-        run_all_projects, projects=projects,
-    )
+    # The lookback_window context manager scopes the override to this run
+    # so the daily trigger isn't accidentally widened.
+    def _run() -> list:
+        with _pp.lookback_window(lookback_hours):
+            return run_all_projects(projects=projects)
+
+    results = await asyncio.to_thread(_run)
     ok = sum(1 for r in results if not r.error)
     err = sum(1 for r in results if r.error)
     log.info(
-        "portfolio_pulse id=%s complete: %d ok, %d errored",
-        trigger["id"], ok, err,
+        "portfolio_pulse id=%s complete: %d ok, %d errored, lookback=%dh",
+        trigger["id"], ok, err, lookback_hours,
     )
+
+    # RA-2006 — optional Telegram delivery. Opt-in via `deliver_telegram: true`
+    # in the trigger config so the existing daily file-only cron isn't
+    # silently changed. The Friday weekly trigger sets this to true.
+    if trigger.get("deliver_telegram"):
+        try:
+            from swarm import portfolio_pulse_telegram as _ppt  # noqa: PLC0415
+        except Exception as exc:  # noqa: BLE001
+            log.warning("portfolio_pulse: telegram delivery import failed: %s", exc)
+            return
+
+        # Compose a Telegram digest by stitching the cross-portfolio
+        # synthesis (if available) + a one-line-per-project summary table.
+        is_weekly = lookback_hours >= 168
+        recap_label = (
+            trigger.get("recap_label")
+            or ("🗓 Pi-CEO Weekly Recap" if is_weekly else "📊 Pi-CEO Daily Pulse")
+        )
+        from datetime import datetime as _dt, timezone as _tz  # noqa: PLC0415
+        today = _dt.now(_tz.utc).strftime("%a %d %b %Y")
+        synthesis = getattr(results, "cross_portfolio_synthesis", "") or ""
+        per_project_lines = []
+        for r in results:
+            tag = "✅" if not r.error else "⚠️"
+            per_project_lines.append(f"- {tag} `{r.project_id}`")
+        per_project_block = "\n".join(per_project_lines) or "_(no projects)_"
+        digest_md = (
+            f"# {recap_label} — {today}\n\n"
+            + (synthesis + "\n\n" if synthesis else "")
+            + "## Per-project status\n"
+            + per_project_block
+            + "\n\n"
+            + (
+                "_Full markdown briefings live under "
+                "`.harness/portfolio-pulse/<project>/<date>.md`._"
+            )
+        )
+
+        try:
+            delivery = await asyncio.to_thread(
+                _ppt.deliver_to_telegram, digest_md,
+                voice=bool(trigger.get("voice", False)),
+            )
+            log.info(
+                "portfolio_pulse id=%s telegram delivery: sent=%s chunks=%d errors=%d",
+                trigger["id"], delivery.get("sent"),
+                delivery.get("chunks", 0), len(delivery.get("errors") or []),
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("portfolio_pulse: telegram delivery raised: %s", exc)
 
 
 async def _fire_script_trigger(trigger: dict, log) -> None:

@@ -252,23 +252,41 @@ def pr_summary(repo: str, *, token: str = "") -> dict:
 # ── Markdown rendering ──────────────────────────────────────────────────────
 
 
-def _render_deploys(deploys: list[dict]) -> str:
+def _window_label(lookback_hours: int) -> str:
+    """Render a human-readable window label for section bodies — e.g.
+    'last 24h' for the daily pulse, 'last 7 days' for the Friday recap."""
+    if lookback_hours >= 168:
+        days = lookback_hours // 24
+        return f"last {days} days"
+    return f"last {lookback_hours}h"
+
+
+def _render_deploys(deploys: list[dict],
+                     *, lookback_hours: int = DEFAULT_LOOKBACK_HOURS) -> str:
+    label = _window_label(lookback_hours)
     if not deploys:
-        return "_(no main-branch commits in the last 24h)_"
-    lines = [f"- **Commits to main (last 24h):** {len(deploys)}"]
-    for d in deploys[:5]:
+        return f"_(no main-branch commits in the {label})_"
+    # Show up to 5 by default, but for weekly windows show more so the
+    # operator gets the actual list of wins this week.
+    cap = 5 if lookback_hours <= 24 else 12
+    lines = [f"- **Commits to main ({label}):** {len(deploys)}"]
+    for d in deploys[:cap]:
         lines.append(
             f"    - `{d['sha']}` by {d['author']} "
             f"[{d['deploy_status']}] — {d['message']}"
         )
+    if len(deploys) > cap:
+        lines.append(f"    - …and {len(deploys) - cap} more")
     return "\n".join(lines)
 
 
-def _render_ci(summary: dict) -> str:
+def _render_ci(summary: dict,
+                *, lookback_hours: int = DEFAULT_LOOKBACK_HOURS) -> str:
     p = summary.get("pass_count", 0)
     f = summary.get("fail_count", 0)
     failures = summary.get("recent_failures", []) or []
-    lines = [f"- **Workflow runs (main, last 24h):** {p} passed · {f} failed"]
+    label = _window_label(lookback_hours)
+    lines = [f"- **Workflow runs (main, {label}):** {p} passed · {f} failed"]
     if failures:
         lines.append("- **Recent failures:**")
         for fail in failures:
@@ -325,32 +343,39 @@ def _no_repo_section(project_id: str) -> tuple[str, str | None]:
 
 def deploys_provider(project_id: str,
                        repo_root: Path) -> tuple[str, str | None]:
-    """Section provider for the ``deploys`` slot."""
+    """Section provider for the ``deploys`` slot.
+
+    Honours the active ``portfolio_pulse.get_lookback_hours()`` so the
+    weekly Friday recap (RA-2006) widens the window to 168h via the same
+    machinery as the daily 24h pulse.
+    """
     token = (os.environ.get("GITHUB_TOKEN") or "").strip()
     if not token:
         return _no_token_section("deploys")
     repo = _resolve_repo(project_id, repo_root)
     if not repo:
         return _no_repo_section(project_id)
+    lookback_h = portfolio_pulse.get_lookback_hours()
     since = (datetime.now(timezone.utc)
-             - timedelta(hours=DEFAULT_LOOKBACK_HOURS)).isoformat()
+             - timedelta(hours=lookback_h)).isoformat()
     deploys = recent_deploys(repo, since, token=token)
-    return _render_deploys(deploys), None
+    return _render_deploys(deploys, lookback_hours=lookback_h), None
 
 
 def ci_provider(project_id: str,
                   repo_root: Path) -> tuple[str, str | None]:
-    """Section provider for the ``ci`` slot."""
+    """Section provider for the ``ci`` slot. Honours active lookback (RA-2006)."""
     token = (os.environ.get("GITHUB_TOKEN") or "").strip()
     if not token:
         return _no_token_section("ci")
     repo = _resolve_repo(project_id, repo_root)
     if not repo:
         return _no_repo_section(project_id)
+    lookback_h = portfolio_pulse.get_lookback_hours()
     since = (datetime.now(timezone.utc)
-             - timedelta(hours=DEFAULT_LOOKBACK_HOURS)).isoformat()
+             - timedelta(hours=lookback_h)).isoformat()
     summary = ci_summary(repo, since, token=token)
-    return _render_ci(summary), None
+    return _render_ci(summary, lookback_hours=lookback_h), None
 
 
 def prs_provider(project_id: str,
