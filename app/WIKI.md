@@ -1,8 +1,8 @@
 # app — Wiki
 
-_Last updated: 2026-05-05T21:10:26Z (commits 97246ac..5eec0ea)_
+_Last updated: 2026-05-05T21:19:04Z (commits 48312ff..e04617c)_
 
 ## Recent changes
-- 5eec0ea — fix(cron): RA-2016 — expand catch-up scope to all overdue trigger types (#191)
+- e04617c — feat(tao): RA-1991 — pi-ceo-session-fts (FTS5 over past Claude Code sessions) (#192)
 
 Not logged in · Please run /login
