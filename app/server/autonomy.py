@@ -97,6 +97,102 @@ _last_poll_at: float = 0.0
 _poll_count: int = 0
 _recent_events: list[dict] = []
 
+# RA-1973 — watchdog diagnostic surface. The poller crashed silently for 16 h
+# on Railway prod on 2026-05-05 because the `while True` body had no try/except.
+# `_poller_iteration_errors` counts iteration crashes (loop survived), and
+# `_last_iteration_error` stores the most recent traceback summary so /health
+# and /api/autonomy/status can surface it.
+_poller_iteration_errors: int = 0
+_last_iteration_error: dict | None = None
+
+# RA-1973 — per-team orphan-recovery state map. Hard-coding "Pi-Dev: Blocked"
+# only worked for the RA team workflow. DR-NRPG and other teams 500'd because
+# that state name doesn't exist on their boards. "Todo" is the universal
+# fallback (every team has it). Override at process boot via the
+# TAO_ORPHAN_RECOVERY_STATES env var (JSON dict: team_uuid -> state_name).
+_RA_TEAM_ID         = "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673"
+_DR_NRPG_TEAM_ID    = "43811130-ac12-47d3-9433-330320a76205"
+_SYN_TEAM_ID        = "b887971b-6761-4260-a111-b94dbb628ebe"
+_GP_TEAM_ID         = "91b3cd04-86eb-422d-81e2-9aa37db2f2f5"
+_UNI_TEAM_ID        = "ab9c7810-4dd6-4ce2-8e8f-e1fc94c6b88b"
+
+_DEFAULT_ORPHAN_RECOVERY_STATES: dict[str, str] = {
+    _RA_TEAM_ID:      "Pi-Dev: Blocked",  # RA — original choice, preserved
+    _DR_NRPG_TEAM_ID: "Todo",
+    _SYN_TEAM_ID:     "Todo",
+    _GP_TEAM_ID:      "Todo",
+    _UNI_TEAM_ID:     "Todo",
+}
+_ORPHAN_RECOVERY_FALLBACK_STATE = "Todo"
+
+
+def _load_orphan_recovery_state_map() -> dict[str, str]:
+    """Load per-team orphan-recovery state map, env-overridable at boot.
+
+    Parse `TAO_ORPHAN_RECOVERY_STATES` once at module import. Falls back to
+    `_DEFAULT_ORPHAN_RECOVERY_STATES` on JSON parse failure (logs a warning).
+    """
+    raw = os.environ.get("TAO_ORPHAN_RECOVERY_STATES", "").strip()
+    if not raw:
+        return dict(_DEFAULT_ORPHAN_RECOVERY_STATES)
+    try:
+        parsed = json.loads(raw)
+        if not isinstance(parsed, dict):
+            raise ValueError("TAO_ORPHAN_RECOVERY_STATES must decode to a dict")
+        # Merge over defaults so partial overrides keep the default fallbacks.
+        merged = dict(_DEFAULT_ORPHAN_RECOVERY_STATES)
+        for k, v in parsed.items():
+            if isinstance(k, str) and isinstance(v, str):
+                merged[k] = v
+        return merged
+    except Exception as exc:
+        log.warning(
+            "Autonomy: TAO_ORPHAN_RECOVERY_STATES parse failed (%s) — using defaults",
+            exc,
+        )
+        return dict(_DEFAULT_ORPHAN_RECOVERY_STATES)
+
+
+_ORPHAN_RECOVERY_STATE_BY_TEAM: dict[str, str] = _load_orphan_recovery_state_map()
+_unknown_team_warned: set[str] = set()
+
+
+def _recovery_state_for(team_id: str) -> str:
+    """Return the orphan-recovery state name for a team_id; Todo as ultimate fallback."""
+    state = _ORPHAN_RECOVERY_STATE_BY_TEAM.get(team_id)
+    if state:
+        return state
+    if team_id not in _unknown_team_warned:
+        log.warning(
+            "Autonomy: unknown team_id %s for orphan recovery — using fallback '%s'",
+            team_id, _ORPHAN_RECOVERY_FALLBACK_STATE,
+        )
+        _unknown_team_warned.add(team_id)
+    return _ORPHAN_RECOVERY_FALLBACK_STATE
+
+
+def _send_watchdog_telegram(message: str) -> None:
+    """Best-effort Telegram alert via raw urllib. Silent on failure.
+
+    Only fires when both TELEGRAM_BOT_TOKEN and TELEGRAM_ALERT_CHAT_ID env
+    vars are set. Uses a 5 s timeout and never re-raises — the watchdog must
+    not crash because of a failed alert.
+    """
+    token   = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    chat_id = os.environ.get("TELEGRAM_ALERT_CHAT_ID", "")
+    if not token or not chat_id:
+        return
+    try:
+        url     = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = json.dumps({"chat_id": chat_id, "text": message}).encode("utf-8")
+        req     = urllib.request.Request(
+            url, data=payload, method="POST",
+            headers={"Content-Type": "application/json"},
+        )
+        urllib.request.urlopen(req, timeout=5).close()
+    except Exception as exc:
+        log.warning("Autonomy watchdog: Telegram alert failed: %s", exc)
+
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -544,11 +640,31 @@ async def _orphan_recovery(api_key: str) -> None:
             checked += 1
             if not _is_pi_ceo_orphan(issue, live_ids):
                 continue
-            iid     = issue["id"]
-            ident   = issue.get("identifier", "?")
-            team_id = p["team_id"]
+            iid          = issue["id"]
+            ident        = issue.get("identifier", "?")
+            team_id      = p["team_id"]
+            target_state = _recovery_state_for(team_id)  # RA-1973 — per-team
             try:
-                transition_issue(api_key, iid, _BLOCKED_STATUS_NAME, team_id=team_id)
+                try:
+                    transition_issue(api_key, iid, target_state, team_id=team_id)
+                except RuntimeError as exc:
+                    # State name doesn't exist on this team's workflow — skip
+                    # this ticket (don't crash the recovery routine for the
+                    # rest of the portfolio). RA-1973.
+                    if "not found" in str(exc).lower():
+                        log.warning(
+                            "orphan-recovery: state '%s' missing on team %s for %s — skipping",
+                            target_state, team_id, ident,
+                        )
+                        _log_event({
+                            "action": "orphan_recovery_state_missing",
+                            "ticket": ident,
+                            "team_id": team_id,
+                            "target_state": target_state,
+                            "error": str(exc),
+                        })
+                        continue
+                    raise
                 label_ok = add_label_to_issue(
                     api_key, iid, team_id, _BLOCKED_REASON_SESSION_LOST,
                 )
@@ -558,18 +674,18 @@ async def _orphan_recovery(api_key: str) -> None:
                     "The previous Pi-CEO session claimed this ticket but is no "
                     "longer running (likely a Railway restart or process crash "
                     "— in-memory session state did not survive).\n\n"
-                    f"- Transitioned to `{_BLOCKED_STATUS_NAME}`.\n"
+                    f"- Transitioned to `{target_state}`.\n"
                     f"- Label `{_BLOCKED_REASON_SESSION_LOST}` attached "
                     f"({'OK' if label_ok else 'attach failed — see server log'}).\n\n"
                     "A human (or the next contract-audit pass) should confirm "
                     "state, then move back to `Ready for Pi-Dev` to re-queue.",
                 )
                 reverted += 1
-                log.info("orphan-recovery: blocked %s (session-lost)", ident)
+                log.info("orphan-recovery: transitioned %s to %s (session-lost)", ident, target_state)
                 _log_event({
                     "action": "orphan_recovered",
                     "ticket": ident,
-                    "transition": _BLOCKED_STATUS_NAME,
+                    "transition": target_state,
                     "reason_label": _BLOCKED_REASON_SESSION_LOST,
                     "label_attached": label_ok,
                 })
@@ -637,220 +753,284 @@ async def linear_todo_poller() -> None:
     # iterations wait the full `interval`.
     first_iter = True
     orphan_recovery_done = False  # RA-1373 — run once per process lifetime
+    # RA-1973 — watchdog: wrap the iteration body in try/except so an unhandled
+    # exception in any single cycle does NOT kill the asyncio task. Prior to
+    # this, a single stack trace silently terminated the poller and /health
+    # kept returning 200. Outer loop structure (do-while + sleep) is preserved.
     while True:
         await asyncio.sleep(startup_delay if first_iter else interval)
         first_iter = False
-
-        # RA-1373 — orphan-transition recovery, once at startup. Any ticket
-        # left In Progress by a previous process instance (Railway restart /
-        # crash) with no live session gets reverted to Todo + explanatory
-        # comment, so the next poll reclaims it instead of it sitting stuck.
-        if not orphan_recovery_done and config.AUTONOMY_ENABLED and config.LINEAR_API_KEY:
-            try:
-                await _orphan_recovery(config.LINEAR_API_KEY)
-            except Exception as exc:
-                log.error("orphan-recovery crashed: %s", exc)
-            orphan_recovery_done = True
-
-        if not config.AUTONOMY_ENABLED:
-            log.debug("Autonomy poller: disabled (TAO_AUTONOMY_ENABLED=0)")
-            continue
-
-        # RA-1966 — TAO hard-stop file aborts the autonomy poller too. Operator
-        # touches TAO_HARD_STOP_FILE → next poll exits with reason="HARD_STOP",
-        # surfaced loudly so /health goes degraded.
         try:
-            from . import kill_switch as _ks  # noqa: PLC0415
-            _ks.check_hard_stop()
-        except _ks.KillSwitchAbort as abort:
-            log.warning("Autonomy poller: hard-stop file detected — pausing (%s)", abort.snapshot)
-            continue
-
-        if not config.LINEAR_API_KEY:
-            # Warn loudly EVERY poll, not just once — this was the silent-failure
-            # mode that made Pi-Dev-Ops look healthy while nothing was happening.
-            log.warning(
-                "Autonomy poller: LINEAR_API_KEY not set — skipping poll #%d (check Railway env vars)",
-                _poll_count + 1,
+            orphan_recovery_done = await _run_poller_iteration(
+                config, create_session, orphan_recovery_done,
             )
+        except Exception as exc:  # pragma: no cover — defense in depth
+            _record_iteration_error(exc)
             continue
 
-        _last_poll_at = time.time()
-        _poll_count += 1
-        log.info("Autonomy poll #%d", _poll_count)
 
+async def _run_poller_iteration(
+    config: Any,
+    create_session: Any,
+    orphan_recovery_done: bool,
+) -> bool:
+    """RA-1973 — single iteration body, extracted so the watchdog can wrap it.
+
+    Returns the (possibly updated) `orphan_recovery_done` flag so the caller
+    keeps the once-per-process semantic.
+    """
+    global _last_poll_at, _poll_count
+
+    # RA-1373 — orphan-transition recovery, once at startup. Any ticket
+    # left In Progress by a previous process instance (Railway restart /
+    # crash) with no live session gets reverted to Todo + explanatory
+    # comment, so the next poll reclaims it instead of it sitting stuck.
+    if not orphan_recovery_done and config.AUTONOMY_ENABLED and config.LINEAR_API_KEY:
         try:
-            issues = fetch_todo_issues(config.LINEAR_API_KEY)
+            await _orphan_recovery(config.LINEAR_API_KEY)
         except Exception as exc:
-            log.error("Autonomy poll #%d: fetch failed: %s", _poll_count, exc)
-            _log_event({"action": "poll_error", "poll": _poll_count, "error": str(exc)})
-            continue
+            log.error("orphan-recovery crashed: %s", exc)
+        orphan_recovery_done = True
 
-        log.info("Autonomy poll #%d: %d todo issues found", _poll_count, len(issues))
-        _log_event({"action": "poll", "poll": _poll_count, "found": len(issues)})
+    if not config.AUTONOMY_ENABLED:
+        log.debug("Autonomy poller: disabled (TAO_AUTONOMY_ENABLED=0)")
+        return orphan_recovery_done
 
-        for issue in issues:
-            issue_id   = issue["id"]
-            identifier = issue.get("identifier", "?")
-            title      = issue.get("title", "?")
-            repo_url   = _extract_repo_url(issue)
-            team_id    = issue.get("_team_id", _TEAM_ID)  # RA-1289 — mapped team
+    # RA-1966 — TAO hard-stop file aborts the autonomy poller too. Operator
+    # touches TAO_HARD_STOP_FILE → next poll exits with reason="HARD_STOP",
+    # surfaced loudly so /health goes degraded.
+    try:
+        from . import kill_switch as _ks  # noqa: PLC0415
+        _ks.check_hard_stop()
+    except _ks.KillSwitchAbort as abort:
+        log.warning("Autonomy poller: hard-stop file detected — pausing (%s)", abort.snapshot)
+        return orphan_recovery_done
 
-            log.info(
-                "Autonomy: processing %s '%s' repo=%s team=%s",
-                identifier, title, repo_url, team_id,
+    if not config.LINEAR_API_KEY:
+        # Warn loudly EVERY poll, not just once — this was the silent-failure
+        # mode that made Pi-Dev-Ops look healthy while nothing was happening.
+        log.warning(
+            "Autonomy poller: LINEAR_API_KEY not set — skipping poll #%d (check Railway env vars)",
+            _poll_count + 1,
+        )
+        return orphan_recovery_done
+
+    _last_poll_at = time.time()
+    _poll_count += 1
+    log.info("Autonomy poll #%d", _poll_count)
+
+    try:
+        issues = fetch_todo_issues(config.LINEAR_API_KEY)
+    except Exception as exc:
+        log.error("Autonomy poll #%d: fetch failed: %s", _poll_count, exc)
+        _log_event({"action": "poll_error", "poll": _poll_count, "error": str(exc)})
+        return orphan_recovery_done
+
+    log.info("Autonomy poll #%d: %d todo issues found", _poll_count, len(issues))
+    _log_event({"action": "poll", "poll": _poll_count, "found": len(issues)})
+
+    for issue in issues:
+        await _process_autonomy_issue(config, create_session, issue)
+    return orphan_recovery_done
+
+
+async def _process_autonomy_issue(
+    config: Any,
+    create_session: Any,
+    issue: dict,
+) -> None:
+    """Process a single Linear issue from the autonomy queue.
+
+    Extracted from `_run_poller_iteration` for length / readability. Per-ticket
+    failures are logged + recorded to the event ring; they do not propagate
+    out (the outer iteration must keep working through the rest of the queue).
+    """
+    issue_id   = issue["id"]
+    identifier = issue.get("identifier", "?")
+    title      = issue.get("title", "?")
+    repo_url   = _extract_repo_url(issue)
+    team_id    = issue.get("_team_id", _TEAM_ID)  # RA-1289 — mapped team
+
+    log.info(
+        "Autonomy: processing %s '%s' repo=%s team=%s",
+        identifier, title, repo_url, team_id,
+    )
+
+    # RA-1495 — skip manual-escalation / non-engineering tickets.
+    skip_no_code, skip_reason = _should_skip_no_code(issue)
+    if skip_no_code:
+        log.info(
+            "Autonomy: skipping %s '%s' — non-code ticket (reason=%s)",
+            identifier, title, skip_reason,
+        )
+        _log_event({
+            "action": "skip_no_code",
+            "ticket": identifier,
+            "title": title,
+            "reason": skip_reason,
+        })
+        return
+
+    transitioned_to = _transition_to_in_progress(config, issue_id, identifier, title, team_id)
+    if transitioned_to is None:
+        return
+
+    _log_event({
+        "action": "transition_to_in_progress",
+        "ticket": identifier,
+        "title": title,
+        "repo_url": repo_url,
+        "target_state": transitioned_to,
+    })
+
+    brief = _build_brief(issue)
+    inferred_intent = _infer_intent(issue)
+    inferred_scope  = _infer_scope(issue)
+    try:
+        session = await create_session(
+            repo_url=repo_url,
+            brief=brief,
+            model="sonnet",
+            intent=inferred_intent,
+            scope=inferred_scope,
+            linear_issue_id=issue_id,
+            autonomy_triggered=True,
+        )
+        log.info("Autonomy: session %s started for %s", session.id, identifier)
+        _log_event({
+            "action": "session_started",
+            "ticket": identifier,
+            "title": title,
+            "session_id": session.id,
+            "repo_url": repo_url,
+        })
+        try:
+            comment_on_issue(
+                config.LINEAR_API_KEY,
+                issue_id,
+                (
+                    f"🤖 **Pi-CEO autonomous session started**\n\n"
+                    f"- Session ID: `{session.id}`\n"
+                    f"- Repo: {repo_url}\n"
+                    f"- Triggered by: autonomy poller (poll #{_poll_count})"
+                ),
             )
+        except Exception as exc:
+            log.warning("Autonomy: comment post failed for %s: %s", identifier, exc)
 
-            # RA-1495 — skip manual-escalation / non-engineering tickets.
-            # Logged at INFO (not WARN) since this is intentional, not a bug.
-            skip_no_code, skip_reason = _should_skip_no_code(issue)
-            if skip_no_code:
-                log.info(
-                    "Autonomy: skipping %s '%s' — non-code ticket (reason=%s)",
-                    identifier, title, skip_reason,
-                )
-                _log_event({
-                    "action": "skip_no_code",
-                    "ticket": identifier,
-                    "title": title,
-                    "reason": skip_reason,
-                })
-                continue
-
-            # --- Transition to In Progress (RA-1369 — prefer contract status) ---
-            # Contract says `Pi-Dev: In Progress`. Not every project has that
-            # status configured yet (RA-1298 human-side workspace setup), so
-            # fall back to generic "In Progress" if the contract status is
-            # missing. Missing-state errors raise RuntimeError from
-            # _resolve_state_id, which is distinguishable from network errors.
-            transitioned_to: str | None = None
+    except RuntimeError as exc:
+        log.warning("Autonomy: session start failed for %s: %s", identifier, exc)
+        _log_event({
+            "action": "session_error",
+            "ticket": identifier,
+            "title": title,
+            "error": str(exc),
+        })
+        try:
             try:
                 transition_issue(config.LINEAR_API_KEY, issue_id,
-                                 "Pi-Dev: In Progress", team_id=team_id)
-                transitioned_to = "Pi-Dev: In Progress"
-            except RuntimeError as exc:
-                if "not found" in str(exc).lower():
-                    log.info(
-                        "Autonomy: 'Pi-Dev: In Progress' not configured for team %s — "
-                        "falling back to 'In Progress' (RA-1298 workspace-setup pending)",
-                        team_id,
-                    )
-                    try:
-                        transition_issue(config.LINEAR_API_KEY, issue_id,
-                                         "In Progress", team_id=team_id)
-                        transitioned_to = "In Progress"
-                    except Exception as inner:
-                        log.error("Autonomy: fallback transition failed for %s: %s",
-                                  identifier, inner)
-                        _log_event({
-                            "action": "transition_error",
-                            "ticket": identifier,
-                            "title": title,
-                            "error": str(inner),
-                        })
-                        continue
-                else:
-                    log.error("Autonomy: transition failed for %s: %s", identifier, exc)
-                    _log_event({
-                        "action": "transition_error",
-                        "ticket": identifier,
-                        "title": title,
-                        "error": str(exc),
-                    })
-                    continue
-            except Exception as exc:
-                log.error("Autonomy: transition failed for %s: %s", identifier, exc)
+                                 _READY_STATUS_NAME, team_id=team_id)
+                revert_to = _READY_STATUS_NAME
+            except RuntimeError:
+                transition_issue(config.LINEAR_API_KEY, issue_id,
+                                 "Todo", team_id=team_id)
+                revert_to = "Todo"
+            comment_on_issue(
+                config.LINEAR_API_KEY,
+                issue_id,
+                f"⚠️ Pi-CEO session start failed — reverted to `{revert_to}`.\n"
+                f"Error: `{exc}`",
+            )
+        except Exception:
+            pass
+
+    except Exception as exc:
+        log.error("Autonomy: unexpected error for %s: %s", identifier, exc)
+        _log_event({
+            "action": "session_error",
+            "ticket": identifier,
+            "title": title,
+            "error": str(exc),
+        })
+
+
+def _transition_to_in_progress(
+    config: Any,
+    issue_id: str,
+    identifier: str,
+    title: str,
+    team_id: str,
+) -> str | None:
+    """Transition an issue to 'Pi-Dev: In Progress' (or fallback). Return target state or None on error."""
+    try:
+        transition_issue(config.LINEAR_API_KEY, issue_id,
+                         "Pi-Dev: In Progress", team_id=team_id)
+        return "Pi-Dev: In Progress"
+    except RuntimeError as exc:
+        if "not found" in str(exc).lower():
+            log.info(
+                "Autonomy: 'Pi-Dev: In Progress' not configured for team %s — "
+                "falling back to 'In Progress' (RA-1298 workspace-setup pending)",
+                team_id,
+            )
+            try:
+                transition_issue(config.LINEAR_API_KEY, issue_id,
+                                 "In Progress", team_id=team_id)
+                return "In Progress"
+            except Exception as inner:
+                log.error("Autonomy: fallback transition failed for %s: %s",
+                          identifier, inner)
                 _log_event({
                     "action": "transition_error",
                     "ticket": identifier,
                     "title": title,
-                    "error": str(exc),
+                    "error": str(inner),
                 })
-                continue
+                return None
+        log.error("Autonomy: transition failed for %s: %s", identifier, exc)
+        _log_event({
+            "action": "transition_error",
+            "ticket": identifier,
+            "title": title,
+            "error": str(exc),
+        })
+        return None
+    except Exception as exc:
+        log.error("Autonomy: transition failed for %s: %s", identifier, exc)
+        _log_event({
+            "action": "transition_error",
+            "ticket": identifier,
+            "title": title,
+            "error": str(exc),
+        })
+        return None
 
-            _log_event({
-                "action": "transition_to_in_progress",
-                "ticket": identifier,
-                "title": title,
-                "repo_url": repo_url,
-                "target_state": transitioned_to,
-            })
 
-            # --- Fire build session ---
-            brief = _build_brief(issue)
-            # RA-1373 — infer intent + scope from Linear labels so the generator
-            # doesn't default to BUG on every ticket and the evaluator has a
-            # real file-count ceiling.
-            inferred_intent = _infer_intent(issue)
-            inferred_scope  = _infer_scope(issue)
-            try:
-                session = await create_session(
-                    repo_url=repo_url,
-                    brief=brief,
-                    model="sonnet",
-                    intent=inferred_intent,
-                    scope=inferred_scope,
-                    linear_issue_id=issue_id,
-                    autonomy_triggered=True,
-                )
-                log.info("Autonomy: session %s started for %s", session.id, identifier)
-                _log_event({
-                    "action": "session_started",
-                    "ticket": identifier,
-                    "title": title,
-                    "session_id": session.id,
-                    "repo_url": repo_url,
-                })
-                try:
-                    comment_on_issue(
-                        config.LINEAR_API_KEY,
-                        issue_id,
-                        (
-                            f"🤖 **Pi-CEO autonomous session started**\n\n"
-                            f"- Session ID: `{session.id}`\n"
-                            f"- Repo: {repo_url}\n"
-                            f"- Triggered by: autonomy poller (poll #{_poll_count})"
-                        ),
-                    )
-                except Exception as exc:
-                    log.warning("Autonomy: comment post failed for %s: %s", identifier, exc)
-
-            except RuntimeError as exc:
-                # Max sessions or recoverable error — revert to the
-                # contract "Ready for Pi-Dev" status (or "Todo" fallback).
-                log.warning("Autonomy: session start failed for %s: %s", identifier, exc)
-                _log_event({
-                    "action": "session_error",
-                    "ticket": identifier,
-                    "title": title,
-                    "error": str(exc),
-                })
-                try:
-                    try:
-                        transition_issue(config.LINEAR_API_KEY, issue_id,
-                                         _READY_STATUS_NAME, team_id=team_id)
-                        revert_to = _READY_STATUS_NAME
-                    except RuntimeError:
-                        transition_issue(config.LINEAR_API_KEY, issue_id,
-                                         "Todo", team_id=team_id)
-                        revert_to = "Todo"
-                    comment_on_issue(
-                        config.LINEAR_API_KEY,
-                        issue_id,
-                        f"⚠️ Pi-CEO session start failed — reverted to `{revert_to}`.\n"
-                        f"Error: `{exc}`",
-                    )
-                except Exception:
-                    pass
-
-            except Exception as exc:
-                log.error("Autonomy: unexpected error for %s: %s", identifier, exc)
-                _log_event({
-                    "action": "session_error",
-                    "ticket": identifier,
-                    "title": title,
-                    "error": str(exc),
-                })
+def _record_iteration_error(exc: BaseException) -> None:
+    """RA-1973 — watchdog: log + count + alert on iteration crash."""
+    global _poller_iteration_errors, _last_iteration_error
+    log.exception("autonomy poller iteration crashed: %s", exc)
+    _poller_iteration_errors += 1
+    iso_now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    _last_iteration_error = {
+        "error": str(exc),
+        "type":  type(exc).__name__,
+        "ts":    iso_now,
+        "count": _poller_iteration_errors,
+    }
+    _log_event({
+        "action": "poller_iteration_error",
+        "error":  str(exc),
+        "count":  _poller_iteration_errors,
+    })
+    # First failure (1) → wake-up alert; tenth (10) → escalation.
+    if _poller_iteration_errors in (1, 10):
+        _send_watchdog_telegram(
+            f"Pi-CEO autonomy poller crashed (count={_poller_iteration_errors})\n"
+            f"Type: {type(exc).__name__}\n"
+            f"Error: {exc}\n"
+            f"Loop survived; investigate Railway logs."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -919,6 +1099,9 @@ def autonomy_status() -> dict:
         "last_poll_ago_s": age,
         "stale": age is not None and age > 900,
         "poll_count": _poll_count,
+        # RA-1973 — watchdog diagnostic surface for /health + dashboard.
+        "poller_iteration_errors": _poller_iteration_errors,
+        "last_iteration_error": _last_iteration_error,
         "effective_autonomy": _calc_effective_autonomy(_recent_events),  # RA-626
         "recent_events": _recent_events,
     }
