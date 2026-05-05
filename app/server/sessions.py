@@ -48,6 +48,9 @@ from .session_sdk import (  # noqa: F401
     _run_claude_via_sdk,
 )
 
+# RA-1970: tao-loop / tao-judge primitives. Available for future tao-loop wiring.
+from .tao_loop import run_until_done as _tao_run_until_done  # noqa: F401
+
 # ── RA-890: Re-export evaluator helpers ───────────────────────────────────────
 from .session_evaluator import (  # noqa: F401
     _parse_evaluator_dimensions,
