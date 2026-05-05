@@ -46,7 +46,7 @@ Cross-pack handoff points:
 | Skill defs (canonical) | `Pi-Dev-Ops/skills/marketing-*/SKILL.md` | Edit here; symlinks pick up changes. |
 | Skill defs (global) | `~/.claude/skills/marketing-*` → symlinks | Auto-discovered in every Claude session. |
 | Substrate (templates + frameworks) | `Pi-Dev-Ops/marketing-studio/` | Templates for campaigns, runbooks, emails, landing pages. JTBD / positioning / ICP canvases. |
-| Brand configs (shared with Remotion) | `Pi-Dev-Ops/remotion-studio/src/brands/{slug}.ts` | Single source of truth. Refine via `remotion-brand-research` + `remotion-brand-codify`. |
+| Brand configs (shared with Remotion) | `Synthex/packages/brand-config/src/brands/{slug}.ts` | Single source of truth. Refine via `remotion-brand-research` + `remotion-brand-codify`. (Migrated from `Pi-Dev-Ops/remotion-studio/src/brands/` per RA-1985.) |
 | UTM helper | `Pi-Dev-Ops/marketing-studio/scripts/utm-builder.ts` | TS + CLI. |
 | Per-job artifacts | `<calling-project>/.marketing/` | Per-project, gitignored. Falls back to `marketing-studio/outputs/{job-id}/` if no calling project. |
 

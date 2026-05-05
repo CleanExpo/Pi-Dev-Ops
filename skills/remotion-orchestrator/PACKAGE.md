@@ -32,7 +32,7 @@ The orchestrator picks up the brief, classifies brand + composition + channel + 
 | Skill defs (canonical) | `Pi-Dev-Ops/skills/remotion-*/SKILL.md` | Edit here; symlinks pick up changes. |
 | Skill defs (global) | `~/.claude/skills/remotion-*` → symlinks | Auto-discovered in every Claude session. |
 | Remotion Node project | `Pi-Dev-Ops/remotion-studio/` | Compositions, brand configs, render entry. Single shared install. |
-| Brand configs | `Pi-Dev-Ops/remotion-studio/src/brands/{slug}.ts` | One file per brand. Currently: `dr`, `nrpg`, `ra`, `carsi`, `ccw`, `synthex`, `unite`. |
+| Brand configs | `Synthex/packages/brand-config/src/brands/{slug}.ts` | One file per brand. Currently: `dr`, `nrpg`, `ra`, `carsi`, `ccw`, `synthex`, `unite`. (Migrated from `Pi-Dev-Ops/remotion-studio/src/brands/` per RA-1985 / Synthex SYN-897.) |
 | Compositions | `Pi-Dev-Ops/remotion-studio/src/compositions/*.tsx` | v1: `Explainer`. v1.1+: `Intro`, `SocialAd`, `NIRReport`, `ProductDemo`. |
 | Rendered output | `<calling-project>/.remotion-renders/` | Per-project, gitignored. Override with `--out=`. |
 

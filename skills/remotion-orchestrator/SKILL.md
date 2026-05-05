@@ -146,7 +146,7 @@ The package is shared infrastructure; each calling project supplies its own runt
 |---|---|
 | Skill definitions | `~/.claude/skills/remotion-*` (symlinked → `Pi-Dev-Ops/skills/remotion-*`) — globally available. |
 | Remotion Node project (compositions, brand configs, render entry) | `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/remotion-studio/` — single shared substrate. |
-| Brand configs | `Pi-Dev-Ops/remotion-studio/src/brands/{slug}.ts` — one source of truth per brand, used by every project that renders for that brand. |
+| Brand configs | `Synthex/packages/brand-config/src/brands/{slug}.ts` — one source of truth per brand, used by every project that renders for that brand. (Migrated from `Pi-Dev-Ops/remotion-studio/src/brands/` per RA-1985 / Synthex SYN-897.) |
 | API keys (ElevenLabs, Telegram, Supabase, Linear, Remotion licence) | The **calling project's** `.env` / `.env.local`. Skills read `process.env` at render time. |
 | Rendered MP4 output | The **calling project's** `.remotion-renders/` directory by default. Override with `--out=`. |
 
@@ -155,9 +155,9 @@ The package is shared infrastructure; each calling project supplies its own runt
 If your project (e.g. Synthex) needs to render for a brand that isn't yet in `src/brands/`:
 
 1. Run `remotion-brand-research` against the brand's public sources.
-2. Run `remotion-brand-codify` to produce `Pi-Dev-Ops/remotion-studio/src/brands/{slug}.ts`.
-3. Extend the `BrandSlug` union in `src/brands/types.ts`.
-4. Register in `src/brands/index.ts`.
-5. Run `npm run typecheck` from `Pi-Dev-Ops/remotion-studio/`.
+2. Run `remotion-brand-codify` to produce `Synthex/packages/brand-config/src/brands/{slug}.ts`.
+3. Extend the `BrandSlug` union in `Synthex/packages/brand-config/src/types.ts`.
+4. Register in `Synthex/packages/brand-config/src/brands/index.ts`.
+5. Run `npm run typecheck` from `Synthex/packages/brand-config/` (then `npm run build` to regenerate `dist/`).
 
 Currently registered brands: `dr`, `nrpg`, `ra`, `carsi`, `ccw`, `synthex`, `unite`.
