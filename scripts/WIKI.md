@@ -1,4 +1,4 @@
-# tests — Wiki
+# scripts — Wiki
 
 _Last updated: 2026-05-05T21:19:04Z (commits 48312ff..e04617c)_
 
