@@ -1,4 +1,4 @@
-# app — Wiki
+# docs — Wiki
 
 _Last updated: 2026-05-05T23:22:56Z (commits f9ab688..2fe204f)_
 
