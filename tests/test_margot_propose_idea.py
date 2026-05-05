@@ -328,6 +328,51 @@ async def test_handle_turn_files_idea_and_appends_confirmation(
     assert "Got it." in turn.margot_text
 
 
+def test_system_prompt_does_not_contain_fake_ra_template():
+    """RA-2002b regression — the system prompt previously included the literal
+    template 'Filed idea as RA-XXXX' as an EXAMPLE of what the system would
+    append. The LLM read this as instruction to type its OWN confirmation
+    line, often hallucinating a real-looking RA-number from context. Live
+    smoke 2026-05-05 produced two confirmations (RA-2002 fake + RA-2007 real)
+    in one reply.
+
+    Fix: the prompt no longer embeds the literal template, and explicitly
+    forbids the LLM from typing any 'Filed idea ...' line or RA-number in
+    its prose. This test pins both invariants.
+    """
+    # Normalise whitespace so multi-line phrasing in the prompt still matches.
+    import re  # noqa: PLC0415
+    prompt = re.sub(r"\s+", " ", margot_bot._MARGOT_SYSTEM_PROMPT)
+    # Must NOT contain the literal template that the LLM was copying
+    assert "Filed idea as RA-XXXX" not in prompt, (
+        "Section 5d still contains the literal 'Filed idea as RA-XXXX' "
+        "template — RA-2002b regression."
+    )
+    # Must explicitly forbid the LLM from inventing identifiers
+    assert "Do NOT invent ticket numbers" in prompt, (
+        "Section 5d should explicitly forbid inventing RA-numbers."
+    )
+    # Must clarify the system appends the line, not the LLM
+    assert "Do NOT type" in prompt and "Filed idea" in prompt, (
+        "Section 5d should tell the LLM not to type 'Filed idea ...' itself."
+    )
+
+
+def test_system_prompt_catches_question_phrased_ideas():
+    """RA-2002b regression — the founder's 2026-05-05 phrasing 'are you able
+    to send me a Friday 8am Weekly?' should classify as an [IDEA], not a
+    capability question. The prompt now explicitly addresses
+    question-phrased feature requests.
+    """
+    prompt = margot_bot._MARGOT_SYSTEM_PROMPT
+    # Must explicitly mention question-phrased asks
+    assert "are you able to" in prompt.lower() or "can you set up" in prompt.lower(), (
+        "Section 5d should call out question-phrased feature requests "
+        "(e.g. 'are you able to', 'can you set up') so the LLM doesn't "
+        "treat them as pure capability questions."
+    )
+
+
 @pytest.mark.asyncio
 async def test_handle_turn_idea_failure_inlines_apology(monkeypatch, tmp_path):
     """If propose_idea returns an error, the user-facing reply contains a
