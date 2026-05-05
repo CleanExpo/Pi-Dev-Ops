@@ -35,7 +35,17 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="Comma-separated top-level directories to restrict the run to.",
     )
     p.add_argument("--dry-run", action="store_true", help="Skip SDK calls and file writes.")
-    p.add_argument("--max-cost", type=float, default=0.02, help="Per-directory USD budget.")
+    # RA-1996 — honour TAO_MAX_COST_USD env (the workflow file sets this to
+    # 0.05 but the CLI used to ignore the env entirely). Explicit --max-cost
+    # still overrides everything.
+    _env_budget = os.environ.get("TAO_MAX_COST_USD", "").strip()
+    try:
+        _default_budget = float(_env_budget) if _env_budget else 0.02
+        if _default_budget <= 0:
+            _default_budget = 0.02
+    except ValueError:
+        _default_budget = 0.02
+    p.add_argument("--max-cost", type=float, default=_default_budget, help="Per-directory USD budget.")
     return p.parse_args(argv)
 
 
