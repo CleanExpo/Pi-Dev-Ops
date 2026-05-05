@@ -1,0 +1,42 @@
+[
+  {
+    "question": "Explain the kill-switch primitive and its three abort axes.",
+    "expected_files": ["app/server/kill_switch.py"]
+  },
+  {
+    "question": "How does autonomy.py handle a poller exception?",
+    "expected_files": ["app/server/autonomy.py"]
+  },
+  {
+    "question": "What does tao-context-vcc actually compact and how?",
+    "expected_files": ["app/server/tao_context_vcc.py"]
+  },
+  {
+    "question": "Trace the orchestrator wave-poll loop end to end.",
+    "expected_files": ["app/server/orchestrator.py"]
+  },
+  {
+    "question": "How is the FastAPI app constructed and which routes get mounted?",
+    "expected_files": ["app/server/app_factory.py", "app/server/main.py"]
+  },
+  {
+    "question": "Where is the per-session pipeline defined and what phases does it run?",
+    "expected_files": ["app/server/pipeline.py", "app/server/session_phases.py"]
+  },
+  {
+    "question": "How does tao-codebase-wiki collect commits and pick a since_ref?",
+    "expected_files": ["app/server/tao_codebase_wiki.py"]
+  },
+  {
+    "question": "How does the budget tracker enforce per-session caps?",
+    "expected_files": ["app/server/budget.py"]
+  },
+  {
+    "question": "What does the integration_health module check and how often?",
+    "expected_files": ["app/server/integration_health.py"]
+  },
+  {
+    "question": "How does config.py expose model IDs and provider settings?",
+    "expected_files": ["app/server/config.py"]
+  }
+]
