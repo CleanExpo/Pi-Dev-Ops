@@ -65,20 +65,96 @@ def _matches(
 
 
 def _should_catch_up(trigger: dict) -> bool:
-    """
-    Return True if this scan/monitor trigger is overdue and should fire immediately
-    on startup. Criteria: enabled, has a scheduled hour, and hasn't fired in >8h
-    (or has never fired). Build triggers are excluded — they fire on demand only.
+    """RA-2016 — return True if this trigger is overdue and should fire immediately
+    on startup.
+
+    Criteria: enabled, scheduled (i.e. has an hour set, not on-demand), and
+    hasn't fired in >8h (or has never fired).
+
+    Catch-up scope: every trigger type EXCEPT `build`. Build triggers are
+    fired on demand by the session pipeline, never by the cron loop, so they
+    must never auto-fire on startup. All other types — scan, monitor,
+    intel_refresh, analyse_lessons, scout, board_meeting, feedback_loop,
+    zte_v2_score, meta_curator, portfolio_pulse, fallback_dryrun — represent
+    daily/weekly maintenance work where missing one or more windows is
+    operationally damaging (e.g. board minutes silent for 4 days because
+    Railway restarted at the wrong moment).
+
+    Pre-RA-2016 the scope was scan/monitor/intel_refresh/analyse_lessons
+    only, which is why the 2026-05-02 outage left board_meeting + scout +
+    feedback_loop stuck on 2026-05-02 timestamps until their next natural
+    UTC window (up to 7 days later for weekly triggers).
+
+    Weekly/monthly triggers honour their `weekday` / `day_of_month` /
+    `month` constraints — see ``_recently_eligible`` helper. The catch-up
+    only fires a constrained trigger if its most recent scheduled window
+    is more recent than its `last_fired_at`. Otherwise we'd fire
+    Monday-only triggers on every random Wednesday boot.
     """
     if not trigger.get("enabled", True):
         return False
-    if trigger.get("type", "build") not in ("scan", "monitor", "intel_refresh", "analyse_lessons"):
+    if trigger.get("type", "build") == "build":
+        # Build triggers fire on demand from the session pipeline; never
+        # auto-catch-up.
         return False
     last = trigger.get("last_fired_at")
     if last is None:
-        return True
+        # Never fired → fire now if this trigger has a scheduled hour at all.
+        return trigger.get("hour") is not None
     hours_since = abs(time.time() - last) / 3600
-    return hours_since > 8
+    if hours_since <= 8:
+        return False
+    # For weekly / monthly triggers, only catch up if the most recent
+    # scheduled window post-dates last_fired_at. Otherwise we'd fire a
+    # Monday-only trigger when booting on a Wednesday with last_fired_at
+    # from the previous Monday — which is correct behaviour, not a miss.
+    return _recently_eligible(trigger, last)
+
+
+def _recently_eligible(trigger: dict, last_fired_at: float) -> bool:
+    """RA-2016 helper — has the trigger's scheduled window come around since
+    last_fired_at? Used to gate catch-up for weekday/day_of_month/month
+    constrained triggers.
+
+    Heuristic: walk back from now in 1-hour steps. At each cursor instant,
+    check whether the trigger's weekday/day_of_month/month constraints AND
+    its scheduled hour all match — ignoring minute (the 8h-stale gate
+    already enforced by the caller makes minute precision irrelevant). If
+    we find a matching window between last_fired_at and now, the trigger
+    is overdue. For unconstrained daily triggers the answer is trivially
+    True (already passed the 8h gate by the caller).
+    """
+    if not any(k in trigger for k in ("weekday", "day_of_month", "month")):
+        return True
+    import datetime as _dt  # noqa: PLC0415
+    now = _dt.datetime.now(_dt.timezone.utc)
+    last_dt = _dt.datetime.fromtimestamp(last_fired_at, tz=_dt.timezone.utc)
+    # Don't walk further back than 14 days — operationally irrelevant.
+    cutoff = max(last_dt, now - _dt.timedelta(days=14))
+    target_hour = trigger.get("hour")
+    target_wd = trigger.get("weekday")
+    target_dom = trigger.get("day_of_month")
+    target_months = trigger.get("month")
+    if target_months is not None and not isinstance(target_months, list):
+        target_months = [target_months]
+
+    cursor = now
+    while cursor > cutoff:
+        if target_hour is not None and cursor.hour != target_hour:
+            cursor -= _dt.timedelta(hours=1)
+            continue
+        if target_wd is not None and cursor.weekday() != target_wd:
+            cursor -= _dt.timedelta(hours=1)
+            continue
+        if target_dom is not None and cursor.day != target_dom:
+            cursor -= _dt.timedelta(hours=1)
+            continue
+        if target_months is not None and cursor.month not in target_months:
+            cursor -= _dt.timedelta(hours=1)
+            continue
+        # Found a matching window between last_fired_at and now.
+        return True
+    return False
 
 
 async def _fire_scan_trigger(trigger: dict, log) -> None:
