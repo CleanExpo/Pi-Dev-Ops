@@ -42,6 +42,48 @@ DEFAULT_PROJECTS: tuple[str, ...] = (
     "margot",
 )
 
+# RA-2006 — active lookback window in hours. Section providers
+# (portfolio_pulse_github, portfolio_pulse_linear) read this via
+# get_lookback_hours() to decide how far back to query. Defaults to 24h
+# (daily pulse). The Friday week-in-review trigger sets it to 168h via
+# the lookback_window context manager so the same machinery produces a
+# 7-day summary without parallel section providers.
+_DEFAULT_LOOKBACK_HOURS = 24
+_active_lookback_hours: int = _DEFAULT_LOOKBACK_HOURS
+
+
+def get_lookback_hours() -> int:
+    """Return the currently-active lookback window for section providers."""
+    return _active_lookback_hours
+
+
+def set_lookback_hours(hours: int) -> None:
+    """Set the active lookback. Use the lookback_window() context manager
+    instead when possible — direct calls leak state across pulse runs."""
+    global _active_lookback_hours  # noqa: PLW0603
+    _active_lookback_hours = max(1, int(hours))
+
+
+from contextlib import contextmanager  # noqa: E402
+
+
+@contextmanager
+def lookback_window(hours: int):
+    """Temporarily widen the lookback window for the duration of a pulse run.
+
+    Used by ``_fire_portfolio_pulse_trigger`` for the weekly Friday recap so
+    that one trigger config (`lookback_hours: 168`) flows through to every
+    section provider without per-provider plumbing. Restores the prior
+    value on exit, so nested calls compose.
+    """
+    global _active_lookback_hours  # noqa: PLW0603
+    prev = _active_lookback_hours
+    _active_lookback_hours = max(1, int(hours))
+    try:
+        yield
+    finally:
+        _active_lookback_hours = prev
+
 
 # ── Data shapes ─────────────────────────────────────────────────────────────
 
@@ -314,4 +356,5 @@ __all__ = [
     "set_section_provider",
     "build_pulse", "run_all_projects",
     "render_pulse_md",
+    "get_lookback_hours", "set_lookback_hours", "lookback_window",
 ]
