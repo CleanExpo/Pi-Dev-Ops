@@ -1,8 +1,8 @@
 # app — Wiki
 
-_Last updated: 2026-05-05T23:47:48Z (commits 44d2939..071aebe)_
+_Last updated: 2026-05-05T23:54:50Z (commits 2d5ccc7..4f5aec6)_
 
 ## Recent changes
-- 071aebe — feat(tao): RA-1995 — pi-ceo-docparser (PDF/DOCX/TXT for ICP research) (#195)
+- 4f5aec6 — feat(tao): RA-1994 — tao-boomerang (summary-only one-shot dispatch) (#196)
 
 Not logged in · Please run /login
