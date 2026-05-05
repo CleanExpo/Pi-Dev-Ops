@@ -23,7 +23,7 @@ Translates a fuzzy ambition ("we need to grow Synthex on LinkedIn") into a struc
 
 ## Method
 
-1. **Read the brand**. Load `BrandConfig` from `Pi-Dev-Ops/remotion-studio/src/brands/{slug}.ts`. Treat `voice`, `audience`, `forbiddenWords`, `tagline`, `defaultChannel` as the constitution — never violate.
+1. **Read the brand**. Load `BrandConfig` from `Synthex/packages/brand-config/src/brands/{slug}.ts` (migrated from `Pi-Dev-Ops/remotion-studio/src/brands/` per RA-1985). Treat `voice`, `audience`, `forbiddenWords`, `tagline`, `defaultChannel` as the constitution — never violate.
 2. **Convert goal → objectives**. Apply OKR shape: Objective is qualitative, 3-5 Key Results are measurable + time-bound. Reject any KR without a unit and a date.
 3. **Audience layering**. Primary audience inherits from `BrandConfig.audience.primary`. Layer in: campaign-specific persona, JTBD, current vs. target perception. Defer deep work to `marketing-icp-research`.
 4. **Channel mix**. Defer to `marketing-channel-strategist` for the cadence and per-channel spec — this skill only sets the channel SHORTLIST and budget split.

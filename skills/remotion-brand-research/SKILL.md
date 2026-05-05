@@ -1,6 +1,6 @@
 ---
 name: remotion-brand-research
-description: Researches a portfolio company's visual identity from public sources (homepage, about page, marketing copy, GitHub README) and produces a structured BrandResearch dossier. Triggered when `remotion-studio/src/brands/{slug}.ts` is missing, older than 90 days, or the user explicitly says "refresh brand for {brand}". Output feeds remotion-brand-codify.
+description: Researches a portfolio company's visual identity from public sources (homepage, about page, marketing copy, GitHub README) and produces a structured BrandResearch dossier. Triggered when `Synthex/packages/brand-config/src/brands/{slug}.ts` (canonical home per RA-1985 / Synthex SYN-897) is missing, older than 90 days, or the user explicitly says "refresh brand for {brand}". Output feeds remotion-brand-codify.
 automation: automatic
 intents: brand-research, refresh-brand, brand-discovery
 ---

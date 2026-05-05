@@ -17,7 +17,7 @@ Adopted from `nexu-io/open-design` (Apache-2.0). Before *any* sub-skill is dispa
 
 | Field | Type | Notes |
 |---|---|---|
-| `brand` | `BrandSlug` | Must resolve in `remotion-studio/src/brands/`. Unknown brand → dispatch `remotion-brand-research` first; do not guess. |
+| `brand` | `BrandSlug` | Must resolve in `Synthex/packages/brand-config/src/brands/`. Unknown brand → dispatch `remotion-brand-research` first; do not guess. |
 | `surface` | `landing` \| `email` \| `social` \| `video` \| `blog` \| `ad` \| `mixed` | The artifact type. |
 | `audience` | string | One sentence describing who reads this. Vagueness ("decision-makers") is rejected — must name role + context. |
 | `tone` | array | Subset of brand's `voice.tone`. Cannot include any tone outside the brand's allowed set. |
@@ -55,7 +55,7 @@ Templates, frameworks, and per-job artifacts live at:
 └── outputs/           — fallback when calling project has no .marketing/ dir
 ```
 
-Brand voice / forbidden words / audience / tagline read from the **shared** `BrandConfig` files at `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/remotion-studio/src/brands/{slug}.ts` — single source of truth across both packs. No duplication.
+Brand voice / forbidden words / audience / tagline read from the **shared** `BrandConfig` files at `/Users/phill-mac/Synthex/packages/brand-config/src/brands/{slug}.ts` — single source of truth across both packs. No duplication. (Migrated from `Pi-Dev-Ops/remotion-studio/src/brands/` per RA-1985 / Synthex SYN-897.)
 
 ## Output
 
@@ -130,7 +130,7 @@ The package is shared infrastructure; each calling project supplies its own runt
 |---|---|
 | Skill definitions | `~/.claude/skills/marketing-*` (symlinked → `Pi-Dev-Ops/skills/marketing-*`) — globally available |
 | Substrate (templates, frameworks) | `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/marketing-studio/` |
-| Brand configs | `Pi-Dev-Ops/remotion-studio/src/brands/{slug}.ts` — shared with Remotion pack |
+| Brand configs | `Synthex/packages/brand-config/src/brands/{slug}.ts` — shared with Remotion pack (canonical home; per RA-1985) |
 | API keys | The **calling project's** `.env` / `.env.local` |
 | Output | `<calling-project>/.marketing/` by default; falls back to `marketing-studio/outputs/{job-id}/` |
 

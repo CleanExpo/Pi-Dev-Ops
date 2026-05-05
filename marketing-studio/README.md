@@ -27,11 +27,13 @@ marketing-studio/
 
 ## Brand voice — single source of truth
 
-The marketing pack reads brand voice / forbidden words / audience / tagline from the **shared** Remotion `BrandConfig`:
+The marketing pack reads brand voice / forbidden words / audience / tagline from the **shared** `@unite-group/brand-config` workspace package:
 
 ```
-/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/remotion-studio/src/brands/{slug}.ts
+/Users/phill-mac/Synthex/packages/brand-config/src/brands/{slug}.ts
 ```
+
+(Migrated from `Pi-Dev-Ops/remotion-studio/src/brands/` per RA-1985 / Synthex SYN-897. The Remotion compositions in `Pi-Dev-Ops/remotion-studio/` continue to consume the same brand-config — both via Synthex now.)
 
 Both packs use the same brand data. To add or refine a brand, use the Remotion pack's `remotion-brand-research` + `remotion-brand-codify` skills — the change automatically applies to marketing.
 
