@@ -264,6 +264,13 @@ Every SDK invocation emits a row to `.harness/agent-sdk-metrics/YYYY-MM-DD.jsonl
 
 - `autonomy.py` polls Linear every 5 min for **Urgent/High Todo** issues and auto-creates sessions. In Progress issues are invisible — reset to Todo to restart a stalled session.
 - Kill switch: `TAO_AUTONOMY_ENABLED=0` in Railway.
+- **TAO inner-loop kill-switch (RA-1966):** Three independent abort axes for any iteration loop inside a single TAO session — orchestrator wave-poll, evaluator retry, future tao-judge / tao-loop:
+  - `TAO_MAX_ITERS` (default `25`) — count cap; aborts with reason `MAX_ITERS`.
+  - `TAO_MAX_COST_USD` (default `5.00`) — cumulative-cost cap; aborts with reason `MAX_COST`.
+  - `TAO_HARD_STOP_FILE` (default `~/.claude/HARD_STOP`) — file existence aborts immediately with reason `HARD_STOP`. `touch ~/.claude/HARD_STOP` drains in-flight TAO loops without restarting the server.
+  - Implementation: `app/server/kill_switch.py` (`LoopCounter`, `check_hard_stop`, `KillSwitchAbort`). Distinct from `swarm/kill_switch.py` (per-bot-cycle file flag driven by Telegram `/panic`).
+  - Wired in `orchestrator._wait_for_wave` (per-poll hard-stop) and `autonomy.py` poller (per-cycle hard-stop). Future tao-loop / tao-judge consumers construct `LoopCounter()` per loop and call `.tick(cost_delta_usd=...)` each iteration.
+  - Integration test: `tests/test_tao_kill_switch.py` (10 tests, all green).
 - **Always-on requirement:** if any step depends on a Mac staying awake or a local process running, the system is not autonomous. Always-on path: Railway + Vercel + GitHub Actions only.
 - **`/health` must surface real state:** (1) boolean confirming the loop will fire on next tick, (2) timestamp of last successful tick. Without both, silent-success theatre.
 - **Silent failure pattern:** `autonomy.py` skips every poll cycle when `LINEAR_API_KEY` is missing but `/health` still returns 200. Symptom: `sessions.total` stays at 0. Always surface `linear_api_key: bool`.
