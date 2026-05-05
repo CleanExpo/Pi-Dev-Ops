@@ -401,6 +401,42 @@ Your behaviour
    Multiple [REALTIME] sentinels fire in parallel. Citations from Sonar
    come through to Phase-2 — preserve them inline so Phill can verify.
 
+5d. IDEA CAPTURE (Linear backlog bridge) — RA-2002:
+   When Phill describes a feature, fix, refactor, infrastructure idea,
+   or "wouldn't it be cool if…" — anything that should become work on
+   the backlog rather than evaporate from the chat — capture it as a
+   Linear ticket BEFORE replying:
+
+       [IDEA title="<one-line title, imperative mood>" priority="medium" project="Pi - Dev -Ops"]
+       <markdown description body — 2-6 sentences capturing the
+       operator's reasoning, constraints, and any acceptance hints
+       you can extract from the conversation>
+       [/IDEA]
+
+   Defaults: priority="medium", project="Pi - Dev -Ops". Use
+   priority="high" only if Phill flagged it as urgent or it blocks
+   active work; "low" for nice-to-haves.
+
+   The system files the ticket via the Linear API and appends
+   "📝 Filed idea as RA-XXXX: <title>" to your reply, so Phill sees
+   confirmation. The sentinel itself is stripped — you do NOT need to
+   mention RA-numbers in the reply prose.
+
+   Capture liberally: a missed idea is permanent silent loss, while a
+   filed ticket can always be closed by the curator. The bar is "did
+   the operator describe something that could become work?", not "is
+   it valuable enough to ship".
+
+   Examples that warrant [IDEA]:
+     - "We should add a daily standup digest"
+     - "I keep losing track of new Margot ideas — fix that"
+     - "Wouldn't it be cool if Pi-CEO posted Friday recaps?"
+     - "Build a Slack bridge for the Board minutes"
+   Examples that do NOT need [IDEA]:
+     - Pure questions ("how does X work?")
+     - Conversational chatter / personal scheduling
+     - Ideas Phill explicitly says "don't file this"
+
 6. Never use first-person business language ("we / our / my company").
    Refer to "Unite-Group" or "the portfolio". Phill's strict rule.
 
@@ -738,6 +774,13 @@ _REALTIME_REQUEST_RE = re.compile(
     r"\[REALTIME(\s+[^\]]*)?\]",
     re.MULTILINE,
 )
+# RA-2002: Margot → Linear ideas bridge.
+# Block sentinel — captures attrs + body so Margot can include a multi-line
+# description. Body is everything between [IDEA ...] and [/IDEA].
+_IDEA_REQUEST_RE = re.compile(
+    r"\[IDEA(\s+[^\]]*)?\]\s*([\s\S]*?)\s*\[/IDEA\]",
+    re.MULTILINE,
+)
 _ATTR_RE = re.compile(r'(\w+)\s*=\s*"([^"]*)"')
 
 
@@ -786,6 +829,32 @@ class RealtimeRequest:
     reply uses fresh data instead of stale training knowledge.
     """
     topic: str
+
+
+@dataclass
+class IdeaRequest:
+    """An [IDEA] sentinel parsed out of Margot's draft response — RA-2002.
+
+    When the operator describes a feature, fix, or improvement to Margot,
+    she captures it as a Linear Backlog ticket via:
+
+        [IDEA title="<one-line title>" priority="medium" project="Pi - Dev -Ops"]
+        <markdown description body, multi-line>
+        [/IDEA]
+
+    Defaults: priority="medium" (3), project="Pi - Dev -Ops" (RestoreAssist
+    team). Sentinels stripped from cleaned text; ticket identifier appended
+    to Margot's reply ("Filed as RA-XXXX").
+    """
+    title: str
+    description: str = ""
+    priority: int = 3  # 0=None, 1=Urgent, 2=High, 3=Medium, 4=Low
+    project: str = "Pi - Dev -Ops"
+
+
+_PRIORITY_NAME_TO_INT = {
+    "urgent": 1, "high": 2, "medium": 3, "normal": 3, "low": 4, "none": 0,
+}
 
 
 def parse_research_requests(response_text: str
@@ -849,6 +918,36 @@ def parse_realtime_requests(response_text: str
         if topic:
             requests.append(RealtimeRequest(topic=topic))
     cleaned = _REALTIME_REQUEST_RE.sub("", response_text).strip()
+    return requests, cleaned
+
+
+def parse_idea_requests(response_text: str
+                         ) -> tuple[list[IdeaRequest], str]:
+    """Extract [IDEA] sentinels from Margot's draft response — RA-2002.
+
+    Format (block sentinel, multi-line body):
+        [IDEA title="..." priority="medium" project="Pi - Dev -Ops"]
+        <markdown description body>
+        [/IDEA]
+
+    Attribute defaults: priority="medium" (=3), project="Pi - Dev -Ops".
+    Returns (requests, cleaned_text). Sentinels stripped from cleaned_text.
+    """
+    requests: list[IdeaRequest] = []
+    for m in _IDEA_REQUEST_RE.finditer(response_text):
+        attrs = _parse_attrs(m.group(1))
+        title = (attrs.get("title") or "").strip()
+        if not title:
+            continue
+        priority_raw = (attrs.get("priority") or "medium").strip().lower()
+        priority = _PRIORITY_NAME_TO_INT.get(priority_raw, 3)
+        project = (attrs.get("project") or "Pi - Dev -Ops").strip()
+        body = (m.group(2) or "").strip()
+        requests.append(IdeaRequest(
+            title=title, description=body,
+            priority=priority, project=project,
+        ))
+    cleaned = _IDEA_REQUEST_RE.sub("", response_text).strip()
     return requests, cleaned
 
 
@@ -1131,7 +1230,47 @@ async def handle_turn(*, chat_id: str, user_text: str,
                             reply_to_message_id=message_id)
         return turn
 
+    # RA-2002: extract [IDEA] sentinels BEFORE board triggers so the cleaned
+    # text doesn't contain raw markup. File each as a Linear Backlog ticket
+    # and append "Filed as RA-XXXX" lines so the user-facing reply confirms
+    # capture. Failures (no API key, network error) become a single inline
+    # apology line so the conversation continues even if Linear is down.
+    idea_requests, response_text = parse_idea_requests(response_text)
+    idea_filed_lines: list[str] = []
+    if idea_requests:
+        try:
+            from . import margot_tools  # noqa: PLC0415
+            for req in idea_requests:
+                result = margot_tools.propose_idea(
+                    title=req.title, description=req.description,
+                    project=req.project, priority=req.priority,
+                )
+                status = result.get("status")
+                ident = result.get("identifier")
+                if status == "created" and ident:
+                    idea_filed_lines.append(f"📝 Filed idea as {ident}: {req.title}")
+                    log.info("margot %s: idea filed %s — %s",
+                             turn.turn_id, ident, req.title[:60])
+                else:
+                    err = result.get("error") or status or "unknown"
+                    idea_filed_lines.append(
+                        f"⚠️ Couldn't file idea \"{req.title}\" "
+                        f"(error: {err}) — please file manually."
+                    )
+                    log.warning("margot %s: idea filing failed for %r: %s",
+                                turn.turn_id, req.title, err)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("margot %s: idea capture batch raised: %s",
+                        turn.turn_id, exc)
+            idea_filed_lines.append(
+                "⚠️ Idea capture is currently unavailable — please file "
+                "manually in Linear."
+            )
+
     triggers, cleaned = parse_board_triggers(response_text)
+    if idea_filed_lines:
+        # Append confirmation footer so the user sees their idea was captured.
+        cleaned = (cleaned + "\n\n" + "\n".join(idea_filed_lines)).strip()
     turn.margot_text = cleaned
 
     # Optional voice variant (enabled via MARGOT_VOICE_REPLY_ENABLED=1)
@@ -1181,10 +1320,11 @@ async def handle_turn(*, chat_id: str, user_text: str,
 
 __all__ = [
     "MargotTurn", "BoardTrigger", "ResearchRequest", "TruthCheckRequest",
-    "RealtimeRequest",
+    "RealtimeRequest", "IdeaRequest",
     "handle_turn", "load_history", "append_turn",
     "build_context", "build_prompt", "build_prompt_with_research",
     "parse_board_triggers", "parse_research_requests",
     "parse_truth_check_requests", "parse_realtime_requests",
+    "parse_idea_requests",
     "DEFAULT_HISTORY_TURNS", "DEFAULT_BOARD_TRIGGER_THRESHOLD",
 ]
