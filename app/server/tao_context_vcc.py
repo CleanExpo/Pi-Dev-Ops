@@ -16,6 +16,7 @@ Techniques (all pure, idempotent on second pass):
 from __future__ import annotations
 
 import copy
+import json
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -59,7 +60,9 @@ def _content_to_text(content: Any) -> str:
     """Flatten the SDK message content into a single string.
 
     Handles both `content: str` and `content: [block, ...]` (list of dicts
-    with `text` or `content` keys, falling back to `str(block)`).
+    with `text` or `content` keys). Block fallback uses `json.dumps` rather
+    than `str()` repr — the JSON wire form is 2-3x more compact for tool_use
+    blocks and matches what the API actually charges tokens against.
     """
     if isinstance(content, str):
         return content
@@ -72,7 +75,7 @@ def _content_to_text(content: Any) -> str:
                 elif isinstance(block.get("content"), str):
                     parts.append(block["content"])
                 else:
-                    parts.append(str(block))
+                    parts.append(json.dumps(block, ensure_ascii=False))
             else:
                 parts.append(str(block))
         return "\n".join(parts)
