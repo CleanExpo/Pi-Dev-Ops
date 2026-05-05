@@ -30,10 +30,27 @@ Turns research output into typed code that every composition reads.
 
 ## Output
 
-A single edited file: `remotion-studio/src/brands/{slug}.ts`. Plus a PR (or local diff) summarising:
+Two edited files per brand:
+1. `remotion-studio/src/brands/{slug}.ts` — typed `BrandConfig` (source of truth).
+2. `remotion-studio/src/brands/{slug}.md` — 9-section `DESIGN.md` projection following the open-design schema (vendored reference: `remotion-studio/src/design-systems/_library/`).
+
+The `.md` is a *projection* of the `.ts`, not a parallel source. Regenerate it whenever the `.ts` changes; never hand-edit. Section order is fixed:
+
+1. Visual Theme & Atmosphere
+2. Color Palette & Roles (table mirroring `BrandColour` slots, plus `darkVariant` row if defined)
+3. Typography Rules (display / body / mono families, weights, line-heights)
+4. Component Stylings (Primary CTA, Cards, plus any brand-specific component noted in `doNot`)
+5. Layout Principles (grid, margins, logo placement from `BrandLogo.safeAreaPx`)
+6. Depth & Elevation
+7. Do's and Don'ts (concatenate `doNot` + `voice.forbiddenWords`)
+8. Responsive Behavior (aspect ratios, type scale per ratio)
+9. Agent Prompt Guide (one literal example invoking `colour.*` and `motion.signature` tokens)
+
+Plus a PR (or local diff) summarising:
 - Source dossier path
 - Fields filled vs left to founder review
 - Lint status (font licence, contrast)
+- Both files emitted (`.ts` + `.md`) — block on missing `.md` projection
 
 ## Boundaries
 
@@ -45,3 +62,5 @@ A single edited file: `remotion-studio/src/brands/{slug}.ts`. Plus a PR (or loca
 
 - `remotion-studio/src/brands/types.ts` — schema source of truth
 - `remotion-studio/src/colour/index.ts` — `contrast()` for WCAG checks
+- `remotion-studio/src/design-systems/_library/` — 138 vendored reference DESIGN.md files (open-design, Apache-2.0). Cite at most one as a visual-school anchor in the `.md` projection; never copy verbatim
+- Reference projection: `remotion-studio/src/brands/ra.md` is the canonical example to mirror

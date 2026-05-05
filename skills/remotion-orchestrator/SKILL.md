@@ -9,6 +9,32 @@ intents: video, explainer, ad, promo, reel, intro, social, render, marketing-vid
 
 Single entry point for the Remotion Skills Package — a set of 10 sibling skills (`remotion-orchestrator`, `remotion-brand-research`, `remotion-brand-codify`, `remotion-designer`, `remotion-colour-family`, `remotion-motion-language`, `remotion-screen-storyteller`, `remotion-marketing-strategist`, `remotion-composition-builder`, `remotion-render-pipeline`) installed globally at `~/.claude/skills/remotion-*` (symlinked to `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/skills/remotion-*`). Available in every project, not just Pi-Dev-Ops.
 
+## Discovery brief gate (turn 1, mandatory)
+
+Adopted from `nexu-io/open-design` (Apache-2.0). Before any wave plan is emitted, lock the brief. Refuse to proceed until every required field is filled — vague briefs produce overlong wave plans and off-brand renders.
+
+### Required fields
+
+| Field | Type | Notes |
+|---|---|---|
+| `brand` | `BrandSlug` | Must resolve in `src/brands/`. Unknown → dispatch `remotion-brand-research` first. |
+| `composition` | `Explainer` \| `Intro` \| `SocialAd` \| `NIRReport` \| `ProductDemo` | v1 supports `Explainer`; others fall back with note. |
+| `channel` | `linkedin` \| `youtube` \| `instagram` \| `tiktok` \| `training` | Drives aspect ratio + duration discipline. |
+| `aspectRatio` | `1920x1080` \| `1080x1920` \| `1080x1080` | Defaults from `channel` if omitted. |
+| `durationSec` | 15 \| 30 \| 60 \| 90 \| 120 | Drives wave-count cap. |
+| `topic` | string | One sentence on what the video says. "Brand awareness video" alone is rejected — must name the specific point. |
+| `audience` | string | Inherited from `BrandConfig.audience.primary` if omitted, but founder must confirm. |
+
+Optional: `school` (visual-school override for the colour generator), `voiceoverScript` (skip storyteller if pre-written), `referenceComposition` (existing job to remix).
+
+### Hard stop conditions
+
+- `topic` reads as a category ("our product", "the launch") rather than a specific claim → block.
+- `composition` ≠ `Explainer` in v1 without explicit fallback acknowledgement → block.
+- Multiple brands named in one brief → split into N parallel jobs (one per brand); never blend.
+
+The gate runs *before* the wave plan is computed. A blocked brief never reaches the dispatcher.
+
 ## Invocation
 
 The user can invoke the package by:
