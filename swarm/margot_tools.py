@@ -189,6 +189,200 @@ def image_generate(prompt: str, aspect_ratio: str = "1:1",
     return {"error": "gemini_direct_not_wired"}
 
 
+# ── RA-2002: Margot → Linear ideas bridge ────────────────────────────────────
+#
+# Captures a Telegram-side idea as a Linear Backlog ticket so ideation isn't
+# lost when the chat scrolls. Defaults to project="Pi - Dev -Ops" (RestoreAssist
+# team) and label="margot-idea" so the curator + backlog poller can route them.
+#
+# Auth: LINEAR_API_KEY env var. Fail-soft if missing — returns
+# {"error": "no_api_key"} so handle_turn can include a one-line note in the
+# Telegram reply rather than crashing.
+
+
+_LINEAR_GRAPHQL_URL = "https://api.linear.app/graphql"
+# Label name used for every Margot-captured idea. Created on first call if
+# missing (idempotent — Linear's labelCreate is a no-op when the name + team
+# tuple already exists, so we resolve-or-create).
+MARGOT_IDEA_LABEL = "margot-idea"
+# Default project when the LLM doesn't specify one — Pi-Dev-Ops backlog
+# (RestoreAssist team) is where ideas land for triage by the curator.
+MARGOT_DEFAULT_PROJECT = "Pi - Dev -Ops"
+MARGOT_DEFAULT_TEAM = "RestoreAssist"
+
+
+def _linear_gql(query: str, variables: dict[str, Any] | None = None,
+                *, timeout_s: int = 15) -> dict[str, Any]:
+    """Issue a Linear GraphQL query with auth. Returns parsed JSON or {'error': ...}."""
+    import urllib.request as _ureq  # noqa: PLC0415
+
+    key = os.environ.get("LINEAR_API_KEY", "").strip()
+    if not key:
+        return {"error": "no_api_key"}
+    payload = json.dumps({"query": query, "variables": variables or {}}).encode("utf-8")
+    req = _ureq.Request(
+        _LINEAR_GRAPHQL_URL, data=payload, method="POST",
+        headers={"Content-Type": "application/json", "Authorization": key},
+    )
+    try:
+        with _ureq.urlopen(req, timeout=timeout_s) as resp:
+            return json.loads(resp.read())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Linear GraphQL error: %s", exc)
+        return {"error": "request_failed", "exception": repr(exc)}
+
+
+def _resolve_team_id(team_name: str) -> str | None:
+    """Look up a team UUID by name or key (e.g. 'RestoreAssist' or 'RA')."""
+    res = _linear_gql("query { teams(first: 100) { nodes { id key name } } }")
+    if "error" in res:
+        return None
+    for t in res.get("data", {}).get("teams", {}).get("nodes", []):
+        if (t.get("name", "").lower() == team_name.lower() or
+                t.get("key", "").lower() == team_name.lower()):
+            return t["id"]
+    return None
+
+
+def _resolve_project_id(team_id: str, project_name: str) -> str | None:
+    """Look up a project UUID by name within a team."""
+    res = _linear_gql(
+        "query($teamId: String!) { team(id: $teamId) { "
+        "projects(first: 100) { nodes { id name } } } }",
+        {"teamId": team_id},
+    )
+    if "error" in res:
+        return None
+    for p in res.get("data", {}).get("team", {}).get("projects", {}).get("nodes", []):
+        if p.get("name", "").lower() == project_name.lower():
+            return p["id"]
+    return None
+
+
+def _resolve_or_create_label(team_id: str, label_name: str) -> str | None:
+    """Find a label by name within a team; create it if missing. Returns UUID."""
+    res = _linear_gql(
+        "query($teamId: String!) { team(id: $teamId) { "
+        "labels(first: 100) { nodes { id name } } } }",
+        {"teamId": team_id},
+    )
+    if "error" not in res:
+        for lbl in res.get("data", {}).get("team", {}).get("labels", {}).get("nodes", []):
+            if lbl.get("name", "").lower() == label_name.lower():
+                return lbl["id"]
+    # Not found — create. Color #A78BFA (lavender) chosen in RA-2002 for visual
+    # distinction from existing labels.
+    create = _linear_gql(
+        """
+        mutation($input: IssueLabelCreateInput!) {
+          issueLabelCreate(input: $input) {
+            success issueLabel { id name }
+          }
+        }
+        """,
+        {"input": {"name": label_name, "teamId": team_id, "color": "#A78BFA"}},
+    )
+    if "error" in create:
+        return None
+    return ((create.get("data") or {}).get("issueLabelCreate") or {}) \
+            .get("issueLabel", {}).get("id")
+
+
+def propose_idea(title: str,
+                 description: str = "",
+                 *,
+                 project: str = MARGOT_DEFAULT_PROJECT,
+                 team: str = MARGOT_DEFAULT_TEAM,
+                 priority: int = 3,
+                 dry_run: bool = False,
+                 **_: Any) -> dict[str, Any]:
+    """RA-2002 — capture a Telegram-side idea as a Linear Backlog ticket.
+
+    Args:
+        title: One-line ticket title. Required, max ~200 chars (Linear caps).
+        description: Markdown body. Use to capture the operator's reasoning,
+            constraints, and any acceptance hints from the conversation.
+        project: Linear project name. Defaults to "Pi - Dev -Ops" so the
+            backlog poller (RA-1973) and curator can route the ticket.
+        team: Linear team name or key. Defaults to "RestoreAssist" (RA-).
+        priority: 0=None, 1=Urgent, 2=High, 3=Medium (default), 4=Low.
+        dry_run: When True, returns a synthetic response without touching
+            the API. Used by tests + sentinel-verification flows.
+
+    Returns:
+        {"status": "created", "id": str, "identifier": str, "url": str,
+         "label": str} on success.
+        {"error": ...} on failure (auth, team/project/label resolution,
+         API error). Never raises — Margot's reply path catches errors and
+         informs the user inline.
+    """
+    if _kill_switch_active() and not dry_run:
+        return {"status": "skipped_kill_switch"}
+
+    if dry_run:
+        return {
+            "status": "dry_run", "title": title, "description": description,
+            "project": project, "team": team, "priority": priority,
+            "label": MARGOT_IDEA_LABEL,
+        }
+
+    if not (title or "").strip():
+        return {"error": "title_required"}
+
+    team_id = _resolve_team_id(team)
+    if not team_id:
+        return {"error": "team_not_found", "team": team}
+
+    project_id = _resolve_project_id(team_id, project) if project else None
+    if project and not project_id:
+        # Don't fail hard — file the ticket in the team backlog without project.
+        # The curator can re-project later.
+        log.warning(
+            "propose_idea: project %r not found in team %r — filing without project",
+            project, team,
+        )
+
+    label_id = _resolve_or_create_label(team_id, MARGOT_IDEA_LABEL)
+
+    input_obj: dict[str, Any] = {
+        "teamId": team_id, "title": title.strip(), "priority": priority,
+    }
+    if description:
+        # Append an attribution footer so the curator knows the source.
+        body = description.strip() + (
+            "\n\n---\n_Captured by Margot via RA-2002 ideas bridge._"
+        )
+        input_obj["description"] = body
+    if project_id:
+        input_obj["projectId"] = project_id
+    if label_id:
+        input_obj["labelIds"] = [label_id]
+
+    res = _linear_gql(
+        """
+        mutation($input: IssueCreateInput!) {
+          issueCreate(input: $input) {
+            success
+            issue { id identifier title url priority }
+          }
+        }
+        """,
+        {"input": input_obj},
+    )
+    if "error" in res:
+        return res
+    data = (res.get("data") or {}).get("issueCreate", {})
+    if not data.get("success"):
+        return {"error": "create_failed", "raw": res}
+    iss = data["issue"]
+    return {
+        "status": "created",
+        "id": iss["id"], "identifier": iss["identifier"],
+        "title": iss["title"], "url": iss["url"], "priority": iss["priority"],
+        "label": MARGOT_IDEA_LABEL if label_id else None,
+    }
+
+
 # ── Stdio MCP transport (lazy) ───────────────────────────────────────────────
 # Vendored minimal JSON-RPC over stdio. Avoids hard dependency on the `mcp`
 # Python package — Margot's server speaks the standard MCP JSON-RPC protocol.
@@ -270,7 +464,11 @@ def _call_stdio_mcp(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
 
 
 def register_with_flow_engine() -> int:
-    """Register all five Margot tools with flow_engine."""
+    """Register all Margot tools with flow_engine.
+
+    Returns the count of registered tools (5 MCP tools + 1 RA-2002 ideas
+    bridge = 6).
+    """
     from . import flow_engine
 
     flow_engine.register_tool("mcp.margot.deep_research",
@@ -283,7 +481,9 @@ def register_with_flow_engine() -> int:
                               lambda **kw: corpus_status(**kw))
     flow_engine.register_tool("mcp.margot.image_generate",
                               lambda **kw: image_generate(**kw))
-    return 5
+    flow_engine.register_tool("mcp.margot.propose_idea",
+                              lambda **kw: propose_idea(**kw))
+    return 6
 
 
 # Auto-register on import (idempotent)
@@ -295,5 +495,7 @@ except Exception as exc:
 
 __all__ = [
     "deep_research", "deep_research_max", "check_research",
-    "corpus_status", "image_generate", "register_with_flow_engine",
+    "corpus_status", "image_generate", "propose_idea",
+    "MARGOT_IDEA_LABEL", "MARGOT_DEFAULT_PROJECT", "MARGOT_DEFAULT_TEAM",
+    "register_with_flow_engine",
 ]
