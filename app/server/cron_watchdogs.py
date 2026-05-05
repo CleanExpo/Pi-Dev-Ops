@@ -131,8 +131,18 @@ async def _watchdog_check(triggers: list[dict], log) -> None:
     """
     12-hour watchdog. If no scan/monitor trigger has fired in the last 12h,
     create an Urgent Linear ticket to alert the team.
+
+    RA-1981 / RA-1997 — guarded by `config.PI_SEO_ACTIVE`. When the gate is
+    `0` (the default per `app/server/config.py`), all scans are intentionally
+    paused and silence is expected behaviour, not an outage. Suppress the
+    alert in that case to stop the false-positive ticket storm.
     """
     from . import config
+    if not getattr(config, "PI_SEO_ACTIVE", False):
+        # Pi-SEO scans are gated off intentionally — silence is by design.
+        # Log once per cycle for observability without paging.
+        log.debug("Watchdog: Pi-SEO bypass — PI_SEO_ACTIVE=0")
+        return
     scan_triggers = [t for t in triggers if t.get("type") in ("scan", "monitor")]
     if not scan_triggers:
         return
@@ -270,11 +280,18 @@ async def _watchdog_escalations(log) -> None:
 
 async def _watchdog_docs_staleness(log) -> None:
     """
-    RA-635 — 48h Anthropic docs staleness watchdog.
+    RA-635 — Anthropic docs staleness watchdog.
 
-    Checks if the newest dated snapshot in .harness/anthropic-docs/ is >48h old
-    (or missing entirely). Creates a Medium Linear ticket with label [DOCS-STALE]
-    if stale. Deduplicates via module-level timestamp — at most one ticket per 24h.
+    Checks if the newest dated snapshot in .harness/anthropic-docs/ is older
+    than the staleness threshold (or missing entirely). Creates a Medium
+    Linear ticket with label [DOCS-STALE] if stale. Deduplicates via
+    module-level timestamp — at most one ticket per 24h.
+
+    RA-1981 / RA-1983 — threshold raised from 48h to 192h (8 days). The
+    `intel_refresh` cron runs WEEKLY (Monday); a 48h threshold tripped on
+    every Wed/Thu poll because the previous Monday's snapshot was already
+    >48h old. 192h = 7 days + 24h grace, leaving room for one missed run
+    before alerting.
     """
     global _docs_stale_last_raised
     from . import config
@@ -282,7 +299,7 @@ async def _watchdog_docs_staleness(log) -> None:
 
     _HARNESS = Path(__file__).parent.parent.parent / ".harness"
     _DOCS_ROOT = _HARNESS / "anthropic-docs"
-    _STALE_THRESHOLD_H = 48.0
+    _STALE_THRESHOLD_H = 192.0  # was 48 — see RA-1981/RA-1983 docstring above.
 
     # Cooldown: don't raise again within 24 hours
     if _docs_stale_last_raised and (time.time() - _docs_stale_last_raised) < _DOCS_STALE_COOLDOWN_H * 3600:
