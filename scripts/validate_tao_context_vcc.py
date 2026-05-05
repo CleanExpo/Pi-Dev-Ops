@@ -1,24 +1,29 @@
+#!/usr/bin/env python3
 """scripts/validate_tao_context_vcc.py — RA-1967 manual-verification harness.
 
-Walks a directory of saved TAO sessions (jsonl files in
-`.harness/agent-sdk-metrics/` by default), runs `compact()` on the loaded
-messages, and prints a per-session table plus an aggregate row.
+Runs `compact()` on saved transcripts and reports per-session pct_reduction
+plus an aggregate (median + mean + overall). Exits 0 when median ≥ threshold
+(default 30%, per 2026-05-05 board memo), else 1.
 
-Exits 0 when median pct_reduction ≥ 30%, else 1.
+Two corpora are accepted, auto-detected by record shape:
 
-Token counting prefers `tiktoken` (cl100k_base) for a closer Claude proxy.
-Falls back to `len(text.encode('utf-8')) / 4` when tiktoken is unavailable
-and logs the fallback to stderr.
+  1. Conversation jsonl from `~/.claude/projects/<encoded-cwd>/<id>.jsonl`.
+     Each line is a record carrying `message: {role, content}`. This is the
+     primary corpus — full Claude Code transcripts with text + tool blocks.
+  2. SDK metrics jsonl from `.harness/agent-sdk-metrics/`. Records carry
+     `phase` / `session_id` / `output_len` only — no message content. The
+     harness skips these with a stderr warning so the GH Action / docs
+     pointing at the metrics dir do not crash.
+
+Token counting prefers `tiktoken` (cl100k_base). Falls back to bytes/4.
 
 Usage:
-    python scripts/validate_tao_context_vcc.py [DIR]
-
-DIR defaults to `.harness/agent-sdk-metrics`.
+    python3 scripts/validate_tao_context_vcc.py --root ~/.claude/projects -n 10
 """
 from __future__ import annotations
 
+import argparse
 import json
-import os
 import statistics
 import sys
 from pathlib import Path
@@ -32,126 +37,194 @@ from app.server.tao_context_vcc import compact  # noqa: E402
 
 
 def _resolve_token_counter():
-    """Return a callable text -> int. Prefers tiktoken; falls back to bytes/4."""
+    """Return (callable text -> int, label). Prefers tiktoken; falls back to bytes/4."""
     try:
         import tiktoken  # type: ignore  # noqa: PLC0415
 
         enc = tiktoken.get_encoding("cl100k_base")
-
-        def count(text: str) -> int:
-            return len(enc.encode(text))
-
-        return count, "tiktoken-cl100k_base"
+        return (lambda t: len(enc.encode(t))), "tiktoken-cl100k_base"
     except Exception:
-        sys.stderr.write(
-            "[validate] tiktoken unavailable — falling back to bytes/4 proxy.\n"
-        )
-
-        def count(text: str) -> int:
-            return max(1, len(text.encode("utf-8")) // 4)
-
-        return count, "bytes-div-4"
+        sys.stderr.write("[validate] tiktoken unavailable — bytes/4 proxy\n")
+        return (lambda t: max(1, len(t.encode("utf-8")) // 4)), "bytes-div-4"
 
 
 def _flatten(messages: list[dict]) -> str:
+    """Symmetric flatten — counts FULL JSON wire form for input and output.
+
+    Anthropic API charges tokens against the JSON-serialised request, so the
+    fair measurement is the wire-form size, not block.text alone.
+    """
     parts: list[str] = []
     for m in messages:
         c = m.get("content", "")
         if isinstance(c, str):
             parts.append(c)
         elif isinstance(c, list):
-            for blk in c:
-                if isinstance(blk, dict) and isinstance(blk.get("text"), str):
-                    parts.append(blk["text"])
+            for block in c:
+                if isinstance(block, dict):
+                    if isinstance(block.get("text"), str):
+                        parts.append(block["text"])
+                    else:
+                        parts.append(json.dumps(block, ensure_ascii=False))
                 else:
-                    parts.append(str(blk))
+                    parts.append(str(block))
         else:
             parts.append(str(c))
     return "\n".join(parts)
 
 
-def _load_session(path: Path) -> list[dict]:
-    """Read a jsonl file and return rows that look like SDK messages."""
-    rows: list[dict] = []
-    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+def _extract_messages(jsonl_path: Path) -> tuple[list[dict], str]:
+    """Pull message records out of a jsonl. Returns (messages, shape_label).
+
+    shape_label is one of:
+      - "conversation"  — records have `message: {role, content}`
+      - "sdk-metrics"   — records have `phase`/`session_id`/`output_len`
+      - "unknown"       — neither shape recognised
+    """
+    out: list[dict] = []
+    saw_metrics = False
+    saw_conversation = False
+    try:
+        text = jsonl_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return [], "unknown"
+    for line in text.splitlines():
         line = line.strip()
         if not line:
             continue
         try:
-            obj = json.loads(line)
+            rec = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if isinstance(obj, dict) and "role" in obj and "content" in obj:
-            rows.append(obj)
-    return rows
+        if not isinstance(rec, dict):
+            continue
+        msg = rec.get("message")
+        if isinstance(msg, dict) and msg.get("role") in {"user", "assistant"}:
+            saw_conversation = True
+            out.append({"role": msg["role"], "content": msg.get("content", "")})
+            continue
+        if isinstance(rec.get("role"), str) and "content" in rec:
+            saw_conversation = True
+            out.append({"role": rec["role"], "content": rec.get("content", "")})
+            continue
+        if "phase" in rec or "output_len" in rec or "session_id" in rec:
+            saw_metrics = True
+    if out:
+        return out, "conversation"
+    if saw_metrics and not saw_conversation:
+        return [], "sdk-metrics"
+    return [], "unknown"
 
 
-def _row(session: str, tokens_in: int, tokens_out: int, techniques: dict[str, int]) -> tuple:
-    pct = 0.0 if tokens_in <= 0 else round(100.0 * (1.0 - tokens_out / tokens_in), 2)
-    technique_str = ", ".join(f"{k}={v}" for k, v in sorted(techniques.items())) or "—"
-    return (session, tokens_in, tokens_out, pct, technique_str)
+def _largest_sessions(root: Path, n: int) -> list[Path]:
+    """Return the N largest .jsonl files under root by file size, ≥ 50 KB."""
+    candidates: list[tuple[int, Path]] = []
+    for p in root.rglob("*.jsonl"):
+        if "subagents" in p.parts:
+            continue
+        try:
+            size = p.stat().st_size
+        except OSError:
+            continue
+        if size < 50_000:
+            continue
+        candidates.append((size, p))
+    candidates.sort(reverse=True)
+    return [p for _, p in candidates[:n]]
 
 
-def _print_table(rows: list[tuple]) -> None:
-    headers = ("session", "tokens_in", "tokens_out", "pct_reduction", "techniques_applied")
-    widths = [
-        max(len(headers[i]), max((len(str(r[i])) for r in rows), default=0))
-        for i in range(len(headers))
-    ]
-    fmt = "  ".join("{:<" + str(w) + "}" for w in widths)
-    print(fmt.format(*headers))
-    print(fmt.format(*("-" * w for w in widths)))
-    for r in rows:
-        print(fmt.format(*r))
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="RA-1967 tao-context-vcc validator")
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=Path.home() / ".claude" / "projects",
+        help="Directory to scan for jsonl transcripts",
+    )
+    parser.add_argument("-n", "--num-sessions", type=int, default=10)
+    parser.add_argument("--threshold-pct", type=float, default=30.0)
+    args = parser.parse_args(argv)
 
+    if not args.root.is_dir():
+        sys.stderr.write(f"[fatal] {args.root} not a directory\n")
+        return 2
 
-def main(argv: list[str]) -> int:
-    target = Path(argv[1]) if len(argv) > 1 else _ROOT / ".harness" / "agent-sdk-metrics"
-    if not target.exists() or not target.is_dir():
-        print(f"[validate] directory not found: {target}", file=sys.stderr)
-        return 1
+    sessions = _largest_sessions(args.root, args.num_sessions)
+    if not sessions:
+        sys.stderr.write("[fatal] no eligible sessions found (>=50KB)\n")
+        return 2
 
-    counter, counter_name = _resolve_token_counter()
-    print(f"[validate] token counter: {counter_name}")
-    print(f"[validate] scanning: {target}")
+    count_tokens, token_label = _resolve_token_counter()
+    print("# RA-1967 / tao-context-vcc validation")
+    print(f"# Root: {args.root}")
+    print(f"# Token counter: {token_label}")
+    print(f"# Threshold: median pct_reduction >= {args.threshold_pct:.1f}%")
+    print(f"# Sessions sampled: {len(sessions)}")
+    print()
+    print(
+        f"{'session':<20} {'msgs_in':>8} {'msgs_out':>9} "
+        f"{'tokens_in':>10} {'tokens_out':>11} {'pct':>7}  techniques"
+    )
 
     rows: list[tuple] = []
-    pct_values: list[float] = []
-    for path in sorted(target.glob("*.jsonl")):
-        msgs = _load_session(path)
-        if not msgs:
+    skipped_metrics = 0
+    skipped_unknown = 0
+    for path in sessions:
+        sid = path.stem[:12]
+        msgs_in, shape = _extract_messages(path)
+        if shape == "sdk-metrics":
+            sys.stderr.write(
+                f"[validate] {sid}: no message content in SDK metrics shape — "
+                "pointing at ~/.claude/projects/<encoded>/ instead is recommended\n"
+            )
+            skipped_metrics += 1
             continue
-        before = counter(_flatten(msgs))
-        compacted, stats = compact(msgs)
-        after = counter(_flatten(compacted))
-        rows.append(_row(path.name, before, after, stats.techniques_applied))
-        if before > 0:
-            pct_values.append(100.0 * (1.0 - after / before))
+        if not msgs_in:
+            sys.stderr.write(f"[skip] {sid}: shape={shape}, no messages\n")
+            skipped_unknown += 1
+            continue
+        msgs_out, stats = compact(msgs_in)
+        tokens_in = count_tokens(_flatten(msgs_in))
+        tokens_out = count_tokens(_flatten(msgs_out))
+        if tokens_in == 0:
+            continue
+        pct = 100.0 * (tokens_in - tokens_out) / tokens_in
+        techniques = ",".join(
+            f"{k}={v}" for k, v in stats.techniques_applied.items() if v
+        )
+        print(
+            f"{sid:<20} {len(msgs_in):>8} {len(msgs_out):>9} "
+            f"{tokens_in:>10} {tokens_out:>11} {pct:>6.1f}%  {techniques or '(none)'}"
+        )
+        rows.append((sid, len(msgs_in), tokens_in, tokens_out, pct, stats))
 
+    print()
     if not rows:
-        print("[validate] no SDK-message jsonl rows found in directory.")
+        sys.stderr.write(
+            f"[fatal] no valid session results "
+            f"(skipped metrics={skipped_metrics}, unknown={skipped_unknown})\n"
+        )
         return 1
 
-    _print_table(rows)
+    pcts = [r[4] for r in rows]
+    med = statistics.median(pcts)
+    mean = statistics.mean(pcts)
+    total_in = sum(r[2] for r in rows)
+    total_out = sum(r[3] for r in rows)
+    overall_pct = 100.0 * (total_in - total_out) / total_in if total_in else 0.0
 
-    median_pct = round(statistics.median(pct_values), 2) if pct_values else 0.0
-    total_in = sum(r[1] for r in rows)
-    total_out = sum(r[2] for r in rows)
-    aggregate_pct = (
-        round(100.0 * (1.0 - total_out / total_in), 2) if total_in > 0 else 0.0
+    print(
+        f"AGGREGATE: n={len(rows)} median_pct={med:.1f} mean_pct={mean:.1f} "
+        f"overall_pct={overall_pct:.1f} (total {total_in} -> {total_out})"
     )
     print()
-    print(f"[validate] sessions: {len(rows)}")
-    print(f"[validate] median pct_reduction: {median_pct}%")
-    print(f"[validate] aggregate tokens_in -> out: {total_in} -> {total_out} ({aggregate_pct}%)")
 
-    threshold = float(os.environ.get("TAO_VCC_VALIDATE_THRESHOLD", "30.0"))
-    if median_pct >= threshold:
-        print(f"[validate] PASS — median {median_pct}% >= {threshold}%")
+    if med >= args.threshold_pct:
+        print(f"VERDICT: GO — median {med:.1f}% >= threshold {args.threshold_pct:.1f}%")
         return 0
-    print(f"[validate] FAIL — median {median_pct}% < {threshold}%")
+    print(f"VERDICT: NO-GO — median {med:.1f}% < threshold {args.threshold_pct:.1f}%")
     return 1
 
 
 if __name__ == "__main__":  # pragma: no cover
-    raise SystemExit(main(sys.argv))
+    sys.exit(main())
