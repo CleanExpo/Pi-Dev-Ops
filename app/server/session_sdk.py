@@ -118,6 +118,12 @@ async def _run_claude_via_sdk(
 
     On any error or import failure, returns (1, "", 0.0) for transparent fallback to subprocess.
     Emits one row to .harness/agent-sdk-metrics/YYYY-MM-DD.jsonl on every invocation.
+
+    TODO(RA-1967): pre-pass through `app.server.tao_context_vcc.compact_for_sdk`
+    once the SDK call surface accepts a structured message list. The current
+    `prompt: str` shape would require parse → compact → re-render, which is a
+    wider refactor than the Wave 1 primitive PR. Keep the wiring deferred until
+    `tao-loop` (RA-1970) settles on the canonical TAO message representation.
     """
     # RA-1099 — Hard policy gate. Map the call-site `phase` to a role and
     # assert the model is allowed for that role. Opus is reserved for Senior
