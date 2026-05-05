@@ -1,4 +1,4 @@
-# scripts — Wiki
+# skills — Wiki
 
 _Last updated: 2026-05-05T23:31:44Z (commits 3f23cbd..ff58a6d)_
 
