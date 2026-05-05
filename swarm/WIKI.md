@@ -1,4 +1,4 @@
-# tests — Wiki
+# swarm — Wiki
 
 _Last updated: 2026-05-05T11:06:22Z (commits 2628c75..c41a4b0)_
 
