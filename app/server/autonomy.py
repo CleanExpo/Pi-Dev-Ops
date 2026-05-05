@@ -656,6 +656,16 @@ async def linear_todo_poller() -> None:
             log.debug("Autonomy poller: disabled (TAO_AUTONOMY_ENABLED=0)")
             continue
 
+        # RA-1966 — TAO hard-stop file aborts the autonomy poller too. Operator
+        # touches TAO_HARD_STOP_FILE → next poll exits with reason="HARD_STOP",
+        # surfaced loudly so /health goes degraded.
+        try:
+            from . import kill_switch as _ks  # noqa: PLC0415
+            _ks.check_hard_stop()
+        except _ks.KillSwitchAbort as abort:
+            log.warning("Autonomy poller: hard-stop file detected — pausing (%s)", abort.snapshot)
+            continue
+
         if not config.LINEAR_API_KEY:
             # Warn loudly EVERY poll, not just once — this was the silent-failure
             # mode that made Pi-Dev-Ops look healthy while nothing was happening.
