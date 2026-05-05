@@ -211,8 +211,22 @@ def _classify_closed(closed: list[dict[str, Any]]
     return out
 
 
-def _render_section(movement: dict[str, Any]) -> str:
-    """Build the markdown body for one project's Linear movement."""
+def _window_label(lookback_hours: int) -> str:
+    """Render a human-readable window label — RA-2006."""
+    if lookback_hours >= 168:
+        days = lookback_hours // 24
+        return f"last {days} days"
+    return f"last {lookback_hours}h"
+
+
+def _render_section(movement: dict[str, Any],
+                     *, lookback_hours: int = DEFAULT_LOOKBACK_HOURS) -> str:
+    """Build the markdown body for one project's Linear movement.
+
+    ``lookback_hours`` flows from ``portfolio_pulse.get_lookback_hours()``
+    so the same provider produces a 24h daily summary or a 168h weekly
+    recap (RA-2006).
+    """
     if "error" in movement:
         return f"_(linear: {movement['error']})_"
 
@@ -222,24 +236,37 @@ def _render_section(movement: dict[str, Any]) -> str:
     stale = movement.get("stale", [])
 
     closed_split = _classify_closed(closed)
+    label = _window_label(lookback_hours)
+    # Show more entries in weekly mode so the operator sees the actual
+    # week's worth of work, not just the top 3.
+    top_opened_n = TOP_OPENED_COUNT if lookback_hours <= 24 else max(TOP_OPENED_COUNT * 3, 10)
 
     lines: list[str] = []
-    lines.append(f"- **Opened (last 24h):** {len(opened)}")
+    lines.append(f"- **Opened ({label}):** {len(opened)}")
     if opened:
         # Show top by priority: lower priority value = higher (Urgent=1)
         ranked = sorted(
             opened,
             key=lambda n: (n.get("priority") or 99),
-        )[:TOP_OPENED_COUNT]
+        )[:top_opened_n]
         for n in ranked:
             pri = _format_priority(n.get("priority"))
             lines.append(f"    - `{n['identifier']}` [{pri}] {n.get('title', '')[:80]}")
 
     lines.append(
-        f"- **Closed (last 24h):** {len(closed)} "
+        f"- **Closed ({label}):** {len(closed)} "
         f"(Done {len(closed_split['done'])} · "
         f"Canceled/Duplicate {len(closed_split['canceled'])})"
     )
+    # In weekly mode, include the actual list of completed tickets — that's
+    # the "wins this week" surface the founder asked for.
+    if lookback_hours > 24 and closed_split["done"]:
+        for n in closed_split["done"][:max(TOP_OPENED_COUNT * 3, 10)]:
+            pri = _format_priority(n.get("priority"))
+            lines.append(
+                f"    - `{n['identifier']}` [{pri}] "
+                f"{n.get('title', '')[:80]}"
+            )
 
     lines.append(f"- **Currently blocked:** {len(blocked)}")
     if blocked:
@@ -303,8 +330,12 @@ def linear_section_provider(project_id: str,
             "no_linear_project_id",
         )
 
-    movement = _fetch_movement(linear_project_id)
-    return _render_section(movement), movement.get("error")
+    lookback_h = portfolio_pulse.get_lookback_hours()
+    movement = _fetch_movement(linear_project_id, lookback_hours=lookback_h)
+    return (
+        _render_section(movement, lookback_hours=lookback_h),
+        movement.get("error"),
+    )
 
 
 def register() -> None:
