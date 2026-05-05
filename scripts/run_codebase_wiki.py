@@ -16,6 +16,13 @@ import json
 import os
 import sys
 from dataclasses import asdict
+from pathlib import Path
+
+# Make `app.server.tao_codebase_wiki` importable when run as a top-level script
+# (e.g. via .github/workflows/codebase-wiki.yml: `python scripts/run_codebase_wiki.py ...`).
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
