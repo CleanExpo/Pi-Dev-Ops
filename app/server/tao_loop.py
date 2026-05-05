@@ -25,12 +25,11 @@ so passing 0 or None falls through to the env defaults.
 """
 from __future__ import annotations
 
-import asyncio
 import logging
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Awaitable, Callable, Final
+from typing import Callable, Final
 
 from . import kill_switch as _ks
 from .model_policy import select_model
