@@ -1254,7 +1254,6 @@ def _normalize_margot_to_research_brief(
         sections = [s.strip() for s in sections if s.strip()]
         used_questions: set[int] = set()
         for sec in sections:
-            sec_lower = sec.lower()
             best_idx = -1
             best_score = 0
             for i, q in enumerate(questions):
@@ -1513,9 +1512,7 @@ def _run_fast_research(
 
     if not questions:
         log.info("Phase 2.4 RESEARCH skipped — no empirical questions surfaced")
-        out = _empty("no empirical questions surfaced from intelligence brief")
-        _persist_research_brief(out, today)
-        return out
+        return _empty("no empirical questions surfaced from intelligence brief")
 
     log.info("Phase 2.4 RESEARCH — %d question(s) to investigate", len(questions))
 
@@ -1559,7 +1556,6 @@ def _run_fast_research(
         out = _empty("research subagent returned empty (timeout or SDK failure)")
         out["questions"] = questions
         out["open_questions"] = list(questions)  # personas should know what was unanswered
-        _persist_research_brief(out, today)
         return out
 
     brief = _extract_json_object(research_raw)
@@ -1567,7 +1563,6 @@ def _run_fast_research(
         out = _empty("research subagent output was not parseable JSON")
         out["questions"] = questions
         out["open_questions"] = list(questions)
-        _persist_research_brief(out, today)
         return out
 
     brief.setdefault("research_required", True)
