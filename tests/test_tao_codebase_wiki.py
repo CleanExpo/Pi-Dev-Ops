@@ -13,13 +13,10 @@ SDK is mocked via `unittest.mock.patch("app.server.tao_codebase_wiki._run_scribe
 """
 from __future__ import annotations
 
-import os
 import re
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
-
-import pytest
 
 from app.server import tao_codebase_wiki as tcw
 
@@ -157,7 +154,8 @@ def test_idempotent_run_yields_same_body(tmp_path):
     second = (repo / "app" / "WIKI.md").read_text(encoding="utf-8")
 
     # Strip the timestamp line; everything else must match.
-    norm = lambda s: re.sub(r"_Last updated: \S+ \(", "_Last updated: T (", s)
+    def norm(s: str) -> str:
+        return re.sub(r"_Last updated: \S+ \(", "_Last updated: T (", s)
     assert norm(first) == norm(second)
 
 
@@ -214,3 +212,77 @@ def test_sdk_returns_empty_uses_stub_body(tmp_path):
     text = (repo / "app" / "WIKI.md").read_text(encoding="utf-8")
     assert "Auto-stub" in text
     assert "## Files of interest" in text
+
+
+# ── 9. RA-1996 regressions ────────────────────────────────────────────────────
+
+
+def test_ra1996_default_budget_admits_typical_prompt(tmp_path):
+    """RA-1996 — `_DEFAULT_COMPLETION_TOKENS=1500` used to cost $0.0225 alone,
+    exceeding the $0.02 default budget on EVERY call. Default budget is the
+    one hit by `.github/workflows/codebase-wiki.yml`'s CLI invocation when the
+    env override is absent. Regression-guard: default budget must admit a
+    realistic single-directory prompt (1-2KB) without bypass."""
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    base = _commit(repo, {"README.md": "init\n"}, "chore: init")
+    _commit(repo, {"app/foo.py": "x = 1\n"}, "feat(app): add foo")
+
+    with patch.object(tcw, "_run_scribe_sync", return_value=_FAKE_BODY):
+        # 0.02 is the documented CLI default; this MUST succeed.
+        result = tcw.update_wiki(str(repo), since_ref=base, max_cost_usd=0.02)
+
+    assert result.bypassed is False, (
+        f"Default $0.02 budget tripped — bypass_reason={result.bypass_reason}"
+    )
+    assert "app" in result.directories_updated
+
+
+def test_ra1996_root_level_files_skipped_not_treated_as_top_dir(tmp_path):
+    """RA-1996 — root-level files (CLAUDE.md, Dockerfile, README.md) used to
+    appear as "top dirs" via naive `f.split('/', 1)[0]`. A live run then tried
+    `mkdir(parents=True, exist_ok=True)` on a path already occupied by a file
+    → NotADirectoryError. Now filtered before the loop."""
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    base = _commit(repo, {"README.md": "init\n"}, "chore: init")
+    _commit(
+        repo,
+        {
+            "CLAUDE.md": "root-file change\n",
+            "Dockerfile": "FROM python:3.11\n",
+            "app/foo.py": "x = 1\n",
+        },
+        "feat: mixed root + subdir change",
+    )
+
+    with patch.object(tcw, "_run_scribe_sync", return_value=_FAKE_BODY):
+        result = tcw.update_wiki(str(repo), since_ref=base, max_cost_usd=1.0)
+
+    # Only `app/` should be in the output — `CLAUDE.md` and `Dockerfile` are
+    # root-level files, not directories.
+    assert result.directories_updated == ["app"]
+    assert "CLAUDE.md" not in result.directories_updated
+    assert "Dockerfile" not in result.directories_updated
+    # Confirm no spurious WIKI.md was attempted under file-paths.
+    assert not (repo / "CLAUDE.md" / "WIKI.md").exists()
+
+
+def test_ra1996_commits_summarized_set_before_early_return(tmp_path):
+    """RA-1996 — `commits_summarized` was assigned only at the very end of the
+    loop, so any early-return path returned 0 even when commits were collected.
+    Verify a budget-bypass path now reports the truthful commit count."""
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    base = _commit(repo, {"README.md": "init\n"}, "chore: init")
+    _commit(repo, {"app/foo.py": "x = 1\n"}, "feat(app): one")
+    _commit(repo, {"app/bar.py": "y = 2\n"}, "feat(app): two")
+    _commit(repo, {"docs/r.md": "doc\n"}, "docs: r")
+
+    # Force budget-exceeded on the first iteration via an absurdly-low budget.
+    result = tcw.update_wiki(str(repo), since_ref=base, max_cost_usd=0.0)
+
+    assert result.bypassed is True
+    assert result.bypass_reason == "cost_budget_exceeded"
+    # 3 distinct commits collected pre-bypass → must NOT be 0 anymore.
+    assert result.commits_summarized == 3
