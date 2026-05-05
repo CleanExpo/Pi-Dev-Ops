@@ -31,7 +31,12 @@ log = logging.getLogger("pi-ceo.tao_codebase_wiki")
 # 4.6 = $3/M input + $15/M output.
 _SONNET_INPUT: float = 3.0 / 1_000_000
 _SONNET_OUTPUT: float = 15.0 / 1_000_000
-_DEFAULT_COMPLETION_TOKENS: int = 1500
+# RA-1996 — was 1500, which alone costs $0.0225 (>= the $0.02 default budget),
+# guaranteeing every iteration tripped `cost_budget_exceeded` before any SDK
+# call could land. Wiki bodies are short (one paragraph + 4-8 file bullets),
+# typical 200-400 completion tokens. 500 leaves headroom and keeps the floor
+# at $0.0075, well inside the $0.02 default. See `tests/test_tao_codebase_wiki.py`.
+_DEFAULT_COMPLETION_TOKENS: int = 500
 _BYTES_PER_TOKEN: int = 4
 
 _LAST_UPDATE_RE = re.compile(
@@ -113,8 +118,17 @@ def _collect_commits(repo_root: str, since_ref: str) -> list[_Commit]:
     return commits
 
 
-def _group_by_top_dir(commits: list[_Commit]) -> dict[str, list[_Commit]]:
+def _group_by_top_dir(commits: list[_Commit], repo_root: str) -> dict[str, list[_Commit]]:
+    """Group commits by the top-level directory of the files they touch.
+
+    RA-1996 — root-level files (CLAUDE.md, README.md, Dockerfile, ...) used to
+    appear as "top dirs" because we naively split on `/`. A live (non-dry) run
+    then tried `mkdir(parents=True, exist_ok=True)` on a path that already
+    existed as a file → `NotADirectoryError`. Now we filter to entries that
+    actually resolve to a directory under `repo_root`.
+    """
     grouped: dict[str, list[_Commit]] = {}
+    repo = Path(repo_root)
     for c in commits:
         seen: set[str] = set()
         for f in c.files:
@@ -124,6 +138,11 @@ def _group_by_top_dir(commits: list[_Commit]) -> dict[str, list[_Commit]]:
             if top in seen:
                 continue
             seen.add(top)
+            # Skip root-level files — only true subdirectories get a WIKI.md.
+            if "/" not in f:
+                continue
+            if not (repo / top).is_dir():
+                continue
             grouped.setdefault(top, []).append(c)
     return grouped
 
@@ -239,10 +258,15 @@ def update_wiki(repo_root: str, since_ref: str | None = None, max_cost_usd: floa
     commits = _collect_commits(repo, since)
     if not commits:
         return result
-    grouped = _group_by_top_dir(commits)
+    grouped = _group_by_top_dir(commits, repo)
     if directories:
         wanted = set(directories)
         grouped = {k: v for k, v in grouped.items() if k in wanted}
+    # RA-1996 — set commits_summarized BEFORE any early-return path so partial
+    # runs (kill-switch trip, budget overrun, empty grouping) report a truthful
+    # commit count rather than 0.
+    total_commits = {c.sha for c in commits}
+    result.commits_summarized = len(total_commits)
     if not grouped:
         return result
 
@@ -250,7 +274,6 @@ def update_wiki(repo_root: str, since_ref: str | None = None, max_cost_usd: floa
     old_sha = since[:7] if since and not since.startswith("HEAD~") else "init"
     counter = LoopCounter()
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    total_commits = {c.sha for c in commits}
 
     for top_dir, dir_commits in sorted(grouped.items()):
         try:
@@ -278,7 +301,6 @@ def update_wiki(repo_root: str, since_ref: str | None = None, max_cost_usd: floa
         result.directories_updated.append(top_dir)
         result.files_written.append(str(wiki_path.relative_to(repo)))
 
-    result.commits_summarized = len(total_commits)
     return result
 
 
