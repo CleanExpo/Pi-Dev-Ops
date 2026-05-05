@@ -8,6 +8,55 @@ Contains:
     _fire_meta_curator_trigger()    — meta-curator scan + propose (RA-1839)
 """
 import asyncio
+import traceback
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+def _persist_board_meeting_failure(trigger_id: str, exc: BaseException, log) -> None:
+    """RA-1984 — write a failure artifact when run_full_board_meeting() raises.
+
+    The cron-loop only logs the traceback to Railway stderr. Without dashboard /
+    grep access on Railway, the operator has no surface to diagnose. This writes
+    a persistent markdown file under `.harness/board-meetings/` containing the
+    timestamp, exception class, message, and full traceback. The file appears
+    on the next git commit pulled to a developer machine (the directory is
+    already tracked).
+
+    Side-effect-only — never raises. If the write itself fails, log a warning
+    and let the cron-loop's outer handler take it from there.
+    """
+    try:
+        ts = datetime.now(timezone.utc)
+        date = ts.strftime("%Y-%m-%d")
+        iso = ts.strftime("%Y-%m-%dT%H:%M:%SZ")
+        out_dir = Path(__file__).parent.parent.parent / ".harness" / "board-meetings"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / f"{date}-board-failure.md"
+        body = (
+            f"# Board meeting failure — {iso}\n\n"
+            f"- **trigger_id:** `{trigger_id}`\n"
+            f"- **exception class:** `{type(exc).__name__}`\n"
+            f"- **message:** {exc}\n\n"
+            "## Traceback\n\n"
+            "```\n"
+            + "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+            + "```\n\n"
+            "_Written by `_persist_board_meeting_failure` (RA-1984). "
+            "Cron-loop's `last_fired_at` deliberately does NOT advance on failure "
+            "(RA-1484/1493/1497) — the watchdog `_watchdog_board_meeting_silence` "
+            "will continue to fire until the next successful run._\n"
+        )
+        out_path.write_text(body, encoding="utf-8")
+        log.warning(
+            "Board-meeting failure artifact written to %s (trigger_id=%s, exc=%s)",
+            out_path, trigger_id, type(exc).__name__,
+        )
+    except Exception as write_exc:  # noqa: BLE001
+        log.warning(
+            "Could not write board-meeting failure artifact: %s (original exc still propagating)",
+            write_exc,
+        )
 
 
 async def _fire_meta_curator_trigger(trigger: dict, log) -> None:
@@ -55,7 +104,16 @@ async def _fire_meta_curator_trigger(trigger: dict, log) -> None:
 
 
 async def _fire_board_meeting_trigger(trigger: dict, log) -> None:
-    """Fire the full board meeting (all 6 phases) in a thread executor, then Telegram summary."""
+    """Fire the full board meeting (all 6 phases) in a thread executor, then Telegram summary.
+
+    RA-1984 — wraps `run_full_board_meeting()` so a failure produces a persistent
+    `<DATE>-board-failure.md` artifact alongside the regular `<DATE>-board-minutes.md`.
+    Without this, failures only surfaced as "Trigger failed id=board-meeting-daily"
+    log lines on Railway — which the operator must dig into Railway's UI to find.
+    The cron-loop's intentional `last_fired_at` non-update on failure (RA-1484/1493/1497)
+    still applies, so this is purely additive observability — not a behavioural change
+    on success.
+    """
     import json as _json
     from . import config
 
@@ -63,7 +121,14 @@ async def _fire_board_meeting_trigger(trigger: dict, log) -> None:
     loop = asyncio.get_event_loop()
 
     from .agents.board_meeting import run_full_board_meeting
-    result: dict = await loop.run_in_executor(None, run_full_board_meeting)
+    try:
+        result: dict = await loop.run_in_executor(None, run_full_board_meeting)
+    except Exception as exc:  # noqa: BLE001 — RA-1984 capture-and-rethrow
+        _persist_board_meeting_failure(trigger.get("id", "board-meeting-daily"), exc, log)
+        # Re-raise so the cron-loop's catch-all logs the traceback AND keeps
+        # `last_fired_at` stale (RA-1484/1493/1497 contract — operators rely on
+        # the stale timestamp as the watchdog signal).
+        raise
 
     swot     = result.get("swot") or {}
     recs     = result.get("sprint_recommendations") or {}
