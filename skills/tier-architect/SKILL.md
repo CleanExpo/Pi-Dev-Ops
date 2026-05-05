@@ -20,3 +20,7 @@ tiers:
     model: haiku
     parent: specialist
     role: Discrete tasks
+
+## Cold-start context (RA-1968)
+
+- On cold-start, check for `<dir>/WIKI.md` files alongside SKILL.md/CLAUDE.md and read them to seed context. Each `WIKI.md` is auto-refreshed post-merge by `tao-codebase-wiki` (`app/server/tao_codebase_wiki.py`).
