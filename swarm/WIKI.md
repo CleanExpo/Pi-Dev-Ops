@@ -1,8 +1,8 @@
 # swarm — Wiki
 
-_Last updated: 2026-05-05T11:32:16Z (commits 9046c74..88ec41c)_
+_Last updated: 2026-05-05T12:05:58Z (commits eccc3ca..e701b87)_
 
 ## Recent changes
-- 88ec41c — feat(portfolio_pulse): RA-2006 — Friday 8am AEST week-in-review recap (#189)
+- e701b87 — fix(margot): RA-2002b — prompt no longer hallucinates fake RA-numbers (#190)
 
 Not logged in · Please run /login
