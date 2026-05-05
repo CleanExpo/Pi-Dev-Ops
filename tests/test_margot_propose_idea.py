@@ -22,7 +22,41 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from swarm import margot_bot, margot_tools  # noqa: E402
+from swarm import margot_bot  # noqa: E402
+
+
+def _import_margot_tools():
+    """Lazy import — see autouse fixture below for pollution mitigation."""
+    from swarm import margot_tools  # noqa: PLC0415
+    return margot_tools
+
+
+@pytest.fixture(autouse=True)
+def _restore_swarm_submodule_attrs():
+    """Critical — defeats inter-test-file pollution.
+
+    Several swarm submodules get patched in other test files via
+    `monkeypatch.setitem(sys.modules, "swarm.<X>", fake_module)`:
+      * swarm.margot_tools (test_margot_research_voice.py)
+      * swarm.draft_review, swarm.pii_redactor (test_wireups.py)
+    The pattern relies on the swarm package re-binding its attribute
+    from sys.modules at next import. But once OUR tests import these
+    (directly or via handle_turn's lazy import chain), the swarm package
+    holds a permanent reference to the real module. Production code's
+    `from . import X` reads the package attribute first, silently
+    bypassing the sys.modules swap.
+
+    Workaround: after each of OUR tests, remove those attributes +
+    sys.modules entries. The next test file that needs them re-imports
+    them cheaply, and any test that swaps via sys.modules has its swap
+    honoured because the package attribute is freshly populated from
+    sys.modules during the new import.
+    """
+    yield
+    import swarm  # noqa: PLC0415
+    for submod in ("margot_tools", "draft_review", "pii_redactor"):
+        swarm.__dict__.pop(submod, None)
+        sys.modules.pop(f"swarm.{submod}", None)
 
 
 # ── Sentinel parser ──────────────────────────────────────────────────────────
@@ -101,6 +135,7 @@ def test_parse_idea_multiple():
 
 
 def test_propose_idea_dry_run_returns_synthetic():
+    margot_tools = _import_margot_tools()
     out = margot_tools.propose_idea(
         title="Test idea", description="Body", dry_run=True,
     )
@@ -110,6 +145,7 @@ def test_propose_idea_dry_run_returns_synthetic():
 
 
 def test_propose_idea_no_api_key_returns_error(monkeypatch):
+    margot_tools = _import_margot_tools()
     monkeypatch.setenv("TAO_SWARM_ENABLED", "1")  # bypass kill switch
     monkeypatch.delenv("LINEAR_API_KEY", raising=False)
     out = margot_tools.propose_idea(title="Test", description="x")
@@ -120,12 +156,14 @@ def test_propose_idea_no_api_key_returns_error(monkeypatch):
 
 
 def test_propose_idea_kill_switch_skips(monkeypatch):
+    margot_tools = _import_margot_tools()
     monkeypatch.setenv("TAO_SWARM_ENABLED", "0")  # kill switch ACTIVE
     out = margot_tools.propose_idea(title="Test", description="x")
     assert out == {"status": "skipped_kill_switch"}
 
 
 def test_propose_idea_empty_title_rejected(monkeypatch):
+    margot_tools = _import_margot_tools()
     monkeypatch.setenv("TAO_SWARM_ENABLED", "1")
     monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
     out = margot_tools.propose_idea(title="   ", description="body")
@@ -134,6 +172,7 @@ def test_propose_idea_empty_title_rejected(monkeypatch):
 
 def test_propose_idea_payload_includes_label_and_project(monkeypatch):
     """Mock the GraphQL transport and verify the issueCreate input shape."""
+    margot_tools = _import_margot_tools()
     monkeypatch.setenv("TAO_SWARM_ENABLED", "1")
     monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
 
@@ -189,6 +228,7 @@ def test_propose_idea_payload_includes_label_and_project(monkeypatch):
 
 def test_propose_idea_creates_label_when_missing(monkeypatch):
     """First-time use: label doesn't exist yet, should auto-create."""
+    margot_tools = _import_margot_tools()
     monkeypatch.setenv("TAO_SWARM_ENABLED", "1")
     monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
 
@@ -234,7 +274,12 @@ async def test_handle_turn_files_idea_and_appends_confirmation(
     monkeypatch, tmp_path,
 ):
     """End-to-end: LLM draft contains [IDEA], turn.margot_text contains
-    "Filed as RA-XXXX" confirmation, sentinel is stripped."""
+    "Filed as RA-XXXX" confirmation, sentinel is stripped.
+
+    Patches `propose_idea` on the live margot_tools module fetched lazily
+    via the helper so we don't bind the module at file scope (would defeat
+    research_voice's sys.modules swap)."""
+    margot_tools = _import_margot_tools()
     monkeypatch.setenv("TAO_SWARM_ENABLED", "1")
 
     # Stub _call_llm to return a draft with an [IDEA] sentinel.
@@ -287,6 +332,7 @@ async def test_handle_turn_files_idea_and_appends_confirmation(
 async def test_handle_turn_idea_failure_inlines_apology(monkeypatch, tmp_path):
     """If propose_idea returns an error, the user-facing reply contains a
     one-line apology so the conversation continues."""
+    margot_tools = _import_margot_tools()
     monkeypatch.setenv("TAO_SWARM_ENABLED", "1")
 
     async def _fake_call_llm(*, prompt, turn_id, role):
