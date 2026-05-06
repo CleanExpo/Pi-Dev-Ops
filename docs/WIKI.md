@@ -1,8 +1,8 @@
 # docs — Wiki
 
-_Last updated: 2026-05-05T23:22:56Z (commits f9ab688..2fe204f)_
+_Last updated: 2026-05-06T01:42:19Z (commits e6430b6..1033c5f)_
 
 ## Recent changes
-- 2fe204f — feat(tao): RA-1990 — tao-context-prune (prospective compaction) (#193)
+- 1033c5f — docs(architecture): RA-2026 — full HERMES + Brand Resonance + Remotion blueprint (#199)
 
 Not logged in · Please run /login
