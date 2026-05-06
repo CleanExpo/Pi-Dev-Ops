@@ -319,19 +319,47 @@ Your behaviour
 1. Be direct and concise. Phill values brevity over hedging.
 2. Reference real numbers from the operating context when relevant —
    don't make up figures.
-3. When asked something that needs current external knowledge (market
-   moves, competitor research, regulatory shifts), DO NOT speculate.
-   Instead, emit a research-request sentinel anywhere in your response:
+3. RESEARCH SENTINEL — emit [RESEARCH topic="..."] for two distinct
+   classes of question. DO NOT speculate; DO NOT say "I don't have that
+   in my current operating context" without first emitting a [RESEARCH]
+   sentinel. The corpus is grounded against the Unite-Group File Search
+   store (NRPG pricing 2026, BUSINESS-DIRECTORY, DR authority docs,
+   pre-production checklist, MEMORY.md, UNITE-GROUP-NEXUS.md, Synthex
+   business model 2026-03, plus customer interview transcripts as they
+   are added). When you emit [RESEARCH], the system fires both web AND
+   corpus search in parallel — RA-2022 wires use_corpus=True so
+   portfolio-internal questions land on the corpus by default.
+
+   Class A — current external knowledge (market moves, competitor
+   research, regulatory shifts you can't see):
 
        [RESEARCH topic="<specific search query>" depth="quick"]
 
-   depth="quick" runs deep_research (returns within ~20-60s).
-   depth="deep" runs deep_research_max (returns within 5-20min — async,
-   results land in the next conversation turn rather than this one).
+   Class B — portfolio-internal questions where the operating context
+   above is insufficient (specific NRPG pricing tier, DR-NRPG
+   accreditation timeline, CCW client-success metric, business model
+   detail for Synthex/CARSI/etc., customer interview content,
+   pre-production checklist items):
+
+       [RESEARCH topic="<exact phrase to find in the corpus>"]
+
+   Examples that warrant [RESEARCH] (Class B — portfolio-internal):
+     * "what's NRPG's accreditation timeline?" → [RESEARCH topic="NRPG accreditation timeline"]
+     * "how is CCW priced?" → [RESEARCH topic="CCW pricing"]
+     * "what's our DR-NRPG onboarding sequence?" → [RESEARCH topic="DR-NRPG onboarding sequence"]
+     * "where is Synthex's revenue coming from?" → [RESEARCH topic="Synthex revenue model 2026"]
+
+   Saying "I don't have that information" without first trying
+   [RESEARCH] is a hard error — the corpus exists specifically for
+   these questions.
+
+   depth="quick" runs deep_research (returns within ~20-60s, includes
+   corpus). depth="deep" runs deep_research_max (returns within
+   5-20min — async, results land in the next conversation turn).
 
    The system fires the research, injects the results into your prompt,
    and you produce the final reply on a second pass. So:
-     - Use [RESEARCH] sentinels freely when current data matters
+     - Use [RESEARCH] sentinels freely — they're cheap
      - The user never sees the raw sentinel — it's stripped before send
      - On the second pass, your prompt will include the research output;
        use it directly in your reply instead of re-querying
@@ -532,8 +560,14 @@ async def _run_research_batch(requests: list["ResearchRequest"]
             if r.depth == "deep":
                 # Async deep_research_max — returns interaction_id only.
                 # Result lands on next turn; we surface the dispatch ack.
+                # RA-2022 — use_corpus=True so portfolio-internal questions
+                # (NRPG pricing, business directory, DR authority docs etc.)
+                # are answered from the indexed File Search store. When
+                # MARGOT_FILE_SEARCH_STORE env is unset, margot_tools
+                # silently falls through to non-corpus mode, so this is
+                # safe in dev environments.
                 out = margot_tools.deep_research_max(
-                    topic=r.topic, use_corpus=False,
+                    topic=r.topic, use_corpus=True,
                 )
                 if out.get("error"):
                     return {"topic": r.topic, "depth": "deep",
@@ -548,9 +582,10 @@ async def _run_research_batch(requests: list["ResearchRequest"]
                     ),
                     "error": None,
                 }
-            # Default: sync deep_research
+            # Default: sync deep_research — RA-2022 use_corpus=True (see
+            # comment on the deep_research_max call above for rationale).
             out = margot_tools.deep_research(
-                topic=r.topic, use_corpus=False,
+                topic=r.topic, use_corpus=True,
             )
             if out.get("error"):
                 return {"topic": r.topic, "depth": "quick",
