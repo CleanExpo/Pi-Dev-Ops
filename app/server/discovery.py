@@ -303,12 +303,11 @@ def _is_hard_stop() -> bool:
 
 
 def _scan_with_perplexity(query: str) -> list[Finding]:
-    """Call mcp.pi_ceo.perplexity_research and shape into Finding records.
-
-    NOTE: actual Perplexity wiring lives in mcp/pi-ceo-server.js; this
-    function is the python-side caller-shim. For now it delegates to a
-    hook that tests can patch; production wiring lands in a follow-up
-    sub-issue when the Discovery loop is enabled in cron.
+    """Legacy Perplexity-only scan. Kept for backwards compatibility with
+    callers that pre-date RA-2027's NotebookLM-first routing. New code
+    should call _scan_with_research_provider() instead, which routes
+    NotebookLM-first with Perplexity fallback per RA-2027 operator
+    decision 2026-05-06.
     """
     fn = _PERPLEXITY_HOOK
     if fn is None:
@@ -318,6 +317,40 @@ def _scan_with_perplexity(query: str) -> list[Finding]:
         return fn(query) or []
     except Exception as exc:  # noqa: BLE001
         log.warning("discovery: perplexity scan failed for %r: %s", query, exc)
+        return []
+
+
+def _scan_with_research_provider(
+    query: str,
+    *,
+    persona_id: str,
+    prefer_external: bool = False,
+) -> list[Finding]:
+    """RA-2027 — NotebookLM-first scan with Perplexity fallback. Routes
+    via swarm.research_provider.research().
+
+    Operator decision 2026-05-06: NotebookLM (free, already connected)
+    handles portfolio-internal queries; Perplexity becomes fallback for
+    truly external signals. Drops expected Perplexity utilisation from
+    ~196 calls/day to ~50, leaves the $5/day cap as structural slack.
+
+    `prefer_external=True` when caller knows the query is market /
+    regulator / competitor (skips NotebookLM entirely).
+    """
+    try:
+        from swarm import research_provider  # noqa: PLC0415
+    except ImportError as exc:
+        log.warning("discovery: research_provider unavailable (%s) — falling back to legacy", exc)
+        return _scan_with_perplexity(query)
+    try:
+        return research_provider.research(
+            query, persona_id=persona_id, prefer_external=prefer_external,
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.warning(
+            "discovery: research_provider raised for %r/%s: %s",
+            query, persona_id, exc,
+        )
         return []
 
 
@@ -357,17 +390,39 @@ def _summarise_with_gemma(prompt: str, *, timeout_s: int = 120) -> str:
 
 
 def scan(persona: PersonaConfig) -> list[Finding]:
-    """Protocol 1 — SCAN. Iterate persona's watch-list, call Perplexity
-    per query, accumulate Findings. Each Finding is independently
-    summarised by Gemma 4 (fail-soft when Gemma is offline)."""
+    """Protocol 1 — SCAN. Iterate persona's watch-list, route each query
+    through the NotebookLM-first research provider (RA-2027), accumulate
+    Findings. Each Finding is independently summarised by Gemma 4 when
+    no upstream summary is provided (fail-soft when Gemma is offline).
+
+    The watch-list query format ``[external] <query>`` flags external
+    signals — they skip NotebookLM and go straight to Perplexity. All
+    other queries try NotebookLM first.
+    """
     findings: list[Finding] = []
-    for query in persona.watchlist:
-        per_query = _scan_with_perplexity(query)
+    for raw_query in persona.watchlist:
+        # External-signal flag: prefix `[external] ` skips NotebookLM and
+        # goes straight to Perplexity. Used for market/regulator/competitor
+        # queries that won't be in the corpus.
+        prefer_external = raw_query.startswith("[external] ")
+        query = raw_query.removeprefix("[external] ").strip() if prefer_external else raw_query
+
+        # When the legacy Perplexity hook is explicitly registered (test
+        # fixtures + pre-RA-2027 callers), honour it. Otherwise route via
+        # the NotebookLM-first research provider per RA-2027.
+        if _PERPLEXITY_HOOK is not None:
+            per_query = _scan_with_perplexity(query)
+        else:
+            per_query = _scan_with_research_provider(
+                query, persona_id=persona.persona_id,
+                prefer_external=prefer_external,
+            )
+
         for f in per_query:
             f.persona_id = persona.persona_id
             f.raw_query = query
             if not f.summary:
-                # Gemma 4 summarises the raw research output for this finding
+                # Gemma 4 summarises raw research output for this finding
                 blob = (
                     f"Title: {f.title}\nURL: {f.url}\nDate: {f.published_date}\n"
                     f"Source: {f.source}\nQuery: {query}"
@@ -375,6 +430,17 @@ def scan(persona: PersonaConfig) -> list[Finding]:
                 f.summary = _summarise_with_gemma(blob)
             findings.append(f)
     return findings
+
+
+def _has_research_provider() -> bool:
+    """Best-effort check whether the new research_provider module is
+    available (allows the legacy `_PERPLEXITY_HOOK` path to still work
+    for tests that patched only the legacy hook before RA-2027)."""
+    try:
+        from swarm import research_provider  # noqa: PLC0415, F401
+        return True
+    except ImportError:
+        return False
 
 
 # ── GAP protocol ─────────────────────────────────────────────────────────────
