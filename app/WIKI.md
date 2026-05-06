@@ -1,8 +1,8 @@
 # app — Wiki
 
-_Last updated: 2026-05-05T23:54:50Z (commits 2d5ccc7..4f5aec6)_
+_Last updated: 2026-05-06T01:37:12Z (commits 57b2ce5..770e78c)_
 
 ## Recent changes
-- 4f5aec6 — feat(tao): RA-1994 — tao-boomerang (summary-only one-shot dispatch) (#196)
+- 770e78c — feat(discovery): RA-2026 Phase 1 — HERMES Discovery loop foundation (#198)
 
 Not logged in · Please run /login
