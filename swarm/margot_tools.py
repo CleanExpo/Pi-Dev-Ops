@@ -288,6 +288,12 @@ def _resolve_or_create_label(team_id: str, label_name: str) -> str | None:
             .get("issueLabel", {}).get("id")
 
 
+# RA-2026 — second label applied alongside MARGOT_IDEA_LABEL when the
+# proposal originates from the Discovery loop. Operator clarification
+# 2026-05-06: "Both labels".
+DISCOVERY_LOOP_LABEL: str = "discovery-loop"
+
+
 def propose_idea(title: str,
                  description: str = "",
                  *,
@@ -295,8 +301,10 @@ def propose_idea(title: str,
                  team: str = MARGOT_DEFAULT_TEAM,
                  priority: int = 3,
                  dry_run: bool = False,
+                 originator: str = "human",
                  **_: Any) -> dict[str, Any]:
-    """RA-2002 — capture a Telegram-side idea as a Linear Backlog ticket.
+    """RA-2002 — capture an idea as a Linear Backlog ticket. Extended in
+    RA-2026 to accept an `originator` parameter for Discovery-loop attribution.
 
     Args:
         title: One-line ticket title. Required, max ~200 chars (Linear caps).
@@ -308,22 +316,39 @@ def propose_idea(title: str,
         priority: 0=None, 1=Urgent, 2=High, 3=Medium (default), 4=Low.
         dry_run: When True, returns a synthetic response without touching
             the API. Used by tests + sentinel-verification flows.
+        originator: "human" (default — Margot Telegram bridge, RA-2002) or
+            "discovery_loop" (RA-2026). When "discovery_loop", BOTH the
+            `margot-idea` AND `discovery-loop` labels are applied (per
+            operator clarification 2026-05-06), and the attribution
+            footer is updated to cite the Discovery loop instead of the
+            ideas bridge.
 
     Returns:
         {"status": "created", "id": str, "identifier": str, "url": str,
-         "label": str} on success.
+         "labels": [str, ...], "originator": str} on success.
         {"error": ...} on failure (auth, team/project/label resolution,
          API error). Never raises — Margot's reply path catches errors and
          informs the user inline.
+
+    Backwards-compat note: the response key `label` (singular) is
+    preserved for existing RA-2002 callers; new key `labels` (plural)
+    is the canonical surface for RA-2026 onward.
     """
     if _kill_switch_active() and not dry_run:
         return {"status": "skipped_kill_switch"}
+
+    is_discovery = originator == "discovery_loop"
 
     if dry_run:
         return {
             "status": "dry_run", "title": title, "description": description,
             "project": project, "team": team, "priority": priority,
             "label": MARGOT_IDEA_LABEL,
+            "labels": (
+                [MARGOT_IDEA_LABEL, DISCOVERY_LOOP_LABEL]
+                if is_discovery else [MARGOT_IDEA_LABEL]
+            ),
+            "originator": originator,
         }
 
     if not (title or "").strip():
@@ -342,21 +367,36 @@ def propose_idea(title: str,
             project, team,
         )
 
-    label_id = _resolve_or_create_label(team_id, MARGOT_IDEA_LABEL)
+    # Build label set. margot-idea is universal; discovery-loop is added
+    # only for Discovery originator.
+    label_ids: list[str] = []
+    primary_label_id = _resolve_or_create_label(team_id, MARGOT_IDEA_LABEL)
+    if primary_label_id:
+        label_ids.append(primary_label_id)
+    if is_discovery:
+        secondary_label_id = _resolve_or_create_label(team_id, DISCOVERY_LOOP_LABEL)
+        if secondary_label_id:
+            label_ids.append(secondary_label_id)
 
     input_obj: dict[str, Any] = {
         "teamId": team_id, "title": title.strip(), "priority": priority,
     }
     if description:
-        # Append an attribution footer so the curator knows the source.
-        body = description.strip() + (
-            "\n\n---\n_Captured by Margot via RA-2002 ideas bridge._"
-        )
-        input_obj["description"] = body
+        # Attribution footer differs by originator so the curator can
+        # tell at a glance whether the ticket came from a Telegram
+        # ideation turn (RA-2002) or the Discovery loop (RA-2026).
+        if is_discovery:
+            footer = (
+                "\n\n---\n_Captured by the Discovery loop "
+                "(RA-2026 / Pi-CEO autonomous intelligence)._"
+            )
+        else:
+            footer = "\n\n---\n_Captured by Margot via RA-2002 ideas bridge._"
+        input_obj["description"] = description.strip() + footer
     if project_id:
         input_obj["projectId"] = project_id
-    if label_id:
-        input_obj["labelIds"] = [label_id]
+    if label_ids:
+        input_obj["labelIds"] = label_ids
 
     res = _linear_gql(
         """
@@ -375,11 +415,18 @@ def propose_idea(title: str,
     if not data.get("success"):
         return {"error": "create_failed", "raw": res}
     iss = data["issue"]
+    applied_label_names: list[str] = []
+    if primary_label_id:
+        applied_label_names.append(MARGOT_IDEA_LABEL)
+    if is_discovery and len(label_ids) > 1:
+        applied_label_names.append(DISCOVERY_LOOP_LABEL)
     return {
         "status": "created",
         "id": iss["id"], "identifier": iss["identifier"],
         "title": iss["title"], "url": iss["url"], "priority": iss["priority"],
-        "label": MARGOT_IDEA_LABEL if label_id else None,
+        "label": MARGOT_IDEA_LABEL if primary_label_id else None,  # legacy key
+        "labels": applied_label_names,                              # canonical
+        "originator": originator,
     }
 
 
@@ -496,6 +543,7 @@ except Exception as exc:
 __all__ = [
     "deep_research", "deep_research_max", "check_research",
     "corpus_status", "image_generate", "propose_idea",
-    "MARGOT_IDEA_LABEL", "MARGOT_DEFAULT_PROJECT", "MARGOT_DEFAULT_TEAM",
+    "MARGOT_IDEA_LABEL", "DISCOVERY_LOOP_LABEL",
+    "MARGOT_DEFAULT_PROJECT", "MARGOT_DEFAULT_TEAM",
     "register_with_flow_engine",
 ]
