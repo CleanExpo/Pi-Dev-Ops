@@ -315,5 +315,14 @@
     "minute": 0,
     "enabled": false,
     "note": "RA-2026 Phase 1 proof-of-pattern. Disabled by default \u2014 flip enabled=true after 48h dry-run review of ~/.hermes/discovery/restoreassist/*.jsonl reports. The persona's `scan_schedule` in projects.json is `0 */6 * * *` (every 6h), but cron-triggers.json supports single hour:minute fields, so we fire once per day at 00:00 UTC for the proof; the 6/12/18 window staggering lands in the Wave 2 sub-issue once Phase 1 is signed off. Discovery loop is gated on TAO_SWARM_ENABLED=1 + per-project discovery_enabled=true in projects.json."
+  },
+  {
+    "id": "discovery-archive-stale-daily",
+    "type": "discovery_archive",
+    "name": "Discovery loop \u2014 archive stale sev 4-5 tickets >7d (RA-2027)",
+    "hour": 2,
+    "minute": 0,
+    "enabled": true,
+    "note": "RA-2027 \u2014 daily 02:00 UTC sweep. Operator decision 2026-05-06: tickets with `discovery-loop` label at priority 3-4 (sev 4-5) with `updatedAt` >7 days ago auto-close to Cancelled with explanatory comment. Priority 1-2 (sev>=6) NEVER auto-closes. Prerequisite for Discovery going live across all 7 personas (~196 findings/day would exhaust Linear quotas without this)."
   }
 ]
