@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-05-06T00:25:34Z (commits 4144479..fadf4d9)_
+_Last updated: 2026-05-06T01:37:12Z (commits 57b2ce5..770e78c)_
 
 ## Recent changes
-- fadf4d9 — fix(margot): RA-2022 — handle_turn now passes use_corpus=True (#197)
+- 770e78c — feat(discovery): RA-2026 Phase 1 — HERMES Discovery loop foundation (#198)
 
 Not logged in · Please run /login
