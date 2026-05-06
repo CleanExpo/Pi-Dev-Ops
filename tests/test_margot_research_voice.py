@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
 import types
 from pathlib import Path
@@ -73,7 +72,7 @@ def test_run_research_batch_calls_quick_for_default(monkeypatch):
     calls: list[dict] = []
 
     def fake_quick(*, topic, use_corpus=False):
-        calls.append({"topic": topic, "depth": "quick"})
+        calls.append({"topic": topic, "depth": "quick", "use_corpus": use_corpus})
         return {"summary": f"Quick result for {topic}", "status": "ok"}
 
     fake_module = types.SimpleNamespace(
@@ -91,6 +90,36 @@ def test_run_research_batch_calls_quick_for_default(monkeypatch):
     assert findings[0]["summary"] == "Quick result for A"
     assert findings[1]["summary"] == "Quick result for B"
     assert {c["topic"] for c in calls} == {"A", "B"}
+    # RA-2022 — use_corpus MUST be True so portfolio-internal questions
+    # (NRPG pricing, business directory, etc.) hit the File Search store.
+    # Pre-RA-2022 this was hardcoded False and the corpus env wired in
+    # RA-2003 was a silent no-op.
+    assert all(c["use_corpus"] is True for c in calls), (
+        "deep_research must be called with use_corpus=True; pre-RA-2022 "
+        "regression."
+    )
+
+
+def test_run_research_batch_passes_use_corpus_true_for_deep(monkeypatch):
+    """RA-2022 regression — deep_research_max also passes use_corpus=True."""
+    deep_calls: list[dict] = []
+
+    def fake_max(*, topic, use_corpus=False):
+        deep_calls.append({"topic": topic, "use_corpus": use_corpus})
+        return {"interaction_id": "int-abc", "status": "dispatched"}
+
+    fake_module = types.SimpleNamespace(
+        deep_research=lambda **kw: {"error": "should_not_call_quick"},
+        deep_research_max=fake_max,
+    )
+    monkeypatch.setitem(sys.modules, "swarm.margot_tools", fake_module)
+
+    requests = [margot_bot.ResearchRequest(topic="DR-NRPG accreditation",
+                                            depth="deep")]
+    findings = asyncio.run(margot_bot._run_research_batch(requests))
+    assert len(findings) == 1
+    assert findings[0]["error"] is None
+    assert deep_calls == [{"topic": "DR-NRPG accreditation", "use_corpus": True}]
 
 
 def test_run_research_batch_calls_max_for_deep(monkeypatch):
