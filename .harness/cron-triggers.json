@@ -305,5 +305,15 @@
     "recap_label": "\ud83d\uddd3 Pi-CEO Weekly Recap",
     "enabled": true,
     "note": "RA-2006 \u2014 fires Thu 22:00 UTC = Fri 08:00 AEST. Cron uses datetime.utcnow().weekday(), so weekday=3 (Thursday UTC) is correct here even though the operator-facing day is Friday. Reuses portfolio_pulse with lookback_window(168h) + Telegram delivery enabled. Founder request 2026-05-05."
+  },
+  {
+    "id": "discovery-restoreassist",
+    "type": "discovery",
+    "name": "Discovery loop \u2014 RestoreAssist (RA-2026 Phase 1 proof)",
+    "persona": "restoreassist",
+    "hour": 0,
+    "minute": 0,
+    "enabled": false,
+    "note": "RA-2026 Phase 1 proof-of-pattern. Disabled by default \u2014 flip enabled=true after 48h dry-run review of ~/.hermes/discovery/restoreassist/*.jsonl reports. The persona's `scan_schedule` in projects.json is `0 */6 * * *` (every 6h), but cron-triggers.json supports single hour:minute fields, so we fire once per day at 00:00 UTC for the proof; the 6/12/18 window staggering lands in the Wave 2 sub-issue once Phase 1 is signed off. Discovery loop is gated on TAO_SWARM_ENABLED=1 + per-project discovery_enabled=true in projects.json."
   }
 ]

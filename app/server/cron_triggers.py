@@ -385,6 +385,9 @@ async def _fire_trigger(trigger: dict, log) -> None:
         await _fire_meta_curator_trigger(trigger, log)
     elif trigger_type == "portfolio_pulse":                    # RA-1888
         await _fire_portfolio_pulse_trigger(trigger, log)
+    elif trigger_type == "discovery":                           # RA-2026
+        from .discovery import _fire_discovery_trigger  # noqa: PLC0415
+        await _fire_discovery_trigger(trigger, log)
     else:
         await create_session(
             repo_url=trigger["repo_url"],

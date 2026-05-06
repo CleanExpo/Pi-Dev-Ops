@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "generated": "2026-04-10",
-  "description": "Pi-SEO project registry — maps every GitHub repo to its Linear project, team, and deployment URLs. Used by the autonomous scanner to route findings to the correct Linear project.",
+  "description": "Pi-SEO project registry \u2014 maps every GitHub repo to its Linear project, team, and deployment URLs. Used by the autonomous scanner to route findings to the correct Linear project.",
   "projects": [
     {
       "id": "pi-dev-ops",
@@ -10,7 +10,12 @@
       "linear_project_name": "Pi - Dev -Ops",
       "linear_team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673",
       "linear_team_key": "RA",
-      "stack": ["FastAPI", "Next.js", "Python", "TypeScript"],
+      "stack": [
+        "FastAPI",
+        "Next.js",
+        "Python",
+        "TypeScript"
+      ],
       "deployments": {
         "frontend": "https://dashboard-unite-group.vercel.app",
         "backend": "https://pi-dev-ops-production.up.railway.app"
@@ -20,7 +25,7 @@
       "path_exclusions": [
         "app/server/scanner.py"
       ],
-      "_comment_path_exclusions": "scanner.py contains regex patterns that match its own dangerous-pattern detectors — eval(), dangerouslySetInnerHTML, nosec, TODO-near-secret — all false positives from self-scanning (RA-675)"
+      "_comment_path_exclusions": "scanner.py contains regex patterns that match its own dangerous-pattern detectors \u2014 eval(), dangerouslySetInnerHTML, nosec, TODO-near-secret \u2014 all false positives from self-scanning (RA-675)"
     },
     {
       "id": "restoreassist",
@@ -29,12 +34,18 @@
       "linear_project_name": "RestoreAssist Compliance Platform",
       "linear_team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673",
       "linear_team_key": "RA",
-      "stack": ["Next.js", "TypeScript", "Supabase"],
+      "stack": [
+        "Next.js",
+        "TypeScript",
+        "Supabase"
+      ],
       "deployments": {
         "frontend": "https://restoreassist.app"
       },
       "scan_priority": "high",
-      "scan_schedule": "0 */6 * * *"
+      "scan_schedule": "0 */6 * * *",
+      "business_charter": "business-charters/restoreassist.md",
+      "discovery_enabled": true
     },
     {
       "id": "disaster-recovery",
@@ -48,10 +59,15 @@
       "linear_project_name": "DR Client Website (disasterrecovery.com.au)",
       "linear_team_id": "43811130-ac12-47d3-9433-330320a76205",
       "linear_team_key": "DR",
-      "stack": ["Next.js", "TypeScript"],
+      "stack": [
+        "Next.js",
+        "TypeScript"
+      ],
       "deployments": {},
       "scan_priority": "high",
-      "scan_schedule": "0 */6 * * *"
+      "scan_schedule": "0 */6 * * *",
+      "business_charter": "business-charters/disaster-recovery.md",
+      "discovery_enabled": true
     },
     {
       "id": "dr-nrpg",
@@ -60,10 +76,16 @@
       "linear_project_name": "NRPG Operations Platform",
       "linear_team_id": "43811130-ac12-47d3-9433-330320a76205",
       "linear_team_key": "DR",
-      "stack": ["Next.js", "TypeScript", "Supabase"],
+      "stack": [
+        "Next.js",
+        "TypeScript",
+        "Supabase"
+      ],
       "deployments": {},
       "scan_priority": "medium",
-      "scan_schedule": "0 0 * * *"
+      "scan_schedule": "0 0 * * *",
+      "business_charter": "business-charters/dr-nrpg.md",
+      "discovery_enabled": true
     },
     {
       "id": "nrpg-onboarding",
@@ -72,7 +94,10 @@
       "linear_project_name": "NRPG Contractor Onboarding Framework",
       "linear_team_id": "43811130-ac12-47d3-9433-330320a76205",
       "linear_team_key": "DR",
-      "stack": ["Next.js", "TypeScript"],
+      "stack": [
+        "Next.js",
+        "TypeScript"
+      ],
       "deployments": {},
       "scan_priority": "medium",
       "scan_schedule": "0 0 * * *"
@@ -84,12 +109,18 @@
       "linear_project_name": "Synthex",
       "linear_team_id": "b887971b-6761-4260-a111-b94dbb628ebe",
       "linear_team_key": "SYN",
-      "stack": ["Next.js", "TypeScript", "Supabase"],
+      "stack": [
+        "Next.js",
+        "TypeScript",
+        "Supabase"
+      ],
       "deployments": {
         "frontend": "https://synthex.social"
       },
       "scan_priority": "high",
-      "scan_schedule": "0 */6 * * *"
+      "scan_schedule": "0 */6 * * *",
+      "business_charter": "business-charters/synthex.md",
+      "discovery_enabled": true
     },
     {
       "id": "unite-group",
@@ -98,12 +129,19 @@
       "linear_project_name": "Unite-Group",
       "linear_team_id": "ab9c7810-4dd6-4ce2-8e8f-e1fc94c6b88b",
       "linear_team_key": "UNI",
-      "stack": ["Next.js", "TypeScript", "Supabase", "Claude AI"],
+      "stack": [
+        "Next.js",
+        "TypeScript",
+        "Supabase",
+        "Claude AI"
+      ],
       "deployments": {
         "frontend": "https://dashboard-unite-group.vercel.app"
       },
       "scan_priority": "high",
-      "scan_schedule": "0 */6 * * *"
+      "scan_schedule": "0 */6 * * *",
+      "business_charter": "business-charters/unite-group.md",
+      "discovery_enabled": true
     },
     {
       "id": "nodejs-starter",
@@ -112,7 +150,12 @@
       "linear_project_name": "NodeJS Starter V1",
       "linear_team_id": "ab9c7810-4dd6-4ce2-8e8f-e1fc94c6b88b",
       "linear_team_key": "UNI",
-      "stack": ["Next.js", "FastAPI", "PostgreSQL", "TypeScript"],
+      "stack": [
+        "Next.js",
+        "FastAPI",
+        "PostgreSQL",
+        "TypeScript"
+      ],
       "deployments": {},
       "scan_priority": "low",
       "scan_schedule": "0 0 * * 1"
@@ -124,11 +167,13 @@
       "linear_project_name": null,
       "linear_team_id": "ab9c7810-4dd6-4ce2-8e8f-e1fc94c6b88b",
       "linear_team_key": "UNI",
-      "stack": ["Python"],
+      "stack": [
+        "Python"
+      ],
       "deployments": {},
       "scan_priority": "low",
       "scan_schedule": "0 0 * * 1",
-      "notes": "No Linear project yet — scanner will create tickets at team level"
+      "notes": "No Linear project yet \u2014 scanner will create tickets at team level"
     },
     {
       "id": "ccw-crm",
@@ -137,10 +182,18 @@
       "linear_project_name": "CCW-ERP/CRM",
       "linear_team_id": "ab9c7810-4dd6-4ce2-8e8f-e1fc94c6b88b",
       "linear_team_key": "UNI",
-      "stack": ["Next.js", "FastAPI", "TypeScript", "Python", "Supabase"],
+      "stack": [
+        "Next.js",
+        "FastAPI",
+        "TypeScript",
+        "Python",
+        "Supabase"
+      ],
       "deployments": {},
       "scan_priority": "high",
-      "scan_schedule": "0 */6 * * *"
+      "scan_schedule": "0 */6 * * *",
+      "business_charter": "business-charters/ccw-crm.md",
+      "discovery_enabled": true
     },
     {
       "id": "carsi",
@@ -149,10 +202,14 @@
       "linear_project_name": "CARSI",
       "linear_team_id": "91b3cd04-86eb-422d-81e2-9aa37db2f2f5",
       "linear_team_key": "GP",
-      "stack": ["unknown"],
+      "stack": [
+        "unknown"
+      ],
       "deployments": {},
       "scan_priority": "medium",
-      "scan_schedule": "0 0 * * *"
+      "scan_schedule": "0 0 * * *",
+      "business_charter": "business-charters/carsi.md",
+      "discovery_enabled": true
     }
   ],
   "scan_types": [
