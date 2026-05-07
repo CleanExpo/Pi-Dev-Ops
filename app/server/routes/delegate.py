@@ -27,7 +27,7 @@ router = APIRouter()
 # task_type → TAO agent display name + provider role
 TASK_TYPE_MAP: dict[str, tuple[str, str]] = {
     "code_gen":  ("Nova",  "generator"),
-    "research":  ("Sage",  "margot.synthesis"),
+    "research":  ("Sage",  "generator"),   # margot.synthesis → opus, not allowed; generator = Sonnet
     "planning":  ("Atlas", "planner"),
     "review":    ("Lens",  "evaluator"),
     "docs":      ("Quill", "generator"),
