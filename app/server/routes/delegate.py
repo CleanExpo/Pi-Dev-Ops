@@ -89,7 +89,8 @@ async def delegate_task(
         job_id, body.task_type, agent_name, body.chat_id,
     )
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    # Read from config (which handles op:// resolution + env loading on startup)
+    api_key = config.ANTHROPIC_API_KEY or os.environ.get("ANTHROPIC_API_KEY", "")
     if not api_key:
         raise HTTPException(503, "ANTHROPIC_API_KEY not configured on server")
 
