@@ -1,8 +1,8 @@
 # app — Wiki
 
-_Last updated: 2026-05-07T00:55:30Z (commits 0b90c27..741abdb)_
+_Last updated: 2026-05-07T01:02:52Z (commits daff452..c8a84f7)_
 
 ## Recent changes
-- 741abdb — fix(bridge): use Anthropic API directly instead of session_sdk
+- c8a84f7 — fix(bridge): read ANTHROPIC_API_KEY from config (handles op:// + env loading)
 
 Not logged in · Please run /login
