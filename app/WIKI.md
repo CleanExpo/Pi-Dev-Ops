@@ -1,8 +1,8 @@
 # app — Wiki
 
-_Last updated: 2026-05-07T00:52:39Z (commits 0e054d1..8b6ac3a)_
+_Last updated: 2026-05-07T00:55:30Z (commits 0b90c27..741abdb)_
 
 ## Recent changes
-- 8b6ac3a — fix(bridge): use generator role for research tasks (model_policy opus gate)
+- 741abdb — fix(bridge): use Anthropic API directly instead of session_sdk
 
 Not logged in · Please run /login
