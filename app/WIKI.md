@@ -1,8 +1,8 @@
 # app — Wiki
 
-_Last updated: 2026-05-07T01:02:52Z (commits daff452..c8a84f7)_
+_Last updated: 2026-05-07T01:04:09Z (commits 02b69c0..14ffcdd)_
 
 ## Recent changes
-- c8a84f7 — fix(bridge): read ANTHROPIC_API_KEY from config (handles op:// + env loading)
+- 14ffcdd — fix(bridge): OpenRouter fallback when ANTHROPIC_API_KEY absent on Railway
 
 Not logged in · Please run /login
