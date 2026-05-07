@@ -1,8 +1,8 @@
 """Margot → Pi-CEO delegation route — RA-1631.
 
 Margot sends a task_type + spec; this route maps to the right TAO agent
-name, dispatches via provider_router.run_via_provider, and returns the
-result synchronously (no callback complexity for v1).
+name, calls the Anthropic API directly (bypassing session_sdk / Claude Code
+CLI which is not authenticated on Railway), and returns synchronously.
 
 Auth: ``X-Pi-CEO-Secret`` header == ``TAO_WEBHOOK_SECRET``.
 Same scheme as margot.py.
@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import hmac as _hmac
 import logging
+import os
 import uuid
 from typing import Literal, Optional
 
@@ -88,26 +89,39 @@ async def delegate_task(
         job_id, body.task_type, agent_name, body.chat_id,
     )
 
-    try:
-        from ..provider_router import run_via_provider  # noqa: PLC0415
-    except Exception as exc:  # pragma: no cover
-        log.exception("provider_router import failed")
-        raise HTTPException(500, f"provider_router unavailable: {exc}") from exc
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(503, "ANTHROPIC_API_KEY not configured on server")
+
+    # Use Sonnet (mid-tier) for all delegation tasks — avoids session_sdk /
+    # Claude Code CLI which requires interactive login unavailable on Railway.
+    model = os.environ.get("TAO_MID_MODEL", "claude-sonnet-4-6").strip()
 
     prompt = (
-        f"[RA-1631 Delegation · job={job_id} · chat={body.chat_id}]\n\n"
+        f"[RA-1631 Delegation · job={job_id} · agent={agent_name} · chat={body.chat_id}]\n\n"
         f"{body.spec}"
     )
 
+    def _call_anthropic() -> tuple[str, float]:
+        import anthropic as _anthropic  # noqa: PLC0415
+        client = _anthropic.Anthropic(api_key=api_key)
+        message = client.messages.create(
+            model=model,
+            max_tokens=2048,
+            messages=[{"role": "user", "content": prompt}],
+            timeout=55.0,
+        )
+        text = message.content[0].text if message.content else ""
+        usage = message.usage
+        input_tok = getattr(usage, "input_tokens", 0)
+        output_tok = getattr(usage, "output_tokens", 0)
+        # Approximate cost: Sonnet ~$3/$15 per 1M in/out tokens
+        cost = (input_tok * 3 + output_tok * 15) / 1_000_000
+        return text, cost
+
     try:
-        rc, text, cost_usd, error = await asyncio.wait_for(
-            run_via_provider(
-                prompt,
-                role=role,
-                task_class="default",
-                timeout_s=55,  # leave 5 s margin under the 60 s gateway timeout
-                session_id=job_id,
-            ),
+        text, cost_usd = await asyncio.wait_for(
+            asyncio.to_thread(_call_anthropic),
             timeout=60.0,
         )
     except asyncio.TimeoutError as exc:
@@ -115,24 +129,20 @@ async def delegate_task(
         raise HTTPException(504, "Delegation task exceeded 60s timeout") from exc
     except Exception as exc:
         log.exception("delegate failed job=%s", job_id)
-        raise HTTPException(500, f"Delegation task failed: {exc}") from exc
-
-    if rc != 0 or error:
-        log.warning("delegate error job=%s rc=%s error=%s", job_id, rc, error)
         return DelegateResponse(
             job_id=job_id,
             result="",
             agent=agent_name,
-            cost_usd=float(cost_usd or 0.0),
+            cost_usd=0.0,
             status="error",
-            error=error or f"rc={rc}",
+            error=str(exc),
         )
 
     return DelegateResponse(
         job_id=job_id,
-        result=text or "",
+        result=text,
         agent=agent_name,
-        cost_usd=float(cost_usd or 0.0),
+        cost_usd=round(cost_usd, 6),
         status="complete",
         error=None,
     )
