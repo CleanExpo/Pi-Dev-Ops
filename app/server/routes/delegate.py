@@ -89,40 +89,57 @@ async def delegate_task(
         job_id, body.task_type, agent_name, body.chat_id,
     )
 
-    # Read from config (which handles op:// resolution + env loading on startup)
-    api_key = config.ANTHROPIC_API_KEY or os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        raise HTTPException(503, "ANTHROPIC_API_KEY not configured on server")
+    # Prefer raw Anthropic API; fall back to OpenRouter (which IS set on Railway).
+    # Both avoid session_sdk / Claude Code CLI which requires interactive login.
+    anthropic_key = config.ANTHROPIC_API_KEY or os.environ.get("ANTHROPIC_API_KEY", "")
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY", "")
 
-    # Use Sonnet (mid-tier) for all delegation tasks — avoids session_sdk /
-    # Claude Code CLI which requires interactive login unavailable on Railway.
-    model = os.environ.get("TAO_MID_MODEL", "claude-sonnet-4-6").strip()
+    if not anthropic_key and not openrouter_key:
+        raise HTTPException(503, "No LLM API key configured (ANTHROPIC_API_KEY or OPENROUTER_API_KEY)")
 
     prompt = (
         f"[RA-1631 Delegation · job={job_id} · agent={agent_name} · chat={body.chat_id}]\n\n"
         f"{body.spec}"
     )
 
-    def _call_anthropic() -> tuple[str, float]:
-        import anthropic as _anthropic  # noqa: PLC0415
-        client = _anthropic.Anthropic(api_key=api_key)
-        message = client.messages.create(
-            model=model,
-            max_tokens=2048,
-            messages=[{"role": "user", "content": prompt}],
-            timeout=55.0,
-        )
-        text = message.content[0].text if message.content else ""
-        usage = message.usage
-        input_tok = getattr(usage, "input_tokens", 0)
-        output_tok = getattr(usage, "output_tokens", 0)
-        # Approximate cost: Sonnet ~$3/$15 per 1M in/out tokens
-        cost = (input_tok * 3 + output_tok * 15) / 1_000_000
-        return text, cost
+    def _call_llm() -> tuple[str, float]:
+        if anthropic_key:
+            import anthropic as _anthropic  # noqa: PLC0415
+            model = os.environ.get("TAO_MID_MODEL", "claude-sonnet-4-6").strip()
+            client = _anthropic.Anthropic(api_key=anthropic_key)
+            message = client.messages.create(
+                model=model, max_tokens=2048,
+                messages=[{"role": "user", "content": prompt}],
+                timeout=55.0,
+            )
+            text = message.content[0].text if message.content else ""
+            usage = message.usage
+            cost = (getattr(usage, "input_tokens", 0) * 3 +
+                    getattr(usage, "output_tokens", 0) * 15) / 1_000_000
+            return text, cost
+        else:
+            # OpenRouter fallback — available on Railway via OPENROUTER_API_KEY
+            import httpx  # noqa: PLC0415
+            model = "anthropic/claude-sonnet-4-6"
+            resp = httpx.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {openrouter_key}",
+                         "Content-Type": "application/json"},
+                json={"model": model, "max_tokens": 2048,
+                      "messages": [{"role": "user", "content": prompt}]},
+                timeout=55.0,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            text = data["choices"][0]["message"]["content"]
+            usage = data.get("usage", {})
+            cost = (usage.get("prompt_tokens", 0) * 3 +
+                    usage.get("completion_tokens", 0) * 15) / 1_000_000
+            return text, cost
 
     try:
         text, cost_usd = await asyncio.wait_for(
-            asyncio.to_thread(_call_anthropic),
+            asyncio.to_thread(_call_llm),
             timeout=60.0,
         )
     except asyncio.TimeoutError as exc:
