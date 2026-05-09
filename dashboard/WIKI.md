@@ -1,4 +1,4 @@
-# app — Wiki
+# dashboard — Wiki
 
 _Last updated: 2026-05-09T08:30:37Z (commits aa4c75e..3b4c5c7)_
 
