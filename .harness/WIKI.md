@@ -1,8 +1,8 @@
 # .harness — Wiki
 
-_Last updated: 2026-05-06T02:57:59Z (commits 3425988..42205e2)_
+_Last updated: 2026-05-09T17:54:08Z (commits 44b4be4..d259e2d)_
 
 ## Recent changes
-- 42205e2 — feat(discovery): RA-2027 Wave 1 PR-A — NotebookLM-first SCAN + Linear archive cron (#200)
+- d259e2d — ops: skills, swarm agents, preview-canvas, brand configs, scripts [harness sync] (#202)
 
 Not logged in · Please run /login

@@ -1,4 +1,4 @@
-# scripts — Wiki
+# packages — Wiki
 
 _Last updated: 2026-05-09T17:54:08Z (commits 44b4be4..d259e2d)_
 
