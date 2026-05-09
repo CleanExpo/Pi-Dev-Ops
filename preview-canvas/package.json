@@ -1,0 +1,31 @@
+{
+  "name": "preview-canvas",
+  "version": "0.1.0",
+  "description": "Pi-CEO design-system preview canvas — visible variant comparison + brand inspector. Runs via preview_start.",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack -p 3030",
+    "build": "next build",
+    "start": "next start -p 3030",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.0.0",
+    "@react-three/fiber": "^9.1.0",
+    "@unite-group/brand-config": "file:../packages/brand-config",
+    "framer-motion": "^11.11.0",
+    "next": "^16.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "three": "^0.169.0",
+    "yaml": "^2.8.4",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.169.0",
+    "typescript": "^5.6.0"
+  }
+}

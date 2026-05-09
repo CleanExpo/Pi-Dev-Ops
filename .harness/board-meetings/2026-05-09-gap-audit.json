@@ -1,0 +1,82 @@
+{
+  "critical": [
+    {
+      "severity": "critical",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "webhook.py contains only inbound logic: verify_linear_signature(), parse_linear_event(), and linear_issue_to_brief(). There are zero outbound Linear API calls — no issueUpdate GraphQL mutation, no linear_update_issue helper, no HTTP POST to api.linear.app. The module is entirely read-only. main.py only assembles routers and contains no Linear write logic either.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Implement an outbound helper (e.g., async def linear_update_issue_state(issue_id, state_id, api_key)) that POSTs the issueUpdate GraphQL mutation to api.linear.app and call it from the session completion handler in routes/sessions.py to close the feedback loop.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "critical",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The smoke_test.py is an HTTP-level API surface test requiring a live running server (--url flag, real authentication). It does NOT cover the full build pipeline internals: no integration test exercises the session phase sequence (clone → plan → generate → evaluate → push), the evaluator loop, or the git push phase. The 22 checks are endpoint reachability probes, not pipeline integration tests.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Add pytest integration tests in tests/test_pipeline_integration.py that mock the Claude SDK and GitHub API to exercise the full session phase sequence end-to-end without a live server.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "critical",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "CLAUDE.md explicitly documents '3 pre-existing failures in test_sdk_phase2.py (claude_agent_sdk not installed locally)' — meaning the only test file that appears to cover SDK/pipeline integration is known-broken and excluded from the passing gate. Core pipeline functionality (SDK invocation, session streaming, evaluator) has zero passing automated test coverage.",
+      "file": "tests/test_sdk_phase2.py",
+      "recommendation": "Fix test_sdk_phase2.py by mocking claude_agent_sdk with unittest.mock.AsyncMock as documented in CLAUDE.md, removing the dependency on the real SDK being installed locally so CI can run all tests green.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "webhook triggers builds AND state updates flow back to Linear",
+      "reality": "parse_linear_event() returns a normalised dict but there is no code in the provided files that reads session completion state and writes it back — the 'two-way' half of the sync is entirely absent. The INBOUND direction (Linear → Pi-CEO) exists; the OUTBOUND direction (Pi-CEO → Linear state update) does not appear in any provided file.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Add a post-session-completion hook in routes/sessions.py (or routes/webhooks.py) that calls the Linear GraphQL API with the resolved session outcome (In Progress → Done / Cancelled) using the issue_id captured at build-trigger time.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The visible test files (test_auth.py — 13 unit tests, test_webhook.py — 16 unit tests) cover only auth and webhook signature verification. There are no integration tests for sessions.py, evaluator logic, pipeline.py phases, push phase, or the TAO engine. The smoke_test.py cannot substitute as it requires prod/local server with live env vars and is gated behind --target=prod.",
+      "file": "tests/",
+      "recommendation": "Create tests/test_sessions_integration.py and tests/test_pipeline_integration.py with mocked external dependencies (SDK, GitHub, Linear) to achieve true E2E pipeline coverage without a live server.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "high",
+      "claim": "Sprint 10 complete: ZTE v2 Section C wired (RA-672)",
+      "reality": "No test in the provided test files verifies ZTE v2 Section C behaviour or scoring logic. The smoke_test.py tests API surface but the truncated file does not show any ZTE-specific probe. Section C wiring is claimed complete but has no automated regression coverage to prevent future breakage.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Add a smoke_test.py check (or pytest test) that calls /api/autonomy/status or equivalent ZTE endpoint and asserts Section C fields are present and non-zero in the response.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "BudgetTracker in src/tao/budget/tracker.py is a correct implementation, but session_sdk.py does not instantiate it",
+      "reality": "The spec itself documents this gap inline — BudgetTracker is uninstantiated and token tracking is absent from SDK metric rows. No test in test_auth.py or test_webhook.py covers budget tracking, and there is no visible tests/test_budget_tracker.py confirming the tracker's correctness despite the 'correct implementation' claim.",
+      "file": "src/tao/budget/tracker.py",
+      "recommendation": "Add tests/test_budget_tracker.py with unit tests for BudgetTracker.tick() and threshold detection, and wire instantiation in session_sdk.py so the tracker is exercised in the SDK integration path.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 7,
+    "critical_count": 3,
+    "high_count": 3,
+    "low_count": 1,
+    "duration_s": 200.0,
+    "audited_at": "2026-05-09T05:09:59.759322+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": [
+      "RA-2156",
+      "RA-2157",
+      "RA-2158",
+      "RA-2159",
+      "RA-2160",
+      "RA-2161"
+    ]
+  }
+}

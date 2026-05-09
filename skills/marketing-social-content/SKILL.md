@@ -58,7 +58,24 @@ Owns short-form text for social. For social VIDEO, this skill writes the script 
 ### Image quote / static graphic
 - Quote text (≤14 words).
 - Attribution.
-- Visual brief for the designer (calling out `BrandConfig.colour.primary` + typography display family) — passes to `remotion-designer` if design-pass is wanted, or stays as a brief for an external designer.
+- **Visual brief as a `design.md` fragment** — emit a minimal YAML+prose block referencing the brand's `{slug}.design.md` tokens by name (`{colors.primary}`, `{typography.display-md}`, `{components.cta-primary}`), plus per-asset overrides where needed. The fragment is consumed downstream by `remotion-designer` (for video shorts) or by an image-generation skill / external designer. Example:
+
+  ```yaml
+  ---
+  brand: ra
+  asset: image-quote
+  inherits: synthex/packages/brand-config/src/brands/ra.design.md
+  overrides:
+    surface: "{colors.primary}"          # full-bleed primary background
+    quote-type: "{typography.display-lg}"
+    attribution-type: "{typography.caption}"
+  ---
+  ## Brief
+  Quote on hero-orange canvas. Attribution bottom-left in caption type. No
+  decorative elements. Brand mark top-left at safeAreaPx.
+  ```
+
+  Run `npx --prefix Pi-Dev-Ops/remotion-studio design.md lint <fragment>` if the fragment introduces new tokens (overrides only); otherwise lint runs on the source `.design.md` it inherits from.
 
 ## Output
 

@@ -17,7 +17,7 @@ Owns the look. Not the words (storyteller), not the moves (motion), not the buil
 
 ## Inputs
 
-- `brandSlug` — to read `BrandConfig`
+- `brandSlug` — to read both `BrandConfig` (runtime, via `brands[slug]`) and `{slug}.design.md` (visual tokens, via `loadDesign(slug)`)
 - `compositionId` — `Explainer` | `Intro` | `SocialAd` | …
 - `aspectRatio` — `1920x1080` | `1080x1920` | `1080x1080`
 - `storyboard` (optional) — to size text blocks
@@ -25,23 +25,27 @@ Owns the look. Not the words (storyteller), not the moves (motion), not the buil
 
 ## Method
 
-Apply these rules in order:
+Apply these rules in order. Whenever a value comes from the brand's design system, **reference the design.md token by name** (e.g. `{spacing.outer-margin-landscape}`, `{typography.display-xl}`, `{colors.primary}`) rather than emitting a pixel literal — `remotion-composition-builder` will resolve at build time.
 
-1. **Grid** — 12-column, 96px outer margin (1920×1080) or 64px (1080×1920). Safe area = 5% from each edge.
-2. **Typography hierarchy**:
-   - H1 (hook/cta hero): 96-120pt, `BrandConfig.typography.display`, `letter-spacing: -0.02em`, `line-height: 1.05`.
-   - H2 (body title): 48-64pt display, all-caps, `letter-spacing: 0.12em`.
-   - Body: 60-72pt body family, `line-height: 1.2`.
-   - Caption / kicker: 28-36pt body, all-caps, `letter-spacing: 0.18em`.
-3. **Colour application** — `BrandConfig.colour.primary` for hero backgrounds and tagline text, `secondary` for CTA cards, `accent` for emphasis bars and CTA labels only. Body text is always `neutral.50` on dark or `neutral.900` on light, chosen via `colour/readableOn()`.
-4. **White-space** — every text block has at least `0.5 × font-size` vertical breathing space above and below.
-5. **Logo placement** — top-left or bottom-right, never centred. Safe-area = `BrandConfig.logo.safeAreaPx`.
+1. **Grid** — 12-column. Outer margin: `{spacing.outer-margin-landscape}` for 1920×1080, `{spacing.outer-margin-portrait}` for 1080×1920. Safe area: `{spacing.safe-area}` (default 5%).
+2. **Typography hierarchy** — pick from the brand's design.md type scale. Roles map to scale rungs:
+   - Hook / CTA hero → `{typography.display-xl}`
+   - Body title → `{typography.display-md}` or `{typography.headline}`
+   - Body → `{typography.body-lg}` or `{typography.body-md}`
+   - Caption / kicker → `{typography.caption}`
+   - Code / identifier → `{typography.mono-md}` or `{typography.mono-lg}` (if defined)
+3. **Colour application** — hero backgrounds: `{colors.primary}`. CTA fills: `{colors.accent}` for accent CTAs, `{colors.secondary}` for subordinate. Body text: pick `on-{role}` token (e.g. `{colors.on-primary}`) when text sits on a known surface; otherwise fall back to `colour/readableOn()` for WCAG-AA contrast.
+4. **Component slots** — when the layout uses a recognised component (CTA, card, mono-chip, signal-chip, price-tag, network-badge), emit `{component: cta-primary}` and let `componentRecipe()` resolve the full bag at build time. Do not invent ad-hoc styles when a recipe exists.
+5. **White-space** — every text block has at least `0.5 × font-size` vertical breathing space above and below.
+6. **Logo placement** — top-left or bottom-right, never centred. Safe-area = `BrandConfig.logo.safeAreaPx` (stays in `.ts`, enforced by motion).
 
 ## Output
 
 Two artifacts:
-1. A layout spec JSON written to `.research/design/{compositionId}-{brandSlug}.json` capturing the resolved grid, type scale, and safe-area decisions.
+1. A layout spec JSON written to `.research/design/{compositionId}-{brandSlug}.json` whose values reference `{slug}.design.md` tokens by name (e.g. `{ "outer-margin": "{spacing.outer-margin-landscape}", "hook-type": "{typography.display-xl}" }`) — no pixel literals or hex codes inline.
 2. Inline edits to the composition's TSX (if QA-ing).
+
+After writing the layout spec, run `npx --prefix Pi-Dev-Ops/remotion-studio design.md lint Synthex/packages/brand-config/src/brands/{slug}.design.md` to confirm every token referenced in the layout exists in the brand's design.md. Block on lint errors; warnings are advisory.
 
 ## 5-D critique gate (mandatory before emitting layout spec)
 

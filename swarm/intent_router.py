@@ -27,7 +27,8 @@ log = logging.getLogger("swarm.intent_router")
 
 Intent = Literal[
     "research", "ticket", "reply", "reminder", "flow",
-    "margot",     # Wave 5.1 — conversational personal-assistant turn
+    "margot",       # Wave 5.1 — conversational personal-assistant turn
+    "fix_project",  # Agency SDLC — trigger health monitor + fix orchestrator
     "unknown",
 ]
 
@@ -43,6 +44,18 @@ _RESEARCH_PATTERNS = [
     re.compile(r"\b(?:please )?(?:give me|get me) (?:the )?(?:latest|context)\b", re.I),
 ]
 _RESEARCH_DEEP_HINTS = re.compile(r"\b(deep dive|deep-dive|long form|long-form|full report|max|comprehensive)\b", re.I)
+
+_FIX_PATTERNS = [
+    re.compile(r"\b(fix|repair|resolve|heal|green|healthy)\b.*(project|issue|bug|error|fail|red|problem)", re.I),
+    re.compile(r"\bmake\s+\w+\s+(green|healthy|100%)\b", re.I),
+    re.compile(r"\b(fix|sort out|clean up) (all|the) (red|issues|errors|problems|health)\b", re.I),
+    re.compile(r"\bship\s+the\s+\w+\s+feature\b", re.I),
+    re.compile(r"\b(run|start|trigger) the (agency|pipeline|production line|fix)\b", re.I),
+    re.compile(r"\bget\s+\w+\s+(to\s+)?(100%|green|working|live)\b", re.I),
+]
+_FIX_PROJECT_RE = re.compile(
+    r"\b(ccw-crm|ccw|restoreassist|ra|synthex|nrpg|dr|carsi|pi-dev-ops)\b", re.I
+)
 
 _TICKET_PATTERNS = [
     re.compile(r"\b(file|create|open|track|raise) (a )?(linear )?(ticket|issue|p\d|bug)\b", re.I),
@@ -198,6 +211,17 @@ def classify(
                     if any(p.search(text) for p in _MARGOT_PREFIX_PATTERNS)
                     else "dm_chat"
                 ),
+            },
+        }
+
+    # ── fix_project intent — triggers health monitor + fix orchestrator ────
+    if any(p.search(text) for p in _FIX_PATTERNS):
+        project_match = _FIX_PROJECT_RE.search(text)
+        return {
+            **base, "intent": "fix_project", "confidence": 0.9,
+            "fields": {
+                "project_hint": project_match.group(1).lower() if project_match else "all",
+                "raw_text": text,
             },
         }
 

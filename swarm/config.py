@@ -47,6 +47,12 @@ BOT_MODELS: dict[str, str] = {
     "click":    os.environ.get("TAO_CLICK_MODEL",    "qwen3.5:latest"),
 }
 
+# ── Local Ollama triage model (zero API cost) ─────────────────────────────────
+# Gemma 4 via Ollama — used for triage, routing, and low-stakes decisions.
+# Updated 2026-05-08 on Mac Mini. Use 26b for higher quality, latest for speed.
+OLLAMA_TRIAGE_MODEL: str = os.environ.get("OLLAMA_TRIAGE_MODEL", "gemma4:latest")
+OLLAMA_TRIAGE_MODEL_HEAVY: str = os.environ.get("OLLAMA_TRIAGE_MODEL_HEAVY", "gemma4:26b")
+
 # ── Telegram ──────────────────────────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN: str  = os.environ.get("TELEGRAM_BOT_TOKEN",   "")
 TELEGRAM_CHAT_ID: str    = os.environ.get("TELEGRAM_ALERT_CHAT_ID", "")
@@ -66,3 +72,15 @@ SWARM_LOG_DIR = pathlib.Path(os.environ.get("TAO_SWARM_LOG_DIR",
 SWARM_LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 LESSONS_FILE = str(_ROOT / ".harness" / "lessons.jsonl")
+
+# ── Brain-1 wiki ──────────────────────────────────────────────────────────────
+# Local directory injected into Margot's context on every turn.
+BRAIN1_WIKI_DIR: str = os.environ.get(
+    "BRAIN1_WIKI_DIR",
+    str(pathlib.Path.home() / "2nd Brain" / "2nd Brain" / "Wiki"),
+)
+
+# Gemini File Search store name for use_corpus=True deep_research calls.
+# Separate from the local wiki — requires uploading wiki pages to Gemini.
+# Consumed by ~/.margot/margot-deep-research/server.py, not by this process.
+MARGOT_FILE_SEARCH_STORE: str = os.environ.get("MARGOT_FILE_SEARCH_STORE", "")

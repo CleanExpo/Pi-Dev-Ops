@@ -1,0 +1,13 @@
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; background: #0b0d10; color: #e5e9ec; }
+a { color: inherit; }
+button { font: inherit; cursor: pointer; }
+.shell { max-width: 1400px; margin: 0 auto; padding: 32px; }
+.shell h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 4px; }
+.shell h2 { font-size: 20px; font-weight: 600; margin: 32px 0 12px; color: #c4cdd3; border-bottom: 1px solid #1f242a; padding-bottom: 8px; }
+.shell .lede { color: #8b949b; margin: 0 0 24px; }
+.brand-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.brand-card { display: block; padding: 14px 16px; border: 1px solid #1f242a; border-radius: 10px; background: #11141a; text-decoration: none; transition: border-color 120ms; }
+.brand-card:hover { border-color: #4b5258; }
+.brand-card .slug { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: #6e7780; }
+.brand-card .name { font-size: 16px; font-weight: 600; margin-top: 2px; }

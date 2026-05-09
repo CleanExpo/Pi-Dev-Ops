@@ -1,0 +1,90 @@
+{
+  "critical": [
+    {
+      "severity": "critical",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The 22-check suite in scripts/smoke_test.py is a black-box HTTP smoke test requiring a live running server (--url flag, cookie-based auth). It is not an E2E integration test of the internal build pipeline. It tests API surface reachability, not the session→evaluator→push pipeline phases. No pytest-level integration tests for sessions, evaluator, or push exist in the provided test files.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Create pytest integration tests under tests/test_pipeline_e2e.py that mock claude_agent_sdk and test the full session lifecycle (build → eval → push) without requiring a live server.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "critical",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The only pytest files provided (test_auth.py, test_webhook.py) are pure unit tests covering auth and webhook signature verification only. There are zero integration tests covering sessions.py, the evaluator phase (_run_single_eval), or _phase_push(). The CLAUDE.md itself admits test_sdk_phase2.py has 3 pre-existing failures because claude_agent_sdk is not installed locally, meaning SDK-path tests never pass in the standard test run.",
+      "file": "tests/test_auth.py",
+      "recommendation": "Add integration tests that mock claude_agent_sdk.query() (per the AsyncMock pattern documented in CLAUDE.md) and exercise session creation, evaluator invocation, and push phase in a single pytest fixture.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "webhook.py only handles inbound Linear webhook parsing and HMAC verification. There are no outbound Linear API calls in any provided file — no issueUpdate GraphQL mutation, no linear_update_issue helper, no HTTP client call to api.linear.app from Python. The sync is strictly one-directional: Linear → Pi-CEO.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Implement an outbound Linear state-update helper (e.g. POST api.linear.app/graphql with issueUpdate mutation) and call it from routes/webhooks.py after a session reaches a terminal state to close the loop.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "The provided source file (dashboard/app/api/telegram/route.ts) contains helper functions (triggerBuild, getPiCeoStatus, getLinearBacklog) but is truncated before the POST request handler where command routing (/start, /help, /build dispatch) would live. No explicit /start or /help command handlers are visible in the code — only infrastructure functions that could back a /build and /status command.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Read the full file to verify the POST handler includes a command-dispatch block (e.g. text.startsWith('/start'), text.startsWith('/help'), text.startsWith('/build')); if absent, add explicit handlers for /start (welcome + usage), /help (list commands), and /build <repo> <brief> (call triggerBuild).",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "scripts/smoke_test.py uses urllib directly against a live BASE URL with cookie-based auth — it cannot run in CI without a pre-deployed server. The smoke-prod CI job (per CLAUDE.md) only runs on main-branch and requires TAO_PROD_PASSWORD secret, meaning the 22-check suite is never exercised on PRs and does not gate the build pipeline at merge time.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Gate the smoke test on every PR by adding a CI job that spins up the FastAPI server in-process using httpx.AsyncClient(app=app, base_url='http://test') rather than hitting a live URL.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "high",
+      "claim": "Budget tracker is instantiated but not wired — BudgetTracker in src/tao/budget/tracker.py is a correct implementation, but session_sdk.py does not instantiate it",
+      "reality": "The spec itself documents this gap as an unresolved known issue (not ✅ Complete), yet no test exists to enforce that budget tracking is eventually wired — there is no failing test that would catch a regression or confirm when the wiring is done.",
+      "file": "tests/test_auth.py",
+      "recommendation": "Add a test in tests/test_budget_tracker.py that imports session_sdk and asserts BudgetTracker.tick() is called with a non-zero cost_delta after a mocked SDK invocation, so the gap becomes a failing test rather than a comment.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "The HISTORY map is in-process memory (const HISTORY = new Map). On Vercel serverless, each cold start gets a fresh Map, so multi-turn conversation context is silently lost between requests — the spec implies a functional conversational interface but the implementation has no persistent storage.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Persist conversation history to an external store (Edge Config, Upstash Redis, or Supabase) keyed by chatId, or document that stateless single-turn mode is intentional and strip the history logic.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "low",
+      "claim": "op:// refs in .env not resolved by dotenv — Pydantic validator must detect and return None",
+      "reality": "No test in the provided test files validates the Pydantic field_validator that detects op:// strings. The pattern is documented in CLAUDE.md as a hardwired lesson but no regression test exists to prevent it being silently removed.",
+      "file": "tests/test_auth.py",
+      "recommendation": "Add a test in tests/test_config.py that constructs a Settings/config object with a field value of 'op://vault/item/field' and asserts the validated value is None.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 8,
+    "critical_count": 2,
+    "high_count": 4,
+    "low_count": 2,
+    "duration_s": 275.9,
+    "audited_at": "2026-05-06T05:07:50.844839+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": [
+      "RA-2041",
+      "RA-2042",
+      "RA-2043",
+      "RA-2044",
+      "RA-2045",
+      "RA-2046"
+    ]
+  }
+}

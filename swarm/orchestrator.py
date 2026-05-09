@@ -341,6 +341,116 @@ def run() -> None:
         except Exception as exc:  # noqa: BLE001
             log.warning("Board process_pending failed (continuing): %s", exc)
 
+        # ── Brain-1 Sources watcher: auto-ingest new clips every cycle ──────
+        # Cheap — pure filesystem diff; LLM only fires when new files found.
+        try:
+            from . import sources_watcher  # noqa: PLC0415
+            sw = sources_watcher.run_cycle()
+            if sw.ingested:
+                log.info("sources_watcher: ingested %d new clip(s): %s",
+                         len(sw.ingested), sw.ingested)
+            if sw.errors:
+                log.warning("sources_watcher: %d error(s): %s",
+                            len(sw.errors), sw.errors)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("sources_watcher failed (continuing): %s", exc)
+
+        # ── Brain-1 Gap detector: wiki action queue → Linear tickets (daily) ─
+        # Reads tech-drops + priority pages; files tickets for unaddressed gaps.
+        try:
+            from . import gap_detector  # noqa: PLC0415
+            if gap_detector.should_run(state):
+                gd = gap_detector.run_daily()
+                state["last_gap_detect"] = datetime.now(timezone.utc).date().isoformat()
+                if gd.tickets_filed:
+                    log.info("gap_detector: filed %d ticket(s): %s",
+                             len(gd.tickets_filed), gd.tickets_filed)
+                log.info("gap_detector: %d already covered, %d skipped",
+                         len(gd.already_covered), gd.skipped)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("gap_detector failed (continuing): %s", exc)
+
+        # ── Project Health Monitor: scan all 11 projects for issues (daily) ──
+        # Reads DORA breaches, GitHub CI failures, stale PRs → files WorkOrder
+        # tickets in Linear so fix_orchestrator can dispatch specialist agents.
+        try:
+            from . import project_health_monitor as _phm  # noqa: PLC0415
+            if _phm.should_run(state):
+                hr = _phm.run_daily()
+                state["last_health_monitor"] = datetime.now(timezone.utc).date().isoformat()
+                log.info(
+                    "health_monitor: %d/%d projects unhealthy — %d work orders filed: %s",
+                    hr.projects_unhealthy, hr.projects_checked,
+                    len(hr.tickets_filed), hr.tickets_filed,
+                )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("project_health_monitor failed (continuing): %s", exc)
+
+        # ── Fix Orchestrator: dispatch specialists + route PRs to Board ───────
+        # Runs every cycle — checks for new WorkOrder tickets, dispatches
+        # specialist agents to fix them, routes completed PRs to Board gate.
+        try:
+            from . import fix_orchestrator as _fo  # noqa: PLC0415
+            fo = _fo.run_cycle()
+            if fo.jobs_dispatched:
+                log.info("fix_orchestrator: dispatched %d job(s): %s",
+                         len(fo.jobs_dispatched), fo.jobs_dispatched)
+            if fo.board_sessions_queued:
+                log.info("fix_orchestrator: queued %d Board review(s): %s",
+                         len(fo.board_sessions_queued), fo.board_sessions_queued)
+            if fo.jobs_failed:
+                log.warning("fix_orchestrator: %d job(s) failed: %s",
+                            len(fo.jobs_failed), fo.jobs_failed)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("fix_orchestrator failed (continuing): %s", exc)
+
+        # ── Production Coordinator: dispatch content + app builds (daily) ──
+        # Priority: RestoreAssist → CARSI → Synthex → CCW → DR → NRPG
+        # Fires marketing-orchestrator / remotion-orchestrator / fix jobs.
+        try:
+            from . import production_coordinator as _pc  # noqa: PLC0415
+            if _pc.should_run(state):
+                pc = _pc.run_daily()
+                state["last_production_coordinator"] = datetime.now(timezone.utc).date().isoformat()
+                log.info(
+                    "production_coordinator: %d jobs dispatched, %d skipped",
+                    len(pc.jobs_dispatched), pc.jobs_skipped,
+                )
+                for job in pc.jobs_dispatched:
+                    log.info("  → %s/%s [%s] %s",
+                             job.business_id, job.asset_id, job.status,
+                             job.linear_ticket_id or "")
+        except Exception as exc:  # noqa: BLE001
+            log.warning("production_coordinator failed (continuing): %s", exc)
+
+        # ── Enhancement Scout: scan wiki for system improvements (daily) ────
+        # Finds unimplemented tech-drops, unbuilt agents, Gemma 4 migration
+        # opportunities → files as Board agenda items + Linear tickets.
+        try:
+            from . import enhancement_scout as _es  # noqa: PLC0415
+            if _es.should_run(state):
+                es = _es.run_daily()
+                state["last_enhancement_scout"] = datetime.now(timezone.utc).date().isoformat()
+                if es.tickets_filed:
+                    log.info("enhancement_scout: %d proposals filed: %s",
+                             len(es.tickets_filed), es.tickets_filed)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("enhancement_scout failed (continuing): %s", exc)
+
+        # ── Visual briefings: 4x daily via NotebookLM + Telegram ─────────────
+        # 06:00 morning · 12:00 midday · 18:00 evening · 22:00 night (AEST)
+        try:
+            from . import visual_briefing as _vb  # noqa: PLC0415
+            for slot in ("morning", "midday", "evening", "night"):
+                if _vb.should_fire(slot, state):
+                    br = _vb.run_briefing(slot)
+                    state[f"last_briefing_{slot}"] = datetime.now(timezone.utc).isoformat()
+                    log.info("visual_briefing: %s fired — audio=%s sent=%s",
+                             slot, bool(br.audio_path), br.telegram_sent)
+                    break   # only one slot per cycle
+        except Exception as exc:  # noqa: BLE001
+            log.warning("visual_briefing failed (continuing): %s", exc)
+
         # ── RA-1863 — Daily 6-pager: composes CFO + CMO + CTO + CS daily
         # snippets + Margot insight + RA-1842 status + Board pending +
         # recent Board directives. Cron-fired at user-local 06:00 UTC

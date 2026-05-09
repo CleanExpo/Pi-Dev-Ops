@@ -49,7 +49,9 @@ Builds a complete palette from minimal anchors. Reuses [`remotion-studio/src/col
 
 ## Output
 
-A complete `BrandColour` object suitable for direct insertion into `BrandConfig.colour`. Plus a contrast report including OKLch coords for Phase 2 web consumption:
+Two artifacts:
+
+1. **JSON contrast report** with OKLch coords (for `remotion-brand-codify` and Phase 2 web consumption):
 
 ```jsonc
 {
@@ -66,6 +68,33 @@ A complete `BrandColour` object suitable for direct insertion into `BrandConfig.
   "fails": []
 }
 ```
+
+2. **YAML fragment** ready to drop into `Synthex/packages/brand-config/src/brands/{slug}.design.md` `colors:` block — token names follow the `@google/design.md` spec (lowercase + dashes for tier names, e.g. `neutral-50`, `dark-primary`):
+
+```yaml
+colors:
+  primary: "#0E7C7B"
+  secondary: "#2A3D45"
+  accent: "#C5E063"
+  neutral-50: "#F5F7F8"
+  neutral-100: "#E4E9EC"
+  neutral-500: "#6F7B82"
+  neutral-900: "#0E1518"
+  success: "#3FA34D"
+  warning: "#E0A800"
+  danger: "#C0392B"
+  on-primary: "#FFFFFF"
+  on-secondary: "#FFFFFF"
+  on-accent: "#0E1518"
+  surface: "{colors.neutral-50}"
+  on-surface: "{colors.neutral-900}"
+  dark-primary: "#16B5B3"
+  dark-secondary: "#1A2428"
+  dark-surface: "#0E1518"
+  dark-on-surface: "#F5F7F8"
+```
+
+Run `npx --prefix Pi-Dev-Ops/remotion-studio design.md lint` against the resulting `.design.md` to confirm zero contrast errors.
 
 ## Boundaries
 
