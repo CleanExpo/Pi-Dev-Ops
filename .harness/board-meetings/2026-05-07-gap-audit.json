@@ -1,0 +1,73 @@
+{
+  "critical": [
+    {
+      "severity": "critical",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The only test files present are test_auth.py (15 unit tests for auth layer) and test_webhook.py (unit tests for webhook signature parsing). There are zero E2E or integration tests covering the build pipeline — no tests for session creation, generator execution, evaluator scoring, or the push phase. The smoke_test.py is a standalone HTTP script requiring a live server, not an automated pytest integration test.",
+      "file": "tests/test_auth.py",
+      "recommendation": "Add a pytest integration test file (e.g., tests/test_pipeline_e2e.py) that mocks the Claude SDK and exercises the full session → evaluator → push flow without requiring a live server.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "critical",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "scripts/smoke_test.py is a live-server HTTP probe script invoked manually or post-deploy; it is not wired into pytest and does not test the internal build pipeline logic (sessions, evaluator, push). The CLAUDE.md also documents 3 pre-existing failures in test_sdk_phase2.py due to claude_agent_sdk not being installed locally, meaning the SDK integration layer has no passing automated tests.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Promote smoke_test.py checks into a pytest-compatible test file using httpx or requests with a pytest-server fixture, and fix or explicitly skip the sdk_phase2 failures so CI reflects true coverage state.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "No explicit /start command handler is present in dashboard/app/api/telegram/route.ts. The file sets up conversation history, Linear helpers, and a triggerBuild() function, but the command-dispatch logic (the section that would match message.text against '/start') is not visible — the file is truncated before the POST handler body.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Confirm the POST handler at the bottom of the file contains explicit branches for /start, /help, and /build; if absent, add them with appropriate responses (welcome message, help text, and build trigger respectively).",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "high",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "No /help command handler is visible anywhere in the provided source. The bot appears to route all input through the Anthropic SDK as conversational turns (CEO-delegation pattern) rather than implementing discrete slash-command handlers.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Add an explicit /help branch before the Anthropic fallback that returns a static list of supported commands so users can discover bot capabilities without relying on the LLM.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "No test file covers sessions.py, evaluator logic, or the push phase (_phase_push). The two existing test files (test_auth.py, test_webhook.py) cover only authentication and webhook signature verification — orthogonal subsystems with no pipeline involvement. Coverage of the core autonomous pipeline is effectively zero in the automated test suite.",
+      "file": "tests/test_webhook.py",
+      "recommendation": "Create tests/test_sessions.py with mocked SDK responses to cover at minimum: session creation, phase transitions, evaluator score parsing, and push-phase branch naming, asserting correct state after each phase.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "triggerBuild() helper function exists and is partially visible, indicating /build intent is coded, but the actual text-matching branch that maps the Telegram message '/build <repo> <brief>' to this function is cut off and cannot be verified in the provided excerpt.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Verify the POST handler contains a '/build' branch that parses repo URL and brief from the message text and calls triggerBuild(); add a usage hint reply when arguments are missing.",
+      "category": "Telegram commands"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 6,
+    "critical_count": 2,
+    "high_count": 3,
+    "low_count": 1,
+    "duration_s": 290.9,
+    "audited_at": "2026-05-07T05:07:33.912102+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": [
+      "RA-2062",
+      "RA-2063",
+      "RA-2064",
+      "RA-2065",
+      "RA-2066"
+    ]
+  }
+}

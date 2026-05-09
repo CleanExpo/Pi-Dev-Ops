@@ -1,0 +1,64 @@
+{
+  "critical": [
+    {
+      "severity": "critical",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The 22-check suite is scripts/smoke_test.py — a live-server HTTP script requiring a running backend (--url or --target=prod). It is not a pytest integration test and cannot be run in isolation. No pytest-based E2E tests covering the full build pipeline (sessions, evaluator, push) are present in the tests/ directory.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Add pytest integration tests in tests/test_pipeline_e2e.py that mock or spin up the FastAPI app with httpx.AsyncClient and cover /api/build, evaluator phase, and the git-push phase end-to-end.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "critical",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "CLAUDE.md explicitly documents '3 pre-existing failures in test_sdk_phase2.py (claude_agent_sdk not installed locally)' — meaning the SDK-path tests are permanently red in the local/CI environment. A suite with acknowledged failing tests cannot be classified as Complete.",
+      "file": "tests/test_sdk_phase2.py",
+      "recommendation": "Either mock claude_agent_sdk in test_sdk_phase2.py so all 3 failing tests pass in CI without the real SDK installed, or skip them with pytest.importorskip and remove the 'Complete' claim until they are green.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "critical",
+      "claim": "E2E or integration tests covering the full build pipeline (sessions, evaluator, push)",
+      "reality": "tests/test_auth.py and tests/test_webhook.py are pure unit tests for isolated modules. There are no tests that exercise app.server.routes.sessions (the /api/build endpoint), the evaluator phase, or the git-push phase (_phase_push) — the core pipeline is entirely untested at the integration level.",
+      "file": "tests/",
+      "recommendation": "Create tests/test_sessions_integration.py using FastAPI's TestClient/AsyncClient to exercise POST /api/build, verify session state transitions, mock the SDK call, and assert the push phase is invoked with correct arguments.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "smoke_test.py silently skips Linear failure-ticket creation when LINEAR_API_KEY is absent (the _raise_linear_failure_ticket function swallows all exceptions). CI smoke failures on Railway will produce no alert if the secret is unset — a surface-treatment violation per RA-1109.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Log a visible warning to stdout (and exit non-zero or print a banner) when LINEAR_API_KEY is missing and a failure ticket cannot be raised, so the silent skip is observable in CI output.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The smoke-prod CI job (per CLAUDE.md) runs only on main-branch and requires TAO_PROD_PASSWORD secret. Preview deployments and feature branches receive zero automated E2E validation — regressions in sessions/evaluator/push can merge undetected.",
+      "file": ".github/workflows/ (CI config, not shown)",
+      "recommendation": "Add a smoke-preview CI job that runs the smoke test against the Vercel/Railway preview URL on every PR, gated behind the same TAO_PROD_PASSWORD secret, so E2E coverage applies before merge not only after.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "low": [],
+  "summary": {
+    "total_discrepancies": 5,
+    "critical_count": 3,
+    "high_count": 2,
+    "low_count": 0,
+    "duration_s": 210.9,
+    "audited_at": "2026-05-08T05:06:08.195441+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": [
+      "RA-2078",
+      "RA-2079",
+      "RA-2080",
+      "RA-2081",
+      "RA-2082"
+    ]
+  }
+}

@@ -30,14 +30,18 @@ Per-job:
 ## Method (per artifact)
 
 ### Landing page
-- Hero (≤10-word headline + ≤20-word subhead + 1 primary CTA)
-- Problem/Pain section (uses ICP vocabulary verbatim)
-- Solution / how-it-works (3-5 modular sections)
+**Read `Synthex/packages/brand-config/src/brands/{slug}.design.md` first** — its `Components` section enumerates the design-system slots available for this brand (e.g. `cta-primary`, `card`, `signal-chip`, `mono-chip`, `network-badge`, `price-tag`). Structure copy to fit those slots; do not invent new component types. If the page needs a slot that doesn't exist, request it via `remotion-brand-codify` rather than coining one inline.
+
+- Hero (≤10-word headline + ≤20-word subhead + 1 `cta-primary` instance)
+- Problem/Pain section (uses ICP vocabulary verbatim, in `body-lg` cards)
+- Solution / how-it-works (3-5 modular `card` sections)
 - Social proof (testimonials, logos, metrics — flag placeholders if absent)
 - Feature → benefit translation (never raw feature list)
 - Objection handling (FAQ — pulls from ICP buyingProcess.commonObjections)
-- Final CTA (matches positioning Tier 1 tagline)
+- Final CTA (matches positioning Tier 1 tagline, second `cta-primary` instance)
 - Microcopy for forms / buttons (specific, not "Submit")
+
+Per-section, annotate the design slot in the output frontmatter (e.g. `hero-cta: cta-primary`, `pain-cards: card × 3`) so downstream component generation has a clean handoff.
 
 ### Blog post
 - SEO-driven title (≤60 chars, primary keyword, click-promise)

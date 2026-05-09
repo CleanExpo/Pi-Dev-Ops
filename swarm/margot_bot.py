@@ -240,6 +240,26 @@ def _load_recent_board_sessions(repo_root: Path,
     return out
 
 
+def _load_wiki_context(wiki_dir: str | None = None) -> dict[str, str]:
+    """Read Brain-1 wiki pages for injection into Margot's prompt.
+
+    Always loads index.md + founder.md. Caps at 2 000 chars per page.
+    Returns {} silently when the wiki directory doesn't exist (dev envs).
+    """
+    from . import config  # noqa: PLC0415
+    wdir = Path(wiki_dir or config.BRAIN1_WIKI_DIR)
+    if not wdir.exists():
+        return {}
+    out: dict[str, str] = {}
+    for name in ("index.md", "founder.md"):
+        p = wdir / name
+        if not p.exists():
+            continue
+        text = p.read_text(encoding="utf-8")
+        out[name] = text[:2000] + ("…" if len(text) > 2000 else "")
+    return out
+
+
 def _ccw_state_summary(repo_root: Path) -> dict[str, Any] | None:
     """Pull the most recent CCW row from each senior-bot ledger."""
     out: dict[str, Any] = {}
@@ -279,6 +299,7 @@ def build_context(*, repo_root: Path | None = None) -> dict[str, Any]:
         ),
         "board_recent": _load_recent_board_sessions(rr, limit=3),
         "ccw": _ccw_state_summary(rr),
+        "wiki": _load_wiki_context(),
     }
 
 
@@ -313,6 +334,31 @@ Do NOT confuse:
 
 Trajectory: strategic buyout in 12-18+ months is a positioning backdrop,
 not the current build target.
+
+Agency hierarchy (your position in it)
+======================================
+You are Margot — Phill's Personal Assistant and the entry point to the
+entire agency. The chain of command below you:
+
+  Phill (CEO)
+    → YOU (Margot — PA, research, routing, memory)
+      → Pi-CEO Board (9-persona strategic deliberation)
+        → Orchestrator (5-min cycle: health monitor, fix orchestrator, gap detector)
+          → Senior PMs (PM-CCW, PM-RA, PM-DR, PM-Synthex, PM-Core)
+            → Tier 1 Builders (IDD-1 to IDD-5, K-1 to K-5, SD-1 to SD-5)
+            → Tier 2 Growth (BG-1 to BG-5 brand/copy, GV-1 to GV-5 social)
+            → Tier 3 Advisory (ANZ Legal x5, Tax x5, Market Intel x5)
+          → Operational Bots (CFO, CMO, CTO, CS)
+
+When Phill says "fix all red items" / "make X green" / "run the agency":
+  1. Acknowledge immediately — "On it. Running the production line now."
+  2. Emit [BOARD-TRIGGER score=8 topic="fix_project: {project}"] so the
+     Board issues a directive to the fix orchestrator.
+  3. Do not wait for results before replying — the pipeline is async.
+
+When Phill asks "what's the status?":
+  Read from: cto_state.jsonl, cfo_state.jsonl, fix_jobs.jsonl,
+  board minutes, and the 6-pager. Synthesise into one brief.
 
 Your behaviour
 ==============
@@ -495,6 +541,12 @@ def _trim_dict_for_prompt(d: dict[str, Any] | None,
     return s[:max_chars] + "\n... [truncated]"
 
 
+def _format_wiki_for_prompt(wiki: dict[str, str] | None) -> str:
+    if not wiki:
+        return "(wiki not available)"
+    return "\n\n".join(f"[{name}]\n{content}" for name, content in wiki.items())
+
+
 def build_prompt(*, user_text: str, history: list[MargotTurn],
                   context: dict[str, Any]) -> str:
     """Build the full prompt sent to the LLM."""
@@ -505,6 +557,9 @@ def build_prompt(*, user_text: str, history: list[MargotTurn],
             history_block += f"[Margot] {turn.margot_text}\n"
 
     ctx_block = (
+        "Brain-1 wiki (persistent founder context)\n"
+        "==========================================\n"
+        f"{_format_wiki_for_prompt(context.get('wiki'))}\n\n"
         "Operating snapshots\n"
         "===================\n"
         f"CFO (per-business latest):\n{_trim_dict_for_prompt(context.get('cfo'))}\n\n"
@@ -1216,16 +1271,51 @@ async def handle_turn(*, chat_id: str, user_text: str,
         truth_requests, after_truth = parse_truth_check_requests(after_research)
         realtime_requests, draft_clean = parse_realtime_requests(after_truth)
 
-        if research_requests or truth_requests or realtime_requests:
+        wiki_findings: list[dict] = []
+        # ── Wiki-query gate: check Brain-1 wiki before firing Gemini ──────
+        # For each [RESEARCH] request, query the wiki first. High-confidence
+        # hits replace the external call. Medium/low hits still go external
+        # but inject wiki context into the research findings so Phase 2 has
+        # both the accumulated founder context and fresh external data.
+        if research_requests:
+            try:
+                from .wiki_query import query as _wiki_query  # noqa: PLC0415
+                fulfilled: list[ResearchRequest] = []
+                wiki_findings: list[dict] = []
+                for req in research_requests:
+                    time_sensitive = req.depth == "quick"
+                    wq = _wiki_query(req.topic, time_sensitive=time_sensitive)
+                    if not wq.go_external and wq.answer:
+                        wiki_findings.append({
+                            "topic": req.topic, "depth": "wiki",
+                            "summary": wq.answer, "error": None,
+                        })
+                        fulfilled.append(req)
+                        log.info("margot %s: wiki-query hit — %s (confidence=%s)",
+                                 turn.turn_id, req.topic[:60], wq.confidence)
+                    elif wq.answer:
+                        # Medium confidence — prepend wiki context to topic
+                        req = ResearchRequest(
+                            topic=f"{req.topic} [wiki context: {wq.answer[:300]}]",
+                            depth=req.depth,
+                        )
+                # Remove fulfilled requests; keep the rest for external search
+                research_requests = [
+                    r for r in research_requests if r not in fulfilled
+                ]
+            except Exception as _wq_exc:  # noqa: BLE001
+                log.debug("margot: wiki-query skipped (%s)", _wq_exc)
+
+        if research_requests or truth_requests or realtime_requests or wiki_findings:
             log.info(
-                "margot %s: phase 2 — %d research, %d truth-check, %d realtime request(s)",
+                "margot %s: phase 2 — %d research, %d truth-check, %d realtime, %d wiki request(s)",
                 turn.turn_id, len(research_requests),
-                len(truth_requests), len(realtime_requests),
+                len(truth_requests), len(realtime_requests), len(wiki_findings),
             )
             turn.research_called = bool(research_requests or realtime_requests)
             # Fire research + truth-check + realtime in parallel
             import asyncio as _aio  # noqa: PLC0415
-            research_findings, truth_findings, realtime_findings = await _aio.gather(
+            external_findings, truth_findings, realtime_findings = await _aio.gather(
                 _run_research_batch(research_requests) if research_requests
                 else _aio.sleep(0, result=[]),
                 _run_truth_check_batch(truth_requests) if truth_requests
@@ -1233,6 +1323,9 @@ async def handle_turn(*, chat_id: str, user_text: str,
                 _run_realtime_batch(realtime_requests) if realtime_requests
                 else _aio.sleep(0, result=[]),
             )
+
+            # Merge wiki hits (already answered) with external findings
+            research_findings = wiki_findings + external_findings
 
             phase2_prompt = build_prompt_with_research(
                 user_text=user_text, history=history,
@@ -1362,6 +1455,29 @@ async def handle_turn(*, chat_id: str, user_text: str,
             board_triggers=len(turn.board_session_ids),
             voice_attached=audio_path is not None,
             research_called=turn.research_called)
+
+    # ── Auto-ingest: write research synthesis back to Brain-1 wiki ────────
+    # Only fires when external research ran (turn.research_called=True).
+    # Fire-and-forget — Telegram reply already sent, turn already persisted.
+    if turn.research_called and turn.margot_text:
+        import asyncio as _aio  # noqa: PLC0415
+        _finding = turn.margot_text
+        _topic = user_text[:80]
+        _tid = turn.turn_id
+
+        async def _bg_ingest() -> None:
+            try:
+                from .wiki_ingest import ingest as _ingest  # noqa: PLC0415
+                await _aio.to_thread(_ingest, _finding, "research", _topic, _tid)
+                log.info("margot %s: wiki auto-ingest complete", _tid)
+            except Exception as _exc:  # noqa: BLE001
+                log.debug("margot %s: wiki auto-ingest suppressed (%s)", _tid, _exc)
+
+        try:
+            _aio.create_task(_bg_ingest())
+        except RuntimeError:
+            pass  # no running loop in test contexts — skip silently
+
     return turn
 
 
