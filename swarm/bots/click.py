@@ -190,14 +190,16 @@ def run_cycle(unacked_count: int) -> dict:
 
     _log_cycle(result)
 
-    # Escalate warnings to Telegram regardless of shadow mode
-    if warnings:
+    # Telegram only on actual outages (backend unreachable). Transient warnings —
+    # session-pool capacity, stale autonomy poll, etc. — stay in the cycle log
+    # and Mission Control dashboard. Founder asked for quieter pings.
+    if not local.get("reachable"):
         send(
             message=(
-                f"<b>Click Report — Service Warnings</b>\n\n"
-                + "\n".join(f"⚠️ {w}" for w in warnings)
-                + f"\n\nLocal: {'✅' if local.get('reachable') else '❌'} "
-                + f"Railway: {'✅' if railway.get('reachable') else ('⏭️ skipped' if railway.get('skipped') else '❌')}"
+                f"<b>Click — Backend unreachable</b>\n\n"
+                f"Pi-Dev-Ops backend not responding at {config.PIDEVOPS_BASE_URL}\n"
+                + (("\n".join(f"⚠️ {w}" for w in warnings) + "\n") if warnings else "")
+                + f"\nRailway: {'✅' if railway.get('reachable') else ('⏭️ skipped' if railway.get('skipped') else '❌')}"
             ),
             severity="high",
             bot_name="Click",
