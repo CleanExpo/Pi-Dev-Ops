@@ -1,4 +1,4 @@
-# swarm — Wiki
+# mcp — Wiki
 
 _Last updated: 2026-05-10T06:28:26Z (commits a51168b..8ff4e8c)_
 
