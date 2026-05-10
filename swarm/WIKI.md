@@ -1,8 +1,8 @@
 # swarm — Wiki
 
-_Last updated: 2026-05-10T07:24:26Z (commits e54d89b..65f393e)_
+_Last updated: 2026-05-10T07:30:51Z (commits 274bf3c..2004fcc)_
 
 ## Recent changes
-- 65f393e — docs(swarm): update stale CoS docstring — wiring landed in ed60618
+- 2004fcc — feat(swarm): wire wiki_lint into orchestrator — weekly Brain-1 health check
 
 Not logged in · Please run /login
