@@ -41,8 +41,16 @@ MAX_DRAFTS_PER_CYCLE = 2  # Cap: never queue more than 2 builds per cycle
 # Known project → GitHub repo mapping.
 # Builder only processes tickets from projects it knows the repo for.
 PROJECT_REPO_MAP: dict[str, str] = {
-    "Pi - Dev -Ops":               "https://github.com/CleanExpo/Pi-Dev-Ops",
-    "Billing & Estimation Platform v2": "https://github.com/CleanExpo/restore-assist",
+    "Pi - Dev -Ops":                         "https://github.com/CleanExpo/Pi-Dev-Ops",
+    "Billing & Estimation Platform v2":      "https://github.com/CleanExpo/restore-assist",
+    "RestoreAssist Compliance Platform":     "https://github.com/CleanExpo/RestoreAssist",
+    "DR Client Website (disasterrecovery.com.au)": "https://github.com/CleanExpo/DR-Sandbox",
+    "NRPG Operations Platform":              "https://github.com/CleanExpo/DR-NRPG",
+    "NRPG Contractor Onboarding Framework":  "https://github.com/CleanExpo/NRPG-Onboarding-Framework",
+    "Synthex":                               "https://github.com/CleanExpo/Synthex",
+    "CCW-ERP/CRM":                           "https://github.com/CleanExpo/CCW-CRM",
+    "CARSI":                                 "https://github.com/CleanExpo/carsi",
+    "Unite-Group":                           "https://github.com/CleanExpo/unite-group",
 }
 
 SYSTEM_PROMPT = """You are Builder — the autonomous coding agent for the Pi-CEO swarm.

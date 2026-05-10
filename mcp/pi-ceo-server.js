@@ -116,11 +116,23 @@ function linearGql(query, variables = {}) {
  */
 function obsidianWrite(vaultPath, content) {
   return new Promise((resolve, reject) => {
+    // Filesystem fallback: write directly to vault when REST API token is absent
     if (!OBSIDIAN_TOKEN) {
-      return reject(new Error(
-        "OBSIDIAN_TOKEN not set. Add it to claude_desktop_config.json env block.\n" +
-        "Get the token from Obsidian → Settings → Local REST API."
-      ));
+      const vaultRoot = process.env.OBSIDIAN_VAULT || "";
+      if (!vaultRoot) {
+        return reject(new Error(
+          "OBSIDIAN_TOKEN not set. Add it to the pi-ceo MCP env block, " +
+          "or set OBSIDIAN_VAULT to the absolute vault path for direct file writes."
+        ));
+      }
+      try {
+        const absPath = path.join(vaultRoot, vaultPath);
+        fs.mkdirSync(path.dirname(absPath), { recursive: true });
+        fs.writeFileSync(absPath, content, "utf8");
+        return resolve();
+      } catch (e) {
+        return reject(new Error(`Obsidian filesystem write failed: ${e.message}`));
+      }
     }
     // Encode each path segment but preserve slashes
     const encodedPath = vaultPath.split("/").map(encodeURIComponent).join("/");
