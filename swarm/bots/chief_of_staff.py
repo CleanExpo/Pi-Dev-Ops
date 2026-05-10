@@ -2,17 +2,14 @@
 swarm/bots/chief_of_staff.py — RA-1839: Chief of Staff swarm bot.
 
 Polls Telegram for non-/ack messages, classifies via intent_router,
-fans out to specialist roles. Today's wiring runs in shadow mode by
-default — drafts go through telegram-draft-for-review.
+fans out to specialist roles. Drafts go through draft_review HITL gate.
+Wired into orchestrator.run() after scribe.run_cycle() (ed60618).
 
-Wave 2 wiring step (NOT done in this commit — defer to next session):
-  In swarm/orchestrator.py::run() add ONE line in the main loop, after
-  scribe.run_cycle(...), before the daily-report block:
-
-      from .bots import chief_of_staff
-      chief_of_staff.run_cycle(state["unacked_count"])
-
-  The bot itself is fully self-gated on TAO_SWARM_SHADOW + TAO_SWARM_ENABLED.
+HITL gaps closed (30d3ec5):
+  Gap 1: _poll_telegram POSTs allowed_updates=["message","message_reaction"]
+          and calls draft_review.mark_reaction() on 👍/❌/⏳ reactions.
+  Gap 2: fix_project handler in _route() — Wave-3 draft for health monitor dispatch.
+  Gap 3: classify_llm() in intent_router — Ollama Layer 2 fallback when regex unknown.
 """
 from __future__ import annotations
 
