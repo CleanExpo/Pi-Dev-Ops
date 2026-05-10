@@ -102,6 +102,7 @@ def _fetch_buildable_tickets(api_key: str) -> list[dict]:
           priority
           project { name }
           state { name }
+          labels { nodes { name } }
         }
       }
     }
@@ -128,6 +129,14 @@ def _fetch_buildable_tickets(api_key: str) -> list[dict]:
                 continue
             # Must have a real description (>50 chars) to generate a meaningful brief
             if len((i.get("description") or "")) <= 50:
+                continue
+            # Skip tickets explicitly tagged as owner-only / manual — the autonomous
+            # swarm should not claim these even when otherwise eligible.
+            label_names = {
+                (l.get("name") or "").lower()
+                for l in ((i.get("labels") or {}).get("nodes", []) or [])
+            }
+            if label_names & {"manual task", "owner-action", "owner-only", "do-not-build"}:
                 continue
             results.append({
                 "id": i["identifier"],
