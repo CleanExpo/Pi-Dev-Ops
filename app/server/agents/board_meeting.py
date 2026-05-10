@@ -550,6 +550,11 @@ ACTUAL SOURCE FILES:
 TASK:
 Compare the spec claims against the actual code. Identify every discrepancy where the spec says something is complete/implemented but the code does not actually implement it, or implements it differently.
 
+SEVERITY RUBRIC (be strict — most drift is "low"):
+- "critical" — security hole, data loss, production outage, or auth bypass actively exploitable in code today. Almost never applies to spec/reality drift; reserve for "this will hurt users right now".
+- "high" — a feature the spec claims is complete is materially missing or broken (e.g. wired endpoint returns 500, advertised integration not connected). Drift that blocks a real workflow.
+- "low" — incomplete test coverage, partial implementation that still works, naming mismatch, doc-vs-code wording drift, or anything cosmetic. DEFAULT to "low" when uncertain.
+
 OUTPUT FORMAT (strict JSON array, no markdown, no explanation outside the array):
 [
   {{
@@ -585,6 +590,11 @@ ACTUAL SOURCE FILES:
 
 TASK:
 Compare the spec claims against the actual code. Identify every discrepancy where the spec says something is complete/implemented but the code does not actually implement it, or implements it differently.
+
+SEVERITY RUBRIC (be strict — most drift is "low"):
+- "critical" — security hole, data loss, production outage, or auth bypass actively exploitable in code today. Almost never applies to spec/reality drift; reserve for "this will hurt users right now".
+- "high" — a feature the spec claims is complete is materially missing or broken (e.g. wired endpoint returns 500, advertised integration not connected). Drift that blocks a real workflow.
+- "low" — incomplete test coverage, partial implementation that still works, naming mismatch, doc-vs-code wording drift, or anything cosmetic. DEFAULT to "low" when uncertain.
 
 OUTPUT FORMAT (strict JSON array, no markdown, no explanation outside the array):
 [
@@ -788,7 +798,9 @@ def run_gap_audit_phase(dry_run: bool = False) -> dict[str, Any]:
     tickets_created: list[str] = []
 
     if linear_api_key and not dry_run:
-        for sev, priority in (("critical", 1), ("high", 2)):
+        # Auto-LLM severity calls cap at High (2). Linear priority 1 (Urgent)
+        # is reserved for human-reported outages — gap-audit drift is never urgent.
+        for sev, priority in (("critical", 2), ("high", 3)):
             for item in result[sev]:
                 title = f"[GAP-AUDIT] {item['category']}: {item['claim'][:80]}"
                 description = (
