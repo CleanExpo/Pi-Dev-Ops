@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# pre-commit — block commits containing secrets via gitleaks.
+#
+# Setup (run once per clone):  git config core.hooksPath .githooks
+# Bypass (emergency only):      git commit --no-verify
+#
+# Install gitleaks if missing:  brew install gitleaks
+
+set -euo pipefail
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "⚠️  gitleaks not installed — install with:  brew install gitleaks"
+  echo "    Skipping secret scan; commit allowed but unprotected."
+  exit 0
+fi
+
+# Scan only staged content (fast, no false positives from history).
+if ! gitleaks protect --staged --redact --no-banner; then
+  echo ""
+  echo "❌ gitleaks detected potential secret(s) in staged changes."
+  echo "   Remove the secret, then re-stage. Use 'git commit --no-verify' only as a last resort."
+  exit 1
+fi
