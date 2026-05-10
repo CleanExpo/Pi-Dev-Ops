@@ -90,11 +90,12 @@ def _check_local_health() -> dict:
     elif disk_gb is not None:
         observations.append(f"Disk: {disk_gb}GB free")
 
-    # API keys
+    # API keys — log as observation, not warning. Missing keys are a config
+    # issue, not a runtime fire; surfacing them as warnings spams the dashboard.
     if not data.get("anthropic_key"):
-        warnings.append("ANTHROPIC_API_KEY not set")
+        observations.append("ANTHROPIC_API_KEY not set")
     if not data.get("linear_key"):
-        warnings.append("LINEAR_API_KEY not set")
+        observations.append("LINEAR_API_KEY not set")
 
     # Autonomy loop
     if not autonomy.get("armed"):

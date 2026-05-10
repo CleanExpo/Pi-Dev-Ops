@@ -394,17 +394,9 @@ def run_cycle(unacked_count: int) -> dict:
                     "Builder: daily PR limit reached (%d/%d) — skipping %s",
                     pr_counter["count"], config.MAX_AUTONOMOUS_PRS_PER_DAY, ticket["id"],
                 )
-                # Telegram alert only once per UTC day — every-cycle ping was noise.
-                if _should_alert_pr_limit_today():
-                    send(
-                        message=(
-                            f"<b>Builder: daily PR limit reached</b>\n"
-                            f"{pr_counter['count']}/{config.MAX_AUTONOMOUS_PRS_PER_DAY} PRs today — "
-                            f"{ticket['id']} queued for tomorrow."
-                        ),
-                        severity="info",
-                        bot_name="Builder",
-                    )
+                # Telegram alert removed entirely — log only. The PR limit is
+                # routine throttling, not an event the founder needs paged for.
+                # Status visible in builder.jsonl + Mission Control dashboard.
                 break
 
             session_id = _fire_build(
