@@ -249,6 +249,22 @@ _READY_STATUS_NAME = "Ready for Pi-Dev"
 _BLOCKED_STATUS_NAME = "Pi-Dev: Blocked"
 _BLOCKED_REASON_SESSION_LOST = "pi-dev:blocked-reason:session-lost"
 
+# RA-2209 (empire-overview board memo 2026-05-10 · E3 phase 2). Founder-ruled
+# scope tighten: poller only claims tickets carrying one of the labels listed in
+# PI_CEO_AUTONOMY_PRIORITY_FILTER. Empty/unset (the code default) preserves the
+# pre-RA-2209 behaviour — the filter is opt-in at deploy time so existing tests
+# don't break and the operator decides explicitly when to scope the poller.
+#
+# Production setting at this commit (per founder ruling 2026-05-10):
+#   PI_CEO_AUTONOMY_PRIORITY_FILTER="q2-priority-1,q2-priority-2"
+# in the Railway / Vercel env config. 14-day window aligning autonomy with
+# Q2 priorities #1 (CCW) and #2 (RA App Store). Remove the env var (or set
+# empty) to revert to all-priorities behaviour.
+_PRIORITY_FILTER_RAW = os.environ.get("PI_CEO_AUTONOMY_PRIORITY_FILTER", "").strip()
+_PRIORITY_FILTER: set[str] = {
+    s.strip() for s in _PRIORITY_FILTER_RAW.split(",") if s.strip()
+}
+
 _TODO_ISSUES_QUERY = """
 query AutonomyQueueIssues($projectId: String!, $statusName: String!, $autonomyLabel: String!) {
     project(id: $projectId) {
@@ -317,6 +333,26 @@ def fetch_todo_issues(api_key: str) -> list[dict]:
             issue["_team_id"]      = p["team_id"]
             issue["_project_name"] = p["name"]
             merged.append(issue)
+
+    # RA-2209 — apply q2-priority post-filter when env var is set.
+    # GraphQL filter approach was considered but rejected: Linear's IssueFilter
+    # syntax for "label A AND (label B OR label C)" is brittle across teams whose
+    # `q2-priority-*` labels may not exist yet. Python post-filter is robust:
+    # tickets without any priority label are skipped silently, no error.
+    if _PRIORITY_FILTER:
+        before_count = len(merged)
+        merged = [
+            i for i in merged
+            if any(
+                (lbl.get("name") or "") in _PRIORITY_FILTER
+                for lbl in (i.get("labels") or {}).get("nodes", [])
+            )
+        ]
+        if before_count != len(merged):
+            log.info(
+                "Autonomy: q2-priority filter %s applied: %d → %d issues",
+                sorted(_PRIORITY_FILTER), before_count, len(merged),
+            )
 
     # Sort: priority asc (1=Urgent first), then updatedAt (already queried ordered)
     merged.sort(key=lambda i: i.get("priority", 3))

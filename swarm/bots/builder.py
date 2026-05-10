@@ -169,6 +169,45 @@ def _assess_ticket(ticket: dict) -> dict:
         return {"eligible": False, "reason": "LLM parse error", "brief": None, "estimated_complexity": "basic"}
 
 
+def _active_build_ticket_ids() -> set[str]:
+    """Query Pi-Dev-Ops for in-flight build sessions and return their Linear ticket IDs.
+
+    Prevents the Builder from firing a second /api/build for a ticket that
+    already has an active session — which can happen when two orchestrator
+    instances run concurrently, or when Linear's state hasn't updated between
+    cycles. Source-of-truth dedup: server-side session list trumps any
+    cycle-local guess.
+
+    Returns an empty set on any error so the caller falls through to the
+    next-best dedup (in-cycle tracking).
+    """
+    base = config.PIDEVOPS_BASE_URL.rstrip("/")
+    password = config.PIDEVOPS_PASSWORD
+    if not password:
+        return set()
+
+    cj = CookieJar()
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+    login_payload = json.dumps({"password": password}).encode()
+    login_req = urllib.request.Request(
+        f"{base}/api/login", data=login_payload, method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with opener.open(login_req, timeout=10) as resp:
+            resp.read()
+        live_req = urllib.request.Request(f"{base}/api/mission-control/live")
+        with opener.open(live_req, timeout=10) as resp:
+            data = json.loads(resp.read())
+        return {
+            s["issue_id"] for s in data.get("active_sessions", [])
+            if s.get("issue_id")
+        }
+    except Exception as exc:
+        log.warning("Builder: active-session lookup failed (%s) — proceeding without server dedup", exc)
+        return set()
+
+
 def _fire_build(ticket_id: str, repo_url: str, brief: str, complexity: str) -> Optional[str]:
     """POST to /api/build and return session_id.  Only called in active mode.
 
@@ -276,12 +315,30 @@ def run_cycle(unacked_count: int) -> dict:
     tickets = _fetch_buildable_tickets(api_key)
     log.debug("Builder: %d buildable tickets fetched", len(tickets))
 
+    # Dedup: tickets with an in-flight session on the Pi-Dev-Ops backend.
+    # Prevents double-fire when two orchestrators run concurrently or Linear
+    # state hasn't updated between cycles.
+    active_ticket_ids: set[str] = set()
+    if not config.SHADOW_MODE:
+        active_ticket_ids = _active_build_ticket_ids()
+        if active_ticket_ids:
+            log.info("Builder: %d ticket(s) already have active sessions — %s",
+                     len(active_ticket_ids), sorted(active_ticket_ids))
+
     drafts: list[dict] = []
     fired: list[dict] = []
+    skipped_in_flight = 0
+    fired_ticket_ids: set[str] = set()
 
     for ticket in tickets:
         if len(drafts) >= MAX_DRAFTS_PER_CYCLE:
             break
+
+        # Skip tickets already being built (server-side or earlier in this cycle).
+        if ticket["id"] in active_ticket_ids or ticket["id"] in fired_ticket_ids:
+            log.info("Builder: skipping %s — already has active build session", ticket["id"])
+            skipped_in_flight += 1
+            continue
 
         assessment = _assess_ticket(ticket)
         if not assessment.get("eligible"):
@@ -333,6 +390,7 @@ def run_cycle(unacked_count: int) -> dict:
             draft["session_id"] = session_id
             if session_id:
                 fired.append(draft)
+                fired_ticket_ids.add(ticket["id"])
                 _increment_pr_counter(pr_counter)
 
     result: dict = {
@@ -340,6 +398,7 @@ def run_cycle(unacked_count: int) -> dict:
         "tickets_scanned": len(tickets),
         "eligible_count": len(drafts),
         "fired_count": len(fired),
+        "skipped_in_flight": skipped_in_flight,
         "shadow_mode": config.SHADOW_MODE,
         "drafts": drafts,
     }
