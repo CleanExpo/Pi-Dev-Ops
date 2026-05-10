@@ -370,6 +370,25 @@ def run() -> None:
         except Exception as exc:  # noqa: BLE001
             log.warning("gap_detector failed (continuing): %s", exc)
 
+        # ── Brain-1 Wiki lint: orphans + cross-refs + stale + contradictions (weekly) ─
+        # Runs once per 7 days. Auto-fixes orphans + missing cross-refs; flags
+        # stale pages and contradictions to log.md for founder review.
+        try:
+            from . import wiki_lint as _wl  # noqa: PLC0415
+            if _wl.should_run(state):
+                lr = _wl.lint()
+                state[_wl.STATE_KEY] = datetime.now(timezone.utc).date().isoformat()
+                if lr.clean:
+                    log.info("wiki_lint: clean")
+                else:
+                    log.info(
+                        "wiki_lint: %d stale, %d contradictions, %d orphans fixed, %d xrefs fixed",
+                        len(lr.stale_pages), len(lr.contradictions),
+                        len(lr.orphans_fixed), len(lr.cross_refs_fixed),
+                    )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("wiki_lint failed (continuing): %s", exc)
+
         # ── Project Health Monitor: scan all 11 projects for issues (daily) ──
         # Reads DORA breaches, GitHub CI failures, stale PRs → files WorkOrder
         # tickets in Linear so fix_orchestrator can dispatch specialist agents.
