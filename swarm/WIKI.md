@@ -1,8 +1,8 @@
 # swarm — Wiki
 
-_Last updated: 2026-05-10T11:47:40Z (commits baaae96..12abeec)_
+_Last updated: 2026-05-10T12:05:59Z (commits f4d006d..24f9c80)_
 
 ## Recent changes
-- 12abeec — fix(swarm): quiet noisy Telegram pings — log + dashboard, not phone
+- 24f9c80 — fix(swarm): remove daily-PR-limit Telegram alert, demote API-key warnings
 
 Not logged in · Please run /login
