@@ -261,10 +261,82 @@ async def _handle_workflow_run(payload: dict, request: Request) -> None:
     )
 
 
+def _find_open_ci_ticket_sync(title: str, api_key: str, routing: dict) -> dict | None:
+    """Return an open Linear ticket with this exact title, or None.
+
+    Same (repo, workflow) keeps generating commits while CI is broken; rather
+    than spamming a new ticket per commit, we comment on the existing open one.
+    Once it's closed (CI fixed), the next failure files a fresh ticket.
+    """
+    query = """
+    query FindOpenCITicket($projectId: String!, $title: String!) {
+        issues(
+            filter: {
+                project: { id: { eq: $projectId } },
+                state: { type: { in: ["backlog","unstarted","started"] } },
+                title: { eq: $title }
+            },
+            first: 1
+        ) { nodes { id identifier title } }
+    }
+    """
+    variables = {
+        "projectId": routing.get("projectId", config.LINEAR_PROJECT_ID),
+        "title": title,
+    }
+    payload = json.dumps({"query": query, "variables": variables}).encode()
+    req = _ur.Request(
+        _LINEAR_ENDPOINT, data=payload, method="POST",
+        headers={"Content-Type": "application/json", "Authorization": api_key},
+    )
+    with _ur.urlopen(req, timeout=15) as resp:
+        data = json.loads(resp.read())
+    nodes = (data.get("data") or {}).get("issues", {}).get("nodes", [])
+    return nodes[0] if nodes else None
+
+
+def _comment_on_ci_ticket_sync(issue_id: str, body: str, api_key: str) -> None:
+    """Append a comment to an existing CI ticket with the new failure's commit info."""
+    mutation = """
+    mutation AppendCIComment($input: CommentCreateInput!) {
+        commentCreate(input: $input) { success }
+    }
+    """
+    variables = {"input": {"issueId": issue_id, "body": body}}
+    payload = json.dumps({"query": mutation, "variables": variables}).encode()
+    req = _ur.Request(
+        _LINEAR_ENDPOINT, data=payload, method="POST",
+        headers={"Content-Type": "application/json", "Authorization": api_key},
+    )
+    with _ur.urlopen(req, timeout=15) as resp:
+        resp.read()
+
+
 def _create_linear_ci_ticket_sync(
     title: str, description: str, api_key: str, routing: dict
 ) -> dict:
-    """Create a High-priority Linear ticket routed to the correct team/project."""
+    """Create a High-priority Linear ticket routed to the correct team/project.
+
+    Dedup against open tickets with the same title — if CI keeps failing for
+    the same (repo, workflow), comment on the existing ticket instead of
+    spawning a new one each commit.
+    """
+    existing = _find_open_ci_ticket_sync(title, api_key, routing)
+    if existing:
+        comment_body = (
+            "Same workflow failed again on a new commit:\n\n"
+            f"{description}"
+        )
+        try:
+            _comment_on_ci_ticket_sync(existing["id"], comment_body, api_key)
+            log.info(
+                "RA-847: Appended comment to existing CI ticket %s — %s",
+                existing.get("identifier"), title,
+            )
+        except Exception as exc:
+            log.warning("RA-847: comment append failed (%s) — skipping", exc)
+        return existing
+
     mutation = """
     mutation CreateIssue($input: IssueCreateInput!) {
         issueCreate(input: $input) {

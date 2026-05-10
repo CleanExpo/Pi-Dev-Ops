@@ -221,6 +221,40 @@ def fetch_hn_findings() -> list[dict[str, Any]]:
 
 # ── Linear integration ────────────────────────────────────────────────────────
 
+def _existing_scout_titles(api_key: str) -> set[str]:
+    """Fetch titles of open [SCOUT] tickets in the project for dedup.
+
+    Source-of-truth dedup: the local .harness/scout-seen.json cache is per-env,
+    so scout running in multiple environments (local, Railway, CCR) accumulates
+    duplicates. Querying Linear directly catches dupes regardless of cache state.
+    """
+    query = """
+    query OpenScoutIssues($projectId: String!) {
+        issues(
+            filter: {
+                project: { id: { eq: $projectId } },
+                state: { type: { in: ["backlog","unstarted","started"] } },
+                title: { startsWith: "[SCOUT]" }
+            },
+            first: 250
+        ) { nodes { title } }
+    }
+    """
+    try:
+        payload = json.dumps({"query": query, "variables": {"projectId": _PROJECT_ID}}).encode()
+        req = urllib.request.Request(
+            _LINEAR_ENDPOINT, data=payload, method="POST",
+            headers={"Content-Type": "application/json", "Authorization": api_key},
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read()).get("data", {})
+        nodes = (data.get("issues") or {}).get("nodes", [])
+        return {n["title"].strip().lower() for n in nodes if n.get("title")}
+    except Exception as exc:
+        log.warning("Scout: existing title fetch failed (%s) — filing without Linear dedup", exc)
+        return set()
+
+
 def _get_or_create_scout_label(api_key: str) -> str | None:
     """Try to find or create a 'scout' label. Returns label ID or None."""
     query = """
@@ -351,11 +385,23 @@ def run_scout_cycle(dry_run: bool = False) -> dict[str, Any]:
 
     api_key = os.environ.get("LINEAR_API_KEY", "")
     label_id: str | None = None
+    existing_titles: set[str] = set()
     if api_key and not dry_run:
         label_id = _get_or_create_scout_label(api_key)
+        existing_titles = _existing_scout_titles(api_key)
+        log.info("Scout: %d open [SCOUT] tickets already in Linear", len(existing_titles))
 
     issues_created: list[str] = []
+    skipped_existing = 0
     for finding in top5:
+        source = finding["source"].upper()
+        candidate_title = f"[SCOUT] {source}: {finding['title'][:80]}".strip().lower()
+
+        if candidate_title in existing_titles:
+            log.info("Scout: skipping duplicate of open Linear ticket — %s", finding["title"][:60])
+            skipped_existing += 1
+            continue
+
         if dry_run:
             log.info("[DRY RUN] Would create issue for %s: %s", finding["source"], finding["title"][:60])
             issues_created.append(f"[DRY RUN] {finding['source']}: {finding['title'][:60]}")
@@ -366,6 +412,7 @@ def run_scout_cycle(dry_run: bool = False) -> dict[str, Any]:
             identifier = _create_linear_issue(finding, label_id, api_key)
             if identifier:
                 issues_created.append(identifier)
+                existing_titles.add(candidate_title)
 
     # Update seen list only for all new findings processed this cycle (not just top5)
     for finding in new_findings:
@@ -378,6 +425,7 @@ def run_scout_cycle(dry_run: bool = False) -> dict[str, Any]:
     result = {
         "findings": len(new_findings),
         "issues_created": issues_created,
+        "skipped_existing": skipped_existing,
         "sources": sources_counts,
     }
     log.info("Scout cycle complete: %s", result)
