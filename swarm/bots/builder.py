@@ -83,16 +83,17 @@ def _fetch_buildable_tickets(api_key: str) -> list[dict]:
     if not api_key:
         return []
 
-    # Filter by priority + state + team; project filtering done in Python after fetch
+    # Filter by priority + state ONLY (no team filter — Builder claims agent-ready
+    # tickets across every team where the project has a known repo mapping).
+    # Project-side filtering happens in Python below via PROJECT_REPO_MAP.
     query = """
     query {
       issues(
         filter: {
           state: { type: { in: ["unstarted"] } }
           priority: { lte: 2 }
-          team: { name: { eq: "RestoreAssist" } }
         }
-        first: 20
+        first: 50
         orderBy: updatedAt
       ) {
         nodes {
@@ -102,6 +103,7 @@ def _fetch_buildable_tickets(api_key: str) -> list[dict]:
           priority
           project { name }
           state { name }
+          team { name }
           labels { nodes { name } }
         }
       }
