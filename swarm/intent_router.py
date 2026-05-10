@@ -4,8 +4,8 @@ swarm/intent_router.py — RA-1839: CoS intent classifier.
 Implements the 6-intent classification spec from
 Pi-Dev-Ops/skills/intent-parser/SKILL.md.
 
-Layer 1 — regex fast path (this file).
-Layer 2 — Claude classification fallback (stub; wired in next session).
+Layer 1 — regex fast path (classify()).
+Layer 2 — Ollama triage-model fallback (classify_llm(); called by CoS on unknown).
 
 Output schema is the canonical intent payload that downstream skills
 (margot-bridge, telegram-draft-for-review, dispatcher-core) consume.
@@ -17,6 +17,7 @@ an action.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
@@ -258,4 +259,53 @@ def classify(
     return base
 
 
-__all__ = ["classify", "Intent"]
+_VALID_INTENTS = frozenset(
+    ["research", "ticket", "reply", "reminder", "flow", "margot", "fix_project", "unknown"]
+)
+
+_CLASSIFY_SYSTEM = (
+    "Classify the user message into exactly one intent: "
+    "research, ticket, reply, reminder, flow, margot, fix_project, or unknown.\n"
+    "research = look something up or find information.\n"
+    "ticket = create/file a Linear issue.\n"
+    "reply = draft or send a message to someone.\n"
+    "reminder = schedule a reminder or calendar event.\n"
+    "flow = multi-step sequence of tasks.\n"
+    "margot = conversational question to the personal assistant.\n"
+    "fix_project = trigger automated fixes on a codebase or project.\n"
+    "Respond JSON only: {\"intent\": \"<intent>\", \"confidence\": <0.0-1.0>}"
+)
+
+
+def classify_llm(text: str, base: dict[str, Any]) -> dict[str, Any]:
+    """Layer 2: Ollama triage-model fallback when regex returns unknown.
+
+    Falls back to `base` (unknown) on any error so the caller is never blocked.
+    """
+    if not text.strip():
+        return base
+    try:
+        from .ollama_client import chat
+        from . import config as _cfg
+        resp = chat(
+            model=_cfg.OLLAMA_TRIAGE_MODEL,
+            system=_CLASSIFY_SYSTEM,
+            user_message=text[:500],
+            temperature=0.1,
+            json_format=True,
+        )
+        if not resp:
+            return base
+        parsed = json.loads(resp)
+        intent = parsed.get("intent", "unknown")
+        if intent not in _VALID_INTENTS:
+            intent = "unknown"
+        confidence = max(0.0, min(1.0, float(parsed.get("confidence", 0.5))))
+        return {**base, "intent": intent, "confidence": confidence,
+                "fields": {**base.get("fields", {}), "layer": "llm"}}
+    except Exception as exc:
+        log.debug("classify_llm failed: %s", exc)
+        return base
+
+
+__all__ = ["classify", "classify_llm", "Intent"]

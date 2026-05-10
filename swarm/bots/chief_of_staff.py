@@ -39,12 +39,19 @@ def _poll_telegram(state_offset: int) -> tuple[list[dict], int]:
     chat_id = config.TELEGRAM_CHAT_ID
     if not token or not chat_id:
         return [], state_offset
-    url = (
-        f"https://api.telegram.org/bot{token}/getUpdates"
-        f"?offset={state_offset + 1}&timeout=0&limit=20"
+    url = f"https://api.telegram.org/bot{token}/getUpdates"
+    body = json.dumps({
+        "offset": state_offset + 1,
+        "timeout": 0,
+        "limit": 20,
+        "allowed_updates": ["message", "message_reaction"],
+    }).encode()
+    req = urllib.request.Request(
+        url, data=body, method="POST",
+        headers={"Content-Type": "application/json"},
     )
     try:
-        with urllib.request.urlopen(url, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
     except Exception as exc:
         log.debug("CoS Telegram poll error: %s", exc)
@@ -56,6 +63,21 @@ def _poll_telegram(state_offset: int) -> tuple[list[dict], int]:
         uid = u.get("update_id", 0)
         if uid > new_offset:
             new_offset = uid
+
+        # ── message_reaction — HITL draft approval via 👍/❌/⏳ ─────────────────
+        reaction = u.get("message_reaction")
+        if reaction:
+            msg_id = str(reaction.get("message_id", ""))
+            chat_id_r = str((reaction.get("chat") or {}).get("id", ""))
+            if chat_id_r == str(chat_id) and msg_id:
+                from .. import draft_review as _dr  # noqa: PLC0415
+                for r in reaction.get("new_reaction", []):
+                    emoji_str = r.get("emoji", "")
+                    if emoji_str in ("👍", "❌", "⏳"):
+                        _dr.mark_reaction(review_message_id=msg_id, emoji=emoji_str)
+                        log.info("CoS: reaction %s on msg %s", emoji_str, msg_id)
+            continue
+
         msg = u.get("message")
         if not msg:
             continue
@@ -179,6 +201,21 @@ def _route(intent_payload: dict[str, Any]) -> dict[str, Any]:
             originating_intent_id=intent_payload.get("originating_message_id"),
         )
 
+    if intent == "fix_project":
+        project = fields.get("project_hint", "all")
+        draft = (
+            f"🔧 FIX_PROJECT intent\n"
+            f"Target: {project}\n"
+            f"Raw: {fields.get('raw_text', '?')[:200]}\n"
+            f"\n(Wave 3: health monitor + fix orchestrator for '{project}')"
+        )
+        return draft_review.post_draft(
+            draft_text=draft,
+            destination_chat_id=str(intent_payload.get("originating_chat_id") or ""),
+            drafted_by_role="CoS",
+            originating_intent_id=intent_payload.get("originating_message_id"),
+        )
+
     return {"draft_id": None, "status": "no_action",
             "reason": f"unknown intent (confidence={intent_payload.get('confidence')})"}
 
@@ -213,6 +250,9 @@ def run_cycle(unacked_count: int) -> dict[str, Any]:
             chat_id=str(msg.get("chat", {}).get("id", "")),
             message_id=str(msg.get("message_id", "")),
         )
+        # Layer 2 LLM fallback when regex can't classify
+        if intent["intent"] == "unknown":
+            intent = intent_router.classify_llm(text, intent)
         log.info("CoS classified intent=%s confidence=%.2f",
                 intent["intent"], intent.get("confidence", 0))
         result = _route(intent)
