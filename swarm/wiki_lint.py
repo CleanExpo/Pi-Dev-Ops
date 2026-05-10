@@ -8,6 +8,7 @@ Weekly health check for the Brain-1 wiki:
 
 Public API:
     lint() -> LintReport
+    should_run(state) -> bool   — True if 7+ days since last lint
 """
 from __future__ import annotations
 
@@ -18,6 +19,8 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, date
 from pathlib import Path
+
+STATE_KEY = "last_wiki_lint"
 
 log = logging.getLogger("swarm.wiki_lint")
 
@@ -319,4 +322,15 @@ def lint() -> LintReport:
     return report
 
 
-__all__ = ["lint", "LintReport"]
+def should_run(state: dict) -> bool:
+    """True if wiki lint hasn't run in the last 7 days."""
+    last = state.get(STATE_KEY)
+    if not last:
+        return True
+    try:
+        return (date.today() - date.fromisoformat(last[:10])).days >= 7
+    except (ValueError, TypeError):
+        return True
+
+
+__all__ = ["lint", "should_run", "LintReport"]
