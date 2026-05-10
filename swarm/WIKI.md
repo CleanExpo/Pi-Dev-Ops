@@ -1,8 +1,8 @@
 # swarm — Wiki
 
-_Last updated: 2026-05-10T06:41:27Z (commits 79635c1..30d3ec5)_
+_Last updated: 2026-05-10T07:24:26Z (commits e54d89b..65f393e)_
 
 ## Recent changes
-- 30d3ec5 — fix(swarm): wire HITL reaction polling, fix_project handler, and Layer 2 intent classifier
+- 65f393e — docs(swarm): update stale CoS docstring — wiring landed in ed60618
 
 Not logged in · Please run /login
