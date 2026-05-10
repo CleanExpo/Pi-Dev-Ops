@@ -44,6 +44,7 @@ PROJECT_REPO_MAP: dict[str, str] = {
     "Pi - Dev -Ops":                         "https://github.com/CleanExpo/Pi-Dev-Ops",
     "Billing & Estimation Platform v2":      "https://github.com/CleanExpo/restore-assist",
     "RestoreAssist Compliance Platform":     "https://github.com/CleanExpo/RestoreAssist",
+    "RestoreAssist V2 - Sketch & Property Data": "https://github.com/CleanExpo/RestoreAssist",
     "DR Client Website (disasterrecovery.com.au)": "https://github.com/CleanExpo/DR-Sandbox",
     "NRPG Operations Platform":              "https://github.com/CleanExpo/DR-NRPG",
     "NRPG Contractor Onboarding Framework":  "https://github.com/CleanExpo/NRPG-Onboarding-Framework",
