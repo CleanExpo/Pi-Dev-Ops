@@ -1,8 +1,8 @@
 # swarm — Wiki
 
-_Last updated: 2026-05-10T12:05:59Z (commits f4d006d..24f9c80)_
+_Last updated: 2026-05-10T22:45:30Z (commits c8671ee..c066a12)_
 
 ## Recent changes
-- 24f9c80 — fix(swarm): remove daily-PR-limit Telegram alert, demote API-key warnings
+- c066a12 — fix(builder): skip tickets labeled Manual Task / owner-action / do-not-build
 
 Not logged in · Please run /login
