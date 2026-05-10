@@ -1,0 +1,26 @@
+{
+  "fired_at": "2026-05-11T08:55:00Z",
+  "agent": "deep-research-max-preview-04-2026",
+  "jobs": [
+    {
+      "slug": "anz-association-tier-benchmarks",
+      "interaction_id": "v1_ChdrdzBCYXN5VEMtUEtqdU1QNS1EZmdBSRIXa3cwQmFzeVRDLVBLanVNUDUtRGZnQUk",
+      "feeds": ["industry-association-vision-2026.md", "Q3 2026 launch tier sizing"]
+    },
+    {
+      "slug": "ios-v1-cutover-risks",
+      "interaction_id": "v1_ChduZzBCYXItME1kUzc0LUVQaW96VC1BRRIXbmcwQmFyLTBNZFM3NC1FUGlvelQtQUU",
+      "feeds": ["RA-1718 decomposition", "Phase 5 cutover playbook"]
+    },
+    {
+      "slug": "ccw-week1-telemetry",
+      "interaction_id": "v1_ChdyQTBCYXQySE9mVHRnOFVQX2F1LTBRRRIXckEwQmF0MkhPZlR0ZzhVUF9hdS0wUUU",
+      "feeds": ["Tue 12 May 10am call with Toby Bredhauer", "client_engagement_events schema"]
+    },
+    {
+      "slug": "nexus-2b-gap-analysis",
+      "interaction_id": "v1_Chd1dzBCYXBQMEJOT1VqdU1QaHZXTndRRRIXdXcwQmFwUDBCTk9VanVNUGh2V053UUU",
+      "feeds": ["unite-group-nexus-architecture.md Wave 4", "exit-thesis.md June 2028"]
+    }
+  ]
+}
