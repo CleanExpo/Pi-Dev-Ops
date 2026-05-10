@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-05-07T05:00:06Z (commits fae0f8f..ea77d86)_
+_Last updated: 2026-05-10T11:21:34Z (commits 57124e2..c56de1c)_
 
 ## Recent changes
-- ea77d86 — test(evaluator): RA-1506 — assert evaluator never calls SDK with model=opus
+- c56de1c — feat(autonomy): RA-2209 q2-priority post-filter (empire-overview E3 phase 2) (#203)
 
 Not logged in · Please run /login
