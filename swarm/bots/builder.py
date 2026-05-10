@@ -298,6 +298,30 @@ def _increment_pr_counter(counter: dict) -> None:
     os.replace(tmp_path, str(counter_file))
 
 
+def _should_alert_pr_limit_today() -> bool:
+    """Send the daily-PR-limit Telegram alert at most once per UTC day.
+
+    Without this, the alert re-fires every cycle (every 5 min) once the
+    limit is hit — pure noise. Returns True the first call of the day,
+    False thereafter.
+    """
+    alert_file = config.SWARM_LOG_DIR / "builder_alerts.json"
+    today = datetime.now(timezone.utc).date().isoformat()
+    try:
+        with open(alert_file, "r", encoding="utf-8") as f:
+            state = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        state = {}
+    if state.get("last_pr_limit_date") == today:
+        return False
+    state["last_pr_limit_date"] = today
+    tmp_path = str(alert_file) + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(state, f)
+    os.replace(tmp_path, str(alert_file))
+    return True
+
+
 def run_cycle(unacked_count: int) -> dict:
     """Execute one Builder observation cycle.
 
@@ -370,15 +394,17 @@ def run_cycle(unacked_count: int) -> dict:
                     "Builder: daily PR limit reached (%d/%d) — skipping %s",
                     pr_counter["count"], config.MAX_AUTONOMOUS_PRS_PER_DAY, ticket["id"],
                 )
-                send(
-                    message=(
-                        f"<b>Builder: daily PR limit reached</b>\n"
-                        f"{pr_counter['count']}/{config.MAX_AUTONOMOUS_PRS_PER_DAY} PRs today — "
-                        f"{ticket['id']} queued for tomorrow."
-                    ),
-                    severity="info",
-                    bot_name="Builder",
-                )
+                # Telegram alert only once per UTC day — every-cycle ping was noise.
+                if _should_alert_pr_limit_today():
+                    send(
+                        message=(
+                            f"<b>Builder: daily PR limit reached</b>\n"
+                            f"{pr_counter['count']}/{config.MAX_AUTONOMOUS_PRS_PER_DAY} PRs today — "
+                            f"{ticket['id']} queued for tomorrow."
+                        ),
+                        severity="info",
+                        bot_name="Builder",
+                    )
                 break
 
             session_id = _fire_build(
@@ -430,19 +456,7 @@ def run_cycle(unacked_count: int) -> dict:
             "Builder cycle (active): scanned=%d eligible=%d fired=%d",
             len(tickets), len(drafts), len(fired),
         )
-        if fired:
-            fired_lines = [
-                f"• [{d['ticket_id']}] session {d['session_id']}"
-                for d in fired
-            ]
-            send(
-                message=(
-                    f"<b>Builder Active Report</b>\n\n"
-                    f"Started {len(fired)} build session(s):\n"
-                    + "\n".join(fired_lines)
-                ),
-                severity="high",
-                bot_name="Builder",
-            )
+        # Successful build firings go to log + Mission Control dashboard, not Telegram.
+        # Founder asked for quieter pings — start-of-session is status, not actionable.
 
     return result
