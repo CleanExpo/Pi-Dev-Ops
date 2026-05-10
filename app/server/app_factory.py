@@ -147,7 +147,11 @@ async def on_startup():
     # it in asyncio.to_thread so it gets its own thread without blocking
     # the FastAPI event loop. _resilient adds restart-on-crash semantics
     # consistent with the other long-running daemons above.
-    if os.environ.get("TAO_SWARM_ENABLED") == "1":
+    # TAO_SWARM_INTERNAL_DISABLE=1 lets a host disable FastAPI's in-process
+    # swarm when an external launchd-managed swarm is already running on the
+    # same machine (avoids duplicate orchestrator cycles + duplicate Telegram
+    # alerts). Production default leaves it enabled.
+    if os.environ.get("TAO_SWARM_ENABLED") == "1" and os.environ.get("TAO_SWARM_INTERNAL_DISABLE") != "1":
         try:
             from swarm import orchestrator as _swarm_orchestrator  # noqa: PLC0415
 
