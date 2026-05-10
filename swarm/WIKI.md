@@ -1,8 +1,8 @@
 # swarm — Wiki
 
-_Last updated: 2026-05-10T06:28:26Z (commits a51168b..8ff4e8c)_
+_Last updated: 2026-05-10T06:41:27Z (commits 79635c1..30d3ec5)_
 
 ## Recent changes
-- 8ff4e8c — fix(swarm): expand Builder repo map to all 10 businesses + Obsidian filesystem fallback
+- 30d3ec5 — fix(swarm): wire HITL reaction polling, fix_project handler, and Layer 2 intent classifier
 
 Not logged in · Please run /login
