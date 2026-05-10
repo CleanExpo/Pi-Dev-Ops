@@ -1,4 +1,4 @@
-# swarm — Wiki
+# .github — Wiki
 
 _Last updated: 2026-05-10T11:21:34Z (commits 57124e2..c56de1c)_
 
