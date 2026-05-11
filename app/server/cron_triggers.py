@@ -364,7 +364,19 @@ async def _fire_script_trigger(trigger: dict, log) -> None:
 
 
 async def _fire_trigger(trigger: dict, log) -> None:
-    """Dispatch a single trigger by type. Raises on failure."""
+    """Dispatch a single trigger by type. Raises on failure.
+
+    Unknown types raise ``ValueError`` instead of silently falling through
+    to ``create_session(repo_url=...)``. The old else-branch silently
+    routed ANY unknown type into the build path, which then KeyErrored
+    on the missing `repo_url` field — the failure mode was visible only
+    as a logged KeyError in cron_scheduler.py, and `plan-discovery-
+    daily-0300` rode that footgun for months (last_fired_at stayed null
+    indefinitely because the scheduler intentionally doesn't update
+    last_fired_at on dispatch failure). See
+    Wiki/hermes-agent-sprinkle-audit-2026-05-11.md § plan-discovery
+    investigation.
+    """
     from .sessions import create_session
     trigger_type = trigger.get("type", "build")
     if trigger_type == "scan":
@@ -391,10 +403,12 @@ async def _fire_trigger(trigger: dict, log) -> None:
     elif trigger_type == "discovery_archive":                   # RA-2027
         from .discovery_archive import _fire_discovery_archive_trigger  # noqa: PLC0415
         await _fire_discovery_archive_trigger(trigger, log)
-    else:
+    elif trigger_type == "build":
         await create_session(
             repo_url=trigger["repo_url"],
             brief=trigger.get("brief", ""),
             model=trigger.get("model", "sonnet"),
         )
         log.info("Fired build trigger id=%s repo=%s", trigger["id"], trigger.get("repo_url"))
+    else:
+        raise ValueError(f"unknown trigger type {trigger_type!r}")
