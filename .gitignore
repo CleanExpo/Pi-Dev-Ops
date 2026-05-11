@@ -153,3 +153,21 @@ composio.json
 # Python virtualenvs (added 2026-05-04)
 .venv*/
 venv/
+
+# RA-3006: runtime-mutated .harness state files (swarm cycles regenerate these)
+# Keep .harness/lessons.jsonl + .harness/cron-triggers.json — those are config/seeded corpus.
+.harness/swarm/*.jsonl
+.harness/swarm/*_state.json
+.harness/swarm/pr_rate_limit.json
+.harness/swarm/green_merge_counter.json
+.harness/swarm/telegram_drafts.json*
+.harness/autonomy.jsonl
+.harness/agentskills_history.jsonl
+.harness/bvi-history.jsonl
+.harness/fallback-dryrun-log.jsonl
+.harness/integration-health.jsonl
+.harness/linear-pulse-state.json
+.harness/notebooklm-health.jsonl
+.harness/sources_processed.jsonl
+.harness/triage-cache.json
+.harness/workspace-intel/*.jsonl
