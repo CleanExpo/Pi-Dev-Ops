@@ -410,3 +410,58 @@ __all__ = [
     "select_provider_model", "run_via_provider",
     "is_anthropic", "is_openrouter", "is_ollama",
 ]
+
+
+# ── Synchronous wrapper (RA-3003 consolidation) ─────────────────────────────
+
+def run_via_provider_blocking(
+    prompt: str,
+    role: str,
+    timeout_s: int = 120,
+    *,
+    log=None,
+) -> tuple[int, str, float, str | None, ProviderModel]:
+    """Sync wrapper around run_via_provider — safe from any context.
+
+    Detects whether an event loop is already running. If yes (e.g.
+    called from inside an async cron handler), delegates to a worker
+    thread so asyncio.run() doesn't clash with the current loop. If no
+    loop is running (e.g. called from a script `__main__`), uses
+    asyncio.run() directly.
+
+    The optional `log` callback is invoked with the resolved
+    ProviderModel before the call fires, mirroring the
+    cron_fire_agents.py helper signature it replaces.
+
+    Returns (rc, text, cost_usd, error, ProviderModel) — same shape as
+    the per-file _run_provider_call_blocking helpers it consolidates.
+
+    Consolidates duplicate copies that lived in:
+      app/server/triage.py
+      app/server/agents/feedback_loop.py
+      app/server/cron_fire_agents.py
+      swarm/portfolio_pulse_synthesis.py
+    """
+    import asyncio  # noqa: PLC0415
+    import concurrent.futures  # noqa: PLC0415
+
+    pm = select_provider_model(role)
+    if log is not None:
+        try:
+            log.debug("provider_router: role=%s provider=%s model=%s tier=%s",
+                      role, pm.provider, pm.model_id, pm.tier)
+        except Exception:  # noqa: BLE001 — log failure must not break the call
+            pass
+
+    async def _go() -> tuple[int, str, float, str | None]:
+        return await run_via_provider(prompt=prompt, role=role, timeout_s=timeout_s)
+
+    try:
+        # If there's a running loop, we're in async context — delegate to a thread
+        asyncio.get_running_loop()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            rc, text, cost, error = ex.submit(asyncio.run, _go()).result(timeout=timeout_s + 5)
+    except RuntimeError:
+        # No running loop — safe to use asyncio.run directly
+        rc, text, cost, error = asyncio.run(_go())
+    return rc, text, cost, error, pm
