@@ -190,7 +190,15 @@ async def _fire_monitor_trigger(trigger: dict, log) -> None:
         return
     from .agents.pi_seo_monitor import run_monitor_cycle
     project_id = trigger.get("project_id") or None
+    # A/B test (hermes-agent-sprinkle-audit-2026-05-11): force use_agent=True on
+    # monitor-0700 only. The agent path (agents/pi_seo_monitor.py:530) already
+    # exists but is unused. Flipping the one most-recently-firing monitor gives
+    # fastest A/B data with lowest blast radius — the other 3 monitors stay
+    # deterministic so we can compare digests side-by-side. JSON `use_agent: false`
+    # in .harness/cron-triggers.json is intentionally left as-is (runtime state).
     use_agent = trigger.get("use_agent", False)
+    if trigger.get("id") == "monitor-0700":
+        use_agent = True
     log.info("Firing monitor trigger id=%s project=%s use_agent=%s", trigger["id"], project_id, use_agent)
     digest = run_monitor_cycle(project_id=project_id, use_agent=use_agent, dry_run=False)
     log.info(
