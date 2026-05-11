@@ -277,3 +277,4 @@
 {"action": "orphan_recovery_error", "ticket": "SYN-691", "error": "State 'Pi-Dev: Blocked' not found in team b887971b-6761-4260-a111-b94dbb628ebe workflow", "ts": "2026-05-02T09:12:39Z"}
 {"action": "poll", "poll": 1, "found": 0, "ts": "2026-05-02T09:12:44Z"}
 {"action": "poll", "poll": 2, "found": 0, "ts": "2026-05-02T09:42:49Z"}
+{"action":"cluster_a_triage_review","branch":"staging/cluster-a-aip-2026-05-12","files":16,"lines_added":3863,"verdict":"SPLIT","prs":["staging/aip-1of3-migrations-types->SHIP","staging/aip-2of3-seed-data->SHIP","staging/aip-3of3-mcp-server->SHIP-AFTER-FIX"],"blockers":0,"ship_after_fix":["aip_query_view filter-key injection (MEDIUM)","run.sh hardcoded absolute path","service-role key bypasses all Supabase RLS (document)","op:// literal key startup check missing"],"ts":"2026-05-11T00:00:00Z","reviewer":"claude-code"}
