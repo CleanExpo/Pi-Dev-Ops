@@ -35,7 +35,7 @@ import type { Relationship, SourceRef } from "../types/primitives.js";
 
 const AUDIT_SOURCE: SourceRef = {
   origin: "audit",
-  ref: "Wiki/log.md#2026-05-11-google-client-secret-fix",
+  ref: "Wiki/log.md#2026-05-11-google-client-secret-fix@pi-dev-ops:4c5cd030828e8d267436e5c592a76c8c21924c1c",
   ingested_at: "2026-05-11T00:00:00Z",
 };
 
@@ -58,8 +58,8 @@ const contactIdentity: SeedEntity<"GoogleIdentity", GoogleIdentityProps> = {
   properties: {
     email: "contact@unite-group.in",
     identity_kind: "workspace",
-    onepassword_item_id: null, // TODO seed: 1Password item id for the master Workspace login
-    recovery_email: null, // TODO seed: confirm recovery email on the Workspace account
+    onepassword_item_id: null, // TODO seed — no 1P item exists yet for the contact@unite-group.in Workspace identity (searched Personal/RestoreAssist/Unite-Group-Infrastructure/Shared/Email-Accounts vaults, 2026-05-11). Create item then backfill.
+    recovery_email: null, // TODO seed — recovery chain not verifiable from CLI; confirm in Google Account settings.
     last_active_at: "2026-05-11T00:00:00Z",
   },
   source: AUDIT_SOURCE,
@@ -72,8 +72,8 @@ const zenithIdentity: SeedEntity<"GoogleIdentity", GoogleIdentityProps> = {
   properties: {
     email: "zenithfresh25@gmail.com",
     identity_kind: "personal",
-    onepassword_item_id: null, // TODO seed: 1Password item id for the personal Gmail
-    recovery_email: null, // TODO seed
+    onepassword_item_id: null, // TODO seed — no 1P item explicitly named for zenithfresh25@gmail.com found in any vault (2026-05-11).
+    recovery_email: null, // TODO seed — same; not verifiable from CLI.
     last_active_at: "2026-05-11T00:00:00Z",
   },
   source: AUDIT_SOURCE,
@@ -84,10 +84,10 @@ const gcpRestoreAssist: SeedEntity<"GcpProject", GcpProjectProps> = {
   kind: "GcpProject",
   id: "restore-assist-bfb74",
   properties: {
-    project_number: "", // TODO seed: pull project_number from `gcloud projects describe restore-assist-bfb74`
+    project_number: "", // TODO seed — gcloud is authed as phill.mcgurk@gmail.com which has no IAM on restore-assist-bfb74 (owned by contact@unite-group.in Workspace). Run `gcloud auth login contact@unite-group.in` then `gcloud projects describe restore-assist-bfb74 --format='value(projectNumber)'` to backfill.
     project_id: "restore-assist-bfb74",
     owner_identity_uri: contactIdentity.uri,
-    billing_account: null, // TODO seed
+    billing_account: null, // TODO seed — same access blocker; verify via `gcloud billing projects describe restore-assist-bfb74` after re-auth.
   },
   source: AUDIT_SOURCE,
 };
@@ -98,9 +98,9 @@ const gcpLegacy: SeedEntity<"GcpProject", GcpProjectProps> = {
   id: "292141944467",
   properties: {
     project_number: "292141944467",
-    project_id: "", // TODO seed: legacy project_id (only the project_number is recorded in the wiki log)
+    project_id: "restoreassist", // verified via `gcloud projects describe restoreassist` 2026-05-11
     owner_identity_uri: zenithIdentity.uri,
-    billing_account: null, // TODO seed
+    billing_account: "015D5F-C8F973-A8AD81", // verified via `gcloud billing projects describe restoreassist` 2026-05-11
   },
   source: AUDIT_SOURCE,
 };
@@ -110,10 +110,10 @@ const vercelRestoreAssist: SeedEntity<"VercelProject", VercelProjectProps> = {
   kind: "VercelProject",
   id: "restoreassist",
   properties: {
-    vercel_project_id: "", // TODO seed: prj_... id from `vercel project ls --scope zenithfresh25-1436`
+    vercel_project_id: "prj_Aw90JJ2x7mTMatTxa3ymgcU7WPV2", // verified via `vercel project inspect restoreassist --scope unite-group` 2026-05-11
     slug: "restoreassist",
-    team_id: "zenithfresh25-1436",
-    current_git_sha: null, // TODO seed
+    team_id: "zenithfresh25-1436", // NOTE: `vercel project inspect` reports current Owner as "Unite-Group" team; the audit-source value is retained as-is per surgical-changes guardrail. Migration is a documented follow-up in Wiki/log.md#2026-05-11.
+    current_git_sha: "8137a5eea7c3ccb8b53c38cef98e5e3a854bffb3", // RestoreAssist HEAD at 2026-05-11
     framework: "nextjs",
   },
   source: AUDIT_SOURCE,
@@ -124,7 +124,7 @@ const oauthRestoreAssist: SeedEntity<"OAuthClient", OAuthClientProps> = {
   kind: "OAuthClient",
   id: "restoreassist-prod",
   properties: {
-    client_id: "", // TODO seed: new client_id from GCP project restore-assist-bfb74
+    client_id: "", // TODO seed — new client_id lives in (a) GCP console for restore-assist-bfb74 (no gcloud IAM, see gcpRestoreAssist note) and (b) Vercel Production env GOOGLE_CLIENT_ID (encrypted; `vercel env pull` returned empty string). Pull from GCP console after re-auth, OR via `vercel env pull` from a session with decrypt rights.
     secret_rotated_at: "2026-05-11T00:00:00Z", // rotated today during smoke fix
     authorized_origins: ["https://restoreassist.app"],
     authorized_redirect_uris: [
@@ -143,7 +143,7 @@ const psRestoreAssist: SeedEntity<"PortfolioService", PortfolioServiceProps> = {
   properties: {
     slug: "ra",
     brand_name: "RestoreAssist",
-    current_git_sha: null, // TODO seed
+    current_git_sha: "8137a5eea7c3ccb8b53c38cef98e5e3a854bffb3", // RestoreAssist HEAD at 2026-05-11; matches vercelRestoreAssist.current_git_sha
     status: "active",
     wiki_page_path: "Wiki/restore-assist.md",
   },
@@ -273,8 +273,11 @@ const RELATIONSHIPS: ReadonlyArray<SeedRelationship> = [
     properties: {},
   },
   // GoogleIdentity.recoversTo(GoogleIdentity) — N:1
-  // TODO seed: recovery chain not yet documented for either identity. When known,
-  // add a row here. Leaving empty is honest; do NOT fabricate.
+  // TODO seed — recovery chain not verifiable from CLI tooling (no gcloud IAM on contact@unite-group.in
+  // Workspace from this session; gmail/workspace recovery settings live behind myaccount.google.com,
+  // not in any API surface we have here). Verify in browser at
+  // myaccount.google.com/security for both identities, then add the edge.
+  // Leaving empty is honest; do NOT fabricate.
 ];
 
 // ---------------------------------------------------------------------------
