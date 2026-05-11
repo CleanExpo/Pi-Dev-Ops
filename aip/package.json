@@ -1,0 +1,16 @@
+{
+  "name": "@unite-group/aip",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Unite-Group AIP — Palantir-Foundry-parallel ontology + actions layer. Day-1 scaffold.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "seed": "tsx src/seed/audit-2026-05-11.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
