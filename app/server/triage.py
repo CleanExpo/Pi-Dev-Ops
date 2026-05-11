@@ -35,6 +35,137 @@ log = logging.getLogger("pi-ceo.triage")
 _HARNESS = Path(__file__).parent.parent.parent / ".harness"
 _PROJECTS_FILE = _HARNESS / "projects.json"
 _CACHE_FILE = _HARNESS / "triage-cache.json"
+_AUTONOMY_LOG = _HARNESS / "autonomy.jsonl"
+
+# ─── Pre-classify sprinkle (RA-1985 #1 / RA-2995 migration) ───────────────────
+# Embedded LLM call ranks critical findings as real vs false-positive and
+# rewrites the operator-facing title. Per audit: suppress when verdict is
+# false_positive AND confidence >= 0.9. Any failure → fall through to template.
+#
+# Now routes through provider_router (cheap tier → Ollama Gemma 4 → OpenRouter
+# fallback). No direct Anthropic SDK calls — cost-control per RA-2989.
+_TRIAGE_ROLE = "sprinkle.triage"
+_TRIAGE_MAX_TOKENS = 300
+_TRIAGE_TIMEOUT_S = 90  # Cold-start tolerant; Gemma 4 8B can take 20-40s warming up
+_TRIAGE_CONFIDENCE_SUPPRESS = 0.9
+
+_TRIAGE_PROMPT = (
+    "You are triaging a Pi-SEO scanner finding for {project}. Raw rule: {rule_id}.\n"
+    "Snippet: {code_excerpt}. Output JSON: "
+    "{{\"title\": str, \"verdict\": \"real\"|\"false_positive\", \"confidence\": float, \"one_line_rationale\": str}}.\n"
+    "Be ruthless — Linear is already over-quota. False positives cost us more than missed criticals."
+)
+
+
+def _log_sprinkle_event(event: dict[str, Any]) -> None:
+    """Append a structured sprinkle event to .harness/autonomy.jsonl. Never raises."""
+    try:
+        entry = {**event, "ts": datetime.now(timezone.utc).isoformat()}
+        _AUTONOMY_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(_AUTONOMY_LOG, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _run_provider_call_blocking(prompt: str, role: str, timeout_s: int) -> tuple[int, str, float, str | None, Any]:
+    """Call provider_router.run_via_provider from sync context — safe whether or
+    not an event loop is already running (this function is called from
+    TriageEngine.triage() which is invoked under the async cron loop).
+
+    Returns (rc, text, cost_usd, error, ProviderModel).
+    """
+    import asyncio  # noqa: PLC0415
+    import concurrent.futures  # noqa: PLC0415
+    from app.server.provider_router import run_via_provider, select_provider_model  # noqa: PLC0415
+
+    pm = select_provider_model(role)
+
+    async def _go() -> tuple[int, str, float, str | None]:
+        return await run_via_provider(prompt=prompt, role=role, timeout_s=timeout_s)
+
+    try:
+        # If there's a running loop, we're in async context — delegate to a thread
+        asyncio.get_running_loop()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            rc, text, cost, error = ex.submit(asyncio.run, _go()).result(timeout=timeout_s + 5)
+    except RuntimeError:
+        # No running loop — safe to use asyncio.run directly
+        rc, text, cost, error = asyncio.run(_go())
+    return rc, text, cost, error, pm
+
+
+def _claude_triage(project_id: str, finding: Finding) -> dict[str, Any] | None:
+    """Pre-classify a critical finding via the cheap-tier LLM (Ollama Gemma 4
+    → OpenRouter fallback). Returns dict or None on any failure.
+
+    Routes through provider_router so no direct Anthropic SDK calls happen
+    here. Returns {"title": str, "verdict": "real"|"false_positive",
+    "confidence": float} or None — caller falls back to template title +
+    ticket creation.
+    """
+    excerpt = (finding.description or "")[:600]
+    if finding.file_path:
+        excerpt = f"file={finding.file_path}\n{excerpt}"
+    prompt = _TRIAGE_PROMPT.format(
+        project=project_id,
+        rule_id=finding.scan_type,
+        code_excerpt=excerpt.replace("{", "{{").replace("}", "}}"),
+    )
+
+    try:
+        rc, raw, _cost, error, pm = _run_provider_call_blocking(prompt, _TRIAGE_ROLE, _TRIAGE_TIMEOUT_S)
+    except Exception as exc:  # noqa: BLE001
+        _log_sprinkle_event({
+            "sprinkle": "triage", "outcome": "router_unavailable",
+            "project": project_id, "fingerprint": finding.fingerprint,
+            "error": type(exc).__name__,
+        })
+        return None
+
+    if rc != 0 or not raw:
+        _log_sprinkle_event({
+            "sprinkle": "triage", "outcome": "call_failed",
+            "project": project_id, "fingerprint": finding.fingerprint,
+            "provider": pm.provider, "model": pm.model_id,
+            "error": error or "empty_response",
+        })
+        return None
+
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`").lstrip("json").strip()
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        _log_sprinkle_event({
+            "sprinkle": "triage", "outcome": "json_parse_failed",
+            "project": project_id, "fingerprint": finding.fingerprint,
+            "provider": pm.provider, "model": pm.model_id,
+            "raw_head": raw[:120],
+        })
+        return None
+
+    title = str(data.get("title", "")).strip()
+    verdict = str(data.get("verdict", "")).strip()
+    try:
+        confidence = float(data.get("confidence", 0.0))
+    except (TypeError, ValueError):
+        confidence = 0.0
+    if verdict not in {"real", "false_positive"} or not title:
+        _log_sprinkle_event({
+            "sprinkle": "triage", "outcome": "bad_shape",
+            "project": project_id, "fingerprint": finding.fingerprint,
+            "provider": pm.provider, "model": pm.model_id,
+        })
+        return None
+    _log_sprinkle_event({
+        "sprinkle": "triage", "outcome": "ok",
+        "project": project_id, "fingerprint": finding.fingerprint,
+        "verdict": verdict, "confidence": confidence,
+        "provider": pm.provider, "model": pm.model_id,
+    })
+    return {"title": title, "verdict": verdict, "confidence": confidence}
 
 # Only ticket medium+ findings — low/info are informational noise
 _MIN_SEVERITY_RANK = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
@@ -293,6 +424,29 @@ class TriageEngine:
 
             title = self._build_title(finding)
             description = self._build_description(finding, result)
+
+            # RA-1985 sprinkle #1 — pre-classify critical findings via Haiku.
+            # Suppress false positives at confidence>=0.9; rewrite title otherwise.
+            # Any Claude failure falls through to current template behavior.
+            if finding.severity == "critical":
+                triage_hint = _claude_triage(result.project_id, finding)
+                if triage_hint:
+                    if (
+                        triage_hint["verdict"] == "false_positive"
+                        and triage_hint["confidence"] >= _TRIAGE_CONFIDENCE_SUPPRESS
+                    ):
+                        log.info(
+                            "[sprinkle:triage] suppressing false_positive %s (conf=%.2f)",
+                            fp, triage_hint["confidence"],
+                        )
+                        self._cache.mark(fp, "claude-false-positive", title)
+                        continue
+                    new_title = triage_hint["title"]
+                    if new_title and not new_title.startswith("[Pi-SEO]"):
+                        scan_label = finding.scan_type.replace("_", " ").title()
+                        new_title = f"[Pi-SEO][{scan_label}] {new_title}"
+                    if new_title:
+                        title = new_title[:200]
 
             # Check Linear for duplicates
             if self._client and not dry_run:
