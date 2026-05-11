@@ -15,6 +15,7 @@ Supabase gets last_fired_at upserts (fire-and-forget).
 Public API:
     list_triggers()         -> list[dict]
     create_trigger(...)     -> dict
+    update_trigger(name, **field_updates) -> dict
     delete_trigger(tid)     -> bool
 """
 import json
@@ -121,6 +122,25 @@ def create_trigger(
     triggers.append(trigger)
     _save_triggers(triggers)
     return trigger
+
+
+def update_trigger(trigger_name: str, **field_updates) -> dict:
+    """Update an existing trigger's fields by id, persist, return the updated row.
+
+    Lookup is by the trigger's `id` field (matching ``create_trigger`` /
+    ``delete_trigger`` convention). Raises ``KeyError`` if no trigger has
+    that id — silent no-ops would mask the bug the caller is trying to fix.
+
+    Mutates only the named fields; other fields (including durable
+    ``last_fired_at``) are preserved.
+    """
+    triggers = _load_triggers()
+    for t in triggers:
+        if t.get("id") == trigger_name:
+            t.update(field_updates)
+            _save_triggers(triggers)
+            return t
+    raise KeyError(f"trigger {trigger_name!r} not found")
 
 
 def delete_trigger(tid: str) -> bool:
