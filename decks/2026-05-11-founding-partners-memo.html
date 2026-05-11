@@ -1,0 +1,1666 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NRPG Founding Partners — May 2026</title>
+
+<!-- Typography: NRPG uses Inter for body + display.
+     For deck hierarchy: Inter for body, Fraunces (high-contrast serif) for editorial
+     display moments and Space Mono for numeric anchors / data callouts.
+     Coutis slide adds Bebas Neue per his design tokens. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Fraunces:opsz,wght,SOFT@9..144,300..900,0..100&family=JetBrains+Mono:wght@400;500;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+
+<style>
+/* ===========================================
+   VIEWPORT BASE (mandatory)
+   =========================================== */
+html, body { height: 100%; overflow-x: hidden; }
+html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+.slide {
+    width: 100vw; height: 100vh; height: 100dvh;
+    overflow: hidden;
+    scroll-snap-align: start;
+    display: flex; flex-direction: column;
+    position: relative;
+}
+.slide-content {
+    flex: 1; display: flex; flex-direction: column;
+    justify-content: center;
+    max-height: 100%; overflow: hidden;
+    padding: var(--slide-padding);
+}
+:root {
+    --title-size: clamp(1.5rem, 5vw, 4rem);
+    --h2-size: clamp(1.25rem, 3.5vw, 2.5rem);
+    --h3-size: clamp(1rem, 2.5vw, 1.75rem);
+    --body-size: clamp(0.8rem, 1.4vw, 1.05rem);
+    --small-size: clamp(0.65rem, 1vw, 0.85rem);
+    --slide-padding: clamp(1.5rem, 4vw, 4.5rem);
+    --content-gap: clamp(0.5rem, 2vw, 2rem);
+    --element-gap: clamp(0.25rem, 1vw, 1rem);
+}
+.card, .container, .content-box { max-width: min(95vw, 1400px); max-height: min(85vh, 720px); }
+img, .image-container { max-width: 100%; max-height: min(50vh, 400px); object-fit: contain; }
+@media (max-height: 700px) {
+    :root {
+        --slide-padding: clamp(1rem, 3vw, 2.5rem);
+        --title-size: clamp(1.25rem, 4.5vw, 2.5rem);
+        --h2-size: clamp(1rem, 3vw, 1.75rem);
+    }
+}
+@media (max-height: 600px) {
+    :root {
+        --slide-padding: clamp(0.6rem, 2.5vw, 1.5rem);
+        --body-size: clamp(0.7rem, 1.2vw, 0.9rem);
+    }
+    .nav-dots, .keyboard-hint, .decorative { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.2s !important; }
+    html { scroll-behavior: auto; }
+}
+
+/* ===========================================
+   BRAND TOKENS — NRPG primary
+   =========================================== */
+:root {
+    /* NRPG palette (canonical from nrpg.ts) */
+    --nrpg-emerald: #059669;
+    --nrpg-emerald-dark: #047857;
+    --nrpg-emerald-deep: #064E3B;
+    --nrpg-secondary: #2A3D5F;
+    --nrpg-accent: #F2B33D;
+    --nrpg-cream-50: #FAF8F2;
+    --nrpg-cream-100: #EDE7D6;
+    --nrpg-neutral-500: #7A7468;
+    --nrpg-ink: #0F1626;
+
+    /* Coutis tokens (slide 5 accent only) */
+    --coutis-charcoal: #1A1A1A;
+    --coutis-umber: #3A2E1F;
+    --coutis-gold: #D4A437;
+
+    /* Semantic */
+    --rule: rgba(15, 22, 38, 0.12);
+    --rule-strong: rgba(15, 22, 38, 0.28);
+    --shadow-soft: 0 1px 0 rgba(15, 22, 38, 0.04), 0 4px 16px rgba(15, 22, 38, 0.06);
+}
+
+/* ===========================================
+   GLOBAL TYPOGRAPHY
+   =========================================== */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--nrpg-cream-50);
+    color: var(--nrpg-ink);
+    font-feature-settings: 'ss01', 'cv11';
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+.serif { font-family: 'Fraunces', Georgia, serif; font-feature-settings: 'liga', 'kern'; }
+.mono  { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.bebas { font-family: 'Bebas Neue', Impact, sans-serif; letter-spacing: 0.02em; }
+
+/* ===========================================
+   SHARED SLIDE CHROME
+   =========================================== */
+.slide-meta {
+    position: absolute;
+    top: clamp(1rem, 2vw, 1.75rem);
+    left: clamp(1.5rem, 4vw, 4.5rem);
+    right: clamp(1.5rem, 4vw, 4.5rem);
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(0.65rem, 0.85vw, 0.78rem);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--nrpg-neutral-500);
+    z-index: 5;
+}
+.slide-meta .left { display: flex; align-items: center; gap: 0.75rem; }
+.slide-meta .num { color: var(--nrpg-emerald); font-weight: 700; }
+.slide-meta .mark-inline { width: 18px; height: 18px; }
+
+.slide-footer {
+    position: absolute;
+    bottom: clamp(1rem, 2vw, 1.75rem);
+    left: clamp(1.5rem, 4vw, 4.5rem);
+    right: clamp(1.5rem, 4vw, 4.5rem);
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(0.6rem, 0.78vw, 0.72rem);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--nrpg-neutral-500);
+    z-index: 5;
+}
+
+/* Custom NRPG geometric mark — hexagon ring + standards bar */
+.nrpg-mark {
+    display: inline-block;
+    width: 28px; height: 28px;
+    flex-shrink: 0;
+}
+
+/* ===========================================
+   REVEAL ANIMATIONS
+   =========================================== */
+.reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.7s cubic-bezier(0.22,1,0.36,1), transform 0.7s cubic-bezier(0.22,1,0.36,1); }
+.slide.active .reveal { opacity: 1; transform: translateY(0); }
+.slide.active .reveal[data-delay="100"] { transition-delay: 0.10s; }
+.slide.active .reveal[data-delay="200"] { transition-delay: 0.20s; }
+.slide.active .reveal[data-delay="300"] { transition-delay: 0.30s; }
+.slide.active .reveal[data-delay="400"] { transition-delay: 0.40s; }
+.slide.active .reveal[data-delay="500"] { transition-delay: 0.50s; }
+.slide.active .reveal[data-delay="600"] { transition-delay: 0.60s; }
+.slide.active .reveal[data-delay="700"] { transition-delay: 0.70s; }
+.slide.active .reveal[data-delay="800"] { transition-delay: 0.80s; }
+.slide.active .reveal[data-delay="900"] { transition-delay: 0.90s; }
+
+/* ===========================================
+   SLIDE 1 — MANIFESTO
+   =========================================== */
+.s1 {
+    background: var(--nrpg-cream-50);
+    color: var(--nrpg-ink);
+}
+.s1 .slide-content {
+    align-items: stretch;
+    justify-content: center;
+}
+.s1-wrap {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: clamp(1rem, 2vw, 2rem);
+    max-width: min(1100px, 92vw);
+    margin: 0 auto;
+}
+.s1-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(0.7rem, 0.9vw, 0.85rem);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--nrpg-emerald);
+    display: flex; align-items: center; gap: 0.85rem;
+}
+.s1-eyebrow .rule {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, var(--nrpg-emerald), transparent);
+    max-width: 220px;
+}
+.s1-headline {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 400;
+    font-size: clamp(1.6rem, 3.5vw, 3rem);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    font-variation-settings: 'opsz' 90, 'SOFT' 30;
+    color: var(--nrpg-ink);
+}
+.s1-headline em {
+    font-style: italic;
+    color: var(--nrpg-emerald-dark);
+    font-variation-settings: 'opsz' 144, 'SOFT' 100;
+}
+.s1-body {
+    font-size: clamp(0.85rem, 1.15vw, 1rem);
+    line-height: 1.65;
+    color: var(--nrpg-ink);
+    max-width: 920px;
+    column-count: 2;
+    column-gap: clamp(1.5rem, 3vw, 3rem);
+    column-rule: 1px solid var(--rule);
+}
+.s1-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: clamp(1rem, 1.6vw, 1.35rem);
+    color: var(--nrpg-emerald-dark);
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--nrpg-emerald);
+    align-self: start;
+}
+.s1-tag::before {
+    content: "";
+    width: 24px; height: 1px;
+    background: var(--nrpg-emerald);
+}
+.s1-corner {
+    position: absolute;
+    bottom: 0; right: 0;
+    width: clamp(160px, 22vw, 280px);
+    height: clamp(160px, 22vw, 280px);
+    pointer-events: none;
+    opacity: 0.08;
+}
+
+/* ===========================================
+   SLIDE 2 — PROBLEM (3 PAIN CARDS)
+   =========================================== */
+.s2 {
+    background:
+        radial-gradient(ellipse at top right, rgba(5,150,105,0.04), transparent 60%),
+        var(--nrpg-cream-50);
+}
+.s2-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(1rem, 1.8vw, 1.75rem);
+    margin-top: clamp(1.5rem, 3vw, 2.5rem);
+}
+.pain-card {
+    background: white;
+    border: 1px solid var(--rule);
+    border-top: 3px solid var(--nrpg-emerald);
+    padding: clamp(1.25rem, 2vw, 2rem);
+    display: flex; flex-direction: column;
+    gap: clamp(0.6rem, 1.2vw, 1rem);
+    box-shadow: var(--shadow-soft);
+}
+.pain-card .num {
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-size: clamp(2.4rem, 4.5vw, 4rem);
+    line-height: 0.9;
+    color: var(--nrpg-emerald);
+    font-variation-settings: 'opsz' 144;
+}
+.pain-card .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(0.6rem, 0.78vw, 0.72rem);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--nrpg-neutral-500);
+}
+.pain-card h3 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: clamp(1rem, 1.45vw, 1.25rem);
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    color: var(--nrpg-ink);
+}
+.pain-card p {
+    font-size: clamp(0.8rem, 1.05vw, 0.93rem);
+    line-height: 1.55;
+    color: var(--nrpg-ink);
+    opacity: 0.85;
+}
+.s2-anchor {
+    margin-top: clamp(1.25rem, 2vw, 1.75rem);
+    padding: clamp(0.9rem, 1.4vw, 1.25rem) clamp(1.1rem, 1.8vw, 1.6rem);
+    background: var(--nrpg-ink);
+    color: var(--nrpg-cream-50);
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem;
+    font-size: clamp(0.78rem, 1vw, 0.92rem);
+}
+.s2-anchor .figure {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(1.1rem, 1.8vw, 1.5rem);
+    font-weight: 700;
+    color: var(--nrpg-accent);
+    letter-spacing: -0.02em;
+}
+
+/* ===========================================
+   SLIDE TITLE BLOCK (shared 2-8)
+   =========================================== */
+.title-block { display: flex; flex-direction: column; gap: 0.4rem; max-width: 1100px; }
+.title-block .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(0.65rem, 0.85vw, 0.78rem);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--nrpg-emerald);
+}
+.title-block h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 400;
+    font-variation-settings: 'opsz' 144, 'SOFT' 40;
+    font-size: clamp(1.6rem, 3vw, 2.6rem);
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+}
+.title-block h2 em {
+    font-style: italic;
+    color: var(--nrpg-emerald-dark);
+    font-variation-settings: 'opsz' 144, 'SOFT' 100;
+}
+.title-block .lede {
+    font-size: clamp(0.85rem, 1.1vw, 1rem);
+    line-height: 1.5;
+    color: var(--nrpg-neutral-500);
+    max-width: 780px;
+    margin-top: 0.4rem;
+}
+
+/* ===========================================
+   SLIDE 3 — MOAT + BUNDLE (6 columns)
+   =========================================== */
+.s3-moat {
+    margin-top: clamp(1rem, 2vw, 1.6rem);
+    padding: clamp(1rem, 1.6vw, 1.4rem) clamp(1.2rem, 2vw, 1.8rem);
+    border-left: 3px solid var(--nrpg-emerald);
+    background: white;
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: clamp(1rem, 1.4vw, 1.25rem);
+    line-height: 1.35;
+    color: var(--nrpg-ink);
+    box-shadow: var(--shadow-soft);
+}
+.s3-moat strong { font-style: normal; font-weight: 600; color: var(--nrpg-emerald-dark); }
+.s3-bundle {
+    margin-top: clamp(1.25rem, 2vw, 1.75rem);
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: clamp(0.5rem, 0.9vw, 0.85rem);
+}
+.bundle-cell {
+    background: white;
+    border: 1px solid var(--rule);
+    padding: clamp(0.85rem, 1.3vw, 1.15rem);
+    display: flex; flex-direction: column;
+    gap: clamp(0.5rem, 0.9vw, 0.75rem);
+    min-height: clamp(140px, 22vh, 200px);
+}
+.bundle-cell .ix {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(0.6rem, 0.75vw, 0.7rem);
+    letter-spacing: 0.14em;
+    color: var(--nrpg-neutral-500);
+}
+.bundle-cell .mark {
+    width: clamp(28px, 3vw, 38px);
+    height: clamp(28px, 3vw, 38px);
+    color: var(--nrpg-emerald);
+}
+.bundle-cell h4 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: clamp(0.85rem, 1.05vw, 0.98rem);
+    color: var(--nrpg-ink);
+    letter-spacing: -0.01em;
+}
+.bundle-cell p {
+    font-size: clamp(0.7rem, 0.85vw, 0.78rem);
+    line-height: 1.45;
+    color: var(--nrpg-neutral-500);
+}
+.s3-stamp {
+    margin-top: clamp(1rem, 1.5vw, 1.25rem);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(0.75rem, 0.95vw, 0.88rem);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--nrpg-emerald-dark);
+    display: flex; align-items: center; gap: 1.25rem;
+}
+.s3-stamp .dot { width: 6px; height: 6px; background: var(--nrpg-emerald); }
+
+/* ===========================================
+   SLIDE 4 — PRICING + ARR
+   =========================================== */
+.s4-layout {
+    display: grid;
+    grid-template-columns: 1.05fr 1fr;
+    gap: clamp(1.25rem, 2.5vw, 2.5rem);
+    margin-top: clamp(1rem, 2vw, 1.6rem);
+    align-items: start;
+}
+.tier-stack { display: flex; flex-direction: column; gap: clamp(0.55rem, 1vw, 0.85rem); }
+.tier {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: clamp(0.8rem, 1.4vw, 1.25rem);
+    padding: clamp(0.85rem, 1.3vw, 1.15rem) clamp(1rem, 1.6vw, 1.4rem);
+    background: white;
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--nrpg-emerald);
+}
+.tier.founder { border-left-color: var(--nrpg-accent); background: linear-gradient(to right, rgba(242,179,61,0.08), white 35%); }
+.tier .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(0.65rem, 0.82vw, 0.76rem);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--nrpg-neutral-500);
+    min-width: 90px;
+}
+.tier.founder .label { color: var(--nrpg-accent); font-weight: 700; }
+.tier .name {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: clamp(0.95rem, 1.25vw, 1.1rem);
+    color: var(--nrpg-ink);
+}
+.tier .name small {
+    display: block;
+    font-weight: 400;
+    font-size: clamp(0.7rem, 0.88vw, 0.8rem);
+    color: var(--nrpg-neutral-500);
+    margin-top: 0.15rem;
+    letter-spacing: 0;
+}
+.tier .price {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: clamp(1.05rem, 1.5vw, 1.35rem);
+    color: var(--nrpg-emerald-dark);
+    letter-spacing: -0.01em;
+    text-align: right;
+    line-height: 1.1;
+}
+.tier .price small {
+    display: block;
+    font-size: clamp(0.65rem, 0.8vw, 0.72rem);
+    color: var(--nrpg-neutral-500);
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.arr-card {
+    background: var(--nrpg-ink);
+    color: var(--nrpg-cream-50);
+    padding: clamp(1.25rem, 2vw, 1.75rem);
+    display: flex; flex-direction: column;
+    gap: clamp(0.65rem, 1.1vw, 0.9rem);
+    box-shadow: var(--shadow-soft);
+}
+.arr-card .head {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(0.65rem, 0.82vw, 0.76rem);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--nrpg-accent);
+}
+.arr-card h3 {
+    font-family: 'Fraunces', serif;
+    font-weight: 400;
+    font-variation-settings: 'opsz' 144;
+    font-size: clamp(1.1rem, 1.6vw, 1.35rem);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+}
+.arr-table {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 0.45rem clamp(0.8rem, 1.3vw, 1.2rem);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(0.72rem, 0.92vw, 0.85rem);
+    color: var(--nrpg-cream-50);
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(250,248,242,0.18);
+}
+.arr-table .col-h {
+    font-size: clamp(0.6rem, 0.75vw, 0.68rem);
+    letter-spacing: 0.14em;
+    color: var(--nrpg-cream-100);
+    opacity: 0.65;
+}
+.arr-table .right { text-align: right; }
+.arr-table .total {
+    font-weight: 700;
+    color: var(--nrpg-accent);
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(250,248,242,0.18);
+}
+.arr-card .footnote {
+    font-size: clamp(0.7rem, 0.85vw, 0.78rem);
+    color: var(--nrpg-cream-100);
+    opacity: 0.75;
+    line-height: 1.5;
+    padding-top: 0.5rem;
+    font-family: 'Inter', sans-serif;
+}
+.arr-card .footnote strong { color: var(--nrpg-accent); font-weight: 600; }
+
+/* ===========================================
+   SLIDE 5 — TRIO (Phill · Toby · Coutis)
+   =========================================== */
+.s5 {
+    background:
+        linear-gradient(180deg, var(--nrpg-cream-50) 0%, var(--nrpg-cream-100) 100%);
+}
+.trio-grid {
+    margin-top: clamp(1.25rem, 2vw, 1.75rem);
+    display: grid;
+    grid-template-columns: 1fr 1.05fr 1fr;
+    gap: clamp(0.85rem, 1.4vw, 1.25rem);
+    align-items: stretch;
+}
+.persona {
+    background: white;
+    border: 1px solid var(--rule);
+    padding: clamp(1.1rem, 1.8vw, 1.6rem);
+    display: flex; flex-direction: column;
+    gap: clamp(0.55rem, 1vw, 0.85rem);
+    box-shadow: var(--shadow-soft);
+    position: relative;
+}
+.persona.coutis {
+    background: var(--coutis-charcoal);
+    color: var(--nrpg-cream-50);
+    border: none;
+}
+.persona-mark {
+    width: clamp(72px, 8vw, 96px);
+    height: clamp(72px, 8vw, 96px);
+}
+.persona .role {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(0.6rem, 0.78vw, 0.72rem);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--nrpg-emerald);
+}
+.persona.coutis .role { color: var(--coutis-gold); }
+.persona .name {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    font-size: clamp(1.05rem, 1.5vw, 1.3rem);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+}
+.persona .name small {
+    display: block;
+    font-weight: 400;
+    font-size: clamp(0.7rem, 0.88vw, 0.8rem);
+    color: var(--nrpg-neutral-500);
+    margin-top: 0.2rem;
+    letter-spacing: 0;
+}
+.persona.coutis .name small { color: var(--nrpg-cream-100); opacity: 0.72; }
+.persona .desc {
+    font-size: clamp(0.78rem, 1vw, 0.9rem);
+    line-height: 1.55;
+    color: var(--nrpg-ink);
+    opacity: 0.88;
+    flex: 1;
+}
+.persona.coutis .desc { color: var(--nrpg-cream-50); opacity: 0.88; }
+.persona .credential {
+    margin-top: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--rule);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(0.7rem, 0.86vw, 0.78rem);
+    letter-spacing: 0.04em;
+    color: var(--nrpg-emerald-dark);
+}
+.persona.coutis .credential {
+    border-top: 1px solid rgba(212,164,55,0.32);
+    color: var(--coutis-gold);
+}
+.persona .badge {
+    position: absolute;
+    top: clamp(1rem, 1.6vw, 1.4rem);
+    right: clamp(1rem, 1.6vw, 1.4rem);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(0.6rem, 0.74vw, 0.68rem);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 0.25rem 0.55rem;
+    background: var(--nrpg-cream-100);
+    color: var(--nrpg-ink);
+}
+.persona.centre {
+    background: var(--nrpg-ink);
+    color: var(--nrpg-cream-50);
+    border: none;
+}
+.persona.centre .name { color: var(--nrpg-cream-50); }
+.persona.centre .name small { color: var(--nrpg-cream-100); opacity: 0.7; }
+.persona.centre .role { color: var(--nrpg-accent); }
+.persona.centre .desc { color: var(--nrpg-cream-50); opacity: 0.88; }
+.persona.centre .credential { border-top: 1px solid rgba(242,179,61,0.32); color: var(--nrpg-accent); }
+.persona.centre .badge { background: var(--nrpg-accent); color: var(--nrpg-ink); }
+.persona.coutis .badge { background: var(--coutis-gold); color: var(--coutis-charcoal); }
+.trio-footer {
+    margin-top: clamp(1rem, 1.6vw, 1.4rem);
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: clamp(0.9rem, 1.2vw, 1.1rem);
+    color: var(--nrpg-ink);
+    opacity: 0.75;
+    text-align: center;
+    line-height: 1.4;
+}
+
+/* ===========================================
+   SLIDE 6 — ROADMAP (5 waves horizontal)
+   =========================================== */
+.roadmap {
+    margin-top: clamp(1.5rem, 2.5vw, 2.25rem);
+    position: relative;
+}
+.roadmap-track {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: clamp(0.55rem, 0.9vw, 0.85rem);
+    position: relative;
+}
+.roadmap-track::before {
+    content: "";
+    position: absolute;
+    left: 0; right: 0;
+    top: 28px;
+    height: 1px;
+    background: linear-gradient(to right, var(--nrpg-emerald) 0%, var(--nrpg-emerald) 80%, transparent 100%);
+    z-index: 0;
+}
+.wave {
+    background: white;
+    border: 1px solid var(--rule);
+    padding: clamp(0.9rem, 1.4vw, 1.25rem);
+    padding-top: clamp(3.6rem, 5.5vw, 4.25rem);
+    display: flex; flex-direction: column;
+    gap: clamp(0.4rem, 0.8vw, 0.65rem);
+    position: relative;
+    box-shadow: var(--shadow-soft);
+}
+.wave .dot {
+    position: absolute;
+    top: 19px;
+    left: clamp(0.9rem, 1.4vw, 1.25rem);
+    width: 18px; height: 18px;
+    background: var(--nrpg-cream-50);
+    border: 2px solid var(--nrpg-emerald);
+    z-index: 2;
+}
+.wave.current .dot { background: var(--nrpg-emerald); }
+.wave .ix {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(0.62rem, 0.78vw, 0.72rem);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--nrpg-emerald-dark);
+    font-weight: 700;
+}
+.wave .date {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(0.62rem, 0.76vw, 0.7rem);
+    color: var(--nrpg-neutral-500);
+    letter-spacing: 0.04em;
+}
+.wave .focus {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: clamp(0.88rem, 1.1vw, 1rem);
+    line-height: 1.25;
+    color: var(--nrpg-ink);
+    letter-spacing: -0.01em;
+    margin-top: 0.2rem;
+}
+.wave .metric {
+    font-size: clamp(0.74rem, 0.93vw, 0.85rem);
+    line-height: 1.45;
+    color: var(--nrpg-neutral-500);
+    margin-top: 0.2rem;
+}
+.wave .metric strong { color: var(--nrpg-emerald-dark); font-weight: 600; }
+.wave.current {
+    background: var(--nrpg-ink);
+    color: var(--nrpg-cream-50);
+    border-color: var(--nrpg-ink);
+}
+.wave.current .ix { color: var(--nrpg-accent); }
+.wave.current .date { color: var(--nrpg-cream-100); opacity: 0.7; }
+.wave.current .focus { color: var(--nrpg-cream-50); }
+.wave.current .metric { color: var(--nrpg-cream-100); opacity: 0.82; }
+.wave.current .metric strong { color: var(--nrpg-accent); }
+.wave.current .dot { background: var(--nrpg-accent); border-color: var(--nrpg-accent); }
+
+/* ===========================================
+   SLIDE 7 — THE ASK
+   =========================================== */
+.ask-layout {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr;
+    gap: clamp(1.25rem, 2.5vw, 2.25rem);
+    margin-top: clamp(1.25rem, 2vw, 1.75rem);
+    align-items: start;
+}
+.ask-list {
+    display: flex; flex-direction: column;
+    gap: clamp(0.65rem, 1.1vw, 0.95rem);
+}
+.ask-item {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: clamp(0.85rem, 1.3vw, 1.15rem);
+    align-items: start;
+    padding: clamp(0.85rem, 1.3vw, 1.1rem) clamp(1rem, 1.5vw, 1.3rem);
+    background: white;
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--nrpg-emerald);
+}
+.ask-item .ix {
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-size: clamp(1.5rem, 2.2vw, 1.9rem);
+    line-height: 0.9;
+    color: var(--nrpg-emerald);
+    font-variation-settings: 'opsz' 144;
+}
+.ask-item .body { display: flex; flex-direction: column; gap: 0.2rem; }
+.ask-item h4 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: clamp(0.9rem, 1.15vw, 1.05rem);
+    color: var(--nrpg-ink);
+    letter-spacing: -0.01em;
+}
+.ask-item p {
+    font-size: clamp(0.76rem, 0.95vw, 0.88rem);
+    line-height: 1.5;
+    color: var(--nrpg-neutral-500);
+}
+.not-asking {
+    background: var(--nrpg-cream-100);
+    padding: clamp(1.1rem, 1.8vw, 1.5rem);
+    border: 1px dashed var(--rule-strong);
+    display: flex; flex-direction: column;
+    gap: clamp(0.65rem, 1.1vw, 0.9rem);
+    align-self: stretch;
+}
+.not-asking .head {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(0.65rem, 0.82vw, 0.75rem);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--nrpg-ink);
+    display: flex; align-items: center; gap: 0.5rem;
+    padding-bottom: 0.65rem;
+    border-bottom: 1px solid var(--rule-strong);
+}
+.not-asking .head .x {
+    width: 18px; height: 18px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+}
+.not-asking ul {
+    list-style: none;
+    display: flex; flex-direction: column;
+    gap: clamp(0.5rem, 0.85vw, 0.7rem);
+}
+.not-asking li {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.8rem;
+    align-items: start;
+    font-size: clamp(0.82rem, 1.05vw, 0.95rem);
+    line-height: 1.4;
+    color: var(--nrpg-ink);
+    font-weight: 500;
+}
+.not-asking li .strike {
+    width: 16px; height: 16px;
+    flex-shrink: 0;
+    margin-top: 3px;
+    color: var(--nrpg-emerald-dark);
+}
+.not-asking li small {
+    display: block;
+    font-size: clamp(0.7rem, 0.88vw, 0.78rem);
+    font-weight: 400;
+    color: var(--nrpg-neutral-500);
+    margin-top: 0.15rem;
+}
+
+/* ===========================================
+   SLIDE 8 — OPEN VERIFICATION (stark)
+   =========================================== */
+.s8 {
+    background: var(--nrpg-cream-50);
+}
+.s8 .slide-content { gap: 0; }
+.s8-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 2rem;
+}
+.s8-stamp {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(0.65rem, 0.82vw, 0.76rem);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--nrpg-ink);
+    padding: 0.4rem 0.7rem;
+    border: 1px solid var(--rule-strong);
+    background: white;
+}
+.open-list {
+    margin-top: clamp(1.5rem, 2.5vw, 2.25rem);
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0;
+    border-top: 1px solid var(--rule-strong);
+    border-left: 1px solid var(--rule-strong);
+}
+.open-row {
+    padding: clamp(1rem, 1.6vw, 1.4rem) clamp(1.1rem, 1.8vw, 1.6rem);
+    border-right: 1px solid var(--rule-strong);
+    border-bottom: 1px solid var(--rule-strong);
+    display: flex; flex-direction: column;
+    gap: clamp(0.4rem, 0.8vw, 0.6rem);
+    background: white;
+}
+.open-row .ix {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(0.62rem, 0.78vw, 0.72rem);
+    letter-spacing: 0.16em;
+    color: var(--nrpg-neutral-500);
+    display: flex; align-items: center; gap: 0.5rem;
+}
+.open-row .ix::before {
+    content: "";
+    width: 8px; height: 8px;
+    background: var(--nrpg-accent);
+    border-radius: 50%;
+}
+.open-row h4 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: clamp(0.95rem, 1.2vw, 1.1rem);
+    color: var(--nrpg-ink);
+    letter-spacing: -0.01em;
+}
+.open-row p {
+    font-size: clamp(0.78rem, 0.98vw, 0.9rem);
+    line-height: 1.5;
+    color: var(--nrpg-neutral-500);
+}
+.open-row .status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(0.66rem, 0.82vw, 0.75rem);
+    color: var(--nrpg-emerald-dark);
+    margin-top: 0.3rem;
+    letter-spacing: 0.04em;
+}
+.s8-close {
+    margin-top: clamp(1rem, 1.8vw, 1.5rem);
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: clamp(0.95rem, 1.25vw, 1.15rem);
+    color: var(--nrpg-ink);
+    opacity: 0.7;
+    max-width: 780px;
+    line-height: 1.45;
+}
+
+/* ===========================================
+   NAVIGATION DOTS
+   =========================================== */
+.nav-dots {
+    position: fixed;
+    right: clamp(0.75rem, 1.5vw, 1.5rem);
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 50;
+}
+.nav-dot {
+    width: 8px; height: 8px;
+    background: rgba(15, 22, 38, 0.2);
+    border: none;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    padding: 0;
+}
+.nav-dot:hover { background: var(--nrpg-emerald); }
+.nav-dot.active {
+    background: var(--nrpg-emerald);
+    width: 8px;
+    height: 24px;
+}
+
+/* ===========================================
+   COVER LINE — slide 1 corner mark
+   =========================================== */
+.s1-corner svg { width: 100%; height: 100%; display: block; }
+
+</style>
+</head>
+<body>
+
+<!-- INTERNAL marker — Unite-Group portfolio only, do not distribute publicly. Added 2026-05-11 (internal-pivot). -->
+<div role="note" aria-label="Internal use only" style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#b30000;color:#fff;font-family:Inter,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;text-align:center;padding:6px 12px;border-bottom:1px solid #fff;">INTERNAL — Unite-Group portfolio only — do not distribute publicly · 2026-05-11</div>
+
+<!-- Navigation dots -->
+<nav class="nav-dots" aria-label="Slide navigation">
+    <button class="nav-dot" data-slide="0" aria-label="Slide 1"></button>
+    <button class="nav-dot" data-slide="1" aria-label="Slide 2"></button>
+    <button class="nav-dot" data-slide="2" aria-label="Slide 3"></button>
+    <button class="nav-dot" data-slide="3" aria-label="Slide 4"></button>
+    <button class="nav-dot" data-slide="4" aria-label="Slide 5"></button>
+    <button class="nav-dot" data-slide="5" aria-label="Slide 6"></button>
+    <button class="nav-dot" data-slide="6" aria-label="Slide 7"></button>
+    <button class="nav-dot" data-slide="7" aria-label="Slide 8"></button>
+</nav>
+
+<!-- ===========================================
+     SLIDE 1 — MANIFESTO
+     119-word verbatim §1 of the memo, large editorial type
+     =========================================== -->
+<section class="slide s1" id="s1">
+    <header class="slide-meta">
+        <div class="left">
+            <svg class="mark-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter" style="color: var(--nrpg-emerald);">
+                <path d="M12 2 L21 7 L21 17 L12 22 L3 17 L3 7 Z"/>
+                <path d="M7 11 L17 11"/>
+            </svg>
+            <span>NRPG Industry Association</span>
+        </div>
+        <div class="right"><span class="num">01</span> · Manifesto</div>
+    </header>
+
+    <div class="slide-content">
+        <div class="s1-wrap">
+            <div class="reveal s1-eyebrow">
+                <span>Founding Partners · May 2026</span>
+                <span class="rule"></span>
+                <span>Confidential</span>
+            </div>
+
+            <h1 class="reveal s1-headline" data-delay="100">
+                The ANZ property-services industry has been paying <em>six suppliers</em> to do the work of one peak body.
+            </h1>
+
+            <div class="reveal s1-body" data-delay="200">
+                <p>Cert from the US. Software from Sydney. Marketing from a freelancer in Bali. Leads from a directory site charging by the lock. Insurance from a broker who has never set foot on a fire job. Equipment from whoever picks up the phone.</p>
+                <p style="margin-top: 0.6rem;">The expanded NRPG association ends that arrangement. One body. One membership. Standards held to the highest international benchmark, jobs routed to certified firms, marketing run by the people who built the platform, training delivered in Australian time zones, equipment supplied through national distribution, advocacy seated at the insurer table.</p>
+                <p style="margin-top: 0.6rem;">Built for firms doing the work. Hosted by John Coutis OAM.</p>
+            </div>
+
+            <div class="reveal s1-tag" data-delay="400">
+                The peak body that runs jobs.
+            </div>
+        </div>
+    </div>
+
+    <!-- Corner geometric mark -->
+    <div class="s1-corner" aria-hidden="true">
+        <svg viewBox="0 0 200 200" fill="none" stroke="var(--nrpg-emerald-dark)" stroke-width="1.2" stroke-linecap="square">
+            <path d="M100 12 L172 54 L172 138 L100 180 L28 138 L28 54 Z"/>
+            <path d="M100 40 L148 68 L148 124 L100 152 L52 124 L52 68 Z"/>
+            <path d="M100 68 L124 82 L124 110 L100 124 L76 110 L76 82 Z"/>
+            <path d="M40 60 L40 132"/>
+            <path d="M160 60 L160 132"/>
+            <path d="M28 96 L172 96"/>
+        </svg>
+    </div>
+
+    <footer class="slide-footer">
+        <span>For Phill McGurk · Toby Bredhauer · founding-member candidates</span>
+        <span>nrpg.industry / founders</span>
+    </footer>
+</section>
+
+
+<!-- ===========================================
+     SLIDE 2 — THE PROBLEM (60-second view)
+     3 ICP pain cards + anchor strip
+     =========================================== -->
+<section class="slide s2" id="s2">
+    <header class="slide-meta">
+        <div class="left">
+            <svg class="mark-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter" style="color: var(--nrpg-emerald);">
+                <path d="M12 2 L21 7 L21 17 L12 22 L3 17 L3 7 Z"/>
+                <path d="M7 11 L17 11"/>
+            </svg>
+            <span>NRPG Industry Association</span>
+        </div>
+        <div class="right"><span class="num">02</span> · The Problem</div>
+    </header>
+
+    <div class="slide-content">
+        <div class="title-block reveal">
+            <div class="eyebrow">60-second view · 5–50 FTE ANZ operator</div>
+            <h2>Three frustrations <em>run the day</em> for a restoration or specialty-cleaning firm.</h2>
+        </div>
+
+        <div class="s2-grid">
+            <article class="pain-card reveal" data-delay="100">
+                <div class="num serif">01</div>
+                <div class="label">Pain · Dispatch</div>
+                <h3>Insurer dispatch routes leads at random.</h3>
+                <p>A panel firm down the road does a hack mould job for IAG; the carrier stops taking the good firm's calls for six months. No accountability. No shared certification floor.</p>
+            </article>
+
+            <article class="pain-card reveal" data-delay="200">
+                <div class="num serif">02</div>
+                <div class="label">Pain · Cert ladder</div>
+                <h3>No ANZ cert ladder insurers or regulators actually recognise.</h3>
+                <p>Anyone slaps "IICRC certified" on the van. The IICRC sits in Las Vegas with no skin in the local game. The firm cannot charge a premium when the cowboy down the street claims the same credential.</p>
+            </article>
+
+            <article class="pain-card reveal" data-delay="300">
+                <div class="num serif">03</div>
+                <div class="label">Pain · Marketing + tech</div>
+                <h3>Marketing, branding, and tech burn the owner's nights.</h3>
+                <p>Three agencies in five years. One website. Two ghostings after invoice two. The bookkeeper is also the website manager. The foreman is also the social-media intern at 9pm Tuesday.</p>
+            </article>
+        </div>
+
+        <div class="s2-anchor reveal" data-delay="500">
+            <div>Verified midpoint spend for a Toby-class operator across categories the association replaces or augments.</div>
+            <div class="figure">~AU$5,000<span style="font-size: 0.65em; font-weight: 400; opacity: 0.7;"> /mo · 6 suppliers · none coordinate</span></div>
+        </div>
+    </div>
+
+    <footer class="slide-footer">
+        <span>Source · pricing-research.md §4 · Toby SaaS line AU$2,750/mo confirmed</span>
+        <span>02 / 08</span>
+    </footer>
+</section>
+
+
+<!-- ===========================================
+     SLIDE 3 — MOAT + BUNDLE (6 columns)
+     =========================================== -->
+<section class="slide s3" id="s3">
+    <header class="slide-meta">
+        <div class="left">
+            <svg class="mark-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter" style="color: var(--nrpg-emerald);">
+                <path d="M12 2 L21 7 L21 17 L12 22 L3 17 L3 7 Z"/>
+                <path d="M7 11 L17 11"/>
+            </svg>
+            <span>NRPG Industry Association</span>
+        </div>
+        <div class="right"><span class="num">03</span> · The Moat</div>
+    </header>
+
+    <div class="slide-content">
+        <div class="title-block reveal">
+            <div class="eyebrow">Member-as-a-Service · the bundle</div>
+            <h2>The moat in <em>one sentence</em>. The bundle in six lines.</h2>
+        </div>
+
+        <div class="s3-moat reveal" data-delay="100">
+            <strong>Member-as-a-Service is the moat.</strong> No competitor in the 20-org map ships cert + leads + marketing + software + insurance + equipment as one membership.
+        </div>
+
+        <div class="s3-bundle">
+            <!-- 1. Certification -->
+            <div class="bundle-cell reveal" data-delay="200">
+                <div class="ix">01 · Cert</div>
+                <svg class="mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
+                    <path d="M12 3 L20 7 L20 13 C20 17 16 20 12 21 C8 20 4 17 4 13 L4 7 Z"/>
+                    <path d="M9 12 L11 14 L15 10"/>
+                </svg>
+                <h4>Certification</h4>
+                <p>Individual + Firm-level NRPG cert, AU-delivered via CARSI, IICRC-aligned.</p>
+            </div>
+            <!-- 2. Leads -->
+            <div class="bundle-cell reveal" data-delay="280">
+                <div class="ix">02 · Leads</div>
+                <svg class="mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
+                    <path d="M4 6 L14 6 L20 12 L14 18 L4 18 Z"/>
+                    <path d="M8 12 L16 12"/>
+                </svg>
+                <h4>Leads</h4>
+                <p>Job routing from Disaster Recovery + insurer-panel referrals to Certified Firms.</p>
+            </div>
+            <!-- 3. Marketing -->
+            <div class="bundle-cell reveal" data-delay="360">
+                <div class="ix">03 · Marketing</div>
+                <svg class="mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
+                    <path d="M4 4 L20 4 L20 16 L13 16 L9 20 L9 16 L4 16 Z"/>
+                    <path d="M8 9 L16 9"/>
+                    <path d="M8 12 L13 12"/>
+                </svg>
+                <h4>Marketing</h4>
+                <p>Done-for-You SEO, GBP, website hosting, co-branded social by Synthex.</p>
+            </div>
+            <!-- 4. Software -->
+            <div class="bundle-cell reveal" data-delay="440">
+                <div class="ix">04 · Software</div>
+                <svg class="mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
+                    <path d="M3 5 L21 5 L21 17 L3 17 Z"/>
+                    <path d="M3 9 L21 9"/>
+                    <path d="M7 13 L10 13"/>
+                    <path d="M7 7 L8 7"/>
+                </svg>
+                <h4>Software</h4>
+                <p>AI intake, scope, and floor-plan tools — RestoreAssist + DR + CARSI productised.</p>
+            </div>
+            <!-- 5. Insurance -->
+            <div class="bundle-cell reveal" data-delay="520">
+                <div class="ix">05 · Insurance</div>
+                <svg class="mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
+                    <path d="M12 3 L20 7 L20 13 C20 17 16 20 12 21 C8 20 4 17 4 13 L4 7 Z"/>
+                    <path d="M12 8 L12 16"/>
+                    <path d="M8 12 L16 12"/>
+                </svg>
+                <h4>Insurance + Advocacy</h4>
+                <p>Group PI/PL rates; collective advocacy at the insurer scope-template table.</p>
+            </div>
+            <!-- 6. Equipment -->
+            <div class="bundle-cell reveal" data-delay="600">
+                <div class="ix">06 · Equipment</div>
+                <svg class="mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
+                    <path d="M3 8 L11 4 L19 8 L19 16 L11 20 L3 16 Z"/>
+                    <path d="M3 8 L11 12 L19 8"/>
+                    <path d="M11 12 L11 20"/>
+                </svg>
+                <h4>Equipment</h4>
+                <p>Preferred-supplier pricing via CCW national distribution at member rates.</p>
+            </div>
+        </div>
+
+        <div class="s3-stamp reveal" data-delay="700">
+            <span class="dot"></span>
+            <span>One membership · One invoice · One phone number</span>
+        </div>
+    </div>
+
+    <footer class="slide-footer">
+        <span>Source · competitor-service-stack-2026-05-11.md · zero ticks in the bundle row</span>
+        <span>03 / 08</span>
+    </footer>
+</section>
+
+
+<!-- ===========================================
+     SLIDE 4 — VERIFIED PRICING + ARR
+     =========================================== -->
+<section class="slide s4" id="s4">
+    <header class="slide-meta">
+        <div class="left">
+            <svg class="mark-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter" style="color: var(--nrpg-emerald);">
+                <path d="M12 2 L21 7 L21 17 L12 22 L3 17 L3 7 Z"/>
+                <path d="M7 11 L17 11"/>
+            </svg>
+            <span>NRPG Industry Association</span>
+        </div>
+        <div class="right"><span class="num">04</span> · Pricing Math</div>
+    </header>
+
+    <div class="slide-content">
+        <div class="title-block reveal">
+            <div class="eyebrow">AUD ex GST · locked 2026-05-11</div>
+            <h2>Four tiers. <em>One thesis.</em> AU$13.67M ARR at Year 3.</h2>
+        </div>
+
+        <div class="s4-layout">
+            <!-- Tier stack -->
+            <div class="tier-stack">
+                <div class="tier founder reveal" data-delay="100">
+                    <div class="label">Tier 01</div>
+                    <div class="name">Founder
+                        <small>Cap 100 firms · lifetime rate-lock · Founder-100 badge</small>
+                    </div>
+                    <div class="price">$249<small>/mo</small></div>
+                </div>
+                <div class="tier reveal" data-delay="200">
+                    <div class="label">Tier 02</div>
+                    <div class="name">Firm
+                        <small>Full bundle · 12-month rate-lock · no cap</small>
+                    </div>
+                    <div class="price">$1,200<small>/mo</small></div>
+                </div>
+                <div class="tier reveal" data-delay="300">
+                    <div class="label">Tier 03</div>
+                    <div class="name">Enterprise
+                        <small>Custom panel routing · white-label cert · dedicated lead</small>
+                    </div>
+                    <div class="price">from $2,500<small>/mo</small></div>
+                </div>
+                <div class="tier reveal" data-delay="400">
+                    <div class="label">Tier 04</div>
+                    <div class="name">Sole-trader / Associate
+                        <small>Cert + directory + LMS · no leads, no marketing bundle</small>
+                    </div>
+                    <div class="price">$79<small>/mo</small></div>
+                </div>
+            </div>
+
+            <!-- ARR card -->
+            <aside class="arr-card reveal" data-delay="500">
+                <div class="head">Year-3 ARR thesis</div>
+                <h3>1,400 members · AU$13.67M annual recurring revenue</h3>
+                <div class="arr-table">
+                    <div class="col-h">Tier</div>
+                    <div class="col-h right">Count</div>
+                    <div class="col-h right">Annual</div>
+
+                    <div>Founder</div>
+                    <div class="right">100</div>
+                    <div class="right">$298,800</div>
+
+                    <div>Firm</div>
+                    <div class="right">750</div>
+                    <div class="right">$10,800,000</div>
+
+                    <div>Enterprise</div>
+                    <div class="right">50</div>
+                    <div class="right">$2,100,000</div>
+
+                    <div>Sole-trader</div>
+                    <div class="right">500</div>
+                    <div class="right">$474,000</div>
+
+                    <div class="total">Total</div>
+                    <div class="total right">1,400</div>
+                    <div class="total right">$13,672,800</div>
+                </div>
+                <div class="footnote">
+                    <strong>~1.6% of ~50,000</strong> addressable ANZ restoration + specialty-cleaning + adjacent property-services firms.
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <footer class="slide-footer">
+        <span>Source · pricing-research.md §5c · §6 addressable market</span>
+        <span>04 / 08</span>
+    </footer>
+</section>
+
+
+<!-- ===========================================
+     SLIDE 5 — FOUNDING PARTNERS TRIO
+     Left Phill · Centre Toby · Right Coutis (Coutis card uses charcoal+gold)
+     =========================================== -->
+<section class="slide s5" id="s5">
+    <header class="slide-meta">
+        <div class="left">
+            <svg class="mark-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter" style="color: var(--nrpg-emerald);">
+                <path d="M12 2 L21 7 L21 17 L12 22 L3 17 L3 7 Z"/>
+                <path d="M7 11 L17 11"/>
+            </svg>
+            <span>NRPG Industry Association</span>
+        </div>
+        <div class="right"><span class="num">05</span> · Founding Trio</div>
+    </header>
+
+    <div class="slide-content">
+        <div class="title-block reveal">
+            <div class="eyebrow">Three founders · three structural roles</div>
+            <h2>The trio is the moat. <em>No single name carries it.</em></h2>
+        </div>
+
+        <div class="trio-grid">
+            <!-- PHILL (left) -->
+            <article class="persona reveal" data-delay="100">
+                <span class="badge">Founder · CEO</span>
+                <svg class="persona-mark" viewBox="0 0 96 96" fill="none" stroke="var(--nrpg-emerald-dark)" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
+                    <rect x="12" y="12" width="72" height="72"/>
+                    <path d="M12 30 L84 30"/>
+                    <path d="M30 30 L30 84"/>
+                    <path d="M48 12 L48 30"/>
+                    <circle cx="60" cy="55" r="9"/>
+                    <path d="M48 75 L72 75"/>
+                </svg>
+                <div class="role">Architect</div>
+                <h3 class="name">Phill McGurk
+                    <small>Founder · CEO Unite-Group</small>
+                </h3>
+                <p class="desc">Holding-company architect of the six-business portfolio. Built the technology that ships as the member-services bundle — Disaster Recovery, RestoreAssist, CARSI, Synthex, CCW. The stack is operating today, not roadmap.</p>
+                <div class="credential">Editorial seat · IAQ Magazine Australia</div>
+            </article>
+
+            <!-- TOBY (centre) -->
+            <article class="persona centre reveal" data-delay="250">
+                <span class="badge">ICP anchor</span>
+                <svg class="persona-mark" viewBox="0 0 96 96" fill="none" stroke="var(--nrpg-accent)" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
+                    <path d="M16 78 L16 38 L48 18 L80 38 L80 78 Z"/>
+                    <path d="M16 78 L80 78"/>
+                    <path d="M34 78 L34 56 L62 56 L62 78"/>
+                    <path d="M48 18 L48 36"/>
+                    <path d="M40 46 L56 46"/>
+                </svg>
+                <div class="role">Anchor</div>
+                <h3 class="name">Toby Bredhauer
+                    <small>Owner-operator · CCW · co-founder track</small>
+                </h3>
+                <p class="desc">Canonical ICP. National equipment distribution arm with service departments across Australia. First paying SaaS client of Unite-Group. CCW salespeople carry the association message into every customer site — the lowest-friction word-of-mouth channel a launching peak body can have.</p>
+                <div class="credential">AU$2,750/mo SaaS · confirmed contract</div>
+            </article>
+
+            <!-- COUTIS (right) -->
+            <article class="persona coutis reveal" data-delay="400">
+                <span class="badge">Spokesman</span>
+                <svg class="persona-mark" viewBox="0 0 96 96" fill="none" stroke="var(--coutis-gold)" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
+                    <circle cx="48" cy="32" r="14"/>
+                    <path d="M22 80 L22 62 L74 62 L74 80"/>
+                    <path d="M22 80 L74 80"/>
+                    <path d="M30 50 L66 50"/>
+                    <path d="M48 46 L48 62"/>
+                </svg>
+                <div class="role">Halo</div>
+                <h3 class="name bebas" style="font-family:'Bebas Neue', sans-serif; font-size: clamp(1.4rem, 2vw, 1.7rem); letter-spacing: 0.02em;">JOHN COUTIS <span style="font-size: 0.55em; color: var(--coutis-gold);">OAM</span>
+                    <small style="font-family:'Inter',sans-serif; letter-spacing: 0;">Spokesman · Industry Association</small>
+                </h3>
+                <p class="desc">Order of Australia Medal 2020, for service to the community and to sport. 25-year keynote career. Approximately 6 million people reached across audiences worldwide. The halo signal — proof this association has reach beyond the trade.</p>
+                <div class="credential">"Half a Body, Full of Life."</div>
+            </article>
+        </div>
+
+        <div class="trio-footer reveal" data-delay="600">
+            Toby is the credibility loop. Phill is the build. Coutis is the halo. The combination is what no incumbent can copy.
+        </div>
+    </div>
+
+    <footer class="slide-footer">
+        <span>Source · icp-research.md · positioning-doc.md · Coutis claims permitted at Wave-0 only</span>
+        <span>05 / 08</span>
+    </footer>
+</section>
+
+
+<!-- ===========================================
+     SLIDE 6 — 12-MONTH ROADMAP (waves 0-4)
+     =========================================== -->
+<section class="slide s6" id="s6">
+    <header class="slide-meta">
+        <div class="left">
+            <svg class="mark-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter" style="color: var(--nrpg-emerald);">
+                <path d="M12 2 L21 7 L21 17 L12 22 L3 17 L3 7 Z"/>
+                <path d="M7 11 L17 11"/>
+            </svg>
+            <span>NRPG Industry Association</span>
+        </div>
+        <div class="right"><span class="num">06</span> · 12-Month Roadmap</div>
+    </header>
+
+    <div class="slide-content">
+        <div class="title-block reveal">
+            <div class="eyebrow">May 2026 → May 2027 · per wave: focus + metric</div>
+            <h2>Five waves. <em>One year.</em> AU$500k+ membership ARR by month twelve.</h2>
+        </div>
+
+        <div class="roadmap">
+            <div class="roadmap-track">
+                <article class="wave current reveal" data-delay="100">
+                    <div class="dot"></div>
+                    <div class="ix">Wave 0 · NOW</div>
+                    <div class="date">11–18 May 2026</div>
+                    <div class="focus">Lock Coutis. Stand up brand. Ship first content.</div>
+                    <div class="metric">Metric: first Coutis video <strong>≥1,000 views</strong> in 7 days; <strong>≥50 interest-list</strong> signups by 31 May.</div>
+                </article>
+
+                <article class="wave reveal" data-delay="200">
+                    <div class="dot"></div>
+                    <div class="ix">Wave 1</div>
+                    <div class="date">19 May – 8 Jun 2026</div>
+                    <div class="focus">Launch YouTube. Lock podcast format. Prove velocity.</div>
+                    <div class="metric">Metric: <strong>≥1,000 subs</strong> by Wk 4; 250+ interest signups; IAQ Magazine June cross-promo.</div>
+                </article>
+
+                <article class="wave reveal" data-delay="300">
+                    <div class="dot"></div>
+                    <div class="ix">Wave 2</div>
+                    <div class="date">Jun – Aug 2026</div>
+                    <div class="focus">Convert interest to paid. Marketing package live. COSBOA apply.</div>
+                    <div class="metric">Metric: <strong>50+ paid members</strong>; 10+ active cert candidates; ≥90% 90-day retention.</div>
+                </article>
+
+                <article class="wave reveal" data-delay="400">
+                    <div class="dot"></div>
+                    <div class="ix">Wave 3</div>
+                    <div class="date">Sep – Nov 2026</div>
+                    <div class="focus">Events calendar + publishing. Advocacy posture. First insurer panel.</div>
+                    <div class="metric">Metric: <strong>200+ paid members</strong>; conference 100+ regs + 5+ sponsors; first panel deal LOI'd.</div>
+                </article>
+
+                <article class="wave reveal" data-delay="500">
+                    <div class="dot"></div>
+                    <div class="ix">Wave 4</div>
+                    <div class="date">Nov 2026 – May 2027</div>
+                    <div class="focus">Scale. Conference. Annual awards. Cross-trade expansion.</div>
+                    <div class="metric">Metric: <strong>500+ members</strong>; ARR AU$500k+ membership / AU$1M+ blended; COSBOA seat.</div>
+                </article>
+            </div>
+        </div>
+    </div>
+
+    <footer class="slide-footer">
+        <span>Source · association-launch-plan-2026.md</span>
+        <span>06 / 08</span>
+    </footer>
+</section>
+
+
+<!-- ===========================================
+     SLIDE 7 — THE ASK + WHAT WE'RE NOT ASKING
+     =========================================== -->
+<section class="slide s7" id="s7">
+    <header class="slide-meta">
+        <div class="left">
+            <svg class="mark-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter" style="color: var(--nrpg-emerald);">
+                <path d="M12 2 L21 7 L21 17 L12 22 L3 17 L3 7 Z"/>
+                <path d="M7 11 L17 11"/>
+            </svg>
+            <span>NRPG Industry Association</span>
+        </div>
+        <div class="right"><span class="num">07</span> · The Ask</div>
+    </header>
+
+    <div class="slide-content">
+        <div class="title-block reveal">
+            <div class="eyebrow">Four commitments · all explicit · none buried</div>
+            <h2>Founding Partner status is a <em>lifetime pricing instrument</em> and a directional advisory relationship.</h2>
+        </div>
+
+        <div class="ask-layout">
+            <!-- 4 commitments -->
+            <div class="ask-list">
+                <article class="ask-item reveal" data-delay="100">
+                    <div class="ix serif">01</div>
+                    <div class="body">
+                        <h4>Founding Membership commit</h4>
+                        <p>AU$249/mo · lifetime rate-lock · cap 100 firms total. Price never rises while the membership is unbroken. Once the 100-firm cap fills, the Founder tier closes permanently.</p>
+                    </div>
+                </article>
+
+                <article class="ask-item reveal" data-delay="200">
+                    <div class="ix serif">02</div>
+                    <div class="body">
+                        <h4>Quarterly advisory call</h4>
+                        <p>60 minutes, four times a year. Optional but valued. Agenda: Pi-CEO board's strategic questions for the quarter — pricing tests, channel mix, advocacy priorities, next Best Practice Brief.</p>
+                    </div>
+                </article>
+
+                <article class="ask-item reveal" data-delay="300">
+                    <div class="ix serif">03</div>
+                    <div class="body">
+                        <h4>Co-marketing rights</h4>
+                        <p>One LinkedIn post per quarter, mutual amplification. The association amplifies the founding partner's firm; the founding partner amplifies the association's milestone content. Editorial control stays on both sides.</p>
+                    </div>
+                </article>
+
+                <article class="ask-item reveal" data-delay="400">
+                    <div class="ix serif">04</div>
+                    <div class="body">
+                        <h4>Standards Committee seat — first five of ten Founders</h4>
+                        <p>Optional. Five seats reserved for the first five Founders signed. Unpaid, time-bound — one half-day per quarter. A recognition mechanism, not a workload.</p>
+                    </div>
+                </article>
+            </div>
+
+            <!-- "What we're NOT asking" panel -->
+            <aside class="not-asking reveal" data-delay="500">
+                <div class="head">
+                    <span class="x">×</span>
+                    <span>What this ask does <strong style="color: var(--nrpg-emerald-dark);">NOT</strong> include</span>
+                </div>
+                <ul>
+                    <li>
+                        <svg class="strike" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
+                            <path d="M5 5 L19 19 M19 5 L5 19"/>
+                        </svg>
+                        <span>No upfront equity
+                            <small>The association will not take, request, or be offered shares in the founding partner's firm.</small>
+                        </span>
+                    </li>
+                    <li>
+                        <svg class="strike" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
+                            <path d="M5 5 L19 19 M19 5 L5 19"/>
+                        </svg>
+                        <span>No exclusivity
+                            <small>Existing memberships, insurer panels, and supplier relationships remain unchanged.</small>
+                        </span>
+                    </li>
+                    <li>
+                        <svg class="strike" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
+                            <path d="M5 5 L19 19 M19 5 L5 19"/>
+                        </svg>
+                        <span>No non-compete
+                            <small>Founding partners are free to run any adjacent business, association, or trade group.</small>
+                        </span>
+                    </li>
+                </ul>
+            </aside>
+        </div>
+    </div>
+
+    <footer class="slide-footer">
+        <span>Membership: lifetime rate-lock · cap 100 · Founder-100 directory placement</span>
+        <span>07 / 08</span>
+    </footer>
+</section>
+
+
+<!-- ===========================================
+     SLIDE 8 — OPEN VERIFICATION (radical honesty)
+     =========================================== -->
+<section class="slide s8" id="s8">
+    <header class="slide-meta">
+        <div class="left">
+            <svg class="mark-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter" style="color: var(--nrpg-emerald);">
+                <path d="M12 2 L21 7 L21 17 L12 22 L3 17 L3 7 Z"/>
+                <path d="M7 11 L17 11"/>
+            </svg>
+            <span>NRPG Industry Association</span>
+        </div>
+        <div class="right"><span class="num">08</span> · Open Verification</div>
+    </header>
+
+    <div class="slide-content">
+        <div class="s8-top">
+            <div class="title-block reveal">
+                <div class="eyebrow">Radical honesty · open variables before signature</div>
+                <h2>Four items remain <em>open</em>. Founding partners see the list before saying yes.</h2>
+            </div>
+            <span class="s8-stamp reveal" data-delay="100">Updated 2026-05-11</span>
+        </div>
+
+        <div class="open-list">
+            <article class="open-row reveal" data-delay="200">
+                <div class="ix">Item 01 · Pricing comparators</div>
+                <h4>6 competitor dues calls outstanding</h4>
+                <p>AIRAH · HIA · Master Builders (QLD/NSW/VIC) · ISSA Oceania · CASANZ · RIA US. Verified band (AU$199–AU$2,132/yr) already brackets the Founder + Firm comparison.</p>
+                <div class="status">Resolution · 5 business days</div>
+            </article>
+
+            <article class="open-row reveal" data-delay="300">
+                <div class="ix">Item 02 · Anchor confirmation</div>
+                <h4>Toby AU$5,000/mo midpoint · only AU$2,750/mo confirmed</h4>
+                <p>SaaS line locked by signed contract. Remaining seven categories (IICRC + Xactimate + insurance + agency + accounting + lead-gen + equipment) are bottom-up estimates.</p>
+                <div class="status">Toby spend-audit · post-26 May 2026</div>
+            </article>
+
+            <article class="open-row reveal" data-delay="400">
+                <div class="ix">Item 03 · Coutis consent</div>
+                <h4>7 outstanding items · contract by 25 May</h4>
+                <p>Category + cross-bureau exclusivity · ElevenLabs licensing · OAM commercial-use protocol · image rights · editorial control · retainer + term.</p>
+                <div class="status">Legal review before signature · Wave-0 success gate</div>
+            </article>
+
+            <article class="open-row reveal" data-delay="500">
+                <div class="ix">Item 04 · Firm-tier conversion</div>
+                <h4>The single thesis-determining variable</h4>
+                <p>Midpoint: 750 Firm × AU$1,200/mo → AU$10.8M. Downside (200 Firm) drops ARR to ~AU$4M — 33% of target. Wave-0 positioning copy, the Coutis halo, and founding-partner word-of-mouth carry the load.</p>
+                <div class="status">Material · founding-partner network is the lever</div>
+            </article>
+        </div>
+
+        <p class="s8-close reveal" data-delay="700">
+            The numbers above are verified where verifiable, sourced inline. Anything not yet locked is listed here. Founding partners should see this before signing.
+        </p>
+    </div>
+
+    <footer class="slide-footer">
+        <span>End · founding-partners-memo · 2026-05-11 · cross-refs in markdown source</span>
+        <span>08 / 08</span>
+    </footer>
+</section>
+
+
+<script>
+/* ===========================================
+   ACTIVE-SLIDE OBSERVER + NAV DOTS
+   - Detects which slide is in view (>= 50%)
+   - Adds .active to trigger reveal animations
+   - Updates nav dot state
+   =========================================== */
+(function() {
+    const slides = document.querySelectorAll('.slide');
+    const dots = document.querySelectorAll('.nav-dot');
+
+    const setActive = (i) => {
+        slides.forEach((s, j) => s.classList.toggle('active', j === i));
+        dots.forEach((d, j) => d.classList.toggle('active', j === i));
+    };
+
+    // Intersection observer
+    const io = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+                const idx = Array.from(slides).indexOf(entry.target);
+                setActive(idx);
+            }
+        });
+    }, { threshold: [0.5] });
+
+    slides.forEach(s => io.observe(s));
+    // Activate first on load
+    setActive(0);
+
+    // Click-to-jump
+    dots.forEach((d, i) => {
+        d.addEventListener('click', () => {
+            slides[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+        const current = Array.from(slides).findIndex(s => s.classList.contains('active'));
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+            e.preventDefault();
+            const next = Math.min(current + 1, slides.length - 1);
+            slides[next].scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'PageUp') {
+            e.preventDefault();
+            const prev = Math.max(current - 1, 0);
+            slides[prev].scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else if (e.key === 'Home') {
+            e.preventDefault();
+            slides[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else if (e.key === 'End') {
+            e.preventDefault();
+            slides[slides.length - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+})();
+</script>
+
+</body>
+</html>

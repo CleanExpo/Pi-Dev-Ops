@@ -1,0 +1,176 @@
+{
+  "$schema": "../compositions/coutis-intro-75.schema.json",
+  "jobId": "nrpg-association-wave0-2026-05-11",
+  "composition": "CoutisIntro75",
+  "primaryBrand": "nrpg",
+  "spokespersonBrand": "john-coutis",
+  "channel": "youtube",
+  "aspectRatio": "1920x1080",
+  "totalDurationSec": 75,
+  "fps": 30,
+  "createdAt": "2026-05-11",
+  "voiceClonePolicy": {
+    "elevenLabsCoutisVoice": "DISALLOWED until license signed",
+    "fallback": "Coutis records his lines on-camera; non-Coutis narration uses Sarah (EXAVITQu4vr4xnSDxMaL) placeholder until association narrator selected"
+  },
+  "tagline": "The peak body that runs jobs.",
+  "founderTier": { "priceAudPerMonth": 249, "cap": 100, "rateLocked": "lifetime", "url": "unitegroup.in/association" },
+  "scenes": [
+    {
+      "sceneId": "hook-coutis-coldopen",
+      "sceneType": "hook-talking-head",
+      "startSec": 0,
+      "durationSec": 5,
+      "paletteBrand": "john-coutis",
+      "bgMode": "charcoal-solid",
+      "voiceover": "Six suppliers, one job. You already pay them all.",
+      "voiceSpeaker": "coutis",
+      "voiceoverAudioPath": null,
+      "requiresCoutisRecording": true,
+      "onScreenText": "SIX SUPPLIERS,\nONE JOB.",
+      "data": {
+        "eyebrow": "John Coutis OAM",
+        "chyronLine1": "JOHN COUTIS",
+        "chyronLine2": "OAM",
+        "framing": "chest-up, conversational eye level, charcoal backdrop",
+        "noLogosYet": true
+      }
+    },
+    {
+      "sceneId": "problem-six-suppliers",
+      "sceneType": "supplier-collapse",
+      "startSec": 5,
+      "durationSec": 10,
+      "paletteBrand": "nrpg",
+      "bgMode": "neutral-solid",
+      "voiceover": "Australian restoration firms pay six suppliers to do the work of one peak body. Cert. Leads. Marketing. Software. Insurance. Equipment.",
+      "voiceSpeaker": "narrator-placeholder",
+      "voiceoverAudioPath": null,
+      "onScreenText": "Six invoices.\nSix counter-parties.\nSix points of failure.",
+      "data": {
+        "eyebrow": "The Six-Supplier Tax",
+        "suppliers": ["Cert", "Leads", "Marketing", "Software", "Insurance", "Equipment"],
+        "collapseAtSec": 8.5,
+        "collapseTarget": "NRPG mark"
+      }
+    },
+    {
+      "sceneId": "moat-member-as-a-service",
+      "sceneType": "six-column-build",
+      "startSec": 15,
+      "durationSec": 15,
+      "paletteBrand": "nrpg",
+      "bgMode": "primary-solid",
+      "voiceover": "The expanded NRPG association bundles every one of those suppliers into one membership. Member-as-a-Service. Cert held to international benchmark. Jobs routed to certified firms. Marketing run for the trade, not by the trade.",
+      "voiceSpeaker": "narrator-placeholder",
+      "voiceoverAudioPath": null,
+      "onScreenText": "Member-as-a-Service.",
+      "data": {
+        "eyebrow": "What The Association Does",
+        "columns": [
+          { "n": "01", "label": "CERT" },
+          { "n": "02", "label": "LEADS" },
+          { "n": "03", "label": "MARKETING" },
+          { "n": "04", "label": "SOFTWARE" },
+          { "n": "05", "label": "INSURANCE" },
+          { "n": "06", "label": "EQUIPMENT" }
+        ],
+        "buildOrder": "stagger-left-to-right",
+        "buildStrideSec": 1.5
+      }
+    },
+    {
+      "sceneId": "founding-trio",
+      "sceneType": "trio-reveal",
+      "startSec": 30,
+      "durationSec": 15,
+      "paletteBrand": "nrpg",
+      "bgMode": "neutral-solid",
+      "voiceover": "Founded by three people. Phill McGurk, Unite-Group. Toby Bredhauer, Carpet Cleaners Warehouse, national equipment distribution. John Coutis OAM, Order of Australia Medal recipient, twenty-five-year keynote speaker, audience of six million worldwide.",
+      "voiceSpeaker": "narrator-placeholder",
+      "voiceoverAudioPath": null,
+      "onScreenText": "Founding partners.",
+      "data": {
+        "eyebrow": "Founding Partners",
+        "people": [
+          { "order": 1, "name": "PHILL McGURK", "credential": "Unite-Group · NRPG", "appearSec": 1.0 },
+          { "order": 2, "name": "TOBY BREDHAUER", "credential": "Carpet Cleaners Warehouse", "appearSec": 5.5 },
+          { "order": 3, "name": "JOHN COUTIS OAM", "credential": "Order of Australia Medal · 25-yr keynote", "appearSec": 10.0 }
+        ]
+      }
+    },
+    {
+      "sceneId": "the-ask-founder-tier",
+      "sceneType": "founder-tier-scarcity",
+      "startSec": 45,
+      "durationSec": 15,
+      "paletteBrand": "nrpg",
+      "bgMode": "primary-solid",
+      "voiceover": "Founder tier opens today. One hundred places. Two hundred and forty-nine dollars per month. Locked at that rate for life. The cap is small so the founding cohort actually steers year-one decisions. Link in the description.",
+      "voiceSpeaker": "narrator-placeholder",
+      "voiceoverAudioPath": null,
+      "onScreenText": "100 places.\n$249 / month.\nLocked for life.",
+      "data": {
+        "eyebrow": "Founder Tier — Wave 0",
+        "counter": "00 of 100 claimed",
+        "url": "unitegroup.in/association",
+        "accentColorOverride": "#b30000"
+      }
+    },
+    {
+      "sceneId": "coutis-signoff",
+      "sceneType": "signoff-talking-head",
+      "startSec": 60,
+      "durationSec": 12,
+      "paletteBrand": "john-coutis",
+      "bgMode": "charcoal-solid",
+      "voiceover": "One body. One membership. One hundred founder places. If you run a crew in this country, this was built for you. Link below.",
+      "voiceSpeaker": "coutis",
+      "voiceoverAudioPath": null,
+      "requiresCoutisRecording": true,
+      "onScreenText": "",
+      "data": {
+        "eyebrow": "John Coutis OAM",
+        "framing": "chest-up, conversational eye level, charcoal backdrop, final beat of held silence before cut",
+        "pullQuoteAtSec": 8.0,
+        "pullQuote": "Built for the people who run the jobs."
+      }
+    },
+    {
+      "sceneId": "endcard",
+      "sceneType": "endcard",
+      "startSec": 72,
+      "durationSec": 3,
+      "paletteBrand": "nrpg",
+      "bgMode": "primary-solid",
+      "voiceover": "",
+      "voiceSpeaker": "none",
+      "voiceoverAudioPath": null,
+      "onScreenText": "The peak body that runs jobs.",
+      "data": {
+        "eyebrow": "NRPG",
+        "url": "unitegroup.in/association",
+        "showLogo": true,
+        "logoBrand": "nrpg"
+      }
+    }
+  ],
+  "brandGuardianGate": {
+    "required": true,
+    "checks": [
+      "No fabricated Coutis claims (allowed: OAM 2020, 25-yr keynote, ~6M reached, Half a Body Full of Life)",
+      "No 'inspirational speaker' framing of Coutis",
+      "No Coutis voice clone / ElevenLabs synthesis on Coutis lines",
+      "No Lucide / Material / FontAwesome icons (geometric marks only)",
+      "Verified pricing only: $249/mo, 100 cap, lifetime locked",
+      "NRPG mark dominates by scene 5 (the ask); Coutis is voice carrier, not hero face",
+      "No stock disability imagery; skateboard implied via framing only"
+    ]
+  },
+  "renderBlockers": [
+    "Coutis has not recorded scene 1 (hook) audio",
+    "Coutis has not recorded scene 6 (sign-off) audio",
+    "Coutis has not been filmed for scene 1 and scene 6 talking-head B-roll",
+    "NRPG narrator selection: placeholder Sarah voice is licensed; final association narrator pending founder decision"
+  ]
+}
