@@ -87,7 +87,7 @@ class ResumeRequest(BaseModel):
 @router.get("/api/swarm/status",
            dependencies=[Depends(require_auth), Depends(require_rate_limit)])
 async def swarm_status() -> dict:
-    """Return kill-switch state. Read-only."""
+    """Return kill-switch state + daily PR quota (RA-3019). Read-only."""
     try:
         from swarm import kill_switch
     except Exception as exc:
@@ -101,6 +101,42 @@ async def swarm_status() -> dict:
         "approver_totp_configured": [
             u for u in _approver_allowlist() if _totp_secret(u)
         ],
+        "pr_quota": _read_pr_quota(),
+    }
+
+
+def _read_pr_quota() -> dict:
+    """Read the current daily-PR counter for dashboard display. RA-3019.
+
+    Returns `{used, limit, env_override, date, clamped}`. Failure-safe:
+    any I/O or schema error returns zeroed counters rather than raising,
+    so /api/swarm/status never 500s because of a stale state file.
+    """
+    import json as _json
+    from datetime import datetime, timezone
+    try:
+        from swarm import config
+    except Exception:
+        return {"used": 0, "limit": 0, "env_override": 0, "date": "", "clamped": False, "error": "swarm.config unimportable"}
+    counter_file = config.SWARM_LOG_DIR / "pr_rate_limit.json"
+    today = datetime.now(timezone.utc).date().isoformat()
+    used = 0
+    date = today
+    try:
+        with open(counter_file, "r", encoding="utf-8") as f:
+            data = _json.load(f)
+        if data.get("date") == today:
+            used = int(data.get("count", 0))
+            date = data.get("date", today)
+    except (FileNotFoundError, _json.JSONDecodeError, ValueError, TypeError):
+        pass
+    effective = config.effective_max_daily_prs()
+    return {
+        "used": used,
+        "limit": effective,
+        "env_override": config.MAX_AUTONOMOUS_PRS_PER_DAY,
+        "date": date,
+        "clamped": effective < config.MAX_AUTONOMOUS_PRS_PER_DAY,
     }
 
 
