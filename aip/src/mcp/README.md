@@ -43,6 +43,39 @@ Spawns the server in-process and runs three calls:
 
 Exits 0 on success, non-zero on any failure.
 
+## Live data shape (2026-05-11)
+
+After the portfolio-expansion seed
+(`aip/src/seed/portfolio-expansion-2026-05-11.ts`) was applied on 2026-05-11,
+the read surface contains:
+
+| Kind | Count | Notes |
+|---|---|---|
+| `PortfolioService` | 7 | `ra`, `dr`, `nrpg`, `carsi`, `ccw`, `synthex`, `unite` |
+| `VercelProject` | 7 | One per PortfolioService; `restoreassist`, `disaster-recovery`, `dr-nrpg-platform`, `carsi-web`, `ccw-crm-web`, `synthex`, `unite-group` |
+| `GoogleIdentity` | 2 | `contact-unite-group-in` (workspace, current owner of all Vercel projects), `zenithfresh25-gmail-com` (legacy personal) |
+| `GcpProject` | 2 | RestoreAssist only — `restore-assist-bfb74` (new, contact@) + `restoreassist` / project_number `292141944467` (legacy, zenithfresh25@) |
+| `OAuthClient` | 1 | RestoreAssist only (`restoreassist-prod`) |
+
+Edges currently seeded:
+
+- `PortfolioService.deploysTo.VercelProject` — 7 (one per portfolio)
+- `VercelProject.ownedBy.GoogleIdentity` — 7 (all owned by `contact-unite-group-in`)
+- `GcpProject.ownedBy.GoogleIdentity` — 2
+- `OAuthClient.belongsTo.GcpProject` — 1
+- `PortfolioService.authsVia.OAuthClient` — 1 (RestoreAssist)
+- `PortfolioService.usesGcp.GcpProject` — 1 (RestoreAssist)
+
+**Honest gaps** (intentionally not seeded; verify before relying on absence):
+
+- No `GcpProject` entities for `dr`, `nrpg`, `carsi`, `ccw`, `synthex`, `unite` —
+  gcloud IAM block prevents enumerating GCP projects owned by
+  `contact@unite-group.in` from the current CLI session.
+- No `OAuthClient` entities for the new businesses even though
+  `GOOGLE_CLIENT_ID` env vars exist on `synthex`, `carsi-web`, and
+  `unite-group` Vercel projects — the values are encrypted and cannot be
+  pulled from `vercel env ls`. Add via the GCP console after gcloud re-auth.
+
 ## Tool reference
 
 | Tool | Inputs | Returns |
