@@ -24,6 +24,138 @@ _HARNESS_ROOT = Path(__file__).resolve().parents[3] / ".harness"
 _SHIPPED_FEATURES_FILE = _HARNESS_ROOT / "shipped-features.jsonl"
 _LESSONS_FILE = _HARNESS_ROOT / "lessons.jsonl"
 _FEEDBACK_CACHE_FILE = _HARNESS_ROOT / "feedback-cache.json"
+_AUTONOMY_LOG = _HARNESS_ROOT / "autonomy.jsonl"
+
+# RA-1985 sprinkle #2 / RA-2995 migration — pattern-naming on neutral outcomes.
+# Routes through provider_router (cheap tier → Ollama Gemma 4 → OpenRouter
+# fallback). No direct Anthropic SDK calls — cost-control per RA-2989.
+_PATTERN_ROLE = "sprinkle.feedback"
+_PATTERN_MAX_TOKENS = 200
+_PATTERN_TIMEOUT_S = 90  # Cold-start tolerant; matches triage.py timeout
+
+_PATTERN_PROMPT = (
+    "This feature shipped {days} days ago. Read the Linear thread below and classify the outcome: "
+    "positive | negative | neutral. If positive or negative, name the pattern in <=8 words "
+    "(e.g. \"client used it immediately\", \"regressed two releases later\").\n"
+    "Output JSON only: {{\"category\": \"positive\"|\"negative\"|\"neutral\", \"label\": str, \"confidence\": float}}.\n\n"
+    "Thread:\n{thread}"
+)
+
+
+def _log_sprinkle_event(event: dict[str, Any]) -> None:
+    """Append a structured sprinkle event to .harness/autonomy.jsonl. Never raises."""
+    try:
+        entry = {**event, "ts": datetime.now(timezone.utc).isoformat()}
+        _AUTONOMY_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(_AUTONOMY_LOG, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _run_provider_call_blocking(prompt: str, role: str, timeout_s: int) -> tuple[int, str, float, str | None, Any]:
+    """Call provider_router.run_via_provider from sync context — safe whether
+    or not an event loop is already running. ``run_feedback_cycle`` is
+    normally dispatched via ``loop.run_in_executor`` (no running loop in
+    this thread), but the helper is loop-safe regardless.
+
+    Returns (rc, text, cost_usd, error, ProviderModel).
+
+    TODO(RA-2995 cleanup): once all 5 sprinkles are migrated, consolidate
+    this helper into provider_router.py so triage.py + feedback_loop.py +
+    the remaining sprinkles share one implementation.
+    """
+    import asyncio  # noqa: PLC0415
+    import concurrent.futures  # noqa: PLC0415
+    from app.server.provider_router import run_via_provider, select_provider_model  # noqa: PLC0415
+
+    pm = select_provider_model(role)
+
+    async def _go() -> tuple[int, str, float, str | None]:
+        return await run_via_provider(prompt=prompt, role=role, timeout_s=timeout_s)
+
+    try:
+        asyncio.get_running_loop()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            rc, text, cost, error = ex.submit(asyncio.run, _go()).result(timeout=timeout_s + 5)
+    except RuntimeError:
+        rc, text, cost, error = asyncio.run(_go())
+    return rc, text, cost, error, pm
+
+
+def _classify_with_claude(
+    comments: list[str], state: str, days_since: int, pipeline_id: str,
+) -> dict[str, Any] | None:
+    """Classify neutral outcomes via the cheap-tier LLM (Ollama Gemma 4 →
+    OpenRouter fallback). Returns {category, label, confidence} or None.
+
+    Function name kept for caller compatibility; the LLM provider is no
+    longer Claude. Caller falls back to keyword-based verdict on failure.
+    """
+    thread = "\n---\n".join(comments[:30]) if comments else "(no comments)"
+    thread = thread[:4000]
+    thread += f"\n\nLinear state: {state}"
+    prompt = _PATTERN_PROMPT.format(
+        days=days_since,
+        thread=thread.replace("{", "{{").replace("}", "}}"),
+    )
+
+    try:
+        rc, raw, _cost, error, pm = _run_provider_call_blocking(prompt, _PATTERN_ROLE, _PATTERN_TIMEOUT_S)
+    except Exception as exc:  # noqa: BLE001
+        _log_sprinkle_event({
+            "sprinkle": "feedback_loop", "outcome": "router_unavailable",
+            "pipeline_id": pipeline_id, "error": type(exc).__name__,
+        })
+        return None
+
+    if rc != 0 or not raw:
+        _log_sprinkle_event({
+            "sprinkle": "feedback_loop", "outcome": "call_failed",
+            "pipeline_id": pipeline_id,
+            "provider": pm.provider, "model": pm.model_id,
+            "error": error or "empty_response",
+        })
+        return None
+
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`").lstrip("json").strip()
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        _log_sprinkle_event({
+            "sprinkle": "feedback_loop", "outcome": "json_parse_failed",
+            "pipeline_id": pipeline_id,
+            "provider": pm.provider, "model": pm.model_id,
+            "raw_head": raw[:120],
+        })
+        return None
+
+    category = str(data.get("category", "")).strip()
+    if category not in {"positive", "negative", "neutral"}:
+        _log_sprinkle_event({
+            "sprinkle": "feedback_loop", "outcome": "bad_shape",
+            "pipeline_id": pipeline_id,
+            "provider": pm.provider, "model": pm.model_id,
+        })
+        return None
+    try:
+        confidence = float(data.get("confidence", 0.0))
+    except (TypeError, ValueError):
+        confidence = 0.0
+    out = {
+        "category": category,
+        "label": str(data.get("label", "")).strip()[:120],
+        "confidence": confidence,
+    }
+    _log_sprinkle_event({
+        "sprinkle": "feedback_loop", "outcome": "ok",
+        "pipeline_id": pipeline_id,
+        "provider": pm.provider, "model": pm.model_id,
+        **out,
+    })
+    return out
 
 # How many days before a feature is considered stale (no outcome signal)
 _STALE_DAYS = 30
@@ -253,10 +385,20 @@ def _create_stale_review_issue(feature: dict[str, Any], label_id: str | None, dr
 
 # ── Signal detection ──────────────────────────────────────────────────────────
 
-def _detect_signal(comments: list[str], state: str) -> str:
+def _detect_signal(
+    comments: list[str],
+    state: str,
+    *,
+    days_since: int = 0,
+    pipeline_id: str = "?",
+) -> str:
     """
     Analyse comments and issue state to determine outcome signal.
     Returns: 'positive' | 'negative' | 'neutral'
+
+    RA-1985 sprinkle #2 — neutral outcomes get escalated to Claude for
+    full-thread pattern naming. On any Claude failure we fall back to the
+    keyword-only verdict (the original behavior).
     """
     combined = " ".join(comments)
     has_positive = any(kw in combined for kw in _POSITIVE_KEYWORDS)
@@ -266,6 +408,14 @@ def _detect_signal(comments: list[str], state: str) -> str:
         return "negative"
     if has_positive:
         return "positive"
+
+    # Frozen-keyword classifier landed on neutral. Escalate to Claude when we
+    # actually have content to read; fall back to keyword verdict on failure.
+    if comments:
+        hint = _classify_with_claude(comments, state, days_since, pipeline_id)
+        if hint and hint["category"] in {"positive", "negative", "neutral"}:
+            return hint["category"]
+
     if state.lower() in ("done", "completed", "closed"):
         return "neutral"
     return "neutral"
@@ -456,7 +606,9 @@ def run_feedback_cycle(dry_run: bool = False) -> dict[str, Any]:
         # Fetch signals from Linear
         comments = _fetch_issue_comments(linear_id)
         state = _fetch_issue_state(linear_id)
-        signal = _detect_signal(comments, state)
+        signal = _detect_signal(
+            comments, state, days_since=age_days, pipeline_id=pipeline_id,
+        )
 
         feature["outcome_signal"] = signal
         features_with_signals.append(feature)
