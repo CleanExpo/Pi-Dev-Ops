@@ -277,3 +277,13 @@
 {"action": "orphan_recovery_error", "ticket": "SYN-691", "error": "State 'Pi-Dev: Blocked' not found in team b887971b-6761-4260-a111-b94dbb628ebe workflow", "ts": "2026-05-02T09:12:39Z"}
 {"action": "poll", "poll": 1, "found": 0, "ts": "2026-05-02T09:12:44Z"}
 {"action": "poll", "poll": 2, "found": 0, "ts": "2026-05-02T09:42:49Z"}
+{"action": "orphan_recovered", "ticket": "RA-999", "transition": "Pi-Dev: Blocked", "reason_label": "pi-dev:blocked-reason:session-lost", "label_attached": true, "ts": "2026-05-11T23:03:44Z"}
+{"action": "orphan_recovered", "ticket": "RA-888", "transition": "Pi-Dev: Blocked", "reason_label": "pi-dev:blocked-reason:session-lost", "label_attached": false, "ts": "2026-05-11T23:03:44Z"}
+{"action": "poller_iteration_error", "error": "simulated poll failure", "count": 1, "ts": "2026-05-11T23:03:44Z"}
+{"action": "poller_iteration_error", "error": "another failure", "count": 2, "ts": "2026-05-11T23:03:44Z"}
+{"action": "poller_iteration_error", "error": "kaboom", "count": 1, "ts": "2026-05-11T23:03:44Z"}
+{"action": "poller_iteration_error", "error": "silent", "count": 1, "ts": "2026-05-11T23:03:44Z"}
+{"action": "orphan_recovery_state_missing", "ticket": "DR-465", "team_id": "43811130-ac12-47d3-9433-330320a76205", "target_state": "Todo", "error": "State 'Todo' not found in team 43811130-ac12-47d3-9433-330320a76205 workflow", "ts": "2026-05-11T23:03:44Z"}
+{"action": "orphan_recovered", "ticket": "RA-1", "transition": "Pi-Dev: Blocked", "reason_label": "pi-dev:blocked-reason:session-lost", "label_attached": true, "ts": "2026-05-11T23:03:44Z"}
+{"action": "orphan_recovered", "ticket": "DR-1", "transition": "Todo", "reason_label": "pi-dev:blocked-reason:session-lost", "label_attached": true, "ts": "2026-05-11T23:03:44Z"}
+{"ts": "2026-05-11T23:05:44.738921+00:00", "event": "cluster_c_review", "branch": "staging/cluster-c-sprinkles-2026-05-12", "touchpoints": 5, "verdict": "SHIP-AFTER-FIX", "kill_switch_pass": true, "pre_existing_failures": 89, "new_failures": 0, "critical_findings": 0, "high_findings": 1, "medium_findings": 3, "low_findings": 3, "cost_per_day_usd": 0.044, "cost_per_month_usd": 1.32, "required_fixes": ["H1: add system/user split in triage._claude_triage prompt (injection via code_excerpt)", "M2: clamp confidence to [0,1] in triage and feedback_loop", "L2: log suppression events to autonomy.jsonl in triage"], "reviewer": "claude-sonnet-4-6", "ra_ticket": "RA-1985"}
