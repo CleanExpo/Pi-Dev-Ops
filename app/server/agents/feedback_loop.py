@@ -102,7 +102,7 @@ def _classify_with_claude(
         out = {
             "category": category,
             "label": str(data.get("label", "")).strip()[:120],
-            "confidence": float(data.get("confidence", 0.0)),
+            "confidence": min(1.0, max(0.0, float(data.get("confidence", 0.0)))),
         }
         _log_sprinkle_event({
             "sprinkle": "feedback_loop", "outcome": "ok",

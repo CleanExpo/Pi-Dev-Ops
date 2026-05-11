@@ -45,11 +45,16 @@ _TRIAGE_MODEL = "claude-haiku-4-5-20251001"
 _TRIAGE_MAX_TOKENS = 300
 _TRIAGE_CONFIDENCE_SUPPRESS = 0.9
 
-_TRIAGE_PROMPT = (
-    "You are triaging a Pi-SEO scanner finding for {project}. Raw rule: {rule_id}.\n"
-    "Snippet: {code_excerpt}. Output JSON: "
-    "{{\"title\": str, \"verdict\": \"real\"|\"false_positive\", \"confidence\": float, \"one_line_rationale\": str}}.\n"
+_TRIAGE_SYSTEM_PROMPT = (
+    "You are triaging Pi-SEO scanner findings. "
+    "Output JSON only: "
+    "{\"title\": str, \"verdict\": \"real\"|\"false_positive\", \"confidence\": float, \"one_line_rationale\": str}. "
     "Be ruthless — Linear is already over-quota. False positives cost us more than missed criticals."
+)
+
+_TRIAGE_USER_TEMPLATE = (
+    "Project: {project}. Rule: {rule_id}.\n"
+    "<code_excerpt>\n{code_excerpt}\n</code_excerpt>"
 )
 
 
@@ -86,7 +91,7 @@ def _claude_triage(project_id: str, finding: Finding) -> dict[str, Any] | None:
     excerpt = (finding.description or "")[:600]
     if finding.file_path:
         excerpt = f"file={finding.file_path}\n{excerpt}"
-    prompt = _TRIAGE_PROMPT.format(
+    user_msg = _TRIAGE_USER_TEMPLATE.format(
         project=project_id,
         rule_id=finding.scan_type,
         code_excerpt=excerpt.replace("{", "{{").replace("}", "}}"),
@@ -97,7 +102,8 @@ def _claude_triage(project_id: str, finding: Finding) -> dict[str, Any] | None:
         resp = client.messages.create(
             model=_TRIAGE_MODEL,
             max_tokens=_TRIAGE_MAX_TOKENS,
-            messages=[{"role": "user", "content": prompt}],
+            system=_TRIAGE_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_msg}],
             timeout=20,
         )
         raw = "".join(
@@ -110,7 +116,7 @@ def _claude_triage(project_id: str, finding: Finding) -> dict[str, Any] | None:
         data = json.loads(raw)
         title = str(data.get("title", "")).strip()
         verdict = str(data.get("verdict", "")).strip()
-        confidence = float(data.get("confidence", 0.0))
+        confidence = min(1.0, max(0.0, float(data.get("confidence", 0.0))))
         if verdict not in {"real", "false_positive"} or not title:
             _log_sprinkle_event({
                 "sprinkle": "triage", "outcome": "bad_shape",
@@ -403,6 +409,13 @@ class TriageEngine:
                             "[sprinkle:triage] suppressing false_positive %s (conf=%.2f)",
                             fp, triage_hint["confidence"],
                         )
+                        _log_sprinkle_event({
+                            "sprinkle": "triage",
+                            "outcome": "suppressed",
+                            "fingerprint": fp,
+                            "confidence": triage_hint["confidence"],
+                            "project": result.project_id,
+                        })
                         self._cache.mark(fp, "claude-false-positive", title)
                         continue
                     new_title = triage_hint["title"]
@@ -512,7 +525,7 @@ class TriageEngine:
         url = issue.get("url", "")
         file_ref = f"`{finding.file_path}`" if finding.file_path else "unknown file"
         text = (
-            f"🔴 *Pi-SEO CRITICAL* — `{project_id}`\n\n"
+            f"\U0001f534 *Pi-SEO CRITICAL* — `{project_id}`\n\n"
             f"*{finding.title}*\n"
             f"File: {file_ref}\n\n"
             f"Linear: [{identifier}]({url})\n\n"
