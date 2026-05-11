@@ -1,8 +1,8 @@
 # swarm — Wiki
 
-_Last updated: 2026-05-10T23:55:32Z (commits de26914..a696cdf)_
+_Last updated: 2026-05-11T11:08:31Z (commits c94c72a..f379782)_
 
 ## Recent changes
-- a696cdf — fix(builder): map RestoreAssist V2 project to RestoreAssist repo
+- f379782 — Merge pull request #212 from CleanExpo/feat/sprinkle-pulse-gemma4-2026-05-11
 
 Not logged in · Please run /login
