@@ -21,7 +21,11 @@ Design:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import os
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -32,6 +36,34 @@ log = logging.getLogger("swarm.portfolio_pulse.synthesis")
 SYNTHESIS_ROLE = "portfolio.synthesis"
 MAX_WORDS = 400
 TIMEOUT_S = 90
+
+# RA-1985 sprinkle #3 — second deterministic extraction pass for BOARD-TRIGGERs.
+# The first synthesis pass is creative; this is structured-extraction only.
+_EXTRACT_MODEL = "claude-haiku-4-5-20251001"
+_EXTRACT_MAX_TOKENS = 600
+_AUTONOMY_LOG = (
+    Path(__file__).resolve().parents[1] / ".harness" / "autonomy.jsonl"
+)
+
+_EXTRACT_PROMPT = (
+    "Read the daily portfolio synthesis and per-project digests. List every cross-cutting "
+    "risk or strategic decision that scores >=6/10 on board-worthiness. Output JSON array: "
+    "[{{\"score\": int, \"topic\": str, \"one_line_rationale\": str, \"primary_project\": str}}]. "
+    "Return [] if none.\n\n"
+    "## First-pass synthesis\n\n{synthesis}\n\n"
+    "## Per-project digests\n\n{digests}"
+)
+
+
+def _log_sprinkle_event(event: dict) -> None:
+    """Append a structured sprinkle event to .harness/autonomy.jsonl. Never raises."""
+    try:
+        entry = {**event, "ts": datetime.now(timezone.utc).isoformat()}
+        _AUTONOMY_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(_AUTONOMY_LOG, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception:  # noqa: BLE001
+        pass
 
 _SYSTEM_PROMPT = (
     "You are the chief-of-staff synthesising a daily portfolio pulse for "
@@ -146,6 +178,96 @@ def _call_llm(prompt: str) -> tuple[str, str | None]:
     return text or "", None
 
 
+# ── Second-pass BOARD-TRIGGER extraction (RA-1985 sprinkle #3) ───────────────
+
+
+def _format_triggers(items: list[dict]) -> str:
+    """Render extracted triggers as BOARD-TRIGGER sentinels matching margot_bot grammar."""
+    lines: list[str] = []
+    for item in items:
+        try:
+            score = int(item.get("score", 0))
+            topic = str(item.get("topic", "")).strip()
+            rationale = str(item.get("one_line_rationale", "")).strip()
+            if score < 6 or not topic or not rationale:
+                continue
+            topic = topic.replace('"', "'")
+            rationale = rationale.replace("\n", " ").strip()
+            lines.append(
+                f'[BOARD-TRIGGER score={score} topic="{topic}"]{rationale}[/BOARD-TRIGGER]'
+            )
+        except (TypeError, ValueError):
+            continue
+    return "\n".join(lines)
+
+
+def _extract_board_triggers(
+    synthesis: str, per_project_pulses: dict[str, "PulseResult"],
+) -> str:
+    """Second deterministic Haiku pass — extract BOARD-TRIGGER candidates.
+
+    Returns extra newline-joined BOARD-TRIGGER sentinel lines (or "") on any
+    failure. Caller falls back to the first-pass synthesis output.
+    """
+    try:
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        if not api_key:
+            return ""
+        from anthropic import Anthropic  # noqa: PLC0415
+    except Exception as exc:  # noqa: BLE001
+        _log_sprinkle_event({
+            "sprinkle": "portfolio_pulse_extract",
+            "outcome": "sdk_unavailable",
+            "error": str(exc),
+        })
+        return ""
+
+    digests = "\n\n".join(
+        _digest_pulse(p) for _pid, p in sorted(per_project_pulses.items())
+    )
+    digests = digests[:8000]
+    prompt = _EXTRACT_PROMPT.format(
+        synthesis=synthesis[:4000].replace("{", "{{").replace("}", "}}"),
+        digests=digests.replace("{", "{{").replace("}", "}}"),
+    )
+
+    try:
+        client = Anthropic(api_key=api_key, max_retries=0)
+        resp = client.messages.create(
+            model=_EXTRACT_MODEL,
+            max_tokens=_EXTRACT_MAX_TOKENS,
+            messages=[{"role": "user", "content": prompt}],
+            timeout=30,
+        )
+        raw = "".join(
+            getattr(block, "text", "")
+            for block in (resp.content or [])
+            if getattr(block, "type", None) == "text"
+        ).strip()
+        if raw.startswith("```"):
+            raw = raw.strip("`").lstrip("json").strip()
+        items = json.loads(raw)
+        if not isinstance(items, list):
+            _log_sprinkle_event({
+                "sprinkle": "portfolio_pulse_extract", "outcome": "bad_shape",
+            })
+            return ""
+        rendered = _format_triggers(items)
+        _log_sprinkle_event({
+            "sprinkle": "portfolio_pulse_extract", "outcome": "ok",
+            "candidates": len(items),
+            "emitted": rendered.count("[BOARD-TRIGGER"),
+        })
+        return rendered
+    except Exception as exc:  # noqa: BLE001
+        log.warning("portfolio_pulse_extract: %s — keeping first-pass output", exc)
+        _log_sprinkle_event({
+            "sprinkle": "portfolio_pulse_extract", "outcome": "call_failed",
+            "error": type(exc).__name__,
+        })
+        return ""
+
+
 # ── Public API ──────────────────────────────────────────────────────────────
 
 
@@ -169,7 +291,16 @@ def synthesize(per_project_pulses: dict[str, "PulseResult"]) -> str:
     if error or not text.strip():
         return f"_(synthesis unavailable: {error or 'empty_response'})_"
 
-    return _truncate_to_word_cap(text.strip())
+    body = _truncate_to_word_cap(text.strip())
+
+    # RA-1985 sprinkle #3 — deterministic second pass to surface BOARD-TRIGGER
+    # candidates the creative first pass missed (audit: misses ~3-4/week).
+    # Any failure keeps first-pass output as-is.
+    extra_triggers = _extract_board_triggers(body, per_project_pulses)
+    if extra_triggers:
+        body = f"{body}\n\n{extra_triggers}"
+
+    return body
 
 
 __all__ = [
