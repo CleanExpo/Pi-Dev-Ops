@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.piceo.fastapi-standby</string>
+
+    <!--
+      Pi-CEO FastAPI backend — Mac Mini hot standby on 127.0.0.1:7777.
+      Primary is Railway. This local instance is for offline dev + failover.
+      To make the Telegram bot target this instead of Railway, set
+      PI_CEO_URL=http://127.0.0.1:7777 in telegram-bot/.env.
+    -->
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>cd /Users/phill-mac/Pi-CEO/Pi-Dev-Ops &amp;&amp; [ -f .env.local ] &amp;&amp; set -a &amp;&amp; source .env.local &amp;&amp; set +a; exec /Users/phill-mac/.pyenv/versions/3.13.13/bin/python -m uvicorn app.server.main:app --host 127.0.0.1 --port 7777</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/phill-mac/Pi-CEO/Pi-Dev-Ops</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>/Users/phill-mac</string>
+        <key>PATH</key>
+        <string>/Users/phill-mac/.pyenv/versions/3.13.13/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>TAO_USE_AGENT_SDK</key>
+        <string>1</string>
+        <key>PI_CEO_HARNESS_DIR</key>
+        <string>/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/.harness</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <key>ThrottleInterval</key>
+    <integer>15</integer>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/piceo-fastapi-standby.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/piceo-fastapi-standby.error.log</string>
+</dict>
+</plist>
