@@ -35,6 +35,101 @@ log = logging.getLogger("pi-ceo.triage")
 _HARNESS = Path(__file__).parent.parent.parent / ".harness"
 _PROJECTS_FILE = _HARNESS / "projects.json"
 _CACHE_FILE = _HARNESS / "triage-cache.json"
+_AUTONOMY_LOG = _HARNESS / "autonomy.jsonl"
+
+# ─── Claude pre-classify (RA-1985 sprinkle #1) ────────────────────────────────
+# Embedded Haiku call ranks critical findings as real vs false-positive and
+# rewrites the operator-facing title. Per audit: suppress when verdict is
+# false_positive AND confidence >= 0.9. Any failure → fall through to template.
+_TRIAGE_MODEL = "claude-haiku-4-5-20251001"
+_TRIAGE_MAX_TOKENS = 300
+_TRIAGE_CONFIDENCE_SUPPRESS = 0.9
+
+_TRIAGE_PROMPT = (
+    "You are triaging a Pi-SEO scanner finding for {project}. Raw rule: {rule_id}.\n"
+    "Snippet: {code_excerpt}. Output JSON: "
+    "{{\"title\": str, \"verdict\": \"real\"|\"false_positive\", \"confidence\": float, \"one_line_rationale\": str}}.\n"
+    "Be ruthless — Linear is already over-quota. False positives cost us more than missed criticals."
+)
+
+
+def _log_sprinkle_event(event: dict[str, Any]) -> None:
+    """Append a structured sprinkle event to .harness/autonomy.jsonl. Never raises."""
+    try:
+        entry = {**event, "ts": datetime.now(timezone.utc).isoformat()}
+        _AUTONOMY_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(_AUTONOMY_LOG, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _claude_triage(project_id: str, finding: Finding) -> dict[str, Any] | None:
+    """Pre-classify a critical finding via Haiku. Returns dict or None on any failure.
+
+    Returns {"title": str, "verdict": "real"|"false_positive", "confidence": float}
+    or None — caller falls back to template title + ticket creation.
+    """
+    try:
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        if not api_key:
+            return None
+        from anthropic import Anthropic  # noqa: PLC0415
+    except Exception as exc:  # noqa: BLE001
+        _log_sprinkle_event({
+            "sprinkle": "triage",
+            "outcome": "sdk_unavailable",
+            "error": str(exc),
+        })
+        return None
+
+    excerpt = (finding.description or "")[:600]
+    if finding.file_path:
+        excerpt = f"file={finding.file_path}\n{excerpt}"
+    prompt = _TRIAGE_PROMPT.format(
+        project=project_id,
+        rule_id=finding.scan_type,
+        code_excerpt=excerpt.replace("{", "{{").replace("}", "}}"),
+    )
+
+    try:
+        client = Anthropic(api_key=api_key, max_retries=0)
+        resp = client.messages.create(
+            model=_TRIAGE_MODEL,
+            max_tokens=_TRIAGE_MAX_TOKENS,
+            messages=[{"role": "user", "content": prompt}],
+            timeout=20,
+        )
+        raw = "".join(
+            getattr(block, "text", "")
+            for block in (resp.content or [])
+            if getattr(block, "type", None) == "text"
+        ).strip()
+        if raw.startswith("```"):
+            raw = raw.strip("`").lstrip("json").strip()
+        data = json.loads(raw)
+        title = str(data.get("title", "")).strip()
+        verdict = str(data.get("verdict", "")).strip()
+        confidence = float(data.get("confidence", 0.0))
+        if verdict not in {"real", "false_positive"} or not title:
+            _log_sprinkle_event({
+                "sprinkle": "triage", "outcome": "bad_shape",
+                "project": project_id, "fingerprint": finding.fingerprint,
+            })
+            return None
+        _log_sprinkle_event({
+            "sprinkle": "triage", "outcome": "ok",
+            "project": project_id, "fingerprint": finding.fingerprint,
+            "verdict": verdict, "confidence": confidence,
+        })
+        return {"title": title, "verdict": verdict, "confidence": confidence}
+    except Exception as exc:  # noqa: BLE001
+        _log_sprinkle_event({
+            "sprinkle": "triage", "outcome": "call_failed",
+            "project": project_id, "fingerprint": finding.fingerprint,
+            "error": type(exc).__name__,
+        })
+        return None
 
 # Only ticket medium+ findings — low/info are informational noise
 _MIN_SEVERITY_RANK = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
@@ -293,6 +388,29 @@ class TriageEngine:
 
             title = self._build_title(finding)
             description = self._build_description(finding, result)
+
+            # RA-1985 sprinkle #1 — pre-classify critical findings via Haiku.
+            # Suppress false positives at confidence>=0.9; rewrite title otherwise.
+            # Any Claude failure falls through to current template behavior.
+            if finding.severity == "critical":
+                triage_hint = _claude_triage(result.project_id, finding)
+                if triage_hint:
+                    if (
+                        triage_hint["verdict"] == "false_positive"
+                        and triage_hint["confidence"] >= _TRIAGE_CONFIDENCE_SUPPRESS
+                    ):
+                        log.info(
+                            "[sprinkle:triage] suppressing false_positive %s (conf=%.2f)",
+                            fp, triage_hint["confidence"],
+                        )
+                        self._cache.mark(fp, "claude-false-positive", title)
+                        continue
+                    new_title = triage_hint["title"]
+                    if new_title and not new_title.startswith("[Pi-SEO]"):
+                        scan_label = finding.scan_type.replace("_", " ").title()
+                        new_title = f"[Pi-SEO][{scan_label}] {new_title}"
+                    if new_title:
+                        title = new_title[:200]
 
             # Check Linear for duplicates
             if self._client and not dry_run:
