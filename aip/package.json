@@ -2,11 +2,18 @@
   "name": "@unite-group/aip",
   "version": "0.0.1",
   "private": true,
-  "description": "Unite-Group AIP — Palantir-Foundry-parallel ontology + actions layer. Day-1 scaffold.",
+  "description": "Unite-Group AIP — Palantir-Foundry-parallel ontology + actions layer. Day-1 scaffold + Day-4 read-only MCP server.",
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "seed": "tsx src/seed/audit-2026-05-11.ts"
+    "seed": "tsx src/seed/audit-2026-05-11.ts",
+    "mcp:dev": "tsx src/mcp/server.ts",
+    "mcp:smoke": "tsx src/mcp/_smoke.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "@supabase/supabase-js": "^2.46.1",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
