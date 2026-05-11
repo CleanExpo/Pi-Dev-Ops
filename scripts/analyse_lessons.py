@@ -44,6 +44,93 @@ _CLAUDE_MD_CATEGORIES = {"persistence", "rate-limit", "gc", "windows", "auth"}
 _LINEAR_TEAM_ID = os.environ.get("LINEAR_TEAM_ID", "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673")
 _LINEAR_PROJECT_ID = "f45212be-3259-4bfb-89b1-54c122c939a7"  # Pi - Dev -Ops
 
+# RA-1985 sprinkle #5 / RA-2995 migration — root-cause cluster naming.
+# Routes through provider_router → Ollama Gemma 4 by default (free, local).
+# Falls back to OpenRouter (paid Gemma 4 26B) when Ollama unreachable,
+# falls through to None (-> deterministic naming) on any failure.
+# No direct Anthropic SDK calls — cost-control per RA-2989.
+_CLUSTER_ROLE = "sprinkle.lessons"
+_CLUSTER_MAX_TOKENS = 100
+_CLUSTER_TIMEOUT_S = 30
+_AUTONOMY_LOG = _HARNESS / "autonomy.jsonl"
+
+_CLUSTER_PROMPT = (
+    "Below are {n} lesson entries clustered by category={cat}. Name the underlying pattern "
+    "in <=12 words. Output ONLY the title text (no period, no quotes, no preamble).\n\n"
+    "Lessons:\n{lessons}"
+)
+
+
+def _sprinkle_log(event: dict) -> None:
+    """Append a structured sprinkle event to .harness/autonomy.jsonl. Never raises."""
+    try:
+        entry = {**event, "ts": datetime.now(timezone.utc).isoformat()}
+        _AUTONOMY_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(_AUTONOMY_LOG, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _claude_cluster_title(category: str, entries: list[dict]) -> str | None:
+    """Ask the cheap-tier LLM (Ollama Gemma 4 → OpenRouter fallback) for a
+    <=12-word root-cause title. Routes through provider_router so no direct
+    Anthropic SDK calls happen here. Returns None on any failure → caller
+    falls back to deterministic category naming.
+    """
+    snippets: list[str] = []
+    for e in entries[:20]:
+        text = str(e.get("lesson", "")).strip()
+        if text:
+            snippets.append(f"- {text[:240]}")
+    if not snippets:
+        return None
+    prompt = _CLUSTER_PROMPT.format(
+        n=len(entries), cat=category,
+        lessons="\n".join(snippets).replace("{", "{{").replace("}", "}}"),
+    )
+
+    try:
+        import asyncio  # noqa: PLC0415
+        from app.server.provider_router import run_via_provider, select_provider_model  # noqa: PLC0415
+
+        pm = select_provider_model(_CLUSTER_ROLE)
+        rc, text, _cost, error = asyncio.run(run_via_provider(
+            prompt=prompt,
+            role=_CLUSTER_ROLE,
+            timeout_s=_CLUSTER_TIMEOUT_S,
+        ))
+    except Exception as exc:  # noqa: BLE001
+        _sprinkle_log({
+            "sprinkle": "analyse_lessons", "outcome": "router_unavailable",
+            "category": category, "error": type(exc).__name__,
+        })
+        return None
+
+    if rc != 0 or not text:
+        _sprinkle_log({
+            "sprinkle": "analyse_lessons", "outcome": "call_failed",
+            "category": category, "provider": pm.provider, "model": pm.model_id,
+            "error": error or "empty_response",
+        })
+        return None
+
+    # Strip leading/trailing quotes + trailing period
+    text = text.strip().strip('"').strip("'").rstrip(".").strip()
+    # Cap at 12 words just in case
+    words = text.split()
+    if not words:
+        return None
+    if len(words) > 12:
+        words = words[:12]
+    title = " ".join(words)
+    _sprinkle_log({
+        "sprinkle": "analyse_lessons", "outcome": "ok",
+        "category": category, "title": title,
+        "provider": pm.provider, "model": pm.model_id,
+    })
+    return title
+
 # Run-once lock: prevent duplicate floods when an autonomous session calls this
 # script multiple times in the same calendar day (UTC).
 _LOCK_FILE = _HARNESS / ".analyse-lessons-last-run"
@@ -264,8 +351,18 @@ def _has_open_ticket(client: LinearClient, title: str) -> bool:
     return False
 
 
-def create_linear_ticket(client: LinearClient, category: str, content: str) -> dict | None:
-    title = f"[Self-Improvement] Review {category.replace('-', ' ').title()} lessons pattern"
+def create_linear_ticket(
+    client: LinearClient,
+    category: str,
+    content: str,
+    claude_title: str | None = None,
+) -> dict | None:
+    # RA-1985 sprinkle #5 — prefer Claude-derived root-cause title; fall back
+    # to the template if Claude is unavailable or returned nothing.
+    if claude_title:
+        title = f"[Self-Improvement] {claude_title}"
+    else:
+        title = f"[Self-Improvement] Review {category.replace('-', ' ').title()} lessons pattern"
     if _has_open_ticket(client, title):
         return None
     try:
@@ -398,10 +495,17 @@ def main() -> None:
             )
             continue
 
+        # RA-1985 sprinkle #5 — Claude root-cause title for the Linear ticket.
+        # Returns None on any failure → template title preserved.
+        claude_title = _claude_cluster_title(category, entries)
+
         if client:
-            create_linear_ticket(client, category, content)
+            create_linear_ticket(client, category, content, claude_title=claude_title)
         else:
-            log.info("[DRY RUN] Would create Linear ticket for category: %s", category)
+            log.info(
+                "[DRY RUN] Would create Linear ticket for category: %s (claude_title=%r)",
+                category, claude_title,
+            )
 
     if not args.dry_run:
         register_cron_trigger()
