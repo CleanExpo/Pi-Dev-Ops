@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 import urllib.error
 import urllib.request
@@ -24,6 +25,96 @@ _HARNESS_ROOT = Path(__file__).resolve().parents[3] / ".harness"
 _SHIPPED_FEATURES_FILE = _HARNESS_ROOT / "shipped-features.jsonl"
 _LESSONS_FILE = _HARNESS_ROOT / "lessons.jsonl"
 _FEEDBACK_CACHE_FILE = _HARNESS_ROOT / "feedback-cache.json"
+_AUTONOMY_LOG = _HARNESS_ROOT / "autonomy.jsonl"
+
+# RA-1985 sprinkle #2 — Claude pattern-naming on neutral outcomes.
+# Escalates frozen-keyword "neutral" verdicts to Haiku for full-thread reading.
+_PATTERN_MODEL = "claude-haiku-4-5-20251001"
+_PATTERN_MAX_TOKENS = 200
+
+_PATTERN_PROMPT = (
+    "This feature shipped {days} days ago. Read the Linear thread below and classify the outcome: "
+    "positive | negative | neutral. If positive or negative, name the pattern in <=8 words "
+    "(e.g. \"client used it immediately\", \"regressed two releases later\").\n"
+    "Output JSON only: {{\"category\": \"positive\"|\"negative\"|\"neutral\", \"label\": str, \"confidence\": float}}.\n\n"
+    "Thread:\n{thread}"
+)
+
+
+def _log_sprinkle_event(event: dict[str, Any]) -> None:
+    """Append a structured sprinkle event to .harness/autonomy.jsonl. Never raises."""
+    try:
+        entry = {**event, "ts": datetime.now(timezone.utc).isoformat()}
+        _AUTONOMY_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(_AUTONOMY_LOG, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _classify_with_claude(
+    comments: list[str], state: str, days_since: int, pipeline_id: str,
+) -> dict[str, Any] | None:
+    """Classify neutral outcomes via Haiku. Returns {category, label, confidence} or None."""
+    try:
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        if not api_key:
+            return None
+        from anthropic import Anthropic  # noqa: PLC0415
+    except Exception as exc:  # noqa: BLE001
+        _log_sprinkle_event({
+            "sprinkle": "feedback_loop", "outcome": "sdk_unavailable",
+            "pipeline_id": pipeline_id, "error": str(exc),
+        })
+        return None
+
+    thread = "\n---\n".join(comments[:30]) if comments else "(no comments)"
+    thread = thread[:4000]
+    thread += f"\n\nLinear state: {state}"
+    prompt = _PATTERN_PROMPT.format(
+        days=days_since,
+        thread=thread.replace("{", "{{").replace("}", "}}"),
+    )
+
+    try:
+        client = Anthropic(api_key=api_key, max_retries=0)
+        resp = client.messages.create(
+            model=_PATTERN_MODEL,
+            max_tokens=_PATTERN_MAX_TOKENS,
+            messages=[{"role": "user", "content": prompt}],
+            timeout=20,
+        )
+        raw = "".join(
+            getattr(block, "text", "")
+            for block in (resp.content or [])
+            if getattr(block, "type", None) == "text"
+        ).strip()
+        if raw.startswith("```"):
+            raw = raw.strip("`").lstrip("json").strip()
+        data = json.loads(raw)
+        category = str(data.get("category", "")).strip()
+        if category not in {"positive", "negative", "neutral"}:
+            _log_sprinkle_event({
+                "sprinkle": "feedback_loop", "outcome": "bad_shape",
+                "pipeline_id": pipeline_id,
+            })
+            return None
+        out = {
+            "category": category,
+            "label": str(data.get("label", "")).strip()[:120],
+            "confidence": float(data.get("confidence", 0.0)),
+        }
+        _log_sprinkle_event({
+            "sprinkle": "feedback_loop", "outcome": "ok",
+            "pipeline_id": pipeline_id, **out,
+        })
+        return out
+    except Exception as exc:  # noqa: BLE001
+        _log_sprinkle_event({
+            "sprinkle": "feedback_loop", "outcome": "call_failed",
+            "pipeline_id": pipeline_id, "error": type(exc).__name__,
+        })
+        return None
 
 # How many days before a feature is considered stale (no outcome signal)
 _STALE_DAYS = 30
@@ -253,10 +344,20 @@ def _create_stale_review_issue(feature: dict[str, Any], label_id: str | None, dr
 
 # ── Signal detection ──────────────────────────────────────────────────────────
 
-def _detect_signal(comments: list[str], state: str) -> str:
+def _detect_signal(
+    comments: list[str],
+    state: str,
+    *,
+    days_since: int = 0,
+    pipeline_id: str = "?",
+) -> str:
     """
     Analyse comments and issue state to determine outcome signal.
     Returns: 'positive' | 'negative' | 'neutral'
+
+    RA-1985 sprinkle #2 — neutral outcomes get escalated to Claude for
+    full-thread pattern naming. On any Claude failure we fall back to the
+    keyword-only verdict (the original behavior).
     """
     combined = " ".join(comments)
     has_positive = any(kw in combined for kw in _POSITIVE_KEYWORDS)
@@ -266,6 +367,14 @@ def _detect_signal(comments: list[str], state: str) -> str:
         return "negative"
     if has_positive:
         return "positive"
+
+    # Frozen-keyword classifier landed on neutral. Escalate to Claude when we
+    # actually have content to read; fall back to keyword verdict on failure.
+    if comments:
+        hint = _classify_with_claude(comments, state, days_since, pipeline_id)
+        if hint and hint["category"] in {"positive", "negative", "neutral"}:
+            return hint["category"]
+
     if state.lower() in ("done", "completed", "closed"):
         return "neutral"
     return "neutral"
@@ -456,7 +565,9 @@ def run_feedback_cycle(dry_run: bool = False) -> dict[str, Any]:
         # Fetch signals from Linear
         comments = _fetch_issue_comments(linear_id)
         state = _fetch_issue_state(linear_id)
-        signal = _detect_signal(comments, state)
+        signal = _detect_signal(
+            comments, state, days_since=age_days, pipeline_id=pipeline_id,
+        )
 
         feature["outcome_signal"] = signal
         features_with_signals.append(feature)
