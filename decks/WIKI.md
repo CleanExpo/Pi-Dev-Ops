@@ -1,4 +1,4 @@
-# remotion-studio — Wiki
+# decks — Wiki
 
 _Last updated: 2026-05-11T09:11:30Z (commits 7bd7e4d..b53059b)_
 
