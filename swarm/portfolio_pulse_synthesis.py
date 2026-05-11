@@ -21,8 +21,12 @@ Design:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
-from typing import TYPE_CHECKING
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .portfolio_pulse import PulseResult
@@ -32,6 +36,40 @@ log = logging.getLogger("swarm.portfolio_pulse.synthesis")
 SYNTHESIS_ROLE = "portfolio.synthesis"
 MAX_WORDS = 400
 TIMEOUT_S = 90
+
+# RA-1985 sprinkle #3 / RA-2995 migration — second extraction pass for
+# BOARD-TRIGGERs. First synthesis pass is creative; this is structured-
+# extraction only. Routes through provider_router (cheap tier → Ollama
+# Gemma 4 → OpenRouter fallback). No direct Anthropic SDK calls.
+#
+# Production override recommended: set TAO_MODEL_SPRINKLE_PULSE=ollama:gemma4:26b
+# in .env.local to use the 27B variant for cleaner structured JSON output.
+_EXTRACT_ROLE = "sprinkle.pulse"
+_EXTRACT_MAX_TOKENS = 600
+_EXTRACT_TIMEOUT_S = 120  # Larger context (synthesis + 7 project digests); cold-start headroom
+_AUTONOMY_LOG = (
+    Path(__file__).resolve().parents[1] / ".harness" / "autonomy.jsonl"
+)
+
+_EXTRACT_PROMPT = (
+    "Read the daily portfolio synthesis and per-project digests. List every cross-cutting "
+    "risk or strategic decision that scores >=6/10 on board-worthiness. Output JSON array: "
+    "[{{\"score\": int, \"topic\": str, \"one_line_rationale\": str, \"primary_project\": str}}]. "
+    "Return [] if none.\n\n"
+    "## First-pass synthesis\n\n{synthesis}\n\n"
+    "## Per-project digests\n\n{digests}"
+)
+
+
+def _log_sprinkle_event(event: dict) -> None:
+    """Append a structured sprinkle event to .harness/autonomy.jsonl. Never raises."""
+    try:
+        entry = {**event, "ts": datetime.now(timezone.utc).isoformat()}
+        _AUTONOMY_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(_AUTONOMY_LOG, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception:  # noqa: BLE001
+        pass
 
 _SYSTEM_PROMPT = (
     "You are the chief-of-staff synthesising a daily portfolio pulse for "
@@ -146,6 +184,124 @@ def _call_llm(prompt: str) -> tuple[str, str | None]:
     return text or "", None
 
 
+# ── Second-pass BOARD-TRIGGER extraction (RA-1985 sprinkle #3) ───────────────
+
+
+def _format_triggers(items: list[dict]) -> str:
+    """Render extracted triggers as BOARD-TRIGGER sentinels matching margot_bot grammar."""
+    lines: list[str] = []
+    for item in items:
+        try:
+            score = int(item.get("score", 0))
+            topic = str(item.get("topic", "")).strip()
+            rationale = str(item.get("one_line_rationale", "")).strip()
+            if score < 6 or not topic or not rationale:
+                continue
+            topic = topic.replace('"', "'")
+            rationale = rationale.replace("\n", " ").strip()
+            lines.append(
+                f'[BOARD-TRIGGER score={score} topic="{topic}"]{rationale}[/BOARD-TRIGGER]'
+            )
+        except (TypeError, ValueError):
+            continue
+    return "\n".join(lines)
+
+
+def _run_provider_call_blocking(prompt: str, role: str, timeout_s: int) -> tuple[int, str, float, str | None, Any]:
+    """Call provider_router.run_via_provider from sync context — safe whether
+    or not an event loop is already running.
+
+    TODO(RA-2995 cleanup): consolidate this helper into provider_router.py
+    after the remaining sprinkle (board_prebrief) lands — it'll then exist
+    in 4 files with identical implementations.
+
+    Returns (rc, text, cost_usd, error, ProviderModel).
+    """
+    import asyncio  # noqa: PLC0415
+    import concurrent.futures  # noqa: PLC0415
+    from app.server.provider_router import run_via_provider, select_provider_model  # noqa: PLC0415
+
+    pm = select_provider_model(role)
+
+    async def _go() -> tuple[int, str, float, str | None]:
+        return await run_via_provider(prompt=prompt, role=role, timeout_s=timeout_s)
+
+    try:
+        asyncio.get_running_loop()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            rc, text, cost, error = ex.submit(asyncio.run, _go()).result(timeout=timeout_s + 5)
+    except RuntimeError:
+        rc, text, cost, error = asyncio.run(_go())
+    return rc, text, cost, error, pm
+
+
+def _extract_board_triggers(
+    synthesis: str, per_project_pulses: dict[str, "PulseResult"],
+) -> str:
+    """Second structured-extraction pass via cheap-tier LLM (Ollama Gemma 4
+    → OpenRouter fallback). Extracts BOARD-TRIGGER candidates as JSON, then
+    renders into the sentinel format the orchestrator parses.
+
+    Returns extra newline-joined BOARD-TRIGGER sentinel lines (or "") on any
+    failure. Caller falls back to first-pass synthesis output (no regression).
+    """
+    digests = "\n\n".join(
+        _digest_pulse(p) for _pid, p in sorted(per_project_pulses.items())
+    )
+    digests = digests[:8000]
+    prompt = _EXTRACT_PROMPT.format(
+        synthesis=synthesis[:4000].replace("{", "{{").replace("}", "}}"),
+        digests=digests.replace("{", "{{").replace("}", "}}"),
+    )
+
+    try:
+        rc, raw, _cost, error, pm = _run_provider_call_blocking(prompt, _EXTRACT_ROLE, _EXTRACT_TIMEOUT_S)
+    except Exception as exc:  # noqa: BLE001
+        _log_sprinkle_event({
+            "sprinkle": "portfolio_pulse_extract",
+            "outcome": "router_unavailable",
+            "error": type(exc).__name__,
+        })
+        return ""
+
+    if rc != 0 or not raw:
+        log.warning("portfolio_pulse_extract: %s — keeping first-pass output", error or "empty_response")
+        _log_sprinkle_event({
+            "sprinkle": "portfolio_pulse_extract", "outcome": "call_failed",
+            "provider": pm.provider, "model": pm.model_id,
+            "error": error or "empty_response",
+        })
+        return ""
+
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`").lstrip("json").strip()
+    try:
+        items = json.loads(raw)
+    except json.JSONDecodeError:
+        _log_sprinkle_event({
+            "sprinkle": "portfolio_pulse_extract", "outcome": "json_parse_failed",
+            "provider": pm.provider, "model": pm.model_id,
+            "raw_head": raw[:120],
+        })
+        return ""
+
+    if not isinstance(items, list):
+        _log_sprinkle_event({
+            "sprinkle": "portfolio_pulse_extract", "outcome": "bad_shape",
+            "provider": pm.provider, "model": pm.model_id,
+        })
+        return ""
+    rendered = _format_triggers(items)
+    _log_sprinkle_event({
+        "sprinkle": "portfolio_pulse_extract", "outcome": "ok",
+        "provider": pm.provider, "model": pm.model_id,
+        "candidates": len(items),
+        "emitted": rendered.count("[BOARD-TRIGGER"),
+    })
+    return rendered
+
+
 # ── Public API ──────────────────────────────────────────────────────────────
 
 
@@ -169,7 +325,16 @@ def synthesize(per_project_pulses: dict[str, "PulseResult"]) -> str:
     if error or not text.strip():
         return f"_(synthesis unavailable: {error or 'empty_response'})_"
 
-    return _truncate_to_word_cap(text.strip())
+    body = _truncate_to_word_cap(text.strip())
+
+    # RA-1985 sprinkle #3 — deterministic second pass to surface BOARD-TRIGGER
+    # candidates the creative first pass missed (audit: misses ~3-4/week).
+    # Any failure keeps first-pass output as-is.
+    extra_triggers = _extract_board_triggers(body, per_project_pulses)
+    if extra_triggers:
+        body = f"{body}\n\n{extra_triggers}"
+
+    return body
 
 
 __all__ = [
