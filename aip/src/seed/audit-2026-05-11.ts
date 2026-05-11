@@ -112,7 +112,7 @@ const vercelRestoreAssist: SeedEntity<"VercelProject", VercelProjectProps> = {
   properties: {
     vercel_project_id: "prj_Aw90JJ2x7mTMatTxa3ymgcU7WPV2", // verified via `vercel project inspect restoreassist --scope unite-group` 2026-05-11
     slug: "restoreassist",
-    team_id: "zenithfresh25-1436", // NOTE: `vercel project inspect` reports current Owner as "Unite-Group" team; the audit-source value is retained as-is per surgical-changes guardrail. Migration is a documented follow-up in Wiki/log.md#2026-05-11.
+    team_id: "unite-group", // verified via `vercel project inspect restoreassist` 2026-05-11 — Vercel team migration to Unite-Group team has already completed (was zenithfresh25-1436)
     current_git_sha: "8137a5eea7c3ccb8b53c38cef98e5e3a854bffb3", // RestoreAssist HEAD at 2026-05-11
     framework: "nextjs",
   },
@@ -219,19 +219,18 @@ const RELATIONSHIPS: ReadonlyArray<SeedRelationship> = [
     properties: { since_date: null }, // TODO seed: original creation date of legacy project
   },
   // VercelProject.ownedBy(GoogleIdentity) — N:1, role
-  // Vercel team `zenithfresh25-1436` is currently owned by the personal Gmail.
-  // Migration to contact@unite-group.in is a documented follow-up in the fix log.
+  // Migration to contact@unite-group.in (Unite-Group team) verified complete 2026-05-11.
   {
     uri: relUri(
       "VercelProject.ownedBy.GoogleIdentity",
       vercelRestoreAssist.id,
-      zenithIdentity.id,
+      contactIdentity.id,
     ),
     kind: "VercelProject.ownedBy.GoogleIdentity",
     from_uri: vercelRestoreAssist.uri,
-    to_uri: zenithIdentity.uri,
+    to_uri: contactIdentity.uri,
     cardinality: "N:1",
-    properties: { role: "owner" },
+    properties: { role: "owner", migrated_from_uri: zenithIdentity.uri, migrated_at: "2026-05-11T00:00:00Z" },
   },
   // PortfolioService.deploysTo(VercelProject) — 1:1
   {
