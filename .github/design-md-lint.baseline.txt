@@ -1,0 +1,6 @@
+# DESIGN.md lint baseline — Pi-Dev-Ops
+# Generated 2026-05-11 when DESIGN.md adoption shipped.
+# Pi-Dev-Ops has minimal UI surface — most code is infrastructure, skills,
+# Hermes cron, and swarm orchestration. New UI surfaces should aim for
+# zero icon-library imports (use src/components/ui/marks.tsx).
+icon_imports=1
