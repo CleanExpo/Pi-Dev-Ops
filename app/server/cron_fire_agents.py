@@ -8,9 +8,223 @@ Contains:
     _fire_meta_curator_trigger()    — meta-curator scan + propose (RA-1839)
 """
 import asyncio
+import json
+import os
 import traceback
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+# RA-1985 sprinkle #4 / RA-2995 migration — pre-brief LLM call before the
+# board meeting runs. Routes through provider_router (cheap tier → Ollama
+# Gemma 4 → OpenRouter fallback). No direct Anthropic SDK calls.
+_PREBRIEF_ROLE = "sprinkle.board_prebrief"
+_PREBRIEF_MAX_TOKENS = 600
+_PREBRIEF_TIMEOUT_S = 120  # Larger context (24h of lessons + sessions + tickets); cold-start headroom
+_HARNESS_ROOT = Path(__file__).parent.parent.parent / ".harness"
+_AUTONOMY_LOG = _HARNESS_ROOT / "autonomy.jsonl"
+_LESSONS_FILE = _HARNESS_ROOT / "lessons.jsonl"
+_SESSION_OUTCOMES_FILE = _HARNESS_ROOT / "session-outcomes.jsonl"
+_PREBRIEF_OUTPUT_DIR = _HARNESS_ROOT / "board-meetings"
+
+_PREBRIEF_PROMPT = (
+    "You are the board's chief-of-staff. Read the last 24h of lessons, session outcomes, "
+    "and Urgent/High Linear tickets attached. Produce a 5-bullet pre-brief: \"Today the "
+    "board should care about ___ because ___\". No filler. Direct.\n\n"
+    "## Recent lessons (last 24h)\n{lessons}\n\n"
+    "## Recent session outcomes (last 24h)\n{sessions}\n\n"
+    "## Open Urgent/High Linear tickets\n{tickets}"
+)
+
+
+def _sprinkle_log(event: dict, log) -> None:
+    """Append a structured sprinkle event to .harness/autonomy.jsonl. Never raises."""
+    try:
+        entry = {**event, "ts": datetime.now(timezone.utc).isoformat()}
+        _AUTONOMY_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(_AUTONOMY_LOG, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception as exc:  # noqa: BLE001
+        log.debug("sprinkle log write failed: %s", exc)
+
+
+def _tail_jsonl_recent(path: Path, since: datetime, max_lines: int = 50) -> list[dict]:
+    """Read a JSONL file and return entries with ts within `since`. Best-effort."""
+    if not path.exists():
+        return []
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()[-1000:]
+    except OSError:
+        return []
+    out: list[dict] = []
+    for line in lines:
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        ts_str = str(entry.get("ts") or entry.get("created_at") or "")
+        try:
+            ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+        except (ValueError, TypeError):
+            continue
+        if ts >= since:
+            out.append(entry)
+            if len(out) >= max_lines:
+                break
+    return out
+
+
+def _fetch_urgent_high_tickets() -> list[dict]:
+    """Pull Urgent/High open Linear tickets via GraphQL. Returns [] on any failure."""
+    import urllib.request  # noqa: PLC0415
+    api_key = os.environ.get("LINEAR_API_KEY", "")
+    if not api_key:
+        return []
+    query = """
+    query { issues(filter: { priority: { lte: 2 }, state: { type: { in: ["unstarted","started"] } } }, first: 25) {
+      nodes { identifier title priority state { name } team { key } }
+    } }
+    """
+    try:
+        payload = json.dumps({"query": query}).encode()
+        req = urllib.request.Request(
+            "https://api.linear.app/graphql", data=payload, method="POST",
+            headers={"Content-Type": "application/json", "Authorization": api_key},
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read())
+        return data.get("data", {}).get("issues", {}).get("nodes", [])
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _run_provider_call_blocking(prompt: str, role: str, timeout_s: int, log):  # noqa: ANN201
+    # Returns (rc:int, text:str, cost_usd:float, error:str|None, pm:ProviderModel).
+    # Untyped return to avoid pulling ProviderModel into this module's typing
+    # surface — this helper is duplicated across 4 files and will be
+    # consolidated into provider_router.py after RA-2995 lands all 5 sprinkles.
+    """Call provider_router.run_via_provider from sync context — safe whether
+    or not an event loop is already running. _generate_board_prebrief is
+    invoked from _fire_board_meeting_trigger (async), so the
+    ThreadPoolExecutor path is the common case here.
+
+    TODO(RA-2995 cleanup): consolidate this helper (also duplicated in
+    triage.py, feedback_loop.py, portfolio_pulse_synthesis.py) into
+    provider_router.py as a single shared utility.
+
+    Returns (rc, text, cost_usd, error, ProviderModel).
+    """
+    import asyncio  # noqa: PLC0415
+    import concurrent.futures  # noqa: PLC0415
+    from app.server.provider_router import run_via_provider, select_provider_model  # noqa: PLC0415
+
+    pm = select_provider_model(role)
+
+    async def _go() -> tuple[int, str, float, str | None]:
+        return await run_via_provider(prompt=prompt, role=role, timeout_s=timeout_s)
+
+    try:
+        asyncio.get_running_loop()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            rc, text, cost, error = ex.submit(asyncio.run, _go()).result(timeout=timeout_s + 5)
+    except RuntimeError:
+        rc, text, cost, error = asyncio.run(_go())
+    return rc, text, cost, error, pm
+
+
+def _generate_board_prebrief(log) -> str:
+    """Build a 5-bullet pre-brief via cheap-tier LLM (Ollama Gemma 4 →
+    OpenRouter fallback). Returns "" on any failure — board meeting still
+    runs without the pre-brief (no regression).
+    """
+    now = datetime.now(timezone.utc)
+    since = now - timedelta(hours=24)
+
+    lessons = _tail_jsonl_recent(_LESSONS_FILE, since, max_lines=40)
+    sessions = _tail_jsonl_recent(_SESSION_OUTCOMES_FILE, since, max_lines=40)
+    tickets = _fetch_urgent_high_tickets()
+
+    def _fmt_lessons(items: list[dict]) -> str:
+        if not items:
+            return "(none)"
+        return "\n".join(
+            f"- [{e.get('severity','info')}] {e.get('category','?')}: {str(e.get('lesson',''))[:200]}"
+            for e in items[-25:]
+        )
+
+    def _fmt_sessions(items: list[dict]) -> str:
+        if not items:
+            return "(none)"
+        return "\n".join(
+            f"- {e.get('session_id','?')} {e.get('outcome','?')}: {str(e.get('summary',''))[:200]}"
+            for e in items[-25:]
+        )
+
+    def _fmt_tickets(items: list[dict]) -> str:
+        if not items:
+            return "(none)"
+        return "\n".join(
+            f"- {e.get('identifier','?')} P{e.get('priority','?')} [{(e.get('state') or {}).get('name','?')}] {str(e.get('title',''))[:160]}"
+            for e in items[:25]
+        )
+
+    prompt = _PREBRIEF_PROMPT.format(
+        lessons=_fmt_lessons(lessons).replace("{", "{{").replace("}", "}}"),
+        sessions=_fmt_sessions(sessions).replace("{", "{{").replace("}", "}}"),
+        tickets=_fmt_tickets(tickets).replace("{", "{{").replace("}", "}}"),
+    )
+
+    try:
+        rc, text, _cost, error, pm = _run_provider_call_blocking(prompt, _PREBRIEF_ROLE, _PREBRIEF_TIMEOUT_S, log)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Board pre-brief router call raised: %s — board meeting will run without it", exc)
+        _sprinkle_log({
+            "sprinkle": "board_prebrief", "outcome": "router_unavailable",
+            "error": type(exc).__name__,
+        }, log)
+        return ""
+
+    if rc != 0 or not text:
+        log.warning("Board pre-brief call failed (%s) — board meeting will run without it", error or "empty_response")
+        _sprinkle_log({
+            "sprinkle": "board_prebrief", "outcome": "call_failed",
+            "provider": pm.provider, "model": pm.model_id,
+            "error": error or "empty_response",
+        }, log)
+        return ""
+
+    text = text.strip()
+    _sprinkle_log({
+        "sprinkle": "board_prebrief", "outcome": "ok",
+        "provider": pm.provider, "model": pm.model_id,
+        "chars": len(text),
+        "lessons_count": len(lessons),
+        "sessions_count": len(sessions),
+        "tickets_count": len(tickets),
+    }, log)
+    return text
+
+
+def _persist_prebrief(prebrief: str, log) -> Path | None:
+    """Write the pre-brief markdown next to the daily board minutes. Best-effort."""
+    if not prebrief:
+        return None
+    try:
+        _PREBRIEF_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        out_path = _PREBRIEF_OUTPUT_DIR / f"{date}-prebrief.md"
+        body = (
+            f"# Board pre-brief — {date}\n\n"
+            "_Generated by RA-1985 sprinkle #4 (cron_fire_agents._generate_board_prebrief)._\n\n"
+            f"{prebrief}\n"
+        )
+        out_path.write_text(body, encoding="utf-8")
+        log.info("Board pre-brief written to %s", out_path)
+        return out_path
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Could not persist board pre-brief: %s", exc)
+        return None
 
 
 def _persist_board_meeting_failure(trigger_id: str, exc: BaseException, log) -> None:
@@ -119,6 +333,15 @@ async def _fire_board_meeting_trigger(trigger: dict, log) -> None:
 
     log.info("Firing board_meeting trigger id=%s", trigger["id"])
     loop = asyncio.get_event_loop()
+
+    # RA-1985 sprinkle #4 — pre-brief Claude call. Reads last 24h of lessons +
+    # session outcomes + open Urgent/High Linear tickets, asks Haiku for a
+    # 5-bullet "what should the board care about today" brief. Persisted to
+    # .harness/board-meetings/<date>-prebrief.md so Phase 1 of the board can
+    # pick it up via filesystem. On any failure the board meeting runs as today.
+    prebrief = await loop.run_in_executor(None, _generate_board_prebrief, log)
+    if prebrief:
+        _persist_prebrief(prebrief, log)
 
     from .agents.board_meeting import run_full_board_meeting
     try:

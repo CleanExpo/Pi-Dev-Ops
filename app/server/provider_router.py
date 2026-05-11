@@ -108,6 +108,11 @@ ROLE_TIER: dict[str, str] = {
     "monitor":           "cheap",
     "guardian":          "cheap",
     "scribe.draft":      "cheap",
+    "sprinkle.lessons":  "cheap",  # RA-2995: analyse_lessons cluster-title naming (Gemma 4 first sprinkle migration)
+    "sprinkle.triage":   "cheap",  # RA-2995: triage real/false-positive verdict on scanner findings
+    "sprinkle.feedback": "cheap",  # RA-2995: feedback_loop neutral-outcome pattern naming
+    "sprinkle.pulse":    "cheap",  # RA-2995: portfolio_pulse BOARD-TRIGGER structured extraction
+    "sprinkle.board_prebrief": "cheap",  # RA-2995: 5-bullet pre-brief before daily board meeting (final sprinkle)
 }
 
 
