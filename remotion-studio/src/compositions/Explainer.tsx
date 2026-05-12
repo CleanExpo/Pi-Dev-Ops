@@ -2,6 +2,7 @@ import React from 'react';
 import {
   AbsoluteFill,
   Audio,
+  Img,
   Sequence,
   staticFile,
   interpolate,
@@ -24,7 +25,7 @@ import { readableOn, brandGradient } from '../colour';
 export const explainerSceneSchema = z.object({
   sceneId: z.string(),
   sceneType: z
-    .enum(['hook', 'body', 'cta', 'stat', 'flow', 'comparison', 'keypoints'])
+    .enum(['hook', 'body', 'cta', 'stat', 'flow', 'comparison', 'keypoints', 'screenshot'])
     .optional(),
   durationSec: z.number(),
   voiceover: z.string(),
@@ -42,6 +43,8 @@ export const explainerSceneSchema = z.object({
       keypoints: z.array(z.string()).optional(),
       eyebrow: z.string().optional(),
       footnote: z.string().optional(),
+      screenshotSrc: z.string().optional(),
+      caption: z.string().optional(),
     })
     .optional(),
 });
@@ -823,6 +826,98 @@ const Cta: React.FC<{ scene: ExplainerScene; brand: BrandSlug }> = ({ scene, bra
   );
 };
 
+// ── Screenshot scene · embeds a real captured PNG with brand chrome ────────
+
+const ScreenshotScene: React.FC<{ scene: ExplainerScene; brand: BrandSlug }> = ({ scene, brand }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const cfg = brands[brand];
+  const entry = signatureEntry({ frame, fps, motion: cfg.motion }, 0, 80);
+  const fg = readableOn(cfg.colour.secondary, cfg.colour);
+  const src = scene.data?.screenshotSrc;
+
+  return (
+    <SceneFrame brand={brand} bgMode="solid-secondary">
+      <AbsoluteFill
+        style={{
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 80,
+          flexDirection: 'column',
+          gap: 32,
+        }}
+      >
+        {scene.data?.eyebrow && (
+          <div
+            style={{
+              color: cfg.colour.accent,
+              fontFamily: cfg.typography.body.family,
+              fontSize: 28,
+              letterSpacing: '0.22em',
+              textTransform: 'uppercase',
+              opacity: entry.opacity,
+            }}
+          >
+            {scene.data.eyebrow}
+          </div>
+        )}
+
+        {src ? (
+          <div
+            style={{
+              transform: `scale(${entry.scale}) translate(${entry.translateX}px, ${entry.translateY}px)`,
+              opacity: entry.opacity,
+              borderRadius: 16,
+              overflow: 'hidden',
+              boxShadow: `0 30px 80px rgba(0,0,0,0.45), 0 0 0 4px ${cfg.colour.accent}`,
+              maxWidth: 1500,
+              maxHeight: 760,
+            }}
+          >
+            <Img
+              src={staticFile(src)}
+              style={{ display: 'block', width: '100%', height: 'auto', objectFit: 'contain' }}
+            />
+          </div>
+        ) : (
+          <div style={{ color: fg, fontSize: 32 }}>screenshot missing</div>
+        )}
+
+        <div
+          style={{
+            color: fg,
+            fontFamily: cfg.typography.display.family,
+            fontWeight: cfg.typography.display.weight,
+            fontSize: 56,
+            textAlign: 'center',
+            letterSpacing: '-0.02em',
+            lineHeight: 1.1,
+            maxWidth: 1600,
+            opacity: entry.opacity,
+          }}
+        >
+          {scene.onScreenText}
+        </div>
+
+        {scene.data?.caption && (
+          <div
+            style={{
+              color: cfg.colour.accent,
+              fontFamily: cfg.typography.body.family,
+              fontSize: 32,
+              textAlign: 'center',
+              maxWidth: 1400,
+              opacity: entry.opacity,
+            }}
+          >
+            {scene.data.caption}
+          </div>
+        )}
+      </AbsoluteFill>
+    </SceneFrame>
+  );
+};
+
 // ── Default props (kept for backwards-compat with existing scripts) ────────
 
 export const defaultExplainerProps: ExplainerProps = {
@@ -909,6 +1004,8 @@ export const Explainer: React.FC<ExplainerProps> = ({ brand, storyboard }) => {
             ? ComparisonScene
             : sceneType === 'keypoints'
             ? KeypointsScene
+            : sceneType === 'screenshot'
+            ? ScreenshotScene
             : Body;
         return (
           <Sequence key={scene.sceneId} from={start} durationInFrames={dur} name={scene.sceneId}>

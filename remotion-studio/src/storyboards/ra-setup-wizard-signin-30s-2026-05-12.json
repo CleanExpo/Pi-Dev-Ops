@@ -10,6 +10,8 @@
   "$voiceCadence": "calm, reassuring, brisk — returning user refresher, not a pitch",
   "$strategistNotes": ".research/strategist/ra-setup-wizard-signin-30s.md",
   "$validationFlight": true,
+  "$revision": "v2-screenshots",
+  "$revisionNote": "v1 was typography-only. v2 embeds real /login captures from sandbox via the new 'screenshot' sceneType.",
   "brand": "ra",
   "hookSec": 3,
   "ctaSec": 6,
@@ -25,47 +27,59 @@
       }
     },
     {
-      "sceneId": "flow-signin-steps",
-      "sceneType": "flow",
-      "durationSec": 7,
-      "onScreenText": "Three steps. Same login every time.",
-      "voiceover": "Email. Password. Sign in. Same fields, every time.",
+      "sceneId": "shot-login-full",
+      "sceneType": "screenshot",
+      "durationSec": 5,
+      "onScreenText": "Your /login screen.",
+      "voiceover": "This is your /login screen. Same view, every time you return.",
       "data": {
-        "eyebrow": "The /login screen",
-        "flowSteps": ["Email", "Password", "Sign in"]
+        "eyebrow": "The /login page",
+        "screenshotSrc": "captures/login-full.png",
+        "caption": "restoreassist-sandbox.vercel.app/login"
       }
     },
     {
-      "sceneId": "keypoints-shortcuts",
-      "sceneType": "keypoints",
-      "durationSec": 8,
-      "onScreenText": "Shortcuts on the same screen.",
-      "voiceover": "One-tap with Google if your work account is linked. Forgot password resets by email. Stuck? Support is one click away.",
+      "sceneId": "shot-email",
+      "sceneType": "screenshot",
+      "durationSec": 5,
+      "onScreenText": "Email — the address you signed up with.",
+      "voiceover": "Email — the address you signed up with.",
       "data": {
-        "eyebrow": "Faster ways in",
-        "keypoints": [
-          "Sign in with Google — one tap if your work account is linked",
-          "Forgot password — reset link by email in under a minute",
-          "Trouble signing in? — support@restoreassist.au answers in business hours"
-        ]
+        "eyebrow": "Step 1 of 3",
+        "screenshotSrc": "captures/login-email-focus.png",
+        "caption": "Same email, every time."
       }
     },
     {
-      "sceneId": "body-post-login",
-      "sceneType": "body",
-      "durationSec": 6,
-      "onScreenText": "You land back on your dashboard — claims and inspections waiting.",
-      "voiceover": "You'll land back on your dashboard. Claims and inspections, exactly where you left them.",
+      "sceneId": "shot-password",
+      "sceneType": "screenshot",
+      "durationSec": 4,
+      "onScreenText": "Password — tap the eye to reveal.",
+      "voiceover": "Password. Tap the eye if you need to check it.",
       "data": {
-        "footnote": "No re-setup. No re-onboarding. Same workspace, every login."
+        "eyebrow": "Step 2 of 3",
+        "screenshotSrc": "captures/login-password-focus.png",
+        "caption": "Forgotten? One click below resets by email."
+      }
+    },
+    {
+      "sceneId": "shot-google",
+      "sceneType": "screenshot",
+      "durationSec": 4,
+      "onScreenText": "Or one-tap with Google.",
+      "voiceover": "Or sign in with Google — one tap if your work account is linked.",
+      "data": {
+        "eyebrow": "Faster way in",
+        "screenshotSrc": "captures/login-google-focus.png",
+        "caption": "Continue with Google — one tap, no password."
       }
     },
     {
       "sceneId": "cta",
       "sceneType": "cta",
-      "durationSec": 6,
+      "durationSec": 9,
       "onScreenText": "One National Inspection Standard.",
-      "voiceover": "RestoreAssist. One National Inspection Standard. Not activated yet? Run /setup first.",
+      "voiceover": "RestoreAssist. One National Inspection Standard. Not activated yet? Run slash setup first.",
       "data": {
         "eyebrow": "Not activated yet? → /setup"
       }
