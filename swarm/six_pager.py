@@ -162,10 +162,11 @@ def _cs_section(repo_root: Path) -> str:
     breaches: list[_cs.CsBreach] = []
     for s in snaps:
         breaches.extend(_cs.detect_breaches(s))
-    # Wave 5.2 — pin priority businesses (default: ccw) at the top of the
-    # per-business listing. Configurable via SIX_PAGER_PRIORITY_BUSINESSES.
+    # Wave 5.2 — pin priority businesses (default: ccw-crm, matching
+    # TAO_FIRST_CLIENTS) at the top of the per-business listing.
+    # Configurable via SIX_PAGER_PRIORITY_BUSINESSES.
     import os as _os
-    priority_raw = _os.environ.get("SIX_PAGER_PRIORITY_BUSINESSES", "ccw")
+    priority_raw = _os.environ.get("SIX_PAGER_PRIORITY_BUSINESSES", "ccw-crm")
     priority = [s.strip() for s in priority_raw.split(",") if s.strip()]
     return _cs.assemble_daily_brief(
         snaps, breaches, priority_business_ids=priority,

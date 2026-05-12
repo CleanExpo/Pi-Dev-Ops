@@ -129,7 +129,9 @@ def ccw_supabase_metrics(*, window_hours: int | None = None
         else oldest_open_age_min
 
     return RawCsMetrics(
-        business_id="ccw",
+        # Matches `TAO_FIRST_CLIENTS` default + existing `_first_client_section`
+        # banner. Single business_id → single row in 6-pager CS section.
+        business_id="ccw-crm",
         nps_promoters=0,
         nps_passives=0,
         nps_detractors=0,
