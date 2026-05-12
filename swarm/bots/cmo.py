@@ -229,8 +229,46 @@ def request_adspend_approval(
 ) -> _cmo.AdSpendDecision:
     """Public entry-point for any other bot to request ad-spend approval.
 
+    Per Phill's founder directive 2026-05-13 (see Wiki/pathway-to-2b-2026-2028.md):
+    Unite-Group does **no ad spend, ever**. Synthex produces all marketing
+    in-house via free + owned distribution channels. When TAO_NO_AD_SPEND=1
+    (default), every adspend request is blocked with a clear reason. The
+    existing draft_review path is preserved for the case where the directive
+    is ever reversed via TAO_NO_AD_SPEND=0.
+
     Auto-approves <= ceiling. Above ceiling → routes through draft_review HITL.
     """
+    if os.environ.get("TAO_NO_AD_SPEND", "1") == "1":
+        log.info(
+            "cmo: ad-spend request blocked by founder directive — "
+            "no ad spend, in-house Synthex only. Request was $%.2f/day on %s for %s",
+            amount_usd_per_day, channel, business_id,
+        )
+        try:
+            from .. import audit_emit
+            audit_emit.row(
+                "cmo_adspend_blocked_by_directive",
+                "CMO",
+                business_id=business_id,
+                amount_usd_per_day=amount_usd_per_day,
+                channel=channel,
+                directive="founder_2026-05-13_no_ad_spend",
+            )
+        except Exception as exc:
+            log.debug("cmo: audit_emit suppressed: %s", exc)
+        return _cmo.AdSpendDecision(
+            status="blocked",
+            amount_usd_per_day=amount_usd_per_day,
+            channel=channel,
+            business_id=business_id,
+            justification=(
+                f"FOUNDER DIRECTIVE 2026-05-13: no ad spend. "
+                f"Use Synthex in-house production for {channel}. "
+                f"Original justification: {justification}"
+            ),
+            draft_id=None,
+        )
+
     spend_ceiling = float(os.environ.get(
         "TAO_CMO_ADSPEND_CEILING",
         _cmo.AUTONOMOUS_ADSPEND_CEILING_USD_PER_DAY,
