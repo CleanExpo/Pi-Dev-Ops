@@ -504,6 +504,14 @@ def assemble_six_pager(*, repo_root: Path | None = None,
     Reads from the existing senior-agent jsonl ledgers; does not invoke
     SDKs or external APIs. Each section degrades gracefully when its
     upstream ledger is missing.
+
+    SILENT-ON-CLEAN (per Phill directive 2026-05-13: "reduce updates to
+    critical only"):
+      When SIX_PAGER_SILENT_ON_CLEAN=1 (default), the assembler returns
+      the literal "[SILENT]" if the composed brief contains zero critical
+      markers (🔴 / 🚨). Yellow warnings (🟡) accumulate silently in the
+      jsonl ledgers but do not page. Set SIX_PAGER_SILENT_ON_CLEAN=0 to
+      restore the always-deliver behaviour.
     """
     rr = repo_root or REPO_ROOT
     date_str = date_str or _now_utc_date()
@@ -532,7 +540,15 @@ def assemble_six_pager(*, repo_root: Path | None = None,
         "—",
         "React 👍 to ack · ❌ to flag · ⏳ to defer per section.",
     ])
-    return "\n".join(sections)
+    brief = "\n".join(sections)
+
+    # Silent-on-clean gate. "Critical" = 🔴 (red dot) or 🚨 (siren). Any
+    # other markers (🟡 yellow, 🟢 green) are not pageable on their own.
+    import os as _os
+    if _os.environ.get("SIX_PAGER_SILENT_ON_CLEAN", "1") == "1":
+        if "🔴" not in brief and "🚨" not in brief:
+            return "[SILENT]"
+    return brief
 
 
 __all__ = [

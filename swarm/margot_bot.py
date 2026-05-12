@@ -580,8 +580,17 @@ def build_prompt(*, user_text: str, history: list[MargotTurn],
         f"Current message from Phill\n"
         f"==========================\n"
         f"{user_text}\n\n"
-        f"Margot's reply (concise, direct, with optional [BOARD-TRIGGER] "
-        f"sentinels if material):"
+        # The closer below was previously "Margot's reply:" — Gemma 4 (and
+        # other smaller local models) sometimes parsed that as "write a
+        # reply that addresses Margot" and opened with "Margot, I've ...".
+        # Crystal-clear closer forces first-person voice + Phill as the
+        # addressee, and bans speaker labels in the output.
+        f"Write your reply now, AS Margot, speaking directly to Phill.\n"
+        f"Use first-person (I, my) for yourself and second-person (you, your) for Phill.\n"
+        f"Do NOT start with a speaker label like \"Margot:\" or \"[Margot]\" or \"Margot,\".\n"
+        f"Be concise and direct. Append [BOARD-TRIGGER] / [IDEA] / [REALTIME] sentinels\n"
+        f"per the system rules above if material.\n\n"
+        f"Margot:\n"
     )
     return prompt
 
