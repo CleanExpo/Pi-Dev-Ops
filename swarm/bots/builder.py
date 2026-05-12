@@ -285,7 +285,9 @@ def _log_cycle(entry: dict) -> None:
 def _read_pr_counter() -> dict:
     """Read today's autonomous-PR counter from pr_rate_limit.json.
 
-    Resets automatically when the date changes.
+    Resets automatically when the date changes. The `limit` field
+    reflects the auto-clamped effective cap (RA-3019), not the raw env
+    override, so dashboards see the value actually being enforced.
     """
     counter_file = config.SWARM_LOG_DIR / "pr_rate_limit.json"
     today = datetime.now(timezone.utc).date().isoformat()
@@ -293,17 +295,17 @@ def _read_pr_counter() -> dict:
         with open(counter_file, "r", encoding="utf-8") as f:
             data = json.load(f)
         if data.get("date") != today:
-            return {"date": today, "count": 0, "limit": config.MAX_AUTONOMOUS_PRS_PER_DAY}
+            return {"date": today, "count": 0, "limit": config.effective_max_daily_prs()}
         return data
     except (FileNotFoundError, json.JSONDecodeError):
-        return {"date": today, "count": 0, "limit": config.MAX_AUTONOMOUS_PRS_PER_DAY}
+        return {"date": today, "count": 0, "limit": config.effective_max_daily_prs()}
 
 
 def _increment_pr_counter(counter: dict) -> None:
     """Atomically persist incremented PR counter (write-tmp→replace)."""
     counter_file = config.SWARM_LOG_DIR / "pr_rate_limit.json"
     counter["count"] += 1
-    counter["limit"] = config.MAX_AUTONOMOUS_PRS_PER_DAY
+    counter["limit"] = config.effective_max_daily_prs()
     tmp_path = str(counter_file) + ".tmp"
     with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump(counter, f)
@@ -399,12 +401,16 @@ def run_cycle(unacked_count: int) -> dict:
         drafts.append(draft)
 
         if not config.SHADOW_MODE:
-            # Active mode: check daily PR rate limit before firing
+            # Active mode: check daily PR rate limit before firing.
+            # RA-3019 — use auto-clamped effective cap (gated on
+            # green_merge_counter), not the raw env override.
             pr_counter = _read_pr_counter()
-            if pr_counter["count"] >= config.MAX_AUTONOMOUS_PRS_PER_DAY:
+            effective_cap = config.effective_max_daily_prs()
+            if pr_counter["count"] >= effective_cap:
                 log.warning(
-                    "Builder: daily PR limit reached (%d/%d) — skipping %s",
-                    pr_counter["count"], config.MAX_AUTONOMOUS_PRS_PER_DAY, ticket["id"],
+                    "Builder: daily PR limit reached (%d/%d, env_override=%d) — skipping %s",
+                    pr_counter["count"], effective_cap,
+                    config.MAX_AUTONOMOUS_PRS_PER_DAY, ticket["id"],
                 )
                 # Telegram alert removed entirely — log only. The PR limit is
                 # routine throttling, not an event the founder needs paged for.

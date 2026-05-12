@@ -10,6 +10,7 @@ Auto-suspend fires after TAO_SWARM_MAX_UNACKED_ITERS consecutive iterations
 complete without a human Telegram acknowledgement.
 """
 from __future__ import annotations
+import json
 import os
 
 # ── Master kill-switch ────────────────────────────────────────────────────────
@@ -34,6 +35,11 @@ CYCLE_INTERVAL_S: int = int(os.environ.get("TAO_SWARM_CYCLE_S", "300"))
 # CONTRARIAN's condition — holds until 20 consecutive green supervised merges logged.
 # Override with TAO_SWARM_MAX_DAILY_PRS env var.
 MAX_AUTONOMOUS_PRS_PER_DAY: int = int(os.environ.get("TAO_SWARM_MAX_DAILY_PRS", "3"))
+
+# Floor cap that always applies regardless of env override, used by
+# `effective_max_daily_prs()` as the auto-clamped value when the
+# evaluator-pass-rate gate is not satisfied. RA-3019.
+SAFE_FALLBACK_MAX_DAILY_PRS: int = 3
 
 # ── Ollama ────────────────────────────────────────────────────────────────────
 OLLAMA_BASE_URL: str = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
@@ -72,6 +78,31 @@ SWARM_LOG_DIR = pathlib.Path(os.environ.get("TAO_SWARM_LOG_DIR",
 SWARM_LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 LESSONS_FILE = str(_ROOT / ".harness" / "lessons.jsonl")
+
+
+def effective_max_daily_prs() -> int:
+    """Return the auto-clamped daily-PR cap. RA-3019.
+
+    Reads `.harness/swarm/green_merge_counter.json`. While
+    `consecutive_green < target` (default 20), the cap is auto-clamped to
+    `min(env_override, SAFE_FALLBACK_MAX_DAILY_PRS)`. Once the threshold
+    is met, the env override applies in full.
+
+    Failure modes are deliberately safe: any I/O or schema error returns
+    the clamped value rather than the env override, so a missing or
+    corrupt counter file can never *raise* the cap above the floor.
+    """
+    counter_file = SWARM_LOG_DIR / "green_merge_counter.json"
+    try:
+        with open(counter_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        consecutive_green = int(data.get("consecutive_green", 0))
+        target = int(data.get("target", 20))
+    except (FileNotFoundError, json.JSONDecodeError, ValueError, TypeError):
+        return min(MAX_AUTONOMOUS_PRS_PER_DAY, SAFE_FALLBACK_MAX_DAILY_PRS)
+    if consecutive_green < target:
+        return min(MAX_AUTONOMOUS_PRS_PER_DAY, SAFE_FALLBACK_MAX_DAILY_PRS)
+    return MAX_AUTONOMOUS_PRS_PER_DAY
 
 # ── Brain-1 wiki ──────────────────────────────────────────────────────────────
 # Local directory injected into Margot's context on every turn.
