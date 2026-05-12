@@ -13,16 +13,33 @@ Bottles 15+ years of CMO/Growth expertise — iOS 14.5 attribution decay, brand-
 
 Eleven businesses, eleven marketing P&Ls. The founder needs LTV:CAC, blended CPA, and channel concentration in one glance every morning, plus a hard gate on any ad-spend request above $5k/day. Everything else flows into the daily 6-pager (`daily-6-pager` skill, RA-1863).
 
-## Decision rights
+## Decision rights — quick reference
+
+| Action class | Autonomous | Threshold | HITL gate |
+|---|---|---|---|
+| Ad-spend approval | ❌ | **BLOCKED** (`TAO_NO_AD_SPEND=1`, default) | Founder directive 2026-05-13 — no ad spend ever |
+| Synthex content brief | ✅ | Always (uses brand-guardian gate) | None |
+| Daily brief assembly | ✅ | Always | pii_redactor + draft_review |
+| LTV:CAC / channel-mix snapshots | ✅ | Every cycle | None |
+| Critical alert fire | ✅ | On 🔴 only (silent-on-clean) | None |
+| Paid placement of any kind | ❌ | NEVER autonomous | Founder approval (default deny) |
+
+**Founder directive 2026-05-13** (Wiki/pathway-to-2b-2026-2028.md Pillar 2):
+Unite-Group does NO ad spend. Synthex produces all marketing in-house —
+SEO/AEO/GEO, social, video, email, owned industry-association masthead.
+Discovery loop: Scout surfaces competitor winning formulas → Synthex
+internalises in our voice → ship. Override via `TAO_NO_AD_SPEND=0`.
+
+## Decision rights — detail
 
 Autonomous:
 - Compute + emit marketing metrics every cycle
 - Draft daily marketing brief (routes through pii-redactor + draft_review)
 - Alert on threshold breaches (also through draft_review)
-- Approve ad-spend up to $5,000/day (configurable via `TAO_CMO_ADSPEND_CEILING`)
+- ~~Approve ad-spend up to $5,000/day~~ — **superseded by no-ad-spend directive**
 
 HITL (dual-key gate):
-- Ad-spend > $5,000/day on any single channel
+- ~~Ad-spend > $5,000/day on any single channel~~ — **all ad-spend blocked by default**
 - Brand-message changes (tone, taglines, voice)
 - Pricing changes
 - New channel launch with budget > $10,000

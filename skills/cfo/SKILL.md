@@ -13,7 +13,18 @@ Bottles 15+ years of CFO expertise — SVB-style bank-run navigation, GAAP↔non
 
 The founder of an 11-business umbrella cannot read 11 P&Ls every morning. The CFO bot reads them, computes the canonical SaaS metrics, and surfaces only what's actionable: burn breaches, NRR drift, gross-margin compression, runway reduction. Everything else flows into the daily 6-pager (`daily-6pager` skill, RA-1854).
 
-## Decision rights
+## Decision rights — quick reference
+
+| Action class | Autonomous | Threshold | HITL gate |
+|---|---|---|---|
+| Spend approval | ✅ | ≤ $1,000 (`TAO_CFO_SPEND_CEILING`) | Above → draft_review |
+| Daily brief assembly | ✅ | Always | pii_redactor + draft_review |
+| Burn / runway / NRR / GM snapshots | ✅ | Every cycle | None |
+| Critical alert fire | ✅ | On 🔴 only (silent-on-clean) | None |
+| Material accounting reclassification | ❌ | NEVER autonomous | Always HITL |
+| Debt instrument / capital raise | ❌ | NEVER autonomous | Always HITL (founder) |
+
+## Decision rights — detail
 
 Autonomous:
 - Compute + emit financial metrics every cycle

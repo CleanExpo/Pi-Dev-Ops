@@ -556,6 +556,18 @@ def build_prompt(*, user_text: str, history: list[MargotTurn],
             history_block += f"\n[Phill] {turn.user_text}\n"
             history_block += f"[Margot] {turn.margot_text}\n"
 
+    # T2 (plan agent-empowerment 2026-05-13): hot-pin the $2B pathway so the
+    # operating constraints are unmissable regardless of model strength. Without
+    # this, smaller local models hallucinate the filename + substitute generic
+    # VC-speak instead of quoting the real five constraints.
+    from .margot_context import load_pathway
+    _pathway = load_pathway()
+    pathway_block = (
+        "$2B PATHWAY (READ FIRST — operating constraints; quote verbatim if asked)\n"
+        "=========================================================================\n"
+        f"{_pathway if _pathway else '(pathway page not on disk — falling back to wiki summary below)'}\n\n"
+    )
+
     ctx_block = (
         "Brain-1 wiki (persistent founder context)\n"
         "==========================================\n"
@@ -573,6 +585,7 @@ def build_prompt(*, user_text: str, history: list[MargotTurn],
 
     prompt = (
         f"{_MARGOT_SYSTEM_PROMPT}\n\n"
+        f"{pathway_block}"
         f"{ctx_block}\n"
         f"Conversation so far\n"
         f"===================\n"
