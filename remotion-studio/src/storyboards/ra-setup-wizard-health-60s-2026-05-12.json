@@ -1,0 +1,105 @@
+{
+  "$jobId": "ra-setup-wizard-health-60s-2026-05-12",
+  "$composition": "Explainer",
+  "$fps": 30,
+  "$aspectRatio": "1920x1080",
+  "$durationSec": 60,
+  "$surface": "/dashboard/settings/health help drawer + status-page teaser",
+  "$voiceSlug": "ra-default",
+  "$voiceLocale": "en-AU",
+  "$voiceCadence": "calm, decisive — operator confidence in the platform",
+  "$revision": "v1",
+  "$revisionNote": "Sandbox auth was down at capture time. Placeholder body/keypoints scenes used instead of authenticated health-page screenshots.",
+  "brand": "ra",
+  "hookSec": 4,
+  "ctaSec": 7,
+  "storyboard": [
+    {
+      "sceneId": "hook",
+      "sceneType": "hook",
+      "durationSec": 4,
+      "onScreenText": "Workspace Health — every capability, live-checked.",
+      "voiceover": "Workspace Health. Every capability RestoreAssist advertises, live-checked.",
+      "data": {
+        "eyebrow": "RestoreAssist — Workspace Health"
+      }
+    },
+    {
+      "sceneId": "body-where",
+      "sceneType": "body",
+      "durationSec": 7,
+      "onScreenText": "Slash dashboard slash settings slash health.",
+      "voiceover": "Open slash dashboard slash settings slash health. One page, the live status of every system you depend on.",
+      "data": {
+        "eyebrow": "Where to find it",
+        "footnote": "Dashboard → Settings → Health"
+      }
+    },
+    {
+      "sceneId": "keypoints-core",
+      "sceneType": "keypoints",
+      "durationSec": 13,
+      "onScreenText": "Core capabilities — AI, chain-of-custody, sync.",
+      "voiceover": "Three core capabilities you'll check most often. AI report generation. Chain-of-custody on every photo. Accounting sync across Xero, MYOB, QuickBooks.",
+      "data": {
+        "eyebrow": "Core checks",
+        "keypoints": [
+          "AI generation — last call, latency, quota.",
+          "Chain-of-custody — SHA-256 + GPS at capture.",
+          "Accounting sync — last successful push."
+        ]
+      }
+    },
+    {
+      "sceneId": "keypoints-ops",
+      "sceneType": "keypoints",
+      "durationSec": 12,
+      "onScreenText": "Ops checks — database, queue, mail.",
+      "voiceover": "Three operational checks under that. Database round-trip. Background queue depth. Outbound email delivery. All green means you can work.",
+      "data": {
+        "eyebrow": "Ops checks",
+        "keypoints": [
+          "Database — round-trip latency.",
+          "Queue — backlog depth.",
+          "Email — outbound delivery rate."
+        ]
+      }
+    },
+    {
+      "sceneId": "body-amber",
+      "sceneType": "body",
+      "durationSec": 8,
+      "onScreenText": "Amber means degraded — but still functional.",
+      "voiceover": "If a check goes amber, it's degraded — slower than usual, but still working. Red means a real outage. We tell you which, and what's affected.",
+      "data": {
+        "eyebrow": "Green · Amber · Red",
+        "footnote": "Amber = degraded · Red = outage · always with cause."
+      }
+    },
+    {
+      "sceneId": "keypoints-actions",
+      "sceneType": "keypoints",
+      "durationSec": 9,
+      "onScreenText": "Every failing check has a one-click fix.",
+      "voiceover": "Every failing check ships with a one-click fix. Reconnect Xero. Re-attest photo. Re-run sync. No support ticket required.",
+      "data": {
+        "eyebrow": "One-click remediation",
+        "keypoints": [
+          "Reconnect connector.",
+          "Re-run failed sync.",
+          "Open the support thread if it persists."
+        ]
+      }
+    },
+    {
+      "sceneId": "cta",
+      "sceneType": "cta",
+      "durationSec": 7,
+      "onScreenText": "RestoreAssist — Status you can verify, not promises.",
+      "voiceover": "RestoreAssist. Status you can verify, not promises. One National Inspection Standard.",
+      "data": {
+        "eyebrow": "Open /dashboard/settings/health"
+      }
+    }
+  ]
+}
