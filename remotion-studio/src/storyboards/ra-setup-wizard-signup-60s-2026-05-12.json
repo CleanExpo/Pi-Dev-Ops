@@ -1,0 +1,110 @@
+{
+  "$jobId": "ra-setup-wizard-signup-60s-2026-05-12",
+  "$composition": "Explainer",
+  "$fps": 30,
+  "$aspectRatio": "1920x1080",
+  "$durationSec": 60,
+  "$surface": "In-app help drawer beside /signup + marketing-site teaser",
+  "$voiceSlug": "ra-default",
+  "$voiceLocale": "en-AU",
+  "$voiceCadence": "calm, decisive, brisk — new-customer first touch",
+  "$revision": "v1",
+  "brand": "ra",
+  "hookSec": 4,
+  "ctaSec": 7,
+  "storyboard": [
+    {
+      "sceneId": "hook",
+      "sceneType": "hook",
+      "durationSec": 4,
+      "onScreenText": "Create your RestoreAssist account.",
+      "voiceover": "Create your RestoreAssist account in under a minute.",
+      "data": {
+        "eyebrow": "RestoreAssist — Sign up"
+      }
+    },
+    {
+      "sceneId": "shot-signup-full",
+      "sceneType": "screenshot",
+      "durationSec": 9,
+      "onScreenText": "The /signup page.",
+      "voiceover": "This is the signup page. Four fields, one checkbox, and you're in.",
+      "data": {
+        "eyebrow": "Step 1 — open /signup",
+        "screenshotSrc": "captures/signup-full.png",
+        "caption": "restoreassist-sandbox.vercel.app/signup"
+      }
+    },
+    {
+      "sceneId": "shot-signup-form",
+      "sceneType": "screenshot",
+      "durationSec": 10,
+      "onScreenText": "Full name, email, password — that's it.",
+      "voiceover": "Full name, your work email, a password you'll remember. Confirm it. Tick the terms.",
+      "data": {
+        "eyebrow": "Step 2 — fill the form",
+        "screenshotSrc": "captures/signup-form.png",
+        "caption": "Four required fields plus terms."
+      }
+    },
+    {
+      "sceneId": "shot-signup-email",
+      "sceneType": "screenshot",
+      "durationSec": 8,
+      "onScreenText": "Use your real work email — invoices and reports come here.",
+      "voiceover": "Use your real work email. Job confirmations, attestation links and insurer reports all land here.",
+      "data": {
+        "eyebrow": "Why your work email",
+        "screenshotSrc": "captures/signup-email-focus.png",
+        "caption": "Same address every time you sign in."
+      }
+    },
+    {
+      "sceneId": "keypoints-after-signup",
+      "sceneType": "keypoints",
+      "durationSec": 12,
+      "onScreenText": "After signup, we walk you through three things.",
+      "voiceover": "After you create the account, we walk you through three things. Your A B N, your accounting connection, and your first inspection job. About ten minutes total.",
+      "data": {
+        "eyebrow": "What's next",
+        "keypoints": [
+          "Enter your ABN — we pre-fill the rest from the ABR.",
+          "Connect Xero, MYOB or QuickBooks — one click, OAuth.",
+          "Run your first inspection — guided, with sample data."
+        ]
+      }
+    },
+    {
+      "sceneId": "body-google",
+      "sceneType": "body",
+      "durationSec": 6,
+      "onScreenText": "Prefer Google? One tap, no password.",
+      "voiceover": "Prefer Google? Tap Continue with Google. We link the account, skip the password, and land you in the same place.",
+      "data": {
+        "eyebrow": "Faster option",
+        "footnote": "Google Workspace and personal Gmail both work."
+      }
+    },
+    {
+      "sceneId": "body-where-you-land",
+      "sceneType": "body",
+      "durationSec": 4,
+      "onScreenText": "You'll land on /setup — the activation wizard.",
+      "voiceover": "Once you submit, we send you straight to slash setup. That's the activation wizard.",
+      "data": {
+        "eyebrow": "After Create Account",
+        "footnote": "Next video: walking through /setup end-to-end."
+      }
+    },
+    {
+      "sceneId": "cta",
+      "sceneType": "cta",
+      "durationSec": 7,
+      "onScreenText": "RestoreAssist — One National Inspection Standard.",
+      "voiceover": "RestoreAssist. One National Inspection Standard. Create your account, then run slash setup.",
+      "data": {
+        "eyebrow": "Next stop → /setup"
+      }
+    }
+  ]
+}
