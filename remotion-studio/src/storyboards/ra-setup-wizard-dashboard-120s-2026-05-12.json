@@ -1,0 +1,162 @@
+{
+  "$jobId": "ra-setup-wizard-dashboard-120s-2026-05-12",
+  "$composition": "Explainer",
+  "$fps": 30,
+  "$aspectRatio": "1920x1080",
+  "$durationSec": 120,
+  "$surface": "First-run /dashboard help drawer + marketing-site tour teaser",
+  "$voiceSlug": "ra-default",
+  "$voiceLocale": "en-AU",
+  "$voiceCadence": "calm, decisive — orienting a newly-activated tradie",
+  "$revision": "v1",
+  "$revisionNote": "Sandbox auth was down at capture time. Placeholder body/keypoints scenes used instead of authenticated dashboard screenshots.",
+  "brand": "ra",
+  "hookSec": 5,
+  "ctaSec": 9,
+  "storyboard": [
+    {
+      "sceneId": "hook",
+      "sceneType": "hook",
+      "durationSec": 5,
+      "onScreenText": "Your RestoreAssist dashboard — your home base.",
+      "voiceover": "Welcome to your RestoreAssist dashboard. This is your home base — every job, every claim, every report.",
+      "data": {
+        "eyebrow": "RestoreAssist — Dashboard tour"
+      }
+    },
+    {
+      "sceneId": "body-overview",
+      "sceneType": "body",
+      "durationSec": 10,
+      "onScreenText": "Six tiles. Jobs, claims, clients, field, reports, invoices.",
+      "voiceover": "The dashboard is six tiles. Jobs, claims, clients, field work, reports and invoices. Each opens a focused view — no nested menus, no buried screens.",
+      "data": {
+        "eyebrow": "Six tiles, six workflows",
+        "footnote": "One click from anywhere · no deep menus."
+      }
+    },
+    {
+      "sceneId": "keypoints-jobs",
+      "sceneType": "keypoints",
+      "durationSec": 14,
+      "onScreenText": "Jobs — every active inspection in one list.",
+      "voiceover": "Jobs is the first tile. Every active inspection — Category One, Two, or Three water damage. Sorted by date, filtered by insurer, stage or technician with one tap.",
+      "data": {
+        "eyebrow": "Tile 1 — Jobs",
+        "keypoints": [
+          "Active inspections sorted by date.",
+          "Filter by insurer, stage, or technician.",
+          "One tap into the inspection wizard."
+        ]
+      }
+    },
+    {
+      "sceneId": "keypoints-claims",
+      "sceneType": "keypoints",
+      "durationSec": 14,
+      "onScreenText": "Claims — every insurer thread, every status.",
+      "voiceover": "Claims tracks every insurer thread. Submitted, queried, approved, paid. Each claim links straight back to the originating job — no spreadsheets, no copy-paste.",
+      "data": {
+        "eyebrow": "Tile 2 — Claims",
+        "keypoints": [
+          "Live status for every claim.",
+          "Insurer threads grouped per job.",
+          "No more chasing email replies."
+        ]
+      }
+    },
+    {
+      "sceneId": "body-clients",
+      "sceneType": "body",
+      "durationSec": 8,
+      "onScreenText": "Clients — every property owner, every property history.",
+      "voiceover": "Clients holds every property owner and every property history. Past inspections, past invoices, past correspondence — all attached.",
+      "data": {
+        "eyebrow": "Tile 3 — Clients",
+        "footnote": "Property history rolls up automatically per address."
+      }
+    },
+    {
+      "sceneId": "keypoints-field",
+      "sceneType": "keypoints",
+      "durationSec": 13,
+      "onScreenText": "Field — moisture readings, photos, GPS chain-of-custody.",
+      "voiceover": "Field is where on-site captures land. Moisture readings, geo-tagged photos, equipment logs — every artefact gets a cryptographic chain-of-custody at the moment of capture.",
+      "data": {
+        "eyebrow": "Tile 4 — Field",
+        "keypoints": [
+          "Moisture readings logged in seconds.",
+          "Photos signed with SHA-256 + GPS at capture.",
+          "Works offline — syncs when you're back."
+        ]
+      }
+    },
+    {
+      "sceneId": "body-reports",
+      "sceneType": "body",
+      "durationSec": 10,
+      "onScreenText": "Reports — National Inspection Report, ready in minutes.",
+      "voiceover": "Reports generates the National Inspection Report from the job record. IICRC S500 citations, jurisdictional codes, every photo. The format insurers already accept.",
+      "data": {
+        "eyebrow": "Tile 5 — Reports",
+        "footnote": "Built on IICRC S500 · S520 · S700 · 2025 editions."
+      }
+    },
+    {
+      "sceneId": "keypoints-invoices",
+      "sceneType": "keypoints",
+      "durationSec": 11,
+      "onScreenText": "Invoices — generated, GST-correct, synced to your accounting.",
+      "voiceover": "Invoices closes the loop. Auto-generated from the job and report, GST calculated at ten percent, synced to your Xero or MYOB without a copy-paste.",
+      "data": {
+        "eyebrow": "Tile 6 — Invoices",
+        "keypoints": [
+          "Auto-generated from the job.",
+          "GST at 10% — Australia-native.",
+          "Two-way sync with your accounting."
+        ]
+      }
+    },
+    {
+      "sceneId": "body-first-run",
+      "sceneType": "body",
+      "durationSec": 9,
+      "onScreenText": "First-run banner highlights what to try first.",
+      "voiceover": "On your first visit, a top banner highlights what to try first. Connect your bank feed, run a sample inspection, invite a junior tech. Dismiss when you're done.",
+      "data": {
+        "eyebrow": "First-run guidance",
+        "footnote": "Banner clears once you complete the suggestions."
+      }
+    },
+    {
+      "sceneId": "body-help",
+      "sceneType": "body",
+      "durationSec": 8,
+      "onScreenText": "Stuck? The help drawer is on every screen.",
+      "voiceover": "Every screen has the help drawer in the top-right corner. Short videos, quick answers, escalation to the team if you need it.",
+      "data": {
+        "eyebrow": "Help is one tap away"
+      }
+    },
+    {
+      "sceneId": "cta",
+      "sceneType": "cta",
+      "durationSec": 9,
+      "onScreenText": "RestoreAssist. One dashboard. Every job, every claim.",
+      "voiceover": "RestoreAssist. One dashboard. Every job, every claim. One National Inspection Standard.",
+      "data": {
+        "eyebrow": "Next → /dashboard/integrations"
+      }
+    },
+    {
+      "sceneId": "cta-tail",
+      "sceneType": "cta",
+      "durationSec": 9,
+      "onScreenText": "Connect your tools next — integrations video.",
+      "voiceover": "Next, connect your accounting and field tools. Watch the integrations explainer when you're ready.",
+      "data": {
+        "eyebrow": "Watch: integrations (90s)"
+      }
+    }
+  ]
+}
