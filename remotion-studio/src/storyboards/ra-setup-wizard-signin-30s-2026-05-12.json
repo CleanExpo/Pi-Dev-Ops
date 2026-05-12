@@ -1,0 +1,74 @@
+{
+  "$jobId": "ra-setup-wizard-signin-30s-2026-05-12",
+  "$composition": "Explainer",
+  "$fps": 30,
+  "$aspectRatio": "1920x1080",
+  "$durationSec": 30,
+  "$surface": "In-app help drawer beside /login + marketing-site teaser",
+  "$voiceSlug": "ra-default",
+  "$voiceLocale": "en-AU",
+  "$voiceCadence": "calm, reassuring, brisk — returning user refresher, not a pitch",
+  "$strategistNotes": ".research/strategist/ra-setup-wizard-signin-30s.md",
+  "$validationFlight": true,
+  "brand": "ra",
+  "hookSec": 3,
+  "ctaSec": 6,
+  "storyboard": [
+    {
+      "sceneId": "hook",
+      "sceneType": "hook",
+      "durationSec": 3,
+      "onScreenText": "Welcome back. Sign in here.",
+      "voiceover": "Welcome back. Here's where you sign in.",
+      "data": {
+        "eyebrow": "RestoreAssist — Sign in"
+      }
+    },
+    {
+      "sceneId": "flow-signin-steps",
+      "sceneType": "flow",
+      "durationSec": 7,
+      "onScreenText": "Three steps. Same login every time.",
+      "voiceover": "Email. Password. Sign in. Same fields, every time.",
+      "data": {
+        "eyebrow": "The /login screen",
+        "flowSteps": ["Email", "Password", "Sign in"]
+      }
+    },
+    {
+      "sceneId": "keypoints-shortcuts",
+      "sceneType": "keypoints",
+      "durationSec": 8,
+      "onScreenText": "Shortcuts on the same screen.",
+      "voiceover": "One-tap with Google if your work account is linked. Forgot password resets by email. Stuck? Support is one click away.",
+      "data": {
+        "eyebrow": "Faster ways in",
+        "keypoints": [
+          "Sign in with Google — one tap if your work account is linked",
+          "Forgot password — reset link by email in under a minute",
+          "Trouble signing in? — support@restoreassist.au answers in business hours"
+        ]
+      }
+    },
+    {
+      "sceneId": "body-post-login",
+      "sceneType": "body",
+      "durationSec": 6,
+      "onScreenText": "You land back on your dashboard — claims and inspections waiting.",
+      "voiceover": "You'll land back on your dashboard. Claims and inspections, exactly where you left them.",
+      "data": {
+        "footnote": "No re-setup. No re-onboarding. Same workspace, every login."
+      }
+    },
+    {
+      "sceneId": "cta",
+      "sceneType": "cta",
+      "durationSec": 6,
+      "onScreenText": "One National Inspection Standard.",
+      "voiceover": "RestoreAssist. One National Inspection Standard. Not activated yet? Run /setup first.",
+      "data": {
+        "eyebrow": "Not activated yet? → /setup"
+      }
+    }
+  ]
+}
