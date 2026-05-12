@@ -56,6 +56,18 @@ async function main() {
   const args = parseArgs();
   const root = path.resolve(__dirname, '..');
 
+  // Standard: voiceover is mandatory for production deliverables.
+  // --skipTts=true is allowed ONLY for validation flights and must be
+  // followed by a full re-render with TTS before shipping. Loud warning
+  // when invoked so agents can't pass it silently.
+  if (args.skipTts) {
+    console.warn('');
+    console.warn('  ⚠️  --skipTts=true → SILENT MP4 (validation-only)');
+    console.warn('  ⚠️  Standard: production renders MUST include voiceover.');
+    console.warn('  ⚠️  Re-render without --skipTts before declaring this deliverable complete.');
+    console.warn('');
+  }
+
   // 1. Voiceover synthesis (drops MP3s into public/audio/{jobId}/scene-N.mp3 and
   //    mutates props.storyboard[i].voiceoverAudioPath in place).
   if (!args.skipTts && isStoryboarded(args.props)) {
