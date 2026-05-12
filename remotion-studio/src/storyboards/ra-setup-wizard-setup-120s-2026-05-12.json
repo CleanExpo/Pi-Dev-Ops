@@ -1,0 +1,156 @@
+{
+  "$jobId": "ra-setup-wizard-setup-120s-2026-05-12",
+  "$composition": "Explainer",
+  "$fps": 30,
+  "$aspectRatio": "1920x1080",
+  "$durationSec": 120,
+  "$surface": "In-app help drawer on /setup — the activation wizard",
+  "$voiceSlug": "ra-default",
+  "$voiceLocale": "en-AU",
+  "$voiceCadence": "calm, decisive — walking a tradie through ten minutes of work",
+  "$revision": "v1",
+  "$revisionNote": "Sandbox auth was down at capture time. Placeholder body scenes used instead of authenticated /setup screenshots.",
+  "brand": "ra",
+  "hookSec": 5,
+  "ctaSec": 8,
+  "storyboard": [
+    {
+      "sceneId": "hook",
+      "sceneType": "hook",
+      "durationSec": 5,
+      "onScreenText": "Activate RestoreAssist in about ten minutes.",
+      "voiceover": "Activate RestoreAssist in about ten minutes. One ABN, one accounting link, one demo job.",
+      "data": {
+        "eyebrow": "RestoreAssist — Activation wizard"
+      }
+    },
+    {
+      "sceneId": "body-landing",
+      "sceneType": "body",
+      "durationSec": 9,
+      "onScreenText": "Slash setup — five sections, each with a green tick when ready.",
+      "voiceover": "When you land on slash setup, you see five sections. Business details, accounting, IICRC credentials, sample data, and activation. Each goes green when it's ready.",
+      "data": {
+        "eyebrow": "What you'll see on /setup",
+        "footnote": "Five sections · green ticks track your progress."
+      }
+    },
+    {
+      "sceneId": "keypoints-abn",
+      "sceneType": "keypoints",
+      "durationSec": 14,
+      "onScreenText": "Start with your ABN — we do the rest.",
+      "voiceover": "Start with your A B N. Paste the eleven-digit number. We look it up against the Australian Business Register and pre-fill your trading name, registered state, and GST status.",
+      "data": {
+        "eyebrow": "Section 1 — Business details",
+        "keypoints": [
+          "11-digit ABN entered.",
+          "We hit the Australian Business Register live.",
+          "Trading name, state, GST status — all pre-filled."
+        ]
+      }
+    },
+    {
+      "sceneId": "flow-hydration",
+      "sceneType": "flow",
+      "durationSec": 11,
+      "onScreenText": "Watch each section tick green as we hydrate.",
+      "voiceover": "Once your A B N validates, we start hydrating the rest. Each section flips from grey to green as it completes — usually within fifteen seconds.",
+      "data": {
+        "eyebrow": "Hydration in progress",
+        "flowSteps": [
+          "ABN validated → Business details ✓",
+          "Default jurisdiction set → Compliance defaults ✓",
+          "IICRC matrix loaded → Credential pack ready"
+        ]
+      }
+    },
+    {
+      "sceneId": "keypoints-accounting",
+      "sceneType": "keypoints",
+      "durationSec": 14,
+      "onScreenText": "Connect your accounting — one click, OAuth.",
+      "voiceover": "Section two is accounting. Click your platform — Xero, MYOB, QuickBooks, ServiceM8 or Ascora. You log in once on their side. We never see your password.",
+      "data": {
+        "eyebrow": "Section 2 — Accounting",
+        "keypoints": [
+          "Pick your accounting platform.",
+          "OAuth on their domain — we never store credentials.",
+          "Invoices sync both ways from day one."
+        ]
+      }
+    },
+    {
+      "sceneId": "keypoints-credentials",
+      "sceneType": "keypoints",
+      "durationSec": 12,
+      "onScreenText": "Add your IICRC ticket numbers — we verify.",
+      "voiceover": "Section three takes your IICRC ticket numbers. WRT, ASD, FSRT, AMRT. We verify each against the IICRC registry so insurers trust your inspections from day one.",
+      "data": {
+        "eyebrow": "Section 3 — Credentials",
+        "keypoints": [
+          "Enter IICRC ticket numbers.",
+          "Live verification against IICRC registry.",
+          "State licences picked up automatically."
+        ]
+      }
+    },
+    {
+      "sceneId": "body-sample-data",
+      "sceneType": "body",
+      "durationSec": 10,
+      "onScreenText": "Section four — sample data so the dashboard isn't empty.",
+      "voiceover": "Section four offers sample data — a Category Two water damage job with moisture readings, equipment, and photos. It's optional, but useful for the first walk-through.",
+      "data": {
+        "eyebrow": "Section 4 — Sample data",
+        "footnote": "Optional · adds one demo job to your dashboard."
+      }
+    },
+    {
+      "sceneId": "body-activate",
+      "sceneType": "body",
+      "durationSec": 10,
+      "onScreenText": "All five green? Hit Activate. You're live.",
+      "voiceover": "When all five sections show green, the Activate button unlocks. One click writes your subscription, fires onboarding emails, and lands you on the dashboard.",
+      "data": {
+        "eyebrow": "Section 5 — Activate",
+        "footnote": "Activate writes your subscription and lands you on /dashboard."
+      }
+    },
+    {
+      "sceneId": "keypoints-after",
+      "sceneType": "keypoints",
+      "durationSec": 13,
+      "onScreenText": "After activation, you can start working immediately.",
+      "voiceover": "After activation you land on the dashboard, with a first-run banner explaining what each tile does. Three videos to watch — dashboard tour, integrations, and workspace health.",
+      "data": {
+        "eyebrow": "What's next",
+        "keypoints": [
+          "Dashboard tour — your home base.",
+          "Integrations — Xero, MYOB and more.",
+          "Workspace health — every capability live-checked."
+        ]
+      }
+    },
+    {
+      "sceneId": "cta",
+      "sceneType": "cta",
+      "durationSec": 12,
+      "onScreenText": "Ten minutes to live. One National Inspection Standard.",
+      "voiceover": "Ten minutes to live. RestoreAssist. One National Inspection Standard. Open slash setup and start.",
+      "data": {
+        "eyebrow": "Open /setup → Activate"
+      }
+    },
+    {
+      "sceneId": "cta-tail",
+      "sceneType": "cta",
+      "durationSec": 10,
+      "onScreenText": "Stuck? The help drawer answers every section.",
+      "voiceover": "Stuck on a section? Tap the help icon — every section has a one-minute refresher right next to it.",
+      "data": {
+        "eyebrow": "Help drawer on every section"
+      }
+    }
+  ]
+}
