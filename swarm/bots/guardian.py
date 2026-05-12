@@ -80,16 +80,21 @@ def run_cycle(unacked_count: int) -> dict:
         elif available_models:
             observations.append(f"{bot.capitalize()} model OK: {model}")
 
-    # 3 — Unacknowledged iteration count
+    # 3 — Unacknowledged iteration count.
+    # Phill explicitly silenced the "Approaching auto-suspend" warning
+    # 2026-05-12 — it was firing every 5min cycle from ~iter 202 onward
+    # (70% threshold) which was pure Telegram noise during autonomous
+    # work sessions. The actual auto-suspend (CRITICAL) still fires
+    # when the threshold is hit; the count appears in the per-cycle
+    # observations below for awareness without alerting.
     if unacked_count >= config.MAX_UNACKED_ITERATIONS:
         critical_flags.append(
             f"Auto-suspend threshold reached: {unacked_count}/{config.MAX_UNACKED_ITERATIONS} "
             "iterations without human acknowledgement"
         )
-    elif unacked_count >= config.MAX_UNACKED_ITERATIONS * 0.7:
-        high_flags.append(
-            f"Approaching auto-suspend: {unacked_count}/{config.MAX_UNACKED_ITERATIONS} "
-            "unacknowledged iterations"
+    else:
+        observations.append(
+            f"Unacked iterations: {unacked_count}/{config.MAX_UNACKED_ITERATIONS}"
         )
 
     # 4 — .harness/ recency check (are Pi-CEO logs being written?)
