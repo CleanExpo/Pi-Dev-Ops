@@ -541,10 +541,24 @@ def _trim_dict_for_prompt(d: dict[str, Any] | None,
     return s[:max_chars] + "\n... [truncated]"
 
 
-def _format_wiki_for_prompt(wiki: dict[str, str] | None) -> str:
+def _format_wiki_for_prompt(wiki: dict[str, str] | None,
+                              *, per_page_max_chars: int = 400) -> str:
+    """Render wiki pages compactly. Each page truncated to per_page_max_chars
+    to keep the prompt under Gemma 4 class 8K-token window — the full content
+    is in Supabase wiki_pages and Margot can be asked to look up specifics.
+
+    The $2B PATHWAY page is hot-pinned separately (see pathway_block in
+    build_prompt) so it's exempt from this truncation regardless.
+    """
     if not wiki:
         return "(wiki not available)"
-    return "\n\n".join(f"[{name}]\n{content}" for name, content in wiki.items())
+    parts = []
+    for name, content in wiki.items():
+        snippet = content[:per_page_max_chars].rstrip()
+        if len(content) > per_page_max_chars:
+            snippet += f"\n... [{len(content) - per_page_max_chars:,} more chars — query Supabase wiki_pages for full]"
+        parts.append(f"[{name}]\n{snippet}")
+    return "\n\n".join(parts)
 
 
 def build_prompt(*, user_text: str, history: list[MargotTurn],
@@ -560,12 +574,36 @@ def build_prompt(*, user_text: str, history: list[MargotTurn],
     # operating constraints are unmissable regardless of model strength. Without
     # this, smaller local models hallucinate the filename + substitute generic
     # VC-speak instead of quoting the real five constraints.
-    from .margot_context import load_pathway
-    _pathway = load_pathway()
+    #
+    # 2026-05-13 fix: moved from start-of-prompt to END-of-system (just before
+    # the user message). Recency attention is much stronger on Gemma 4-class
+    # models — when pathway sat at 33% with 22KB of wiki/ctx after it, the
+    # model ignored it. Now pathway is the LAST thing the model reads before
+    # the user prompt.
+    # Compact pathway pin — small models (Gemma 4 class, 8K context) can't
+    # ingest the full ~10KB pathway file. The 5 operating constraints +
+    # filename are the load-bearing facts; the rest lives in the wiki via
+    # Supabase wiki_pages, queryable on demand.
     pathway_block = (
-        "$2B PATHWAY (READ FIRST — operating constraints; quote verbatim if asked)\n"
-        "=========================================================================\n"
-        f"{_pathway if _pathway else '(pathway page not on disk — falling back to wiki summary below)'}\n\n"
+        "═══════════════════════════════════════════════════════════════════════════\n"
+        "$2B PATHWAY — operating constraints (QUOTE VERBATIM if asked)\n"
+        "═══════════════════════════════════════════════════════════════════════════\n"
+        "Source-of-truth filename: `pathway-to-2b-2026-2028.md` (exact spelling).\n"
+        "Full file in Brain-1 wiki at ~/2nd Brain/2nd Brain/Wiki/ and in Supabase\n"
+        "wiki_pages — query for any specifics. The 5 non-negotiable constraints:\n"
+        "\n"
+        "1. NO AD SPEND. EVER. Synthex produces all marketing in-house.\n"
+        "2. VETTED CLIENTS ONLY. Phill personally vets every onboarding.\n"
+        "3. VIDEO-FIRST surfaces for Phill (learning-difficulty accessibility) —\n"
+        "   NotebookLM daily brief + Margot ElevenLabs voice + Nexus dashboard.\n"
+        "4. AGENTS EXECUTE. Phill = ideas man; Margot → Pi-CEO Board → senior\n"
+        "   agents own execution.\n"
+        "5. CRITICAL-ONLY updates. 6-pager silent-on-clean; only 🔴/🚨 markers\n"
+        "   ping Telegram.\n"
+        "\n"
+        "When Phill asks for the constraints, output them VERBATIM from above.\n"
+        "Do NOT paraphrase. Do NOT invent additional points.\n"
+        "═══════════════════════════════════════════════════════════════════════════\n\n"
     )
 
     ctx_block = (
@@ -585,11 +623,13 @@ def build_prompt(*, user_text: str, history: list[MargotTurn],
 
     prompt = (
         f"{_MARGOT_SYSTEM_PROMPT}\n\n"
-        f"{pathway_block}"
         f"{ctx_block}\n"
         f"Conversation so far\n"
         f"===================\n"
         f"{history_block.strip() or '(this is the first turn)'}\n\n"
+        # Pathway block moved here (immediately before user message) so recency
+        # attention forces the model to honour the operating constraints.
+        f"{pathway_block}"
         f"Current message from Phill\n"
         f"==========================\n"
         f"{user_text}\n\n"
