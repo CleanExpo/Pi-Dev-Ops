@@ -112,6 +112,23 @@ def run_cycle(unacked_count: int, *, state: dict | None = None) -> dict:
         log.debug("cs: directive consume suppressed (%s)", exc)
 
     raw_list = _provider()
+
+    # ── Wave 5.2 RA-1985 — CCW first-client live data path.
+    # Replace the synthetic CCW row (if any) with a Supabase-driven one
+    # computed from ccw_support_tickets. Falls through silently if the
+    # Supabase env is unset or the call fails — the upstream provider's
+    # ccw row remains in place.
+    if os.environ.get("TAO_CS_CCW_LIVE", "1") != "0":
+        try:
+            from ..providers.ccw_supabase import ccw_supabase_metrics
+            ccw_row = ccw_supabase_metrics()
+        except Exception as exc:  # noqa: BLE001
+            log.debug("cs: ccw_supabase metrics failed (%s)", exc)
+            ccw_row = None
+        if ccw_row is not None:
+            raw_list = [r for r in raw_list if r.business_id != "ccw"]
+            raw_list.append(ccw_row)
+
     if not raw_list:
         return {"status": "skipped", "reason": "no_data"}
 

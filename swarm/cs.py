@@ -246,6 +246,7 @@ def assemble_daily_brief(
     *,
     pending_refund_count: int = 0,
     date_str: str | None = None,
+    priority_business_ids: list[str] | None = None,
 ) -> str:
     if date_str is None:
         date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -282,9 +283,22 @@ def assemble_daily_brief(
 
     if snapshots:
         lines.append("Per-business:")
-        for s in sorted(snapshots, key=lambda x: x.nps):
+        # Wave 5.2 — pin priority business_ids (e.g. ccw) at the top of
+        # the per-business block. Within each band, sort by worst NPS first.
+        priority = priority_business_ids or []
+        priority_set = set(priority)
+        pinned = [s for s in snapshots if s.business_id in priority_set]
+        # Preserve the order supplied in priority_business_ids
+        order = {bid: i for i, bid in enumerate(priority)}
+        pinned.sort(key=lambda x: order.get(x.business_id, 0))
+        rest = sorted(
+            [s for s in snapshots if s.business_id not in priority_set],
+            key=lambda x: x.nps,
+        )
+        for s in pinned + rest:
+            tag = " ⭐" if s.business_id in priority_set else ""
             lines.append(
-                f"- {s.business_id}: NPS {s.nps:.0f} | "
+                f"- {s.business_id}{tag}: NPS {s.nps:.0f} | "
                 f"FCR {s.fcr_pct:.0%} | GRR {s.grr_pct:.0%} | "
                 f"first-response {s.avg_first_response_minutes:.0f}m"
             )
