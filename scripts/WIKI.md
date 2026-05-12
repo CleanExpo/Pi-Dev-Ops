@@ -1,8 +1,8 @@
 # scripts — Wiki
 
-_Last updated: 2026-05-09T17:54:08Z (commits 44b4be4..d259e2d)_
+_Last updated: 2026-05-12T02:08:33Z (commits 35d25ca..df856f3)_
 
 ## Recent changes
-- d259e2d — ops: skills, swarm agents, preview-canvas, brand configs, scripts [harness sync] (#202)
+- df856f3 — feat(swarm): surface TAO_SWARM_MAX_DAILY_PRS as auto-clamped operator knob (RA-3019) (#217)
 
 Not logged in · Please run /login
