@@ -1,0 +1,131 @@
+{
+  "$jobId": "ra-setup-wizard-integrations-90s-2026-05-12",
+  "$composition": "Explainer",
+  "$fps": 30,
+  "$aspectRatio": "1920x1080",
+  "$durationSec": 90,
+  "$surface": "/dashboard/integrations help drawer + marketing-site connector teaser",
+  "$voiceSlug": "ra-default",
+  "$voiceLocale": "en-AU",
+  "$voiceCadence": "calm, decisive — explaining OAuth without sounding technical",
+  "$revision": "v1",
+  "$revisionNote": "Sandbox auth was down at capture time. Placeholder body/keypoints scenes used instead of authenticated integrations screenshots.",
+  "brand": "ra",
+  "hookSec": 4,
+  "ctaSec": 8,
+  "storyboard": [
+    {
+      "sceneId": "hook",
+      "sceneType": "hook",
+      "durationSec": 4,
+      "onScreenText": "Connect your tools — one click each.",
+      "voiceover": "Connect your accounting and field tools to RestoreAssist. One click each.",
+      "data": {
+        "eyebrow": "RestoreAssist — Integrations"
+      }
+    },
+    {
+      "sceneId": "body-where",
+      "sceneType": "body",
+      "durationSec": 8,
+      "onScreenText": "Slash dashboard slash integrations.",
+      "voiceover": "Open slash dashboard slash integrations. Every supported platform sits on a single page — pick the ones you use.",
+      "data": {
+        "eyebrow": "Where to find it",
+        "footnote": "Dashboard → Integrations · always one click from home."
+      }
+    },
+    {
+      "sceneId": "keypoints-accounting",
+      "sceneType": "keypoints",
+      "durationSec": 14,
+      "onScreenText": "Accounting — Xero, MYOB, QuickBooks.",
+      "voiceover": "Accounting first. Xero, MYOB, or QuickBooks. Pick yours, tap Connect, log in on their site. We never see your password — OAuth handles the rest.",
+      "data": {
+        "eyebrow": "Accounting connectors",
+        "keypoints": [
+          "Xero — invoices, contacts, bank feeds.",
+          "MYOB — invoices, contacts, GST coding.",
+          "QuickBooks — invoices, customers, tax."
+        ]
+      }
+    },
+    {
+      "sceneId": "keypoints-field",
+      "sceneType": "keypoints",
+      "durationSec": 14,
+      "onScreenText": "Field service — ServiceM8 and Ascora.",
+      "voiceover": "Field service is next. ServiceM8 or Ascora. Same one-click flow. Jobs flow back and forth — schedule once, inspect once, invoice once.",
+      "data": {
+        "eyebrow": "Field-service connectors",
+        "keypoints": [
+          "ServiceM8 — jobs, scheduling, technicians.",
+          "Ascora — jobs, quotes, scheduling.",
+          "Two-way sync — no double-entry."
+        ]
+      }
+    },
+    {
+      "sceneId": "flow-oauth",
+      "sceneType": "flow",
+      "durationSec": 12,
+      "onScreenText": "How OAuth works — three steps.",
+      "voiceover": "OAuth is the same on every platform. You tap Connect. Their site asks you to approve. They return a secure token. We store the token — never the password.",
+      "data": {
+        "eyebrow": "OAuth — three steps",
+        "flowSteps": [
+          "1 — Tap Connect on the integration tile.",
+          "2 — Approve access on the platform's site.",
+          "3 — They return a secure token to RestoreAssist."
+        ]
+      }
+    },
+    {
+      "sceneId": "body-sync",
+      "sceneType": "body",
+      "durationSec": 9,
+      "onScreenText": "Sync runs in the background — every change, fire-and-forget.",
+      "voiceover": "After connecting, sync runs in the background. Every invoice, job and contact propagates within a minute. Failures retry on a dead-letter queue.",
+      "data": {
+        "eyebrow": "Background sync",
+        "footnote": "Failures retry · no user-facing requests blocked."
+      }
+    },
+    {
+      "sceneId": "keypoints-disconnect",
+      "sceneType": "keypoints",
+      "durationSec": 11,
+      "onScreenText": "Disconnect any time — one click.",
+      "voiceover": "Want to disconnect? Same tile, Disconnect button. We revoke the token immediately. Nothing already synced is touched. You stay in control.",
+      "data": {
+        "eyebrow": "Your data, your control",
+        "keypoints": [
+          "Disconnect revokes the token instantly.",
+          "Synced records stay where they are.",
+          "Reconnect anytime — same OAuth, same flow."
+        ]
+      }
+    },
+    {
+      "sceneId": "body-health",
+      "sceneType": "body",
+      "durationSec": 10,
+      "onScreenText": "Connection healthy? Check the Workspace Health page.",
+      "voiceover": "If a sync looks off, open Workspace Health. Each connector reports its live status — last sync, last error, last successful payload.",
+      "data": {
+        "eyebrow": "Verify in Workspace Health",
+        "footnote": "/dashboard/settings/health · status for every integration."
+      }
+    },
+    {
+      "sceneId": "cta",
+      "sceneType": "cta",
+      "durationSec": 8,
+      "onScreenText": "RestoreAssist — One platform, every tool you already use.",
+      "voiceover": "RestoreAssist. One platform, every tool you already use. One National Inspection Standard.",
+      "data": {
+        "eyebrow": "Open /dashboard/integrations"
+      }
+    }
+  ]
+}
