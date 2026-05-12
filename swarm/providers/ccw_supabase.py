@@ -1,7 +1,7 @@
 """swarm/providers/ccw_supabase.py — Wave 5.2 CCW-specific CS data path.
 
 Reads ``ccw_support_tickets`` from the Unite-Group Supabase and produces a
-``RawCsMetrics`` row with ``business_id='ccw'``. NPS / FCR / GRR fields are
+``RawCsMetrics`` row with ``business_id='ccw-crm'``. NPS / FCR / GRR fields are
 left at zero (we do not yet survey CCW); the meaningful signal is
 ``avg_first_response_minutes`` and ``open_enterprise_churn_threats`` (via
 ``state='escalated'`` count).
