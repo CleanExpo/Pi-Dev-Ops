@@ -523,6 +523,24 @@ Your behaviour
      - Conversational chatter / personal scheduling
      - Ideas the founder explicitly says "don't file this"
 
+5e. SCREEN CAPABILITY (Hermes 0.13.0 computer_use, macOS GUI control):
+   When Phill asks you to OPEN an app, NAVIGATE a website, SCREENSHOT
+   something, FILL a form, CLICK a button, or otherwise interact with
+   the real screen (Finder, Chrome, a Mac app, the empire dashboard),
+   emit a SCREEN sentinel and the system dispatches the action to the
+   Hermes Agent computer_use toolset:
+
+       [SCREEN: <one-sentence intent>]
+
+   Examples that warrant [SCREEN]:
+     - "Open the empire dashboard and screenshot the funnel"
+     - "Go to Linear and grab the top P0 ticket title"
+     - "Open Finder at ~/Pi-CEO and tell me what's there"
+   Do NOT use [SCREEN] for pure information lookups already covered by
+   [REALTIME] or [RESEARCH] — only when a real GUI action is needed.
+   One sentinel per action; the system executes it and appends a brief
+   result line to your reply.
+
 6. Never use first-person business language ("we / our / my company").
    Refer to "Unite-Group" or "the portfolio". Phill's strict rule.
 
@@ -945,6 +963,12 @@ _IDEA_REQUEST_RE = re.compile(
     r"\[IDEA(\s+[^\]]*)?\]\s*([\s\S]*?)\s*\[/IDEA\]",
     re.MULTILINE,
 )
+# Phase 5 (2026-05-13): Margot → Hermes computer_use bridge.
+# Single-line sentinel capturing one intent string between `[SCREEN:` and `]`.
+_SCREEN_REQUEST_RE = re.compile(
+    r"\[SCREEN:\s*(.+?)\]",
+    re.MULTILINE,
+)
 _ATTR_RE = re.compile(r'(\w+)\s*=\s*"([^"]*)"')
 
 
@@ -993,6 +1017,18 @@ class RealtimeRequest:
     reply uses fresh data instead of stale training knowledge.
     """
     topic: str
+
+
+@dataclass
+class ScreenRequest:
+    """A [SCREEN: <intent>] sentinel parsed out of Margot's draft response.
+
+    Phase 5 (2026-05-13): when Phill asks for a real-screen action
+    (open app, navigate website, screenshot, fill form, click button),
+    Margot emits the sentinel and `screen_dispatch` runs the action via
+    Hermes 0.13.0 `computer_use`. The result is appended to her reply.
+    """
+    intent: str
 
 
 @dataclass
@@ -1082,6 +1118,25 @@ def parse_realtime_requests(response_text: str
         if topic:
             requests.append(RealtimeRequest(topic=topic))
     cleaned = _REALTIME_REQUEST_RE.sub("", response_text).strip()
+    return requests, cleaned
+
+
+def parse_screen_requests(response_text: str
+                            ) -> tuple[list[ScreenRequest], str]:
+    """Extract [SCREEN: <intent>] sentinels from Margot's draft response.
+
+    Format (single-line):
+        [SCREEN: open the empire dashboard and screenshot the funnel]
+
+    Returns (requests, cleaned_text). Sentinels stripped from cleaned_text
+    so the user-facing reply never shows the raw markup.
+    """
+    requests: list[ScreenRequest] = []
+    for m in _SCREEN_REQUEST_RE.finditer(response_text):
+        intent = (m.group(1) or "").strip()
+        if intent:
+            requests.append(ScreenRequest(intent=intent))
+    cleaned = _SCREEN_REQUEST_RE.sub("", response_text).strip()
     return requests, cleaned
 
 
@@ -1469,10 +1524,53 @@ async def handle_turn(*, chat_id: str, user_text: str,
                 "manually in Linear."
             )
 
+    # Phase 5 (2026-05-13): [SCREEN: <intent>] sentinel — dispatch to
+    # Hermes 0.13.0 computer_use. Gate on _send so test mode (_send=False)
+    # never fires a real screen action. Result line appended to the reply.
+    screen_requests, response_text = parse_screen_requests(response_text)
+    screen_result_lines: list[str] = []
+    if screen_requests and _send:
+        try:
+            from .screen.hermes_dispatch import screen_dispatch  # noqa: PLC0415
+            for req in screen_requests:
+                sr = await screen_dispatch(req.intent)
+                if sr.disabled:
+                    line = (
+                        f"🖥️ Screen action skipped (kill-switch): "
+                        f"\"{req.intent}\""
+                    )
+                elif sr.ok:
+                    line = (
+                        f"🖥️ Screen action complete: \"{req.intent}\" "
+                        f"(session_id={sr.session_id or 'n/a'}, "
+                        f"shots={len(sr.screenshots)})"
+                    )
+                else:
+                    line = (
+                        f"⚠️ Screen action failed (\"{req.intent}\"): "
+                        f"{sr.error or 'unknown'}"
+                    )
+                screen_result_lines.append(line)
+                _audit("margot_turn_complete",
+                        turn_id=turn.turn_id, chat_id=str(chat_id),
+                        screen_intent=req.intent[:200],
+                        screen_ok=bool(sr.ok),
+                        screen_disabled=bool(sr.disabled),
+                        screen_session_id=sr.session_id,
+                        screen_error=sr.error)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("margot %s: screen_dispatch batch raised: %s",
+                        turn.turn_id, exc)
+            screen_result_lines.append(
+                "⚠️ Screen automation is currently unavailable."
+            )
+
     triggers, cleaned = parse_board_triggers(response_text)
     if idea_filed_lines:
         # Append confirmation footer so the user sees their idea was captured.
         cleaned = (cleaned + "\n\n" + "\n".join(idea_filed_lines)).strip()
+    if screen_result_lines:
+        cleaned = (cleaned + "\n\n" + "\n".join(screen_result_lines)).strip()
     turn.margot_text = cleaned
 
     # Optional voice variant (enabled via MARGOT_VOICE_REPLY_ENABLED=1)
@@ -1545,11 +1643,11 @@ async def handle_turn(*, chat_id: str, user_text: str,
 
 __all__ = [
     "MargotTurn", "BoardTrigger", "ResearchRequest", "TruthCheckRequest",
-    "RealtimeRequest", "IdeaRequest",
+    "RealtimeRequest", "IdeaRequest", "ScreenRequest",
     "handle_turn", "load_history", "append_turn",
     "build_context", "build_prompt", "build_prompt_with_research",
     "parse_board_triggers", "parse_research_requests",
     "parse_truth_check_requests", "parse_realtime_requests",
-    "parse_idea_requests",
+    "parse_idea_requests", "parse_screen_requests",
     "DEFAULT_HISTORY_TURNS", "DEFAULT_BOARD_TRIGGER_THRESHOLD",
 ]

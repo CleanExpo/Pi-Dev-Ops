@@ -48,10 +48,11 @@ _PM_RATIONALES = {
     "PM-RA":      "RestoreAssist iOS / SaaS implementation implicated.",
     "PM-DR":      "Disaster Recovery platform implementation implicated.",
     "PM-Synthex": "Synthex AEO / portfolio-brain implementation implicated.",
+    "SCREEN":     "Screen / GUI automation requested.",
 }
 
 _SENTINEL_RE = re.compile(
-    r"\[\s*DISPATCH-?TO\s*:\s*(PM-(?:Core|CCW|RA|DR|Synthex)|NONE)\s*\]",
+    r"\[\s*DISPATCH-?TO\s*:\s*(PM-(?:Core|CCW|RA|DR|Synthex)|SCREEN|NONE)\s*\]",
     re.IGNORECASE,
 )
 
@@ -137,7 +138,15 @@ async def _call_ceo(strategic_ask: str,
 
 
 def _parse_dispatch_target(memo: str) -> tuple[str | None, str]:
-    """Find the [DISPATCH-TO: PM-X] sentinel. Returns (slug_or_None, rationale)."""
+    """Find the [DISPATCH-TO: PM-X | SCREEN | NONE] sentinel.
+
+    Returns (slug_or_None, rationale). Recognises:
+      * PM-Core / PM-CCW / PM-RA / PM-DR / PM-Synthex — Senior PM routing
+      * SCREEN — GUI / computer_use automation route (handled by the caller
+        layer via swarm.screen.hermes_dispatch.screen_dispatch; the Board
+        only RECOGNISES the route here, it does not execute it)
+      * NONE — CEO opted not to route at all
+    """
     match = _SENTINEL_RE.search(memo)
     if not match:
         return None, "No DISPATCH-TO sentinel found in CEO memo."
@@ -145,6 +154,8 @@ def _parse_dispatch_target(memo: str) -> tuple[str | None, str]:
     # Normalise casing — sentinel may come back as PM-ra or pm-Core from the LLM.
     if raw.upper() == "NONE":
         return None, "CEO opted not to route to a Senior PM."
+    if raw.upper() == "SCREEN":
+        return "SCREEN", _PM_RATIONALES["SCREEN"]
     # Re-match to canonical capitalisation.
     for slug in VALID_PM_SLUGS:
         if raw.upper() == slug.upper():
