@@ -33,6 +33,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import textwrap
 import urllib.parse
 import urllib.request
@@ -165,7 +166,14 @@ def _gemini_summarise(prompt: str, *, model: str = DEFAULT_MODEL,
 
 
 def build_prompt(context: dict, messages: list[dict]) -> str:
-    """Assemble the prompt that asks Gemini for the operating preamble."""
+    """Assemble the prompt that asks Gemini for the operating preamble.
+
+    v2 (2026-05-14) — extends the prose preamble with a structured
+    typed-entity JSON block at the end. This directly attacks the
+    rediscovery-cost problem identified in `[[research-pinecone-knowledge-layer]]`:
+    downstream agents can load `preamble.json` and skip re-parsing the
+    Markdown narrative when they only need entities.
+    """
     lines: list[str] = []
     for m in reversed(messages):  # chronological order in prompt
         sender = m.get("from_username") or m.get("from_name") or "anon"
@@ -186,7 +194,7 @@ def build_prompt(context: dict, messages: list[dict]) -> str:
         {transcript}
         ---
 
-        Write the preamble as Markdown with these sections (keep total under 600 words):
+        Write the preamble as Markdown with these sections (keep prose under 600 words):
 
         ## Vocabulary
         Words, acronyms, project names, product names this person uses. Definitions
@@ -207,9 +215,63 @@ def build_prompt(context: dict, messages: list[dict]) -> str:
         ## Red flags
         Things the agent must NOT do based on past corrections.
 
-        Output ONLY the Markdown, no preamble, no closing remarks. Use direct facts;
-        do not hedge with "likely" or "possibly".
+        After the Markdown sections, append a fenced JSON block (```json ... ```)
+        with the same content RE-EXPRESSED as typed entities. This is the
+        machine-readable surface — downstream agents load it WITHOUT re-parsing
+        the prose. Schema:
+
+        ```json
+        {{
+          "people":      [{{"name": "...", "role": "...", "first_seen": "<ts>", "confirmed": true}}],
+          "decisions":   [{{"summary": "...", "decided_at": "<ts>", "owner": "...", "confirmed": true|false}}],
+          "deadlines":   [{{"item": "...", "due": "<YYYY-MM-DD>", "owner": "...", "confirmed": true|false}}],
+          "blockers":    [{{"item": "...", "blocked_on": "...", "since": "<ts>", "severity": "low|med|high"}}],
+          "commitments": [{{"who": "...", "what": "...", "by": "<ts or 'open'>", "source_msg_ts": "<ts>"}}]
+        }}
+        ```
+
+        Rules for the JSON block:
+        - Every entity MUST have a `confirmed` boolean (true = explicit in transcript;
+          false = inferred). Inferred entities are useful but flagged.
+        - Use ISO 8601 timestamps where possible. If only a date is known, `YYYY-MM-DD`.
+        - Empty arrays are valid — emit `"people": []` rather than omitting the key.
+        - Do NOT invent entities not supported by the transcript.
+
+        Output ONLY the Markdown + the JSON fence. No preamble, no closing remarks.
+        Use direct facts; do not hedge with "likely" or "possibly".
     """)
+
+
+# ── Parse the Gemini response into (markdown, entities_json) ────────────────
+_JSON_FENCE_RE = re.compile(r"```json\s*(\{.*?\})\s*```", re.DOTALL)
+
+
+def split_preamble_and_entities(response: str) -> tuple[str, dict]:
+    """Split Gemini output into the prose preamble and the typed-entity JSON.
+
+    Returns (markdown_body, entities_dict). If no JSON fence is found, returns
+    (full_response, empty_dict_with_canonical_keys). The caller still gets a
+    valid prose preamble — the JSON is an additive surface, not a hard
+    requirement.
+    """
+    canonical_keys = {
+        "people": [], "decisions": [], "deadlines": [],
+        "blockers": [], "commitments": [],
+    }
+    match = _JSON_FENCE_RE.search(response)
+    if not match:
+        return response.strip(), dict(canonical_keys)
+    try:
+        entities = json.loads(match.group(1))
+    except json.JSONDecodeError:
+        log.warning("entities JSON failed to parse; falling back to empty")
+        return response[:match.start()].strip(), dict(canonical_keys)
+    # Ensure all canonical keys are present even if Gemini omitted any
+    for k, default in canonical_keys.items():
+        entities.setdefault(k, default)
+    # Strip the fenced block out of the prose
+    markdown = (response[:match.start()] + response[match.end():]).strip()
+    return markdown, entities
 
 
 # ── Write to wiki ───────────────────────────────────────────────────────────
@@ -217,7 +279,17 @@ def preamble_path(context_id: str) -> Path:
     return WIKI_ROOT / "contexts" / context_id / "preamble.md"
 
 
-def write_preamble(context: dict, body: str) -> str:
+def entities_path(context_id: str) -> Path:
+    return WIKI_ROOT / "contexts" / context_id / "preamble.json"
+
+
+def write_preamble(context: dict, body: str, entities: dict | None = None) -> tuple[str, str | None]:
+    """Write the prose preamble + the typed-entity JSON sidecar.
+
+    Returns (preamble_path, entities_path|None). `entities` is None when the
+    Gemini response had no parseable JSON fence — preamble.md still gets
+    written so downstream agents always have a substrate to load.
+    """
     path = preamble_path(context["context_id"])
     path.parent.mkdir(parents=True, exist_ok=True)
     header = textwrap.dedent(f"""\
@@ -226,16 +298,33 @@ def write_preamble(context: dict, body: str) -> str:
         updated: {datetime.now(AEST).date()}
         context_id: {context['context_id']}
         context_label: {context['context_label']}
+        schema_version: preamble-v2
         ---
 
         # {context['context_label']} — Operating Preamble
 
         _Auto-generated by `swarm.inbox.preamble_trainer` at {datetime.now(AEST).isoformat()}._
         _Loaded as system context for every agent acting on this context._
+        _Companion `preamble.json` holds the same content as typed entities._
 
         """)
     path.write_text(header + body.strip() + "\n")
-    return str(path)
+
+    json_path: str | None = None
+    if entities is not None:
+        ejson = entities_path(context["context_id"])
+        ejson.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "schema_version": "preamble-v2",
+            "context_id": context["context_id"],
+            "context_label": context["context_label"],
+            "generated_at": datetime.now(AEST).isoformat(),
+            "entities": entities,
+        }
+        ejson.write_text(json.dumps(payload, indent=2, default=str) + "\n")
+        json_path = str(ejson)
+
+    return str(path), json_path
 
 
 # ── Main loop ───────────────────────────────────────────────────────────────
@@ -254,9 +343,14 @@ def train(*, dry_run: bool = False, window_hours: int = DEFAULT_WINDOW_HOURS,
                 log.info("dry_run: would summarise %d messages for %s",
                          len(messages), ctx["context_id"])
                 continue
-            preamble_body = _gemini_summarise(prompt)
-            path = write_preamble(ctx, preamble_body)
-            log.info("wrote preamble for %s → %s", ctx["context_id"], path)
+            raw_response = _gemini_summarise(prompt)
+            preamble_body, entities = split_preamble_and_entities(raw_response)
+            md_path, json_path = write_preamble(ctx, preamble_body, entities)
+            log.info(
+                "wrote preamble for %s → %s%s",
+                ctx["context_id"], md_path,
+                f" (+entities: {sum(len(v) for v in entities.values())})" if entities else " (no json)",
+            )
             written += 1
         except Exception as e:  # noqa: BLE001
             errors.append(f"{ctx['context_id']}: {e}")
