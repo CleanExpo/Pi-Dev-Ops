@@ -443,6 +443,31 @@ def run() -> None:
         except Exception as exc:  # noqa: BLE001
             log.warning("fix_orchestrator failed (continuing): %s", exc)
 
+        # ── Feature Orchestrator: ship margot-idea Backlog tickets ────────────
+        # Third swarm lane — sibling to fix_orchestrator (bug lane) and
+        # PM bots (planning lane). Self-gates on TAO_SWARM_ENABLED and on
+        # its own 30-minute cadence (should_run). Failures absorbed so the
+        # orchestrator never crashes on a feature-lane bug.
+        try:
+            from . import feature_orchestrator as _feat  # noqa: PLC0415
+            if _feat.should_run(state):
+                feat = _feat.run_cycle()
+                state[_feat.STATE_KEY] = datetime.now(timezone.utc).isoformat()
+                if feat.jobs_dispatched:
+                    log.info("feature_orchestrator: dispatched %d job(s): %s",
+                             len(feat.jobs_dispatched), feat.jobs_dispatched)
+                if feat.jobs_needing_plan:
+                    log.info("feature_orchestrator: %d job(s) need PM planning: %s",
+                             len(feat.jobs_needing_plan), feat.jobs_needing_plan)
+                if feat.jobs_parked:
+                    log.info("feature_orchestrator: %d job(s) parked: %s",
+                             len(feat.jobs_parked), feat.jobs_parked)
+                if feat.jobs_failed:
+                    log.warning("feature_orchestrator: %d job(s) failed: %s",
+                                len(feat.jobs_failed), feat.jobs_failed)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("feature_orchestrator failed (continuing): %s", exc)
+
         # ── Production Coordinator: dispatch content + app builds (daily) ──
         # Priority: RestoreAssist → CARSI → Synthex → CCW → DR → NRPG
         # Fires marketing-orchestrator / remotion-orchestrator / fix jobs.
