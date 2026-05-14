@@ -48,15 +48,17 @@ Public API:
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import re
+import time
 from dataclasses import dataclass
 from typing import Literal
 
 log = logging.getLogger("app.server.provider_router")
 
-Provider = Literal["anthropic", "openrouter", "ollama"]
+Provider = Literal["anthropic", "openrouter", "ollama", "claude_print"]
 
 
 # ── Defaults — all env-overridable ──────────────────────────────────────────
@@ -146,7 +148,7 @@ def _parse_provider_spec(spec: str) -> tuple[Provider, str] | None:
     prov, model = spec.split(":", 1)
     prov = prov.strip().lower()
     model = model.strip()
-    if prov not in ("anthropic", "openrouter", "ollama"):
+    if prov not in ("anthropic", "openrouter", "ollama", "claude_print"):
         log.warning("provider_router: unknown provider %r in spec %r — skipping",
                     prov, spec)
         return None
@@ -158,6 +160,13 @@ def _parse_provider_spec(spec: str) -> tuple[Provider, str] | None:
 def _tier_default(tier: str) -> tuple[Provider, str]:
     """Resolve tier → (provider, model_id) using env overrides.
 
+    Top/mid tier resolution order:
+      1. TAO_{TOP,MID}_USE_CLAUDE_PRINT=1 → route through `claude --print`
+         subprocess ($0 marginal under Claude Max plan, per
+         `[[feedback-model-routing-max-first]]`).
+      2. TAO_{TOP,MID}_MODEL env model_id (or default).
+      3. Provider: anthropic.
+
     Cheap tier resolution order:
       1. Legacy TAO_CHEAP_MODEL env (honoured for backwards compat;
          routed via Anthropic if claude-*, OpenRouter if "/" in id,
@@ -168,9 +177,13 @@ def _tier_default(tier: str) -> tuple[Provider, str]:
     """
     if tier == "top":
         model = (os.environ.get("TAO_TOP_MODEL") or DEFAULT_TOP_MODEL).strip()
+        if os.environ.get("TAO_TOP_USE_CLAUDE_PRINT", "").strip() == "1":
+            return "claude_print", model
         return "anthropic", model
     if tier == "mid":
         model = (os.environ.get("TAO_MID_MODEL") or DEFAULT_MID_MODEL).strip()
+        if os.environ.get("TAO_MID_USE_CLAUDE_PRINT", "").strip() == "1":
+            return "claude_print", model
         return "anthropic", model
 
     # Cheap tier — multi-step resolution
@@ -293,6 +306,49 @@ def is_ollama(pm: ProviderModel) -> bool:
     return pm.provider == "ollama"
 
 
+def is_claude_print(pm: ProviderModel) -> bool:
+    return pm.provider == "claude_print"
+
+
+# ── claude --print subprocess wrapper ───────────────────────────────────────
+
+CLAUDE_CLI = os.environ.get("CLAUDE_CLI", "claude")
+
+
+async def _run_via_claude_print(
+    prompt: str, *, timeout_s: int = 120,
+) -> tuple[int, str, float, str | None]:
+    """Dispatch one prompt to `claude --print`. Returns (rc, text, cost_usd, error).
+
+    Always reports cost_usd=0.0 — `claude --print` runs under the active Claude
+    Code Max session, which has no per-call billing. Subprocess overhead is
+    ~3-5s for cold start; acceptable for the cron-launched workers that this
+    router fronts.
+
+    The model arg is intentionally NOT passed — `claude --print` uses whatever
+    model is configured in the user's Claude Code config (set via `/model` or
+    settings.json). The model_id surfaces via the ProviderModel for audit /
+    observability only.
+    """
+    def _blocking_run() -> tuple[int, str, str]:
+        import subprocess as _sp  # noqa: PLC0415
+        try:
+            r = _sp.run(
+                [CLAUDE_CLI, "--print", prompt],
+                capture_output=True, text=True, timeout=timeout_s, check=False,
+            )
+            return r.returncode, r.stdout, r.stderr
+        except FileNotFoundError:
+            return 127, "", f"claude CLI not found at {CLAUDE_CLI}"
+        except _sp.TimeoutExpired:
+            return 124, "", f"claude --print timed out after {timeout_s}s"
+
+    rc, stdout, stderr = await asyncio.to_thread(_blocking_run)
+    if rc != 0:
+        return rc, "", 0.0, stderr.strip() or f"claude --print exit {rc}"
+    return 0, stdout.strip(), 0.0, None
+
+
 # ── Unified async entry ─────────────────────────────────────────────────────
 
 
@@ -310,6 +366,18 @@ async def run_via_provider(prompt: str, *, role: str,
     the model_policy gate; OpenRouter goes through provider_openrouter.
     """
     pm = select_provider_model(role, task_class=task_class)
+
+    # claude --print path ($0 marginal under Max plan)
+    if pm.provider == "claude_print":
+        rc, text, cost, err = await _run_via_claude_print(
+            prompt, timeout_s=timeout_s,
+        )
+        if rc == 0:
+            _record_cost_safe(
+                provider="claude_print", role=role, model=pm.model_id,
+                cost_usd=cost,
+            )
+        return rc, text, cost, err
 
     if pm.provider == "anthropic":
         try:
@@ -408,5 +476,5 @@ __all__ = [
     "DEFAULT_TOP_MODEL", "DEFAULT_MID_MODEL",
     "DEFAULT_CHEAP_LOCAL_MODEL", "DEFAULT_CHEAP_REMOTE_MODEL",
     "select_provider_model", "run_via_provider",
-    "is_anthropic", "is_openrouter", "is_ollama",
+    "is_anthropic", "is_openrouter", "is_ollama", "is_claude_print",
 ]
