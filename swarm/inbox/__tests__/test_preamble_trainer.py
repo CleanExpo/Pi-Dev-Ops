@@ -146,9 +146,9 @@ class TrainLoopTests(unittest.TestCase):
              "message_count": 0},
         ]), \
              patch.object(pt, "fetch_messages", return_value=[]), \
-             patch.object(pt, "_gemini_summarise") as gem:
+             patch.object(pt, "_summarise") as summ:
             r = pt.train(dry_run=False)
-        gem.assert_not_called()
+        summ.assert_not_called()
         self.assertEqual(r["preambles_written"], 0)
 
     def test_writes_for_each_active_context(self):
@@ -160,7 +160,7 @@ class TrainLoopTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             with patch.object(pt, "list_active_contexts", return_value=contexts), \
                  patch.object(pt, "fetch_messages", return_value=msgs), \
-                 patch.object(pt, "_gemini_summarise", return_value="## Vocabulary\n- foo"), \
+                 patch.object(pt, "_summarise", return_value=("## Vocabulary\n- foo", "claude-max")), \
                  patch.object(pt, "WIKI_ROOT", Path(tmp)):
                 r = pt.train(dry_run=False)
             ug = Path(tmp) / "contexts/ug/preamble.md"
@@ -169,16 +169,16 @@ class TrainLoopTests(unittest.TestCase):
             self.assertTrue(ccw.exists())
         self.assertEqual(r["preambles_written"], 2)
 
-    def test_dry_run_calls_no_gemini_no_write(self):
+    def test_dry_run_calls_no_summariser_no_write(self):
         contexts = [{"context_id": "ug", "context_label": "UG", "wiki_section": None,
                      "message_count": 3}]
         msgs = [{"received_at": "t", "from_username": "u", "body": "hi"}]
         with patch.object(pt, "list_active_contexts", return_value=contexts), \
              patch.object(pt, "fetch_messages", return_value=msgs), \
-             patch.object(pt, "_gemini_summarise") as gem, \
+             patch.object(pt, "_summarise") as summ, \
              patch.object(pt, "write_preamble") as wp:
             r = pt.train(dry_run=True)
-        gem.assert_not_called()
+        summ.assert_not_called()
         wp.assert_not_called()
         self.assertEqual(r["dry_run"], True)
 
@@ -188,18 +188,93 @@ class TrainLoopTests(unittest.TestCase):
             {"context_id": "ccw", "context_label": "CCW", "wiki_section": None, "message_count": 3},
         ]
         msgs = [{"received_at": "t", "from_username": "u", "body": "hi"}]
-        def fake_gem(prompt, **kw):
+        def fake_summ(prompt):
             if "UG" in prompt:
                 raise RuntimeError("boom")
-            return "ok"
+            return ("ok", "claude-max")
         with tempfile.TemporaryDirectory() as tmp:
             with patch.object(pt, "list_active_contexts", return_value=contexts), \
                  patch.object(pt, "fetch_messages", return_value=msgs), \
-                 patch.object(pt, "_gemini_summarise", side_effect=fake_gem), \
+                 patch.object(pt, "_summarise", side_effect=fake_summ), \
                  patch.object(pt, "WIKI_ROOT", Path(tmp)):
                 r = pt.train(dry_run=False)
         self.assertEqual(r["preambles_written"], 1)
         self.assertTrue(any("ug" in e for e in r["errors"]))
+
+
+class SummariseCascadeTests(unittest.TestCase):
+    """Verify the Max-first → Chinese-OS → Gemini cascade per
+    `[[feedback-model-routing-max-first]]`."""
+
+    def test_claude_max_succeeds_first_no_fallback(self):
+        with patch.object(pt, "_claude_print_summarise", return_value="from-max") as t1, \
+             patch.object(pt, "_openrouter_summarise") as t2, \
+             patch.object(pt, "_gemini_summarise") as t3:
+            out, tier = pt._summarise("prompt")
+        self.assertEqual(out, "from-max")
+        self.assertEqual(tier, "claude-max")
+        t1.assert_called_once()
+        t2.assert_not_called()
+        t3.assert_not_called()
+
+    def test_falls_through_to_openrouter_when_claude_fails(self):
+        with patch.object(pt, "_claude_print_summarise", side_effect=pt._SummariseError("no cli")), \
+             patch.object(pt, "_openrouter_summarise", return_value="from-qwen") as t2, \
+             patch.object(pt, "_gemini_summarise") as t3:
+            out, tier = pt._summarise("prompt")
+        self.assertEqual(out, "from-qwen")
+        self.assertTrue(tier.startswith("openrouter:"))
+        t2.assert_called_once()
+        t3.assert_not_called()
+
+    def test_falls_through_to_gemini_when_claude_and_openrouter_fail(self):
+        with patch.object(pt, "_claude_print_summarise", side_effect=pt._SummariseError("no cli")), \
+             patch.object(pt, "_openrouter_summarise", side_effect=pt._SummariseError("no key")), \
+             patch.object(pt, "_gemini_summarise", return_value="from-gemini") as t3:
+            out, tier = pt._summarise("prompt")
+        self.assertEqual(out, "from-gemini")
+        self.assertTrue(tier.startswith("gemini:"))
+        t3.assert_called_once()
+
+    def test_raises_when_all_tiers_fail(self):
+        with patch.object(pt, "_claude_print_summarise", side_effect=pt._SummariseError("a")), \
+             patch.object(pt, "_openrouter_summarise", side_effect=pt._SummariseError("b")), \
+             patch.object(pt, "_gemini_summarise", side_effect=pt._SummariseError("c")):
+            with self.assertRaises(RuntimeError) as cm:
+                pt._summarise("prompt")
+        self.assertIn("all summarise tiers failed", str(cm.exception))
+
+
+class ClaudePrintSummariseTests(unittest.TestCase):
+    def test_returns_stdout_on_success(self):
+        fake = MagicMock(returncode=0, stdout="hello\n", stderr="")
+        with patch("swarm.inbox.preamble_trainer.subprocess.run", return_value=fake):
+            self.assertEqual(pt._claude_print_summarise("p"), "hello")
+
+    def test_raises_on_nonzero_exit(self):
+        fake = MagicMock(returncode=1, stdout="", stderr="boom")
+        with patch("swarm.inbox.preamble_trainer.subprocess.run", return_value=fake):
+            with self.assertRaises(pt._SummariseError):
+                pt._claude_print_summarise("p")
+
+    def test_raises_when_cli_missing(self):
+        with patch("swarm.inbox.preamble_trainer.subprocess.run",
+                   side_effect=FileNotFoundError("claude")):
+            with self.assertRaises(pt._SummariseError):
+                pt._claude_print_summarise("p")
+
+    def test_raises_on_empty_stdout(self):
+        fake = MagicMock(returncode=0, stdout="   \n", stderr="")
+        with patch("swarm.inbox.preamble_trainer.subprocess.run", return_value=fake):
+            with self.assertRaises(pt._SummariseError):
+                pt._claude_print_summarise("p")
+
+
+class OpenrouterSummariseTests(unittest.TestCase):
+    def test_raises_when_api_key_missing(self):
+        with patch.dict(os.environ, {"OPENROUTER_API_KEY": ""}, clear=False):
+            with self.assertRaises(pt._SummariseError):
+                pt._openrouter_summarise("p")
 
 
 if __name__ == "__main__":
