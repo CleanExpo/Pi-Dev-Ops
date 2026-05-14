@@ -134,6 +134,46 @@ class GroundedResearchFallbackTests(unittest.TestCase):
         self.assertEqual(count, 0)
 
 
+class GroundedResearchDepthTests(unittest.TestCase):
+    """Cost-strategy guard: pm_scoper must call grounded_research with the
+    cheap Flash depth unless PM_SCOPER_RESEARCH_DEPTH env overrides. See
+    `[[feedback-model-routing-max-first]]`."""
+
+    def test_passes_quick_depth_by_default(self):
+        mod = _reload()
+        ticket = _ticket()
+        fake_research = MagicMock()
+        fake_research.text = "spec body"
+        fake_research.citations = []
+
+        async def fake_grounded_research(prompt, *, depth, topic):
+            self.assertEqual(depth, "quick")
+            self.assertEqual(topic, ticket["identifier"])
+            return fake_research
+
+        fake_module = MagicMock()
+        fake_module.grounded_research = fake_grounded_research
+        import sys
+        with patch.dict(sys.modules, {"swarm.research.gemini_research": fake_module}):
+            summary, citations = mod._run_grounded_research(ticket)
+        self.assertIn("spec body", summary)
+        self.assertEqual(citations, 0)
+
+    def test_env_can_override_depth(self):
+        # Reload with the env set BEFORE module import so the module-level
+        # RESEARCH_DEPTH constant picks up the override.
+        prior = os.environ.get("PM_SCOPER_RESEARCH_DEPTH")
+        os.environ["PM_SCOPER_RESEARCH_DEPTH"] = "deep"
+        try:
+            mod = _reload()
+            self.assertEqual(mod.RESEARCH_DEPTH, "deep")
+        finally:
+            if prior is None:
+                del os.environ["PM_SCOPER_RESEARCH_DEPTH"]
+            else:
+                os.environ["PM_SCOPER_RESEARCH_DEPTH"] = prior
+
+
 class PerTicketErrorContainmentTests(unittest.TestCase):
     def test_one_bad_ticket_does_not_block_the_others(self):
         mod = _reload()

@@ -20,6 +20,7 @@ def _clear_env(monkeypatch):
         "TAO_TOP_MODEL", "TAO_MID_MODEL",
         "TAO_CHEAP_MODEL", "TAO_CHEAP_PROVIDER",
         "TAO_CHEAP_LOCAL_MODEL", "TAO_CHEAP_REMOTE_MODEL",
+        "TAO_TOP_USE_CLAUDE_PRINT", "TAO_MID_USE_CLAUDE_PRINT",
     ]:
         monkeypatch.delenv(k, raising=False)
     import os
@@ -383,3 +384,108 @@ def test_run_via_provider_ollama_failure_propagates(monkeypatch):
     ))
     assert rc == 1
     assert "connection refused" in error
+
+
+# ── claude_print provider (cost-strategy migration, task #178) ──────────────
+
+
+def test_tao_top_use_claude_print_routes_top_via_claude_print(monkeypatch):
+    """TAO_TOP_USE_CLAUDE_PRINT=1 → top tier dispatches via `claude --print`."""
+    monkeypatch.setenv("TAO_TOP_USE_CLAUDE_PRINT", "1")
+    pm = PR.select_provider_model("planner")
+    assert pm.tier == "top"
+    assert pm.provider == "claude_print"
+    assert pm.model_id == PR.DEFAULT_TOP_MODEL  # label preserved for audit
+
+
+def test_tao_mid_use_claude_print_routes_mid_via_claude_print(monkeypatch):
+    monkeypatch.setenv("TAO_MID_USE_CLAUDE_PRINT", "1")
+    pm = PR.select_provider_model("generator")
+    assert pm.tier == "mid"
+    assert pm.provider == "claude_print"
+    assert pm.model_id == PR.DEFAULT_MID_MODEL
+
+
+def test_top_use_claude_print_flag_off_routes_anthropic(monkeypatch):
+    """Flag NOT set → top tier still goes to Anthropic (backwards compat)."""
+    pm = PR.select_provider_model("planner")
+    assert pm.provider == "anthropic"
+
+
+def test_per_role_override_to_claude_print(monkeypatch):
+    """A specific role can opt in via TAO_MODEL_<ROLE>=claude_print:<model>."""
+    monkeypatch.setenv(
+        "TAO_MODEL_MARGOT_CASUAL", "claude_print:claude-opus-4-7",
+    )
+    pm = PR.select_provider_model("margot.casual")
+    assert pm.source == "env_role_override"
+    assert pm.provider == "claude_print"
+    assert pm.model_id == "claude-opus-4-7"
+
+
+def test_is_claude_print_helper():
+    pm = PR.ProviderModel(provider="claude_print", model_id="x", tier="top",
+                            role="r", source="default")
+    assert PR.is_claude_print(pm) is True
+    assert PR.is_anthropic(pm) is False
+    assert PR.is_openrouter(pm) is False
+    assert PR.is_ollama(pm) is False
+
+
+def test_run_via_provider_claude_print_path(monkeypatch):
+    """role=planner with TAO_TOP_USE_CLAUDE_PRINT=1 → subprocess dispatch."""
+    monkeypatch.setenv("TAO_TOP_USE_CLAUDE_PRINT", "1")
+
+    captured: dict = {}
+
+    def fake_run(argv, **kw):
+        captured["argv"] = argv
+        captured["kw"] = kw
+        return types.SimpleNamespace(returncode=0, stdout="max-output\n", stderr="")
+
+    import subprocess
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    rc, text, cost, error = asyncio.run(PR.run_via_provider(
+        prompt="hello world", role="planner", session_id="s1",
+    ))
+    assert rc == 0
+    assert text == "max-output"
+    assert cost == 0.0  # $0 marginal under Max plan
+    assert error is None
+    # Verify the subprocess was constructed correctly
+    assert captured["argv"][1] == "--print"
+    assert captured["argv"][2] == "hello world"
+
+
+def test_run_via_provider_claude_print_nonzero_exit(monkeypatch):
+    monkeypatch.setenv("TAO_TOP_USE_CLAUDE_PRINT", "1")
+
+    def fake_run(argv, **kw):
+        return types.SimpleNamespace(returncode=2, stdout="", stderr="rate-limited\n")
+
+    import subprocess
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    rc, text, cost, error = asyncio.run(PR.run_via_provider(
+        prompt="hi", role="planner",
+    ))
+    assert rc == 2
+    assert text == ""
+    assert "rate-limited" in error
+
+
+def test_run_via_provider_claude_print_cli_missing(monkeypatch):
+    monkeypatch.setenv("TAO_TOP_USE_CLAUDE_PRINT", "1")
+
+    def fake_run(argv, **kw):
+        raise FileNotFoundError("claude")
+
+    import subprocess
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    rc, text, cost, error = asyncio.run(PR.run_via_provider(
+        prompt="hi", role="planner",
+    ))
+    assert rc == 127
+    assert "not found" in error.lower()

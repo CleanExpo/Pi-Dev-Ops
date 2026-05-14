@@ -34,6 +34,7 @@ import json
 import logging
 import os
 import re
+import subprocess
 import textwrap
 import urllib.parse
 import urllib.request
@@ -47,8 +48,22 @@ log = logging.getLogger("swarm.inbox.preamble_trainer")
 AEST = timezone(timedelta(hours=10))
 DEFAULT_WINDOW_HOURS = 24
 DEFAULT_MAX_MESSAGES = 80
-DEFAULT_MODEL = os.environ.get("MARGOT_RESEARCH_MODEL", "gemini-2.5-pro")
+# DEFAULT_MODEL is the *label* recorded against hf_traces. The actual model
+# used at runtime is decided by the _summarise() cascade below — Max-first,
+# OpenRouter cheap-Chinese, Gemini-Pro fallback. See
+# `[[feedback-model-routing-max-first]]`.
+DEFAULT_MODEL = os.environ.get("MARGOT_RESEARCH_MODEL", "claude-max")
 GEMINI_API = "https://generativelanguage.googleapis.com/v1beta"
+GEMINI_MODEL = "gemini-2.5-pro"
+OPENROUTER_API = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_MODEL = os.environ.get(
+    "PREAMBLE_TRAINER_OPENROUTER_MODEL", "qwen/qwen3.6-plus",
+)
+CLAUDE_PRINT_TIMEOUT = int(os.environ.get("CLAUDE_PRINT_TIMEOUT", "120"))
+# The LaunchAgent PATH doesn't include nvm/Homebrew bin paths, so cron-launched
+# runs need the absolute path. Default falls back to bare "claude" for shells
+# that DO have it on PATH (Phill's interactive terminals, CI runners).
+CLAUDE_CLI = os.environ.get("CLAUDE_CLI", "claude")
 WIKI_ROOT = Path(os.environ.get(
     "BRAIN1_WIKI_ROOT",
     str(Path.home() / "2nd Brain" / "2nd Brain" / "Wiki"),
@@ -135,13 +150,88 @@ def fetch_messages(context_id: str, *, max_messages: int) -> list[dict]:
     return rows
 
 
-# ── Gemini call (no grounding — pure summarisation) ─────────────────────────
+# ── Summarisation cascade ───────────────────────────────────────────────────
+#
+# Per `[[feedback-model-routing-max-first]]` the swarm prefers, in order:
+#   1. Claude Max via `claude --print`  — $0 marginal under the $200 plan
+#   2. OpenRouter cheap Chinese OS model — $0.07-$0.50 per M tok
+#   3. Gemini 2.5 Pro                    — last-resort paid fallback
+#
+# Each tier raises on failure; the cascade catches and tries the next. If
+# all three fail, the last exception bubbles up to train()'s per-context
+# try/except so other contexts still complete in the same run.
+
+class _SummariseError(RuntimeError):
+    """Wraps the failure mode of one cascade tier (preserved as `cause`)."""
+
+
+def _claude_print_summarise(prompt: str, *, timeout: int = CLAUDE_PRINT_TIMEOUT) -> str:
+    """Tier 1 — Max plan via `claude --print`. $0 marginal."""
+    try:
+        result = subprocess.run(
+            [CLAUDE_CLI, "--print", prompt],
+            capture_output=True, text=True, timeout=timeout, check=False,
+        )
+    except FileNotFoundError as e:
+        raise _SummariseError(f"claude CLI not found at {CLAUDE_CLI}") from e
+    except subprocess.TimeoutExpired as e:
+        raise _SummariseError(f"claude --print timed out after {timeout}s") from e
+    if result.returncode != 0:
+        raise _SummariseError(
+            f"claude --print exit {result.returncode}: {result.stderr[:200]}"
+        )
+    out = result.stdout.strip()
+    if not out:
+        raise _SummariseError("claude --print returned empty stdout")
+    return out
+
+
+def _openrouter_summarise(prompt: str, *, model: str = OPENROUTER_MODEL,
+                          max_tokens: int = 2000, timeout: int = 60) -> str:
+    """Tier 2 — cheap Chinese OS model via OpenRouter."""
+    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not api_key:
+        raise _SummariseError("OPENROUTER_API_KEY not set")
+    body = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.4,
+        "max_tokens": max_tokens,
+    }
+    req = urllib.request.Request(
+        OPENROUTER_API,
+        data=json.dumps(body).encode(),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+            "HTTP-Referer": "https://unite-group.in/pi-ceo",
+            "X-Title": "Pi-CEO preamble_trainer",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            raw = json.loads(r.read())
+    except (urllib.error.URLError, json.JSONDecodeError) as e:
+        raise _SummariseError(f"openrouter call failed: {e}") from e
+    choices = raw.get("choices") or []
+    if not choices:
+        raise _SummariseError(f"empty openrouter response: {raw}")
+    content = choices[0].get("message", {}).get("content", "").strip()
+    if not content:
+        raise _SummariseError("openrouter returned empty content")
+    return content
+
+
 def _gemini_api_key() -> str:
     return os.environ["GEMINI_API_KEY"]
 
 
-def _gemini_summarise(prompt: str, *, model: str = DEFAULT_MODEL,
+def _gemini_summarise(prompt: str, *, model: str = GEMINI_MODEL,
                       max_tokens: int = 2000, timeout: int = 60) -> str:
+    """Tier 3 — Gemini Pro paid fallback (preserves prior behaviour)."""
+    if not os.environ.get("GEMINI_API_KEY", "").strip():
+        raise _SummariseError("GEMINI_API_KEY not set")
     body = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
@@ -156,13 +246,44 @@ def _gemini_summarise(prompt: str, *, model: str = DEFAULT_MODEL,
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        raw = json.loads(r.read())
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            raw = json.loads(r.read())
+    except (urllib.error.URLError, json.JSONDecodeError) as e:
+        raise _SummariseError(f"gemini call failed: {e}") from e
     candidates = raw.get("candidates") or []
     if not candidates:
-        raise RuntimeError(f"empty Gemini response: {raw}")
+        raise _SummariseError(f"empty Gemini response: {raw}")
     parts = candidates[0].get("content", {}).get("parts", [])
-    return "".join(p.get("text", "") for p in parts).strip()
+    text = "".join(p.get("text", "") for p in parts).strip()
+    if not text:
+        raise _SummariseError("Gemini returned empty content")
+    return text
+
+
+def _summarise(prompt: str) -> tuple[str, str]:
+    """Run the Max-first → Chinese-OS → Gemini cascade.
+
+    Returns (response_text, tier_label). The tier_label is recorded into
+    hf_traces so we can audit cost-tier drift over time.
+    """
+    tiers = (
+        ("claude-max", _claude_print_summarise),
+        ("openrouter:" + OPENROUTER_MODEL, _openrouter_summarise),
+        ("gemini:" + GEMINI_MODEL, _gemini_summarise),
+    )
+    last_err: Exception | None = None
+    for label, fn in tiers:
+        try:
+            out = fn(prompt)
+            log.info("summarise tier=%s ok (len=%d)", label, len(out))
+            return out, label
+        except _SummariseError as e:
+            log.warning("summarise tier=%s failed: %s", label, e)
+            last_err = e
+            continue
+    # All tiers exhausted. Raise the last failure so the caller can record it.
+    raise RuntimeError(f"all summarise tiers failed; last={last_err}")
 
 
 def build_prompt(context: dict, messages: list[dict]) -> str:
@@ -343,12 +464,12 @@ def train(*, dry_run: bool = False, window_hours: int = DEFAULT_WINDOW_HOURS,
                 log.info("dry_run: would summarise %d messages for %s",
                          len(messages), ctx["context_id"])
                 continue
-            raw_response = _gemini_summarise(prompt)
+            raw_response, tier = _summarise(prompt)
             preamble_body, entities = split_preamble_and_entities(raw_response)
             md_path, json_path = write_preamble(ctx, preamble_body, entities)
             log.info(
-                "wrote preamble for %s → %s%s",
-                ctx["context_id"], md_path,
+                "wrote preamble for %s → %s (tier=%s)%s",
+                ctx["context_id"], md_path, tier,
                 f" (+entities: {sum(len(v) for v in entities.values())})" if entities else " (no json)",
             )
             # Record a labelled training example for the Q3 PEFT LoRA experiment.
@@ -367,7 +488,7 @@ def train(*, dry_run: bool = False, window_hours: int = DEFAULT_WINDOW_HOURS,
                         "message_count": len(messages),
                     },
                     output_structured=entities or {},
-                    model=DEFAULT_MODEL,
+                    model=tier,
                     schema_version="preamble-v2",
                 )
             except Exception as e:  # noqa: BLE001 — trace failure must not block the loop

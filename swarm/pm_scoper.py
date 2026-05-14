@@ -45,6 +45,13 @@ STATE_PATH = Path(os.environ.get(
 CYCLE_MIN_INTERVAL_S = int(os.environ.get("TAO_PM_SCOPER_INTERVAL_S", str(12 * 60 * 60)))
 MAX_TICKETS_PER_CYCLE = int(os.environ.get("TAO_PM_SCOPER_MAX", "3"))
 
+# Cost-strategy: pm_scoper outputs a 4-bullet auto-spec — Flash quality is
+# more than enough and ~5x cheaper than Pro. Per
+# `[[feedback-model-routing-max-first]]` grounded-search work stays on
+# Gemini (tier 3) but on the cheap-Flash sub-tier rather than Pro.
+# Env override lets Phill dial back up if Flash output looks thin.
+RESEARCH_DEPTH = os.environ.get("PM_SCOPER_RESEARCH_DEPTH", "quick")
+
 AMBIGUOUS_LABEL = "pi-dev:blocked-reason:ambiguous-spec"
 AGENT_READY_LABEL = "agent-ready"
 SCOPED_BY_BOT_LABEL = "scoped-by-pm-bot"
@@ -199,8 +206,11 @@ def _run_grounded_research(ticket: dict) -> tuple[str, int]:
 
     try:
         import asyncio
+        # depth=quick → Gemini Flash (cheap + grounded). See RESEARCH_DEPTH
+        # docstring above. Bumps back to "standard"/"deep" via env if Phill
+        # observes the auto-spec quality degrading.
         result = asyncio.run(gemini_research.grounded_research(
-            prompt, depth="standard", topic=ticket["identifier"],
+            prompt, depth=RESEARCH_DEPTH, topic=ticket["identifier"],
         ))
         citations_block = ""
         if hasattr(result, "citations") and result.citations:

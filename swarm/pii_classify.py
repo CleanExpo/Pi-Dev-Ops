@@ -23,11 +23,24 @@ from __future__ import annotations
 import json
 import logging
 import os
+import subprocess
 from typing import Callable
 
 from .pii_redactor import Hit  # type: ignore[import-not-found]
 
 log = logging.getLogger("pi-ceo.pii_classify")
+
+# Cost-strategy per `[[feedback-model-routing-max-first]]`:
+#   Tier 0 (NEW): `claude --print` — $0 marginal under the Max plan.
+#   Tier 1: Anthropic API direct (Haiku) — was the only path; now fallback.
+#   Tier 2: degraded no-op (returns []).
+#
+# Same JSON-output prompt for both tiers, so the response parser is shared.
+# Subprocess overhead of `claude --print` (~3-5s) is acceptable here — this
+# classifier is only invoked by pii_redactor when strictness=high, which is
+# off the hot path.
+CLAUDE_CLI = os.environ.get("CLAUDE_CLI", "claude")
+CLAUDE_PRINT_TIMEOUT = int(os.environ.get("CLAUDE_PRINT_TIMEOUT", "60"))
 
 
 _PROMPT = """Classify each PII span in TEXT below. Return ONE JSON array on a single line.
@@ -49,19 +62,88 @@ TEXT:
 \"\"\""""
 
 
+def _parse_spans(raw: str, text: str) -> list[Hit]:
+    """Parse the model's JSON-array response into validated Hit objects.
+
+    Shared between the claude --print tier-0 path and the Anthropic API
+    tier-1 path so both surfaces enforce the same span validation
+    (offset/value match + category whitelist).
+    """
+    if not raw or raw == "[]":
+        return []
+    if raw.startswith("```"):
+        raw = raw.strip("`").lstrip("json").strip()
+    try:
+        spans = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        log.warning("classifier JSON parse failed: %s (raw=%r)", exc, raw[:100])
+        return []
+    hits: list[Hit] = []
+    for span in spans:
+        if not isinstance(span, dict):
+            continue
+        start = int(span.get("start", -1))
+        end = int(span.get("end", -1))
+        category = str(span.get("category", "unknown"))
+        value = str(span.get("value", ""))
+        if start < 0 or end <= start or category not in {
+            "name", "attendee_list", "location", "org_internal",
+        }:
+            continue
+        # Validate the span actually matches text at offsets — guards against
+        # model hallucinating offsets that don't line up.
+        if text[start:end] != value:
+            log.debug("classifier span mismatch (skipping): %r != %r", text[start:end], value)
+            continue
+        cat_map = {
+            "name": ("NAME", "[NAME-REDACTED]"),
+            "attendee_list": ("ATTENDEES", "[ATTENDEES-REDACTED]"),
+            "location": ("LOCATION", "[LOCATION-REDACTED]"),
+            "org_internal": ("ORG_INTERNAL", "[ORG-REDACTED]"),
+        }
+        hit_cat, replacement = cat_map[category]
+        hits.append(Hit(
+            category=hit_cat,
+            start=start,
+            end=end,
+            method="classify",
+            replacement=replacement,
+        ))
+    return hits
+
+
+class _ClassifyError(RuntimeError):
+    """Wraps a single-tier failure so the cascade can fall through cleanly."""
+
+
+def _classify_via_claude_print(text: str) -> list[Hit]:
+    """Tier 0 — `claude --print` ($0 marginal under Max). Raises on failure."""
+    prompt = _PROMPT.replace("{TEXT}", text)
+    try:
+        result = subprocess.run(
+            [CLAUDE_CLI, "--print", prompt],
+            capture_output=True, text=True, timeout=CLAUDE_PRINT_TIMEOUT, check=False,
+        )
+    except FileNotFoundError as exc:
+        raise _ClassifyError(f"claude CLI not found at {CLAUDE_CLI}") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise _ClassifyError(f"claude --print timed out after {CLAUDE_PRINT_TIMEOUT}s") from exc
+    if result.returncode != 0:
+        raise _ClassifyError(f"claude --print exit {result.returncode}: {result.stderr[:200]}")
+    return _parse_spans(result.stdout.strip(), text)
+
+
 def _make_classifier_with_anthropic(model: str) -> Callable[[str], list[Hit]]:
-    """Return a classifier closure backed by anthropic.Anthropic().messages.create."""
+    """Tier 1 — anthropic.Anthropic().messages.create (the original path)."""
     try:
         from anthropic import Anthropic  # type: ignore[import-not-found]  # noqa: PLC0415
     except Exception as exc:  # pragma: no cover — anthropic SDK guaranteed in prod
-        log.warning("anthropic SDK unavailable; classifier degraded to no-op: %s", exc)
+        log.warning("anthropic SDK unavailable; tier-1 disabled: %s", exc)
         return lambda _text: []
 
     client = Anthropic()
 
     def _classify(text: str) -> list[Hit]:
-        if not text or len(text) < 8:
-            return []
         prompt = _PROMPT.replace("{TEXT}", text)
         try:
             resp = client.messages.create(
@@ -69,68 +151,49 @@ def _make_classifier_with_anthropic(model: str) -> Callable[[str], list[Hit]]:
                 max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}],
             )
-            # Concat all text blocks
             raw = "".join(
                 getattr(block, "text", "")
                 for block in (resp.content or [])
                 if getattr(block, "type", None) == "text"
             ).strip()
-            if not raw or raw == "[]":
-                return []
-            # Strip code-fence wrappers if model returned them
-            if raw.startswith("```"):
-                raw = raw.strip("`").lstrip("json").strip()
-            spans = json.loads(raw)
-            hits: list[Hit] = []
-            for span in spans:
-                if not isinstance(span, dict):
-                    continue
-                start = int(span.get("start", -1))
-                end = int(span.get("end", -1))
-                category = str(span.get("category", "unknown"))
-                value = str(span.get("value", ""))
-                if start < 0 or end <= start or category not in {
-                    "name", "attendee_list", "location", "org_internal",
-                }:
-                    continue
-                # Validate the span actually matches text at offsets — guards against
-                # model hallucinating offsets that don't line up.
-                if text[start:end] != value:
-                    log.debug("classifier span mismatch (skipping): %r != %r", text[start:end], value)
-                    continue
-                # Map classifier categories → Hit category labels (uppercase
-                # convention used by the regex pass) + sensible replacement.
-                cat_map = {
-                    "name": ("NAME", "[NAME-REDACTED]"),
-                    "attendee_list": ("ATTENDEES", "[ATTENDEES-REDACTED]"),
-                    "location": ("LOCATION", "[LOCATION-REDACTED]"),
-                    "org_internal": ("ORG_INTERNAL", "[ORG-REDACTED]"),
-                }
-                hit_cat, replacement = cat_map[category]
-                hits.append(Hit(
-                    category=hit_cat,
-                    start=start,
-                    end=end,
-                    method="classify",
-                    replacement=replacement,
-                ))
-            return hits
+            return _parse_spans(raw, text)
         except Exception as exc:
-            log.warning("claude_classify call failed (returning empty): %s", exc)
+            log.warning("anthropic_classify call failed (returning empty): %s", exc)
             return []
 
     return _classify
 
 
 def default_classifier() -> Callable[[str], list[Hit]]:
-    """Return the default Claude-backed classifier.
+    """Return the cascade-backed classifier.
 
-    Honours `model_policy.select_model("monitor", ...)` per RA-1099 — uses Haiku
-    by default for the cheap classification pass; can be overridden via the
-    PII_CLASSIFY_MODEL env var.
+    Cascade per `[[feedback-model-routing-max-first]]`:
+      0. `claude --print`           — $0 marginal under Max plan
+      1. Anthropic API (Haiku)      — paid fallback; was the only tier before
+      2. no-op []                   — degraded mode when both tiers unavailable
+
+    Set DISABLE_CLAUDE_PRINT_CLASSIFIER=1 to skip tier 0 (e.g. when the Max
+    plan is rate-limited or you're benchmarking the Anthropic-API path).
     """
     model = os.environ.get("PII_CLASSIFY_MODEL", "claude-haiku-4-5-20251001")
-    return _make_classifier_with_anthropic(model)
+    anthropic_classifier = _make_classifier_with_anthropic(model)
+    skip_tier_0 = os.environ.get("DISABLE_CLAUDE_PRINT_CLASSIFIER", "0") == "1"
+
+    def _cascade(text: str) -> list[Hit]:
+        if not text or len(text) < 8:
+            return []
+        if not skip_tier_0:
+            try:
+                hits = _classify_via_claude_print(text)
+                log.debug("pii_classify tier=0 (claude --print) → %d hit(s)", len(hits))
+                return hits
+            except _ClassifyError as exc:
+                log.info("pii_classify tier-0 unavailable, falling back: %s", exc)
+        hits = anthropic_classifier(text)
+        log.debug("pii_classify tier=1 (anthropic api) → %d hit(s)", len(hits))
+        return hits
+
+    return _cascade
 
 
 __all__ = ["default_classifier"]
