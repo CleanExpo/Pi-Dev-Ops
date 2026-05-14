@@ -369,11 +369,17 @@ def _move_ticket_to_in_review(linear_id: str) -> None:
 # ─── Telegram alerts ───────────────────────────────────────────────────────
 
 def _alert(tag: str, body: str, severity: str = "info") -> None:
-    """Send a tagged Telegram alert. Fail-soft."""
+    """Send a tagged Telegram alert to the 'dev' channel. Fail-soft.
+
+    RA-2232: routed to the dev bot so PR-opened / CI / specialist-progress
+    pings stop spamming Phill's general Margot inbox. Falls back to general
+    with a "[fallback from dev]" tag until Phill mints the dev bot.
+    """
     try:
-        from .telegram_alerts import send  # noqa: PLC0415
+        from .telegram_router import send  # noqa: PLC0415
         send(
             f"[FEATURE-ORCH:{tag}] {body}",
+            channel="dev",
             severity=severity,
             bot_name="FeatureOrchestrator",
         )

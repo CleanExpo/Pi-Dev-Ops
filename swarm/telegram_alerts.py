@@ -1,34 +1,29 @@
 """
-swarm/telegram_alerts.py — RA-650: Swarm Telegram notification layer.
+swarm/telegram_alerts.py — RA-650 / RA-2232: Swarm Telegram notification layer.
 
-All messages are prefixed with [AGENT OUTPUT] per the board's transparency
-requirement.  Severity levels map to the board-approved escalation hierarchy.
+Historical single-bot API. As of RA-2232 this module is a thin shim over
+``swarm.telegram_router`` — every call routes to the 'general' channel
+(Margot, Phill's home inbox). New call sites should call
+``swarm.telegram_router.send`` directly with an explicit ``channel=`` so
+specialist categories (dev / ops / marketing / research) reach the right
+bot.
+
+All messages still receive the board-mandated [AGENT OUTPUT] prefix and
+severity glyph; that formatting is now centralised in the router so any
+direct router-callers get identical output.
 
 Fire-and-forget: errors are logged at WARNING, never raised.
 """
 from __future__ import annotations
 
-import json
 import logging
-import urllib.request
-import urllib.error
-from datetime import datetime, timezone, timedelta
 from typing import Literal
 
-from . import config
+from .telegram_router import send as _router_send
 
 log = logging.getLogger("swarm.telegram")
 
-AEST = timezone(timedelta(hours=10))
-
 Severity = Literal["critical", "high", "medium", "info"]
-
-_SEVERITY_PREFIX: dict[str, str] = {
-    "critical": "🚨 CRITICAL",
-    "high":     "⚠️  HIGH",
-    "medium":   "ℹ️  MEDIUM",
-    "info":     "💬 INFO",
-}
 
 
 def send(
@@ -36,55 +31,30 @@ def send(
     severity: Severity = "info",
     bot_name: str = "Swarm",
 ) -> bool:
-    """Send a Telegram message with the board-mandated AGENT OUTPUT prefix.
+    """Send a Telegram message to the 'general' channel (Margot inbox).
+
+    Back-compat shim — preserves the original positional/keyword signature so
+    every existing caller in swarm/bots/*, swarm/orchestrator.py, etc keeps
+    working unchanged. Delegates to ``telegram_router.send`` under the hood.
 
     Args:
         message:  Human-readable message body.
         severity: Escalation tier (critical/high/medium/info).
-        bot_name: Which bot is sending (Guardian/Builder/Scribe/Click).
+        bot_name: Which bot is sending (Guardian/Builder/Scribe/Click/…).
 
     Returns:
         True if the message was sent, False on any error.
     """
-    token = config.TELEGRAM_BOT_TOKEN
-    chat_id = config.TELEGRAM_CHAT_ID
-    if not token or not chat_id:
-        log.debug("Telegram not configured — suppressing alert: %s", message[:80])
-        return False
-
-    now = datetime.now(AEST).strftime("%Y-%m-%d %H:%M AEST")
-    shadow_tag = " [SHADOW MODE]" if config.SHADOW_MODE else ""
-    prefix = _SEVERITY_PREFIX.get(severity, "💬 INFO")
-
-    full_text = (
-        f"[AGENT OUTPUT]{shadow_tag} — {prefix}\n"
-        f"Bot: {bot_name} | {now}\n"
-        f"\n{message}"
+    return _router_send(
+        message,
+        channel="general",
+        severity=severity,
+        bot_name=bot_name,
     )
-
-    payload = json.dumps({
-        "chat_id": chat_id,
-        "text":    full_text,
-        "parse_mode": "HTML",
-    }).encode()
-
-    req = urllib.request.Request(
-        f"https://api.telegram.org/bot{token}/sendMessage",
-        data=payload,
-        method="POST",
-        headers={"Content-Type": "application/json"},
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            resp.read()
-        return True
-    except Exception as exc:
-        log.warning("Telegram send failed (severity=%s): %s", severity, exc)
-        return False
 
 
 def send_daily_report(report_lines: list[str]) -> bool:
-    """Format and send the daily 08:00 AEST swarm status report.
+    """Format and send the daily 08:00 AEST swarm status report to general.
 
     Args:
         report_lines: Bullet-point lines for the report body.

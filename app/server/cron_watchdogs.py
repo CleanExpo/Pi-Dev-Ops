@@ -965,15 +965,18 @@ _HEALTH_FULL_URL = "http://127.0.0.1:8000/api/health/full"
 
 
 def _health_full_send_telegram(text: str, log) -> None:
-    """Best-effort Telegram alert via the shared swarm helper.
+    """Best-effort Telegram alert via the multi-bot router.
 
-    Uses bot_name="Margot" per RA-1910 spec. Falls back silently if the
-    swarm helper isn't importable or the env vars aren't configured —
-    we never want a missing token to crash the watchdog.
+    RA-2232: routed to the 'ops' channel so health-watchdog escalations
+    land with the CFO / COO / Compliance specialists rather than Phill's
+    general inbox. Falls back to general with a "[fallback from ops]"
+    tag until the ops bot is minted. Falls back silently if no Telegram
+    is configured at all — we never want a missing token to crash the
+    watchdog.
     """
     try:
-        from swarm.telegram_alerts import send  # noqa: PLC0415
-        send(text, severity="high", bot_name="Margot")
+        from swarm.telegram_router import send  # noqa: PLC0415
+        send(text, channel="ops", severity="high", bot_name="Margot")
     except Exception as exc:  # noqa: BLE001
         log.debug("health_full watchdog: telegram send skipped (%s)", exc)
 
