@@ -6,6 +6,11 @@ import {
   defaultCoutisIntroProps,
   coutisIntroSchema,
 } from './compositions/CoutisIntro75';
+import {
+  RaWave1Launch,
+  defaultRaWave1Props,
+  raWave1Schema,
+} from './compositions/RaWave1Launch';
 
 const FPS = 30;
 
@@ -46,6 +51,24 @@ export const RemotionRoot: React.FC = () => {
             return { durationInFrames: 75 * FPS };
           }
           const totalSec = sc.reduce((s, x) => s + (x.durationSec ?? 0), 0);
+          return { durationInFrames: Math.max(1, Math.round(totalSec * FPS)) };
+        }}
+      />
+      <Composition
+        id="RaWave1Launch"
+        component={RaWave1Launch}
+        durationInFrames={75 * FPS}
+        fps={FPS}
+        width={1080}
+        height={1080}
+        schema={raWave1Schema}
+        defaultProps={defaultRaWave1Props}
+        calculateMetadata={({ props }) => {
+          const sb = (props as { storyboard?: Array<{ durationSec?: number }> }).storyboard;
+          if (!Array.isArray(sb) || sb.length === 0) {
+            return { durationInFrames: 75 * FPS };
+          }
+          const totalSec = sb.reduce((s, x) => s + (x.durationSec ?? 0), 0);
           return { durationInFrames: Math.max(1, Math.round(totalSec * FPS)) };
         }}
       />
