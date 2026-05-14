@@ -140,6 +140,10 @@ def run() -> None:
     from .bots import (
         guardian, builder, scribe, click, chief_of_staff,
         cfo, cmo, cto, cs,
+        # Senior PM bots — Master Plan v3 §5.1, scaffolded for ATIA + 6-vertical thesis.
+        # Each self-gates on TAO_SWARM_ENABLED and its own daily-hour window
+        # (09:00 AEST = 23:00 UTC); they no-op on every other cycle.
+        pm_atia, pm_restoration, pm_carpet, pm_iep, pm_carsi,
     )
     from .telegram_alerts import send, send_daily_report
 
@@ -320,6 +324,22 @@ def run() -> None:
             cs.run_cycle(state["unacked_count"], state=state)
         except Exception as exc:  # noqa: BLE001
             log.warning("CS cycle failed (continuing): %s", exc)
+
+        # ── Master Plan v3 §5.1 — Senior PM bots (ATIA + 5 vertical lanes) ──
+        # Each PM bot self-gates on its own daily-hour window so they no-op
+        # on every cycle outside the configured slot (09:00 AEST default).
+        # Failures are absorbed per-bot — never crash the orchestrator loop.
+        for _pm_name, _pm_mod in (
+            ("PM-ATIA",        pm_atia),
+            ("PM-Restoration", pm_restoration),
+            ("PM-Carpet",      pm_carpet),
+            ("PM-IEP",         pm_iep),
+            ("PM-CARSI",       pm_carsi),
+        ):
+            try:
+                _pm_mod.run_cycle(state["unacked_count"], state=state)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("%s cycle failed (continuing): %s", _pm_name, exc)
 
         # ── RA-1868 — Pi-CEO Board (Layer 2): process pending deliberations.
         # Async pattern — bots / Margot / founder queue requests via
