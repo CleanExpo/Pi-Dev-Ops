@@ -33,6 +33,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import re
 import subprocess
 import uuid
@@ -267,10 +268,91 @@ def _slugify(text: str) -> str:
     return s.strip("-")[:48] or "proposed-skill"
 
 
+# ── Cost-strategy: `claude --print` tier-0 + claude_agent_sdk tier-1 ────────
+# Per `[[feedback-model-routing-max-first]]`. The curator was the last
+# swarm-side worker calling Anthropic API direct (via claude_agent_sdk).
+# Adding `claude --print` as tier 0 routes it under Max ($0 marginal); the
+# SDK path remains as fallback for environments where the CLI is missing
+# but ANTHROPIC_API_KEY is set (e.g. CI runners).
+CLAUDE_CLI = os.environ.get("CLAUDE_CLI", "claude")
+CLAUDE_PRINT_TIMEOUT = int(os.environ.get("CLAUDE_PRINT_TIMEOUT", "90"))
+
+
+def _build_skill_prompt(cluster: Cluster, proposed_name: str) -> str:
+    """Shared prompt used by both the claude --print tier and the SDK tier.
+
+    Extracted so both tiers agree on the exact instructions sent to Claude.
+    """
+    evidence_preview = "\n".join(
+        f"- {json.dumps(e, ensure_ascii=False)[:200]}"
+        for e in cluster.evidence[:5]
+    )
+    return (
+        f"You are skill-creator inside Pi-CEO. Author a complete SKILL.md "
+        f"for a new reusable skill named `{proposed_name}`. The skill is "
+        f"proposed by the meta-curator from this cluster:\n\n"
+        f"- source: {cluster.source}\n"
+        f"- key: {cluster.key}\n"
+        f"- summary: {cluster.summary}\n\n"
+        f"Evidence sample:\n{evidence_preview}\n\n"
+        f"Output requirements:\n"
+        f"1. YAML frontmatter with fields: name, description, owner_role, "
+        f"status. status MUST be `proposed` (operator approves before promote).\n"
+        f"2. # Heading then 'Why this exists' / 'When to use' / "
+        f"'When NOT to use' / 'Pipeline' / 'Verification' sections.\n"
+        f"3. No prose preamble before the frontmatter — the response MUST "
+        f"start with `---`.\n"
+        f"4. Body should be runnable instructions, not theory.\n"
+        f"5. Length 60-180 lines. No code blocks longer than 30 lines.\n"
+        f"6. No emojis. No first-person business language (We/Our/I/Us/My).\n"
+    )
+
+
+def _compose_skill_body_via_claude_print(
+    cluster: Cluster, proposed_name: str
+) -> str | None:
+    """Tier 0 — `claude --print` ($0 marginal under Max plan).
+
+    Returns the SKILL.md body string on success; None on any failure
+    (CLI missing, non-zero exit, timeout, empty output, response that
+    doesn't begin with frontmatter). Caller falls through to the SDK tier.
+    """
+    if os.environ.get("DISABLE_CLAUDE_PRINT_CURATOR", "0") == "1":
+        return None
+    prompt = _build_skill_prompt(cluster, proposed_name)
+    try:
+        import subprocess  # noqa: PLC0415
+        r = subprocess.run(
+            [CLAUDE_CLI, "--print", prompt],
+            capture_output=True, text=True,
+            timeout=CLAUDE_PRINT_TIMEOUT, check=False,
+        )
+    except FileNotFoundError:
+        log.debug("curator: claude CLI not on PATH at %s — falling through to SDK", CLAUDE_CLI)
+        return None
+    except Exception as exc:  # noqa: BLE001 — never raise from cron path
+        log.warning("curator: claude --print raised (%s) — falling through", exc)
+        return None
+
+    if r.returncode != 0:
+        log.info("curator: claude --print exit %d — falling through (stderr=%s)",
+                 r.returncode, r.stderr[:120])
+        return None
+    body = (r.stdout or "").strip()
+    if not body:
+        log.info("curator: claude --print returned empty — falling through")
+        return None
+    if not body.startswith("---"):
+        log.info("curator: claude --print body missing frontmatter — falling through")
+        return None
+    log.info("curator: tier=claude-max composed %d-char SKILL.md", len(body))
+    return body
+
+
 def _compose_skill_body_via_sdk(
     cluster: Cluster, proposed_name: str
 ) -> str | None:
-    """Author a SKILL.md body via claude_agent_sdk. Returns None on any failure.
+    """Tier 1 — claude_agent_sdk (paid Anthropic API fallback).
 
     Closes the RA-1839 L13 SDK plug-point. Brief sent to Claude is:
     cluster summary + first 5 evidence rows + the standard frontmatter
@@ -282,7 +364,6 @@ def _compose_skill_body_via_sdk(
     request times out. Caller falls back to ``_draft_skill_md_stub``.
     """
     try:
-        import os
         if os.environ.get("TAO_SWARM_SKIP_SDK", "0") == "1":
             log.debug("curator: TAO_SWARM_SKIP_SDK=1 — using stub")
             return None
@@ -303,29 +384,7 @@ def _compose_skill_body_via_sdk(
         log.debug("curator: claude_agent_sdk not importable (%s) — using stub", exc)
         return None
 
-    evidence_preview = "\n".join(
-        f"- {json.dumps(e, ensure_ascii=False)[:200]}"
-        for e in cluster.evidence[:5]
-    )
-    prompt = (
-        f"You are skill-creator inside Pi-CEO. Author a complete SKILL.md "
-        f"for a new reusable skill named `{proposed_name}`. The skill is "
-        f"proposed by the meta-curator from this cluster:\n\n"
-        f"- source: {cluster.source}\n"
-        f"- key: {cluster.key}\n"
-        f"- summary: {cluster.summary}\n\n"
-        f"Evidence sample:\n{evidence_preview}\n\n"
-        f"Output requirements:\n"
-        f"1. YAML frontmatter with fields: name, description, owner_role, "
-        f"status. status MUST be `proposed` (operator approves before promote).\n"
-        f"2. # Heading then 'Why this exists' / 'When to use' / "
-        f"'When NOT to use' / 'Pipeline' / 'Verification' sections.\n"
-        f"3. No prose preamble before the frontmatter — the response MUST "
-        f"start with `---`.\n"
-        f"4. Body should be runnable instructions, not theory.\n"
-        f"5. Length 60-180 lines. No code blocks longer than 30 lines.\n"
-        f"6. No emojis. No first-person business language (We/Our/I/Us/My).\n"
-    )
+    prompt = _build_skill_prompt(cluster, proposed_name)
 
     try:
         import asyncio
@@ -363,14 +422,20 @@ def _compose_skill_body_via_sdk(
 def _draft_skill_md_stub(cluster: Cluster) -> tuple[str, str]:
     """Return (proposed_skill_name, SKILL.md content).
 
-    Tries claude_agent_sdk first via ``_compose_skill_body_via_sdk``;
-    falls back to a deterministic stub when SDK isn't available.
+    Cascade per `[[feedback-model-routing-max-first]]`:
+      0. `claude --print` ($0 marginal under Max plan)
+      1. claude_agent_sdk (paid Anthropic API fallback)
+      2. deterministic template stub (last resort)
     """
     name = _slugify(f"curator-{cluster.key}")[:48]
 
+    cp_body = _compose_skill_body_via_claude_print(cluster, name)
+    if cp_body:
+        return name, cp_body
+
     sdk_body = _compose_skill_body_via_sdk(cluster, name)
     if sdk_body:
-        log.info("curator: SDK composed body for %s (%d chars)",
+        log.info("curator: tier=sdk composed body for %s (%d chars)",
                  name, len(sdk_body))
         return name, sdk_body
 
