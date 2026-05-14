@@ -63,16 +63,80 @@ class BuildPromptTests(unittest.TestCase):
 
 
 class WritePreambleTests(unittest.TestCase):
-    def test_writes_with_frontmatter_and_returns_path(self):
+    def test_writes_with_frontmatter_and_returns_paths(self):
         ctx = {"context_id": "unite-group", "context_label": "Unite-Group"}
         with tempfile.TemporaryDirectory() as tmp:
             with patch.object(pt, "WIKI_ROOT", Path(tmp)):
-                path = pt.write_preamble(ctx, "## Vocabulary\n- foo\n")
-            content = Path(path).read_text()
+                md_path, json_path = pt.write_preamble(ctx, "## Vocabulary\n- foo\n")
+            content = Path(md_path).read_text()
         self.assertIn("context_id: unite-group", content)
         self.assertIn("context_label: Unite-Group", content)
+        self.assertIn("schema_version: preamble-v2", content)
         self.assertIn("## Vocabulary", content)
-        self.assertTrue(path.endswith("contexts/unite-group/preamble.md"))
+        self.assertTrue(md_path.endswith("contexts/unite-group/preamble.md"))
+        # Entities omitted → JSON sidecar should NOT be written
+        self.assertIsNone(json_path)
+
+    def test_writes_entities_json_when_provided(self):
+        ctx = {"context_id": "unite-group", "context_label": "Unite-Group"}
+        entities = {
+            "people": [{"name": "Phill", "role": "CEO", "confirmed": True}],
+            "decisions": [], "deadlines": [], "blockers": [], "commitments": [],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.object(pt, "WIKI_ROOT", Path(tmp)):
+                md_path, json_path = pt.write_preamble(ctx, "## Vocabulary\n", entities)
+                payload = json.loads(Path(json_path).read_text())
+        self.assertTrue(json_path.endswith("contexts/unite-group/preamble.json"))
+        self.assertEqual(payload["schema_version"], "preamble-v2")
+        self.assertEqual(payload["entities"]["people"][0]["name"], "Phill")
+
+
+class SplitPreambleAndEntitiesTests(unittest.TestCase):
+    def test_parses_fenced_json_and_strips_from_prose(self):
+        response = (
+            "## Vocabulary\n- foo\n\n"
+            "```json\n"
+            '{"people": [{"name": "Phill", "role": "CEO", "confirmed": true}],'
+            ' "decisions": [], "deadlines": [], "blockers": [], "commitments": []}\n'
+            "```\n"
+        )
+        body, entities = pt.split_preamble_and_entities(response)
+        self.assertIn("## Vocabulary", body)
+        self.assertNotIn("```json", body)
+        self.assertEqual(entities["people"][0]["name"], "Phill")
+        self.assertEqual(entities["decisions"], [])
+
+    def test_no_fence_returns_full_text_and_canonical_empty(self):
+        response = "## Vocabulary\n- foo (no JSON fence)\n"
+        body, entities = pt.split_preamble_and_entities(response)
+        self.assertIn("## Vocabulary", body)
+        for k in ("people", "decisions", "deadlines", "blockers", "commitments"):
+            self.assertEqual(entities[k], [])
+
+    def test_invalid_json_falls_back_to_empty(self):
+        response = (
+            "## Vocabulary\n- foo\n\n"
+            "```json\n{not valid json}\n```\n"
+        )
+        body, entities = pt.split_preamble_and_entities(response)
+        # Prose preceding the bad fence is preserved
+        self.assertIn("## Vocabulary", body)
+        # Canonical empty keys
+        for k in ("people", "decisions", "deadlines", "blockers", "commitments"):
+            self.assertEqual(entities[k], [])
+
+    def test_canonical_keys_added_when_gemini_omits_some(self):
+        response = (
+            "x\n```json\n"
+            '{"people": [{"name": "Toby", "confirmed": true}]}\n'
+            "```"
+        )
+        _, entities = pt.split_preamble_and_entities(response)
+        # All 5 canonical keys present even though Gemini emitted only people
+        self.assertEqual(entities["people"][0]["name"], "Toby")
+        for k in ("decisions", "deadlines", "blockers", "commitments"):
+            self.assertEqual(entities[k], [])
 
 
 class TrainLoopTests(unittest.TestCase):
