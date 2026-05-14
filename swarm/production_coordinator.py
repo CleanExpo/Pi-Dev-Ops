@@ -159,8 +159,11 @@ def _load_manifest() -> dict:
 
 
 def _save_manifest(manifest: dict) -> None:
+    # Atomic write — production manifest survives mid-write crashes.
+    # Per [[board-deliberation-code-patterns-2026-05-15]] PR2.
+    from ._atomic import atomic_write_json
     manifest["_updated"] = date.today().isoformat()
-    MANIFEST_PATH.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    atomic_write_json(MANIFEST_PATH, manifest)
 
 
 def _wiki_context(business_id: str) -> str:
