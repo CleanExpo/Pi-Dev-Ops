@@ -1,4 +1,4 @@
-# scripts — Wiki
+# hermes-plugins — Wiki
 
 _Last updated: 2026-05-14T08:51:45Z (commits 468e9d4..22646f8)_
 
