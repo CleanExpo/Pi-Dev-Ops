@@ -317,6 +317,31 @@ def run_cycle(*, dry_run: bool = False) -> ScoperResult:
             result.tickets_scoped += 1
             log.info("scoped %s (citations=%d)", ident, citation_count)
 
+            # Record a labelled training example — (ambiguous title+description) → (concrete spec + citations)
+            # is one of the best supervised signals in the swarm for a future
+            # ticket-triage fine-tune. See [[research-hf-agent-trains-models-2026-05-14]].
+            try:
+                from swarm.training import hf_traces
+                hf_traces.record(
+                    worker="pm_scoper",
+                    task="scope_ambiguous_ticket",
+                    input_text=f"{ticket['title']}\n\n{(ticket.get('description') or '').strip()}",
+                    output_text=summary,
+                    input_context={
+                        "linear_identifier": ident,
+                        "team_key": ticket["team"]["key"],
+                        "linear_url": ticket["url"],
+                    },
+                    output_structured={
+                        "labels_added": labels_added,
+                        "labels_removed": labels_removed,
+                    },
+                    citations_count=citation_count,
+                    dry_run=dry_run,
+                )
+            except Exception as e:  # noqa: BLE001 — trace must not block scoping
+                log.warning("hf_traces.record failed (non-fatal): %s", e)
+
         except Exception as e:  # noqa: BLE001
             log.exception("scoping %s failed", ident)
             result.errors.append(f"{ident}: {e}")

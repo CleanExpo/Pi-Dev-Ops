@@ -351,6 +351,27 @@ def train(*, dry_run: bool = False, window_hours: int = DEFAULT_WINDOW_HOURS,
                 ctx["context_id"], md_path,
                 f" (+entities: {sum(len(v) for v in entities.values())})" if entities else " (no json)",
             )
+            # Record a labelled training example for the Q3 PEFT LoRA experiment.
+            # See [[research-hf-agent-trains-models-2026-05-14]] — every preamble
+            # is a (corpus, summary, structured-entities) tuple ready for fine-tune.
+            try:
+                from swarm.training import hf_traces
+                hf_traces.record(
+                    worker="preamble_trainer",
+                    task="summarise_context_corpus",
+                    input_text=prompt,
+                    output_text=preamble_body,
+                    input_context={
+                        "context_id": ctx["context_id"],
+                        "context_label": ctx["context_label"],
+                        "message_count": len(messages),
+                    },
+                    output_structured=entities or {},
+                    model=DEFAULT_MODEL,
+                    schema_version="preamble-v2",
+                )
+            except Exception as e:  # noqa: BLE001 — trace failure must not block the loop
+                log.warning("hf_traces.record failed (non-fatal): %s", e)
             written += 1
         except Exception as e:  # noqa: BLE001
             errors.append(f"{ctx['context_id']}: {e}")
