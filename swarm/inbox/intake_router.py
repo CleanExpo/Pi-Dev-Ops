@@ -38,6 +38,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+from .safe_slug import validate_slug
+
 log = logging.getLogger("swarm.inbox.intake_router")
 
 AEST = timezone(timedelta(hours=10))
@@ -210,8 +212,8 @@ def _send_reply(bot: Bot, chat_id: int, text: str) -> None:
 def _wiki_path_for(bot: Bot) -> Path:
     if bot.wiki_section:
         return WIKI_ROOT / bot.wiki_section
-    # Default: contexts/<id>/inbox.md
-    return WIKI_ROOT / "contexts" / bot.context_id / "inbox.md"
+    # Default: contexts/<id>/inbox.md — slug-validated against ../ injection.
+    return WIKI_ROOT / "contexts" / validate_slug(bot.context_id) / "inbox.md"
 
 
 def _append_to_wiki(bot: Bot, message: dict, body_text: str) -> str:
