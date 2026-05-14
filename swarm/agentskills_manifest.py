@@ -309,9 +309,11 @@ def _vendored_schema() -> dict[str, Any]:
 
 def export() -> dict[str, Any]:
     """Walk skills/, build manifest, write JSON + YAML, append history. Return manifest dict."""
+    # Atomic writes — schema + manifest survive mid-write crashes.
+    # Per [[board-deliberation-code-patterns-2026-05-15]] PR2.
+    from ._atomic import atomic_write_json
     # Ensure schema is vendored
-    SCHEMA_OUT.parent.mkdir(parents=True, exist_ok=True)
-    SCHEMA_OUT.write_text(json.dumps(_vendored_schema(), indent=2))
+    atomic_write_json(SCHEMA_OUT, _vendored_schema())
 
     entries = _scan_registry()
     new_skills = [_entry_to_dict(e) for e in entries]
@@ -333,7 +335,7 @@ def export() -> dict[str, Any]:
         "skills": sorted(new_skills, key=lambda s: s["id"]),
     }
 
-    JSON_OUT.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    atomic_write_json(JSON_OUT, manifest, newline=True)
     _write_yaml(manifest, YAML_OUT)
 
     if reason != "no_change":
