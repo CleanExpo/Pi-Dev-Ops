@@ -37,6 +37,7 @@ Safety bindings — same as margot-bridge SKILL.md:
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -86,8 +87,86 @@ def _record_inflight(record: dict[str, Any]) -> None:
 # ── Public flow tools ────────────────────────────────────────────────────────
 
 
+# RA-1986: MARGOT_RESEARCH_BACKEND routes deep_research between three engines:
+#   * "gemini"               -> swarm.research.gemini_research (DEFAULT)
+#   * "deep_research_server" -> existing margot-deep-research MCP server (stdio)
+#   * "anthropic"            -> Claude fallback (reserved; not yet wired)
+# Default flipped to "gemini" on 2026-05-14 so every PM bot, board call,
+# and on-demand research turn ships with citation-grounded artifacts.
+MARGOT_RESEARCH_BACKEND_ENV = "MARGOT_RESEARCH_BACKEND"
+_DEFAULT_RESEARCH_BACKEND = "gemini"
+
+
+def _research_backend() -> str:
+    return (os.environ.get(MARGOT_RESEARCH_BACKEND_ENV) or _DEFAULT_RESEARCH_BACKEND).strip().lower()
+
+
+def _gemini_grounded_call(topic: str, *, depth: str = "standard") -> dict[str, Any]:
+    """Invoke swarm.research.gemini_research.grounded_research from sync code.
+
+    Margot's existing flow_engine tools are synchronous; the new engine is
+    async. We bridge via asyncio.run() when no loop is running, else
+    schedule + await via a fresh thread-local loop to avoid clobbering.
+    """
+    # Lazy import — avoids importing httpx + gemini module unless the
+    # gemini backend is actually selected.
+    from swarm.research.gemini_research import (  # noqa: PLC0415
+        GeminiResearchError,
+        grounded_research,
+    )
+
+    async def _go() -> dict[str, Any]:
+        try:
+            r = await grounded_research(topic, depth=depth, citations_required=True)
+        except GeminiResearchError as exc:
+            return {"error": "gemini_research_failed", "detail": str(exc)}
+        return {
+            "summary": r.text,
+            "status": "ok",
+            "model": r.model,
+            "grounding_used": r.grounding_used,
+            "elapsed_s": r.elapsed_s,
+            "citations": [
+                {"url": c.url, "title": c.title, "snippet": c.snippet}
+                for c in r.citations
+            ],
+            "backend": "gemini",
+        }
+
+    try:
+        return asyncio.run(_go())
+    except RuntimeError:
+        # Already inside an event loop (e.g. inside a coroutine). Run on
+        # a dedicated loop in a worker thread to stay sync-callable.
+        import concurrent.futures  # noqa: PLC0415
+
+        def _runner() -> dict[str, Any]:
+            loop = asyncio.new_event_loop()
+            try:
+                return loop.run_until_complete(_go())
+            finally:
+                loop.close()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(_runner).result()
+
+
 def deep_research(topic: str, use_corpus: bool = False, **_: Any) -> dict[str, Any]:
-    """Sync research call. Returns {summary, status} or {error}."""
+    """Sync research call. Returns {summary, status, citations, ...} or {error}.
+
+    Routing (RA-1986):
+      1. MARGOT_RESEARCH_BACKEND=gemini (default) -> grounded Gemini call.
+         use_corpus is ignored for now — corpus grounding lands when the
+         File Search tool is wired into the gemini backend (follow-up).
+      2. MARGOT_RESEARCH_BACKEND=deep_research_server -> stdio MCP path.
+      3. MARGOT_RESEARCH_BACKEND=anthropic -> not yet wired; returns error.
+    """
+    backend = _research_backend()
+
+    if backend == "gemini":
+        return _gemini_grounded_call(topic, depth="standard")
+
+    # Legacy paths preserved so an operator can flip back via env.
     transport = _transport_available()
     if transport is None:
         return {
@@ -97,12 +176,21 @@ def deep_research(topic: str, use_corpus: bool = False, **_: Any) -> dict[str, A
                    "Pi-Dev-Ops/skills/margot-bridge/SKILL.md → Prerequisites.",
         }
 
-    if transport == "stdio":
-        # Lazy import to avoid hard-fail at import time on systems without `mcp`
+    if backend == "deep_research_server" and transport == "stdio":
         return _call_stdio_mcp("deep_research",
                               {"topic": topic, "use_corpus": use_corpus})
 
-    # Gemini direct path — placeholder until Gemini SDK is wired
+    if backend == "anthropic":
+        return {
+            "error": "anthropic_backend_not_wired",
+            "fix": "Set MARGOT_RESEARCH_BACKEND=gemini or =deep_research_server.",
+        }
+
+    # Unknown backend value — fall through to legacy auto-detect.
+    if transport == "stdio":
+        return _call_stdio_mcp("deep_research",
+                              {"topic": topic, "use_corpus": use_corpus})
+
     return {
         "error": "gemini_direct_not_wired",
         "topic": topic,
