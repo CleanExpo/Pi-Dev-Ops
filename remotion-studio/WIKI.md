@@ -1,8 +1,8 @@
 # remotion-studio — Wiki
 
-_Last updated: 2026-05-11T09:11:30Z (commits 7bd7e4d..b53059b)_
+_Last updated: 2026-05-14T20:41:54Z (commits fe7f090..871abd0)_
 
 ## Recent changes
-- b53059b — feat(remotion): CoutisIntro75 composition + founding-partners deck (#204)
+- 871abd0 — Feat/ra wave 1 video poc (#229)
 
 Not logged in · Please run /login
