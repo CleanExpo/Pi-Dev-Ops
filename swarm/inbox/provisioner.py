@@ -44,6 +44,8 @@ import urllib.error
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from .safe_slug import validate_slug
+
 log = logging.getLogger("swarm.inbox.provisioner")
 
 AEST = timezone(timedelta(hours=10))
@@ -292,15 +294,16 @@ def resolve_brand_candidates(client: dict) -> list[dict]:
 # ── The full Hour-1 sequence for one queue row ──────────────────────────────
 def _enqueue_context_bot(*, client: dict, admin_email: str = DEFAULT_FROM_EMAIL) -> None:
     """Insert a pending ContextBot row for the bot-provisioning worker to mint."""
+    slug = validate_slug(client["slug"])
     body = {
-        "bot_username": f"UniteGroup{''.join(p.capitalize() for p in client['slug'].split('-'))}Bot",
+        "bot_username": f"UniteGroup{''.join(p.capitalize() for p in slug.split('-'))}Bot",
         "bot_token": "pending-provision",
         "kind": "client",
         "brand": "unite-group",
-        "context_id": client["slug"],
-        "context_label": client.get("company_name") or client["slug"],
+        "context_id": slug,
+        "context_label": client.get("company_name") or slug,
         "linear_team_key": "UNI",
-        "wiki_section": f"clients/{client['slug']}.md",
+        "wiki_section": f"clients/{slug}.md",
         "greeting_template": f"Got it — filed to {client.get('company_name','your project')}. I'll start working on it now and ping back.",
         "intake_enabled": True,
         "provision_status": "pending",
@@ -318,14 +321,14 @@ def _enqueue_context_bot(*, client: dict, admin_email: str = DEFAULT_FROM_EMAIL)
     except urllib.error.HTTPError as e:
         # Duplicate bot_username (already provisioned) is fine
         if e.code == 409:
-            log.info("context_bot for %s already exists", client["slug"])
+            log.info("context_bot for %s already exists", slug)
         else:
             raise
 
 
 def _provision_one(row: dict, *, dry_run: bool) -> str:
     """Process a single queue row. Returns 'done' or 'failed'."""
-    slug = row["nexus_slug"]
+    slug = validate_slug(row["nexus_slug"])
 
     # 1. Load client
     clients = _sb_request("GET", "/nexus_clients", params={
