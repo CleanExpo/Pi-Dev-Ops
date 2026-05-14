@@ -1,8 +1,8 @@
 # swarm — Wiki
 
-_Last updated: 2026-05-14T21:56:42Z (commits b7b78b3..452c67f)_
+_Last updated: 2026-05-14T22:12:56Z (commits 3291095..8fb5e52)_
 
 ## Recent changes
-- 452c67f — chore(swarm): atomic state writes via swarm/_atomic.py helper (#231)
+- 8fb5e52 — chore(swarm): restore inbox source — provisioner.py + intake_router.py (#232)
 
 Not logged in · Please run /login
