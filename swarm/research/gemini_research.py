@@ -29,6 +29,8 @@ Public API
                                       grounding_used, elapsed_s, raw_response
     async grounded_research(topic, *, depth, citations_required,
                             max_tokens, model) -> GroundedResearchResult
+    format_citation(c, style) -> str
+    format_citations_block(citations, style, heading) -> str
 """
 from __future__ import annotations
 
@@ -161,6 +163,121 @@ class GroundedResearchResult:
     grounding_used: bool  # did google_search grounding actually fire?
     elapsed_s: float
     raw_response: dict[str, Any] = field(default_factory=dict)
+
+
+# ── Public formatting helpers ────────────────────────────────────────────────
+
+# Gemini's grounding response packs the publisher domain (and sometimes the
+# article headline) into Citation.title, while Citation.url is the Vertex AI
+# redirect (`vertexaisearch.cloud.google.com/grounding-api-redirect/…`).
+# Rendering `url` raw in briefings + Telegram alerts gives unreadable redirect
+# soup; these helpers project the title into a human-readable label so a
+# reader sees the publisher at a glance.
+
+# Telegram MarkdownV2 reserved chars that must be backslash-escaped when they
+# appear inside link text or body text. See Telegram Bot API docs.
+_TELEGRAM_MD2_SPECIAL = r"_*[]()~`>#+-=|{}.!"
+
+# Separators that may sit between "publisher.tld" and "headline" inside a
+# citation title (e.g. "carsi.com.au - Mould Remediation Pathway"). Order
+# matters — longer/em-dash variants first so they win over plain hyphen.
+_TITLE_SEPARATORS = (" — ", " – ", " - ", " | ")
+
+
+def _split_publisher_headline(title: str) -> tuple[str, str]:
+    """Split a citation title into (publisher, headline).
+
+    Returns ("", "") if the title is empty. If no separator is present,
+    returns the full title as the publisher and an empty headline (so the
+    caller still gets a usable label).
+    """
+    title = (title or "").strip()
+    if not title:
+        return "", ""
+    for sep in _TITLE_SEPARATORS:
+        if sep in title:
+            publisher, _, headline = title.partition(sep)
+            return publisher.strip(), headline.strip()
+    return title, ""
+
+
+def _telegram_escape(text: str) -> str:
+    """Escape Telegram MarkdownV2 special characters in a plain-text run."""
+    return "".join(("\\" + ch) if ch in _TELEGRAM_MD2_SPECIAL else ch for ch in (text or ""))
+
+
+def format_citation(c: "Citation", style: str = "markdown") -> str:
+    """Render a single Citation in a human-readable form.
+
+    Styles
+    ------
+    "markdown"  — ``[publisher — headline](url)`` (or ``[title](url)`` when no
+                  separator is present in the title).
+    "plain"     — ``publisher — headline (url)`` with no markdown.
+    "compact"   — ``[publisher](url)`` (publisher only — for tight UIs).
+    "telegram"  — Telegram MarkdownV2-safe link with reserved chars escaped.
+
+    The ``title`` field carries the publisher domain plus (optionally) the
+    article headline separated by " - ", " — ", " – " or " | ". The ``url``
+    is typically the Vertex AI redirect URL — we do not resolve it here.
+    """
+    publisher, headline = _split_publisher_headline(c.title)
+    url = (c.url or "").strip()
+
+    # Build the human label (no URL part yet).
+    if publisher and headline:
+        label = f"{publisher} — {headline}"
+        compact_label = publisher
+    elif publisher:
+        label = publisher
+        compact_label = publisher
+    else:
+        label = url or "(no source)"
+        compact_label = label
+
+    if style == "markdown":
+        return f"[{label}]({url})" if url else label
+    if style == "plain":
+        return f"{label} ({url})" if url else label
+    if style == "compact":
+        return f"[{compact_label}]({url})" if url else compact_label
+    if style == "telegram":
+        # MarkdownV2: link text needs special chars escaped; URL must have
+        # ')' and '\' escaped inside the parens.
+        safe_label = _telegram_escape(label)
+        safe_url = url.replace("\\", "\\\\").replace(")", "\\)") if url else ""
+        return f"[{safe_label}]({safe_url})" if safe_url else safe_label
+    raise ValueError(
+        f"format_citation: unknown style {style!r}; "
+        f"expected one of 'markdown'|'plain'|'compact'|'telegram'",
+    )
+
+
+def format_citations_block(
+    citations: "list[Citation]",
+    style: str = "markdown",
+    heading: str | None = "Sources",
+) -> str:
+    """Format a numbered citation block. Returns ``""`` when ``citations`` is empty.
+
+    The heading is rendered as bold markdown when ``style='markdown'``, as a
+    Telegram-safe bold run when ``style='telegram'``, and as a plain underlined
+    line for ``style='plain'`` / ``style='compact'``. Pass ``heading=None`` to
+    suppress the heading entirely.
+    """
+    if not citations:
+        return ""
+    lines: list[str] = []
+    if heading:
+        if style == "markdown":
+            lines.append(f"**{heading}**")
+        elif style == "telegram":
+            lines.append(f"*{_telegram_escape(heading)}*")
+        else:  # plain / compact
+            lines.append(heading)
+    for i, c in enumerate(citations, 1):
+        lines.append(f"{i}. {format_citation(c, style)}")
+    return "\n".join(lines)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -539,5 +656,7 @@ __all__ = [
     "RateLimitError",
     "TimeoutError",
     "UpstreamError",
+    "format_citation",
+    "format_citations_block",
     "grounded_research",
 ]

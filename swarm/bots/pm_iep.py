@@ -184,7 +184,19 @@ def _extract_escalations(persona_output: str) -> list[str]:
     return out
 
 
-def _write_briefing(date_iso: str, persona_output: str) -> Path:
+def _write_briefing(
+    date_iso: str,
+    persona_output: str,
+    citations: "list | None" = None,
+) -> Path:
+    """Write the markdown briefing — only called when there's a real delta.
+
+    When ``citations`` is non-empty, append a numbered ``Sources`` block at
+    the end using ``format_citations_block`` so each row renders as
+    ``[publisher.tld — Headline](url)`` rather than a raw Vertex AI redirect.
+    """
+    from swarm.research import format_citations_block  # noqa: PLC0415
+
     p = _briefing_path(date_iso)
     p.parent.mkdir(parents=True, exist_ok=True)
     body = (
@@ -193,6 +205,11 @@ def _write_briefing(date_iso: str, persona_output: str) -> Path:
         f"Authored by: PM-IEP (Dr Aria Whitcombe persona)\n\n"
         f"{persona_output.strip()}\n"
     )
+    sources_block = format_citations_block(
+        citations or [], style="markdown", heading="Sources",
+    )
+    if sources_block:
+        body += "\n" + sources_block + "\n"
     p.write_text(body, encoding="utf-8")
     return p
 
@@ -220,8 +237,13 @@ async def run_pm_iep(
     session_id: str | None = None,
     force: bool = False,
     dry_run: bool = False,
+    citations: "list | None" = None,
 ) -> dict[str, Any]:
-    """One PM-IEP execution cycle."""
+    """One PM-IEP execution cycle.
+
+    ``citations`` is an optional list of swarm.research.Citation objects to
+    render as a Sources block at the end of the briefing markdown.
+    """
     now = _now_utc()
     today_iso = now.strftime("%Y-%m-%d")
 
@@ -287,7 +309,7 @@ async def run_pm_iep(
 
     briefing_path: Path | None = None
     if has_delta:
-        briefing_path = _write_briefing(today_iso, persona_output)
+        briefing_path = _write_briefing(today_iso, persona_output, citations=citations)
 
     row = {
         "ts": now.isoformat(),
@@ -297,6 +319,7 @@ async def run_pm_iep(
         "delta": has_delta,
         "escalations": escalations,
         "briefing_path": str(briefing_path) if briefing_path else None,
+        "citation_count": len(citations or []),
     }
     _append_state(row)
 
@@ -305,6 +328,7 @@ async def run_pm_iep(
         "briefing_path": str(briefing_path) if briefing_path else None,
         "state_jsonl_path": str(_state_path()),
         "escalations": escalations,
+        "citation_count": len(citations or []),
         "status": "ok",
     }
 

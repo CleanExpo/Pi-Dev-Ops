@@ -71,3 +71,48 @@ def test_pm_atia_run_cycle_gates_on_swarm_enabled(monkeypatch):
     out = pm_atia.run_cycle(0, state={})
     assert out["status"] == "skipped"
     assert "TAO_SWARM_ENABLED" in out["reason"]
+
+
+def test_pm_atia_write_briefing_appends_sources_block(tmp_path, monkeypatch):
+    """When citations are passed, _write_briefing must append a numbered
+    'Sources' block at the end rendering ``publisher.tld — Headline``
+    instead of raw Vertex AI redirects."""
+    from swarm.bots import pm_atia
+    from swarm.research.gemini_research import Citation
+
+    monkeypatch.setattr(pm_atia, "_briefing_path",
+                        lambda iso: tmp_path / f"atia-{iso}.md")
+
+    cs = [
+        Citation(
+            url="https://vertexaisearch.cloud.google.com/grounding-api-redirect/A",
+            title="iicrc.org - S500 Water Damage Restoration Standard",
+        ),
+        Citation(
+            url="https://vertexaisearch.cloud.google.com/grounding-api-redirect/B",
+            title="carsi.com.au - Mould Remediation Pathway",
+        ),
+    ]
+    path = pm_atia._write_briefing(
+        "2026-05-14", "## Today's delta\nSomething moved.\n", citations=cs,
+    )
+    text = path.read_text(encoding="utf-8")
+    # Sources block must land after the persona body.
+    assert "**Sources**" in text
+    assert "[iicrc.org — S500 Water Damage Restoration Standard]" in text
+    assert "[carsi.com.au — Mould Remediation Pathway]" in text
+    # Raw redirect URL is present (we don't resolve), but only inside the link target.
+    assert text.count("vertexaisearch.cloud.google.com") == 2
+    # Heading order: persona content first, Sources at the bottom.
+    assert text.index("Today's delta") < text.index("**Sources**")
+
+
+def test_pm_atia_write_briefing_no_sources_when_no_citations(tmp_path, monkeypatch):
+    """Empty citations list -> no Sources block, no trailing noise."""
+    from swarm.bots import pm_atia
+    monkeypatch.setattr(pm_atia, "_briefing_path",
+                        lambda iso: tmp_path / f"atia-{iso}.md")
+    path = pm_atia._write_briefing("2026-05-14", "## Today's delta\nx\n", citations=[])
+    text = path.read_text(encoding="utf-8")
+    assert "**Sources**" not in text
+    assert "vertexaisearch.cloud" not in text

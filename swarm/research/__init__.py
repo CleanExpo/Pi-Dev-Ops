@@ -18,6 +18,8 @@ from swarm.research.gemini_research import (
     RateLimitError,
     TimeoutError as GeminiTimeoutError,
     UpstreamError,
+    format_citation,
+    format_citations_block,
     grounded_research,
 )
 
@@ -30,5 +32,7 @@ __all__ = [
     "GroundingFailedError",
     "RateLimitError",
     "UpstreamError",
+    "format_citation",
+    "format_citations_block",
     "grounded_research",
 ]
