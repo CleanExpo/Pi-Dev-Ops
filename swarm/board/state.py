@@ -134,7 +134,7 @@ def _ensure_dirs(repo_root: Path) -> None:
 def _audit(type_: str, **fields: Any) -> None:
     """Best-effort audit emit — never raises."""
     try:
-        from . import audit_emit  # noqa: PLC0415
+        from .. import audit_emit  # noqa: PLC0415
         audit_emit.row(type_, "Board", **fields)
     except Exception as exc:  # noqa: BLE001
         log.debug("board: audit_emit suppressed (%s): %s", type_, exc)
@@ -448,7 +448,11 @@ async def _process_one(brief: BoardBrief, *,
     started_at = _now_iso()
 
     prompt = assemble_brief(brief)
-    rc, text, cost, error = await _call_ceo_board_sdk(
+    # Look up via the package so tests that ``monkeypatch.setattr(swarm.board,
+    # "_call_ceo_board_sdk", fake)`` (the historical patch target — see
+    # tests/test_board.py:29) reach the call site after the module split.
+    from swarm import board as _pkg  # noqa: PLC0415
+    rc, text, cost, error = await _pkg._call_ceo_board_sdk(
         prompt=prompt,
         timeout_s=brief.timeout_s,
         workspace=workspace,
