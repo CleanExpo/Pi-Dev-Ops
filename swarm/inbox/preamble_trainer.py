@@ -60,6 +60,10 @@ OPENROUTER_MODEL = os.environ.get(
     "PREAMBLE_TRAINER_OPENROUTER_MODEL", "qwen/qwen3.6-plus",
 )
 CLAUDE_PRINT_TIMEOUT = int(os.environ.get("CLAUDE_PRINT_TIMEOUT", "120"))
+# The LaunchAgent PATH doesn't include nvm/Homebrew bin paths, so cron-launched
+# runs need the absolute path. Default falls back to bare "claude" for shells
+# that DO have it on PATH (Phill's interactive terminals, CI runners).
+CLAUDE_CLI = os.environ.get("CLAUDE_CLI", "claude")
 WIKI_ROOT = Path(os.environ.get(
     "BRAIN1_WIKI_ROOT",
     str(Path.home() / "2nd Brain" / "2nd Brain" / "Wiki"),
@@ -165,11 +169,11 @@ def _claude_print_summarise(prompt: str, *, timeout: int = CLAUDE_PRINT_TIMEOUT)
     """Tier 1 — Max plan via `claude --print`. $0 marginal."""
     try:
         result = subprocess.run(
-            ["claude", "--print", prompt],
+            [CLAUDE_CLI, "--print", prompt],
             capture_output=True, text=True, timeout=timeout, check=False,
         )
     except FileNotFoundError as e:
-        raise _SummariseError("claude CLI not on PATH") from e
+        raise _SummariseError(f"claude CLI not found at {CLAUDE_CLI}") from e
     except subprocess.TimeoutExpired as e:
         raise _SummariseError(f"claude --print timed out after {timeout}s") from e
     if result.returncode != 0:
