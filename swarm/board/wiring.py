@@ -199,3 +199,46 @@ def dispatch(strategic_ask: str) -> BoardDecision:
     # Default to keeping qwen3:14b resident — board cycles are bursty.
     os.environ.setdefault("OLLAMA_KEEP_ALIVE", "10m")
     return asyncio.run(_run_board(strategic_ask))
+
+
+# ── Bubus typed-event surface (DORMANT — W1B-prep Task 3) ───────────────────
+# Replaces sentinel-string parsing once BUBUS_ENABLED=1. Until then this code
+# is import-only; no production path touches it. Cutover gated to
+# Tue 19 May 18:00 AEST per [[feedback-substrate-change-discipline]] #5.
+
+from bubus import BaseEvent, EventBus  # noqa: E402
+
+
+class BoardDispatchEvent(BaseEvent[str]):
+    """Typed event for board dispatch — replaces sentinel-string parsing."""
+    strategic_ask: str
+
+
+class PersonaOpinionEvent(BaseEvent[str]):
+    """Per-persona opinion emitted in response to a BoardDispatchEvent."""
+    persona: str
+    opinion: str
+
+
+def build_board_bus(wal_path) -> EventBus:
+    """Construct a bubus EventBus with WAL persistence at ``wal_path``."""
+    return EventBus(name="board_bus", wal_path=str(wal_path))
+
+
+def handle_dispatch(event: BoardDispatchEvent, bus: EventBus | None = None):
+    """Sync entrypoint — fires bubus dispatch if ``bus`` provided; else no-op.
+
+    DORMANT during W1B-prep. The full persona-loop handler wires in during
+    the Task 3 cutover phase (Tue 19 May 18:00 AEST).
+    """
+    if bus is None:
+        return None
+
+    async def _run():
+        fired = bus.dispatch(event)
+        await bus.wait_until_idle(timeout=30)
+        results = await fired.event_results_list(timeout=30, raise_if_none=False)
+        await bus.stop(clear=True)
+        return results
+
+    return asyncio.run(_run())
