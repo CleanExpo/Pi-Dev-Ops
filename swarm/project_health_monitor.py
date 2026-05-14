@@ -229,9 +229,17 @@ def _assign_specialist(failure_type: str, project_id: str) -> str:
 
 
 def _file_work_order_ticket(wo: WorkOrder) -> str:
-    """File a Linear ticket for this work order. Returns identifier or ''."""
+    """File a Linear ticket for this work order. Returns identifier or ''.
+
+    Dedupe-gated: identical (project_id, failure_type, severity) work
+    orders produce the same content hash and are skipped on subsequent
+    cron cycles within the 14d window. The work_order_id (which embeds
+    today's date + index) is deliberately excluded from the hash via the
+    body-prefix truncation in _dedupe.content_hash.
+    """
     try:
         from .margot_tools import propose_idea  # noqa: PLC0415
+        from ._dedupe import content_hash, already_filed, record_filed  # noqa: PLC0415
         title = f"[WorkOrder] {wo.project_id} — {wo.failure_type} ({wo.severity})"
         description = (
             f"**Project:** {wo.project_id}\n"
@@ -244,6 +252,14 @@ def _file_work_order_ticket(wo: WorkOrder) -> str:
             f"{date.today().isoformat()}. "
             f"Work order ID: {wo.work_order_id}*"
         )
+        h = content_hash(title, description)
+        existing = already_filed("phm", h)
+        if existing is not None:
+            log.info(
+                "[dedupe:phm] skipped existing hash=%s linear=%s",
+                h, existing,
+            )
+            return ""
         priority = {"critical": 1, "high": 2, "medium": 3, "low": 4}.get(
             wo.severity, 3
         )
@@ -254,7 +270,10 @@ def _file_work_order_ticket(wo: WorkOrder) -> str:
             project="Pi - Dev -Ops",
         )
         if r.get("status") == "created":
-            return r.get("identifier", "")
+            new_id = r.get("identifier", "")
+            record_filed("phm", h, new_id)
+            log.info("[dedupe:phm] filed new hash=%s linear=%s", h, new_id)
+            return new_id
     except Exception as exc:  # noqa: BLE001
         log.warning("health_monitor: ticket filing failed (%s)", exc)
     return ""

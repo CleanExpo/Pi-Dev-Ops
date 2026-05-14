@@ -241,22 +241,47 @@ def _dispatch_via_claude(job: ProductionJob) -> bool:
 
 
 def _file_linear_ticket(job: ProductionJob) -> str:
+    """File the production-job Linear ticket. Dedupe-gated.
+
+    The (business_id, asset_id) pair determines uniqueness — if the same
+    production job is dispatched again within 14 days (typically because
+    the manifest hasn't recorded `produced` yet), the second call returns
+    the empty string and writes nothing to Linear.
+    """
     try:
         from .margot_tools import propose_idea  # noqa: PLC0415
+        from ._dedupe import content_hash, already_filed, record_filed  # noqa: PLC0415
+        title = f"[Production] {job.business_id} — {job.asset_id.replace('_', ' ')}"
+        body = (
+            f"**Business:** {job.business_id}\n"
+            f"**Asset:** {job.asset_id}\n"
+            f"**Skill:** {job.skill}\n"
+            f"**Status:** {job.status}\n"
+            + (f"**Output:** {job.output_path}\n" if job.output_path else "")
+            + f"\n---\n*Production Coordinator — {date.today().isoformat()}*"
+        )
+        h = content_hash(title, body)
+        existing = already_filed("prod_coord", h)
+        if existing is not None:
+            log.info(
+                "[dedupe:prod_coord] skipped existing hash=%s linear=%s",
+                h, existing,
+            )
+            return ""
         r = propose_idea(
-            title=f"[Production] {job.business_id} — {job.asset_id.replace('_',' ')}",
-            description=(
-                f"**Business:** {job.business_id}\n"
-                f"**Asset:** {job.asset_id}\n"
-                f"**Skill:** {job.skill}\n"
-                f"**Status:** {job.status}\n"
-                + (f"**Output:** {job.output_path}\n" if job.output_path else "")
-                + f"\n---\n*Production Coordinator — {date.today().isoformat()}*"
-            ),
+            title=title,
+            description=body,
             priority=1 if job.business_id in ("restoreassist", "carsi") else 2,
             project="Pi - Dev -Ops",
         )
-        return r.get("identifier", "") if r.get("status") == "created" else ""
+        if r.get("status") == "created":
+            new_id = r.get("identifier", "")
+            record_filed("prod_coord", h, new_id)
+            log.info(
+                "[dedupe:prod_coord] filed new hash=%s linear=%s", h, new_id,
+            )
+            return new_id
+        return ""
     except Exception as exc:  # noqa: BLE001
         log.debug("production: linear ticket failed (%s)", exc)
         return ""

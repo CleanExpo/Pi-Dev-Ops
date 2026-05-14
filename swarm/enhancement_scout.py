@@ -149,27 +149,46 @@ def _build_proposals(raw_items: list[dict]) -> list[EnhancementProposal]:
 
 
 def _file_as_board_agenda(proposals: list[EnhancementProposal]) -> list[str]:
-    """File each enhancement as a Board agenda item in Linear."""
+    """File each enhancement as a Board agenda item in Linear.
+
+    Dedupe-gated: every proposal's (title, description) is hashed and
+    checked against the last 14d of filings before any Linear write.
+    See swarm/_dedupe.py — root-cause fix for the 2,500-duplicate flood.
+    """
     filed = []
     try:
         from .margot_tools import propose_idea  # noqa: PLC0415
+        from ._dedupe import content_hash, already_filed, record_filed  # noqa: PLC0415
         for p in proposals:
+            body = (
+                f"**Category:** {p.category}\n"
+                f"**Impact:** {p.impact} | **Effort:** {p.effort}\n"
+                f"**Source:** {p.source}\n\n"
+                f"{p.description}\n\n"
+                f"---\n*Enhancement Scout — {date.today().isoformat()}*"
+            )
+            h = content_hash(p.title, body)
+            existing = already_filed("scout", h)
+            if existing is not None:
+                log.info(
+                    "[dedupe:scout] skipped existing hash=%s linear=%s",
+                    h, existing,
+                )
+                continue
             r = propose_idea(
                 title=p.title,
-                description=(
-                    f"**Category:** {p.category}\n"
-                    f"**Impact:** {p.impact} | **Effort:** {p.effort}\n"
-                    f"**Source:** {p.source}\n\n"
-                    f"{p.description}\n\n"
-                    f"---\n*Enhancement Scout — {date.today().isoformat()}*"
-                ),
+                description=body,
                 priority=2 if p.impact == "high" else 3,
                 project="Pi - Dev -Ops",
             )
             if r.get("status") == "created":
-                p.linear_ticket_id = r.get("identifier", "")
-                filed.append(p.linear_ticket_id)
-                log.info("enhancement_scout: filed %s — %s", p.linear_ticket_id, p.title[:60])
+                new_id = r.get("identifier", "")
+                p.linear_ticket_id = new_id
+                filed.append(new_id)
+                record_filed("scout", h, new_id)
+                log.info(
+                    "[dedupe:scout] filed new hash=%s linear=%s", h, new_id,
+                )
     except Exception as exc:  # noqa: BLE001
         log.warning("enhancement_scout: filing failed (%s)", exc)
     return filed
