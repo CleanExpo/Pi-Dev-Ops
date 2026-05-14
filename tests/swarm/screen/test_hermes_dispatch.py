@@ -103,6 +103,63 @@ def test_kill_switch_short_circuits_without_subprocess(
     assert rows[0]["disabled"] is True
 
 
+def test_goal_prefix_prepends_ralph_loop_directive(
+    screen_module, monkeypatch,
+):
+    """When goal=... is passed, the -q argument starts with `/goal <text>\\n\\n`.
+
+    Hermes v0.13.0 Ralph-loop primitive (PR #18262) pins the agent's
+    objective across context compression — without it, long Hour-1 portal
+    or BotFather flows drift after ~6 turns.
+    """
+    mod, _, _ = screen_module
+
+    captured_cmd: list[Any] = []
+
+    async def fake_exec(*args, **kwargs):
+        captured_cmd.extend(args)
+        return _make_fake_proc(returncode=0, stdout=b"ok\nSession: 20260514_150000_x1\n")
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+
+    asyncio.run(mod.screen_dispatch(
+        "Click the Approve button in the Stripe Dashboard",
+        goal="Send Duncan's deposit Payment Link",
+    ))
+
+    cmd_list = list(captured_cmd)
+    q_idx = cmd_list.index("-q")
+    intent_value = cmd_list[q_idx + 1]
+    assert intent_value.startswith("/goal Send Duncan's deposit Payment Link"), (
+        f"expected /goal prefix, got: {intent_value!r}"
+    )
+    assert "Click the Approve button" in intent_value
+
+
+def test_no_goal_preserves_intent_unchanged(
+    screen_module, monkeypatch,
+):
+    """When goal is omitted, the intent string passes through unchanged."""
+    mod, _, _ = screen_module
+
+    captured_cmd: list[Any] = []
+
+    async def fake_exec(*args, **kwargs):
+        captured_cmd.extend(args)
+        return _make_fake_proc(returncode=0, stdout=b"ok\nSession: 20260514_150100_x2\n")
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+
+    intent_in = "Take a screenshot of the homepage"
+    asyncio.run(mod.screen_dispatch(intent_in))
+
+    cmd_list = list(captured_cmd)
+    q_idx = cmd_list.index("-q")
+    intent_value = cmd_list[q_idx + 1]
+    assert intent_value == intent_in
+    assert "/goal" not in intent_value
+
+
 def test_happy_path_parses_session_id_from_stdout(
     screen_module, monkeypatch,
 ):

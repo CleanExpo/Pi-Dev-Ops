@@ -131,6 +131,7 @@ def _is_disabled() -> bool:
 async def screen_dispatch(
     intent: str,
     *,
+    goal: str | None = None,
     toolsets: list[str] | None = None,
     max_turns: int = 12,
     timeout_s: float = 600.0,
@@ -143,6 +144,14 @@ async def screen_dispatch(
     the run. Every call (success, failure, disabled) is appended as a
     single JSONL row to ~/.hermes/screen_audit.jsonl.
 
+    `goal`: when provided, prepends a Hermes v0.13.0 `/goal` directive
+    (Ralph loop) to the intent. This pins the agent's objective across
+    context compression — without it, long multi-turn computer-use
+    flows lose the thread when Hermes' internal context summariser
+    kicks in. Strongly recommended for any flow that may exceed
+    ~6 turns (Hour-1 portal provisioning, Stripe Dashboard navigation,
+    BotFather mint sequences).
+
     Honours TAO_SCREEN_DISABLED=1 — when set the call short-circuits and
     no subprocess is spawned.
 
@@ -150,6 +159,11 @@ async def screen_dispatch(
     """
     used_toolsets = list(toolsets or DEFAULT_TOOLSETS)
     started_iso = _now_iso()
+
+    # Hermes v0.13.0 /goal Ralph-loop primitive (PR #18262). Pinning the
+    # objective stops the agent drifting under context compression.
+    if goal:
+        intent = f"/goal {goal}\n\n{intent}"
 
     # ── Kill-switch ────────────────────────────────────────────────────────
     if _is_disabled():
@@ -177,10 +191,17 @@ async def screen_dispatch(
     err: str | None = None
     timed_out = False
 
+    # Per-feature model override: computer_use must run on a model that
+    # reliably emits tool-call JSON (not free-form prose). llama-3.3-70b
+    # hallucinated JSON-as-code on 2026-05-13 → 90s hangs. Pin to
+    # anthropic/claude-sonnet-4-6 regardless of Hermes' default chat model
+    # (which Phill set to qwen/qwen3.6-plus on 2026-05-14).
     cmd = [
         HERMES_BIN, "chat",
         "-q", intent,
         "-t", ",".join(used_toolsets),
+        "-m", "claude-sonnet-4-6",
+        "--provider", "anthropic",
         "--yolo",
         "--max-turns", str(int(max_turns)),
     ]
