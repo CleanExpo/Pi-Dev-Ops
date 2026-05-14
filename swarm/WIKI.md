@@ -1,8 +1,8 @@
 # swarm — Wiki
 
-_Last updated: 2026-05-14T19:19:19Z (commits 4db5e03..07a791f)_
+_Last updated: 2026-05-14T21:56:42Z (commits b7b78b3..452c67f)_
 
 ## Recent changes
-- 07a791f — chore(cost): rollup Max-first migration sweep — 6 LLM callers (#227)
+- 452c67f — chore(swarm): atomic state writes via swarm/_atomic.py helper (#231)
 
 Not logged in · Please run /login
