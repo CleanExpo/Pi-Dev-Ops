@@ -151,5 +151,25 @@ tg "✅ *Pilot V1 cutover gate OPEN — sequence complete*
 
 NOT auto-merging. Your review unblocks production."
 
+# Step 7 — cleanup scratch Supabase branch (post-success only; failure path keeps it for forensics)
+log "Step 7: cleanup scratch Supabase branch (post-drill)"
+SCRATCH_BRANCH_ID="92d99d52-0c32-4ae0-8577-bd277184e4ba"
+SB_TOKEN="$(grep '^SUPABASE_ACCESS_TOKEN=' ~/.hermes/.env | cut -d= -f2- | tr -d '"' | head -1)"
+if [ -n "$SB_TOKEN" ]; then
+  if curl -fsS -X DELETE "https://api.supabase.com/v1/branches/${SCRATCH_BRANCH_ID}" \
+       -H "Authorization: Bearer ${SB_TOKEN}" >> "$LOG" 2>&1; then
+    log "  scratch branch deleted ✓ (no more billing)"
+    # Remove SCRATCH_DB_URL from env to prevent stale-URL drift in future drills
+    cp ~/.hermes/.env ~/.hermes/.env.bak
+    grep -v '^SCRATCH_DB_URL=' ~/.hermes/.env.bak > ~/.hermes/.env
+    rm ~/.hermes/.env.bak
+    log "  SCRATCH_DB_URL removed from ~/.hermes/.env"
+  else
+    log "  WARN: scratch branch delete failed — manual cleanup needed at https://supabase.com/dashboard/project/lksfwktwtmyznckodsau/branches"
+  fi
+else
+  log "  WARN: SUPABASE_ACCESS_TOKEN not in env — skipping branch cleanup, run manually"
+fi
+
 log "===== PILOT V1 CUTOVER SEQUENCE COMPLETE ====="
 exit 0
