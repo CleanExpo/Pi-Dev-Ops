@@ -43,6 +43,52 @@ from .safe_slug import validate_slug
 log = logging.getLogger("swarm.inbox.intake_router")
 
 AEST = timezone(timedelta(hours=10))
+
+
+# ── Pilot voice-reply branch (ADR 003 Discuss verb) ─────────────────────────
+def _maybe_handle_pilot_voice(update: dict) -> bool:
+    """Return True if the update was routed as a Pilot voice reply.
+
+    A Pilot voice reply is a Telegram message with a 'voice' object AND a
+    'reply_to_message' pointing to a card tracked in pilot_suggestion_messages.
+    StubTranscriber.NotImplementedError is caught; a fallback string is stored
+    so v1 is fully operational while the provider pick is deferred (ADR 004).
+    """
+    msg = update.get("message") or {}
+    voice_obj = msg.get("voice")
+    if not voice_obj:
+        return False
+    chat_id = msg.get("chat", {}).get("id")
+    reply_to_id = msg.get("reply_to_message", {}).get("message_id")
+    if not (chat_id and reply_to_id):
+        return False
+    import tempfile
+    from swarm.pilot import memory as mem_mod, voice as voice_mod
+    tenant_slug = os.environ.get("PILOT_TENANT_SLUG", "phill")
+    mem = mem_mod.Memory()
+    r = (mem.client.table("pilot_suggestion_messages")
+         .select("suggestion_id")
+         .eq("chat_id", chat_id).eq("message_id", reply_to_id)
+         .limit(1).execute())
+    rows = r.data or []
+    if not rows:
+        return False
+    suggestion_id = rows[0]["suggestion_id"]
+    with tempfile.TemporaryDirectory() as td:
+        audio_path = voice_mod.download_voice_file(
+            file_id=voice_obj["file_id"], dest_dir=Path(td),
+        )
+        try:
+            transcript = voice_mod.StubTranscriber().transcribe(audio_path.read_bytes())
+        except NotImplementedError:
+            transcript = "(transcription deferred — voice file stored)"
+    voice_mod.route_voice_reply(
+        suggestion_id=suggestion_id,
+        transcript=transcript,
+        tenant_slug=tenant_slug,
+        memory=mem,
+    )
+    return True
 TELEGRAM_API = "https://api.telegram.org"
 DEFAULT_TIMEOUT = 15
 LONG_POLL_TIMEOUT = 0  # 0 = short poll; cron calls every minute
@@ -273,6 +319,8 @@ def _is_authorized(bot: Bot, from_user_id: int) -> bool:
 # ── Main loop ───────────────────────────────────────────────────────────────
 def _process_update(bot: Bot, update: dict, *, dry_run: bool) -> tuple[int, str | None]:
     """Returns (1 if filed else 0, linear_issue_id or None)."""
+    if not dry_run and _maybe_handle_pilot_voice(update):
+        return 0, None
     message = update.get("message")
     if not message or not message.get("text"):
         return 0, None
