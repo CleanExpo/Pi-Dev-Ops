@@ -31,7 +31,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1777701600.8665202
+    "last_fired_at": 1778824815.379054
   },
   {
     "id": "scan-high-1200",
@@ -116,7 +116,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1777705250.6062038
+    "last_fired_at": 1778828404.900268
   },
   {
     "id": "monitor-1300",
@@ -160,7 +160,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744588800,
-    "last_fired_at": 1777698394.724483,
+    "last_fired_at": 1778821841.835309,
     "note": "Daily board sync \u2014 reviews in-flight PRs, evaluator scores, flagged risks"
   },
   {
