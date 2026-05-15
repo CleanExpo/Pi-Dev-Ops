@@ -1,6 +1,6 @@
 """Margot research queue — pending deep-research items as suggestions.
 
-Per ADR 001: NO local _VALID_PILLARS. Delegates to PillarCanonicaliser.
+Per ADR 001: no local valid-pillars set. Delegates to PillarCanonicaliser.
 """
 import os
 

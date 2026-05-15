@@ -1,6 +1,6 @@
 """Linear — stale in-flight epics via Composio CLI.
 
-Per ADR 001: NO local _TEAM_TO_PILLAR. Delegates to PillarCanonicaliser.
+Per ADR 001: no local team-to-pillar constant. Delegates to PillarCanonicaliser.
 'stale-in-flight' = >7d since updatedAt; distinct from github_source stale-green.
 """
 import subprocess
