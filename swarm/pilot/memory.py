@@ -81,3 +81,12 @@ class Memory:
              .limit(1)
              .execute())
         return bool(r.data)
+
+    # --- voice reply helper (Phase 4 / ADR 003 Discuss verb) ---
+
+    def record_voice_reply(self, *, suggestion_id: int,
+                           transcript: str, tenant_slug: str) -> None:
+        """Persist a voice transcript onto pilot_suggestions.body_json."""
+        self.client.table("pilot_suggestions").update({
+            "body_json": {"voice_transcript": transcript},
+        }).eq("id", suggestion_id).execute()
