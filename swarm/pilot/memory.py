@@ -82,6 +82,18 @@ class Memory:
              .execute())
         return bool(r.data)
 
+    # --- cross-cycle fingerprint dedup (Task 5.2) ---
+
+    def has_pending_fingerprint(self, fingerprint: str) -> bool:
+        """True if this fingerprint already has a pending suggestion this cycle."""
+        r = (self.client.table("pilot_suggestions")
+             .select("id")
+             .eq("fingerprint", fingerprint)
+             .eq("state", "pending")
+             .limit(1)
+             .execute())
+        return bool(r.data)
+
     # --- voice reply helper (Phase 4 / ADR 003 Discuss verb) ---
 
     def record_voice_reply(self, *, suggestion_id: int,

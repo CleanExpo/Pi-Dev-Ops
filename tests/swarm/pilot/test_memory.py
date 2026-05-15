@@ -84,6 +84,24 @@ def test_is_blocked_returns_false_when_no_rule():
         assert m.Memory().is_blocked("linear:RA-1234", "phill") is False
 
 
+# --- has_pending_fingerprint (Task 5.2) ---
+
+def test_has_pending_fingerprint_returns_true_when_row_exists():
+    c = MagicMock()
+    c.table.return_value.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = [
+        {"id": 1}
+    ]
+    with patch.object(m, "_client", return_value=c):
+        assert m.Memory().has_pending_fingerprint("linear:stale_epic:abc") is True
+
+
+def test_has_pending_fingerprint_returns_false_when_no_row():
+    c = MagicMock()
+    c.table.return_value.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value.data = []
+    with patch.object(m, "_client", return_value=c):
+        assert m.Memory().has_pending_fingerprint("linear:stale_epic:abc") is False
+
+
 # --- set_app_tenant RPC (ADR 004 §1) ---
 
 def test_init_calls_set_app_tenant_rpc():
