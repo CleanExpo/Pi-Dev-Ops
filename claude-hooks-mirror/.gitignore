@@ -1,0 +1,20 @@
+# Exclude runtime artefacts from the claude-hooks mirror — only source files
+# (Python + shell + plist) are version-controlled. State, caches, and per-session
+# logs change every minute and would create commit-spam.
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Per-session runtime state — recreated automatically
+state.json
+session_start.json
+progress_throttle.json
+last_error.log
+*.log
+
+# Editor cruft
+.DS_Store
+.vscode/
+.idea/
