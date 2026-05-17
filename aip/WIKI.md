@@ -1,8 +1,8 @@
 # aip — Wiki
 
-_Last updated: 2026-05-17T13:31:20Z (commits 5aa6959..bced3df)_
+_Last updated: 2026-05-17T13:39:50Z (commits 30261f0..1904276)_
 
 ## Recent changes
-- bced3df — feat(aip): seed data (2/3) (#249)
+- 1904276 — feat(aip): MCP server read-only (3/3) (#250)
 
 Not logged in · Please run /login
