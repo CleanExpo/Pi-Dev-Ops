@@ -17,9 +17,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 SUPABASE_URL = "https://lksfwktwtmyznckodsau.supabase.co"
-SERVICE_KEY = os.environ.get(
-    "SUPABASE_SERVICE_ROLE_KEY",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxrc2Z3a3R3dG15em5ja29kc2F1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjkxMTUwOSwiZXhwIjoyMDc4NDg3NTA5fQ.o7UTPiEHBK7h2gRvJHifVxp_k990zavnpqG-7RdiN7Q",
+SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+if not SERVICE_KEY:
+    raise SystemExit(
+        "ERROR: SUPABASE_SERVICE_ROLE_KEY env var is not set.\n"
+        "Set it via 1Password item js76udv2l2ncapgdt27reg65hi.\n"
+        "For one-shot use: SUPABASE_SERVICE_ROLE_KEY=... "
+        "python3 scripts/sync_harness_to_supabase.py\n"
+        "RA-3034: hardcoded fallback removed; key rotation is tracked in RA-2989."
 )
 HARNESS_DIR = Path("/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/.harness")
 
