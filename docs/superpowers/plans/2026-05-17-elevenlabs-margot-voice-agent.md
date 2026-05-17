@@ -991,7 +991,7 @@ Completed:
 - Modify: `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/app/server/main.py`
 - Modify: `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/pyproject.toml`
 
-- [ ] **Step 1: Add board-aware Kanban adapter test**
+- [x] **Step 1: Add board-aware Kanban adapter test**
 
 Append to `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/tests/test_kanban_adapter.py`:
 
@@ -1012,7 +1012,7 @@ def test_create_card_with_board_argv_shape(monkeypatch):
     assert args[-1] == "voice card"
 ```
 
-- [ ] **Step 2: Run adapter tests and confirm failure**
+- [x] **Step 2: Run adapter tests and confirm failure**
 
 Run:
 
@@ -1023,7 +1023,7 @@ python -m pytest tests/test_kanban_adapter.py -q
 
 Expected: fails with `TypeError: create_card() got an unexpected keyword argument 'board'`.
 
-- [ ] **Step 3: Extend adapter without changing defaults**
+- [x] **Step 3: Extend adapter without changing defaults**
 
 Modify `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/swarm/kanban_adapter.py`:
 
@@ -1074,7 +1074,7 @@ def create_card(
     return task_id
 ```
 
-- [ ] **Step 4: Add ElevenLabs Python dependency**
+- [x] **Step 4: Add ElevenLabs Python dependency**
 
 Modify `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/pyproject.toml` dependencies:
 
@@ -1082,7 +1082,7 @@ Modify `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/pyproject.toml` dependencies:
     "elevenlabs>=2.0",
 ```
 
-- [ ] **Step 5: Write webhook route tests**
+- [x] **Step 5: Write webhook route tests**
 
 Create `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/tests/test_elevenlabs_margot_voice_route.py`:
 
@@ -1212,7 +1212,7 @@ def test_webhook_persists_fallback_when_crm_fails(monkeypatch, tmp_path):
     assert Path(body["fallback_path"]).exists()
 ```
 
-- [ ] **Step 6: Run tests and confirm failure**
+- [x] **Step 6: Run tests and confirm failure**
 
 Run:
 
@@ -1223,7 +1223,7 @@ python -m pytest tests/test_elevenlabs_margot_voice_route.py tests/test_kanban_a
 
 Expected: route import fails until `app/server/routes/elevenlabs.py` exists.
 
-- [ ] **Step 7: Create webhook route**
+- [x] **Step 7: Create webhook route**
 
 Create `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/app/server/routes/elevenlabs.py`:
 
@@ -1407,7 +1407,7 @@ async def margot_post_call(
     )
 ```
 
-- [ ] **Step 8: Register route**
+- [x] **Step 8: Register route**
 
 Modify `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/app/server/main.py`:
 
@@ -1421,7 +1421,7 @@ Add after `app.include_router(margot.router)`:
 app.include_router(elevenlabs.router)
 ```
 
-- [ ] **Step 9: Verify backend tests**
+- [x] **Step 9: Verify backend tests**
 
 Run:
 
@@ -1433,7 +1433,7 @@ python -c "from app.server.main import app; print(type(app))"
 
 Expected: tests pass and import command prints `<class 'fastapi.applications.FastAPI'>`.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 Run:
 
@@ -1442,6 +1442,14 @@ cd /Users/phill-mac/Pi-CEO/Pi-Dev-Ops
 git add pyproject.toml app/server/routes/elevenlabs.py app/server/main.py swarm/kanban_adapter.py tests/test_elevenlabs_margot_voice_route.py tests/test_kanban_adapter.py
 git commit -m "feat: add elevenlabs margot voice webhook"
 ```
+
+Completed:
+- Pi-CEO commit: `0eff8a3 feat: add elevenlabs margot voice webhook`
+- Red adapter test: `create_card() got an unexpected keyword argument 'board'`
+- Red route test: `ImportError: cannot import name 'elevenlabs'`
+- Backend tests: `python -m pytest tests/test_margot_voice_packet.py tests/test_elevenlabs_margot_voice_route.py tests/test_kanban_adapter.py -q` -> 25 passed
+- Import check: `python -c "from app.server.main import app; print(type(app))"` -> `<class 'fastapi.applications.FastAPI'>`
+- Lockfile: `uv lock` resolved `elevenlabs v2.47.0`
 
 ---
 
