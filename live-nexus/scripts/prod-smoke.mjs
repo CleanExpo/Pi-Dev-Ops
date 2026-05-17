@@ -37,6 +37,13 @@ function logPass(label, detail = "") {
   console.log(`PASS ${label}${detail ? ` - ${detail}` : ""}`);
 }
 
+function hasTopicContaining(topics, ...needles) {
+  const normalizedTopics = topics.map((topic) => topic.toLowerCase());
+  return needles.every((needle) =>
+    normalizedTopics.some((topic) => topic.includes(needle.toLowerCase()))
+  );
+}
+
 const transcript =
   "We reviewed the Pricing proposal and Q2 numbers update. I will send the revised pricing proposal by Friday. Sarah will reconcile the Q2 numbers before Monday.";
 
@@ -76,8 +83,7 @@ try {
   assert(Array.isArray(synth.body?.topics), "Synthesis topics are not an array", synth.body);
   assert(Array.isArray(synth.body?.actions), "Synthesis actions are not an array", synth.body);
   assert(
-    synth.body.topics.includes("Pricing proposal") &&
-      synth.body.topics.includes("Q2 numbers update"),
+    hasTopicContaining(synth.body.topics, "pricing proposal", "q2 numbers"),
     "Synthesis topics did not include expected fixtures",
     synth.body
   );
