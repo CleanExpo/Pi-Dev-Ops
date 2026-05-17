@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.phillmcgurk.plaud-ingest</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/env</string>
+    <string>python3</string>
+    <string>/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/scripts/plaud_ingest.py</string>
+  </array>
+
+  <key>StartInterval</key>
+  <integer>300</integer>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/phill-mac/.hermes/logs/plaud-ingest.out</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/phill-mac/.hermes/logs/plaud-ingest.err</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+    <key>HOME</key>
+    <string>/Users/phill-mac</string>
+  </dict>
+</dict>
+</plist>

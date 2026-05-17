@@ -28,6 +28,10 @@ import { z } from 'zod';
 
 // Locked palette.
 const NAVY = '#1C2E47';
+// v2 timing fix — tail buffer at end of every scene + gap between scenes
+// to fix v1 cutoffs (voiceover/text clipped at scene boundaries).
+const TAIL_FRAMES = 12; // 0.4s @ 30fps — held content after VO ends
+const GAP_FRAMES = 9;   // 0.3s @ 30fps — navy fade-through between scenes
 const WARM = '#8A6B4E';
 const LIGHT = '#D4A574';
 const DARK = '#050505';
@@ -1132,16 +1136,16 @@ const Scene10Lockup: React.FC = () => (
 export const defaultRaWave1Props: RaWave1Props = {
   brand: 'ra',
   storyboard: [
-    { sceneId: 'scene-01-hook', durationSec: 3, voiceover: '', onScreenText: '' },
-    { sceneId: 'scene-02-problem-montage', durationSec: 12, voiceover: '', onScreenText: '' },
-    { sceneId: 'scene-03-pivot-demo1', durationSec: 10, voiceover: '', onScreenText: '' },
-    { sceneId: 'scene-04-demo-storage-byok', durationSec: 10, voiceover: '', onScreenText: '' },
-    { sceneId: 'scene-05-demo-inbound', durationSec: 10, voiceover: '', onScreenText: '' },
-    { sceneId: 'scene-06-positioning', durationSec: 7, voiceover: '', onScreenText: '' },
-    { sceneId: 'scene-07-proof-numbers', durationSec: 6, voiceover: '', onScreenText: '' },
-    { sceneId: 'scene-08-australian-built', durationSec: 7, voiceover: '', onScreenText: '' },
-    { sceneId: 'scene-09-cta-spoken', durationSec: 7, voiceover: '', onScreenText: '' },
-    { sceneId: 'scene-10-silent-lockup', durationSec: 3, voiceover: '', onScreenText: '' },
+    { sceneId: 'scene-01-hook', durationSec: 3, voiceover: '', onScreenText: '', voiceoverAudioPath: 'audio/ra-wave-1-launch-poc/scene-0.mp3' },
+    { sceneId: 'scene-02-problem-montage', durationSec: 13.8, voiceover: '', onScreenText: '', voiceoverAudioPath: 'audio/ra-wave-1-launch-poc/scene-1.mp3' },
+    { sceneId: 'scene-03-pivot-demo1', durationSec: 13.1, voiceover: '', onScreenText: '', voiceoverAudioPath: 'audio/ra-wave-1-launch-poc/scene-2.mp3' },
+    { sceneId: 'scene-04-demo-storage-byok', durationSec: 13, voiceover: '', onScreenText: '', voiceoverAudioPath: 'audio/ra-wave-1-launch-poc/scene-3.mp3' },
+    { sceneId: 'scene-05-demo-inbound', durationSec: 10, voiceover: '', onScreenText: '', voiceoverAudioPath: 'audio/ra-wave-1-launch-poc/scene-4.mp3' },
+    { sceneId: 'scene-06-positioning', durationSec: 10.5, voiceover: '', onScreenText: '', voiceoverAudioPath: 'audio/ra-wave-1-launch-poc/scene-5.mp3' },
+    { sceneId: 'scene-07-proof-numbers', durationSec: 11, voiceover: '', onScreenText: '', voiceoverAudioPath: 'audio/ra-wave-1-launch-poc/scene-6.mp3' },
+    { sceneId: 'scene-08-australian-built', durationSec: 7, voiceover: '', onScreenText: '', voiceoverAudioPath: 'audio/ra-wave-1-launch-poc/scene-7.mp3' },
+    { sceneId: 'scene-09-cta-spoken', durationSec: 7, voiceover: '', onScreenText: '', voiceoverAudioPath: 'audio/ra-wave-1-launch-poc/scene-8.mp3' },
+    { sceneId: 'scene-10-silent-lockup', durationSec: 3, voiceover: '', onScreenText: '' }, // scene 10 silent by design
   ],
 };
 
@@ -1164,18 +1168,23 @@ export const RaWave1Launch: React.FC<RaWave1Props> = ({ storyboard }) => {
   const { fps } = useVideoConfig();
   let cursor = 0;
   return (
-    <AbsoluteFill style={{ backgroundColor: DARK }}>
+    // v2 — outer background NAVY (not DARK) so the GAP_FRAMES between
+    // scenes reads as a brief navy fade-through, not a black flash.
+    <AbsoluteFill style={{ backgroundColor: NAVY }}>
       {storyboard.map((scene, i) => {
         const Component = SCENE_ORDER[i];
         if (!Component) return null;
         const start = cursor;
-        const dur = Math.max(1, Math.round(scene.durationSec * fps));
-        cursor += dur;
+        const baseDur = Math.max(1, Math.round(scene.durationSec * fps));
+        // Scene Sequence runs for baseDur + TAIL_FRAMES so content holds after VO ends.
+        const seqDur = baseDur + TAIL_FRAMES;
+        // Cursor advances by seqDur + GAP_FRAMES so next scene starts after the breath.
+        cursor += seqDur + GAP_FRAMES;
         return (
           <Sequence
             key={scene.sceneId}
             from={start}
-            durationInFrames={dur}
+            durationInFrames={seqDur}
             name={scene.sceneId}
           >
             <Component />

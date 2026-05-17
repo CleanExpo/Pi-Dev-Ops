@@ -1,0 +1,42 @@
+{
+  "project_key": "restoreassist",
+  "blocked_reason": "Pi-CEO MCP returned LINEAR_API_KEY not set on 2026-05-17.",
+  "labels": ["video", "restoreassist", "ra-wave-1", "ai-production"],
+  "issues": [
+    {
+      "title": "RA Wave 1: generate and approve remaining OpenAI Max keyframes",
+      "priority": 2,
+      "status": "todo",
+      "labels": ["video", "openai-max", "creative-production"],
+      "description": "Generate the remaining approved keyframes from `remotion-studio/briefs/ra-wave-1-prize-upgrade/09-openai-max-keyframe-runbook.md`.\n\nCurrent approved keyframe:\n- Scene 2 problem montage: `generated-keyframes/scene-02-problem-montage-openai-max.png`\n\nGenerate next, in order:\n1. Scene 6 Australian-built identity\n2. Scene 1 silent hook\n3. Scene 3 product-truth transition plate\n4. Scene 4 BYO storage proof plate\n5. Scene 8-10 CTA thumbnail/background\n\nAcceptance:\n- no fake product UI\n- no readable private data\n- no recognisable faces\n- no generated legal/standards text\n- each approved image copied into `generated-keyframes/`\n- `12-generated-keyframe-log.md` updated with provenance\n- commit and push after each approved image batch"
+    },
+    {
+      "title": "RA Wave 1: source first Artlist licensed asset pack",
+      "priority": 2,
+      "status": "todo",
+      "labels": ["video", "artlist", "licensing"],
+      "description": "Use Artlist.io credits only, per `remotion-studio/briefs/ra-wave-1-prize-upgrade/10-artlist-production-picklist.md`.\n\nFirst downloads only:\n1. one music bed\n2. one transition whoosh family\n3. one tactile UI click\n4. two restoration/admin texture clips\n5. one Australian trade-business texture clip\n6. one forensic/data-custody texture clip\n\nAcceptance:\n- commercial/social license confirmed for every asset\n- asset IDs, titles, URLs, license terms, download timestamp, and intended use recorded in `07-licensing-proof-sheet.md`\n- no visible third-party logos, addresses, licence plates, claim forms, insurer branding, or customer data\n- commit and push proof sheet update"
+    },
+    {
+      "title": "RA Wave 1: assemble AI-editor timeline from approved keyframes and Artlist assets",
+      "priority": 3,
+      "status": "backlog",
+      "labels": ["video", "editing", "market-ready"],
+      "description": "Build the next-stage edit using `remotion-studio/briefs/ra-wave-1-prize-upgrade/11-next-stage-edit-decision-list.json`.\n\nInputs:\n- original Remotion render is reference only\n- approved OpenAI Max keyframes\n- licensed Artlist assets with proof recorded\n- verified product UI/reference frames only\n\nAcceptance:\n- 1:1 LinkedIn master timeline created\n- real product UI composited only from verified source frames\n- exact text added in editor overlays, not generated image text\n- captions readable on mobile\n- music ducks under all voiceover\n- final duration/audio delta under 100ms"
+    },
+    {
+      "title": "RA Wave 1: run final product-truth, rights, and market QA",
+      "priority": 2,
+      "status": "backlog",
+      "labels": ["video", "qa", "rights"],
+      "description": "Run the final QA gate before publish using `08-final-video-qa-report.json` and the proof sheet.\n\nAcceptance:\n- no hallucinated UI, claims, legal text, standards text, or product behavior\n- no unclear asset rights\n- no leaked customer/private data\n- no warped logo/text\n- first frame works silent\n- captions readable on mobile\n- audio/video duration delta under 100ms\n- QA report committed and pushed"
+    },
+    {
+      "title": "RA Wave 1: package launch exports and thumbnail",
+      "priority": 3,
+      "status": "backlog",
+      "labels": ["video", "distribution", "launch"],
+      "description": "Package the approved market-ready video for launch distribution.\n\nAcceptance:\n- 1:1 LinkedIn master export\n- 9:16 cutdown plan or export\n- thumbnail/background based on approved CTA keyframe, with real logo/text added in editor\n- filename, duration, format, and target channel recorded in `06-platform-packaging.md`\n- final files linked from the shutdown handoff or release note"
+    }
+  ]
+}

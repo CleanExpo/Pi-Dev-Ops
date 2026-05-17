@@ -120,13 +120,17 @@ def create_card(
     parent_ids: list[str] | None = None,
     skills: list[str] | None = None,
     triage: bool = False,
+    board: str | None = None,
 ) -> str | None:
     """Create a kanban card. Returns task_id or None on failure.
 
     Default tenant is ``pi-ceo`` so Pi-CEO cards don't pollute other Hermes
     profiles' boards.
     """
-    args: list[str] = ["kanban", "create", "--json"]
+    args: list[str] = ["kanban"]
+    if board:
+        args.extend(["--board", board])
+    args.extend(["create", "--json"])
     if body:
         args.extend(["--body", body])
     if assignee:

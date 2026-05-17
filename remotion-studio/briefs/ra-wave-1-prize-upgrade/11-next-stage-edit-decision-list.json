@@ -1,0 +1,85 @@
+{
+  "job_id": "ra-2026-05-15-wave-1-launch",
+  "status": "production-prep-ready",
+  "reference_render": "remotion-studio/output/ra-wave-1-launch-poc.mp4",
+  "reference_contact_sheet": "remotion-studio/briefs/ra-wave-1-prize-upgrade/reference-contact-sheet.jpg",
+  "reference_frames_dir": "remotion-studio/briefs/ra-wave-1-prize-upgrade/reference-frames",
+  "primary_tools": {
+    "source_stills": "OpenAI Max",
+    "licensed_assets": "Artlist.io credits",
+    "assembly": "existing/free editor path until a paid editor is verified as already available"
+  },
+  "edit_blocks": [
+    {
+      "id": "hook",
+      "source": "OpenAI keyframe 01 plus Artlist admin texture",
+      "duration_seconds": 3,
+      "motion": "slow push, very light parallax",
+      "overlay_text": "Finished the dry-out at three. Paperwork kept you till nine.",
+      "qa": ["text readable on mobile", "no generated private data", "no fake UI"]
+    },
+    {
+      "id": "problem_montage",
+      "source": "OpenAI keyframe 02 plus two Artlist restoration/admin texture clips",
+      "duration_seconds": 13,
+      "motion": "three restrained cuts, no hype pacing",
+      "overlay_text": "Photos. Notes. Compliance. Storage. Report.",
+      "qa": ["restoration-specific", "no recognisable faces", "no visible third-party logos"]
+    },
+    {
+      "id": "product_truth_1",
+      "source": "verified UI frames from Remotion/reference screenshots",
+      "duration_seconds": 13,
+      "motion": "clean composite with factual screenshot locked",
+      "overlay_text": "AI drafts. You confirm.",
+      "qa": ["real UI only", "button labels unchanged", "no warped text"]
+    },
+    {
+      "id": "storage_proof",
+      "source": "OpenAI keyframe 04 plus verified UI metadata overlays",
+      "duration_seconds": 13,
+      "motion": "forensic reveal, no fake dashboard",
+      "overlay_text": "SHA-256. UTC. GPS. Your storage.",
+      "qa": ["exact text added by editor", "no generated legal citations", "metadata remains readable"]
+    },
+    {
+      "id": "inbound_job",
+      "source": "verified UI frames with tactile SFX",
+      "duration_seconds": 10,
+      "motion": "tap moment lands with subtle click",
+      "overlay_text": "Accept & Start. No re-typing.",
+      "qa": ["no invented customer data", "tap target clear", "audio does not mask narration"]
+    },
+    {
+      "id": "australian_built",
+      "source": "OpenAI keyframe 05 plus one Artlist Australian trade-business texture",
+      "duration_seconds": 10,
+      "motion": "slow composed identity hold",
+      "overlay_text": "Australian-built. Brisbane-built.",
+      "qa": ["no tourist cliche", "trade-business credible", "no visible licence plates"]
+    },
+    {
+      "id": "proof_numbers",
+      "source": "editor text overlays over restrained texture plate",
+      "duration_seconds": 11,
+      "motion": "numbers land one at a time with soft impact",
+      "overlay_text": "0 app-switches. S500 §7.1-§12.3. 100% data in storage you control.",
+      "qa": ["exact punctuation preserved", "readable at 1:1 mobile size", "no generated text"]
+    },
+    {
+      "id": "cta",
+      "source": "OpenAI keyframe 06 with real logo/text added in editor",
+      "duration_seconds": 7,
+      "motion": "clean brand lockup, no extra decoration",
+      "overlay_text": "Try RestoreAssist free. restoreassist.app",
+      "qa": ["URL correct", "thumbnail-safe", "logo not generated"]
+    }
+  ],
+  "hard_gates": [
+    "license proof recorded before any Artlist asset enters final timeline",
+    "all product UI is verified source material",
+    "no generated readable claims unless added as editor text",
+    "final audio/video duration delta under 100ms",
+    "captions readable on mobile"
+  ]
+}

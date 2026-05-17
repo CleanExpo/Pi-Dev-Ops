@@ -1,0 +1,17 @@
+{
+  "job_id": "ra-2026-05-15-wave-1-launch",
+  "status": "template",
+  "checks": [
+    {"id": "render_integrity", "status": "pending", "requirement": "MP4 opens; audio and video streams present"},
+    {"id": "audio_duration", "status": "pending", "requirement": "audio is not longer than video by more than 100ms"},
+    {"id": "loudness", "status": "pending", "requirement": "integrated loudness near -14 LUFS; true peak <= -1 dBTP"},
+    {"id": "caption_readability", "status": "pending", "requirement": "captions readable on mobile"},
+    {"id": "hook_muted", "status": "pending", "requirement": "first 3s works without sound"},
+    {"id": "product_truth", "status": "pending", "requirement": "UI/product proof is accurate and readable"},
+    {"id": "data_safety", "status": "pending", "requirement": "no real customer data or private identifiers visible"},
+    {"id": "licensing", "status": "pending", "requirement": "all external assets have proof records"},
+    {"id": "grade", "status": "pending", "requirement": "no crushed blacks/clipped highlights; RA palette preserved"},
+    {"id": "cta", "status": "pending", "requirement": "single CTA visible and audible"}
+  ],
+  "publish_verdict": "pending"
+}
