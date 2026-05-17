@@ -1,0 +1,37 @@
+{
+  "job_id": "ra-2026-05-15-wave-1-launch",
+  "sound_world": "restrained, confident, forensic, Australian-built",
+  "layers": {
+    "voiceover": {
+      "source": "existing scene MP3s",
+      "treatment": ["de-ess if needed", "light compression", "small low-mid warmth", "room-tone bed"]
+    },
+    "music": {
+      "mood": "low tension to confident release",
+      "tempo": "slow-to-mid, not hype",
+      "licensing": "Artlist/Audio Network/owned library only; no unclear AI music"
+    },
+    "sfx": [
+      {"moment": "scene transitions", "type": "restrained whoosh"},
+      {"moment": "Accept & Start tap", "type": "UI click/tap"},
+      {"moment": "proof numbers", "type": "soft impact sting"},
+      {"moment": "final lockup", "type": "brand sting under 1s"}
+    ],
+    "ambience": {
+      "scene_2": "subtle late-night office/room tone",
+      "product_scenes": "very light digital ambience, almost subliminal"
+    }
+  },
+  "mix_targets": {
+    "integrated_lufs": -14,
+    "true_peak_db_tp": -1,
+    "sample_rate_hz": 48000,
+    "voice_priority": "voice remains intelligible on phone and laptop speakers"
+  },
+  "qa": [
+    "music ducks under every voiceover line",
+    "no SFX masks words",
+    "no obvious stock music watermark or content-ID risk",
+    "final MP4 has audio and video duration within 100ms"
+  ]
+}
