@@ -1,8 +1,8 @@
 # scripts — Wiki
 
-_Last updated: 2026-05-14T08:51:45Z (commits 468e9d4..22646f8)_
+_Last updated: 2026-05-17T11:31:13Z (commits 838e758..b34e3c6)_
 
 ## Recent changes
-- 22646f8 — feat(hermes): mirror local plugins/ into git + add sync script (#225)
+- b34e3c6 — Feat/hermes plugin mirror (#240)
 
 Not logged in · Please run /login

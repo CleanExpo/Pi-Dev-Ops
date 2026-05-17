@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-05-14T19:19:19Z (commits 4db5e03..07a791f)_
+_Last updated: 2026-05-17T11:31:13Z (commits 838e758..b34e3c6)_
 
 ## Recent changes
-- 07a791f — chore(cost): rollup Max-first migration sweep — 6 LLM callers (#227)
+- b34e3c6 — Feat/hermes plugin mirror (#240)
 
 Not logged in · Please run /login

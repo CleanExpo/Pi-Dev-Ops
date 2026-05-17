@@ -1,8 +1,8 @@
 # skills — Wiki
 
-_Last updated: 2026-05-09T17:54:08Z (commits 44b4be4..d259e2d)_
+_Last updated: 2026-05-17T11:31:13Z (commits 838e758..b34e3c6)_
 
 ## Recent changes
-- d259e2d — ops: skills, swarm agents, preview-canvas, brand configs, scripts [harness sync] (#202)
+- b34e3c6 — Feat/hermes plugin mirror (#240)
 
 Not logged in · Please run /login
