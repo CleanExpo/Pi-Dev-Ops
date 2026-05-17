@@ -68,33 +68,6 @@ def _log_sprinkle_event(event: dict[str, Any]) -> None:
         pass
 
 
-def _run_provider_call_blocking(prompt: str, role: str, timeout_s: int) -> tuple[int, str, float, str | None, Any]:
-    """Call provider_router.run_via_provider from sync context — safe whether or
-    not an event loop is already running (this function is called from
-    TriageEngine.triage() which is invoked under the async cron loop).
-
-    Returns (rc, text, cost_usd, error, ProviderModel).
-    """
-    import asyncio  # noqa: PLC0415
-    import concurrent.futures  # noqa: PLC0415
-    from app.server.provider_router import run_via_provider, select_provider_model  # noqa: PLC0415
-
-    pm = select_provider_model(role)
-
-    async def _go() -> tuple[int, str, float, str | None]:
-        return await run_via_provider(prompt=prompt, role=role, timeout_s=timeout_s)
-
-    try:
-        # If there's a running loop, we're in async context — delegate to a thread
-        asyncio.get_running_loop()
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-            rc, text, cost, error = ex.submit(asyncio.run, _go()).result(timeout=timeout_s + 5)
-    except RuntimeError:
-        # No running loop — safe to use asyncio.run directly
-        rc, text, cost, error = asyncio.run(_go())
-    return rc, text, cost, error, pm
-
-
 def _claude_triage(project_id: str, finding: Finding) -> dict[str, Any] | None:
     """Pre-classify a critical finding via the cheap-tier LLM (Ollama Gemma 4
     → OpenRouter fallback). Returns dict or None on any failure.
@@ -114,7 +87,9 @@ def _claude_triage(project_id: str, finding: Finding) -> dict[str, Any] | None:
     )
 
     try:
-        rc, raw, _cost, error, pm = _run_provider_call_blocking(prompt, _TRIAGE_ROLE, _TRIAGE_TIMEOUT_S)
+        from app.server.provider_router import run_via_provider_blocking  # noqa: PLC0415
+
+        rc, raw, _cost, error, pm = run_via_provider_blocking(prompt, _TRIAGE_ROLE, _TRIAGE_TIMEOUT_S)
     except Exception as exc:  # noqa: BLE001
         _log_sprinkle_event({
             "sprinkle": "triage", "outcome": "router_unavailable",

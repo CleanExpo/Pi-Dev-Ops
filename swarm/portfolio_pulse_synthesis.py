@@ -19,6 +19,7 @@ Design:
     with role ``portfolio.synthesis`` (registered as "top" tier).
 """
 from __future__ import annotations
+from app.server.provider_router import run_via_provider_blocking
 
 import asyncio
 import json
@@ -207,34 +208,6 @@ def _format_triggers(items: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def _run_provider_call_blocking(prompt: str, role: str, timeout_s: int) -> tuple[int, str, float, str | None, Any]:
-    """Call provider_router.run_via_provider from sync context — safe whether
-    or not an event loop is already running.
-
-    TODO(RA-2995 cleanup): consolidate this helper into provider_router.py
-    after the remaining sprinkle (board_prebrief) lands — it'll then exist
-    in 4 files with identical implementations.
-
-    Returns (rc, text, cost_usd, error, ProviderModel).
-    """
-    import asyncio  # noqa: PLC0415
-    import concurrent.futures  # noqa: PLC0415
-    from app.server.provider_router import run_via_provider, select_provider_model  # noqa: PLC0415
-
-    pm = select_provider_model(role)
-
-    async def _go() -> tuple[int, str, float, str | None]:
-        return await run_via_provider(prompt=prompt, role=role, timeout_s=timeout_s)
-
-    try:
-        asyncio.get_running_loop()
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-            rc, text, cost, error = ex.submit(asyncio.run, _go()).result(timeout=timeout_s + 5)
-    except RuntimeError:
-        rc, text, cost, error = asyncio.run(_go())
-    return rc, text, cost, error, pm
-
-
 def _extract_board_triggers(
     synthesis: str, per_project_pulses: dict[str, "PulseResult"],
 ) -> str:
@@ -255,7 +228,7 @@ def _extract_board_triggers(
     )
 
     try:
-        rc, raw, _cost, error, pm = _run_provider_call_blocking(prompt, _EXTRACT_ROLE, _EXTRACT_TIMEOUT_S)
+        rc, raw, _cost, error, pm = run_via_provider_blocking(prompt, _EXTRACT_ROLE, _EXTRACT_TIMEOUT_S)
     except Exception as exc:  # noqa: BLE001
         _log_sprinkle_event({
             "sprinkle": "portfolio_pulse_extract",

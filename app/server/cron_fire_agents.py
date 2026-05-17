@@ -99,40 +99,6 @@ def _fetch_urgent_high_tickets() -> list[dict]:
         return []
 
 
-def _run_provider_call_blocking(prompt: str, role: str, timeout_s: int, log):  # noqa: ANN201
-    # Returns (rc:int, text:str, cost_usd:float, error:str|None, pm:ProviderModel).
-    # Untyped return to avoid pulling ProviderModel into this module's typing
-    # surface — this helper is duplicated across 4 files and will be
-    # consolidated into provider_router.py after RA-2995 lands all 5 sprinkles.
-    """Call provider_router.run_via_provider from sync context — safe whether
-    or not an event loop is already running. _generate_board_prebrief is
-    invoked from _fire_board_meeting_trigger (async), so the
-    ThreadPoolExecutor path is the common case here.
-
-    TODO(RA-2995 cleanup): consolidate this helper (also duplicated in
-    triage.py, feedback_loop.py, portfolio_pulse_synthesis.py) into
-    provider_router.py as a single shared utility.
-
-    Returns (rc, text, cost_usd, error, ProviderModel).
-    """
-    import asyncio  # noqa: PLC0415
-    import concurrent.futures  # noqa: PLC0415
-    from app.server.provider_router import run_via_provider, select_provider_model  # noqa: PLC0415
-
-    pm = select_provider_model(role)
-
-    async def _go() -> tuple[int, str, float, str | None]:
-        return await run_via_provider(prompt=prompt, role=role, timeout_s=timeout_s)
-
-    try:
-        asyncio.get_running_loop()
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-            rc, text, cost, error = ex.submit(asyncio.run, _go()).result(timeout=timeout_s + 5)
-    except RuntimeError:
-        rc, text, cost, error = asyncio.run(_go())
-    return rc, text, cost, error, pm
-
-
 def _generate_board_prebrief(log) -> str:
     """Build a 5-bullet pre-brief via cheap-tier LLM (Ollama Gemma 4 →
     OpenRouter fallback). Returns "" on any failure — board meeting still
@@ -176,7 +142,9 @@ def _generate_board_prebrief(log) -> str:
     )
 
     try:
-        rc, text, _cost, error, pm = _run_provider_call_blocking(prompt, _PREBRIEF_ROLE, _PREBRIEF_TIMEOUT_S, log)
+        from app.server.provider_router import run_via_provider_blocking  # noqa: PLC0415
+
+        rc, text, _cost, error, pm = run_via_provider_blocking(prompt, _PREBRIEF_ROLE, _PREBRIEF_TIMEOUT_S, log=log)
     except Exception as exc:  # noqa: BLE001
         log.warning("Board pre-brief router call raised: %s — board meeting will run without it", exc)
         _sprinkle_log({
