@@ -1,8 +1,8 @@
 # swarm — Wiki
 
-_Last updated: 2026-05-11T11:08:31Z (commits c94c72a..f379782)_
+_Last updated: 2026-05-17T13:16:31Z (commits ef893c6..9d238ca)_
 
 ## Recent changes
-- f379782 — Merge pull request #212 from CleanExpo/feat/sprinkle-pulse-gemma4-2026-05-11
+- 9d238ca — fix(infra): consolidate provider_router helper + wire kpi_watchdog cron + jsonl rotator (RA-3003, RA-3007) (#215)
 
 Not logged in · Please run /login

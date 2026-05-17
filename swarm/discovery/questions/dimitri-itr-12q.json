@@ -1,0 +1,155 @@
+{
+  "$schema": "Unite-Group client discovery 12Q v1",
+  "client_slug": "dimitri-itr",
+  "client_display_name": "Duncan Perkins — Dimitri ITR Platform",
+  "version": "2026-05-15.v1",
+  "delivery": {
+    "channel": "telegram-bot",
+    "bot_username": "@PiCEODimitriItrBot",
+    "magic_link_target": "https://unite-group.in/clients/dimitri-itr/discovery/start",
+    "resume_supported": true,
+    "expected_duration_min": 15,
+    "deadline_days_from_kickoff": 5
+  },
+  "voice": {
+    "founder_first_person": true,
+    "tone": ["direct", "warm", "decision-forcing"],
+    "australian_english": true
+  },
+  "groups": [
+    {
+      "id": "product-vision",
+      "title": "Product Vision",
+      "intent": "Lock the elevator pitch and the user model before architecture decisions cascade.",
+      "questions": [
+        {
+          "id": "dimitri-q1",
+          "prompt": "Hey Duncan — when a user clicks the Dimitri button on a partner site, what's the first thing they should see — a Dimitri-branded welcome, the ATO MyGov OAuth flow direct, or a partner-branded intro screen?",
+          "constrained_replies": ["Dimitri-branded", "ATO OAuth direct", "Partner-branded"],
+          "tmm_prompt": "If partner-branded, how much customisation per partner — colours only, full theme, or fully bespoke?",
+          "downstream_decision": "white-label-contract-template",
+          "downstream_impact": "Drives partner-onboarding contract template (white-label vs co-brand vs full-takeover)."
+        },
+        {
+          "id": "dimitri-q2",
+          "prompt": "Who is Dimitri primarily for — the end taxpayer (consumer), the partner's professional user (broker / agent), or both with different views?",
+          "constrained_replies": ["End taxpayer", "Professional user", "Both with different views"],
+          "tmm_prompt": "If 'both with different views', does the professional ever see the taxpayer's session live, or only the final packet?",
+          "downstream_decision": "role-based-access-model",
+          "downstream_impact": "Drives RBAC architecture + two-sided vs one-sided UX. 'Both' adds ~30% to Sprint 1 scope."
+        },
+        {
+          "id": "dimitri-q3",
+          "prompt": "Give me one sentence — \"Dimitri is like X but Y\" — that we can lock as the elevator pitch from Day 1.",
+          "constrained_replies": null,
+          "tmm_prompt": null,
+          "free_text": true,
+          "downstream_decision": "hero-copy-and-investor-deck-framing",
+          "downstream_impact": "Locks website hero copy + Day-14 demo voiceover script + investor-deck framing."
+        }
+      ]
+    },
+    {
+      "id": "must-haves",
+      "title": "Must-Haves",
+      "intent": "Define the MVP gate; missing any of these kills partner network sign-on.",
+      "questions": [
+        {
+          "id": "dimitri-q4",
+          "prompt": "Which ATO data fields are non-negotiable for MVP — full pre-fill (income + deductions + offsets + medicare + HELP), or just the income block?",
+          "constrained_replies": ["Full pre-fill", "Income block only", "Income + deductions, defer offsets"],
+          "tmm_prompt": "If full pre-fill, do we need to handle private-health rebate edge cases at launch?",
+          "downstream_decision": "ato-api-integration-scope-sprint-1",
+          "downstream_impact": "Full pre-fill is ~3x the integration surface. Determines Sprint 1 timeline."
+        },
+        {
+          "id": "dimitri-q5",
+          "prompt": "Lodgement to which Tax Agent system is mandatory at launch — XPM (Xero Practice Manager) only, or also Reckon Elite / MYOB AE / Thomson Reuters Onesource?",
+          "constrained_replies": ["XPM only", "XPM + one other", "All four"],
+          "tmm_prompt": "If 'one other', which one and why — biggest current partner base?",
+          "downstream_decision": "tax-agent-integration-partners",
+          "downstream_impact": "Drives Sprint 2-3 integration partner outreach + commercial-terms negotiation. XPM-only is fastest path; others double timeline."
+        },
+        {
+          "id": "dimitri-q6",
+          "prompt": "What's the must-have payment gate before NOAH (post-lodgement agent) triggers — Stripe upfront, broker-billed escrow at lodgement, or post-pay after Notice of Assessment?",
+          "constrained_replies": ["Stripe upfront", "Broker-billed escrow", "Post-pay"],
+          "tmm_prompt": "If broker-billed, who owns the receivable risk — the broker, the partner, or us?",
+          "downstream_decision": "payment-rail-and-fraud-model",
+          "downstream_impact": "Drives payment rail integration + fraud / chargeback model + cash-flow timeline for Duncan's business."
+        }
+      ]
+    },
+    {
+      "id": "wish-list",
+      "title": "Wish List",
+      "intent": "Shape the 12-month roadmap so we build the right second product, not the second-easiest.",
+      "questions": [
+        {
+          "id": "dimitri-q7",
+          "prompt": "Beyond ITR — DIY Home Loans next, or something else from your list (financial planner workflow, lawyer estate-document drafter, payroll-tax employer flow)?",
+          "constrained_replies": ["DIY Home Loans", "Financial planner workflow", "Lawyer estate", "Payroll tax employer flow", "Something else"],
+          "tmm_prompt": "If 'something else', what — keep it to one sentence.",
+          "downstream_decision": "month-6-roadmap-priority",
+          "downstream_impact": "Locks Month-6+ roadmap and informs shared-engine-vs-per-product-silo architecture."
+        },
+        {
+          "id": "dimitri-q8",
+          "prompt": "Which integration would 10x the partner network the fastest — a Xero plugin, a deeper MyGov connector, a financial-planner referral surface, or something else?",
+          "constrained_replies": ["Xero plugin", "Deeper MyGov connector", "Financial-planner referral surface", "Something else"],
+          "tmm_prompt": "If 'something else', what — one sentence.",
+          "downstream_decision": "partner-acquisition-strategy",
+          "downstream_impact": "Drives partner-acquisition strategy + sales-collateral focus."
+        },
+        {
+          "id": "dimitri-q9",
+          "prompt": "What's the \"wow\" demo moment you'd want on the marketing reel — Dimitri handling a curly D13 deduction live, NOAH catching a fee discrepancy, or the partner getting the full ITR packet drop into their XPM in real time?",
+          "constrained_replies": ["D13 deduction live", "NOAH fee discrepancy", "Partner XPM drop"],
+          "tmm_prompt": null,
+          "downstream_decision": "day-14-demo-reel-storyboard",
+          "downstream_impact": "Locks Day-14 Demo Reel storyboard + Cinematographer brief."
+        }
+      ]
+    },
+    {
+      "id": "constraints",
+      "title": "Constraints",
+      "intent": "Hard limits. Miss any of these and launch fails.",
+      "questions": [
+        {
+          "id": "dimitri-q10",
+          "prompt": "Is there a hard launch date — Day-N from signature, fixed to EOFY (1 July), tied to a partner commitment, or no hard date yet?",
+          "constrained_replies": ["Day-N from signature", "EOFY (1 July)", "Partner commitment date", "No hard date"],
+          "tmm_prompt": "If 'Day-N' or 'partner commitment', what's the specific date?",
+          "downstream_decision": "sprint-cadence-and-critical-path",
+          "downstream_impact": "Locks sprint cadence + critical-path identification. EOFY = ~46 days from signature; very tight."
+        },
+        {
+          "id": "dimitri-q11",
+          "prompt": "Which regulator is the binding constraint — ATO, AFSL, ASIC, AUSTRAC, or all of the above — and have you spoken to anyone there yet?",
+          "constrained_replies": ["ATO only", "ATO + AFSL", "ATO + ASIC + AUSTRAC", "All of the above", "Haven't engaged any"],
+          "tmm_prompt": "If you've engaged any, can you intro the contact, or do we go cold?",
+          "downstream_decision": "compliance-workstream-priority",
+          "downstream_impact": "Drives compliance work-stream priority + which advisor we engage first."
+        },
+        {
+          "id": "dimitri-q12",
+          "prompt": "Last one — what's the single thing that, if we get it wrong on Day 1, kills the partnership network — pricing, branding, data privacy, or compliance evidence?",
+          "constrained_replies": ["Pricing", "Branding", "Data privacy", "Compliance evidence"],
+          "tmm_prompt": "Why? What's the partnership network most sensitive to from your conversations so far?",
+          "downstream_decision": "day-1-non-negotiable-risk-register-entry",
+          "downstream_impact": "Locks the 'Day-1 non-negotiable' risk register entry; this gets daily attention until launch."
+        }
+      ]
+    }
+  ],
+  "completion": {
+    "on_all_answered_fire": "swarm/discovery/synthesize.py",
+    "synthesis_outputs": [
+      "docs/architecture/dimitri-architecture-v1.md",
+      "docs/risk-register/dimitri-risks-v1.md"
+    ],
+    "linear_tag_on_ready": "architecture-doc-ready",
+    "phill_review_block_minutes": 15
+  }
+}

@@ -31,7 +31,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1777701600.8665202
+    "last_fired_at": 1778824815.379054
   },
   {
     "id": "scan-high-1200",
@@ -116,7 +116,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1777705250.6062038
+    "last_fired_at": 1778828404.900268
   },
   {
     "id": "monitor-1300",
@@ -160,7 +160,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744588800,
-    "last_fired_at": 1777698394.724483,
+    "last_fired_at": 1778821841.835309,
     "note": "Daily board sync \u2014 reviews in-flight PRs, evaluator scores, flagged risks"
   },
   {
@@ -324,5 +324,20 @@
     "minute": 0,
     "enabled": true,
     "note": "RA-2027 \u2014 daily 02:00 UTC sweep. Operator decision 2026-05-06: tickets with `discovery-loop` label at priority 3-4 (sev 4-5) with `updatedAt` >7 days ago auto-close to Cancelled with explanatory comment. Priority 1-2 (sev>=6) NEVER auto-closes. Prerequisite for Discovery going live across all 7 personas (~196 findings/day would exhaust Linear quotas without this)."
+  },
+  {
+    "id": "kpi-watchdog-daily-0900",
+    "type": "script",
+    "name": "KPI watchdog daily (RA-3007)",
+    "script": "scripts/kpi_watchdog.py",
+    "args": [
+      "--silent-if-ok"
+    ],
+    "hour": 9,
+    "minute": 0,
+    "enabled": true,
+    "created_at": 1778530000,
+    "last_fired_at": null,
+    "note": "RA-3007 \u2014 Daily 09:00 UTC scan of guardian + cs + cfo + cto state. Posts Telegram only on breach. See scripts/kpi_watchdog.py."
   }
 ]

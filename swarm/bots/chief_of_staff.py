@@ -237,7 +237,12 @@ def run_cycle(unacked_count: int) -> dict[str, Any]:
 
     messages, new_offset = _poll_telegram(offset)
     if new_offset != offset:
-        state_file.write_text(json.dumps({"offset": new_offset}))
+        # Atomic write — if the process crashes mid-write, the OLD offset
+        # is preserved (vs. naive write_text which truncates on crash and
+        # leaves the file empty, replaying the entire poll on next cycle).
+        # Per [[board-deliberation-code-patterns-2026-05-15]] PR2.
+        from .._atomic import atomic_write_json
+        atomic_write_json(state_file, {"offset": new_offset}, indent=None)
 
     handled = 0
     for msg in messages:
