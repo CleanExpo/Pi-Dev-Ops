@@ -62,3 +62,32 @@ class LinearRoute(NamedTuple):
     team_id: str
     project_id: str
     status: str  # matched | fallback_unknown | fallback_low_confidence
+
+
+# ── Portfolio routing ──────────────────────────────────────────────────────
+
+def resolve_linear_route(portfolio: str, *, projects_json_path: Path = PROJECTS_JSON) -> LinearRoute:
+    """Look up team_id + project_id for a portfolio. Falls back to pi-dev-ops if
+    portfolio is unknown or not in the registry. Raises if the registry itself is
+    missing or doesn't contain the pi-dev-ops fallback entry."""
+    data = json.loads(projects_json_path.read_text())
+    projects = {p["id"]: p for p in data.get("projects", [])}
+
+    if portfolio in projects:
+        p = projects[portfolio]
+        return LinearRoute(
+            team_id=p["linear_team_id"],
+            project_id=p["linear_project_id"],
+            status="matched",
+        )
+
+    default = projects.get(DEFAULT_PORTFOLIO_ID)
+    if not default:
+        raise RuntimeError(
+            f"projects.json missing default portfolio '{DEFAULT_PORTFOLIO_ID}'"
+        )
+    return LinearRoute(
+        team_id=default["linear_team_id"],
+        project_id=default["linear_project_id"],
+        status="fallback_unknown",
+    )

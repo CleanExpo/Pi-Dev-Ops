@@ -41,3 +41,50 @@ def test_linear_route_namedtuple():
     r = plaud_actions.LinearRoute(team_id="t", project_id="p", status="matched")
     assert r.team_id == "t"
     assert r.status == "matched"
+
+
+def test_resolve_linear_route_known_portfolio(tmp_path):
+    pj = tmp_path / "projects.json"
+    pj.write_text(json.dumps({"projects": [
+        {"id": "ccw-crm", "linear_team_id": "uni-team-uuid", "linear_project_id": "ccw-proj-uuid"},
+        {"id": "pi-dev-ops", "linear_team_id": "ra-team-uuid", "linear_project_id": "pidev-proj-uuid"},
+    ]}))
+    r = plaud_actions.resolve_linear_route("ccw-crm", projects_json_path=pj)
+    assert r.team_id == "uni-team-uuid"
+    assert r.project_id == "ccw-proj-uuid"
+    assert r.status == "matched"
+
+
+def test_resolve_linear_route_unknown_falls_back_to_pi_dev_ops(tmp_path):
+    pj = tmp_path / "projects.json"
+    pj.write_text(json.dumps({"projects": [
+        {"id": "pi-dev-ops", "linear_team_id": "ra-team-uuid", "linear_project_id": "pidev-proj-uuid"},
+    ]}))
+    r = plaud_actions.resolve_linear_route("unknown", projects_json_path=pj)
+    assert r.team_id == "ra-team-uuid"
+    assert r.project_id == "pidev-proj-uuid"
+    assert r.status == "fallback_unknown"
+
+
+def test_resolve_linear_route_missing_portfolio_falls_back(tmp_path):
+    pj = tmp_path / "projects.json"
+    pj.write_text(json.dumps({"projects": [
+        {"id": "pi-dev-ops", "linear_team_id": "ra", "linear_project_id": "pi"},
+    ]}))
+    r = plaud_actions.resolve_linear_route("imaginary-portfolio", projects_json_path=pj)
+    assert r.status == "fallback_unknown"
+
+
+def test_resolve_linear_route_missing_projects_json_raises(tmp_path):
+    pj = tmp_path / "does_not_exist.json"
+    with pytest.raises(FileNotFoundError):
+        plaud_actions.resolve_linear_route("ccw-crm", projects_json_path=pj)
+
+
+def test_resolve_linear_route_no_default_in_registry_raises(tmp_path):
+    pj = tmp_path / "projects.json"
+    pj.write_text(json.dumps({"projects": [
+        {"id": "ccw-crm", "linear_team_id": "u", "linear_project_id": "c"},
+    ]}))
+    with pytest.raises(RuntimeError, match="pi-dev-ops"):
+        plaud_actions.resolve_linear_route("unknown", projects_json_path=pj)
