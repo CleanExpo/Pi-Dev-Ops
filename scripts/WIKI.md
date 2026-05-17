@@ -1,8 +1,8 @@
 # scripts — Wiki
 
-_Last updated: 2026-05-17T11:31:13Z (commits 838e758..b34e3c6)_
+_Last updated: 2026-05-17T13:01:31Z (commits 0cad1f8..8627da8)_
 
 ## Recent changes
-- b34e3c6 — Feat/hermes plugin mirror (#240)
+- 8627da8 — fix(infra): Pi-CEO liveness monitor + launchd installer (RA-3752, RA-3753) (#216)
 
 Not logged in · Please run /login
