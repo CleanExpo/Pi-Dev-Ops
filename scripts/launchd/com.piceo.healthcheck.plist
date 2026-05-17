@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.piceo.healthcheck</string>
+
+    <!--
+      RA-640 (initial) + RA-3753 (Pi-CEO API probe + auto-restart added 2026-05-12).
+      Probes: Ollama, n8n, Pi-CEO FastAPI. Auto-restarts Pi-CEO via launchctl
+      if down. Alerts Phill via Telegram. Runs every 5 min.
+
+      Secrets (PICEO_BOT_TOKEN + PICEO_CHAT_ID) are loaded from
+      ~/.config/piceo/healthcheck.env at runtime — never committed.
+      Set up with:
+        mkdir -p ~/.config/piceo
+        cat > ~/.config/piceo/healthcheck.env <<EOF
+        PICEO_BOT_TOKEN=op://Unite-Group-Infrastructure/PICEO_BOT_TOKEN/credential
+        PICEO_CHAT_ID=8792816988
+        EOF
+        chmod 600 ~/.config/piceo/healthcheck.env
+    -->
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>set -a; [ -f $HOME/.config/piceo/healthcheck.env ] &amp;&amp; source $HOME/.config/piceo/healthcheck.env; set +a; exec /usr/bin/python3 $HOME/pi-ceo/health_check.py</string>
+    </array>
+
+    <!-- Run every 5 minutes -->
+    <key>StartInterval</key>
+    <integer>300</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/phill-mac/pi-ceo/logs/healthcheck_launchd.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/phill-mac/pi-ceo/logs/healthcheck_launchd_err.log</string>
+</dict>
+</plist>
