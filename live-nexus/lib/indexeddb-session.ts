@@ -31,7 +31,7 @@ export async function saveSession(session: StoredSession): Promise<void> {
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).put({ ...session, lastUpdated: Date.now() }, KEY);
+    tx.objectStore(STORE).put({ ...session, lastUpdated: session.lastUpdated || Date.now() }, KEY);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
