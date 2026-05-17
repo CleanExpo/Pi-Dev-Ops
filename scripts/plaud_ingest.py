@@ -129,3 +129,44 @@ def save_state(path: Path, state: dict) -> None:
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(state, indent=2))
     os.replace(tmp, path)
+
+
+import contextlib
+import errno
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except OSError as e:
+        return e.errno == errno.EPERM
+    return True
+
+
+@contextlib.contextmanager
+def pid_lock(lockfile: Path):
+    """Acquire a PID-based lock. Yields True if acquired, False if held by live PID.
+    Stale (dead-PID) lock files are auto-cleared and the lock is taken."""
+    acquired = False
+    if lockfile.exists():
+        try:
+            holder = int(lockfile.read_text().strip())
+            if _pid_alive(holder):
+                yield False
+                return
+            else:
+                log.warning("clearing stale plaud-ingest.lock from dead pid %d", holder)
+        except ValueError:
+            log.warning("clearing malformed plaud-ingest.lock")
+    try:
+        lockfile.parent.mkdir(parents=True, exist_ok=True)
+        lockfile.write_text(str(os.getpid()))
+        acquired = True
+        yield True
+    finally:
+        if acquired and lockfile.exists():
+            try:
+                if int(lockfile.read_text().strip()) == os.getpid():
+                    lockfile.unlink()
+            except (ValueError, OSError):
+                pass

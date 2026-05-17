@@ -159,3 +159,28 @@ def test_state_save_is_atomic(tmp_path):
     loaded = json.loads(p.read_text())
     assert loaded["last_seen_id"] == "new"
     assert not list(tmp_path.glob("*.tmp"))
+
+
+def test_lock_acquire_release(tmp_path):
+    lockfile = tmp_path / "ingest.lock"
+    with plaud_ingest.pid_lock(lockfile) as acquired:
+        assert acquired is True
+        assert lockfile.exists()
+        assert int(lockfile.read_text().strip()) == os.getpid()
+    assert not lockfile.exists()
+
+
+def test_lock_blocks_when_held_by_live_pid(tmp_path):
+    lockfile = tmp_path / "ingest.lock"
+    lockfile.write_text(str(os.getpid()))
+    with plaud_ingest.pid_lock(lockfile) as acquired:
+        assert acquired is False
+    assert lockfile.read_text().strip() == str(os.getpid())
+
+
+def test_lock_clears_stale_dead_pid(tmp_path):
+    lockfile = tmp_path / "ingest.lock"
+    lockfile.write_text("999999")
+    with plaud_ingest.pid_lock(lockfile) as acquired:
+        assert acquired is True
+        assert int(lockfile.read_text().strip()) == os.getpid()
