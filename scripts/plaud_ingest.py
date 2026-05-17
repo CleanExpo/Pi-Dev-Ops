@@ -170,3 +170,19 @@ def pid_lock(lockfile: Path):
                     lockfile.unlink()
             except (ValueError, OSError):
                 pass
+
+
+def write_page(plaud_dir: Path, base_slug: str, content: str) -> Path:
+    """Write content to {plaud_dir}/{base_slug}.md. On collision append -2, -3, …"""
+    plaud_dir.mkdir(parents=True, exist_ok=True)
+    target = plaud_dir / f"{base_slug}.md"
+    if not target.exists():
+        target.write_text(content)
+        return target
+    n = 2
+    while True:
+        target = plaud_dir / f"{base_slug}-{n}.md"
+        if not target.exists():
+            target.write_text(content)
+            return target
+        n += 1

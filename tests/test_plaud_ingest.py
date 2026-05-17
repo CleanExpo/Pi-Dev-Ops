@@ -184,3 +184,24 @@ def test_lock_clears_stale_dead_pid(tmp_path):
     with plaud_ingest.pid_lock(lockfile) as acquired:
         assert acquired is True
         assert int(lockfile.read_text().strip()) == os.getpid()
+
+
+def test_write_page_new_file(tmp_path):
+    target = plaud_ingest.write_page(tmp_path, "2026-05-17-foo", "content one")
+    assert target == tmp_path / "2026-05-17-foo.md"
+    assert target.read_text() == "content one"
+
+
+def test_write_page_collision_appends_suffix(tmp_path):
+    (tmp_path / "2026-05-17-foo.md").write_text("existing")
+    target = plaud_ingest.write_page(tmp_path, "2026-05-17-foo", "content two")
+    assert target == tmp_path / "2026-05-17-foo-2.md"
+    assert target.read_text() == "content two"
+    assert (tmp_path / "2026-05-17-foo.md").read_text() == "existing"
+
+
+def test_write_page_collision_chains(tmp_path):
+    (tmp_path / "2026-05-17-foo.md").write_text("a")
+    (tmp_path / "2026-05-17-foo-2.md").write_text("b")
+    target = plaud_ingest.write_page(tmp_path, "2026-05-17-foo", "c")
+    assert target == tmp_path / "2026-05-17-foo-3.md"
