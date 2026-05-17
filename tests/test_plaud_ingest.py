@@ -325,3 +325,77 @@ def test_plaud_client_get_note_and_transcript():
     transcript = asyncio.run(client.get_transcript("abc"))
     assert "Key decisions" in note
     assert transcript[0]["text"] == "Hello"
+
+
+def test_run_once_happy_path_writes_page_and_advances_state(tmp_path):
+    state_path = tmp_path / "state.json"
+    lock_path = tmp_path / "ingest.lock"
+    wiki_dir = tmp_path / "Wiki"
+    plaud_dir = wiki_dir / "plaud"
+
+    fake = _FakeSession({
+        "list_files": {"files": [{
+            "id": "abc123",
+            "name": "Acme Q2 Pricing",
+            "created_at": "2026-05-17T14:32:00+10:00",
+            "duration": 720_000,
+            "presigned_url": "https://plaud.cdn/abc.mp3",
+        }]},
+        "get_note": {"summary": "## Summary\nKey decisions made."},
+        "get_transcript": {"segments": [
+            {"start_ms": 0, "end_ms": 5000, "speaker": "A", "text": "Hello"}]},
+    })
+
+    captured = {}
+    def fake_notify(**kw):
+        captured["notify"] = kw
+
+    config = plaud_ingest.IngestConfig(
+        state_path=state_path,
+        lock_path=lock_path,
+        wiki_dir=wiki_dir,
+        plaud_dir=plaud_dir,
+        bot_token="t", chat_id="c",
+        run_sync_subprocess=lambda: None,
+        notify_fn=fake_notify,
+    )
+    result = asyncio.run(plaud_ingest.run_once(plaud_ingest.PlaudClient(fake), config))
+
+    assert result["ingested"] == 1
+    assert result["status"] == "ok"
+    written = list(plaud_dir.glob("*.md"))
+    assert any("acme-q2-pricing" in p.name for p in written)
+    assert (wiki_dir / "log.md").exists()
+    assert "plaud-ingest" in (wiki_dir / "log.md").read_text()
+    state = json.loads(state_path.read_text())
+    assert state["last_seen_id"] == "abc123"
+    assert state["consecutive_failures"] == 0
+    assert "Acme Q2 Pricing" in captured["notify"]["text"]
+
+
+def test_run_once_idempotent_no_new_files(tmp_path):
+    state_path = tmp_path / "state.json"
+    save_state_initial = {
+        "last_seen_id": "abc123",
+        "last_seen_ts": "2026-05-17T14:32:00+10:00",
+        "last_run_status": "ok", "last_error": None, "consecutive_failures": 0,
+    }
+    state_path.write_text(json.dumps(save_state_initial))
+
+    fake = _FakeSession({"list_files": {"files": [{
+        "id": "abc123",
+        "name": "Acme Q2 Pricing",
+        "created_at": "2026-05-17T14:32:00+10:00",
+        "duration": 720_000,
+    }]}})
+
+    config = plaud_ingest.IngestConfig(
+        state_path=state_path, lock_path=tmp_path / "lock",
+        wiki_dir=tmp_path / "Wiki", plaud_dir=tmp_path / "Wiki" / "plaud",
+        bot_token="", chat_id="",
+        run_sync_subprocess=lambda: None, notify_fn=lambda **k: None,
+    )
+    result = asyncio.run(plaud_ingest.run_once(plaud_ingest.PlaudClient(fake), config))
+    assert result["ingested"] == 0
+    plaud_md = list((tmp_path / "Wiki" / "plaud").glob("*.md")) if (tmp_path / "Wiki" / "plaud").exists() else []
+    assert not plaud_md

@@ -318,3 +318,98 @@ async def connect_real_plaud():
         async with ClientSession(read, write) as session:
             await session.initialize()
             yield PlaudClient(session)
+
+
+from dataclasses import dataclass
+from typing import Callable
+
+
+@dataclass
+class IngestConfig:
+    state_path: Path
+    lock_path: Path
+    wiki_dir: Path
+    plaud_dir: Path
+    bot_token: str
+    chat_id: str
+    run_sync_subprocess: Callable[[], None]
+    notify_fn: Callable[..., None]
+    max_chars_per_page: int = 50_000
+
+
+async def _ingest_one(client: PlaudClient, file_meta: dict, cfg: IngestConfig,
+                      now_iso: str) -> list[Path]:
+    """Fetch note + transcript, render page(s), write. Returns list of written paths."""
+    plaud_id = file_meta["id"]
+    title = file_meta.get("name", plaud_id)
+    duration_ms = int(file_meta.get("duration", 0))
+    recorded_at = file_meta.get("created_at", now_iso)
+    audio_url = file_meta.get("presigned_url", "")
+
+    summary = await client.get_note(plaud_id)
+    segments = await client.get_transcript(plaud_id)
+    parts = split_segments(segments, cfg.max_chars_per_page)
+
+    date_prefix = recorded_at[:10]
+    base_slug = f"{date_prefix}-{slug_from_name(title, fallback_id=plaud_id)}"
+    written: list[Path] = []
+    for i, segs in enumerate(parts, start=1):
+        part = (i, len(parts)) if len(parts) > 1 else None
+        slug = base_slug if i == 1 else f"{base_slug}-part{i}"
+        page = format_page(
+            plaud_id=plaud_id, title=title, recorded_at=recorded_at,
+            duration_ms=duration_ms, ingested_at=now_iso, audio_url=audio_url,
+            summary_md=summary if i == 1 else None,
+            segments=segs, part=part,
+        )
+        written.append(write_page(cfg.plaud_dir, slug, page))
+    return written
+
+
+async def run_once(client: PlaudClient, cfg: IngestConfig) -> dict:
+    """Single ingest tick. Returns a result dict {ingested, status, error}."""
+    with pid_lock(cfg.lock_path) as acquired:
+        if not acquired:
+            log.info("plaud-ingest: previous run still active, skipping")
+            return {"ingested": 0, "status": "locked", "error": None}
+
+        state = load_state(cfg.state_path)
+        date_from = state["last_seen_ts"][:10]
+        files = await client.list_files_since(date_from)
+
+        last_ts = state["last_seen_ts"]
+        new_files = sorted(
+            [f for f in files if f.get("created_at", "") > last_ts],
+            key=lambda f: f["created_at"],
+        )
+
+        now_iso = datetime.now(timezone.utc).astimezone().isoformat()
+        ingested = 0
+        for f in new_files:
+            written = await _ingest_one(client, f, cfg, now_iso)
+            for path in written:
+                chars = path.stat().st_size
+                append_log_line(
+                    cfg.wiki_dir / "log.md",
+                    f"{now_iso[:16]} | plaud-ingest | plaud/{path.name} | "
+                    f"new recording ({format_duration_human(int(f.get('duration', 0)))}, "
+                    f"{chars} chars)",
+                )
+            ingested += 1
+            state["last_seen_id"] = f["id"]
+            state["last_seen_ts"] = f["created_at"]
+            cfg.notify_fn(bot_token=cfg.bot_token, chat_id=cfg.chat_id,
+                          text=f"📼 New Plaud: {f.get('name', f['id'])} "
+                               f"({format_duration_human(int(f.get('duration', 0)))}). "
+                               "I've added it to the brain.")
+
+        if ingested:
+            regenerate_plaud_index(cfg.plaud_dir)
+            try:
+                cfg.run_sync_subprocess()
+            except Exception as e:
+                log.warning("sync_wiki_to_supabase.py failed: %s", e)
+
+        state.update({"last_run_status": "ok", "last_error": None, "consecutive_failures": 0})
+        save_state(cfg.state_path, state)
+        return {"ingested": ingested, "status": "ok", "error": None}
