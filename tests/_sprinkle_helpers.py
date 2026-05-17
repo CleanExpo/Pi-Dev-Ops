@@ -75,6 +75,23 @@ class FakeProviderRouter:
             raise self.raise_exc
         return self.rc, self.response, 0.0, self.error
 
+    def run_via_provider_blocking(
+        self,
+        prompt: str,
+        role: str,
+        timeout_s: int = 120,
+        *,
+        log=None,
+    ):
+        self.calls.append({
+            "prompt": prompt, "role": role, "task_class": "default",
+            "timeout_s": timeout_s, "session_id": "",
+            "thinking": "adaptive",
+        })
+        if self.raise_exc is not None:
+            raise self.raise_exc
+        return self.rc, self.response, 0.0, self.error, self.provider_model
+
     def select_provider_model(self, role: str):
         self.select_calls.append(role)
         return self.provider_model
@@ -89,6 +106,7 @@ def install_fake_router(monkeypatch, fake: FakeProviderRouter) -> None:
     """
     mod = types.ModuleType("app.server.provider_router")
     mod.run_via_provider = fake.run_via_provider
+    mod.run_via_provider_blocking = fake.run_via_provider_blocking
     mod.select_provider_model = fake.select_provider_model
     # Some callers may want to introspect ProviderModel — expose a stub.
     mod.ProviderModel = _ProviderModelStub

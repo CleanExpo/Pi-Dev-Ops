@@ -1,8 +1,8 @@
 # scripts — Wiki
 
-_Last updated: 2026-05-14T08:51:45Z (commits 468e9d4..22646f8)_
+_Last updated: 2026-05-17T13:19:11Z (commits 036e388..a17936a)_
 
 ## Recent changes
-- 22646f8 — feat(hermes): mirror local plugins/ into git + add sync script (#225)
+- a17936a — fix(security): remove harness sync service role fallback (#247)
 
 Not logged in · Please run /login
