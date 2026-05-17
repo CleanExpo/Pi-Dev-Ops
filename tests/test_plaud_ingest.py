@@ -115,3 +115,47 @@ def test_format_timestamp():
     assert plaud_ingest.format_timestamp(0) == "00:00"
     assert plaud_ingest.format_timestamp(5_500) == "00:05"
     assert plaud_ingest.format_timestamp(125_000) == "02:05"
+
+
+import json
+import os
+
+
+def test_state_load_missing_returns_fresh(tmp_path):
+    state = plaud_ingest.load_state(tmp_path / "nope.json")
+    assert state["last_seen_id"] == ""
+    assert state["last_seen_ts"]
+    assert state["consecutive_failures"] == 0
+
+
+def test_state_load_corrupt_returns_fresh_logs_warn(tmp_path, caplog):
+    p = tmp_path / "state.json"
+    p.write_text("{not json")
+    state = plaud_ingest.load_state(p)
+    assert state["last_seen_id"] == ""
+    assert "corrupt" in caplog.text.lower() or "WARN" in caplog.text
+
+
+def test_state_save_round_trip(tmp_path):
+    p = tmp_path / "state.json"
+    plaud_ingest.save_state(p, {
+        "last_seen_id": "abc",
+        "last_seen_ts": "2026-05-17T14:40:00+10:00",
+        "last_run_status": "ok",
+        "last_error": None,
+        "consecutive_failures": 0,
+    })
+    loaded = json.loads(p.read_text())
+    assert loaded["last_seen_id"] == "abc"
+    assert loaded["consecutive_failures"] == 0
+
+
+def test_state_save_is_atomic(tmp_path):
+    p = tmp_path / "state.json"
+    p.write_text(json.dumps({"last_seen_id": "old"}))
+    plaud_ingest.save_state(p, {"last_seen_id": "new", "last_seen_ts": "t",
+                                "last_run_status": "ok", "last_error": None,
+                                "consecutive_failures": 0})
+    loaded = json.loads(p.read_text())
+    assert loaded["last_seen_id"] == "new"
+    assert not list(tmp_path.glob("*.tmp"))

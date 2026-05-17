@@ -90,3 +90,42 @@ def format_page(
         body.append(f"[{start} - {end}] {speaker}: {seg['text']}")
 
     return "\n".join(fm_lines + body) + "\n"
+
+
+import json
+import logging
+import os
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
+
+log = logging.getLogger("plaud_ingest")
+
+
+def _iso_24h_ago() -> str:
+    return (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+
+
+def load_state(path: Path) -> dict:
+    """Read state file. Missing or corrupt → fresh default (24h-ago)."""
+    default = {
+        "last_seen_id": "",
+        "last_seen_ts": _iso_24h_ago(),
+        "last_run_status": "fresh",
+        "last_error": None,
+        "consecutive_failures": 0,
+    }
+    if not path.exists():
+        return default
+    try:
+        return {**default, **json.loads(path.read_text())}
+    except (json.JSONDecodeError, OSError) as e:
+        log.warning("plaud-state.json corrupt (%s); using fresh default", e)
+        return default
+
+
+def save_state(path: Path, state: dict) -> None:
+    """Atomic write via tmp+rename."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(state, indent=2))
+    os.replace(tmp, path)
