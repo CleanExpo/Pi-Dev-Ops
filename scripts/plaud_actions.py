@@ -91,3 +91,112 @@ def resolve_linear_route(portfolio: str, *, projects_json_path: Path = PROJECTS_
         project_id=default["linear_project_id"],
         status="fallback_unknown",
     )
+
+
+# ── Anthropic Messages API ─────────────────────────────────────────────────
+
+import time
+
+_REPORT_ACTIONS_TOOL = {
+    "name": "report_actions",
+    "description": "Report the portfolio classification and extracted action items.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "portfolio": {
+                "type": "string",
+                "enum": ["pi-dev-ops", "restoreassist", "disaster-recovery",
+                         "dr-nrpg", "nrpg-onboarding", "synthex", "unite-group",
+                         "nodejs-starter", "oh-my-codex", "ccw-crm", "carsi", "unknown"],
+            },
+            "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+            "reasoning": {"type": "string"},
+            "actions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string"},
+                        "description": {"type": "string"},
+                        "priority": {"type": "integer", "minimum": 0, "maximum": 4},
+                    },
+                    "required": ["title", "description", "priority"],
+                },
+            },
+        },
+        "required": ["portfolio", "confidence", "reasoning", "actions"],
+    },
+}
+
+
+class _AuthError:
+    """Sentinel returned when Anthropic auth fails — caller DMs once and skips."""
+    pass
+
+
+def extract_actions(*, page_md: str, anthropic_api_key: str):
+    """Call Anthropic Messages API with tool-use forcing report_actions. Returns
+    ActionExtraction on success, _AuthError on 401, None on parse / rate-limit /
+    other failures. Retries once on 429."""
+    if not anthropic_api_key:
+        log.warning("extract_actions: ANTHROPIC_API_KEY missing")
+        return _AuthError()
+
+    body = {
+        "model": ANTHROPIC_MODEL,
+        "max_tokens": 2048,
+        "system": PROMPT_TEMPLATE,
+        "messages": [{"role": "user", "content": page_md}],
+        "tools": [_REPORT_ACTIONS_TOOL],
+        "tool_choice": {"type": "tool", "name": "report_actions"},
+    }
+    payload = json.dumps(body).encode()
+    headers = {
+        "x-api-key": anthropic_api_key,
+        "anthropic-version": ANTHROPIC_VERSION,
+        "content-type": "application/json",
+    }
+
+    data = None
+    for attempt in range(2):
+        req = urllib.request.Request(ANTHROPIC_API_URL, data=payload,
+                                     headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                data = json.loads(resp.read().decode())
+            break
+        except urllib.error.HTTPError as e:
+            if e.code == 401:
+                log.warning("extract_actions: Anthropic 401 auth failed")
+                return _AuthError()
+            if e.code == 429 and attempt == 0:
+                log.warning("extract_actions: 429 rate-limited, sleeping 30s before retry")
+                time.sleep(30)
+                continue
+            log.warning("extract_actions: Anthropic HTTP %d: %s", e.code, e.reason)
+            return None
+        except (urllib.error.URLError, json.JSONDecodeError, OSError) as e:
+            log.warning("extract_actions: transport error: %s", e)
+            return None
+
+    if data is None:
+        return None
+
+    # Walk content blocks looking for tool_use
+    for block in data.get("content", []):
+        if block.get("type") == "tool_use" and block.get("name") == "report_actions":
+            inp = block.get("input", {})
+            return ActionExtraction(
+                portfolio=inp.get("portfolio", "unknown"),
+                confidence=float(inp.get("confidence", 0.0)),
+                reasoning=inp.get("reasoning", ""),
+                actions=[
+                    Action(title=a["title"], description=a["description"],
+                           priority=a.get("priority", 3))
+                    for a in inp.get("actions", [])
+                ],
+            )
+
+    log.warning("extract_actions: no tool_use block in response: %s",
+                json.dumps(data)[:500])
+    return None

@@ -88,3 +88,120 @@ def test_resolve_linear_route_no_default_in_registry_raises(tmp_path):
     ]}))
     with pytest.raises(RuntimeError, match="pi-dev-ops"):
         plaud_actions.resolve_linear_route("unknown", projects_json_path=pj)
+
+
+def _anthropic_tool_use_response(portfolio, confidence, reasoning, actions):
+    return {
+        "id": "msg_1",
+        "type": "message",
+        "role": "assistant",
+        "content": [{
+            "type": "tool_use",
+            "id": "toolu_1",
+            "name": "report_actions",
+            "input": {
+                "portfolio": portfolio,
+                "confidence": confidence,
+                "reasoning": reasoning,
+                "actions": actions,
+            }
+        }],
+        "stop_reason": "tool_use",
+    }
+
+
+def _anthropic_mock_urlopen(payload, status=200):
+    m = MagicMock()
+    m.__enter__.return_value.read.return_value = json.dumps(payload).encode()
+    m.__enter__.return_value.status = status
+    return m
+
+
+def test_extract_actions_meeting_yields_actions():
+    response = _anthropic_tool_use_response(
+        portfolio="ccw-crm", confidence=0.92, reasoning="Mentions CCW",
+        actions=[
+            {"title": "Follow up Toby", "description": "by Friday", "priority": 2},
+            {"title": "Update Q2 numbers", "description": "in Linear", "priority": 3},
+        ],
+    )
+    with patch("plaud_actions.urllib.request.urlopen",
+               return_value=_anthropic_mock_urlopen(response)):
+        ex = plaud_actions.extract_actions(
+            page_md="dummy meeting content",
+            anthropic_api_key="sk-ant-test",
+        )
+    assert ex is not None
+    assert ex.portfolio == "ccw-crm"
+    assert len(ex.actions) == 2
+    assert ex.actions[0].title == "Follow up Toby"
+    assert ex.actions[0].priority == 2
+
+
+def test_extract_actions_voice_memo_zero_actions():
+    response = _anthropic_tool_use_response(
+        portfolio="synthex", confidence=0.85,
+        reasoning="Thinking out loud", actions=[],
+    )
+    with patch("plaud_actions.urllib.request.urlopen",
+               return_value=_anthropic_mock_urlopen(response)):
+        ex = plaud_actions.extract_actions(page_md="rambling memo",
+            anthropic_api_key="sk-ant-test")
+    assert ex is not None
+    assert ex.actions == []
+
+
+def test_extract_actions_no_tool_use_in_response_returns_none():
+    response = {"content": [{"type": "text", "text": "I refuse to answer"}]}
+    with patch("plaud_actions.urllib.request.urlopen",
+               return_value=_anthropic_mock_urlopen(response)):
+        ex = plaud_actions.extract_actions(page_md="x", anthropic_api_key="k")
+    assert ex is None
+
+
+def test_extract_actions_http_401_returns_auth_error():
+    import urllib.error
+    err = urllib.error.HTTPError("url", 401, "Unauthorized", {}, None)
+    with patch("plaud_actions.urllib.request.urlopen", side_effect=err):
+        ex = plaud_actions.extract_actions(page_md="x", anthropic_api_key="k")
+    assert isinstance(ex, plaud_actions._AuthError)
+
+
+def test_extract_actions_http_429_retries_once_then_succeeds():
+    import urllib.error
+    err = urllib.error.HTTPError("url", 429, "Too Many", {}, None)
+    success = _anthropic_tool_use_response("synthex", 0.9, "", [])
+    side_effects = [err, _anthropic_mock_urlopen(success)]
+    with patch("plaud_actions.urllib.request.urlopen", side_effect=side_effects), \
+         patch("plaud_actions.time.sleep") as mock_sleep:
+        ex = plaud_actions.extract_actions(page_md="x", anthropic_api_key="k")
+    assert ex is not None
+    mock_sleep.assert_called_once()
+
+
+def test_extract_actions_http_429_twice_returns_none():
+    import urllib.error
+    err = urllib.error.HTTPError("url", 429, "Too Many", {}, None)
+    with patch("plaud_actions.urllib.request.urlopen", side_effect=err), \
+         patch("plaud_actions.time.sleep"):
+        ex = plaud_actions.extract_actions(page_md="x", anthropic_api_key="k")
+    assert ex is None
+
+
+def test_extract_actions_low_confidence_preserved():
+    response = _anthropic_tool_use_response(
+        portfolio="unknown", confidence=0.3,
+        reasoning="Ambiguous", actions=[
+            {"title": "Some action", "description": "x", "priority": 3},
+        ],
+    )
+    with patch("plaud_actions.urllib.request.urlopen",
+               return_value=_anthropic_mock_urlopen(response)):
+        ex = plaud_actions.extract_actions(page_md="x", anthropic_api_key="k")
+    assert ex.portfolio == "unknown"
+    assert ex.confidence == 0.3
+
+
+def test_extract_actions_missing_key_returns_auth_error():
+    ex = plaud_actions.extract_actions(page_md="x", anthropic_api_key="")
+    assert isinstance(ex, plaud_actions._AuthError)
