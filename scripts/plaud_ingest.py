@@ -367,15 +367,19 @@ async def _ingest_one(client: PlaudClient, file_meta: dict, cfg: IngestConfig,
 
 
 async def run_once(client: PlaudClient, cfg: IngestConfig) -> dict:
-    """Single ingest tick. Returns a result dict {ingested, status, error}."""
+    """Single ingest tick. Returns {ingested, status, error}."""
     with pid_lock(cfg.lock_path) as acquired:
         if not acquired:
             log.info("plaud-ingest: previous run still active, skipping")
             return {"ingested": 0, "status": "locked", "error": None}
 
         state = load_state(cfg.state_path)
-        date_from = state["last_seen_ts"][:10]
-        files = await client.list_files_since(date_from)
+        now_iso = datetime.now(timezone.utc).astimezone().isoformat()
+        try:
+            date_from = state["last_seen_ts"][:10]
+            files = await client.list_files_since(date_from)
+        except Exception as e:
+            return _handle_failure(e, state, cfg, now_iso)
 
         last_ts = state["last_seen_ts"]
         new_files = sorted(
@@ -383,10 +387,12 @@ async def run_once(client: PlaudClient, cfg: IngestConfig) -> dict:
             key=lambda f: f["created_at"],
         )
 
-        now_iso = datetime.now(timezone.utc).astimezone().isoformat()
         ingested = 0
         for f in new_files:
-            written = await _ingest_one(client, f, cfg, now_iso)
+            try:
+                written = await _ingest_one(client, f, cfg, now_iso)
+            except Exception as e:
+                return _handle_failure(e, state, cfg, now_iso)
             for path in written:
                 chars = path.stat().st_size
                 append_log_line(
@@ -413,3 +419,27 @@ async def run_once(client: PlaudClient, cfg: IngestConfig) -> dict:
         state.update({"last_run_status": "ok", "last_error": None, "consecutive_failures": 0})
         save_state(cfg.state_path, state)
         return {"ingested": ingested, "status": "ok", "error": None}
+
+
+def _handle_failure(exc: Exception, state: dict, cfg: IngestConfig, now_iso: str) -> dict:
+    msg = str(exc)
+    is_auth = "401" in msg or "Not authenticated" in msg or "Unauthorized" in msg
+    prev_failures = state.get("consecutive_failures", 0)
+    prev_status = state.get("last_run_status")
+    state["consecutive_failures"] = prev_failures + 1
+    state["last_error"] = msg
+
+    if is_auth:
+        state["last_run_status"] = "auth_expired"
+        if prev_status != "auth_expired":
+            cfg.notify_fn(bot_token=cfg.bot_token, chat_id=cfg.chat_id,
+                          text="⚠️ Plaud token expired — open Hermes and run `plaud login`.")
+        save_state(cfg.state_path, state)
+        return {"ingested": 0, "status": "auth_expired", "error": msg}
+
+    state["last_run_status"] = "network_error"
+    if state["consecutive_failures"] == 6:
+        cfg.notify_fn(bot_token=cfg.bot_token, chat_id=cfg.chat_id,
+                      text="⚠️ Plaud unreachable for 30 min.")
+    save_state(cfg.state_path, state)
+    return {"ingested": 0, "status": "network_error", "error": msg}

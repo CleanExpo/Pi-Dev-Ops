@@ -399,3 +399,90 @@ def test_run_once_idempotent_no_new_files(tmp_path):
     assert result["ingested"] == 0
     plaud_md = list((tmp_path / "Wiki" / "plaud").glob("*.md")) if (tmp_path / "Wiki" / "plaud").exists() else []
     assert not plaud_md
+
+
+class _RaisingSession:
+    def __init__(self, exc):
+        self.exc = exc
+    async def initialize(self):
+        pass
+    async def call_tool(self, name, args):
+        raise self.exc
+
+
+def test_run_once_auth_expired_dms_once_and_returns_status(tmp_path):
+    state_path = tmp_path / "state.json"
+    notifs = []
+    cfg = plaud_ingest.IngestConfig(
+        state_path=state_path, lock_path=tmp_path/"lock",
+        wiki_dir=tmp_path/"Wiki", plaud_dir=tmp_path/"Wiki"/"plaud",
+        bot_token="t", chat_id="c",
+        run_sync_subprocess=lambda: None,
+        notify_fn=lambda **k: notifs.append(k),
+    )
+    client = plaud_ingest.PlaudClient(_RaisingSession(Exception("401 Not authenticated")))
+    result = asyncio.run(plaud_ingest.run_once(client, cfg))
+    assert result["status"] == "auth_expired"
+    assert len(notifs) == 1
+    assert "expired" in notifs[0]["text"].lower() or "login" in notifs[0]["text"].lower()
+    state = json.loads(state_path.read_text())
+    assert state["last_run_status"] == "auth_expired"
+
+
+def test_run_once_auth_expired_does_not_double_dm(tmp_path):
+    state_path = tmp_path / "state.json"
+    state_path.write_text(json.dumps({
+        "last_seen_id": "", "last_seen_ts": "2026-05-17T00:00:00+00:00",
+        "last_run_status": "auth_expired", "last_error": "401",
+        "consecutive_failures": 1,
+    }))
+    notifs = []
+    cfg = plaud_ingest.IngestConfig(
+        state_path=state_path, lock_path=tmp_path/"lock",
+        wiki_dir=tmp_path/"Wiki", plaud_dir=tmp_path/"Wiki"/"plaud",
+        bot_token="t", chat_id="c",
+        run_sync_subprocess=lambda: None,
+        notify_fn=lambda **k: notifs.append(k),
+    )
+    client = plaud_ingest.PlaudClient(_RaisingSession(Exception("401 Not authenticated")))
+    asyncio.run(plaud_ingest.run_once(client, cfg))
+    assert notifs == []
+
+
+def test_run_once_network_failure_silent_first_failures(tmp_path):
+    state_path = tmp_path / "state.json"
+    notifs = []
+    cfg = plaud_ingest.IngestConfig(
+        state_path=state_path, lock_path=tmp_path/"lock",
+        wiki_dir=tmp_path/"Wiki", plaud_dir=tmp_path/"Wiki"/"plaud",
+        bot_token="t", chat_id="c",
+        run_sync_subprocess=lambda: None,
+        notify_fn=lambda **k: notifs.append(k),
+    )
+    client = plaud_ingest.PlaudClient(_RaisingSession(OSError("fetch failed")))
+    result = asyncio.run(plaud_ingest.run_once(client, cfg))
+    assert result["status"] == "network_error"
+    assert notifs == []
+    state = json.loads(state_path.read_text())
+    assert state["consecutive_failures"] == 1
+
+
+def test_run_once_network_failure_dms_after_threshold(tmp_path):
+    state_path = tmp_path / "state.json"
+    state_path.write_text(json.dumps({
+        "last_seen_id": "", "last_seen_ts": "2026-05-17T00:00:00+00:00",
+        "last_run_status": "network_error", "last_error": "fetch failed",
+        "consecutive_failures": 5,
+    }))
+    notifs = []
+    cfg = plaud_ingest.IngestConfig(
+        state_path=state_path, lock_path=tmp_path/"lock",
+        wiki_dir=tmp_path/"Wiki", plaud_dir=tmp_path/"Wiki"/"plaud",
+        bot_token="t", chat_id="c",
+        run_sync_subprocess=lambda: None,
+        notify_fn=lambda **k: notifs.append(k),
+    )
+    client = plaud_ingest.PlaudClient(_RaisingSession(OSError("fetch failed")))
+    asyncio.run(plaud_ingest.run_once(client, cfg))
+    assert len(notifs) == 1
+    assert "unreachable" in notifs[0]["text"].lower() or "plaud" in notifs[0]["text"].lower()
