@@ -10,7 +10,7 @@ Add this snippet to the `mcpServers` block in `~/.claude/settings.local.json`
       "command": "npx",
       "args": [
         "tsx",
-        "/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/aip/src/mcp/server.ts"
+        "<absolute-path-to-repo>/aip/src/mcp/server.ts"
       ],
       "env": {
         "SUPABASE_PICEO_URL": "https://zbryrmxmgfmslqzizsto.supabase.co",
@@ -58,4 +58,4 @@ Quick functional check from inside Claude Code:
 
 > Use the `aip_list_entities` tool with `{ "kind": "PortfolioService" }`.
 
-Expected: 1 entity, the seeded RestoreAssist (`aip://unite-group/PortfolioService/ra`).
+Expected: at least the seeded RestoreAssist (`aip://unite-group/PortfolioService/ra`).

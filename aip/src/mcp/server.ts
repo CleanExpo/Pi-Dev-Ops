@@ -41,6 +41,62 @@ const KNOWN_VIEWS = [
 ] as const;
 type KnownView = (typeof KNOWN_VIEWS)[number];
 
+const VIEW_COLUMNS: Record<KnownView, ReadonlySet<string>> = {
+  v_google_identity: new Set([
+    "uri",
+    "id",
+    "email",
+    "identity_kind",
+    "onepassword_item_id",
+    "recovery_email",
+    "last_active_at",
+    "created_at",
+    "updated_at",
+  ]),
+  v_gcp_project: new Set([
+    "uri",
+    "id",
+    "project_number",
+    "project_id",
+    "owner_identity_uri",
+    "billing_account",
+    "created_at",
+    "updated_at",
+  ]),
+  v_vercel_project: new Set([
+    "uri",
+    "id",
+    "vercel_project_id",
+    "slug",
+    "team_id",
+    "current_git_sha",
+    "framework",
+    "created_at",
+    "updated_at",
+  ]),
+  v_oauth_client: new Set([
+    "uri",
+    "id",
+    "client_id",
+    "secret_rotated_at",
+    "status",
+    "gcp_project_uri",
+    "created_at",
+    "updated_at",
+  ]),
+  v_portfolio_service: new Set([
+    "uri",
+    "id",
+    "slug",
+    "brand_name",
+    "current_git_sha",
+    "status",
+    "wiki_page_path",
+    "created_at",
+    "updated_at",
+  ]),
+};
+
 // ---------------------------------------------------------------------------
 // Supabase client (lazy — never log the key)
 // ---------------------------------------------------------------------------
@@ -57,6 +113,12 @@ function readSupabaseConfig(): { url: string; key: string } {
     throw new Error(
       "Supabase service key missing. Set SUPABASE_PICEO_SERVICE_KEY or " +
         "SUPABASE_SERVICE_ROLE_KEY (see aip/src/mcp/README.md for 1Password lookup).",
+    );
+  }
+  if (url.startsWith("op://") || key.startsWith("op://")) {
+    throw new Error(
+      "Supabase config contains an unresolved 1Password op:// reference. " +
+        "Resolve it before launching the MCP server.",
     );
   }
   return { url, key };
@@ -229,7 +291,17 @@ async function queryView(
 ): Promise<Record<string, unknown>[]> {
   let q = db().from(viewName).select("*").limit(limit);
   if (filters) {
-    for (const [k, v] of Object.entries(filters)) q = q.eq(k, v);
+    const allowedColumns = VIEW_COLUMNS[viewName];
+    for (const [k, v] of Object.entries(filters)) {
+      if (!allowedColumns.has(k)) {
+        throw new Error(
+          `Invalid filter '${k}' for ${viewName}. Allowed filters: ${[
+            ...allowedColumns,
+          ].join(", ")}.`,
+        );
+      }
+      q = q.eq(k, v);
+    }
   }
   const { data, error } = await q;
   if (error) throw new Error(error.message);

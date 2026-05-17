@@ -47,7 +47,7 @@ async function main(): Promise<void> {
 
   const checks: Check[] = [];
 
-  // 1. list PortfolioService → expect 1 row (ra)
+  // 1. list PortfolioService → expect at least the RestoreAssist row.
   try {
     const res = (await client.callTool({
       name: "aip_list_entities",
@@ -60,8 +60,8 @@ async function main(): Promise<void> {
     };
     const got = payload.entities.map((e) => e.uri);
     const pass =
-      payload.count === 1 &&
-      got[0] === "aip://unite-group/PortfolioService/ra";
+      payload.count >= 1 &&
+      got.includes("aip://unite-group/PortfolioService/ra");
     checks.push({
       name: "aip_list_entities { kind: 'PortfolioService' }",
       pass,

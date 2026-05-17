@@ -35,7 +35,8 @@ npm run mcp:smoke
 
 Spawns the server in-process and runs three calls:
 
-1. `aip_list_entities { kind: "PortfolioService" }` — expects 1 entity (`ra`).
+1. `aip_list_entities { kind: "PortfolioService" }` — expects at least the
+   RestoreAssist entity (`ra`).
 2. `aip_get_entity { uri: "aip://unite-group/PortfolioService/ra" }` — expects
    the seeded RestoreAssist entity.
 3. `aip_traverse { from_uri: "aip://unite-group/PortfolioService/ra", depth: 1 }`
@@ -95,6 +96,12 @@ All inputs are validated with `zod`; invalid inputs return an MCP tool-error.
 | `SUPABASE_PICEO_URL` or `SUPABASE_URL` | no | Defaults to the Pi-CEO project (`https://zbryrmxmgfmslqzizsto.supabase.co`). |
 | `SUPABASE_PICEO_SERVICE_KEY` or `SUPABASE_SERVICE_ROLE_KEY` | **yes** | Service-role key for the Pi-CEO project. Never logged. |
 
+The service-role key can bypass Supabase row-level security. This MCP server is
+read-only by implementation, but the key still must stay local, out of checked-in
+config, and restricted to trusted operator machines. Do not expose this server on
+a network socket without replacing the service-role key path with a scoped
+server-side access layer.
+
 ### Sourcing the service key from 1Password
 
 The key is stored as `SUPABASE_SERVICE_ROLE_KEY` in the `Unite-Group-Infrastructure`
@@ -113,6 +120,9 @@ op run --vault Unite-Group-Infrastructure -- npm run mcp:dev
 
 (`op item get` was confirmed against the live vault on 2026-05-11; matching item id
 `js76udv2l2ncapgdt27reg65hi`.)
+
+Raw `op://...` references are intentionally rejected by the server startup path.
+Resolve them through the wrapper script, shell export, or `op run` before launch.
 
 ## Read-only contract
 

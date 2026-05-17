@@ -10,6 +10,9 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+AIP_DIR="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
+
 # Non-secret env
 export SUPABASE_PICEO_URL="https://zbryrmxmgfmslqzizsto.supabase.co"
 
@@ -31,5 +34,5 @@ fi
 export SUPABASE_PICEO_SERVICE_KEY
 
 # Exec the server. cd into aip/ so node_modules resolution works.
-cd /Users/phill-mac/Pi-CEO/Pi-Dev-Ops/aip
-exec npx tsx /Users/phill-mac/Pi-CEO/Pi-Dev-Ops/aip/src/mcp/server.ts
+cd "${AIP_DIR}"
+exec npx tsx "${SCRIPT_DIR}/server.ts"
