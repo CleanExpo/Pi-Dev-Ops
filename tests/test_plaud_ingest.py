@@ -304,27 +304,54 @@ class _FakeSession:
 
 
 def test_plaud_client_list_files_since():
-    fake = _FakeSession({"list_files": {"files": [
-        {"id": "abc", "name": "Foo", "created_at": "2026-05-17T14:32:00+10:00",
+    # Real Plaud MCP shape: {"data": [...], "scanned": N, "matched": N}
+    fake = _FakeSession({"list_files": {"data": [
+        {"id": "abc", "name": "Foo", "created_at": "2026-05-17T14:32:00",
          "duration": 720000},
-    ]}})
+    ], "scanned": 1, "matched": 1}})
     files = asyncio.run(plaud_ingest.PlaudClient(fake).list_files_since("2026-05-17"))
     assert len(files) == 1
     assert files[0]["id"] == "abc"
     assert fake.calls[0][0] == "list_files"
+    assert fake.calls[0][1].get("date_from") == "2026-05-17"
 
 
-def test_plaud_client_get_note_and_transcript():
+def test_plaud_client_get_note_extracts_auto_sum():
+    # Real Plaud MCP shape: list of {data_type, data_content, ...}
     fake = _FakeSession({
-        "get_note": {"summary": "## Summary\nKey decisions."},
-        "get_transcript": {"segments": [
-            {"start_ms": 0, "end_ms": 5000, "speaker": "A", "text": "Hello"}]},
+        "get_note": [
+            {"data_type": "auto_sum_note", "data_content": "## Summary\nKey decisions."},
+            {"data_type": "other_note", "data_content": "ignored"},
+        ],
     })
     client = plaud_ingest.PlaudClient(fake)
     note = asyncio.run(client.get_note("abc"))
-    transcript = asyncio.run(client.get_transcript("abc"))
     assert "Key decisions" in note
+    # Confirm file_id param was passed
+    assert fake.calls[0][1] == {"file_id": "abc"}
+
+
+def test_plaud_client_get_transcript_parses_nested_json():
+    # Real Plaud MCP shape: list with `transaction` item; data_content is a JSON STRING
+    raw_segments = [
+        {"start_time": 0, "end_time": 5000, "speaker": None,
+         "original_speaker": None, "content": "Hello"},
+        {"start_time": 5000, "end_time": 10000, "speaker": "Bob",
+         "original_speaker": None, "content": "World"},
+    ]
+    fake = _FakeSession({
+        "get_transcript": [
+            {"data_type": "transaction", "data_content": json.dumps(raw_segments)},
+        ],
+    })
+    client = plaud_ingest.PlaudClient(fake)
+    transcript = asyncio.run(client.get_transcript("abc"))
+    assert len(transcript) == 2
     assert transcript[0]["text"] == "Hello"
+    assert transcript[0]["start_ms"] == 0
+    assert transcript[0]["end_ms"] == 5000
+    assert transcript[0]["speaker"] == "Speaker"  # null falls back
+    assert transcript[1]["speaker"] == "Bob"
 
 
 def test_run_once_happy_path_writes_page_and_advances_state(tmp_path):
@@ -334,16 +361,21 @@ def test_run_once_happy_path_writes_page_and_advances_state(tmp_path):
     plaud_dir = wiki_dir / "plaud"
 
     fake = _FakeSession({
-        "list_files": {"files": [{
+        "list_files": {"data": [{
             "id": "abc123",
             "name": "Acme Q2 Pricing",
-            "created_at": "2026-05-17T14:32:00+10:00",
+            "created_at": "2026-05-17T14:32:00",
             "duration": 720_000,
             "presigned_url": "https://plaud.cdn/abc.mp3",
         }]},
-        "get_note": {"summary": "## Summary\nKey decisions made."},
-        "get_transcript": {"segments": [
-            {"start_ms": 0, "end_ms": 5000, "speaker": "A", "text": "Hello"}]},
+        "get_note": [
+            {"data_type": "auto_sum_note", "data_content": "## Summary\nKey decisions made."}
+        ],
+        "get_transcript": [
+            {"data_type": "transaction", "data_content": json.dumps([
+                {"start_time": 0, "end_time": 5000, "speaker": "A", "content": "Hello"}
+            ])}
+        ],
     })
 
     captured = {}
@@ -382,10 +414,10 @@ def test_run_once_idempotent_no_new_files(tmp_path):
     }
     state_path.write_text(json.dumps(save_state_initial))
 
-    fake = _FakeSession({"list_files": {"files": [{
+    fake = _FakeSession({"list_files": {"data": [{
         "id": "abc123",
         "name": "Acme Q2 Pricing",
-        "created_at": "2026-05-17T14:32:00+10:00",
+        "created_at": "2026-05-17T14:32:00",
         "duration": 720_000,
     }]}})
 

@@ -274,8 +274,8 @@ class PlaudClient:
         self.session = session
 
     @staticmethod
-    def _payload(result) -> dict:
-        """Extract JSON payload from an MCP tool result."""
+    def _payload(result):
+        """Extract JSON payload from an MCP tool result. May be list or dict."""
         if hasattr(result, "structuredContent") and result.structuredContent:
             return result.structuredContent
         for block in getattr(result, "content", []):
@@ -288,23 +288,58 @@ class PlaudClient:
         return {}
 
     async def list_files_since(self, date_from: str) -> list[dict]:
+        """Plaud MCP returns {"data": [...], "scanned": N, "matched": N}."""
         result = await self.session.call_tool("list_files",
                                               {"date_from": date_from, "page_size": 50})
         payload = self._payload(result)
-        return payload.get("files", payload.get("items", []))
+        if isinstance(payload, list):
+            return payload
+        return payload.get("data") or payload.get("files") or payload.get("items") or []
 
     async def get_note(self, plaud_id: str) -> str:
-        result = await self.session.call_tool("get_note", {"id": plaud_id})
+        """Plaud MCP returns a list of note items; pick auto_sum_note's data_content."""
+        result = await self.session.call_tool("get_note", {"file_id": plaud_id})
         payload = self._payload(result)
+        if isinstance(payload, list):
+            for item in payload:
+                if item.get("data_type") == "auto_sum_note":
+                    return item.get("data_content", "")
+            return ""
         return payload.get("summary") or payload.get("text") or ""
 
     async def get_transcript(self, plaud_id: str) -> list[dict]:
-        result = await self.session.call_tool("get_transcript", {"id": plaud_id})
+        """Plaud MCP returns a list with a `transaction` item whose data_content
+        is a JSON-encoded string of segments. Normalize to our schema."""
+        result = await self.session.call_tool("get_transcript", {"file_id": plaud_id})
         payload = self._payload(result)
-        return payload.get("segments", [])
+        raw_segments = []
+        if isinstance(payload, list):
+            for item in payload:
+                if item.get("data_type") == "transaction":
+                    raw = item.get("data_content", "")
+                    try:
+                        raw_segments = json.loads(raw) if isinstance(raw, str) else raw
+                    except json.JSONDecodeError:
+                        raw_segments = []
+                    break
+        else:
+            raw_segments = payload.get("segments", [])
+
+        normalized: list[dict] = []
+        for s in raw_segments:
+            if "start_ms" in s:
+                normalized.append(s)
+            else:
+                normalized.append({
+                    "start_ms": s.get("start_time", 0),
+                    "end_ms": s.get("end_time", 0),
+                    "speaker": s.get("speaker") or s.get("original_speaker") or "Speaker",
+                    "text": s.get("content", ""),
+                })
+        return normalized
 
     async def get_file(self, plaud_id: str) -> dict:
-        result = await self.session.call_tool("get_file", {"id": plaud_id})
+        result = await self.session.call_tool("get_file", {"file_id": plaud_id})
         return self._payload(result)
 
 
