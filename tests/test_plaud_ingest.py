@@ -499,6 +499,45 @@ def test_run_once_network_failure_silent_first_failures(tmp_path):
     assert state["consecutive_failures"] == 1
 
 
+def test_run_once_defers_unprocessed_recording(tmp_path):
+    """If Plaud has no summary AND no transcript yet, skip + don't advance state past it."""
+    state_path = tmp_path / "state.json"
+    fake = _FakeSession({
+        "list_files": {"data": [{
+            "id": "abc123", "name": "Fresh Recording",
+            "created_at": "2026-05-17T14:32:00", "duration": 720_000,
+        }]},
+        "get_note": [],          # empty — Plaud not done yet
+        "get_transcript": [],    # empty — Plaud not done yet
+    })
+
+    notifs = []
+    cfg = plaud_ingest.IngestConfig(
+        state_path=state_path, lock_path=tmp_path/"lock",
+        wiki_dir=tmp_path/"Wiki", plaud_dir=tmp_path/"Wiki"/"plaud",
+        bot_token="t", chat_id="c",
+        run_sync_subprocess=lambda: None,
+        notify_fn=lambda **k: notifs.append(k),
+    )
+    result = asyncio.run(plaud_ingest.run_once(plaud_ingest.PlaudClient(fake), cfg))
+    assert result["status"] == "ok"
+    assert result["ingested"] == 0
+    assert result["deferred"] == 1
+    state = json.loads(state_path.read_text())
+    # State did NOT advance — recording will be re-tried next tick
+    assert state["last_seen_id"] == ""
+    # No DM (deferral is silent)
+    assert notifs == []
+
+
+def test_regenerate_plaud_index_creates_missing_dir(tmp_path):
+    """Regression: regenerate must mkdir its target so a no-file run doesn't crash."""
+    plaud_dir = tmp_path / "never_existed"
+    plaud_ingest.regenerate_plaud_index(plaud_dir)  # must not raise
+    assert plaud_dir.exists()
+    assert (plaud_dir / "_index.md").exists()
+
+
 def test_run_once_network_failure_dms_after_threshold(tmp_path):
     state_path = tmp_path / "state.json"
     state_path.write_text(json.dumps({

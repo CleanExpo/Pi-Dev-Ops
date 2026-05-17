@@ -215,6 +215,7 @@ def _parse_frontmatter(text: str) -> dict | None:
 
 def regenerate_plaud_index(plaud_dir: Path) -> None:
     """Rewrite plaud_dir/_index.md as a table of all plaud recordings, newest first."""
+    plaud_dir.mkdir(parents=True, exist_ok=True)
     rows: list[dict] = []
     for md in plaud_dir.glob("*.md"):
         if md.name == "_index.md":
@@ -372,9 +373,17 @@ class IngestConfig:
     max_chars_per_page: int = 50_000
 
 
+class _NotReadyError(Exception):
+    """Plaud hasn't finished processing this recording yet (no summary, no transcript)."""
+    def __init__(self, plaud_id: str):
+        self.plaud_id = plaud_id
+        super().__init__(f"recording {plaud_id} not yet processed by Plaud")
+
+
 async def _ingest_one(client: PlaudClient, file_meta: dict, cfg: IngestConfig,
                       now_iso: str) -> list[Path]:
-    """Fetch note + transcript, render page(s), write. Returns list of written paths."""
+    """Fetch note + transcript, render page(s), write. Returns list of written paths.
+    Raises _NotReadyError if Plaud hasn't generated summary or transcript yet."""
     plaud_id = file_meta["id"]
     title = file_meta.get("name", plaud_id)
     duration_ms = int(file_meta.get("duration", 0))
@@ -383,7 +392,9 @@ async def _ingest_one(client: PlaudClient, file_meta: dict, cfg: IngestConfig,
 
     summary = await client.get_note(plaud_id)
     segments = await client.get_transcript(plaud_id)
-    parts = split_segments(segments, cfg.max_chars_per_page)
+    if not summary and not segments:
+        raise _NotReadyError(plaud_id)
+    parts = split_segments(segments, cfg.max_chars_per_page) or [[]]
 
     date_prefix = recorded_at[:10]
     base_slug = f"{date_prefix}-{slug_from_name(title, fallback_id=plaud_id)}"
@@ -423,9 +434,14 @@ async def run_once(client: PlaudClient, cfg: IngestConfig) -> dict:
         )
 
         ingested = 0
+        deferred = 0
         for f in new_files:
             try:
                 written = await _ingest_one(client, f, cfg, now_iso)
+            except _NotReadyError as e:
+                log.info("deferring %s — Plaud has not yet generated summary/transcript", e.plaud_id)
+                deferred += 1
+                break  # stop here; leave this and any newer recordings for the next tick
             except Exception as e:
                 return _handle_failure(e, state, cfg, now_iso)
             for path in written:
@@ -453,7 +469,7 @@ async def run_once(client: PlaudClient, cfg: IngestConfig) -> dict:
 
         state.update({"last_run_status": "ok", "last_error": None, "consecutive_failures": 0})
         save_state(cfg.state_path, state)
-        return {"ingested": ingested, "status": "ok", "error": None}
+        return {"ingested": ingested, "deferred": deferred, "status": "ok", "error": None}
 
 
 def _handle_failure(exc: Exception, state: dict, cfg: IngestConfig, now_iso: str) -> dict:
@@ -542,6 +558,7 @@ def _build_default_config(env: dict, *, backfill_since: str | None = None) -> In
 
 
 def main():
+    import sys
     parser = argparse.ArgumentParser(description="Plaud → Brain ingester")
     parser.add_argument("--backfill", metavar="ISO_DATETIME",
                         help="One-shot. Ignore state; ingest everything since this ISO timestamp.")
@@ -557,13 +574,31 @@ def main():
         cfg.run_sync_subprocess = lambda: log.info("[dry-run] would run sync_wiki_to_supabase.py")
         cfg.notify_fn = lambda **k: log.info("[dry-run] would DM: %s", k.get("text", ""))
 
+    # The mcp stdio client occasionally raises ExceptionGroup on teardown AFTER the
+    # run has completed — anyio's TaskGroup wraps a cancellation in BaseExceptionGroup.
+    # Capture the result before the cleanup runs so we can report success cleanly.
+    result_holder: list[dict] = []
+
     async def go():
         async with connect_real_plaud() as client:
-            return await run_once(client, cfg)
+            r = await run_once(client, cfg)
+            result_holder.append(r)
+            return r
 
-    result = asyncio.run(go())
+    try:
+        asyncio.run(go())
+    except BaseException as e:
+        if not result_holder:
+            log.error("plaud-ingest aborted before run_once returned: %s", e)
+            result_holder.append({"ingested": 0, "deferred": 0,
+                                  "status": "error", "error": str(e)})
+        else:
+            log.warning("MCP teardown noise after successful run: %s", type(e).__name__)
+
+    result = result_holder[0]
     log.info("plaud-ingest run: %s", result)
     print(json.dumps(result))
+    sys.exit(0 if result["status"] in ("ok", "locked") else 1)
 
 
 if __name__ == "__main__":
