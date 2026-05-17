@@ -158,7 +158,11 @@ venv/
 .harness/*.jsonl
 .harness/curator/*.jsonl
 .harness/curator/state.json
+.harness/workspace-intel/*.jsonl
 .harness/swarm/*.jsonl
+.harness/swarm/*_state.json
+.harness/swarm/green_merge_counter.json
+.harness/swarm/pr_rate_limit.json
 .harness/swarm/telegram_drafts.json
 .harness/cron-triggers.json
 .harness/notebooklm-freshness.json
@@ -167,6 +171,9 @@ venv/
 .harness/autonomy.jsonl
 .harness/bvi-history.jsonl
 .harness/fallback-dryrun-log.jsonl
+.harness/linear-pulse-state.json
+.harness/sources_processed.jsonl
+.harness/triage-cache.json
 .harness/Anthropic-Docs-Latest.md
 
 # Backup files — never commit
