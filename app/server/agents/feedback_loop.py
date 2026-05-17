@@ -8,7 +8,6 @@ stale features, and returns BVI "features delivered" contribution data.
 Runs monthly via cron (1st of month, 08:00 UTC).
 """
 from __future__ import annotations
-from app.server.provider_router import run_via_provider_blocking
 
 import json
 import logging
@@ -72,6 +71,8 @@ def _classify_with_claude(
     )
 
     try:
+        from app.server.provider_router import run_via_provider_blocking  # noqa: PLC0415
+
         rc, raw, _cost, error, pm = run_via_provider_blocking(prompt, _PATTERN_ROLE, _PATTERN_TIMEOUT_S)
     except Exception as exc:  # noqa: BLE001
         _log_sprinkle_event({

@@ -13,7 +13,6 @@ import os
 import traceback
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from app.server.provider_router import run_via_provider_blocking
 
 # RA-1985 sprinkle #4 / RA-2995 migration — pre-brief LLM call before the
 # board meeting runs. Routes through provider_router (cheap tier → Ollama
@@ -143,6 +142,8 @@ def _generate_board_prebrief(log) -> str:
     )
 
     try:
+        from app.server.provider_router import run_via_provider_blocking  # noqa: PLC0415
+
         rc, text, _cost, error, pm = run_via_provider_blocking(prompt, _PREBRIEF_ROLE, _PREBRIEF_TIMEOUT_S, log=log)
     except Exception as exc:  # noqa: BLE001
         log.warning("Board pre-brief router call raised: %s — board meeting will run without it", exc)

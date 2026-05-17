@@ -14,7 +14,6 @@ Usage:
     created = engine.triage(project_id, scan_results)
 """
 from __future__ import annotations
-from app.server.provider_router import run_via_provider_blocking
 
 import json
 import logging
@@ -88,6 +87,8 @@ def _claude_triage(project_id: str, finding: Finding) -> dict[str, Any] | None:
     )
 
     try:
+        from app.server.provider_router import run_via_provider_blocking  # noqa: PLC0415
+
         rc, raw, _cost, error, pm = run_via_provider_blocking(prompt, _TRIAGE_ROLE, _TRIAGE_TIMEOUT_S)
     except Exception as exc:  # noqa: BLE001
         _log_sprinkle_event({
