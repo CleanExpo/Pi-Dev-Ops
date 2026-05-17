@@ -34,6 +34,9 @@ Run the production smoke without writing to Drive:
 pnpm smoke:prod
 ```
 
+GitHub Actions also runs this no-write smoke every 2 hours via
+`Live Nexus Smoke (production)`.
+
 Run the production smoke including `/api/save` only when a Drive smoke file is acceptable:
 
 ```bash
