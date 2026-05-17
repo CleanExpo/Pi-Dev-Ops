@@ -356,8 +356,11 @@ async def connect_real_plaud():
             yield PlaudClient(session)
 
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable
+
+
+import plaud_actions  # sub-project 2 — action extraction + Linear filing
 
 
 @dataclass
@@ -371,6 +374,11 @@ class IngestConfig:
     run_sync_subprocess: Callable[[], None]
     notify_fn: Callable[..., None]
     max_chars_per_page: int = 50_000
+    # Sub-project 2 fields (defaults so legacy callers don't break)
+    anthropic_api_key: str = ""
+    linear_api_key: str = ""
+    projects_json_path: Path = Path.home() / "Pi-CEO" / "Pi-Dev-Ops" / ".harness" / "projects.json"
+    batch_results: list = field(default_factory=list)
 
 
 class _NotReadyError(Exception):
@@ -435,6 +443,7 @@ async def run_once(client: PlaudClient, cfg: IngestConfig) -> dict:
 
         ingested = 0
         deferred = 0
+        cfg.batch_results = []  # sub-project 2 — per-tick BatchResult accumulator
         for f in new_files:
             try:
                 written = await _ingest_one(client, f, cfg, now_iso)
@@ -459,6 +468,18 @@ async def run_once(client: PlaudClient, cfg: IngestConfig) -> dict:
                           text=f"📼 New Plaud: {f.get('name', f['id'])} "
                                f"({format_duration_human(int(f.get('duration', 0)))}). "
                                "I've added it to the brain.")
+            # Sub-project 2: action extraction + Linear filing (env-gated inside process())
+            if written:
+                try:
+                    plaud_actions.process(
+                        plaud_id=f["id"],
+                        page_path=written[0],
+                        file_meta=f,
+                        batch_results=cfg.batch_results,
+                        cfg=cfg,
+                    )
+                except Exception as e:
+                    log.warning("plaud_actions.process raised for %s: %s", f["id"], e)
 
         if ingested:
             regenerate_plaud_index(cfg.plaud_dir)
@@ -467,9 +488,23 @@ async def run_once(client: PlaudClient, cfg: IngestConfig) -> dict:
             except Exception as e:
                 log.warning("sync_wiki_to_supabase.py failed: %s", e)
 
+        # Sub-project 2: one Telegram digest per cron batch
+        if cfg.batch_results:
+            try:
+                plaud_actions.send_batch_digest(cfg, cfg.batch_results)
+            except Exception as e:
+                log.warning("send_batch_digest raised: %s", e)
+
         state.update({"last_run_status": "ok", "last_error": None, "consecutive_failures": 0})
         save_state(cfg.state_path, state)
-        return {"ingested": ingested, "deferred": deferred, "status": "ok", "error": None}
+        tickets_total = sum(len(br.tickets) for br in cfg.batch_results)
+        portfolios = sorted({br.portfolio for br in cfg.batch_results if br.portfolio})
+        return {
+            "ingested": ingested, "deferred": deferred,
+            "tickets_created": tickets_total,
+            "portfolios_touched": portfolios,
+            "status": "ok", "error": None,
+        }
 
 
 def _handle_failure(exc: Exception, state: dict, cfg: IngestConfig, now_iso: str) -> dict:
@@ -554,6 +589,9 @@ def _build_default_config(env: dict, *, backfill_since: str | None = None) -> In
         chat_id=env.get("MARGOT_DM_CHAT_ID", ""),
         run_sync_subprocess=run_sync,
         notify_fn=notify_margot,
+        # Sub-project 2 — keys from the same env file
+        anthropic_api_key=env.get("ANTHROPIC_API_KEY", ""),
+        linear_api_key=env.get("LINEAR_API_KEY", ""),
     )
 
 
