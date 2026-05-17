@@ -3,6 +3,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 describe("/api/save", () => {
   beforeEach(() => {
     vi.resetModules();
+    delete process.env.GOOGLE_OAUTH_CLIENT_ID;
+    delete process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+    delete process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
     process.env.DRIVE_SERVICE_ACCOUNT_JSON = JSON.stringify({
       client_email: "sa@p.iam.gserviceaccount.com",
       private_key: "-----BEGIN PRIVATE KEY-----\nMIIE...\n-----END PRIVATE KEY-----\n",
@@ -10,7 +13,7 @@ describe("/api/save", () => {
     process.env.DRIVE_FOLDER_ID = "folder-xyz";
   });
 
-  it("returns 500 when DRIVE_SERVICE_ACCOUNT_JSON missing", async () => {
+  it("returns 502 when no auth env configured", async () => {
     delete process.env.DRIVE_SERVICE_ACCOUNT_JSON;
     const { POST } = await import("../route");
     const res = await POST(
@@ -28,7 +31,7 @@ describe("/api/save", () => {
         }),
       })
     );
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(502);
   });
 
   it("returns 500 when DRIVE_FOLDER_ID missing", async () => {
@@ -60,11 +63,13 @@ describe("/api/save", () => {
 
   it("calls mintServiceAccountToken + createDriveFile with composed markdown", async () => {
     const mockMint = vi.fn().mockResolvedValue("ya29.fake");
+    const mockMintOAuth = vi.fn().mockResolvedValue("ya29.oauth");
     const mockCreate = vi
       .fn()
       .mockResolvedValue({ fileId: "f1", webViewLink: "https://drive/f1" });
     vi.doMock("@/lib/drive-client", () => ({
       mintServiceAccountToken: mockMint,
+      mintTokenFromRefreshToken: mockMintOAuth,
       createDriveFile: mockCreate,
     }));
     vi.resetModules();
@@ -99,6 +104,7 @@ describe("/api/save", () => {
   it("returns 502 when Drive create throws", async () => {
     vi.doMock("@/lib/drive-client", () => ({
       mintServiceAccountToken: vi.fn().mockResolvedValue("t"),
+      mintTokenFromRefreshToken: vi.fn().mockResolvedValue("t"),
       createDriveFile: vi.fn().mockRejectedValue(new Error("Drive 403 forbidden")),
     }));
     vi.resetModules();

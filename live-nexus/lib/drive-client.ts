@@ -11,6 +11,38 @@ interface ServiceAccountKey {
   token_uri?: string;
 }
 
+export interface OAuthRefreshTokenCreds {
+  clientId: string;
+  clientSecret: string;
+  refreshToken: string;
+}
+
+/** Mint an access token from an OAuth refresh token (user-delegated auth).
+ * Use this when files must be owned by the user (personal Drive — service
+ * accounts can't own files there because they have no storage quota). */
+export async function mintTokenFromRefreshToken(
+  creds: OAuthRefreshTokenCreds
+): Promise<string> {
+  const res = await fetch(GOOGLE_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      client_id: creds.clientId,
+      client_secret: creds.clientSecret,
+      refresh_token: creds.refreshToken,
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(
+      `OAuth refresh-token mint failed: ${res.status} ${text.slice(0, 200)}`
+    );
+  }
+  const { access_token } = (await res.json()) as { access_token: string };
+  return access_token;
+}
+
 export interface DriveCreateResult {
   fileId: string;
   webViewLink: string;

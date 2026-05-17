@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { mintServiceAccountToken, createDriveFile } from "@/lib/drive-client";
+import {
+  mintServiceAccountToken,
+  mintTokenFromRefreshToken,
+  createDriveFile,
+} from "@/lib/drive-client";
 
 const RUN_LIVE = process.env.RUN_LIVE_NEXUS === "1";
 
@@ -53,11 +57,19 @@ describe.skipIf(!RUN_LIVE)("live integration", () => {
     expect(res.ok).toBe(true);
   });
 
-  it("Drive: service-account creates and reads a probe file", async () => {
-    const saJson = process.env.DRIVE_SERVICE_ACCOUNT_JSON;
+  it("Drive: OAuth user creds create + read a probe file in personal Drive", async () => {
+    const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+    const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
     const folderId = process.env.DRIVE_FOLDER_ID;
-    if (!saJson || !folderId) throw new Error("Drive env vars not set");
-    const token = await mintServiceAccountToken(JSON.parse(saJson));
+    if (!clientId || !clientSecret || !refreshToken || !folderId) {
+      throw new Error("OAuth + folder env vars not set");
+    }
+    const token = await mintTokenFromRefreshToken({
+      clientId,
+      clientSecret,
+      refreshToken,
+    });
     const result = await createDriveFile({
       accessToken: token,
       folderId,
