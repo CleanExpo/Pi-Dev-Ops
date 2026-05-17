@@ -475,3 +475,13 @@ def process(
         plaud_id=plaud_id, title=title, wiki_path=wiki_link,
         portfolio=portfolio, tickets=tickets, status=status,
     ))
+
+
+def send_batch_digest(cfg, batch_results: list[BatchResult]) -> None:
+    """Compose and send ONE Telegram DM covering the whole batch. Silent when
+    no tickets were filed. Uses cfg.notify_fn — same callable used by
+    plaud_ingest.notify_margot."""
+    text = build_digest_text(batch_results)
+    if text is None:
+        return
+    cfg.notify_fn(bot_token=cfg.bot_token, chat_id=cfg.chat_id, text=text)

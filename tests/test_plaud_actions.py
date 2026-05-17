@@ -625,3 +625,45 @@ def test_process_skips_after_3_parse_failures(tmp_path, monkeypatch):
 
     extract_called.assert_not_called()
     assert batch_results[0].status == "parse_failed"
+
+
+def test_send_batch_digest_calls_notify_with_built_text(tmp_path):
+    from types import SimpleNamespace
+    notifs: list = []
+    cfg = SimpleNamespace(
+        bot_token="t", chat_id="c",
+        notify_fn=lambda **k: notifs.append(k),
+    )
+    brs = [plaud_actions.BatchResult(
+        plaud_id="a", title="Meeting", wiki_path="plaud/a",
+        portfolio="ccw-crm",
+        tickets=[plaud_actions.TicketRef("i", "CCW-1", "")],
+        status="ok")]
+    plaud_actions.send_batch_digest(cfg, brs)
+    assert len(notifs) == 1
+    assert "Meeting" in notifs[0]["text"]
+    assert "CCW-1" in notifs[0]["text"]
+
+
+def test_send_batch_digest_silent_when_no_tickets(tmp_path):
+    from types import SimpleNamespace
+    notifs: list = []
+    cfg = SimpleNamespace(
+        bot_token="t", chat_id="c",
+        notify_fn=lambda **k: notifs.append(k),
+    )
+    brs = [plaud_actions.BatchResult(plaud_id="a", title="t",
+        wiki_path="p", portfolio="x", tickets=[], status="no_actions")]
+    plaud_actions.send_batch_digest(cfg, brs)
+    assert notifs == []
+
+
+def test_send_batch_digest_empty_list_silent(tmp_path):
+    from types import SimpleNamespace
+    notifs: list = []
+    cfg = SimpleNamespace(
+        bot_token="t", chat_id="c",
+        notify_fn=lambda **k: notifs.append(k),
+    )
+    plaud_actions.send_batch_digest(cfg, [])
+    assert notifs == []
