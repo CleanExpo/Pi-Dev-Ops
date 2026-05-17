@@ -29,6 +29,9 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
   const startedAtRef = useRef<string>("");
   const aaiRef = useRef<AssemblyAiClient | null>(null);
   const pollerRef = useRef<SynthesisPoller | null>(null);
+  const linesRef = useRef<TranscriptLine[]>([]);
+  const topicsRef = useRef<string[]>([]);
+  const actionsRef = useRef<Action[]>([]);
 
   function fmtClock(d: Date) {
     return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -100,11 +103,15 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
       const poller = new SynthesisPoller({
         intervalMs: SYNTHESIS_INTERVAL_MS,
         getState: () => ({
-          transcript: lines.map((l) => `[${l.timestamp}] ${l.speaker}: ${l.text}`).join("\n"),
-          topics,
-          actions,
+          transcript: linesRef.current
+            .map((l) => `[${l.timestamp}] ${l.speaker}: ${l.text}`)
+            .join("\n"),
+          topics: topicsRef.current,
+          actions: actionsRef.current,
         }),
         onUpdate: ({ topics: newT, actions: newA }) => {
+          topicsRef.current = newT;
+          actionsRef.current = newA;
           setTopics(newT);
           setActions(newA);
         },
@@ -123,8 +130,8 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
   }
 
   async function endMeeting() {
-    pollerRef.current?.stop();
     await pollerRef.current?.flush();
+    pollerRef.current?.stop();
     aaiRef.current?.close();
     setHeaderState("ended");
 
@@ -134,12 +141,12 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           meetingId: id,
-          title: topics[0] ?? "Meeting",
+          title: topicsRef.current[0] ?? "Meeting",
           startedAt: startedAtRef.current,
           endedAt: new Date().toISOString(),
-          transcript: lines,
-          topics,
-          actions,
+          transcript: linesRef.current,
+          topics: topicsRef.current,
+          actions: actionsRef.current,
           brand: "unite-group",
         }),
       });
@@ -152,6 +159,18 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
       setConnection("error");
     }
   }
+
+  useEffect(() => {
+    linesRef.current = lines;
+  }, [lines]);
+
+  useEffect(() => {
+    topicsRef.current = topics;
+  }, [topics]);
+
+  useEffect(() => {
+    actionsRef.current = actions;
+  }, [actions]);
 
   useEffect(() => {
     if (headerState !== "recording") return;
