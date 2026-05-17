@@ -450,7 +450,7 @@ git commit -m "feat: add margot voice packet contract"
 - Create: `/Users/phill-mac/pi-seo-workspace/unite-group/src/app/api/pi-ceo/margot-voice/signed-url/route.ts`
 - Modify: `/Users/phill-mac/pi-seo-workspace/unite-group/src/lib/ratelimit.ts`
 
-- [ ] **Step 1: Write failing route tests**
+- [x] **Step 1: Write failing route tests**
 
 Create `/Users/phill-mac/pi-seo-workspace/unite-group/tests/integration/api/margot-voice-signed-url.test.ts`:
 
@@ -524,7 +524,7 @@ describe('GET /api/pi-ceo/margot-voice/signed-url', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests and confirm failure**
+- [x] **Step 2: Run tests and confirm failure**
 
 Run:
 
@@ -535,7 +535,7 @@ npm run test:all -- tests/integration/api/margot-voice-signed-url.test.ts --runI
 
 Expected: fails because the route file does not exist.
 
-- [ ] **Step 3: Add rate limit presets**
+- [x] **Step 3: Add rate limit presets**
 
 Modify `/Users/phill-mac/pi-seo-workspace/unite-group/src/lib/ratelimit.ts` inside `RATE_LIMITS`:
 
@@ -544,7 +544,7 @@ Modify `/Users/phill-mac/pi-seo-workspace/unite-group/src/lib/ratelimit.ts` insi
   margotVoiceTaskCreate: { limit: 30, windowMs: 60_000 },
 ```
 
-- [ ] **Step 4: Create signed URL route**
+- [x] **Step 4: Create signed URL route**
 
 Create `/Users/phill-mac/pi-seo-workspace/unite-group/src/app/api/pi-ceo/margot-voice/signed-url/route.ts`:
 
@@ -608,7 +608,7 @@ export async function GET(req: NextRequest) {
 }
 ```
 
-- [ ] **Step 5: Verify tests pass**
+- [x] **Step 5: Verify tests pass**
 
 Run:
 
@@ -619,7 +619,7 @@ npm run test:all -- tests/integration/api/margot-voice-signed-url.test.ts --runI
 
 Expected: all tests pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 Run:
 
@@ -628,6 +628,13 @@ cd /Users/phill-mac/pi-seo-workspace/unite-group
 git add src/lib/ratelimit.ts src/app/api/pi-ceo/margot-voice/signed-url/route.ts tests/integration/api/margot-voice-signed-url.test.ts
 git commit -m "feat: add margot voice signed url route"
 ```
+
+Completed:
+- Unite CRM commit: `efe81b2 feat: add margot voice signed url route`
+- Focused test: `npm run test:all -- tests/integration/api/margot-voice-signed-url.test.ts --runInBand` -> 3 passed
+- Type check: `npm run type-check -- --pretty false` -> exit 0
+- Targeted lint: `npx eslint src/app/api/pi-ceo/margot-voice/signed-url/route.ts tests/integration/api/margot-voice-signed-url.test.ts --max-warnings=0` -> exit 0
+- Whole-repo lint: `npm run lint -- --max-warnings=0` -> blocked by 485 inherited warnings, 0 errors
 
 ---
 
