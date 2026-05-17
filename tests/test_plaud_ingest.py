@@ -205,3 +205,48 @@ def test_write_page_collision_chains(tmp_path):
     (tmp_path / "2026-05-17-foo-2.md").write_text("b")
     target = plaud_ingest.write_page(tmp_path, "2026-05-17-foo", "c")
     assert target == tmp_path / "2026-05-17-foo-3.md"
+
+
+def test_append_log_line(tmp_path):
+    log_path = tmp_path / "log.md"
+    log_path.write_text("# Log\n\nexisting line\n")
+    plaud_ingest.append_log_line(log_path,
+        "2026-05-17T14:40 | plaud-ingest | plaud/2026-05-17-foo.md | new recording (12m, 8200 chars)")
+    text = log_path.read_text()
+    assert "existing line" in text
+    assert text.endswith("plaud/2026-05-17-foo.md | new recording (12m, 8200 chars)\n")
+
+
+def test_regenerate_plaud_index_empty(tmp_path):
+    plaud_dir = tmp_path / "plaud"
+    plaud_dir.mkdir()
+    plaud_ingest.regenerate_plaud_index(plaud_dir)
+    idx = (plaud_dir / "_index.md").read_text()
+    assert "# Plaud Recordings" in idx
+    assert "| Date | Title | Duration | Link |" in idx
+
+
+def test_regenerate_plaud_index_with_entries(tmp_path):
+    plaud_dir = tmp_path / "plaud"
+    plaud_dir.mkdir()
+    (plaud_dir / "2026-05-17-acme-sync.md").write_text(
+        "---\ntype: plaud-recording\nplaud_id: a1\nrecorded_at: 2026-05-17T14:00:00+10:00\n"
+        "duration_human: 12m00s\n---\n\n# Acme Sync\n")
+    (plaud_dir / "2026-05-16-other.md").write_text(
+        "---\ntype: plaud-recording\nplaud_id: a2\nrecorded_at: 2026-05-16T09:00:00+10:00\n"
+        "duration_human: 5m00s\n---\n\n# Other\n")
+    plaud_ingest.regenerate_plaud_index(plaud_dir)
+    idx = (plaud_dir / "_index.md").read_text()
+    assert idx.index("Acme Sync") < idx.index("Other")
+    assert "12m00s" in idx
+    assert "[Acme Sync](2026-05-17-acme-sync.md)" in idx
+
+
+def test_regenerate_plaud_index_skips_non_plaud(tmp_path):
+    plaud_dir = tmp_path / "plaud"
+    plaud_dir.mkdir()
+    (plaud_dir / "_index.md").write_text("old")
+    (plaud_dir / "random.md").write_text("# Not a plaud recording\n")
+    plaud_ingest.regenerate_plaud_index(plaud_dir)
+    idx = (plaud_dir / "_index.md").read_text()
+    assert "Not a plaud recording" not in idx
