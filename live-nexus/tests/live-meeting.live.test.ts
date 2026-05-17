@@ -8,14 +8,16 @@ import {
 const RUN_LIVE = process.env.RUN_LIVE_NEXUS === "1";
 
 describe.skipIf(!RUN_LIVE)("live integration", () => {
-  it("AssemblyAI: mints a token via /v2/realtime/token", async () => {
+  it("AssemblyAI: mints a v3 streaming token", async () => {
     const apiKey = process.env.ASSEMBLYAI_API_KEY;
     if (!apiKey) throw new Error("ASSEMBLYAI_API_KEY not set");
-    const res = await fetch("https://api.assemblyai.com/v2/realtime/token", {
-      method: "POST",
-      headers: { Authorization: apiKey, "Content-Type": "application/json" },
-      body: JSON.stringify({ expires_in: 60 }),
-    });
+    const res = await fetch(
+      "https://streaming.assemblyai.com/v3/token?expires_in_seconds=60",
+      {
+        method: "GET",
+        headers: { Authorization: apiKey },
+      }
+    );
     expect(res.ok).toBe(true);
     const data = (await res.json()) as { token: string };
     expect(typeof data.token).toBe("string");
