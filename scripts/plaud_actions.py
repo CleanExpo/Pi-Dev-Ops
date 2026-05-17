@@ -200,3 +200,36 @@ def extract_actions(*, page_md: str, anthropic_api_key: str):
     log.warning("extract_actions: no tool_use block in response: %s",
                 json.dumps(data)[:500])
     return None
+
+
+# ── Linear ticket batch ────────────────────────────────────────────────────
+
+def create_linear_tickets(
+    *,
+    actions: list[Action],
+    team_id: str,
+    project_id: str,
+    wiki_link: str,
+    linear_api_key: str,
+) -> list[TicketRef]:
+    """File one Linear ticket per Action. Returns the TicketRef for each ticket
+    that was created successfully. Failed ones are simply absent — caller
+    detects partial success via len(result) < len(actions)."""
+    refs: list[TicketRef] = []
+    for action in actions:
+        description = (
+            f"{action.description}\n\n"
+            f"---\n"
+            f"Source: [{wiki_link.rsplit('/', 1)[-1]}]({wiki_link})"
+        )
+        ref = create_linear_issue(
+            api_key=linear_api_key,
+            title=action.title,
+            description=description,
+            team_id=team_id,
+            project_id=project_id,
+            priority=action.priority,
+        )
+        if ref is not None:
+            refs.append(ref)
+    return refs

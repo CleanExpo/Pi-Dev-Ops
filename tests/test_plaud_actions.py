@@ -205,3 +205,59 @@ def test_extract_actions_low_confidence_preserved():
 def test_extract_actions_missing_key_returns_auth_error():
     ex = plaud_actions.extract_actions(page_md="x", anthropic_api_key="")
     assert isinstance(ex, plaud_actions._AuthError)
+
+
+def test_create_linear_tickets_happy_path():
+    actions = [
+        plaud_actions.Action(title="Action 1", description="desc 1", priority=2),
+        plaud_actions.Action(title="Action 2", description="desc 2", priority=3),
+    ]
+    refs = [
+        plaud_actions.TicketRef(id="i1", identifier="CCW-247", url="u1"),
+        plaud_actions.TicketRef(id="i2", identifier="CCW-248", url="u2"),
+    ]
+    with patch("plaud_actions.create_linear_issue", side_effect=refs):
+        result = plaud_actions.create_linear_tickets(
+            actions=actions, team_id="t", project_id="p",
+            wiki_link="https://wiki/plaud/x.md",
+            linear_api_key="lin_api_xxx",
+        )
+    assert len(result) == 2
+    assert result[0].identifier == "CCW-247"
+
+
+def test_create_linear_tickets_partial_failure():
+    actions = [
+        plaud_actions.Action(title="A", description="d1", priority=3),
+        plaud_actions.Action(title="B", description="d2", priority=3),
+        plaud_actions.Action(title="C", description="d3", priority=3),
+    ]
+    side_effects = [
+        plaud_actions.TicketRef(id="i1", identifier="X-1", url=""),
+        None,
+        plaud_actions.TicketRef(id="i3", identifier="X-3", url=""),
+    ]
+    with patch("plaud_actions.create_linear_issue", side_effect=side_effects):
+        result = plaud_actions.create_linear_tickets(
+            actions=actions, team_id="t", project_id="p",
+            wiki_link="https://wiki/p", linear_api_key="k",
+        )
+    assert len(result) == 2
+    assert [r.identifier for r in result] == ["X-1", "X-3"]
+
+
+def test_create_linear_tickets_appends_wiki_backlink_to_description():
+    actions = [plaud_actions.Action(title="A", description="original body", priority=3)]
+    seen_descriptions: list[str] = []
+    def fake_create(**kw):
+        seen_descriptions.append(kw["description"])
+        return plaud_actions.TicketRef(id="i", identifier="X-1", url="")
+
+    with patch("plaud_actions.create_linear_issue", side_effect=fake_create):
+        plaud_actions.create_linear_tickets(
+            actions=actions, team_id="t", project_id="p",
+            wiki_link="https://wiki/plaud/test-slug.md", linear_api_key="k",
+        )
+    assert "original body" in seen_descriptions[0]
+    assert "https://wiki/plaud/test-slug.md" in seen_descriptions[0]
+    assert "Source" in seen_descriptions[0]
