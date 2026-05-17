@@ -1,8 +1,8 @@
 # scripts — Wiki
 
-_Last updated: 2026-05-17T13:01:31Z (commits 0cad1f8..8627da8)_
+_Last updated: 2026-05-17T13:16:31Z (commits ef893c6..9d238ca)_
 
 ## Recent changes
-- 8627da8 — fix(infra): Pi-CEO liveness monitor + launchd installer (RA-3752, RA-3753) (#216)
+- 9d238ca — fix(infra): consolidate provider_router helper + wire kpi_watchdog cron + jsonl rotator (RA-3003, RA-3007) (#215)
 
 Not logged in · Please run /login
