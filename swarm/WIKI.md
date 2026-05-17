@@ -1,8 +1,8 @@
 # swarm — Wiki
 
-_Last updated: 2026-05-14T22:33:21Z (commits 7d6aa3d..218d72a)_
+_Last updated: 2026-05-17T11:31:13Z (commits 838e758..b34e3c6)_
 
 ## Recent changes
-- 218d72a — feat(swarm/board): bubus typed-event surface (DORMANT) — W1B-prep Task 3 (#236)
+- b34e3c6 — Feat/hermes plugin mirror (#240)
 
 Not logged in · Please run /login
