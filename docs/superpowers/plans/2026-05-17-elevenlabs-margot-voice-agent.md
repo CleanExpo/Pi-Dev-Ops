@@ -644,7 +644,7 @@ Completed:
 - Create: `/Users/phill-mac/pi-seo-workspace/unite-group/tests/integration/api/margot-voice-task.test.ts`
 - Create: `/Users/phill-mac/pi-seo-workspace/unite-group/src/app/api/pi-ceo/margot-voice/task/route.ts`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Create `/Users/phill-mac/pi-seo-workspace/unite-group/tests/integration/api/margot-voice-task.test.ts`:
 
@@ -776,7 +776,7 @@ describe('POST /api/pi-ceo/margot-voice/task', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests and confirm failure**
+- [x] **Step 2: Run tests and confirm failure**
 
 Run:
 
@@ -787,7 +787,7 @@ npm run test:all -- tests/integration/api/margot-voice-task.test.ts --runInBand
 
 Expected: fails because the route file does not exist.
 
-- [ ] **Step 3: Create task route**
+- [x] **Step 3: Create task route**
 
 Create `/Users/phill-mac/pi-seo-workspace/unite-group/src/app/api/pi-ceo/margot-voice/task/route.ts`:
 
@@ -951,7 +951,7 @@ export async function POST(req: NextRequest) {
 }
 ```
 
-- [ ] **Step 4: Verify tests pass**
+- [x] **Step 4: Verify tests pass**
 
 Run:
 
@@ -962,7 +962,7 @@ npm run test:all -- tests/integration/api/margot-voice-task.test.ts --runInBand
 
 Expected: all tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 Run:
 
@@ -971,6 +971,13 @@ cd /Users/phill-mac/pi-seo-workspace/unite-group
 git add src/app/api/pi-ceo/margot-voice/task/route.ts tests/integration/api/margot-voice-task.test.ts
 git commit -m "feat: add margot voice crm task route"
 ```
+
+Completed:
+- Unite CRM commit: `0c6ab61 feat: add margot voice crm task route`
+- Red test: route import failed before implementation because `/api/pi-ceo/margot-voice/task` did not exist
+- Focused test: `npm run test:all -- tests/integration/api/margot-voice-task.test.ts --runInBand` -> 3 passed
+- Type check: `npm run type-check -- --pretty false` -> exit 0
+- Targeted lint: `npx eslint src/app/api/pi-ceo/margot-voice/task/route.ts tests/integration/api/margot-voice-task.test.ts --max-warnings=0` -> exit 0
 
 ---
 
