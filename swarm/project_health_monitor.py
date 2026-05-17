@@ -44,7 +44,12 @@ SPECIALIST_MAP: dict[str, str] = {
     "unknown":             "IDD-4",
 }
 
-# Project → stack hint for specialist override
+# Project → stack hint for specialist override.
+# RA-3033 — CCW-CRM was tagged "python,typescript" which made its CI
+# failures route through the `ci_failing_python` taxonomy even though
+# the actual failing CI is on the TypeScript / Next.js side. The repo
+# has some Python tooling but the failing workflow is Node. Removed
+# "python" so CI failures now route to `ci_failing` / IDD-4 (TS).
 STACK_MAP: dict[str, list[str]] = {
     "pi-dev-ops":         ["python", "typescript"],
     "restoreassist":      ["typescript", "ios"],
@@ -53,7 +58,7 @@ STACK_MAP: dict[str, list[str]] = {
     "nrpg-onboarding":    ["typescript"],
     "synthex":            ["typescript"],
     "unite-group":        ["typescript"],
-    "ccw-crm":            ["python", "typescript"],
+    "ccw-crm":            ["typescript"],
     "carsi":              ["typescript"],
 }
 
@@ -228,8 +233,75 @@ def _assign_specialist(failure_type: str, project_id: str) -> str:
     return base
 
 
+def _find_open_workorder(project_id: str, failure_type: str) -> str:
+    """RA-3033 — return the identifier of an existing open WorkOrder
+    ticket for this (project, failure_type), or '' if none. Looks at
+    states whose name contains 'Backlog' or 'Todo' or 'In Progress'.
+
+    Failure-safe: any Linear API issue returns '' so the caller falls
+    through to creating a new ticket (preserves current behaviour on
+    outage — better to file a possibly-duplicate ticket than to silently
+    drop a CI-failure signal).
+    """
+    try:
+        from .linear_tools import list_issues  # noqa: PLC0415
+    except Exception:
+        return ""
+    title_marker = f"[WorkOrder] {project_id} — {failure_type}"
+    for state_filter in ("Backlog", "Todo", "In Progress"):
+        try:
+            res = list_issues(team="RestoreAssist", state=state_filter, limit=50)
+        except Exception:  # noqa: BLE001
+            continue
+        for iss in res.get("issues", []):
+            if iss.get("title", "").startswith(title_marker):
+                return iss.get("id", "")
+    return ""
+
+
+def _comment_on_existing_workorder(issue_id: str, wo: "WorkOrder") -> bool:
+    """RA-3033 — append a 'recurrence' comment to an existing WorkOrder.
+    Returns True on success. Failure-safe."""
+    try:
+        from .linear_tools import save_comment  # noqa: PLC0415
+    except Exception:
+        return False
+    body = (
+        f"**Recurrence** ({datetime.now(timezone.utc).isoformat()})\n\n"
+        f"Same `(project, failure_type)` detected again by "
+        f"`project_health_monitor`. New context:\n\n"
+        f"```json\n{json.dumps(wo.context, indent=2)}\n```\n\n"
+        f"_RA-3033 dedup — not filing a new ticket._"
+    )
+    try:
+        res = save_comment(issue_id=issue_id, body=body)
+        return res.get("status") == "ok" or "id" in res
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _file_work_order_ticket(wo: WorkOrder) -> str:
-    """File a Linear ticket for this work order. Returns identifier or ''."""
+    """File a Linear ticket for this work order. Returns identifier or ''.
+
+    RA-3033 — checks for an existing open WorkOrder ticket with the same
+    `(project_id, failure_type)` first; if found, appends a recurrence
+    comment instead of creating a new ticket. Prevents the 8-duplicates-
+    in-3h flood pattern that RA-1503 was supposed to solve.
+    """
+    existing = _find_open_workorder(wo.project_id, wo.failure_type)
+    if existing:
+        if _comment_on_existing_workorder(existing, wo):
+            log.info(
+                "health_monitor: deduped — appended recurrence comment to %s "
+                "(%s/%s)", existing, wo.project_id, wo.failure_type,
+            )
+        else:
+            log.warning(
+                "health_monitor: dedup detected %s but comment failed — "
+                "skipping ticket creation anyway to avoid flood "
+                "(%s/%s)", existing, wo.project_id, wo.failure_type,
+            )
+        return existing
     try:
         from .margot_tools import propose_idea  # noqa: PLC0415
         title = f"[WorkOrder] {wo.project_id} — {wo.failure_type} ({wo.severity})"
