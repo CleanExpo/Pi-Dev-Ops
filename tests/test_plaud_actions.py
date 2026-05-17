@@ -395,3 +395,233 @@ def test_build_digest_partial_shows_partial_marker():
         status="partial")
     text = plaud_actions.build_digest_text([br])
     assert "partial" in text.lower() or "⚠" in text
+
+
+def _make_cfg(tmp_path, **overrides):
+    """Minimal config-shaped object the orchestrator needs. We don't import the
+    real IngestConfig — we mirror only what process() touches."""
+    from types import SimpleNamespace
+    pj = tmp_path / "projects.json"
+    if not pj.exists():
+        pj.write_text(json.dumps({"projects": [
+            {"id": "pi-dev-ops", "linear_team_id": "ra-team", "linear_project_id": "pi-proj"},
+            {"id": "ccw-crm", "linear_team_id": "uni-team", "linear_project_id": "ccw-proj"},
+            {"id": "synthex", "linear_team_id": "syn-team", "linear_project_id": "syn-proj"},
+        ]}))
+    state_path = tmp_path / "state.json"
+    if not state_path.exists():
+        state_path.write_text(json.dumps({"action_status_by_id": {}}))
+    cfg = SimpleNamespace(
+        state_path=state_path,
+        projects_json_path=pj,
+        wiki_dir=tmp_path / "Wiki",
+        anthropic_api_key="sk-ant-test",
+        linear_api_key="lin_api_test",
+        bot_token="bot",
+        chat_id="chat",
+        notify_fn=lambda **k: None,
+    )
+    cfg.wiki_dir.mkdir(parents=True, exist_ok=True)
+    (cfg.wiki_dir / "plaud").mkdir(exist_ok=True)
+    for k, v in overrides.items():
+        setattr(cfg, k, v)
+    return cfg
+
+
+def _write_page(page_path, plaud_id="abc", title="Test", extra_fm=None):
+    fm_lines = [
+        "type: plaud-recording",
+        f"plaud_id: {plaud_id}",
+        "duration_human: 5m12s",
+    ]
+    if extra_fm:
+        for k, v in extra_fm.items():
+            fm_lines.append(f"{k}: {plaud_actions._serialize_yaml_value(v)}")
+    text = "---\n" + "\n".join(fm_lines) + "\n---\n\n" + f"# {title}\n\nBody.\n"
+    page_path.write_text(text)
+    return page_path
+
+
+@pytest.fixture(autouse=True)
+def _no_kill_switch(monkeypatch):
+    monkeypatch.delenv("PLAUD_ACTIONS_ENABLED", raising=False)
+
+
+def test_process_skips_page_with_existing_tickets(tmp_path, monkeypatch):
+    cfg = _make_cfg(tmp_path)
+    page = _write_page(cfg.wiki_dir / "plaud" / "p.md",
+                       extra_fm={"tickets": ["CCW-1", "CCW-2"], "action_status": "ok"})
+
+    extract_called = MagicMock()
+    monkeypatch.setattr(plaud_actions, "extract_actions", extract_called)
+
+    batch_results: list = []
+    plaud_actions.process(
+        plaud_id="abc", page_path=page,
+        file_meta={"name": "x", "duration": 0},
+        batch_results=batch_results, cfg=cfg,
+    )
+    extract_called.assert_not_called()
+    assert len(batch_results) == 1
+    assert batch_results[0].status == "skipped"
+
+
+def test_process_skips_when_kill_switch_off(tmp_path, monkeypatch):
+    monkeypatch.setenv("PLAUD_ACTIONS_ENABLED", "0")
+    cfg = _make_cfg(tmp_path)
+    page = _write_page(cfg.wiki_dir / "plaud" / "p.md")
+
+    extract_called = MagicMock()
+    monkeypatch.setattr(plaud_actions, "extract_actions", extract_called)
+
+    batch_results: list = []
+    plaud_actions.process(plaud_id="abc", page_path=page,
+        file_meta={"name": "x", "duration": 0},
+        batch_results=batch_results, cfg=cfg)
+    extract_called.assert_not_called()
+
+
+def test_process_happy_path_writes_frontmatter_and_files_tickets(tmp_path, monkeypatch):
+    cfg = _make_cfg(tmp_path)
+    page = _write_page(cfg.wiki_dir / "plaud" / "p.md", plaud_id="abc", title="Acme")
+
+    monkeypatch.setattr(plaud_actions, "extract_actions",
+        lambda **kw: plaud_actions.ActionExtraction(
+            portfolio="ccw-crm", confidence=0.9, reasoning="ccw",
+            actions=[plaud_actions.Action("Follow up", "by Friday", 2)]))
+    monkeypatch.setattr(plaud_actions, "create_linear_issue",
+        lambda **kw: plaud_actions.TicketRef(id="i1", identifier="CCW-247", url="u"))
+
+    batch_results: list = []
+    plaud_actions.process(plaud_id="abc", page_path=page,
+        file_meta={"name": "Acme", "duration": 312000},
+        batch_results=batch_results, cfg=cfg)
+
+    assert len(batch_results) == 1
+    assert batch_results[0].status == "ok"
+    assert batch_results[0].tickets[0].identifier == "CCW-247"
+    fm = plaud_actions.read_frontmatter(page)
+    assert "CCW-247" in fm.get("tickets", "")
+    assert fm.get("action_portfolio") == "ccw-crm"
+    assert fm.get("action_status") == "ok"
+
+
+def test_process_partial_failure_marks_partial(tmp_path, monkeypatch):
+    cfg = _make_cfg(tmp_path)
+    page = _write_page(cfg.wiki_dir / "plaud" / "p.md")
+
+    monkeypatch.setattr(plaud_actions, "extract_actions",
+        lambda **kw: plaud_actions.ActionExtraction(
+            portfolio="ccw-crm", confidence=0.9, reasoning="",
+            actions=[plaud_actions.Action(f"A{i}", "d", 3) for i in range(3)]))
+    side = [plaud_actions.TicketRef("i1", "X-1", ""), None,
+            plaud_actions.TicketRef("i3", "X-3", "")]
+    monkeypatch.setattr(plaud_actions, "create_linear_issue", lambda **kw: side.pop(0))
+
+    batch_results: list = []
+    plaud_actions.process(plaud_id="abc", page_path=page,
+        file_meta={"name": "x", "duration": 0},
+        batch_results=batch_results, cfg=cfg)
+
+    assert batch_results[0].status == "partial"
+    assert len(batch_results[0].tickets) == 2
+    fm = plaud_actions.read_frontmatter(page)
+    assert fm.get("action_status") == "partial"
+
+
+def test_process_no_actions_marks_no_actions(tmp_path, monkeypatch):
+    cfg = _make_cfg(tmp_path)
+    page = _write_page(cfg.wiki_dir / "plaud" / "p.md")
+
+    monkeypatch.setattr(plaud_actions, "extract_actions",
+        lambda **kw: plaud_actions.ActionExtraction(
+            portfolio="synthex", confidence=0.8, reasoning="memo", actions=[]))
+    create_called = MagicMock()
+    monkeypatch.setattr(plaud_actions, "create_linear_issue", create_called)
+
+    batch_results: list = []
+    plaud_actions.process(plaud_id="abc", page_path=page,
+        file_meta={"name": "x", "duration": 0},
+        batch_results=batch_results, cfg=cfg)
+
+    assert batch_results[0].status == "no_actions"
+    create_called.assert_not_called()
+    fm = plaud_actions.read_frontmatter(page)
+    assert "tickets" not in fm
+    assert fm.get("action_status") == "no_actions"
+    assert fm.get("action_portfolio") == "synthex"
+
+
+def test_process_low_confidence_routes_to_pi_dev_ops(tmp_path, monkeypatch):
+    cfg = _make_cfg(tmp_path)
+    page = _write_page(cfg.wiki_dir / "plaud" / "p.md")
+
+    monkeypatch.setattr(plaud_actions, "extract_actions",
+        lambda **kw: plaud_actions.ActionExtraction(
+            portfolio="ccw-crm", confidence=0.3, reasoning="uncertain",
+            actions=[plaud_actions.Action("A", "d", 3)]))
+    seen_proj = []
+    def fake_create(**kw):
+        seen_proj.append(kw["project_id"])
+        return plaud_actions.TicketRef("i", "X-1", "")
+    monkeypatch.setattr(plaud_actions, "create_linear_issue", fake_create)
+
+    batch_results: list = []
+    plaud_actions.process(plaud_id="abc", page_path=page,
+        file_meta={"name": "x", "duration": 0},
+        batch_results=batch_results, cfg=cfg)
+
+    assert seen_proj == ["pi-proj"]
+    assert batch_results[0].portfolio == "pi-dev-ops"
+
+
+def test_process_auth_error_no_frontmatter_change(tmp_path, monkeypatch):
+    cfg = _make_cfg(tmp_path)
+    page = _write_page(cfg.wiki_dir / "plaud" / "p.md")
+
+    monkeypatch.setattr(plaud_actions, "extract_actions",
+        lambda **kw: plaud_actions._AuthError())
+
+    batch_results: list = []
+    plaud_actions.process(plaud_id="abc", page_path=page,
+        file_meta={"name": "x", "duration": 0},
+        batch_results=batch_results, cfg=cfg)
+
+    fm = plaud_actions.read_frontmatter(page)
+    assert "tickets" not in fm
+    assert "action_status" not in fm
+    assert batch_results[0].status == "skipped"
+
+
+def test_process_parse_failure_increments_state_attempts(tmp_path, monkeypatch):
+    cfg = _make_cfg(tmp_path)
+    page = _write_page(cfg.wiki_dir / "plaud" / "p.md")
+
+    monkeypatch.setattr(plaud_actions, "extract_actions", lambda **kw: None)
+
+    batch_results: list = []
+    plaud_actions.process(plaud_id="abc-parsefail", page_path=page,
+        file_meta={"name": "x", "duration": 0},
+        batch_results=batch_results, cfg=cfg)
+
+    state = json.loads(cfg.state_path.read_text())
+    assert state["action_status_by_id"]["abc-parsefail"]["attempts"] == 1
+
+
+def test_process_skips_after_3_parse_failures(tmp_path, monkeypatch):
+    cfg = _make_cfg(tmp_path)
+    cfg.state_path.write_text(json.dumps({"action_status_by_id": {
+        "abc-poison": {"status": "parse_failed", "attempts": 3, "last_error": ""},
+    }}))
+    page = _write_page(cfg.wiki_dir / "plaud" / "p.md")
+
+    extract_called = MagicMock()
+    monkeypatch.setattr(plaud_actions, "extract_actions", extract_called)
+
+    batch_results: list = []
+    plaud_actions.process(plaud_id="abc-poison", page_path=page,
+        file_meta={"name": "x", "duration": 0},
+        batch_results=batch_results, cfg=cfg)
+
+    extract_called.assert_not_called()
+    assert batch_results[0].status == "parse_failed"

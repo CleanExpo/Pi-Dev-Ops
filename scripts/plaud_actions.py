@@ -336,3 +336,142 @@ def build_digest_text(batch_results: list[BatchResult]) -> Optional[str]:
     wiki_paths = " · ".join(br.wiki_path for br in batch_results)
     lines.append(f"📄 wikis: {wiki_paths}")
     return "\n".join(lines)
+
+
+# ── Orchestrator ───────────────────────────────────────────────────────────
+
+_LOW_CONFIDENCE_THRESHOLD = 0.5
+_MAX_PARSE_ATTEMPTS = 3
+
+
+def _wiki_link_for_page(page_path: Path, wiki_dir: Path) -> str:
+    """Build a relative wiki link like 'plaud/2026-05-17-foo.md'."""
+    try:
+        rel = page_path.relative_to(wiki_dir)
+    except ValueError:
+        rel = page_path
+    return str(rel)
+
+
+def _load_action_state(state_path: Path) -> dict:
+    if not state_path.exists():
+        return {"action_status_by_id": {}}
+    try:
+        data = json.loads(state_path.read_text())
+        data.setdefault("action_status_by_id", {})
+        return data
+    except (json.JSONDecodeError, OSError):
+        return {"action_status_by_id": {}}
+
+
+def _save_action_state(state_path: Path, state: dict) -> None:
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = state_path.with_suffix(state_path.suffix + ".tmp")
+    tmp.write_text(json.dumps(state, indent=2))
+    os.replace(tmp, state_path)
+
+
+def process(
+    *,
+    plaud_id: str,
+    page_path: Path,
+    file_meta: dict,
+    batch_results: list[BatchResult],
+    cfg,  # duck-typed: state_path, projects_json_path, wiki_dir, anthropic_api_key,
+          #            linear_api_key, notify_fn, bot_token, chat_id
+) -> None:
+    """Process one ingested wiki page: extract actions, file tickets, rewrite
+    frontmatter, append to batch_results. Never raises."""
+
+    title = file_meta.get("name", plaud_id)
+    wiki_link = _wiki_link_for_page(page_path, cfg.wiki_dir)
+
+    # Kill switch
+    if os.environ.get("PLAUD_ACTIONS_ENABLED", "1") == "0":
+        return  # silent; don't even append a BatchResult
+
+    # Idempotency check
+    fm = read_frontmatter(page_path)
+    if "tickets" in fm:
+        batch_results.append(BatchResult(
+            plaud_id=plaud_id, title=title, wiki_path=wiki_link,
+            portfolio=fm.get("action_portfolio", ""), status="skipped",
+        ))
+        return
+
+    # Poison-pill guard
+    state = _load_action_state(cfg.state_path)
+    prior = state["action_status_by_id"].get(plaud_id, {})
+    if prior.get("attempts", 0) >= _MAX_PARSE_ATTEMPTS:
+        batch_results.append(BatchResult(
+            plaud_id=plaud_id, title=title, wiki_path=wiki_link,
+            portfolio="", status="parse_failed",
+        ))
+        return
+
+    # Extract
+    page_md = page_path.read_text()
+    ex = extract_actions(page_md=page_md, anthropic_api_key=cfg.anthropic_api_key)
+
+    if isinstance(ex, _AuthError):
+        batch_results.append(BatchResult(
+            plaud_id=plaud_id, title=title, wiki_path=wiki_link,
+            portfolio="", status="skipped",
+        ))
+        return
+
+    if ex is None:
+        attempts = prior.get("attempts", 0) + 1
+        state["action_status_by_id"][plaud_id] = {
+            "status": "parse_failed" if attempts >= _MAX_PARSE_ATTEMPTS else "parsing",
+            "attempts": attempts,
+            "last_error": "extract_actions returned None",
+        }
+        _save_action_state(cfg.state_path, state)
+        if attempts >= _MAX_PARSE_ATTEMPTS:
+            try:
+                rewrite_frontmatter(page_path, {"action_status": "parse_failed"})
+            except ValueError:
+                pass
+        batch_results.append(BatchResult(
+            plaud_id=plaud_id, title=title, wiki_path=wiki_link,
+            portfolio="",
+            status="parse_failed" if attempts >= _MAX_PARSE_ATTEMPTS else "skipped",
+        ))
+        return
+
+    # Route — low confidence or unknown → fallback to pi-dev-ops
+    portfolio = ex.portfolio
+    if ex.confidence < _LOW_CONFIDENCE_THRESHOLD or portfolio == "unknown":
+        portfolio = DEFAULT_PORTFOLIO_ID
+    route = resolve_linear_route(portfolio, projects_json_path=cfg.projects_json_path)
+
+    # No actions — record and exit clean
+    if not ex.actions:
+        rewrite_frontmatter(page_path, {
+            "action_portfolio": ex.portfolio,
+            "action_status": "no_actions",
+        })
+        batch_results.append(BatchResult(
+            plaud_id=plaud_id, title=title, wiki_path=wiki_link,
+            portfolio=ex.portfolio, status="no_actions",
+        ))
+        return
+
+    # File tickets
+    tickets = create_linear_tickets(
+        actions=ex.actions, team_id=route.team_id, project_id=route.project_id,
+        wiki_link=wiki_link, linear_api_key=cfg.linear_api_key,
+    )
+    status = "ok" if len(tickets) == len(ex.actions) else "partial"
+
+    rewrite_frontmatter(page_path, {
+        "tickets": [t.identifier for t in tickets],
+        "action_portfolio": portfolio,
+        "action_status": status,
+    })
+
+    batch_results.append(BatchResult(
+        plaud_id=plaud_id, title=title, wiki_path=wiki_link,
+        portfolio=portfolio, tickets=tickets, status=status,
+    ))
