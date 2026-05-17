@@ -443,3 +443,93 @@ def _handle_failure(exc: Exception, state: dict, cfg: IngestConfig, now_iso: str
                       text="⚠️ Plaud unreachable for 30 min.")
     save_state(cfg.state_path, state)
     return {"ingested": 0, "status": "network_error", "error": msg}
+
+
+import argparse
+import subprocess
+
+
+DEFAULT_WIKI_DIR = Path.home() / "2nd Brain" / "2nd Brain" / "Wiki"
+DEFAULT_STATE_PATH = Path.home() / ".hermes" / "plaud-state.json"
+DEFAULT_LOCK_PATH = Path.home() / ".hermes" / "plaud-ingest.lock"
+DEFAULT_LOG_PATH = Path.home() / ".hermes" / "logs" / "plaud-ingest.log"
+SYNC_SCRIPT = Path.home() / "Pi-CEO" / "Pi-Dev-Ops" / "scripts" / "sync_wiki_to_supabase.py"
+
+
+def _load_env(env_path: Path = Path.home() / ".hermes" / ".env") -> dict:
+    """Parse a simple KEY=VALUE .env file. Strips quotes."""
+    env: dict[str, str] = {}
+    if not env_path.exists():
+        return env
+    for line in env_path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, _, v = line.partition("=")
+        env[k.strip()] = v.strip().strip("'\"")
+    return env
+
+
+def _configure_logging():
+    DEFAULT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    fmt = "%(asctime)s [%(levelname)s] %(message)s"
+    handler = logging.FileHandler(DEFAULT_LOG_PATH)
+    handler.setFormatter(logging.Formatter(fmt))
+    root = logging.getLogger()
+    root.addHandler(handler)
+    root.setLevel(logging.INFO)
+
+
+def _build_default_config(env: dict, *, backfill_since: str | None = None) -> IngestConfig:
+    plaud_dir = DEFAULT_WIKI_DIR / "plaud"
+    state_path = DEFAULT_STATE_PATH
+    if backfill_since:
+        state_path = DEFAULT_STATE_PATH.with_suffix(".backfill.json")
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        state_path.write_text(json.dumps({
+            "last_seen_id": "", "last_seen_ts": backfill_since,
+            "last_run_status": "fresh", "last_error": None, "consecutive_failures": 0,
+        }))
+
+    def run_sync():
+        subprocess.run(["python3", str(SYNC_SCRIPT)], check=False, timeout=120)
+
+    return IngestConfig(
+        state_path=state_path,
+        lock_path=DEFAULT_LOCK_PATH,
+        wiki_dir=DEFAULT_WIKI_DIR,
+        plaud_dir=plaud_dir,
+        bot_token=env.get("TELEGRAM_BOT_TOKEN_MARGOT_BOT", ""),
+        chat_id=env.get("MARGOT_DM_CHAT_ID", ""),
+        run_sync_subprocess=run_sync,
+        notify_fn=notify_margot,
+    )
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Plaud → Brain ingester")
+    parser.add_argument("--backfill", metavar="ISO_DATETIME",
+                        help="One-shot. Ignore state; ingest everything since this ISO timestamp.")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Log what would be done; no writes, no DMs.")
+    args = parser.parse_args()
+
+    _configure_logging()
+    env = _load_env()
+    cfg = _build_default_config(env, backfill_since=args.backfill)
+
+    if args.dry_run:
+        cfg.run_sync_subprocess = lambda: log.info("[dry-run] would run sync_wiki_to_supabase.py")
+        cfg.notify_fn = lambda **k: log.info("[dry-run] would DM: %s", k.get("text", ""))
+
+    async def go():
+        async with connect_real_plaud() as client:
+            return await run_once(client, cfg)
+
+    result = asyncio.run(go())
+    log.info("plaud-ingest run: %s", result)
+    print(json.dumps(result))
+
+
+if __name__ == "__main__":
+    main()
