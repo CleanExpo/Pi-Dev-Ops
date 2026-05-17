@@ -1459,7 +1459,7 @@ Completed:
 - Create: `/Users/phill-mac/pi-seo-workspace/unite-group/src/components/command-center/voice/MargotVoicePanel.tsx`
 - Modify: `/Users/phill-mac/pi-seo-workspace/unite-group/src/components/command-center/CommandCenterShell.tsx`
 
-- [ ] **Step 1: Create voice panel component**
+- [x] **Step 1: Create voice panel component**
 
 Create `/Users/phill-mac/pi-seo-workspace/unite-group/src/components/command-center/voice/MargotVoicePanel.tsx`:
 
@@ -1595,7 +1595,7 @@ export function MargotVoicePanel() {
 }
 ```
 
-- [ ] **Step 2: Add panel to command center shell**
+- [x] **Step 2: Add panel to command center shell**
 
 Modify `/Users/phill-mac/pi-seo-workspace/unite-group/src/components/command-center/CommandCenterShell.tsx`:
 
@@ -1609,7 +1609,7 @@ Insert before `<Business360Grid />`:
           <MargotVoicePanel />
 ```
 
-- [ ] **Step 3: Run frontend gates**
+- [x] **Step 3: Run frontend gates**
 
 Run:
 
@@ -1621,7 +1621,7 @@ npm run lint
 
 Expected: both pass.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 Run:
 
@@ -1630,6 +1630,12 @@ cd /Users/phill-mac/pi-seo-workspace/unite-group
 git add src/components/command-center/voice/MargotVoicePanel.tsx src/components/command-center/CommandCenterShell.tsx
 git commit -m "feat: add margot voice panel to command center"
 ```
+
+Completed:
+- Unite CRM commit: `5efdabd feat: add margot voice panel to command center`
+- Type check: `npm run type-check -- --pretty false` -> exit 0
+- Targeted lint: `npx eslint src/components/command-center/voice/MargotVoicePanel.tsx src/components/command-center/CommandCenterShell.tsx --max-warnings=0` -> exit 0
+- Whole-repo lint: `npm run lint -- --max-warnings=0` -> blocked by 485 inherited warnings, 0 errors
 
 ---
 
