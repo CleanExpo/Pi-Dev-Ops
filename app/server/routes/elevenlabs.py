@@ -1,7 +1,6 @@
 """ElevenLabs post-call webhook routes for Margot voice intake."""
 from __future__ import annotations
 
-import json
 import logging
 import os
 from pathlib import Path
@@ -145,6 +144,9 @@ async def margot_post_call(
     request: Request,
     elevenlabs_signature: str | None = Header(default=None, alias="ElevenLabs-Signature"),
 ) -> MargotVoiceWebhookResponse:
+    if not elevenlabs_signature:
+        raise HTTPException(401, "missing ElevenLabs webhook signature")
+
     secret = os.environ.get("ELEVENLABS_WEBHOOK_SECRET", "").strip()
     if not secret:
         raise HTTPException(503, "ELEVENLABS_WEBHOOK_SECRET not configured")

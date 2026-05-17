@@ -103,6 +103,19 @@ def test_webhook_rejects_bad_signature(monkeypatch):
     assert res.status_code == 401
 
 
+def test_webhook_rejects_missing_signature_before_config(monkeypatch):
+    from app.server.routes import elevenlabs
+
+    monkeypatch.delenv("ELEVENLABS_WEBHOOK_SECRET", raising=False)
+    app = FastAPI()
+    app.include_router(elevenlabs.router)
+    client = TestClient(app)
+
+    res = client.post("/api/elevenlabs/margot/post-call", content=json.dumps(_event()))
+
+    assert res.status_code == 401
+
+
 def test_webhook_creates_crm_task_and_kanban_card(monkeypatch):
     client = _client(monkeypatch)
     res = client.post(

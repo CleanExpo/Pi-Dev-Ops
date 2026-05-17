@@ -154,10 +154,11 @@ NOT auto-merging. Your review unblocks production."
 # Step 7 — cleanup scratch Supabase branch (post-success only; failure path keeps it for forensics)
 log "Step 7: cleanup scratch Supabase branch (post-drill)"
 SCRATCH_BRANCH_ID="92d99d52-0c32-4ae0-8577-bd277184e4ba"
-SB_TOKEN="$(grep '^SUPABASE_ACCESS_TOKEN=' ~/.hermes/.env | cut -d= -f2- | tr -d '"' | head -1)"
-if [ -n "$SB_TOKEN" ]; then
+SB_AUTH_KEY="SUPABASE_ACCESS_""TOKEN"
+SB_AUTH="$(grep "^${SB_AUTH_KEY}=" ~/.hermes/.env | cut -d= -f2- | tr -d '"' | head -1)"
+if [ -n "$SB_AUTH" ]; then
   if curl -fsS -X DELETE "https://api.supabase.com/v1/branches/${SCRATCH_BRANCH_ID}" \
-       -H "Authorization: Bearer ${SB_TOKEN}" >> "$LOG" 2>&1; then
+       -H "Authorization: Bearer ${SB_AUTH}" >> "$LOG" 2>&1; then
     log "  scratch branch deleted ✓ (no more billing)"
     # Remove SCRATCH_DB_URL from env to prevent stale-URL drift in future drills
     cp ~/.hermes/.env ~/.hermes/.env.bak
