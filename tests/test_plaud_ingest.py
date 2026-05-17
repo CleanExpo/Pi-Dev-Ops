@@ -250,3 +250,28 @@ def test_regenerate_plaud_index_skips_non_plaud(tmp_path):
     plaud_ingest.regenerate_plaud_index(plaud_dir)
     idx = (plaud_dir / "_index.md").read_text()
     assert "Not a plaud recording" not in idx
+
+
+from unittest.mock import patch, MagicMock
+
+
+def test_notify_margot_posts_to_bot_api():
+    with patch("plaud_ingest.urllib.request.urlopen") as mock_open:
+        mock_open.return_value.__enter__.return_value.status = 200
+        plaud_ingest.notify_margot(
+            bot_token="123:abc",
+            chat_id="-100",
+            text="📼 New Plaud: Acme (12m). I've added it to the brain.",
+        )
+        assert mock_open.called
+        req = mock_open.call_args[0][0]
+        assert req.full_url == "https://api.telegram.org/bot123:abc/sendMessage"
+        body = req.data.decode()
+        assert "chat_id" in body
+        assert "Acme" in body
+
+
+def test_notify_margot_swallows_errors(caplog):
+    with patch("plaud_ingest.urllib.request.urlopen", side_effect=OSError("network down")):
+        plaud_ingest.notify_margot(bot_token="t", chat_id="c", text="x")
+    assert "telegram" in caplog.text.lower() or "notify" in caplog.text.lower()

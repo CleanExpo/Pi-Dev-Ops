@@ -240,3 +240,23 @@ def regenerate_plaud_index(plaud_dir: Path) -> None:
         date_short = r["recorded_at"][:10]
         lines.append(f"| {date_short} | {r['title']} | {r['duration_human']} | [{r['title']}]({r['filename']}) |")
     (plaud_dir / "_index.md").write_text("\n".join(lines) + "\n")
+
+
+import urllib.parse
+import urllib.request
+
+
+def notify_margot(*, bot_token: str, chat_id: str, text: str) -> None:
+    """Send a Telegram DM. Best-effort: any failure is logged and swallowed."""
+    if not bot_token or not chat_id:
+        log.warning("notify_margot: missing bot_token or chat_id; skipping")
+        return
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    data = urllib.parse.urlencode({"chat_id": chat_id, "text": text}).encode()
+    req = urllib.request.Request(url, data=data, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            if r.status >= 400:
+                log.warning("notify_margot: bot API returned %d", r.status)
+    except Exception as e:
+        log.warning("notify_margot: %s", e)
