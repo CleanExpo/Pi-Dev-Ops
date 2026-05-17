@@ -37,14 +37,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install pgTAP
+      - name: Install Postgres client
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y postgresql-client postgresql-15-pgtap
+          sudo apt-get install -y postgresql-client
 
-      - name: Bootstrap roles + pgtap extension
+      - name: Bootstrap roles
         run: |
-          psql -c "create extension if not exists pgtap;"
           psql -c "create role authenticated nologin;"
           psql -c "create role service_role nologin;"
           psql -c "grant all on schema public to authenticated, service_role;"
@@ -56,5 +55,5 @@ jobs:
             psql -f "$f"
           done
 
-      - name: Run pgTAP RLS assertions
+      - name: Run RLS assertions
         run: psql -f supabase/tests/pgtap/pilot_v1_isolation.sql -v ON_ERROR_STOP=1
