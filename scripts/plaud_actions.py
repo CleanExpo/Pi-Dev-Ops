@@ -233,3 +233,73 @@ def create_linear_tickets(
         if ref is not None:
             refs.append(ref)
     return refs
+
+
+# ── Frontmatter read/write ─────────────────────────────────────────────────
+
+def read_frontmatter(page_path: Path) -> dict:
+    """Parse YAML-frontmatter from a markdown file. Values are kept as raw strings —
+    caller is responsible for any further parsing (e.g. list literals). Returns {}
+    if there is no frontmatter block."""
+    text = page_path.read_text()
+    if not text.startswith("---\n"):
+        return {}
+    end = text.find("\n---\n", 4)
+    if end < 0:
+        return {}
+    fm: dict = {}
+    for raw in text[4:end].splitlines():
+        if ":" not in raw:
+            continue
+        k, _, v = raw.partition(":")
+        fm[k.strip()] = v.strip()
+    return fm
+
+
+def _serialize_yaml_value(value) -> str:
+    """Turn a Python value into a YAML inline scalar suitable for frontmatter."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, list):
+        inner = ", ".join(_serialize_yaml_value(v) for v in value)
+        return f"[{inner}]"
+    return str(value)
+
+
+def rewrite_frontmatter(page_path: Path, updates: dict) -> None:
+    """Atomically rewrite the frontmatter of a markdown file. Existing keys are
+    overwritten by `updates`; new keys are appended. The body is preserved
+    verbatim. Raises ValueError if the file has no frontmatter block."""
+    text = page_path.read_text()
+    if not text.startswith("---\n"):
+        raise ValueError(f"no frontmatter in {page_path}")
+    end = text.find("\n---\n", 4)
+    if end < 0:
+        raise ValueError(f"unterminated frontmatter in {page_path}")
+
+    existing_lines = text[4:end].splitlines()
+    existing_keys: list[str] = []
+    new_lines: list[str] = []
+    for raw in existing_lines:
+        if ":" not in raw:
+            new_lines.append(raw)
+            continue
+        k = raw.split(":", 1)[0].strip()
+        existing_keys.append(k)
+        if k in updates:
+            new_lines.append(f"{k}: {_serialize_yaml_value(updates[k])}")
+        else:
+            new_lines.append(raw)
+
+    for k, v in updates.items():
+        if k not in existing_keys:
+            new_lines.append(f"{k}: {_serialize_yaml_value(v)}")
+
+    body = text[end:]
+    rebuilt = "---\n" + "\n".join(new_lines) + body
+
+    tmp = page_path.with_suffix(page_path.suffix + ".tmp")
+    tmp.write_text(rebuilt)
+    os.replace(tmp, page_path)

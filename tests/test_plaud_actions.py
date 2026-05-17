@@ -261,3 +261,78 @@ def test_create_linear_tickets_appends_wiki_backlink_to_description():
     assert "original body" in seen_descriptions[0]
     assert "https://wiki/plaud/test-slug.md" in seen_descriptions[0]
     assert "Source" in seen_descriptions[0]
+
+
+def test_rewrite_frontmatter_adds_new_keys(tmp_path):
+    page = tmp_path / "p.md"
+    page.write_text(
+        "---\n"
+        "type: plaud-recording\n"
+        "plaud_id: abc\n"
+        "duration_human: 5m12s\n"
+        "---\n"
+        "\n# Title\n\nBody.\n"
+    )
+    plaud_actions.rewrite_frontmatter(page, {
+        "tickets": ["CCW-247", "CCW-248"],
+        "action_portfolio": "ccw-crm",
+        "action_status": "ok",
+    })
+    text = page.read_text()
+    assert "tickets: [CCW-247, CCW-248]" in text
+    assert "action_portfolio: ccw-crm" in text
+    assert "action_status: ok" in text
+    assert "plaud_id: abc" in text
+    assert "duration_human: 5m12s" in text
+    assert "# Title" in text
+    assert "Body." in text
+
+
+def test_rewrite_frontmatter_updates_existing_keys(tmp_path):
+    page = tmp_path / "p.md"
+    page.write_text(
+        "---\n"
+        "type: plaud-recording\n"
+        "action_status: partial\n"
+        "---\n"
+        "\nBody.\n"
+    )
+    plaud_actions.rewrite_frontmatter(page, {"action_status": "ok"})
+    text = page.read_text()
+    assert "action_status: ok" in text
+    assert "action_status: partial" not in text
+
+
+def test_rewrite_frontmatter_atomic_no_tmp_leftover(tmp_path):
+    page = tmp_path / "p.md"
+    page.write_text("---\ntype: plaud-recording\n---\n\nBody.\n")
+    plaud_actions.rewrite_frontmatter(page, {"action_status": "ok"})
+    assert not list(tmp_path.glob("*.tmp"))
+
+
+def test_rewrite_frontmatter_no_frontmatter_raises(tmp_path):
+    page = tmp_path / "p.md"
+    page.write_text("# Just markdown, no frontmatter\n")
+    with pytest.raises(ValueError):
+        plaud_actions.rewrite_frontmatter(page, {"x": "y"})
+
+
+def test_read_frontmatter_tickets_returns_existing(tmp_path):
+    page = tmp_path / "p.md"
+    page.write_text(
+        "---\n"
+        "type: plaud-recording\n"
+        "tickets: [CCW-247, CCW-248]\n"
+        "action_status: ok\n"
+        "---\n"
+        "\nBody.\n"
+    )
+    fm = plaud_actions.read_frontmatter(page)
+    assert fm.get("tickets") == "[CCW-247, CCW-248]"
+    assert fm.get("action_status") == "ok"
+
+
+def test_read_frontmatter_no_frontmatter_returns_empty(tmp_path):
+    page = tmp_path / "p.md"
+    page.write_text("# No frontmatter\n")
+    assert plaud_actions.read_frontmatter(page) == {}
