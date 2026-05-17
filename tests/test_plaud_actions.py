@@ -336,3 +336,62 @@ def test_read_frontmatter_no_frontmatter_returns_empty(tmp_path):
     page = tmp_path / "p.md"
     page.write_text("# No frontmatter\n")
     assert plaud_actions.read_frontmatter(page) == {}
+
+
+def test_build_digest_single_recording_with_actions():
+    br = plaud_actions.BatchResult(
+        plaud_id="abc", title="Acme Q2 Pricing",
+        wiki_path="plaud/2026-05-17-acme-q2-pricing",
+        portfolio="ccw-crm",
+        tickets=[
+            plaud_actions.TicketRef(id="i1", identifier="CCW-247", url="https://linear.app/u/CCW-247"),
+            plaud_actions.TicketRef(id="i2", identifier="CCW-248", url="https://linear.app/u/CCW-248"),
+        ],
+        status="ok",
+    )
+    text = plaud_actions.build_digest_text([br])
+    assert text is not None
+    assert "Acme Q2 Pricing" in text
+    assert "ccw-crm" in text or "CCW" in text
+    assert "CCW-247" in text
+    assert "CCW-248" in text
+    assert "plaud/2026-05-17-acme-q2-pricing" in text
+
+
+def test_build_digest_mixed_batch():
+    brs = [
+        plaud_actions.BatchResult(plaud_id="a", title="Meeting A",
+            wiki_path="plaud/a", portfolio="ccw-crm",
+            tickets=[plaud_actions.TicketRef("i", "CCW-1", "")],
+            status="ok"),
+        plaud_actions.BatchResult(plaud_id="b", title="Voice memo",
+            wiki_path="plaud/b", portfolio="synthex",
+            tickets=[], status="no_actions"),
+    ]
+    text = plaud_actions.build_digest_text(brs)
+    assert "Meeting A" in text
+    assert "Voice memo" in text
+    assert "no actions" in text.lower() or "0 tickets" in text.lower()
+
+
+def test_build_digest_all_zero_returns_none():
+    brs = [
+        plaud_actions.BatchResult(plaud_id="a", title="t1",
+            wiki_path="p1", portfolio="x", tickets=[], status="no_actions"),
+        plaud_actions.BatchResult(plaud_id="b", title="t2",
+            wiki_path="p2", portfolio="y", tickets=[], status="no_actions"),
+    ]
+    assert plaud_actions.build_digest_text(brs) is None
+
+
+def test_build_digest_empty_list_returns_none():
+    assert plaud_actions.build_digest_text([]) is None
+
+
+def test_build_digest_partial_shows_partial_marker():
+    br = plaud_actions.BatchResult(plaud_id="a", title="Partial meeting",
+        wiki_path="plaud/x", portfolio="ccw-crm",
+        tickets=[plaud_actions.TicketRef("i", "CCW-1", "")],
+        status="partial")
+    text = plaud_actions.build_digest_text([br])
+    assert "partial" in text.lower() or "⚠" in text

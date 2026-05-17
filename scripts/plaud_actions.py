@@ -303,3 +303,36 @@ def rewrite_frontmatter(page_path: Path, updates: dict) -> None:
     tmp = page_path.with_suffix(page_path.suffix + ".tmp")
     tmp.write_text(rebuilt)
     os.replace(tmp, page_path)
+
+
+# ── Digest composer ────────────────────────────────────────────────────────
+
+def build_digest_text(batch_results: list[BatchResult]) -> Optional[str]:
+    """Compose ONE Telegram message body covering an entire cron batch. Returns
+    None when no tickets were created across the whole batch (silent run)."""
+    if not batch_results:
+        return None
+    total_tickets = sum(len(br.tickets) for br in batch_results)
+    if total_tickets == 0:
+        return None
+
+    n = len(batch_results)
+    header = f"📼 Processed {n} Plaud recording{'s' if n != 1 else ''}:"
+    lines = [header]
+    for br in batch_results:
+        marker = ""
+        if br.status == "partial":
+            marker = " ⚠️ partial"
+        elif br.status == "parse_failed":
+            marker = " ⚠️ parse_failed"
+        if not br.tickets:
+            lines.append(f"• {br.title} ({br.portfolio}) — no actions extracted")
+            continue
+        ids = " / ".join(t.identifier for t in br.tickets)
+        lines.append(
+            f"• {br.title} → {br.portfolio} ({len(br.tickets)} tickets) "
+            f"[{ids}]{marker}"
+        )
+    wiki_paths = " · ".join(br.wiki_path for br in batch_results)
+    lines.append(f"📄 wikis: {wiki_paths}")
+    return "\n".join(lines)
