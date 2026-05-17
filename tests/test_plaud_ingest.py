@@ -275,3 +275,53 @@ def test_notify_margot_swallows_errors(caplog):
     with patch("plaud_ingest.urllib.request.urlopen", side_effect=OSError("network down")):
         plaud_ingest.notify_margot(bot_token="t", chat_id="c", text="x")
     assert "telegram" in caplog.text.lower() or "notify" in caplog.text.lower()
+
+
+import asyncio
+
+
+class _FakeContent:
+    def __init__(self, text):
+        self.text = text
+
+
+class _FakeResult:
+    def __init__(self, payload):
+        self.content = [_FakeContent(json.dumps(payload))]
+
+
+class _FakeSession:
+    def __init__(self, responses):
+        self.responses = responses
+        self.calls = []
+
+    async def initialize(self):
+        pass
+
+    async def call_tool(self, name, args):
+        self.calls.append((name, args))
+        return _FakeResult(self.responses.get(name, {}))
+
+
+def test_plaud_client_list_files_since():
+    fake = _FakeSession({"list_files": {"files": [
+        {"id": "abc", "name": "Foo", "created_at": "2026-05-17T14:32:00+10:00",
+         "duration": 720000},
+    ]}})
+    files = asyncio.run(plaud_ingest.PlaudClient(fake).list_files_since("2026-05-17"))
+    assert len(files) == 1
+    assert files[0]["id"] == "abc"
+    assert fake.calls[0][0] == "list_files"
+
+
+def test_plaud_client_get_note_and_transcript():
+    fake = _FakeSession({
+        "get_note": {"summary": "## Summary\nKey decisions."},
+        "get_transcript": {"segments": [
+            {"start_ms": 0, "end_ms": 5000, "speaker": "A", "text": "Hello"}]},
+    })
+    client = plaud_ingest.PlaudClient(fake)
+    note = asyncio.run(client.get_note("abc"))
+    transcript = asyncio.run(client.get_transcript("abc"))
+    assert "Key decisions" in note
+    assert transcript[0]["text"] == "Hello"

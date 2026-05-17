@@ -260,3 +260,61 @@ def notify_margot(*, bot_token: str, chat_id: str, text: str) -> None:
                 log.warning("notify_margot: bot API returned %d", r.status)
     except Exception as e:
         log.warning("notify_margot: %s", e)
+
+
+import asyncio
+from contextlib import asynccontextmanager
+
+
+class PlaudClient:
+    """Thin async wrapper. Takes an initialized `mcp.ClientSession` (or duck-typed
+    fake in tests). The factory `connect_real_plaud()` spawns the npm MCP server."""
+
+    def __init__(self, session):
+        self.session = session
+
+    @staticmethod
+    def _payload(result) -> dict:
+        """Extract JSON payload from an MCP tool result."""
+        if hasattr(result, "structuredContent") and result.structuredContent:
+            return result.structuredContent
+        for block in getattr(result, "content", []):
+            txt = getattr(block, "text", None)
+            if txt:
+                try:
+                    return json.loads(txt)
+                except json.JSONDecodeError:
+                    return {"text": txt}
+        return {}
+
+    async def list_files_since(self, date_from: str) -> list[dict]:
+        result = await self.session.call_tool("list_files",
+                                              {"date_from": date_from, "page_size": 50})
+        payload = self._payload(result)
+        return payload.get("files", payload.get("items", []))
+
+    async def get_note(self, plaud_id: str) -> str:
+        result = await self.session.call_tool("get_note", {"id": plaud_id})
+        payload = self._payload(result)
+        return payload.get("summary") or payload.get("text") or ""
+
+    async def get_transcript(self, plaud_id: str) -> list[dict]:
+        result = await self.session.call_tool("get_transcript", {"id": plaud_id})
+        payload = self._payload(result)
+        return payload.get("segments", [])
+
+    async def get_file(self, plaud_id: str) -> dict:
+        result = await self.session.call_tool("get_file", {"id": plaud_id})
+        return self._payload(result)
+
+
+@asynccontextmanager
+async def connect_real_plaud():
+    """Spawn @plaud-ai/mcp@latest via stdio and yield a PlaudClient."""
+    from mcp import ClientSession, StdioServerParameters
+    from mcp.client.stdio import stdio_client
+    params = StdioServerParameters(command="npx", args=["-y", "@plaud-ai/mcp@latest"])
+    async with stdio_client(params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            yield PlaudClient(session)
