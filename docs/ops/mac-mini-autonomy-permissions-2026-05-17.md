@@ -8,6 +8,38 @@ Status: setup-required
 
 Give Codex, Hermes, Claude CLI, Computer Use, Chrome, Obsidian, Plaud, and the local Pi-CEO stack enough macOS access to keep builds moving, while preserving approval gates for money, production deploys, secrets, publishing, and strategic direction changes.
 
+## Validation Update — 2026-05-17 18:54
+
+Current state after permissions were adjusted:
+
+- PASS: Codex can read/write the working repos and 2nd Brain wiki paths.
+- PASS: Accessibility check succeeded via `System Events` process count.
+- PASS: Automation check succeeded via Google Chrome Apple Event window count.
+- BLOCKED: Full Disk Access is still missing for the active Codex process. `sqlite3 "$HOME/Library/Application Support/com.apple.TCC/TCC.db"` returned `authorization denied`.
+- BLOCKED: Screen Recording is still missing for the active Codex process. `screencapture -x /tmp/codex-permission-screencap.png` returned `could not create image from display`.
+
+Required follow-up:
+
+1. In **System Settings -> Privacy & Security -> Full Disk Access**, enable `/Applications/Codex.app`.
+2. In **System Settings -> Privacy & Security -> Screen & System Audio Recording**, enable `/Applications/Codex.app`.
+3. Quit and reopen Codex after granting. macOS often does not apply TCC changes to already-running processes.
+4. Re-run the validation commands below.
+
+## Validation Update — 2026-05-17 18:56
+
+Current state after the second permission adjustment:
+
+- PASS: Codex can read/write the working repos and 2nd Brain wiki paths.
+- PASS: Accessibility check succeeded via `System Events` process count.
+- PASS: Automation check succeeded via Google Chrome Apple Event window count.
+- PASS: Screen Recording check succeeded. `screencapture -x /tmp/codex-permission-screencap.png` produced a valid 2560x1440 PNG.
+- PARTIAL: Full Disk Access is still not fully available to this active Codex process for direct TCC database inspection. `sqlite3 "$HOME/Library/Application Support/com.apple.TCC/TCC.db"` still returned `authorization denied`.
+
+Operational impact:
+
+- Builds, repo work, browser automation, screen capture, Chrome control, Obsidian/wiki file access, and local agent orchestration can continue.
+- Direct TCC database inspection remains blocked until Codex is granted Full Disk Access and restarted, or the command is run from a fully authorized Terminal process.
+
 ## Current Findings
 
 - macOS: 26.5, Apple Silicon.
