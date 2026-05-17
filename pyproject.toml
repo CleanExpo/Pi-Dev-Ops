@@ -17,6 +17,7 @@ dependencies = [
     "bcrypt>=4.0",
     "anthropic>=0.90",
     "pyotp>=2.9",   # RA-1839 — TOTP validation for /api/swarm/{kill,resume}
+    "mcp>=1.0.0",
 ]
 
 [tool.pytest.ini_options]
