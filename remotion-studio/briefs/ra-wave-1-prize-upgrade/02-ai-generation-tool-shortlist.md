@@ -1,6 +1,48 @@
 # AI Generation Tool Shortlist
 
-## Primary Bakeoff
+## Cost Rule
+
+Use only tools Phill already has, tools already connected in this environment, or free/included tiers that do not create new spend. Unverified paid tools are research-only.
+
+## Use First If Already Available
+
+### Existing OpenAI / Codex Image Generation
+
+Use for:
+
+- source stills
+- visual exploration
+- keyframe drafts
+- thumbnail concepts
+
+Risk:
+
+- Final claims, text, UI, and logos still need QA.
+
+### HeyGen Connector
+
+Use for:
+
+- avatar/presenter/video-agent workflows
+- short video generation where the connected account supports it
+
+Risk:
+
+- Not a fit for product UI truth unless used only as presenter/context layer.
+
+### Existing Artlist / Stock / Audio Access
+
+Use for:
+
+- music
+- SFX
+- stock inserts
+
+Risk:
+
+- Every asset still needs a proof record.
+
+## Access-Gated Research Only
 
 ### Adobe Firefly
 
@@ -18,6 +60,7 @@ Why it matters:
 Risk:
 
 - May look cleaner/corporate rather than gritty and physically real.
+- Do not use unless existing Adobe/Firefly access is verified.
 
 ### Runway Gen-4
 
@@ -35,6 +78,7 @@ Why it matters:
 Risk:
 
 - Can still drift on logos, text, UI, and precise product claims. Product UI must be composited/overlaid, not generated.
+- Do not use unless existing Runway access is verified.
 
 ### Luma Ray
 
@@ -51,6 +95,7 @@ Why it matters:
 Risk:
 
 - Video modification needs strict prompts specifying what must stay unchanged.
+- Do not use unless existing Luma access is verified.
 
 ## Secondary Tools
 
@@ -64,7 +109,7 @@ Use for:
 
 Risk:
 
-- Rights/commercial-use clarity must be verified before production use.
+- Rights/commercial-use clarity and existing access must be verified before production use.
 
 ### CapCut
 
@@ -79,6 +124,7 @@ Use for:
 Risk:
 
 - Good for packaging; not trusted as source of product truth.
+- Do not use unless already installed/subscribed/free for the required export.
 
 ### Descript
 
@@ -91,6 +137,7 @@ Use for:
 Risk:
 
 - Less useful for cinematic image-to-video production.
+- Do not use unless existing subscription is verified.
 
 ### Topaz Video AI
 
@@ -105,6 +152,7 @@ Use for:
 Risk:
 
 - Enhancement can create a plastic look if pushed too hard.
+- Do not use unless already owned/subscribed.
 
 ## Source Image Tools
 
@@ -117,6 +165,10 @@ Use for:
 - image edits
 - practical layouts
 
+Access:
+
+- Use only if already included in Phill's current Google/Gemini subscription.
+
 ### Ideogram
 
 Use for:
@@ -125,12 +177,20 @@ Use for:
 - CTA stills
 - poster-like frames where legible text matters
 
+Access:
+
+- Use only if already available; otherwise create text in the editor.
+
 ### Firefly Image
 
 Use for:
 
 - commercially safer stills
 - brand-safe source-frame generation
+
+Access:
+
+- Use only if existing Adobe/Firefly access is verified.
 
 ### Midjourney
 
@@ -144,3 +204,7 @@ Do not use for:
 - product UI
 - exact text
 - legal/compliance claims
+
+Access:
+
+- Use only if already subscribed.

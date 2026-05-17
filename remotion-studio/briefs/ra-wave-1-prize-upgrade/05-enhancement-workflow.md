@@ -4,6 +4,8 @@
 
 Remove the generated-render feel without using Remotion for the next stage.
 
+No new paid subscriptions. Enhancement tools are usable only when already owned, already connected, or available in a free/included tier that does not create spend.
+
 ## Order Of Operations
 
 1. Generate source stills/keyframes.
@@ -28,6 +30,7 @@ Use for:
 Guardrail:
 
 - Do not over-sharpen faces, hands, carpet texture, or UI text. Plastic enhancement fails QA.
+- Do not use unless already owned/subscribed.
 
 ### Adobe / CapCut / Descript Native AI
 
@@ -42,6 +45,7 @@ Use for:
 Guardrail:
 
 - Native editor AI is allowed for polish, not product invention.
+- Use only if existing account access is verified.
 
 ## QA Checks
 

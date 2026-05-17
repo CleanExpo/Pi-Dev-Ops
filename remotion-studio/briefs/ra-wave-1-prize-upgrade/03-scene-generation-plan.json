@@ -1,13 +1,14 @@
 {
   "job_id": "ra-2026-05-15-wave-1-launch",
-  "principle": "Remotion output is reference only. Next-stage clips are generated/edited in AI video tools, while product truth is preserved from verified UI/source frames.",
-  "bakeoff_tools": ["Adobe Firefly", "Runway Gen-4", "Luma Ray"],
+  "principle": "Remotion output is reference only. Next-stage clips are generated/edited with already-available AI video tools only, while product truth is preserved from verified UI/source frames.",
+  "cost_rule": "No new paid subscriptions. Candidate tools must be verified as already owned, already connected, or free/included before production use.",
+  "bakeoff_tools": ["existing image generation", "HeyGen if connected account supports required workflow", "existing/free editor path", "access-gated tools only after verification"],
   "scenes": [
     {
       "scene_id": "scene-01-hook",
       "next_stage": "ai_source_still_plus_subtle_motion",
       "goal": "premium silent hook frame that works in LinkedIn feed",
-      "candidate_tools": ["Ideogram", "Firefly Image", "Runway Gen-4"],
+      "candidate_tools": ["existing image generation", "Ideogram only if already available", "Firefly only if existing access is verified", "Runway only if existing access is verified"],
       "must_preserve": ["Finished the dry-out at three.", "Paperwork kept you till nine."],
       "must_avoid": ["busy background", "fake worker face", "illegible text"]
     },
@@ -15,7 +16,7 @@
       "scene_id": "scene-02-problem-montage",
       "next_stage": "ai_video_rebuild",
       "goal": "cinematic restoration admin chaos: wet carpet, camera roll, paperwork, late-night laptop",
-      "candidate_tools": ["Runway Gen-4", "Luma Ray", "Adobe Firefly", "Kling 3.0"],
+      "candidate_tools": ["existing image generation plus available editor", "Runway only if existing access is verified", "Luma only if existing access is verified", "Firefly only if existing access is verified", "Kling only if existing access and rights are verified"],
       "must_preserve": ["specific restoration business pain", "no competitor names"],
       "must_avoid": ["generic office stock", "recognisable people", "fake app screens", "overdramatic disaster imagery"]
     },
@@ -23,7 +24,7 @@
       "scene_id": "scene-03-pivot-demo1",
       "next_stage": "product_truth_composite",
       "goal": "use verified UI frame as factual plate; enhance camera move/transition outside the UI",
-      "candidate_tools": ["Runway Gen-4", "CapCut", "Firefly"],
+      "candidate_tools": ["existing/free editor path", "CapCut only if already available", "Runway only if existing access is verified", "Firefly only if existing access is verified"],
       "must_preserve": ["CloseJobPrompt truth", "AI drafts / user confirms"],
       "must_avoid": ["generated UI", "changed button labels", "warped text"]
     },
@@ -31,7 +32,7 @@
       "scene_id": "scene-04-demo-storage-byok",
       "next_stage": "product_truth_composite",
       "goal": "turn chain-of-custody metadata into premium forensic proof without inventing UI",
-      "candidate_tools": ["Firefly", "Runway Gen-4", "Topaz Video AI"],
+      "candidate_tools": ["existing image generation and editor overlays", "Firefly only if existing access is verified", "Runway only if existing access is verified", "Topaz only if already owned"],
       "must_preserve": ["SHA-256", "UTC", "GPS", "USER HASH", "Your data. Your storage."],
       "must_avoid": ["wrong metadata", "fake Drive UI", "unreadable overlays"]
     },
@@ -39,7 +40,7 @@
       "scene_id": "scene-05-demo-inbound",
       "next_stage": "product_truth_composite",
       "goal": "make Accept & Start feel tactile and immediate",
-      "candidate_tools": ["CapCut", "Runway Gen-4", "Firefly"],
+      "candidate_tools": ["existing/free editor path", "CapCut only if already available", "Runway only if existing access is verified", "Firefly only if existing access is verified"],
       "must_preserve": ["DR/NRPG inbound concept", "Accept & Start", "No re-typing", "No double-handling"],
       "must_avoid": ["invented insurer/customer data", "fake addresses presented as real"]
     },
@@ -47,7 +48,7 @@
       "scene_id": "scene-06-positioning",
       "next_stage": "ai_video_rebuild",
       "goal": "premium Australian-built / Brisbane identity moment without tourist-stock feel",
-      "candidate_tools": ["Firefly", "Runway Gen-4", "Luma Ray", "Kling 3.0"],
+      "candidate_tools": ["existing image generation", "HeyGen only if connected account supports required workflow", "Firefly only if existing access is verified", "Runway only if existing access is verified", "Luma only if existing access is verified", "Kling only if existing access and rights are verified"],
       "must_preserve": ["Australian-built", "Brisbane-built", "restoration business credibility"],
       "must_avoid": ["kangaroo/cliche visuals", "generic skyline tourism", "American-looking tradesperson"]
     },
@@ -55,7 +56,7 @@
       "scene_id": "scene-07-proof-numbers",
       "next_stage": "designed_overlay_in_ai_editor",
       "goal": "proof numbers land with sound/contrast and remain readable",
-      "candidate_tools": ["Ideogram", "CapCut", "Firefly"],
+      "candidate_tools": ["existing/free editor text overlays", "Ideogram only if already available", "CapCut only if already available", "Firefly only if existing access is verified"],
       "must_preserve": ["0 app-switches", "S500 §7.1-§12.3", "100% data in storage you control"],
       "must_avoid": ["generated bad text", "overanimated numbers"]
     },
@@ -63,7 +64,7 @@
       "scene_id": "scene-08-to-10-cta",
       "next_stage": "ai_editor_finish",
       "goal": "premium CTA, thumbnail, final brand sting, and social-safe lockup",
-      "candidate_tools": ["Ideogram", "Firefly", "CapCut", "Topaz Video AI"],
+      "candidate_tools": ["existing image generation", "existing/free editor path", "Ideogram only if already available", "Firefly only if existing access is verified", "CapCut only if already available", "Topaz only if already owned"],
       "must_preserve": ["restoreassist.app", "Try RestoreAssist free"],
       "must_avoid": ["wrong URL", "hidden CTA", "platform UI crop conflict"]
     }

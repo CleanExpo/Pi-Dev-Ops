@@ -19,31 +19,48 @@ The next stage is an AI video production workflow:
 4. Add AI-assisted audio, SFX, enhancement, and upscale.
 5. Run market, licensing, and product-truth QA before publish.
 
+## Cost And Access Rule
+
+Use what Phill already has. Do not recommend, assume, or plan around new expensive subscriptions.
+
+Production tools must pass one of these gates before they can be used:
+
+- already installed locally
+- already connected in Codex/Claude as a plugin or connector
+- already covered by an existing subscription Phill owns
+- free/included tier that does not create spend or lock the workflow behind an upgrade
+
+Any paid tool whose access is not verified is research-only. It cannot be the recommended production path.
+
 ## Production Principle
 
 The product UI is truth. AI tools can enhance, frame, animate, texture, and package the story. They cannot invent product screens, customer data, claims, logos, standards, or workflows.
 
 ## Recommended Tool Bakeoff
 
-### Tier 1: Test First
+### Tier 1: Use First If Already Available
 
-- **Adobe Firefly**: best first test where commercial-safety positioning, image/video generation, audio/color controls, and editor-style workflow matter.
-- **Runway Gen-4**: best first test for controlled image-to-video, reference-driven motion, and performance/video workflows.
-- **Luma Ray**: best first test for image-to-video and video-to-video modification where prompt adherence and video modification matter.
+- **Existing OpenAI/Codex image generation**: use for source stills, visual exploration, and keyframe drafts where available in the current environment.
+- **HeyGen connector**: use for avatar/presenter/video-agent paths only if it is already connected and usable for this account.
+- **Canva / Cloudinary connectors**: use only if already connected and useful for assembly, asset handling, or transformations.
+- **Existing Artlist/stock/audio access**: use only when current subscription/license coverage is verified.
 
-### Tier 2: Specialist Tools
+### Tier 2: Access-Gated Research Only
 
-- **Kling 3.0**: test for cinematic realism and strong image-to-video output, but require rights/commercial review before production.
-- **CapCut**: use for fast social assembly, captions, background removal, music integration, and 9:16 cutdowns.
-- **Descript**: use if transcript-first editing, dubbing/localization, or voice cleanup becomes central.
-- **Topaz Video AI**: use for upscale, denoise, stabilization, sharpening, and final enhancement.
+- **Adobe Firefly**: research candidate only until existing access is verified.
+- **Runway Gen-4**: research candidate only until existing access is verified.
+- **Luma Ray**: research candidate only until existing access is verified.
+- **Kling 3.0**: research candidate only until existing access and commercial-use coverage are verified.
+- **CapCut**: use only if already installed/subscribed/free for the required export.
+- **Descript**: use only if already subscribed or the required workflow is available without new spend.
+- **Topaz Video AI**: use only if already owned/subscribed.
 
 ### Source Image Tools
 
-- **Gemini/Nano Banana**: source still generation/editing and practical visual ideation.
-- **Ideogram**: use for text-heavy stills and thumbnail variants where text accuracy matters.
-- **Adobe Firefly**: use where commercially safer image generation is the priority.
-- **Midjourney**: use only for high-aesthetic non-product concept stills; do not use for exact UI or claims.
+- **Gemini/Nano Banana**: use only if already available under Phill's current Google/Gemini subscription.
+- **Ideogram**: use only if already available; otherwise text-heavy stills are created in the editor as overlays.
+- **Adobe Firefly**: use only if existing access is verified.
+- **Midjourney**: use only if already subscribed; do not use for exact UI or claims.
 
 ## Scene Strategy
 
@@ -81,6 +98,7 @@ Questions:
 - Which tool creates the best scene 6 Brisbane/Australian-built identity moment?
 - Which tool preserves brand mood without generic AI slop?
 - Which tool has commercial-use clarity?
+- Which of those tools are already available without new spend?
 
 ### 2. AI Image Researcher
 
@@ -110,10 +128,11 @@ Outputs:
 
 Candidates:
 
-- Firefly editor for generative assembly and Adobe ecosystem.
-- CapCut for fast social packaging.
-- Descript for transcript/voice-led edit if needed.
-- Runway/Luma workspaces for generation management.
+- Existing connected/included AI editor first.
+- CapCut only if already installed/subscribed/free for required export.
+- Firefly editor only if existing Adobe access is verified.
+- Descript only if existing subscription is verified.
+- Runway/Luma workspaces only if existing access is verified.
 
 ### 4. AI Sound And Enhancement Researcher
 
@@ -126,10 +145,10 @@ Outputs:
 
 Candidates:
 
-- ElevenLabs SFX for generated sound design under current terms.
-- Adobe audio tools for Enhance Speech / cleanup.
-- CapCut/Firefly editor audio layers for fast assembly.
-- Topaz Video AI for final enhancement/upscale if the generated clips need it.
+- Existing ElevenLabs/voice/audio access only if already covered.
+- Adobe audio tools only if existing Adobe access is verified.
+- CapCut/Firefly editor audio layers only if access is already available.
+- Topaz Video AI only if already owned/subscribed.
 
 ### 5. Market And QA Researcher
 
@@ -220,7 +239,7 @@ Winner becomes the primary next-stage production tool. Runner-up becomes fallbac
 
 ## Current Recommendation
 
-Start with Adobe Firefly, Runway Gen-4, and Luma Ray. Keep CapCut ready for social assembly and Topaz ready for enhancement. Do not use Remotion for the next production stage.
+Start by verifying current access. Use already-owned tools only. The first practical path is: existing image generation for source stills, HeyGen if the connected account supports the needed video workflow, existing stock/audio subscriptions if verified, and a free/included editor path for assembly. Firefly, Runway, Luma, Kling, CapCut, Descript, Topaz, Gemini, Ideogram, and Midjourney remain access-gated candidates, not purchase recommendations.
 
 ## Sources
 
