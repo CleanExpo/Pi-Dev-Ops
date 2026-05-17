@@ -1,0 +1,28 @@
+{
+  "job_id": "ra-2026-05-15-wave-1-launch",
+  "created": "2026-05-17",
+  "target_viewer": "Australian water-damage and restoration operator",
+  "channel": "linkedin-organic",
+  "conversion_goal": "try RestoreAssist free at restoreassist.app",
+  "commercial_takeaway": "RestoreAssist understands the restoration job lifecycle and removes after-hours paperwork without taking control away from the tradie.",
+  "scorecard": [
+    {"criterion": "0-3s hook", "weight": 12, "pass_standard": "pain is specific and readable muted in the feed"},
+    {"criterion": "viewer specificity", "weight": 10, "pass_standard": "language clearly belongs to water-damage/restoration work"},
+    {"criterion": "product proof", "weight": 14, "pass_standard": "at least three concrete product mechanisms are shown, not claimed"},
+    {"criterion": "trust", "weight": 12, "pass_standard": "AI is framed as draft/confirm, not autonomous magic"},
+    {"criterion": "cinematic texture", "weight": 8, "pass_standard": "physical-world detail breaks up the pure UI-render feel"},
+    {"criterion": "editorial rhythm", "weight": 10, "pass_standard": "cuts feel intentional and product frames remain readable"},
+    {"criterion": "sound design", "weight": 10, "pass_standard": "music/SFX/room tone support the voiceover without masking it"},
+    {"criterion": "grade", "weight": 8, "pass_standard": "brand colours survive while the raw generated-render look is removed"},
+    {"criterion": "platform packaging", "weight": 8, "pass_standard": "thumbnail, captions, CTA, and muted playback are handled"},
+    {"criterion": "rights and data safety", "weight": 8, "pass_standard": "no leaked customer data, unclear music, or recognisable unlicensed people"}
+  ],
+  "minimum_publish_score": 85,
+  "blocking_failures": [
+    "real customer data visible",
+    "music or stock footage without licensing evidence",
+    "voiceover clipped or masked",
+    "CTA missing visually or audibly",
+    "first frame fails muted LinkedIn playback"
+  ]
+}

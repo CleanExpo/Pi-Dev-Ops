@@ -1,0 +1,15 @@
+name: unite-group
+version: 1.0.0
+description: "Native Unite-Group portfolio integration — 4 tools giving Margot live access to portfolio health, CCW KPIs, wave status, and senior agent 6-pager summaries. No round-trips through Pi-CEO API."
+author: "Phill McGurk / Claude Code"
+kind: standalone
+requires_env:
+  - name: SUPABASE_UNITE_GROUP_URL
+    description: Unite-Group Supabase project URL
+  - name: SUPABASE_UNITE_GROUP_SERVICE_KEY
+    description: Unite-Group Supabase service role key
+provides_tools:
+  - ug_portfolio_health
+  - ug_ccw_kpis
+  - ug_wave_status
+  - ug_6pager_summary

@@ -9,11 +9,8 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import sys
 from pathlib import Path
-
-import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
@@ -147,6 +144,8 @@ def test_parallelism_under_50pct_of_sequential(monkeypatch, tmp_path):
     """Acceptance: drafter+redteam wall-clock <50% of sequential sum."""
     monkeypatch.setattr(DR, "REPO_ROOT", tmp_path)
     monkeypatch.setattr(DR, "DEBATE_STATE_FILE_REL", "debates.jsonl")
+    from swarm import kanban_adapter
+    monkeypatch.setattr(kanban_adapter, "emit_debate_card", lambda **kwargs: None)
     _install_fake_kill(monkeypatch, _FakeKillSwitch(on=False))
     # Each side sleeps 0.30s — sequential would be 0.60s.
     _install_fake_sdk(
