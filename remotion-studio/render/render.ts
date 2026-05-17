@@ -15,6 +15,8 @@ import fs from 'node:fs';
 import { bundle } from '@remotion/bundler';
 import { renderMedia, selectComposition } from '@remotion/renderer';
 import { synthesiseStoryboard, Storyboarded } from './voiceover';
+import { fitStoryboardToAudio } from './audio-fit';
+import { preflightScript, postrenderProbe } from './validate';
 
 interface Args {
   comp: string;
@@ -22,6 +24,7 @@ interface Args {
   props: Record<string, unknown>;
   jobId: string;
   skipTts: boolean;
+  skipValidate: boolean;
 }
 
 function isStoryboarded(p: unknown): p is Storyboarded {
@@ -49,6 +52,7 @@ function parseArgs(): Args {
     props: args.props ? JSON.parse(args.props) : {},
     jobId: args.jobId ?? `job-${Date.now()}`,
     skipTts: args.skipTts === 'true',
+    skipValidate: args.skipValidate === 'true',
   };
 }
 
@@ -56,18 +60,36 @@ async function main() {
   const args = parseArgs();
   const root = path.resolve(__dirname, '..');
 
-  // 1. Voiceover synthesis (drops MP3s into public/audio/{jobId}/scene-N.mp3 and
+  // 1. Pre-flight script budget check — fail fast BEFORE we spend on TTS if a
+  //    scene's voiceover obviously can't fit its planned duration.
+  if (!args.skipValidate && isStoryboarded(args.props)) {
+    const pf = preflightScript(args.props);
+    if (!pf.ok) {
+      console.warn(
+        `[preflight] WARN ${pf.failures.length} scene(s) overrun their planned duration. audio-fit will extend them post-TTS so narration is not clipped.`,
+      );
+    }
+  }
+
+  // 2. Voiceover synthesis (drops MP3s into public/audio/{jobId}/scene-N.mp3 and
   //    mutates props.storyboard[i].voiceoverAudioPath in place).
   if (!args.skipTts && isStoryboarded(args.props)) {
     await synthesiseStoryboard(args.props, args.jobId, root);
   }
 
-  // 2. Bundle the project (entry: src/index.ts).
+  // 3. Audio-fit — measure each TTS mp3 and extend scene.durationSec so the
+  //    Sequence outlives the Audio it contains. Without this, ElevenLabs
+  //    overruns cause mid-sentence cuts at scene boundaries.
+  if (isStoryboarded(args.props)) {
+    fitStoryboardToAudio(args.props, root);
+  }
+
+  // 4. Bundle the project (entry: src/index.ts).
   const entryPoint = path.join(root, 'src/index.ts');
   console.log(`[render] bundling ${entryPoint}`);
   const serveUrl = await bundle({ entryPoint, webpackOverride: (c) => c });
 
-  // 3. Pick the composition.
+  // 5. Pick the composition.
   console.log(`[render] selecting composition ${args.comp}`);
   const composition = await selectComposition({
     serveUrl,
@@ -75,7 +97,7 @@ async function main() {
     inputProps: args.props,
   });
 
-  // 4. Render.
+  // 6. Render.
   fs.mkdirSync(path.dirname(args.out), { recursive: true });
   console.log(`[render] rendering -> ${args.out}`);
   await renderMedia({
@@ -88,6 +110,17 @@ async function main() {
     pixelFormat: 'yuv420p',
   });
   console.log(`[render] done: ${args.out}`);
+
+  // 7. Post-render validation — ffprobe the file, fail if audio overruns video.
+  if (!args.skipValidate) {
+    const report = postrenderProbe(args.out);
+    if (!report.ok) {
+      throw new Error(
+        `[postrender] validation failed: ${report.reasons.join('; ')}. ` +
+          `Render written to ${args.out} but does NOT pass the gate.`,
+      );
+    }
+  }
 }
 
 main().catch((err) => {

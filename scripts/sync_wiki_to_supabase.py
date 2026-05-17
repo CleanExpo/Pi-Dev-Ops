@@ -43,7 +43,7 @@ def main():
     if not key:
         print("ERROR: no service key"); sys.exit(1)
 
-    pages = list(WIKI_DIR.glob("*.md"))
+    pages = list(WIKI_DIR.rglob("*.md"))
     synced = 0
     for p in pages:
         if p.name in SKIP:
@@ -52,7 +52,7 @@ def main():
         # Extract title from first H1 or filename
         title_match = re.search(r'^#\s+(.+)$', content, re.MULTILINE)
         title = title_match.group(1).strip() if title_match else p.stem.replace("-", " ").title()
-        page_id = p.stem
+        page_id = str(p.relative_to(WIKI_DIR).with_suffix(""))
         # Extract tags from content (wiki links [[tag]])
         tags = list(set(re.findall(r'\[\[([^\]]+)\]\]', content)))[:10]
         try:
