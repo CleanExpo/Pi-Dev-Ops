@@ -1644,7 +1644,7 @@ Completed:
 **Files:**
 - Create: `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/.harness/margot/voice/rehearsal-2026-05-17.md`
 
-- [ ] **Step 1: Start Pi-CEO backend**
+- [x] **Step 1: Start Pi-CEO backend**
 
 Run in tmux pane `pi-ceo-api`:
 
@@ -1655,7 +1655,7 @@ uvicorn app.server.main:app --host 127.0.0.1 --port 7777
 
 Expected: server starts without import errors.
 
-- [ ] **Step 2: Start Unite CRM**
+- [x] **Step 2: Start Unite CRM**
 
 Run in tmux pane `unite-crm`:
 
@@ -1668,6 +1668,8 @@ Expected: Next dev server prints a local URL.
 
 - [ ] **Step 3: Probe signed URL route with browser session**
 
+Blocked: local browser context is not authenticated; `/en/command-center` redirected to `/en/login`. Keep this unchecked until Phill runs the browser click from a logged-in CRM session.
+
 Open authenticated Unite CRM and click `Start secure voice` in the command center.
 
 Expected:
@@ -1677,7 +1679,7 @@ Panel state changes from not connected -> preparing secure link -> secure voice 
 No ElevenLabs API key is visible in browser devtools response payload.
 ```
 
-- [ ] **Step 4: Rehearse webhook without live voice**
+- [x] **Step 4: Rehearse webhook without live voice**
 
 Run:
 
@@ -1707,7 +1709,7 @@ PY
 
 Expected: prints packet id, `route` as `unite_crm`, `risk` as `low`, and a fallback JSON path.
 
-- [ ] **Step 5: Record rehearsal evidence**
+- [x] **Step 5: Record rehearsal evidence**
 
 Create `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/.harness/margot/voice/rehearsal-2026-05-17.md`:
 
@@ -1740,7 +1742,7 @@ Decision logic: Pi-CEO/Margot
 - Test commands:
 ```
 
-- [ ] **Step 6: Run full gates**
+- [x] **Step 6: Run full gates**
 
 Run:
 
@@ -1757,7 +1759,7 @@ npm run lint
 
 Expected: all pass. If repository-wide lint has pre-existing failures, capture exact files and run the narrower lint/type gates for files touched by this plan before marking the task `YELLOW`.
 
-- [ ] **Step 7: Commit rehearsal evidence**
+- [x] **Step 7: Commit rehearsal evidence**
 
 Run:
 
@@ -1766,6 +1768,16 @@ cd /Users/phill-mac/Pi-CEO/Pi-Dev-Ops
 git add .harness/margot/voice/rehearsal-2026-05-17.md
 git commit -m "test: capture margot voice rehearsal evidence"
 ```
+
+Completed:
+- Pi-CEO commit: `8b3f2f0 test: capture margot voice rehearsal evidence`
+- Rehearsal note: `.harness/margot/voice/rehearsal-2026-05-17.md`
+- Fallback packet: `.harness/margot/voice/voice_07317263d968c49f.json`
+- Pi-CEO tests/import: 25 passed and FastAPI import succeeded
+- Unite CRM API tests: 6 passed
+- Unite CRM type-check: exit 0
+- Unite CRM lint: exit 0 with 485 inherited warnings
+- Local UI: dev server started at `http://localhost:3002`; command center redirected to login
 
 ---
 
