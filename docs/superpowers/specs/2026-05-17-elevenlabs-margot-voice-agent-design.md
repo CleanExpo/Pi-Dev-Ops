@@ -264,3 +264,16 @@ v0 is `GREEN` only when these checks pass:
 - If CRM/Linear/Kanban is down, a local fallback packet is written and status is `YELLOW`.
 - No secrets are exposed in logs or prompts.
 - ElevenLabs is removable as the voice shell without rewriting Pi-CEO/Margot business logic.
+
+## Implementation Evidence
+
+- Pi-CEO packet tests: `python -m pytest tests/test_margot_voice_packet.py tests/test_elevenlabs_margot_voice_route.py tests/test_kanban_adapter.py -q` -> 25 passed.
+- Pi-CEO webhook tests: `tests/test_elevenlabs_margot_voice_route.py` covers bad signature rejection, CRM/Kanban success, and fallback persistence.
+- Kanban adapter board test: `tests/test_kanban_adapter.py::test_create_card_with_board_argv_shape` verifies `hermes kanban --board unite-group-portfolio-ops create`.
+- Unite CRM signed URL tests: `npm run test:all -- tests/integration/api/margot-voice-signed-url.test.ts tests/integration/api/margot-voice-task.test.ts --runInBand` -> 6 passed.
+- Unite CRM task route tests: same command verifies token rejection, voice-session insert, task insert, and approval-required task state.
+- Unite CRM type-check: `npm run type-check -- --pretty false` -> exit 0.
+- Unite CRM lint: `npm run lint` -> exit 0 with 485 inherited warnings; touched-file strict lint passed with `--max-warnings=0`.
+- Manual voice rehearsal: `.harness/margot/voice/rehearsal-2026-05-17.md` -> YELLOW because the local browser context redirected to `/en/login` before live widget click.
+- Production workflow behavior changed: NO live deploy, publish, spend, CRM production write, Kanban production card, or live ElevenLabs call was executed.
+- Secret scan: broad scan returned only redaction test literals, regex definitions, `task-1` false positives, and scan-command text; no real secrets found.
