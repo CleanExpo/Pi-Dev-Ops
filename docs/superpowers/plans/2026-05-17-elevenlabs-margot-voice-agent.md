@@ -93,7 +93,7 @@ No `.env*` files are read or edited by this plan.
 - Create: `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/tests/test_margot_voice_packet.py`
 - Create: `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/app/server/margot_voice_packet.py`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Create `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/tests/test_margot_voice_packet.py`:
 
@@ -195,7 +195,7 @@ def test_fallback_packet_is_written_atomically(tmp_path):
     assert data["sync_status"] == "fallback"
 ```
 
-- [ ] **Step 2: Run tests and confirm failure**
+- [x] **Step 2: Run tests and confirm failure**
 
 Run:
 
@@ -206,7 +206,7 @@ python -m pytest tests/test_margot_voice_packet.py -q
 
 Expected: fails with `ModuleNotFoundError: No module named 'app.server.margot_voice_packet'`.
 
-- [ ] **Step 3: Implement packet module**
+- [x] **Step 3: Implement packet module**
 
 Create `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/app/server/margot_voice_packet.py`:
 
@@ -256,7 +256,9 @@ MARKETING_KEYWORDS = {
     "linkedin",
     "seo",
     "marketing",
-    "copy",
+    "ad copy",
+    "campaign copy",
+    "marketing copy",
     "ad creative",
     "content calendar",
     "brand voice",
@@ -418,7 +420,7 @@ def persist_fallback_packet(packet: VoicePacket, *, root: Path = FALLBACK_ROOT) 
     return final
 ```
 
-- [ ] **Step 4: Verify tests pass**
+- [x] **Step 4: Verify tests pass**
 
 Run:
 
@@ -429,7 +431,7 @@ python -m pytest tests/test_margot_voice_packet.py -q
 
 Expected: all tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 Run:
 
