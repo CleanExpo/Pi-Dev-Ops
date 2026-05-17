@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { Server } from "mock-socket";
 import { AssemblyAiClient } from "../assemblyai-client";
 
-const WS_URL = "wss://api.assemblyai.com/v2/realtime/ws";
+const WS_URL = "wss://streaming.assemblyai.com/v3/ws";
 
 describe("AssemblyAiClient", () => {
   let server: Server;
@@ -15,14 +15,16 @@ describe("AssemblyAiClient", () => {
     server.stop();
   });
 
-  it("emits partial transcript events", async () => {
+  it("emits partial transcript events from v3 Turn (end_of_turn=false)", async () => {
     const partials: string[] = [];
     server.on("connection", (socket) => {
       setTimeout(() => {
         socket.send(
           JSON.stringify({
-            message_type: "PartialTranscript",
-            text: "hello world",
+            type: "Turn",
+            turn_order: 0,
+            end_of_turn: false,
+            transcript: "hello world",
             words: [],
           })
         );
@@ -37,17 +39,22 @@ describe("AssemblyAiClient", () => {
     expect(partials).toContain("hello world");
   });
 
-  it("emits final transcript events with speaker", async () => {
+  it("emits final transcript events from v3 Turn (end_of_turn=true) with speaker_label", async () => {
     const finals: Array<{ text: string; speaker: string }> = [];
     server.on("connection", (socket) => {
       setTimeout(() => {
         socket.send(
           JSON.stringify({
-            message_type: "FinalTranscript",
-            text: "this is final",
-            speaker: "A",
-            audio_start: 0,
-            audio_end: 1500,
+            type: "Turn",
+            turn_order: 1,
+            end_of_turn: true,
+            transcript: "this is final",
+            speaker_label: "A",
+            words: [
+              { text: "this", start: 0, end: 300, confidence: 0.99 },
+              { text: "is", start: 350, end: 500, confidence: 0.98 },
+              { text: "final", start: 550, end: 1500, confidence: 0.99 },
+            ],
           })
         );
       }, 10);
@@ -80,7 +87,13 @@ describe("AssemblyAiClient", () => {
     server.on("connection", (socket) => {
       setTimeout(() => {
         socket.send(
-          JSON.stringify({ message_type: "PartialTranscript", text: "after close", words: [] })
+          JSON.stringify({
+            type: "Turn",
+            turn_order: 0,
+            end_of_turn: false,
+            transcript: "after close",
+            words: [],
+          })
         );
       }, 30);
     });

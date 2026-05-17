@@ -1,8 +1,11 @@
 export const runtime = "edge";
 
-const ASSEMBLYAI_TOKEN_URL = "https://api.assemblyai.com/v2/realtime/token";
-const ASSEMBLYAI_WS_URL = "wss://api.assemblyai.com/v2/realtime/ws";
-const TOKEN_EXPIRY_SECONDS = 3600;
+// AssemblyAI v3 streaming token endpoint.
+// v2 (`/v2/realtime/token`) was deprecated and returns HTTP 410.
+// See: https://www.assemblyai.com/docs/streaming/streaming-api
+const ASSEMBLYAI_TOKEN_URL = "https://streaming.assemblyai.com/v3/token";
+const ASSEMBLYAI_WS_URL = "wss://streaming.assemblyai.com/v3/ws";
+const TOKEN_EXPIRY_SECONDS = 60; // v3 caps at 600 for single-use; 60 is fine for a hand-off
 
 export async function POST(_req: Request): Promise<Response> {
   const apiKey = process.env.ASSEMBLYAI_API_KEY;
@@ -14,14 +17,17 @@ export async function POST(_req: Request): Promise<Response> {
   }
 
   try {
-    const upstream = await fetch(ASSEMBLYAI_TOKEN_URL, {
-      method: "POST",
-      headers: {
-        Authorization: apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ expires_in: TOKEN_EXPIRY_SECONDS }),
-    });
+    // v3 token endpoint is a GET with query params, not POST.
+    const upstream = await fetch(
+      `${ASSEMBLYAI_TOKEN_URL}?expires_in_seconds=${TOKEN_EXPIRY_SECONDS}`,
+      {
+        method: "GET",
+        headers: {
+          // v3 uses the raw API key as Authorization (no Bearer prefix).
+          Authorization: apiKey,
+        },
+      }
+    );
 
     if (!upstream.ok) {
       const text = await upstream.text();

@@ -13,7 +13,7 @@ describe("/api/session", () => {
     expect(res.status).toBe(500);
   });
 
-  it("calls AssemblyAI token endpoint with correct headers", async () => {
+  it("calls AssemblyAI v3 token endpoint with correct headers", async () => {
     process.env.ASSEMBLYAI_API_KEY = "fake_key_123";
     (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
       new Response(JSON.stringify({ token: "tmp_abc" }), { status: 200 })
@@ -21,13 +21,12 @@ describe("/api/session", () => {
     const { POST } = await import("../route");
     await POST(new Request("http://x", { method: "POST" }));
 
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      "https://api.assemblyai.com/v2/realtime/token",
-      expect.objectContaining({
-        method: "POST",
-        headers: expect.objectContaining({ Authorization: "fake_key_123" }),
-      })
-    );
+    const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[0]).toMatch(/streaming\.assemblyai\.com\/v3\/token/);
+    expect(call[1]).toMatchObject({
+      method: "GET",
+      headers: expect.objectContaining({ Authorization: "fake_key_123" }),
+    });
   });
 
   it("never leaks the real key in response body", async () => {
@@ -51,7 +50,7 @@ describe("/api/session", () => {
     const res = await POST(new Request("http://x", { method: "POST" }));
     const body = await res.json();
     expect(body.token).toBe("tmp_abc");
-    expect(body.ws_url).toBe("wss://api.assemblyai.com/v2/realtime/ws");
+    expect(body.ws_url).toBe("wss://streaming.assemblyai.com/v3/ws");
     expect(typeof body.expires_at).toBe("number");
   });
 });

@@ -50,16 +50,28 @@ export class AssemblyAiClient {
     this.ws.onmessage = (ev) => {
       try {
         const data = JSON.parse(ev.data as string);
-        if (data.message_type === "PartialTranscript") {
-          this.emit("partial", { text: data.text, words: data.words ?? [] });
-        } else if (data.message_type === "FinalTranscript") {
-          this.emit("final", {
-            text: data.text,
-            speaker: data.speaker ?? "?",
-            audioStart: data.audio_start ?? 0,
-            audioEnd: data.audio_end ?? 0,
-          });
+        // v3 streaming message types: Begin, SpeechStarted, Turn, Termination.
+        // (v2 used PartialTranscript / FinalTranscript — deprecated, returns HTTP 410.)
+        if (data.type === "Turn") {
+          const text: string = data.transcript ?? "";
+          const words: Array<{ text: string; start: number; end: number; confidence: number }> =
+            data.words ?? [];
+          if (data.end_of_turn === false) {
+            this.emit("partial", { text, words });
+          } else {
+            const first = words[0];
+            const last = words[words.length - 1];
+            this.emit("final", {
+              text,
+              // speaker_label is only present when speaker_labels=true on session
+              speaker: (data.speaker_label as string | undefined) ?? "?",
+              audioStart: first ? first.start : 0,
+              audioEnd: last ? last.end : 0,
+            });
+          }
         }
+        // Begin / SpeechStarted / Termination are informational — ignored here.
+        // The onclose handler emits "disconnect" on socket close.
       } catch (e) {
         this.emit("error", { message: `parse error: ${(e as Error).message}` });
       }
