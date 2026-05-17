@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-05-10T11:21:34Z (commits 57124e2..c56de1c)_
+_Last updated: 2026-05-17T13:16:31Z (commits ef893c6..9d238ca)_
 
 ## Recent changes
-- c56de1c — feat(autonomy): RA-2209 q2-priority post-filter (empire-overview E3 phase 2) (#203)
+- 9d238ca — fix(infra): consolidate provider_router helper + wire kpi_watchdog cron + jsonl rotator (RA-3003, RA-3007) (#215)
 
 Not logged in · Please run /login

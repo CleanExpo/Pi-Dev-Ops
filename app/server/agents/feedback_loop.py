@@ -53,36 +53,6 @@ def _log_sprinkle_event(event: dict[str, Any]) -> None:
         pass
 
 
-def _run_provider_call_blocking(prompt: str, role: str, timeout_s: int) -> tuple[int, str, float, str | None, Any]:
-    """Call provider_router.run_via_provider from sync context — safe whether
-    or not an event loop is already running. ``run_feedback_cycle`` is
-    normally dispatched via ``loop.run_in_executor`` (no running loop in
-    this thread), but the helper is loop-safe regardless.
-
-    Returns (rc, text, cost_usd, error, ProviderModel).
-
-    TODO(RA-2995 cleanup): once all 5 sprinkles are migrated, consolidate
-    this helper into provider_router.py so triage.py + feedback_loop.py +
-    the remaining sprinkles share one implementation.
-    """
-    import asyncio  # noqa: PLC0415
-    import concurrent.futures  # noqa: PLC0415
-    from app.server.provider_router import run_via_provider, select_provider_model  # noqa: PLC0415
-
-    pm = select_provider_model(role)
-
-    async def _go() -> tuple[int, str, float, str | None]:
-        return await run_via_provider(prompt=prompt, role=role, timeout_s=timeout_s)
-
-    try:
-        asyncio.get_running_loop()
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-            rc, text, cost, error = ex.submit(asyncio.run, _go()).result(timeout=timeout_s + 5)
-    except RuntimeError:
-        rc, text, cost, error = asyncio.run(_go())
-    return rc, text, cost, error, pm
-
-
 def _classify_with_claude(
     comments: list[str], state: str, days_since: int, pipeline_id: str,
 ) -> dict[str, Any] | None:
@@ -101,7 +71,9 @@ def _classify_with_claude(
     )
 
     try:
-        rc, raw, _cost, error, pm = _run_provider_call_blocking(prompt, _PATTERN_ROLE, _PATTERN_TIMEOUT_S)
+        from app.server.provider_router import run_via_provider_blocking  # noqa: PLC0415
+
+        rc, raw, _cost, error, pm = run_via_provider_blocking(prompt, _PATTERN_ROLE, _PATTERN_TIMEOUT_S)
     except Exception as exc:  # noqa: BLE001
         _log_sprinkle_event({
             "sprinkle": "feedback_loop", "outcome": "router_unavailable",

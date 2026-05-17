@@ -64,6 +64,22 @@ def test_create_card_argv_shape(monkeypatch):
     assert args[-1] == "hello"
 
 
+def test_create_card_with_board_argv_shape(monkeypatch):
+    record: list = []
+    _patch_run(monkeypatch, rc=0, stdout='{"task_id": "k-board1"}', record=record)
+    out = KA.create_card(
+        title="voice card",
+        body="from crm",
+        tenant="pi-ceo",
+        board="unite-group-portfolio-ops",
+    )
+    assert out == "k-board1"
+    args, _ = record[0]
+    assert args[:4] == ("kanban", "--board", "unite-group-portfolio-ops", "create")
+    assert "--json" in args
+    assert args[-1] == "voice card"
+
+
 def test_create_card_failure_returns_none(monkeypatch):
     _patch_run(monkeypatch, rc=1, stdout="", stderr="db locked")
     assert KA.create_card(title="x") is None
