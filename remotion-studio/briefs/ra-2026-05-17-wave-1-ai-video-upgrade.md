@@ -32,6 +32,13 @@ Production tools must pass one of these gates before they can be used:
 
 Any paid tool whose access is not verified is research-only. It cannot be the recommended production path.
 
+Verified available resources:
+
+- OpenAI Max accounts.
+- Artlist.io account with credits available.
+
+These are the first paid resources to use.
+
 ## Production Principle
 
 The product UI is truth. AI tools can enhance, frame, animate, texture, and package the story. They cannot invent product screens, customer data, claims, logos, standards, or workflows.
@@ -40,10 +47,10 @@ The product UI is truth. AI tools can enhance, frame, animate, texture, and pack
 
 ### Tier 1: Use First If Already Available
 
-- **Existing OpenAI/Codex image generation**: use for source stills, visual exploration, and keyframe drafts where available in the current environment.
+- **OpenAI Max / Codex image generation**: verified available. Use first for source stills, visual exploration, keyframe drafts, thumbnail concepts, and prompt iteration.
 - **HeyGen connector**: use for avatar/presenter/video-agent paths only if it is already connected and usable for this account.
 - **Canva / Cloudinary connectors**: use only if already connected and useful for assembly, asset handling, or transformations.
-- **Existing Artlist/stock/audio access**: use only when current subscription/license coverage is verified.
+- **Artlist.io credits**: verified available. Use first for licensed stock footage, music, SFX, and production textures, with asset/license proof recorded per project.
 
 ### Tier 2: Access-Gated Research Only
 
@@ -239,7 +246,7 @@ Winner becomes the primary next-stage production tool. Runner-up becomes fallbac
 
 ## Current Recommendation
 
-Start by verifying current access. Use already-owned tools only. The first practical path is: existing image generation for source stills, HeyGen if the connected account supports the needed video workflow, existing stock/audio subscriptions if verified, and a free/included editor path for assembly. Firefly, Runway, Luma, Kling, CapCut, Descript, Topaz, Gemini, Ideogram, and Midjourney remain access-gated candidates, not purchase recommendations.
+Use OpenAI Max and Artlist credits first. The first practical path is: OpenAI Max for source stills/keyframes and visual prompt iteration, Artlist for licensed footage/music/SFX, HeyGen only if the connected account supports the needed video workflow, and a free/included editor path for assembly. Firefly, Runway, Luma, Kling, CapCut, Descript, Topaz, Gemini, Ideogram, and Midjourney remain access-gated candidates, not purchase recommendations.
 
 ## Sources
 

@@ -21,6 +21,7 @@ For every external music, SFX, footage, or template asset:
 
 ## Current Asset State
 
+- Verified paid resource: Artlist.io account with credits available.
 - Existing voiceover: generated/local MP3s in `remotion-studio/public/audio/ra-wave-1-launch-poc/`.
 - Existing UI/screencaps: committed under `remotion-studio/public/ra-wave-1-screencaps/`.
 - Render output: ignored generated file under `remotion-studio/output/`.

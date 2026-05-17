@@ -6,7 +6,11 @@ Use only tools Phill already has, tools already connected in this environment, o
 
 ## Use First If Already Available
 
-### Existing OpenAI / Codex Image Generation
+### OpenAI Max / Codex Image Generation
+
+Access:
+
+- Verified available: Phill has OpenAI Max accounts.
 
 Use for:
 
@@ -30,13 +34,19 @@ Risk:
 
 - Not a fit for product UI truth unless used only as presenter/context layer.
 
-### Existing Artlist / Stock / Audio Access
+### Artlist.io Credits
+
+Access:
+
+- Verified available: Phill has an Artlist.io account with credits.
 
 Use for:
 
 - music
 - SFX
 - stock inserts
+- footage textures
+- transition plates
 
 Risk:
 
