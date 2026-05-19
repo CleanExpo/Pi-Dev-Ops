@@ -40,7 +40,21 @@ const vm    = require("vm");  // RA-1458: code_execute sandbox
 const HARNESS_DIR = process.env.HARNESS_DIR
   || path.join(__dirname, "..", ".harness");
 
-const LINEAR_API_KEY = process.env.LINEAR_API_KEY || "";
+function readLocalEnvValue(name) {
+  const envPath = path.join(process.env.HOME || "", ".hermes", ".env");
+  try {
+    const lines = fs.readFileSync(envPath, "utf8").split(/\r?\n/);
+    const prefix = `${name}=`;
+    const line = lines.find((entry) => entry.startsWith(prefix));
+    if (!line) return "";
+    return line.slice(prefix.length).trim().replace(/^["']|["']$/g, "");
+  } catch {
+    return "";
+  }
+}
+
+const LINEAR_API_KEY_RAW = process.env.LINEAR_API_KEY || readLocalEnvValue("LINEAR_API_KEY");
+const LINEAR_API_KEY = LINEAR_API_KEY_RAW.trim().replace(/^Bearer\s+/i, "");
 const LINEAR_API_URL = "https://api.linear.app/graphql";
 
 // Pi-Dev-Ops project ID (from the URL slug)
@@ -952,7 +966,8 @@ const _handle_linear_status = async () => {
           `Error: ${e.message}`,
           "",
           "LINEAR_API_KEY is set but the API rejected it.",
-          "Check that the key is valid and has not been revoked.",
+          "Check that the key is valid, not revoked, and scoped to the correct Linear workspace.",
+          "Formatting note: key is sanitised (trimmed; optional 'Bearer ' prefix removed) before request.",
           "Get a new key at: https://linear.app/settings/api",
         ].join("\n"),
       }],
