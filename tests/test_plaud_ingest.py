@@ -1,6 +1,7 @@
 """Tests for scripts/plaud_ingest.py."""
 import sys
 from pathlib import Path
+from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 import plaud_ingest
@@ -306,7 +307,7 @@ class _FakeSession:
 def test_plaud_client_list_files_since():
     # Real Plaud MCP shape: {"data": [...], "scanned": N, "matched": N}
     fake = _FakeSession({"list_files": {"data": [
-        {"id": "abc", "name": "Foo", "created_at": "2026-05-17T14:32:00",
+        {"id": "abc", "name": "Foo", "created_at": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),
          "duration": 720000},
     ], "scanned": 1, "matched": 1}})
     files = asyncio.run(plaud_ingest.PlaudClient(fake).list_files_since("2026-05-17"))
@@ -364,7 +365,7 @@ def test_run_once_happy_path_writes_page_and_advances_state(tmp_path):
         "list_files": {"data": [{
             "id": "abc123",
             "name": "Acme Q2 Pricing",
-            "created_at": "2026-05-17T14:32:00",
+            "created_at": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),
             "duration": 720_000,
             "presigned_url": "https://plaud.cdn/abc.mp3",
         }]},
@@ -409,7 +410,7 @@ def test_run_once_idempotent_no_new_files(tmp_path):
     state_path = tmp_path / "state.json"
     save_state_initial = {
         "last_seen_id": "abc123",
-        "last_seen_ts": "2026-05-17T14:32:00+10:00",
+        "last_seen_ts": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),
         "last_run_status": "ok", "last_error": None, "consecutive_failures": 0,
     }
     state_path.write_text(json.dumps(save_state_initial))
@@ -417,7 +418,7 @@ def test_run_once_idempotent_no_new_files(tmp_path):
     fake = _FakeSession({"list_files": {"data": [{
         "id": "abc123",
         "name": "Acme Q2 Pricing",
-        "created_at": "2026-05-17T14:32:00",
+        "created_at": (datetime.now(timezone.utc) - timedelta(hours=48)).isoformat(),
         "duration": 720_000,
     }]}})
 
@@ -505,7 +506,7 @@ def test_run_once_defers_unprocessed_recording(tmp_path):
     fake = _FakeSession({
         "list_files": {"data": [{
             "id": "abc123", "name": "Fresh Recording",
-            "created_at": "2026-05-17T14:32:00", "duration": 720_000,
+            "created_at": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(), "duration": 720_000,
         }]},
         "get_note": [],          # empty — Plaud not done yet
         "get_transcript": [],    # empty — Plaud not done yet
