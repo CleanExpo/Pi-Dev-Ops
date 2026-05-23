@@ -491,3 +491,18 @@ Adding a new senior agent? Mirror the cfo.py shape: engine + bot wrapper + skill
 - No first-person business language (We/Our/I/Us/My)
 - No AI filler words (delve, tapestry, landscape, leverage, robust, seamless, elevate)
 - Every paragraph answers a specific question
+
+
+## Launch Crew (autonomous launch-readiness)
+
+A pre-flight crew gets a product launch-ready, then hands off to the existing machinery — it adds
+no new build/test/ship loop and no new Linear tag.
+
+- **Governance:** [`HERMES.md`](HERMES.md) + [`skills/launch-charter/SKILL.md`](skills/launch-charter/SKILL.md)
+  (loaded first; binds to this file + `AGENTS.md` + `kill-switch-binding`/`pii-redactor`/`tao-judge`).
+- **Run:** `/ship-it` → `launch-charter` → `launch-project-audit` → `launch-review` →
+  `launch-enhance-debloat` (propose only) → sync via `pi-dev-linear-contract` → **STOP for human go**.
+- **On go:** build through the existing `ship-chain` / `tao-loop` + `tao-judge` / `ship-release`;
+  autonomy queue = status `Ready for Pi-Dev` + label `pi-dev:autonomous`.
+- **Wiring:** skills load from `skills/<name>/SKILL.md`; `/ship-it` is routed via `_INTENT_SKILLS`
+  in `src/tao/skills.py`. Regenerate `agentskills.json` after adding skills.
