@@ -99,6 +99,13 @@ _INTENT_SKILLS = {
     "plan":    ["ship-chain", "technical-plan"],
     "test":    ["ship-chain", "verify-test"],
     "ship":    ["ship-chain", "ship-release"],
+    # Launch crew (wave-4): launch-readiness pre-flight. "ship-it" orchestrates
+    # charter -> project-audit -> review -> enhance-debloat, then hands off to the
+    # existing ship-chain / tao-loop / ship-release. These skills are
+    # automation:manual, so skills_manifest() still classifies them as explicit-
+    # invoke even though they are intent-routed here. "launch" is an alias.
+    "ship-it": ["ship-it", "launch-charter", "launch-project-audit", "launch-review", "launch-enhance-debloat"],
+    "launch":  ["ship-it", "launch-charter", "launch-project-audit", "launch-review", "launch-enhance-debloat"],
     # RA-693: content + design intents now route to local skill stubs that
     # reference the backing Anthropic Cloud Skills.
     "content": ["brand-ambassador"],
