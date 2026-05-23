@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-05-17T13:16:31Z (commits ef893c6..9d238ca)_
+_Last updated: 2026-05-23T07:14:54Z (commits 61d842b..3b5378d)_
 
 ## Recent changes
-- 9d238ca — fix(infra): consolidate provider_router helper + wire kpi_watchdog cron + jsonl rotator (RA-3003, RA-3007) (#215)
+- 3b5378d — fix(tests): make plaud_ingest fixtures relative to now to stop date-rot (#253)
 
 Not logged in · Please run /login
