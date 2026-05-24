@@ -1,8 +1,8 @@
 # swarm — Wiki
 
-_Last updated: 2026-05-17T13:16:31Z (commits ef893c6..9d238ca)_
+_Last updated: 2026-05-24T05:08:09Z (commits d0f084a..6aea988)_
 
 ## Recent changes
-- 9d238ca — fix(infra): consolidate provider_router helper + wire kpi_watchdog cron + jsonl rotator (RA-3003, RA-3007) (#215)
+- 6aea988 — feat(pilot): Pilot V1 — schema + sources + UX + voice + scheduler + cutover gate (Phases 1-8) (#238)
 
 Not logged in · Please run /login
