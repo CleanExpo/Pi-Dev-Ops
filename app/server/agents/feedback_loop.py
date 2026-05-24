@@ -116,6 +116,8 @@ def _classify_with_claude(
         confidence = float(data.get("confidence", 0.0))
     except (TypeError, ValueError):
         confidence = 0.0
+    # Model may return values outside [0,1] under malformed or injected output.
+    confidence = min(1.0, max(0.0, confidence))
     out = {
         "category": category,
         "label": str(data.get("label", "")).strip()[:120],
