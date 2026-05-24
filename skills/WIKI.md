@@ -1,8 +1,8 @@
 # skills — Wiki
 
-_Last updated: 2026-05-23T07:20:42Z (commits 2d31934..aa28d3f)_
+_Last updated: 2026-05-24T12:43:53Z (commits b47fd1f..d17db4f)_
 
 ## Recent changes
-- aa28d3f — feat(skills): add launch-crew pre-flight + wire ship-it intent routing (#252)
+- d17db4f — chore(skills): retire curator-scheduled-tasks-unknown (status: proposed, abandoned) (#263)
 
 Not logged in · Please run /login
