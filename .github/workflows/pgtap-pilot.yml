@@ -57,3 +57,12 @@ jobs:
 
       - name: Run RLS assertions
         run: psql -f supabase/tests/pgtap/pilot_v1_isolation.sql -v ON_ERROR_STOP=1
+
+      - name: Rollback drill (forward + drop + re-forward)
+        # Bakes Discipline 4 (rollback-drill before deploy) into CI so the
+        # rollback path can never silently regress. Uses the same ephemeral
+        # postgres service the RLS assertions ran against — guard in the
+        # script refuses any URL containing "prod" or "phill".
+        env:
+          SCRATCH_DB_URL: postgres://postgres:shadow@localhost:5432/pilot_shadow
+        run: bash swarm/pilot/scripts/rollback_drill.sh
