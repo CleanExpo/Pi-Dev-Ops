@@ -1,8 +1,8 @@
 # .github — Wiki
 
-_Last updated: 2026-05-17T12:05:56Z (commits 44afd59..8c590b3)_
+_Last updated: 2026-05-24T05:08:09Z (commits d0f084a..6aea988)_
 
 ## Recent changes
-- 8c590b3 — ci(live-nexus): quiet smoke workflow cleanup (#245)
+- 6aea988 — feat(pilot): Pilot V1 — schema + sources + UX + voice + scheduler + cutover gate (Phases 1-8) (#238)
 
 Not logged in · Please run /login
