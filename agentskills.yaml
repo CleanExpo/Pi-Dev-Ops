@@ -360,21 +360,6 @@ skills:
       pii_handling: redacts
     inferred: true
     low_confidence: true
-  - id: curator-scheduled-tasks-unknown
-    description: Operational rules for authoring and debugging scheduled tasks that run via the Claude scheduled-tasks MCP. Covers the three hardwired lessons — session isolation, dynamic path discovery, and health-check grace periods — that repeatedly caused silent failures or false-positive alerts across the Pi-CEO portfolio.
-    owner_role: Curator
-    status: proposed
-    path: skills\curator-scheduled-tasks-unknown\SKILL.md
-    sha256: dd8ee91e1288db4710072f24ade2012d1915ec4f2205acae1d25baa2fe287e88
-    dependencies:
-      tools: []
-      skills: []
-    safety:
-      requires_kill_switch: false
-      requires_hitl_gate: false
-      pii_handling: pass-through
-    inferred: true
-    low_confidence: true
   - id: daily-6-pager
     description: "Stripe-style daily executive brief assembled from CFO + CMO + CTO + CS snippets, the latest Margot deep-async insight, and RA-1842 (iOS release) status. Cron-fired at user-local 06:00. Routes through pii-redactor + draft_review HITL gate. Closes Wave 4 A5 of the senior-agent slate (RA-1863)."
     owner_role: CoS
