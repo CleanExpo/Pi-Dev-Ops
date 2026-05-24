@@ -22,17 +22,14 @@ jobs:
   smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: live-nexus
 
     steps:
-      - name: Download repository snapshot
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          curl -fsSL \
-            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/tarball/${GITHUB_SHA}" \
-            | tar -xz --strip-components=1
+      - uses: actions/checkout@v6.0.2
+        with:
+          persist-credentials: false
 
       - uses: pnpm/action-setup@v6.0.8
         with:
@@ -46,11 +43,9 @@ jobs:
           cache-dependency-path: live-nexus/pnpm-lock.yaml
 
       - name: Install dependencies
-        working-directory: live-nexus
         run: pnpm install --frozen-lockfile
 
       - name: Run Live Nexus production smoke
-        working-directory: live-nexus
         env:
           LIVE_NEXUS_URL: ${{ github.event.inputs.target_url || 'https://live.unite-group.ink' }}
           LIVE_NEXUS_SMOKE_SAVE: ${{ github.event.inputs.include_save == 'true' && '1' || '0' }}
@@ -59,7 +54,6 @@ jobs:
 
       - name: Write smoke summary
         if: always()
-        working-directory: live-nexus
         run: |
           {
             echo "# Live Nexus Production Smoke"
