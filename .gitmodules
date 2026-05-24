@@ -1,0 +1,4 @@
+[submodule "telegram-bot"]
+	path = telegram-bot
+	url = https://github.com/CleanExpo/claude-code-telegram.git
+	update = none
