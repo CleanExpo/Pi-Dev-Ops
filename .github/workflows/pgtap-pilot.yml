@@ -1,0 +1,68 @@
+name: pgtap-pilot
+
+on:
+  pull_request:
+    paths:
+      - 'swarm/pilot/**'
+      - 'supabase/migrations/**'
+      - 'supabase/tests/pgtap/**'
+      - '.github/workflows/pgtap-pilot.yml'
+  push:
+    branches: [main, feat/pilot-v1]
+
+jobs:
+  rls-assertions:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: shadow
+          POSTGRES_DB: pilot_shadow
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: shadow
+      PGDATABASE: pilot_shadow
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Postgres client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client
+
+      - name: Bootstrap roles
+        run: |
+          psql -c "create role authenticated nologin;"
+          psql -c "create role service_role nologin;"
+          psql -c "grant all on schema public to authenticated, service_role;"
+
+      - name: Apply pilot migrations
+        run: |
+          for f in supabase/migrations/*pilot*.sql; do
+            echo "Applying $f"
+            psql -f "$f"
+          done
+
+      - name: Run RLS assertions
+        run: psql -f supabase/tests/pgtap/pilot_v1_isolation.sql -v ON_ERROR_STOP=1
+
+      - name: Rollback drill (forward + drop + re-forward)
+        # Bakes Discipline 4 (rollback-drill before deploy) into CI so the
+        # rollback path can never silently regress. Uses the same ephemeral
+        # postgres service the RLS assertions ran against — guard in the
+        # script refuses any URL containing "prod" or "phill".
+        env:
+          SCRATCH_DB_URL: postgres://postgres:shadow@localhost:5432/pilot_shadow
+        run: bash swarm/pilot/scripts/rollback_drill.sh

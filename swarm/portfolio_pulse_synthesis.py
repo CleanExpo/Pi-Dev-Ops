@@ -24,10 +24,10 @@ from app.server.provider_router import run_via_provider_blocking
 import asyncio
 import json
 import logging
-import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .portfolio_pulse import PulseResult
@@ -60,6 +60,15 @@ _EXTRACT_PROMPT = (
     "## First-pass synthesis\n\n{synthesis}\n\n"
     "## Per-project digests\n\n{digests}"
 )
+
+_BOARD_TRIGGER_RE = re.compile(
+    r"\[BOARD-TRIGGER\s+score\s*=\s*(\d+)\s+topic\s*=\s*\"([^\"]+)\"\]"
+    r"\s*([\s\S]*?)\s*\[/BOARD-TRIGGER\]",
+)
+
+
+def _normalise_trigger_topic(topic: str) -> str:
+    return " ".join(topic.lower().split())
 
 
 def _log_sprinkle_event(event: dict) -> None:
@@ -188,15 +197,18 @@ def _call_llm(prompt: str) -> tuple[str, str | None]:
 # ── Second-pass BOARD-TRIGGER extraction (RA-1985 sprinkle #3) ───────────────
 
 
-def _format_triggers(items: list[dict]) -> str:
+def _format_triggers(items: list[dict], *, existing_topics: set[str] | None = None) -> str:
     """Render extracted triggers as BOARD-TRIGGER sentinels matching margot_bot grammar."""
     lines: list[str] = []
+    existing_topics = existing_topics or set()
     for item in items:
         try:
             score = int(item.get("score", 0))
             topic = str(item.get("topic", "")).strip()
             rationale = str(item.get("one_line_rationale", "")).strip()
             if score < 6 or not topic or not rationale:
+                continue
+            if _normalise_trigger_topic(topic) in existing_topics:
                 continue
             topic = topic.replace('"', "'")
             rationale = rationale.replace("\n", " ").strip()
@@ -265,7 +277,11 @@ def _extract_board_triggers(
             "provider": pm.provider, "model": pm.model_id,
         })
         return ""
-    rendered = _format_triggers(items)
+    existing_topics = {
+        _normalise_trigger_topic(topic)
+        for _score, topic, _content in _BOARD_TRIGGER_RE.findall(synthesis)
+    }
+    rendered = _format_triggers(items, existing_topics=existing_topics)
     _log_sprinkle_event({
         "sprinkle": "portfolio_pulse_extract", "outcome": "ok",
         "provider": pm.provider, "model": pm.model_id,

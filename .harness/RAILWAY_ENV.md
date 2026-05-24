@@ -23,3 +23,10 @@
 - `TELEGRAM_WEBHOOK_SECRET` — Telegram webhook auth secret
 - `MORNING_INTEL_SECRET` — morning intel webhook secret (falls back to WEBHOOK_SECRET)
 - `ANTHROPIC_API_KEY` — Claude API key
+
+## Pilot V1 (scheduler / dispatcher — ADRs 001-004)
+Set these before the `swarm.pilot.scheduler` cron is enabled. The scheduler runs on the existing FastAPI service; `dispatcher.send()` raises `KeyError` at runtime on the first "sent" cycle if the bot vars are missing.
+- `PILOT_BOT_TOKEN` — Telegram bot token (BotFather). **Use a SEPARATE bot from `TELEGRAM_BOT_TOKEN`** — pilot suggestions are higher-volume than CI alerts and would otherwise flood the alerts channel.
+- `PILOT_BOT_CHAT_ID` — chat ID to send suggestion cards into
+- `PILOT_TENANT_SLUG=phill` — tenant identifier; keys `pilot_suggestions.tenant_slug` + feeds the RLS policy (`current_setting('app.current_tenant_slug')`)
+- `PILOT_DISABLED=0` — kill switch. Set to `1` to halt the scheduler without a redeploy (verified by `scheduler.run_cycle()` returning `"disabled"`)
