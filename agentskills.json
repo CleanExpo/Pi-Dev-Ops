@@ -111,7 +111,7 @@
     },
     {
       "id": "agentskills-manifest",
-      "description": "Export Pi-CEO's skill registry as an agentskills.io-format manifest. Closes Hermes RA-1838 SWARM-009 (open question #5 from the original Hermes brief \u2014 answered yes). Future-proofs Pi-CEO if/when it adopts the Hermes runtime via Path C.",
+      "description": "Export Pi-CEO's skill registry as an agentskills.io-format manifest. Closes Hermes RA-1838 SWARM-009 (open question #5 from the original Hermes brief — answered yes). Future-proofs Pi-CEO if/when it adopts the Hermes runtime via Path C.",
       "owner_role": "Curator",
       "status": "wave-3",
       "path": "skills\\agentskills-manifest\\SKILL.md",
@@ -149,7 +149,7 @@
     },
     {
       "id": "architecture",
-      "description": "Architectural conventions and anti-patterns specific to Pi-Dev-Ops \u2014 companion model, sandbox isolation, ZTE leverage, CLAUDE.md hygiene, parallel dispatch, topology-first autonomy.",
+      "description": "Architectural conventions and anti-patterns specific to Pi-Dev-Ops — companion model, sandbox isolation, ZTE leverage, CLAUDE.md hygiene, parallel dispatch, topology-first autonomy.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\architecture\\SKILL.md",
@@ -242,7 +242,7 @@
     },
     {
       "id": "calendar-watcher",
-      "description": "Convert calendar event creation/modification/deletion into Pi-CEO actions. Use for time-anchored triggers \u2014 meeting prep 30min before, post-meeting summary, conflict detection, schedule reflow when an urgent block lands. Pairs with email-listener for the \"calendar invite arrived in email\" pattern.",
+      "description": "Convert calendar event creation/modification/deletion into Pi-CEO actions. Use for time-anchored triggers — meeting prep 30min before, post-meeting summary, conflict detection, schedule reflow when an urgent block lands. Pairs with email-listener for the \"calendar invite arrived in email\" pattern.",
       "owner_role": "Chief of Staff",
       "status": "wave-2",
       "path": "skills\\calendar-watcher\\SKILL.md",
@@ -335,7 +335,7 @@
     },
     {
       "id": "claude-runtime",
-      "description": "Rules for invoking Claude correctly \u2014 subprocess vs SDK mode, stream-json parsing, MCP SDK imports, Railway vs local environment differences.",
+      "description": "Rules for invoking Claude correctly — subprocess vs SDK mode, stream-json parsing, MCP SDK imports, Railway vs local environment differences.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\claude-runtime\\SKILL.md",
@@ -407,7 +407,7 @@
     },
     {
       "id": "cross-tool-flow",
-      "description": "Declarative YAML/JSON authoring surface over dispatcher-core. Lets the user (or Margot, or Scribe) define multi-step cross-tool flows in plain text \u2014 chain Linear, Gmail, Calendar, Margot, Composio MCP tools \u2014 and run them via Dispatcher. Wave 2 surface; engine is dispatcher-core in Wave 1.",
+      "description": "Declarative YAML/JSON authoring surface over dispatcher-core. Lets the user (or Margot, or Scribe) define multi-step cross-tool flows in plain text — chain Linear, Gmail, Calendar, Margot, Composio MCP tools — and run them via Dispatcher. Wave 2 surface; engine is dispatcher-core in Wave 1.",
       "owner_role": "Dispatcher",
       "status": "wave-2",
       "path": "skills\\cross-tool-flow\\SKILL.md",
@@ -463,25 +463,6 @@
       "low_confidence": true
     },
     {
-      "id": "curator-scheduled-tasks-unknown",
-      "description": "Operational rules for authoring and debugging scheduled tasks that run via the Claude scheduled-tasks MCP. Covers the three hardwired lessons \u2014 session isolation, dynamic path discovery, and health-check grace periods \u2014 that repeatedly caused silent failures or false-positive alerts across the Pi-CEO portfolio.",
-      "owner_role": "Curator",
-      "status": "proposed",
-      "path": "skills\\curator-scheduled-tasks-unknown\\SKILL.md",
-      "sha256": "dd8ee91e1288db4710072f24ade2012d1915ec4f2205acae1d25baa2fe287e88",
-      "dependencies": {
-        "tools": [],
-        "skills": []
-      },
-      "safety": {
-        "requires_kill_switch": false,
-        "requires_hitl_gate": false,
-        "pii_handling": "pass-through"
-      },
-      "inferred": true,
-      "low_confidence": true
-    },
-    {
       "id": "daily-6-pager",
       "description": "Stripe-style daily executive brief assembled from CFO + CMO + CTO + CS snippets, the latest Margot deep-async insight, and RA-1842 (iOS release) status. Cron-fired at user-local 06:00. Routes through pii-redactor + draft_review HITL gate. Closes Wave 4 A5 of the senior-agent slate (RA-1863).",
       "owner_role": "CoS",
@@ -521,7 +502,7 @@
     },
     {
       "id": "deployment",
-      "description": "Deployment constraints and runtime behaviour for Railway (backend) and Vercel (frontend) \u2014 proxy config, redirects, Telegram, SSE limits, and model routing.",
+      "description": "Deployment constraints and runtime behaviour for Railway (backend) and Vercel (frontend) — proxy config, redirects, Telegram, SSE limits, and model routing.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\deployment\\SKILL.md",
@@ -578,7 +559,7 @@
     },
     {
       "id": "design-board",
-      "description": "Five-persona deliberation skill for brand design \u2014 15+ years of typography, layout, colour, motion, and 3D expertise. Five subagents (Art Director, Brand Systems Architect, Motion Designer, WebGL/3D Specialist, Critic) propose, cross-examine, and synthesise N concrete variants of a brand visual identity. Each variant is a complete `.design.md` + `.motion.md` (+ optional `.scene.md`) that the design-iterate loop hands back to the client (the user) for review. Triggered by `design-iterate`, or directly when the user says \"convene the design board for {brand/brief}\".",
+      "description": "Five-persona deliberation skill for brand design — 15+ years of typography, layout, colour, motion, and 3D expertise. Five subagents (Art Director, Brand Systems Architect, Motion Designer, WebGL/3D Specialist, Critic) propose, cross-examine, and synthesise N concrete variants of a brand visual identity. Each variant is a complete `.design.md` + `.motion.md` (+ optional `.scene.md`) that the design-iterate loop hands back to the client (the user) for review. Triggered by `design-iterate`, or directly when the user says \"convene the design board for {brand/brief}\".",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\design-board\\SKILL.md",
@@ -597,7 +578,7 @@
     },
     {
       "id": "design-canvas-html",
-      "description": "Generates a self-contained `{slug}.html` preview file that demonstrates a brand's full design system (palette + WCAG contrast + typography scale + component recipes + motion samples + optional 3D scene) inline \u2014 no server, no build, opens directly in any browser. Used by design-approve to ship a portable canvas alongside the canonical spec files. Mirrors the routes in preview-canvas/app/brand/[slug] but flattened into one HTML file.",
+      "description": "Generates a self-contained `{slug}.html` preview file that demonstrates a brand's full design system (palette + WCAG contrast + typography scale + component recipes + motion samples + optional 3D scene) inline — no server, no build, opens directly in any browser. Used by design-approve to ship a portable canvas alongside the canonical spec files. Mirrors the routes in preview-canvas/app/brand/[slug] but flattened into one HTML file.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\design-canvas-html\\SKILL.md",
@@ -616,7 +597,7 @@
     },
     {
       "id": "design-family-coherence",
-      "description": "Cross-brand audit. Given a colour family (`restoration | safety | industrial | consumer | training`), reads every brand's `.design.md` + `.motion.md` and reports on family-level consistency \u2014 shared signature motion, shared spacing rhythm, shared typography weight ladder, palette saturation curve. Flags drift. Used after `design-approve` adds a new brand to the family, and as a standing monthly audit.",
+      "description": "Cross-brand audit. Given a colour family (`restoration | safety | industrial | consumer | training`), reads every brand's `.design.md` + `.motion.md` and reports on family-level consistency — shared signature motion, shared spacing rhythm, shared typography weight ladder, palette saturation curve. Flags drift. Used after `design-approve` adds a new brand to the family, and as a standing monthly audit.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\design-family-coherence\\SKILL.md",
@@ -712,7 +693,7 @@
     },
     {
       "id": "email-listener",
-      "description": "Convert inbound Gmail messages into Pi-CEO sessions via webhook \u2192 intent-parser \u2192 orchestrator. Closes the \"no email-triggered session creation\" gap. Use this when Phill wants Pi-CEO to act on emails \u2014 replies, ticket creation, research dispatch \u2014 without him CC-ing it manually.",
+      "description": "Convert inbound Gmail messages into Pi-CEO sessions via webhook → intent-parser → orchestrator. Closes the \"no email-triggered session creation\" gap. Use this when Phill wants Pi-CEO to act on emails — replies, ticket creation, research dispatch — without him CC-ing it manually.",
       "owner_role": "Chief of Staff",
       "status": "wave-2",
       "path": "skills\\email-listener\\SKILL.md",
@@ -805,7 +786,7 @@
     },
     {
       "id": "launch-enhance-debloat",
-      "description": "Make existing code stronger, leaner, and more secure without over-engineering \u2014 deletion is often the best change. Finds dead weight, weak spots on critical paths, and security issues; proposes a ranked reversible change list and applies only approved changes in a sandbox with tests passing. Use on \"clean up\", \"remove bloat\", \"strengthen\", \"secure it\", or as step 4 of /ship-it.",
+      "description": "Make existing code stronger, leaner, and more secure without over-engineering — deletion is often the best change. Finds dead weight, weak spots on critical paths, and security issues; proposes a ranked reversible change list and applies only approved changes in a sandbox with tests passing. Use on \"clean up\", \"remove bloat\", \"strengthen\", \"secure it\", or as step 4 of /ship-it.",
       "owner_role": "Builder",
       "status": "wave-4",
       "path": "skills\\launch-enhance-debloat\\SKILL.md",
@@ -824,7 +805,7 @@
     },
     {
       "id": "launch-project-audit",
-      "description": "Scan the codebase and produce a plain-English map of every feature \u2014 what's built, stubbed, orphaned (built-disconnected), wired, or tested \u2014 plus how far each piece has travelled toward production. Cheap model for the bulk pass, frontier only for ambiguous calls. Use on \"what's actually built\", \"scan the project\", \"what's left\", or as step 2 of /ship-it.",
+      "description": "Scan the codebase and produce a plain-English map of every feature — what's built, stubbed, orphaned (built-disconnected), wired, or tested — plus how far each piece has travelled toward production. Cheap model for the bulk pass, frontier only for ambiguous calls. Use on \"what's actually built\", \"scan the project\", \"what's left\", or as step 2 of /ship-it.",
       "owner_role": "Curator",
       "status": "wave-4",
       "path": "skills\\launch-project-audit\\SKILL.md",
@@ -843,7 +824,7 @@
     },
     {
       "id": "launch-review",
-      "description": "Aggregate the repo's existing audit skills into ONE prioritized launch-readiness report through four lenses \u2014 PM journey, growth/SEO, engineering, design \u2014 adding only the two lenses nothing else covers (end-to-end PM journey + growth/SEO conversion) and fanning out to security-audit, design-audit, agentic-review, and leverage-audit for the rest. Review only; never fixes. Use on \"is this ready to launch\" or as the review step of /ship-it.",
+      "description": "Aggregate the repo's existing audit skills into ONE prioritized launch-readiness report through four lenses — PM journey, growth/SEO, engineering, design — adding only the two lenses nothing else covers (end-to-end PM journey + growth/SEO conversion) and fanning out to security-audit, design-audit, agentic-review, and leverage-audit for the rest. Review only; never fixes. Use on \"is this ready to launch\" or as the review step of /ship-it.",
       "owner_role": "Guardian",
       "status": "wave-4",
       "path": "skills\\launch-review\\SKILL.md",
@@ -862,7 +843,7 @@
     },
     {
       "id": "leverage-audit",
-      "description": "12 Leverage Points diagnostic for agent autonomy \u2014 with explicit scoring rubrics and ROI guidance.",
+      "description": "12 Leverage Points diagnostic for agent autonomy — with explicit scoring rubrics and ROI guidance.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\leverage-audit\\SKILL.md",
@@ -919,8 +900,8 @@
     },
     {
       "id": "margot-sandcastle-bridge",
-      "description": "After a Margot Deep Research finding completes, classify \"action-shaped vs informational\" via existing intent_router, draft a Linear ticket body, route through draft_review HITL gate. On \ud83d\udc4d, create the Linear issue with `sandcastle:high-isolation` + `pi-dev:autonomous` labels. The existing autonomy.py poller picks it up and the sandcastle-runner skill executes the work in an isolated container. Closes Wave 5 #4 (RA-1856 epic). This is what makes Margot autonomous.",
-      "owner_role": "Margot (research) \u2192 Chief of Staff (HITL) \u2192 Builder (execution)",
+      "description": "After a Margot Deep Research finding completes, classify \"action-shaped vs informational\" via existing intent_router, draft a Linear ticket body, route through draft_review HITL gate. On 👍, create the Linear issue with `sandcastle:high-isolation` + `pi-dev:autonomous` labels. The existing autonomy.py poller picks it up and the sandcastle-runner skill executes the work in an isolated container. Closes Wave 5 #4 (RA-1856 epic). This is what makes Margot autonomous.",
+      "owner_role": "Margot (research) → Chief of Staff (HITL) → Builder (execution)",
       "status": "wave-5",
       "path": "skills\\margot-sandcastle-bridge\\SKILL.md",
       "sha256": "4e784ed11d924a7a908f403b8821c75a77428bf46d98cb9659b8a05e3432c685",
@@ -938,7 +919,7 @@
     },
     {
       "id": "marketing-analytics-attribution",
-      "description": "Designs the UTM scheme, attribution model, and KPI dashboard for a campaign \u2014 before launch, not after. Use when a brief asks for \"UTM\", \"tracking\", \"attribution\", \"analytics\", \"dashboard\", \"KPI\", \"ROI\", \"measurement plan\". Outputs a UTM-builder spec, an attribution-model decision, a per-channel KPI dashboard structure, and a retro template. Composes with marketing-channel-strategist (per-channel UTM tags) and marketing-launch-runbook (gate at T-7).",
+      "description": "Designs the UTM scheme, attribution model, and KPI dashboard for a campaign — before launch, not after. Use when a brief asks for \"UTM\", \"tracking\", \"attribution\", \"analytics\", \"dashboard\", \"KPI\", \"ROI\", \"measurement plan\". Outputs a UTM-builder spec, an attribution-model decision, a per-channel KPI dashboard structure, and a retro template. Composes with marketing-channel-strategist (per-channel UTM tags) and marketing-launch-runbook (gate at T-7).",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\marketing-analytics-attribution\\SKILL.md",
@@ -957,7 +938,7 @@
     },
     {
       "id": "marketing-campaign-planner",
-      "description": "Designs an end-to-end marketing campaign \u2014 objectives, audience, channels, creative concept, timeline, budget, success metrics \u2014 for any portfolio or customer brand. Use when a brief asks for a \"campaign\", \"marketing plan\", \"promo\", \"GTM motion\", or \"launch plan\" beyond a single artifact. Triggered by marketing-orchestrator wave 1 or directly by name. Produces a structured Campaign Plan markdown + JSON consumed by every downstream marketing skill.",
+      "description": "Designs an end-to-end marketing campaign — objectives, audience, channels, creative concept, timeline, budget, success metrics — for any portfolio or customer brand. Use when a brief asks for a \"campaign\", \"marketing plan\", \"promo\", \"GTM motion\", or \"launch plan\" beyond a single artifact. Triggered by marketing-orchestrator wave 1 or directly by name. Produces a structured Campaign Plan markdown + JSON consumed by every downstream marketing skill.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\marketing-campaign-planner\\SKILL.md",
@@ -976,7 +957,7 @@
     },
     {
       "id": "marketing-channel-strategist",
-      "description": "Selects the channel mix and per-channel cadence for a campaign \u2014 LinkedIn, YouTube, X, email, paid ads, SEO, partnerships, podcasts, communities. Use when a brief asks \"what channel\", \"where should we post\", \"channel strategy\", \"cadence\", or upstream of any content production. Reads BrandConfig.defaultChannel and ICP watering-holes; outputs a per-channel spec consumed by copywriter, social-content, copywriter, and remotion-orchestrator (channel sets aspect ratio / duration).",
+      "description": "Selects the channel mix and per-channel cadence for a campaign — LinkedIn, YouTube, X, email, paid ads, SEO, partnerships, podcasts, communities. Use when a brief asks \"what channel\", \"where should we post\", \"channel strategy\", \"cadence\", or upstream of any content production. Reads BrandConfig.defaultChannel and ICP watering-holes; outputs a per-channel spec consumed by copywriter, social-content, copywriter, and remotion-orchestrator (channel sets aspect ratio / duration).",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\marketing-channel-strategist\\SKILL.md",
@@ -995,7 +976,7 @@
     },
     {
       "id": "marketing-copywriter",
-      "description": "Writes long-form marketing copy \u2014 landing pages, blog posts, email sequences, ad copy, sales-page sections \u2014 strictly aligned to BrandConfig voice, positioning hierarchy, and ICP vocabulary. Use when a brief asks for \"landing page\", \"blog post\", \"email sequence\", \"ad copy\", \"sales copy\", \"long-form copy\". Reads positioning + ICP + channel-plan; never writes blind. Composes with marketing-seo-researcher (keywords) and remotion-orchestrator (CTA video assets).",
+      "description": "Writes long-form marketing copy — landing pages, blog posts, email sequences, ad copy, sales-page sections — strictly aligned to BrandConfig voice, positioning hierarchy, and ICP vocabulary. Use when a brief asks for \"landing page\", \"blog post\", \"email sequence\", \"ad copy\", \"sales copy\", \"long-form copy\". Reads positioning + ICP + channel-plan; never writes blind. Composes with marketing-seo-researcher (keywords) and remotion-orchestrator (CTA video assets).",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\marketing-copywriter\\SKILL.md",
@@ -1014,7 +995,7 @@
     },
     {
       "id": "marketing-icp-research",
-      "description": "Builds an Ideal Customer Profile (ICP) \u2014 firmographics, role, pains, triggers, vocabulary, watering holes, decision process \u2014 for a brand or feature. Use when a brief asks for \"ICP\", \"target audience\", \"buyer persona\", \"customer research\", \"user research\", or before any campaign / copy / channel work. Reads BrandConfig.audience as the seed; outputs structured ICP consumed by copywriter, channel-strategist, seo-researcher.",
+      "description": "Builds an Ideal Customer Profile (ICP) — firmographics, role, pains, triggers, vocabulary, watering holes, decision process — for a brand or feature. Use when a brief asks for \"ICP\", \"target audience\", \"buyer persona\", \"customer research\", \"user research\", or before any campaign / copy / channel work. Reads BrandConfig.audience as the seed; outputs structured ICP consumed by copywriter, channel-strategist, seo-researcher.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\marketing-icp-research\\SKILL.md",
@@ -1052,7 +1033,7 @@
     },
     {
       "id": "marketing-orchestrator",
-      "description": "ENTRY POINT for the Marketing Skills Package. Use the moment a brief mentions \"marketing skills package\", \"marketing package\", \"use marketing\", \"campaign\", \"launch\", \"positioning\", \"go-to-market\", \"GTM\", \"marketing strategy\", \"marketing plan\", or asks to produce marketing assets (landing page, ad creative, blog post, email sequence, launch runbook, social content) for one of the portfolio brands (DR, NRPG, RestoreAssist/RA, CARSI, CCW, Synthex, Unite) or any customer brand. Globally available at ~/.claude/skills/marketing-* (symlinked to /Users/phill-mac/Pi-CEO/Pi-Dev-Ops/skills/marketing-*). Reads the brief, classifies (campaign type, brand, audience, channel mix, budget, timeline), emits a wave-plan JSON, dispatches sub-skills in topological order. Composes with the Remotion Skills Package \u2014 calls remotion-orchestrator for any video output.",
+      "description": "ENTRY POINT for the Marketing Skills Package. Use the moment a brief mentions \"marketing skills package\", \"marketing package\", \"use marketing\", \"campaign\", \"launch\", \"positioning\", \"go-to-market\", \"GTM\", \"marketing strategy\", \"marketing plan\", or asks to produce marketing assets (landing page, ad creative, blog post, email sequence, launch runbook, social content) for one of the portfolio brands (DR, NRPG, RestoreAssist/RA, CARSI, CCW, Synthex, Unite) or any customer brand. Globally available at ~/.claude/skills/marketing-* (symlinked to /Users/phill-mac/Pi-CEO/Pi-Dev-Ops/skills/marketing-*). Reads the brief, classifies (campaign type, brand, audience, channel mix, budget, timeline), emits a wave-plan JSON, dispatches sub-skills in topological order. Composes with the Remotion Skills Package — calls remotion-orchestrator for any video output.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\marketing-orchestrator\\SKILL.md",
@@ -1109,7 +1090,7 @@
     },
     {
       "id": "marketing-social-content",
-      "description": "Writes short-form social content \u2014 LinkedIn posts, X/Twitter threads, Instagram captions, TikTok hooks \u2014 and dispatches video shorts to remotion-orchestrator. Use when a brief asks for \"social post\", \"LinkedIn post\", \"thread\", \"tweet\", \"Reels caption\", \"social campaign\", \"social calendar\". Reads positioning + ICP vocabulary + channel-plan; cross-pack composes with remotion-orchestrator for any video output.",
+      "description": "Writes short-form social content — LinkedIn posts, X/Twitter threads, Instagram captions, TikTok hooks — and dispatches video shorts to remotion-orchestrator. Use when a brief asks for \"social post\", \"LinkedIn post\", \"thread\", \"tweet\", \"Reels caption\", \"social campaign\", \"social calendar\". Reads positioning + ICP vocabulary + channel-plan; cross-pack composes with remotion-orchestrator for any video output.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\marketing-social-content\\SKILL.md",
@@ -1128,7 +1109,7 @@
     },
     {
       "id": "meta-curator",
-      "description": "Skill self-authoring agent. Reads .harness/lessons.jsonl (weekly) and merged-PR diffs (daily), proposes new SKILL.md drafts via the existing skill-creator skill, and surfaces them through Scribe \u2192 telegram-draft-for-review for user \ud83d\udc4d before adding to the registry.",
+      "description": "Skill self-authoring agent. Reads .harness/lessons.jsonl (weekly) and merged-PR diffs (daily), proposes new SKILL.md drafts via the existing skill-creator skill, and surfaces them through Scribe → telegram-draft-for-review for user 👍 before adding to the registry.",
       "owner_role": "Curator",
       "status": "wave-3",
       "path": "skills\\meta-curator\\SKILL.md",
@@ -1148,7 +1129,7 @@
     {
       "id": "pi-ceo-docparser",
       "description": "Parse PDF / DOCX / TXT into structured ParsedDoc (text + pages + tables + metadata). Pure deterministic extraction, no LLM call. Foundation for ICP-research workflows; consumed by marketing-icp-research.",
-      "owner_role": "foundational primitive \u2014 no agent boundary",
+      "owner_role": "foundational primitive — no agent boundary",
       "status": "wave-2",
       "path": "skills\\pi-ceo-docparser\\SKILL.md",
       "sha256": "f2489cb2c7b02eb0a3c061fc3d7b0bbd1c880462b56518b7c6c22ea07caaffa6",
@@ -1259,7 +1240,7 @@
     },
     {
       "id": "pii-redactor",
-      "description": "Detect and redact personally identifiable information from any payload before it enters logs, prompts, or outbound messages. \u226595% precision, \u22645% false-positive rate. Non-negotiable in front of every Scribe send and every email-listener intake. Closes Hermes Sprint 1 SWARM-005 requirement.",
+      "description": "Detect and redact personally identifiable information from any payload before it enters logs, prompts, or outbound messages. ≥95% precision, ≤5% false-positive rate. Non-negotiable in front of every Scribe send and every email-listener intake. Closes Hermes Sprint 1 SWARM-005 requirement.",
       "owner_role": "Scribe (binds in front of every send)",
       "status": "wave-2",
       "path": "skills\\pii-redactor\\SKILL.md",
@@ -1314,7 +1295,7 @@
     },
     {
       "id": "remotion-brand-codify",
-      "description": "Converts a BrandResearch dossier into THREE artifacts \u2014 (1) typed BrandConfig TypeScript at Synthex/packages/brand-config/src/brands/{slug}.ts (runtime/behaviour: voice, voiceover, motion, audience, channel, forbiddenWords); (2) spec-conformant {slug}.design.md at Synthex/packages/brand-config/src/brands/{slug}.design.md (visual tokens: colour, typography, spacing, components, layout, elevation); (3) human-readable 9-section .md projection at Pi-Dev-Ops/remotion-studio/src/brands/{slug}.md derived from BOTH. Boundary contract at Pi-Dev-Ops/remotion-studio/src/brands/CONTRACT.md. Triggered after remotion-brand-research, or when the user pastes brand assets and says \"codify\". PRs are auto-merge:false \u2014 a human reviews before merge.",
+      "description": "Converts a BrandResearch dossier into THREE artifacts — (1) typed BrandConfig TypeScript at Synthex/packages/brand-config/src/brands/{slug}.ts (runtime/behaviour: voice, voiceover, motion, audience, channel, forbiddenWords); (2) spec-conformant {slug}.design.md at Synthex/packages/brand-config/src/brands/{slug}.design.md (visual tokens: colour, typography, spacing, components, layout, elevation); (3) human-readable 9-section .md projection at Pi-Dev-Ops/remotion-studio/src/brands/{slug}.md derived from BOTH. Boundary contract at Pi-Dev-Ops/remotion-studio/src/brands/CONTRACT.md. Triggered after remotion-brand-research, or when the user pastes brand assets and says \"codify\". PRs are auto-merge:false — a human reviews before merge.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\remotion-brand-codify\\SKILL.md",
@@ -1371,7 +1352,7 @@
     },
     {
       "id": "remotion-composition-builder",
-      "description": "Authors or extends a Remotion composition (.tsx) wired to BrandConfig + Storyboard + layout spec + motion. The actual builder skill \u2014 runs as Sonnet 4.7 worker. Triggered after brand, storyboard, designer, and motion-language outputs are ready. Produces the file under remotion-studio/src/compositions/ and registers it in src/Root.tsx.",
+      "description": "Authors or extends a Remotion composition (.tsx) wired to BrandConfig + Storyboard + layout spec + motion. The actual builder skill — runs as Sonnet 4.7 worker. Triggered after brand, storyboard, designer, and motion-language outputs are ready. Produces the file under remotion-studio/src/compositions/ and registers it in src/Root.tsx.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\remotion-composition-builder\\SKILL.md",
@@ -1409,7 +1390,7 @@
     },
     {
       "id": "remotion-marketing-strategist",
-      "description": "Tunes a video's format and message for the target channel \u2014 LinkedIn, YouTube, Instagram Reel, internal training. Sets aspect ratio, total duration, hook timing, CTA timing, and pacing. Triggered when the brief mentions a specific channel or campaign goal. Output feeds remotion-screen-storyteller and remotion-composition-builder.",
+      "description": "Tunes a video's format and message for the target channel — LinkedIn, YouTube, Instagram Reel, internal training. Sets aspect ratio, total duration, hook timing, CTA timing, and pacing. Triggered when the brief mentions a specific channel or campaign goal. Output feeds remotion-screen-storyteller and remotion-composition-builder.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\remotion-marketing-strategist\\SKILL.md",
@@ -1428,7 +1409,7 @@
     },
     {
       "id": "remotion-motion-language",
-      "description": "Designs a brand-specific motion vocabulary \u2014 easing curves, default scene durations, signature entry/exit, transition frames. Each brand gets one signature move (rise / sweep / pulse / iris / whip) that recurs across compositions to build motion-recognition. Triggered when BrandConfig.motion is empty.",
+      "description": "Designs a brand-specific motion vocabulary — easing curves, default scene durations, signature entry/exit, transition frames. Each brand gets one signature move (rise / sweep / pulse / iris / whip) that recurs across compositions to build motion-recognition. Triggered when BrandConfig.motion is empty.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\remotion-motion-language\\SKILL.md",
@@ -1447,7 +1428,7 @@
     },
     {
       "id": "remotion-orchestrator",
-      "description": "ENTRY POINT for the Remotion Skills Package. Use the moment a brief mentions \"remotion skills package\", \"remotion package\", \"use remotion\", or any of the video keywords \u2014 video, explainer, ad, promo, reel, intro, social cut, 60s/30s/15s spot, or any rendered marketing/training video for one of the portfolio brands (DR, NRPG, RestoreAssist/RA, CARSI, CCW) or for a customer brand. Globally available across every project under /Users/phill-mac/. Reads the brief, classifies intent (composition type, brand, channel, duration), emits a wave-plan JSON, and dispatches the right sub-skills in topological order. Always invoked first.",
+      "description": "ENTRY POINT for the Remotion Skills Package. Use the moment a brief mentions \"remotion skills package\", \"remotion package\", \"use remotion\", or any of the video keywords — video, explainer, ad, promo, reel, intro, social cut, 60s/30s/15s spot, or any rendered marketing/training video for one of the portfolio brands (DR, NRPG, RestoreAssist/RA, CARSI, CCW) or for a customer brand. Globally available across every project under /Users/phill-mac/. Reads the brief, classifies intent (composition type, brand, channel, duration), emits a wave-plan JSON, and dispatches the right sub-skills in topological order. Always invoked first.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\remotion-orchestrator\\SKILL.md",
@@ -1485,7 +1466,7 @@
     },
     {
       "id": "remotion-screen-storyteller",
-      "description": "Writes the on-screen script for a video \u2014 scene-by-scene voiceover, on-screen text, b-roll callouts, and CTA. Triggered when the brief is a goal or topic but lacks scene structure. Produces a Storyboard JSON consumed by remotion-composition-builder and remotion-render-pipeline (for ElevenLabs voiceover synthesis).",
+      "description": "Writes the on-screen script for a video — scene-by-scene voiceover, on-screen text, b-roll callouts, and CTA. Triggered when the brief is a goal or topic but lacks scene structure. Produces a Storyboard JSON consumed by remotion-composition-builder and remotion-render-pipeline (for ElevenLabs voiceover synthesis).",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\remotion-screen-storyteller\\SKILL.md",
@@ -1542,7 +1523,7 @@
     },
     {
       "id": "security",
-      "description": "Security patterns and anti-patterns for the Pi-Dev-Ops codebase \u2014 path traversal, HMAC webhooks, secrets hygiene, timing-safe comparisons, autonomous permission grants.",
+      "description": "Security patterns and anti-patterns for the Pi-Dev-Ops codebase — path traversal, HMAC webhooks, secrets hygiene, timing-safe comparisons, autonomous permission grants.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\security\\SKILL.md",
@@ -1599,7 +1580,7 @@
     },
     {
       "id": "ship-it",
-      "description": "A launch-readiness PRE-FLIGHT that runs before the existing ship-chain \u2014 load the charter, audit build-state, run the aggregated launch-review, propose enhancements, sync findings to Linear via the existing pi-dev-linear-contract, then STOP for a human go. On go it hands the approved, build-ready issues to the existing ship-chain / tao-loop, never re-implementing build/test/ship. Use on \"ship it\" / \"run the launch crew\".",
+      "description": "A launch-readiness PRE-FLIGHT that runs before the existing ship-chain — load the charter, audit build-state, run the aggregated launch-review, propose enhancements, sync findings to Linear via the existing pi-dev-linear-contract, then STOP for a human go. On go it hands the approved, build-ready issues to the existing ship-chain / tao-loop, never re-implementing build/test/ship. Use on \"ship it\" / \"run the launch crew\".",
       "owner_role": "CoS",
       "status": "wave-4",
       "path": "skills\\ship-it\\SKILL.md",
@@ -1618,7 +1599,7 @@
     },
     {
       "id": "ship-release",
-      "description": "Release gatekeeper. Validates all pipeline phases are complete, enforces the review score \u2265 8/10 hard gate, documents the ship event, and updates the Linear ticket to Done. Produces a ship-log.json.",
+      "description": "Release gatekeeper. Validates all pipeline phases are complete, enforces the review score ≥ 8/10 hard gate, documents the ship event, and updates the Linear ticket to Done. Produces a ship-log.json.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\ship-release\\SKILL.md",
@@ -1637,8 +1618,8 @@
     },
     {
       "id": "tao-boomerang",
-      "description": "Token-efficient one-shot dispatch with summary-only return. Caller asks a question, the worker replies with ONLY the answer \u2014 no preamble, no chain-of-thought, no markdown unless the answer requires it. Composes on `_run_claude_via_sdk`. Use when you need the answer, not the conversation.",
-      "owner_role": "foundational primitive \u2014 no agent boundary",
+      "description": "Token-efficient one-shot dispatch with summary-only return. Caller asks a question, the worker replies with ONLY the answer — no preamble, no chain-of-thought, no markdown unless the answer requires it. Composes on `_run_claude_via_sdk`. Use when you need the answer, not the conversation.",
+      "owner_role": "foundational primitive — no agent boundary",
       "status": "wave-2",
       "path": "skills\\tao-boomerang\\SKILL.md",
       "sha256": "7ea3a739fe81cde5c3a8d5461589bab545efa165d5a67700777e5e425a6c0ba5",
@@ -1675,7 +1656,7 @@
     },
     {
       "id": "tao-context-mode",
-      "description": "Summary-index + on-demand expansion. Walks a repo once, summarises every source file (~200B vs raw 5-50KB), and serves the FULL file only when callers `expand(path)`. Port of `context-mode`. No LLM calls \u2014 pure regex + first-comment synopsis. Deterministic; sha256-keyed for invalidation.",
+      "description": "Summary-index + on-demand expansion. Walks a repo once, summarises every source file (~200B vs raw 5-50KB), and serves the FULL file only when callers `expand(path)`. Port of `context-mode`. No LLM calls — pure regex + first-comment synopsis. Deterministic; sha256-keyed for invalidation.",
       "owner_role": "Tier-Worker (context primitive, called by orchestrator + tao-loop)",
       "status": "wave-1",
       "path": "skills\\tao-context-mode\\SKILL.md",
@@ -1694,7 +1675,7 @@
     },
     {
       "id": "tao-context-vcc",
-      "description": "Deterministic, LLM-free conversation compactor for TAO sessions. Port of @sting8k/pi-vcc. Reduces transcript bytes via tool-output dedup, verbose-block head/tail truncation, repeat-pattern collapse, and whitespace normalisation. No model calls \u2014 runs in the hot path with zero token cost.",
+      "description": "Deterministic, LLM-free conversation compactor for TAO sessions. Port of @sting8k/pi-vcc. Reduces transcript bytes via tool-output dedup, verbose-block head/tail truncation, repeat-pattern collapse, and whitespace normalisation. No model calls — runs in the hot path with zero token cost.",
       "owner_role": "Tier-Worker (compaction primitive, called by orchestrator + tao-loop)",
       "status": "wave-1",
       "path": "skills\\tao-context-vcc\\SKILL.md",
@@ -1713,7 +1694,7 @@
     },
     {
       "id": "tao-judge",
-      "description": "Single-scalar termination gate for the TAO judge-gated loop. Wraps a Sonnet evaluator call that scores a goal-state pair and returns a structured JudgeVerdict (done, reason, score 0..1, next_action_hint). The autoresearch principle \u2014 autonomy mandate gives intent, judge() gives a measurable termination condition.",
+      "description": "Single-scalar termination gate for the TAO judge-gated loop. Wraps a Sonnet evaluator call that scores a goal-state pair and returns a structured JudgeVerdict (done, reason, score 0..1, next_action_hint). The autoresearch principle — autonomy mandate gives intent, judge() gives a measurable termination condition.",
       "owner_role": "Tier-Worker (evaluator role; sonnet per RA-1099 model policy)",
       "status": "wave-1",
       "path": "skills\\tao-judge\\SKILL.md",
@@ -1770,7 +1751,7 @@
     },
     {
       "id": "tao-tdd-pipeline",
-      "description": "Test-first iteration pipeline. Composes on tao-loop + tao-judge to enforce red\u2192green\u2192refactor discipline. The judge is bound to \"all tests pass + new test files modified\". Without test files in the diff, GOAL_MET is rejected.",
+      "description": "Test-first iteration pipeline. Composes on tao-loop + tao-judge to enforce red→green→refactor discipline. The judge is bound to \"all tests pass + new test files modified\". Without test files in the diff, GOAL_MET is rejected.",
       "owner_role": "Tier-Orchestrator (uses generator + evaluator at sonnet per RA-1099)",
       "status": "wave-2",
       "path": "skills\\tao-tdd-pipeline\\SKILL.md",
@@ -1808,7 +1789,7 @@
     },
     {
       "id": "telegram-draft-for-review",
-      "description": "Draft an outbound Telegram message and gate it behind a human reaction (\ud83d\udc4d send, \u274c revise) before any actual send happens. Sits in front of swarm/telegram_alerts.py for human-addressed messages. Required path for every Scribe outbound.",
+      "description": "Draft an outbound Telegram message and gate it behind a human reaction (👍 send, ❌ revise) before any actual send happens. Sits in front of swarm/telegram_alerts.py for human-addressed messages. Required path for every Scribe outbound.",
       "owner_role": "Scribe (CoS shares)",
       "status": "wave-1",
       "path": "skills\\telegram-draft-for-review\\SKILL.md",
@@ -1935,7 +1916,7 @@
     },
     {
       "id": "ui-ux-pro-max",
-      "description": "Full-stack design workflow skill. Orchestrates all four design layers (intelligence, build, audit, visual-qa) end-to-end with maximum quality settings. Use for ambitious UI work \u2014 new pages, design system extensions, and design sprints.",
+      "description": "Full-stack design workflow skill. Orchestrates all four design layers (intelligence, build, audit, visual-qa) end-to-end with maximum quality settings. Use for ambitious UI work — new pages, design system extensions, and design sprints.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\ui-ux-pro-max\\SKILL.md",
@@ -1954,7 +1935,7 @@
     },
     {
       "id": "vercel-env-puller",
-      "description": "Per-project Vercel env-var manifests (NAMES + targets only \u2014 never values). At Sandcastle launch time, resolves the named vars in-memory via `vercel env pull`, injects into the sandbox via Sandcastle's `agent.env`+`sandbox.env`, and never writes a secret to disk inside Pi-CEO. Closes Wave 5 #2 (RA-1856 epic).",
+      "description": "Per-project Vercel env-var manifests (NAMES + targets only — never values). At Sandcastle launch time, resolves the named vars in-memory via `vercel env pull`, injects into the sandbox via Sandcastle's `agent.env`+`sandbox.env`, and never writes a secret to disk inside Pi-CEO. Closes Wave 5 #2 (RA-1856 epic).",
       "owner_role": "CISO (binds in front of every Sandcastle launch)",
       "status": "wave-5",
       "path": "skills\\vercel-env-puller\\SKILL.md",
@@ -2049,7 +2030,7 @@
     },
     {
       "id": "wiki-query",
-      "description": "Query the Brain-1 wiki before hitting external research. Returns an answer grounded in accumulated founder context plus a confidence score and go_external flag. Use on every Margot research request before firing deep_research or realtime calls \u2014 cache hit rate target 60-70% for repeat topics.",
+      "description": "Query the Brain-1 wiki before hitting external research. Returns an answer grounded in accumulated founder context plus a confidence score and go_external flag. Use on every Margot research request before firing deep_research or realtime calls — cache hit rate target 60-70% for repeat topics.",
       "owner_role": "Margot",
       "status": "wave-5",
       "path": "skills\\wiki-query\\SKILL.md",
@@ -2068,7 +2049,7 @@
     },
     {
       "id": "zte-maturity",
-      "description": "Zero Touch Engineering maturity model \u2014 4-level assessment with explicit scoring criteria per dimension.",
+      "description": "Zero Touch Engineering maturity model — 4-level assessment with explicit scoring criteria per dimension.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills\\zte-maturity\\SKILL.md",
