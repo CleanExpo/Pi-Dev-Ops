@@ -1,8 +1,8 @@
 # app — Wiki
 
-_Last updated: 2026-05-17T13:16:31Z (commits ef893c6..9d238ca)_
+_Last updated: 2026-05-24T02:40:41Z (commits 0100b60..06965b4)_
 
 ## Recent changes
-- 9d238ca — fix(infra): consolidate provider_router helper + wire kpi_watchdog cron + jsonl rotator (RA-3003, RA-3007) (#215)
+- 06965b4 — fix(security): port H1/M2/L2 sprinkle hardening onto migrated triage + feedback_loop (#258)
 
 Not logged in · Please run /login
