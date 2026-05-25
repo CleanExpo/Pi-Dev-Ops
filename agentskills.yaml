@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 0.3.0
-  generated_at: "2026-05-25T02:10:19.397827+00:00"
+  version: 0.4.0
+  generated_at: "2026-05-25T03:30:47.767629+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: afk-agent
@@ -1275,6 +1275,21 @@ skills:
     status: (unset)
     path: skills/ship-release/SKILL.md
     sha256: 32276c701e689d0a9d9eefa3cf9bd84bcd807644a54dbddf01a41977f5b23f4b
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: skybridge-rollout
+    description: Unite-Group rollout plan for Skybridge MCP-Apps framework — which businesses get an MCP App, in what order, with what auth, and how to productize it via Synthex. Invoke when planning, scoping, or building any MCP App across the portfolio.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/skybridge-rollout/SKILL.md
+    sha256: 90cd7a24d8ca6b3efe0ea9bf8538a74a92cf486fe4c662ac53aab6a6de332c85
     dependencies:
       tools: []
       skills: []
