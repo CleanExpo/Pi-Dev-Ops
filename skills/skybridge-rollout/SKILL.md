@@ -40,14 +40,14 @@ Order = highest revenue or strategic impact first.
 
 | # | Business | App concept | Auth | Phase | Why |
 |---|---|---|---|---|---|
-| 1 | **Synthex** | "Your social-media agency inside Claude/ChatGPT" — campaign brief → brand-voice generation → preview → schedule → approve | Clerk or WorkOS (multi-tenant) | Flagship | New SKU. First-mover in AU. The killer use case. Direct path to recurring client revenue. |
+| 1 | **Synthex** | "Your social-media agency inside Claude/ChatGPT" — campaign brief → brand-voice generation → preview → schedule → approve | Google Workspace OAuth (org default — see §6) | Flagship | New SKU. First-mover in AU. The killer use case. Direct path to recurring client revenue. |
 | 2 | **Pi-CEO operator dashboard** | Portfolio CI health, swarm status, /shipit trigger, Pilot V1 outcomes | Internal-only (no auth needed for first POC) | POC | Lowest stakes. Validates the agent-build loop. Proves we can deliver. |
 | 3 | **Disaster-Recovery** | "Submit a DR claim" — postcode lookup → contractor match → live response-time → claim summary card | None (consumer-facing) | Flagship | Highest public traffic. Real consumer use case. Bypasses the website entirely. |
 | 4 | **ATO Tax Optimizer** | "Ask about your tax position" — Xero connect → forensic analysis → findings rendered as interactive cards with ITAA citations | OAuth via Xero | Flagship | Highest per-customer value. ITAA-cited findings are a credibility moat. |
 | 5 | **Pilot V1 UI** | Render existing Pilot V1 suggestions as Skybridge cards inside Claude (in addition to current Telegram dispatch) | (already cron-driven) | Quick win | Reuses existing scheduler. Just adds a view layer. |
 | 6 | **RestoreAssist** | Mobile inspection capture via voice in Claude — IICRC water-class, moisture readings, photos | Supabase Auth | Phase 2 | Workflow that benefits hugely from voice-first agent UX. |
-| 7 | **CARSI** | Course catalogue + enrolment wizard + CEC progress dashboard, plus `verify_credential(id)` as a first-class tool | Stytch (passwordless education vertical) | Phase 2 | `verify_credential` is the single most-valuable agent tool — employers running checks. |
-| 8 | **DR-NRPG** | Contractor onboarding wizard with discipline picker + document upload | Auth0 (B2B) | Phase 2 | High-friction current flow benefits most from agent assist. |
+| 7 | **CARSI** | Course catalogue + enrolment wizard + CEC progress dashboard, plus `verify_credential(id)` as a first-class tool | Google Sign-In (org default — escalate to Stytch only if a school cohort requires it) | Phase 2 | `verify_credential` is the single most-valuable agent tool — employers running checks. |
+| 8 | **DR-NRPG** | Contractor onboarding wizard with discipline picker + document upload | Google Workspace OAuth (org default — escalate to WorkOS only on B2B SCIM/SSO demand) | Phase 2 | High-friction current flow benefits most from agent assist. |
 | 9 | **CCW-Online ERP** | Quote-to-cash agent — customer search → SKU lookup → quote build → email | Existing CCW auth | Phase 3 | Specialised niche; revenue ceiling capped by the equipment-supplier TAM. |
 | 10 | **Unite-Hub** | Founder workflow tools (gated) | Existing Supabase auth | Phase 3 | Internal-only; lowest external-revenue value. |
 
@@ -94,14 +94,14 @@ Compliance + app-store submission is where Alpic earns its keep — for a flagsh
 
 ## §6 — Auth integration choice per business
 
-Per-business defaults so we don't relitigate this for every PR:
+**Org-wide default: Google Workspace OAuth** (confirmed by Phill 2026-05-25). Unite-Group runs on Google Workspace. OWNER_EMAILS across the portfolio are already Google addresses. OAuth client lives in the existing Unite-Group Google Cloud Console project. Do not introduce a new auth SaaS dependency unless the per-business row below has a specific reason it can't use Google.
 
 | Business class | Auth | Why |
 |---|---|---|
-| Multi-tenant SaaS (Synthex) | **Clerk** | Best DX, multi-tenant primitive, generous free tier, Skybridge example exists |
-| B2B with team/org structure (DR-NRPG, RestoreAssist contractors) | **WorkOS AuthKit** | Built for B2B + SCIM provisioning + SSO support |
-| Passwordless education (CARSI learner-side) | **Stytch** | Lowest-friction signup for educational flows |
-| Enterprise B2B (ATO accountant partners) | **Auth0** | Enterprise SSO + compliance posture |
+| Multi-tenant SaaS (Synthex) | **Google Workspace OAuth** | Org default; existing OWNER_EMAILS are Google addresses; one Google Cloud OAuth client services every Unite-Group MCP App |
+| B2B with team/org structure (DR-NRPG, RestoreAssist contractors) | **Google Workspace OAuth** (default) — escalate to WorkOS AuthKit only if a B2B customer requires SCIM/SAML | Org default first; WorkOS adds B2B SCIM/SSO when a contract demands it |
+| Passwordless education (CARSI learner-side) | **Google Sign-In** as default — Stytch reserved if a non-Google learner cohort emerges | Learners are largely on Gmail already; Stytch only if a school requires its own IdP |
+| Enterprise B2B (ATO accountant partners) | **Google Workspace OAuth** — Auth0 reserved if an enterprise partner requires their own SSO | Most accounting firms have Google or Microsoft Workspace; only escalate to Auth0 on contract demand |
 | Internal tools (Pi-CEO, Unite-Hub) | **No external auth** — gated by Supabase or repo-private | POCs don't need OAuth |
 | Consumer-facing one-shot (DR claim intake) | **No auth** (Skybridge supports unauthenticated tool calls) | Friction kills consumer flows |
 
@@ -111,7 +111,7 @@ Per-business defaults so we don't relitigate this for every PR:
 |---|---|---|
 | **A (done)** | Install Skybridge skill, write this SSOT | This skill + companion installed at `.agents/skills/skybridge/` |
 | **B (POC, next)** | Pi-CEO operator dashboard MCP App | SPEC.md, scaffold, working "hello world" view, PR opened |
-| **C (Synthex flagship)** | "Synthex inside Claude/ChatGPT" MCP App with Clerk auth, Alpic deploy | Production-grade app, Claude-store submission |
+| **C (Synthex flagship)** | "Synthex inside Claude/ChatGPT" MCP App with Google Workspace OAuth, Alpic deploy | Production-grade app, Claude-store submission |
 | **D (`webmcp-proxy` backfill)** | One MCP server for all 7 sites, retire hand-annotations | Per-site PR, ~1 day each |
 | **E (DR + ATO flagship apps)** | Two more revenue-impacting flagships | Two production-grade apps |
 | **F (Synthex SKU launch)** | Productize the "MCP App per client" offering | Pricing, contract template, delivery playbook |
@@ -121,7 +121,7 @@ Per-business defaults so we don't relitigate this for every PR:
 
 - **API instability** — Skybridge v1.0 released May 2026. Lock to a specific version per app; upgrade deliberately not automatically.
 - **Vendor lock-in to Alpic** — framework is MIT + self-hostable, but hosted analytics + app-store-submission help are paid services. Adopt the framework freely; treat Alpic hosting as one option, not the only option.
-- **Multi-tenant data isolation in client apps** — Synthex's "MCP App per client" SKU means each client app needs its own tenant boundary. Use Clerk/WorkOS organisations + Supabase RLS per the existing pattern in [[geo-optimization]] §3.
+- **Multi-tenant data isolation in client apps** — Synthex's "MCP App per client" SKU means each client app needs its own tenant boundary. Use Google Workspace OAuth `hd` parameter (domain hint) + organization-scoped DB rows + Supabase RLS per the existing pattern in [[geo-optimization]] §3.
 - **Claude/ChatGPT store review cycles** — apps need compliance review before going live. Alpic offers help here; self-hosted apps still need to pass review for store listing. Budget calendar time, not just engineering time.
 - **WebMCP work isn't wasted** — `webmcp-proxy` complements not replaces. Browsing-agent path still works through the annotations we shipped.
 
