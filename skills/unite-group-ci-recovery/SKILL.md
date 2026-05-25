@@ -217,6 +217,31 @@ Never admin-merge:
 - When a security scan is red — investigate first
 - Without leaving a comment explaining why
 
+### PRE-RULE — check branch protection FIRST (added 2026-05-25 after the rule-against-nothing incident)
+
+Before invoking the STOP rule or any admin-merge logic, **check whether the failing status check is actually a hard block**. Many Unite-Group repos have zero required-status-checks configured — failing checks show as a GitHub UI warning ("yellow banner: 1 check failing, merge anyway?") but a plain `gh pr merge --squash` still works.
+
+```bash
+gh api repos/<owner>/<repo>/branches/main/protection 2>/dev/null \
+  | jq '{required: .required_status_checks.contexts, reviews: .required_pull_request_reviews.required_approving_review_count, enforce_admins: .enforce_admins.enabled}'
+```
+
+Also check newer-style rulesets (separate API):
+```bash
+gh api repos/<owner>/<repo>/rulesets --jq '[.[] | {id, name, enforcement}]'
+```
+
+**Interpretation:**
+- `required.contexts: []` AND no rulesets enforcing checks → the failing check is **UI noise, not a hard block**. A plain `gh pr merge --squash` will work. Do NOT use `--admin`. Inform the user the check is non-blocking but recommend fixing the underlying cause anyway (file the Linear ticket, but ship the PR).
+- `required.contexts: [<check-name>]` → the check IS a hard block. Apply the STOP rule below.
+- Rulesets present with `enforcement: "active"` → check the ruleset's contexts; same logic.
+
+**Confirmed today (2026-05-25):**
+- Pi-Dev-Ops main: `required.contexts: []`, no rulesets, no enforce_admins → all CI is UI-noise level. The 7-PR admin-merge cycle was theater.
+- Synthex main: status not checked in this session — assume hard block until verified per-repo.
+
+The STOP rule below ONLY applies when a hard block exists. When it's UI-noise, surface the failure honestly ("X check is red but doesn't block; recommend fixing via [ticket]") and proceed with normal merge — that's the honest, non-reflexive path.
+
 ### STOP rule — chronic-broken-check escalation (added 2026-05-25 after 7-PR admin-merge incident)
 
 **Before admin-merging past any failing check, count consecutive failures of that exact check on that exact project.**
