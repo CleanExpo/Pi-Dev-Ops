@@ -1,8 +1,8 @@
 # skills — Wiki
 
-_Last updated: 2026-05-24T12:43:53Z (commits b47fd1f..d17db4f)_
+_Last updated: 2026-05-25T02:19:47Z (commits feac7d8..9733e55)_
 
 ## Recent changes
-- d17db4f — chore(skills): retire curator-scheduled-tasks-unknown (status: proposed, abandoned) (#263)
+- 9733e55 — feat(skill): geo-optimization — canonical GEO standard for AI search (2026) (#265)
 
 Not logged in · Please run /login
