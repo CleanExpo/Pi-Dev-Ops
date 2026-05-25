@@ -200,21 +200,58 @@ Always verify the project ID matches the repo before any DDL. From memory `refer
 
 ## 4 — Admin-merge discipline
 
-Admin-merge is OK **only** when:
-1. The failing check has been **proven environmental** with logs (see §2 for sandbox examples)
+### When admin-merge IS OK
+
+1. The failing check has been **proven environmental** with **actual log evidence**, not by reflex/ticket-citation
 2. The same check is failing on **main** prior to your PR (proves it's pre-existing)
 3. Your PR is **docs / test-only / migration-only** with no production runtime change, OR
 4. The user has explicitly said "100% green merged" or "merge it" giving standing consent
 
 Always:
 - Post a PR comment documenting the failure analysis BEFORE admin-merging
-- Reference the Linear ticket tracking the fix (DR-852 for sandbox env-vars, DR-851 for DR DB direct connection)
+- Reference the **correct, specific** Linear ticket — not a vaguely-related one
 - Use `gh pr merge <N> --squash --admin --delete-branch`
 
 Never admin-merge:
 - Code changes (even tiny) when a Build / Type Check / Unit Tests check is red — that's your change failing
 - When a security scan is red — investigate first
 - Without leaving a comment explaining why
+
+### STOP rule — chronic-broken-check escalation (added 2026-05-25 after 7-PR admin-merge incident)
+
+**Before admin-merging past any failing check, count consecutive failures of that exact check on that exact project.**
+
+- If the same check has failed on **≥5 consecutive deployments / PRs**, you do NOT admin-merge with "environmental" reasoning. The check is *chronically broken*, not flaking. Doing so trains you (and the user) to ignore signal — the exact pathology this skill was meant to prevent.
+- Instead, **propose ONE of**:
+  1. **Remove the check from required status checks** on the branch protection rule (GitHub → Settings → Branches → main rule → required checks). Stops the false-block immediately. Re-add when the check is fixed.
+  2. **Disable / delete the broken Vercel project** if it's no longer serving a purpose.
+  3. **Surface the actual root cause** (not the symptom) and ship the fix.
+- Open a Linear ticket *separate from any "we'll get to it" parent ticket* that captures THIS specific failure with logs + a UI-recipe fix. Do not cite a vaguely-related ticket (e.g. "DR-852 documented") if the specific failure mode is different.
+
+**Concrete example from 2026-05-25:**
+Pi-Dev-Ops `Vercel – pi-dev-ops-sandbox` failed 20 consecutive deployments (PRs #262–#268). All 7 PRs got admin-merged with "DR-852 documented" comments. The root cause was actually `framework: null` on the Vercel project settings (NOT one of DR-852's 5 sandboxes) — fixable in 2 minutes via Vercel UI. Should have been escalated at PR #262 (first failure). [RA-5261](https://linear.app/unite-group/issue/RA-5261) captures the specific fix; [RA-5262](https://linear.app/unite-group/issue/RA-5262) captures the systemic prevention (nightly CI script to detect framework-drift across all sandboxes).
+
+### How to use this skill agentically (added 2026-05-25)
+
+The skill is not a label to slap on a PR comment — it's a callable procedure. Before admin-merging any failing check, spawn an investigator agent with this prompt template:
+
+```
+You are applying the unite-group-ci-recovery skill at
+/Users/phillmcgurk/Pi-CEO/skills/unite-group-ci-recovery/SKILL.md.
+
+Read it end-to-end, then for the failure at <PR URL>:
+1. Use Vercel MCP get_project + list_deployments + get_deployment_build_logs
+   to determine the actual root cause (with log evidence)
+2. Determine which class from §2 (JWT_SECRET / OOM / rootDirectory / framework=null / etc)
+3. Count consecutive failures on the same project — apply §4 STOP rule if ≥5
+4. Report: (a) fixable now via MCP, (b) fixable in <5 min by user UI work,
+   (c) needs escalation per STOP rule, (d) truly waits on backlog.
+
+Do not cite any Linear ticket unless you've confirmed the ticket's failure mode
+matches the current failure mode exactly.
+```
+
+This prevents the parent agent from reflexively pattern-matching "sandbox red → DR-852 → admin-merge".
 
 ## 5 — Migration prereq detection workflow
 
