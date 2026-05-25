@@ -1,8 +1,8 @@
 # skills — Wiki
 
-_Last updated: 2026-05-25T07:24:15Z (commits 1eeb0e5..8bd2289)_
+_Last updated: 2026-05-25T07:51:15Z (commits 9b1d400..3d69751)_
 
 ## Recent changes
-- 8bd2289 — docs(skill): clarify unite-group-ci-recovery scope (Synthex-only agent-pr-checks) (#268)
+- 3d69751 — fix(skill): add STOP rule for chronic-broken-check escalation + agentic-use pattern (#269)
 
 Not logged in · Please run /login
