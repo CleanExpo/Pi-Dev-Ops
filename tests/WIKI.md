@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-05-24T05:08:09Z (commits d0f084a..6aea988)_
+_Last updated: 2026-05-25T00:48:18Z (commits c3a4511..4faaf68)_
 
 ## Recent changes
-- 6aea988 — feat(pilot): Pilot V1 — schema + sources + UX + voice + scheduler + cutover gate (Phases 1-8) (#238)
+- 4faaf68 — feat(pilot): add swarm.pilot.cli — production cron entrypoint (cutover gap fix) (#264)
 
 Not logged in · Please run /login
