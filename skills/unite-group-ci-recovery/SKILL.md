@@ -32,7 +32,14 @@ If any box is unchecked, you will hit one of the recurring failures below.
 
 ## 1 — Agent PR conventions (THIS IS WHY YOUR CHECKS KEEP SKIPPING)
 
-`.github/workflows/agent-pr-checks.yml` runs 5 jobs (`validate-agent-metadata`, `run-quality-checks`, `security-scan`, `update-pr-status`, the detector itself), **all gated on `if: needs.detect-agent-pr.outputs.is_agent_pr == 'true'`**.
+**Scope:** these conventions apply where `.github/workflows/agent-pr-checks.yml` exists. **Today that's only Synthex.** Pi-Dev-Ops and other Unite-Group repos have their own CI workflow sets (e.g. Pi-Dev-Ops has `Frontend (tsc + eslint + build)`, `Pi CEO API smoke test`, `Python (pytest + ruff)` — no agent-pr-checks gate). Following the convention on a Pi-Dev-Ops PR is harmless but won't unblock different checks there.
+
+**To check per repo:**
+```bash
+ls .github/workflows/agent-pr-checks.yml 2>/dev/null && echo "agent-pr-checks present" || echo "no agent-pr-checks workflow"
+```
+
+When the workflow IS present, it runs 5 jobs (`validate-agent-metadata`, `run-quality-checks`, `security-scan`, `update-pr-status`, the detector itself), **all gated on `if: needs.detect-agent-pr.outputs.is_agent_pr == 'true'`**.
 
 The detector ONLY returns true when:
 
@@ -225,14 +232,15 @@ grep -E "^model MarketingAgency" prisma/schema.prisma | wc -l
 
 ## 6 — Skipping checks reference
 
-| Check | Why it skips | Fix |
-|---|---|---|
-| `validate-agent-metadata` | Branch != `feature/agent-*` | Adopt convention (§1) |
-| `run-quality-checks` | Branch != `feature/agent-*` | Adopt convention (§1) |
-| `security-scan` (lowercase, from agent-pr-checks) | Branch != `feature/agent-*` | Adopt convention (§1). The Title-Case `Security Scan` from `security.yml` runs on all PRs — different check |
-| `update-pr-status` | Branch != `feature/agent-*` | Adopt convention (§1) |
-| `Supabase Preview` | No supabase/migrations diff for preview branch | Intentional — leave alone unless you're touching `supabase/migrations/*.sql` |
-| `CodeQL` | Path filter or push-only trigger | Intentional — leave alone |
+| Check | Repo where it lives | Why it skips | Fix |
+|---|---|---|---|
+| `validate-agent-metadata` | Synthex | Branch != `feature/agent-*` | Adopt convention (§1) |
+| `run-quality-checks` | Synthex | Branch != `feature/agent-*` | Adopt convention (§1) |
+| `security-scan` (lowercase, from agent-pr-checks) | Synthex | Branch != `feature/agent-*` | Adopt convention (§1). The Title-Case `Security Scan` from `security.yml` runs on all PRs — different check |
+| `update-pr-status` | Synthex | Branch != `feature/agent-*` | Adopt convention (§1) |
+| `Supabase Preview` | Synthex | No supabase/migrations diff for preview branch | Intentional — leave alone unless you're touching `supabase/migrations/*.sql` |
+| `CodeQL` | Synthex | Path filter or push-only trigger | Intentional — leave alone |
+| `Smoke test (prod)` | Pi-Dev-Ops | Only fires on push to main (not on PRs) | Intentional — leave alone |
 
 ## 7 — Standing memories to reference
 
