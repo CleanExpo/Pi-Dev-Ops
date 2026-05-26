@@ -1,8 +1,8 @@
 # swarm — Wiki
 
-_Last updated: 2026-05-26T09:02:25Z (commits 062d66d..a8f13ae)_
+_Last updated: 2026-05-26T09:14:54Z (commits fc6b163..a38f63b)_
 
 ## Recent changes
-- a8f13ae — feat(swarm): model_router — Anthropic→OpenRouter→Ollama fallback ladder (#278)
+- a38f63b — feat(nexus): PR-NEXUS-2 onboarding state machine (pure logic, 49 tests) (#282)
 
 Not logged in · Please run /login
