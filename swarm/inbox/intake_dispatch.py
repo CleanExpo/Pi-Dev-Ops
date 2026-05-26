@@ -46,13 +46,20 @@ from swarm.intake.spm import (
 
 @dataclass(frozen=True)
 class IntakeBot:
-    """Subset of intake_client_bots needed to dispatch one update."""
+    """Subset of intake_client_bots needed to dispatch one update.
+
+    `partner_telegram_user_id` is the third G3 trust layer (SPEC §G3.3).
+    Set at registry-construction time from
+    `intake_partners.telegram_user_id` for the bot's partner_id; left
+    None when the partner hasn't shared their Telegram user id yet.
+    """
     bot_id: str
     kind: Literal["client_intake", "context"]
     partner_id: str
     workspace_slug: str
     authorized_chat_ids: tuple[str, ...]
     bot_username: str
+    partner_telegram_user_id: int | None = None
     chat_id_to_thread_map_key: str = "chat_id"  # for future multi-thread-per-chat
 
 
@@ -192,6 +199,10 @@ def dispatch_telegram_update(
     partner_telegram_user_id: int | None = None,
     now: datetime | None = None,
 ) -> DispatchOutcome:
+    """G3 layer-3 source: the `partner_telegram_user_id` keyword
+    overrides `bot.partner_telegram_user_id` when set (used by tests).
+    Production callers should rely on `bot.partner_telegram_user_id`
+    being populated by the registry adapter."""
     """Process ONE Telegram update for a client_intake bot.
 
     Steps:
@@ -213,12 +224,17 @@ def dispatch_telegram_update(
         return DispatchOutcome(handled=False, rejected_reason="malformed_update")
 
     # ── (2) G3 trust check ─────────────────────────────────────────
+    effective_partner_uid = (
+        partner_telegram_user_id
+        if partner_telegram_user_id is not None
+        else bot.partner_telegram_user_id
+    )
     trusted_partner_id, denial = trusted_partner_id_for_inbound(
         bot_partner_id=bot.partner_id,
         telegram_chat_id=chat_id,
         authorized_chat_ids=list(bot.authorized_chat_ids),
         telegram_from_user_id=_from_user_id(update),
-        partner_telegram_user_id=partner_telegram_user_id,
+        partner_telegram_user_id=effective_partner_uid,
     )
     if not trusted_partner_id:
         return DispatchOutcome(

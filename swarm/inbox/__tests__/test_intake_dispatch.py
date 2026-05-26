@@ -187,6 +187,57 @@ class TestG3Rejection:
         assert outcome.handled is False
         assert deps["persister"].inbounds == []
 
+    def test_partner_telegram_user_id_from_bot_field_is_honored(self):
+        """G3.3: when the bot row carries partner_telegram_user_id (the
+        normal production path), a mismatched Telegram from.id is still
+        rejected even without passing the keyword explicitly."""
+        deps = _deps()
+        bot = IntakeBot(
+            bot_id="b-1", kind="client_intake", partner_id="phill",
+            workspace_slug="unite-group",
+            authorized_chat_ids=("100",),
+            bot_username="@PhillIntakeBot",
+            partner_telegram_user_id=12345,
+        )
+        update = _update(from_id=99999)
+        outcome = dispatch_telegram_update(update, bot, **deps)
+        assert outcome.handled is False
+        assert deps["persister"].inbounds == []
+        assert deps["reply"].sent == []
+        assert deps["threads"].upserts == []
+
+    def test_partner_telegram_user_id_from_bot_field_match_allows(self):
+        """Inverse: matching from.id under bot-carried user_id passes."""
+        deps = _deps()
+        bot = IntakeBot(
+            bot_id="b-1", kind="client_intake", partner_id="phill",
+            workspace_slug="unite-group",
+            authorized_chat_ids=("100",),
+            bot_username="@PhillIntakeBot",
+            partner_telegram_user_id=12345,
+        )
+        update = _update(from_id=12345)
+        outcome = dispatch_telegram_update(update, bot, **deps)
+        assert outcome.handled is True
+        assert outcome.partner_id == "phill"
+
+    def test_explicit_keyword_overrides_bot_field(self):
+        """Tests can override the bot's value via the explicit kwarg."""
+        deps = _deps()
+        bot = IntakeBot(
+            bot_id="b-1", kind="client_intake", partner_id="phill",
+            workspace_slug="unite-group",
+            authorized_chat_ids=("100",),
+            bot_username="@PhillIntakeBot",
+            partner_telegram_user_id=12345,  # bot says 12345
+        )
+        update = _update(from_id=12345)
+        # keyword overrides to a different id → mismatch, rejected
+        outcome = dispatch_telegram_update(
+            update, bot, partner_telegram_user_id=99999, **deps,
+        )
+        assert outcome.handled is False
+
 
 # ============================================================
 # Malformed update
