@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-05-26T10:33:00Z (commits c299d78..0e2c762)_
+_Last updated: 2026-05-26T10:37:15Z (commits 43bb58e..09279f4)_
 
 ## Recent changes
-- 0e2c762 — feat(nexus): B4 — outcomes ingestion adapters (Stripe/Vercel/PostHog/Sentry/Linear) (#290)
+- 09279f4 — feat(nexus): B5 — BRA generator (Brief/Recommendation/Action) with evidence anchoring (#291)
 
 Not logged in · Please run /login
