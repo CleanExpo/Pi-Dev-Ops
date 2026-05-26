@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-05-26T04:04:20Z (commits 2693f0c..2f04d44)_
+_Last updated: 2026-05-26T04:16:24Z (commits ce05a42..cfe4fd0)_
 
 ## Recent changes
-- 2f04d44 — policy(tmux): ratified guardrails post-grill (#277)
+- cfe4fd0 — feat(tmux): T1 observer + audit ledger — retarget to main (#279 follow-up) (#280)
 
 Not logged in · Please run /login
