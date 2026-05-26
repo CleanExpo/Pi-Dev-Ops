@@ -156,8 +156,16 @@ class StubOutcomesStore:
     def __init__(self):
         self.rows: list = []
 
-    def list(self, *, workspace_id=None):
-        return list(self.rows)
+    def write(self, outcome):
+        self.rows.append(outcome)
+
+    def list(self, *, workspace_slug=None, workspace_id=None, limit=100):
+        rows = self.rows
+        if workspace_slug is not None:
+            rows = [r for r in rows if getattr(r, "workspace_slug", None) == workspace_slug]
+        if workspace_id is not None:
+            rows = [r for r in rows if getattr(r, "workspace_id", None) == workspace_id]
+        return list(rows)[:limit]
 
 
 class StubLLM:
