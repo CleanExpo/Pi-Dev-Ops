@@ -1,0 +1,177 @@
+# Terminal Orchestrator — denylist (ratified post-grill 2026-05-26)
+#
+# Format: one regex per line. Blank lines and lines starting with # are ignored.
+# The line preceding each regex (a `## name`) gives the rule name used in audit
+# rows. If absent, the regex itself is used as the rule name (truncated to 40c).
+#
+# Applied in two passes:
+#   1. raw-string pre-pass (catches structural / chaining patterns)
+#   2. per-token post-pass after shlex.split (catches verbs that survived
+#      tokenisation in a way the raw scan missed)
+#
+# This file is defense-in-depth. The primary validator is shlex tokenisation
+# + per-token allowlist (see allowlist.yaml). A command must pass BOTH layers.
+
+## subst-paren
+\$\([^)]*\)
+## subst-backtick
+`[^`]*`
+## subst-brace-var
+\$\{[A-Z_][A-Z0-9_]*\}
+## proc-sub-in
+<\([^)]*\)
+## proc-sub-out
+>\([^)]*\)
+## brace-expansion
+\{[^}]*,[^}]*\}
+## heredoc-string
+<<<
+## heredoc
+<<-?\s*\w+
+## chain-semicolon
+(?:^|[^&|;])[;](?:[^;]|$)
+## chain-and
+&&
+## chain-or
+\|\|
+## pipe-to-shell
+\|\s*(?:bash|sh|zsh|fish)\b
+## bg-fork
+\s+&\s*$
+
+## verb-dd
+(?:^|\s)dd(?:\s|$)
+## verb-mkfs
+(?:^|\s)mkfs\S*
+## verb-sudo
+(?:^|\s)sudo(?:\s|$)
+## verb-su
+(?:^|\s)su(?:\s|$)
+## verb-doas
+(?:^|\s)doas(?:\s|$)
+## verb-chown
+(?:^|\s)chown(?:\s|$)
+## verb-truncate
+(?:^|\s)truncate(?:\s|$)
+## verb-shred
+(?:^|\s)shred(?:\s|$)
+## verb-wipefs
+(?:^|\s)wipefs(?:\s|$)
+## verb-reboot
+(?:^|\s)reboot(?:\s|$)
+## verb-shutdown
+(?:^|\s)shutdown(?:\s|$)
+## verb-halt
+(?:^|\s)halt(?:\s|$)
+## verb-poweroff
+(?:^|\s)poweroff(?:\s|$)
+## verb-pkill
+(?:^|\s)pkill(?:\s|$)
+## verb-killall
+(?:^|\s)killall(?:\s|$)
+## verb-kill
+(?:^|\s)kill(?:\s|$)
+## verb-nc
+(?:^|\s)nc(?:\s|$)
+## verb-ncat
+(?:^|\s)ncat(?:\s|$)
+## verb-socat
+(?:^|\s)socat(?:\s|$)
+## verb-telnet
+(?:^|\s)telnet(?:\s|$)
+## verb-scp
+(?:^|\s)scp(?:\s|$)
+## verb-rsync
+(?:^|\s)rsync(?:\s|$)
+## verb-sftp
+(?:^|\s)sftp(?:\s|$)
+## verb-eval
+(?:^|\s)eval(?:\s|$)
+## verb-exec
+(?:^|\s)exec(?:\s|$)
+## verb-source
+(?:^|\s)source(?:\s|$)
+
+## git-push-force
+\bgit\s+push\s+(?:-f\b|--force\b|--force-with-lease\b)
+## git-reset-hard
+\bgit\s+reset\s+--hard\b
+## git-clean-f
+\bgit\s+clean\s+-[a-zA-Z]*f
+## git-checkout-discard
+\bgit\s+checkout\s+--\s+\.
+## git-filter-branch
+\bgit\s+filter-branch\b
+## git-update-ref-delete
+\bgit\s+update-ref\s+-d\b
+
+## prod-railway
+\brailway\s+(?:up|deploy|run)\b
+## prod-vercel
+\bvercel\s+(?:--prod|deploy|promote)\b
+## prod-supabase
+\bsupabase\s+db\s+(?:push|reset|drop)\b
+## prod-gh-release
+\bgh\s+release\s+create\b
+## prod-gh-repo-delete
+\bgh\s+repo\s+delete\b
+## prod-npm-publish
+\b(?:npm|pnpm|yarn)\s+publish\b
+## prod-docker-push
+\bdocker\s+push\b
+## prod-terraform
+\bterraform\s+(?:apply|destroy)\b
+
+## forkbomb
+:\s*\(\s*\)\s*\{
+## dev-overwrite
+>\s*/dev/(?:sd[a-z]|disk\d|nvme)
+## chmod-dangerous
+\bchmod\s+(?:777|[+-]?s)\b
+## setuid
+\bsetuid\b
+## setgid
+\bsetgid\b
+
+## curl-pipe-shell
+\bcurl\b[^|]*\|\s*(?:bash|sh|zsh|fish)\b
+## wget-pipe-shell
+\bwget\b[^|]*\|\s*(?:bash|sh|zsh|fish)\b
+## curl-mutating
+\bcurl\b.*?-X\s*(?:POST|PUT|PATCH|DELETE)\b
+## openssl-enc
+\bopenssl\s+enc\b
+
+## path-ssh
+~/?\.ssh(?:/|\s|$)
+## path-aws
+~/?\.aws(?:/|\s|$)
+## path-kube
+~/?\.kube(?:/|\s|$)
+## path-docker-creds
+~/?\.docker(?:/|\s|$)
+## path-netrc
+~/?\.netrc\b
+## path-gnupg
+~/?\.gnupg(?:/|\s|$)
+## path-gcloud
+~/?\.config/(?:gcloud|op|1password)(?:/|\s|$)
+## path-keychains
+~/?Library/Keychains(?:/|\s|$)
+## path-etc-shadow
+/etc/(?:shadow|sudoers|ssh/sshd_config|passwd-?)
+## path-private-etc
+/private/etc/(?:shadow|sudoers|master\.passwd)
+
+## env-aws
+\$(?:AWS_SECRET_ACCESS_KEY|AWS_ACCESS_KEY_ID|AWS_SESSION_TOKEN)\b
+## env-github
+\$(?:GITHUB_TOKEN|GH_TOKEN|GITHUB_PAT)\b
+## env-llm
+\$(?:ANTHROPIC_API_KEY|OPENAI_API_KEY|OPENROUTER_API_KEY)\b
+## env-stripe
+\$(?:STRIPE_SECRET_KEY|STRIPE_LIVE_KEY)\b
+## env-linear-supabase
+\$(?:LINEAR_API_KEY|SUPABASE_SERVICE_ROLE_KEY|SUPABASE_ANON_KEY)\b
+## env-telegram-railway-vercel
+\$(?:TELEGRAM_BOT_TOKEN|RAILWAY_TOKEN|VERCEL_TOKEN)\b
