@@ -16,6 +16,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.server.routes.nexus import (
+    require_auth,
     router as nexus_router,
     webhooks_router,
 )
@@ -190,6 +191,8 @@ def app(tmp_path, monkeypatch):
     app = FastAPI()
     app.include_router(nexus_router)
     app.include_router(webhooks_router)
+    # Bypass real auth — see module docstring
+    app.dependency_overrides[require_auth] = lambda: {"sub": "test-user"}
     app.state.nexus_stores = {
         "clients": StubClientStore(),
         "workspaces": StubWorkspaceStore(),

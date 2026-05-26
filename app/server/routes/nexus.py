@@ -33,7 +33,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 # Try to import auth from existing pattern; fall back gracefully so tests
@@ -439,9 +439,6 @@ async def webhook_stripe(request: Request):
     body = await request.body()
     if not _verify_webhook_signature(request, body, "STRIPE_WEBHOOK_SECRET"):
         raise HTTPException(status_code=401, detail="invalid signature")
-    stores = get_stores(request)
-    # Stripe events: invoice.paid → outcomes row
-    # Placeholder — full payload parsing in PR-NEXUS-8
     return {"received": True, "source": "stripe"}
 
 

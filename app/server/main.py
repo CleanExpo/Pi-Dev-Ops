@@ -14,6 +14,7 @@ from .routes import auth, sessions, webhooks, triggers, scan_monitor, pipeline, 
 # health registers its routes directly on `app` via @app.get/@app.on_event decorators
 from .routes import health  # noqa: F401
 from .routes import health_full  # RA-1910 — /api/health/full endpoint
+from .routes import nexus as nexus_routes  # Phase A — Nexus onboarding + growth OS
 
 app.include_router(auth.router)
 app.include_router(sessions.router)
@@ -31,5 +32,7 @@ app.include_router(elevenlabs.router)
 app.include_router(cost_report.router)  # RA-1909
 app.include_router(health_full.router)  # RA-1910
 app.include_router(delegate.router)  # RA-1631
+app.include_router(nexus_routes.router)  # Phase A — /api/nexus/*
+app.include_router(nexus_routes.webhooks_router)  # Phase A — /webhooks/*
 
 __all__ = ["app"]
