@@ -391,11 +391,20 @@ async def post_decide_approval(
 async def get_outcomes(
     request: Request,
     workspace_id: Optional[str] = None,
+    workspace_slug: Optional[str] = None,
+    limit: int = 100,
     _auth=Depends(require_auth),
 ):
     stores = get_stores(request)
-    rows = list(stores["outcomes"].list(workspace_id=workspace_id))
-    return {"outcomes": rows, "count": len(rows)}
+    rows = list(stores["outcomes"].list(
+        workspace_slug=workspace_slug,
+        workspace_id=workspace_id,
+        limit=max(1, min(limit, 1000)),
+    ))
+    # Frozen dataclasses → JSON-serialisable dicts for the response.
+    from dataclasses import asdict, is_dataclass
+    serialised = [asdict(r) if is_dataclass(r) else r for r in rows]
+    return {"outcomes": serialised, "count": len(serialised)}
 
 
 @router.get("/audit")

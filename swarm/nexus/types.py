@@ -150,6 +150,30 @@ class ApprovalRequest:
 
 
 # ============================================================
+# Outcomes — feedback-loop signals attributed to workspace/project/persona
+# ============================================================
+
+DeltaWindow = Literal["24h", "7d", "30d"]
+
+
+@dataclass(frozen=True)
+class Outcome:
+    id: str
+    workspace_id: str
+    workspace_slug: str
+    source: OutcomeSource
+    metric: str
+    captured_at: str
+    project_id: str | None = None
+    persona_attribution: str | None = None
+    value_numeric: float | None = None
+    value_text: str | None = None
+    delta_window: DeltaWindow | None = None
+    raw_payload: dict = field(default_factory=dict)
+    created_at: str = ""
+
+
+# ============================================================
 # Transition outcome
 # ============================================================
 
