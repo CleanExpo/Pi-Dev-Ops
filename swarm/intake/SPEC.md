@@ -7,10 +7,13 @@
 | Decision | Pick |
 |---|---|
 | Stack | Python in Pi-CEO (n8n rejected) |
-| Repo strategy | One main repo per client (`intake_client_bots.github_repo`). Production handoffs create feature branches + PRs INTO that repo — not new repos per project. |
-| Margot voice for clients | Same founder voice as existing `swarm/margot_bot.py` |
+| Tenancy model | **Partner-shared workspace.** Phill + Duncan + Toby are business partners (not clients). All 3 see every project; per-partner bots exist only for attribution ("Duncan said X"). RLS uses a single workspace tenant `'unite-group'`. |
+| Conversation flow | **Project-name-first.** Margot greets → asks "New project, or continue an existing?" → if new, asks for project name BEFORE the idea. Once both captured, SPM picks up. |
+| Repo strategy | One main repo per *project* (configured at project creation in `intake_projects.github_repo`). Production handoff creates `feat/<project-slug>` branch + PR INTO that repo. |
+| Margot voice | Same founder voice as existing `swarm/margot_bot.py` |
 | Board round cap | 3 rounds → mandatory human checkpoint |
-| Bot token storage (Phase 1 default) | Env vars on Railway; DB stores env-var NAME, not the secret |
+| Approval policy (production handoff) | **Project creator only.** Whoever opened the project signs off ("ready to ship"). Other partners see it but don't gate it. Stored in `intake_projects.approval_policy` defaulting to `'creator_only'`; future projects can override per-project. |
+| Bot token storage (Phase 1) | Env vars on Railway; DB stores env-var NAME, not the secret |
 >
 > **Triggered by:** Phill — "I have 2 clients (Duncan, Toby). Each gets a Telegram bot. Margot pulls their input, passes to that project's Senior Project Manager, who passes to the board for SWOT + suitability + framework, who returns the project outline + questions back to Margot, who relays to the client. Loop until production-ready → generate PR + Linear project."
 
@@ -28,67 +31,72 @@
 
 **Pick: Python in Pi-CEO. n8n would split the codebase across languages with no offsetting gain.** If a Phase 2 visual-debug surface is wanted for non-engineers to inspect a thread, that's a Synthex web view, not n8n.
 
-## 1. Pipeline state machine
+## 1. Pipeline state machine (partner-shared)
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│  Client (Duncan)         Client (Toby)         Client (future N)       │
-│       │                       │                       │                │
-│       ▼                       ▼                       ▼                │
-│  Duncan's Telegram bot   Toby's Telegram bot     Client N's bot        │
-│       │                       │                       │                │
-│       └───────────┬───────────┴───────────┬───────────┘                │
-│                   ▼                                                    │
-│       swarm/inbox/intake_router.py — long-poll all client_bots         │
-│                   │                                                    │
-│                   ▼                                                    │
-│       swarm/intake/margot_router.py — route to thread + classify       │
-│                   │                                                    │
-│       ┌───────────┴───────────┐                                        │
-│       ▼                       ▼                                        │
-│  new intake_thread       existing intake_thread                        │
-│       │                       │                                        │
-│       ▼                       ▼                                        │
-│       └───────────┬───────────┘                                        │
-│                   ▼                                                    │
-│       swarm/intake/spm.py — Senior Project Manager                     │
-│       — assess: layout / framework / suitability / SWOT                │
-│       — generate brief for board                                       │
-│                   │                                                    │
-│                   ▼                                                    │
-│       swarm/board.py — request_deliberation (existing)                 │
-│       9-persona debate via ceo-board skill                             │
-│                   │                                                    │
-│                   ▼                                                    │
-│       swarm/intake/spm.py — aggregate board response                   │
-│       — produce reply to client                                        │
-│       — decide: ready for production? OR more questions?               │
-│                   │                                                    │
-│       ┌───────────┴───────────┐                                        │
-│       ▼                       ▼                                        │
-│  more questions          ready for production                          │
-│       │                       │                                        │
-│       ▼                       ▼                                        │
-│  Margot relays via       swarm/intake/handoff.py:                      │
-│  client's bot ────loop   1. create GitHub repo + first PR              │
-│                          2. create Linear project + intake issue       │
-│                          3. notify client "project N is live"          │
-│                          4. close intake_thread                        │
-└────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────┐
+│  Partner Phill          Partner Duncan         Partner Toby                │
+│       │                       │                       │                    │
+│       ▼                       ▼                       ▼                    │
+│  Phill's bot             Duncan's bot            Toby's bot                │
+│  (attribution)           (attribution)           (attribution)             │
+│       │                       │                       │                    │
+│       └───────────┬───────────┴───────────┬───────────┘                    │
+│                   ▼                                                        │
+│       swarm/inbox/intake_router.py — long-poll all intake_client_bots      │
+│       (tags inbound with submitted_by_partner_id from the bot's partner)   │
+│                   │                                                        │
+│                   ▼                                                        │
+│       swarm/intake/margot_router.py                                        │
+│       — resolves partner_id, locates active thread for this chat           │
+│       — runs margot_state machine:                                         │
+│         awaiting_project_name → "What's the project name?"                 │
+│         awaiting_idea         → "Got it. Tell me about [name]."            │
+│         classified            → opens intake_project + advances to in_loop │
+│         in_loop               → forwards to SPM                            │
+│                   │                                                        │
+│                   ▼ (margot_state=in_loop)                                 │
+│       swarm/intake/spm.py — Senior Project Manager                         │
+│       — assess: layout / framework / suitability / SWOT                    │
+│       — generate brief for board                                           │
+│                   │                                                        │
+│                   ▼                                                        │
+│       swarm/board.py — request_deliberation (existing 9-persona debate)    │
+│                   │                                                        │
+│                   ▼                                                        │
+│       swarm/intake/spm.py — aggregate board response                       │
+│       — produce reply (in Margot's voice)                                  │
+│       — decide: ready for production? OR more questions?                   │
+│                   │                                                        │
+│       ┌───────────┴───────────┐                                            │
+│       ▼                       ▼                                            │
+│  more questions          ready for production                              │
+│       │                       │ (creator-only approval — see SPEC §0)      │
+│       ▼                       ▼                                            │
+│  Margot relays via       swarm/intake/handoff.py:                          │
+│  the partner's bot       1. branch `feat/<project-slug>` on project repo   │
+│  who originated ───loop  2. open PR into project main repo                 │
+│                          3. create Linear issue (workspace project)        │
+│                          4. notify ALL 3 partners via their bots:          │
+│                             "Project '<name>' is shipped"                  │
+│                          5. set intake_projects.status='shipped'           │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
+
+**Sharing model:** any partner can read all projects; any partner can post to any open thread; **only the project creator can approve production handoff** (per locked decision). Attribution lives in `submitted_by_partner_id` on every message + `owner_partner_id` on every project + `triggered_by_partner_id` on every handoff.
 
 ### Roles
 
 | Role | Where it lives | Identity / persona |
 |---|---|---|
-| **Client** | Their own Telegram chat | Human (Duncan, Toby, future) |
-| **Per-client bot** | Telegram, registered via BotFather | One bot per client (`@DuncanClientBot`, `@TobyClientBot`) |
-| **intake_router** | `swarm/inbox/intake_router.py` (extend existing) | System — fetches messages, persists, dedupes |
-| **Margot router** | NEW `swarm/intake/margot_router.py` | LLM — classifies (new vs continuation) + assembles thread context |
-| **SPM** | NEW `swarm/intake/spm.py` | LLM persona — Senior Project Manager. Reads thread, produces brief for board. Aggregates board response into client-facing reply. |
+| **Partner** | Their own Telegram chat | Human (Phill, Duncan, Toby) |
+| **Per-partner bot** | Telegram, registered via BotFather | One bot per partner (`@PhillIntakeBot`, `@DuncanIntakeBot`, `@TobyIntakeBot`). Each `intake_client_bots` row links to one `intake_partners` row via `partner_id`. |
+| **intake_router** | `swarm/inbox/intake_router.py` (extend existing) | System — fetches messages, persists, dedupes, tags `submitted_by_partner_id` |
+| **Margot router** | NEW `swarm/intake/margot_router.py` | LLM — runs the margot_state machine (project-name-first), classifies new vs continuation, assembles thread context |
+| **SPM** | NEW `swarm/intake/spm.py` | LLM persona — Senior Project Manager. Reads thread + project, produces brief for board. Aggregates board response into partner-facing reply. |
 | **Board** | `swarm/board.py` (existing) | 9 personas: CEO, Revenue, Product Strategist, Technical Architect, Contrarian, Compounder, Custom Oracle, Market Strategist, Moonshot |
-| **Margot relay** | `swarm/intake/margot_router.py` (same module) | LLM — formats SPM's reply for the client's voice, sends via their bot |
-| **Production handoff** | NEW `swarm/intake/handoff.py` | System — gh repo create + gh pr create + Linear save_issue + close thread |
+| **Margot relay** | `swarm/intake/margot_router.py` (same module) | LLM — formats SPM's reply in Margot's founder voice, sends via the originating partner's bot. On production handoff, broadcasts to ALL 3 partner bots. |
+| **Production handoff** | NEW `swarm/intake/handoff.py` | System — `gh` branch + PR INTO the project's main repo + Linear `save_issue` + broadcast notify |
 
 ### Termination
 
@@ -96,7 +104,10 @@ SPM decides when a thread is "ready for production" by checking a structured fie
 ```json
 { "readyForProduction": true, "rationale": "Scope locked, framework picked, success metrics defined" }
 ```
-Only then does `handoff.py` fire. Otherwise the loop continues with the client's reply.
+
+When `readyForProduction=true`, SPM moves the project to status `ready_for_production` and waits for an explicit "ship it" from the **project creator** (per `approval_policy='creator_only'`). Only the creator's bot accepts the ship-it command. The other partners see the proposed plan via their bots but cannot trigger the handoff.
+
+Once the creator confirms via their bot, `handoff.py` fires and broadcasts the result to all 3 partner bots.
 
 ## 2. Data model
 
