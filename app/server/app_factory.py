@@ -200,6 +200,22 @@ async def on_startup():
         except Exception as exc:
             log.warning("nexus_stores initialisation failed (non-fatal): %s", exc)
 
+    # Nexus scheduler — Phase B.5/B8. Always-on loop that fires once per
+    # local day at NEXUS_SCHEDULER_HOUR (default 06). Gated on env so the
+    # operator opts in explicitly:
+    #   NEXUS_SCHEDULER_ENABLED=1     — turn the loop on
+    #   NEXUS_SCHEDULER_DRY_RUN=1     — log only; no LLM / no writes
+    #   NEXUS_SCHEDULER_WORKSPACES=a,b — comma-separated workspace slugs
+    if os.environ.get("NEXUS_SCHEDULER_ENABLED") == "1":
+        try:
+            from swarm.nexus.scheduler_daemon import nexus_scheduler_loop  # noqa: PLC0415
+            asyncio.create_task(_resilient(nexus_scheduler_loop, "nexus_scheduler"))
+            log.info("nexus scheduler scheduled (NEXUS_SCHEDULER_ENABLED=1)")
+        except Exception as exc:
+            log.warning("nexus scheduler startup failed (non-fatal): %s", exc)
+    else:
+        log.info("nexus scheduler NOT started (set NEXUS_SCHEDULER_ENABLED=1 to enable)")
+
     log.info("Pi CEO ready on %s:%s", config.HOST, config.PORT)
 
 
