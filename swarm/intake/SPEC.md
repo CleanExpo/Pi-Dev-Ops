@@ -2,6 +2,62 @@
 
 > **Status:** SPEC draft 2026-05-26. Phill reviewed + locked architecture decisions 2026-05-26. Implementation underway.
 
+## Guardrails (locked 2026-05-26, before PR2)
+
+These are NON-negotiable for the implementation. Every PR in the series must respect them; tests must encode them.
+
+### G1. Applied ≠ approved
+
+`PR #271` migrations are applied to prod Pi-CEO Supabase **for validation only**. Application of a migration is NOT the same as merge approval or ship approval. No PR in this series is merged or ship-approved unless Phill explicitly requests it. The skill PRE-RULE (plain merge when no hard block exists) does NOT apply here — these PRs wait for explicit approval regardless of branch protection state.
+
+### G2. Workspace access vs. approval authority — separate concerns
+
+Workspace-scoped RLS gives all 3 partners READ + WRITE access to every row in `'unite-group'`. That does NOT mean all partners can:
+- **Approve production handoff** — only `intake_projects.owner_partner_id` (the creator) can flip status `ready_for_production` → `shipped`.
+- **Release / cancel a project** — same: creator only.
+- **Override ownership** (change `owner_partner_id`) — creator OR future workspace admin role only.
+- **Delete a project or thread** — creator OR admin only.
+
+These checks live in the **application layer** (Python guards in `swarm/intake/spm.py` and `swarm/intake/handoff.py`), NOT in RLS. RLS handles "can you see / modify any column"; the application enforces "can you take this irreversible action". Tests for each enforcement function are mandatory.
+
+### G3. Anti-spoofing — `partner_id` columns MUST come from a trusted identity channel
+
+The columns `submitted_by_partner_id`, `owner_partner_id`, `triggered_by_partner_id` are useless if attackers (or buggy code) can write any partner_id they want. Trusted identity sources, in priority order:
+
+1. **Telegram bot identity (Phase 1 primary).** Inbound messages arrive via a specific `intake_client_bots` row identified by the bot token used to receive the message. That row has `partner_id` set at provisioning. The inbound message's `submitted_by_partner_id` MUST be `intake_client_bots.partner_id` for the bot that received it. NEVER read partner_id from the Telegram message body or from a user-supplied field.
+
+2. **Authorized Telegram chat_id check (anti-impersonation within a bot).** Even within a single bot, only Telegram chats in `intake_client_bots.authorized_chat_ids` may submit messages. This stops a partner from sharing their bot with a non-partner who then submits as them.
+
+3. **Telegram user id cross-check (defense-in-depth).** When `intake_partners.telegram_user_id` is set, verify the Telegram `from.id` of the message matches. Mismatch → reject with logged warning. Optional but recommended for the 3-partner Phase 1.
+
+4. **Email / webhook source (Phase 2+).** When email-driven intake lands, signed-webhook origin + verified sender email become the trust root. Currently out of scope.
+
+`owner_partner_id` is set at project creation from the same trusted source. `triggered_by_partner_id` (handoff) is set from the bot that received the "ship it" command — verified against `intake_projects.owner_partner_id` before the handoff fires (per G2).
+
+The seeded partner rows from `20260526b` are bootstrap-only. They are NOT a trust mechanism by themselves; they are the target the trust mechanisms map TO.
+
+### G4. New code MUST drop the `client_slug` mental model
+
+The `client_slug` column still exists on the 5 PR1 tables for back-compat (no rows reference it yet). PR2+ logic MUST use `project_id` + `workspace_slug` + `partner_id`. No new code paths read or write `client_slug`. A future cleanup migration drops the column.
+
+### G5. Future migration: first-class `intake_workspaces` table
+
+`workspace_slug` is currently a string column defaulting to `'unite-group'`. This is a Phase 1 shortcut. Future migration: extract to `intake_workspaces` (id, slug, display_name, billing_account_id, …) and replace `workspace_slug` columns with `workspace_id` FK. Documented here so it isn't forgotten. Not in scope for PR2–PR6.
+
+### G6. Margot router must handle non-happy paths (PR3 acceptance criteria)
+
+PR3 acceptance ships only when these flows have tests + handling:
+
+| Path | Expected behavior |
+|---|---|
+| First message contains BOTH project name AND idea | Skip `awaiting_project_name`; advance straight to `classified` (LLM extracts both fields in one pass) |
+| Vague project name ("the thing", "stuff", < 3 chars) | Reject with prompt: "Can you give it a working name?" |
+| Duplicate project (slug or fuzzy-name match against existing open projects) | Surface match: "Looks like 'Foo' is already open — continue that, or start a new one?" |
+| Abandoned thread (>30 days no inbound, status='open') | Sweeper task moves to `paused_human_review`. Partner can resume with `/resume`. |
+| Project name change mid-flow | Accept `/rename <new>` or natural-language signal; update `intake_projects.name` + `slug`; preserve thread history |
+| Partner sends `/start` after a thread is mid-flow | Confirm continuation vs. fresh start |
+| Cross-partner takeover (Toby posts to Duncan's thread) | Allowed (per G2 workspace access) BUT message tagged with `submitted_by_partner_id=toby`; SPM context includes "this reply came from Toby, not the creator" |
+
 ## Locked decisions (2026-05-26)
 
 | Decision | Pick |
