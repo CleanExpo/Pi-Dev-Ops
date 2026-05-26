@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-05-26T10:37:15Z (commits 43bb58e..09279f4)_
+_Last updated: 2026-05-26T22:56:24Z (commits 8939aec..e7f5ff3)_
 
 ## Recent changes
-- 09279f4 — feat(nexus): B5 — BRA generator (Brief/Recommendation/Action) with evidence anchoring (#291)
+- e7f5ff3 — feat(nexus): B8 — always-on scheduler wire-up (gated, dry-run by default) (#294)
 
 Not logged in · Please run /login
