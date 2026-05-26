@@ -1,8 +1,8 @@
 # app — Wiki
 
-_Last updated: 2026-05-26T09:21:35Z (commits 7853d26..a33c7b5)_
+_Last updated: 2026-05-26T09:49:47Z (commits 8a599d8..83a986b)_
 
 ## Recent changes
-- a33c7b5 — feat(nexus): PR-NEXUS-5 Pi-CEO FastAPI surface + webhooks (30 contract tests) (#285)
+- 83a986b — feat(nexus): wire Phase A routes into FastAPI surface (#286)
 
 Not logged in · Please run /login
