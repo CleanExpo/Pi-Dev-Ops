@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-05-26T10:26:36Z (commits 9e7d80a..4a32634)_
+_Last updated: 2026-05-26T10:33:00Z (commits c299d78..0e2c762)_
 
 ## Recent changes
-- 4a32634 — feat(nexus): B3 — Discovery loop orchestrator + loop runner driver (#289)
+- 0e2c762 — feat(nexus): B4 — outcomes ingestion adapters (Stripe/Vercel/PostHog/Sentry/Linear) (#290)
 
 Not logged in · Please run /login
