@@ -25,6 +25,7 @@ dependencies = [
     "pyotp>=2.9",   # RA-1839 — TOTP validation for /api/swarm/{kill,resume}
     "mcp>=1.0.0",
     "bubus @ git+https://github.com/browser-use/bubus.git@7c09342724feabee7785f99e60e583d54bf6882c",
+    "libtmux>=0.31",  # Terminal Orchestrator T1 observer — stable pane_id (%N) access
 ]
 
 [tool.pytest.ini_options]
