@@ -151,8 +151,12 @@ def _pid_in_tree(target_pid: int, root_pid: int) -> bool:
 # Public API
 # ---------------------------------------------------------------------------
 
-def list(*, server=None, socket_name: str | None = None) -> dict:
-    """Return a structured snapshot of all sessions/windows/panes."""
+def list_sessions(*, server=None, socket_name: str | None = None) -> dict:
+    """Return a structured snapshot of all sessions/windows/panes.
+
+    Note: avoid naming conflict with builtin `list` — caller-facing CLI
+    subcommand is still `list` (see main()).
+    """
     server = server or _get_server(socket_name=socket_name)
     sessions = [_session_snapshot(s) for s in server.sessions]
     result = {
@@ -347,7 +351,7 @@ def main(argv: list[str] | None = None) -> int:
     tmux_audit.ensure_append_only()
 
     if args.cmd == "list":
-        _print_json(list())
+        _print_json(list_sessions())
         return 0
     if args.cmd == "status":
         _print_json(status(session=args.session))
