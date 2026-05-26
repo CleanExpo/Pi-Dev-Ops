@@ -1,8 +1,8 @@
 # app — Wiki
 
-_Last updated: 2026-05-26T10:33:00Z (commits c299d78..0e2c762)_
+_Last updated: 2026-05-26T22:56:24Z (commits 8939aec..e7f5ff3)_
 
 ## Recent changes
-- 0e2c762 — feat(nexus): B4 — outcomes ingestion adapters (Stripe/Vercel/PostHog/Sentry/Linear) (#290)
+- e7f5ff3 — feat(nexus): B8 — always-on scheduler wire-up (gated, dry-run by default) (#294)
 
 Not logged in · Please run /login
