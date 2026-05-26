@@ -22,7 +22,6 @@ Env vars (read on demand, NOT at import time, so callers can rotate keys):
     ANTHROPIC_API_KEY     — required for ANY Anthropic tier
     OPENROUTER_API_KEY    — required for any OpenRouter fallback
     OLLAMA_BASE_URL       — defaults to http://localhost:11434
-    MODEL_TIER_OVERRIDE   — optional; force a specific tier (e.g. for tests)
 
 Public surface (the only API callers should touch):
     Tier                     — enum, the four tiers above
@@ -145,12 +144,25 @@ class AnthropicProvider:
         with urllib.request.urlopen(req, timeout=60) as resp:
             raw = json.loads(resp.read().decode("utf-8"))
         dt_ms = int((time.monotonic() - t0) * 1000)
-        # Anthropic response: content is a list of blocks
+        # Anthropic response: content is a list of blocks. A 200 with a
+        # malformed/error body would silently yield empty text and STOP
+        # the fallback ladder (caller would treat it as success). Fail
+        # over to the next provider instead.
+        content = raw.get("content")
+        if not isinstance(content, list) or not content:
+            raise NoProviderAvailable(
+                f"anthropic returned malformed payload: missing/empty 'content' "
+                f"(keys={list(raw.keys()) if isinstance(raw, dict) else type(raw).__name__})"
+            )
         text = "".join(
             block.get("text", "")
-            for block in raw.get("content", [])
-            if block.get("type") == "text"
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
         )
+        if not text:
+            raise NoProviderAvailable(
+                "anthropic returned no text blocks in content"
+            )
         return LLMResponse(
             text=text,
             model=self._model,
@@ -209,8 +221,21 @@ class OpenRouterProvider:
         with urllib.request.urlopen(req, timeout=60) as resp:
             raw = json.loads(resp.read().decode("utf-8"))
         dt_ms = int((time.monotonic() - t0) * 1000)
-        # OpenAI-compatible: choices[0].message.content
-        text = raw.get("choices", [{}])[0].get("message", {}).get("content", "")
+        # OpenAI-compatible: choices[0].message.content. A 200 with an
+        # error body (e.g. rate-limit JSON without `choices`) would
+        # silently yield "" and stop the fallback ladder. Fail over.
+        choices = raw.get("choices")
+        if not isinstance(choices, list) or not choices:
+            raise NoProviderAvailable(
+                f"openrouter returned malformed payload: missing/empty 'choices' "
+                f"(keys={list(raw.keys()) if isinstance(raw, dict) else type(raw).__name__})"
+            )
+        message = choices[0].get("message") if isinstance(choices[0], dict) else None
+        text = (message or {}).get("content", "") if isinstance(message, dict) else ""
+        if not text:
+            raise NoProviderAvailable(
+                "openrouter returned no content in choices[0].message"
+            )
         return LLMResponse(
             text=text,
             model=self._model,
@@ -351,13 +376,17 @@ class ModelClient:
         last_exc: Exception | None = None
         fell_back = False
         for i, provider in enumerate(self._ladder):
-            if not provider.is_available():
-                last_exc = NoProviderAvailable(
-                    f"{provider.name} not available (env / network)"
-                )
-                fell_back = True
-                continue
+            # Wrap both the availability probe AND the call in the same try.
+            # Without this, an exception from `is_available()` (e.g. OllamaProvider
+            # raising on a flaky local socket) aborts the whole ladder instead
+            # of falling through to the next provider.
             try:
+                if not provider.is_available():
+                    last_exc = NoProviderAvailable(
+                        f"{provider.name} not available (env / network)"
+                    )
+                    fell_back = True
+                    continue
                 resp = provider.complete(
                     system=system, user=user,
                     max_tokens=max_tokens, temperature=temperature,

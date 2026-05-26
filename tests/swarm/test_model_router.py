@@ -145,6 +145,27 @@ class TestFallback:
         resp = client.complete(system="s", user="u")
         assert resp.provider == "openrouter"
 
+    def test_is_available_exception_falls_through(self):
+        """CodeRabbit finding #3: a probe that raises must NOT abort the ladder.
+
+        Previously is_available() ran outside the try/except, so any exception
+        from the probe (e.g. flaky Ollama socket) aborted the whole call.
+        Now wrapped in the same try block.
+        """
+        class ExplodingProbeProvider:
+            name = "ollama"
+            def is_available(self):
+                raise ConnectionError("ollama socket flaky")
+            def complete(self, **kwargs):
+                pytest.fail("complete() should not be called when is_available raises")
+
+        primary = ExplodingProbeProvider()
+        fallback = StubProvider(name="openrouter", model="fb")
+        client = get_client(Tier.FRONTIER, providers=[primary, fallback])
+        resp = client.complete(system="s", user="u")
+        assert resp.provider == "openrouter"
+        assert resp.fell_back is True
+
 
 # ============================================================
 # Tier enum + defaults
@@ -178,10 +199,16 @@ class TestDefaultLadders:
             client.complete(system="s", user="u")
 
     def test_remedial_default_ladder_starts_with_openrouter(self, monkeypatch):
+        # Wipe API key env vars so Anthropic + OpenRouter report unavailable.
         for k in ("ANTHROPIC_API_KEY", "OPENROUTER_API_KEY"):
             monkeypatch.delenv(k, raising=False)
+        # Force OllamaProvider.is_available() to report False regardless of
+        # whether the developer's machine happens to be running Ollama on
+        # localhost:11434. Without this patch the test stops being a pure
+        # unit test on Ollama-equipped machines.
+        from swarm.model_router import OllamaProvider
+        monkeypatch.setattr(OllamaProvider, "is_available", lambda self: False)
         client = get_client(Tier.REMEDIAL)
-        # Should raise (no env, no ollama running), not crash with import errors
         with pytest.raises(NoProviderAvailable):
             client.complete(system="s", user="u")
 
