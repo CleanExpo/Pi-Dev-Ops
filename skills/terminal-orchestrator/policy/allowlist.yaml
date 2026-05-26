@@ -1,0 +1,139 @@
+# Terminal Orchestrator — allowlist (ratified post-grill 2026-05-26)
+#
+# Validation: shlex.split(cmd) → tokens; tokens[0] is the verb. Verb must
+# appear in `verbs:` for L2 auto-approval; otherwise L3 ack required.
+#
+# Per-verb constraints:
+#   - subcommand_required: tokens[1] must be in allowed_subcommands
+#   - args_pattern: every arg token must match this regex
+#   - forbidden_args: any arg matching → reject
+#   - safe_path_prefixes: path args must start with one of these (after ~ expand)
+#   - safe_path_prefixes_only: if true, EVERY path-shaped arg must be under prefix
+#   - safe_targets: for rm, the target token (last positional) must be in this set
+
+verbs:
+  pytest:
+    args_pattern: '^(-[a-zA-Z]+|--[a-zA-Z-]+(?:=[A-Za-z0-9_/.-]*)?|[A-Za-z0-9_./-]+)$'
+    args_max_count: 30
+    forbidden_args: ['--rootdir=/', '--rootdir=/etc', '--rootdir=/var']
+    safe_path_prefixes_only: true
+
+  pnpm:
+    subcommand_required: true
+    allowed_subcommands: ['install', 'run', 'dev', 'build', 'test', 'test:watch', 'lint', 'typecheck', 'exec']
+    forbidden_subcommands: ['publish', 'dlx']
+    args_max_count: 30
+
+  npm:
+    subcommand_required: true
+    allowed_subcommands: ['install', 'ci', 'run', 'test', 'audit', 'ls']
+    forbidden_subcommands: ['publish', 'exec', 'dlx']
+    args_max_count: 30
+
+  yarn:
+    subcommand_required: true
+    allowed_subcommands: ['install', 'run', 'test', 'audit']
+    forbidden_subcommands: ['publish', 'exec']
+    args_max_count: 30
+
+  git:
+    subcommand_required: true
+    allowed_subcommands: ['status', 'diff', 'log', 'show', 'branch', 'fetch', 'pull', 'add', 'commit', 'stash', 'remote', 'rev-parse', 'rev-list', 'config']
+    # push, reset, clean, checkout, filter-branch, rebase, cherry-pick require L3
+    args_max_count: 30
+
+  python3:
+    args_pattern: '^(-[a-zA-Z]+|--[a-zA-Z-]+(?:=[A-Za-z0-9_/.-]*)?|[A-Za-z0-9_./-]+)$'
+    args_max_count: 20
+    forbidden_args: ['-c', '-i']
+
+  python:
+    args_pattern: '^(-[a-zA-Z]+|--[a-zA-Z-]+(?:=[A-Za-z0-9_/.-]*)?|[A-Za-z0-9_./-]+)$'
+    args_max_count: 20
+    forbidden_args: ['-c', '-i']
+
+  cd:
+    args_max_count: 1
+    safe_path_prefixes:
+      - /Users/phillmcgurk/Pi-CEO
+      - /Users/phillmcgurk/Synthex
+      - /Users/phillmcgurk/Unite-Hub
+      - /Users/phillmcgurk/Unite-Group
+      - /Users/phillmcgurk/2nd-brain
+      - /Users/phillmcgurk/Disaster-Recovery
+      - /Users/phillmcgurk/DR-NRPG
+      - /Users/phillmcgurk/CARSI
+      - /Users/phillmcgurk/CCW-CRM
+      - /Users/phillmcgurk/ATO
+      - /Users/phillmcgurk/RestoreAssist
+      - /Users/phillmcgurk/synthex-mcp-app
+      - /Users/phillmcgurk/pi-ceo-operator-mcp
+      - /tmp
+      - '~'
+
+  ls:
+    args_pattern: '^(-[lahA1]+|[A-Za-z0-9_./-]+)$'
+    args_max_count: 5
+
+  cat:
+    args_max_count: 5
+    forbidden_path_prefixes:
+      - /etc/
+      - /private/etc/
+      - ~/.ssh/
+      - ~/.aws/
+      - ~/.config/op/
+      - ~/.config/gcloud/
+      - ~/.config/1password/
+      - ~/.netrc
+      - ~/.gnupg/
+      - ~/Library/Keychains/
+
+  echo:
+    args_max_count: 20
+    forbidden_arg_regex: '\$(?:AWS|GITHUB|GH|ANTHROPIC|OPENAI|OPENROUTER|STRIPE|LINEAR|SUPABASE|TELEGRAM|RAILWAY|VERCEL)_'
+
+  curl:
+    forbidden_args: ['-X POST', '-X PUT', '-X PATCH', '-X DELETE', '--data', '--data-binary', '--data-raw', '-d']
+    args_pattern: '^(-[sfL]+|--header|-H|[A-Za-z0-9_./:@?&=%~-]+)$'
+    args_max_count: 10
+
+  rm:
+    args_required_count: 2
+    require_flags: ['-rf']
+    safe_targets: ['node_modules', '.next', 'dist', 'build', '.turbo', 'coverage', '__pycache__', '.pytest_cache']
+
+  chmod:
+    args_max_count: 3
+    forbidden_modes_regex: '^(?:777|[+-]?s|\d?[2-7]?7[2-7][2-7])$'
+    allowed_modes_regex: '^(?:\+x|-x|\+r|-r|\+w|-w|[0-7]?[0-6][0-6][0-6])$'
+
+  make:
+    args_max_count: 10
+    safe_path_prefixes_only: true
+
+  uvicorn:
+    forbidden_args: ['--host=0.0.0.0', '--host', '0.0.0.0']
+    args_pattern: '^(-[a-zA-Z]+|--[a-zA-Z-]+(?:=[A-Za-z0-9_/.:-]*)?|[A-Za-z0-9_./:-]+)$'
+    args_max_count: 15
+
+  pip:
+    subcommand_required: true
+    allowed_subcommands: ['install', 'list', 'show', 'freeze']
+    forbidden_subcommands: ['uninstall']
+    args_max_count: 20
+
+  pip3:
+    subcommand_required: true
+    allowed_subcommands: ['install', 'list', 'show', 'freeze']
+    forbidden_subcommands: ['uninstall']
+    args_max_count: 20
+
+# Allowed chains: exactly one `&&` between two clauses, first clause must
+# be `cd <safe-path>`, second clause must independently pass full validation.
+chains:
+  cd_then_verb:
+    separator: '&&'
+    max_clauses: 2
+    first_clause_verb: 'cd'
+    second_clause_must_validate: true
