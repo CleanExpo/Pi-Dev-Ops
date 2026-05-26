@@ -1,0 +1,15 @@
+# Phase B / B7 — End-to-end synthetic pipeline run
+# Template path used by the verifier block. CI uploads the live run
+# output here on green; this file documents the expected shape.
+#
+# Stage outputs from a passing run:
+#
+#   intake_outcome           = {result: 'ok', client_id: 'c-...'}
+#   qualify_result.result    = 'ok' (status → 'qualified')
+#   create_workspace.result  = 'ok' (workspace_id assigned)
+#   wire_channels.result     = 'ok' (1 channel mapped)
+#   enable_loops.result      = 'ok' (discovery loop, 7d cadence)
+#   stripe webhook 200       = {result: 'ok', event_id: 'evt_e2e_1'}
+#   outcomes.list('acme')    = 1 row (metric=invoice_paid, value=199.0)
+#   generate_bra cards       = 1 (evidence_ids include the stripe outcome id)
+#   assemble_six_pager       = section 8 'Nexus BRA cards' present + workspace 'acme' visible
