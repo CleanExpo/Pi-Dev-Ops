@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-05-26T10:20:59Z (commits 7dee080..d199aa4)_
+_Last updated: 2026-05-26T10:26:36Z (commits 9e7d80a..4a32634)_
 
 ## Recent changes
-- d199aa4 — feat(nexus): B2 — Margot voice intake → POST /api/nexus/clients/intake (#288)
+- 4a32634 — feat(nexus): B3 — Discovery loop orchestrator + loop runner driver (#289)
 
 Not logged in · Please run /login
