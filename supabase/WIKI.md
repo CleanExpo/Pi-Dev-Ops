@@ -1,8 +1,8 @@
 # supabase — Wiki
 
-_Last updated: 2026-05-24T05:08:09Z (commits d0f084a..6aea988)_
+_Last updated: 2026-05-26T09:07:57Z (commits bb4b48b..0b72055)_
 
 ## Recent changes
-- 6aea988 — feat(pilot): Pilot V1 — schema + sources + UX + voice + scheduler + cutover gate (Phases 1-8) (#238)
+- 0b72055 — feat(nexus): PR-NEXUS-1 schema migration + RLS (8 tables, append-only audit) (#281)
 
 Not logged in · Please run /login

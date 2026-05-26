@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-05-26T09:02:25Z (commits 062d66d..a8f13ae)_
+_Last updated: 2026-05-26T09:07:57Z (commits bb4b48b..0b72055)_
 
 ## Recent changes
-- a8f13ae — feat(swarm): model_router — Anthropic→OpenRouter→Ollama fallback ladder (#278)
+- 0b72055 — feat(nexus): PR-NEXUS-1 schema migration + RLS (8 tables, append-only audit) (#281)
 
 Not logged in · Please run /login
