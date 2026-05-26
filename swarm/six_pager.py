@@ -490,12 +490,18 @@ def _split_by_line(paragraph: str, *, max_chars: int) -> list[str]:
 
 
 def assemble_six_pager(*, repo_root: Path | None = None,
-                        date_str: str | None = None) -> str:
+                        date_str: str | None = None,
+                        bra_reports: list | None = None) -> str:
     """Compose the daily 6-pager.
 
     Reads from the existing senior-agent jsonl ledgers; does not invoke
     SDKs or external APIs. Each section degrades gracefully when its
     upstream ledger is missing.
+
+    Phase B / B6: when `bra_reports` is provided (a list of BRAReport
+    objects), appends a Nexus BRA section after the Board section. The
+    caller (six_pager_dispatcher) is responsible for actually invoking
+    `generate_bra()` per workspace and passing the result here.
     """
     rr = repo_root or REPO_ROOT
     date_str = date_str or _now_utc_date()
@@ -521,6 +527,18 @@ def assemble_six_pager(*, repo_root: Path | None = None,
         "",
         "7. " + _board_section(rr),
         "",
+    ])
+
+    if bra_reports:
+        try:
+            from swarm.nexus.six_pager_bra import render_bra_block  # noqa: PLC0415
+            block = render_bra_block(bra_reports)
+            if block:
+                sections.extend([block, ""])
+        except Exception:  # pragma: no cover — defensive
+            pass
+
+    sections.extend([
         "—",
         "React 👍 to ack · ❌ to flag · ⏳ to defer per section.",
     ])
