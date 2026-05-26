@@ -530,7 +530,17 @@ def register_with_flow_engine() -> int:
                               lambda **kw: image_generate(**kw))
     flow_engine.register_tool("mcp.margot.propose_idea",
                               lambda **kw: propose_idea(**kw))
-    return 6
+
+    # Nexus intake binding (Phase B / B2). Imported lazily so test
+    # collection doesn't drag the whole nexus subtree if it's absent.
+    try:
+        from .nexus.margot_intake import nexus_intake_from_voice  # noqa: PLC0415
+        flow_engine.register_tool("mcp.margot.nexus_intake_from_voice",
+                                  lambda **kw: nexus_intake_from_voice(**kw))
+    except Exception as _exc:
+        log.debug("nexus_intake_from_voice not registered (non-fatal): %s", _exc)
+        return 6
+    return 7
 
 
 # Auto-register on import (idempotent)
