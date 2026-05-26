@@ -441,8 +441,17 @@ class TestPidInTree:
 
 TMUX_AVAILABLE = shutil.which("tmux") is not None
 
+try:
+    import libtmux as _libtmux_probe  # noqa: F401
+    LIBTMUX_AVAILABLE = True
+except ImportError:
+    LIBTMUX_AVAILABLE = False
 
-@pytest.mark.skipif(not TMUX_AVAILABLE, reason="tmux binary not on PATH")
+
+@pytest.mark.skipif(
+    not TMUX_AVAILABLE or not LIBTMUX_AVAILABLE,
+    reason="requires both tmux binary and libtmux module",
+)
 class TestLiveTmuxIntegration:
     """Run against an isolated `tmux -L t1-tests` socket — never touches the
     operator's real sessions."""
