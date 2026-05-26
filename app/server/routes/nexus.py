@@ -443,44 +443,78 @@ def _verify_webhook_signature(request: Request, body: bytes, secret_env: str) ->
     return hmac.compare_digest(sig_header, expected)
 
 
+async def _process_webhook(
+    request: Request,
+    body: bytes,
+    secret_env: str,
+    source: str,
+    parser,
+):
+    """Shared webhook flow: verify → parse → write outcome → 200.
+
+    Always returns 200 once the signature verifies (per spec — avoids
+    webhook re-delivery storms on downstream write failures)."""
+    import json as _json
+    if not _verify_webhook_signature(request, body, secret_env):
+        raise HTTPException(status_code=401, detail="invalid signature")
+
+    try:
+        payload = _json.loads(body.decode("utf-8") or "{}")
+    except (ValueError, UnicodeDecodeError):
+        # Bad bodies do NOT trigger re-delivery — return 200 with a marker.
+        return {"received": True, "source": source, "result": "malformed"}
+
+    parsed = parser(payload, captured_at=datetime.now(timezone.utc).isoformat())
+    if parsed.result == "ok" and parsed.outcome is not None:
+        stores = get_stores(request)
+        stores["outcomes"].write(parsed.outcome)
+
+    return {
+        "received": True,
+        "source": source,
+        "result": parsed.result,
+        "event_id": parsed.event_id,
+    }
+
+
 @webhooks_router.post("/stripe")
 async def webhook_stripe(request: Request):
+    from swarm.nexus.ingest import stripe as _ingest_stripe
     body = await request.body()
-    if not _verify_webhook_signature(request, body, "STRIPE_WEBHOOK_SECRET"):
-        raise HTTPException(status_code=401, detail="invalid signature")
-    return {"received": True, "source": "stripe"}
+    return await _process_webhook(request, body, "STRIPE_WEBHOOK_SECRET",
+                                  "stripe", _ingest_stripe.parse)
 
 
 @webhooks_router.post("/vercel")
 async def webhook_vercel(request: Request):
+    from swarm.nexus.ingest import vercel as _ingest_vercel
     body = await request.body()
-    if not _verify_webhook_signature(request, body, "VERCEL_WEBHOOK_SECRET"):
-        raise HTTPException(status_code=401, detail="invalid signature")
-    return {"received": True, "source": "vercel"}
+    return await _process_webhook(request, body, "VERCEL_WEBHOOK_SECRET",
+                                  "vercel", _ingest_vercel.parse)
 
 
 @webhooks_router.post("/posthog")
 async def webhook_posthog(request: Request):
+    from swarm.nexus.ingest import posthog as _ingest_posthog
     body = await request.body()
-    if not _verify_webhook_signature(request, body, "POSTHOG_WEBHOOK_SECRET"):
-        raise HTTPException(status_code=401, detail="invalid signature")
-    return {"received": True, "source": "posthog"}
+    return await _process_webhook(request, body, "POSTHOG_WEBHOOK_SECRET",
+                                  "posthog", _ingest_posthog.parse)
 
 
 @webhooks_router.post("/sentry")
 async def webhook_sentry(request: Request):
+    from swarm.nexus.ingest import sentry as _ingest_sentry
     body = await request.body()
-    if not _verify_webhook_signature(request, body, "SENTRY_WEBHOOK_SECRET"):
-        raise HTTPException(status_code=401, detail="invalid signature")
-    return {"received": True, "source": "sentry"}
+    return await _process_webhook(request, body, "SENTRY_WEBHOOK_SECRET",
+                                  "sentry", _ingest_sentry.parse)
 
 
 @webhooks_router.post("/linear")
 async def webhook_linear(request: Request):
+    from swarm.nexus.ingest import linear as _ingest_linear
     body = await request.body()
-    if not _verify_webhook_signature(request, body, "LINEAR_WEBHOOK_SECRET"):
-        raise HTTPException(status_code=401, detail="invalid signature")
-    return {"received": True, "source": "linear"}
+    return await _process_webhook(request, body, "LINEAR_WEBHOOK_SECRET",
+                                  "linear", _ingest_linear.parse)
 
 
 # ============================================================
