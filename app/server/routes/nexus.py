@@ -423,6 +423,19 @@ async def get_nexus_health():
     return {"status": "ok", "service": "nexus"}
 
 
+@router.get("/ingest/health")
+async def get_ingest_health(request: Request):
+    """Phase C / C1 — per-provider ingest activity probe.
+
+    Reads from outcomes table grouped by source. Returns per-provider
+    last_seen_at + 24h/7d counts. No auth: read-only, no row content
+    surfaces (only timestamps + counts).
+    """
+    from swarm.nexus.ingest_health import compute_ingest_health  # noqa: PLC0415
+    stores = get_stores(request)
+    return compute_ingest_health(stores["outcomes"])
+
+
 # ============================================================
 # Webhooks (signature-verified before write)
 # ============================================================
