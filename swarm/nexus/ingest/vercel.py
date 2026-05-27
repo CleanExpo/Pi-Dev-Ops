@@ -14,11 +14,17 @@ from typing import Any
 
 from ..types import Outcome
 from . import ParseResult, make_outcome_id, safe_str
+from .workspace_resolver import WorkspaceLookup, resolve_workspace
 
 HANDLED_TYPES = {"deployment.succeeded", "deployment.error"}
 
 
-def parse(body: dict[str, Any], *, captured_at: str) -> ParseResult:
+def parse(
+    body: dict[str, Any],
+    *,
+    captured_at: str,
+    lookup: WorkspaceLookup | None = None,
+) -> ParseResult:
     if not isinstance(body, dict):
         return ParseResult(result="malformed", reason="body is not an object")
 
@@ -33,10 +39,15 @@ def parse(body: dict[str, Any], *, captured_at: str) -> ParseResult:
     payload = body.get("payload") or {}
     workspace_slug = safe_str(payload.get("workspace_slug"))
     workspace_id = safe_str(payload.get("workspace_id"))
+    if (not workspace_slug or not workspace_id) and lookup is not None:
+        project_id = safe_str((payload.get("project") or {}).get("id"))
+        resolved = resolve_workspace("vercel", project_id, lookup)
+        if resolved is not None:
+            workspace_id, workspace_slug = resolved
     if not workspace_slug or not workspace_id:
         return ParseResult(
             result="malformed", event_id=event_id,
-            reason="payload.workspace_slug + workspace_id required",
+            reason="workspace attribution missing: provide payload.workspace_slug + workspace_id, OR map vercel project id to client_workspaces.vercel_project",
         )
 
     metric = "deploy_success" if event_type == "deployment.succeeded" else "deploy_error"

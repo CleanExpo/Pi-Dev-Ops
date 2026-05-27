@@ -13,11 +13,17 @@ from typing import Any
 
 from ..types import Outcome
 from . import ParseResult, make_outcome_id, safe_float, safe_str
+from .workspace_resolver import WorkspaceLookup, resolve_workspace
 
 HANDLED_EVENTS = {"invoice.paid", "customer.subscription.created"}
 
 
-def parse(body: dict[str, Any], *, captured_at: str) -> ParseResult:
+def parse(
+    body: dict[str, Any],
+    *,
+    captured_at: str,
+    lookup: WorkspaceLookup | None = None,
+) -> ParseResult:
     if not isinstance(body, dict):
         return ParseResult(result="malformed", reason="body is not an object")
 
@@ -33,10 +39,16 @@ def parse(body: dict[str, Any], *, captured_at: str) -> ParseResult:
     metadata = data_object.get("metadata") or {}
     workspace_slug = safe_str(metadata.get("workspace_slug"))
     workspace_id = safe_str(metadata.get("workspace_id"))
+    if (not workspace_slug or not workspace_id) and lookup is not None:
+        # Phase C / C2 — fall back to stripe_customer_id → workspace.
+        customer_id = safe_str(data_object.get("customer"))
+        resolved = resolve_workspace("stripe", customer_id, lookup)
+        if resolved is not None:
+            workspace_id, workspace_slug = resolved
     if not workspace_slug or not workspace_id:
         return ParseResult(
             result="malformed", event_id=event_id,
-            reason="metadata.workspace_slug + workspace_id required",
+            reason="workspace attribution missing: provide metadata.workspace_slug + workspace_id, OR map stripe customer to client_workspaces.stripe_customer_id",
         )
 
     if event_type == "invoice.paid":
