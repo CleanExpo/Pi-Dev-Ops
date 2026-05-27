@@ -19,11 +19,17 @@ from typing import Any
 
 from ..types import Outcome
 from . import ParseResult, make_outcome_id, safe_float, safe_str
+from .workspace_resolver import WorkspaceLookup  # noqa: F401 — kept for signature parity
 
 HANDLED_EVENTS = {"funnel_completed", "funnel_dropped"}
 
 
-def parse(body: dict[str, Any], *, captured_at: str) -> ParseResult:
+def parse(
+    body: dict[str, Any],
+    *,
+    captured_at: str,
+    lookup: WorkspaceLookup | None = None,  # noqa: ARG001 — kept for signature parity
+) -> ParseResult:
     if not isinstance(body, dict):
         return ParseResult(result="malformed", reason="body is not an object")
 
