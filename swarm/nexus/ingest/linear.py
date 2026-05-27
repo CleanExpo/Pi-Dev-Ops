@@ -16,9 +16,15 @@ from typing import Any
 
 from ..types import Outcome
 from . import ParseResult, make_outcome_id, safe_str
+from .workspace_resolver import WorkspaceLookup, resolve_workspace
 
 
-def parse(body: dict[str, Any], *, captured_at: str) -> ParseResult:
+def parse(
+    body: dict[str, Any],
+    *,
+    captured_at: str,
+    lookup: WorkspaceLookup | None = None,
+) -> ParseResult:
     if not isinstance(body, dict):
         return ParseResult(result="malformed", reason="body is not an object")
 
@@ -40,10 +46,15 @@ def parse(body: dict[str, Any], *, captured_at: str) -> ParseResult:
 
     workspace_slug = safe_str(body.get("workspace_slug"))
     workspace_id = safe_str(body.get("workspace_id"))
+    if (not workspace_slug or not workspace_id) and lookup is not None:
+        team_key = safe_str((data.get("team") or {}).get("key"))
+        resolved = resolve_workspace("linear", team_key, lookup)
+        if resolved is not None:
+            workspace_id, workspace_slug = resolved
     if not workspace_slug or not workspace_id:
         return ParseResult(
             result="malformed", event_id=delivery_id,
-            reason="workspace_slug + workspace_id required at body root",
+            reason="workspace attribution missing: provide workspace_slug + workspace_id at body root, OR map linear team key to client_workspaces.linear_team_id",
         )
 
     outcome = Outcome(
