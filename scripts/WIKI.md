@@ -1,8 +1,8 @@
 # scripts — Wiki
 
-_Last updated: 2026-05-17T13:19:11Z (commits 036e388..a17936a)_
+_Last updated: 2026-05-27T07:04:39Z (commits 9cd2495..4fdb316)_
 
 ## Recent changes
-- a17936a — fix(security): remove harness sync service role fallback (#247)
+- 4fdb316 — feat(nexus): C3 — historical backfill CLI (#298)
 
 Not logged in · Please run /login
