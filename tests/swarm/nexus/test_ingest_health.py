@@ -62,15 +62,15 @@ class TestComputeIngestHealth:
 
     def test_unknown_source_excluded(self):
         store = InMemoryOutcomesStore()
-        # Manually create an Outcome with a non-canonical source — verifier
-        # should drop it cleanly rather than 500.
+        # Outcome with a source NOT in KNOWN_SOURCES — verifier must drop it
+        # cleanly without crashing, leaving every provider bucket at 0.
         store.write(Outcome(
             id="ghost-1", workspace_id="ws-1", workspace_slug="acme",
-            source="manual",  # one of the KNOWN_SOURCES
+            source="ghost",  # type: ignore[arg-type]  — deliberately unknown
             metric="probe", captured_at=NOW.isoformat(), value_numeric=1.0,
         ))
         out = compute_ingest_health(store)
-        assert out["providers"]["manual"]["count_24h"] == 1
+        assert all(bucket["count_24h"] == 0 for bucket in out["providers"].values())
 
     def test_as_of_field_populated(self):
         out = compute_ingest_health(InMemoryOutcomesStore())
