@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-05-27T06:18:06Z (commits c787ef9..8c2d81c)_
+_Last updated: 2026-05-27T07:04:39Z (commits 9cd2495..4fdb316)_
 
 ## Recent changes
-- 8c2d81c — feat(nexus): B9 — production store wiring (loops + audit + llm) (#295)
+- 4fdb316 — feat(nexus): C3 — historical backfill CLI (#298)
 
 Not logged in · Please run /login
