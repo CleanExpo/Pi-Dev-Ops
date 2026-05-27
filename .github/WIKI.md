@@ -1,8 +1,8 @@
 # .github — Wiki
 
-_Last updated: 2026-05-24T05:08:09Z (commits d0f084a..6aea988)_
+_Last updated: 2026-05-27T07:11:23Z (commits ae2d418..505cd4c)_
 
 ## Recent changes
-- 6aea988 — feat(pilot): Pilot V1 — schema + sources + UX + voice + scheduler + cutover gate (Phases 1-8) (#238)
+- 505cd4c — fix(nexus): C1 CodeRabbit follow-up — smoke surfaces + sharper unknown-source test (#300)
 
 Not logged in · Please run /login
