@@ -183,20 +183,23 @@ async def on_startup():
         log.warning("TAO_LINEAR_WEBHOOK_SECRET not set — Linear webhook endpoint is unprotected")
     cache_status = "enabled" if config.ENABLE_PROMPT_CACHING_1H else "disabled"
     log.info("Prompt caching: %s (ENABLE_PROMPT_CACHING_1H)", cache_status)
-    # Nexus stores — Phase B/B1 wires the outcomes store; remaining stores
-    # are still stubbed pending B-series implementation. Tests inject their
-    # own bag via app.state.nexus_stores so this only fires in production.
+    # Nexus stores — Phase B/B9 wires loops + outcomes + audit + llm.
+    # Tests inject their own bag via app.state.nexus_stores so this only
+    # fires in production.
     if not getattr(app.state, "nexus_stores", None):
         try:
-            from swarm.nexus.outcomes import outcomes_store_factory  # noqa: PLC0415
-            app.state.nexus_stores = {
-                "outcomes": outcomes_store_factory(
-                    url=config.SUPABASE_URL,
-                    service_role_key=config.SUPABASE_SERVICE_ROLE_KEY,
-                ),
-            }
-            log.info("nexus_stores initialised (outcomes=%s)",
-                     type(app.state.nexus_stores["outcomes"]).__name__)
+            from swarm.nexus.store_factory import build_production_stores  # noqa: PLC0415
+            app.state.nexus_stores = build_production_stores(
+                supabase_url=config.SUPABASE_URL,
+                service_role_key=config.SUPABASE_SERVICE_ROLE_KEY,
+            )
+            log.info(
+                "nexus_stores initialised (loops=%s outcomes=%s audit=%s llm=%s)",
+                type(app.state.nexus_stores["loops"]).__name__,
+                type(app.state.nexus_stores["outcomes"]).__name__,
+                type(app.state.nexus_stores["audit"]).__name__,
+                type(app.state.nexus_stores["llm"]).__name__,
+            )
         except Exception as exc:
             log.warning("nexus_stores initialisation failed (non-fatal): %s", exc)
 
