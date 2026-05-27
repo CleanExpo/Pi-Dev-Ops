@@ -477,9 +477,15 @@ async def _process_webhook(
         # Bad bodies do NOT trigger re-delivery — return 200 with a marker.
         return {"received": True, "source": source, "result": "malformed"}
 
-    parsed = parser(payload, captured_at=datetime.now(timezone.utc).isoformat())
+    # Phase C / C6: pass workspace_lookup so parsers can fall back from
+    # missing metadata to the client_workspaces table.
+    stores = get_stores(request)
+    parsed = parser(
+        payload,
+        captured_at=datetime.now(timezone.utc).isoformat(),
+        lookup=stores.get("workspace_lookup"),
+    )
     if parsed.result == "ok" and parsed.outcome is not None:
-        stores = get_stores(request)
         stores["outcomes"].write(parsed.outcome)
 
     return {

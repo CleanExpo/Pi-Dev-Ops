@@ -186,6 +186,69 @@ class SupabaseAuditStore:
 # ============================================================
 
 
+class SupabaseWorkspaceLookup:
+    """Production WorkspaceLookup adapter — queries client_workspaces by
+    provider-specific identifier columns. Phase C / C6.
+
+    The three methods match the C2 WorkspaceLookup Protocol:
+      - by_stripe_customer  → stripe_customer_id column
+      - by_vercel_project   → vercel_project column
+      - by_linear_team      → linear_team_id column
+
+    Returns (workspace_id, workspace_slug) or None. Single-row read per
+    call (bounded). Failures return None — parsers then surface
+    'malformed' rather than guess.
+    """
+
+    def __init__(self, *, url: str, service_role_key: str) -> None:
+        self._base = f"{url.rstrip('/')}/rest/v1/client_workspaces"
+        self._headers = {
+            "apikey": service_role_key,
+            "Authorization": f"Bearer {service_role_key}",
+        }
+
+    def _query(self, column: str, value: str) -> tuple[str, str] | None:
+        if not value or not isinstance(value, str):
+            return None
+        params = urllib.parse.urlencode({
+            "select": "id,slug",
+            column: f"eq.{value}",
+            "limit": "1",
+        })
+        req = urllib.request.Request(
+            f"{self._base}?{params}",
+            method="GET",
+            headers=self._headers,
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=SUPABASE_REST_TIMEOUT_S) as resp:
+                rows = json.loads(resp.read().decode("utf-8"))
+        except (urllib.error.HTTPError, urllib.error.URLError, OSError) as exc:
+            log.warning(
+                "workspace_lookup %s=%s failed (non-fatal): %s", column, value, exc,
+            )
+            return None
+        if not rows or not isinstance(rows, list):
+            return None
+        row = rows[0]
+        if not isinstance(row, dict):
+            return None
+        ws_id = row.get("id")
+        ws_slug = row.get("slug")
+        if not isinstance(ws_id, str) or not isinstance(ws_slug, str):
+            return None
+        return (ws_id, ws_slug)
+
+    def by_stripe_customer(self, customer_id: str) -> tuple[str, str] | None:
+        return self._query("stripe_customer_id", customer_id)
+
+    def by_vercel_project(self, project_id: str) -> tuple[str, str] | None:
+        return self._query("vercel_project", project_id)
+
+    def by_linear_team(self, team_key: str) -> tuple[str, str] | None:
+        return self._query("linear_team_id", team_key)
+
+
 class WorkingTierLLM:
     """Adapter: LLMProtocol → swarm.model_router (WORKING tier).
 
@@ -254,10 +317,12 @@ def build_production_stores(
             "to in-memory stores. Set NEXT_PUBLIC_SUPABASE_URL + "
             "SUPABASE_SERVICE_ROLE_KEY on Railway to persist nexus state."
         )
+        from .ingest.workspace_resolver import InMemoryWorkspaceLookup  # noqa: PLC0415
         return {
             "loops": _InMemoryLoopsStore(),
             "outcomes": outcomes_store_factory(in_memory=True),
             "audit": _InMemoryAuditStore(),
+            "workspace_lookup": InMemoryWorkspaceLookup(),
             "llm": WorkingTierLLM(),
         }
 
@@ -271,6 +336,9 @@ def build_production_stores(
         "audit": SupabaseAuditStore(
             url=supabase_url, service_role_key=service_role_key,
         ),
+        "workspace_lookup": SupabaseWorkspaceLookup(
+            url=supabase_url, service_role_key=service_role_key,
+        ),
         "llm": WorkingTierLLM(),
     }
 
@@ -278,6 +346,7 @@ def build_production_stores(
 __all__ = [
     "SupabaseLoopsStore",
     "SupabaseAuditStore",
+    "SupabaseWorkspaceLookup",
     "WorkingTierLLM",
     "build_production_stores",
 ]
