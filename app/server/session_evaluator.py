@@ -9,13 +9,14 @@ extraction, alert dispatching, and the three evaluator runners:
   - _extract_eval_confidence()     — parse CONFIDENCE: <pct>%
   - _send_low_confidence_alert()   — fire-and-forget Telegram alert (RA-674)
   - _get_claude_md()               — lazy-load CLAUDE.md for prompt caching (RA-655)
-  - _run_eval_with_cache()         — single cached direct-API eval (RA-655)
-  - _run_parallel_eval_cached()    — parallel sonnet+haiku cached eval (RA-655)
-  - _run_single_eval()             — single SDK or subprocess eval pass
-  - _run_parallel_eval()           — parallel sonnet+haiku + Opus escalation
+  - _run_eval_with_cache()         — provider-routed eval pass
+  - _run_parallel_eval_cached()    — parallel provider-routed eval passes
+  - _run_single_eval()             — single provider-routed eval pass
+  - _run_parallel_eval()           — parallel provider-routed consensus eval
 
 Import graph:
-  session_evaluator  →  session_sdk  (for _write_sdk_metric, _run_claude_via_sdk)
+  session_evaluator  →  session_sdk  (for _write_sdk_metric)
+  session_evaluator  →  provider_router (for configured model/provider routing)
   session_evaluator  →  session_model (for em, BuildSession)
   session_evaluator  →  config
 
@@ -35,7 +36,8 @@ from typing import Optional
 
 from . import config
 from .session_model import em, _sessions
-from .session_sdk import _write_sdk_metric, _run_claude_via_sdk
+from .session_sdk import _write_sdk_metric
+from .provider_router import run_via_provider
 
 _log = logging.getLogger("pi-ceo.session_evaluator")
 
@@ -49,8 +51,8 @@ def _record_evaluator_tokens(
     RA-1682 — `session.budget` was instantiated in session_phases._phase_plan
     (line 1447) but never received a single `.record()` call, so the tracker
     always reported `used=0` regardless of real spend. This helper closes the
-    gap on the evaluator hot path: every direct-API eval round contributes
-    its actual usage, scoped by model name (sonnet / haiku / opus).
+    gap on the evaluator hot path: provider-routed eval rounds can contribute
+    usage when token counts are available, scoped by evaluator label.
 
     Quietly no-ops when:
       - session_id is empty (eg. one-off probe / standalone test invocation)
@@ -203,46 +205,15 @@ async def _run_eval_with_cache(
     timeout: int = 120,
     session_id: str = "",
 ) -> tuple[Optional[float], str]:
-    """RA-655 — Evaluator via direct Anthropic API with prompt caching.
+    """Run one evaluator pass through the configured provider router.
 
-    System blocks (ephemeral cache):
-      1. CLAUDE.md — project context, ~1200 tokens, reused across all eval rounds
-      2. Static grading criteria — same for every eval in the same build
-
-    User message (dynamic):
-      Brief + diff output
-
-    Returns (score_or_None, text). Returns (None, "") on any error so caller
-    can fall back to the Agent SDK path.
+    This function used to call Anthropic's Messages API directly for prompt
+    caching. After the OpenRouter/Kimi production switch, Anthropic-first calls
+    are a liability: they fail before the configured provider gets a chance to
+    run. Keep the public function name for backward compatibility, but route the
+    prompt through ``provider_router.run_via_provider(role="evaluator")`` so
+    Railway env overrides decide the actual provider/model.
     """
-    try:
-        import anthropic as _anthropic  # noqa: PLC0415
-    except ImportError:
-        return None, ""
-
-    try:
-        from tenacity import (  # noqa: PLC0415
-            retry,
-            stop_after_attempt,
-            wait_random_exponential,
-            retry_if_exception,
-            before_sleep_log,
-        )
-        _HAS_TENACITY = True
-    except ImportError:
-        _HAS_TENACITY = False
-
-    api_key = config.ANTHROPIC_API_KEY
-    if not api_key:
-        return None, ""
-
-    _MODEL_IDS = {
-        "opus": "claude-opus-4-7",
-        "sonnet": "claude-sonnet-4-6",
-        "haiku": "claude-haiku-4-5-20251001",
-    }
-    full_model = _MODEL_IDS.get(model, model)
-
     eval_criteria = (
         "You are a senior code reviewer evaluating AI-generated changes. "
         "Be rigorous — your job is to catch every gap and flaw.\n\n"
@@ -251,134 +222,80 @@ async def _run_eval_with_cache(
         "   9 = complete and correct, minor style preferences only\n"
         "   8 = solid work, 1-2 small gaps or nits\n"
         "   7 = acceptable but missing something meaningful\n"
-        "  \u22646 = clear deficiency that must be fixed\n\n"
+        "  ≤6 = clear deficiency that must be fixed\n\n"
         "DIMENSION CRITERIA:\n"
-        "1. COMPLETENESS \u2014 Does the diff address EVERY requirement in the brief? "
-        "List any unmet requirements. Partial = \u22646.\n"
-        "2. CORRECTNESS \u2014 Any bugs, logic errors, type issues, null refs, security "
-        "vulnerabilities, or broken tests? One confirmed bug = \u22646.\n"
-        "3. CONCISENESS \u2014 Any dead code, debug prints, TODO stubs, or over-engineered "
+        "1. COMPLETENESS — Does the diff address EVERY requirement in the brief? "
+        "List any unmet requirements. Partial = ≤6.\n"
+        "2. CORRECTNESS — Any bugs, logic errors, type issues, null refs, security "
+        "vulnerabilities, or broken tests? One confirmed bug = ≤6.\n"
+        "3. CONCISENESS — Any dead code, debug prints, TODO stubs, or over-engineered "
         "abstractions? Tight, purposeful code = 9-10.\n"
-        "4. FORMAT \u2014 Does it match the project's existing conventions exactly? "
-        "Style violations or inconsistent naming = \u22646.\n"
-        "5. KARPATHY ADHERENCE \u2014 Score the four Karpathy principles together "
-        "(CLAUDE.md lines 184\u2013246):\n"
-        "   \u2022 Surgical: every changed line traces to the brief\n"
-        "   \u2022 Simple: minimum code, no speculative abstractions\n"
-        "   \u2022 Goal-verified: tests/checks defined before implementation\n"
-        "   \u2022 Assumption-surfaced: assumptions stated upfront, not silently chosen\n"
-        "   10 = all four honoured; \u22645 if any principle is violated. "
+        "4. FORMAT — Does it match the project's existing conventions exactly? "
+        "Style violations or inconsistent naming = ≤6.\n"
+        "5. KARPATHY ADHERENCE — Score the four Karpathy principles together "
+        "(CLAUDE.md lines 184–246):\n"
+        "   • Surgical: every changed line traces to the brief\n"
+        "   • Simple: minimum code, no speculative abstractions\n"
+        "   • Goal-verified: tests/checks defined before implementation\n"
+        "   • Assumption-surfaced: assumptions stated upfront, not silently chosen\n"
+        "   10 = all four honoured; ≤5 if any principle is violated. "
         "Soft axis: reported for learning, not a merge blocker on its own.\n\n"
         "OUTPUT FORMAT: Respond with exactly 5 dimension lines, the overall, then a confidence line:\n"
-        "COMPLETENESS: <score>/10 \u2014 <reason>\n"
-        "CORRECTNESS: <score>/10 \u2014 <reason>\n"
-        "CONCISENESS: <score>/10 \u2014 <reason>\n"
-        "FORMAT: <score>/10 \u2014 <reason>\n"
-        "KARPATHY: <score>/10 \u2014 <reason>\n"
-        f"OVERALL: <average of first 4>/10 \u2014 PASS or FAIL (threshold: {threshold}/10)\n"
-        "CONFIDENCE: <0-100>% \u2014 <how certain are you? consider: diff clarity, "
+        "COMPLETENESS: <score>/10 — <reason>\n"
+        "CORRECTNESS: <score>/10 — <reason>\n"
+        "CONCISENESS: <score>/10 — <reason>\n"
+        "FORMAT: <score>/10 — <reason>\n"
+        "KARPATHY: <score>/10 — <reason>\n"
+        f"OVERALL: <average of first 4>/10 — PASS or FAIL (threshold: {threshold}/10)\n"
+        "CONFIDENCE: <0-100>% — <how certain are you? consider: diff clarity, "
         "requirements ambiguity, borderline score, incomplete context. "
         "100% = unambiguous; 50% = borderline; <60% = genuinely uncertain>"
     )
 
-    system_blocks: list[dict] = []
     claude_md = _get_claude_md()
-    if claude_md:
-        system_blocks.append({
-            "type": "text",
-            "text": claude_md,
-            "cache_control": {"type": "ephemeral"},
-        })
-    system_blocks.append({
-        "type": "text",
-        "text": eval_criteria,
-        "cache_control": {"type": "ephemeral"},
-    })
-
-    user_content = (
-        "ORIGINAL BRIEF (what was asked for):\n" + brief_context + "\n\n"
-        "DIFF SUMMARY:\n" + (diff_out or "(empty)") + "\n\n"
-        "DIFF DETAIL (truncated to 8000 chars):\n" + diff_context
+    prompt = (
+        ("PROJECT CONTEXT (CLAUDE.md):\n" + claude_md + "\n\n" if claude_md else "")
+        + "EVALUATION CRITERIA:\n"
+        + eval_criteria
+        + "\n\nORIGINAL BRIEF (what was asked for):\n"
+        + brief_context
+        + "\n\nDIFF SUMMARY:\n"
+        + (diff_out or "(empty)")
+        + "\n\nDIFF DETAIL (truncated to 8000 chars):\n"
+        + diff_context
     )
 
     t0 = time.monotonic()
     try:
-        client = _anthropic.Anthropic(api_key=api_key, max_retries=0)
-
-        # RA-925: count_tokens dynamic budget guard — prevent silent truncation
-        desired_output = 512
-        safe_max_tokens = desired_output
-        try:
-            tc = client.messages.count_tokens(
-                model=full_model,
-                system=system_blocks,
-                messages=[{"role": "user", "content": user_content}],
-            )
-            safe_max_tokens = min(desired_output, 200_000 - tc.input_tokens - 500)
-            _log.debug("eval count_tokens: input=%d safe_max=%d", tc.input_tokens, safe_max_tokens)
-        except Exception as _ct_exc:
-            _log.debug("count_tokens unavailable (%s), using desired_output=%d", _ct_exc, desired_output)
-
-        def _create_with_retry():
-            if _HAS_TENACITY:
-                from anthropic import RateLimitError, APITimeoutError, APIStatusError  # noqa: PLC0415
-
-                def _is_transient(exc):
-                    if isinstance(exc, APIStatusError):
-                        return exc.status_code in (429, 500, 502, 503, 529)
-                    return isinstance(exc, (RateLimitError, APITimeoutError))
-
-                @retry(
-                    retry=retry_if_exception(_is_transient),
-                    wait=wait_random_exponential(multiplier=2, min=4, max=60),
-                    stop=stop_after_attempt(4),
-                    before_sleep=before_sleep_log(_log, logging.WARNING),
-                )
-                def _inner():
-                    return client.messages.create(
-                        model=full_model,
-                        max_tokens=max(64, safe_max_tokens),
-                        system=system_blocks,
-                        messages=[{"role": "user", "content": user_content}],
-                        timeout=timeout,
-                    )
-                return _inner()
-            else:
-                return client.messages.create(
-                    model=full_model,
-                    max_tokens=max(64, safe_max_tokens),
-                    system=system_blocks,
-                    messages=[{"role": "user", "content": user_content}],
-                    timeout=timeout,
-                )
-
-        message = _create_with_retry()
-        text = message.content[0].text if message.content else ""
-        usage = message.usage
-        _input_tokens = getattr(usage, "input_tokens", 0)
-        _output_tokens = getattr(usage, "output_tokens", 0)
+        rc, text, cost, error = await run_via_provider(
+            prompt,
+            role="evaluator",
+            task_class=f"cached-{model}",
+            timeout_s=timeout,
+            session_id=session_id,
+        )
+        success = rc == 0 and bool((text or "").strip())
         _log.info(
-            "eval-cache model=%s input=%d cache_write=%d cache_read=%d output=%d latency=%.1fs",
+            "eval-provider model_label=%s rc=%s cost=%.6f latency=%.1fs",
             model,
-            _input_tokens,
-            getattr(usage, "cache_creation_input_tokens", 0),
-            getattr(usage, "cache_read_input_tokens", 0),
-            _output_tokens,
+            rc,
+            float(cost or 0.0),
             time.monotonic() - t0,
         )
-        # RA-1682: feed the session's BudgetTracker. Without this the tracker
-        # is dead weight — instantiated but `used` stays 0 forever.
-        _record_evaluator_tokens(session_id, model, _input_tokens, _output_tokens)
         _write_sdk_metric(
-            session_id=session_id, phase=f"evaluator_cached_{model}",
-            model=model, success=True,
-            latency_s=time.monotonic() - t0, output_len=len(text),
+            session_id=session_id, phase=f"evaluator_provider_{model}",
+            model=model, success=success,
+            latency_s=time.monotonic() - t0, output_len=len(text or ""),
+            error=error or "" if not success else "",
         )
+        if not success:
+            _log.warning("eval-provider model=%s failed: %s", model, error or f"rc={rc}")
+            return None, ""
         return _extract_eval_score(text), text
     except Exception as exc:
-        _log.warning("eval-cache model=%s failed: %s — will fall back", model, exc)
+        _log.warning("eval-provider model=%s raised: %s — will fall back", model, exc)
         _write_sdk_metric(
-            session_id=session_id, phase=f"evaluator_cached_{model}",
+            session_id=session_id, phase=f"evaluator_provider_{model}",
             model=model, success=False,
             latency_s=time.monotonic() - t0, output_len=0, error=str(exc),
         )
@@ -435,18 +352,23 @@ async def _run_single_eval(
     timeout: int = 120,
     session_id: str = "",
 ) -> tuple[Optional[float], str]:
-    """Run one evaluator pass via the Agent SDK.
+    """Run one evaluator pass through the configured provider router.
 
-    Returns (score_or_None, full_output_text). RA-1094B: SDK-only mandate —
-    the subprocess fallback was removed.
+    ``model`` remains a consensus label (historically sonnet/haiku). The actual
+    provider/model is selected by Railway env through ``provider_router`` so the
+    evaluator honours OpenRouter/Kimi overrides instead of hard-wiring Anthropic.
     """
-    rc, sdk_text, _ = await _run_claude_via_sdk(
-        eval_spec, model, workspace, timeout=timeout,
-        session_id=session_id, phase="evaluator",
+    rc, text, _cost, error = await run_via_provider(
+        eval_spec,
+        role="evaluator",
+        task_class=f"single-{model}",
+        timeout_s=timeout,
+        workspace=workspace,
+        session_id=session_id,
     )
-    if rc == 0 and sdk_text.strip():
-        return _extract_eval_score(sdk_text), sdk_text
-    _log.warning("SDK evaluator failed rc=%d", rc)
+    if rc == 0 and text.strip():
+        return _extract_eval_score(text), text
+    _log.warning("provider evaluator failed model_label=%s rc=%d error=%s", model, rc, error)
     return None, ""
 
 
@@ -459,18 +381,6 @@ async def _run_persona_review(session, workspace_path: str) -> list[dict]:
 
     Returns [] when the API key is missing, all persona calls fail, or workspace has no diff.
     """
-    try:
-        import anthropic as _anthropic  # noqa: PLC0415
-    except ImportError:
-        _log.debug("persona review: anthropic not installed — skipping")
-        return []
-
-    api_key = config.ANTHROPIC_API_KEY
-    if not api_key:
-        _log.debug("persona review: ANTHROPIC_API_KEY missing — skipping")
-        return []
-
-    _HAIKU = "claude-haiku-4-5-20251001"
     _SEVERITY_ORDER = {"high": 0, "medium": 1, "low": 2}
 
     _PERSONAS: list[tuple[str, str]] = [
@@ -565,15 +475,28 @@ async def _run_persona_review(session, workspace_path: str) -> list[dict]:
             + _JSON_INSTRUCTION
         )
         try:
-            client = _anthropic.AsyncAnthropic(api_key=api_key, max_retries=0)
-            message = await client.messages.create(
-                model=_HAIKU,
-                max_tokens=512,
-                system=system_prompt,
-                messages=[{"role": "user", "content": user_msg}],
-                timeout=60,
+            prompt = (
+                "PERSONA SYSTEM INSTRUCTIONS:\n"
+                + system_prompt
+                + "\n\nUSER REVIEW CONTEXT:\n"
+                + user_msg
             )
-            raw = message.content[0].text if message.content else "[]"
+            rc, raw, _cost, error = await run_via_provider(
+                prompt,
+                role="evaluator",
+                task_class=f"persona-{name}",
+                timeout_s=60,
+                workspace=workspace_path,
+                session_id=getattr(session, "id", ""),
+            )
+            if rc != 0 or not (raw or "").strip():
+                _log.warning(
+                    "persona=%s provider call failed rc=%s error=%s — returning []",
+                    name,
+                    rc,
+                    error,
+                )
+                return name, []
             _log.debug("persona=%s latency=%.1fs raw=%s", name, time.monotonic() - t0, raw[:120])
             findings: list[dict] = json.loads(raw)
             if not isinstance(findings, list):

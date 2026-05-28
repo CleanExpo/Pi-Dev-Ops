@@ -1,36 +1,21 @@
-"""tests/test_model_policy_evaluator.py — RA-1506 regression.
+"""Regression tests for evaluator provider routing.
 
-Locks the contract: the evaluator path NEVER calls _run_claude_via_sdk
-with model=opus (or the long-form ID claude-opus-4-7).
-
-Background (PR #131 / RA-1099):
-    _run_parallel_eval previously escalated to Opus when |sonnet_score -
-    haiku_score| > 2.  That violated model policy — "evaluator" is not in
-    OPUS_ALLOWED_ROLES.  The fix averages sonnet + haiku regardless of delta.
-
-Acceptance criterion:
-    Re-introducing an `if delta > 2: _run_single_eval(..., "opus")` call in
-    the escalation path would produce a third SDK invocation with model="opus"
-    and the assertion at the bottom of this module would fail.
+Evaluator work must go through provider_router so Railway env overrides such as
+OpenRouter/Kimi are honoured. These tests intentionally do not assert specific
+Anthropic model IDs; doing so would reintroduce the Anthropic-first coupling.
 """
 from __future__ import annotations
 
-import pytest
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, call, patch
+from unittest.mock import AsyncMock, patch
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-_OPUS_NAMES = {"opus", "claude-opus-4-7"}
+import pytest
 
 
 def _make_session(workspace: str = "/tmp/fake-ws") -> SimpleNamespace:
-    """Minimal session stub — only the attributes _run_parallel_eval reads."""
+    """Minimal session stub — only attributes evaluator helpers read."""
     return SimpleNamespace(
-        id="test-ra1506",
+        id="test-provider-router-evaluator",
         workspace=workspace,
         output_lines=[],
     )
@@ -49,109 +34,108 @@ def _eval_text(score: float) -> str:
     )
 
 
-# ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
-
 @pytest.mark.asyncio
-async def test_run_parallel_eval_never_calls_opus_consensus():
-    """Sonnet and haiku agree (delta == 0) — only 2 SDK calls, both non-opus."""
-    from app.server.session_evaluator import _run_parallel_eval
+async def test_run_single_eval_uses_provider_router_evaluator_role():
+    from app.server.session_evaluator import _run_single_eval
 
-    session = _make_session()
-    sdk_mock = AsyncMock(return_value=(0, _eval_text(8.0), 0.01))
+    router_mock = AsyncMock(return_value=(0, _eval_text(8.0), 0.01, None))
 
-    with patch("app.server.session_evaluator._run_claude_via_sdk", sdk_mock):
-        score, text, label, consensus = await _run_parallel_eval(session, "eval spec")
-
-    assert score == pytest.approx(8.0)
-    assert sdk_mock.call_count == 2, "expected exactly 2 SDK calls (sonnet + haiku)"
-
-    for c in sdk_mock.call_args_list:
-        model_used = c.args[1] if len(c.args) > 1 else c.kwargs.get("model", "")
-        assert model_used not in _OPUS_NAMES, (
-            f"evaluator called SDK with model={model_used!r} — opus is not allowed"
+    with patch("app.server.session_evaluator.run_via_provider", router_mock):
+        score, text = await _run_single_eval(
+            "/tmp/ws", "eval spec", "sonnet", timeout=33, session_id="sid-1"
         )
 
+    assert score == pytest.approx(8.0)
+    assert "OVERALL: 8.0/10" in text
+    router_mock.assert_awaited_once()
+    assert router_mock.await_args is not None
+    args, kwargs = router_mock.await_args
+    assert args[0] == "eval spec"
+    assert kwargs["role"] == "evaluator"
+    assert kwargs["task_class"] == "single-sonnet"
+    assert kwargs["timeout_s"] == 33
+    assert kwargs["workspace"] == "/tmp/ws"
+    assert kwargs["session_id"] == "sid-1"
+
 
 @pytest.mark.asyncio
-async def test_run_parallel_eval_never_calls_opus_large_delta():
-    """Sonnet=9, haiku=5 → |delta|=4 > 2.  Even with a large disagreement the
-    escalation to Opus must NOT happen.  The function must still return a
-    score (average) and make exactly 2 SDK calls, both non-opus.
-
-    This is the primary regression guard for RA-1506 / PR #131:
-    re-introducing `if delta > 2: _run_single_eval(..., "opus")` would add a
-    third call with model="opus" and the assertion below would catch it.
-    """
+async def test_run_parallel_eval_uses_provider_router_twice_no_sdk_or_opus():
     from app.server.session_evaluator import _run_parallel_eval
 
     session = _make_session()
-
-    # Alternate: first call returns sonnet=9, second returns haiku=5 → delta=4
-    sdk_mock = AsyncMock(
+    router_mock = AsyncMock(
         side_effect=[
-            (0, _eval_text(9.0), 0.02),   # sonnet
-            (0, _eval_text(5.0), 0.01),   # haiku
+            (0, _eval_text(9.0), 0.02, None),
+            (0, _eval_text(5.0), 0.01, None),
         ]
     )
 
-    with patch("app.server.session_evaluator._run_claude_via_sdk", sdk_mock):
+    with patch("app.server.session_evaluator.run_via_provider", router_mock), patch(
+        "app.server.session_evaluator._run_claude_via_sdk", create=True
+    ) as sdk_mock:
         score, text, label, consensus = await _run_parallel_eval(session, "eval spec")
 
-    # Score should be the average, not an opus-arbitrated value
-    assert score == pytest.approx(7.0), (
-        f"expected sonnet+haiku average (7.0) but got {score!r}; "
-        "escalation path may have changed the score"
-    )
-    assert sdk_mock.call_count == 2, (
-        f"expected exactly 2 SDK calls but got {sdk_mock.call_count}; "
-        "opus escalation would produce a 3rd call"
-    )
-
-    for c in sdk_mock.call_args_list:
-        model_used = c.args[1] if len(c.args) > 1 else c.kwargs.get("model", "")
-        assert model_used not in _OPUS_NAMES, (
-            f"evaluator called SDK with model={model_used!r} — "
-            "opus is not in OPUS_ALLOWED_ROLES for the evaluator phase"
-        )
+    assert score == pytest.approx(7.0)
+    assert label == "sonnet+haiku"
+    assert consensus == "sonnet=9.0 haiku=5.0 delta=4.0"
+    assert "OVERALL: 9.0/10" in text
+    assert router_mock.await_count == 2
+    assert not sdk_mock.called, "evaluator must not call Anthropic SDK directly"
+    task_classes = [c.kwargs["task_class"] for c in router_mock.await_args_list]
+    assert task_classes == ["single-sonnet", "single-haiku"]
+    assert {c.kwargs["role"] for c in router_mock.await_args_list} == {"evaluator"}
 
 
 @pytest.mark.asyncio
-async def test_run_parallel_eval_models_are_sonnet_and_haiku():
-    """Assert the two SDK calls use exactly 'sonnet' and 'haiku' (no other model)."""
-    from app.server.session_evaluator import _run_parallel_eval
+async def test_run_parallel_eval_cached_uses_provider_router_not_anthropic_cache():
+    from app.server.session_evaluator import _run_parallel_eval_cached
 
     session = _make_session()
-    sdk_mock = AsyncMock(return_value=(0, _eval_text(7.5), 0.01))
+    router_mock = AsyncMock(return_value=(0, _eval_text(8.0), 0.01, None))
 
-    with patch("app.server.session_evaluator._run_claude_via_sdk", sdk_mock):
-        await _run_parallel_eval(session, "eval spec")
+    with patch("app.server.session_evaluator.run_via_provider", router_mock), patch(
+        "app.server.session_evaluator._write_sdk_metric"
+    ):
+        score, text, label, consensus = await _run_parallel_eval_cached(
+            session,
+            brief_context="brief",
+            diff_out="stat",
+            diff_context="diff",
+            threshold=8,
+            sid="sid-cache",
+        )
 
-    models_used = [
-        c.args[1] if len(c.args) > 1 else c.kwargs.get("model", "")
-        for c in sdk_mock.call_args_list
+    assert score == pytest.approx(8.0)
+    assert label == "sonnet+haiku(cached)"
+    assert consensus == "sonnet=8.0 haiku=8.0 delta=0.0"
+    assert "OVERALL: 8.0/10" in text
+    assert router_mock.await_count == 2
+    assert [c.kwargs["task_class"] for c in router_mock.await_args_list] == [
+        "cached-sonnet",
+        "cached-haiku",
     ]
-    assert set(models_used) == {"sonnet", "haiku"}, (
-        f"expected only sonnet + haiku SDK calls but got {models_used!r}"
-    )
+    assert {c.kwargs["role"] for c in router_mock.await_args_list} == {"evaluator"}
 
 
 @pytest.mark.asyncio
-async def test_run_parallel_eval_phase_kwarg_is_evaluator():
-    """SDK calls must carry phase='evaluator' so the model-policy gate in
-    _run_claude_via_sdk can enforce OPUS_ALLOWED_ROLES at the wire boundary."""
-    from app.server.session_evaluator import _run_parallel_eval
+async def test_persona_review_uses_provider_router_for_each_persona(tmp_path):
+    from app.server.session_evaluator import _run_persona_review
 
-    session = _make_session()
-    sdk_mock = AsyncMock(return_value=(0, _eval_text(8.0), 0.01))
+    workspace = tmp_path
+    (workspace / "file.py").write_text("print('hello')\n")
+    session = _make_session(str(workspace))
+    session._brief_context_for_persona = "brief"
+    router_mock = AsyncMock(return_value=(0, "[]", 0.01, None))
 
-    with patch("app.server.session_evaluator._run_claude_via_sdk", sdk_mock):
-        await _run_parallel_eval(session, "eval spec")
+    with patch("app.server.session_evaluator.run_via_provider", router_mock):
+        findings = await _run_persona_review(session, str(workspace))
 
-    for c in sdk_mock.call_args_list:
-        phase_used = c.kwargs.get("phase", c.args[5] if len(c.args) > 5 else "")
-        assert phase_used == "evaluator", (
-            f"expected phase='evaluator' but got {phase_used!r}; "
-            "without the correct phase the model-policy gate is blind"
-        )
+    assert findings == []
+    assert router_mock.await_count == 4
+    assert {c.kwargs["role"] for c in router_mock.await_args_list} == {"evaluator"}
+    assert [c.kwargs["task_class"] for c in router_mock.await_args_list] == [
+        "persona-correctness",
+        "persona-testing",
+        "persona-scope",
+        "persona-standards",
+    ]
