@@ -1,8 +1,8 @@
 # app — Wiki
 
-_Last updated: 2026-05-27T08:32:54Z (commits a3b0ae8..3a2eb7f)_
+_Last updated: 2026-05-28T01:21:18Z (commits 5483a3b..585bb3e)_
 
 ## Recent changes
-- 3a2eb7f — feat(nexus): C6 — SupabaseWorkspaceLookup adapter + webhook handler wiring (#301)
+- 585bb3e — refactor: route evaluator through provider router
 
 Not logged in · Please run /login
