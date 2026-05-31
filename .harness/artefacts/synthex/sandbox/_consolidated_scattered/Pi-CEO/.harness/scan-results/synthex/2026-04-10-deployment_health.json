@@ -1,0 +1,10 @@
+{
+  "project_id": "synthex",
+  "repo": "CleanExpo/Synthex",
+  "scan_type": "deployment_health",
+  "started_at": "2026-04-10T18:01:12.854682+00:00",
+  "finished_at": "2026-04-10T18:01:12.991679+00:00",
+  "findings": [],
+  "error": "",
+  "health_score": 100
+}

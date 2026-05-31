@@ -1,0 +1,387 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-05-02T08:38:29Z",
+  "vercel_team": "unite-group",
+  "vercel_project_name": "synthex",
+  "project_slug": "synthex",
+  "repo": "CleanExpo/Synthex",
+  "vars": [
+    {
+      "name": "ALERT_SLACK_WEBHOOK_URL",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "ANTHROPIC_MAX_TOKENS",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "ANTHROPIC_MODEL",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "ANTHROPIC_TEMPERATURE",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "CACHE_ENABLED",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "CACHE_TTL_SECONDS",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "CORS_ORIGIN",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "DATABASE_URL",
+      "target": "production",
+      "category": "database",
+      "criticality": "blocker"
+    },
+    {
+      "name": "DEBUG",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "DIRECT_URL",
+      "target": "production",
+      "category": "database",
+      "criticality": "blocker"
+    },
+    {
+      "name": "ELEVENLABS_API_KEY",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "ELEVENLABS_VOICE_ID",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "ENABLE_ERROR_TRACKING",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "ENABLE_PERFORMANCE_MONITORING",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "ENABLE_REQUEST_LOGGING",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "ENCRYPTION_KEY_V1",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "blocker"
+    },
+    {
+      "name": "EXPORT_METRICS",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "FIELD_ENCRYPTION_KEY",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "blocker"
+    },
+    {
+      "name": "GEMINI_API_KEY",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "blocker"
+    },
+    {
+      "name": "GITHUB_OAUTH",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "GOOGLE_CLIENT_ID",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "GOOGLE_CLIENT_SECRET",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "MAX_CONCURRENT_REQUESTS",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "MAX_CPU_PERCENT",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "MILESTONE_NOTIFICATIONS_ENABLED",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "NEXT_PUBLIC_GA_ID",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NEXT_PUBLIC_INVITE_ONLY_MODE",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NEXT_PUBLIC_VAPID_PUBLIC_KEY",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "skip"
+    },
+    {
+      "name": "NODE_OPTIONS",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "OAUTH_STATE_SECRET",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "OWNER_EMAILS",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "optional"
+    },
+    {
+      "name": "PERPLEXITY_API_KEY",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "RATE_LIMIT_ENABLED",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "RATE_LIMIT_MAX_REQUESTS",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "RATE_LIMIT_WINDOW_MS",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "REDIRECT_URI",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "RESEND_FROM_EMAIL",
+      "target": "production",
+      "category": "client-public",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_API_KEY",
+      "target": "production",
+      "category": "payments",
+      "criticality": "blocker"
+    },
+    {
+      "name": "STRIPE_BUSINESS_PRICE_ID",
+      "target": "production",
+      "category": "payments",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_CUSTOMER_PORTAL_CONFIG",
+      "target": "production",
+      "category": "payments",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_CUSTOM_PRICE_ID",
+      "target": "production",
+      "category": "payments",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_GROWTH_PRICE_ID",
+      "target": "production",
+      "category": "payments",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_INTRODUCTORY_PRICE_ID",
+      "target": "production",
+      "category": "payments",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_PROFESSIONAL_PRICE_ID",
+      "target": "production",
+      "category": "payments",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_PRO_PRICE_ID",
+      "target": "production",
+      "category": "payments",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_PUBLISHABLE_KEY",
+      "target": "production",
+      "category": "payments",
+      "criticality": "degraded"
+    },
+    {
+      "name": "STRIPE_SCALE_PRICE_ID",
+      "target": "production",
+      "category": "payments",
+      "criticality": "optional"
+    },
+    {
+      "name": "STRIPE_SECRET_KEY",
+      "target": "production",
+      "category": "payments",
+      "criticality": "blocker"
+    },
+    {
+      "name": "STRIPE_WEBHOOK_SECRET",
+      "target": "production",
+      "category": "payments",
+      "criticality": "blocker"
+    },
+    {
+      "name": "SUPABASE_SERVICE_ROLE_KEY",
+      "target": "production",
+      "category": "database",
+      "criticality": "blocker"
+    },
+    {
+      "name": "THROTTLE_DELAY",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "TRACK_COSTS",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "TRACK_USAGE",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "VAPID_PRIVATE_KEY",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "VAPID_PUBLIC_KEY",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "YOUTUBE_CHANNEL_ID",
+      "target": "production",
+      "category": "unknown",
+      "criticality": "optional"
+    },
+    {
+      "name": "YOUTUBE_CLIENT_ID",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "YOUTUBE_CLIENT_SECRET",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    },
+    {
+      "name": "YOUTUBE_REFRESH_TOKEN",
+      "target": "production",
+      "category": "ai-provider",
+      "criticality": "degraded"
+    }
+  ],
+  "skipped": [
+    "DASHBOARD_PASSWORD",
+    "TAO_PASSWORD",
+    "PI_CEO_PASSWORD",
+    "CCW_ACCESS_PASSWORD",
+    "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_CHAT_ID",
+    "TELEGRAM_WEBHOOK_SECRET",
+    "PLAUSIBLE_*",
+    "POSTHOG_*",
+    "NEXT_PUBLIC_*",
+    "VERCEL_TOKEN",
+    "VERCEL_TEAM_ID",
+    "VERCEL_GIT_*",
+    "_DEPLOY_HOOK_*"
+  ],
+  "notes": "Generated 2026-05-02 from `vercel env ls production` against unite-group/synthex. Auto-classified by criticality + category. Operator review required before first Sandcastle run against this project."
+}
