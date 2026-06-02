@@ -3,6 +3,19 @@
 
 set -euo pipefail
 
+mask_kv_stream() {
+  while IFS='=' read -r KEY VALUE; do
+    [[ -z "$KEY" ]] && continue
+    LEN=${#VALUE}
+    if [[ "$LEN" -eq 0 ]]; then
+      echo "$KEY=<EMPTY>"
+    else
+      FP="$(printf '%s' "$VALUE" | shasum -a 256 | cut -c1-8)"
+      echo "$KEY=<set, len=$LEN, fp=$FP>"
+    fi
+  done
+}
+
 REVEAL_KEYS=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -18,7 +31,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 RAW="$(railway variables --kv 2>&1)" || {
-  echo "$RAW"
+  printf '%s\n' "$RAW" | mask_kv_stream
   exit 1
 }
 

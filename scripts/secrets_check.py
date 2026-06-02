@@ -51,10 +51,12 @@ DRY_RUN = args.dry_run
 # ── Secret patterns (mirrors app/server/scanner.py _SECRET_PATTERNS) ─────────
 _SECRET_PATTERNS: list[tuple[str, str, str]] = [
     (r"sk-ant-api[0-9A-Za-z\-_]{30,}", "Anthropic API key", "CRITICAL"),
+    (r"sk-or-v1-[0-9A-Za-z]{30,}", "OpenRouter API key", "CRITICAL"),
     (r"ghp_[0-9A-Za-z]{36}", "GitHub personal access token", "CRITICAL"),
     (r"lin_api_[0-9A-Za-z]{40}", "Linear API key", "CRITICAL"),
     (r"AKIA[0-9A-Z]{16}", "AWS access key ID", "CRITICAL"),
     (r"sk-[a-zA-Z0-9]{48}", "OpenAI API key", "CRITICAL"),
+    (r"eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}", "JWT-like service token", "CRITICAL"),
     (r"-----BEGIN (RSA|EC|DSA|OPENSSH) PRIVATE KEY-----", "Private key in source", "CRITICAL"),
     (r"(?i)(password|passwd|pwd)\s*=\s*['\"][^'\"\n]{8,}['\"]", "Hardcoded password", "HIGH"),
     (r"(?i)(secret|api_key|apikey|token)\s*=\s*['\"][^'\"\n]{8,}['\"]", "Hardcoded secret", "HIGH"),
@@ -124,8 +126,32 @@ def _make_finding(path: str, line: int, title: str, severity: str, snippet: str)
         "line": line,
         "title": title,
         "severity": severity,
-        "snippet": snippet[:120],
+        "snippet": _redact_secret_text(snippet)[:120],
     }
+
+
+def _redact_secret_text(text: str) -> str:
+    """Mask secret-shaped values before printing, ticketing, or logging."""
+    redacted = text
+    replacements = [
+        r"sk-ant-api[0-9A-Za-z\-_]{12,}",
+        r"sk-or-v1-[0-9A-Za-z]{12,}",
+        r"ghp_[0-9A-Za-z]{12,}",
+        r"lin_api_[0-9A-Za-z]{12,}",
+        r"AKIA[0-9A-Z]{12,}",
+        r"sk-[a-zA-Z0-9]{20,}",
+        r"eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}",
+        r"(?i)bearer\s+[0-9a-zA-Z\-._~+/]{12,}",
+        r"postgresql://[^'\"\s]+",
+    ]
+    for pattern in replacements:
+        redacted = re.sub(pattern, "<REDACTED_SECRET>", redacted)
+    redacted = re.sub(
+        r"(?i)((password|passwd|pwd|secret|api_key|apikey|token)\s*=\s*['\"])[^'\"\n]{8,}(['\"])",
+        r"\1<REDACTED_SECRET>\3",
+        redacted,
+    )
+    return redacted
 
 
 # ── File enumeration ──────────────────────────────────────────────────────────
