@@ -1,0 +1,64 @@
+{
+  "capability_claims": [
+    "40+ providers",
+    "32 built-in",
+    "providers",
+    "built-in",
+    "tools",
+    "LSP/DAP",
+    "Rust"
+  ],
+  "ci_commands": [
+    "pytest",
+    "ruff"
+  ],
+  "command": "https://github.com/can1357/oh-my-pi.git this repo has 40+ providers, 32 built-in tools, LSP/DAP ops, and Rust core",
+  "created_at": "2026-06-01T21:01:45+00:00",
+  "detected_stack": [
+    "typescript/javascript",
+    "rust",
+    "docker",
+    "github-actions"
+  ],
+  "fit_classification": "tool-adoption",
+  "integration_risks": [
+    "Do not vendor, fork, or implement until read-only scan is complete.",
+    "Verify license, maintenance activity, security posture, and overlap with existing Pi-Dev-Ops components."
+  ],
+  "license": "MIT",
+  "manifests": [
+    "package.json",
+    "Cargo.toml",
+    "Dockerfile",
+    ".github/workflows/ci.yml"
+  ],
+  "no_build_started": true,
+  "readme_summary": "<p align=\"center\">\n  <img src=\"https://github.com/can1357/oh-my-pi/blob/main/assets/hero.png?raw=true\" alt=\"omp\">\n</p>\n\n<p align=\"center\">\n  <strong>A coding agent with the IDE wired in.</strong>\n  <strong><a href=\"https://omp.sh\">omp.sh</a></strong>\n</p>\n\n<p align=\"center\">\n  <a href=\"https://www.npmjs.com/package/@oh-my-pi/pi-coding-agent\"><img src=\"https://img.shields.io/npm/v/@oh-my-pi/pi-coding-agent?style=flat&colorA=222222&colorB=CB3837\" alt=\"npm version\"></a>\n  <a href=\"https://github.com/can1357/oh-my-pi/blob/main/packages/coding-agent/CHANGELOG.md\"><img src=\"https://img.shields.io/badge/changelog-keep-E05735?style=flat&colorA=222222\" alt=\"Changelog\"></a>\n  <a href=\"https://github.com/can1357/oh-my-pi/actions\"><img src=\"https://img.shields.io/github/actions/workflow/status/can1357/oh-my-pi/ci.yml?style=flat&colorA=222222&colorB=3FB950\" alt=\"CI\"></a>\n  <a href=\"https://github.com/can1357/oh-my-pi/blob/main/LICENSE\"><img src=\"https://img.shields.io/github/license/can1357/oh-my-pi?style=flat&colorA=222222&colorB=58A6FF\" alt=\"License\"></a>\n  <a href=\"https://www.typescriptlang.org\"><img src=\"https://img.shields.io/badge/TypeScript-3178C6?style=flat&colorA=222222&logo=typescrip",
+  "recommended_next_lane": "spike-or-feature-with-tests",
+  "risk_flags": [
+    "node-manifest-without-lockfile"
+  ],
+  "route": "repo-intake",
+  "sandbox_clone": {
+    "build_started": false,
+    "clone_command": "git clone --depth 1 --filter=blob:none <source_url> <sandbox_path>",
+    "sandbox_path": "D:\\Pi-Dev-Ops\\.harness\\tmp\\repo-intake\\github-com-can1357-oh-my-pi-60e35469"
+  },
+  "schema_version": 1,
+  "source_url": "https://github.com/can1357/oh-my-pi.git",
+  "status": "intake-required",
+  "verification": {
+    "artifact_only": false,
+    "build_started": false,
+    "network_calls": 1,
+    "next_required_evidence": [
+      "README/docs summary",
+      "manifest/package map",
+      "license finding",
+      "CI/test commands",
+      "fit classification: reference-only/tool-adoption/fork-and-adapt/vendor-risk/not-fit"
+    ],
+    "read_only_scan": true,
+    "repository_mutations": 0
+  }
+}

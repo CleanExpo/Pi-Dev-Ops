@@ -1,0 +1,35 @@
+name: senior-engineer-workflow
+on:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  validate-workflow-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install test runner
+        run: python -m pip install pytest
+      - name: Compile workflow gate scripts
+        run: python -m py_compile .harness/workflows/validate_workflow_evidence.py .harness/workflows/senior_engineer_workflow.py
+      - name: Run workflow gate tests
+        run: python -m pytest tests/test_workflow_evidence.py -q
+      - name: Validate touched workflow run evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_ref="${{ github.base_ref || 'main' }}"
+          git fetch --no-tags --depth=1 origin "$base_ref" || true
+          mapfile -t manifests < <(git diff --name-only "origin/${base_ref}...HEAD" -- '.harness/workflows/runs/*.manifest.json')
+          for manifest in "${manifests[@]}"; do
+            evidence="${manifest%.manifest.json}.md"
+            if [[ ! -f "$evidence" ]]; then
+              echo "Missing evidence file for $manifest" >&2
+              exit 1
+            fi
+            python .harness/workflows/validate_workflow_evidence.py "$manifest" "$evidence"
+          done

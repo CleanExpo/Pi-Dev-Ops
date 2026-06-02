@@ -1,26 +1,28 @@
 """provider_router.py — RA-1868 Wave 5.2: multi-provider model routing.
 
 Three-tier cost-aware router that picks the right (provider, model_id)
-per role/task class. Anthropic is reserved for the highest-quality work
-(top tier — planner, orchestrator, Board deliberation, multi-agent
-debate). OpenRouter handles the cheap tier (Margot conversational
-turns, intent classification, monitor cycles).
+per role/task class. Current platform policy uses Anthropic/Claude Code
+workflow methodology with cost-aware runtime routing: Claude CLI Max/OAuth
+may use `claude --print`; non-Claude CLI/API runtimes should use the
+OpenAI-compatible OpenRouter path so Anthropic API credits are not consumed.
+OpenRouter defaults are GPT-5.5-class for senior judgment and Kimi 2.5-class
+for long-context/challenger/cost-controlled work.
 
 Tier mapping (defaults; all overridable via env):
 
-  TIER 1 — TOP    Anthropic Opus 4.7
+  TIER 1 — TOP    OpenRouter → OpenAI GPT-5.5-class
                   Roles: planner, orchestrator, board, debate.drafter,
                   debate.redteam, margot.synthesis (Phase 2)
-                  Env: TAO_TOP_MODEL=claude-opus-4-7
+                  Env: TAO_TOP_MODEL=openai/gpt-5.5
 
-  TIER 2 — MID    Anthropic Sonnet 4.6
+  TIER 2 — MID    OpenRouter → OpenAI GPT-5.5-class
                   Roles: generator, evaluator, senior-brief
-                  Env: TAO_MID_MODEL=claude-sonnet-4-6
+                  Env: TAO_MID_MODEL=openai/gpt-5.5
 
-  TIER 3 — CHEAP  OpenRouter → Gemma 3 27B (default; configurable)
+  TIER 3 — CHEAP  OpenRouter → Kimi 2.5-class (default; configurable)
                   Roles: margot.casual, intent_classify, monitor,
                   guardian, scribe.draft
-                  Env: TAO_CHEAP_MODEL=google/gemma-3-27b-it
+                  Env: TAO_CHEAP_MODEL=moonshotai/kimi-k2.5
 
 Per-role override:
 
@@ -28,10 +30,11 @@ Per-role override:
     TAO_MODEL_<ROLE_UPPERCASED>=<provider>:<model_id>
 
   Example:
-    TAO_MODEL_MARGOT_CASUAL=openrouter:meta-llama/llama-3.3-70b-instruct
-    TAO_MODEL_INTENT_CLASSIFY=openrouter:mistralai/mistral-small-3.1
+    TAO_MODEL_MARGOT_CASUAL=openrouter:moonshotai/kimi-k2.5
+    TAO_MODEL_INTENT_CLASSIFY=openrouter:moonshotai/kimi-k2.5
 
-  Provider prefix is required: ``anthropic:`` or ``openrouter:``.
+  Provider prefix is required: ``openrouter:``, ``ollama:``, ``claude_print:``,
+  or legacy ``anthropic:`` only when explicitly approved.
 
 The router does NOT enforce model_policy.OPUS_ALLOWED_ROLES — that gate
 still fires inside session_sdk._run_claude_via_sdk for Anthropic calls.
@@ -62,8 +65,8 @@ Provider = Literal["anthropic", "openrouter", "ollama", "claude_print"]
 
 # ── Defaults — all env-overridable ──────────────────────────────────────────
 
-DEFAULT_TOP_MODEL = "claude-opus-4-7"
-DEFAULT_MID_MODEL = "claude-sonnet-4-6"
+DEFAULT_TOP_MODEL = "openai/gpt-5.5"
+DEFAULT_MID_MODEL = "openai/gpt-5.5"
 
 # Cheap tier resolution:
 #   1. Probe Ollama at localhost:11434 (or OLLAMA_BASE_URL).
@@ -77,14 +80,10 @@ DEFAULT_MID_MODEL = "claude-sonnet-4-6"
 #   - Override per-role via TAO_MODEL_<ROLE> (highest precedence)
 DEFAULT_CHEAP_LOCAL_MODEL = "gemma4:latest"
 
-# OpenRouter remote-fallback default: Gemma 4 26B A4B (instruction-tuned).
-# OpenRouter offers four Gemma 4 variants — pick by use case:
-#   google/gemma-4-26b-a4b-it       — paid, ~$0.06/M in, $0.33/M out (default)
-#   google/gemma-4-26b-a4b-it:free  — free tier, rate-limited
-#   google/gemma-4-31b-it           — paid, ~$0.13/M in, $0.38/M out
-#   google/gemma-4-31b-it:free      — free tier, rate-limited
-# Override via TAO_CHEAP_REMOTE_MODEL env at deploy time.
-DEFAULT_CHEAP_REMOTE_MODEL = "google/gemma-4-26b-a4b-it"
+# OpenRouter remote-fallback default: Kimi 2.5-class for long-context,
+# challenger review, and cheap-but-capable context packing. Override via
+# TAO_CHEAP_REMOTE_MODEL at deploy time if OpenRouter model IDs change.
+DEFAULT_CHEAP_REMOTE_MODEL = "moonshotai/kimi-k2.5"
 
 # Role → tier mapping (top/mid/cheap). Roles not listed default to "mid".
 ROLE_TIER: dict[str, str] = {
@@ -99,10 +98,14 @@ ROLE_TIER: dict[str, str] = {
     "realtime_lookup":   "top",  # RA-1903: Perplexity Sonar real-time web data
     "research.realtime": "top",  # RA-1903: Sonar deep research live multi-step
     "portfolio.synthesis": "top",  # RA-1892: cross-portfolio daily pulse synthesis
+    "senior_engineer.planner": "top",
+    "senior_engineer.reviewer": "top",
+    "senior_engineer.security": "top",
     # Mid tier — production-quality output
     "generator":         "mid",
     "evaluator":         "mid",
     "senior_brief":      "mid",
+    "senior_engineer.implementer": "mid",
     # Cheap tier — high-throughput, lower stakes
     "margot.casual":     "cheap",
     "intent_classify":   "cheap",
@@ -114,6 +117,8 @@ ROLE_TIER: dict[str, str] = {
     "sprinkle.feedback": "cheap",  # RA-2995: feedback_loop neutral-outcome pattern naming
     "sprinkle.pulse":    "cheap",  # RA-2995: portfolio_pulse BOARD-TRIGGER structured extraction
     "sprinkle.board_prebrief": "cheap",  # RA-2995: 5-bullet pre-brief before daily board meeting (final sprinkle)
+    "senior_engineer.context_pack": "cheap",
+    "senior_engineer.challenger": "cheap",
 }
 
 
@@ -160,11 +165,11 @@ def _tier_default(tier: str) -> tuple[Provider, str]:
     """Resolve tier → (provider, model_id) using env overrides.
 
     Top/mid tier resolution order:
-      1. TAO_{TOP,MID}_USE_CLAUDE_PRINT=1 → route through `claude --print`
-         subprocess ($0 marginal under Claude Max plan, per
-         `[[feedback-model-routing-max-first]]`).
+      1. TAO_{TOP,MID}_USE_CLAUDE_PRINT=1 → Claude CLI Max/OAuth path when
+         explicitly enabled; this is allowed only when it does not consume
+         Anthropic API credits.
       2. TAO_{TOP,MID}_MODEL env model_id (or default).
-      3. Provider: anthropic.
+      3. Provider: openrouter (OpenAI-compatible, no external Anthropic key).
 
     Cheap tier resolution order:
       1. Legacy TAO_CHEAP_MODEL env (honoured for backwards compat;
@@ -178,15 +183,26 @@ def _tier_default(tier: str) -> tuple[Provider, str]:
         model = (os.environ.get("TAO_TOP_MODEL") or DEFAULT_TOP_MODEL).strip()
         if os.environ.get("TAO_TOP_USE_CLAUDE_PRINT", "").strip() == "1":
             return "claude_print", model
-        return "anthropic", model
+        return _provider_for_remote_model(model), model
     if tier == "mid":
         model = (os.environ.get("TAO_MID_MODEL") or DEFAULT_MID_MODEL).strip()
         if os.environ.get("TAO_MID_USE_CLAUDE_PRINT", "").strip() == "1":
             return "claude_print", model
-        return "anthropic", model
+        return _provider_for_remote_model(model), model
 
     # Cheap tier — multi-step resolution
     return _resolve_cheap_tier()
+
+
+def _provider_for_remote_model(model_id: str) -> Provider:
+    """Choose provider for a remote model id.
+
+    Default policy is OpenRouter/OpenAI-compatible. Legacy claude-* IDs still
+    route to Anthropic only when explicitly configured by env/override.
+    """
+    if model_id.startswith("claude-"):
+        return "anthropic"
+    return "openrouter"
 
 
 def _resolve_cheap_tier() -> tuple[Provider, str]:

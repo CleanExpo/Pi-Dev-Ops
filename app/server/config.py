@@ -164,11 +164,16 @@ CLAUDE_CMD           = os.environ.get("TAO_CLAUDE_CMD",                 "claude"
 # Default ON for marathon mode; set TAO_CLAUDE_INTERACTIVE=1 to disable for local dev.
 _INTERACTIVE         = os.environ.get("TAO_CLAUDE_INTERACTIVE", "0") == "1"
 CLAUDE_EXTRA_FLAGS   = [] if _INTERACTIVE else ["--dangerously-skip-permissions"]
-ALLOWED_MODELS       = ["opus", "sonnet", "haiku"]
+ALLOWED_MODELS       = ["opus", "sonnet", "haiku", "gpt55", "kimi25"]
 
-# ── MODEL ROUTING POLICY (RA-1099 — hardwired 2026-04-17) ──────────────────
+# ── MODEL ROUTING POLICY ───────────────────────────────────────────────────
+# Current policy: Anthropic/Claude Code workflows are the methodology, but
+# external Anthropic API keys are not a runtime dependency. New provider-aware
+# paths should use GPT-5.5-class and Kimi 2.5-class models through the
+# OpenAI-compatible provider layer. Legacy opus/sonnet/haiku aliases remain for
+# old SDK/Claude-Code paths until those callers are fully migrated.
 # Opus 4.7 is reserved for Senior PM (planner) and Senior Orchestrator agents.
-# Every other agent role MUST use Sonnet 4.6 or Haiku 4.5.
+# Every other legacy Claude agent role MUST use Sonnet 4.6 or Haiku 4.5.
 # Override via TAO_OPUS_ALLOWED_ROLES if you ever need to widen this — but the
 # default is strict by design (cost + latency).
 OPUS_ALLOWED_ROLES   = set(
@@ -189,10 +194,14 @@ OPUS_ALLOWED_ROLES   = set(
 MODEL_ID_OPUS        = "claude-opus-4-7"
 MODEL_ID_SONNET      = "claude-sonnet-4-6"
 MODEL_ID_HAIKU       = "claude-haiku-4-5-20251001"
+MODEL_ID_GPT55       = os.environ.get("TAO_GPT55_MODEL", "openai/gpt-5.5")
+MODEL_ID_KIMI25      = os.environ.get("TAO_KIMI25_MODEL", "moonshotai/kimi-k2.5")
 MODEL_SHORT_TO_ID    = {
     "opus":   MODEL_ID_OPUS,
     "sonnet": MODEL_ID_SONNET,
     "haiku":  MODEL_ID_HAIKU,
+    "gpt55":  MODEL_ID_GPT55,
+    "kimi25": MODEL_ID_KIMI25,
 }
 MAX_CONCURRENT_SESSIONS = int(os.environ.get("TAO_MAX_SESSIONS",        "3"))
 RATE_LIMIT_PER_MIN   = int(os.environ.get("TAO_RATE_LIMIT",             "30"))

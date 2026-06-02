@@ -2,19 +2,19 @@
 
 ![Smoke Test](https://github.com/CleanExpo/Pi-Dev-Ops/actions/workflows/smoke_test.yml/badge.svg)
 
-**Private agentic engineering system powered by Claude Harness.**
+**Private agentic engineering system powered by the Pi-Dev-Ops harness.**
 
-Pi CEO converts a GitHub repo URL and a plain-English brief into an autonomous Claude Code execution session — cloning the repo, running Claude against it, streaming live output to the browser, and pushing the result back to GitHub. Zero API cost on Claude Max.
+Pi CEO converts a GitHub repo URL and a plain-English brief into an autonomous senior-engineer workflow — cloning the repo, running the build loop, streaming live output to the browser, verifying evidence, and pushing the result back to GitHub. The workflow methodology follows Claude Code patterns. Runtime model execution is cost-aware: Claude CLI sessions may use Anthropic Max/OAuth through `claude --print`; non-Claude CLI/API runtimes route through OpenAI-compatible GPT/Kimi providers so Anthropic API credits are not consumed.
 
 ## Architecture
 
-Pi CEO uses a **Tiered Agent Orchestrator (TAO)** model with three Claude tiers:
+Pi CEO uses a **Tiered Agent Orchestrator (TAO)** model with three provider-agnostic tiers:
 
 | Tier | Model | Role |
 |------|-------|------|
-| Orchestrator | Opus 4.7 | Plans, decomposes, reviews |
-| Specialist | Sonnet 4.6 | Complex features, code review |
-| Worker | Haiku 4.5 | Discrete tasks, fast execution |
+| Orchestrator | GPT-5.5-class via OpenAI-compatible provider | Plans, decomposes, reviews |
+| Specialist | GPT-5.5-class or Kimi 2.5-class | Complex features, code review |
+| Worker | Kimi 2.5-class | Context packing, challenger review, discrete execution |
 
 The system includes **33 skills** organised across 4 layers (Core, Frameworks, Strategic, Foundation) that encode engineering methodology — from tier architecture and agent workflows to ZTE maturity scoring and leverage audits.
 
@@ -73,7 +73,11 @@ docker run -p 7777:7777 -e TAO_PASSWORD=your-password pi-ceo
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `TAO_PASSWORD` | **Yes** | Dashboard login password |
-| `ANTHROPIC_API_KEY` | **Yes** | `sk-ant-` key — required for Claude sessions |
+| `OPENROUTER_API_KEY` | **Yes for non-Claude CLI runtime** | Runtime model provider key for OpenAI-compatible GPT/Kimi routing |
+| `TAO_TOP_MODEL` | Optional | Senior reasoning model; default `openai/gpt-5.5` |
+| `TAO_MID_MODEL` | Optional | Implementation/evaluator model; default `openai/gpt-5.5` |
+| `TAO_CHEAP_REMOTE_MODEL` | Optional | Context/challenger model; default `moonshotai/kimi-k2.5` |
+| `TAO_TOP_USE_CLAUDE_PRINT` / `TAO_MID_USE_CLAUDE_PRINT` | Optional | Set to `1` only inside Claude CLI Max/OAuth mode; do not use for API-credit runtimes |
 | `LINEAR_API_KEY` | **Yes** | `lin_api_` key — required for autonomy poller |
 | `TAO_SESSION_SECRET` | Optional | HMAC signing key (auto-generated on first boot) |
 | `TAO_ALLOWED_ORIGINS` | Optional | Extra CORS origins (comma-separated) |
@@ -153,7 +157,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 - **Backend:** Python 3.11+, FastAPI, Uvicorn, WebSockets
 - **Dashboard:** Next.js 16, React 19, TypeScript, Tailwind CSS
-- **AI:** Claude Max (Opus 4.7 / Sonnet 4.6 / Haiku 4.5) via `claude_agent_sdk`
+- **AI:** Anthropic/Claude Code workflow methodology with OpenAI-compatible runtime routing (GPT-5.5-class + Kimi 2.5-class)
 - **Integrations:** @anthropic-ai/sdk, @octokit/rest, MCP (stdio), Linear, Supabase, Telegram
 - **Deployment:** Vercel (dashboard), Railway (backend, Docker)
 

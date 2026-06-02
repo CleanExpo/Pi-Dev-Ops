@@ -28,6 +28,7 @@ _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
+from src.tao.build_router import classify_intent, get_adw_template  # noqa: E402
 from .lessons import load_lessons  # noqa: E402
 
 
@@ -147,131 +148,9 @@ def scan_repo_context(workspace_path: str) -> dict:
             continue
 
     return result
-
-# ── PITER Intent Classification ───────────────────────────────────────────────
-_INTENT_KEYWORDS = {
-    "hotfix": ["hotfix", "urgent fix", "critical fix", "production down", "p0", "emergency"],
-    "bug": ["bug", "fix", "broken", "error", "crash", "failing", "doesn't work", "not working", "issue", "defect", "regression"],
-    "video": [
-        "explainer", "promo video", "promo reel", "marketing video", "training video",
-        "release video", "feature video", "social cut", "social ad", "video ad",
-        "remotion", "render video", "branded video", "intro video", "outro video",
-        "60s video", "30s video", "15s video", "linkedin video", "youtube video",
-        "instagram reel", "tiktok",
-    ],
-    "feature": ["add", "implement", "create", "build", "new", "feature", "enhance", "integrate", "support"],
-    "chore": ["chore", "cleanup", "refactor", "rename", "update deps", "upgrade", "lint", "format", "migrate", "move"],
-    "spike": ["research", "investigate", "explore", "spike", "prototype", "evaluate", "compare", "benchmark", "analyze"],
-}
-
-
-def classify_intent(brief: str) -> str:
-    """Classify a brief's intent using keyword matching.
-    Returns one of: feature, bug, chore, spike, hotfix, video.
-    Checks hotfix first (highest priority), then bug, video, chore, spike, feature.
-    Default: feature.
-
-    `video` sits between bug and chore so that explicit video keywords
-    (explainer, promo, social cut, remotion, etc.) route to the
-    remotion-orchestrator skill ahead of the broad "feature" fallback. Video
-    keywords are intentionally narrow — bare "video" is not enough; the brief
-    must name a video format or platform."""
-    lower = brief.lower()
-    # Order matters: hotfix/bug guard production work; video must beat the
-    # generic "feature" keywords ("create", "build", "new") which otherwise
-    # swallow every video brief.
-    for intent in ["hotfix", "bug", "video", "chore", "spike", "feature"]:
-        for kw in _INTENT_KEYWORDS[intent]:
-            if kw in lower:
-                return intent
-    return "feature"
-
-
-# ── ADW Templates (from skills/agent-workflow/SKILL.md) ──────────────────────
-_ADW_TEMPLATES = {
-    "feature": {
-        "name": "Feature Build",
-        "steps": ["decompose", "build", "test", "review", "PR"],
-        "instructions": (
-            "WORKFLOW: Feature Build\n"
-            "1. DECOMPOSE: Break the feature into discrete sub-tasks\n"
-            "2. BUILD: Implement each sub-task with clean, tested code\n"
-            "3. TEST: Run existing tests, add new tests for the feature\n"
-            "4. REVIEW: Self-review for correctness, security, style\n"
-            "5. PR: Stage changes with a clear commit message"
-        ),
-    },
-    "bug": {
-        "name": "Bug Fix",
-        "steps": ["reproduce", "diagnose", "fix", "verify", "commit"],
-        "instructions": (
-            "WORKFLOW: Bug Fix\n"
-            "1. REPRODUCE: Identify the exact failure condition\n"
-            "2. DIAGNOSE: Trace root cause — read logs, check recent changes\n"
-            "3. FIX: Apply minimal, targeted fix\n"
-            "4. VERIFY: Confirm the fix resolves the issue without regressions\n"
-            "5. COMMIT: Stage with conventional commit (fix: ...)"
-        ),
-    },
-    "chore": {
-        "name": "Chore",
-        "steps": ["apply", "lint", "test", "auto-merge"],
-        "instructions": (
-            "WORKFLOW: Chore\n"
-            "1. APPLY: Make the maintenance change (refactor, rename, upgrade)\n"
-            "2. LINT: Run linters and formatters\n"
-            "3. TEST: Verify nothing broke\n"
-            "4. COMMIT: Stage with conventional commit (chore: ...)"
-        ),
-    },
-    "spike": {
-        "name": "Research Spike",
-        "steps": ["research", "summarize", "recommend"],
-        "instructions": (
-            "WORKFLOW: Research Spike\n"
-            "1. RESEARCH: Read relevant code, docs, and prior art\n"
-            "2. SUMMARIZE: Document findings clearly\n"
-            "3. RECOMMEND: Propose an approach with trade-offs\n"
-            "Write findings to .harness/spike-<topic>.md"
-        ),
-    },
-    "hotfix": {
-        "name": "Hotfix (URGENT)",
-        "steps": ["reproduce", "diagnose", "fix", "verify", "commit"],
-        "instructions": (
-            "WORKFLOW: Hotfix (URGENT)\n"
-            "PRIORITY: This is a production-impacting issue. Move fast.\n"
-            "1. REPRODUCE: Identify the failure immediately\n"
-            "2. DIAGNOSE: Find root cause — check recent deploys first\n"
-            "3. FIX: Apply minimal fix, no scope creep\n"
-            "4. VERIFY: Confirm fix, check for side effects\n"
-            "5. COMMIT: Stage with conventional commit (fix: ...)"
-        ),
-    },
-    "video": {
-        "name": "Branded Video Render",
-        "steps": ["orchestrate", "research", "storyboard", "build", "render"],
-        "instructions": (
-            "WORKFLOW: Branded Video Render\n"
-            "Use the remotion-orchestrator skill as the entry point. It will\n"
-            "read the brief, classify (brand, composition, channel, duration),\n"
-            "and dispatch sub-skills in waves via the existing P3-B fan-out.\n"
-            "1. ORCHESTRATE: remotion-orchestrator emits wave plan JSON\n"
-            "2. RESEARCH: remotion-brand-research + remotion-marketing-strategist (wave 1)\n"
-            "3. STORYBOARD: remotion-screen-storyteller + colour-family + motion-language (wave 2)\n"
-            "4. BUILD: remotion-brand-codify + remotion-designer + remotion-composition-builder (wave 3-4)\n"
-            "5. RENDER: remotion-render-pipeline runs `npx tsx render/render.ts`,\n"
-            "   synthesises ElevenLabs voiceover, validates MP4, ships to\n"
-            "   Telegram via app.server.telegram_video.send_telegram_video,\n"
-            "   uploads to Supabase, opens Linear ticket per .harness/projects.json."
-        ),
-    },
-}
-
-
-def get_adw_template(intent: str) -> dict:
-    """Return the ADW template for a given intent."""
-    return _ADW_TEMPLATES.get(intent, _ADW_TEMPLATES["feature"])
+# ── PITER Intent Classification / ADW routing ───────────────────────────────
+# Pure implementation lives in src.tao.build_router so CLIs/tests can route
+# commands without importing server config, logging, lessons, or other side effects.
 
 
 def _get_skill_context(intent: str, max_chars: int = 4000) -> str:

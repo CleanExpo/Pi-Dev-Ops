@@ -1,0 +1,47 @@
+{
+  "workflow_id": "senior-engineer-build-loop",
+  "repo": "<repo-url-or-local-path>",
+  "ticket": null,
+  "intent": "feature",
+  "risk": "medium",
+  "models": {
+    "planner": "gpt-5.5",
+    "implementer": "gpt-5.5-or-kimi-2.5",
+    "reviewer": "gpt-5.5",
+    "challenger": "kimi-2.5",
+    "worker": "kimi-2.5"
+  },
+  "budgets": {
+    "max_agents": 6,
+    "max_turns_per_agent": 8,
+    "max_wall_minutes": 60,
+    "max_changed_files": 12
+  },
+  "scope": {
+    "allowed_paths": [],
+    "denied_paths": [
+      ".env",
+      ".env.*",
+      "secrets/**",
+      "node_modules/**",
+      ".git/**",
+      ".next/**",
+      "dist/**",
+      "build/**"
+    ],
+    "expected_change_paths": []
+  },
+  "verification": {
+    "required_commands": [],
+    "required_live_checks": [],
+    "requires_independent_review": true,
+    "evidence_path": ".harness/workflows/runs/<date>-senior-engineer-build-loop.md"
+  },
+  "governance": {
+    "requires_board_gate": false,
+    "allows_push": false,
+    "allows_pr": false,
+    "allows_secret_change": false,
+    "allows_destructive_migration": false
+  }
+}

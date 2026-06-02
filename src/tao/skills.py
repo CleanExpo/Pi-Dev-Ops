@@ -89,16 +89,24 @@ def get_skill(name: str) -> dict | None:
 
 # ── Intent-to-skills mapping ─────────────────────────────────────────────────
 _INTENT_SKILLS = {
-    "feature": ["tier-architect", "tier-worker", "tier-evaluator", "agent-workflow"],
-    "bug": ["tier-worker", "agentic-loop", "tier-evaluator"],
-    "chore": ["tier-worker", "agent-workflow"],
-    "spike": ["ceo-mode", "context-compressor", "tier-orchestrator"],
-    "hotfix": ["tier-worker", "agentic-loop", "closed-loop-prompt"],
+    "repo-intake": ["build-method-router", "launch-project-audit", "senior-engineer-workflow"],
+    "feature": ["build-method-router", "senior-engineer-workflow", "tier-architect", "tier-worker", "tier-evaluator", "agent-workflow"],
+    "bug": ["build-method-router", "senior-engineer-workflow", "tier-worker", "agentic-loop", "tier-evaluator"],
+    "chore": ["build-method-router", "senior-engineer-workflow", "tier-worker", "agent-workflow"],
+    "spike": ["build-method-router", "senior-engineer-workflow", "ceo-mode", "context-compressor", "tier-orchestrator"],
+    "hotfix": ["build-method-router", "senior-engineer-workflow", "tier-worker", "agentic-loop", "closed-loop-prompt"],
     "monitor": ["pi-seo-scanner", "pi-seo-health-monitor", "pi-seo-remediation", "maintenance-manager"],
     "spec":    ["ship-chain", "define-spec"],
     "plan":    ["ship-chain", "technical-plan"],
     "test":    ["ship-chain", "verify-test"],
     "ship":    ["ship-chain", "ship-release"],
+    # Launch crew (wave-4): launch-readiness pre-flight. "ship-it" orchestrates
+    # charter -> project-audit -> review -> enhance-debloat, then hands off to the
+    # existing ship-chain / tao-loop / ship-release. These skills are
+    # automation:manual, so skills_manifest() still classifies them as explicit-
+    # invoke even though they are intent-routed here. "launch" is an alias.
+    "ship-it": ["build-method-router", "ship-it", "launch-charter", "launch-project-audit", "launch-review", "launch-enhance-debloat"],
+    "launch":  ["build-method-router", "ship-it", "launch-charter", "launch-project-audit", "launch-review", "launch-enhance-debloat"],
     # RA-693: content + design intents now route to local skill stubs that
     # reference the backing Anthropic Cloud Skills.
     "content": ["brand-ambassador"],

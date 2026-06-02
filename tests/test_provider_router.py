@@ -39,17 +39,17 @@ def _clear_env(monkeypatch):
 # ── Tier defaults ───────────────────────────────────────────────────────────
 
 
-def test_planner_routes_to_top_anthropic():
+def test_planner_routes_to_top_openrouter_gpt55():
     pm = PR.select_provider_model("planner")
     assert pm.tier == "top"
-    assert pm.provider == "anthropic"
+    assert pm.provider == "openrouter"
     assert pm.model_id == PR.DEFAULT_TOP_MODEL
 
 
-def test_orchestrator_routes_to_top_anthropic():
+def test_orchestrator_routes_to_top_openrouter():
     pm = PR.select_provider_model("orchestrator")
     assert pm.tier == "top"
-    assert pm.provider == "anthropic"
+    assert pm.provider == "openrouter"
 
 
 def test_board_routes_to_top():
@@ -63,16 +63,16 @@ def test_debate_drafter_and_redteam_top():
 
 
 def test_margot_synthesis_top():
-    """Phase 2 (research-integrated) gets top tier."""
+    """Phase 2 (research-integrated) gets top tier via OpenRouter policy."""
     pm = PR.select_provider_model("margot.synthesis")
     assert pm.tier == "top"
-    assert pm.provider == "anthropic"
+    assert pm.provider == "openrouter"
 
 
 def test_generator_routes_to_mid():
     pm = PR.select_provider_model("generator")
     assert pm.tier == "mid"
-    assert pm.provider == "anthropic"
+    assert pm.provider == "openrouter"
     assert pm.model_id == PR.DEFAULT_MID_MODEL
 
 
@@ -81,7 +81,7 @@ def test_evaluator_mid():
 
 
 def test_margot_casual_routes_to_cheap_remote_when_ollama_unreachable():
-    """Phase 1 with Ollama unreachable → OpenRouter remote default."""
+    """Phase 1 with Ollama unreachable → OpenRouter Kimi remote default."""
     pm = PR.select_provider_model("margot.casual")
     assert pm.tier == "cheap"
     assert pm.provider == "openrouter"
@@ -111,10 +111,19 @@ def test_unknown_role_defaults_to_mid():
 
 
 def test_tao_top_model_env_overrides_default(monkeypatch):
+    monkeypatch.setenv("TAO_TOP_MODEL", "openai/gpt-5.5-mini")
+    pm = PR.select_provider_model("planner")
+    assert pm.provider == "openrouter"
+    assert pm.model_id == "openai/gpt-5.5-mini"
+
+
+
+
+def test_legacy_claude_top_model_env_routes_anthropic_only_when_explicit(monkeypatch):
     monkeypatch.setenv("TAO_TOP_MODEL", "claude-sonnet-4-6")
     pm = PR.select_provider_model("planner")
+    assert pm.provider == "anthropic"
     assert pm.model_id == "claude-sonnet-4-6"
-
 
 def test_tao_cheap_model_env_routes_openrouter_when_slash(monkeypatch):
     """Legacy TAO_CHEAP_MODEL with '/' → OpenRouter (vendor/model shape)."""
@@ -171,11 +180,11 @@ def test_tao_cheap_local_model_override(monkeypatch):
 def test_tao_cheap_remote_model_override(monkeypatch):
     """TAO_CHEAP_REMOTE_MODEL overrides the OpenRouter fallback."""
     monkeypatch.setenv(
-        "TAO_CHEAP_REMOTE_MODEL", "openai/gpt-4o-mini",
+        "TAO_CHEAP_REMOTE_MODEL", "openai/gpt-5.5-mini",
     )
     pm = PR.select_provider_model("margot.casual")
     assert pm.provider == "openrouter"
-    assert pm.model_id == "openai/gpt-4o-mini"
+    assert pm.model_id == "openai/gpt-5.5-mini"
 
 
 def test_invalid_cheap_provider_pin_falls_through(monkeypatch):
@@ -278,29 +287,27 @@ def test_is_ollama_helper():
 # ── run_via_provider dispatch ──────────────────────────────────────────────
 
 
-def test_run_via_provider_anthropic_path(monkeypatch):
-    """role=planner → Anthropic SDK call."""
+def test_run_via_provider_top_openrouter_path(monkeypatch):
+    """role=planner → OpenRouter GPT-5.5 path by default."""
     captured: dict = {}
 
-    async def fake_anthropic(*, prompt, model, workspace, timeout,
-                              session_id, phase, thinking):
-        captured.update({
-            "model": model, "phase": phase, "thinking": thinking,
-        })
-        return 0, "anthropic reply", 0.05
+    async def fake_or_call(*, prompt, model_id, timeout_s, max_tokens=4096,
+                            role="", session_id=""):
+        captured.update({"model_id": model_id, "role": role, "session_id": session_id})
+        return 0, "gpt reply", 0.05, None
 
-    fake_sdk = types.SimpleNamespace(_run_claude_via_sdk=fake_anthropic)
-    monkeypatch.setitem(sys.modules, "app.server.session_sdk", fake_sdk)
+    fake_mod = types.SimpleNamespace(call=fake_or_call)
+    monkeypatch.setitem(sys.modules, "app.server.provider_openrouter", fake_mod)
 
     rc, text, cost, error = asyncio.run(PR.run_via_provider(
         prompt="hi", role="planner", session_id="s1",
     ))
     assert rc == 0
-    assert text == "anthropic reply"
+    assert text == "gpt reply"
     assert cost == 0.05
     assert error is None
-    assert captured["phase"] == "planner"
-    assert captured["model"] == PR.DEFAULT_TOP_MODEL
+    assert captured["role"] == "planner"
+    assert captured["model_id"] == PR.DEFAULT_TOP_MODEL
 
 
 def test_run_via_provider_openrouter_path(monkeypatch):
@@ -321,7 +328,9 @@ def test_run_via_provider_openrouter_path(monkeypatch):
     assert error is None
 
 
-def test_run_via_provider_anthropic_sdk_failure(monkeypatch):
+def test_run_via_provider_legacy_anthropic_sdk_failure(monkeypatch):
+    monkeypatch.setenv("TAO_TOP_MODEL", "claude-sonnet-4-6")
+
     async def boom(*, prompt, model, workspace, timeout,
                     session_id, phase, thinking):
         raise RuntimeError("anthropic api down")
@@ -406,10 +415,10 @@ def test_tao_mid_use_claude_print_routes_mid_via_claude_print(monkeypatch):
     assert pm.model_id == PR.DEFAULT_MID_MODEL
 
 
-def test_top_use_claude_print_flag_off_routes_anthropic(monkeypatch):
-    """Flag NOT set → top tier still goes to Anthropic (backwards compat)."""
+def test_top_use_claude_print_flag_off_routes_openrouter(monkeypatch):
+    """Flag NOT set → top tier routes to OpenRouter by default."""
     pm = PR.select_provider_model("planner")
-    assert pm.provider == "anthropic"
+    assert pm.provider == "openrouter"
 
 
 def test_per_role_override_to_claude_print(monkeypatch):
@@ -489,3 +498,27 @@ def test_run_via_provider_claude_print_cli_missing(monkeypatch):
     ))
     assert rc == 127
     assert "not found" in error.lower()
+
+
+# ── Senior engineer workflow routing ─────────────────────────────────────────
+
+def test_senior_engineer_planner_routes_to_top():
+    pm = PR.select_provider_model("senior_engineer.planner")
+    assert pm.tier == "top"
+    assert pm.provider == "openrouter"
+    assert pm.model_id == PR.DEFAULT_TOP_MODEL
+
+
+def test_senior_engineer_implementer_routes_to_mid():
+    pm = PR.select_provider_model("senior_engineer.implementer")
+    assert pm.tier == "mid"
+    assert pm.provider == "openrouter"
+    assert pm.model_id == PR.DEFAULT_MID_MODEL
+
+
+def test_senior_engineer_context_pack_and_challenger_route_to_cheap_remote():
+    assert PR.select_provider_model("senior_engineer.context_pack").tier == "cheap"
+    challenger = PR.select_provider_model("senior_engineer.challenger")
+    assert challenger.tier == "cheap"
+    assert challenger.provider == "openrouter"
+    assert challenger.model_id == PR.DEFAULT_CHEAP_REMOTE_MODEL
