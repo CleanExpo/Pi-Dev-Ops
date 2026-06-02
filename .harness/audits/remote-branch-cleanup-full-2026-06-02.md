@@ -1,0 +1,162 @@
+# Pi-Dev-Ops full remote branch cleanup audit
+
+Generated: 2026-06-02T06:06:38.061609+00:00
+
+Policy: preserve origin/main and origin/HEAD; remove stale feature/fix/analysis/auto branches with no open GitHub PRs. Branch tip SHA recorded below before deletion.
+
+Remote branches listed for cleanup after merged-branch pass: 154
+
+- origin|89b3085|2026-05-31 12:12:16 +1000|docs(nexus): add ecosystem link
+- origin/chore/lesson-patterns-consolidation|500050a|2026-04-17 07:44:28 +1000|docs(lessons): consolidate 8 pattern reviews into lesson-patterns.md
+- origin/chore/ra-1094-bloat-removal|047fcdc|2026-04-17 06:56:38 +1000|chore(bloat): remove app/server/advanced/ re-exports — 53 LOC (RA-1094)
+- origin/chore/ra-1094b-sdk-only-mandate|c883cc4|2026-04-17 07:19:08 +1000|chore(bloat): drop unused config import in pipeline.py (RA-1094)
+- origin/chore/ra-1105-sql-audit|3e0e5fd|2026-04-17 12:22:55 +1000|chore(docs): RA-1105 SQL audit — reconcile CLAUDE.md observability with reality + add supabase/README.md
+- origin/chore/ra-834-pi-ceo-scanner-exclusions|760b067|2026-04-17 07:02:31 +1000|chore(scanner): add Pi-Dev-Ops FP exclusions (RA-834 pattern)
+- origin/codex/live-nexus-v3-live-test|c7e597c|2026-05-17 21:43:46 +1000|fix(live-nexus): update live AssemblyAI smoke to v3
+- origin/docs/chrome-binding-lesson|8ae060c|2026-04-17 14:53:11 +1000|docs(lessons): Claude-in-Chrome device binding (RA-1098-adjacent, 2026-04-17)
+- origin/docs/nexus-webhook-runbook|64d0d8e|2026-05-27 16:48:20 +1000|docs(nexus): C4 — operator runbook for webhook activation
+- origin/docs/ra-2026-hermes-blueprint|926afd4|2026-05-06 11:40:04 +1000|docs(architecture): RA-2026 — full HERMES + Brand Resonance + Remotion blueprint
+- origin/feat/RA-1889-pulse-github|5d56b6e|2026-05-03 21:50:45 +1000|Merge branch 'main' into feat/RA-1889-pulse-github
+- origin/feat/RA-1892-pulse-synthesis|91d3a47|2026-05-03 21:50:21 +1000|feat(pulse): RA-1892 — cross-portfolio synthesis (10x layer)
+- origin/feat/RA-1909-cost-tracking|a041c3f|2026-05-03 22:07:21 +1000|Merge remote-tracking branch 'origin/main' into feat/RA-1909-cost-tracking
+- origin/feat/RA-1910-health-pinger|b3f8bb1|2026-05-03 22:03:44 +1000|Merge branch 'main' into feat/RA-1910-health-pinger
+- origin/feat/active-build-strip|dd7b9d0|2026-04-18 01:10:35 +1000|feat(dashboard): always-visible ActiveBuildStrip — no more 'looks dead' terminals
+- origin/feat/control-redesign|84dc62e|2026-04-17 08:53:19 +1000|feat(dashboard): Second Brain /control redesign — rings, sparklines, TopBar, amber pulse
+- origin/feat/hermes-plugin-mirror|0e6e931|2026-05-22 19:00:19 +1000|fix: load linear key from hermes env fallback (#251)
+- origin/feat/inter-font|9e751ec|2026-04-17 08:08:25 +1000|Merge remote-tracking branch 'origin/main' into feat/inter-font
+- origin/feat/internal-pivot-2026-05-11|5d22a01|2026-05-14 18:30:16 +1000|feat(meta_curator): Max-first cascade — `claude --print` tier-0 before SDK
+- origin/feat/karpathy-eval-brief|6df4497|2026-04-17 07:56:21 +1000|test(karpathy): add integration tests for evaluator axis + brief injection
+- origin/feat/nexus-backfill-cli|827f5b7|2026-05-27 16:46:47 +1000|feat(nexus): C3 — historical backfill CLI
+- origin/feat/nexus-bra-generator|b9eef39|2026-05-26 20:34:52 +1000|feat(nexus): B5 — BRA generator (Brief/Recommendation/Action) with evidence anchoring
+- origin/feat/nexus-discovery-loop|f5095bd|2026-05-26 20:24:28 +1000|feat(nexus): B3 — Discovery loop orchestrator + loop runner driver
+- origin/feat/nexus-e2e-pipeline|0eae2fc|2026-05-26 20:44:52 +1000|feat(nexus): B7 — end-to-end synthetic Nexus pipeline test
+- origin/feat/nexus-ingest-adapters|dc5d2f5|2026-05-26 20:30:13 +1000|feat(nexus): B4 — outcomes ingestion adapters (Stripe/Vercel/PostHog/Sentry/Linear)
+- origin/feat/nexus-ingest-health|62bce86|2026-05-27 16:39:00 +1000|feat(nexus): C1 — per-provider ingest health probe endpoint
+- origin/feat/nexus-margot-intake|b726977|2026-05-26 20:18:57 +1000|feat(nexus): B2 — Margot voice intake → POST /api/nexus/clients/intake
+- origin/feat/nexus-outcomes-store|e54874b|2026-05-26 20:10:52 +1000|feat(nexus): B1 — outcomes store + Supabase adapter + app.state wiring
+- origin/feat/nexus-production-stores|6b2ce13|2026-05-27 16:15:05 +1000|feat(nexus): B9 — production store wiring (loops + audit + llm)
+- origin/feat/nexus-scheduler|4804942|2026-05-26 21:31:58 +1000|ci: re-trigger workflows for B8 scheduler PR
+- origin/feat/nexus-six-pager-bra|d89655a|2026-05-26 20:39:23 +1000|feat(nexus): B6 — 6-pager BRA cards + voice variant
+- origin/feat/nexus-workspace-lookup-adapter|c888beb|2026-05-27 18:29:46 +1000|feat(nexus): C6 — SupabaseWorkspaceLookup adapter + webhook handler wiring
+- origin/feat/nexus-workspace-resolver|81398bb|2026-05-27 16:44:01 +1000|feat(nexus): C2 — workspace resolver + stripe_customer_id column
+- origin/feat/ra-1088-opus-4-7-upgrade|b993f72|2026-04-17 06:57:35 +1000|feat(tao): upgrade primary model to claude-opus-4-7 (RA-1088)
+- origin/feat/ra-1092-control-dashboard|69759f7|2026-04-17 07:03:02 +1000|Merge remote-tracking branch 'origin/main' into feat/ra-1092-control-dashboard
+- origin/feat/ra-1099-model-policy|70f162b|2026-04-17 11:24:24 +1000|feat(policy): RA-1099 hardwire model routing — Opus reserved for PM + Orchestrator only
+- origin/feat/ra-1100-portfolio-drilldown|e2ce3c2|2026-04-17 11:32:07 +1000|feat(dashboard): RA-1100 Portfolio Health drill-down with Fix-with-Claude action
+- origin/feat/ra-1101-telegram-remote|57bc73b|2026-04-17 11:39:34 +1000|chore(telegram-bot): bump pointer for RA-1101 remote control commands
+- origin/feat/ra-1102-ideas-inbox|fa75a8e|2026-04-17 12:12:28 +1000|feat(ideas): RA-1102 daily Telegram /idea inbox → Linear triage queue
+- origin/feat/ra-1103-project-selector|f50ff36|2026-04-17 12:15:08 +1000|feat(dashboard): RA-1103 active-project selector in TopBar with localStorage persistence
+- origin/feat/ra-1104-stall-watchdog|f0f4dcd|2026-04-17 12:19:01 +1000|feat(ops): RA-1104 build stall watchdog with auto-recovery + Telegram alert
+- origin/feat/ra-1107-morning-briefing|070dc02|2026-04-17 12:37:00 +1000|feat(ops): RA-1107 wire the 7am Telegram morning briefing (was never scheduled)
+- origin/feat/ra-1109-surface-treatment-prevention|16da6e0|2026-04-17 12:51:03 +1000|feat(process): RA-1109 hardwire prevention of surface-treatment merges
+- origin/feat/ra-1154-smoke-test-e2e|0e445c2|2026-04-17 14:02:03 +1000|feat(ci): RA-1154 horizontal + vertical E2E smoke tests + PR surface gate
+- origin/feat/ra-1184-linear-project-routing|753a555|2026-04-18 04:10:23 +1000|feat(sessions): RA-1184 create Linear ticket in target repo's own project
+- origin/feat/ra-1407-pr2-startup-recovery|a30402f|2026-04-27 14:15:22 +1000|fix(tests): patch asyncio.create_task for sync test execution (RA-1407 PR 2)
+- origin/feat/ra-1407-supabase-session-checkpointing|5ce937f|2026-04-27 13:36:59 +1000|feat(persistence): RA-1407 PR 1 — session checkpointing via Supabase
+- origin/feat/ra-1439-cron-catchup-fix|bd54192|2026-04-27 14:07:21 +1000|feat(cron): RA-1439 — durable cron last_fired_at via Supabase cron_state
+- origin/feat/ra-1518-harness-autonomy|da3bc37|2026-04-26 07:50:02 +1000|Merge branch 'main' into feat/ra-1518-harness-autonomy
+- origin/feat/ra-1668-notebooklm-auto-refresh|b9c4767|2026-04-27 13:33:00 +1000|fix(ruff): drop unused _load_freshness import (RA-1668)
+- origin/feat/ra-1743-opus-adversary-phase|4ef59d6|2026-04-27 13:13:37 +1000|fix(adversary): remove duplicate function-level SDK import (RA-1743)
+- origin/feat/ra-1990-tao-context-prune|a2f5d1b|2026-05-06 09:20:15 +1000|feat(tao): RA-1990 — tao-context-prune (prospective compaction)
+- origin/feat/ra-1991-pi-ceo-session-fts|52c3e5e|2026-05-06 07:15:40 +1000|feat(tao): RA-1991 — pi-ceo-session-fts (FTS5 over past Claude Code sessions)
+- origin/feat/ra-1992-tao-tdd-pipeline|41f9bde|2026-05-06 09:29:04 +1000|feat(tao): RA-1992 — tao-tdd-pipeline (test-first iteration discipline)
+- origin/feat/ra-1994-tao-boomerang|824123d|2026-05-06 09:52:02 +1000|feat(tao): RA-1994 — tao-boomerang (summary-only one-shot dispatch)
+- origin/feat/ra-1995-pi-ceo-docparser|6c6866a|2026-05-06 09:45:15 +1000|feat(tao): RA-1995 — pi-ceo-docparser (PDF/DOCX/TXT for ICP research)
+- origin/feat/ra-2006-weekly-recap-friday|0f5fe6a|2026-05-05 21:29:12 +1000|feat(portfolio_pulse): RA-2006 — Friday 8am AEST week-in-review recap
+- origin/feat/ra-2016-cron-catchup-all-types|5ffc990|2026-05-06 07:05:56 +1000|fix(cron): RA-2016 — expand catch-up scope to all overdue trigger types
+- origin/feat/ra-2026-hermes-discovery-loop|7a58381|2026-05-06 11:34:10 +1000|feat(discovery): RA-2026 Phase 1 — HERMES Discovery loop foundation
+- origin/feat/ra-2027-wave1-personas|a0ea73d|2026-05-06 12:55:19 +1000|feat(discovery): RA-2027 Wave 1 PR-A — NotebookLM-first SCAN + Linear archive cron
+- origin/feat/ra-wave-1-screencaps|f58992f|2026-05-15 06:09:39 +1000|feat(video): screen captures for RA Wave 1 launch video
+- origin/feat/ra-wave-1-video-poc|aa0488e|2026-05-15 06:19:14 +1000|feat(remotion): RA Wave 1 launch video composition (POC)
+- origin/feat/wire-nexus-routes|ceb37f5|2026-05-26 19:43:15 +1000|fix(nexus tests): override require_auth dep so contract tests bypass real auth
+- origin/feature/RA-1369-linear-contract-compliance|7c660c7|2026-04-20 14:32:17 +1000|fix(autonomy): RA-1369 Linear contract compliance — status + label filter, blocked orphan transition
+- origin/feature/RA-1432-RA-826-tests-workspace-intel|1d4bc4c|2026-04-20 14:00:58 +1000|feat(ra-826): add always-on GH Actions brief path + fix --days bug
+- origin/feature/RA-821-shadow-flip-ci-fixes|acb22f2|2026-04-15 09:53:19 +1000|test(ci): mark 3 pre-existing sdk_phase2 failures as xfail
+- origin/feature/RA-837-847-ci-webhook-docs-synthesis|2ed1ab7|2026-04-15 12:02:37 +1000|fix(ci): pytest-asyncio + correct ESLint rule disable
+- origin/feature/agent-cip-pr1-intake-schema|5a71749|2026-05-26 10:07:20 +1000|docs(intake): lock G1-G6 guardrails into SPEC before PR2
+- origin/feature/agent-cip-pr2-spm-module|c20a1e7|2026-05-26 10:14:10 +1000|feat(intake): SPM module — brief generation, board aggregation, authority gates, anti-spoofing (CIP-PR2)
+- origin/feature/agent-cip-pr3-margot-router|c8c9bfc|2026-05-26 10:48:37 +1000|docs(intake): add package docstring to __init__.py — match PR2 byte-for-byte
+- origin/feature/agent-cip-pr4-handoff|c328a57|2026-05-26 10:23:59 +1000|feat(intake): production handoff — G2 authority gate + idempotent 5-step ship (CIP-PR4)
+- origin/feature/agent-cip-pr5-router-dispatch|5477e9a|2026-05-26 10:50:01 +1000|fix(intake): plumb partner_telegram_user_id through IntakeBot (G3.3 hardening)
+- origin/feature/agent-cip-pr6-cli|031eeae|2026-05-26 10:50:31 +1000|chore(intake): refresh carried intake_dispatch.py to match PR5 G3.3 update
+- origin/feature/agent-model-router|a1ff06c|2026-05-26 18:59:22 +1000|fix(model_router): address 4 CodeRabbit findings + rebase ladder
+- origin/feature/agent-nexus-pr1-schema|e3128b7|2026-05-26 19:04:14 +1000|feat(nexus): PR-NEXUS-1 schema migration + RLS (8 tables, append-only audit)
+- origin/feature/agent-nexus-pr2-state-machine|695eb53|2026-05-26 19:12:53 +1000|feat(nexus): PR-NEXUS-2 onboarding state machine (pure logic, 49 tests)
+- origin/feature/agent-nexus-pr3-channels|dff99e0|2026-05-26 19:15:07 +1000|feat(nexus): PR-NEXUS-3 Telegram channel provisioning request layer (28 tests)
+- origin/feature/agent-nexus-pr4-approvals|8d0a281|2026-05-26 19:17:29 +1000|feat(nexus): PR-NEXUS-4 approval queue + nexus_audit ledger (27 tests)
+- origin/feature/agent-nexus-pr5-api|4db055c|2026-05-26 19:28:21 +1000|ci: re-trigger workflows for lint fix
+- origin/feature/dashboard-redesign-zinc|451c018|2026-04-15 12:03:37 +1000|fix(ci): pytest-asyncio + correct ESLint rule disable
+- origin/feature/phone-companion-s|6e93340|2026-04-20 09:36:59 +1000|ci: add phone-gate + phone-progress smoke surfaces (satisfy gate)
+- origin/feature/pm-core-health-20260509|601aab0|2026-05-09 18:15:59 +1000|fix(security): add HSTS + Referrer-Policy + Permissions-Policy headers; patch deps
+- origin/fix/RA-1463-health-full-payload|9e79221|2026-04-20 09:52:10 +1000|ci: strengthen proxy-health smoke (assert sessions/autonomy/swarm_enabled) — RA-1463
+- origin/fix/RA-pi-seo-scheduler-silent|2ef26c2|2026-04-20 16:11:29 +1000|fix(cron): isolate per-trigger failures + dedup silence watchdog
+- origin/fix/active-strip-indeterminate|23db420|2026-04-18 01:33:23 +1000|fix(dashboard): indeterminate progress mode for ActiveBuildStrip
+- origin/fix/dashboard-contrast-audit-wcag|7a4ac34|2026-04-17 17:03:43 +1000|fix(dashboard): WCAG-AA light-theme tokens + honest 'no trend' label
+- origin/fix/dashboard-contrast-platinum-theme|de70184|2026-04-17 16:53:21 +1000|fix(dashboard): use theme-aware CSS vars for health/status colours
+- origin/fix/dashboard-password-trim|464a036|2026-04-17 10:15:06 +1000|fix(proxy): trim DASHBOARD_PASSWORD env var to match login route
+- origin/fix/eval-anthropic-sdk-requirements|f15e771|2026-04-14 22:17:52 +1000|fix(eval): add anthropic SDK to requirements + brief_context in fallback eval
+- origin/fix/evaluator-opus-routing-violation|32000fd|2026-04-20 18:38:35 +1000|fix(sdk): evaluator role must route to sonnet not opus (RA-1099 enforcement)
+- origin/fix/health-panel-defensive|51d42bb|2026-04-17 11:08:51 +1000|fix(dashboard): CeoHealthPanel defensive against minimal /health response
+- origin/fix/linear-hermes-env-fallback|eda3ad9|2026-05-20 08:21:00 +1000|fix: load linear key from hermes env fallback
+- origin/fix/lint-unblock-date-now-unused-imports|ffefd20|2026-04-20 09:05:10 +1000|ci: add mission-control smoke surface (was missing since PR #120)
+- origin/fix/margot-corpus-grounding|bfd2ce6|2026-05-06 10:22:58 +1000|fix(margot): RA-2022 — handle_turn now passes use_corpus=True
+- origin/fix/nexus-c1-coderabbit-followup|d0fc831|2026-05-27 17:08:31 +1000|fix(nexus): C1 CodeRabbit follow-up — smoke surfaces + sharper unknown-source test
+- origin/fix/opus46-cleanup-hydration|9a5cfb3|2026-04-17 08:01:36 +1000|fix(dashboard): hydration warning + Opus 4.7 string on landing page
+- origin/fix/overview-page-null-guards|3e5775b|2026-04-20 09:07:31 +1000|fix(dashboard): chain-guard health.autonomy on services checklist (ts18048)
+- origin/fix/pdo-security-batch-ra-3034-3006-3012|cbd84f3|2026-05-12 06:00:51 +1000|fix(security): remove hardcoded service_role + gitignore harness state + secret-stripper (RA-3034, RA-3006, RA-3012)
+- origin/fix/push-auth-feature-branch|ff8b875|2026-04-14 22:49:41 +1000|fix(push): embed GITHUB_TOKEN in remote URL + push to feature branch
+- origin/fix/ra-1106-ruff-cleanup|9fa98ff|2026-04-17 12:25:36 +1000|fix(lint): RA-1106 remove unused imports flagged by ruff F401
+- origin/fix/ra-1108-fix-with-claude-live-stream|b1957a1|2026-04-17 12:45:18 +1000|fix(dashboard): RA-1108 Fix-with-Claude now streams live session output
+- origin/fix/ra-1158-scanner-false-positives|2abe312|2026-04-17 15:05:45 +1000|fix(scanner): RA-1158 silence 8 medium dangerous-pattern false positives
+- origin/fix/ra-1169-parse-event-str-crash|72eab71|2026-04-18 01:38:52 +1000|fix(sessions): RA-1169 parse_event crash on bare JSON strings
+- origin/fix/ra-1170-sdk-timeout-enforced|f4544f7|2026-04-18 01:57:22 +1000|fix(sdk): RA-1170 enforce timeout on Claude SDK generator stream
+- origin/fix/ra-1171-sdk-migrate-to-query-function|58e6a31|2026-04-18 02:11:15 +1000|fix(sdk): RA-1171 migrate ClaudeSDKClient → top-level query() — fixes 8-min hang
+- origin/fix/ra-1172-permission-bypass|ce7ae92|2026-04-18 02:21:07 +1000|fix(sdk): RA-1172 set permission_mode='bypassPermissions' on ClaudeAgentOptions
+- origin/fix/ra-1173-workspace-isolation|ccdee3a|2026-04-18 02:36:06 +1000|fix(workspace): RA-1173 verify clone origin + plant stub CLAUDE.md
+- origin/fix/ra-1174-tier-aware-timeout|bf31677|2026-04-18 02:53:15 +1000|fix(sessions): RA-1174 tier-aware generator timeout
+- origin/fix/ra-1175-plan-model-escalation|4692833|2026-04-18 02:56:35 +1000|fix(sessions): RA-1175 escalate plan model to Sonnet for detailed/advanced tiers
+- origin/fix/ra-1177-harden-plan-prompt|5938d03|2026-04-18 03:06:21 +1000|fix(sessions): RA-1177 harden planning prompt to prevent clarification-prose output
+- origin/fix/ra-1178-always-sonnet-plan|aff30ae|2026-04-18 03:13:37 +1000|fix(sessions): RA-1178 always use Sonnet for plan phase (kill Haiku fallback)
+- origin/fix/ra-1181-fix-with-claude-completion-cta|88c7f22|2026-04-18 03:50:53 +1000|feat(dashboard): RA-1181 Fix-with-Claude completion banner + 'Fix next' CTA
+- origin/fix/ra-1182-block-self-modification|db308b4|2026-04-18 04:00:54 +1000|fix(webhook): RA-1182 block self-modification sessions on Pi-Dev-Ops webhook
+- origin/fix/ra-1183-auto-open-pr|7ba63be|2026-04-18 04:06:30 +1000|feat(sessions): RA-1183 auto-open PR after successful push
+- origin/fix/ra-1185-update-sdk-tests-for-query-migration|b737b9b|2026-04-18 04:24:22 +1000|fix(tests): update test_sdk_phase2 for RA-1171 query() migration
+- origin/fix/ra-1472-board-meeting-silence-watchdog|f9ff78a|2026-04-27 08:50:46 +1000|Merge remote-tracking branch 'origin/main' into fix/ra-1472-board-meeting-silence-watchdog
+- origin/fix/ra-1749-create-policy-idempotent|fe9a0da|2026-04-27 16:22:24 +1000|fix(supabase): RA-1749 make CREATE POLICY idempotent
+- origin/fix/ra-1999-codebase-wiki-bypass-token|6c2631d|2026-05-05 19:10:44 +1000|fix(ci): RA-1999 — use bypass-capable PAT for codebase-wiki push
+- origin/fix/ra-2002-margot-ideas-bridge|0ee42a2|2026-05-05 21:00:39 +1000|test(margot): RA-2002 — fix sys.modules pollution between test files
+- origin/fix/ra-2002b-prompt-no-fake-ra-numbers|3156c55|2026-05-05 22:03:27 +1000|fix(margot): RA-2002b — prompt no longer hallucinates fake RA-numbers
+- origin/fix/security-sweep-ra-1017-ra-1020-ra-1008|b8ea0bc|2026-04-26 07:59:40 +1000|fix(gate): update smoke-surfaces.json for RA-1017/RA-1008 route changes
+- origin/fix/smoke-e2e-warmup-and-timeout|dc67600|2026-04-17 17:29:35 +1000|fix(smoke): RA-1165 warmup + 30s timeout on auth-required probes
+- origin/fix/sprint-12-ci-zte-cron|a55c139|2026-04-15 12:04:19 +1000|fix(supabase): add missing gate_checks columns — confidence, scope_adhered, files_modified
+- origin/fix/swarm-board-attribute-errors|308b57c|2026-05-15 08:51:09 +1000|fix(swarm/board): restore missing exports after wiring.py source-restore (PR #233 follow-up)
+- origin/ops/code-sync-20260510|ef26099|2026-05-10 03:50:17 +1000|ops: skills, swarm agents, preview-canvas, brand configs, scripts
+- origin/ops/fresh-test-1778348869|d974c96|2026-05-10 03:47:49 +1000|test: verify push from fresh clone
+- origin/phillmcgurk/ra-1985-repoint-skills-at-synthex-brand-config|080dd75|2026-05-05 18:59:12 +1000|docs(RA-1985): repoint marketing-* + remotion-* skills at Synthex's @unite-group/brand-config
+- origin/pidev/analysis-20260407|ba385bd|2026-04-07 11:29:02 +1000|audit: executive-summary.md
+- origin/pidev/analysis-20260410|244812e|2026-04-10 12:27:58 +1000|audit: feature_list.json
+- origin/pidev/analysis-20260413|0786ee5|2026-04-13 15:39:37 +1000|audit: executive-summary.md
+- origin/pidev/analysis-20260413-0601|5400bfd|2026-04-13 16:05:36 +1000|audit: executive-summary.md
+- origin/pidev/analysis-20260413-0621|2d1a87a|2026-04-13 16:25:23 +1000|audit: phase 4 — CONTEXT
+- origin/pidev/analysis-20260413-0625|7beb427|2026-04-13 16:28:37 +1000|audit: phase 4 — CONTEXT
+- origin/pidev/analysis-20260413-0626|06b864c|2026-04-13 16:30:07 +1000|audit: phase 4 — CONTEXT
+- origin/pidev/analysis-20260413-0630|5fb2ed0|2026-04-13 16:34:01 +1000|audit: phase 4 — CONTEXT
+- origin/pidev/analysis-20260413-0631|f14a443|2026-04-13 16:35:27 +1000|audit: phase 4 — CONTEXT
+- origin/pidev/analysis-20260413-0635|2b24cbf|2026-04-13 16:38:49 +1000|audit: phase 4 — CONTEXT
+- origin/pidev/analysis-20260413-0636|91c3ef4|2026-04-13 16:40:25 +1000|audit: phase 4 — CONTEXT
+- origin/pidev/analysis-20260413-0640|8cc2939|2026-04-13 16:43:57 +1000|audit: phase 4 — CONTEXT
+- origin/pidev/analysis-20260413-0641|00483bb|2026-04-13 16:45:46 +1000|audit: phase 4 — CONTEXT
+- origin/pidev/analysis-20260413-0645|4e22c69|2026-04-13 16:49:18 +1000|audit: phase 4 — CONTEXT
+- origin/pidev/analysis-20260413-0647|24570d0|2026-04-13 16:50:56 +1000|audit: phase 4 — CONTEXT
+- origin/pidev/analysis-20260413-0652|c474634|2026-04-13 16:56:44 +1000|audit: phase 4 — CONTEXT
+- origin/pidev/analysis-20260413-0704|404492d|2026-04-13 17:08:16 +1000|audit: feature_list.json
+- origin/pidev/analysis-20260413-0713|d2dacd5|2026-04-13 17:17:27 +1000|audit: executive-summary.md
+- origin/pidev/analysis-20260413-0812|e4d0532|2026-04-13 18:16:27 +1000|audit: spec.md
+- origin/pidev/analysis-20260413-2222|ce0f409|2026-04-14 08:26:30 +1000|audit: feature_list.json
+- origin/pidev/analysis-20260413-2228|f29b8ff|2026-04-14 08:32:00 +1000|audit: spec.md
+- origin/pidev/auto-951477a8|e642281|2026-04-17 18:06:11 +0000|feat: Pi CEO build
+- origin/pidev/auto-a00cba54|89fafe3|2026-04-19 05:14:05 +0000|feat(workspace-intel): RA-826 — Google Workspace update monitoring via RSS → n8n → NotebookLM
+- origin/pidev/auto-b57b510b|2b1e267|2026-04-18 05:04:45 +0000|feat(linear): add idempotent workspace-setup script for RA-1298
+- origin/security/ra-1098-dns-takeover|9ff4ec8|2026-04-17 09:08:27 +1000|feat(security): RA-1098 portfolio DNS takeover scanner + www monitoring
+- origin/staging/cluster-a-aip-2026-05-12|9856e83|2026-05-11 19:23:17 +1000|feat(aip): expand ontology to all 6 portfolio businesses
+- origin/test/ra-883-push-helper|3dd1d98|2026-04-14 21:19:47 +1000|test: push_helper end-to-end smoke test (RA-883) [skip ci]

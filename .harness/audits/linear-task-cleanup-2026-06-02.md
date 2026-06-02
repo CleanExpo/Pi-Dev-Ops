@@ -1,0 +1,576 @@
+# Linear task cleanup audit
+
+Generated: 2026-06-02T06:08:56.639044+00:00
+
+Open issues scanned: 3935
+
+Policy: mark obvious generated duplicates/noise only. Preserve newest RA margot-idea production issue per exact title; do not touch active security/customer/build-loop issues.
+
+## Preserved newest production idea tasks
+
+- KEEP RA-5657: [Production] synthex — ai marketing automation episode
+- KEEP RA-5656: [Production] synthex — social cut 15s linkedin
+- KEEP RA-5655: [Production] synthex — feature ai content gen
+- KEEP RA-5651: [Production] synthex — onboarding walkthrough
+- KEEP RA-5650: [Production] synthex — aeo explainer for clients
+- KEEP RA-5649: [Production] synthex — product demo 60s
+
+## Tasks marked Duplicate/Canceled
+
+- generated-noise: RA-1948 | Duplicate | [SCOUT] ARXIV: Can Coding Agents Reproduce Findings in Computational Materials Science? | https://linear.app/unite-group/issue/RA-1948/scout-arxiv-can-coding-agents-reproduce-findings-in-computational
+- generated-noise: RA-1949 | Duplicate | [SCOUT] ARXIV: LLM-Oriented Information Retrieval: A Denoising-First Perspective | https://linear.app/unite-group/issue/RA-1949/scout-arxiv-llm-oriented-information-retrieval-a-denoising-first
+- generated-noise: RA-1950 | Duplicate | [SCOUT] ARXIV: Learning How and What to Memorize: Cognition-Inspired Two-Stage Optimization for | https://linear.app/unite-group/issue/RA-1950/scout-arxiv-learning-how-and-what-to-memorize-cognition-inspired-two
+- generated-noise: RA-1951 | Duplicate | [SCOUT] ARXIV: SAGA: Workflow-Atomic Scheduling for AI Agent Inference on GPU Clusters | https://linear.app/unite-group/issue/RA-1951/scout-arxiv-saga-workflow-atomic-scheduling-for-ai-agent-inference-on
+- generated-noise: RA-1952 | Duplicate | [SCOUT] ARXIV: RunAgent: Interpreting Natural-Language Plans with Constraint-Guided Execution | https://linear.app/unite-group/issue/RA-1952/scout-arxiv-runagent-interpreting-natural-language-plans-with
+- generated-noise: RA-1977 | Duplicate | [SCOUT] ARXIV: Reinforcement Learning for LLM-based Multi-Agent Systems through Orchestration T | https://linear.app/unite-group/issue/RA-1977/scout-arxiv-reinforcement-learning-for-llm-based-multi-agent-systems
+- generated-noise: RA-1978 | Duplicate | [SCOUT] ARXIV: Autonomous LLM Agent Worms: Cross-Platform Propagation, Automated Discovery and | https://linear.app/unite-group/issue/RA-1978/scout-arxiv-autonomous-llm-agent-worms-cross-platform-propagation
+- generated-noise: RA-2011 | Duplicate | [SCOUT] ARXIV: Reinforcement Learning for LLM-based Multi-Agent Systems through Orchestration T | https://linear.app/unite-group/issue/RA-2011/scout-arxiv-reinforcement-learning-for-llm-based-multi-agent-systems
+- generated-noise: RA-2012 | Duplicate | [SCOUT] ARXIV: Autonomous LLM Agent Worms: Cross-Platform Propagation, Automated Discovery and | https://linear.app/unite-group/issue/RA-2012/scout-arxiv-autonomous-llm-agent-worms-cross-platform-propagation
+- generated-noise: RA-2017 | Duplicate | [SCOUT] ARXIV: Reinforcement Learning for LLM-based Multi-Agent Systems through Orchestration T | https://linear.app/unite-group/issue/RA-2017/scout-arxiv-reinforcement-learning-for-llm-based-multi-agent-systems
+- generated-noise: RA-2018 | Duplicate | [SCOUT] ARXIV: Autonomous LLM Agent Worms: Cross-Platform Propagation, Automated Discovery and | https://linear.app/unite-group/issue/RA-2018/scout-arxiv-autonomous-llm-agent-worms-cross-platform-propagation
+- generated-noise: RA-2131 | Duplicate | [SCOUT] ARXIV: NeuroAgent: LLM Agents for Multimodal Neuroimaging Analysis and Research | https://linear.app/unite-group/issue/RA-2131/scout-arxiv-neuroagent-llm-agents-for-multimodal-neuroimaging-analysis
+- generated-noise: RA-2132 | Duplicate | [SCOUT] ARXIV: Superintelligent Retrieval Agent: The Next Frontier of Information Retrieval | https://linear.app/unite-group/issue/RA-2132/scout-arxiv-superintelligent-retrieval-agent-the-next-frontier-of
+- generated-noise: RA-2133 | Duplicate | [SCOUT] ARXIV: How Many Iterations to Jailbreak? Dynamic Budget Allocation for Multi-Turn LLM E | https://linear.app/unite-group/issue/RA-2133/scout-arxiv-how-many-iterations-to-jailbreak-dynamic-budget-allocation
+- generated-noise: RA-2134 | Duplicate | [SCOUT] ARXIV: STALE: Can LLM Agents Know When Their Memories Are No Longer Valid? | https://linear.app/unite-group/issue/RA-2134/scout-arxiv-stale-can-llm-agents-know-when-their-memories-are-no
+- generated-noise: RA-2135 | Duplicate | [SCOUT] ARXIV: Cited but Not Verified: Parsing and Evaluating Source Attribution in LLM Deep Re | https://linear.app/unite-group/issue/RA-2135/scout-arxiv-cited-but-not-verified-parsing-and-evaluating-source
+- generated-noise: RA-2163 | Duplicate | [SCOUT] ARXIV: NeuroAgent: LLM Agents for Multimodal Neuroimaging Analysis and Research | https://linear.app/unite-group/issue/RA-2163/scout-arxiv-neuroagent-llm-agents-for-multimodal-neuroimaging-analysis
+- generated-noise: RA-2164 | Duplicate | [SCOUT] ARXIV: Superintelligent Retrieval Agent: The Next Frontier of Information Retrieval | https://linear.app/unite-group/issue/RA-2164/scout-arxiv-superintelligent-retrieval-agent-the-next-frontier-of
+- generated-noise: RA-2165 | Duplicate | [SCOUT] ARXIV: How Many Iterations to Jailbreak? Dynamic Budget Allocation for Multi-Turn LLM E | https://linear.app/unite-group/issue/RA-2165/scout-arxiv-how-many-iterations-to-jailbreak-dynamic-budget-allocation
+- generated-noise: RA-2166 | Duplicate | [SCOUT] ARXIV: STALE: Can LLM Agents Know When Their Memories Are No Longer Valid? | https://linear.app/unite-group/issue/RA-2166/scout-arxiv-stale-can-llm-agents-know-when-their-memories-are-no
+- generated-noise: RA-2167 | Duplicate | [SCOUT] ARXIV: Cited but Not Verified: Parsing and Evaluating Source Attribution in LLM Deep Re | https://linear.app/unite-group/issue/RA-2167/scout-arxiv-cited-but-not-verified-parsing-and-evaluating-source
+- generated-noise: RA-2171 | Duplicate | [SCOUT] ARXIV: NeuroAgent: LLM Agents for Multimodal Neuroimaging Analysis and Research | https://linear.app/unite-group/issue/RA-2171/scout-arxiv-neuroagent-llm-agents-for-multimodal-neuroimaging-analysis
+- generated-noise: RA-2172 | Duplicate | [SCOUT] ARXIV: Superintelligent Retrieval Agent: The Next Frontier of Information Retrieval | https://linear.app/unite-group/issue/RA-2172/scout-arxiv-superintelligent-retrieval-agent-the-next-frontier-of
+- generated-noise: RA-2173 | Duplicate | [SCOUT] ARXIV: How Many Iterations to Jailbreak? Dynamic Budget Allocation for Multi-Turn LLM E | https://linear.app/unite-group/issue/RA-2173/scout-arxiv-how-many-iterations-to-jailbreak-dynamic-budget-allocation
+- generated-noise: RA-2174 | Duplicate | [SCOUT] ARXIV: STALE: Can LLM Agents Know When Their Memories Are No Longer Valid? | https://linear.app/unite-group/issue/RA-2174/scout-arxiv-stale-can-llm-agents-know-when-their-memories-are-no
+- generated-noise: RA-2175 | Duplicate | [SCOUT] ARXIV: Cited but Not Verified: Parsing and Evaluating Source Attribution in LLM Deep Re | https://linear.app/unite-group/issue/RA-2175/scout-arxiv-cited-but-not-verified-parsing-and-evaluating-source
+- generated-noise: RA-2190 | Duplicate | [SCOUT] ARXIV: NeuroAgent: LLM Agents for Multimodal Neuroimaging Analysis and Research | https://linear.app/unite-group/issue/RA-2190/scout-arxiv-neuroagent-llm-agents-for-multimodal-neuroimaging-analysis
+- generated-noise: RA-2191 | Duplicate | [SCOUT] ARXIV: Superintelligent Retrieval Agent: The Next Frontier of Information Retrieval | https://linear.app/unite-group/issue/RA-2191/scout-arxiv-superintelligent-retrieval-agent-the-next-frontier-of
+- generated-noise: RA-2192 | Duplicate | [SCOUT] ARXIV: How Many Iterations to Jailbreak? Dynamic Budget Allocation for Multi-Turn LLM E | https://linear.app/unite-group/issue/RA-2192/scout-arxiv-how-many-iterations-to-jailbreak-dynamic-budget-allocation
+- generated-noise: RA-2193 | Duplicate | [SCOUT] ARXIV: STALE: Can LLM Agents Know When Their Memories Are No Longer Valid? | https://linear.app/unite-group/issue/RA-2193/scout-arxiv-stale-can-llm-agents-know-when-their-memories-are-no
+- generated-noise: RA-2194 | Duplicate | [SCOUT] ARXIV: Cited but Not Verified: Parsing and Evaluating Source Attribution in LLM Deep Re | https://linear.app/unite-group/issue/RA-2194/scout-arxiv-cited-but-not-verified-parsing-and-evaluating-source
+- generated-noise: RA-2201 | Duplicate | [SCOUT] ARXIV: NeuroAgent: LLM Agents for Multimodal Neuroimaging Analysis and Research | https://linear.app/unite-group/issue/RA-2201/scout-arxiv-neuroagent-llm-agents-for-multimodal-neuroimaging-analysis
+- generated-noise: RA-2202 | Duplicate | [SCOUT] ARXIV: Superintelligent Retrieval Agent: The Next Frontier of Information Retrieval | https://linear.app/unite-group/issue/RA-2202/scout-arxiv-superintelligent-retrieval-agent-the-next-frontier-of
+- generated-noise: RA-2203 | Duplicate | [SCOUT] ARXIV: How Many Iterations to Jailbreak? Dynamic Budget Allocation for Multi-Turn LLM E | https://linear.app/unite-group/issue/RA-2203/scout-arxiv-how-many-iterations-to-jailbreak-dynamic-budget-allocation
+- generated-noise: RA-2204 | Duplicate | [SCOUT] ARXIV: STALE: Can LLM Agents Know When Their Memories Are No Longer Valid? | https://linear.app/unite-group/issue/RA-2204/scout-arxiv-stale-can-llm-agents-know-when-their-memories-are-no
+- generated-noise: RA-2205 | Duplicate | [SCOUT] ARXIV: Cited but Not Verified: Parsing and Evaluating Source Attribution in LLM Deep Re | https://linear.app/unite-group/issue/RA-2205/scout-arxiv-cited-but-not-verified-parsing-and-evaluating-source
+- duplicate: RA-2214 | Duplicate | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-2214/production-synthex-product-demo-60s
+- duplicate: RA-2215 | Duplicate | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-2215/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-2216 | Duplicate | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-2216/production-synthex-onboarding-walkthrough
+- duplicate: RA-2239 | Duplicate | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-2239/production-synthex-product-demo-60s
+- duplicate: RA-2240 | Duplicate | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-2240/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-2241 | Duplicate | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-2241/production-synthex-onboarding-walkthrough
+- duplicate: RA-2248 | Duplicate | [Production] synthex — feature ai content gen | https://linear.app/unite-group/issue/RA-2248/production-synthex-feature-ai-content-gen
+- duplicate: RA-2249 | Duplicate | [Production] synthex — social cut 15s linkedin | https://linear.app/unite-group/issue/RA-2249/production-synthex-social-cut-15s-linkedin
+- duplicate: RA-2250 | Duplicate | [Production] synthex — ai marketing automation episode | https://linear.app/unite-group/issue/RA-2250/production-synthex-ai-marketing-automation-episode
+- generated-noise: RA-2912 | Backlog | [SCOUT] ARXIV: NeuroAgent: LLM Agents for Multimodal Neuroimaging Analysis and Research | https://linear.app/unite-group/issue/RA-2912/scout-arxiv-neuroagent-llm-agents-for-multimodal-neuroimaging-analysis
+- generated-noise: RA-2913 | Backlog | [SCOUT] ARXIV: Superintelligent Retrieval Agent: The Next Frontier of Information Retrieval | https://linear.app/unite-group/issue/RA-2913/scout-arxiv-superintelligent-retrieval-agent-the-next-frontier-of
+- generated-noise: RA-2917 | Todo | [Scout/GITHUB] swarmclawai/swarmclaw | https://linear.app/unite-group/issue/RA-2917/scoutgithub-swarmclawaiswarmclaw
+- generated-noise: RA-2918 | Todo | [Scout/GITHUB] Azure-Samples/azure-ai-travel-agents | https://linear.app/unite-group/issue/RA-2918/scoutgithub-azure-samplesazure-ai-travel-agents
+- generated-noise: RA-2919 | Todo | [Scout/GITHUB] n8n-io/n8n | https://linear.app/unite-group/issue/RA-2919/scoutgithub-n8n-ion8n
+- generated-noise: RA-2920 | Todo | [Scout/ARXIV] Superintelligent Retrieval Agent: The Next Frontier of Information Retrieval | https://linear.app/unite-group/issue/RA-2920/scoutarxiv-superintelligent-retrieval-agent-the-next-frontier-of
+- generated-noise: RA-2921 | Todo | [Scout/ARXIV] Recursive Agent Optimization | https://linear.app/unite-group/issue/RA-2921/scoutarxiv-recursive-agent-optimization
+- generated-noise: RA-2922 | Todo | [Scout/HACKERNEWS] Launch HN: Tinfoil (YC X25): Verifiable Privacy for Cloud AI | https://linear.app/unite-group/issue/RA-2922/scouthackernews-launch-hn-tinfoil-yc-x25-verifiable-privacy-for-cloud
+- generated-noise: RA-2923 | Todo | [Scout/HACKERNEWS] Show HN: Context Mode – 315 KB of MCP output becomes 5.4 KB in Claude Code | https://linear.app/unite-group/issue/RA-2923/scouthackernews-show-hn-context-mode-315-kb-of-mcp-output-becomes-54
+- generated-noise: RA-2924 | Todo | [Scout/HACKERNEWS] Show HN: Goal.md, a goal-specification file for autonomous coding agents | https://linear.app/unite-group/issue/RA-2924/scouthackernews-show-hn-goalmd-a-goal-specification-file-for
+- duplicate: RA-2932 | Duplicate | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-2932/production-synthex-product-demo-60s
+- duplicate: RA-2933 | Duplicate | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-2933/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-2934 | Duplicate | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-2934/production-synthex-onboarding-walkthrough
+- duplicate: RA-2941 | Duplicate | [Production] synthex — feature ai content gen | https://linear.app/unite-group/issue/RA-2941/production-synthex-feature-ai-content-gen
+- duplicate: RA-2942 | Duplicate | [Production] synthex — social cut 15s linkedin | https://linear.app/unite-group/issue/RA-2942/production-synthex-social-cut-15s-linkedin
+- duplicate: RA-2943 | Duplicate | [Production] synthex — ai marketing automation episode | https://linear.app/unite-group/issue/RA-2943/production-synthex-ai-marketing-automation-episode
+- duplicate: RA-2959 | Duplicate | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-2959/production-synthex-product-demo-60s
+- duplicate: RA-2960 | Duplicate | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-2960/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-2961 | Duplicate | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-2961/production-synthex-onboarding-walkthrough
+- duplicate: RA-2979 | Duplicate | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-2979/production-synthex-product-demo-60s
+- duplicate: RA-2980 | Duplicate | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-2980/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-2981 | Duplicate | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-2981/production-synthex-onboarding-walkthrough
+- duplicate: RA-3050 | Duplicate | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-3050/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-3051 | Duplicate | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-3051/production-synthex-onboarding-walkthrough
+- duplicate: RA-3052 | Duplicate | [Production] synthex — feature ai content gen | https://linear.app/unite-group/issue/RA-3052/production-synthex-feature-ai-content-gen
+- duplicate: RA-3057 | Duplicate | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-3057/production-synthex-product-demo-60s
+- duplicate: RA-3060 | Duplicate | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-3060/production-synthex-onboarding-walkthrough
+- duplicate: RA-3061 | Duplicate | [Production] synthex — feature ai content gen | https://linear.app/unite-group/issue/RA-3061/production-synthex-feature-ai-content-gen
+- duplicate: RA-3062 | Duplicate | [Production] synthex — social cut 15s linkedin | https://linear.app/unite-group/issue/RA-3062/production-synthex-social-cut-15s-linkedin
+- duplicate: RA-3066 | Duplicate | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-3066/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-3067 | Duplicate | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-3067/production-synthex-onboarding-walkthrough
+- duplicate: RA-3073 | Duplicate | [Production] synthex — feature ai content gen | https://linear.app/unite-group/issue/RA-3073/production-synthex-feature-ai-content-gen
+- duplicate: RA-3074 | Duplicate | [Production] synthex — social cut 15s linkedin | https://linear.app/unite-group/issue/RA-3074/production-synthex-social-cut-15s-linkedin
+- duplicate: RA-3075 | Duplicate | [Production] synthex — ai marketing automation episode | https://linear.app/unite-group/issue/RA-3075/production-synthex-ai-marketing-automation-episode
+- duplicate: RA-3733 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-3733/production-synthex-product-demo-60s
+- duplicate: RA-3734 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-3734/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-3735 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-3735/production-synthex-onboarding-walkthrough
+- duplicate: RA-4177 | Backlog | [Production] synthex — feature ai content gen | https://linear.app/unite-group/issue/RA-4177/production-synthex-feature-ai-content-gen
+- duplicate: RA-4178 | Backlog | [Production] synthex — social cut 15s linkedin | https://linear.app/unite-group/issue/RA-4178/production-synthex-social-cut-15s-linkedin
+- duplicate: RA-4179 | Backlog | [Production] synthex — ai marketing automation episode | https://linear.app/unite-group/issue/RA-4179/production-synthex-ai-marketing-automation-episode
+- generated-noise: RA-4203 | Backlog | [SCOUT] ARXIV: ComplexMCP: Evaluation of LLM Agents in Dynamic, Interdependent, and Large-Scale | https://linear.app/unite-group/issue/RA-4203/scout-arxiv-complexmcp-evaluation-of-llm-agents-in-dynamic
+- generated-noise: RA-4869 | Backlog | [SCOUT] ARXIV: FlowCompile: An Optimizing Compiler for Structured LLM Workflows | https://linear.app/unite-group/issue/RA-4869/scout-arxiv-flowcompile-an-optimizing-compiler-for-structured-llm
+- generated-noise: RA-4882 | Backlog | [SCOUT] ARXIV: Is Grep All You Need? How Agent Harnesses Reshape Agentic Search | https://linear.app/unite-group/issue/RA-4882/scout-arxiv-is-grep-all-you-need-how-agent-harnesses-reshape-agentic
+- generated-noise: RA-4963 | Todo | [Scout/GITHUB] swarmclawai/swarmclaw | https://linear.app/unite-group/issue/RA-4963/scoutgithub-swarmclawaiswarmclaw
+- generated-noise: RA-4964 | Todo | [Scout/GITHUB] Azure-Samples/azure-ai-travel-agents | https://linear.app/unite-group/issue/RA-4964/scoutgithub-azure-samplesazure-ai-travel-agents
+- generated-noise: RA-4965 | Todo | [Scout/GITHUB] n8n-io/n8n | https://linear.app/unite-group/issue/RA-4965/scoutgithub-n8n-ion8n
+- generated-noise: RA-4966 | Todo | [Scout/ARXIV] Position: Behavioural Assurance Cannot Verify the Safety Claims Governance Now Demands | https://linear.app/unite-group/issue/RA-4966/scoutarxiv-position-behavioural-assurance-cannot-verify-the-safety
+- generated-noise: RA-4967 | Todo | [Scout/HACKERNEWS] Launch HN: Tinfoil (YC X25): Verifiable Privacy for Cloud AI | https://linear.app/unite-group/issue/RA-4967/scouthackernews-launch-hn-tinfoil-yc-x25-verifiable-privacy-for-cloud
+- generated-noise: RA-4968 | Todo | [Scout/HACKERNEWS] Show HN: Context Mode – 315 KB of MCP output becomes 5.4 KB in Claude Code | https://linear.app/unite-group/issue/RA-4968/scouthackernews-show-hn-context-mode-315-kb-of-mcp-output-becomes-54
+- generated-noise: RA-4969 | Todo | [Scout/HACKERNEWS] Show HN: Goal.md, a goal-specification file for autonomous coding agents | https://linear.app/unite-group/issue/RA-4969/scouthackernews-show-hn-goalmd-a-goal-specification-file-for
+- duplicate: RA-5062 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5062/production-synthex-product-demo-60s
+- duplicate: RA-5063 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5063/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5064 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5064/production-synthex-onboarding-walkthrough
+- duplicate: RA-5065 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5065/production-synthex-product-demo-60s
+- duplicate: RA-5066 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5066/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5067 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5067/production-synthex-product-demo-60s
+- duplicate: RA-5068 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5068/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5069 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5069/production-synthex-onboarding-walkthrough
+- duplicate: RA-5070 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5070/production-synthex-product-demo-60s
+- duplicate: RA-5071 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5071/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5072 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5072/production-synthex-onboarding-walkthrough
+- duplicate: RA-5073 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5073/production-synthex-product-demo-60s
+- duplicate: RA-5074 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5074/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5075 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5075/production-synthex-onboarding-walkthrough
+- duplicate: RA-5076 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5076/production-synthex-product-demo-60s
+- duplicate: RA-5077 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5077/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5078 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5078/production-synthex-onboarding-walkthrough
+- duplicate: RA-5079 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5079/production-synthex-product-demo-60s
+- duplicate: RA-5080 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5080/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5081 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5081/production-synthex-onboarding-walkthrough
+- duplicate: RA-5082 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5082/production-synthex-product-demo-60s
+- duplicate: RA-5083 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5083/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5084 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5084/production-synthex-onboarding-walkthrough
+- duplicate: RA-5085 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5085/production-synthex-product-demo-60s
+- duplicate: RA-5086 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5086/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5087 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5087/production-synthex-onboarding-walkthrough
+- duplicate: RA-5088 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5088/production-synthex-product-demo-60s
+- duplicate: RA-5089 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5089/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5090 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5090/production-synthex-onboarding-walkthrough
+- duplicate: RA-5091 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5091/production-synthex-product-demo-60s
+- duplicate: RA-5092 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5092/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5093 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5093/production-synthex-onboarding-walkthrough
+- duplicate: RA-5094 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5094/production-synthex-product-demo-60s
+- duplicate: RA-5095 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5095/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5096 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5096/production-synthex-onboarding-walkthrough
+- duplicate: RA-5102 | Backlog | [Production] synthex — feature ai content gen | https://linear.app/unite-group/issue/RA-5102/production-synthex-feature-ai-content-gen
+- duplicate: RA-5103 | Backlog | [Production] synthex — social cut 15s linkedin | https://linear.app/unite-group/issue/RA-5103/production-synthex-social-cut-15s-linkedin
+- duplicate: RA-5104 | Backlog | [Production] synthex — ai marketing automation episode | https://linear.app/unite-group/issue/RA-5104/production-synthex-ai-marketing-automation-episode
+- duplicate: RA-5105 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5105/production-synthex-product-demo-60s
+- duplicate: RA-5106 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5106/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5107 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5107/production-synthex-onboarding-walkthrough
+- duplicate: RA-5112 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5112/production-synthex-product-demo-60s
+- duplicate: RA-5113 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5113/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5114 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5114/production-synthex-onboarding-walkthrough
+- duplicate: RA-5115 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5115/production-synthex-product-demo-60s
+- duplicate: RA-5116 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5116/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5117 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5117/production-synthex-onboarding-walkthrough
+- duplicate: RA-5118 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5118/production-synthex-product-demo-60s
+- duplicate: RA-5119 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5119/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5120 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5120/production-synthex-onboarding-walkthrough
+- duplicate: RA-5121 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5121/production-synthex-product-demo-60s
+- duplicate: RA-5122 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5122/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5123 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5123/production-synthex-onboarding-walkthrough
+- duplicate: RA-5124 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5124/production-synthex-product-demo-60s
+- duplicate: RA-5125 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5125/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5126 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5126/production-synthex-onboarding-walkthrough
+- duplicate: RA-5127 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5127/production-synthex-product-demo-60s
+- duplicate: RA-5128 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5128/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5129 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5129/production-synthex-onboarding-walkthrough
+- duplicate: RA-5130 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5130/production-synthex-product-demo-60s
+- duplicate: RA-5131 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5131/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5132 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5132/production-synthex-onboarding-walkthrough
+- duplicate: RA-5133 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5133/production-synthex-product-demo-60s
+- duplicate: RA-5134 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5134/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5135 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5135/production-synthex-onboarding-walkthrough
+- duplicate: RA-5136 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5136/production-synthex-product-demo-60s
+- duplicate: RA-5137 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5137/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5138 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5138/production-synthex-onboarding-walkthrough
+- duplicate: RA-5139 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5139/production-synthex-product-demo-60s
+- duplicate: RA-5140 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5140/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5141 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5141/production-synthex-onboarding-walkthrough
+- duplicate: RA-5153 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5153/production-synthex-product-demo-60s
+- duplicate: RA-5154 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5154/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5155 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5155/production-synthex-onboarding-walkthrough
+- duplicate: RA-5156 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5156/production-synthex-product-demo-60s
+- duplicate: RA-5157 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5157/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5158 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5158/production-synthex-product-demo-60s
+- duplicate: RA-5159 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5159/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5160 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5160/production-synthex-onboarding-walkthrough
+- duplicate: RA-5161 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5161/production-synthex-product-demo-60s
+- duplicate: RA-5162 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5162/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5163 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5163/production-synthex-onboarding-walkthrough
+- duplicate: RA-5164 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5164/production-synthex-product-demo-60s
+- duplicate: RA-5165 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5165/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5166 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5166/production-synthex-onboarding-walkthrough
+- duplicate: RA-5175 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5175/production-synthex-product-demo-60s
+- duplicate: RA-5176 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5176/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5177 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5177/production-synthex-onboarding-walkthrough
+- duplicate: RA-5184 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5184/production-synthex-product-demo-60s
+- duplicate: RA-5185 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5185/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5186 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5186/production-synthex-onboarding-walkthrough
+- duplicate: RA-5187 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5187/production-synthex-product-demo-60s
+- duplicate: RA-5188 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5188/production-synthex-product-demo-60s
+- duplicate: RA-5189 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5189/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5190 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5190/production-synthex-onboarding-walkthrough
+- generated-noise: RA-5195 | Backlog | [SCOUT] ARXIV: HarnessAPI: A Skill-First Framework for Unified Streaming APIs and MCP Tools | https://linear.app/unite-group/issue/RA-5195/scout-arxiv-harnessapi-a-skill-first-framework-for-unified-streaming
+- generated-noise: RA-5196 | Backlog | [SCOUT] ARXIV: WorkstreamBench: Evaluating LLM Agents on End-to-End Spreadsheet Tasks in Financ | https://linear.app/unite-group/issue/RA-5196/scout-arxiv-workstreambench-evaluating-llm-agents-on-end-to-end
+- duplicate: RA-5200 | Backlog | [Production] synthex — feature ai content gen | https://linear.app/unite-group/issue/RA-5200/production-synthex-feature-ai-content-gen
+- duplicate: RA-5201 | Backlog | [Production] synthex — social cut 15s linkedin | https://linear.app/unite-group/issue/RA-5201/production-synthex-social-cut-15s-linkedin
+- duplicate: RA-5202 | Backlog | [Production] synthex — ai marketing automation episode | https://linear.app/unite-group/issue/RA-5202/production-synthex-ai-marketing-automation-episode
+- duplicate: RA-5203 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5203/production-synthex-product-demo-60s
+- duplicate: RA-5204 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5204/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5205 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5205/production-synthex-onboarding-walkthrough
+- duplicate: RA-5206 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5206/production-synthex-product-demo-60s
+- duplicate: RA-5207 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5207/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5208 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5208/production-synthex-onboarding-walkthrough
+- duplicate: RA-5209 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5209/production-synthex-product-demo-60s
+- duplicate: RA-5210 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5210/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5211 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5211/production-synthex-onboarding-walkthrough
+- duplicate: RA-5215 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5215/production-synthex-product-demo-60s
+- duplicate: RA-5216 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5216/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5217 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5217/production-synthex-onboarding-walkthrough
+- duplicate: RA-5218 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5218/production-synthex-product-demo-60s
+- duplicate: RA-5219 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5219/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5220 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5220/production-synthex-onboarding-walkthrough
+- duplicate: RA-5221 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5221/production-synthex-product-demo-60s
+- duplicate: RA-5222 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5222/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5223 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5223/production-synthex-onboarding-walkthrough
+- duplicate: RA-5224 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5224/production-synthex-product-demo-60s
+- duplicate: RA-5225 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5225/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5226 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5226/production-synthex-onboarding-walkthrough
+- duplicate: RA-5237 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5237/production-synthex-product-demo-60s
+- duplicate: RA-5238 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5238/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5239 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5239/production-synthex-onboarding-walkthrough
+- duplicate: RA-5240 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5240/production-synthex-product-demo-60s
+- duplicate: RA-5241 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5241/production-synthex-product-demo-60s
+- duplicate: RA-5242 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5242/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5243 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5243/production-synthex-onboarding-walkthrough
+- duplicate: RA-5244 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5244/production-synthex-product-demo-60s
+- duplicate: RA-5245 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5245/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5246 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5246/production-synthex-onboarding-walkthrough
+- duplicate: RA-5247 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5247/production-synthex-product-demo-60s
+- duplicate: RA-5248 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5248/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5249 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5249/production-synthex-product-demo-60s
+- duplicate: RA-5250 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5250/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5251 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5251/production-synthex-onboarding-walkthrough
+- duplicate: RA-5252 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5252/production-synthex-product-demo-60s
+- duplicate: RA-5253 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5253/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5254 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5254/production-synthex-onboarding-walkthrough
+- duplicate: RA-5255 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5255/production-synthex-product-demo-60s
+- duplicate: RA-5256 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5256/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5257 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5257/production-synthex-onboarding-walkthrough
+- duplicate: RA-5258 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5258/production-synthex-product-demo-60s
+- duplicate: RA-5259 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5259/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5260 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5260/production-synthex-onboarding-walkthrough
+- duplicate: RA-5263 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5263/production-synthex-product-demo-60s
+- duplicate: RA-5264 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5264/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5265 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5265/production-synthex-onboarding-walkthrough
+- duplicate: RA-5266 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5266/production-synthex-product-demo-60s
+- duplicate: RA-5267 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5267/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5268 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5268/production-synthex-onboarding-walkthrough
+- duplicate: RA-5269 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5269/production-synthex-product-demo-60s
+- duplicate: RA-5270 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5270/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5271 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5271/production-synthex-onboarding-walkthrough
+- duplicate: RA-5272 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5272/production-synthex-product-demo-60s
+- duplicate: RA-5273 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5273/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5274 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5274/production-synthex-onboarding-walkthrough
+- duplicate: RA-5275 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5275/production-synthex-product-demo-60s
+- duplicate: RA-5276 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5276/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5277 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5277/production-synthex-onboarding-walkthrough
+- duplicate: RA-5278 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5278/production-synthex-product-demo-60s
+- duplicate: RA-5279 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5279/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5280 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5280/production-synthex-onboarding-walkthrough
+- duplicate: RA-5285 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5285/production-synthex-product-demo-60s
+- duplicate: RA-5286 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5286/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5287 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5287/production-synthex-onboarding-walkthrough
+- duplicate: RA-5293 | Backlog | [Production] synthex — feature ai content gen | https://linear.app/unite-group/issue/RA-5293/production-synthex-feature-ai-content-gen
+- duplicate: RA-5294 | Backlog | [Production] synthex — social cut 15s linkedin | https://linear.app/unite-group/issue/RA-5294/production-synthex-social-cut-15s-linkedin
+- duplicate: RA-5295 | Backlog | [Production] synthex — ai marketing automation episode | https://linear.app/unite-group/issue/RA-5295/production-synthex-ai-marketing-automation-episode
+- duplicate: RA-5296 | Backlog | [Production] synthex — feature ai content gen | https://linear.app/unite-group/issue/RA-5296/production-synthex-feature-ai-content-gen
+- duplicate: RA-5297 | Backlog | [Production] synthex — social cut 15s linkedin | https://linear.app/unite-group/issue/RA-5297/production-synthex-social-cut-15s-linkedin
+- duplicate: RA-5298 | Backlog | [Production] synthex — ai marketing automation episode | https://linear.app/unite-group/issue/RA-5298/production-synthex-ai-marketing-automation-episode
+- duplicate: RA-5299 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5299/production-synthex-product-demo-60s
+- duplicate: RA-5300 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5300/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5301 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5301/production-synthex-onboarding-walkthrough
+- duplicate: RA-5302 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5302/production-synthex-product-demo-60s
+- duplicate: RA-5303 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5303/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5304 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5304/production-synthex-onboarding-walkthrough
+- duplicate: RA-5305 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5305/production-synthex-product-demo-60s
+- duplicate: RA-5306 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5306/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5307 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5307/production-synthex-onboarding-walkthrough
+- duplicate: RA-5308 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5308/production-synthex-product-demo-60s
+- duplicate: RA-5309 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5309/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5310 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5310/production-synthex-onboarding-walkthrough
+- duplicate: RA-5311 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5311/production-synthex-product-demo-60s
+- duplicate: RA-5312 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5312/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5313 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5313/production-synthex-onboarding-walkthrough
+- duplicate: RA-5314 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5314/production-synthex-product-demo-60s
+- duplicate: RA-5315 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5315/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5316 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5316/production-synthex-onboarding-walkthrough
+- duplicate: RA-5322 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5322/production-synthex-product-demo-60s
+- duplicate: RA-5323 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5323/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5324 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5324/production-synthex-onboarding-walkthrough
+- duplicate: RA-5325 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5325/production-synthex-product-demo-60s
+- duplicate: RA-5326 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5326/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5327 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5327/production-synthex-onboarding-walkthrough
+- duplicate: RA-5328 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5328/production-synthex-product-demo-60s
+- duplicate: RA-5329 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5329/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5330 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5330/production-synthex-onboarding-walkthrough
+- duplicate: RA-5331 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5331/production-synthex-product-demo-60s
+- duplicate: RA-5332 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5332/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5333 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5333/production-synthex-onboarding-walkthrough
+- duplicate: RA-5335 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5335/production-synthex-product-demo-60s
+- duplicate: RA-5336 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5336/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5337 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5337/production-synthex-onboarding-walkthrough
+- duplicate: RA-5338 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5338/production-synthex-product-demo-60s
+- duplicate: RA-5339 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5339/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5340 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5340/production-synthex-onboarding-walkthrough
+- duplicate: RA-5341 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5341/production-synthex-product-demo-60s
+- duplicate: RA-5342 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5342/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5343 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5343/production-synthex-onboarding-walkthrough
+- duplicate: RA-5344 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5344/production-synthex-product-demo-60s
+- duplicate: RA-5345 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5345/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5346 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5346/production-synthex-onboarding-walkthrough
+- duplicate: RA-5347 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5347/production-synthex-product-demo-60s
+- duplicate: RA-5348 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5348/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5349 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5349/production-synthex-onboarding-walkthrough
+- duplicate: RA-5350 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5350/production-synthex-product-demo-60s
+- duplicate: RA-5351 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5351/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5352 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5352/production-synthex-onboarding-walkthrough
+- duplicate: RA-5353 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5353/production-synthex-product-demo-60s
+- duplicate: RA-5354 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5354/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5355 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5355/production-synthex-onboarding-walkthrough
+- duplicate: RA-5356 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5356/production-synthex-product-demo-60s
+- duplicate: RA-5357 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5357/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5358 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5358/production-synthex-onboarding-walkthrough
+- duplicate: RA-5359 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5359/production-synthex-product-demo-60s
+- duplicate: RA-5360 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5360/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5361 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5361/production-synthex-onboarding-walkthrough
+- duplicate: RA-5362 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5362/production-synthex-product-demo-60s
+- duplicate: RA-5363 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5363/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5364 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5364/production-synthex-onboarding-walkthrough
+- duplicate: RA-5380 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5380/production-synthex-product-demo-60s
+- duplicate: RA-5381 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5381/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5382 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5382/production-synthex-onboarding-walkthrough
+- duplicate: RA-5383 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5383/production-synthex-product-demo-60s
+- duplicate: RA-5384 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5384/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5385 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5385/production-synthex-onboarding-walkthrough
+- duplicate: RA-5386 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5386/production-synthex-product-demo-60s
+- duplicate: RA-5387 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5387/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5388 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5388/production-synthex-onboarding-walkthrough
+- duplicate: RA-5392 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5392/production-synthex-product-demo-60s
+- duplicate: RA-5393 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5393/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5394 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5394/production-synthex-onboarding-walkthrough
+- duplicate: RA-5395 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5395/production-synthex-product-demo-60s
+- duplicate: RA-5396 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5396/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5397 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5397/production-synthex-onboarding-walkthrough
+- duplicate: RA-5398 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5398/production-synthex-product-demo-60s
+- duplicate: RA-5399 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5399/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5400 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5400/production-synthex-onboarding-walkthrough
+- duplicate: RA-5401 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5401/production-synthex-product-demo-60s
+- duplicate: RA-5402 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5402/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5403 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5403/production-synthex-onboarding-walkthrough
+- duplicate: RA-5404 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5404/production-synthex-product-demo-60s
+- duplicate: RA-5405 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5405/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5406 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5406/production-synthex-onboarding-walkthrough
+- duplicate: RA-5407 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5407/production-synthex-product-demo-60s
+- duplicate: RA-5408 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5408/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5409 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5409/production-synthex-onboarding-walkthrough
+- duplicate: RA-5410 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5410/production-synthex-product-demo-60s
+- duplicate: RA-5411 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5411/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5412 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5412/production-synthex-onboarding-walkthrough
+- duplicate: RA-5413 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5413/production-synthex-product-demo-60s
+- duplicate: RA-5414 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5414/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5415 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5415/production-synthex-onboarding-walkthrough
+- duplicate: RA-5416 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5416/production-synthex-product-demo-60s
+- duplicate: RA-5417 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5417/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5418 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5418/production-synthex-onboarding-walkthrough
+- duplicate: RA-5419 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5419/production-synthex-product-demo-60s
+- duplicate: RA-5420 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5420/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5421 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5421/production-synthex-onboarding-walkthrough
+- duplicate: RA-5422 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5422/production-synthex-product-demo-60s
+- duplicate: RA-5423 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5423/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5424 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5424/production-synthex-onboarding-walkthrough
+- duplicate: RA-5425 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5425/production-synthex-product-demo-60s
+- duplicate: RA-5426 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5426/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5427 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5427/production-synthex-onboarding-walkthrough
+- duplicate: RA-5428 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5428/production-synthex-product-demo-60s
+- duplicate: RA-5429 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5429/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5430 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5430/production-synthex-onboarding-walkthrough
+- duplicate: RA-5432 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5432/production-synthex-product-demo-60s
+- duplicate: RA-5433 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5433/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5434 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5434/production-synthex-onboarding-walkthrough
+- duplicate: RA-5435 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5435/production-synthex-product-demo-60s
+- duplicate: RA-5436 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5436/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5437 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5437/production-synthex-onboarding-walkthrough
+- duplicate: RA-5438 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5438/production-synthex-product-demo-60s
+- duplicate: RA-5439 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5439/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5440 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5440/production-synthex-onboarding-walkthrough
+- duplicate: RA-5441 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5441/production-synthex-product-demo-60s
+- duplicate: RA-5442 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5442/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5443 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5443/production-synthex-onboarding-walkthrough
+- duplicate: RA-5444 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5444/production-synthex-product-demo-60s
+- duplicate: RA-5445 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5445/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5446 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5446/production-synthex-onboarding-walkthrough
+- duplicate: RA-5447 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5447/production-synthex-product-demo-60s
+- duplicate: RA-5448 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5448/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5449 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5449/production-synthex-onboarding-walkthrough
+- duplicate: RA-5450 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5450/production-synthex-product-demo-60s
+- duplicate: RA-5451 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5451/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5452 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5452/production-synthex-onboarding-walkthrough
+- duplicate: RA-5453 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5453/production-synthex-product-demo-60s
+- duplicate: RA-5454 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5454/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5455 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5455/production-synthex-onboarding-walkthrough
+- duplicate: RA-5456 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5456/production-synthex-product-demo-60s
+- duplicate: RA-5457 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5457/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5458 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5458/production-synthex-onboarding-walkthrough
+- duplicate: RA-5459 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5459/production-synthex-product-demo-60s
+- duplicate: RA-5460 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5460/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5461 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5461/production-synthex-onboarding-walkthrough
+- duplicate: RA-5462 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5462/production-synthex-product-demo-60s
+- duplicate: RA-5463 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5463/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5464 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5464/production-synthex-onboarding-walkthrough
+- duplicate: RA-5465 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5465/production-synthex-product-demo-60s
+- duplicate: RA-5466 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5466/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5467 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5467/production-synthex-onboarding-walkthrough
+- duplicate: RA-5468 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5468/production-synthex-product-demo-60s
+- duplicate: RA-5469 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5469/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5470 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5470/production-synthex-onboarding-walkthrough
+- duplicate: RA-5471 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5471/production-synthex-product-demo-60s
+- duplicate: RA-5472 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5472/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5473 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5473/production-synthex-onboarding-walkthrough
+- duplicate: RA-5474 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5474/production-synthex-product-demo-60s
+- duplicate: RA-5475 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5475/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5476 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5476/production-synthex-onboarding-walkthrough
+- duplicate: RA-5477 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5477/production-synthex-product-demo-60s
+- duplicate: RA-5478 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5478/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5479 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5479/production-synthex-onboarding-walkthrough
+- duplicate: RA-5480 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5480/production-synthex-product-demo-60s
+- duplicate: RA-5481 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5481/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5482 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5482/production-synthex-onboarding-walkthrough
+- duplicate: RA-5483 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5483/production-synthex-product-demo-60s
+- duplicate: RA-5484 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5484/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5485 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5485/production-synthex-onboarding-walkthrough
+- duplicate: RA-5486 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5486/production-synthex-product-demo-60s
+- duplicate: RA-5487 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5487/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5488 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5488/production-synthex-product-demo-60s
+- duplicate: RA-5489 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5489/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5490 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5490/production-synthex-onboarding-walkthrough
+- duplicate: RA-5491 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5491/production-synthex-product-demo-60s
+- duplicate: RA-5492 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5492/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5493 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5493/production-synthex-onboarding-walkthrough
+- duplicate: RA-5494 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5494/production-synthex-product-demo-60s
+- duplicate: RA-5495 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5495/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5496 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5496/production-synthex-onboarding-walkthrough
+- duplicate: RA-5497 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5497/production-synthex-product-demo-60s
+- duplicate: RA-5498 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5498/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5499 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5499/production-synthex-onboarding-walkthrough
+- duplicate: RA-5500 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5500/production-synthex-product-demo-60s
+- duplicate: RA-5501 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5501/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5502 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5502/production-synthex-onboarding-walkthrough
+- duplicate: RA-5508 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5508/production-synthex-product-demo-60s
+- duplicate: RA-5509 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5509/production-synthex-aeo-explainer-for-clients
+- generated-noise: RA-5510 | Backlog | [SCOUT] ARXIV: Causal methods for LLM development and evaluation | https://linear.app/unite-group/issue/RA-5510/scout-arxiv-causal-methods-for-llm-development-and-evaluation
+- duplicate: RA-5511 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5511/production-synthex-onboarding-walkthrough
+- duplicate: RA-5516 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5516/production-synthex-product-demo-60s
+- duplicate: RA-5517 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5517/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5518 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5518/production-synthex-onboarding-walkthrough
+- duplicate: RA-5519 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5519/production-synthex-product-demo-60s
+- duplicate: RA-5520 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5520/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5521 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5521/production-synthex-onboarding-walkthrough
+- duplicate: RA-5522 | Backlog | [Production] synthex — feature ai content gen | https://linear.app/unite-group/issue/RA-5522/production-synthex-feature-ai-content-gen
+- duplicate: RA-5523 | Backlog | [Production] synthex — social cut 15s linkedin | https://linear.app/unite-group/issue/RA-5523/production-synthex-social-cut-15s-linkedin
+- duplicate: RA-5524 | Backlog | [Production] synthex — ai marketing automation episode | https://linear.app/unite-group/issue/RA-5524/production-synthex-ai-marketing-automation-episode
+- duplicate: RA-5525 | Backlog | [Production] synthex — feature ai content gen | https://linear.app/unite-group/issue/RA-5525/production-synthex-feature-ai-content-gen
+- duplicate: RA-5526 | Backlog | [Production] synthex — social cut 15s linkedin | https://linear.app/unite-group/issue/RA-5526/production-synthex-social-cut-15s-linkedin
+- duplicate: RA-5527 | Backlog | [Production] synthex — ai marketing automation episode | https://linear.app/unite-group/issue/RA-5527/production-synthex-ai-marketing-automation-episode
+- duplicate: RA-5528 | Backlog | [Production] synthex — feature ai content gen | https://linear.app/unite-group/issue/RA-5528/production-synthex-feature-ai-content-gen
+- duplicate: RA-5529 | Backlog | [Production] synthex — social cut 15s linkedin | https://linear.app/unite-group/issue/RA-5529/production-synthex-social-cut-15s-linkedin
+- duplicate: RA-5530 | Backlog | [Production] synthex — ai marketing automation episode | https://linear.app/unite-group/issue/RA-5530/production-synthex-ai-marketing-automation-episode
+- duplicate: RA-5531 | Backlog | [Production] synthex — feature ai content gen | https://linear.app/unite-group/issue/RA-5531/production-synthex-feature-ai-content-gen
+- duplicate: RA-5532 | Backlog | [Production] synthex — social cut 15s linkedin | https://linear.app/unite-group/issue/RA-5532/production-synthex-social-cut-15s-linkedin
+- duplicate: RA-5533 | Backlog | [Production] synthex — ai marketing automation episode | https://linear.app/unite-group/issue/RA-5533/production-synthex-ai-marketing-automation-episode
+- duplicate: RA-5534 | Backlog | [Production] synthex — feature ai content gen | https://linear.app/unite-group/issue/RA-5534/production-synthex-feature-ai-content-gen
+- duplicate: RA-5535 | Backlog | [Production] synthex — social cut 15s linkedin | https://linear.app/unite-group/issue/RA-5535/production-synthex-social-cut-15s-linkedin
+- duplicate: RA-5536 | Backlog | [Production] synthex — ai marketing automation episode | https://linear.app/unite-group/issue/RA-5536/production-synthex-ai-marketing-automation-episode
+- duplicate: RA-5537 | Backlog | [Production] synthex — feature ai content gen | https://linear.app/unite-group/issue/RA-5537/production-synthex-feature-ai-content-gen
+- duplicate: RA-5538 | Backlog | [Production] synthex — social cut 15s linkedin | https://linear.app/unite-group/issue/RA-5538/production-synthex-social-cut-15s-linkedin
+- duplicate: RA-5539 | Backlog | [Production] synthex — ai marketing automation episode | https://linear.app/unite-group/issue/RA-5539/production-synthex-ai-marketing-automation-episode
+- duplicate: RA-5540 | Backlog | [Production] synthex — feature ai content gen | https://linear.app/unite-group/issue/RA-5540/production-synthex-feature-ai-content-gen
+- duplicate: RA-5541 | Backlog | [Production] synthex — social cut 15s linkedin | https://linear.app/unite-group/issue/RA-5541/production-synthex-social-cut-15s-linkedin
+- duplicate: RA-5542 | Backlog | [Production] synthex — ai marketing automation episode | https://linear.app/unite-group/issue/RA-5542/production-synthex-ai-marketing-automation-episode
+- duplicate: RA-5553 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5553/production-synthex-product-demo-60s
+- duplicate: RA-5554 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5554/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5555 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5555/production-synthex-onboarding-walkthrough
+- duplicate: RA-5556 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5556/production-synthex-product-demo-60s
+- duplicate: RA-5557 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5557/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5558 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5558/production-synthex-onboarding-walkthrough
+- duplicate: RA-5559 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5559/production-synthex-product-demo-60s
+- duplicate: RA-5560 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5560/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5561 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5561/production-synthex-onboarding-walkthrough
+- duplicate: RA-5562 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5562/production-synthex-product-demo-60s
+- duplicate: RA-5563 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5563/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5564 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5564/production-synthex-onboarding-walkthrough
+- duplicate: RA-5565 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5565/production-synthex-product-demo-60s
+- duplicate: RA-5566 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5566/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5567 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5567/production-synthex-onboarding-walkthrough
+- duplicate: RA-5568 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5568/production-synthex-product-demo-60s
+- duplicate: RA-5569 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5569/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5570 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5570/production-synthex-onboarding-walkthrough
+- duplicate: RA-5571 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5571/production-synthex-product-demo-60s
+- duplicate: RA-5572 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5572/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5573 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5573/production-synthex-onboarding-walkthrough
+- duplicate: RA-5574 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5574/production-synthex-product-demo-60s
+- duplicate: RA-5575 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5575/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5576 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5576/production-synthex-onboarding-walkthrough
+- duplicate: RA-5577 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5577/production-synthex-product-demo-60s
+- duplicate: RA-5578 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5578/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5579 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5579/production-synthex-onboarding-walkthrough
+- duplicate: RA-5580 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5580/production-synthex-product-demo-60s
+- duplicate: RA-5581 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5581/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5582 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5582/production-synthex-product-demo-60s
+- duplicate: RA-5583 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5583/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5584 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5584/production-synthex-onboarding-walkthrough
+- duplicate: RA-5585 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5585/production-synthex-product-demo-60s
+- duplicate: RA-5586 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5586/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5587 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5587/production-synthex-onboarding-walkthrough
+- duplicate: RA-5588 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5588/production-synthex-product-demo-60s
+- duplicate: RA-5589 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5589/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5590 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5590/production-synthex-onboarding-walkthrough
+- duplicate: RA-5591 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5591/production-synthex-product-demo-60s
+- duplicate: RA-5592 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5592/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5593 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5593/production-synthex-onboarding-walkthrough
+- duplicate: RA-5594 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5594/production-synthex-product-demo-60s
+- duplicate: RA-5595 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5595/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5596 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5596/production-synthex-onboarding-walkthrough
+- duplicate: RA-5597 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5597/production-synthex-product-demo-60s
+- duplicate: RA-5598 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5598/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5599 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5599/production-synthex-onboarding-walkthrough
+- duplicate: RA-5600 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5600/production-synthex-product-demo-60s
+- duplicate: RA-5601 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5601/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5602 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5602/production-synthex-onboarding-walkthrough
+- duplicate: RA-5603 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5603/production-synthex-product-demo-60s
+- duplicate: RA-5604 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5604/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5605 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5605/production-synthex-onboarding-walkthrough
+- duplicate: RA-5611 | Backlog | [Production] synthex — feature ai content gen | https://linear.app/unite-group/issue/RA-5611/production-synthex-feature-ai-content-gen
+- duplicate: RA-5612 | Backlog | [Production] synthex — social cut 15s linkedin | https://linear.app/unite-group/issue/RA-5612/production-synthex-social-cut-15s-linkedin
+- duplicate: RA-5613 | Backlog | [Production] synthex — ai marketing automation episode | https://linear.app/unite-group/issue/RA-5613/production-synthex-ai-marketing-automation-episode
+- generated-noise: RA-5616 | Backlog | [SCOUT] ARXIV: MUSE-Autoskill: Self-Evolving Agents via Skill Creation, Memory, Management, and | https://linear.app/unite-group/issue/RA-5616/scout-arxiv-muse-autoskill-self-evolving-agents-via-skill-creation
+- generated-noise: RA-5617 | Backlog | [SCOUT] ARXIV: Natural Language Query to Configuration for Retrieval Agents | https://linear.app/unite-group/issue/RA-5617/scout-arxiv-natural-language-query-to-configuration-for-retrieval
+- generated-noise: RA-5618 | Backlog | [SCOUT] ARXIV: FinHarness: An Inline Lifecycle Safety Harness for Finance LLM Agents | https://linear.app/unite-group/issue/RA-5618/scout-arxiv-finharness-an-inline-lifecycle-safety-harness-for-finance
+- duplicate: RA-5621 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5621/production-synthex-product-demo-60s
+- duplicate: RA-5622 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5622/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5623 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5623/production-synthex-onboarding-walkthrough
+- duplicate: RA-5625 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5625/production-synthex-product-demo-60s
+- duplicate: RA-5626 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5626/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5627 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5627/production-synthex-onboarding-walkthrough
+- duplicate: RA-5631 | Backlog | [Production] synthex — product demo 60s | https://linear.app/unite-group/issue/RA-5631/production-synthex-product-demo-60s
+- duplicate: RA-5632 | Backlog | [Production] synthex — aeo explainer for clients | https://linear.app/unite-group/issue/RA-5632/production-synthex-aeo-explainer-for-clients
+- duplicate: RA-5633 | Backlog | [Production] synthex — onboarding walkthrough | https://linear.app/unite-group/issue/RA-5633/production-synthex-onboarding-walkthrough
+- generated-noise: RA-5634 | Backlog | [SCOUT] ARXIV: Rethinking Memory as Continuously Evolving Connectivity | https://linear.app/unite-group/issue/RA-5634/scout-arxiv-rethinking-memory-as-continuously-evolving-connectivity
+- generated-noise: RA-5635 | Backlog | [SCOUT] ARXIV: Do Agents Need Semantic Metadata? A Comparative Study in Agentic Data Retrieval | https://linear.app/unite-group/issue/RA-5635/scout-arxiv-do-agents-need-semantic-metadata-a-comparative-study-in
+- duplicate: RA-5639 | Backlog | [Production] synthex — feature ai content gen | https://linear.app/unite-group/issue/RA-5639/production-synthex-feature-ai-content-gen
+- duplicate: RA-5640 | Backlog | [Production] synthex — social cut 15s linkedin | https://linear.app/unite-group/issue/RA-5640/production-synthex-social-cut-15s-linkedin
+- duplicate: RA-5641 | Backlog | [Production] synthex — ai marketing automation episode | https://linear.app/unite-group/issue/RA-5641/production-synthex-ai-marketing-automation-episode
+- generated-noise: RA-5652 | Backlog | [Self-Improvement] Empty diff for required one-line comment addition | https://linear.app/unite-group/issue/RA-5652/self-improvement-empty-diff-for-required-one-line-comment-addition
+- generated-noise: RA-5653 | Backlog | [Self-Improvement] Empty diff causes zero scores across all evaluation dimensions | https://linear.app/unite-group/issue/RA-5653/self-improvement-empty-diff-causes-zero-scores-across-all-evaluation
+- generated-noise: RA-5654 | Backlog | [Self-Improvement] Karpathy entries are empty and fail all four principles | https://linear.app/unite-group/issue/RA-5654/self-improvement-karpathy-entries-are-empty-and-fail-all-four
+- generated-noise: RA-699 | Duplicate | [SCOUT] GITHUB: langgenius/dify | https://linear.app/unite-group/issue/RA-699/scout-github-langgeniusdify
+- generated-noise: RA-700 | Duplicate | [SCOUT] GITHUB: infiniflow/ragflow | https://linear.app/unite-group/issue/RA-700/scout-github-infiniflowragflow
+- generated-noise: RA-701 | Duplicate | [SCOUT] GITHUB: hrithikkoduri/WebRover | https://linear.app/unite-group/issue/RA-701/scout-github-hrithikkoduriwebrover
+- generated-noise: RA-702 | Duplicate | [SCOUT] GITHUB: ChaituRajSagar/gemini-youtube-automation | https://linear.app/unite-group/issue/RA-702/scout-github-chaiturajsagargemini-youtube-automation
