@@ -27,10 +27,11 @@ function LoginForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
       });
-      if (res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (res.ok && data.ok === true) {
         router.push(redirect);
       } else {
-        setError("Invalid password");
+        setError(data.error ?? "Invalid password");
         setPassword("");
         inputRef.current?.focus();
       }

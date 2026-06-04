@@ -11,6 +11,59 @@ const SSE_PATH_RE = /^\/api\/sessions\/[^/]+\/logs/;
 // Module-level cookie cache — login once, reuse until 401
 let _cookie: string | null = null;
 
+function quietFallback(path: string, error: string, upstreamStatus = 502): Response {
+  const now = new Date().toISOString();
+  const headers = {
+    "Content-Type": "application/json",
+    "X-Upstream-Status": String(upstreamStatus),
+  };
+
+  if (path === "/health" || path === "/api/health") {
+    return Response.json(
+      { status: "unreachable", error, swarm_enabled: false, swarm_shadow: false },
+      { status: 200, headers },
+    );
+  }
+
+  if (path === "/api/sessions") {
+    return Response.json([], { status: 200, headers });
+  }
+
+  if (path === "/api/projects/health") {
+    return Response.json([], { status: 200, headers });
+  }
+
+  if (path === "/api/mission-control/live") {
+    return Response.json(
+      {
+        ts: now,
+        throughput: { hourly_24h: Array.from({ length: 24 }, () => 0) },
+        active_sessions: [],
+        recent_completions: [],
+        queue: {
+          urgent: 0,
+          high: 0,
+          next_issue_id: null,
+          next_issue_title: error,
+        },
+        pulse: {
+          last_at: null,
+          comments_today: 0,
+          pulse_issue_id: null,
+        },
+        error,
+      },
+      { status: 200, headers },
+    );
+  }
+
+  if (path.startsWith("/api/routines")) {
+    return Response.json({ runs: [], total: 0, error }, { status: 200, headers });
+  }
+
+  return Response.json({ error }, { status: 200, headers });
+}
+
 async function getAuthCookie(): Promise<string | null> {
   if (_cookie) return _cookie;
   try {
@@ -32,6 +85,9 @@ async function getAuthCookie(): Promise<string | null> {
 async function proxyRequest(method: string, path: string, body?: string): Promise<Response> {
   let cookie = await getAuthCookie();
   if (!cookie) {
+    if (method === "GET") {
+      return quietFallback(path, "Pi CEO server unreachable or wrong password");
+    }
     return Response.json({ error: "Pi CEO server unreachable or wrong password" }, { status: 502 });
   }
 
@@ -52,6 +108,9 @@ async function proxyRequest(method: string, path: string, body?: string): Promis
 
   let res = await doFetch().catch(() => null);
   if (!res) {
+    if (method === "GET") {
+      return quietFallback(path, "Pi CEO server unreachable");
+    }
     return Response.json({ error: "Pi CEO server unreachable" }, { status: 502 });
   }
 
@@ -60,6 +119,9 @@ async function proxyRequest(method: string, path: string, body?: string): Promis
     _cookie = null;
     cookie = await getAuthCookie();
     if (!cookie) {
+      if (method === "GET") {
+        return quietFallback(path, "Pi CEO re-auth failed");
+      }
       return Response.json({ error: "Pi CEO re-auth failed" }, { status: 502 });
     }
     headers.Cookie = cookie;
@@ -67,6 +129,12 @@ async function proxyRequest(method: string, path: string, body?: string): Promis
   }
 
   const data = await res.text();
+  if (method === "GET" && res.status >= 400) {
+    const fallback = quietFallback(path, data || `HTTP ${res.status}`, res.status);
+    fallback.headers.set("X-Upstream-Status", String(res.status));
+    return fallback;
+  }
+
   return new Response(data, {
     status: res.status,
     headers: { "Content-Type": "application/json" },
