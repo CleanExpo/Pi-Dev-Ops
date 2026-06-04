@@ -38,6 +38,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body
         className="bg-background text-text font-sans min-h-screen flex flex-col"
+        suppressHydrationWarning
         {...(nonce ? { "data-nonce": nonce } : {})}
       >
         <ToastProvider>
