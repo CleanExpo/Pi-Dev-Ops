@@ -19,13 +19,24 @@ function _authHeaders(): Record<string, string> {
   return headers;
 }
 
+function _quietError(error: string, detail?: string): Response {
+  return Response.json(
+    {
+      error,
+      detail,
+      total: 0,
+      returned: 0,
+      by_status: {},
+      proposals: [],
+    },
+    { status: 200 },
+  );
+}
+
 export async function GET(request: Request): Promise<Response> {
   const base = _baseUrl();
   if (!base) {
-    return Response.json(
-      { error: "PI_CEO_URL / RAILWAY_URL not configured" },
-      { status: 503 },
-    );
+    return _quietError("PI_CEO_URL / RAILWAY_URL not configured");
   }
 
   const { searchParams } = new URL(request.url);
@@ -44,11 +55,11 @@ export async function GET(request: Request): Promise<Response> {
       cache: "no-store",
     });
     const body = await upstream.json().catch(() => ({}));
-    return Response.json(body, { status: upstream.status });
-  } catch (exc) {
     return Response.json(
-      { error: "upstream unreachable", detail: String(exc) },
-      { status: 502 },
+      upstream.ok ? body : { error: `HTTP ${upstream.status}`, ...body },
+      { status: 200, headers: { "X-Upstream-Status": String(upstream.status) } },
     );
+  } catch (exc) {
+    return _quietError("upstream unreachable", String(exc));
   }
 }
