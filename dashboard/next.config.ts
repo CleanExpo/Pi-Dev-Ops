@@ -22,6 +22,9 @@ if (isVercelProduction || isLocalProductionBuild) {
 }
 
 const nextConfig: NextConfig = {
+  images: {
+    qualities: [75, 85],
+  },
   async headers() {
     return [
       {

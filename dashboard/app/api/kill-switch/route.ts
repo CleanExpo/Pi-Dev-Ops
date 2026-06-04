@@ -34,6 +34,22 @@ function _authHeaders(): Record<string, string> {
   return headers;
 }
 
+function _quietStatus(error: string, detail?: string): Response {
+  return Response.json(
+    {
+      error,
+      detail,
+      swarm_enabled_env: false,
+      kill_switch_active: false,
+      escalation_lock_active: false,
+      panic_count_last_hour: 0,
+      approver_allowlist: [],
+      approver_totp_configured: [],
+    },
+    { status: 200 },
+  );
+}
+
 export async function GET(request: Request): Promise<Response> {
   const { searchParams } = new URL(request.url);
   const op = searchParams.get("op") ?? "status";
@@ -43,10 +59,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const base = _baseUrl();
   if (!base) {
-    return Response.json(
-      { error: "PI_CEO_URL / RAILWAY_URL not configured" },
-      { status: 503 },
-    );
+    return _quietStatus("PI_CEO_URL / RAILWAY_URL not configured");
   }
 
   try {
@@ -56,12 +69,12 @@ export async function GET(request: Request): Promise<Response> {
       cache: "no-store",
     });
     const body = await upstream.json().catch(() => ({}));
-    return Response.json(body, { status: upstream.status });
-  } catch (exc) {
     return Response.json(
-      { error: "upstream unreachable", detail: String(exc) },
-      { status: 502 },
+      upstream.ok ? body : { error: `HTTP ${upstream.status}`, ...body },
+      { status: 200, headers: { "X-Upstream-Status": String(upstream.status) } },
     );
+  } catch (exc) {
+    return _quietStatus("upstream unreachable", String(exc));
   }
 }
 
