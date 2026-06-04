@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 // ── Types ─────────────────────────────────────────────────────────────────
 interface LiveData {
   ts: string;
+  error?: string;
   throughput: { hourly_24h: number[] };
   active_sessions: Array<{
     id: string;
@@ -171,8 +172,13 @@ export default function LiveActivityFeed() {
         const j = (await r.json()) as LiveData;
         if (mounted) {
           setData(j);
-          setLastUpdate(Date.now());
-          setErr(null);
+          if (j.error) {
+            setLastUpdate(0);
+            setErr(j.error);
+          } else {
+            setLastUpdate(Date.now());
+            setErr(null);
+          }
         }
       } catch (e) {
         if (mounted) setErr(String(e));
@@ -212,7 +218,7 @@ export default function LiveActivityFeed() {
             {err ? `⚠ ${err}` : isLive ? "live · polling 5s" : "stalled"}
           </span>
         </div>
-        {data && (
+        {data && !err && (
           <span className="text-xs text-slate-500 tabular-nums">
             updated {fmtAgo(data.ts)}
           </span>

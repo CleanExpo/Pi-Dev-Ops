@@ -63,7 +63,7 @@ export async function POST(request: Request): Promise<Response> {
   const expectedHmac = await hmac(DASHBOARD_PASSWORD, "auth-check");
   const submittedHmac = await hmac(password, "auth-check");
   if (expectedHmac !== submittedHmac) {
-    return Response.json({ error: "Invalid password" }, { status: 401 });
+    return Response.json({ ok: false, error: "Invalid password" }, { status: 200 });
   }
 
   // Issue session token: "issuedAt.hmac(issuedAt)"
