@@ -200,7 +200,7 @@ function LogPanel({
 
     openStream();
     return () => esRef.current?.close();
-  }, [sid, status]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sid, status]);
 
   // Auto-scroll
   useEffect(() => {
