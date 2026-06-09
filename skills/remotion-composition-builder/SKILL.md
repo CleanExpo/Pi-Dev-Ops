@@ -1,6 +1,6 @@
 ---
 name: remotion-composition-builder
-description: Authors or extends a Remotion composition (.tsx) wired to BrandConfig + Storyboard + layout spec + motion. The actual builder skill — runs as Sonnet 4.7 worker. Triggered after brand, storyboard, designer, and motion-language outputs are ready. Produces the file under remotion-studio/src/compositions/ and registers it in src/Root.tsx.
+description: Authors or extends a Remotion composition (.tsx) wired to BrandConfig + Storyboard + layout spec + motion. The actual builder skill — runs as a Sonnet-tier worker. Triggered after brand, storyboard, designer, and motion-language outputs are ready. Produces the file under remotion-studio/src/compositions/ and registers it in src/Root.tsx.
 automation: automatic
 intents: build-composition, write-composition, edit-composition
 ---
