@@ -107,10 +107,19 @@ async def delegate_task(
             import anthropic as _anthropic  # noqa: PLC0415
             model = os.environ.get("TAO_MID_MODEL", "claude-sonnet-4-6").strip()
             client = _anthropic.Anthropic(api_key=anthropic_key)
+            fallback_kwargs: dict = {}
+            if model.startswith(("claude-fable", "claude-mythos")):
+                # Mythos-class safety classifiers can decline benign requests
+                # (HTTP 200, stop_reason="refusal"); retry on Opus server-side.
+                fallback_kwargs = {
+                    "extra_headers": {"anthropic-beta": "server-side-fallback-2026-06-01"},
+                    "extra_body": {"fallbacks": [{"model": "claude-opus-4-8"}]},
+                }
             message = client.messages.create(
                 model=model, max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}],
                 timeout=55.0,
+                **fallback_kwargs,
             )
             text = message.content[0].text if message.content else ""
             usage = message.usage
