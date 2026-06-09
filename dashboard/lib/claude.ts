@@ -2,6 +2,7 @@
 
 import { spawn } from "child_process";
 import Anthropic from "@anthropic-ai/sdk";
+import { refusalFallback } from "./models";
 import type { RepoFile } from "./github";
 
 // ── Mode detection ────────────────────────────────────────────────────────────
@@ -190,6 +191,7 @@ async function runPhaseSDK(
     messages.push({ role: "assistant", content: "<think>\nLet me analyze this systematically:\n" });
   }
 
+  const fallback = refusalFallback(model);
   const attempt = async (): Promise<string> => {
     const stream = await client.messages.stream(
       {
@@ -197,8 +199,9 @@ async function runPhaseSDK(
         max_tokens: maxTokens,
         system: SYSTEM,
         messages,
+        ...fallback.params,
       },
-      { signal },
+      { signal, ...fallback.options },
     );
 
     let full = "";
@@ -259,12 +262,17 @@ export async function chatWithClaude(
 ): Promise<string> {
   // Chat prefers SDK for speed; falls back to CLI if no API key
   if (client) {
-    const response = await client.messages.create({
-      model,
-      max_tokens: 2048,
-      system: `${SYSTEM}\n\nCurrent session context:\n${systemContext}`,
-      messages,
-    });
+    const fallback = refusalFallback(model);
+    const response = await client.messages.create(
+      {
+        model,
+        max_tokens: 2048,
+        system: `${SYSTEM}\n\nCurrent session context:\n${systemContext}`,
+        messages,
+        ...fallback.params,
+      },
+      fallback.options,
+    );
     const block = response.content[0];
     return block.type === "text" ? block.text : "";
   }
