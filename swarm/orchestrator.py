@@ -470,6 +470,42 @@ def run() -> None:
         except Exception as exc:  # noqa: BLE001
             log.warning("visual_briefing failed (continuing): %s", exc)
 
+        # ── Wiki → Supabase incremental sync (daily or log.md change) ────────
+        try:
+            from . import wiki_sync as _ws  # noqa: PLC0415
+            if _ws.should_run(state):
+                wr = _ws.run_sync(state)
+                log.info("wiki_sync: synced %d pages (%d skipped, %d errors)",
+                         wr.synced, wr.skipped, len(wr.errors))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("wiki_sync failed (continuing): %s", exc)
+
+        # ── AIP wiki watcher: queue ```aip blocks (daily) ───────────────────
+        try:
+            from . import aip_watcher as _aw  # noqa: PLC0415
+            if _aw.should_run(state):
+                ar = _aw.run_daily(state)
+                if ar.entities_queued:
+                    log.info("aip_watcher: queued %d entities from %d pages",
+                             ar.entities_queued, ar.pages_scanned)
+            fr = _aw.flush_queue()
+            if fr.flushed or fr.failed:
+                log.info("aip_watcher: flushed %d entities (%d failed)",
+                         fr.flushed, fr.failed)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("aip_watcher failed (continuing): %s", exc)
+
+        # ── Analyst breach review after senior-agent cycles (daily) ─────────
+        try:
+            from . import analyst as _an  # noqa: PLC0415
+            if _an.should_run_breach_review(state):
+                br = _an.run_breach_review()
+                state[_an.STATE_KEY] = datetime.now(timezone.utc).date().isoformat()
+                if br.get("status") == "filed":
+                    log.info("analyst: breach review filed — %s", br.get("breaches"))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("analyst breach review failed (continuing): %s", exc)
+
         # ── RA-1863 — Daily 6-pager: composes CFO + CMO + CTO + CS daily
         # snippets + Margot insight + RA-1842 status + Board pending +
         # recent Board directives. Cron-fired at user-local 06:00 UTC
