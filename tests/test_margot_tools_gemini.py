@@ -10,6 +10,34 @@ sys.path.insert(0, str(REPO_ROOT))
 from swarm import margot_tools  # noqa: E402
 
 
+def test_default_margot_server_path_falls_back_to_bundled(monkeypatch):
+    monkeypatch.delenv("MARGOT_SERVER_PATH", raising=False)
+    monkeypatch.setattr(margot_tools.Path, "home", lambda: Path("/missing-home"))
+
+    path = margot_tools._default_margot_server_path()
+
+    assert path == REPO_ROOT / "vendor" / "margot-deep-research" / "server.py"
+
+
+def test_unwrap_mcp_structured_content():
+    out = margot_tools._unwrap_mcp_tool_result({
+        "content": [{"type": "text", "text": '{"report":"text result"}'}],
+        "structuredContent": {"report": "structured result", "store": "fileSearchStores/x"},
+        "isError": False,
+    })
+
+    assert out == {"report": "structured result", "store": "fileSearchStores/x"}
+
+
+def test_unwrap_mcp_text_json_content():
+    out = margot_tools._unwrap_mcp_tool_result({
+        "content": [{"type": "text", "text": '{"report":"text result"}'}],
+        "isError": False,
+    })
+
+    assert out == {"report": "text result"}
+
+
 def test_gemini_research_fallback_returns_summary(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
     monkeypatch.setenv("GEMINI_TEXT_MODEL", "models/gemini-test")
