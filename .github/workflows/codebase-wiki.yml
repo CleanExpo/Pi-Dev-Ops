@@ -23,20 +23,29 @@ jobs:
     env:
       TAO_MAX_COST_USD: "0.05"
       TAO_HARD_STOP_FILE: "/tmp/never-exists"
+      WIKI_BOT_TOKEN: ${{ secrets.WIKI_BOT_TOKEN }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout with wiki bot token
+        if: env.WIKI_BOT_TOKEN != ''
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           # RA-1999 — main branch protection (4 required status checks) rejects
           # pushes signed by GITHUB_TOKEN with `GH006: Protected branch update
           # failed`. Use a fine-grained PAT scoped to this repo only with
           # `Contents: Read and write` plus branch-protection-bypass admin.
-          # Falls back to github.token if WIKI_BOT_TOKEN is not yet configured
-          # — the workflow still runs, the wiki content is still generated in
-          # the runner, only the push to protected main is blocked (matching
-          # pre-PAT behaviour). User-side PAT setup steps are in PR #N body.
-          token: ${{ secrets.WIKI_BOT_TOKEN || github.token }}
+          token: ${{ env.WIKI_BOT_TOKEN }}
+
+      - name: Checkout with default token
+        if: env.WIKI_BOT_TOKEN == ''
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # WIKI_BOT_TOKEN is optional. Without it, checkout must use the
+          # action's built-in github.token default; overriding token with an
+          # empty fallback breaks private-repo fetch before the wiki updater
+          # can run. The later protected-branch push may still be blocked.
 
       - uses: actions/setup-python@v5
         with:
