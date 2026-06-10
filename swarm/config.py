@@ -115,3 +115,22 @@ BRAIN1_WIKI_DIR: str = os.environ.get(
 # Separate from the local wiki — requires uploading wiki pages to Gemini.
 # Consumed by ~/.margot/margot-deep-research/server.py, not by this process.
 MARGOT_FILE_SEARCH_STORE: str = os.environ.get("MARGOT_FILE_SEARCH_STORE", "")
+
+# ── Obsidian (RA-926 runtime) ───────────────────────────────────────────────
+# Local REST API plugin on Mac brain host. Filesystem fallback via OBSIDIAN_VAULT.
+OBSIDIAN_TOKEN: str = os.environ.get("OBSIDIAN_TOKEN", "")
+OBSIDIAN_BASE_URL: str = os.environ.get("OBSIDIAN_URL", "https://127.0.0.1:27124")
+OBSIDIAN_VAULT: str = os.environ.get(
+    "OBSIDIAN_VAULT",
+    str(pathlib.Path.home() / "2nd Brain" / "2nd Brain"),
+)
+
+# ── Tailscale remote brain host ───────────────────────────────────────────────
+# When workers run off-Mac, set OBSIDIAN_REMOTE_URL to the tailnet REST endpoint.
+BRAIN_HOST_TAILNET: str = os.environ.get("BRAIN_HOST_TAILNET", "")
+OBSIDIAN_REMOTE_URL: str = os.environ.get("OBSIDIAN_REMOTE_URL", "")
+if not OBSIDIAN_REMOTE_URL and BRAIN_HOST_TAILNET:
+    OBSIDIAN_REMOTE_URL = f"https://{BRAIN_HOST_TAILNET}:27124"
+
+# ── Analyst runtime (growth-sustainability direction layer) ───────────────────
+ANALYST_ENABLED: bool = os.environ.get("TAO_ANALYST_ENABLED", "1") == "1"

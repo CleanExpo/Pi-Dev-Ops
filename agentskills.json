@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "0.2.0",
-    "generated_at": "2026-05-23T05:39:05.404053+00:00",
+    "version": "0.3.0",
+    "generated_at": "2026-06-10T00:43:43.491461+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -129,6 +129,25 @@
       "low_confidence": true
     },
     {
+      "id": "analyst",
+      "description": "Research and intelligence doctrine \u2014 the directing analysis layer for growth and sustainability data collection. Frames questions, tasks collector skills, grades evidence (NATO/Admiralty), runs ACH/premortem/gap-scan, and delivers defensible evaluations with kill-switches. Use before any non-trivial research, market sizing, strategic bet, or when synthesising collector output into a decision.",
+      "owner_role": "Analyst",
+      "status": "wave-5",
+      "path": "skills\\analyst\\SKILL.md",
+      "sha256": "a11111f7bee88114bcbf740221cadc8b82604d09bf1e48c3740956a7413e29ff",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": true,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
       "id": "analyzing-customer-patterns",
       "description": "Outcome feedback loop analyser. Reads shipped feature records + post-ship signals, detects patterns in what worked vs what didn't, and writes outcome lessons back into the build pipeline. Feeds the BVI \"features delivered\" component.",
       "owner_role": "(unset)",
@@ -228,6 +247,25 @@
       "status": "(unset)",
       "path": "skills\\brand-ambassador\\SKILL.md",
       "sha256": "58b6cdaccb16a1eafce6ad94a44d024f09d4514afd18a9c854a458d0270fead9",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "build-method-router",
+      "description": "Use when a founder/non-coder gives a plain-English command, repo URL, or launch/build request and needs Pi-Dev-Ops to choose the correct build method automatically before any coding starts.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills\\build-method-router\\SKILL.md",
+      "sha256": "c35aa47bcbb4e802cd4bd8c65bcd720fbcfcae99b87f434089c5a74c6e343fa7",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -725,6 +763,25 @@
         "requires_kill_switch": false,
         "requires_hitl_gate": true,
         "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "growth-sustainability-data",
+      "description": "Method for collecting and gathering data for growth and sustainability across the 11-business portfolio. Defines the two-layer stack \u2014 Analyst (direction + analysis) commands collector skills (CMO, CFO, CTO, CS, Margot, wiki, Scout, marketing) \u2014 and the handoff contract between them. Use when framing executive visibility, research sprints, board prep, or any question about whether the business can grow and endure.",
+      "owner_role": "CoS",
+      "status": "wave-5",
+      "path": "skills\\growth-sustainability-data\\SKILL.md",
+      "sha256": "dc4928f9b4f75d9cfb40b031ad026cdefb9d00b8111abe7653a86a3a58487890",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": true,
+        "requires_hitl_gate": true,
+        "pii_handling": "redacts"
       },
       "inferred": true,
       "low_confidence": true
@@ -1566,6 +1623,25 @@
       "status": "(unset)",
       "path": "skills\\security-audit\\SKILL.md",
       "sha256": "d15d6fe125700f671b5d3fc12c53aaabbec6c1c1cf9ddf21563bd6bbf9eee23a",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "senior-engineer-workflow",
+      "description": "Use for non-trivial Pi-Dev-Ops builds that need senior software engineer discipline: scoped plan, bounded subagents, minimal context, tests, independent review, and evidence before moving to the next build.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills\\senior-engineer-workflow\\SKILL.md",
+      "sha256": "a93f1e2ee3c23009e03066c29cdbe6eab2a5b3d5f7f7aaf4e88f799812470ea7",
       "dependencies": {
         "tools": [],
         "skills": []

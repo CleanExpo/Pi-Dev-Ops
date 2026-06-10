@@ -120,6 +120,15 @@ Distinguished from a plain agent by model tier and per-invocation
 budget. Referenced in design docs and the `opus-adversary` skill; not
 yet a typed class in code.
 
+## Analyst
+
+The directing intelligence layer for growth-and-sustainability research. Frames
+questions, tasks collector skills, grades evidence (NATO/Admiralty), runs ACH /
+premortem / gap-scan, and delivers evaluations with kill-switches. Distinct from
+collector skills (CMO, CFO, Margot, Scout) which only acquire raw signals.
+Implemented as `skills/analyst/SKILL.md`; parent method at
+`skills/growth-sustainability-data/SKILL.md`.
+
 ## skill
 
 A Markdown-defined workflow under `~/.claude/skills/<name>/SKILL.md`
