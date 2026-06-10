@@ -53,10 +53,18 @@ from typing import Any
 
 log = logging.getLogger("swarm.margot_tools")
 
-MARGOT_SERVER_PATH = Path(os.environ.get(
-    "MARGOT_SERVER_PATH",
-    str(Path.home() / ".margot" / "margot-deep-research" / "server.py"),
-))
+def _default_margot_server_path() -> Path:
+    explicit = os.environ.get("MARGOT_SERVER_PATH", "").strip()
+    if explicit:
+        return Path(explicit)
+    home_server = Path.home() / ".margot" / "margot-deep-research" / "server.py"
+    if home_server.exists():
+        return home_server
+    bundled = Path(__file__).resolve().parents[1] / "vendor" / "margot-deep-research" / "server.py"
+    return bundled
+
+
+MARGOT_SERVER_PATH = _default_margot_server_path()
 MARGOT_INFLIGHT_LOG = Path(__file__).resolve().parents[1] / ".harness" / "swarm" / "margot_inflight.jsonl"
 GEMINI_API_BASE = os.environ.get(
     "GEMINI_API_BASE",
@@ -634,7 +642,36 @@ def _call_stdio_mcp(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
     proc = _start_stdio()
     if proc is None:
         return {"error": "stdio_unavailable"}
-    return _send_jsonrpc("tools/call", {"name": tool_name, "arguments": args})
+    result = _send_jsonrpc("tools/call", {"name": tool_name, "arguments": args})
+    return _unwrap_mcp_tool_result(result)
+
+
+def _unwrap_mcp_tool_result(result: dict[str, Any]) -> dict[str, Any]:
+    """Normalize FastMCP tool-call envelopes to the tool's structured payload."""
+    if not isinstance(result, dict) or result.get("error"):
+        return result
+
+    structured = result.get("structuredContent")
+    if isinstance(structured, dict):
+        return structured
+
+    content = result.get("content")
+    if isinstance(content, list):
+        for item in content:
+            if not isinstance(item, dict):
+                continue
+            if item.get("type") != "text":
+                continue
+            text = item.get("text")
+            if not isinstance(text, str) or not text.strip():
+                continue
+            try:
+                parsed = json.loads(text)
+            except json.JSONDecodeError:
+                return {"summary": text}
+            if isinstance(parsed, dict):
+                return parsed
+    return result
 
 
 def register_with_flow_engine() -> int:

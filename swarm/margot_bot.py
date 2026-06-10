@@ -647,9 +647,16 @@ async def _run_research_batch(requests: list["ResearchRequest"]
                 return {"topic": r.topic, "depth": "quick",
                         "summary": "",
                         "error": out["error"]}
+            if out.get("store") or out.get("model"):
+                log.info(
+                    "margot research: completed topic=%r store=%r model=%r",
+                    r.topic,
+                    out.get("store"),
+                    out.get("model"),
+                )
             return {
                 "topic": r.topic, "depth": "quick",
-                "summary": out.get("summary") or out.get("body") or "",
+                "summary": out.get("summary") or out.get("report") or out.get("body") or "",
                 "error": None,
             }
         except Exception as exc:  # noqa: BLE001
