@@ -274,6 +274,42 @@ Standby.'''
     assert call_count[0] == 2
 
 
+def test_handle_turn_direct_research_sentinel_skips_phase1(tmp_path, monkeypatch):
+    """Explicit sentinel commands go straight to research + synthesis."""
+    calls: list[dict] = []
+
+    async def fake_llm(*, prompt, timeout_s=120, workspace=None, turn_id="", **kw):
+        calls.append({"prompt": prompt, "turn_id": turn_id, "role": kw.get("role")})
+        assert "PHASE 2" in prompt
+        assert "brain host live proof" in prompt.lower()
+        return 0, "Research synthesis complete.", 0.07, None
+
+    monkeypatch.setattr(margot_bot, "_call_llm", fake_llm)
+
+    fake_module = types.SimpleNamespace(
+        deep_research=lambda **kw: {
+            "summary": "Brain host live proof returned current evidence.",
+            "status": "ok",
+        },
+        deep_research_max=lambda **kw: {"error": "n/a"},
+    )
+    monkeypatch.setitem(sys.modules, "swarm.margot_tools", fake_module)
+
+    turn = asyncio.run(margot_bot.handle_turn(
+        chat_id="789",
+        user_text='[RESEARCH topic="brain host live proof" depth="quick"]',
+        repo_root=tmp_path,
+        _send=False,
+    ))
+
+    assert turn.research_called is True
+    assert turn.margot_text == "Research synthesis complete."
+    assert turn.cost_usd == pytest.approx(0.07)
+    assert len(calls) == 1
+    assert calls[0]["role"] == "margot.synthesis"
+    assert calls[0]["turn_id"].endswith("-p2")
+
+
 def test_handle_turn_no_research_single_phase(tmp_path, monkeypatch):
     """No [RESEARCH] sentinel → only Phase 1 fires."""
     call_count = [0]
