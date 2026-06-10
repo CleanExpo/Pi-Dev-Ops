@@ -98,6 +98,42 @@ _log = logging.getLogger("pi-ceo.sessions")
 
 # ── Session lifecycle ─────────────────────────────────────────────────────────
 
+_ACTIVE_STATUSES = {"created", "cloning", "building", "evaluating"}
+_TERMINAL_SUCCESS_TEXT = "=== SESSION COMPLETE ==="
+
+
+def _has_terminal_success_marker(session: BuildSession) -> bool:
+    """Return True when restored logs prove a stale active session completed."""
+    for event in reversed(list(getattr(session, "output_lines", []) or [])):
+        if not isinstance(event, dict):
+            continue
+        text = str(event.get("text") or "")
+        if event.get("type") == "success" and _TERMINAL_SUCCESS_TEXT in text:
+            return True
+    return False
+
+
+def _reconcile_stale_terminal_sessions() -> int:
+    """Fix sessions restored as active even though their logs reached terminal."""
+    reconciled = 0
+    for session in list(_sessions.values()):
+        if not isinstance(session, BuildSession):
+            continue
+        if session.status not in _ACTIVE_STATUSES:
+            continue
+        if not _has_terminal_success_marker(session):
+            continue
+        session.status = "complete"
+        persistence.save_session(session)
+        reconciled += 1
+    if reconciled:
+        _log.warning(
+            "Reconciled %d stale active session(s) from terminal log markers",
+            reconciled,
+        )
+    return reconciled
+
+
 async def create_session(
     repo_url,
     brief="",
@@ -126,11 +162,11 @@ async def create_session(
     RA-681: complexity_tier overrides automatic brief complexity detection.
     Values: 'basic' | 'detailed' | 'advanced'. Empty string = auto-detect.
     """
-    _active = ("created", "cloning", "building", "evaluating")
+    _reconcile_stale_terminal_sessions()
     _running = sum(
         1 for s in _sessions.values()
-        if (isinstance(s, BuildSession) and s.status in _active)
-        or (isinstance(s, dict) and s.get("status") in _active)
+        if (isinstance(s, BuildSession) and s.status in _ACTIVE_STATUSES)
+        or (isinstance(s, dict) and s.get("status") in _ACTIVE_STATUSES)
     )
     if _running >= config.MAX_CONCURRENT_SESSIONS:
         raise RuntimeError("Max sessions reached")
