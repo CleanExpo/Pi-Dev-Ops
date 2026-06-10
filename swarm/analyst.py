@@ -170,6 +170,7 @@ def _call_llm(prompt: str) -> str:
         "generationConfig": {
             "temperature": 0.2,
             "maxOutputTokens": 1800,
+            "responseMimeType": "application/json",
         },
     }).encode("utf-8")
     req = urllib.request.Request(
