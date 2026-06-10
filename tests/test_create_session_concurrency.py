@@ -8,9 +8,8 @@ Locks:
   - Each active status individually counts toward the cap.
   - Terminal statuses do NOT count toward the cap.
 """
-import asyncio
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -70,6 +69,38 @@ async def test_cap_not_enforced_when_three_complete():
 
         assert session is not None
         mock_task.assert_called_once()
+    finally:
+        _model_mod._sessions.clear()
+        _model_mod._sessions.update(original)
+
+
+async def test_stale_active_sessions_with_terminal_logs_do_not_count():
+    """Restored active sessions with complete logs are reconciled before cap check."""
+    original = dict(_model_mod._sessions)
+    try:
+        _model_mod._sessions.clear()
+        for _ in range(3):
+            s = _make_bs("evaluating")
+            s.output_lines.append({
+                "type": "success",
+                "text": "  === SESSION COMPLETE ===",
+                "ts": time.time(),
+            })
+            _model_mod._sessions[s.id] = s
+
+        with (
+            patch("app.server.sessions.persistence.save_session") as mock_save,
+            patch("app.server.sessions.asyncio.create_task", side_effect=lambda coro: coro.close()) as mock_task,
+            patch("app.server.sessions._select_model", return_value="claude-sonnet-4-5"),
+        ):
+            from app.server.sessions import create_session
+            session = await create_session("https://github.com/org/new-repo")
+
+        assert session is not None
+        assert mock_task.call_count == 1
+        stale_sessions = [s for s in _model_mod._sessions.values() if s is not session]
+        assert {s.status for s in stale_sessions} == {"complete"}
+        assert mock_save.call_count >= 4
     finally:
         _model_mod._sessions.clear()
         _model_mod._sessions.update(original)
