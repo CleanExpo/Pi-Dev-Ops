@@ -85,7 +85,7 @@ class AnalystDeliverable:
         ]
         if self.turn_id:
             lines.append(f"turn_id: {self.turn_id}")
-        lines.extend(["---", "", f"## Question", "", self.question, ""])
+        lines.extend(["---", "", "## Question", "", self.question, ""])
         lines.extend([f"## Answer ({self.confidence})", "", self.answer, ""])
         lines.append("## Key evidence")
         lines.append("")
@@ -155,15 +155,52 @@ def _call_llm(prompt: str) -> str:
     if not api_key:
         raise RuntimeError("No LLM available for analyst synthesis")
 
-    from google import genai  # noqa: PLC0415
-    import concurrent.futures  # noqa: PLC0415
+    text_model = (
+        os.environ.get("GEMINI_TEXT_MODEL")
+        or os.environ.get("MARGOT_TEXT_MODEL")
+        or "gemini-3.5-flash"
+    )
+    text_model = text_model.removeprefix("models/")
+    url = (
+        "https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{urllib.parse.quote(text_model, safe='')}:generateContent"
+    )
+    body = json.dumps({
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.2,
+            "maxOutputTokens": 1800,
+        },
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=body,
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "x-goog-api-key": api_key,
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=90) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:300]
+        raise RuntimeError(f"Gemini analyst HTTP {exc.code}: {detail}") from exc
+    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Gemini analyst request failed: {exc}") from exc
 
-    text_model = os.environ.get("MARGOT_TEXT_MODEL", "gemini-3.1-pro-preview-customtools")
-    client = genai.Client(api_key=api_key)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-        return ex.submit(
-            lambda: client.models.generate_content(model=text_model, contents=prompt).text
-        ).result(timeout=90)
+    parts: list[str] = []
+    for candidate in payload.get("candidates", []) or []:
+        content = candidate.get("content") or {}
+        for part in content.get("parts", []) or []:
+            text = part.get("text")
+            if text:
+                parts.append(str(text))
+    text = "\n".join(parts).strip()
+    if not text:
+        raise RuntimeError("Gemini analyst empty response")
+    return text
 
 
 def _parse_llm_json(raw: str) -> dict[str, Any]:
