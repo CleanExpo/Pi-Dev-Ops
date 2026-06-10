@@ -598,9 +598,10 @@ async def _run_research_batch(requests: list["ResearchRequest"]
     corresponding entry has error set + summary empty.
     """
     import asyncio  # noqa: PLC0415 — keep heavy imports local
+    import importlib  # noqa: PLC0415
 
     try:
-        from . import margot_tools  # noqa: PLC0415
+        margot_tools = importlib.import_module("swarm.margot_tools")
     except Exception as exc:  # noqa: BLE001
         log.warning("margot: margot_tools import failed (%s)", exc)
         return [
