@@ -36,7 +36,7 @@ export const BRAIN_STATUS: BrainStatusSnapshot = {
   updated: "2026-06-10",
   branch: "pidev/brain-relay-proof-status",
   commit: "branch HEAD",
-  prUrl: "pending",
+  prUrl: "https://github.com/CleanExpo/Pi-Dev-Ops/pull/319",
   testsCommand: "python -m pytest tests/test_obsidian_analyst_relay.py tests/test_analyst.py tests/test_wiki_sync.py -q",
   testsExpected: "14 passed; main CI green at 33c6740",
   headline: "Production Brain write/read is proven. Next: restore Margot's research bridge.",
