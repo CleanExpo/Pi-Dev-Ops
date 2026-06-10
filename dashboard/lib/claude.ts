@@ -27,6 +27,9 @@ export function getAnalysisMode(): "cli" | "api" {
 export function makeClient(apiKey?: string): Anthropic | null {
   const key = (apiKey || (process.env.ANTHROPIC_API_KEY ?? "")).trim();
   if (!key) return null;
+  // OAuth tokens (`claude setup-token`, sk-ant-oat*) must go in the Authorization
+  // header — the API rejects them as x-api-key, even alongside a valid Bearer.
+  if (key.startsWith("sk-ant-oat")) return new Anthropic({ authToken: key, apiKey: null });
   return new Anthropic({ apiKey: key });
 }
 
