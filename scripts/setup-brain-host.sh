@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Note: on main branch this file may not exist yet — checkout pidev/launch-crew-wirein first.
 # Mac Mini brain-host setup — Tailscale + Obsidian REST env template.
 # Run on the machine that owns ~/2nd Brain (not the Windows dev PC).
 set -euo pipefail

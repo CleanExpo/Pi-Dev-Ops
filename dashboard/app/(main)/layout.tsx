@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 
 const NAV = [
   { href: "/overview",  label: "Overview",  icon: "◈", key: "overview"  },
+  { href: "/brain",     label: "Brain",     icon: "◎", key: "brain"     },
   { href: "/control",   label: "Control",   icon: "⊞", key: "control"   },
   { href: "/builds",    label: "Builds",    icon: "⚙", key: "builds"   },
   { href: "/routines",  label: "Routines",  icon: "↻", key: "routines"  },
