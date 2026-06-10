@@ -34,28 +34,29 @@ export interface BrainStatusSnapshot {
 export const BRAIN_STATUS: BrainStatusSnapshot = {
   title: "2nd Brain Flywheel",
   updated: "2026-06-10",
-  branch: "pidev/brain-relay-proof-status",
-  commit: "branch HEAD",
-  prUrl: "https://github.com/CleanExpo/Pi-Dev-Ops/pull/319",
-  testsCommand: "python -m pytest tests/test_obsidian_analyst_relay.py tests/test_analyst.py tests/test_wiki_sync.py -q",
-  testsExpected: "14 passed; main CI green at 33c6740",
-  headline: "Production Brain write/read is proven. Next: restore Margot's research bridge.",
+  branch: "main",
+  commit: "9b5cdf1",
+  prUrl: "https://github.com/CleanExpo/Pi-Dev-Ops/pulls?q=319+320+321+322+323+324",
+  testsCommand: "python -m pytest tests/test_analyst.py tests/test_margot_research_voice.py tests/test_margot_tools_gemini.py tests/test_obsidian_analyst_relay.py tests/test_wiki_sync.py -q",
+  testsExpected: "Main CI, Smoke Test, pgtap, Codebase Wiki, and DESIGN lint green at 9b5cdf1",
+  headline: "Production Brain write/read and Margot quick research fallback are proven.",
   explanation:
-    "The deployed Margot path now writes analyst deliverables into the Mac Mini Obsidian vault through a narrow relay. " +
-    "Proof turn mt-ec68962ee6 wrote Wiki/analyst/2026-06-10-what-does-the-evidence-say-about-brain-host-live.md. " +
-    "The remaining issue is separate: Margot's corpus research bridge is still returning margot_unreachable.",
+    "The deployed Margot path writes analyst deliverables into the Mac Mini Obsidian vault through a narrow relay. " +
+    "Proof turn mt-c0902995e4 ran direct [RESEARCH], used the Gemini quick fallback without margot_unreachable, " +
+    "completed analyst ingest, and wrote Wiki/analyst/2026-06-10-what-is-the-nature-origin-and-content-of-the-art.md. " +
+    "Remaining future work is full corpus-backed Margot MCP packaging, not the quick research/write path.",
   milestones: [
     {
       id: "pc",
       title: "Windows PC — code",
       status: "done",
-      summary: "Analyst, wiki_sync, aip_watcher, MCP read, and 12 focused pytest checks are green.",
+      summary: "Analyst, wiki_sync, aip_watcher, MCP read, Margot Gemini fallback, and focused pytest checks are green.",
     },
     {
       id: "github",
       title: "GitHub — merged to main",
       status: "done",
-      summary: "PRs #310-#318 merged, Codebase Wiki green, and main CI/smoke green at 33c6740.",
+      summary: "PRs #310-#324 merged, Codebase Wiki green, and main CI/smoke green at 9b5cdf1.",
     },
     {
       id: "mac",
@@ -167,12 +168,22 @@ export const BRAIN_STATUS: BrainStatusSnapshot = {
     },
     {
       id: "research-bridge",
-      label: "Next: Margot research bridge",
-      status: "next",
-      detail: "The write/read path is proven, but production proof turns still report margot_unreachable for corpus research.",
+      label: "Margot quick research bridge",
+      status: "done",
+      detail: "Done — production proof mt-c0902995e4 returned HTTP 200, research_called=true, no margot_unreachable, analyst+ingest complete, and Obsidian relay PUT 204.",
       commands: [
-        'railway logs --lines 300 | rg -i "margot_unreachable|margot-bridge|research"',
-        "# Check the Margot bridge process/endpoint separately from Obsidian writes.",
+        'railway logs --lines 1000 | rg -i "mt-c0902995e4|analyst\\+ingest|margot_unreachable|timeout"',
+        'rg -n "mt-c0902995e4|brain-analyst-json-proof-20260610094815" "$HOME/2nd Brain/2nd Brain/Wiki/analyst"',
+      ],
+    },
+    {
+      id: "corpus-mcp",
+      label: "Next: full corpus-backed Margot MCP",
+      status: "next",
+      detail: "Gemini quick research is live. Full private-corpus MCP packaging remains the next upgrade if Margot must use the private File Search corpus from Railway.",
+      commands: [
+        'railway logs --lines 300 | rg -i "corpus|margot-deep-research|MARGOT_FILE_SEARCH_STORE"',
+        "# Package the Margot MCP server into the Railway image before enabling corpus-backed deep research.",
       ],
     },
   ],
