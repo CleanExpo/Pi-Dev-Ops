@@ -131,6 +131,7 @@ BRAIN_HOST_TAILNET: str = os.environ.get("BRAIN_HOST_TAILNET", "")
 OBSIDIAN_REMOTE_URL: str = os.environ.get("OBSIDIAN_REMOTE_URL", "")
 if not OBSIDIAN_REMOTE_URL and BRAIN_HOST_TAILNET:
     OBSIDIAN_REMOTE_URL = f"https://{BRAIN_HOST_TAILNET}:27124"
+OBSIDIAN_REMOTE_IP: str = os.environ.get("OBSIDIAN_REMOTE_IP", "")
 
 # ── Analyst runtime (growth-sustainability direction layer) ───────────────────
 ANALYST_ENABLED: bool = os.environ.get("TAO_ANALYST_ENABLED", "1") == "1"

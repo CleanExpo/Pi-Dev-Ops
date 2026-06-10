@@ -35,6 +35,8 @@ const { z } = require("zod");
 const fs   = require("fs");
 const path = require("path");
 const https = require("https");
+const dns = require("dns");
+const net = require("net");
 const vm    = require("vm");  // RA-1458: code_execute sandbox
 
 // ── Configuration ──────────────────────────────────────────────────────────────
@@ -52,11 +54,13 @@ const LINEAR_PROJECT_SLUG = process.env.LINEAR_PROJECT_SLUG || "pi-dev-ops";
 // Set OBSIDIAN_TOKEN to the API key shown in the plugin settings.
 // Set OBSIDIAN_URL to override the default (e.g. non-standard port).
 // Set OBSIDIAN_REMOTE_URL (or BRAIN_HOST_TAILNET) for Tailscale brain host reads.
+// Set OBSIDIAN_REMOTE_IP when the runtime cannot resolve Tailscale MagicDNS.
 const OBSIDIAN_TOKEN = process.env.OBSIDIAN_TOKEN || "";
 const OBSIDIAN_BASE_URL = process.env.OBSIDIAN_REMOTE_URL
   || process.env.OBSIDIAN_URL
   || (process.env.BRAIN_HOST_TAILNET ? `https://${process.env.BRAIN_HOST_TAILNET}:27124` : "")
   || "https://127.0.0.1:27124";
+const OBSIDIAN_REMOTE_IP = process.env.OBSIDIAN_REMOTE_IP || "";
 
 // ── Perplexity Sonar API (RA-929) ─────────────────────────────────────────────
 // Set PERPLEXITY_API_KEY in the MCP env block (claude_desktop_config.json).
@@ -71,6 +75,19 @@ function readHarness(filename) {
     return `${filename} not found in ${HARNESS_DIR}. Run an analysis first at https://dashboard-unite-group.vercel.app/dashboard`;
   }
   return fs.readFileSync(p, "utf8");
+}
+
+function obsidianLookup(hostname) {
+  if (!OBSIDIAN_REMOTE_IP || !hostname || hostname === "localhost" || net.isIP(hostname)) {
+    return undefined;
+  }
+  return (name, options, callback) => {
+    if (name === hostname) {
+      callback(null, OBSIDIAN_REMOTE_IP, net.isIP(OBSIDIAN_REMOTE_IP) === 6 ? 6 : 4);
+      return;
+    }
+    dns.lookup(name, options, callback);
+  };
 }
 
 function linearGql(query, variables = {}) {
@@ -154,6 +171,7 @@ function obsidianWrite(vaultPath, content) {
         "Content-Length": bodyBuf.length,
       },
       rejectUnauthorized: false, // Obsidian uses a self-signed TLS cert
+      lookup: obsidianLookup(urlObj.hostname),
     };
     const req = https.request(options, (res) => {
       let data = "";
@@ -210,6 +228,7 @@ function obsidianRead(vaultPath) {
         "Accept": "text/markdown",
       },
       rejectUnauthorized: false,
+      lookup: obsidianLookup(urlObj.hostname),
     };
     const req = https.request(options, (res) => {
       let data = "";
