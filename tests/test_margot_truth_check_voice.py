@@ -134,6 +134,22 @@ def test_whisper_missing_file(monkeypatch):
     assert error and error.startswith("whisper_audio_not_found")
 
 
+def test_margot_turn_timeout_default_and_env(monkeypatch):
+    from app.server.routes import margot
+
+    monkeypatch.delenv("MARGOT_TURN_TIMEOUT_S", raising=False)
+    assert margot._margot_turn_timeout_s() == 240.0
+
+    monkeypatch.setenv("MARGOT_TURN_TIMEOUT_S", "300")
+    assert margot._margot_turn_timeout_s() == 300.0
+
+    monkeypatch.setenv("MARGOT_TURN_TIMEOUT_S", "10")
+    assert margot._margot_turn_timeout_s() == 240.0
+
+    monkeypatch.setenv("MARGOT_TURN_TIMEOUT_S", "not-a-number")
+    assert margot._margot_turn_timeout_s() == 240.0
+
+
 # ── /api/margot/voice route — auth gate ────────────────────────────────────
 
 
