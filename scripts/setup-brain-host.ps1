@@ -3,7 +3,9 @@
 
 param(
     [Parameter(Mandatory = $true)]
-    [string]$BrainHost
+    [string]$BrainHost,
+
+    [string]$BrainIp = "100.107.147.59"
 )
 
 Write-Host "Install Tailscale from https://tailscale.com/download/windows if not present."
@@ -11,6 +13,7 @@ Write-Host ""
 Write-Host "Add to dashboard/.env.local or shell profile:"
 Write-Host ""
 Write-Host "OBSIDIAN_REMOTE_URL=https://$BrainHost`:27124"
+Write-Host "OBSIDIAN_REMOTE_IP=$BrainIp"
 Write-Host "OBSIDIAN_TOKEN=<paste-from-mac-mini-obsidian-plugin>"
 Write-Host "BRAIN_HOST_TAILNET=$BrainHost"
 Write-Host ""

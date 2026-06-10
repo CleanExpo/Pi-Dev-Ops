@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import sys
+import urllib.parse
 from pathlib import Path
 from unittest.mock import patch
 
@@ -57,6 +58,41 @@ def test_deterministic_deliverable_without_llm(wiki_tmp, tmp_path, monkeypatch):
     assert len(notes) == 1
     ledger = tmp_path / analyst.ANALYST_LEDGER_REL
     assert ledger.exists()
+
+
+def test_obsidian_remote_ip_overrides_dns_for_rest_mirror(tmp_path, monkeypatch):
+    from swarm import config  # noqa: E402
+
+    vault_file = tmp_path / "not-a-directory"
+    vault_file.write_text("x", encoding="utf-8")
+    monkeypatch.setattr(config, "OBSIDIAN_VAULT", str(vault_file))
+    monkeypatch.setattr(config, "OBSIDIAN_TOKEN", "test-token")
+    monkeypatch.setattr(config, "OBSIDIAN_REMOTE_URL", "https://brain-host.tailnet.test:27124")
+    monkeypatch.setattr(config, "OBSIDIAN_REMOTE_IP", "100.107.147.59")
+
+    original_getaddrinfo = analyst.socket.getaddrinfo
+    seen: dict[str, str] = {}
+
+    class FakeResponse:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+    def fake_urlopen(req, *, context, timeout):  # noqa: ARG001
+        host = urllib.parse.urlparse(req.full_url).hostname
+        info = analyst.socket.getaddrinfo(host, 27124)
+        seen["address"] = info[0][4][0]
+        return FakeResponse()
+
+    monkeypatch.setattr(analyst.urllib.request, "urlopen", fake_urlopen)
+
+    assert analyst._mirror_obsidian("Wiki/analyst/proof.md", "# Proof\n") is True
+    assert seen["address"] == "100.107.147.59"
+    assert analyst.socket.getaddrinfo is original_getaddrinfo
 
 
 def test_breach_review_clean_when_no_ledgers(tmp_path, monkeypatch):

@@ -14,9 +14,11 @@ Public API:
 from __future__ import annotations
 
 import json
+import ipaddress
 import logging
 import os
 import re
+import socket
 import ssl
 import urllib.error
 import urllib.parse
@@ -298,6 +300,16 @@ def _obsidian_base_url() -> str:
     return config.OBSIDIAN_BASE_URL.rstrip("/")
 
 
+def _should_override_obsidian_dns(host: str, remote_ip: str) -> bool:
+    if not host or not remote_ip or host in {"localhost", "127.0.0.1", "::1"}:
+        return False
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return True
+    return False
+
+
 def _mirror_obsidian(vault_relative_path: str, content: str) -> bool:
     """Write note to Obsidian vault — REST API or filesystem fallback."""
     from . import config  # noqa: PLC0415
@@ -318,6 +330,7 @@ def _mirror_obsidian(vault_relative_path: str, content: str) -> bool:
 
     encoded = "/".join(urllib.parse.quote(seg) for seg in vault_relative_path.split("/"))
     url = f"{_obsidian_base_url()}/vault/{encoded}"
+    parsed = urllib.parse.urlparse(url)
     body = content.encode("utf-8")
     req = urllib.request.Request(
         url,
@@ -333,7 +346,23 @@ def _mirror_obsidian(vault_relative_path: str, content: str) -> bool:
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
     try:
-        with urllib.request.urlopen(req, context=ctx, timeout=15) as resp:
+        remote_ip = getattr(config, "OBSIDIAN_REMOTE_IP", "")
+        host = parsed.hostname or ""
+        original_getaddrinfo = socket.getaddrinfo
+        override_dns = _should_override_obsidian_dns(host, remote_ip)
+        if override_dns:
+            def _getaddrinfo(name: str, port: int, *args: Any, **kwargs: Any) -> Any:
+                if name == host:
+                    return original_getaddrinfo(remote_ip, port, *args, **kwargs)
+                return original_getaddrinfo(name, port, *args, **kwargs)
+
+            socket.getaddrinfo = _getaddrinfo
+        try:
+            resp_ctx = urllib.request.urlopen(req, context=ctx, timeout=15)
+        finally:
+            if override_dns:
+                socket.getaddrinfo = original_getaddrinfo
+        with resp_ctx as resp:
             return 200 <= resp.status < 300
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         log.warning("analyst: obsidian REST write failed (%s)", exc)
