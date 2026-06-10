@@ -95,6 +95,38 @@ def test_obsidian_remote_ip_overrides_dns_for_rest_mirror(tmp_path, monkeypatch)
     assert analyst.socket.getaddrinfo is original_getaddrinfo
 
 
+def test_obsidian_remote_url_takes_precedence_over_local_vault(tmp_path, monkeypatch):
+    from swarm import config  # noqa: E402
+
+    local_vault = tmp_path / "vault"
+    local_vault.mkdir()
+    monkeypatch.setattr(config, "OBSIDIAN_VAULT", str(local_vault))
+    monkeypatch.setattr(config, "OBSIDIAN_TOKEN", "test-token")
+    monkeypatch.setattr(config, "OBSIDIAN_REMOTE_URL", "https://brain-host.tailnet.test:27124")
+    monkeypatch.setattr(config, "OBSIDIAN_REMOTE_IP", "")
+
+    class FakeResponse:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+    seen: dict[str, str] = {}
+
+    def fake_urlopen(req, *, context, timeout):  # noqa: ARG001
+        seen["url"] = req.full_url
+        return FakeResponse()
+
+    monkeypatch.setattr(analyst.urllib.request, "urlopen", fake_urlopen)
+
+    assert analyst._mirror_obsidian("Wiki/analyst/proof.md", "# Proof\n") is True
+    assert seen["url"].endswith("/vault/Wiki/analyst/proof.md")
+    assert not (local_vault / "Wiki" / "analyst" / "proof.md").exists()
+
+
 def test_breach_review_clean_when_no_ledgers(tmp_path, monkeypatch):
     monkeypatch.setattr(analyst, "_collect_breaches", lambda _r: [])
     result = analyst.run_breach_review(repo_root=tmp_path)

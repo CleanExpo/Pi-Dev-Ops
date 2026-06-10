@@ -314,6 +314,12 @@ def _mirror_obsidian(vault_relative_path: str, content: str) -> bool:
     """Write note to Obsidian vault — REST API or filesystem fallback."""
     from . import config  # noqa: PLC0415
 
+    # Off-Mac runtimes (Railway, Windows collectors) must use the REST bridge.
+    # A configured OBSIDIAN_VAULT path inside a container can otherwise become a
+    # false-positive local write that never reaches the founder's Mac Mini vault.
+    if config.OBSIDIAN_REMOTE_URL:
+        return _mirror_obsidian_rest(vault_relative_path, content)
+
     if config.OBSIDIAN_VAULT:
         try:
             abs_path = Path(config.OBSIDIAN_VAULT) / vault_relative_path
@@ -323,6 +329,13 @@ def _mirror_obsidian(vault_relative_path: str, content: str) -> bool:
             return True
         except OSError as exc:
             log.warning("analyst: obsidian filesystem write failed (%s)", exc)
+
+    return _mirror_obsidian_rest(vault_relative_path, content)
+
+
+def _mirror_obsidian_rest(vault_relative_path: str, content: str) -> bool:
+    """Write note to Obsidian through Local REST API."""
+    from . import config  # noqa: PLC0415
 
     token = config.OBSIDIAN_TOKEN
     if not token:
