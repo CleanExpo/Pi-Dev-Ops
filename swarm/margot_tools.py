@@ -244,6 +244,36 @@ def _resolve_team_id(team_name: str) -> str | None:
     return None
 
 
+def find_open_issue_by_title(title: str, team: str = MARGOT_DEFAULT_TEAM) -> str | None:
+    """Return the identifier of an OPEN issue with this exact title, or None.
+
+    Dedup guard for automated filers (2026-06-10 dupe storm: the production
+    coordinator re-filed every still-failed asset on each daily run, and scout
+    filed up to 6 copies of one finding). "Open" = triage/backlog/unstarted/
+    started — Done/Canceled tickets do not block a re-file, so a regression
+    after closure still gets a fresh ticket.
+
+    Fail-open by design: on lookup error this returns None and the caller
+    proceeds to file. If Linear is actually unreachable the subsequent create
+    fails too, so no duplicate is minted; automated callers that can retry
+    later should prefer failing closed at their own layer (see scout.py).
+    """
+    team_id = _resolve_team_id(team)
+    if not team_id:
+        return None
+    res = _linear_gql(
+        "query FindOpenByTitle($teamId: ID!, $title: String!) { issues(filter: { "
+        "team: { id: { eq: $teamId } }, "
+        'state: { type: { in: ["triage","backlog","unstarted","started"] } }, '
+        "title: { eq: $title } }, first: 1) { nodes { identifier } } }",
+        {"teamId": team_id, "title": title},
+    )
+    if "error" in res or res.get("errors"):
+        return None
+    nodes = ((res.get("data") or {}).get("issues") or {}).get("nodes", [])
+    return nodes[0].get("identifier") if nodes else None
+
+
 def _resolve_project_id(team_id: str, project_name: str) -> str | None:
     """Look up a project UUID by name within a team."""
     res = _linear_gql(
