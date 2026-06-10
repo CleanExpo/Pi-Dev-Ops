@@ -41,6 +41,10 @@ COPY skills/ ./skills/
 # Utility scripts (analyse_lessons, smoke_test, fallback_dryrun, etc.)
 COPY scripts/ ./scripts/
 
+# Packaged Margot FastMCP runtime. The canonical source remains in
+# ~/.margot, but Railway containers need an in-image server path.
+COPY vendor/margot-deep-research/ ./vendor/margot-deep-research/
+
 # Runtime directories — owned by pidev so the server can write to them
 RUN mkdir -p app/workspaces app/logs/.sessions app/data && \
     chown -R pidev:pidev /pi-ceo
@@ -51,6 +55,7 @@ USER pidev
 ENV TAO_HOST=0.0.0.0
 ENV TAO_PORT=8080
 ENV PYTHONPATH=/pi-ceo
+ENV MARGOT_SERVER_PATH=/pi-ceo/vendor/margot-deep-research/server.py
 
 EXPOSE 8080
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import sys
 import types
 from pathlib import Path
@@ -151,6 +152,44 @@ def test_run_research_batch_handles_error_response(monkeypatch):
     assert len(findings) == 1
     assert findings[0]["error"] == "margot_unreachable"
     assert findings[0]["summary"] == ""
+
+
+def test_run_research_batch_uses_mcp_report_field(monkeypatch):
+    fake_module = types.SimpleNamespace(
+        deep_research=lambda **kw: {
+            "report": "Corpus-backed report for the requested topic.",
+            "status": "ok",
+        },
+        deep_research_max=lambda **kw: {"error": "should_not_call_deep"},
+    )
+    monkeypatch.setitem(sys.modules, "swarm.margot_tools", fake_module)
+
+    requests = [margot_bot.ResearchRequest(topic="Brain host", depth="quick")]
+    findings = asyncio.run(margot_bot._run_research_batch(requests))
+
+    assert findings[0]["summary"] == "Corpus-backed report for the requested topic."
+    assert findings[0]["error"] is None
+
+
+def test_run_research_batch_logs_mcp_store_and_model(monkeypatch, caplog):
+    fake_module = types.SimpleNamespace(
+        deep_research=lambda **kw: {
+            "report": "Corpus-backed report.",
+            "store": "fileSearchStores/brain1wiki-test",
+            "model": "gemini-test",
+            "status": "ok",
+        },
+        deep_research_max=lambda **kw: {"error": "should_not_call_deep"},
+    )
+    monkeypatch.setitem(sys.modules, "swarm.margot_tools", fake_module)
+
+    caplog.set_level(logging.INFO, logger="swarm.margot_bot")
+    requests = [margot_bot.ResearchRequest(topic="Brain corpus", depth="quick")]
+    findings = asyncio.run(margot_bot._run_research_batch(requests))
+
+    assert findings[0]["summary"] == "Corpus-backed report."
+    assert "fileSearchStores/brain1wiki-test" in caplog.text
+    assert "gemini-test" in caplog.text
 
 
 def test_run_research_batch_handles_exception(monkeypatch):
