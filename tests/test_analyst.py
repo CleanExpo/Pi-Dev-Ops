@@ -127,6 +127,47 @@ def test_obsidian_remote_url_takes_precedence_over_local_vault(tmp_path, monkeyp
     assert not (local_vault / "Wiki" / "analyst" / "proof.md").exists()
 
 
+def test_analyst_llm_uses_gemini_rest_without_sdk(monkeypatch):
+    from swarm import ollama_client  # noqa: E402
+
+    monkeypatch.setattr(ollama_client, "chat", lambda **_kw: "")
+    monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
+    monkeypatch.setenv("GEMINI_TEXT_MODEL", "models/gemini-test")
+
+    seen: dict[str, str] = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return json.dumps({
+                "candidates": [{
+                    "content": {
+                        "parts": [{"text": '{"question":"q","answer":"a"}'}],
+                    },
+                }],
+            }).encode("utf-8")
+
+    def fake_urlopen(req, timeout):  # noqa: ARG001
+        seen["url"] = req.full_url
+        seen["api_key"] = req.get_header("X-goog-api-key")
+        seen["body"] = req.data.decode("utf-8")
+        return FakeResponse()
+
+    monkeypatch.setattr(analyst.urllib.request, "urlopen", fake_urlopen)
+
+    out = analyst._call_llm("Produce JSON")
+
+    assert out == '{"question":"q","answer":"a"}'
+    assert seen["url"].endswith("/models/gemini-test:generateContent")
+    assert seen["api_key"] == "test-gemini-key"
+    assert "Produce JSON" in seen["body"]
+
+
 def test_breach_review_clean_when_no_ledgers(tmp_path, monkeypatch):
     monkeypatch.setattr(analyst, "_collect_breaches", lambda _r: [])
     result = analyst.run_breach_review(repo_root=tmp_path)
