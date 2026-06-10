@@ -1260,6 +1260,8 @@ async def handle_turn(*, chat_id: str, user_text: str,
         prompt=prompt, turn_id=turn.turn_id, role="margot.casual",
     )
     turn.cost_usd = cost
+    wiki_findings: list[dict] = []
+    all_research_findings: list[dict] = []
 
     # ── Phase 2: research / truth-check / realtime-on-demand ──────────
     # If Phase 1 contained [RESEARCH], [TRUTH-CHECK], or [REALTIME]
@@ -1271,7 +1273,6 @@ async def handle_turn(*, chat_id: str, user_text: str,
         truth_requests, after_truth = parse_truth_check_requests(after_research)
         realtime_requests, draft_clean = parse_realtime_requests(after_truth)
 
-        wiki_findings: list[dict] = []
         # ── Wiki-query gate: check Brain-1 wiki before firing Gemini ──────
         # For each [RESEARCH] request, query the wiki first. High-confidence
         # hits replace the external call. Medium/low hits still go external
@@ -1326,6 +1327,7 @@ async def handle_turn(*, chat_id: str, user_text: str,
 
             # Merge wiki hits (already answered) with external findings
             research_findings = wiki_findings + external_findings
+            all_research_findings.extend(research_findings)
 
             phase2_prompt = build_prompt_with_research(
                 user_text=user_text, history=history,
@@ -1456,25 +1458,35 @@ async def handle_turn(*, chat_id: str, user_text: str,
             voice_attached=audio_path is not None,
             research_called=turn.research_called)
 
-    # ── Auto-ingest: write research synthesis back to Brain-1 wiki ────────
-    # Only fires when external research ran (turn.research_called=True).
-    # Fire-and-forget — Telegram reply already sent, turn already persisted.
-    if turn.research_called and turn.margot_text:
+    # ── Analyst + auto-ingest: grade research, write Wiki/analyst/, compound wiki
+    # Fires when research ran OR wiki-query fulfilled requests (wiki_findings).
+    _had_research = turn.research_called or bool(wiki_findings)
+    if _had_research and turn.margot_text:
         import asyncio as _aio  # noqa: PLC0415
         _finding = turn.margot_text
         _topic = user_text[:80]
         _tid = turn.turn_id
+        _findings_for_analyst: list[dict] = list(all_research_findings or wiki_findings)
 
-        async def _bg_ingest() -> None:
+        async def _bg_analyst_ingest() -> None:
             try:
+                from . import analyst as _analyst  # noqa: PLC0415
+                deliverable = await _aio.to_thread(
+                    _analyst.maybe_analyse_research,
+                    _topic, _finding, _findings_for_analyst, turn_id=_tid,
+                )
+                ingest_body = deliverable.to_markdown()
                 from .wiki_ingest import ingest as _ingest  # noqa: PLC0415
-                await _aio.to_thread(_ingest, _finding, "research", _topic, _tid)
-                log.info("margot %s: wiki auto-ingest complete", _tid)
+                await _aio.to_thread(_ingest, ingest_body, "research", _topic, _tid)
+                log.info(
+                    "margot %s: analyst+ingest complete (complete=%s)",
+                    _tid, deliverable.is_complete(),
+                )
             except Exception as _exc:  # noqa: BLE001
-                log.debug("margot %s: wiki auto-ingest suppressed (%s)", _tid, _exc)
+                log.debug("margot %s: analyst ingest suppressed (%s)", _tid, _exc)
 
         try:
-            _aio.create_task(_bg_ingest())
+            _aio.create_task(_bg_analyst_ingest())
         except RuntimeError:
             pass  # no running loop in test contexts — skip silently
 

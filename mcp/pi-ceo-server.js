@@ -23,6 +23,7 @@
  *   - linear_search_issues    — search issues by query text
  *   - linear_sync_board       — full board sync (all statuses)
  *   - write_obsidian_note     — write/overwrite a note in the local Obsidian vault (RA-926)
+ *   - read_obsidian_note      — read a note from local vault or Tailscale remote REST (RA-926)
  *   - search_lessons          — keyword search over lessons.jsonl institutional memory (RA-927)
  *   - perplexity_research     — real-time CVE/dep/architecture research via Perplexity Sonar (RA-929)
  *   - run_parallel            — execute multiple read-only tools concurrently (RA-933)
@@ -34,6 +35,8 @@ const { z } = require("zod");
 const fs   = require("fs");
 const path = require("path");
 const https = require("https");
+const dns = require("dns");
+const net = require("net");
 const vm    = require("vm");  // RA-1458: code_execute sandbox
 
 // ── Configuration ──────────────────────────────────────────────────────────────
@@ -50,8 +53,14 @@ const LINEAR_PROJECT_SLUG = process.env.LINEAR_PROJECT_SLUG || "pi-dev-ops";
 // Requires the "Local REST API" community plugin in Obsidian.
 // Set OBSIDIAN_TOKEN to the API key shown in the plugin settings.
 // Set OBSIDIAN_URL to override the default (e.g. non-standard port).
+// Set OBSIDIAN_REMOTE_URL (or BRAIN_HOST_TAILNET) for Tailscale brain host reads.
+// Set OBSIDIAN_REMOTE_IP when the runtime cannot resolve Tailscale MagicDNS.
 const OBSIDIAN_TOKEN = process.env.OBSIDIAN_TOKEN || "";
-const OBSIDIAN_BASE_URL = process.env.OBSIDIAN_URL || "https://127.0.0.1:27124";
+const OBSIDIAN_BASE_URL = process.env.OBSIDIAN_REMOTE_URL
+  || process.env.OBSIDIAN_URL
+  || (process.env.BRAIN_HOST_TAILNET ? `https://${process.env.BRAIN_HOST_TAILNET}:27124` : "")
+  || "https://127.0.0.1:27124";
+const OBSIDIAN_REMOTE_IP = process.env.OBSIDIAN_REMOTE_IP || "";
 
 // ── Perplexity Sonar API (RA-929) ─────────────────────────────────────────────
 // Set PERPLEXITY_API_KEY in the MCP env block (claude_desktop_config.json).
@@ -66,6 +75,19 @@ function readHarness(filename) {
     return `${filename} not found in ${HARNESS_DIR}. Run an analysis first at https://dashboard-unite-group.vercel.app/dashboard`;
   }
   return fs.readFileSync(p, "utf8");
+}
+
+function obsidianLookup(hostname) {
+  if (!OBSIDIAN_REMOTE_IP || !hostname || hostname === "localhost" || net.isIP(hostname)) {
+    return undefined;
+  }
+  return (name, options, callback) => {
+    if (name === hostname) {
+      callback(null, OBSIDIAN_REMOTE_IP, net.isIP(OBSIDIAN_REMOTE_IP) === 6 ? 6 : 4);
+      return;
+    }
+    dns.lookup(name, options, callback);
+  };
 }
 
 function linearGql(query, variables = {}) {
@@ -149,6 +171,7 @@ function obsidianWrite(vaultPath, content) {
         "Content-Length": bodyBuf.length,
       },
       rejectUnauthorized: false, // Obsidian uses a self-signed TLS cert
+      lookup: obsidianLookup(urlObj.hostname),
     };
     const req = https.request(options, (res) => {
       let data = "";
@@ -163,6 +186,62 @@ function obsidianWrite(vaultPath, content) {
     });
     req.on("error", reject);
     req.write(bodyBuf);
+    req.end();
+  });
+}
+
+/**
+ * Read content from an Obsidian vault path via Local REST API or filesystem.
+ *
+ * @param {string} vaultPath  Path relative to vault root
+ * @returns {Promise<string>} Markdown content
+ */
+function obsidianRead(vaultPath) {
+  return new Promise((resolve, reject) => {
+    if (!OBSIDIAN_TOKEN) {
+      const vaultRoot = process.env.OBSIDIAN_VAULT || "";
+      if (!vaultRoot) {
+        return reject(new Error(
+          "OBSIDIAN_TOKEN not set. Add it to the pi-ceo MCP env block, " +
+          "or set OBSIDIAN_VAULT to the absolute vault path for direct file reads."
+        ));
+      }
+      try {
+        const absPath = path.join(vaultRoot, vaultPath);
+        if (!fs.existsSync(absPath)) {
+          return reject(new Error(`Note not found: ${vaultPath}`));
+        }
+        return resolve(fs.readFileSync(absPath, "utf8"));
+      } catch (e) {
+        return reject(new Error(`Obsidian filesystem read failed: ${e.message}`));
+      }
+    }
+    const encodedPath = vaultPath.split("/").map(encodeURIComponent).join("/");
+    const urlObj = new URL(`${OBSIDIAN_BASE_URL}/vault/${encodedPath}`);
+    const options = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || 27124,
+      path: urlObj.pathname,
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${OBSIDIAN_TOKEN}`,
+        "Accept": "text/markdown",
+      },
+      rejectUnauthorized: false,
+      lookup: obsidianLookup(urlObj.hostname),
+    };
+    const req = https.request(options, (res) => {
+      let data = "";
+      res.on("data", (c) => data += c);
+      res.on("end", () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(data);
+        } else {
+          reject(new Error(`Obsidian API ${res.statusCode}: ${data.slice(0, 200)}`));
+        }
+      });
+    });
+    req.on("error", reject);
     req.end();
   });
 }
@@ -235,7 +314,7 @@ const READ_ONLY_TOOLS = new Set([
   "get_feature_list", "get_last_analysis", "get_project_health",
   "get_zte_score", "get_sprint_plan", "get_pipeline", "list_harness_files",
   "linear_list_issues", "linear_search_issues", "linear_status",
-  "get_monitor_digest", "search_lessons",
+  "get_monitor_digest", "search_lessons", "read_obsidian_note",
 ]);
 
 // Internal dispatch map for run_parallel — populated as tools are registered.
@@ -336,6 +415,37 @@ server.registerTool(
 
     return { content: [{ type: "text", text: notes + obsidianStatus }] };
   }
+);
+
+// ── Tool: read_obsidian_note ───────────────────────────────────────────────────
+const _handle_read_obsidian_note = async ({ path: vaultPath }) => {
+  try {
+    const content = await obsidianRead(vaultPath);
+    return {
+      content: [{
+        type: "text",
+        text: `# ${vaultPath}\n\n${content}`,
+      }],
+    };
+  } catch (e) {
+    return {
+      content: [{ type: "text", text: `❌ Obsidian read failed: ${e.message}` }],
+      isError: true,
+    };
+  }
+};
+_readHandlers.set("read_obsidian_note", _handle_read_obsidian_note);
+server.registerTool(
+  "read_obsidian_note",
+  {
+    title: "Read Obsidian Note",
+    description: "Read a Markdown note from the Obsidian vault via Local REST API (local or Tailscale remote). Set OBSIDIAN_TOKEN and OBSIDIAN_REMOTE_URL (or BRAIN_HOST_TAILNET) for off-Mac collectors.",
+    inputSchema: {
+      path: z.string().describe("Vault-relative path, e.g. 'Wiki/analyst/2026-06-10-topic.md'."),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+  },
+  _handle_read_obsidian_note
 );
 
 // ── Tool: write_obsidian_note ──────────────────────────────────────────────────
