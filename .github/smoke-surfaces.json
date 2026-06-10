@@ -5,6 +5,7 @@
   "horizontal": [
     {"name": "landing",          "path": "/",                                              "method": "GET",  "auth": false, "expected_status": 200},
     {"name": "control-redirect", "path": "/control",                                       "method": "GET",  "auth": false, "expected_status": 307},
+    {"name": "brain-page",       "path": "/brain",                                         "method": "GET",  "auth": false, "expected_status": 200, "body_contains": ["Brain", "Mac Mini"], "_comment": "PR #310: persistent Brain status/checklist page for the Mac Mini Obsidian REST host setup."},
     {"name": "api-zte",          "path": "/api/zte",                                       "method": "GET",  "auth": false, "expected_status": 200, "body_contains": ["score", "model"]},
     {"name": "api-swarm-status", "path": "/api/swarm-status",                              "method": "GET",  "auth": false, "expected_status": 200, "body_contains": ["state"]},
     {"name": "curator-proposals-quiet", "path": "/api/curator-proposals?status=pending&limit=10", "method": "GET", "auth": false, "expected_status": 200, "body_contains": ["error", "detail"], "_comment": "PR #303: read-only Skill Curator polling must stay console-clean when the upstream is unavailable or unauthenticated; route returns a 200 degraded envelope instead of browser-visible 401/502/503 noise."},

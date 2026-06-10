@@ -60,11 +60,11 @@ def _since_mtime(marker: Path) -> float | None:
         return None
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--since-last", action="store_true",
                         help="Only sync pages newer than last sync marker")
-    args = parser.parse_args()
+    args = parser.parse_args(list(argv or []))
 
     key = get_service_key()
     if not key:
@@ -101,4 +101,4 @@ def main():
     print(f"\nSynced {synced}/{len(pages)} wiki pages to Supabase")
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

@@ -50,7 +50,7 @@ export SUPABASE_UNITE_GROUP_SERVICE_KEY="<service-role-key>"
 ==> 5. Windows PC (when Tailscale installed there)
 export OBSIDIAN_REMOTE_URL="https://${TS_NAME}:27124"
 export OBSIDIAN_REMOTE_IP="${TS_IP:-100.x.y.z}"
-export OBSIDIAN_TOKEN="<same-key>"
+export OBSIDIAN_TOKEN="<paste-token-from-mac-mini-plugin>"
 # BRAIN1_WIKI_DIR not required on PC — reads go via REST
 
 ==> 6. MacBook Pro
