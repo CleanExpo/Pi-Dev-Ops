@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.piceo.obsidian-analyst-relay</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/scripts/run-obsidian-analyst-relay.sh</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/phill-mac/Library/Logs/pi-ceo-obsidian-analyst-relay.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/phill-mac/Library/Logs/pi-ceo-obsidian-analyst-relay.err.log</string>
+  <key>WorkingDirectory</key>
+  <string>/Users/phill-mac/Pi-CEO/Pi-Dev-Ops</string>
+</dict>
+</plist>
