@@ -27,7 +27,9 @@ jobs:
 
     steps:
       - name: Checkout with wiki bot token
+        id: wiki_bot_checkout
         if: env.WIKI_BOT_TOKEN != ''
+        continue-on-error: true
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -38,14 +40,16 @@ jobs:
           token: ${{ env.WIKI_BOT_TOKEN }}
 
       - name: Checkout with default token
-        if: env.WIKI_BOT_TOKEN == ''
+        if: env.WIKI_BOT_TOKEN == '' || steps.wiki_bot_checkout.outcome == 'failure'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           # WIKI_BOT_TOKEN is optional. Without it, checkout must use the
           # action's built-in github.token default; overriding token with an
           # empty fallback breaks private-repo fetch before the wiki updater
-          # can run. The later protected-branch push may still be blocked.
+          # can run. If WIKI_BOT_TOKEN exists but has expired or lacks read
+          # access, this step still lets the updater run; the later protected-
+          # branch push may still be blocked.
 
       - uses: actions/setup-python@v5
         with:
