@@ -221,15 +221,21 @@ def fetch_hn_findings() -> list[dict[str, Any]]:
 
 # ── Linear integration ────────────────────────────────────────────────────────
 
-def _existing_scout_titles(api_key: str) -> set[str]:
+def _existing_scout_titles(api_key: str) -> set[str] | None:
     """Fetch titles of open [SCOUT] tickets in the project for dedup.
 
     Source-of-truth dedup: the local .harness/scout-seen.json cache is per-env,
     so scout running in multiple environments (local, Railway, CCR) accumulates
     duplicates. Querying Linear directly catches dupes regardless of cache state.
+
+    Returns None when the fetch fails so the caller can fail CLOSED (skip
+    filing) instead of filing blind. The 2026-06 dupe storm (RA-5663 et al.,
+    6 copies each) happened because this query typed the project variable as
+    a GraphQL String where Linear's IDComparator expects `ID` — every call
+    400'd, the exception was swallowed, and scout filed blind on every cycle.
     """
     query = """
-    query OpenScoutIssues($projectId: String!) {
+    query OpenScoutIssues($projectId: ID!) {
         issues(
             filter: {
                 project: { id: { eq: $projectId } },
@@ -251,8 +257,9 @@ def _existing_scout_titles(api_key: str) -> set[str]:
         nodes = (data.get("issues") or {}).get("nodes", [])
         return {n["title"].strip().lower() for n in nodes if n.get("title")}
     except Exception as exc:
-        log.warning("Scout: existing title fetch failed (%s) — filing without Linear dedup", exc)
-        return set()
+        log.warning("Scout: existing title fetch failed (%s) — failing closed, "
+                    "no issues will be filed this cycle", exc)
+        return None
 
 
 def _get_or_create_scout_label(api_key: str) -> str | None:
@@ -385,15 +392,21 @@ def run_scout_cycle(dry_run: bool = False) -> dict[str, Any]:
 
     api_key = os.environ.get("LINEAR_API_KEY", "")
     label_id: str | None = None
-    existing_titles: set[str] = set()
+    existing_titles: set[str] | None = set()
     if api_key and not dry_run:
         label_id = _get_or_create_scout_label(api_key)
         existing_titles = _existing_scout_titles(api_key)
-        log.info("Scout: %d open [SCOUT] tickets already in Linear", len(existing_titles))
+        if existing_titles is None:
+            log.warning("Scout: Linear dedup unavailable — skipping issue "
+                        "creation this cycle (fail-closed)")
+        else:
+            log.info("Scout: %d open [SCOUT] tickets already in Linear", len(existing_titles))
 
     issues_created: list[str] = []
     skipped_existing = 0
     for finding in top5:
+        if existing_titles is None:
+            break  # dedup source unavailable — never file blind (dupe storm guard)
         source = finding["source"].upper()
         candidate_title = f"[SCOUT] {source}: {finding['title'][:80]}".strip().lower()
 

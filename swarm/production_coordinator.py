@@ -24,7 +24,6 @@ import textwrap
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any
 
 log = logging.getLogger("swarm.production_coordinator")
 
@@ -245,9 +244,18 @@ def _dispatch_via_claude(job: ProductionJob) -> bool:
 
 def _file_linear_ticket(job: ProductionJob) -> str:
     try:
-        from .margot_tools import propose_idea  # noqa: PLC0415
+        from .margot_tools import find_open_issue_by_title, propose_idea  # noqa: PLC0415
+        title = f"[Production] {job.business_id} — {job.asset_id.replace('_',' ')}"
+        # Dedup guard (2026-06-10 dupe storm: failed assets were re-filed on
+        # every daily run — RA-5649 ended up with 4 copies). An open ticket
+        # with the same title already tracks this asset; return it instead.
+        existing = find_open_issue_by_title(title)
+        if existing:
+            log.info("production: open ticket %s already covers %s/%s — not re-filing",
+                     existing, job.business_id, job.asset_id)
+            return existing
         r = propose_idea(
-            title=f"[Production] {job.business_id} — {job.asset_id.replace('_',' ')}",
+            title=title,
             description=(
                 f"**Business:** {job.business_id}\n"
                 f"**Asset:** {job.asset_id}\n"
