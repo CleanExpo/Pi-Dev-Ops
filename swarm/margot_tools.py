@@ -43,6 +43,9 @@ import os
 import shutil
 import subprocess
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -55,6 +58,10 @@ MARGOT_SERVER_PATH = Path(os.environ.get(
     str(Path.home() / ".margot" / "margot-deep-research" / "server.py"),
 ))
 MARGOT_INFLIGHT_LOG = Path(__file__).resolve().parents[1] / ".harness" / "swarm" / "margot_inflight.jsonl"
+GEMINI_API_BASE = os.environ.get(
+    "GEMINI_API_BASE",
+    "https://generativelanguage.googleapis.com/v1beta",
+).rstrip("/")
 
 
 def _now_iso() -> str:
@@ -102,13 +109,7 @@ def deep_research(topic: str, use_corpus: bool = False, **_: Any) -> dict[str, A
         return _call_stdio_mcp("deep_research",
                               {"topic": topic, "use_corpus": use_corpus})
 
-    # Gemini direct path — placeholder until Gemini SDK is wired
-    return {
-        "error": "gemini_direct_not_wired",
-        "topic": topic,
-        "next": "Install google-generativeai + restart Pi-CEO server "
-                "to enable the Gemini fallback.",
-    }
+    return _call_gemini_research(topic, use_corpus=use_corpus)
 
 
 def deep_research_max(topic: str, use_corpus: bool = False,
@@ -144,7 +145,10 @@ def deep_research_max(topic: str, use_corpus: bool = False,
             "originating_session_id": originating_session_id,
         }
 
-    return {"error": "gemini_direct_not_wired"}
+    return {
+        "error": "gemini_async_requires_margot_server",
+        "fix": "Use quick research or package the Margot MCP server into the runtime.",
+    }
 
 
 def check_research(interaction_id: str, **_: Any) -> dict[str, Any]:
@@ -154,7 +158,10 @@ def check_research(interaction_id: str, **_: Any) -> dict[str, Any]:
         return {"error": "margot_unreachable"}
     if transport == "stdio":
         return _call_stdio_mcp("check_research", {"interaction_id": interaction_id})
-    return {"error": "gemini_direct_not_wired"}
+    return {
+        "error": "gemini_async_requires_margot_server",
+        "fix": "Use quick research or package the Margot MCP server into the runtime.",
+    }
 
 
 def corpus_status(**_: Any) -> dict[str, Any]:
@@ -168,8 +175,12 @@ def corpus_status(**_: Any) -> dict[str, Any]:
         }
     if transport == "stdio":
         return _call_stdio_mcp("corpus_status", {})
-    return {"transport": "gemini",
-            "text_model": os.environ.get("GEMINI_TEXT_MODEL", "gemini-3.1-pro-preview-customtools")}
+    return {
+        "transport": "gemini",
+        "text_model": _gemini_model(),
+        "corpus_available": False,
+        "note": "Gemini fallback is external quick research only; corpus MCP requires Margot server.",
+    }
 
 
 def image_generate(prompt: str, aspect_ratio: str = "1:1",
@@ -186,7 +197,93 @@ def image_generate(prompt: str, aspect_ratio: str = "1:1",
         if reference_image_path:
             args["reference_image_path"] = reference_image_path
         return _call_stdio_mcp("image_generate", args)
-    return {"error": "gemini_direct_not_wired"}
+    return {"error": "gemini_image_requires_margot_server"}
+
+
+def _gemini_model() -> str:
+    raw = (
+        os.environ.get("GEMINI_TEXT_MODEL")
+        or os.environ.get("MARGOT_TEXT_MODEL")
+        or "gemini-3.5-flash"
+    ).strip()
+    return raw.removeprefix("models/")
+
+
+def _extract_gemini_text(payload: dict[str, Any]) -> str:
+    parts: list[str] = []
+    for candidate in payload.get("candidates") or []:
+        content = candidate.get("content") or {}
+        for part in content.get("parts") or []:
+            text = part.get("text")
+            if text:
+                parts.append(str(text))
+    return "\n".join(parts).strip()
+
+
+def _call_gemini_research(topic: str, *, use_corpus: bool) -> dict[str, Any]:
+    """Direct Gemini REST fallback for Railway, where ~/.margot is absent."""
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    if not api_key:
+        return {"error": "gemini_api_key_missing"}
+
+    model = _gemini_model()
+    encoded_model = urllib.parse.quote(model, safe="")
+    url = f"{GEMINI_API_BASE}/models/{encoded_model}:generateContent"
+    prompt = (
+        "You are Margot's quick research fallback for Pi-CEO. "
+        "Return a concise, evidence-aware answer for the requested topic. "
+        "Do not claim access to the private corpus. If private corpus context "
+        "is needed, state that limitation briefly.\n\n"
+        f"Topic: {topic}\n"
+        f"Private corpus requested: {'yes' if use_corpus else 'no'}\n\n"
+        "Output format:\n"
+        "- Summary: 3-6 bullets\n"
+        "- Confidence: low/medium/high\n"
+        "- Follow-up: one concrete next check"
+    )
+    body = json.dumps({
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.2,
+            "maxOutputTokens": 1200,
+        },
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=body,
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "x-goog-api-key": api_key,
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=45) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:500]
+        return {
+            "error": "gemini_http_error",
+            "status": exc.code,
+            "detail": detail,
+            "model": model,
+        }
+    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+        return {"error": "gemini_request_failed", "exception": repr(exc), "model": model}
+
+    summary = _extract_gemini_text(payload)
+    if not summary:
+        return {"error": "gemini_empty_response", "model": model}
+    return {
+        "status": "ok",
+        "transport": "gemini",
+        "model": model,
+        "topic": topic,
+        "summary": summary,
+        "corpus_used": False,
+        "corpus_requested": use_corpus,
+        "warning": "Private corpus unavailable in Gemini fallback.",
+    }
 
 
 # ── RA-2002: Margot → Linear ideas bridge ────────────────────────────────────
