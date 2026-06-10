@@ -35,28 +35,29 @@ export const BRAIN_STATUS: BrainStatusSnapshot = {
   title: "2nd Brain Flywheel",
   updated: "2026-06-10",
   branch: "main",
-  commit: "9b5cdf1",
-  prUrl: "https://github.com/CleanExpo/Pi-Dev-Ops/pulls?q=319+320+321+322+323+324",
-  testsCommand: "python -m pytest tests/test_analyst.py tests/test_margot_research_voice.py tests/test_margot_tools_gemini.py tests/test_obsidian_analyst_relay.py tests/test_wiki_sync.py -q",
-  testsExpected: "Main CI, Smoke Test, pgtap, Codebase Wiki, and DESIGN lint green at 9b5cdf1",
-  headline: "Production Brain write/read and Margot quick research fallback are proven.",
+  commit: "5eead06",
+  prUrl: "https://github.com/CleanExpo/Pi-Dev-Ops/pulls?q=319+320+321+322+323+324+325+326+327",
+  testsCommand: "python -m pytest tests/test_margot_tools_gemini.py tests/test_margot_research_voice.py tests/test_analyst.py tests/test_create_session_concurrency.py tests/test_sessions.py -q",
+  testsExpected: "Main CI, production Smoke Test, production E2E, pgtap, Codebase Wiki, and DESIGN lint green at 5eead06",
+  headline: "Production Brain write/read and corpus-backed Margot MCP research are proven.",
   explanation:
     "The deployed Margot path writes analyst deliverables into the Mac Mini Obsidian vault through a narrow relay. " +
-    "Proof turn mt-c0902995e4 ran direct [RESEARCH], used the Gemini quick fallback without margot_unreachable, " +
-    "completed analyst ingest, and wrote Wiki/analyst/2026-06-10-what-is-the-nature-origin-and-content-of-the-art.md. " +
-    "Remaining future work is full corpus-backed Margot MCP packaging, not the quick research/write path.",
+    "Proof turn mt-2853e2f248 ran direct [RESEARCH], used the packaged Margot FastMCP runtime with File Search store " +
+    "fileSearchStores/margotunitegroupcore-dol7bswlfkar and model gemini-3.1-pro-preview-customtools, " +
+    "returned HTTP 200 with research_called=true, and wrote Wiki/analyst/2026-06-10-what-does-the-evidence-say-about-research-topic.md. " +
+    "PR #327 also fixed stale completed sessions blocking the production smoke build cap.",
   milestones: [
     {
       id: "pc",
       title: "Windows PC — code",
       status: "done",
-      summary: "Analyst, wiki_sync, aip_watcher, MCP read, Margot Gemini fallback, and focused pytest checks are green.",
+      summary: "Analyst, wiki_sync, aip_watcher, MCP read, Margot corpus MCP, and focused pytest checks are green.",
     },
     {
       id: "github",
       title: "GitHub — merged to main",
       status: "done",
-      summary: "PRs #310-#324 merged, Codebase Wiki green, and main CI/smoke green at 9b5cdf1.",
+      summary: "PRs #310-#327 merged, Codebase Wiki green, and main CI/smoke/E2E green at 5eead06.",
     },
     {
       id: "mac",
@@ -178,12 +179,22 @@ export const BRAIN_STATUS: BrainStatusSnapshot = {
     },
     {
       id: "corpus-mcp",
-      label: "Next: full corpus-backed Margot MCP",
-      status: "next",
-      detail: "Gemini quick research is live. Full private-corpus MCP packaging remains the next upgrade if Margot must use the private File Search corpus from Railway.",
+      label: "Full corpus-backed Margot MCP",
+      status: "done",
+      detail: "Done — PR #326 packaged the Margot FastMCP runtime into Railway and production proof mt-2853e2f248 used File Search store fileSearchStores/margotunitegroupcore-dol7bswlfkar with gemini-3.1-pro-preview-customtools.",
       commands: [
-        'railway logs --lines 300 | rg -i "corpus|margot-deep-research|MARGOT_FILE_SEARCH_STORE"',
-        "# Package the Margot MCP server into the Railway image before enabling corpus-backed deep research.",
+        'railway logs --lines 1500 | rg -i "mt-2853e2f248|margot research: completed|fileSearchStores|gemini-3.1-pro-preview-customtools"',
+        'rg -n "mt-2853e2f248|CCW churn risk and next operating checks" "$HOME/2nd Brain/2nd Brain/Wiki/analyst"',
+      ],
+    },
+    {
+      id: "session-cap",
+      label: "Production smoke session cap",
+      status: "done",
+      detail: "Done — PR #327 reconciles restored active sessions that already have terminal log markers before enforcing TAO_MAX_SESSIONS.",
+      commands: [
+        "gh run view 27313477463 --json conclusion,status",
+        "curl -4 -sS https://pi-dev-ops-production.up.railway.app/health",
       ],
     },
   ],
