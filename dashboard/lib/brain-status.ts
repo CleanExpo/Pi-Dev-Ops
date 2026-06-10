@@ -33,19 +33,19 @@ export interface BrainStatusSnapshot {
 
 export const BRAIN_STATUS: BrainStatusSnapshot = {
   title: "2nd Brain Flywheel",
-  updated: "2026-06-10",
+  updated: "2026-06-11",
   branch: "main",
-  commit: "5eead06",
-  prUrl: "https://github.com/CleanExpo/Pi-Dev-Ops/pulls?q=319+320+321+322+323+324+325+326+327",
+  commit: "runtime proof 5eead06",
+  prUrl: "https://github.com/CleanExpo/Pi-Dev-Ops/pulls?q=319+320+321+322+323+324+325+326+327+328",
   testsCommand: "python -m pytest tests/test_margot_tools_gemini.py tests/test_margot_research_voice.py tests/test_analyst.py tests/test_create_session_concurrency.py tests/test_sessions.py -q",
-  testsExpected: "Main CI, production Smoke Test, production E2E, pgtap, Codebase Wiki, and DESIGN lint green at 5eead06",
+  testsExpected: "Main CI, production Smoke Test, production E2E, pgtap, Codebase Wiki, and DESIGN lint green after PR #328 merge",
   headline: "Production Brain write/read and corpus-backed Margot MCP research are proven.",
   explanation:
     "The deployed Margot path writes analyst deliverables into the Mac Mini Obsidian vault through a narrow relay. " +
     "Proof turn mt-2853e2f248 ran direct [RESEARCH], used the packaged Margot FastMCP runtime with File Search store " +
     "fileSearchStores/margotunitegroupcore-dol7bswlfkar and model gemini-3.1-pro-preview-customtools, " +
     "returned HTTP 200 with research_called=true, and wrote Wiki/analyst/2026-06-10-what-does-the-evidence-say-about-research-topic.md. " +
-    "PR #327 also fixed stale completed sessions blocking the production smoke build cap.",
+    "PR #327 also fixed stale completed sessions blocking the production smoke build cap; PR #328 records the proof on this Brain page.",
   milestones: [
     {
       id: "pc",
@@ -57,7 +57,7 @@ export const BRAIN_STATUS: BrainStatusSnapshot = {
       id: "github",
       title: "GitHub — merged to main",
       status: "done",
-      summary: "PRs #310-#327 merged, Codebase Wiki green, and main CI/smoke/E2E green at 5eead06.",
+      summary: "PRs #310-#328 merged, Codebase Wiki green, and main CI/smoke/E2E green after the dashboard proof update.",
     },
     {
       id: "mac",
