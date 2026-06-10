@@ -32,11 +32,11 @@ jobs:
           # pushes signed by GITHUB_TOKEN with `GH006: Protected branch update
           # failed`. Use a fine-grained PAT scoped to this repo only with
           # `Contents: Read and write` plus branch-protection-bypass admin.
-          # Falls back to GITHUB_TOKEN if WIKI_BOT_TOKEN is not yet configured
+          # Falls back to github.token if WIKI_BOT_TOKEN is not yet configured
           # — the workflow still runs, the wiki content is still generated in
           # the runner, only the push to protected main is blocked (matching
           # pre-PAT behaviour). User-side PAT setup steps are in PR #N body.
-          token: ${{ secrets.WIKI_BOT_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.WIKI_BOT_TOKEN || github.token }}
 
       - uses: actions/setup-python@v5
         with:
