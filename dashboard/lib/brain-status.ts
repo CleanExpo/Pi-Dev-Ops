@@ -34,28 +34,28 @@ export interface BrainStatusSnapshot {
 export const BRAIN_STATUS: BrainStatusSnapshot = {
   title: "2nd Brain Flywheel",
   updated: "2026-06-10",
-  branch: "pidev/launch-crew-wirein",
-  commit: "verified tailnet bridge",
-  prUrl: "https://github.com/CleanExpo/Pi-Dev-Ops/compare/main...pidev/launch-crew-wirein",
+  branch: "main",
+  commit: "e808d6b",
+  prUrl: "https://github.com/CleanExpo/Pi-Dev-Ops/pull/310",
   testsCommand: "cd D:\\Pi-Dev-Ops; python -m pytest tests/test_analyst.py tests/test_wiki_sync.py -q",
-  testsExpected: "11 passed",
-  headline: "Mac Mini brain host is live. Next: wire env vars into Railway / Margot.",
+  testsExpected: "12 passed; main CI green",
+  headline: "Brain host code is merged. Next: prove one live production Brain write/read.",
   explanation:
-    "Margot was calling analyst.py after every research turn, but the file did not exist — " +
-    "research never compounded into wiki notes. That runtime is now wired. The vault lives on " +
-    "the Mac Mini, not this Windows PC.",
+    "Margot was calling analyst.py after every research turn, but the file did not exist. " +
+    "That runtime, the persistent Brain page, and the tailnet Obsidian bridge setup are now on main. " +
+    "The remaining gate is operational proof from the deployed path into the Mac Mini vault.",
   milestones: [
     {
       id: "pc",
       title: "Windows PC — code",
       status: "done",
-      summary: "Analyst, wiki_sync, aip_watcher, MCP read, 11 tests green, committed.",
+      summary: "Analyst, wiki_sync, aip_watcher, MCP read, and 12 focused pytest checks are green.",
     },
     {
       id: "github",
-      title: "GitHub — branch pushed",
+      title: "GitHub — merged to main",
       status: "done",
-      summary: "Branch pidev/launch-crew-wirein is on origin. Merge PR when ready.",
+      summary: "PR #310 merged, follow-up CI fixes merged, and main is green at e808d6b.",
     },
     {
       id: "mac",
@@ -71,17 +71,17 @@ export const BRAIN_STATUS: BrainStatusSnapshot = {
     },
     {
       id: "pc-net",
-      title: "Windows PC (phill-desktop)",
+      title: "Production path — Brain write/read",
       status: "next",
-      summary: "Online on tailnet 100.94.139.34 · set OBSIDIAN_REMOTE_URL to verified Mac Mini FQDN",
+      summary: "Run one deployed Margot/analyst turn and verify the resulting Obsidian note is readable.",
     },
   ],
   checklist: [
     {
       id: "verify-pc",
-      label: "Verify on Windows PC",
-      status: "next",
-      detail: "Run pytest — expect 12 passed.",
+      label: "Verify local analyst tests",
+      status: "done",
+      detail: "Done — expect 12 passed if rerun.",
       commands: [
         "cd D:\\Pi-Dev-Ops",
         "python -m pytest tests/test_analyst.py tests/test_wiki_sync.py -q",
@@ -116,9 +116,9 @@ export const BRAIN_STATUS: BrainStatusSnapshot = {
     },
     {
       id: "mac-env",
-      label: "Mac Mini: set env vars (Railway / Margot)",
-      status: "next",
-      detail: "Use the verified FQDN plus tailnet IP fallback. Only OBSIDIAN_TOKEN and Supabase service key need secret handling.",
+      label: "Railway / Margot env vars",
+      status: "done",
+      detail: "Done — verified FQDN plus tailnet IP fallback were set in Railway. Tokens stay redacted.",
       commands: [
         'export BRAIN1_WIKI_DIR="$HOME/2nd Brain/2nd Brain/Wiki"',
         'export OBSIDIAN_VAULT="$HOME/2nd Brain/2nd Brain"',
@@ -132,27 +132,25 @@ export const BRAIN_STATUS: BrainStatusSnapshot = {
     },
     {
       id: "mac-clone",
-      label: "Mac Mini: get latest code (script is on feature branch)",
-      status: "next",
-      detail: "setup-brain-host.sh is NOT on main yet. Clone/checkout the feature branch OR use commands above.",
+      label: "Mac Mini: get latest code",
+      status: "done",
+      detail: "Done — setup-brain-host.sh is now on main via PR #310.",
       commands: [
         "git clone https://github.com/CleanExpo/Pi-Dev-Ops.git",
         "cd Pi-Dev-Ops",
-        "git fetch origin pidev/launch-crew-wirein",
-        "git checkout pidev/launch-crew-wirein",
+        "git checkout main",
         "bash scripts/setup-brain-host.sh",
       ],
     },
     {
-      id: "win-remote",
-      label: "Windows PC (phill-desktop): remote vault access",
+      id: "live-brain-proof",
+      label: "Next: live Brain proof",
       status: "next",
-      detail: "phill-desktop is already on the tailnet. Use the verified FQDN plus IP fallback:",
+      detail: "Run a real deployed Margot/analyst turn, then read back the Obsidian note from the Mac Mini vault.",
       commands: [
-        '$env:OBSIDIAN_REMOTE_URL="https://unite-mac-mini.tail5ef339.ts.net:27124"',
-        '$env:OBSIDIAN_REMOTE_IP="100.107.147.59"',
-        '$env:OBSIDIAN_TOKEN="<same-key-as-mac-mini>"',
-        '$env:BRAIN_HOST_TAILNET="unite-mac-mini.tail5ef339.ts.net"',
+        "curl -sS https://pi-dev-ops-production.up.railway.app/health",
+        "open https://dashboard-unite-group.vercel.app/brain",
+        "# Trigger one Margot/analyst research turn, then verify Wiki/analyst/<new-note>.md exists in Obsidian.",
       ],
     },
   ],
