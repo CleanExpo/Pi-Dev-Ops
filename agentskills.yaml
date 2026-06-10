@@ -481,7 +481,7 @@ skills:
     sha256: "febba7bc3d6c89628deee7677597583ea2f6870bba082c66c80268b630c7450e"
     dependencies:
       tools: []
-      skills: 
+      skills:
         - "skill.linear-comment-draft"
         - "skill.telegram-draft-for-review"
     safety:
