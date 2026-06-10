@@ -4,7 +4,7 @@ export const maxDuration = 120;
 
 import { NextRequest, NextResponse } from "next/server";
 import { makeClient, getAnalysisMode, SYSTEM } from "@/lib/claude";
-import { MODELS } from "@/lib/models";
+import { MODELS, refusalFallback } from "@/lib/models";
 import { makeOctokit } from "@/lib/github";
 import type { AnalysisResult } from "@/lib/types";
 
@@ -157,11 +157,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       });
     }
 
-    const response = await client.messages.create({
-      model: MODELS.DEFAULT,
-      max_tokens: 4096,
-      messages: [{ role: "user", content: prompt }],
-    });
+    const fallback = refusalFallback(MODELS.DEFAULT);
+    const response = await client.messages.create(
+      {
+        model: MODELS.DEFAULT,
+        max_tokens: 4096,
+        messages: [{ role: "user", content: prompt }],
+        ...fallback.params,
+      },
+      fallback.options,
+    );
 
     const block = response.content[0];
     const output = block.type === "text" ? block.text : "";

@@ -20,6 +20,24 @@ export const MODELS = {
   DEFAULT:      (process.env.ANALYSIS_MODEL     ?? "claude-sonnet-4-6").trim(),
 } as const;
 
+// Mythos-class models (claude-fable-*, claude-mythos-*) run safety classifiers
+// that can decline benign requests with stop_reason "refusal" (HTTP 200, not an
+// error). These options make the API retry the request on Opus server-side
+// (beta: server-side-fallback-2026-06-01). No-op for non-Mythos models — the
+// fallbacks param is only valid on Mythos-class requests.
+export function refusalFallback(model: string): {
+  params: Record<string, unknown>;
+  options: { headers?: Record<string, string> };
+} {
+  if (!model.startsWith("claude-fable") && !model.startsWith("claude-mythos")) {
+    return { params: {}, options: {} };
+  }
+  return {
+    params: { fallbacks: [{ model: "claude-opus-4-8" }] },
+    options: { headers: { "anthropic-beta": "server-side-fallback-2026-06-01" } },
+  };
+}
+
 // Phase-to-model mapping for the 8-phase analysis pipeline.
 // Phases 1, 2, 4 are listing/summarisation tasks → WORKER tier.
 // Phases 3, 5, 6, 7 require deep reasoning → ANALYST tier.
