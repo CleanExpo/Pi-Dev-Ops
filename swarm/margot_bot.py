@@ -1253,13 +1253,24 @@ async def handle_turn(*, chat_id: str, user_text: str,
     prompt = build_prompt(user_text=user_text, history=history,
                            context=context)
 
+    direct_sentinel = any(
+        marker in user_text
+        for marker in ("[RESEARCH", "[TRUTH-CHECK", "[REALTIME")
+    )
     # ── Phase 1: draft response ────────────────────────────────────────
     # role=margot.casual → cheap tier by default (OpenRouter Gemma).
     # If the message is clearly research-needing, the Phase 1 model will
     # emit a [RESEARCH] sentinel; Phase 2 then runs on top tier.
-    rc, response_text, cost, error = await _call_llm(
-        prompt=prompt, turn_id=turn.turn_id, role="margot.casual",
-    )
+    #
+    # Operator/API callers sometimes pass an explicit sentinel command. In
+    # that case, treat the caller-provided sentinel as the Phase 1 draft so
+    # copy-paste Brain commands do not spend the route budget on planning.
+    if direct_sentinel:
+        rc, response_text, cost, error = 0, user_text, 0.0, None
+    else:
+        rc, response_text, cost, error = await _call_llm(
+            prompt=prompt, turn_id=turn.turn_id, role="margot.casual",
+        )
     turn.cost_usd = cost
     wiki_findings: list[dict] = []
     all_research_findings: list[dict] = []
