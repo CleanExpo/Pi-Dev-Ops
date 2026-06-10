@@ -32,6 +32,16 @@ else
   echo "    tailscale CLI not found; run after Tailscale is installed."
 fi
 
+echo ""
+echo "==> 3b. Optional production relay"
+echo "    Railway is not on the tailnet by default. For production write/read proof,"
+echo "    run the narrow analyst relay and expose only that relay through Funnel:"
+echo "      security add-generic-password -a \"\$USER\" -s pi-ceo-obsidian-token -w \"<paste-token>\" -U"
+echo "      cp scripts/launchd/com.piceo.obsidian-analyst-relay.plist ~/Library/LaunchAgents/"
+echo "      launchctl bootstrap gui/\$(id -u) ~/Library/LaunchAgents/com.piceo.obsidian-analyst-relay.plist"
+echo "      tailscale funnel --bg --https=10000 http://127.0.0.1:27125"
+echo "    Then set OBSIDIAN_REMOTE_URL=https://${TS_NAME}:10000 in Railway."
+
 cat <<EOF
 
 ==> 4. Add to Railway / Margot / Pi-CEO env (brain host + remote workers)
