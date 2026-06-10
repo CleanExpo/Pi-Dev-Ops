@@ -44,6 +44,8 @@ log = logging.getLogger("pi-ceo.routes.margot")
 
 router = APIRouter()
 
+DEFAULT_MARGOT_TURN_TIMEOUT_S = 240.0
+
 
 class MargotTurnRequest(BaseModel):
     chat_id: str = Field(..., description="Telegram chat_id as string")
@@ -70,6 +72,19 @@ def _check_secret(x_pi_ceo_secret: Optional[str]) -> None:
         raise HTTPException(401, "Invalid X-Pi-CEO-Secret")
 
 
+def _margot_turn_timeout_s() -> float:
+    raw = os.environ.get("MARGOT_TURN_TIMEOUT_S", "").strip()
+    if not raw:
+        return DEFAULT_MARGOT_TURN_TIMEOUT_S
+    try:
+        value = float(raw)
+    except ValueError:
+        return DEFAULT_MARGOT_TURN_TIMEOUT_S
+    if value < 30:
+        return DEFAULT_MARGOT_TURN_TIMEOUT_S
+    return value
+
+
 @router.post("/api/margot/turn", response_model=MargotTurnResponse)
 async def margot_turn(
     body: MargotTurnRequest,
@@ -91,6 +106,7 @@ async def margot_turn(
         raise HTTPException(500, f"swarm.margot_bot unavailable: {exc}") from exc
 
     try:
+        timeout_s = _margot_turn_timeout_s()
         turn = await asyncio.wait_for(
             handle_turn(
                 chat_id=body.chat_id,
@@ -98,11 +114,11 @@ async def margot_turn(
                 message_id=body.message_id,
                 _send=False,
             ),
-            timeout=120.0,
+            timeout=timeout_s,
         )
     except asyncio.TimeoutError as exc:
         log.warning("margot_turn timeout chat_id=%s", body.chat_id)
-        raise HTTPException(504, "Margot turn exceeded 120s timeout") from exc
+        raise HTTPException(504, f"Margot turn exceeded {timeout_s:.0f}s timeout") from exc
     except Exception as exc:
         log.exception("margot_turn failed chat_id=%s", body.chat_id)
         raise HTTPException(500, f"Margot turn failed: {exc}") from exc
