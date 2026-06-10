@@ -166,6 +166,7 @@ def test_analyst_llm_uses_gemini_rest_without_sdk(monkeypatch):
     assert seen["url"].endswith("/models/gemini-test:generateContent")
     assert seen["api_key"] == "test-gemini-key"
     assert "Produce JSON" in seen["body"]
+    assert json.loads(seen["body"])["generationConfig"]["responseMimeType"] == "application/json"
 
 
 def test_breach_review_clean_when_no_ledgers(tmp_path, monkeypatch):
