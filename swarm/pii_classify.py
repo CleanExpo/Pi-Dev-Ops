@@ -143,6 +143,15 @@ def _make_classifier_with_anthropic(model: str) -> Callable[[str], list[Hit]]:
 
     client = Anthropic()
 
+    fallback_kwargs: dict = {}
+    if model.startswith(("claude-fable", "claude-mythos")):
+        # Mythos-class safety classifiers can decline benign requests
+        # (HTTP 200, stop_reason="refusal"); retry on Opus server-side.
+        fallback_kwargs = {
+            "extra_headers": {"anthropic-beta": "server-side-fallback-2026-06-01"},
+            "extra_body": {"fallbacks": [{"model": "claude-opus-4-8"}]},
+        }
+
     def _classify(text: str) -> list[Hit]:
         prompt = _PROMPT.replace("{TEXT}", text)
         try:
@@ -150,6 +159,7 @@ def _make_classifier_with_anthropic(model: str) -> Callable[[str], list[Hit]]:
                 model=model,
                 max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}],
+                **fallback_kwargs,
             )
             raw = "".join(
                 getattr(block, "text", "")

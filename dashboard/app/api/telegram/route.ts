@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse, after } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { MODELS } from "@/lib/models";
+import { MODELS, refusalFallback } from "@/lib/models";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -271,15 +271,21 @@ async function ceoAgentCall(history: Turn[]): Promise<string> {
     content: t.content,
   }));
 
+  const fallback = refusalFallback(MODELS.DEFAULT);
+
   // Agentic loop: up to 5 turns to handle tool calls
   for (let turn = 0; turn < 5; turn++) {
-    const response = await client.messages.create({
-      model: MODELS.DEFAULT,
-      max_tokens: 1024,
-      system: CEO_SYSTEM,
-      tools: CEO_TOOLS,
-      messages,
-    });
+    const response = await client.messages.create(
+      {
+        model: MODELS.DEFAULT,
+        max_tokens: 1024,
+        system: CEO_SYSTEM,
+        tools: CEO_TOOLS,
+        messages,
+        ...fallback.params,
+      },
+      fallback.options,
+    );
 
     if (response.stop_reason === "end_turn") {
       return response.content
