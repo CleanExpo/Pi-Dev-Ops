@@ -1,4 +1,10 @@
-"""Session routes: build, list, kill, SSE logs, resume (RA-937)."""
+"""Session routes: build, list, kill, SSE logs, resume (RA-937).
+
+RA-6504: Added GET /api/sessions/{sid}/logs/stream — a hardened SSE endpoint
+that replays existing output_lines, polls for new lines until terminal state,
+emits heartbeat comments every 15 s to keep proxies alive, and sends an
+explicit "truncated" event when the replay window exceeds the cap.
+"""
 import asyncio
 import json
 import time
@@ -11,6 +17,7 @@ from ..sessions import create_session, get_session, list_sessions, kill_session,
 from ..orchestrator import fan_out
 from ..models import BuildRequest, ParallelBuildRequest
 from .. import config, persistence
+from ..persistence import _safe_sid
 
 router = APIRouter()
 
@@ -132,6 +139,110 @@ async def stream_session_logs(sid: str, after: int = 0):
                 yield "data: {\"type\":\"done\",\"text\":\"\"}\n\n"
                 break
             await asyncio.sleep(0.3)
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+_SSE_STREAM_REPLAY_MAX = 5_000   # max lines replayed before emitting "truncated"
+_SSE_STREAM_HEARTBEAT_S = 15.0   # SSE comment heartbeat interval (proxy keep-alive)
+_SSE_STREAM_POLL_S = 0.3         # poll interval while session is active
+_SSE_STREAM_TERMINAL = frozenset({"done", "complete", "failed", "killed", "interrupted"})
+
+
+@router.get("/api/sessions/{sid}/logs/stream", dependencies=[Depends(require_auth)])
+async def stream_session_logs_v2(sid: str, after: int = 0):
+    """SSE build-log stream with heartbeat, truncation event, and reconnect support (RA-6504).
+
+    Contract
+    --------
+    • ``after`` — 0-based index of the last line the client already has.  The
+      server sends lines[after:] on connect, then polls until the session reaches
+      a terminal state.  Clamped to [0, _SSE_AFTER_MAX] to prevent abuse.
+    • Heartbeat — an SSE comment line (": heartbeat") is emitted every
+      ~15 s while the generator is idle so that Vercel/nginx proxies do not
+      close the connection.
+    • Truncation — when ``after`` is 0 and there are more than
+      ``_SSE_STREAM_REPLAY_MAX`` existing lines the endpoint first emits a
+      ``truncated`` event (with the count of skipped lines), then replays only
+      the most-recent ``_SSE_STREAM_REPLAY_MAX`` lines.  This prevents the
+      initial burst from OOM-ing the client.
+    • Terminal event — a ``{"type":"done","status":"<status>"}`` event is emitted
+      immediately when the session enters a terminal state, then the stream is
+      closed.  The client MUST poll ``GET /api/sessions`` as the authoritative
+      source of truth for session state; the SSE stream is best-effort.
+    • The ``sid`` is sanitised via ``_safe_sid()`` before use (path-traversal
+      guard, same as the persistence layer).
+
+    Reconnect doctrine (Vercel SSE proxy drops)
+    --------------------------------------------
+    Clients SHOULD use the ``Last-Event-ID`` or ``after`` query-param pattern:
+    track the highest ``i`` value received, reconnect with ``?after=<i>``, and
+    continue to poll ``/api/sessions`` as the source of truth while the stream
+    is disconnected.  The UI build-strip follows this doctrine.
+    """
+    # Sanitise before _any_ use — mirrors persistence._safe_sid() guard.
+    safe = _safe_sid(sid)
+    if not safe:
+        raise HTTPException(400, "Invalid session ID")
+
+    # Clamp after to [0, _SSE_AFTER_MAX]
+    after = min(max(after, 0), _SSE_AFTER_MAX)
+
+    session = get_session(sid)
+    if session is None:
+        raise HTTPException(404, "Session not found")
+
+    async def generate():
+        cursor = after
+        last_heartbeat = time.monotonic()
+
+        # ── Truncation guard ──────────────────────────────────────────────────
+        total_existing = len(session.output_lines)
+        if cursor == 0 and total_existing > _SSE_STREAM_REPLAY_MAX:
+            skipped = total_existing - _SSE_STREAM_REPLAY_MAX
+            truncation_event = json.dumps({
+                "type": "truncated",
+                "skipped": skipped,
+                "replay_from": skipped,
+            })
+            yield f"data: {truncation_event}\n\n"
+            cursor = skipped
+
+        # ── Main loop: replay + poll ──────────────────────────────────────────
+        while True:
+            lines = session.output_lines
+
+            # Drain available lines
+            while cursor < len(lines):
+                event = lines[cursor]
+                yield f"data: {json.dumps({'i': cursor, **event})}\n\n"
+                cursor += 1
+                last_heartbeat = time.monotonic()  # reset on any data sent
+
+            # Terminal state: emit done event and close
+            if session.status in _SSE_STREAM_TERMINAL:
+                terminal_event = json.dumps({
+                    "type": "done",
+                    "status": session.status,
+                    "lines": cursor,
+                })
+                yield f"data: {terminal_event}\n\n"
+                break
+
+            # Heartbeat comment — keeps proxy connections alive
+            now = time.monotonic()
+            if now - last_heartbeat >= _SSE_STREAM_HEARTBEAT_S:
+                yield ": heartbeat\n\n"
+                last_heartbeat = now
+
+            await asyncio.sleep(_SSE_STREAM_POLL_S)
 
     return StreamingResponse(
         generate(),
