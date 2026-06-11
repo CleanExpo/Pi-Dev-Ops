@@ -25,6 +25,15 @@ command -v node >/dev/null || { warn "Node.js >=18 required — install it first
 command -v python3 >/dev/null || { warn "python3 required"; exit 1; }
 [ -n "${PI_CEO_API_KEY:-}" ] || warn "PI_CEO_API_KEY not set — heartbeat will be rejected until you export it"
 
+# 1b. Persist the secret to ~/.hermes/.env (mode 600) so the daemon reads it at
+#     runtime — it is never embedded in the launchd plist / Scheduled Task.
+if [ -n "${PI_CEO_API_KEY:-}" ]; then
+  ENVF="$HOME/.hermes/.env"; mkdir -p "$HOME/.hermes"; touch "$ENVF"; chmod 600 "$ENVF"
+  grep -q '^PI_CEO_API_KEY=' "$ENVF" 2>/dev/null || printf 'PI_CEO_API_KEY=%s\n' "$PI_CEO_API_KEY" >> "$ENVF"
+  grep -q '^PI_CEO_API_URL=' "$ENVF" 2>/dev/null || printf 'PI_CEO_API_URL=%s\n' "$PI_CEO_API_URL" >> "$ENVF"
+  say "Secret persisted to ~/.hermes/.env (600); not embedded in any daemon config"
+fi
+
 # 2. autogit — work bus
 if ! command -v autogit >/dev/null; then
   say "Installing autogit"
@@ -63,11 +72,12 @@ case "$OS" in
   </array>
   <key>EnvironmentVariables</key><dict>
     <key>PI_CEO_API_URL</key><string>$PI_CEO_API_URL</string>
-    <key>PI_CEO_API_KEY</key><string>${PI_CEO_API_KEY:-}</string>
   </dict>
   <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
 </dict></plist>
 PL
+    # The secret is NOT embedded in the plist — heartbeat.py reads PI_CEO_API_KEY
+    # from ~/.hermes/.env at runtime. Make sure it's there and protected.
     launchctl unload "$PLIST" 2>/dev/null || true
     launchctl load "$PLIST" && say "launchd heartbeat loaded"
     ;;

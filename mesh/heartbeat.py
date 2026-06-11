@@ -25,8 +25,27 @@ import time
 import urllib.error
 import urllib.request
 
-PI_CEO_API_URL = os.environ.get("PI_CEO_API_URL", "https://pi-dev-ops-production.up.railway.app")
-PI_CEO_API_KEY = os.environ.get("PI_CEO_API_KEY", "")
+def _from_env_file(name: str) -> str:
+    """Read a key from ~/.hermes/.env (mac/linux) when it's not in the process env.
+    Keeps the secret out of launchd plists / Scheduled Tasks — the daemon loads it
+    at runtime from the protected file instead of having it embedded."""
+    from pathlib import Path
+    envf = Path.home() / ".hermes" / ".env"
+    if not envf.exists():
+        return ""
+    try:
+        for line in envf.read_text().splitlines():
+            line = line.strip()
+            if line.startswith(f"{name}="):
+                return line.split("=", 1)[1].strip().strip("'\"")
+    except OSError:
+        pass
+    return ""
+
+
+PI_CEO_API_URL = (os.environ.get("PI_CEO_API_URL") or _from_env_file("PI_CEO_API_URL")
+                  or "https://pi-dev-ops-production.up.railway.app")
+PI_CEO_API_KEY = os.environ.get("PI_CEO_API_KEY") or _from_env_file("PI_CEO_API_KEY")
 INTERVAL = int(os.environ.get("HEARTBEAT_INTERVAL", "20"))
 AGENT_RUNTIMES = ("claude", "codex", "cursor-agent", "pi", "hermes")
 
