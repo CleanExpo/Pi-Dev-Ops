@@ -1,10 +1,6 @@
 # AGENTS.md — Pi-Dev-Ops Boundary Matrix
 
-Defines what an autonomous agent (Claude Code, Pi-CEO generator, board meeting agent) may
-freely modify, must proceed with care on, or must never touch without explicit human approval.
-
-Three tiers apply in every build session. When directories conflict, the more specific
-scope wins (e.g., `app/server/config.py` → 🚫 overrides the default ✅ for `app/server/`).
+What an autonomous agent (Claude Code, Pi-CEO generator, board agent) may modify freely, modify with care, or never touch without explicit human approval. The more specific scope wins on conflict (e.g. `app/server/config.py` 🚫 overrides the default ✅ for `app/server/`).
 
 ---
 
@@ -148,11 +144,5 @@ Run `npx tsc --noEmit && npm run build` before committing any change to `dashboa
 6. **Push target.** All autonomous sessions push to a `pidev/auto-{sid[:8]}` feature branch — never directly to `main`. If GITHUB_TOKEN is not set in the environment, the push phase will fail silently and log an error. Verify GITHUB_TOKEN and GITHUB_REPO are set in Railway environment variables.
 
 ---
-
-## Source
-
-Patterns adapted from Codex four-file task memory (PROMPT/PLAN/IMPLEMENT/STATUS.md),
-Kimi K2 minimal tool set philosophy (6 orthogonal tools > 20 overlapping), and
-DeepSeek R1 structured reasoning seeding.
 
 Last updated: 2026-04-14 (MARATHON-4 / RA-588)

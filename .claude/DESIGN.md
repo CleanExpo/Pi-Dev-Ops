@@ -169,25 +169,7 @@ Skills, agents, and infrastructure changes in this repo:
 
 ## CI Lint Integration
 
-This repo runs the DESIGN.md lint on every PR via
-`.github/workflows/design-lint.yml`. The lint asserts:
-
-1. `.claude/DESIGN.md` exists.
-2. All 6 required H2 headings are present.
-3. No **net-new** imports from `lucide-react`, `@heroicons/react`, or
-   `@fortawesome/*` in any TypeScript / JavaScript app code. Baseline at
-   `.github/design-md-lint.baseline.txt`.
-4. AI-slop phrase scan (warn-only in v1) across `.md`, `.mdx`, `.ts`, `.tsx`
-   — explicitly excludes `skills/brand-guardian/**` (the skill that
-   *defines* the banned list) and the `feedback_design_preferences.md` memory.
-
-To run locally: `bash .github/scripts/design-md-lint.sh`.
-
-Existing CI surfaces in this repo: `ci.yml`, `codebase-wiki.yml`,
-`dns_takeover_scan.yml`, `ideas_inbox_drain.yml`, `morning_briefing.yml`,
-`smoke_pipeline.yml`, `smoke_surface_gate.yml`, `smoke_test.yml`,
-`smoke_test_e2e.yml`, `workspace_intel_brief.yml`. design-lint runs
-alongside these on every PR.
+`.github/workflows/design-lint.yml` runs `bash .github/scripts/design-md-lint.sh` on every PR. It asserts this file exists with all 6 required H2 headings (FAIL), no net-new `lucide-react`/`@heroicons/react`/`@fortawesome/*` imports vs `.github/design-md-lint.baseline.txt` (FAIL), and an AI-slop phrase scan across `.md`/`.mdx`/`.ts`/`.tsx` (warn-only in v1, excludes `skills/brand-guardian/**` and `feedback_design_preferences.md`). Run locally with the script above.
 
 ---
 
