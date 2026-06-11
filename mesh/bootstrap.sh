@@ -25,6 +25,15 @@ command -v node >/dev/null || { warn "Node.js >=18 required — install it first
 command -v python3 >/dev/null || { warn "python3 required"; exit 1; }
 [ -n "${PI_CEO_API_KEY:-}" ] || warn "PI_CEO_API_KEY not set — heartbeat will be rejected until you export it"
 
+# 1b. Persist the secret to ~/.hermes/.env (mode 600) so the daemon reads it at
+#     runtime — it is never embedded in the launchd plist / Scheduled Task.
+if [ -n "${PI_CEO_API_KEY:-}" ]; then
+  ENVF="$HOME/.hermes/.env"; mkdir -p "$HOME/.hermes"; touch "$ENVF"; chmod 600 "$ENVF"
+  grep -q '^PI_CEO_API_KEY=' "$ENVF" 2>/dev/null || printf 'PI_CEO_API_KEY=%s\n' "$PI_CEO_API_KEY" >> "$ENVF"
+  grep -q '^PI_CEO_API_URL=' "$ENVF" 2>/dev/null || printf 'PI_CEO_API_URL=%s\n' "$PI_CEO_API_URL" >> "$ENVF"
+  say "Secret persisted to ~/.hermes/.env (600); not embedded in any daemon config"
+fi
+
 # 2. autogit — work bus
 if ! command -v autogit >/dev/null; then
   say "Installing autogit"
@@ -32,6 +41,42 @@ if ! command -v autogit >/dev/null; then
 fi
 say "Wiring agent hooks (Claude/Codex/Cursor/Pi)"
 autogit setup || warn "autogit setup reported issues (non-fatal)"
+
+# 2b. Harden the wired hooks. Claude Code / Codex run hooks with a minimal PATH that
+# usually excludes the npm global bin (e.g. ~/.local/bin), so a bare `autogit` fails
+# with "command not found" on every Stop/PostToolUse. Rewrite each autogit hook to
+# prepend the common bin dirs and no-op silently when autogit is genuinely absent.
+say "Hardening agent hooks (PATH-safe autogit)"
+python3 - <<'PYH' || warn "hook hardening skipped (non-fatal)"
+import json, os
+BINS = os.path.expanduser("~/.local/bin") + ":/opt/homebrew/bin:/usr/local/bin"
+def harden(path):
+    if not os.path.exists(path):
+        return
+    try:
+        d = json.load(open(path))
+    except Exception:
+        return
+    changed = False
+    hooks = d.get("hooks", {})
+    if not isinstance(hooks, dict):
+        return
+    for groups in hooks.values():
+        if not isinstance(groups, list):
+            continue
+        for grp in groups:
+            for h in grp.get("hooks", []) if isinstance(grp, dict) else []:
+                c = h.get("command", "")
+                if "autogit" in c and "command -v autogit" not in c:
+                    verb = "ship" if "autogit ship" in c else "busy"
+                    h["command"] = (f'export PATH="{BINS}:$PATH"; cd "${{CLAUDE_PROJECT_DIR:-.}}" '
+                                    f'&& command -v autogit >/dev/null 2>&1 && autogit {verb} || true')
+                    changed = True
+    if changed:
+        json.dump(d, open(path, "w"), indent=2)
+        print(f"  hardened {path}")
+harden(os.path.expanduser("~/.claude/settings.json"))
+PYH
 
 # 3. Hermes adapter (only if Hermes is present on this node)
 if [ -f "$HOME/.hermes/config.yaml" ]; then
@@ -63,11 +108,12 @@ case "$OS" in
   </array>
   <key>EnvironmentVariables</key><dict>
     <key>PI_CEO_API_URL</key><string>$PI_CEO_API_URL</string>
-    <key>PI_CEO_API_KEY</key><string>${PI_CEO_API_KEY:-}</string>
   </dict>
   <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
 </dict></plist>
 PL
+    # The secret is NOT embedded in the plist — heartbeat.py reads PI_CEO_API_KEY
+    # from ~/.hermes/.env at runtime. Make sure it's there and protected.
     launchctl unload "$PLIST" 2>/dev/null || true
     launchctl load "$PLIST" && say "launchd heartbeat loaded"
     ;;
