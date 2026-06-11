@@ -184,3 +184,4 @@ venv/
 remotion-studio/public/audio/_cache/
 remotion-studio/public/captures/
 remotion-studio/public/ra-wave-1-screencaps/
+.harness/artefacts/synthex/sandbox/Synthex/
