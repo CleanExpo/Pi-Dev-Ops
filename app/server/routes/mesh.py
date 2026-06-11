@@ -20,6 +20,7 @@ import logging
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Header, HTTPException
@@ -94,8 +95,9 @@ async def heartbeat(
         "cpu_pct": hb.cpu_pct, "mem_pct": hb.mem_pct, "load1": hb.load1,
         "agent_runtimes": hb.agent_runtimes, "version": hb.version, "last_seen": "now()",
     }
-    # PostgREST can't call now() inline; drop it and let the column default handle it.
-    machine_row.pop("last_seen")
+    # PostgREST can't call now() inline, and the column default only fires on INSERT —
+    # stamp last_seen from the server so it refreshes on every upsert (else rows read stale).
+    machine_row["last_seen"] = datetime.now(timezone.utc).isoformat()
     status, _ = _sb("POST", "mesh_machines", machine_row,
                     prefer="resolution=merge-duplicates,return=minimal")
     if status >= 300:
