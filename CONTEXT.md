@@ -1,14 +1,6 @@
 # Pi-Dev-Ops Glossary
 
-Locked definitions for terms used across the Pi-CEO swarm. One paragraph
-per term. If a term in this file conflicts with a term in another doc,
-this file wins. Authors of new code must align to these definitions
-before introducing new variants.
-
-Pattern source: Matt Pocock `sandcastle/CONTEXT.md` — establish a single
-root-level glossary so cross-cutting concepts do not drift across
-sub-directories. Per `[[board-deliberation-code-patterns-2026-05-15]]`
-F4.
+Locked definitions for terms used across the Pi-CEO swarm. One paragraph per term. This file wins on conflict with any other doc; align new code to these definitions before introducing variants.
 
 ---
 
@@ -113,7 +105,7 @@ Selected by the cascade (see above). Implemented in
 
 ## Senior Agent
 
-A higher-cost LLM tier (typically Claude Opus 4.7 or Claude Sonnet 4.7)
+A higher-cost LLM tier (Claude Opus, or top-tier Sonnet)
 reserved for load-bearing or high-stakes tasks: code review, strategy
 synthesis, adversarial pressure-test, production-gate decisions.
 Distinguished from a plain agent by model tier and per-invocation
@@ -160,11 +152,4 @@ modules.
 
 ---
 
-## Notes on under-threshold terms
-
-Per `[[board-deliberation-code-patterns-2026-05-15]]` PR5 spec, every
-term used in 3+ swarm Python files should have an entry. `cascade`
-(2 files), `Senior Agent` (0 files), and `mandate` (0 files) are
-included anyway because they are first-class concepts in the design
-docs and the wiki — surfacing them here prevents drift if a future
-worker adopts the term in code.
+Convention: every term used in 3+ swarm Python files gets an entry. `cascade`, `Senior Agent`, and `mandate` are included despite being under threshold because they are first-class concepts in the design docs and wiki — surfacing them here prevents drift if a worker later adopts the term in code.
