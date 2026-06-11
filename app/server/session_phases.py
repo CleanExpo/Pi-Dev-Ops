@@ -51,6 +51,7 @@ from .session_linear import (
     _update_linear_state,
     _record_session_outcome,
     _sync_linear_on_completion,
+    _notify_linear_session_started,  # RA-6502: started → In Progress outbound push
 )
 
 _log = logging.getLogger("pi-ceo.sessions")
@@ -1578,6 +1579,13 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
         session.budget = BudgetTracker(total_budget=total_budget)
         em(session, "system", f"  TAO:     budget={total_budget:,} tokens | config={'loaded' if _HARNESS_CONFIG else 'default'}")
     em(session, "system", "")
+
+    # RA-6502: outbound sync — move the originating Linear issue to "In Progress"
+    # as soon as the session is confirmed live.  Fire-and-forget; never blocks clone.
+    try:
+        _notify_linear_session_started(session)
+    except Exception:
+        pass  # outbound sync must never block the build pipeline
 
     if not await _phase_clone(session, resume_from):
         _sync_linear_on_completion(session)
