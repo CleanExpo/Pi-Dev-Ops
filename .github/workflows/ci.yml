@@ -143,3 +143,78 @@ jobs:
           name: post-deploy-metrics
           path: .harness/post-deploy-metrics/
           if-no-files-found: ignore
+
+  # ── RA-6503: Local smoke test in CI (every PR + push to main) ─────────────
+  # Starts the server locally with a dummy TAO_PASSWORD and runs
+  # scripts/smoke_test.py against it. Does NOT hit production.
+  # Runs on every PR so smoke regressions are caught before merge.
+  # Excluded checks (see PR body for full rationale):
+  #   --agent-sdk checks  — require ANTHROPIC_API_KEY secret, not set in PR CI
+  #   --emit-metrics      — post-deploy metric files not meaningful in PR runs
+  smoke-local:
+    name: Smoke test (local server, RA-6503)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [python]
+
+    env:
+      TAO_PASSWORD: ci-smoke-local-dummy-password
+      TAO_SESSION_SECRET: ci-session-secret-fixed-for-test
+      TAO_EVALUATOR_ENABLED: "false"
+      TAO_GC_MAX_AGE: "3600"
+      TAO_SWARM_ENABLED: "0"
+      TAO_AUTONOMY_ENABLED: "0"
+      PYTHONPATH: ${{ github.workspace }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: app/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r app/requirements.txt
+
+      - name: Start Pi CEO server locally
+        run: |
+          python -m uvicorn app.server.main:app \
+            --host 127.0.0.1 --port 7777 \
+            --log-level warning > /tmp/server-local.log 2>&1 &
+          echo "SERVER_PID=$!" >> $GITHUB_ENV
+
+      - name: Wait for server to be ready
+        run: |
+          for i in $(seq 1 30); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:7777/health 2>/dev/null || echo "000")
+            echo "[${i}s] health status: $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "Server ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "=== SERVER STARTUP LOG ==="
+          cat /tmp/server-local.log
+          echo "=========================="
+          exit 1
+
+      - name: Run smoke test against local server
+        # --agent-sdk excluded: requires ANTHROPIC_API_KEY (not set in PR CI)
+        # --emit-metrics excluded: post-deploy metrics not meaningful here
+        run: |
+          python scripts/smoke_test.py \
+            --url http://127.0.0.1:7777 \
+            --password "$TAO_PASSWORD"
+
+      - name: Show server log on failure
+        if: failure()
+        run: cat /tmp/server-local.log || true
+
+      - name: Stop server
+        if: always()
+        run: kill $SERVER_PID 2>/dev/null || true
