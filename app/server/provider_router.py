@@ -114,6 +114,11 @@ ROLE_TIER: dict[str, str] = {
     "sprinkle.feedback": "cheap",  # RA-2995: feedback_loop neutral-outcome pattern naming
     "sprinkle.pulse":    "cheap",  # RA-2995: portfolio_pulse BOARD-TRIGGER structured extraction
     "sprinkle.board_prebrief": "cheap",  # RA-2995: 5-bullet pre-brief before daily board meeting (final sprinkle)
+    # Secondary research roles — served by nex-n2-pro:free (trial until 2026-06-25)
+    # The primary model for these roles is still determined by their tier above;
+    # nex-n2-pro runs as a secondary pass via provider_nex_n2.research_pass().
+    "research":            "mid",   # generic research pass
+    "suggestion":          "cheap", # suggestion generation (secondary opinion)
 }
 
 
@@ -476,7 +481,57 @@ __all__ = [
     "DEFAULT_CHEAP_LOCAL_MODEL", "DEFAULT_CHEAP_REMOTE_MODEL",
     "select_provider_model", "run_via_provider",
     "is_anthropic", "is_openrouter", "is_ollama", "is_claude_print",
+    "run_secondary_research_pass",
 ]
+
+
+# ── nex-n2-pro:free secondary research pass (trial until 2026-06-25) ─────────
+# REMOVE AFTER 2026-06-25 or if NEX_N2_FREE_UNTIL has passed — see provider_nex_n2.py.
+
+async def run_secondary_research_pass(
+    prompt: str,
+    *,
+    role: str = "research",
+    timeout_s: int = 120,
+    max_tokens: int = 8192,
+    session_id: str = "",
+    history: list | None = None,
+    fallback_text: str = "",
+) -> tuple[str, list]:
+    """Run a secondary research/suggestion pass via nex-n2-pro:free.
+
+    This is additive — it enriches an existing primary result with a second
+    model's perspective.  It never replaces the primary model.
+
+    Returns (secondary_text, reasoning_details).  On any error (disabled,
+    rate-limited, network failure) returns (fallback_text, []) so the caller's
+    primary path is unaffected.
+
+    Example usage in a board meeting or research phase:
+        primary_rc, primary_text, *_ = await run_via_provider(prompt, role="board")
+        secondary_text, reasoning = await run_secondary_research_pass(
+            prompt, role="board", fallback_text="",
+        )
+        # Use secondary_text as a second opinion alongside primary_text.
+    """
+    try:
+        import sys as _sys  # noqa: PLC0415
+        nex_n2 = _sys.modules.get("app.server.provider_nex_n2")
+        if nex_n2 is None:
+            from . import provider_nex_n2 as nex_n2  # noqa: PLC0415
+    except Exception as exc:  # noqa: BLE001
+        log.warning("provider_router: nex_n2 import failed — %s", exc)
+        return fallback_text, []
+
+    return await nex_n2.research_pass(
+        prompt,
+        role=role,
+        timeout_s=timeout_s,
+        max_tokens=max_tokens,
+        session_id=session_id,
+        history=history,
+        fallback_text=fallback_text,
+    )
 
 
 # ── Synchronous wrapper (RA-3003 consolidation) ─────────────────────────────
