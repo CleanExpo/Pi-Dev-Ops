@@ -1,0 +1,84 @@
+# Definition of Done — Pi-Dev-Ops "honest verification layer" capability
+#
+# Unlike the RestoreAssist DoD (business milestones, mostly human-attested),
+# this one is mostly EXECUTABLE: each probe runs a real command against this
+# repo, so the coverage number is produced by code you can re-run, not by
+# anyone's say-so. It deliberately includes:
+#   - a NEGATIVE test (a gate that must FAIL on bad input) to prove fail-closed
+#   - an HONEST RED for the work that is genuinely not done yet
+# so the report shows the truth, not a flattering picture.
+
+project_id: pi-dev-ops
+generated: 2026-06-07
+note: >
+  Tracks the verification capability itself. Run from the repo root:
+  python scripts/coverage_check.py .harness/dod/pi-dev-ops-verification.dod.yaml
+
+requirements:
+  # ── The verification layer exists and runs ───────────────────────
+  - id: ver-cov-exists
+    statement: "coverage_check.py exists."
+    check: path_exists
+    path: scripts/coverage_check.py
+
+  - id: ver-cov-compiles
+    statement: "coverage_check.py is valid Python (compiles)."
+    check: command
+    cmd: "python3 -m py_compile scripts/coverage_check.py"
+
+  - id: ver-cov-runs
+    statement: "coverage_check runs end-to-end on a real DoD and exits cleanly."
+    check: command
+    cmd: "python3 scripts/coverage_check.py .harness/dod/restoreassist.dod.yaml --json"
+
+  # ── The planning layer exists ────────────────────────────────────
+  - id: ver-fp-skill
+    statement: "forward-planner skill is present."
+    check: path_exists
+    path: skills/forward-planner/SKILL.md
+
+  - id: ver-fp-validator-compiles
+    statement: "forward-planner plan validator is valid Python."
+    check: command
+    cmd: "python3 -m py_compile skills/forward-planner/scripts/validate_plan.py"
+
+  # ── Negative test: the gate must REJECT a broken plan (fail-closed) ─
+  - id: ver-gate-fails-closed
+    statement: "Plan validator REJECTS an invalid plan (proves the gate fails closed, not open)."
+    check: command
+    expect_exit: 1   # we WANT a non-zero exit here — a gate that passes garbage is worthless
+    cmd: >
+      python3 -c "import json;json.dump({'project_id':'x','goal':'g','win_condition':[],'moves':[{'id':'m1','depends_on':['m2'],'unlocks':[],'satisfies':[],'linear':{}}]},open('/tmp/_bad_plan.json','w'))"
+      && python3 skills/forward-planner/scripts/validate_plan.py /tmp/_bad_plan.json
+
+  # ── DoD specs are stored where the loop can find them ────────────
+  - id: ver-dod-dir
+    statement: "Definition-of-Done specs directory exists."
+    check: path_exists
+    path: .harness/dod
+
+  # ── HONEST RED: the outstanding work, reported truthfully ────────
+  - id: ver-loop-coverage-gated
+    statement: "The build loop terminates on project coverage, not a per-task self-judge."
+    check: command
+    cmd: "grep -q 'coverage_check' app/server/tao_loop.py"
+    note: >
+      Expected to FAIL today. tao_loop.py still terminates on the per-task judge
+      with no coverage gate — this is the core diagnosed bug, not yet fixed.
+      This line turns green only when the loop actually consults coverage.
+
+  # ── Live smoke (honest: UNKNOWN if the host can't be reached here) ─
+  - id: ver-backend-health
+    statement: "Production backend answers a health check."
+    check: http
+    url: "https://pi-dev-ops-production.up.railway.app/health"
+    expect_status: 200
+
+  # ── Genuinely human-judged (not yet built) ───────────────────────
+  - id: ver-e2e-flows
+    statement: "End-to-end user-flow tests exist per project (the Rana-style checks, automated)."
+    check: human
+
+  - id: ver-merge-gate
+    statement: "PR + evidence + human-merge is the enforced only path from agent work into a project."
+    check: human

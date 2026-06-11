@@ -1,0 +1,26 @@
+{
+  "skill_name": "forward-planner",
+  "evals": [
+    {
+      "id": 1,
+      "name": "unite-hub-client-portal",
+      "prompt": "I want to add a client portal to Unite-Hub where clients can log in, see their projects, and message us. Before we build anything, plan the full path 15 moves ahead — I keep finding the build is missing something, so I want the whole route mapped including the stuff that's easy to forget.",
+      "expected_output": "A foresight brief (win condition / Definition of Done, board state, gap, 15+ verifiable moves, branch points, risk horizon, red-team findings, immediate next move) AND a structured plan JSON conforming to the schema. Should surface commonly-dropped work (password reset, session expiry, rate limiting, audit logging, error states, tests, observability).",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "obsidian-second-brain",
+      "prompt": "Map out 15+ moves to turn my Obsidian vault into a proper second brain that the Pi-CEO swarm can read from and write research notes into. I want to think this through end to end rather than just start making folders.",
+      "expected_output": "A foresight brief + structured plan with a named win condition, current-vs-target gap, 15+ ordered verifiable moves, branch points where genuinely contingent, and a red-team pass. Should anticipate things like ingestion format, indexing/search, write-back conflicts, sync, and dedupe.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "pi-devops-coverage-engine",
+      "prompt": "Plan building a Definition-of-Done plus a coverage check for Pi-Dev-Ops so the system stops reporting 'done' when work is actually missing. Think the whole route through 15 moves ahead, not just the obvious tasks.",
+      "expected_output": "A foresight brief + structured plan. Win condition stated as checkable conditions; gap computed; 15+ verifiable moves sequenced by dependency; branch points only where contingent; red-team pass that catches its own missing verification. Should reference how it wires into the existing loop.",
+      "files": []
+    }
+  ]
+}

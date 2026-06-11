@@ -1,0 +1,107 @@
+# Definition of Done — RestoreAssist
+#
+# Derived strictly from .harness/business-charters/restoreassist-charter.md
+# (sections 5 "Definition of done by horizon" and 6 "Non-negotiable constraints").
+# Charter status at time of writing: "Pre-build. No code written. No pilot company engaged."
+#
+# Each item has a `check` describing HOW completion is verified:
+#   path_exists          — a file/dir must exist in the repo
+#   registry_has_project — the project must be present in .harness/projects.json
+#   glob_grep            — a pattern must appear in files matching a glob
+#   human                — cannot be verified from the repo; requires YOUR confirmation.
+#                          Reported as UNKNOWN and NEVER counted as done unless you
+#                          attest it in .harness/dod/attestations.yaml.
+#
+# The whole point: the machine reports only what it can actually see. Anything it
+# can't see is surfaced as UNKNOWN for you to confirm — it is never guessed.
+
+project_id: restoreassist
+charter: .harness/business-charters/restoreassist-charter.md
+generated: 2026-06-07
+note: >
+  RestoreAssist is pre-build. Its near-term "done" is business milestones, not code.
+  Code-coverage probes will be added here once a RestoreAssist code repository exists
+  and is reachable; until then, build-stage items are honestly marked human/UNKNOWN.
+
+requirements:
+  # ── 30-day horizon ───────────────────────────────────────────────
+  - id: ra-30-monitor
+    horizon: 30d
+    statement: "RestoreAssist has an entry inside Pi-SEO's portfolio monitor."
+    check: registry_has_project
+    project_id: restoreassist
+
+  - id: ra-30-pulse-active
+    horizon: 30d
+    statement: "Portfolio monitoring is actually producing data for RestoreAssist."
+    check: path_exists
+    path: .harness/portfolio-pulse/restoreassist
+
+  - id: ra-30-roadmap-recorded
+    horizon: 30d
+    statement: "Roadmap milestones recorded in .harness/decisions/."
+    check: glob_grep
+    glob: ".harness/decisions/**/*"
+    pattern: "(?i)restoreassist"
+
+  - id: ra-30-design-team
+    horizon: 30d
+    statement: "Phase 1 specification work has started with a named design team."
+    check: human
+
+  - id: ra-30-pilot-conversation
+    horizon: 30d
+    statement: "At least one pilot company has had a preliminary conversation."
+    check: human
+
+  # ── 90-day horizon ───────────────────────────────────────────────
+  - id: ra-90-phase1-half
+    horizon: 90d
+    statement: "Phase 1 development 50%+ complete — core data model + mobile app in alpha."
+    check: human
+    note: "No RestoreAssist code repo is reachable from this folder; cannot auto-verify."
+
+  - id: ra-90-lois
+    horizon: 90d
+    statement: "3–5 pilot companies formally committed (signed letters of intent)."
+    check: human
+
+  - id: ra-90-insurer-validation
+    horizon: 90d
+    statement: "Insurance validation started — conversations with at least 2 major insurers."
+    check: human
+
+  - id: ra-90-pilot-plan
+    horizon: 90d
+    statement: "Phase 2 pilot plan exists in writing."
+    check: glob_grep
+    glob: ".harness/**/*restoreassist*pilot*"
+    pattern: "."
+
+  # ── 12-month horizon ─────────────────────────────────────────────
+  - id: ra-12-phase1-complete
+    horizon: 12m
+    statement: "Phase 1 complete — system production-ready."
+    check: human
+
+  - id: ra-12-pilot-complete
+    horizon: 12m
+    statement: "Phase 2 pilot complete — 50+ real claims, 90%+ report-generation success."
+    check: human
+
+  - id: ra-12-launch
+    horizon: 12m
+    statement: "Phase 3 launch initiated — 50+ companies signed, $50k Year-1 revenue."
+    check: human
+
+  # ── Non-negotiable constraints (charter §6) ──────────────────────
+  - id: ra-con-iicrc
+    horizon: constraint
+    statement: "NIR spec expresses IICRC S500/S520/S700 compliance."
+    check: human
+    note: "No spec document exists yet; auto-check will be added when the spec lands."
+
+  - id: ra-con-privacy
+    horizon: constraint
+    statement: "Data privacy/security compliance scope defined (Privacy Act / GDPR / state rules)."
+    check: human
