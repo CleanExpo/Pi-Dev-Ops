@@ -42,6 +42,42 @@ fi
 say "Wiring agent hooks (Claude/Codex/Cursor/Pi)"
 autogit setup || warn "autogit setup reported issues (non-fatal)"
 
+# 2b. Harden the wired hooks. Claude Code / Codex run hooks with a minimal PATH that
+# usually excludes the npm global bin (e.g. ~/.local/bin), so a bare `autogit` fails
+# with "command not found" on every Stop/PostToolUse. Rewrite each autogit hook to
+# prepend the common bin dirs and no-op silently when autogit is genuinely absent.
+say "Hardening agent hooks (PATH-safe autogit)"
+python3 - <<'PYH' || warn "hook hardening skipped (non-fatal)"
+import json, os
+BINS = os.path.expanduser("~/.local/bin") + ":/opt/homebrew/bin:/usr/local/bin"
+def harden(path):
+    if not os.path.exists(path):
+        return
+    try:
+        d = json.load(open(path))
+    except Exception:
+        return
+    changed = False
+    hooks = d.get("hooks", {})
+    if not isinstance(hooks, dict):
+        return
+    for groups in hooks.values():
+        if not isinstance(groups, list):
+            continue
+        for grp in groups:
+            for h in grp.get("hooks", []) if isinstance(grp, dict) else []:
+                c = h.get("command", "")
+                if "autogit" in c and "command -v autogit" not in c:
+                    verb = "ship" if "autogit ship" in c else "busy"
+                    h["command"] = (f'export PATH="{BINS}:$PATH"; cd "${{CLAUDE_PROJECT_DIR:-.}}" '
+                                    f'&& command -v autogit >/dev/null 2>&1 && autogit {verb} || true')
+                    changed = True
+    if changed:
+        json.dump(d, open(path, "w"), indent=2)
+        print(f"  hardened {path}")
+harden(os.path.expanduser("~/.claude/settings.json"))
+PYH
+
 # 3. Hermes adapter (only if Hermes is present on this node)
 if [ -f "$HOME/.hermes/config.yaml" ]; then
   say "Hermes detected — wire mesh/hooks/hermes_ship.sh as an on_session_end hook"
