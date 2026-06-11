@@ -158,7 +158,7 @@ def publish(payload: dict) -> tuple[bool, str]:
     body = json.dumps(payload).encode()
     req = urllib.request.Request(url, data=body, method="POST",
                                  headers={"Content-Type": "application/json",
-                                          "Authorization": f"Bearer {PI_CEO_API_KEY}"})
+                                          "X-Pi-CEO-Secret": PI_CEO_API_KEY})
     try:
         with urllib.request.urlopen(req, timeout=10) as r:
             return True, f"{r.status}"
