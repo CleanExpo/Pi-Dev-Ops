@@ -18,7 +18,9 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const nonce = (await headers()).get("x-nonce") ?? "";
-  const themeInit = `(function(){try{var t=localStorage.getItem('pi-theme');document.documentElement.className=(t==='dark'?'dark':'light')+' ${sans.variable} ${mono.variable}';}catch(e){}})();`;
+  // Dark-first per DESIGN.md ("light mode is never the default") + Phill's black-base directive.
+  // Light only renders when the user has explicitly toggled it (pi-theme === 'light').
+  const themeInit = `(function(){try{var t=localStorage.getItem('pi-theme');document.documentElement.className=(t==='light'?'light':'dark')+' ${sans.variable} ${mono.variable}';}catch(e){}})();`;
   return (
     // suppressHydrationWarning on <html>: the theme-init script below intentionally
     // mutates <html>.className from localStorage before React hydrates. Without this
