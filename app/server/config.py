@@ -263,6 +263,15 @@ USE_AGENT_SDK        = True
 ENABLE_PROMPT_CACHING_1H: bool = os.environ.get("ENABLE_PROMPT_CACHING_1H", "0") == "1"
 
 LINEAR_API_KEY       = os.environ.get("LINEAR_API_KEY",                 "")
+
+# RA-6502 — Linear outbound sync feature flag.
+# When LINEAR_OUTBOUND_SYNC=1, the pipeline pushes state/comments back to the
+# originating Linear issue on every lifecycle transition (started → In Progress,
+# complete → comment + In Review, failed → comment + Todo).
+# Default OFF so deploys without a wired LINEAR_API_KEY are safe.
+# Set LINEAR_OUTBOUND_SYNC=1 in Railway once LINEAR_API_KEY is confirmed live.
+LINEAR_OUTBOUND_SYNC: bool = os.environ.get("LINEAR_OUTBOUND_SYNC", "0") == "1"
+
 AUTONOMY_ENABLED     = os.environ.get("TAO_AUTONOMY_ENABLED", "1") != "0"
 SCAN_WORKSPACE_ROOT  = os.environ.get("SCAN_WORKSPACE_ROOT",
                            str(Path.home() / "pi-seo-workspace"))
