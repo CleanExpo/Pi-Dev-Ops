@@ -40,14 +40,20 @@
 > board-reports, status pages, Hermes monitoring) the **CEO register**
 > dominates. Per-brand surfaces use the brand's tokens.
 
-### CEO-Surface Tokens (Phill Rule 6 — Gun Metal + Candy Red)
+### CEO-Surface Tokens (Phill Rule 6 — Gun Metal + Candy depth)
+
+Black base, candy depth on top. Dead/empty space is never pure white (`#ffffff`)
+or dead black (`#000000`) — it uses the gun-metal base and off-white text.
 
 | Token | Hex | Use |
 |---|---|---|
-| `--canvas` | `#0e1014` | Gun Metal base — all CEO views |
-| `--red-500` | `#b30000` | Candy Red primary — CEO action |
-| `--orange-400` | `#e07020` | CEO secondary |
-| `--green-500` | `#00a854` | CEO success indicator |
+| `--canvas` | `#0e1014` | Gun Metal base — all CEO views (never `#000`) |
+| `--red-500` | `#ff3b5c` | Candy Red primary — CEO action |
+| `--orange-400` | `#ff8a1f` | Candy Orange — CEO secondary |
+| `--green-500` | `#00d97e` | Candy Green — CEO success indicator |
+| `--cyan-400` | `#22d3ee` | Candy Cyan — cool complement (info/running) |
+| `--amber-400` | `#ffb020` | Candy Amber — supplementary signal |
+| `--text` | `#f4f5f7` | Off-white body text (never `#fff`) |
 
 ### Unite-Group Fallback Tokens
 
