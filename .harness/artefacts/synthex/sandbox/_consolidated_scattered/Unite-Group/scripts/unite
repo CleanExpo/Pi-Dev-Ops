@@ -1,0 +1,224 @@
+#!/usr/bin/env bash
+# unite — Unite-Group cockpit CLI.
+#
+# Thin wrapper. Every subcommand shells out to the authoritative tool.
+# Source of truth for what exists: docs/SOURCES.md.
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+HERMES_HOME="${HERMES_HOME:-$HOME/.hermes}"
+
+usage() {
+  cat <<'EOF'
+unite — Unite-Group cockpit
+
+Usage: scripts/unite <command> [args...]
+
+Vercel
+  env-pull              vercel env pull → .env.local (prod scope)
+  env-diff              diff .env.local vs Vercel prod
+  vercel-status         show latest production deployment
+  deploy                vercel deploy --prod (interactive confirm)
+
+Supabase
+  supabase-status       prod project health snapshot
+  sandbox <cmd> [args]  passthrough to scripts/sandbox-wizard.sh
+
+Hermes
+  hermes-jobs           list Unite-Group cron jobs
+  onepassword-sync      run the 1Password → Supabase sync (manual)
+  vault-status          compare expected vaults vs what's indexed in Supabase
+  health                run the Unite-Group health check (manual)
+
+GitHub
+  pr-status             gh pr list for this repo
+  ci-status             gh run list --limit 5
+
+Misc
+  sources               open docs/SOURCES.md
+  help                  this message
+
+Read docs/SOURCES.md for the canonical map of where everything lives.
+EOF
+}
+
+require() {
+  command -v "$1" >/dev/null 2>&1 || { echo "missing dependency: $1" >&2; exit 1; }
+}
+
+cmd_env_pull() {
+  require vercel
+  cd "$REPO_ROOT"
+  vercel env pull .env.local --environment=production
+}
+
+cmd_env_diff() {
+  require vercel
+  cd "$REPO_ROOT"
+  local tmp
+  tmp="$(mktemp)"
+  vercel env pull "$tmp" --environment=production >/dev/null
+  diff -u <(grep -v '^#' .env.local 2>/dev/null | sort) <(grep -v '^#' "$tmp" | sort) || true
+  rm -f "$tmp"
+}
+
+cmd_vercel_status() {
+  require vercel
+  cd "$REPO_ROOT"
+  vercel ls unite-group --prod | head -5
+}
+
+cmd_deploy() {
+  require vercel
+  cd "$REPO_ROOT"
+  read -r -p "Deploy to PROD? [yes/NO] " confirm
+  [[ "$confirm" == "yes" ]] || { echo "aborted"; exit 1; }
+  vercel deploy --prod
+}
+
+cmd_supabase_status() {
+  require supabase
+  cd "$REPO_ROOT"
+  supabase projects list 2>/dev/null | grep -E "unite|lksfwktwtmyznckodsau|xgqwfwqumliuguzhshwv" || \
+    echo "supabase CLI not linked — run 'supabase login' then 'supabase link --project-ref lksfwktwtmyznckodsau'"
+}
+
+cmd_sandbox() {
+  "$REPO_ROOT/scripts/sandbox-wizard.sh" "$@"
+}
+
+cmd_hermes_jobs() {
+  [[ -f "$HERMES_HOME/cron/jobs.json" ]] || { echo "no Hermes jobs file at $HERMES_HOME/cron/jobs.json"; exit 1; }
+  python3 -c "
+import json
+with open('$HERMES_HOME/cron/jobs.json') as f:
+    d = json.load(f)
+matched = [j for j in d.get('jobs', []) if 'unite' in j.get('name','').lower()]
+if not matched:
+    print('no Unite-Group cron jobs found')
+for j in matched:
+    sched = j.get('schedule', {})
+    expr = sched.get('expr') if isinstance(sched, dict) else sched
+    print(f\"  {j.get('name','?')}  |  {expr}  |  {j.get('command','?')[:80]}\")
+"
+}
+
+cmd_onepassword_sync() {
+  local script="$HERMES_HOME/scripts/sync_1password_to_supabase.py"
+  [[ -x "$script" || -f "$script" ]] || { echo "missing $script"; exit 1; }
+  python3 "$script"
+}
+
+cmd_vault_status() {
+  # Reads integration_onepassword_index from prod, compares vault coverage
+  # against DEFAULT_VAULTS hardcoded in the Hermes sync script. Surfaces
+  # what's stale or missing without re-running the sync. See docs/operations/
+  # runbook-1password-vault-permissions.md for the fix-action steps.
+  : "${NEXT_PUBLIC_SUPABASE_URL:?set in .env.local}"
+  : "${SUPABASE_SERVICE_ROLE_KEY:?set in .env.local}"
+  python3 - <<PY
+import json, os, urllib.request, urllib.parse, sys, datetime
+EXPECTED = [
+    "Unite-Group-Infrastructure", "RestoreAssist", "Carsi",
+    "CCW-CRM", "Synthex", "Email-Accounts", "Personal",
+]
+url = (
+    f"{os.environ['NEXT_PUBLIC_SUPABASE_URL']}"
+    "/rest/v1/integration_onepassword_index"
+    "?select=vault,fetched_at"
+)
+req = urllib.request.Request(
+    url,
+    headers={
+        "apikey": os.environ["SUPABASE_SERVICE_ROLE_KEY"],
+        "authorization": f"Bearer {os.environ['SUPABASE_SERVICE_ROLE_KEY']}",
+    },
+)
+try:
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        rows = json.loads(resp.read())
+except Exception as exc:
+    print(f"FAILED to query Supabase: {exc}", file=sys.stderr)
+    sys.exit(1)
+
+by_vault = {}
+for r in rows:
+    v = r["vault"]
+    by_vault.setdefault(v, {"count": 0, "newest": ""})
+    by_vault[v]["count"] += 1
+    if r["fetched_at"] > by_vault[v]["newest"]:
+        by_vault[v]["newest"] = r["fetched_at"]
+
+print(f"{'VAULT':<32}{'ITEMS':>8}  LAST FETCHED               STATUS")
+print("-" * 78)
+now = datetime.datetime.now(datetime.timezone.utc)
+ok = True
+for v in EXPECTED:
+    d = by_vault.get(v)
+    if not d:
+        print(f"{v:<32}{0:>8}  —                          MISSING (grant access)")
+        ok = False
+        continue
+    age = now - datetime.datetime.fromisoformat(d["newest"].replace("Z", "+00:00"))
+    status = "STALE (>48h)" if age > datetime.timedelta(hours=48) else "ok"
+    if status.startswith("STALE"):
+        ok = False
+    print(f"{v:<32}{d['count']:>8}  {d['newest'][:19]}  {status}")
+extra = sorted(set(by_vault) - set(EXPECTED))
+for v in extra:
+    print(f"{v:<32}{by_vault[v]['count']:>8}  {by_vault[v]['newest'][:19]}  unexpected (drift?)")
+print()
+if ok:
+    print("✓ all 7 expected vaults present and fresh")
+    sys.exit(0)
+print("✗ vault coverage incomplete — see docs/operations/runbook-1password-vault-permissions.md")
+sys.exit(1)
+PY
+}
+
+cmd_health() {
+  local script="$HERMES_HOME/scripts/unite_group_health_check.py"
+  [[ -f "$script" ]] || { echo "missing $script"; exit 1; }
+  python3 "$script"
+}
+
+cmd_pr_status() {
+  require gh
+  cd "$REPO_ROOT"
+  gh pr list --limit 10
+}
+
+cmd_ci_status() {
+  require gh
+  cd "$REPO_ROOT"
+  gh run list --limit 5
+}
+
+cmd_sources() {
+  ${EDITOR:-less} "$REPO_ROOT/docs/SOURCES.md"
+}
+
+main() {
+  local cmd="${1:-help}"
+  shift || true
+  case "$cmd" in
+    env-pull)         cmd_env_pull "$@" ;;
+    env-diff)         cmd_env_diff "$@" ;;
+    vercel-status)    cmd_vercel_status "$@" ;;
+    deploy)           cmd_deploy "$@" ;;
+    supabase-status)  cmd_supabase_status "$@" ;;
+    sandbox)          cmd_sandbox "$@" ;;
+    hermes-jobs)      cmd_hermes_jobs "$@" ;;
+    onepassword-sync) cmd_onepassword_sync "$@" ;;
+    vault-status)     cmd_vault_status "$@" ;;
+    health)           cmd_health "$@" ;;
+    pr-status)        cmd_pr_status "$@" ;;
+    ci-status)        cmd_ci_status "$@" ;;
+    sources)          cmd_sources "$@" ;;
+    help|-h|--help)   usage ;;
+    *)                echo "unknown command: $cmd"; usage; exit 1 ;;
+  esac
+}
+
+main "$@"

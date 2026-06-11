@@ -1,0 +1,348 @@
+/* Geist Sans & Mono Typography — loaded via `geist` npm package in layout.tsx */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Modern Design Tokens & Light Mode (default) */
+  :root {
+    color-scheme: dark;
+
+    /* Typography */
+    --font-primary: 'Geist Sans', 'Inter', sans-serif;
+    --font-mono: 'Geist Mono', 'Fira Code', monospace;
+
+    /* Borders */
+    --border-style: 1px solid rgba(255, 255, 255, 0.10);
+    --radius-container: 12px;
+    --radius-component: 8px;
+    --radius-bento: 16px;
+
+    /* Glassmorphism */
+    --glass-bg: rgba(10, 10, 10, 0.7);
+    --glass-blur: 12px;
+
+    /* Bento Grid */
+    --bento-gap: 1.5rem;
+
+    /* Unite-Hub Theme (Deep Slate Dark) */
+    --unite-bg-primary: #050505;
+    --unite-bg-surface: #111111;
+    --unite-accent: #3b82f6;
+    --unite-status-ok: #10b981;
+
+    /* Synthex Theme (Midnight Neon) */
+    --synthex-bg-primary: #000000;
+    --synthex-bg-surface: #0a0a0a;
+    --synthex-accent: #a855f7;
+    --synthex-agent-active: #f472b6;
+
+    /* shadcn/ui Light Mode Variables */
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 0.5rem;
+
+    /* Nexus 2.0 — Surface Stack */
+    --surface-canvas:    #050505;
+    --surface-sidebar:   #0d0d0d;
+    --surface-card:      #111111;
+    --surface-elevated:  #161616;
+    --surface-overlay:   #1f1f1f;
+    --surface-selected:  #2a2a2a;
+
+    /* Colour Tokens */
+    --color-accent:         #00F5FF;
+    --color-accent-dim:     rgba(0, 245, 255, 0.08);
+    --color-accent-border:  rgba(0, 245, 255, 0.3);
+    --color-text-primary:   #f0f0f0;
+    --color-text-secondary: #999999;
+    --color-text-muted:     #888888;
+    --color-text-disabled:  #808080;
+    --color-border:         rgba(255, 255, 255, 0.10);
+    --color-border-strong:  rgba(255, 255, 255, 0.18);
+    --color-success:        #22c55e;
+    --color-danger:         #ef4444;
+    --color-warning:        #f97316;
+
+    /* Derived alpha tokens */
+    --color-accent-5:    rgba(0, 245, 255, 0.05);
+    --color-accent-10:   rgba(0, 245, 255, 0.10);
+    --color-accent-20:   rgba(0, 245, 255, 0.20);
+    --color-danger-dim:  rgba(239, 68, 68, 0.10);
+    --color-success-dim: rgba(34, 197, 94, 0.10);
+
+    /* Auth ambient pattern */
+    --auth-bg-pattern: radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px);
+    --auth-bg-size:    28px 28px;
+    --auth-glow:       radial-gradient(ellipse 60% 40% at 50% 50%, rgba(0,245,255,0.04) 0%, transparent 100%);
+
+    /* Business Dot Colours */
+    --biz-dr:      #ef4444;
+    --biz-nrpg:    #f97316;
+    --biz-carsi:   #eab308;
+    --biz-restore: #22c55e;
+    --biz-synthex: #a855f7;
+    --biz-ato:     #3b82f6;
+    --biz-ccw:     #06b6d4;
+  }
+
+  /* Dark Mode */
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 47.4% 11.2%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+  }
+
+  /* Light Mode — Cool Platinum */
+  .light {
+    color-scheme: light;
+
+    /* Surface stack */
+    --surface-canvas:   #FAFAFA;
+    --surface-sidebar:  #F4F4F5;
+    --surface-card:     #FFFFFF;
+    --surface-elevated: #FFFFFF;
+    --surface-overlay:  #E4E4E7;
+    --surface-selected: #D4D4D8;
+
+    /* Text */
+    --color-text-primary:   #0A0A0A;
+    --color-text-secondary: #52525B;
+    --color-text-muted:     #71717A;
+    --color-text-disabled:  #767676;
+
+    /* Borders */
+    --color-border:        rgba(0, 0, 0, 0.08);
+    --color-border-strong: rgba(0, 0, 0, 0.15);
+
+    /* shadcn/ui light overrides */
+    --background: 0 0% 98%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    /* Accent #00F5FF and business dot colours are intentionally unchanged */
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    background-color: var(--surface-canvas);
+    color: var(--color-text-primary);
+    font-family: var(--font-geist-sans), var(--font-primary);
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  html, body {
+    min-width: 320px;
+    overflow-x: hidden;
+  }
+}
+
+/* Phase 37: Standardized Spacing System */
+@layer utilities {
+  /* Page spacing */
+  .page-padding {
+    @apply px-4 sm:px-6 lg:px-8 py-6 sm:py-8;
+  }
+
+  /* Section spacing */
+  .section-margin {
+    @apply mb-6 sm:mb-8;
+  }
+
+  /* Card padding */
+  .card-padding {
+    @apply p-4 sm:p-6;
+  }
+
+  /* Chatbot safe zone - prevents content overlap with chatbot */
+  .chatbot-safe {
+    @apply pb-20 lg:pb-0 lg:pr-96;
+  }
+
+  /* Responsive grid gaps */
+  .grid-gap-sm {
+    @apply gap-2 sm:gap-3;
+  }
+
+  .grid-gap-md {
+    @apply gap-4 sm:gap-6;
+  }
+
+  .grid-gap-lg {
+    @apply gap-6 sm:gap-8;
+  }
+
+  /* Standard breakpoint containers */
+  .container-sm {
+    @apply max-w-2xl mx-auto;
+  }
+
+  .container-md {
+    @apply max-w-4xl mx-auto;
+  }
+
+  .container-lg {
+    @apply max-w-6xl mx-auto;
+  }
+
+  .container-xl {
+    @apply max-w-7xl mx-auto;
+  }
+
+  /* Input focus/error border utilities — avoids Tailwind opacity-modifier + CSS var limitation */
+  .input-focus { border-color: rgba(255,255,255,0.06); }
+  .input-focus:focus { border-color: var(--color-accent-border); }
+  .input-focus-error { border-color: rgba(239,68,68,0.4); }
+  .input-focus-error:focus { border-color: rgba(239,68,68,0.6); }
+
+  /* Nav item hover — CSS vars can't be used in Tailwind hover: modifiers */
+  .nav-item-hover:hover {
+    background: var(--surface-card);
+    color: var(--color-text-secondary);
+  }
+
+  /* Glassmorphism Utility */
+  .glassmorphic {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+    border: var(--border-style);
+    border-radius: var(--radius-component);
+  }
+
+  /* Bento Tile — no box-shadow (elevation via surface lightness only) */
+  .bento-tile {
+    background: var(--bg-surface, #111111);
+    border: var(--border-style);
+    border-radius: var(--radius-bento);
+    transition: all 0.3s ease;
+  }
+
+  .bento-tile:hover {
+    transform: translateY(-2px);
+  }
+
+  /* Theme Classes */
+  .theme-unite-hub {
+    --bg-primary: var(--unite-bg-primary);
+    --bg-surface: var(--unite-bg-surface);
+    --accent: var(--unite-accent);
+    --status-ok: var(--unite-status-ok);
+  }
+
+  .theme-synthex {
+    --bg-primary: var(--synthex-bg-primary);
+    --bg-surface: var(--synthex-bg-surface);
+    --accent: var(--synthex-accent);
+    --agent-active: var(--synthex-agent-active);
+
+    /* Radial background grid */
+    background-image:
+      radial-gradient(circle at 25% 25%, rgba(168, 85, 247, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 75% 75%, rgba(244, 114, 182, 0.1) 0%, transparent 50%);
+  }
+
+}
+
+/* Focus ring — keyboard nav only */
+:focus-visible {
+  outline: 2px solid #00F5FF;
+  outline-offset: 2px;
+}
+
+/* Thin scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #333 transparent;
+}
+*::-webkit-scrollbar { width: 2px; height: 2px; }
+*::-webkit-scrollbar-thumb { background: #333; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* Novel block editor */
+.novel-editor .ProseMirror {
+  outline: none;
+  background: transparent;           /* prevent package CSS injecting light bg */
+  font-family: var(--font-geist-sans, system-ui, sans-serif);
+  color: var(--color-text-secondary);
+  font-size: 15px;
+  line-height: 1.7;
+  min-height: calc(100vh - 112px);
+  padding: 48px 64px;
+}
+.novel-editor .ProseMirror h1 {
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+}
+.novel-editor .ProseMirror h2 {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+  margin: 24px 0 8px;
+}
+.novel-editor .ProseMirror p {
+  margin: 0 0 4px;
+}
+.novel-editor .ProseMirror .is-empty::before {
+  color: var(--color-text-muted);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}

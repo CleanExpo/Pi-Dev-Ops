@@ -1,0 +1,383 @@
+{
+  "_comment": "Content production registry. 'needed' = required, 'produced' = done, 'in_progress' = agent working on it.",
+  "_updated": "2026-05-08",
+  "businesses": {
+    "restoreassist": {
+      "brand_slug": "ra",
+      "voice": "klark-brown",
+      "needed": {
+        "app_builds": [
+          "app_store_submission_ready",
+          "onboarding_flow_complete",
+          "ios_offline_mode",
+          "push_notifications"
+        ],
+        "marketing": [
+          "positioning_statement",
+          "landing_page_copy",
+          "icp_research",
+          "seo_keyword_strategy",
+          "email_welcome_sequence",
+          "app_store_description"
+        ],
+        "videos": [
+          "product_demo_60s",
+          "onboarding_walkthrough",
+          "app_store_preview_30s",
+          "how_to_create_inspection",
+          "how_to_generate_report",
+          "social_cut_15s_linkedin"
+        ],
+        "social": [
+          "linkedin_launch_post",
+          "content_calendar_30day",
+          "practitioner_story_series"
+        ],
+        "podcast": [
+          "nrpg_intro_episode",
+          "independent_restorer_episode",
+          "ra_feature_showcase"
+        ]
+      },
+      "produced": {
+        "positioning_statement": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/restoreassist/positioning-2026-05-08.md"
+        },
+        "landing_page_copy": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/restoreassist/landing-page-2026-05-08.md"
+        },
+        "icp_research": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/restoreassist/icp-research-2026-05-08.md"
+        },
+        "seo_keyword_strategy": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/restoreassist/seo-keywords-2026-05-08.md"
+        },
+        "app_store_description": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/restoreassist/app-store-description-2026-05-08.md"
+        },
+        "email_welcome_sequence": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/restoreassist/email-welcome-sequence-2026-05-08.md"
+        }
+      },
+      "in_progress": {}
+    },
+    "disaster-recovery": {
+      "brand_slug": "dr",
+      "voice": "authority",
+      "needed": {
+        "app_builds": [
+          "platform_stability",
+          "onboarding_flow",
+          "mobile_responsive"
+        ],
+        "marketing": [
+          "positioning_statement",
+          "landing_page_copy",
+          "b2b_case_study",
+          "google_ads_copy"
+        ],
+        "videos": [
+          "platform_demo_60s",
+          "practitioner_onboarding",
+          "brand_awareness_30s",
+          "social_cut_15s"
+        ],
+        "social": [
+          "linkedin_authority_series",
+          "content_calendar_30day"
+        ],
+        "podcast": [
+          "dr_platform_launch_episode"
+        ]
+      },
+      "produced": {
+        "positioning_statement": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/disaster-recovery/dr-positioning-2026-05-08.md"
+        },
+        "landing_page_copy": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/disaster-recovery/dr-landing-page-2026-05-08.md"
+        },
+        "b2b_case_study": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/disaster-recovery/dr-case-study-2026-05-08.md"
+        },
+        "google_ads_copy": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/disaster-recovery/dr-google-ads-2026-05-08.md"
+        },
+        "linkedin_authority_series": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/disaster-recovery/dr-linkedin-authority-2026-05-08.md"
+        }
+      },
+      "in_progress": {}
+    },
+    "nrpg": {
+      "brand_slug": "nrpg",
+      "voice": "klark-brown",
+      "needed": {
+        "app_builds": [
+          "member_portal",
+          "accreditation_tracker",
+          "resource_library"
+        ],
+        "marketing": [
+          "movement_positioning",
+          "practitioner_recruitment_copy",
+          "icp_research",
+          "email_welcome_sequence"
+        ],
+        "videos": [
+          "community_intro_60s",
+          "what_is_nrpg_explainer",
+          "member_testimonial_template",
+          "klark_brown_style_ep1",
+          "klark_brown_style_ep2",
+          "structure_systems_scale_explainer",
+          "independent_restorer_manifesto"
+        ],
+        "social": [
+          "linkedin_movement_launch",
+          "practitioner_spotlight_series",
+          "content_calendar_60day"
+        ],
+        "podcast": [
+          "nrpg_founding_episode",
+          "anz_vs_us_market_episode",
+          "managed_repair_truth_episode",
+          "restopreneur_anz_episode"
+        ]
+      },
+      "produced": {
+        "movement_positioning": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/nrpg/nrpg-positioning-2026-05-08.md"
+        },
+        "practitioner_recruitment_copy": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/nrpg/nrpg-recruitment-copy-2026-05-08.md"
+        },
+        "icp_research": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/nrpg/nrpg-icp-research-2026-05-08.md"
+        },
+        "email_welcome_sequence": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/nrpg/nrpg-email-welcome-2026-05-08.md"
+        },
+        "content_calendar_60day": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/nrpg/nrpg-content-calendar-60day-2026-05-08.md"
+        },
+        "nrpg_founding_episode": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/nrpg/nrpg-podcast-scripts-2026-05-08.md"
+        },
+        "anz_vs_us_market_episode": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/nrpg/nrpg-podcast-scripts-2026-05-08.md"
+        },
+        "managed_repair_truth_episode": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/nrpg/nrpg-podcast-scripts-2026-05-08.md"
+        },
+        "restopreneur_anz_episode": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/nrpg/nrpg-podcast-scripts-2026-05-08.md"
+        }
+      },
+      "in_progress": {}
+    },
+    "carsi": {
+      "brand_slug": "carsi",
+      "voice": "professional",
+      "needed": {
+        "app_builds": [
+          "core_feature_stability",
+          "compliance_dashboard",
+          "reporting_module"
+        ],
+        "marketing": [
+          "positioning_statement",
+          "landing_page_copy",
+          "compliance_use_case_content",
+          "email_sequence"
+        ],
+        "videos": [
+          "product_demo_60s",
+          "compliance_explainer",
+          "onboarding_walkthrough"
+        ],
+        "social": [
+          "linkedin_b2b_series",
+          "content_calendar_30day"
+        ],
+        "podcast": []
+      },
+      "produced": {
+        "positioning_statement": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/carsi/positioning-2026-05-08.md"
+        },
+        "landing_page_copy": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/carsi/landing-page-2026-05-08.md"
+        },
+        "compliance_use_case_content": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/carsi/compliance-use-cases-2026-05-08.md"
+        },
+        "email_sequence": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/carsi/email-sequence-2026-05-08.md"
+        },
+        "linkedin_b2b_series": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/carsi/linkedin-b2b-series-2026-05-08.md"
+        }
+      },
+      "in_progress": {}
+    },
+    "ccw": {
+      "brand_slug": "ccw",
+      "voice": "trade-retail",
+      "needed": {
+        "app_builds": [
+          "crm_erp_stability",
+          "customer_portal",
+          "automated_order_tracking"
+        ],
+        "marketing": [
+          "case_study_written",
+          "case_study_video",
+          "one_pager_pdf",
+          "email_sequence_customers",
+          "seo_keyword_strategy"
+        ],
+        "videos": [
+          "case_study_video_90s",
+          "product_demo_for_prospects",
+          "customer_onboarding_series",
+          "how_to_place_order",
+          "trade_account_signup_60s",
+          "social_cut_15s_instagram"
+        ],
+        "social": [
+          "instagram_product_showcase",
+          "linkedin_b2b_case_study",
+          "content_calendar_30day"
+        ],
+        "podcast": []
+      },
+      "produced": {
+        "case_study_written": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/ccw/case-study-2026-05-08.md"
+        },
+        "one_pager_pdf": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/ccw/one-pager-2026-05-08.md"
+        },
+        "email_sequence_customers": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/ccw/email-sequence-customers-2026-05-08.md"
+        },
+        "seo_keyword_strategy": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/ccw/seo-keyword-strategy-2026-05-08.md"
+        },
+        "linkedin_b2b_case_study": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/ccw/linkedin-b2b-case-study-2026-05-08.md"
+        },
+        "content_calendar_30day": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/ccw/content-calendar-30day-2026-05-08.md"
+        }
+      },
+      "in_progress": {}
+    },
+    "synthex": {
+      "brand_slug": "synthex",
+      "voice": "marketing-tech",
+      "needed": {
+        "app_builds": [
+          "platform_stability",
+          "ccw_integration_live",
+          "aeo_content_features",
+          "analytics_dashboard"
+        ],
+        "marketing": [
+          "positioning_aeo_marketing_automation",
+          "landing_page_copy",
+          "icp_research",
+          "seo_keyword_strategy",
+          "competitor_comparison_page",
+          "email_sequence_trial"
+        ],
+        "videos": [
+          "product_demo_60s",
+          "aeo_explainer_for_clients",
+          "onboarding_walkthrough",
+          "feature_ai_content_gen",
+          "social_cut_15s_linkedin"
+        ],
+        "social": [
+          "linkedin_thought_leadership",
+          "content_calendar_30day",
+          "aeo_education_series"
+        ],
+        "podcast": [
+          "ai_marketing_automation_episode"
+        ]
+      },
+      "produced": {
+        "landing_page_copy": {
+          "date": "2026-05-08",
+          "output_path": "/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/.harness/artefacts/synthex/landing_page_copy-2026-05-08.md"
+        },
+        "icp_research": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/synthex/icp-research-2026-05-08.md"
+        },
+        "positioning_aeo_marketing_automation": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/synthex/positioning-2026-05-08.md"
+        },
+        "content_calendar_30day": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/synthex/content-calendar-30day-2026-05-08.md"
+        },
+        "seo_keyword_strategy": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/synthex/seo-keyword-strategy-2026-05-08.md"
+        },
+        "competitor_comparison_page": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/synthex/competitor-comparison-2026-05-08.md"
+        },
+        "email_sequence_trial": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/synthex/email-sequence-trial-2026-05-08.md"
+        },
+        "linkedin_thought_leadership": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/synthex/linkedin-thought-leadership-2026-05-08.md"
+        },
+        "aeo_education_series": {
+          "date": "2026-05-08",
+          "output_path": ".harness/artefacts/synthex/aeo-education-series-2026-05-08.md"
+        }
+      },
+      "in_progress": {}
+    }
+  }
+}

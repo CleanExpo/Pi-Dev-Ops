@@ -1,0 +1,209 @@
+{
+  "pi-dev-ops": {
+    "project_id": "pi-dev-ops",
+    "repo": "CleanExpo/Pi-Dev-Ops",
+    "overall_health": 78,
+    "scores": {
+      "security": 40,
+      "code_quality": 100,
+      "dependencies": 100,
+      "deployment_health": 75
+    },
+    "findings_count": {
+      "security": 7218,
+      "code_quality": 0,
+      "dependencies": 0,
+      "deployment_health": 1
+    },
+    "deployments": {
+      "frontend": "https://dashboard-unite-group.vercel.app",
+      "backend": "https://pi-dev-ops-production.up.railway.app"
+    }
+  },
+  "restoreassist": {
+    "project_id": "restoreassist",
+    "repo": "CleanExpo/RestoreAssist",
+    "overall_health": 85,
+    "scores": {
+      "security": 42,
+      "code_quality": 100,
+      "dependencies": 100,
+      "deployment_health": 100
+    },
+    "findings_count": {
+      "security": 433,
+      "code_quality": 0,
+      "dependencies": 0,
+      "deployment_health": 0
+    },
+    "deployments": {
+      "frontend": "https://restoreassist.app"
+    }
+  },
+  "disaster-recovery": {
+    "project_id": "disaster-recovery",
+    "repo": "CleanExpo/DR-Sandbox",
+    "overall_health": 71,
+    "scores": {
+      "security": 45,
+      "code_quality": 100,
+      "dependencies": 40,
+      "deployment_health": 100
+    },
+    "findings_count": {
+      "security": 1775,
+      "code_quality": 0,
+      "dependencies": 18,
+      "deployment_health": 0
+    },
+    "deployments": {}
+  },
+  "dr-nrpg": {
+    "project_id": "dr-nrpg",
+    "repo": "CleanExpo/DR-NRPG",
+    "overall_health": 50,
+    "scores": {
+      "security": 0,
+      "code_quality": 100,
+      "dependencies": 0,
+      "deployment_health": 100
+    },
+    "findings_count": {
+      "security": 3909,
+      "code_quality": 0,
+      "dependencies": 52,
+      "deployment_health": 0
+    },
+    "deployments": {}
+  },
+  "nrpg-onboarding": {
+    "project_id": "nrpg-onboarding",
+    "repo": "CleanExpo/NRPG-Onboarding-Framework",
+    "overall_health": 100,
+    "scores": {
+      "security": 100,
+      "code_quality": 100,
+      "dependencies": 100,
+      "deployment_health": 100
+    },
+    "findings_count": {
+      "security": 0,
+      "code_quality": 0,
+      "dependencies": 0,
+      "deployment_health": 0
+    },
+    "deployments": {}
+  },
+  "synthex": {
+    "project_id": "synthex",
+    "repo": "CleanExpo/Synthex",
+    "overall_health": 50,
+    "scores": {
+      "security": 0,
+      "code_quality": 100,
+      "dependencies": 0,
+      "deployment_health": 100
+    },
+    "findings_count": {
+      "security": 3045,
+      "code_quality": 0,
+      "dependencies": 28,
+      "deployment_health": 0
+    },
+    "deployments": {
+      "frontend": "https://synthex.social"
+    }
+  },
+  "unite-group": {
+    "project_id": "unite-group",
+    "repo": "CleanExpo/unite-group",
+    "overall_health": 63,
+    "scores": {
+      "security": 60,
+      "code_quality": 100,
+      "dependencies": 17,
+      "deployment_health": 75
+    },
+    "findings_count": {
+      "security": 417,
+      "code_quality": 0,
+      "dependencies": 16,
+      "deployment_health": 1
+    },
+    "deployments": {
+      "frontend": "https://dashboard-unite-group.vercel.app"
+    }
+  },
+  "nodejs-starter": {
+    "project_id": "nodejs-starter",
+    "repo": "CleanExpo/NodeJS-Starter-V1",
+    "overall_health": 85,
+    "scores": {
+      "security": 40,
+      "code_quality": 100,
+      "dependencies": 100,
+      "deployment_health": 100
+    },
+    "findings_count": {
+      "security": 462,
+      "code_quality": 0,
+      "dependencies": 0,
+      "deployment_health": 0
+    },
+    "deployments": {}
+  },
+  "oh-my-codex": {
+    "project_id": "oh-my-codex",
+    "repo": "CleanExpo/oh-my-codex",
+    "overall_health": 87,
+    "scores": {
+      "security": 67,
+      "code_quality": 100,
+      "dependencies": 81,
+      "deployment_health": 100
+    },
+    "findings_count": {
+      "security": 439,
+      "code_quality": 0,
+      "dependencies": 4,
+      "deployment_health": 0
+    },
+    "deployments": {}
+  },
+  "ccw-crm": {
+    "project_id": "ccw-crm",
+    "repo": "CleanExpo/CCW-CRM",
+    "overall_health": 78,
+    "scores": {
+      "security": 15,
+      "code_quality": 100,
+      "dependencies": 100,
+      "deployment_health": 100
+    },
+    "findings_count": {
+      "security": 6374,
+      "code_quality": 0,
+      "dependencies": 0,
+      "deployment_health": 0
+    },
+    "deployments": {}
+  },
+  "carsi": {
+    "project_id": "carsi",
+    "repo": "CleanExpo/carsi",
+    "overall_health": 65,
+    "scores": {
+      "security": 40,
+      "code_quality": 100,
+      "dependencies": 23,
+      "deployment_health": 100
+    },
+    "findings_count": {
+      "security": 215,
+      "code_quality": 0,
+      "dependencies": 13,
+      "deployment_health": 0
+    },
+    "deployments": {}
+  }
+}

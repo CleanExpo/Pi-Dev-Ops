@@ -1,0 +1,472 @@
+"""
+swarm/bots/builder.py — RA-650-C: Builder Bot.
+
+Responsibilities:
+  - Scan Linear for Urgent/High Todo tickets eligible for autonomous builds
+  - Use Ollama to assess each ticket and draft a build brief
+  - In shadow mode: log drafts to .harness/swarm/builder.jsonl, send Telegram
+    summary — NO calls to /api/build
+  - In active mode (Week 3+, board sign-off): authenticate against Pi-Dev-Ops
+    and POST /api/build for each eligible ticket
+
+Eligibility rules (applied in shadow mode too — determines what WOULD run):
+  1. Priority Urgent (1) or High (2)
+  2. State = Todo (not already In Progress or Done)
+  3. Has a description long enough to generate a meaningful brief (>50 chars)
+  4. Matches a known project → repo URL mapping
+  5. Not already queued in this cycle (max MAX_DRAFTS_PER_CYCLE)
+
+Shadow mode is the safe default.  Active mode requires TAO_SWARM_SHADOW=0
+plus explicit board sign-off on Phase 2 activation.
+"""
+from __future__ import annotations
+
+import json
+import logging
+import os
+import urllib.request
+import urllib.error
+from datetime import datetime, timezone
+from http.cookiejar import CookieJar
+from typing import Optional
+
+from .. import config
+from ..ollama_client import chat
+from ..telegram_alerts import send
+
+log = logging.getLogger("swarm.builder")
+
+MAX_DRAFTS_PER_CYCLE = 2  # Cap: never queue more than 2 builds per cycle
+
+# Known project → GitHub repo mapping.
+# Builder only processes tickets from projects it knows the repo for.
+PROJECT_REPO_MAP: dict[str, str] = {
+    "Pi - Dev -Ops":                         "https://github.com/CleanExpo/Pi-Dev-Ops",
+    "Billing & Estimation Platform v2":      "https://github.com/CleanExpo/restore-assist",
+    "RestoreAssist Compliance Platform":     "https://github.com/CleanExpo/RestoreAssist",
+    "RestoreAssist V2 - Sketch & Property Data": "https://github.com/CleanExpo/RestoreAssist",
+    "DR Client Website (disasterrecovery.com.au)": "https://github.com/CleanExpo/DR-Sandbox",
+    "NRPG Operations Platform":              "https://github.com/CleanExpo/DR-NRPG",
+    "NRPG Contractor Onboarding Framework":  "https://github.com/CleanExpo/NRPG-Onboarding-Framework",
+    "Synthex":                               "https://github.com/CleanExpo/Synthex",
+    "CCW-ERP/CRM":                           "https://github.com/CleanExpo/CCW-CRM",
+    "CARSI":                                 "https://github.com/CleanExpo/carsi",
+    "Unite-Group":                           "https://github.com/CleanExpo/unite-group",
+}
+
+SYSTEM_PROMPT = """You are Builder — the autonomous coding agent for the Pi-CEO swarm.
+
+Your role:
+1. Assess whether a Linear ticket is eligible for an autonomous build session
+2. If eligible, write a concise, actionable build brief (2-4 sentences max)
+3. The brief must describe WHAT to implement, not WHY — it goes directly into a Claude coding session
+
+Eligibility criteria:
+- Has a clear, specific technical task (not a discussion, meeting, or research ticket)
+- Scope is narrow enough for a single session (not a full epic)
+- Description contains enough detail to implement without human clarification
+
+Always respond in JSON with this exact structure:
+{
+  "eligible": true|false,
+  "reason": "one sentence",
+  "brief": "2-4 sentence implementation brief (null if not eligible)",
+  "estimated_complexity": "basic|detailed|advanced"
+}"""
+
+
+def _fetch_buildable_tickets(api_key: str) -> list[dict]:
+    """Fetch Urgent/High Todo tickets with known project-repo mappings from Linear.
+
+    Returns list of {id, title, description, project, priority} dicts.
+    Returns empty list on any error.
+    """
+    if not api_key:
+        return []
+
+    # Filter by priority + state ONLY (no team filter — Builder claims agent-ready
+    # tickets across every team where the project has a known repo mapping).
+    # Project-side filtering happens in Python below via PROJECT_REPO_MAP.
+    query = """
+    query {
+      issues(
+        filter: {
+          state: { type: { in: ["unstarted"] } }
+          priority: { lte: 2 }
+        }
+        first: 50
+        orderBy: updatedAt
+      ) {
+        nodes {
+          identifier
+          title
+          description
+          priority
+          project { name }
+          state { name }
+          team { name }
+          labels { nodes { name } }
+        }
+      }
+    }
+    """
+    payload = json.dumps({"query": query}).encode()
+    req = urllib.request.Request(
+        "https://api.linear.app/graphql",
+        data=payload,
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": api_key,
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read())
+        issues = data.get("data", {}).get("issues", {}).get("nodes", [])
+        results = []
+        for i in issues:
+            project_name = (i.get("project") or {}).get("name", "")
+            # Only include tickets whose project has a known repo mapping
+            if project_name not in PROJECT_REPO_MAP:
+                continue
+            # Must have a real description (>50 chars) to generate a meaningful brief
+            if len((i.get("description") or "")) <= 50:
+                continue
+            # Skip tickets explicitly tagged as owner-only / manual — the autonomous
+            # swarm should not claim these even when otherwise eligible.
+            label_names = {
+                (l.get("name") or "").lower()
+                for l in ((i.get("labels") or {}).get("nodes", []) or [])
+            }
+            if label_names & {"manual task", "owner-action", "owner-only", "do-not-build"}:
+                continue
+            results.append({
+                "id": i["identifier"],
+                "title": i["title"],
+                "description": (i.get("description") or "")[:800],
+                "priority": i.get("priority", 3),
+                "project": project_name,
+                "state": (i.get("state") or {}).get("name", "Todo"),
+            })
+        return results
+    except Exception as exc:
+        log.warning("Builder: Linear fetch failed: %s", exc)
+        return []
+
+
+def _assess_ticket(ticket: dict) -> dict:
+    """Ask Ollama to assess build eligibility and draft a brief for a ticket.
+
+    Returns parsed LLM dict with keys: eligible, reason, brief, estimated_complexity.
+    Returns safe defaults on any error.
+    """
+    prompt = (
+        f"Ticket: {ticket['id']} — {ticket['title']}\n"
+        f"Priority: {ticket['priority']} | Project: {ticket['project']}\n\n"
+        f"Description:\n{ticket['description']}"
+    )
+    response = chat(
+        model=config.BOT_MODELS["builder"],
+        system=SYSTEM_PROMPT,
+        user_message=prompt,
+        temperature=0.1,
+        json_format=True,
+    )
+    if not response:
+        return {"eligible": False, "reason": "LLM unavailable", "brief": None, "estimated_complexity": "basic"}
+    try:
+        return json.loads(response)
+    except Exception:
+        return {"eligible": False, "reason": "LLM parse error", "brief": None, "estimated_complexity": "basic"}
+
+
+def _active_build_ticket_ids() -> set[str]:
+    """Query Pi-Dev-Ops for in-flight build sessions and return their Linear ticket IDs.
+
+    Prevents the Builder from firing a second /api/build for a ticket that
+    already has an active session — which can happen when two orchestrator
+    instances run concurrently, or when Linear's state hasn't updated between
+    cycles. Source-of-truth dedup: server-side session list trumps any
+    cycle-local guess.
+
+    Returns an empty set on any error so the caller falls through to the
+    next-best dedup (in-cycle tracking).
+    """
+    base = config.PIDEVOPS_BASE_URL.rstrip("/")
+    password = config.PIDEVOPS_PASSWORD
+    if not password:
+        return set()
+
+    cj = CookieJar()
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+    login_payload = json.dumps({"password": password}).encode()
+    login_req = urllib.request.Request(
+        f"{base}/api/login", data=login_payload, method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with opener.open(login_req, timeout=10) as resp:
+            resp.read()
+        live_req = urllib.request.Request(f"{base}/api/mission-control/live")
+        with opener.open(live_req, timeout=10) as resp:
+            data = json.loads(resp.read())
+        return {
+            s["issue_id"] for s in data.get("active_sessions", [])
+            if s.get("issue_id")
+        }
+    except Exception as exc:
+        log.warning("Builder: active-session lookup failed (%s) — proceeding without server dedup", exc)
+        return set()
+
+
+def _fire_build(ticket_id: str, repo_url: str, brief: str, complexity: str) -> Optional[str]:
+    """POST to /api/build and return session_id.  Only called in active mode.
+
+    Returns session_id string on success, None on any error.
+    """
+    base = config.PIDEVOPS_BASE_URL.rstrip("/")
+    password = config.PIDEVOPS_PASSWORD
+    if not password:
+        log.warning("Builder: PIDEVOPS_PASSWORD not set — cannot fire build")
+        return None
+
+    # Step 1: login to get session cookie
+    cj = CookieJar()
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+
+    login_payload = json.dumps({"password": password}).encode()
+    login_req = urllib.request.Request(
+        f"{base}/api/login",
+        data=login_payload,
+        method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with opener.open(login_req, timeout=10) as resp:
+            resp.read()
+    except Exception as exc:
+        log.warning("Builder: login failed: %s", exc)
+        return None
+
+    # Step 2: POST /api/build
+    tier_map = {"basic": "basic", "detailed": "detailed", "advanced": "advanced"}
+    build_payload = json.dumps({
+        "repo_url": repo_url,
+        "brief": f"[RA-650 Builder — {ticket_id}] {brief}",
+        "model": "sonnet",
+        "complexity_tier": tier_map.get(complexity, ""),
+        "intent": f"swarm_builder:{ticket_id}",
+    }).encode()
+    build_req = urllib.request.Request(
+        f"{base}/api/build",
+        data=build_payload,
+        method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with opener.open(build_req, timeout=15) as resp:
+            data = json.loads(resp.read())
+        session_id = data.get("session_id", "")
+        log.info("Builder: session %s started for %s", session_id, ticket_id)
+        return session_id
+    except Exception as exc:
+        log.warning("Builder: /api/build failed for %s: %s", ticket_id, exc)
+        return None
+
+
+def _log_cycle(entry: dict) -> None:
+    """Append a Builder observation to the JSONL log."""
+    log_file = config.SWARM_LOG_DIR / "builder.jsonl"
+    with open(log_file, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry) + "\n")
+
+
+def _read_pr_counter() -> dict:
+    """Read today's autonomous-PR counter from pr_rate_limit.json.
+
+    Resets automatically when the date changes. The `limit` field
+    reflects the auto-clamped effective cap (RA-3019), not the raw env
+    override, so dashboards see the value actually being enforced.
+    """
+    counter_file = config.SWARM_LOG_DIR / "pr_rate_limit.json"
+    today = datetime.now(timezone.utc).date().isoformat()
+    try:
+        with open(counter_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if data.get("date") != today:
+            return {"date": today, "count": 0, "limit": config.effective_max_daily_prs()}
+        return data
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"date": today, "count": 0, "limit": config.effective_max_daily_prs()}
+
+
+def _increment_pr_counter(counter: dict) -> None:
+    """Atomically persist incremented PR counter (write-tmp→replace)."""
+    counter_file = config.SWARM_LOG_DIR / "pr_rate_limit.json"
+    counter["count"] += 1
+    counter["limit"] = config.effective_max_daily_prs()
+    tmp_path = str(counter_file) + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(counter, f)
+    os.replace(tmp_path, str(counter_file))
+
+
+def _should_alert_pr_limit_today() -> bool:
+    """Send the daily-PR-limit Telegram alert at most once per UTC day.
+
+    Without this, the alert re-fires every cycle (every 5 min) once the
+    limit is hit — pure noise. Returns True the first call of the day,
+    False thereafter.
+    """
+    alert_file = config.SWARM_LOG_DIR / "builder_alerts.json"
+    today = datetime.now(timezone.utc).date().isoformat()
+    try:
+        with open(alert_file, "r", encoding="utf-8") as f:
+            state = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        state = {}
+    if state.get("last_pr_limit_date") == today:
+        return False
+    state["last_pr_limit_date"] = today
+    tmp_path = str(alert_file) + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(state, f)
+    os.replace(tmp_path, str(alert_file))
+    return True
+
+
+def run_cycle(unacked_count: int) -> dict:
+    """Execute one Builder observation cycle.
+
+    Shadow mode: assess tickets, draft build sessions, log and report.
+    Active mode: assess tickets and fire /api/build for eligible ones.
+
+    Args:
+        unacked_count: Current unacked iteration count from orchestrator.
+
+    Returns:
+        Dict with keys: eligible_count, fired_count, shadow_mode, drafts.
+    """
+    api_key = os.environ.get("LINEAR_API_KEY", "")
+
+    tickets = _fetch_buildable_tickets(api_key)
+    log.debug("Builder: %d buildable tickets fetched", len(tickets))
+
+    # Dedup: tickets with an in-flight session on the Pi-Dev-Ops backend.
+    # Prevents double-fire when two orchestrators run concurrently or Linear
+    # state hasn't updated between cycles.
+    active_ticket_ids: set[str] = set()
+    if not config.SHADOW_MODE:
+        active_ticket_ids = _active_build_ticket_ids()
+        if active_ticket_ids:
+            log.info("Builder: %d ticket(s) already have active sessions — %s",
+                     len(active_ticket_ids), sorted(active_ticket_ids))
+
+    drafts: list[dict] = []
+    fired: list[dict] = []
+    skipped_in_flight = 0
+    fired_ticket_ids: set[str] = set()
+
+    for ticket in tickets:
+        if len(drafts) >= MAX_DRAFTS_PER_CYCLE:
+            break
+
+        # Skip tickets already being built (server-side or earlier in this cycle).
+        if ticket["id"] in active_ticket_ids or ticket["id"] in fired_ticket_ids:
+            log.info("Builder: skipping %s — already has active build session", ticket["id"])
+            skipped_in_flight += 1
+            continue
+
+        assessment = _assess_ticket(ticket)
+        if not assessment.get("eligible"):
+            log.debug("Builder: %s not eligible — %s", ticket["id"], assessment.get("reason"))
+            continue
+
+        repo_url = PROJECT_REPO_MAP.get(ticket["project"], "")
+        if not repo_url:
+            log.debug("Builder: no repo mapping for project %s", ticket["project"])
+            continue
+
+        draft = {
+            "ticket_id": ticket["id"],
+            "title": ticket["title"],
+            "project": ticket["project"],
+            "repo_url": repo_url,
+            "brief": assessment.get("brief", ""),
+            "complexity": assessment.get("estimated_complexity", "basic"),
+            "reason": assessment.get("reason", ""),
+            "session_id": None,
+        }
+        drafts.append(draft)
+
+        if not config.SHADOW_MODE:
+            # Active mode: check daily PR rate limit before firing.
+            # RA-3019 — use auto-clamped effective cap (gated on
+            # green_merge_counter), not the raw env override.
+            pr_counter = _read_pr_counter()
+            effective_cap = config.effective_max_daily_prs()
+            if pr_counter["count"] >= effective_cap:
+                log.warning(
+                    "Builder: daily PR limit reached (%d/%d, env_override=%d) — skipping %s",
+                    pr_counter["count"], effective_cap,
+                    config.MAX_AUTONOMOUS_PRS_PER_DAY, ticket["id"],
+                )
+                # Telegram alert removed entirely — log only. The PR limit is
+                # routine throttling, not an event the founder needs paged for.
+                # Status visible in builder.jsonl + Mission Control dashboard.
+                break
+
+            session_id = _fire_build(
+                ticket_id=ticket["id"],
+                repo_url=repo_url,
+                brief=assessment.get("brief", ticket["title"]),
+                complexity=assessment.get("estimated_complexity", "basic"),
+            )
+            draft["session_id"] = session_id
+            if session_id:
+                fired.append(draft)
+                fired_ticket_ids.add(ticket["id"])
+                _increment_pr_counter(pr_counter)
+
+    result: dict = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "tickets_scanned": len(tickets),
+        "eligible_count": len(drafts),
+        "fired_count": len(fired),
+        "skipped_in_flight": skipped_in_flight,
+        "shadow_mode": config.SHADOW_MODE,
+        "drafts": drafts,
+    }
+
+    _log_cycle(result)
+
+    if config.SHADOW_MODE:
+        if drafts:
+            draft_lines = [
+                f"• [{d['ticket_id']}] {d['title'][:60]} → <i>{d['complexity']}</i>"
+                for d in drafts
+            ]
+            send(
+                message=(
+                    f"<b>Builder Shadow Report</b>\n\n"
+                    f"Scanned {len(tickets)} tickets → {len(drafts)} would build:\n"
+                    + "\n".join(draft_lines)
+                    + "\n\n<i>Shadow mode: no sessions started</i>"
+                ),
+                severity="info",
+                bot_name="Builder",
+            )
+        log.info(
+            "Builder cycle (shadow): scanned=%d eligible=%d",
+            len(tickets), len(drafts),
+        )
+    else:
+        log.info(
+            "Builder cycle (active): scanned=%d eligible=%d fired=%d",
+            len(tickets), len(drafts), len(fired),
+        )
+        # Successful build firings go to log + Mission Control dashboard, not Telegram.
+        # Founder asked for quieter pings — start-of-session is status, not actionable.
+
+    return result
