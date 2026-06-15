@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import urllib.request
 import urllib.error
 from datetime import datetime, timezone, timedelta
@@ -46,6 +47,17 @@ def send(
     Returns:
         True if the message was sent, False on any error.
     """
+    # Fail-closed kill-switch (founder directive 2026-06-15): every
+    # [AGENT OUTPUT] Telegram alert is suppressed unless explicitly
+    # re-enabled. Per-cycle CRITICAL spam is a zero-tolerance violation
+    # of the edge-trigger rule; sends stay off until edge-triggering is
+    # implemented and the founder flips SWARM_TELEGRAM_ALERTS back on.
+    if os.environ.get("SWARM_TELEGRAM_ALERTS", "").strip().lower() not in {
+        "1", "true", "yes", "on",
+    }:
+        log.debug("Telegram alerts disabled (SWARM_TELEGRAM_ALERTS off): %s", message[:80])
+        return False
+
     token = config.TELEGRAM_BOT_TOKEN
     chat_id = config.TELEGRAM_CHAT_ID
     if not token or not chat_id:
