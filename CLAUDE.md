@@ -1,10 +1,12 @@
 # Pi-Dev-Ops — Claude Code Guidance
 
+> **Provenance note:** This file was UTF-8-corrupted (committed as binary `data` from #261, 2026-05-24) and reconstructed in #338 from the last clean blob (`aa28d3f1`) merged with the intended Identity block, then de-bloated. The technical facts below (IDs, env vars, file paths, API contracts, RA-xxxx lessons) were preserved verbatim from that clean blob and remain authoritative. There is no `CONSTITUTION.md` in this repo; cross-check identity/portfolio facts against `/Users/phillmcgurk/Unite-Hub/.portfolio/PORTFOLIO.yaml` (the Pi-Dev-Ops entry) when in doubt.
+
 ## Identity (SSOT)
 
 - **Canonical name:** Pi-Dev-Ops (aliases: "Pi DevOps", "Pi-CEO Dev Ops")
-- **GitHub:** `CleanExpo/Pi-Dev-Ops`
-- **Local path:** `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops`
+- **GitHub:** `CleanExpo/Pi-Dev-Ops` (default branch `main`; grounded in PORTFOLIO.yaml)
+- **Local path:** `/Users/phillmcgurk/Pi-CEO` (the working-dir is named `Pi-CEO` but its git remote is `CleanExpo/Pi-Dev-Ops`; PORTFOLIO.yaml `canonical_path` is `null` so this host path is the practical truth)
 
 ## Autonomous Operation Mandate (2026-04-18 — authorised by user)
 
