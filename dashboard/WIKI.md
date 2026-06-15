@@ -1,8 +1,8 @@
 # dashboard — Wiki
 
-_Last updated: 2026-05-09T08:30:37Z (commits aa4c75e..3b4c5c7)_
+_Last updated: 2026-06-15T06:30:27Z (commits 1fe2c53..3978d92)_
 
 ## Recent changes
-- 3b4c5c7 — fix(security): add HSTS + Referrer-Policy + Permissions-Policy headers; patch deps (#201)
+- 3978d92 — docs+design: recover corrupted CLAUDE.md, de-bloat corpus, lock candy palette, refresh models (#338)
 
 Not logged in · Please run /login
