@@ -3,8 +3,9 @@
 process_ideas_inbox.py — RA-1102 — drain the Telegram /idea inbox into Linear.
 
 Walks `.harness/ideas-from-phone/*.jsonl`, for each unprocessed entry creates
-a Linear ticket in the Pi-Dev-Ops project (default triage queue), then marks
-the entry processed=true so the next run skips it.
+a strategic expansion packet, writes the packet to the 2nd brain, creates a
+Linear ticket in the Pi-Dev-Ops project (default triage queue), then marks the
+entry processed=true so the next run skips it.
 
 Designed to run as a daily GitHub Actions cron (always-on path per
 CLAUDE.md). Linear API call is idempotent in practice because the JSONL
@@ -15,7 +16,6 @@ failed (rare).
 Future v2 enhancements (out of scope today):
 - Detect URLs in idea text, fetch via Perplexity, summarise, attach to ticket
 - Heuristic project routing (keyword match → CARSI / Synthex / etc projects)
-- Senior PM agent (Opus 4.7 per RA-1099) classifies intent + suggests phase
 - Auto-add to next-board-meeting agenda for the routed project
 
 Exit codes:
@@ -33,10 +33,15 @@ import urllib.request
 import urllib.error
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 # ── Constants ──────────────────────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from scripts import idea_expansion  # noqa: E402
+
 INBOX_DIR    = PROJECT_ROOT / ".harness" / "ideas-from-phone"
 
 LINEAR_API   = "https://api.linear.app/graphql"
@@ -94,7 +99,11 @@ def linear_create_issue(api_key: str, title: str, description: str) -> Optional[
 
 
 # ── Inbox processing ───────────────────────────────────────────────────────
-def _build_ticket(idea: dict) -> tuple[str, str]:
+def _build_ticket(
+    idea: dict,
+    expansion: idea_expansion.IdeaExpansion | None = None,
+    brain: dict[str, Any] | None = None,
+) -> tuple[str, str]:
     """Return (title, markdown_description) for a Linear ticket from an idea record."""
     text = (idea.get("text") or "").strip()
     user_name = idea.get("user_name", "unknown")
@@ -118,20 +127,71 @@ def _build_ticket(idea: dict) -> tuple[str, str]:
         for url in urls:
             body_parts.append(f"- {url}")
 
+    if expansion:
+        body_parts.extend([
+            "",
+            "**Strategic Expansion:**",
+            "",
+            f"- Direct ask: {expansion.direct_ask}",
+            f"- Wider capability read: {expansion.strategic_read}",
+            f"- CRM approval tasks generated: {len(expansion.crm_tasks)}",
+            "",
+            "**Adjacent opportunities:**",
+            *[f"- {item}" for item in expansion.adjacent_opportunities],
+            "",
+            "**Research lanes:**",
+            *[
+                f"- {lane.lane}: {lane.question}"
+                for lane in expansion.research_lanes
+            ],
+            "",
+            "**Implementation candidates:**",
+            *[f"- {item}" for item in expansion.implementation_candidates],
+        ])
+        if brain:
+            body_parts.extend([
+                "",
+                "**2nd-brain packet:**",
+                f"- Idea note: `{brain['idea_path']}`",
+                f"- Research note: `{brain['research_path']}`",
+                f"- Decision brief: `{brain['decision_path']}`",
+                f"- CRM bridge: `{brain['crm_bridge_path']}`",
+            ])
+
     body_parts.append("")
     body_parts.append("---")
     body_parts.append(
         "_Auto-imported from `.harness/ideas-from-phone/` by `process_ideas_inbox.py`. "
-        "Please triage: route to the correct project, set priority, add labels, then "
-        "either schedule into the next board meeting agenda or close as duplicate._"
+        "Please triage the strategic expansion: route to the correct project, set priority, "
+        "add labels, approve or reject the research lanes, then either schedule into the "
+        "next board meeting agenda or close as duplicate._"
     )
 
     return title, "\n".join(body_parts)
 
 
-def process_file(path: Path, api_key: str, *, dry_run: bool) -> tuple[int, int, int]:
+def _expansion_enabled() -> bool:
+    return os.environ.get("IDEAS_INBOX_EXPAND_IDEAS", "1").strip().lower() not in {
+        "0", "false", "no", "off",
+    }
+
+
+def _brain_root_from_env() -> Path:
+    return Path(os.environ.get("IDEA_EXPANSION_BRAIN_ROOT", str(idea_expansion.DEFAULT_BRAIN_ROOT)))
+
+
+def process_file(
+    path: Path,
+    api_key: str,
+    *,
+    dry_run: bool,
+    brain_root: Path | None = None,
+    expand: bool | None = None,
+) -> tuple[int, int, int]:
     """Process one daily JSONL file. Returns (already_done, created, failed)."""
     already_done = created = failed = 0
+    should_expand = _expansion_enabled() if expand is None else expand
+    target_brain_root = brain_root or _brain_root_from_env()
     if not path.is_file():
         return (0, 0, 0)
 
@@ -151,7 +211,27 @@ def process_file(path: Path, api_key: str, *, dry_run: bool) -> tuple[int, int, 
             already_done += 1
             continue
 
-        title, body = _build_ticket(idea)
+        text = (idea.get("text") or "").strip()
+        expansion = None
+        brain = None
+        if should_expand and text:
+            try:
+                expansion = idea_expansion.expand_idea(text)
+                if not dry_run:
+                    brain = idea_expansion.write_outputs(expansion, target_brain_root)
+                    idea["idea_expansion"] = {
+                        "slug": expansion.slug,
+                        "decision_path": brain["decision_path"],
+                        "manifest_path": brain["manifest_path"],
+                        "crm_bridge_path": brain["crm_bridge_path"],
+                        "crm_task_count": brain["crm_task_count"],
+                    }
+            except Exception as exc:  # noqa: BLE001
+                failed += 1
+                print(f"[fail] idea expansion failed for {path.name}: {exc}", file=sys.stderr)
+                continue
+
+        title, body = _build_ticket(idea, expansion, brain)
         if dry_run:
             print(f"[dry-run] would create: {title}")
             idea["processed"] = True
