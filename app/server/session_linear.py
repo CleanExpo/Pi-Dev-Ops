@@ -33,6 +33,21 @@ from . import config
 _log = logging.getLogger("pi-ceo.session_linear")
 
 
+# ── Feature flag ───────────────────────────────────────────────────────────────
+
+def _outbound_enabled() -> bool:
+    """Return True when LINEAR_OUTBOUND_SYNC=1 is set in the environment.
+
+    Re-reads the env var each call so tests can monkeypatch os.environ without
+    reloading the module.  Config module value is the authoritative default but
+    the raw env var is checked first for test patching convenience.
+    """
+    raw = os.environ.get("LINEAR_OUTBOUND_SYNC")
+    if raw is not None:
+        return raw == "1"
+    return config.LINEAR_OUTBOUND_SYNC
+
+
 # ── GraphQL helpers ────────────────────────────────────────────────────────────
 
 def _update_linear_state(issue_id: str, state_name: str) -> None:
@@ -46,7 +61,12 @@ def _update_linear_state(issue_id: str, state_name: str) -> None:
       2. List the team's workflow states and find the ID whose name matches
          state_name (case-insensitive).
       3. Call updateIssue mutation with the resolved state ID.
+
+    No-op when LINEAR_OUTBOUND_SYNC is not enabled (RA-6502 feature flag).
     """
+    if not _outbound_enabled():
+        _log.debug("LINEAR_OUTBOUND_SYNC disabled — skipping state update for %s → '%s'", issue_id, state_name)
+        return
     api_key = os.environ.get("LINEAR_API_KEY", "")
     if not api_key:
         _log.warning("LINEAR_API_KEY not set — cannot update Linear issue %s to '%s'", issue_id, state_name)
@@ -127,7 +147,13 @@ mutation UpdateIssueState($id: String!, $stateId: String!) {
 
 
 def _post_linear_comment(issue_id: str, body: str) -> None:
-    """Post a comment to a Linear issue. Never raises — failures are logged and swallowed."""
+    """Post a comment to a Linear issue. Never raises — failures are logged and swallowed.
+
+    No-op when LINEAR_OUTBOUND_SYNC is not enabled (RA-6502 feature flag).
+    """
+    if not _outbound_enabled():
+        _log.debug("LINEAR_OUTBOUND_SYNC disabled — skipping comment on %s", issue_id)
+        return
     api_key = os.environ.get("LINEAR_API_KEY", "")
     if not api_key:
         return
@@ -268,11 +294,34 @@ def _record_session_outcome(session, push_ok: bool, push_ts: float) -> None:
         _log.warning("Could not write session-outcomes.jsonl: %s", exc)
 
 
+def _notify_linear_session_started(session) -> None:
+    """RA-6502 — Move the originating Linear issue to 'In Progress' when a build session starts.
+
+    Called from run_build() immediately after the session is confirmed live
+    (before the clone phase) so the Linear board reflects the work-in-flight.
+
+    Fire-and-forget with logged failures — never blocks or crashes the build pipeline.
+    No-op when LINEAR_OUTBOUND_SYNC is not enabled or no issue is linked.
+    """
+    if not _outbound_enabled():
+        return
+    issue_id = getattr(session, "linear_issue_id", None)
+    if not issue_id:
+        return
+    try:
+        _update_linear_state(issue_id, "In Progress")
+        _log.info("RA-6502: Linear issue %s moved to 'In Progress' on session start", issue_id)
+    except Exception as exc:
+        _log.warning("RA-6502: Failed to mark Linear issue %s In Progress on start: %s", issue_id, exc)
+
+
 def _sync_linear_on_completion(session) -> None:
     """RA-665/666/887 — Post build outcome to Linear + Telegram on every terminal state.
 
     Called from run_build() early-return paths and the success path so it fires
     on every terminal status without touching each individual return site.
+
+    No-op for Linear sync when LINEAR_OUTBOUND_SYNC is not enabled (RA-6502).
     """
     status = getattr(session, "status", "")
     duration_s = int(time.time() - (session.started_at or time.time()))

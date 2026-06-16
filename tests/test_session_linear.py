@@ -71,6 +71,7 @@ def test_update_linear_state_no_op_when_no_key(monkeypatch):
 def test_update_linear_state_sends_graphql_sequence(monkeypatch):
     """Three GraphQL requests are made in the correct order on success."""
     monkeypatch.setenv("LINEAR_API_KEY", "lin_api_test_key")
+    monkeypatch.setenv("LINEAR_OUTBOUND_SYNC", "1")  # RA-6502: flag must be on for HTTP to fire
     from app.server.session_linear import _update_linear_state
 
     responses = [
@@ -118,6 +119,7 @@ def test_update_linear_state_swallows_http_error(monkeypatch):
 def test_update_linear_state_skips_when_state_not_found(monkeypatch):
     """Logs warning and returns when state name has no match in team's workflow."""
     monkeypatch.setenv("LINEAR_API_KEY", "lin_api_test_key")
+    monkeypatch.setenv("LINEAR_OUTBOUND_SYNC", "1")  # RA-6502: flag must be on for HTTP to fire
     from app.server.session_linear import _update_linear_state
 
     responses = [
@@ -152,6 +154,7 @@ def test_post_linear_comment_no_op_when_no_key(monkeypatch):
 def test_post_linear_comment_sends_mutation(monkeypatch):
     """Posts commentCreate mutation with correct issueId and body."""
     monkeypatch.setenv("LINEAR_API_KEY", "lin_api_test_key")
+    monkeypatch.setenv("LINEAR_OUTBOUND_SYNC", "1")  # RA-6502: flag must be on for HTTP to fire
     from app.server.session_linear import _post_linear_comment
 
     responses = [{"data": {"commentCreate": {"success": True}}}]
