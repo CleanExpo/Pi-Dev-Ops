@@ -339,5 +339,17 @@
     "created_at": 1778530000,
     "last_fired_at": null,
     "note": "RA-3007 \u2014 Daily 09:00 UTC scan of guardian + cs + cfo + cto state. Posts Telegram only on breach. See scripts/kpi_watchdog.py."
+  },
+  {
+    "id": "capability-loop-daily-0530",
+    "type": "capability_loop",
+    "name": "Capability Intelligence Loop \u2014 daily 05:30 UTC",
+    "script": "scripts/run_capability_loop.py --limit 40 --min-score 45 --brain-root /Users/phillmcgurk/2nd-brain --json",
+    "hour": 5,
+    "minute": 30,
+    "enabled": true,
+    "created_at": 1781568000,
+    "last_fired_at": null,
+    "note": "Runs external AI capability scout, writes Obsidian/2nd-brain artifacts, validates CRM intake. CRM posting remains opt-in via UNITE_CRM_CAPABILITY_POST=1."
   }
 ]

@@ -393,7 +393,7 @@ async def _fire_trigger(trigger: dict, log) -> None:
         await _fire_monitor_trigger(trigger, log)
     elif trigger_type == "intel_refresh":                      # RA-587
         await _fire_intel_refresh_trigger(trigger, log)
-    elif trigger_type in ("analyse_lessons", "fallback_dryrun", "zte_v2_score"):
+    elif trigger_type in ("analyse_lessons", "fallback_dryrun", "zte_v2_score", "script", "capability_loop"):
         await _fire_script_trigger(trigger, log)
     elif trigger_type == "board_meeting":
         await _fire_board_meeting_trigger(trigger, log)
