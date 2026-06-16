@@ -1,0 +1,45 @@
+{
+  "expectations": [
+    {
+      "text": "Emits a machine-readable structured plan (JSON with a moves array)",
+      "passed": false,
+      "evidence": "no JSON plan in outputs/"
+    },
+    {
+      "text": "Structured plan passes validate_plan.py (>=15 moves, acyclic, win-conditions covered)",
+      "passed": false,
+      "evidence": "no plan to validate"
+    },
+    {
+      "text": "Names an explicit win condition / Definition of Done",
+      "passed": false,
+      "evidence": "no win-condition section found"
+    },
+    {
+      "text": "Lays out 15 or more ordered moves",
+      "passed": true,
+      "evidence": "detected 18 moves"
+    },
+    {
+      "text": "Includes a red-team / 'what's missing' pass",
+      "passed": false,
+      "evidence": "no red-team pass detected"
+    },
+    {
+      "text": "Marks at least one branch point / contingency",
+      "passed": false,
+      "evidence": "no branch points"
+    },
+    {
+      "text": "Surfaces >=3 commonly-dropped work items (auth, migration, rate-limit, audit, observability, rollback, session expiry, tests)",
+      "passed": true,
+      "evidence": "5 categories matched"
+    }
+  ],
+  "summary": {
+    "passed": 2,
+    "failed": 5,
+    "total": 7,
+    "pass_rate": 0.2857
+  }
+}
