@@ -110,6 +110,22 @@ class CapabilityCandidate:
     discovered_at: str
 
 
+@dataclass(frozen=True)
+class CrmTaskProposal:
+    title: str
+    description: str
+    status: str
+    priority: str
+    assignee_name: str
+    tags: tuple[str, ...]
+    obsidian_path: str
+    source_url: str
+    project_matches: tuple[str, ...]
+    capability_type: str
+    relevance_score: int
+    hermes_lane: str
+
+
 def slugify(text: str, *, max_len: int = 96) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
     return slug[:max_len].strip("-") or "untitled"
@@ -431,6 +447,76 @@ def recommended_action_for(score: int, maturity: str) -> str:
     return "ignore unless repeated by future scans"
 
 
+def crm_priority_for(candidate: CapabilityCandidate) -> str:
+    if candidate.relevance_score >= 80:
+        return "high"
+    if candidate.relevance_score >= 60:
+        return "medium"
+    return "low"
+
+
+def hermes_lane_for(candidate: CapabilityCandidate) -> str:
+    if candidate.capability_type in {"agent_runtime", "code_automation", "mcp_connector"}:
+        return "engineering"
+    if candidate.capability_type in {"rag_memory", "evals", "data_platform"}:
+        return "research-ops"
+    if candidate.capability_type == "multimodal":
+        return "content-systems"
+    return "watchlist"
+
+
+def candidate_obsidian_path(candidate: CapabilityCandidate) -> str:
+    return f"Sources/{candidate.discovered_at}-capability-{slugify(candidate.title)}.md"
+
+
+def candidate_to_crm_task(candidate: CapabilityCandidate) -> CrmTaskProposal:
+    obsidian_path = candidate_obsidian_path(candidate)
+    tags = (
+        "capability-scout",
+        "approval-required",
+        "unite-crm",
+        "second-brain",
+        "hermes-intake",
+        candidate.capability_type,
+        candidate.source_type,
+    )
+    description = "\n".join([
+        f"Review external AI capability: {candidate.title}",
+        "",
+        f"Source: {candidate.source_url}",
+        f"Second brain note: {obsidian_path}",
+        f"Matched projects: {', '.join(candidate.project_matches)}",
+        f"Capability type: {candidate.capability_type}",
+        f"Relevance score: {candidate.relevance_score}",
+        f"Maturity: {candidate.maturity}",
+        f"Expected leverage: {candidate.expected_leverage}",
+        f"Implementation effort: {candidate.implementation_effort}",
+        f"Risk: {candidate.risk}",
+        f"Recommended action: {candidate.recommended_action}",
+        f"Hermes lane: {hermes_lane_for(candidate)}",
+        "",
+        "Safety gates:",
+        "- This is an intake proposal, not permission to install or ship.",
+        "- CRM remains the operational source of truth once a human approves the task.",
+        "- Obsidian remains the knowledge source and evidence trail.",
+        "- Hermes may prepare research or sandbox plans, but production changes need human approval.",
+    ])
+    return CrmTaskProposal(
+        title=f"Review capability: {candidate.title[:90]}",
+        description=description,
+        status="blocked",
+        priority=crm_priority_for(candidate),
+        assignee_name="Phill approval",
+        tags=tags,
+        obsidian_path=obsidian_path,
+        source_url=candidate.source_url,
+        project_matches=candidate.project_matches,
+        capability_type=candidate.capability_type,
+        relevance_score=candidate.relevance_score,
+        hermes_lane=hermes_lane_for(candidate),
+    )
+
+
 def build_candidates(discoveries: Iterable[Discovery], profiles: list[ProjectProfile], *, today: str | None = None) -> list[CapabilityCandidate]:
     candidates = [
         candidate
@@ -449,6 +535,9 @@ def candidate_to_markdown(candidate: CapabilityCandidate) -> str:
     relevance_score: {candidate.relevance_score}
     maturity: {candidate.maturity}
     status: proposed
+    crm_status: intake-ready
+    obsidian_path: "{candidate_obsidian_path(candidate)}"
+    hermes_lane: {hermes_lane_for(candidate)}
     discovered: {candidate.discovered_at}
     source: "{candidate.source_url}"
     projects: [{", ".join(candidate.project_matches)}]
@@ -465,6 +554,8 @@ def candidate_to_markdown(candidate: CapabilityCandidate) -> str:
     - Effort: {candidate.implementation_effort}
     - Risk: {candidate.risk}
     - Recommended action: {candidate.recommended_action}
+    - CRM intake: blocked approval task proposal
+    - Hermes lane: {hermes_lane_for(candidate)}
     """)
 
 
@@ -508,9 +599,19 @@ def render_report(candidates: list[CapabilityCandidate], *, today: str | None = 
         "- This report is discovery intelligence, not approval to install or ship dependencies.",
         "- Production adoption still needs sandbox validation, security review, and human approval.",
         "- High-scoring repeated signals should become skill candidates or project DoD proposals.",
+        "- CRM intake payloads use `obsidian_path` as the join key between Unite-Group CRM, Hermes, and Brain-1.",
         "",
     ])
     return "\n".join(lines)
+
+
+def write_crm_bridge(candidates: list[CapabilityCandidate], outcomes_dir: Path, *, day: str) -> Path:
+    bridge_path = outcomes_dir / f"{day}-capability-crm-intake.jsonl"
+    with bridge_path.open("w", encoding="utf-8") as handle:
+        for candidate in candidates:
+            proposal = candidate_to_crm_task(candidate)
+            handle.write(json.dumps(proposal.__dict__, sort_keys=True) + "\n")
+    return bridge_path
 
 
 def write_brain_outputs(candidates: list[CapabilityCandidate], brain_root: Path = DEFAULT_BRAIN_ROOT, *, today: str | None = None) -> dict[str, object]:
@@ -525,23 +626,35 @@ def write_brain_outputs(candidates: list[CapabilityCandidate], brain_root: Path 
 
     source_paths: list[str] = []
     for candidate in candidates[:20]:
-        source_path = sources_dir / f"{day}-capability-{slugify(candidate.title)}.md"
+        source_path = brain_root / candidate_obsidian_path(candidate)
         source_path.write_text(candidate_to_markdown(candidate), encoding="utf-8")
         source_paths.append(str(source_path))
 
+    crm_bridge_path = write_crm_bridge(candidates[:20], outcomes_dir, day=day)
+    crm_tasks = [candidate_to_crm_task(candidate).__dict__ for candidate in candidates[:20]]
     manifest_path = outcomes_dir / f"{day}-capability-scout.json"
     manifest = {
         "date": day,
         "candidate_count": len(candidates),
         "report_path": str(report_path),
         "source_paths": source_paths,
+        "crm_bridge_path": str(crm_bridge_path),
+        "crm_tasks": crm_tasks,
+        "operating_bridge": {
+            "obsidian": "knowledge substrate and evidence trail",
+            "unite_group_crm": "human-approved operational queue",
+            "hermes": "research and sandbox execution lane",
+            "join_key": "obsidian_path",
+        },
         "candidates": [candidate.__dict__ for candidate in candidates],
     }
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     return {
         "report_path": str(report_path),
         "manifest_path": str(manifest_path),
+        "crm_bridge_path": str(crm_bridge_path),
         "source_count": len(source_paths),
+        "crm_task_count": len(crm_tasks),
     }
 
 

@@ -127,3 +127,35 @@ def test_write_brain_outputs_creates_report_manifest_and_sources(tmp_path):
     source_path = Path(data["source_paths"][0])
     assert source_path.exists()
     assert "type: capability-source" in source_path.read_text(encoding="utf-8")
+    assert len(data["crm_tasks"]) == 1
+    assert data["operating_bridge"]["join_key"] == "obsidian_path"
+    assert data["crm_tasks"][0]["status"] == "blocked"
+    assert data["crm_tasks"][0]["obsidian_path"] == "Sources/2026-06-16-capability-cleanexpo-mcp-agent-workflow.md"
+    assert Path(data["crm_bridge_path"]).exists()
+
+
+def test_candidate_to_crm_task_links_obsidian_crm_and_hermes():
+    candidate = capability_scout.CapabilityCandidate(
+        title="microsoft/agent-framework",
+        source_url="https://github.com/microsoft/agent-framework",
+        source_type="github",
+        summary="Agent orchestration framework",
+        project_matches=("pi-dev-ops", "unite-group"),
+        capability_type="agent_runtime",
+        maturity="adoptable",
+        implementation_effort="3-7 days sandbox",
+        expected_leverage="high",
+        risk="dependency and security review required",
+        recommended_action="create sandbox spike and draft skill candidate",
+        relevance_score=96,
+        discovered_at="2026-06-16",
+    )
+
+    proposal = capability_scout.candidate_to_crm_task(candidate)
+
+    assert proposal.status == "blocked"
+    assert proposal.priority == "high"
+    assert proposal.hermes_lane == "engineering"
+    assert proposal.obsidian_path == "Sources/2026-06-16-capability-microsoft-agent-framework.md"
+    assert "approval-required" in proposal.tags
+    assert "Hermes may prepare research or sandbox plans" in proposal.description
