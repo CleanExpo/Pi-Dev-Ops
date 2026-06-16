@@ -40,14 +40,20 @@
 > board-reports, status pages, Hermes monitoring) the **CEO register**
 > dominates. Per-brand surfaces use the brand's tokens.
 
-### CEO-Surface Tokens (Phill Rule 6 — Gun Metal + Candy Red)
+### CEO-Surface Tokens (Phill Rule 6 — Gun Metal + Candy depth)
+
+Black base, candy depth on top. Dead/empty space is never pure white (`#ffffff`)
+or dead black (`#000000`) — it uses the gun-metal base and off-white text.
 
 | Token | Hex | Use |
 |---|---|---|
-| `--canvas` | `#0e1014` | Gun Metal base — all CEO views |
-| `--red-500` | `#b30000` | Candy Red primary — CEO action |
-| `--orange-400` | `#e07020` | CEO secondary |
-| `--green-500` | `#00a854` | CEO success indicator |
+| `--canvas` | `#0e1014` | Gun Metal base — all CEO views (never `#000`) |
+| `--red-500` | `#ff3b5c` | Candy Red primary — CEO action |
+| `--orange-400` | `#ff8a1f` | Candy Orange — CEO secondary |
+| `--green-500` | `#00d97e` | Candy Green — CEO success indicator |
+| `--cyan-400` | `#22d3ee` | Candy Cyan — cool complement (info/running) |
+| `--amber-400` | `#ffb020` | Candy Amber — supplementary signal |
+| `--text` | `#f4f5f7` | Off-white body text (never `#fff`) |
 
 ### Unite-Group Fallback Tokens
 
@@ -169,25 +175,7 @@ Skills, agents, and infrastructure changes in this repo:
 
 ## CI Lint Integration
 
-This repo runs the DESIGN.md lint on every PR via
-`.github/workflows/design-lint.yml`. The lint asserts:
-
-1. `.claude/DESIGN.md` exists.
-2. All 6 required H2 headings are present.
-3. No **net-new** imports from `lucide-react`, `@heroicons/react`, or
-   `@fortawesome/*` in any TypeScript / JavaScript app code. Baseline at
-   `.github/design-md-lint.baseline.txt`.
-4. AI-slop phrase scan (warn-only in v1) across `.md`, `.mdx`, `.ts`, `.tsx`
-   — explicitly excludes `skills/brand-guardian/**` (the skill that
-   *defines* the banned list) and the `feedback_design_preferences.md` memory.
-
-To run locally: `bash .github/scripts/design-md-lint.sh`.
-
-Existing CI surfaces in this repo: `ci.yml`, `codebase-wiki.yml`,
-`dns_takeover_scan.yml`, `ideas_inbox_drain.yml`, `morning_briefing.yml`,
-`smoke_pipeline.yml`, `smoke_surface_gate.yml`, `smoke_test.yml`,
-`smoke_test_e2e.yml`, `workspace_intel_brief.yml`. design-lint runs
-alongside these on every PR.
+`.github/workflows/design-lint.yml` runs `bash .github/scripts/design-md-lint.sh` on every PR. It asserts this file exists with all 6 required H2 headings (FAIL), no net-new `lucide-react`/`@heroicons/react`/`@fortawesome/*` imports vs `.github/design-md-lint.baseline.txt` (FAIL), and an AI-slop phrase scan across `.md`/`.mdx`/`.ts`/`.tsx` (warn-only in v1, excludes `skills/brand-guardian/**` and `feedback_design_preferences.md`). Run locally with the script above.
 
 ---
 

@@ -70,6 +70,7 @@ from .session_linear import (  # noqa: F401
     _post_linear_comment,
     _record_session_outcome,
     _sync_linear_on_completion,
+    _notify_linear_session_started,  # RA-6502: started → In Progress outbound push
 )
 
 # ── RA-890: Re-export phase pipeline ─────────────────────────────────────────

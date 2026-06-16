@@ -1,6 +1,8 @@
-/* globals.css — Zinc design system + Inter / JetBrains Mono typography
+/* globals.css — Candy-on-gun-metal design system (Phill Rule 6) + Inter / JetBrains Mono
  * Tailwind v4 — theme tokens declared via @theme inline (see RA-1962 Phase 2.3).
  * The tailwind.config.ts file is gone; everything below replaces theme.extend.
+ * Palette: black gun-metal base, candy depth on top (red/orange/green + cyan/amber).
+ * Dead-space rule: never #ffffff or #000000 fills. Token values match DESIGN.md.
  */
 
 @import "tailwindcss";
@@ -14,7 +16,7 @@
  * border nearly the same colour as panel. Tightened on 2026-04-17
  * after the Portfolio Health container was reported unreadable. */
 :root {
-  --background: #ffffff;
+  --background: #f5f6f8;       /* off-white — never pure #fff (Phill dead-space rule) */
   --panel: #f4f4f5;
   --panel-hover: #e4e4e7;
   --border: #d4d4d8;           /* zinc-300; visible edge on panel (was e4e4e7) */
@@ -36,23 +38,23 @@
 
 /* ── Dark theme ──────────────────────────────────────────────────────────── */
 .dark {
-  --background: #09090b;
-  --panel: #18181b;
-  --panel-hover: #27272a;
-  --border: #27272a;
-  --border-subtle: #1c1c1f;
-  --text: #fafafa;
-  --text-muted: #a1a1aa;
-  --text-dim: #71717a;
-  --accent: #f97316;
-  --accent-subtle: rgba(249,115,22,0.08);
-  --success: #22c55e;
-  --warning: #eab308;
-  --error: #ef4444;
-  --info: #3b82f6;
+  --background: #0e1014;       /* gun-metal canvas — never dead #000 */
+  --panel: #191e26;            /* surface-1 */
+  --panel-hover: #232934;      /* surface-2 */
+  --border: #2e3542;           /* surface-3 — visible edge on gun-metal */
+  --border-subtle: #191e26;
+  --text: #f4f5f7;             /* off-white — never pure #fff */
+  --text-muted: #a7adba;
+  --text-dim: #727a88;
+  --accent: #ff3b5c;           /* candy red — CEO action */
+  --accent-subtle: rgba(255,59,92,0.10);
+  --success: #00d97e;          /* candy green */
+  --warning: #ff8a1f;          /* candy orange */
+  --error: #e5484d;            /* alarm red (kept distinct from candy-red accent) */
+  --info: #22d3ee;             /* candy cyan — cool complement */
 
-  --scrollbar-track: #18181b;
-  --scrollbar-thumb: #3f3f46;
+  --scrollbar-track: #191e26;
+  --scrollbar-thumb: #2e3542;
 }
 
 /* ── Tailwind v4 theme tokens ────────────────────────────────────────────── */
