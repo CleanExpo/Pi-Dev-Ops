@@ -1,0 +1,384 @@
+{
+  "metadata": {
+    "skill_name": "forward-planner",
+    "skill_path": "/Users/phillmcgurk/Pi-CEO/skills/forward-planner",
+    "timestamp": "2026-06-07",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 1
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "eval_name": "unite-hub-client-portal",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "time_seconds": 203.7,
+        "tokens": 73774,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Emits a machine-readable structured plan (JSON with a moves array)",
+          "passed": true,
+          "evidence": "found forward-plan.json with 20 moves"
+        },
+        {
+          "text": "Structured plan passes validate_plan.py (>=15 moves, acyclic, win-conditions covered)",
+          "passed": true,
+          "evidence": "VALID"
+        },
+        {
+          "text": "Names an explicit win condition / Definition of Done",
+          "passed": true,
+          "evidence": "matched 'win condition'/'definition of done'"
+        },
+        {
+          "text": "Lays out 15 or more ordered moves",
+          "passed": true,
+          "evidence": "detected 20 moves"
+        },
+        {
+          "text": "Includes a red-team / 'what's missing' pass",
+          "passed": true,
+          "evidence": "matched red-team/missing-work language"
+        },
+        {
+          "text": "Marks at least one branch point / contingency",
+          "passed": true,
+          "evidence": "branch point present"
+        },
+        {
+          "text": "Surfaces >=3 commonly-dropped work items (auth, migration, rate-limit, audit, observability, rollback, session expiry, tests)",
+          "passed": true,
+          "evidence": "6 categories matched"
+        }
+      ]
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "unite-hub-client-portal",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5714,
+        "passed": 4,
+        "failed": 3,
+        "total": 7,
+        "time_seconds": 195.5,
+        "tokens": 55553,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Emits a machine-readable structured plan (JSON with a moves array)",
+          "passed": false,
+          "evidence": "no JSON plan in outputs/"
+        },
+        {
+          "text": "Structured plan passes validate_plan.py (>=15 moves, acyclic, win-conditions covered)",
+          "passed": false,
+          "evidence": "no plan to validate"
+        },
+        {
+          "text": "Names an explicit win condition / Definition of Done",
+          "passed": true,
+          "evidence": "matched 'win condition'/'definition of done'"
+        },
+        {
+          "text": "Lays out 15 or more ordered moves",
+          "passed": true,
+          "evidence": "detected 15 moves"
+        },
+        {
+          "text": "Includes a red-team / 'what's missing' pass",
+          "passed": true,
+          "evidence": "matched red-team/missing-work language"
+        },
+        {
+          "text": "Marks at least one branch point / contingency",
+          "passed": false,
+          "evidence": "no branch points"
+        },
+        {
+          "text": "Surfaces >=3 commonly-dropped work items (auth, migration, rate-limit, audit, observability, rollback, session expiry, tests)",
+          "passed": true,
+          "evidence": "8 categories matched"
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "obsidian-second-brain",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "time_seconds": 247.9,
+        "tokens": 86242,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Emits a machine-readable structured plan (JSON with a moves array)",
+          "passed": true,
+          "evidence": "found forward-plan.json with 20 moves"
+        },
+        {
+          "text": "Structured plan passes validate_plan.py (>=15 moves, acyclic, win-conditions covered)",
+          "passed": true,
+          "evidence": "VALID"
+        },
+        {
+          "text": "Names an explicit win condition / Definition of Done",
+          "passed": true,
+          "evidence": "matched 'win condition'/'definition of done'"
+        },
+        {
+          "text": "Lays out 15 or more ordered moves",
+          "passed": true,
+          "evidence": "detected 20 moves"
+        },
+        {
+          "text": "Includes a red-team / 'what's missing' pass",
+          "passed": true,
+          "evidence": "matched red-team/missing-work language"
+        },
+        {
+          "text": "Marks at least one branch point / contingency",
+          "passed": true,
+          "evidence": "branch point present"
+        },
+        {
+          "text": "Surfaces >=3 commonly-dropped work items (auth, migration, rate-limit, audit, observability, rollback, session expiry, tests)",
+          "passed": true,
+          "evidence": "6 categories matched"
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "obsidian-second-brain",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2857,
+        "passed": 2,
+        "failed": 5,
+        "total": 7,
+        "time_seconds": 169.4,
+        "tokens": 60615,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Emits a machine-readable structured plan (JSON with a moves array)",
+          "passed": false,
+          "evidence": "no JSON plan in outputs/"
+        },
+        {
+          "text": "Structured plan passes validate_plan.py (>=15 moves, acyclic, win-conditions covered)",
+          "passed": false,
+          "evidence": "no plan to validate"
+        },
+        {
+          "text": "Names an explicit win condition / Definition of Done",
+          "passed": false,
+          "evidence": "no win-condition section found"
+        },
+        {
+          "text": "Lays out 15 or more ordered moves",
+          "passed": true,
+          "evidence": "detected 18 moves"
+        },
+        {
+          "text": "Includes a red-team / 'what's missing' pass",
+          "passed": false,
+          "evidence": "no red-team pass detected"
+        },
+        {
+          "text": "Marks at least one branch point / contingency",
+          "passed": false,
+          "evidence": "no branch points"
+        },
+        {
+          "text": "Surfaces >=3 commonly-dropped work items (auth, migration, rate-limit, audit, observability, rollback, session expiry, tests)",
+          "passed": true,
+          "evidence": "5 categories matched"
+        }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "pi-devops-coverage-engine",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "time_seconds": 273.3,
+        "tokens": 87297,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Emits a machine-readable structured plan (JSON with a moves array)",
+          "passed": true,
+          "evidence": "found forward-plan.json with 18 moves"
+        },
+        {
+          "text": "Structured plan passes validate_plan.py (>=15 moves, acyclic, win-conditions covered)",
+          "passed": true,
+          "evidence": "VALID"
+        },
+        {
+          "text": "Names an explicit win condition / Definition of Done",
+          "passed": true,
+          "evidence": "matched 'win condition'/'definition of done'"
+        },
+        {
+          "text": "Lays out 15 or more ordered moves",
+          "passed": true,
+          "evidence": "detected 18 moves"
+        },
+        {
+          "text": "Includes a red-team / 'what's missing' pass",
+          "passed": true,
+          "evidence": "matched red-team/missing-work language"
+        },
+        {
+          "text": "Marks at least one branch point / contingency",
+          "passed": true,
+          "evidence": "branch point present"
+        },
+        {
+          "text": "Surfaces >=3 commonly-dropped work items (auth, migration, rate-limit, audit, observability, rollback, session expiry, tests)",
+          "passed": true,
+          "evidence": "6 categories matched"
+        }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "pi-devops-coverage-engine",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4286,
+        "passed": 3,
+        "failed": 4,
+        "total": 7,
+        "time_seconds": 172.1,
+        "tokens": 66793,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Emits a machine-readable structured plan (JSON with a moves array)",
+          "passed": false,
+          "evidence": "no JSON plan in outputs/"
+        },
+        {
+          "text": "Structured plan passes validate_plan.py (>=15 moves, acyclic, win-conditions covered)",
+          "passed": false,
+          "evidence": "no plan to validate"
+        },
+        {
+          "text": "Names an explicit win condition / Definition of Done",
+          "passed": true,
+          "evidence": "matched 'win condition'/'definition of done'"
+        },
+        {
+          "text": "Lays out 15 or more ordered moves",
+          "passed": true,
+          "evidence": "detected 15 moves"
+        },
+        {
+          "text": "Includes a red-team / 'what's missing' pass",
+          "passed": false,
+          "evidence": "no red-team pass detected"
+        },
+        {
+          "text": "Marks at least one branch point / contingency",
+          "passed": false,
+          "evidence": "no branch points"
+        },
+        {
+          "text": "Surfaces >=3 commonly-dropped work items (auth, migration, rate-limit, audit, observability, rollback, session expiry, tests)",
+          "passed": true,
+          "evidence": "6 categories matched"
+        }
+      ]
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 241.6333,
+        "stddev": 28.7575,
+        "min": 203.7,
+        "max": 273.3
+      },
+      "tokens": {
+        "mean": 82437.6667,
+        "stddev": 6141.2592,
+        "min": 73774,
+        "max": 87297
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.4286,
+        "stddev": 0.1166,
+        "min": 0.2857,
+        "max": 0.5714
+      },
+      "time_seconds": {
+        "mean": 179.0,
+        "stddev": 11.7192,
+        "min": 169.4,
+        "max": 195.5
+      },
+      "tokens": {
+        "mean": 60987,
+        "stddev": 4596.244,
+        "min": 55553,
+        "max": 66793
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.57",
+      "time_seconds": "+62.6",
+      "tokens": "+21450"
+    }
+  },
+  "notes": [
+    "Strong discriminator: 'Emits a machine-readable structured plan (JSON with a m...' \u2014 with_skill 3/3 vs baseline 0/3.",
+    "Strong discriminator: 'Structured plan passes validate_plan.py (>=15 moves, ac...' \u2014 with_skill 3/3 vs baseline 0/3.",
+    "Non-discriminating: 'Lays out 15 or more ordered moves...' passes in both configs \u2014 both wrote it because the prompt asked.",
+    "Strong discriminator: 'Includes a red-team / 'what's missing' pass...' \u2014 with_skill 3/3 vs baseline 1/3.",
+    "Strong discriminator: 'Marks at least one branch point / contingency...' \u2014 with_skill 3/3 vs baseline 0/3.",
+    "Non-discriminating: 'Surfaces >=3 commonly-dropped work items (auth, migrati...' passes in both configs \u2014 both wrote it because the prompt asked.",
+    "Skill costs ~21450 more tokens and ~63s more per run \u2014 the price of the structured plan + validation.",
+    "Biggest gap: baselines produced narrative markdown but never a machine-readable, validated plan \u2014 exactly the artifact the autonomous loop needs to consume."
+  ]
+}

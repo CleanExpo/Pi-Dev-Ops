@@ -1,0 +1,258 @@
+{
+  "schema_version": "1.0",
+  "project_id": "pi-dev-ops",
+  "goal": "Build a per-project Definition-of-Done plus a coverage check for Pi-Dev-Ops so the autonomous loop stops reporting 'done' when project-level work is actually missing (the loop currently terminates on the per-task judge GOAL_MET in tao_loop.run_until_done, with no project-completeness gate).",
+  "generated": "2026-06-07",
+  "horizon": 18,
+  "win_condition": [
+    {"id": "wc1", "statement": "A DoD schema is documented and a project's DoD is a persisted list of {id, statement, check:auto|human, probe} items at .harness/dod/<project>.dod.json", "check": "auto", "probe": "Load .harness/dod/pi-dev-ops.dod.json; assert it validates against .harness/dod/schema.json and every item has id/statement/check/probe"},
+    {"id": "wc2", "statement": "coverage_check(project_id) loads a DoD, runs each auto probe, and returns a structured report with per-item present|partial|absent|unknown, an aggregate coverage_ratio, and an unmet[] list", "check": "auto", "probe": "pytest tests/test_coverage_check.py; calling coverage_check on a seeded fixture returns the expected unmet set"},
+    {"id": "wc3", "statement": "Probes are sandboxed and side-effect-free: a failing or hanging probe yields 'unknown' for that item and never raises into the caller", "check": "auto", "probe": "Inject a raising probe and a hanging probe; assert the report still returns with those items marked unknown and no exception propagates"},
+    {"id": "wc4", "statement": "tao_loop.run_until_done no longer terminates done=True on judge GOAL_MET alone for project-scoped runs; it additionally requires coverage_ratio >= TAO_COVERAGE_MIN (default 1.0 for auto items) and empty unmet[], else reason=COVERAGE_INCOMPLETE", "check": "auto", "probe": "pytest tests/test_tao_loop_coverage.py: judge mocked GOAL_MET + DoD with one unmet auto item -> LoopResult.done is False and reason == 'COVERAGE_INCOMPLETE'"},
+    {"id": "wc5", "statement": "Each unmet DoD item is filed as a Linear ticket in the correct project/team via .harness/projects.json routing, idempotently (no duplicates on re-run)", "check": "auto", "probe": "2 unmet items + mocked Linear client -> exactly 2 save_issue calls with project_id f45212be-3259-4bfb-89b1-54c122c939a7 and team_id a8a52f07-63cf-4ece-9ad2-3e3bd3c15673; second run same set -> 0 new calls"},
+    {"id": "wc6", "statement": "A converter turns win_condition[] (with probe) from a forward-plan.json into a project .dod.json; the forward-planner plan is the canonical DoD source", "check": "auto", "probe": "Feed this plan's own JSON through the converter; output validates against the DoD schema and item count equals win_condition length"},
+    {"id": "wc7", "statement": "Every coverage run writes one row to a Supabase coverage_runs table (CREATE TABLE IF NOT EXISTS shipped in supabase/migration.sql), fire-and-forget", "check": "auto", "probe": "Run coverage with a mocked observability client -> one insert with project_id, coverage_ratio, unmet_count; an observability failure does not block the run"},
+    {"id": "wc8", "statement": "A CI coverage-gate workflow runs the coverage check on pi-dev-ops's own DoD and fails the build if auto coverage < threshold, with concurrency + fork guard", "check": "auto", "probe": "Workflow file present and parses; a red fixture run exits non-zero; workflow includes concurrency and repository == 'CleanExpo/Pi-Dev-Ops' guard"},
+    {"id": "wc9", "statement": "Every 'done' surface (loop LoopResult, session streamer, six-pager, board memos) sources completeness from coverage, not the judge verdict; non-empty unmet[] suppresses any done/completed emission", "check": "auto", "probe": "Grep done-emitters; test that a non-empty unmet[] suppresses the done/completed emission in each emitter"},
+    {"id": "wc10", "statement": "Any change to a project's DoD is surfaced for human approval and never self-authored silently by the loop (launch-charter governance)", "check": "human", "probe": "A DoD edit PR carries the manifest checklist and a diff of DoD items; reviewer confirms no silent weakening; loop writes to .dod.json are path-guarded/rejected"},
+    {"id": "wc11", "statement": "human-checked DoD items are never auto-marked satisfied; they surface as human_pending and block terminal 'done' until a human signs off", "check": "human", "probe": "A DoD with one human item can never reach complete=true via probes alone (test); item appears in human_pending[]"},
+    {"id": "wc12", "statement": "An operator runbook exists covering how to author a DoD, read a coverage report, interpret unknown vs absent, and force-stop a stuck coverage gate", "check": "auto", "probe": ".harness/runbooks/coverage-check.md exists and references the kill-switch and the TAO_COVERAGE_MIN env var"}
+  ],
+  "moves": [
+    {
+      "id": "m1",
+      "title": "DoD schema + spec doc",
+      "deliverable": ".harness/dod/schema.json plus a short spec defining a DoD item {id, statement, check, probe} and the file convention .harness/dod/<project>.dod.json",
+      "verify": "schema.json parses; a hand-written pi-dev-ops.dod.json validates against it",
+      "depends_on": [],
+      "unlocks": ["m2", "m6"],
+      "satisfies": ["wc1"],
+      "is_branch_point": false,
+      "branches": [],
+      "linear": {"project_id": "f45212be-3259-4bfb-89b1-54c122c939a7", "team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673", "priority": "High"}
+    },
+    {
+      "id": "m2",
+      "title": "Probe descriptor model + registry",
+      "deliverable": "Typed probe descriptor (kinds: http_2xx, pytest, file_exists, sql_columns, grep, shell) and a dispatch registry mapping kind to runner",
+      "verify": "Unit test instantiates each kind; an unknown kind raises an explicit error at load time, not at run time",
+      "depends_on": ["m1"],
+      "unlocks": ["m3"],
+      "satisfies": ["wc1"],
+      "is_branch_point": false,
+      "branches": [],
+      "linear": {"project_id": "f45212be-3259-4bfb-89b1-54c122c939a7", "team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673", "priority": "High"}
+    },
+    {
+      "id": "m3",
+      "title": "Sandboxed probe runner",
+      "deliverable": "run_probe(descriptor) -> {result: present|partial|absent|unknown, detail} with per-probe timeout, exception isolation, and no writes",
+      "verify": "Test that a raising probe and a hanging probe both yield 'unknown'; a passing probe yields 'present' and a failing one 'absent'",
+      "depends_on": ["m2"],
+      "unlocks": ["m4"],
+      "satisfies": ["wc3"],
+      "is_branch_point": false,
+      "branches": [],
+      "linear": {"project_id": "f45212be-3259-4bfb-89b1-54c122c939a7", "team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673", "priority": "Urgent"}
+    },
+    {
+      "id": "m4",
+      "title": "coverage_check(project_id) aggregator",
+      "deliverable": "swarm/gap_detector.py::coverage_check loads the DoD, runs each auto probe via the runner, returns CoverageReport{items[], coverage_ratio, unmet[], human_pending[]}",
+      "verify": "pytest tests/test_coverage_check.py on a fixture DoD returns the expected unmet/human_pending partition",
+      "depends_on": ["m3"],
+      "unlocks": ["m5", "m7", "m9", "m11"],
+      "satisfies": ["wc2"],
+      "is_branch_point": true,
+      "branches": [
+        {"decider": "probe execution location (security review of probe kinds in m2)", "if": "in-process read-only probes acceptable", "then": ["m5"], "reconverge": "m9"},
+        {"decider": "probe execution location (security review of probe kinds in m2)", "if": "network/shell probes require isolation", "then": ["m3"], "reconverge": "m9"}
+      ],
+      "linear": {"project_id": "f45212be-3259-4bfb-89b1-54c122c939a7", "team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673", "priority": "Urgent"}
+    },
+    {
+      "id": "m5",
+      "title": "human vs auto enforcement",
+      "deliverable": "coverage_check never marks a human item satisfied via probe; such items land in human_pending[] and count against completeness",
+      "verify": "A DoD with one human item can never reach complete=true from probes alone (test)",
+      "depends_on": ["m4"],
+      "unlocks": ["m13"],
+      "satisfies": ["wc11"],
+      "is_branch_point": false,
+      "branches": [],
+      "linear": {"project_id": "f45212be-3259-4bfb-89b1-54c122c939a7", "team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673", "priority": "High"}
+    },
+    {
+      "id": "m6",
+      "title": "forward-plan -> DoD converter",
+      "deliverable": "Converter mapping win_condition[] (with probe) from a forward-plan.json to <project>.dod.json",
+      "verify": "Feed this plan's JSON through it; output validates against the m1 schema and item count equals win_condition length",
+      "depends_on": ["m1"],
+      "unlocks": ["m14"],
+      "satisfies": ["wc6"],
+      "is_branch_point": false,
+      "branches": [],
+      "linear": {"project_id": "f45212be-3259-4bfb-89b1-54c122c939a7", "team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673", "priority": "Medium"}
+    },
+    {
+      "id": "m7",
+      "title": "coverage_runs table + migration",
+      "deliverable": "CREATE TABLE IF NOT EXISTS coverage_runs (...) added to supabase/migration.sql plus a writer in observability.py",
+      "verify": "Migration re-runs idempotently; mocked client receives one insert per coverage run",
+      "depends_on": ["m4"],
+      "unlocks": ["m8", "m12"],
+      "satisfies": ["wc7"],
+      "is_branch_point": false,
+      "branches": [],
+      "linear": {"project_id": "f45212be-3259-4bfb-89b1-54c122c939a7", "team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673", "priority": "Medium"}
+    },
+    {
+      "id": "m8",
+      "title": "Fire-and-forget observability wiring",
+      "deliverable": "coverage_check emits a coverage_runs event through the existing fire-and-forget path; observability failure never blocks the run",
+      "verify": "Inject a failing observability client -> coverage still returns; one attempted insert logged",
+      "depends_on": ["m7"],
+      "unlocks": ["m9"],
+      "satisfies": ["wc7"],
+      "is_branch_point": false,
+      "branches": [],
+      "linear": {"project_id": "f45212be-3259-4bfb-89b1-54c122c939a7", "team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673", "priority": "Medium"}
+    },
+    {
+      "id": "m9",
+      "title": "Loop terminal-gate on coverage",
+      "deliverable": "In tao_loop.run_until_done, when verdict.done for a project-scoped run, call coverage_check; set done=True only if coverage_ratio >= TAO_COVERAGE_MIN and unmet[] empty, else reason=COVERAGE_INCOMPLETE",
+      "verify": "tests/test_tao_loop_coverage.py: judge mocked GOAL_MET + one unmet auto item -> done is False, reason == 'COVERAGE_INCOMPLETE'",
+      "depends_on": ["m4", "m8"],
+      "unlocks": ["m10", "m15"],
+      "satisfies": ["wc4"],
+      "is_branch_point": true,
+      "branches": [
+        {"decider": "loop behavior on COVERAGE_INCOMPLETE (autonomy-budget policy)", "if": "keep iterating to close the gap", "then": ["m10"], "reconverge": "m13"},
+        {"decider": "loop behavior on COVERAGE_INCOMPLETE (autonomy-budget policy)", "if": "stop-and-report, next cycle picks up tickets", "then": ["m11"], "reconverge": "m13"}
+      ],
+      "linear": {"project_id": "f45212be-3259-4bfb-89b1-54c122c939a7", "team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673", "priority": "Urgent"}
+    },
+    {
+      "id": "m10",
+      "title": "LoopResult carries coverage",
+      "deliverable": "LoopResult gains coverage: CoverageReport | None plus unmet_ids",
+      "verify": "Result object exposes unmet ids in the gated test",
+      "depends_on": ["m9"],
+      "unlocks": ["m11", "m16"],
+      "satisfies": ["wc4", "wc9"],
+      "is_branch_point": false,
+      "branches": [],
+      "linear": {"project_id": "f45212be-3259-4bfb-89b1-54c122c939a7", "team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673", "priority": "High"}
+    },
+    {
+      "id": "m11",
+      "title": "Idempotent Linear ticketing for unmet[]",
+      "deliverable": "gap_detector files each unmet item as a Linear issue routed via projects.json, keyed by dod_item_id for dedupe",
+      "verify": "2 unmet -> 2 save_issue calls with correct project/team ids; re-run same set -> 0 new",
+      "depends_on": ["m4", "m10"],
+      "unlocks": ["m12"],
+      "satisfies": ["wc5"],
+      "is_branch_point": true,
+      "branches": [
+        {"decider": "Linear ticket strategy (Phill / ticket-volume tolerance)", "if": "one ticket per unmet item", "then": ["m12"], "reconverge": "m12"},
+        {"decider": "Linear ticket strategy (Phill / ticket-volume tolerance)", "if": "one rolled-up checklist issue per run", "then": ["m12"], "reconverge": "m12"}
+      ],
+      "linear": {"project_id": "f45212be-3259-4bfb-89b1-54c122c939a7", "team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673", "priority": "High"}
+    },
+    {
+      "id": "m12",
+      "title": "Routing fallback + unknown-project handling",
+      "deliverable": "When linear_project_id is null (e.g. oh-my-codex) file at team level; when project_id is absent from registry raise a clear config error rather than silently dropping",
+      "verify": "Test both branches: null project_id -> team-level file; missing project_id -> explicit error",
+      "depends_on": ["m11"],
+      "unlocks": ["m17"],
+      "satisfies": ["wc5"],
+      "is_branch_point": false,
+      "branches": [],
+      "linear": {"project_id": "f45212be-3259-4bfb-89b1-54c122c939a7", "team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673", "priority": "Medium"}
+    },
+    {
+      "id": "m13",
+      "title": "Done-reporting reads coverage at every surface",
+      "deliverable": "Loop streamer, six-pager, and board done-emitters read coverage.complete instead of judge reason; non-empty unmet[] suppresses any done/completed text",
+      "verify": "Test that an incomplete coverage report suppresses the done emission in each emitter (streamer, six-pager, board)",
+      "depends_on": ["m5", "m10"],
+      "unlocks": ["m18"],
+      "satisfies": ["wc9"],
+      "is_branch_point": false,
+      "branches": [],
+      "linear": {"project_id": "f45212be-3259-4bfb-89b1-54c122c939a7", "team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673", "priority": "High"}
+    },
+    {
+      "id": "m14",
+      "title": "Seed pi-dev-ops DoD from this plan (dogfood)",
+      "deliverable": "Run the m6 converter on this forward-plan.json to produce .harness/dod/pi-dev-ops.dod.json -- the system's first real DoD",
+      "verify": "coverage_check('pi-dev-ops') runs end-to-end and returns a report",
+      "depends_on": ["m6", "m4"],
+      "unlocks": ["m15"],
+      "satisfies": ["wc6", "wc1"],
+      "is_branch_point": false,
+      "branches": [],
+      "linear": {"project_id": "f45212be-3259-4bfb-89b1-54c122c939a7", "team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673", "priority": "High"}
+    },
+    {
+      "id": "m15",
+      "title": "CI coverage-gate workflow",
+      "deliverable": ".github/workflows/coverage-gate.yml runs coverage_check('pi-dev-ops'), fails build if auto coverage < threshold, with concurrency: coverage-gate, cancel-in-progress, and repository == 'CleanExpo/Pi-Dev-Ops' fork guard",
+      "verify": "Workflow parses; a red fixture exits non-zero; guard present",
+      "depends_on": ["m4", "m14"],
+      "unlocks": ["m16"],
+      "satisfies": ["wc8"],
+      "is_branch_point": false,
+      "branches": [],
+      "linear": {"project_id": "f45212be-3259-4bfb-89b1-54c122c939a7", "team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673", "priority": "High"}
+    },
+    {
+      "id": "m16",
+      "title": "DoD-change governance gate",
+      "deliverable": "A check (pre-commit / CI) flags any diff to .harness/dod/*.dod.json and requires the PR manifest checklist + human approval; the loop is path-guarded from editing DoD files",
+      "verify": "A simulated loop write to a .dod.json is rejected; a human PR with the checklist passes",
+      "depends_on": ["m14"],
+      "unlocks": ["m18"],
+      "satisfies": ["wc10"],
+      "is_branch_point": false,
+      "branches": [],
+      "linear": {"project_id": "f45212be-3259-4bfb-89b1-54c122c939a7", "team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673", "priority": "Urgent"}
+    },
+    {
+      "id": "m17",
+      "title": "Probe-failure alerting / drift",
+      "deliverable": "Sustained 'unknown' (probe broken, not feature absent) is distinguished from 'absent' and surfaces as a separate alert so a broken probe cannot masquerade as missing-feature or silently pass",
+      "verify": "Test that unknown items are reported in their own bucket and trigger an alert path, never a 'done'",
+      "depends_on": ["m3", "m11"],
+      "unlocks": ["m18"],
+      "satisfies": ["wc3", "wc9"],
+      "is_branch_point": false,
+      "branches": [],
+      "linear": {"project_id": "f45212be-3259-4bfb-89b1-54c122c939a7", "team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673", "priority": "Medium"}
+    },
+    {
+      "id": "m18",
+      "title": "Operator runbook + end-to-end dogfood proof",
+      "deliverable": ".harness/runbooks/coverage-check.md (authoring DoD, reading reports, unknown vs absent, force-stopping the gate via kill-switch) plus an end-to-end proof run on pi-dev-ops DoD showing unmet>0 -> complete as moves land",
+      "verify": "Runbook exists and references kill-switch + TAO_COVERAGE_MIN; e2e proof captured",
+      "depends_on": ["m13", "m15", "m16", "m17"],
+      "unlocks": [],
+      "satisfies": ["wc12", "wc9"],
+      "is_branch_point": false,
+      "branches": [],
+      "linear": {"project_id": "f45212be-3259-4bfb-89b1-54c122c939a7", "team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673", "priority": "Medium"}
+    }
+  ],
+  "risks": [
+    {"id": "r1", "risk": "A broken probe reads as 'absent', causing the loop to 'fix' a non-problem or never report done", "response": "Probe failures isolate to 'unknown' (m3); sustained unknown alerts separately (m17)", "mitigated_by_move": "m17"},
+    {"id": "r2", "risk": "Coverage gate becomes a hang vector when a probe hits a dead endpoint", "response": "Per-probe timeout (m3) plus existing HARD_STOP kill-switch documented in runbook (m18)", "mitigated_by_move": "m3"},
+    {"id": "r3", "risk": "Ticket spam: large DoD floods Linear with unmet-item tickets", "response": "Idempotent dedupe by dod_item_id (m11), rolled-up-issue branch, and the 3-PR/day autonomy rate limit", "mitigated_by_move": "m11"},
+    {"id": "r4", "risk": "Loop deadlocks on a human DoD item that can't auto-pass", "response": "Intended, but made legible: human_pending[] reported distinctly so a human knows the loop waits on them (m5, m13)", "mitigated_by_move": "m13"},
+    {"id": "r5", "risk": "Goodhart: the loop weakens its own DoD to make coverage pass", "response": "Path-guard .dod.json against loop writes and require human-approved diffs (m16)", "mitigated_by_move": "m16"},
+    {"id": "r6", "risk": "coverage_runs declared but never written, or written to a missing table (recurring CLAUDE.md bug)", "response": "Ship CREATE TABLE IF NOT EXISTS and the writer in the same change with a write-path test (m7, m8)", "mitigated_by_move": "m7"},
+    {"id": "r7", "risk": "TAO_COVERAGE_MIN set below 1.0 silently re-admits false completion for auto items", "response": "Default 1.0 for auto items; document the knob and its danger in the runbook (m18)", "mitigated_by_move": "m18"},
+    {"id": "r8", "risk": "Other judge callers (board_meeting, tdd_pipeline, feedback_loop) still report false done outside tao_loop", "response": "wc9 + m13 make every done-emitter source completeness from coverage; grep audit catches new uncovered emitters", "mitigated_by_move": "m13"}
+  ]
+}

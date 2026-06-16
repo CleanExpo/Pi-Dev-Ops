@@ -1,0 +1,6 @@
+{
+  "eval_id": 3,
+  "eval_name": "pi-devops-coverage-engine",
+  "prompt": "Plan building a Definition-of-Done plus a coverage check for Pi-Dev-Ops so the system stops reporting 'done' when work is actually missing. Think the whole route through 15 moves ahead, not just the obvious tasks.",
+  "assertions": []
+}
