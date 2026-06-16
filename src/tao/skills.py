@@ -5,6 +5,8 @@ Parses YAML frontmatter (name, description) + markdown body from
 each skills/*/SKILL.md file. Provides lookup by name and by intent
 (maps PITER intents to relevant skill sets).
 """
+from __future__ import annotations
+
 import os
 import re
 
@@ -89,14 +91,25 @@ def get_skill(name: str) -> dict | None:
 
 # ── Intent-to-skills mapping ─────────────────────────────────────────────────
 _INTENT_SKILLS = {
-    "feature": ["tier-architect", "tier-worker", "tier-evaluator", "agent-workflow"],
+    "feature": [
+        "compound-development-loop",
+        "tier-architect",
+        "tier-worker",
+        "tier-evaluator",
+        "agent-workflow",
+    ],
     "bug": ["tier-worker", "agentic-loop", "tier-evaluator"],
     "chore": ["tier-worker", "agent-workflow"],
-    "spike": ["ceo-mode", "context-compressor", "tier-orchestrator"],
+    "spike": [
+        "compound-development-loop",
+        "ceo-mode",
+        "context-compressor",
+        "tier-orchestrator",
+    ],
     "hotfix": ["tier-worker", "agentic-loop", "closed-loop-prompt"],
     "monitor": ["pi-seo-scanner", "pi-seo-health-monitor", "pi-seo-remediation", "maintenance-manager"],
-    "spec":    ["ship-chain", "define-spec"],
-    "plan":    ["ship-chain", "technical-plan"],
+    "spec":    ["compound-development-loop", "ship-chain", "define-spec"],
+    "plan":    ["compound-development-loop", "ship-chain", "technical-plan"],
     "test":    ["ship-chain", "verify-test"],
     "ship":    ["ship-chain", "ship-release"],
     # Launch crew (wave-4): launch-readiness pre-flight. "ship-it" orchestrates
