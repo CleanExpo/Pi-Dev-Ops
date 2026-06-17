@@ -175,6 +175,36 @@ async def _check_supabase() -> dict[str, Any]:
 
 async def _check_telegram_polling() -> dict[str, Any]:
     try:
+        try:
+            from . import telegram_intake  # noqa: PLC0415
+
+            intake_status = telegram_intake._status()
+            if intake_status.get("webhook_mode"):
+                if intake_status.get("last_webhook_ok") is True:
+                    return {
+                        "ok": True,
+                        "observed": True,
+                        "status": "webhook_live",
+                        "webhook_url": intake_status.get("webhook_url", ""),
+                        "last_seen": _now_iso(),
+                    }
+                if intake_status.get("last_webhook_ok") is False:
+                    return {
+                        "ok": False,
+                        "observed": True,
+                        "status": "webhook_error",
+                        "error": intake_status.get("last_webhook_error", "webhook ensure failed"),
+                    }
+                return {
+                    "ok": True,
+                    "observed": False,
+                    "status": "webhook_pending",
+                    "note": "webhook_mode_enabled_waiting_for_first_ensure",
+                    "webhook_url": intake_status.get("webhook_url", ""),
+                }
+        except Exception as exc:
+            log.debug("telegram webhook-mode health check skipped: %s", exc)
+
         path = _HARNESS / "telegram-poll-heartbeat"
         if not path.exists():
             return {"ok": True, "observed": False, "status": "not_observed", "note": "no_heartbeat_file"}
