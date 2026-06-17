@@ -124,6 +124,77 @@ def test_hermes_gateway_probe_ok_when_heartbeat_file_empty(monkeypatch, tmp_path
     assert "empty_heartbeat" in result.get("note", "")
 
 
+def test_telegram_probe_observed_when_webhook_mode_live(monkeypatch, tmp_path):
+    monkeypatch.setattr(health_full, "_HARNESS", tmp_path)
+
+    from app.server.routes import telegram_intake
+
+    monkeypatch.setattr(
+        telegram_intake,
+        "_status",
+        lambda: {
+            "webhook_mode": True,
+            "last_webhook_ok": True,
+            "last_webhook_error": "",
+            "webhook_url": "https://example.test/webhook/telegram",
+        },
+    )
+
+    result = asyncio.run(health_full._check_telegram_polling())
+
+    assert result["ok"] is True
+    assert result["observed"] is True
+    assert result["status"] == "webhook_live"
+    assert result["webhook_url"] == "https://example.test/webhook/telegram"
+
+
+def test_telegram_probe_pending_when_webhook_mode_not_ensured_yet(monkeypatch, tmp_path):
+    monkeypatch.setattr(health_full, "_HARNESS", tmp_path)
+
+    from app.server.routes import telegram_intake
+
+    monkeypatch.setattr(
+        telegram_intake,
+        "_status",
+        lambda: {
+            "webhook_mode": True,
+            "last_webhook_ok": None,
+            "last_webhook_error": "",
+            "webhook_url": "https://example.test/webhook/telegram",
+        },
+    )
+
+    result = asyncio.run(health_full._check_telegram_polling())
+
+    assert result["ok"] is True
+    assert result["observed"] is False
+    assert result["status"] == "webhook_pending"
+
+
+def test_telegram_probe_red_when_webhook_mode_errors(monkeypatch, tmp_path):
+    monkeypatch.setattr(health_full, "_HARNESS", tmp_path)
+
+    from app.server.routes import telegram_intake
+
+    monkeypatch.setattr(
+        telegram_intake,
+        "_status",
+        lambda: {
+            "webhook_mode": True,
+            "last_webhook_ok": False,
+            "last_webhook_error": "bad secret",
+            "webhook_url": "https://example.test/webhook/telegram",
+        },
+    )
+
+    result = asyncio.run(health_full._check_telegram_polling())
+
+    assert result["ok"] is False
+    assert result["observed"] is True
+    assert result["status"] == "webhook_error"
+    assert result["error"] == "bad secret"
+
+
 def test_route_marks_ok_but_unobserved_components_as_degraded(monkeypatch):
     async def ok_observed():
         return {"ok": True, "observed": True, "status": "live"}
