@@ -8,9 +8,12 @@ production host.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import time
+import urllib.parse
+import urllib.request
 from typing import Any
 
 from fastapi import APIRouter
@@ -29,6 +32,9 @@ _last_poll_exit: int | None = None
 _last_processed: int = 0
 _last_error: str = ""
 _iteration_count: int = 0
+_last_webhook_at: float | None = None
+_last_webhook_ok: bool | None = None
+_last_webhook_error: str = ""
 
 
 def _env_flag(name: str, default: str = "1") -> bool:
@@ -60,6 +66,38 @@ def _interval_seconds() -> int:
         return 60
 
 
+def _webhook_autoconfigure_enabled() -> bool:
+    return _env_flag("TELEGRAM_WEBHOOK_AUTOCONFIGURE", "1")
+
+
+def _telegram_webhook_secret() -> str:
+    return os.environ.get("TELEGRAM_WEBHOOK_SECRET", "").strip()
+
+
+def _telegram_webhook_url() -> str:
+    explicit = os.environ.get("TELEGRAM_WEBHOOK_URL", "").strip()
+    if explicit:
+        return explicit.rstrip("/")
+
+    for key in ("PI_CEO_PUBLIC_URL", "PI_CEO_URL", "RAILWAY_PUBLIC_DOMAIN"):
+        value = os.environ.get(key, "").strip()
+        if not value:
+            continue
+        if value.startswith(("http://", "https://")):
+            return f"{value.rstrip('/')}/webhook/telegram"
+        return f"https://{value.rstrip('/')}/webhook/telegram"
+
+    return "https://pi-dev-ops-production.up.railway.app/webhook/telegram"
+
+
+def _should_use_webhook_mode() -> bool:
+    return bool(
+        _webhook_autoconfigure_enabled()
+        and os.environ.get("TELEGRAM_BOT_TOKEN")
+        and _telegram_webhook_secret()
+    )
+
+
 def _startup_delay_seconds() -> int:
     raw = os.environ.get("TELEGRAM_INTAKE_STARTUP_DELAY_SECONDS", "5")
     try:
@@ -84,11 +122,69 @@ def _status() -> dict[str, Any]:
         "has_bot_token": bool(os.environ.get("TELEGRAM_BOT_TOKEN")),
         "has_chat_allowlist": _has_chat_allowlist(),
         "has_linear_api_key": bool(os.environ.get("LINEAR_API_KEY")),
+        "webhook_autoconfigure": _webhook_autoconfigure_enabled(),
+        "webhook_mode": _should_use_webhook_mode(),
+        "webhook_url": _telegram_webhook_url() if _should_use_webhook_mode() else "",
+        "last_webhook_ok": _last_webhook_ok,
+        "last_webhook_error": _last_webhook_error,
+        "last_webhook_age_s": int(now - _last_webhook_at) if _last_webhook_at else None,
     }
+
+
+def _ensure_telegram_webhook() -> bool:
+    """Register Telegram's webhook so Railway wins over competing getUpdates clients."""
+    global _last_webhook_at, _last_webhook_ok, _last_webhook_error
+
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    secret = _telegram_webhook_secret()
+    url = _telegram_webhook_url()
+    if not token or not secret:
+        _last_webhook_ok = False
+        _last_webhook_error = "missing TELEGRAM_BOT_TOKEN or TELEGRAM_WEBHOOK_SECRET"
+        return False
+
+    payload = urllib.parse.urlencode(
+        {
+            "url": url,
+            "secret_token": secret,
+            "drop_pending_updates": "false",
+            "allowed_updates": json.dumps(["message"]),
+        }
+    ).encode("utf-8")
+
+    try:
+        req = urllib.request.Request(
+            f"https://api.telegram.org/bot{token}/setWebhook",
+            data=payload,
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            body = json.loads(resp.read().decode("utf-8"))
+        if not body.get("ok"):
+            raise RuntimeError(body.get("description") or str(body))
+        _last_webhook_ok = True
+        _last_webhook_error = ""
+        log.info("Telegram webhook ensured: %s", url)
+        return True
+    except Exception as exc:  # noqa: BLE001 - loop must keep trying
+        _last_webhook_ok = False
+        _last_webhook_error = str(exc)[:200]
+        log.warning("Telegram webhook ensure failed: %s", exc)
+        return False
+    finally:
+        _last_webhook_at = time.time()
 
 
 async def _run_iteration() -> None:
     global _last_poll_at, _last_drain_at, _last_poll_exit, _last_processed, _last_error, _iteration_count
+
+    if _should_use_webhook_mode():
+        _last_poll_exit = 0 if await asyncio.to_thread(_ensure_telegram_webhook) else 2
+        _last_poll_at = time.time()
+        _last_drain_at = _last_poll_at
+        _iteration_count += 1
+        _last_error = _last_webhook_error
+        return
 
     from scripts import marathon_telegram_inbox, marathon_watchdog  # noqa: PLC0415
 
