@@ -14,6 +14,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import urllib.request
 import urllib.parse
 import xml.etree.ElementTree as ET
@@ -24,7 +25,9 @@ log = logging.getLogger("pi-ceo.agents.scout")
 
 _HARNESS = Path(__file__).parent.parent.parent.parent / ".harness"
 _SEEN_FILE = _HARNESS / "scout-seen.json"
+_RESEARCH_INBOX = _HARNESS / "scout-research-inbox.jsonl"
 _MAX_SEEN = 500
+_RELEVANCE_THRESHOLD = 2  # findings below this score route to research inbox, not Linear
 
 _LINEAR_ENDPOINT = "https://api.linear.app/graphql"
 _TEAM_ID = "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673"
@@ -350,6 +353,190 @@ def _create_linear_issue(finding: dict[str, Any], label_id: str | None, api_key:
         return None
 
 
+# ── RA-6756: Scout deduplication helpers ─────────────────────────────────────
+
+def _get_or_create_cleanup_label(api_key: str) -> str | None:
+    """Find or create a 'cleanup' label in the team. Returns label ID or None."""
+    query = """
+    query TeamLabels($teamId: String!) {
+        team(id: $teamId) { labels { nodes { id name } } }
+    }
+    """
+    try:
+        payload = json.dumps({"query": query, "variables": {"teamId": _TEAM_ID}}).encode()
+        req = urllib.request.Request(
+            _LINEAR_ENDPOINT, data=payload, method="POST",
+            headers={"Content-Type": "application/json", "Authorization": api_key},
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read()).get("data", {})
+        labels = (data.get("team") or {}).get("labels", {}).get("nodes", [])
+        for lbl in labels:
+            if lbl.get("name", "").lower() == "cleanup":
+                return lbl["id"]
+    except Exception as exc:
+        log.warning("Cleanup label lookup failed: %s", exc)
+        return None
+    mutation = """
+    mutation CreateLabel($input: IssueLabelCreateInput!) {
+        issueLabelCreate(input: $input) { success issueLabel { id } }
+    }
+    """
+    try:
+        payload = json.dumps({
+            "query": mutation,
+            "variables": {"input": {"teamId": _TEAM_ID, "name": "cleanup", "color": "#A78BFA"}},
+        }).encode()
+        req = urllib.request.Request(
+            _LINEAR_ENDPOINT, data=payload, method="POST",
+            headers={"Content-Type": "application/json", "Authorization": api_key},
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read()).get("data", {})
+        return ((data.get("issueLabelCreate") or {}).get("issueLabel") or {}).get("id")
+    except Exception as exc:
+        log.warning("Cleanup label creation failed: %s", exc)
+        return None
+
+
+def _apply_label_to_issue(issue_id: str, label_id: str, api_key: str) -> bool:
+    """Add a label to a Linear issue, preserving existing labels."""
+    fetch_query = "query($id: String!) { issue(id: $id) { labels { nodes { id } } } }"
+    try:
+        payload = json.dumps({"query": fetch_query, "variables": {"id": issue_id}}).encode()
+        req = urllib.request.Request(
+            _LINEAR_ENDPOINT, data=payload, method="POST",
+            headers={"Content-Type": "application/json", "Authorization": api_key},
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read()).get("data", {})
+        existing_ids = [
+            n["id"] for n in
+            (data.get("issue") or {}).get("labels", {}).get("nodes", [])
+            if n.get("id")
+        ]
+    except Exception:
+        existing_ids = []
+    all_ids = list({*existing_ids, label_id})
+    mutation = """
+    mutation($id: String!, $input: IssueUpdateInput!) {
+        issueUpdate(id: $id, input: $input) { success }
+    }
+    """
+    try:
+        payload = json.dumps({
+            "query": mutation,
+            "variables": {"id": issue_id, "input": {"labelIds": all_ids}},
+        }).encode()
+        req = urllib.request.Request(
+            _LINEAR_ENDPOINT, data=payload, method="POST",
+            headers={"Content-Type": "application/json", "Authorization": api_key},
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read()).get("data", {})
+        return bool((data.get("issueUpdate") or {}).get("success"))
+    except Exception as exc:
+        log.warning("Scout: label apply failed for issue %s: %s", issue_id, exc)
+        return False
+
+
+def _existing_scout_canonical(api_key: str) -> dict[str, dict[str, Any]] | None:
+    """Fetch ALL [SCOUT] issues (open + terminal) and return {url: {id, identifier, state_type}}.
+
+    Parses **URL:** from each issue description. Returns None on API failure so
+    the caller can fail-closed (same pattern as _existing_scout_titles).
+    """
+    query = """
+    query AllScoutIssues($projectId: ID!) {
+        issues(
+            filter: {
+                project: { id: { eq: $projectId } },
+                title: { startsWith: "[SCOUT]" }
+            },
+            first: 250
+        ) { nodes { id identifier title description state { type } } }
+    }
+    """
+    try:
+        payload = json.dumps({"query": query, "variables": {"projectId": _PROJECT_ID}}).encode()
+        req = urllib.request.Request(
+            _LINEAR_ENDPOINT, data=payload, method="POST",
+            headers={"Content-Type": "application/json", "Authorization": api_key},
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read()).get("data", {})
+        nodes = (data.get("issues") or {}).get("nodes", [])
+        canonical: dict[str, dict[str, Any]] = {}
+        for node in nodes:
+            desc = node.get("description") or ""
+            m = re.search(r"\*\*URL:\*\*\s*(\S+)", desc)
+            if not m:
+                continue
+            url_key = m.group(1).strip().lower().rstrip(".")
+            if url_key not in canonical:  # oldest/first = canonical keeper
+                canonical[url_key] = {
+                    "id": node["id"],
+                    "identifier": node["identifier"],
+                    "state_type": (node.get("state") or {}).get("type", ""),
+                }
+        log.info("Scout: canonical URL map: %d entries", len(canonical))
+        return canonical
+    except Exception as exc:
+        log.warning("Scout: canonical URL fetch failed (%s) — failing closed", exc)
+        return None
+
+
+def _enrich_scout_issue(issue_id: str, finding: dict[str, Any], api_key: str) -> bool:
+    """Add a re-detection comment to an existing SCOUT issue. Returns True on success."""
+    source = finding.get("source", "").upper()
+    dims = ", ".join(finding.get("matched_dims", [])) or "none"
+    comment = (
+        f"**Re-detected by scout** ({source})\n\n"
+        f"**URL:** {finding.get('url', '')}\n"
+        f"**Relevance:** {finding.get('relevance_score', 0)}/5  "
+        f"**ZTE dimensions:** {dims}\n\n"
+        f"_{finding.get('description', '')[:200]}_"
+    )
+    mutation = """
+    mutation CommentCreate($input: CommentCreateInput!) {
+        commentCreate(input: $input) { success }
+    }
+    """
+    try:
+        payload = json.dumps({
+            "query": mutation,
+            "variables": {"input": {"issueId": issue_id, "body": comment}},
+        }).encode()
+        req = urllib.request.Request(
+            _LINEAR_ENDPOINT, data=payload, method="POST",
+            headers={"Content-Type": "application/json", "Authorization": api_key},
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read()).get("data", {})
+        return bool((data.get("commentCreate") or {}).get("success"))
+    except Exception as exc:
+        log.warning("Scout: comment failed for issue %s: %s", issue_id, exc)
+        return False
+
+
+def _write_to_research_inbox(finding: dict[str, Any]) -> None:
+    """Append a below-threshold finding to .harness/scout-research-inbox.jsonl."""
+    try:
+        _HARNESS.mkdir(parents=True, exist_ok=True)
+        entry = {
+            "source": finding.get("source", ""),
+            "title": finding.get("title", ""),
+            "url": finding.get("url", ""),
+            "description": finding.get("description", "")[:300],
+            "relevance_score": finding.get("relevance_score", 0),
+            "matched_dims": finding.get("matched_dims", []),
+        }
+        with open(_RESEARCH_INBOX, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+    except Exception as exc:
+        log.warning("Scout: research inbox write failed: %s", exc)
+
+
 # ── Main cycle ────────────────────────────────────────────────────────────────
 
 def run_scout_cycle(dry_run: bool = False) -> dict[str, Any]:
@@ -387,15 +574,25 @@ def run_scout_cycle(dry_run: bool = False) -> dict[str, Any]:
     log.info("Scout: %d new (unseen) findings after dedup", len(new_findings))
 
     new_findings.sort(key=lambda f: f["relevance_score"], reverse=True)
-    qualified = [f for f in new_findings if f["relevance_score"] >= 2]
-    top5 = qualified[:5] if qualified else new_findings[:5]
+    qualified = [f for f in new_findings if f["relevance_score"] >= _RELEVANCE_THRESHOLD]
+    below_threshold = [f for f in new_findings if f["relevance_score"] < _RELEVANCE_THRESHOLD]
+    # RA-6756: only file qualified findings to Linear; route the rest to research inbox
+    top5 = qualified[:5]
+    for low_f in below_threshold[:10]:
+        _write_to_research_inbox(low_f)
+    if below_threshold:
+        log.info("Scout: %d below-threshold findings routed to research inbox", len(below_threshold))
 
     api_key = os.environ.get("LINEAR_API_KEY", "")
     label_id: str | None = None
+    cleanup_label_id: str | None = None
     existing_titles: set[str] | None = set()
+    canonical_by_url: dict[str, dict[str, Any]] | None = {}
     if api_key and not dry_run:
         label_id = _get_or_create_scout_label(api_key)
+        cleanup_label_id = _get_or_create_cleanup_label(api_key)
         existing_titles = _existing_scout_titles(api_key)
+        canonical_by_url = _existing_scout_canonical(api_key)
         if existing_titles is None:
             log.warning("Scout: Linear dedup unavailable — skipping issue "
                         "creation this cycle (fail-closed)")
@@ -409,7 +606,28 @@ def run_scout_cycle(dry_run: bool = False) -> dict[str, Any]:
             break  # dedup source unavailable — never file blind (dupe storm guard)
         source = finding["source"].upper()
         candidate_title = f"[SCOUT] {source}: {finding['title'][:80]}".strip().lower()
+        url_key = finding.get("url", "").strip().lower()
 
+        # RA-6756: URL-based dedup takes priority — catches renamed/similar titles
+        url_match = (canonical_by_url or {}).get(url_key) if url_key else None
+        if url_match:
+            state = url_match.get("state_type", "")
+            if state in ("completed", "cancelled"):
+                log.info(
+                    "Scout: skip resolved %s for URL: %s",
+                    url_match["identifier"], url_key[:60],
+                )
+                skipped_existing += 1
+                continue
+            # Open canonical → enrich with comment + cleanup label
+            _enrich_scout_issue(url_match["id"], finding, api_key)
+            if cleanup_label_id:
+                _apply_label_to_issue(url_match["id"], cleanup_label_id, api_key)
+            log.info("Scout: enriched %s for URL: %s", url_match["identifier"], url_key[:60])
+            skipped_existing += 1
+            continue
+
+        # Title-based dedup (fail-closed guard from 2026-06 dupe storm fix)
         if candidate_title in existing_titles:
             log.info("Scout: skipping duplicate of open Linear ticket — %s", finding["title"][:60])
             skipped_existing += 1
