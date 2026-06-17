@@ -116,6 +116,11 @@ def _route(intent_payload: dict[str, Any]) -> dict[str, Any]:
 
     intent = intent_payload["intent"]
     fields = intent_payload.get("fields", {})
+    specialist = intent_payload.get("specialist_route") or {}
+    specialist_line = (
+        f"Specialist: {specialist.get('persona', 'CoS')}"
+        f" ({specialist.get('action', 'route_pending')})"
+    )
 
     if intent == "margot":
         # Wave 5.1 — Margot personal-assistant turn. Direct send (no
@@ -132,6 +137,7 @@ def _route(intent_payload: dict[str, Any]) -> dict[str, Any]:
         # In shadow mode, just log and surface a draft summarising what would happen.
         draft = (
             f"📚 RESEARCH intent\n"
+            f"{specialist_line}\n"
             f"Topic: {fields.get('topic', '?')}\n"
             f"Time-budget: {fields.get('time_budget', '?')}\n"
             f"Use-corpus: {fields.get('use_corpus', '?')}\n"
@@ -147,6 +153,7 @@ def _route(intent_payload: dict[str, Any]) -> dict[str, Any]:
     if intent == "ticket":
         draft = (
             f"📝 TICKET intent\n"
+            f"{specialist_line}\n"
             f"Team-hint: {fields.get('team_hint') or '(unset)'}\n"
             f"Title-hint: {fields.get('title_hint') or '(unset)'}\n"
             f"\n(Wave 2: would call mcp.linear.save_issue here.)"
@@ -162,6 +169,7 @@ def _route(intent_payload: dict[str, Any]) -> dict[str, Any]:
         # Reply intent needs research + drafting. In shadow mode, just queue.
         draft = (
             f"💬 REPLY intent — draft pending research/composition\n"
+            f"{specialist_line}\n"
             f"Body hint: {fields.get('body_hint') or '(unset)'}"
         )
         return draft_review.post_draft(
@@ -174,6 +182,7 @@ def _route(intent_payload: dict[str, Any]) -> dict[str, Any]:
     if intent == "reminder":
         draft = (
             f"⏰ REMINDER intent\n"
+            f"{specialist_line}\n"
             f"When: {fields.get('when') or '(unparsed)'}\n"
             f"What: {fields.get('what') or '(unset)'}\n"
             f"\n(Wave 2: would call calendar-watcher / cron-scheduler here.)"
@@ -188,6 +197,7 @@ def _route(intent_payload: dict[str, Any]) -> dict[str, Any]:
     if intent == "flow":
         draft = (
             f"🔀 FLOW intent — multi-step request detected\n"
+            f"{specialist_line}\n"
             f"Raw text: {fields.get('raw_steps_text', '?')[:200]}\n"
             f"\n(Wave 2: would invoke flow_engine.execute_flow here.)"
         )
@@ -202,6 +212,7 @@ def _route(intent_payload: dict[str, Any]) -> dict[str, Any]:
         project = fields.get("project_hint", "all")
         draft = (
             f"🔧 FIX_PROJECT intent\n"
+            f"{specialist_line}\n"
             f"Target: {project}\n"
             f"Raw: {fields.get('raw_text', '?')[:200]}\n"
             f"\n(Wave 3: health monitor + fix orchestrator for '{project}')"
@@ -219,7 +230,7 @@ def _route(intent_payload: dict[str, Any]) -> dict[str, Any]:
 
 def run_cycle(unacked_count: int) -> dict[str, Any]:
     """One CoS cycle: poll Telegram, classify, route, return summary."""
-    from .. import intent_router, draft_review
+    from .. import intent_router, draft_review, telegram_router
 
     if not config.SWARM_ENABLED:
         return {"skipped": "kill-switch off"}
@@ -255,6 +266,7 @@ def run_cycle(unacked_count: int) -> dict[str, Any]:
         # Layer 2 LLM fallback when regex can't classify
         if intent["intent"] == "unknown":
             intent = intent_router.classify_llm(text, intent)
+        intent = telegram_router.attach_route(intent, text)
         log.info("CoS classified intent=%s confidence=%.2f",
                 intent["intent"], intent.get("confidence", 0))
         result = _route(intent)
