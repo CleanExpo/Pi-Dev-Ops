@@ -13,11 +13,14 @@ from typing import Any
 
 EXPECTED = {
     "build.builder": "DOCKERFILE",
-    "build.dockerfilePath": "Dockerfile",
     "deploy.startCommand": "uvicorn app.server.main:app --host 0.0.0.0 --port 8080 --workers 1",
     "deploy.healthcheckPath": "/health",
     "deploy.healthcheckTimeout": 30,
 }
+EXPECTED_OPTIONS = {
+    "build.dockerfilePath": {"Dockerfile", "/Dockerfile"},
+}
+EXPECTED_CONFIG_FILES = {"/railway.toml", "/railway.json"}
 
 
 def _run_status() -> dict[str, Any]:
@@ -73,10 +76,20 @@ def audit(status: dict[str, Any], environment: str | None = None, service: str |
     for deployment in deployments:
         manifest = deployment["manifest"]
         mismatches = []
+        if deployment["config_file"] not in EXPECTED_CONFIG_FILES:
+            mismatches.append({
+                "path": "configFile",
+                "expected": sorted(EXPECTED_CONFIG_FILES),
+                "actual": deployment["config_file"],
+            })
         for path, expected in EXPECTED.items():
             actual = _get_path(manifest, path)
             if actual != expected:
                 mismatches.append({"path": path, "expected": expected, "actual": actual})
+        for path, expected in EXPECTED_OPTIONS.items():
+            actual = _get_path(manifest, path)
+            if actual not in expected:
+                mismatches.append({"path": path, "expected": sorted(expected), "actual": actual})
         results.append({**deployment, "ok": not mismatches, "mismatches": mismatches})
 
     return {

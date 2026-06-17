@@ -1,7 +1,7 @@
 from scripts.railway_manifest_audit import audit
 
 
-def _status(manifest):
+def _status(manifest, config_file="/railway.toml"):
     return {
         "environments": {
             "edges": [
@@ -18,7 +18,7 @@ def _status(manifest):
                                             "status": "BUILDING",
                                             "meta": {
                                                 "commitHash": "abc123",
-                                                "configFile": "/railway.toml",
+                                                "configFile": config_file,
                                                 "serviceManifest": manifest,
                                             },
                                         },
@@ -52,6 +52,27 @@ def test_audit_passes_dockerfile_manifest():
     assert report["results"][0]["mismatches"] == []
 
 
+def test_audit_accepts_railway_json_config_and_absolute_dockerfile_path():
+    report = audit(
+        _status(
+            {
+                "build": {"builder": "DOCKERFILE", "dockerfilePath": "/Dockerfile"},
+                "deploy": {
+                    "startCommand": "uvicorn app.server.main:app --host 0.0.0.0 --port 8080 --workers 1",
+                    "healthcheckPath": "/health",
+                    "healthcheckTimeout": 30,
+                },
+            },
+            config_file="/railway.json",
+        ),
+        environment="Pi-Dev-Ops-pr-344",
+        service="Pi-Dev-Ops",
+    )
+
+    assert report["ok"] is True
+    assert report["results"][0]["mismatches"] == []
+
+
 def test_audit_fails_railpack_manifest_drift():
     report = audit(
         _status({
@@ -67,4 +88,22 @@ def test_audit_fails_railpack_manifest_drift():
         "path": "build.builder",
         "expected": "DOCKERFILE",
         "actual": "RAILPACK",
+    }
+
+
+def test_audit_fails_when_railway_ignores_config_as_code():
+    report = audit(
+        _status({
+            "build": {"builder": "RAILPACK", "dockerfilePath": None},
+            "deploy": {"startCommand": None, "healthcheckPath": None, "healthcheckTimeout": None},
+        }, config_file=None),
+        environment="Pi-Dev-Ops-pr-344",
+        service="Pi-Dev-Ops",
+    )
+
+    assert report["ok"] is False
+    assert report["results"][0]["mismatches"][0] == {
+        "path": "configFile",
+        "expected": ["/railway.json", "/railway.toml"],
+        "actual": None,
     }

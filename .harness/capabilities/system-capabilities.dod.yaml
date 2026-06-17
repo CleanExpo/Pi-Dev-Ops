@@ -78,9 +78,9 @@ requirements:
     path: dashboard/vercel.json
 
   - id: cap-deploy-backend
-    statement: "Backend deploy target configured (Railway Dockerfile + /health contract)."
+    statement: "Backend deploy target configured (Railway Dockerfile + /health contract with TOML and JSON fallbacks)."
     check: command
-    cmd: "test -f railway.toml && grep -q 'builder = \"DOCKERFILE\"' railway.toml && grep -q 'dockerfilePath = \"Dockerfile\"' railway.toml && grep -q 'healthcheckPath = \"/health\"' railway.toml && grep -q 'healthcheckTimeout = 30' railway.toml && grep -q 'uvicorn app.server.main:app' railway.toml && grep -q -- '--port 8080' railway.toml"
+    cmd: "test -f railway.toml && test -f railway.json && grep -q 'builder = \"DOCKERFILE\"' railway.toml && grep -q 'dockerfilePath = \"Dockerfile\"' railway.toml && grep -q 'healthcheckPath = \"/health\"' railway.toml && grep -q 'healthcheckTimeout = 30' railway.toml && grep -q 'uvicorn app.server.main:app' railway.toml && grep -q -- '--port 8080' railway.toml && python3 -m json.tool railway.json >/dev/null && grep -q '\"builder\": \"DOCKERFILE\"' railway.json && grep -q '\"dockerfilePath\": \"Dockerfile\"' railway.json && grep -q '\"healthcheckPath\": \"/health\"' railway.json && grep -q '\"healthcheckTimeout\": 30' railway.json && grep -q 'uvicorn app.server.main:app' railway.json && grep -q -- '--port 8080' railway.json"
 
   - id: cap-backend-live
     statement: "Backend is actually live and answering."
