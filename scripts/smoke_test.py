@@ -354,17 +354,24 @@ sc, _ = _req(
 check("Webhook with invalid signature returns 401 or 500", sc in (401, 500), f"got {sc}")
 
 # ── 9. Rate limiting ──────────────────────────────────────────────────────
-print("\n[9/9] Rate Limiting  (sends rapid POST /api/login — this is the last check)")
-# Send well above RATE_LIMIT_PER_MIN (default 30). Railway runs a single container
-# so the in-memory sliding window should trigger. We send 60 to have a comfortable
-# margin even if a few early requests fall outside the 60s window due to latency.
-hit_429 = False
-for _ in range(60):
-    sc, _ = _req("POST", "/api/login", body={"password": "wrong-password-rate-limit-test"}, use_cookie=False)
-    if sc == 429:
-        hit_429 = True
-        break
-check("Rapid requests trigger 429 Too Many Requests", hit_429)
+print("\n[9/9] Rate Limiting")
+if PROD_MODE:
+    # Do not poison the shared production auth limiter. The local smoke path
+    # still hammers /api/login so rate limiting remains covered in CI.
+    check("Rapid login rate-limit hammer skipped in prod", True)
+else:
+    print("  (sends rapid POST /api/login — this is the last auth check)")
+    # Send well above RATE_LIMIT_PER_MIN (default 30). Local CI runs a single
+    # test server, so the in-memory sliding window should trigger. We send 60
+    # to keep a comfortable margin even if a few early requests fall outside
+    # the 60s window due to latency.
+    hit_429 = False
+    for _ in range(60):
+        sc, _ = _req("POST", "/api/login", body={"password": "wrong-password-rate-limit-test"}, use_cookie=False)
+        if sc == 429:
+            hit_429 = True
+            break
+    check("Rapid requests trigger 429 Too Many Requests", hit_429)
 
 # ── 10. Autonomy status (RA-584) ─────────────────────────────────────────
 print("\n[10/10] Autonomy Status")
