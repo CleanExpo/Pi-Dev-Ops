@@ -1,12 +1,12 @@
 // app/api/pi-ceo/[...path]/route.ts
 // Proxy route: forwards requests to the Pi CEO FastAPI server.
 // Handles auth transparently — clients never see Pi CEO credentials.
-// SSE paths (/api/sessions/*/logs) are streamed without timeout.
+// SSE paths (/api/sessions/*/logs and /api/sessions/*/stream) are streamed without timeout.
 
 const PI_CEO_URL = (process.env.PI_CEO_URL ?? "http://127.0.0.1:7777").replace(/\/$/, "");
 const PI_CEO_PASSWORD = process.env.PI_CEO_PASSWORD ?? "";
 
-const SSE_PATH_RE = /^\/api\/sessions\/[^/]+\/logs/;
+const SSE_PATH_RE = /^\/api\/sessions\/[^/]+\/(?:logs(?:\/stream)?|stream)(?:\?|$)/;
 
 // Module-level cookie cache — login once, reuse until 401
 let _cookie: string | null = null;
