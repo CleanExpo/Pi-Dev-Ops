@@ -54,7 +54,12 @@ async def _check_hermes_gateway() -> dict[str, Any]:
             # FastAPI host — that's expected, not a failure. Emit ok=true
             # with a note so /api/health/full returns 200 (not 503) when
             # the only "miss" is this expected-absent file.
-            return {"ok": True, "note": "no_heartbeat_file_on_this_host"}
+            return {
+                "ok": True,
+                "observed": False,
+                "status": "not_observed",
+                "note": "no_heartbeat_file_on_this_host",
+            }
         last_line = ""
         with path.open("r", encoding="utf-8") as fh:
             for line in fh:
@@ -62,7 +67,7 @@ async def _check_hermes_gateway() -> dict[str, Any]:
                 if line:
                     last_line = line
         if not last_line:
-            return {"ok": True, "note": "empty_heartbeat_file"}
+            return {"ok": True, "observed": False, "status": "not_observed", "note": "empty_heartbeat_file"}
         rec = json.loads(last_line)
         ts = rec.get("ts") or rec.get("last_seen") or rec.get("timestamp")
         if isinstance(ts, str):
@@ -75,7 +80,7 @@ async def _check_hermes_gateway() -> dict[str, Any]:
         else:
             last_seen_ts = path.stat().st_mtime
         age_s = time.time() - last_seen_ts
-        return {"ok": age_s < 5 * 60, "last_seen": _iso(last_seen_ts)}
+        return {"ok": age_s < 5 * 60, "observed": True, "status": "live" if age_s < 5 * 60 else "stale", "last_seen": _iso(last_seen_ts)}
     except Exception as exc:
         return {"ok": False, "error": str(exc)[:120]}
 
@@ -94,11 +99,11 @@ async def _check_margot_route() -> dict[str, Any]:
         pattern = str(_HARNESS / "margot" / "conversations" / "*.jsonl")
         files = glob.glob(pattern)
         if not files:
-            return {"ok": True, "last_turn_at": None, "note": "no_conversations_yet"}
+            return {"ok": True, "observed": False, "status": "not_observed", "last_turn_at": None, "note": "no_conversations_yet"}
         newest = max(files, key=lambda p: os.path.getmtime(p))
         mtime = os.path.getmtime(newest)
         age_h = (time.time() - mtime) / 3600
-        return {"ok": age_h < 24, "last_turn_at": _iso(mtime)}
+        return {"ok": age_h < 24, "observed": True, "status": "live" if age_h < 24 else "stale", "last_turn_at": _iso(mtime)}
     except Exception as exc:
         return {"ok": False, "error": str(exc)[:120]}
 
@@ -119,7 +124,7 @@ async def _check_openrouter() -> dict[str, Any]:
     try:
         path = _HARNESS / "llm-cost.jsonl"
         if not path.exists():
-            return {"ok": True, "last_call_at": None, "note": "no_log_file"}
+            return {"ok": True, "observed": False, "status": "not_observed", "last_call_at": None, "note": "no_log_file"}
         last_line = ""
         with path.open("r", encoding="utf-8") as fh:
             for line in fh:
@@ -127,7 +132,7 @@ async def _check_openrouter() -> dict[str, Any]:
                 if line:
                     last_line = line
         if not last_line:
-            return {"ok": True, "last_call_at": None, "note": "empty_log"}
+            return {"ok": True, "observed": False, "status": "not_observed", "last_call_at": None, "note": "empty_log"}
         try:
             rec = json.loads(last_line)
             ts = rec.get("ts") or rec.get("timestamp")
@@ -139,9 +144,9 @@ async def _check_openrouter() -> dict[str, Any]:
                 last_ts = path.stat().st_mtime
         except Exception:
             last_ts = path.stat().st_mtime
-        return {"ok": True, "last_call_at": _iso(last_ts)}
+        return {"ok": True, "observed": True, "status": "live", "last_call_at": _iso(last_ts)}
     except Exception as exc:
-        return {"ok": True, "last_call_at": None, "error": str(exc)[:120]}
+        return {"ok": True, "observed": False, "status": "not_observed", "last_call_at": None, "error": str(exc)[:120]}
 
 
 async def _check_supabase() -> dict[str, Any]:
@@ -149,15 +154,21 @@ async def _check_supabase() -> dict[str, Any]:
         try:
             from .. import supabase_log  # noqa: PLC0415
         except Exception as exc:
-            return {"ok": True, "note": "supabase_log_import_failed", "error": str(exc)[:120]}
+            return {
+                "ok": True,
+                "observed": False,
+                "status": "not_observed",
+                "note": "supabase_log_import_failed",
+                "error": str(exc)[:120],
+            }
         fn = getattr(supabase_log, "health_check", None)
         if not callable(fn):
-            return {"ok": True, "note": "untested"}
+            return {"ok": True, "observed": False, "status": "not_observed", "note": "untested"}
         if asyncio.iscoroutinefunction(fn):
             ok = bool(await fn())
         else:
             ok = bool(fn())
-        return {"ok": ok}
+        return {"ok": ok, "observed": True, "status": "live" if ok else "red"}
     except Exception as exc:
         return {"ok": False, "error": str(exc)[:120]}
 
@@ -166,10 +177,10 @@ async def _check_telegram_polling() -> dict[str, Any]:
     try:
         path = _HARNESS / "telegram-poll-heartbeat"
         if not path.exists():
-            return {"ok": True, "note": "no_heartbeat_file"}
+            return {"ok": True, "observed": False, "status": "not_observed", "note": "no_heartbeat_file"}
         mtime = path.stat().st_mtime
         age_s = time.time() - mtime
-        return {"ok": age_s < 2 * 60, "last_seen": _iso(mtime)}
+        return {"ok": age_s < 2 * 60, "observed": True, "status": "live" if age_s < 2 * 60 else "stale", "last_seen": _iso(mtime)}
     except Exception as exc:
         return {"ok": False, "error": str(exc)[:120]}
 
@@ -207,12 +218,28 @@ async def gather_components() -> dict[str, dict[str, Any]]:
     return {name: payload for name, payload in pairs}
 
 
+def _is_observed(payload: dict[str, Any]) -> bool:
+    """A component can be non-red while still not proving a live signal.
+
+    Railway and local development hosts may not run every companion process, so
+    absence should not always return 503. It must still be visible to Mission
+    Control as degraded/not fully observed.
+    """
+    return payload.get("observed") is not False and payload.get("status") != "not_observed"
+
+
 @router.get("/api/health/full")
 async def health_full() -> JSONResponse:
     components = await gather_components()
     all_ok = all(bool(v.get("ok")) for v in components.values())
+    degraded_components = sorted(name for name, payload in components.items() if bool(payload.get("ok")) and not _is_observed(payload))
+    red_components = sorted(name for name, payload in components.items() if not bool(payload.get("ok")))
+    fully_observed = all_ok and not degraded_components
     body = {
         "ok": all_ok,
+        "fully_observed": fully_observed,
+        "red_components": red_components,
+        "degraded_components": degraded_components,
         "components": components,
         "last_full_check": _now_iso(),
     }

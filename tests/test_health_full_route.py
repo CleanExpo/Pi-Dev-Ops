@@ -68,6 +68,9 @@ def test_route_returns_200_when_all_green(monkeypatch):
 
     assert response.status_code == 200
     assert body["ok"] is True
+    assert body["fully_observed"] is True
+    assert body["degraded_components"] == []
+    assert body["red_components"] == []
 
 
 def test_route_returns_503_when_any_component_red(monkeypatch):
@@ -78,6 +81,7 @@ def test_route_returns_503_when_any_component_red(monkeypatch):
     assert response.status_code == 503
     assert body["ok"] is False
     assert body["components"]["supabase"]["ok"] is False
+    assert body["red_components"] == ["supabase"]
 
 
 def test_route_completes_under_two_seconds(monkeypatch):
@@ -101,6 +105,8 @@ def test_hermes_gateway_probe_ok_when_heartbeat_file_absent(monkeypatch, tmp_pat
     monkeypatch.setattr(health_full, "_HARNESS", tmp_path)  # tmp_path has no hermes/heartbeat.jsonl
     result = asyncio.run(health_full._check_hermes_gateway())
     assert result["ok"] is True
+    assert result["observed"] is False
+    assert result["status"] == "not_observed"
     assert "no_heartbeat_file" in result.get("note", "")
 
 
@@ -113,7 +119,31 @@ def test_hermes_gateway_probe_ok_when_heartbeat_file_empty(monkeypatch, tmp_path
     monkeypatch.setattr(health_full, "_HARNESS", tmp_path)
     result = asyncio.run(health_full._check_hermes_gateway())
     assert result["ok"] is True
+    assert result["observed"] is False
+    assert result["status"] == "not_observed"
     assert "empty_heartbeat" in result.get("note", "")
+
+
+def test_route_marks_ok_but_unobserved_components_as_degraded(monkeypatch):
+    async def ok_observed():
+        return {"ok": True, "observed": True, "status": "live"}
+
+    async def ok_unobserved():
+        return {"ok": True, "observed": False, "status": "not_observed", "note": "no_heartbeat_file"}
+
+    checks = {name: ok_observed for name in _REQUIRED_COMPONENTS}
+    checks["hermes_gateway"] = ok_unobserved
+    checks["telegram_polling"] = ok_unobserved
+    monkeypatch.setattr(health_full, "_CHECKS", checks)
+
+    response = _run(health_full.health_full())
+    body = json.loads(response.body)
+
+    assert response.status_code == 200
+    assert body["ok"] is True
+    assert body["fully_observed"] is False
+    assert body["red_components"] == []
+    assert body["degraded_components"] == ["hermes_gateway", "telegram_polling"]
 
 
 def test_one_broken_check_does_not_fail_endpoint(monkeypatch):
