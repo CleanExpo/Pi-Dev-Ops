@@ -24,9 +24,11 @@ from __future__ import annotations
 import json
 import logging
 import os
+import tomllib
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, Depends
 
@@ -249,6 +251,12 @@ def _pulse_status() -> dict:
 
 # ── Observability action ledger ─────────────────────────────────────────────
 _OBSERVABILITY_ACTIONS = {
+    "railway_deploy_config": {
+        "owner": "Deploy/infra operator",
+        "severity": "high",
+        "next_action": "Restore Railway's repo-backed deploy contract: Dockerfile builder, Dockerfile path, uvicorn start command, and /health healthcheck.",
+        "evidence_required": ["railway.toml contract check passes", "Railway latest deployment manifest matches Dockerfile + /health"],
+    },
     "hermes_gateway": {
         "owner": "Hermes/Codex operator",
         "severity": "high",
@@ -280,6 +288,57 @@ _OBSERVABILITY_ACTIONS = {
         "evidence_required": ["fresh telegram-poll-heartbeat mtime", "operator alert route verified"],
     },
 }
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
+def _railway_deploy_config_component() -> dict:
+    path = _repo_root() / "railway.toml"
+    if not path.exists():
+        return {
+            "ok": False,
+            "observed": True,
+            "status": "missing",
+            "error": "railway.toml is missing",
+        }
+    try:
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        return {
+            "ok": False,
+            "observed": True,
+            "status": "invalid",
+            "error": f"railway.toml unreadable: {exc}",
+        }
+
+    build = data.get("build") if isinstance(data.get("build"), dict) else {}
+    deploy = data.get("deploy") if isinstance(data.get("deploy"), dict) else {}
+    expected = {
+        "builder": "DOCKERFILE",
+        "dockerfilePath": "Dockerfile",
+        "healthcheckPath": "/health",
+        "healthcheckTimeout": 30,
+    }
+    mismatches = {
+        key: {"expected": value, "actual": (build if key in build else deploy).get(key)}
+        for key, value in expected.items()
+        if (build if key in build else deploy).get(key) != value
+    }
+    start = str(deploy.get("startCommand") or "")
+    if "uvicorn app.server.main:app" not in start or "--port 8080" not in start:
+        mismatches["startCommand"] = {
+            "expected": "uvicorn app.server.main:app ... --port 8080",
+            "actual": start or None,
+        }
+    return {
+        "ok": not mismatches,
+        "observed": True,
+        "status": "configured" if not mismatches else "drift",
+        "note": "railway.toml deploy contract is present" if not mismatches else "railway.toml deploy contract drift",
+        "mismatches": mismatches,
+    }
 
 
 def _observability_action(name: str, payload: dict) -> dict:
@@ -316,6 +375,7 @@ async def _observability_snapshot() -> dict:
             "actions": [_observability_action("health_full", {"ok": False, "status": "red", "error": str(exc)[:120]})],
         }
 
+    components = {**components, "railway_deploy_config": _railway_deploy_config_component()}
     red_components = sorted(name for name, payload in components.items() if not bool(payload.get("ok")))
     degraded_components = sorted(
         name for name, payload in components.items()

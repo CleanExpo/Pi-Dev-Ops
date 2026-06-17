@@ -47,3 +47,11 @@ def test_observability_snapshot_prioritises_red_components(monkeypatch):
     assert [action["component"] for action in result["actions"]] == ["supabase", "margot_route"]
     assert result["actions"][0]["severity"] == "high"
     assert result["actions"][0]["owner"] == "Data/CRM operator"
+
+
+def test_railway_deploy_config_component_reads_repo_contract():
+    result = mission_control._railway_deploy_config_component()
+
+    assert result["ok"] is True
+    assert result["status"] == "configured"
+    assert result["mismatches"] == {}
