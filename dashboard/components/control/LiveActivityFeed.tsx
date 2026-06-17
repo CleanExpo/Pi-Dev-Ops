@@ -5,6 +5,7 @@
 //   • Recent completions (score, branch, PR link)
 //   • Linear queue depth + next-up ticket
 //   • Pulse status (last heartbeat, comments today)
+//   • Observability action ledger for not-yet-live components
 "use client";
 
 import { useEffect, useState } from "react";
@@ -42,6 +43,24 @@ interface LiveData {
     last_at: string | null;
     comments_today: number;
     pulse_issue_id: string | null;
+  };
+  observability?: {
+    source: string;
+    ok: boolean;
+    fully_observed: boolean;
+    red_components: string[];
+    degraded_components: string[];
+    actions: Array<{
+      component: string;
+      status: string;
+      ok: boolean;
+      observed: boolean;
+      owner: string;
+      severity: string;
+      next_action: string;
+      evidence_required: string[];
+      detail: string | null;
+    }>;
   };
 }
 
@@ -282,6 +301,72 @@ export default function LiveActivityFeed() {
               </div>
             </div>
           </div>
+
+          {/* Observability action ledger */}
+          {data.observability && (
+            <div className="p-4 border-b border-slate-800">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div className="text-xs uppercase text-slate-500">
+                  Observability readiness
+                </div>
+                <span
+                  className={`px-2 py-0.5 rounded border text-xs font-mono ${
+                    data.observability.fully_observed
+                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                      : data.observability.ok
+                        ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                        : "bg-rose-500/20 text-rose-300 border-rose-500/40"
+                  }`}
+                >
+                  {data.observability.fully_observed
+                    ? "fully observed"
+                    : data.observability.ok
+                      ? "degraded"
+                      : "red"}
+                </span>
+              </div>
+              {data.observability.actions.length === 0 ? (
+                <div className="text-sm text-emerald-400">
+                  All companion signals observed.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                  {data.observability.actions.map((action) => (
+                    <div
+                      key={action.component}
+                      className="rounded border border-slate-800 bg-slate-900/40 p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="font-mono text-xs text-cyan-300">
+                            {action.component}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {action.owner} · {action.status}
+                          </div>
+                        </div>
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[11px] font-mono ${
+                            action.severity === "high"
+                              ? "bg-rose-500/20 text-rose-300"
+                              : "bg-amber-500/20 text-amber-300"
+                          }`}
+                        >
+                          {action.severity}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-200 mt-2">
+                        {action.next_action}
+                      </p>
+                      <div className="text-xs text-slate-500 mt-2">
+                        evidence: {action.evidence_required.join(", ")}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Active sessions */}
           <div className="p-4 border-b border-slate-800">
