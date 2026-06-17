@@ -1,5 +1,8 @@
 """
-test_sse_stream_ra6504.py — Tests for GET /api/sessions/{sid}/logs/stream (RA-6504).
+test_sse_stream_ra6504.py — Tests for session log SSE routes.
+
+Primary route: GET /api/sessions/{sid}/logs/stream (RA-6504).
+Compatibility route: GET /api/sessions/{sid}/stream (RA-6788).
 
 Covers:
 - 404 for unknown session ID
@@ -125,6 +128,52 @@ def test_stream_after_param_skips_already_seen_lines(client):
     assert len(log_events) == 1
     assert log_events[0]["i"] == 1
     assert log_events[0]["text"] == "new"
+
+
+def test_stream_short_alias_replays_existing_lines(client):
+    """RA-6788: /api/sessions/{sid}/stream exposes the same SSE contract."""
+    lines = [
+        {"type": "phase", "text": "planning"},
+        {"type": "log", "text": "building"},
+    ]
+    session = _make_session("s1", status="done", lines=lines)
+
+    with patch("app.server.routes.sessions.get_session", return_value=session):
+        r = client.get("/api/sessions/s1/stream")
+
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/event-stream")
+    events = [
+        json.loads(line[len("data: "):])
+        for line in r.text.splitlines()
+        if line.startswith("data: ")
+    ]
+    log_events = [e for e in events if e.get("type") != "done"]
+    assert [e["i"] for e in log_events] == [0, 1]
+    assert [e["text"] for e in log_events] == ["planning", "building"]
+
+
+def test_stream_short_alias_honours_after_param(client):
+    """RA-6788: the compatibility route supports reconnect cursors."""
+    lines = [
+        {"type": "log", "text": "already seen"},
+        {"type": "log", "text": "resume here"},
+    ]
+    session = _make_session("s1", status="done", lines=lines)
+
+    with patch("app.server.routes.sessions.get_session", return_value=session):
+        r = client.get("/api/sessions/s1/stream?after=1")
+
+    assert r.status_code == 200
+    events = [
+        json.loads(line[len("data: "):])
+        for line in r.text.splitlines()
+        if line.startswith("data: ")
+    ]
+    log_events = [e for e in events if e.get("type") not in ("done", "truncated")]
+    assert len(log_events) == 1
+    assert log_events[0]["i"] == 1
+    assert log_events[0]["text"] == "resume here"
 
 
 # ---------------------------------------------------------------------------
