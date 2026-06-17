@@ -54,6 +54,7 @@ Environment
     TELEGRAM_BOT_TOKEN   — bot API token (required)
     ALLOWED_USERS        — comma-separated chat IDs (required if no explicit chat)
     TELEGRAM_CHAT_ID     — explicit single chat override (optional)
+    PHONE_COMPANION_CHAT_ID — phone companion chat fallback (optional)
     TAO_INBOX_DRY        — if "1", do not write files, just print what would happen
 
 Style contract: no first-person business language, no filler words.
@@ -74,6 +75,7 @@ from typing import Optional
 REPO_ROOT = Path(__file__).resolve().parent.parent
 INBOX_DIR = REPO_ROOT / ".harness" / "telegram-inbox"
 OFFSET_FILE = INBOX_DIR / ".offset"
+HEARTBEAT_FILE = REPO_ROOT / ".harness" / "telegram-poll-heartbeat"
 GC_MAX_AGE_DAYS = 7
 
 
@@ -96,12 +98,14 @@ def _resolve_config() -> tuple[str, set[str]]:
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
     allowed = os.environ.get("ALLOWED_USERS", "")
     explicit_chat = os.environ.get("TELEGRAM_CHAT_ID", "")
+    phone_chat = os.environ.get("PHONE_COMPANION_CHAT_ID", "")
 
-    if not token or not allowed:
+    if not token or not (allowed or explicit_chat or phone_chat):
         env_vars = _load_env_file(REPO_ROOT / "telegram-bot" / ".env")
         token = token or env_vars.get("TELEGRAM_BOT_TOKEN", "")
         allowed = allowed or env_vars.get("ALLOWED_USERS", "")
         explicit_chat = explicit_chat or env_vars.get("TELEGRAM_CHAT_ID", "")
+        phone_chat = phone_chat or env_vars.get("PHONE_COMPANION_CHAT_ID", "")
 
     if not token:
         print("ERROR: TELEGRAM_BOT_TOKEN missing", file=sys.stderr)
@@ -112,9 +116,14 @@ def _resolve_config() -> tuple[str, set[str]]:
         chat_ids.update(c.strip() for c in allowed.split(",") if c.strip())
     if explicit_chat:
         chat_ids.add(explicit_chat.strip())
+    if phone_chat:
+        chat_ids.add(phone_chat.strip())
 
     if not chat_ids:
-        print("ERROR: ALLOWED_USERS / TELEGRAM_CHAT_ID missing", file=sys.stderr)
+        print(
+            "ERROR: ALLOWED_USERS / TELEGRAM_CHAT_ID / PHONE_COMPANION_CHAT_ID missing",
+            file=sys.stderr,
+        )
         raise SystemExit(1)
 
     return token, chat_ids
@@ -132,6 +141,26 @@ def _read_offset() -> int:
 def _write_offset(offset: int) -> None:
     INBOX_DIR.mkdir(parents=True, exist_ok=True)
     OFFSET_FILE.write_text(str(offset))
+
+
+def _write_heartbeat(
+    *,
+    polled: int,
+    ingested: int,
+    dropped: int,
+    gc_count: int,
+    offset: int,
+) -> None:
+    HEARTBEAT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "ts": _now_iso(),
+        "polled": polled,
+        "ingested": ingested,
+        "dropped": dropped,
+        "gc": gc_count,
+        "offset": offset,
+    }
+    HEARTBEAT_FILE.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 
 def _get_updates(token: str, offset: int, timeout_sec: int = 0) -> list[dict]:
@@ -260,6 +289,15 @@ def main() -> int:
         _write_offset(next_offset)
 
     gc_count = _gc_old_files() if not dry_run else 0
+
+    if not dry_run:
+        _write_heartbeat(
+            polled=len(updates),
+            ingested=ingested,
+            dropped=dropped,
+            gc_count=gc_count,
+            offset=next_offset,
+        )
 
     print(
         f"telegram-inbox: polled={len(updates)} ingested={ingested} "

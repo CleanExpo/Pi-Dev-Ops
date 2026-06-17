@@ -31,7 +31,7 @@ README.md               this file
 
 - `fix:<check_name>` — known self-heal, watchdog attempted the fix
 - `brief` — user asked for a plain-English summary + options
-- `idea` — a new feature or bug the user wants queued; watchdog writes a brief to `.harness/ideas-from-phone/<update_id>.md` and replies with a confirmation + ticket placeholder
+- `idea` — a new feature or bug the user wants queued; watchdog writes a human-readable brief plus a `.jsonl` queue entry consumed by `scripts/process_ideas_inbox.py`, which creates the Linear ticket and 2nd-brain expansion packet
 - `note` — anything else, logged for the next return-briefing
 
 ## How Phill uses this from his phone
