@@ -1,4 +1,5 @@
 from datetime import datetime
+import pytest
 from app.server import grounding
 
 
@@ -50,3 +51,25 @@ def test_anchor_from_text_prose_fallback():
 
 def test_anchor_from_text_returns_none_when_absent():
     assert grounding.anchor_from_text("no anchor here") is None
+
+
+def test_file_resolver_reads_and_hashes(tmp_path):
+    p = tmp_path / "doc.md"
+    p.write_text("hello primary", encoding="utf-8")
+    resolvers = grounding.default_resolvers(tmp_path)
+    text, sha = grounding._resolve("doc.md", resolvers)
+    assert text == "hello primary"
+    assert sha == grounding._sha256_hex(b"hello primary")
+
+
+def test_resolve_unknown_scheme_raises(tmp_path):
+    resolvers = grounding.default_resolvers(tmp_path)
+    with pytest.raises(KeyError):
+        grounding._resolve("linear://RA-1", resolvers)
+
+
+def test_scheme_detection():
+    assert grounding._scheme("brain/plaud/x.md") == "file"
+    assert grounding._scheme("file://x.md") == "file"
+    assert grounding._scheme("linear://RA-9") == "linear"
+    assert grounding._scheme("https://a.com") == "https"
