@@ -343,6 +343,126 @@ def _linear_create_issue(title: str, description: str, priority: int) -> str:
     return data["issueCreate"]["issue"]["identifier"]
 
 
+# ── RA-6756: GAP-AUDIT deduplication helpers ─────────────────────────────────
+
+def _get_or_create_label(label_name: str) -> str | None:
+    """Find or create a team label by name. Returns label UUID or None."""
+    try:
+        data = _linear_gql(
+            "query TeamLabels($teamId: String!) { "
+            "team(id: $teamId) { labels { nodes { id name } } } }",
+            {"teamId": _LINEAR_TEAM_ID},
+        )
+        for lbl in (data.get("team") or {}).get("labels", {}).get("nodes", []):
+            if lbl.get("name", "").lower() == label_name.lower():
+                return lbl["id"]
+    except Exception as exc:
+        log.warning("Label lookup failed for %r: %s", label_name, exc)
+        return None
+    try:
+        create = _linear_gql(
+            """
+            mutation CreateLabel($input: IssueLabelCreateInput!) {
+                issueLabelCreate(input: $input) { success issueLabel { id } }
+            }
+            """,
+            {"input": {"teamId": _LINEAR_TEAM_ID, "name": label_name, "color": "#A78BFA"}},
+        )
+        return ((create.get("issueLabelCreate") or {}).get("issueLabel") or {}).get("id")
+    except Exception as exc:
+        log.warning("Label creation failed for %r: %s", label_name, exc)
+        return None
+
+
+def _linear_comment(issue_id: str, body: str) -> bool:
+    """Add a comment to an existing Linear issue. Returns True on success."""
+    try:
+        data = _linear_gql(
+            """
+            mutation CommentCreate($input: CommentCreateInput!) {
+              commentCreate(input: $input) { success }
+            }
+            """,
+            {"input": {"issueId": issue_id, "body": body}},
+        )
+        return bool((data.get("commentCreate") or {}).get("success"))
+    except Exception as exc:
+        log.warning("Comment creation failed for issue %s: %s", issue_id, exc)
+        return False
+
+
+def _linear_apply_label(issue_id: str, label_id: str) -> bool:
+    """Add a label to an issue, preserving existing labels. Returns True on success."""
+    try:
+        fetch = _linear_gql(
+            "query($id: String!) { issue(id: $id) { labels { nodes { id } } } }",
+            {"id": issue_id},
+        )
+        existing_ids = [
+            n["id"] for n in
+            (fetch.get("issue") or {}).get("labels", {}).get("nodes", [])
+            if n.get("id")
+        ]
+        all_ids = list({*existing_ids, label_id})
+        update = _linear_gql(
+            """
+            mutation($id: String!, $input: IssueUpdateInput!) {
+              issueUpdate(id: $id, input: $input) { success }
+            }
+            """,
+            {"id": issue_id, "input": {"labelIds": all_ids}},
+        )
+        return bool((update.get("issueUpdate") or {}).get("success"))
+    except Exception as exc:
+        log.warning("Label apply failed for issue %s: %s", issue_id, exc)
+        return False
+
+
+def _fetch_gap_audit_canonical() -> dict[str, dict[str, Any]]:
+    """Fetch all [GAP-AUDIT] issues (all states) keyed by normalized category.
+
+    Returns {category_key: {id, identifier, state_type}} or {} on API failure.
+    Fail-open: caller proceeds to create when this returns {}.
+    """
+    api_key = os.environ.get("LINEAR_API_KEY", "")
+    if not api_key:
+        return {}
+    try:
+        data = _linear_gql(
+            """
+            query GapAuditIssues($projectId: ID!) {
+                issues(
+                    filter: {
+                        project: { id: { eq: $projectId } },
+                        title: { startsWith: "[GAP-AUDIT]" }
+                    },
+                    first: 250
+                ) { nodes { id identifier title state { type } } }
+            }
+            """,
+            {"projectId": _LINEAR_PROJECT_ID},
+        )
+        nodes = (data.get("issues") or {}).get("nodes", [])
+        canonical: dict[str, dict[str, Any]] = {}
+        for node in nodes:
+            title = node.get("title", "")
+            m = re.match(r"\[GAP-AUDIT\]\s+([^:]+):", title)
+            if not m:
+                continue
+            cat_key = m.group(1).strip().lower()
+            if cat_key not in canonical:  # first/oldest match is the canonical keeper
+                canonical[cat_key] = {
+                    "id": node["id"],
+                    "identifier": node["identifier"],
+                    "state_type": (node.get("state") or {}).get("type", ""),
+                }
+        log.info("GAP-AUDIT canonical map: %d entries", len(canonical))
+        return canonical
+    except Exception as exc:
+        log.warning("GAP-AUDIT canonical fetch failed: %s — proceeding without dedup", exc)
+        return {}
+
+
 # ── Spec claim extraction ─────────────────────────────────────────────────────
 
 _CLAIM_PATTERN = re.compile(
@@ -794,14 +914,49 @@ def run_gap_audit_phase(dry_run: bool = False) -> dict[str, Any]:
     }
 
     # 5. Auto-create Linear tickets for critical and high gaps
+    # RA-6756 — dedup: enrich existing canonical issue instead of creating duplicates.
     linear_api_key = os.environ.get("LINEAR_API_KEY", "")
     tickets_created: list[str] = []
 
     if linear_api_key and not dry_run:
+        canonical_map = _fetch_gap_audit_canonical()
+        cleanup_label_id = _get_or_create_label("cleanup")
         # Auto-LLM severity calls cap at High (2). Linear priority 1 (Urgent)
         # is reserved for human-reported outages — gap-audit drift is never urgent.
         for sev, priority in (("critical", 2), ("high", 3)):
             for item in result[sev]:
+                cat_key = item["category"].strip().lower()
+                existing = canonical_map.get(cat_key)
+
+                if existing:
+                    state = existing.get("state_type", "")
+                    if state in ("completed", "cancelled"):
+                        log.info(
+                            "GAP-AUDIT skip resolved %s (%s): %s",
+                            cat_key, state, existing["identifier"],
+                        )
+                        continue
+                    # Open canonical → add comment + cleanup label instead of new ticket
+                    comment_body = (
+                        f"**Gap re-detected — {datetime.now(timezone.utc).strftime('%Y-%m-%d')}**\n\n"
+                        f"**Spec claim:** {item['claim']}\n\n"
+                        f"**Reality:** {item['reality']}\n\n"
+                        f"**Relevant file:** `{item['file']}`\n\n"
+                        f"**Recommendation:** {item['recommendation']}"
+                    )
+                    try:
+                        _linear_comment(existing["id"], comment_body)
+                        if cleanup_label_id:
+                            _linear_apply_label(existing["id"], cleanup_label_id)
+                        log.info(
+                            "Enriched GAP-AUDIT %s for category: %s",
+                            existing["identifier"], cat_key,
+                        )
+                    except Exception as exc:
+                        log.warning("Failed to enrich %s: %s", existing["identifier"], exc)
+                    continue
+
+                # No canonical → create new issue
                 title = f"[GAP-AUDIT] {item['category']}: {item['claim'][:80]}"
                 description = (
                     f"**Gap detected by board meeting gap audit**\n\n"

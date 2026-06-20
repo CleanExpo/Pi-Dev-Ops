@@ -11,6 +11,11 @@ import {
   defaultRaWave1Props,
   raWave1Schema,
 } from './compositions/RaWave1Launch';
+import {
+  RALaunchNIR,
+  defaultRaLaunchNirProps,
+  raLaunchNirSchema,
+} from './compositions/RA-Launch-NIR';
 
 const FPS = 30;
 
@@ -74,6 +79,24 @@ export const RemotionRoot: React.FC = () => {
           const totalSec = sb.reduce((s, x) => s + (x.durationSec ?? 0), 0);
           const baseFrames = Math.max(1, Math.round(totalSec * FPS));
           return { durationInFrames: baseFrames + sb.length * PADDING_PER_SCENE };
+        }}
+      />
+      <Composition
+        id="RA-Launch-NIR"
+        component={RALaunchNIR}
+        durationInFrames={90 * FPS}
+        fps={FPS}
+        width={1920}
+        height={1080}
+        schema={raLaunchNirSchema}
+        defaultProps={defaultRaLaunchNirProps}
+        calculateMetadata={({ props }) => {
+          const sb = (props as { storyboard?: Array<{ durationSec?: number }> }).storyboard;
+          if (!Array.isArray(sb) || sb.length === 0) {
+            return { durationInFrames: 90 * FPS };
+          }
+          const totalSec = sb.reduce((s, sc) => s + (sc.durationSec ?? 0), 0);
+          return { durationInFrames: Math.max(1, Math.round(totalSec * FPS)) };
         }}
       />
     </>

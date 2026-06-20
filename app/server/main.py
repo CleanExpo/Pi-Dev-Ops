@@ -10,7 +10,7 @@ Public contract (Dockerfile + Railway reference `app.server.main:app`):
 """
 from .app_factory import app  # noqa: F401  (re-exported for uvicorn / callers)
 
-from .routes import auth, sessions, webhooks, triggers, scan_monitor, pipeline, utils, telegram_proxy, mission_control, phone, swarm, margot, cost_report, delegate, elevenlabs
+from .routes import auth, sessions, webhooks, triggers, scan_monitor, pipeline, utils, telegram_proxy, telegram_intake, mission_control, phone, swarm, margot, cost_report, delegate, elevenlabs
 from .routes import mesh  # Nexus Mesh — fleet heartbeat + Mission Control
 # health registers its routes directly on `app` via @app.get/@app.on_event decorators
 from .routes import health  # noqa: F401
@@ -25,6 +25,7 @@ app.include_router(scan_monitor.router)
 app.include_router(pipeline.router)
 app.include_router(utils.router)
 app.include_router(telegram_proxy.router)
+app.include_router(telegram_intake.router)
 app.include_router(mission_control.router)
 app.include_router(phone.router)
 app.include_router(swarm.router)

@@ -1,0 +1,38 @@
+{
+  "job_id": "ra-20260617-nir-explainer",
+  "linear": "SYN-921",
+  "brand": "ra",
+  "composition_id": "RA-Launch-NIR",
+  "composition_type": "case-study",
+  "story_sentence": "One IICRC-grounded report replaces fifty formats — fewer re-inspections, faster restoration claims.",
+  "channel": "linkedin",
+  "duration_seconds": 90,
+  "aspect_ratio": "16:9",
+  "feeling": "confident",
+  "cta": "Now on the App Store",
+  "voice_clone_id": "EXAVITQu4vr4xnSDxMaL",
+  "voice_note": "Sarah, en-AU narration — brief overrides Phill's clone for this brand voice.",
+  "must_include": [
+    "The National Inspection Report",
+    "IICRC standards S500 / S520 / S700",
+    "$2,000-$5,000 per claim",
+    "50+ report formats"
+  ],
+  "must_avoid": [
+    "the abbreviation 'RA' in voiceover or on-screen titles",
+    "AI as an actor that assesses or diagnoses (AI records and documents only)",
+    "artificial urgency",
+    "passive voice",
+    "any CTA driving away from the App Store or web"
+  ],
+  "brandconfig_path": "Synthex/packages/brand-config/src/brands/ra.ts",
+  "delivery": { "channel": "telegram", "due": "2026-06-17" },
+  "pass_criteria": {
+    "duration_sec": "90 ±0.5",
+    "codec": "h264",
+    "resolution": "1920x1080",
+    "max_mb": 100,
+    "supabase_bucket": "remotion-renders",
+    "gates": ["brand-voice-enforce PASS", "opus-adversary != BLOCK"]
+  }
+}

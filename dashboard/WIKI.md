@@ -1,8 +1,8 @@
 # dashboard — Wiki
 
-_Last updated: 2026-05-09T08:30:37Z (commits aa4c75e..3b4c5c7)_
+_Last updated: 2026-06-17T19:40:34Z (commits 3ea6465..bf87856)_
 
 ## Recent changes
-- 3b4c5c7 — fix(security): add HSTS + Referrer-Policy + Permissions-Policy headers; patch deps (#201)
+- bf87856 — fix(proxy): stream session SSE alias through Pi CEO proxy
 
 Not logged in · Please run /login
