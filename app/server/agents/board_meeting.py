@@ -1110,6 +1110,32 @@ def _render_findings_block(findings: list[dict[str, Any]], opens: list[str], hea
     return "".join(parts)
 
 
+def _prior_research_is_stale(prior: dict, ttl_days: int = 30) -> bool:
+    """True when prior deep-research has no datable source within ttl_days.
+
+    Uses the existing per-source `fetched` ISO date. No fetched date anywhere
+    is treated as stale (cannot prove freshness — abstain toward re-verify)."""
+    from datetime import datetime, timezone
+
+    newest: datetime | None = None
+    for finding in prior.get("findings", []) or []:
+        for src in finding.get("sources", []) or []:
+            raw = (src.get("fetched") or "").strip()
+            if not raw:
+                continue
+            try:
+                ts = datetime.fromisoformat(raw)
+            except ValueError:
+                continue
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            if newest is None or ts > newest:
+                newest = ts
+    if newest is None:
+        return True
+    return (datetime.now(timezone.utc) - newest).days > ttl_days
+
+
 def _format_research_brief_for_personas(brief: dict[str, Any]) -> str:
     """Render the research brief as a markdown block ready to inject into the
     persona-debate user_content. Returns empty string if research_required is False
@@ -1140,6 +1166,10 @@ def _format_research_brief_for_personas(brief: dict[str, Any]) -> str:
                 "_Note: this research was dispatched at the prior monthly cycle. "
                 "Some claims may have moved on; weight accordingly._\n"
             )
+            if _prior_research_is_stale(p):
+                header = (header + "  ⚠️ STALE (>30d) — treat as a hypothesis to "
+                          "re-verify against current sources, not established fact.")
+                log.info("board: prior_deep_research is stale — flagged for re-verification")
             out.append(_render_findings_block(
                 p.get("findings", []), p.get("open_questions", []), header,
             ))
