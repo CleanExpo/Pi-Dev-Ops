@@ -153,3 +153,19 @@ def test_require_grounding_allow_ungrounded_downgrades(tmp_path, caplog):
         r = grounding.require_grounding("art://1", anchor, repo_root=tmp_path, allow_ungrounded=True)
     assert r.status == grounding.MISSING
     assert any("ungrounded" in rec.message.lower() for rec in caplog.records)
+
+
+def test_file_resolver_rejects_path_escape(tmp_path):
+    resolvers = grounding.default_resolvers(tmp_path)
+    with pytest.raises(ValueError):
+        grounding._resolve("../../../etc/passwd", resolvers)
+
+
+def test_reground_escape_path_is_missing(tmp_path):
+    anchor = grounding.record(
+        primary_source="../../secret.txt",
+        derived_from="../../secret.txt",
+        parent_text="sensitive",
+    )
+    r = grounding.reground("linear://RA-1", anchor, repo_root=tmp_path)
+    assert r.status == grounding.MISSING
