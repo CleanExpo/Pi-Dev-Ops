@@ -18,6 +18,12 @@ from typing import NamedTuple, Optional
 sys.path.insert(0, str(Path(__file__).parent))
 from linear_helpers import create_linear_issue, TicketRef
 
+# Grounding import: needs repo root on sys.path
+_REPO_ROOT_FOR_GROUNDING = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT_FOR_GROUNDING) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT_FOR_GROUNDING))
+from app.server import grounding
+
 
 log = logging.getLogger("plaud_actions")
 
@@ -211,16 +217,27 @@ def create_linear_tickets(
     project_id: str,
     wiki_link: str,
     linear_api_key: str,
+    page_text: str = "",
 ) -> list[TicketRef]:
     """File one Linear ticket per Action. Returns the TicketRef for each ticket
-    that was created successfully. Failed ones are simply absent — caller
-    detects partial success via len(result) < len(actions)."""
+    that was created successfully. Each description carries a structured source
+    anchor pointing at the originating Plaud page for downstream re-grounding.
+    Failed ones are simply absent — caller detects partial success via
+    len(result) < len(actions)."""
+    primary = f"brain/{wiki_link}"
+    anchor = grounding.record(
+        primary_source=primary,
+        derived_from=primary,
+        parent_text=page_text,
+    )
+    anchor_block = grounding.anchor_to_block(anchor)
     refs: list[TicketRef] = []
     for action in actions:
         description = (
             f"{action.description}\n\n"
             f"---\n"
-            f"Source: [{wiki_link.rsplit('/', 1)[-1]}]({wiki_link})"
+            f"Source: [{wiki_link.rsplit('/', 1)[-1]}]({wiki_link})\n"
+            f"{anchor_block}"
         )
         ref = create_linear_issue(
             api_key=linear_api_key,
@@ -462,6 +479,7 @@ def process(
     tickets = create_linear_tickets(
         actions=ex.actions, team_id=route.team_id, project_id=route.project_id,
         wiki_link=wiki_link, linear_api_key=cfg.linear_api_key,
+        page_text=page_md,
     )
     status = "ok" if len(tickets) == len(ex.actions) else "partial"
 

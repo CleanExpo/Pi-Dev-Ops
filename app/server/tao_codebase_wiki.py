@@ -148,9 +148,15 @@ def _group_by_top_dir(commits: list[_Commit], repo_root: str) -> dict[str, list[
 
 
 def _read_short_context(repo_root: str, top_dir: str) -> str:
+    """Grounding context for a directory's WIKI regeneration.
+
+    Reads human-authored docs (SKILL.md, README.md) plus a sample of actual
+    source files — NOT the prior WIKI.md. Re-grounding in source code prevents
+    the wiki-on-wiki regeneration loop (each WIKI built from the last WIKI).
+    """
     base = Path(repo_root) / top_dir
     parts: list[str] = []
-    for name in ("SKILL.md", "README.md", "WIKI.md"):
+    for name in ("SKILL.md", "README.md"):
         p = base / name
         if p.is_file():
             try:
@@ -158,7 +164,18 @@ def _read_short_context(repo_root: str, top_dir: str) -> str:
                 parts.append(f"# {name}\n{head}")
             except OSError:
                 continue
-    return "\n\n".join(parts)[:1500]
+    # Ground in primary source: a small sample of source files in this dir.
+    src_budget = 0
+    for src in sorted(base.glob("*.py"))[:3]:
+        try:
+            head = "\n".join(src.read_text(encoding="utf-8").splitlines()[:40])
+            parts.append(f"# source: {src.name}\n{head}")
+            src_budget += 1
+            if src_budget >= 3:
+                break
+        except OSError:
+            continue
+    return "\n\n".join(parts)[:2500]
 
 
 def _build_prompt(top_dir: str, commits: list[_Commit], context: str) -> str:
