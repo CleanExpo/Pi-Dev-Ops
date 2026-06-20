@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -45,6 +46,35 @@ def _log_observation(entry: dict) -> None:
     log_file = config.SWARM_LOG_DIR / "guardian.jsonl"
     with open(log_file, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry) + "\n")
+
+
+def _escalation_signature(severity: str, flags: list[str], should_suspend: bool) -> str:
+    """Build a stable signature of the current alert state.
+
+    Volatile numbers (ages, counts) are stripped so "log 3.2h old" and
+    "log 3.3h old" collapse to the same condition. Two cycles with the same
+    severity and the same set of underlying issues produce the same signature.
+    """
+    norm = sorted(re.sub(r"[\d.]+", "#", f) for f in flags)
+    return json.dumps([severity, should_suspend, norm], sort_keys=True)
+
+
+def _last_sig_path() -> Path:
+    return config.SWARM_LOG_DIR / "guardian_last_escalation.json"
+
+
+def _load_last_sig() -> str | None:
+    try:
+        return json.loads(_last_sig_path().read_text(encoding="utf-8")).get("sig")
+    except Exception:
+        return None
+
+
+def _save_last_sig(sig: str) -> None:
+    try:
+        _last_sig_path().write_text(json.dumps({"sig": sig}), encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001
+        log.warning("guardian: could not persist escalation signature: %s", exc)
 
 
 def run_cycle(unacked_count: int) -> dict:
@@ -157,18 +187,25 @@ def run_cycle(unacked_count: int) -> dict:
 
     _log_observation(result)
 
-    # Escalate via Telegram for high/critical
-    if severity in ("critical", "high") or result["should_suspend"]:
-        send(
-            message=(
-                f"<b>Guardian Report</b>\n\n"
-                f"{result['summary']}\n\n"
-                f"{'⛔ AUTO-SUSPEND TRIGGERED' if result['should_suspend'] else ''}"
-                f"\nUnacked iterations: {unacked_count}/{config.MAX_UNACKED_ITERATIONS}"
-            ),
-            severity=severity,
-            bot_name="Guardian",
-        )
+    # Escalate via Telegram for high/critical — but only when the situation
+    # CHANGES. A persistent condition (e.g. Ollama down, stale logs) must not
+    # re-page every 5-min cycle: Guardian logged 632 identical CRITICAL pings
+    # that way and the founder asked for it to stop (2026-06-15). Edge-trigger
+    # on the underlying flag signature, not the severity level.
+    sig = _escalation_signature(severity, critical_flags + high_flags, result["should_suspend"])
+    if sig != _load_last_sig():
+        _save_last_sig(sig)
+        if severity in ("critical", "high") or result["should_suspend"]:
+            send(
+                message=(
+                    f"<b>Guardian Report</b>\n\n"
+                    f"{result['summary']}\n\n"
+                    f"{'⛔ AUTO-SUSPEND TRIGGERED' if result['should_suspend'] else ''}"
+                    f"\nUnacked iterations: {unacked_count}/{config.MAX_UNACKED_ITERATIONS}"
+                ),
+                severity=severity,
+                bot_name="Guardian",
+            )
 
     log.info("Guardian cycle complete: severity=%s unacked=%d suspend=%s",
              severity, unacked_count, result["should_suspend"])

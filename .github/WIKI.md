@@ -1,8 +1,8 @@
 # .github — Wiki
 
-_Last updated: 2026-06-10T08:13:42Z (commits 49cd0ad..e5283e0)_
+_Last updated: 2026-06-17T19:40:34Z (commits 3ea6465..bf87856)_
 
 ## Recent changes
-- e5283e0 — fix(ci): tolerate wiki PR policy block (#316)
+- bf87856 — fix(proxy): stream session SSE alias through Pi CEO proxy
 
 Not logged in · Please run /login

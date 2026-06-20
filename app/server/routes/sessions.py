@@ -4,6 +4,9 @@ RA-6504: Added GET /api/sessions/{sid}/logs/stream — a hardened SSE endpoint
 that replays existing output_lines, polls for new lines until terminal state,
 emits heartbeat comments every 15 s to keep proxies alive, and sends an
 explicit "truncated" event when the replay window exceeds the cap.
+
+RA-6788: Added GET /api/sessions/{sid}/stream as a compatibility alias for
+clients and specs that expect the shorter session log SSE route.
 """
 import asyncio
 import json
@@ -156,9 +159,13 @@ _SSE_STREAM_POLL_S = 0.3         # poll interval while session is active
 _SSE_STREAM_TERMINAL = frozenset({"done", "complete", "failed", "killed", "interrupted"})
 
 
+@router.get("/api/sessions/{sid}/stream", dependencies=[Depends(require_auth)])
 @router.get("/api/sessions/{sid}/logs/stream", dependencies=[Depends(require_auth)])
 async def stream_session_logs_v2(sid: str, after: int = 0):
-    """SSE build-log stream with heartbeat, truncation event, and reconnect support (RA-6504).
+    """SSE build-log stream with heartbeat, truncation event, and reconnect support.
+
+    Served at both ``/api/sessions/{sid}/logs/stream`` (RA-6504) and the
+    shorter ``/api/sessions/{sid}/stream`` compatibility route (RA-6788).
 
     Contract
     --------
