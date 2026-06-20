@@ -34,6 +34,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from app.server import grounding
+
+_GROUND_REPO_ROOT = Path(__file__).resolve().parents[1]
+
 log = logging.getLogger("swarm.pm_scoper")
 
 STATE_PATH = Path(os.environ.get(
@@ -180,6 +184,41 @@ def post_comment(issue_id: str, body: str) -> str:
 
 
 # ── Research — Gemini grounded ──────────────────────────────────────────────
+def _build_research_prompt(ticket: dict) -> str:
+    """Build the Gemini spec prompt, re-grounded to the primary source.
+
+    Parses the ticket's source anchor, re-fetches the original transcript, and
+    prepends it. Falls back to description-only on any non-FRESH status — this
+    seam is advisory so the scoper still runs on legacy/source-less tickets.
+    """
+    description = (ticket.get("description") or "(no description)").strip()
+    primary_block = ""
+    anchor = grounding.anchor_from_text(description)
+    if anchor:
+        result = grounding.reground(
+            f"linear://{ticket['identifier']}", anchor, repo_root=_GROUND_REPO_ROOT,
+        )
+        if result.status == grounding.FRESH and result.primary_text:
+            primary_block = (
+                f"Original primary source ({result.primary_uri}) — "
+                f"the founder's own words, authoritative over the summary below:\n"
+                f"{result.primary_text}\n\n"
+            )
+        else:
+            log.info("pm_scoper: ticket %s ungrounded (%s) — using description only",
+                     ticket["identifier"], result.status)
+    return (
+        f"{primary_block}"
+        f"Concrete specification for Linear ticket {ticket['identifier']}: "
+        f"\"{ticket['title']}\".\n\n"
+        f"Original ambiguous description:\n{description}\n\n"
+        f"Produce: (1) the 1-paragraph problem statement in concrete terms, "
+        f"(2) 3–5 acceptance criteria as bullet points, (3) the implementation "
+        f"approach in 2–4 sentences, (4) any open questions that still block "
+        f"shipping. Format as Markdown. Cite sources for any external facts."
+    )
+
+
 def _run_grounded_research(ticket: dict) -> tuple[str, int]:
     """Call existing swarm.research.gemini_research with the ticket as the topic.
 
@@ -194,15 +233,7 @@ def _run_grounded_research(ticket: dict) -> tuple[str, int]:
         log.warning("gemini_research unavailable; emitting template only: %s", e)
         return _template_only_spec(ticket), 0
 
-    prompt = (
-        f"Concrete specification for Linear ticket {ticket['identifier']}: "
-        f"\"{ticket['title']}\".\n\n"
-        f"Original ambiguous description:\n{(ticket.get('description') or '(no description)').strip()}\n\n"
-        f"Produce: (1) the 1-paragraph problem statement in concrete terms, "
-        f"(2) 3–5 acceptance criteria as bullet points, (3) the implementation "
-        f"approach in 2–4 sentences, (4) any open questions that still block "
-        f"shipping. Format as Markdown. Cite sources for any external facts."
-    )
+    prompt = _build_research_prompt(ticket)
 
     try:
         import asyncio
@@ -341,6 +372,7 @@ def run_cycle(*, dry_run: bool = False) -> ScoperResult:
                         "linear_identifier": ident,
                         "team_key": ticket["team"]["key"],
                         "linear_url": ticket["url"],
+                        "plaud_source": (grounding.anchor_from_text(ticket.get("description") or "") or {}).get("primary_source", ""),
                     },
                     output_structured={
                         "labels_added": labels_added,
