@@ -134,3 +134,66 @@ def anchor_from_text(text: str) -> dict | None:
         path = link.group(1).strip()
         return {"primary_source": path, "derived_from": path, "source_sha256": "", "chain": []}
     return None
+
+
+def reground(
+    artifact_uri: str,
+    anchor: dict,
+    *,
+    resolvers: dict[str, Resolver] | None = None,
+    repo_root: Path | None = None,
+) -> GroundResult:
+    """Re-fetch the primary source for a derived artifact and classify it.
+
+    Returns a GroundResult whose status is one of FRESH/DRIFTED/STALE/
+    MISSING/CYCLE (precedence in that order of severity).
+    """
+    repo_root = repo_root or _REPO_ROOT
+    resolvers = resolvers or default_resolvers(repo_root)
+    primary = anchor.get("primary_source") or ""
+    derived_from = anchor.get("derived_from") or primary
+    parents = [derived_from] if isinstance(derived_from, str) else list(derived_from)
+    chain = list(anchor.get("chain") or [])
+
+    # 1. CYCLE — artifact sourced from itself, or a repeated hop in its lineage.
+    if artifact_uri in ([primary] + parents + chain) or len(set(chain)) != len(chain):
+        return GroundResult(CYCLE, None, primary, chain, f"lineage revisits {artifact_uri!r}")
+
+    # 2. MISSING — primary cannot be resolved.
+    try:
+        primary_text, _ = _resolve(primary, resolvers)
+    except Exception as exc:  # noqa: BLE001 — any resolver failure means unreachable
+        return GroundResult(MISSING, None, primary, chain, f"cannot resolve {primary!r}: {exc}")
+
+    # 3. DRIFTED — immediate parent changed since derive (skip if no recorded sha).
+    recorded = anchor.get("source_sha256") or ""
+    if recorded:
+        try:
+            _, current = _resolve(parents[0], resolvers)
+        except Exception as exc:  # noqa: BLE001
+            return GroundResult(MISSING, primary_text, primary, chain,
+                                f"cannot resolve parent {parents[0]!r}: {exc}")
+        if current != recorded:
+            return GroundResult(DRIFTED, primary_text, primary, chain,
+                                f"parent {parents[0]!r} changed since derive")
+
+    # 4. STALE — past TTL.
+    if _is_stale(anchor):
+        return GroundResult(STALE, primary_text, primary, chain, "past ttl")
+
+    # 5. FRESH.
+    return GroundResult(FRESH, primary_text, primary, chain, "ok")
+
+
+def _is_stale(anchor: dict) -> bool:
+    ttl = int(anchor.get("ttl_hours") or DEFAULT_TTL_HOURS)
+    derived_at = anchor.get("derived_at")
+    if not derived_at or ttl <= 0:
+        return False
+    try:
+        ts = datetime.fromisoformat(derived_at)
+    except ValueError:
+        return False
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    return (_utcnow() - ts).total_seconds() / 3600 > ttl
