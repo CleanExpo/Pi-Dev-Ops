@@ -31,13 +31,12 @@ import urllib.request
 import urllib.error
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from pathlib import Path as _Path
 from pathlib import Path
 from typing import Any
 
 from app.server import grounding
 
-_GROUND_REPO_ROOT = _Path(__file__).resolve().parents[1]
+_GROUND_REPO_ROOT = Path(__file__).resolve().parents[1]
 
 log = logging.getLogger("swarm.pm_scoper")
 

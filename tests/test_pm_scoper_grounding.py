@@ -1,6 +1,5 @@
 # tests/test_pm_scoper_grounding.py
 from pathlib import Path
-import importlib
 
 
 def test_build_research_prompt_prepends_transcript(tmp_path, monkeypatch):
