@@ -197,3 +197,24 @@ def _is_stale(anchor: dict) -> bool:
     if ts.tzinfo is None:
         ts = ts.replace(tzinfo=timezone.utc)
     return (_utcnow() - ts).total_seconds() / 3600 > ttl
+
+
+def require_grounding(
+    artifact_uri: str,
+    anchor: dict,
+    *,
+    resolvers: dict[str, Resolver] | None = None,
+    repo_root: Path | None = None,
+    allow_ungrounded: bool = False,
+) -> GroundResult:
+    """Gate a generation step. Returns a FRESH GroundResult or raises
+    GroundingError. allow_ungrounded downgrades the failure to a logged
+    warning and returns the (non-FRESH) result."""
+    result = reground(artifact_uri, anchor, resolvers=resolvers, repo_root=repo_root)
+    if result.status == FRESH:
+        return result
+    if allow_ungrounded:
+        log.warning("grounding: proceeding ungrounded for %s — %s: %s",
+                    artifact_uri, result.status, result.detail)
+        return result
+    raise GroundingError(f"{artifact_uri}: {result.status} — {result.detail}")
