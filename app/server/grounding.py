@@ -17,6 +17,8 @@ import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
+from typing import Callable
 
 log = logging.getLogger(__name__)
 
@@ -27,6 +29,11 @@ MISSING = "MISSING"
 CYCLE = "CYCLE"
 
 DEFAULT_TTL_HOURS = 168
+
+Resolver = Callable[[str], tuple[str, str]]
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_SCHEME_RE = re.compile(r"^([a-z][a-z0-9+.\-]*)://")
 
 
 class GroundingError(Exception):
@@ -48,6 +55,29 @@ def _sha256_hex(data: bytes) -> str:
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _scheme(uri: str) -> str:
+    m = _SCHEME_RE.match(uri or "")
+    if not m:
+        return "file"
+    return "file" if m.group(1) == "file" else m.group(1)
+
+
+def default_resolvers(repo_root: Path) -> dict[str, Resolver]:
+    def file_res(uri: str) -> tuple[str, str]:
+        rel = uri[len("file://"):] if uri.startswith("file://") else uri
+        data = (repo_root / rel).resolve().read_bytes()
+        return data.decode("utf-8", errors="replace"), _sha256_hex(data)
+
+    return {"file": file_res}
+
+
+def _resolve(uri: str, resolvers: dict[str, Resolver]) -> tuple[str, str]:
+    res = resolvers.get(_scheme(uri))
+    if res is None:
+        raise KeyError(f"no resolver for scheme of {uri!r}")
+    return res(uri)
 
 
 def record(
