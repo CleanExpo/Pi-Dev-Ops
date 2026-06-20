@@ -131,3 +131,25 @@ def test_reground_cycle_on_repeated_lineage(tmp_path):
     )
     r = grounding.reground("art://1", anchor, repo_root=tmp_path)
     assert r.status == grounding.CYCLE
+
+
+def test_require_grounding_returns_fresh(tmp_path):
+    (tmp_path / "primary.md").write_text("p", encoding="utf-8")
+    anchor = grounding.record(primary_source="primary.md", derived_from="primary.md", parent_text="p")
+    r = grounding.require_grounding("art://1", anchor, repo_root=tmp_path)
+    assert r.status == grounding.FRESH
+
+
+def test_require_grounding_raises_on_missing(tmp_path):
+    anchor = grounding.record(primary_source="primary.md", derived_from="primary.md", parent_text="p")
+    with pytest.raises(grounding.GroundingError):
+        grounding.require_grounding("art://1", anchor, repo_root=tmp_path)
+
+
+def test_require_grounding_allow_ungrounded_downgrades(tmp_path, caplog):
+    import logging
+    anchor = grounding.record(primary_source="primary.md", derived_from="primary.md", parent_text="p")
+    with caplog.at_level(logging.WARNING):
+        r = grounding.require_grounding("art://1", anchor, repo_root=tmp_path, allow_ungrounded=True)
+    assert r.status == grounding.MISSING
+    assert any("ungrounded" in rec.message.lower() for rec in caplog.records)
