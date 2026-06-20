@@ -73,3 +73,61 @@ def test_scheme_detection():
     assert grounding._scheme("file://x.md") == "file"
     assert grounding._scheme("linear://RA-9") == "linear"
     assert grounding._scheme("https://a.com") == "https"
+
+
+def _anchor_for(tmp_path, parent_text="p", ttl=168):
+    return grounding.record(
+        primary_source="primary.md",
+        derived_from="primary.md",
+        parent_text=parent_text,
+        ttl_hours=ttl,
+    )
+
+
+def test_reground_fresh(tmp_path):
+    (tmp_path / "primary.md").write_text("p", encoding="utf-8")
+    anchor = _anchor_for(tmp_path, parent_text="p")
+    r = grounding.reground("art://1", anchor, repo_root=tmp_path)
+    assert r.status == grounding.FRESH
+    assert r.primary_text == "p"
+
+
+def test_reground_drifted_when_parent_changed(tmp_path):
+    (tmp_path / "primary.md").write_text("CHANGED", encoding="utf-8")
+    anchor = _anchor_for(tmp_path, parent_text="original")  # sha of "original"
+    r = grounding.reground("art://1", anchor, repo_root=tmp_path)
+    assert r.status == grounding.DRIFTED
+    assert r.primary_text == "CHANGED"  # still returned so caller can re-derive
+
+
+def test_reground_missing_when_primary_unresolvable(tmp_path):
+    anchor = _anchor_for(tmp_path)  # primary.md not written
+    r = grounding.reground("art://1", anchor, repo_root=tmp_path)
+    assert r.status == grounding.MISSING
+
+
+def test_reground_stale_past_ttl(tmp_path):
+    (tmp_path / "primary.md").write_text("p", encoding="utf-8")
+    anchor = _anchor_for(tmp_path, parent_text="p", ttl=1)
+    anchor["derived_at"] = "2000-01-01T00:00:00+00:00"  # ancient
+    r = grounding.reground("art://1", anchor, repo_root=tmp_path)
+    assert r.status == grounding.STALE
+
+
+def test_reground_cycle_when_self_sourced(tmp_path):
+    (tmp_path / "WIKI.md").write_text("w", encoding="utf-8")
+    anchor = grounding.record(
+        primary_source="WIKI.md", derived_from="WIKI.md", parent_text="w",
+    )
+    r = grounding.reground("WIKI.md", anchor, repo_root=tmp_path)
+    assert r.status == grounding.CYCLE
+
+
+def test_reground_cycle_on_repeated_lineage(tmp_path):
+    (tmp_path / "primary.md").write_text("p", encoding="utf-8")
+    anchor = grounding.record(
+        primary_source="primary.md", derived_from="b.md", parent_text="p",
+        parent_chain=["primary.md", "b.md"],  # b.md repeats
+    )
+    r = grounding.reground("art://1", anchor, repo_root=tmp_path)
+    assert r.status == grounding.CYCLE
