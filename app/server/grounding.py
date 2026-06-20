@@ -67,7 +67,10 @@ def _scheme(uri: str) -> str:
 def default_resolvers(repo_root: Path) -> dict[str, Resolver]:
     def file_res(uri: str) -> tuple[str, str]:
         rel = uri[len("file://"):] if uri.startswith("file://") else uri
-        data = (repo_root / rel).resolve().read_bytes()
+        target = (repo_root / rel).resolve()
+        if not target.is_relative_to(repo_root.resolve()):
+            raise ValueError(f"path escapes repo root: {uri!r}")
+        data = target.read_bytes()
         return data.decode("utf-8", errors="replace"), _sha256_hex(data)
 
     return {"file": file_res}
