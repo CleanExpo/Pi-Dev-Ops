@@ -5,7 +5,7 @@ recorded_at: 2026-06-20T04:20:34
 duration_ms: 2301000
 duration_human: 38m21s
 source: plaud-notepin-s
-ingested_at: 2026-06-20T05:13:12+00:00
+ingested_at: 2026-06-20T21:37:05+00:00
 tags: []
 ---
 
