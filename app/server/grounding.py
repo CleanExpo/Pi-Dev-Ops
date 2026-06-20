@@ -12,7 +12,9 @@ docs/superpowers/specs/2026-06-21-grounding-primitive-design.md
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
@@ -77,3 +79,28 @@ def record(
     if confidence is not None:
         anchor["confidence"] = confidence
     return anchor
+
+
+_ANCHOR_RE = re.compile(r"<!--\s*ground:anchor\s*(\{.*?\})\s*-->", re.DOTALL)
+_SOURCE_LINK_RE = re.compile(r"Source:\s*\[[^\]]*\]\(([^)]+)\)")
+
+
+def anchor_to_block(anchor: dict) -> str:
+    """Serialize an anchor as an HTML comment (invisible in rendered Markdown)."""
+    return f"<!-- ground:anchor {json.dumps(anchor, separators=(',', ':'))} -->"
+
+
+def anchor_from_text(text: str) -> dict | None:
+    """Extract an anchor from a body. Structured block wins; else prose-link
+    fallback; else None."""
+    m = _ANCHOR_RE.search(text or "")
+    if m:
+        try:
+            return json.loads(m.group(1))
+        except json.JSONDecodeError:
+            log.warning("grounding: malformed anchor block ignored")
+    link = _SOURCE_LINK_RE.search(text or "")
+    if link:
+        path = link.group(1).strip()
+        return {"primary_source": path, "derived_from": path, "source_sha256": "", "chain": []}
+    return None
