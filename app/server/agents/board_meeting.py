@@ -1117,7 +1117,7 @@ def _prior_research_is_stale(prior: dict, ttl_days: int = 30) -> bool:
     is treated as stale (cannot prove freshness — abstain toward re-verify)."""
     from datetime import datetime, timezone
 
-    newest: datetime | None = None
+    newest = None
     for finding in prior.get("findings", []) or []:
         for src in finding.get("sources", []) or []:
             raw = (src.get("fetched") or "").strip()
@@ -1168,7 +1168,7 @@ def _format_research_brief_for_personas(brief: dict[str, Any]) -> str:
             )
             if _prior_research_is_stale(p):
                 header = (header + "  ⚠️ STALE (>30d) — treat as a hypothesis to "
-                          "re-verify against current sources, not established fact.")
+                          "re-verify against current sources, not established fact.\n")
                 log.info("board: prior_deep_research is stale — flagged for re-verification")
             out.append(_render_findings_block(
                 p.get("findings", []), p.get("open_questions", []), header,
