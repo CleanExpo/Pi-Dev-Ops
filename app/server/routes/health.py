@@ -209,3 +209,64 @@ async def vercel_health():
     }
     status = 200 if not result.degraded else 503
     return JSONResponse(payload, status_code=status)
+
+
+@app.get("/api/health/obsidian")
+async def obsidian_health():
+    """Real Obsidian connectivity — replaces the dashboard's hardcoded status.
+
+    Reports whether analyst writes can actually succeed from this host: a genuine
+    local vault (filesystem write), or a reachable REST/relay bridge. `ok` is the
+    truthful signal the dashboard should render instead of a static "done".
+    """
+    from pathlib import Path
+    import ssl as _ssl
+    import urllib.error
+    import urllib.request
+    from urllib.parse import urlparse
+
+    vault = getattr(config, "OBSIDIAN_VAULT", "") or ""
+    root = Path(vault) if vault else None
+    vault_present = bool(
+        root and root.is_dir() and ((root / ".obsidian").is_dir() or (root / "Wiki").is_dir())
+    )
+    vault_writable = False
+    if vault_present and root is not None:
+        probe = root / "Wiki" / ".pi-ceo-health-probe"
+        try:
+            probe.parent.mkdir(parents=True, exist_ok=True)
+            probe.write_text("ok", encoding="utf-8")
+            probe.unlink()
+            vault_writable = True
+        except OSError:
+            vault_writable = False
+
+    remote_url = getattr(config, "OBSIDIAN_REMOTE_URL", "") or ""
+    rest_reachable = False
+    detail = ""
+    if remote_url:
+        ctx = _ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = _ssl.CERT_NONE
+        try:
+            with urllib.request.urlopen(remote_url, timeout=4, context=ctx) as resp:
+                rest_reachable = True
+                detail = f"HTTP {resp.status}"
+        except urllib.error.HTTPError as exc:
+            rest_reachable = True  # server responded (401/404 etc.) → reachable
+            detail = f"HTTP {exc.code}"
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            detail = str(getattr(exc, "reason", exc))[:80]
+
+    ok = vault_writable or rest_reachable
+    payload = {
+        "ok": ok,
+        "vault_present": vault_present,
+        "vault_writable": vault_writable,
+        "remote_configured": bool(remote_url),
+        "remote_host": urlparse(remote_url).hostname or "" if remote_url else "",
+        "rest_reachable": rest_reachable,
+        "detail": detail,
+        "checked_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    }
+    return JSONResponse(payload, status_code=200 if ok else 503)
