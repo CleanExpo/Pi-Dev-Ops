@@ -127,6 +127,28 @@ def test_obsidian_remote_url_takes_precedence_over_local_vault(tmp_path, monkeyp
     assert not (local_vault / "Wiki" / "analyst" / "proof.md").exists()
 
 
+def test_real_local_vault_wins_over_remote_url(tmp_path, monkeypatch):
+    """A genuine on-disk vault must be written directly and never depend on the
+    Obsidian REST bridge being up — this is the fix for recurring 'No Obsidian'
+    failures on the brain host when the Obsidian app/plugin is down."""
+    from swarm import config  # noqa: E402
+
+    vault = tmp_path / "vault"
+    (vault / "Wiki").mkdir(parents=True)  # marks it a REAL vault
+    monkeypatch.setattr(config, "OBSIDIAN_VAULT", str(vault))
+    monkeypatch.setattr(config, "OBSIDIAN_TOKEN", "test-token")
+    monkeypatch.setattr(config, "OBSIDIAN_REMOTE_URL", "https://brain-host.tailnet.test:27124")
+    monkeypatch.setattr(config, "OBSIDIAN_REMOTE_IP", "")
+
+    def boom(*_args, **_kwargs):
+        raise AssertionError("REST must not be used when a real local vault exists")
+
+    monkeypatch.setattr(analyst.urllib.request, "urlopen", boom)
+
+    assert analyst._mirror_obsidian("Wiki/analyst/proof.md", "# Proof\n") is True
+    assert (vault / "Wiki" / "analyst" / "proof.md").read_text(encoding="utf-8") == "# Proof\n"
+
+
 def test_analyst_llm_uses_gemini_rest_without_sdk(monkeypatch):
     from swarm import ollama_client  # noqa: E402
 
