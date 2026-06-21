@@ -269,4 +269,7 @@ async def obsidian_health():
         "detail": detail,
         "checked_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     }
-    return JSONResponse(payload, status_code=200 if ok else 503)
+    # Always 200: the probe itself succeeded. Obsidian connectivity is reported
+    # in the `ok` field so the dashboard renders truth without the endpoint
+    # flapping red on every deploy where the brain host is asleep.
+    return JSONResponse(payload, status_code=200)
