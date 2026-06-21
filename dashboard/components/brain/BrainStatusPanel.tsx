@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   BRAIN_STATUS,
   type BrainChecklistItem,
@@ -133,6 +133,91 @@ function ChecklistRow({ item }: { item: BrainChecklistItem }) {
   );
 }
 
+type ObsidianHealth = {
+  ok: boolean;
+  vault_present: boolean;
+  vault_writable: boolean;
+  remote_configured: boolean;
+  remote_host: string;
+  rest_reachable: boolean;
+  detail: string;
+  checked_at: string;
+};
+
+function LiveObsidianStatus() {
+  const [h, setH] = useState<ObsidianHealth | null>(null);
+  const [err, setErr] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/pi-ceo/api/health/obsidian", { cache: "no-store" });
+      setH((await res.json()) as ObsidianHealth);
+      setErr(false);
+    } catch {
+      setErr(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const ok = h?.ok === true;
+  const bg = err
+    ? "color-mix(in srgb, var(--text-dim) 22%, transparent)"
+    : ok
+      ? "color-mix(in srgb, var(--success) 18%, transparent)"
+      : "color-mix(in srgb, var(--error) 18%, transparent)";
+  const fg = err ? "var(--text-muted)" : ok ? "var(--success)" : "var(--error)";
+  const label = loading ? "Checking…" : err ? "Probe unreachable" : ok ? "Connected" : "No connection";
+
+  return (
+    <section
+      className="p-4 rounded-lg flex flex-col gap-2"
+      style={{ background: "var(--panel)", border: "1px solid var(--border)" }}
+    >
+      <div className="flex items-center justify-between">
+        <h2 className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
+          Obsidian — live status
+        </h2>
+        <button
+          type="button"
+          onClick={() => void load()}
+          className="text-[11px] underline"
+          style={{ color: "var(--accent)" }}
+        >
+          Re-check
+        </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span
+          className="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded"
+          style={{ background: bg, color: fg }}
+        >
+          {label}
+        </span>
+        {h && !err && (
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+            vault {h.vault_writable ? "writable ✓" : h.vault_present ? "present" : "—"}
+            {" · "}REST{" "}
+            {h.remote_configured ? (h.rest_reachable ? "reachable ✓" : "unreachable ✗") : "not configured"}
+            {h.detail ? ` (${h.detail})` : ""}
+          </span>
+        )}
+      </div>
+      {h?.checked_at && !err && (
+        <p className="text-[10px]" style={{ color: "var(--text-dim)" }}>
+          checked {new Date(h.checked_at).toLocaleTimeString()}
+        </p>
+      )}
+    </section>
+  );
+}
+
 export default function BrainStatusPanel() {
   const s = BRAIN_STATUS;
   const doneCount = s.milestones.filter((m) => m.status === "done").length;
@@ -159,6 +244,9 @@ export default function BrainStatusPanel() {
           {s.explanation}
         </p>
       </header>
+
+      {/* Live Obsidian probe — real connectivity, overrides the static milestones below */}
+      <LiveObsidianStatus />
 
       {/* Progress strip */}
       <div
