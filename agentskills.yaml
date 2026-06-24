@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.1.0
-  generated_at: "2026-06-24T02:30:45.645563+00:00"
+  version: 1.2.1
+  generated_at: "2026-06-24T02:50:50.221612+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: afk-agent
@@ -1194,6 +1194,51 @@ skills:
       pii_handling: pass-through
     inferred: true
     low_confidence: true
+  - id: remotion-direction
+    description: "Use when a Remotion video needs creative direction: hook, visual sequence, scene purpose, motion restraint, and CTA direction before render."
+    owner_role: Creative Director
+    status: remotion-wave-1
+    path: skills/remotion-direction/SKILL.md
+    sha256: c72d9736f4166745ce93ca310f7bfae421c95e9eb4d00fea8007d9634ee1a5fd
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: remotion-editing
+    description: Use when a Remotion video has timing, sync, transition, caption, pacing, or audio-fit risk and needs editing discipline before render.
+    owner_role: Editor
+    status: remotion-wave-1
+    path: skills/remotion-editing/SKILL.md
+    sha256: cfd71c41d2a9d3e4927179e042392d73850bdeb71c2a267c28bf16e5fcac5134
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: remotion-integrations
+    description: Use when /remotion-video needs existing Synthex ElevenLabs, brand-config, Remotion, output storage, Claude, or Hermes integration without adding vendors.
+    owner_role: Integrations Producer
+    status: remotion-wave-1
+    path: skills/remotion-integrations/SKILL.md
+    sha256: 2b3bfd28320335bca5d80135854662cbca0870ed986f7da1015e35d46931d97e
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
   - id: remotion-marketing-strategist
     description: "Tunes a video's format and message for the target channel \u2014 LinkedIn, YouTube, Instagram Reel, internal training. Sets aspect ratio, total duration, hook timing, CTA timing, and pacing. Triggered when the brief mentions a specific channel or campaign goal. Output feeds remotion-screen-storyteller and remotion-composition-builder."
     owner_role: (unset)
@@ -1225,11 +1270,41 @@ skills:
     inferred: true
     low_confidence: true
   - id: remotion-orchestrator
-    description: "ENTRY POINT for the Remotion Skills Package. Use the moment a brief mentions \"remotion skills package\", \"remotion package\", \"use remotion\", or any of the video keywords \u2014 video, explainer, ad, promo, reel, intro, social cut, 60s/30s/15s spot, or any rendered marketing/training video for one of the portfolio brands (DR, NRPG, RestoreAssist/RA, CARSI, CCW) or for a customer brand. Globally available across every project under /Users/phill-mac/. Reads the brief, classifies intent (composition type, brand, channel, duration), emits a wave-plan JSON, and dispatches the right sub-skills in topological order. Always invoked first."
+    description: /remotion-video one-shot Remotion command skill and ENTRY POINT for the Remotion Skills Package. Use for video, explainer, ad, promo, reel, intro, social cut, marketing, training, or launch videos. Reads the brief, classifies intent, enforces one single Synthex ElevenLabs voice, emits a production/wave plan, and dispatches the right sub-skills in topological order. Always invoked first.
     owner_role: (unset)
     status: (unset)
     path: skills/remotion-orchestrator/SKILL.md
-    sha256: e431452af3a03c675a6927c26086243d0100dc9312ddaabc13e55eb4d6c5cfb8
+    sha256: 6aff8ab886e5f765a9da1ff853d846b03e307dec8172c05dda549ce653eac56c
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: remotion-production
+    description: Use when a Remotion video job needs production gates, render evidence, output discipline, and pass/fail validation before it can be called shippable.
+    owner_role: Producer
+    status: remotion-wave-1
+    path: skills/remotion-production/SKILL.md
+    sha256: 202a4d0ef07e444f4b0c24be99ae1882c117c4dc4d90192ac9e516f8ab0dc5cf
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: remotion-professionalism
+    description: Use when a Remotion video needs a professional marketing QA pass for brand fit, readability, pacing, typography, polish, and not-looking-generated.
+    owner_role: Quality Director
+    status: remotion-wave-1
+    path: skills/remotion-professionalism/SKILL.md
+    sha256: 0803c33aad43c5cd36f3bb6f7ddc5000b75c00a88f79b983196a0baf3f241537
     dependencies:
       tools: []
       skills: []
@@ -1260,6 +1335,21 @@ skills:
     status: (unset)
     path: skills/remotion-screen-storyteller/SKILL.md
     sha256: 14fe82b010c46e6aa5fa5e31612ad2bec11e4b6857f04aab105acd69a2863e3e
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: remotion-script
+    description: Use when a Remotion marketing video needs a timed script, scene narration, on-screen text, CTA, and voice pacing that fits a single ElevenLabs voice.
+    owner_role: Script Producer
+    status: remotion-wave-1
+    path: skills/remotion-script/SKILL.md
+    sha256: 91d624a98d738970b203f0311d35ba2a647151c9ecea0d05cd4baa794eb5280c
     dependencies:
       tools: []
       skills: []
