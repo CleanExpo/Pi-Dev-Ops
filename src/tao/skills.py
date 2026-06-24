@@ -112,6 +112,7 @@ _INTENT_SKILLS = {
     "plan":    ["compound-development-loop", "ship-chain", "technical-plan"],
     "test":    ["ship-chain", "verify-test"],
     "ship":    ["ship-chain", "ship-release"],
+    "review":  ["review-command", "launch-review", "agentic-review", "tier-evaluator", "leverage-audit"],
     # Launch crew (wave-4): launch-readiness pre-flight. "ship-it" orchestrates
     # charter -> project-audit -> review -> enhance-debloat, then hands off to the
     # existing ship-chain / tao-loop / ship-release. These skills are

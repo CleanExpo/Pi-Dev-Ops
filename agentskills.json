@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.0.0",
-    "generated_at": "2026-06-24T02:07:37.715429+00:00",
+    "version": "1.1.0",
+    "generated_at": "2026-06-24T02:30:45.645563+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -1604,6 +1604,25 @@
       "status": "(unset)",
       "path": "skills/remotion-screen-storyteller/SKILL.md",
       "sha256": "14fe82b010c46e6aa5fa5e31612ad2bec11e4b6857f04aab105acd69a2863e3e",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "review-command",
+      "description": "/review specialised command skill. Use when the operator asks for /review, review, code review, launch review, or \"check this before ship\" and needs one de-duplicated, evidence-backed review packet instead of fixes or secondary work.",
+      "owner_role": "Guardian",
+      "status": "wave-review",
+      "path": "skills/review-command/SKILL.md",
+      "sha256": "c694954fed92931651657c49e22925eb9402663b293c3859637f09f0d9d44fb8",
       "dependencies": {
         "tools": [],
         "skills": []
