@@ -117,6 +117,7 @@ _INTENT_SKILLS = {
     # existing ship-chain / tao-loop / ship-release. These skills are
     # automation:manual, so skills_manifest() still classifies them as explicit-
     # invoke even though they are intent-routed here. "launch" is an alias.
+    "northstar": ["northstar-shipit", "launch-charter", "ship-it", "launch-project-audit", "launch-review", "launch-enhance-debloat"],
     "ship-it": ["ship-it", "launch-charter", "launch-project-audit", "launch-review", "launch-enhance-debloat"],
     "launch":  ["ship-it", "launch-charter", "launch-project-audit", "launch-review", "launch-enhance-debloat"],
     # RA-693: content + design intents now route to local skill stubs that

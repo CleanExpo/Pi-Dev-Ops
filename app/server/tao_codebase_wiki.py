@@ -208,12 +208,25 @@ def _format_recent_changes(commits: list[_Commit]) -> str:
     return "\n".join(f"- {c.sha[:7]} — {c.subject}" for c in commits[:8])
 
 
+_AUTH_NOISE_RE = re.compile(
+    r"^\s*(?:Not logged in\s*[·-]\s*)?Please run /login\s*$|^\s*Not logged in\s*(?:[·-].*)?$",
+    re.IGNORECASE,
+)
+
+
+def _strip_generated_markdown_noise(markdown: str) -> str:
+    """Remove non-knowledge auth/UI noise from generated markdown bodies."""
+    kept = [line for line in markdown.splitlines() if not _AUTH_NOISE_RE.match(line)]
+    return "\n".join(kept).strip()
+
+
 def _render_wiki(top_dir: str, old_sha: str, new_sha: str, commits: list[_Commit], body: str, timestamp_iso: str) -> str:
+    clean_body = _strip_generated_markdown_noise(body)
     return (
         f"# {top_dir} — Wiki\n\n"
         f"_Last updated: {timestamp_iso} (commits {old_sha}..{new_sha})_\n\n"
         f"## Recent changes\n{_format_recent_changes(commits)}\n\n"
-        f"{body.strip()}\n"
+        f"{clean_body}\n"
     )
 
 
