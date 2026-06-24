@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { brands, BrandSlug } from '../src/brands';
+import { resolveSingleVoice, assertSingleVoice } from './single-voice';
 
 export interface Scene {
   sceneId: string;
@@ -75,15 +76,18 @@ export async function synthesiseStoryboard(
   fs.mkdirSync(cacheDir, { recursive: true });
   fs.mkdirSync(jobDir, { recursive: true });
 
+  const singleVoice = resolveSingleVoice(process.env);
+  assertSingleVoice(props.storyboard.map((scene) => (scene as Scene & { voiceId?: string }).voiceId), singleVoice.voiceId);
+
   for (let i = 0; i < props.storyboard.length; i++) {
     const scene = props.storyboard[i];
     if (scene.voiceoverAudioPath || !scene.voiceover) continue;
 
-    const key = cacheKey(cfg.voiceover.elevenLabsVoiceId, cfg.voiceover.style, scene.voiceover);
+    const key = cacheKey(singleVoice.voiceId, cfg.voiceover.style, scene.voiceover);
     const cachePath = path.join(cacheDir, `${key}.mp3`);
     if (!fs.existsSync(cachePath)) {
       console.log(`[voiceover] synthesising scene ${i} (${scene.sceneId}) — ${scene.voiceover.slice(0, 60)}…`);
-      await synthesise(scene.voiceover, cfg.voiceover.elevenLabsVoiceId, apiKey, cachePath);
+      await synthesise(scene.voiceover, singleVoice.voiceId, apiKey, cachePath);
     } else {
       console.log(`[voiceover] cache hit scene ${i} (${scene.sceneId})`);
     }

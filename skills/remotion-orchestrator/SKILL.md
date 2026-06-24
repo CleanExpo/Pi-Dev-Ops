@@ -1,11 +1,26 @@
 ---
 name: remotion-orchestrator
-description: ENTRY POINT for the Remotion Skills Package. Use the moment a brief mentions "remotion skills package", "remotion package", "use remotion", or any of the video keywords — video, explainer, ad, promo, reel, intro, social cut, 60s/30s/15s spot, or any rendered marketing/training video for one of the portfolio brands (DR, NRPG, RestoreAssist/RA, CARSI, CCW) or for a customer brand. Globally available across every project under /Users/phill-mac/. Reads the brief, classifies intent (composition type, brand, channel, duration), emits a wave-plan JSON, and dispatches the right sub-skills in topological order. Always invoked first.
+description: /remotion-video one-shot Remotion command skill and ENTRY POINT for the Remotion Skills Package. Use for video, explainer, ad, promo, reel, intro, social cut, marketing, training, or launch videos. Reads the brief, classifies intent, enforces one single Synthex ElevenLabs voice, emits a production/wave plan, and dispatches the right sub-skills in topological order. Always invoked first.
 automation: automatic
 intents: video, explainer, ad, promo, reel, intro, social, render, marketing-video, training-video, 60s, 30s, 15s, remotion, remotion-skills-package
 ---
 
 # remotion-orchestrator — Remotion Skills Package entry point
+
+## /remotion-video one-shot command
+
+`/remotion-video` is the one-shot command lane for Remotion marketing videos. It turns a rough brief into one governed production packet, one render path, and one final evidence report.
+
+Hard rules for this command path:
+
+- single voice only; no multi-voice casts and no per-scene voice switching.
+- use existing Synthex ElevenLabs credentials and voice configuration only.
+- no new vendors, no new accounts, no connector platforms.
+- start with dry-run unless the operator explicitly asks for production render.
+- write `.harness/remotion/<jobId>/production-packet.json`, `script.md`, `preflight-report.md`, and `render-command.sh`.
+- never commit generated MP4s.
+
+The command routes through `remotion-script`, `remotion-production`, `remotion-direction`, `remotion-editing`, `remotion-integrations`, and `remotion-professionalism`, while preserving the existing Remotion Skills Package workflow below.
 
 Single entry point for the Remotion Skills Package — a set of 10 sibling skills (`remotion-orchestrator`, `remotion-brand-research`, `remotion-brand-codify`, `remotion-designer`, `remotion-colour-family`, `remotion-motion-language`, `remotion-screen-storyteller`, `remotion-marketing-strategist`, `remotion-composition-builder`, `remotion-render-pipeline`) installed globally at `~/.claude/skills/remotion-*` (symlinked to `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/skills/remotion-*`). Available in every project, not just Pi-Dev-Ops.
 

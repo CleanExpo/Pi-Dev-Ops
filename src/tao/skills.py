@@ -113,6 +113,24 @@ _INTENT_SKILLS = {
     "test":    ["ship-chain", "verify-test"],
     "ship":    ["ship-chain", "ship-release"],
     "review":  ["review-command", "launch-review", "agentic-review", "tier-evaluator", "leverage-audit"],
+    "video": [
+        "remotion-orchestrator",
+        "remotion-script",
+        "remotion-production",
+        "remotion-direction",
+        "remotion-editing",
+        "remotion-integrations",
+        "remotion-professionalism",
+    ],
+    "remotion-video": [
+        "remotion-orchestrator",
+        "remotion-script",
+        "remotion-production",
+        "remotion-direction",
+        "remotion-editing",
+        "remotion-integrations",
+        "remotion-professionalism",
+    ],
     # Launch crew (wave-4): launch-readiness pre-flight. "ship-it" orchestrates
     # charter -> project-audit -> review -> enhance-debloat, then hands off to the
     # existing ship-chain / tao-loop / ship-release. These skills are
