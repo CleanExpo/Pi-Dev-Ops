@@ -286,3 +286,18 @@ def test_ra1996_commits_summarized_set_before_early_return(tmp_path):
     assert result.bypass_reason == "cost_budget_exceeded"
     # 3 distinct commits collected pre-bypass → must NOT be 0 anymore.
     assert result.commits_summarized == 3
+
+
+def test_render_wiki_strips_auth_noise_from_generated_markdown():
+    rendered = tcw._render_wiki(
+        "app",
+        "abc1234",
+        "def5678",
+        [tcw._Commit(sha="def5678", subject="feat(app): useful", files=["app/main.py"])],
+        "## Architecture (current)\nUseful summary.\n\nNot logged in · Please run /login\n\n## Files of interest\n- app/main.py — entry point\n",
+        "2026-06-24T00:00:00Z",
+    )
+
+    assert "Useful summary" in rendered
+    assert "Not logged in" not in rendered
+    assert "Please run /login" not in rendered
