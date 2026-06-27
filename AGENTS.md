@@ -190,4 +190,30 @@ In Claude Code, use `/session-handoff`. The command is read-only by default and 
 
 ---
 
+## Resume From Handoff Boundary
+
+Agents may freely create or update resume command assets in:
+
+| Path | Permission |
+|---|---|
+| `.claude/skills/resume-from-handoff/` | ✅ |
+| `.agents/skills/resume-from-handoff/` | ✅ |
+| `.resume-from-handoff/` | ✅ |
+| `skills/resume-from-handoff/` | ✅ |
+
+To pick work back up from a handoff, invoke:
+
+```text
+$resume-from-handoff <handoff path, pasted handoff, branch, or PR>
+```
+
+In Claude Code, use `/resume-from-handoff`. Verification (load handoff → verify repo state → reconcile) is read-only and mandatory; the command must not mutate repo state until it has reported a reconciliation verdict, and must STOP rather than resume on material drift or a missing branch/commit. When it does resume, it skips the handoff's "Do not redo" list and respects repo gates (run `judge` before building anything new not already approved).
+
+- **Codex skill:** `.agents/skills/resume-from-handoff/SKILL.md`
+- **Claude Code skill:** `.claude/skills/resume-from-handoff/SKILL.md`
+- **Shared docs:** `.resume-from-handoff/`
+- Completes the trio with `judge` (build?) and `session-handoff` (what happened?).
+
+---
+
 Last updated: 2026-04-14 (MARATHON-4 / RA-588)
