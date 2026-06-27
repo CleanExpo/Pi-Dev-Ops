@@ -1,6 +1,8 @@
 # skills — Wiki
 
-_Last updated: 2026-05-26T04:04:20Z (commits 2693f0c..2f04d44)_
+_Last updated: 2026-06-27T04:43:40Z (commits bd9768d..bf6d861)_
 
 ## Recent changes
-- 2f04d44 — policy(tmux): ratified guardrails post-grill (#277)
+- bf6d861 — feat(spm): add senior project manager command (#371)
+
+

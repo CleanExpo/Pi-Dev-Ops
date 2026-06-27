@@ -1,4 +1,4 @@
-# src — Wiki
+# .agents — Wiki
 
 _Last updated: 2026-06-27T04:43:40Z (commits bd9768d..bf6d861)_
 

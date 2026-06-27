@@ -1,6 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-05-28T01:21:18Z (commits 5483a3b..585bb3e)_
+_Last updated: 2026-06-27T04:43:40Z (commits bd9768d..bf6d861)_
 
 ## Recent changes
-- 585bb3e — refactor: route evaluator through provider router
+- bf6d861 — feat(spm): add senior project manager command (#371)
+
+
