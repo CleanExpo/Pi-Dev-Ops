@@ -113,6 +113,11 @@ _INTENT_SKILLS = {
     "test":    ["ship-chain", "verify-test"],
     "ship":    ["ship-chain", "ship-release"],
     "review":  ["review-command", "launch-review", "agentic-review", "tier-evaluator", "leverage-audit"],
+    # Pre-build challenge gate. "/judge" is read-only and explicit-invoke
+    # (automation:manual in its frontmatter, so skills_manifest() classifies it
+    # as manual even though it is intent-routed here). Distinct from "tao-judge"
+    # (machine loop-termination scorer): judge decides whether to build.
+    "judge":   ["judge"],
     "video": [
         "remotion-orchestrator",
         "remotion-script",
