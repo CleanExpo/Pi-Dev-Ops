@@ -281,3 +281,18 @@ A pre-flight crew gets a product launch-ready, then hands off to existing machin
 - **Run:** `/ship-it` → `launch-charter` → `launch-project-audit` → `launch-review` → `launch-enhance-debloat` (propose only) → sync via `pi-dev-linear-contract` → **STOP for human go**.
 - **On go:** build through `ship-chain` / `tao-loop` + `tao-judge` / `ship-release`; autonomy queue = status `Ready for Pi-Dev` + label `pi-dev:autonomous`.
 - **Wiring:** skills load from `skills/<name>/SKILL.md`; `/ship-it` routed via `_INTENT_SKILLS` in `src/tao/skills.py`. Regenerate `agentskills.json` after adding skills.
+
+## Judge Gate
+
+Before approving or building any feature, connector, automation, agent, hook, MCP server, database change, UI change, or architecture plan, run:
+
+```text
+/judge <proposal>
+```
+
+Judge is read-only. It must challenge the plan, check first-source evidence, identify existing capability, review UI/UX, review security/privacy, define loop/stress tests, and score the proposal out of 100 before any implementation starts. It must not implement code; implementation only follows a separate, explicit user approval after the Judge Report.
+
+- **Claude Code:** `/judge` → `.claude/skills/judge/SKILL.md`
+- **Codex:** `$judge` or `/skills` → select `judge` → `.agents/skills/judge/SKILL.md`
+- **Shared docs:** `.judge/` (evidence ranking, approval policy, report template, example)
+- Distinct from `tao-judge` (machine loop-termination scorer); `judge` decides *whether to build*, `tao-judge` decides *whether an in-flight loop is done*.
