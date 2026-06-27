@@ -118,6 +118,10 @@ _INTENT_SKILLS = {
     # as manual even though it is intent-routed here). Distinct from "tao-judge"
     # (machine loop-termination scorer): judge decides whether to build.
     "judge":   ["judge"],
+    # Durable end-of-session handoff. Companion to "judge". Read-only and
+    # explicit-invoke (automation:manual), so skills_manifest() classifies it
+    # as manual even though it is intent-routed here.
+    "handoff": ["session-handoff"],
     "video": [
         "remotion-orchestrator",
         "remotion-script",

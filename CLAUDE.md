@@ -296,3 +296,32 @@ Judge is read-only. It must challenge the plan, check first-source evidence, ide
 - **Codex:** `$judge` or `/skills` → select `judge` → `.agents/skills/judge/SKILL.md`
 - **Shared docs:** `.judge/` (evidence ranking, approval policy, report template, example)
 - Distinct from `tao-judge` (machine loop-termination scorer); `judge` decides *whether to build*, `tao-judge` decides *whether an in-flight loop is done*.
+
+## Session Handoff Command
+
+Before stopping, changing terminals, handing work to another agent, opening a PR, or leaving a task partially complete, run:
+
+```text
+/session-handoff
+```
+
+Use a scoped version when helpful:
+
+```text
+/session-handoff <ticket, branch, PR, feature, or repo area>
+```
+
+The handoff must include: summary of what was done, where it started, decisions locked + what shipped, key files, running state, verification (how to confirm things still work), deferred + open questions, and pick up here.
+
+Rules:
+
+- Read-only by default.
+- Do not claim tests passed unless they were run.
+- Do not claim anything shipped unless committed/pushed/merged evidence exists.
+- Do not claim a process is still running unless verified.
+- Always provide the first command the next agent should run.
+
+- **Claude Code:** `/session-handoff` → `.claude/skills/session-handoff/SKILL.md`
+- **Codex:** `$session-handoff` or `/skills` → select `session-handoff` → `.agents/skills/session-handoff/SKILL.md`
+- **Shared docs:** `.session-handoff/` (report template, verification checklist)
+- Companion to `judge`: `/judge` decides *whether to build*; `/session-handoff` records *what happened and where the next agent picks up*.

@@ -164,4 +164,30 @@ Judge is read-only. It must produce a Judge Report (first-source evidence, exist
 
 ---
 
+## Session Handoff Boundary
+
+Agents may freely create or update handoff command assets in:
+
+| Path | Permission |
+|---|---|
+| `.claude/skills/session-handoff/` | ✅ |
+| `.agents/skills/session-handoff/` | ✅ |
+| `.session-handoff/` | ✅ |
+| `skills/session-handoff/` | ✅ |
+
+Before ending a work session, invoke:
+
+```text
+$session-handoff
+```
+
+In Claude Code, use `/session-handoff`. The command is read-only by default and must not mutate repo state unless separately authorised. It must produce a structured handoff (summary, starting point, locked decisions, what shipped, key files, running state, verification commands, deferred/open questions, exact pickup point, risk notes, quality check) and always give the first command the next agent should run.
+
+- **Codex skill:** `.agents/skills/session-handoff/SKILL.md`
+- **Claude Code skill:** `.claude/skills/session-handoff/SKILL.md`
+- **Shared docs:** `.session-handoff/`
+- Companion to `judge`: `/judge` decides whether to build; `/session-handoff` records where the next agent picks up.
+
+---
+
 Last updated: 2026-04-14 (MARATHON-4 / RA-588)
