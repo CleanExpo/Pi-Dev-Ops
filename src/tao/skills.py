@@ -125,6 +125,9 @@ _INTENT_SKILLS = {
     # Read-side companion to "session-handoff": verify repo state against a
     # handoff, then resume the work. Explicit-invoke (automation:manual).
     "resume":  ["resume-from-handoff"],
+    # Senior Project Manager: turn a rough request into a decision-grade spec
+    # before the builder starts. Read-only and explicit-invoke (automation:manual).
+    "spm":     ["spm"],
     "video": [
         "remotion-orchestrator",
         "remotion-script",

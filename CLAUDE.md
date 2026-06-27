@@ -347,3 +347,49 @@ Rules:
 - **Codex:** `$resume-from-handoff` or `/skills` → select `resume-from-handoff` → `.agents/skills/resume-from-handoff/SKILL.md`
 - **Shared docs:** `.resume-from-handoff/` (README, reconciliation checklist)
 - Completes the trio with `judge` (build?) and `session-handoff` (what happened?).
+
+## SPM Command
+
+Before implementing a non-trivial feature, fix, connector, automation, agent, hook, MCP change, UI change, database change, or architecture change, run:
+
+```text
+/spm <task>
+```
+
+`/spm` is the Senior Project Manager command. It must produce a decision-grade spec before implementation. The spec must include:
+
+1. Task being planned
+2. Current project context
+3. Problem statement
+4. Desired outcome
+5. Scope and non-goals
+6. Existing capability review
+7. Specialist board review
+8. Judge challenge
+9. Proposed solution
+10. UX requirements
+11. Technical requirements
+12. Security/privacy requirements
+13. Verification plan
+14. Loop/stress testing
+15. Acceptance criteria
+16. Goal command
+17. Implementation sequence
+18. Session handoff seed
+19. Final recommendation
+
+Default behaviour is read-only. Do not implement until the spec is accepted.
+
+- **Claude Code:** `/spm` → `.claude/skills/spm/SKILL.md`
+- **Codex:** `$spm` or `/skills` → select `spm` → `.agents/skills/spm/SKILL.md`
+- **Shared docs:** `.spm/` (spec template, agent board, goal template, verification template)
+
+Recommended command chain:
+
+```text
+/judge <idea>
+/spm <task>
+/goal <completion condition>
+/session-handoff
+/resume-from-handoff
+```
