@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.4.0",
-    "generated_at": "2026-06-27T04:09:32.460739+00:00",
+    "version": "1.5.0",
+    "generated_at": "2026-06-27T04:17:10.480721+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -1737,6 +1737,25 @@
       "status": "remotion-wave-1",
       "path": "skills\\remotion-script\\SKILL.md",
       "sha256": "91d624a98d738970b203f0311d35ba2a647151c9ecea0d05cd4baa794eb5280c",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "resume-from-handoff",
+      "description": "Resume work from a session handoff (/resume-from-handoff). Reads the latest handoff, verifies current repo state against it (read-only), reconciles drift, then continues the work from the documented pickup point without re-deriving old context. Verification is mandatory before any work resumes.",
+      "owner_role": "Tier-Architect (handoff resumption; verify-then-resume)",
+      "status": "active",
+      "path": "skills\\resume-from-handoff\\SKILL.md",
+      "sha256": "a6048623f93d86d00a6d365bcb0b3c550a6f96bdc11064b0b54f77b85c909c84",
       "dependencies": {
         "tools": [],
         "skills": []

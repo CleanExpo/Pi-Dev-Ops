@@ -122,6 +122,9 @@ _INTENT_SKILLS = {
     # explicit-invoke (automation:manual), so skills_manifest() classifies it
     # as manual even though it is intent-routed here.
     "handoff": ["session-handoff"],
+    # Read-side companion to "session-handoff": verify repo state against a
+    # handoff, then resume the work. Explicit-invoke (automation:manual).
+    "resume":  ["resume-from-handoff"],
     "video": [
         "remotion-orchestrator",
         "remotion-script",

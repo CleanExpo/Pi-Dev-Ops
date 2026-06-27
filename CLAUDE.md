@@ -325,3 +325,25 @@ Rules:
 - **Codex:** `$session-handoff` or `/skills` → select `session-handoff` → `.agents/skills/session-handoff/SKILL.md`
 - **Shared docs:** `.session-handoff/` (report template, verification checklist)
 - Companion to `judge`: `/judge` decides *whether to build*; `/session-handoff` records *what happened and where the next agent picks up*.
+
+## Resume From Handoff Command
+
+When picking work back up from a previous session's handoff, run:
+
+```text
+/resume-from-handoff <path to handoff file, pasted handoff, branch, or PR>
+```
+
+It reads the handoff, verifies the repo still matches it, reconciles drift, and continues from the documented pickup point — without re-deriving old context.
+
+Rules:
+
+- Verification (Phases 1–3) is read-only and mandatory **before** any work resumes.
+- It must not edit, commit, push, deploy, or migrate until the reconciliation verdict is reported.
+- On MATERIAL DRIFT or CANNOT RESUME (missing branch/commits, conflicting changes, obsolete PR), STOP and surface — do not resume blindly.
+- Skip the handoff's "Do not redo" list; respect repo gates (run `/judge` before building anything new not already approved).
+
+- **Claude Code:** `/resume-from-handoff` → `.claude/skills/resume-from-handoff/SKILL.md`
+- **Codex:** `$resume-from-handoff` or `/skills` → select `resume-from-handoff` → `.agents/skills/resume-from-handoff/SKILL.md`
+- **Shared docs:** `.resume-from-handoff/` (README, reconciliation checklist)
+- Completes the trio with `judge` (build?) and `session-handoff` (what happened?).
