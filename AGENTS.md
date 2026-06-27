@@ -145,4 +145,23 @@ Run `npx tsc --noEmit && npm run build` before committing any change to `dashboa
 
 ---
 
+## Judge Gate
+
+Before approving or building any feature, connector, automation, agent, hook, MCP server, database change, UI change, or architecture plan, invoke the repo skill:
+
+```text
+$judge <proposal>
+```
+
+In Codex, use `$judge` or `/skills` and select `judge`. In Claude Code, use `/judge`.
+
+Judge is read-only. It must produce a Judge Report (first-source evidence, existing capability, devil's advocate objections, UX gaps, security/privacy risks, loop/stress test plan, score out of 100, decision) before implementation. It must not build, edit, commit, push, migrate, or deploy. Implementation only follows separate explicit approval after the report.
+
+- **Codex skill:** `.agents/skills/judge/SKILL.md`
+- **Claude Code skill:** `.claude/skills/judge/SKILL.md`
+- **Shared docs:** `.judge/`
+- Distinct from `tao-judge` (machine loop-termination scorer).
+
+---
+
 Last updated: 2026-04-14 (MARATHON-4 / RA-588)
