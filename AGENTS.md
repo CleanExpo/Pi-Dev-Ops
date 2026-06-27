@@ -216,4 +216,39 @@ In Claude Code, use `/resume-from-handoff`. Verification (load handoff → verif
 
 ---
 
+## SPM Boundary
+
+Agents may freely create or update SPM command assets in:
+
+| Path | Permission |
+|---|---|
+| `.claude/skills/spm/` | ✅ |
+| `.agents/skills/spm/` | ✅ |
+| `.spm/` | ✅ |
+| `skills/spm/` | ✅ |
+
+Before implementation of any non-trivial change, invoke:
+
+```text
+$spm <task>
+```
+
+In Claude Code, use `/spm <task>`. The SPM command is read-only by default and must not mutate repo state unless implementation is separately authorised. It produces a decision-grade spec (sections 1–19) and the exact `/goal` command to run after the spec is accepted.
+
+- **Codex skill:** `.agents/skills/spm/SKILL.md`
+- **Claude Code skill:** `.claude/skills/spm/SKILL.md`
+- **Shared docs:** `.spm/`
+
+Recommended command chain:
+
+```text
+/judge <idea>
+/spm <task>
+/goal <completion condition>
+/session-handoff
+/resume-from-handoff
+```
+
+---
+
 Last updated: 2026-04-14 (MARATHON-4 / RA-588)
