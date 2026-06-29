@@ -32,14 +32,16 @@ const COOKIE_NAME = "pi_session";
 const LOGIN_PATH = "/";
 
 const PROTECTED_PAGE_PREFIXES = [
-  "/overview",
-  "/brain",
   "/control",
+  // RA-6862: /loop (Loop Cockpit) is data-only — every panel reads /api/pi-ceo/*,
+  // which 401s without a session, so an unauthenticated visit is a bare shell.
+  // Protect it so unauthenticated users are redirected to login instead.
+  // (/overview and /brain are intentionally public shells — see the brain-page
+  // smoke surface entry — so they are deliberately NOT protected here.)
   "/loop",
   "/dashboard",
   "/health",
   "/builds",
-  "/routines",
   "/chat",
   "/settings",
   "/history",
