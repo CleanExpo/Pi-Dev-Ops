@@ -1,0 +1,58 @@
+{
+  "critical": [],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "webhook.py implements only inbound parsing (parse_linear_event, linear_issue_to_brief) — there are zero outbound Linear API calls in any shown file; no issueUpdate GraphQL mutation, no linear_update_issue function, no Linear HTTP client instantiation anywhere in the provided source",
+      "file": "app/server/webhook.py",
+      "recommendation": "Add a linear_update_issue(issue_id, state_id) helper that POSTs an issueUpdate GraphQL mutation to api.linear.app with the LINEAR_API_KEY, then wire it into the session completion and failure paths in routes/sessions.py to close the sync loop.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "No integration or E2E tests exist for the full build pipeline (session create → generator → evaluator → push). The two test files shown (test_auth.py, test_webhook.py) are pure unit tests for auth and webhook signature modules only. scripts/smoke_test.py is an external HTTP-level smoke test requiring a live server — it cannot run in CI without external dependencies and does not exercise the session SDK, evaluator, or push phases internally.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Add a pytest integration test module (e.g. tests/test_pipeline_integration.py) that exercises the full session lifecycle — POST /api/build → poll /api/sessions/{id} → assert evaluator score present → assert branch pushed — using a mocked claude_agent_sdk and a git stub, so it runs in CI without Railway.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "The provided file excerpt contains no explicit /start or /help slash-command dispatch block. A triggerBuild() helper exists suggesting /build may be handled, but the route.ts file is truncated mid-function (ends at `const cookie = aw`) so the command-routing switch/if-chain is not visible and cannot be confirmed present or absent.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Read the full file (not the truncated excerpt) to confirm the command-dispatch block exists; if /start and /help branches are missing, add them to the switch/if block that processes message.text.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "CLAUDE.md explicitly states '3 pre-existing failures in test_sdk_phase2.py (claude_agent_sdk not installed locally)'. Since TAO_USE_AGENT_SDK=1 is the only supported mode, known failing tests in the SDK phase 2 suite directly contradict a claim of complete coverage for the primary execution path.",
+      "file": "tests/test_sdk_phase2.py",
+      "recommendation": "Either mock claude_agent_sdk in CI so test_sdk_phase2.py passes, or mark those 3 tests xfail with a note and remove the 'Complete' claim until the dependency is installable in the test environment.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The smoke_test.py source is truncated mid-function (ends at 'except json.JSONDecod'), making it impossible to verify the 22-check count or confirm that push-phase and evaluator checks are included rather than only auth/health/session-list endpoints.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Ensure the smoke test file is complete in the repo and add an explicit check count assertion or comment listing all 22 checks so the count can be audited without running the script.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 5,
+    "critical_count": 0,
+    "high_count": 2,
+    "low_count": 3,
+    "duration_s": 195.6,
+    "audited_at": "2026-06-26T05:10:23.262696+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": []
+  }
+}

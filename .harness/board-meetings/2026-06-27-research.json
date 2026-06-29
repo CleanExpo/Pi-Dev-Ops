@@ -1,0 +1,18 @@
+{
+  "research_required": false,
+  "questions": [
+    "What is Anthropic's current policy on trial credits and API key requirements for platform-managed accounts as of June 2026?",
+    "Has Anthropic announced any changes to their pricing or free-tier access in the last 30 days that would affect orchestrator platforms built on Claude?",
+    "What is the current status of the Australian Business Register (ABR) API and are there any known outages or authentication changes affecting ABN lookups?"
+  ],
+  "findings": [],
+  "open_questions": [
+    "What is Anthropic's current policy on trial credits and API key requirements for platform-managed accounts as of June 2026?",
+    "Has Anthropic announced any changes to their pricing or free-tier access in the last 30 days that would affect orchestrator platforms built on Claude?",
+    "What is the current status of the Australian Business Register (ABR) API and are there any known outages or authentication changes affecting ABN lookups?"
+  ],
+  "completed_at": "2026-06-27T05:03:34.645135+00:00",
+  "cost_seconds": 192.6,
+  "failure_reason": "research subagent returned empty (timeout or SDK failure)",
+  "mode": "fast"
+}

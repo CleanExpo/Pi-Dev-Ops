@@ -1,0 +1,69 @@
+{
+  "critical": [],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "webhook.py implements only inbound handling: signature verification, event parsing (parse_linear_event), and brief generation (linear_issue_to_brief). There are zero outbound Linear API calls — no issueUpdate GraphQL mutation, no linear_update_issue helper, no Linear API client instantiation anywhere in the provided files. The 'two-way' half (state updates flowing back to Linear after a build completes) is entirely absent from the code shown.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Add an outbound Linear state-update helper (e.g. POST to https://api.linear.app/graphql with the issueUpdate mutation) and call it from the session completion handler in routes/sessions.py to close the sync loop.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "spec implies build logs stream to browser in real time via SSE (Server-Sent Events)",
+      "reality": "No SSE endpoint that iterates session.output_lines is registered in main.py or visible in sessions.py. The only build-log streaming route present is the WebSocket at /ws/build/{sid} (routes/utils.py per CLAUDE.md). The frontend useSSE.ts hook therefore has no matching server-side SSE route for build output — the two transports are incompatible.",
+      "file": "app/server/main.py",
+      "recommendation": "Add a GET /api/sessions/{sid}/stream SSE endpoint in routes/utils.py (or routes/sessions.py) that iterates session.output_lines and yields text/event-stream chunks, or update the spec and useSSE.ts to consume the existing WebSocket instead.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The only test files provided are unit tests for auth (test_auth.py) and webhook signature/parsing (test_webhook.py). No integration or E2E tests covering the full build pipeline (session creation → generator → evaluator → push) exist in the tests/ directory. scripts/smoke_test.py is a live-server regression script, not an automated CI-runnable integration test, and its output is truncated so the 22-check count cannot be verified.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Add pytest-based integration tests under tests/test_pipeline.py that mock the SDK and exercise the full session lifecycle (POST /api/build → phase transitions → evaluator verdict → push) without requiring a live server.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "22-check smoke test suite (count implied complete)",
+      "reality": "scripts/smoke_test.py is truncated in the provided source; the exact check count cannot be confirmed from the code. The visible portion covers login and basic API surface checks only — no checks visible for the evaluator, push phase, or SSE streaming that the spec claims are implemented.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Add explicit check names and a final assertion count to smoke_test.py so CI output makes the 22-check claim verifiable (e.g. assert len(passed) + len(failed) == 22).",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "Budget tracker is instantiated but not wired — 'session_sdk.py does not instantiate it'",
+      "reality": "The spec itself documents this gap, but no test exists in the provided test files to catch a regression if the tracker is wired incorrectly in a future PR; the unit test suite has no coverage of BudgetTracker or sdk_metrics emission.",
+      "file": "tests/test_auth.py",
+      "recommendation": "Add a unit test in a new tests/test_budget.py that patches ClaudeSDKClient and asserts BudgetTracker.record() is called with the correct output_len after a successful SDK response.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "Budget tracker is instantiated but not wired. BudgetTracker in src/tao/budget/tracker.py is a correct implementation, but session_sdk.py does not instantiate it. SDK metric rows capture output_len but not tokens_used.",
+      "reality": "Confirmed by sessions.py: only budget_to_params and describe_budget are imported from .budget; BudgetTracker is never imported or instantiated anywhere in the session lifecycle. Per-session token spend is untracked.",
+      "file": "app/server/sessions.py",
+      "recommendation": "In session_sdk.py._run_claude_via_sdk(), import and instantiate BudgetTracker and feed it the output_len values already captured in SDK metric rows to activate per-session cost tracking.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 6,
+    "critical_count": 0,
+    "high_count": 2,
+    "low_count": 4,
+    "duration_s": 195.5,
+    "audited_at": "2026-06-16T05:06:45.579772+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": [
+      "RA-6737",
+      "RA-6738"
+    ]
+  }
+}

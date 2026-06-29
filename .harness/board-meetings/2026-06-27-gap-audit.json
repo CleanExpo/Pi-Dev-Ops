@@ -1,0 +1,50 @@
+{
+  "critical": [],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "webhook.py implements only the inbound half: HMAC verification, issue-state parsing (started / urgent-created), and brief generation. There are no outbound Linear API calls anywhere in the provided Python source — no issueUpdate GraphQL mutation, no linear_update_issue helper, no httpx/requests call to api.linear.app. The 'state updates flow back to Linear' direction of the claimed two-way sync is entirely absent from the provided files.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Add an async outbound helper (e.g. post issueUpdate mutation via httpx to api.linear.app/graphql with LINEAR_API_KEY) and call it from routes/webhooks.py after a build session transitions to complete or failed, so Linear issue state is updated to reflect the build outcome.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The pytest suite contains only unit tests for auth (test_auth.py) and webhook signature parsing (test_webhook.py). There are no integration or E2E tests covering the build pipeline — no test_sessions.py, test_evaluator.py, test_pipeline.py, or equivalent. The 22-check 'suite' is scripts/smoke_test.py, which requires a live server and is wired only into a CI smoke-prod job against Railway production, not as an automated integration test runnable without infrastructure.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Add pytest integration tests (e.g. tests/test_pipeline_e2e.py) that mock or spin up the FastAPI app via httpx.AsyncClient and exercise the full /api/build → session polling → evaluator → push flow without requiring an external running server.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "22-check smoke test suite",
+      "reality": "The smoke_test.py source is truncated at the _req() helper — the actual 22 checks are not visible in the provided code, so the count cannot be verified. The checks visible only confirm login, health, and basic HTTP surface; no evidence of build pipeline (sessions/evaluator/push) coverage in the visible portion.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Ensure the smoke test explicitly exercises /api/build, polls session status to terminal state, and verifies the push phase outcome; document the 22 check names inline so the count is auditable without running the script.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "Sprint 10 complete (2026-04-14): ... 28 scanner exclusions (RA-834), carsi credential removed (RA-835), ZTE v2 Section C wired (RA-672)",
+      "reality": "None of these items have corresponding test coverage in the provided test files. test_auth.py and test_webhook.py cover auth and webhook concerns only; scanner exclusions, credential removal, and ZTE Section C wiring are untested at the pytest level.",
+      "file": "tests/test_auth.py",
+      "recommendation": "Add regression tests for each Sprint 10 deliverable (scanner exclusion list, credential absence, ZTE Section C computation) so future regressions are caught before the smoke-prod CI stage.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 4,
+    "critical_count": 0,
+    "high_count": 2,
+    "low_count": 2,
+    "duration_s": 182.4,
+    "audited_at": "2026-06-27T05:08:28.090180+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": []
+  }
+}

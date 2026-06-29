@@ -1,0 +1,58 @@
+{
+  "critical": [],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "app/server/webhook.py implements only the inbound direction: HMAC verification, event parsing (parse_linear_event), and brief generation (linear_issue_to_brief). There are zero outbound HTTP calls to the Linear API — no issueUpdate GraphQL mutation, no linear_update_issue helper, no state transition write-back anywhere in the provided files.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Add an async helper (e.g. update_linear_issue_state(issue_id, state)) that POSTs the issueUpdate GraphQL mutation to api.linear.app/graphql with the LINEAR_API_KEY, then call it from the webhook route after a build completes or fails.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The pytest suite (tests/) contains only unit tests for auth (test_auth.py) and webhook signature/parsing (test_webhook.py). There are zero integration or E2E tests covering the full build pipeline — no tests for /api/build session creation, evaluator invocation, push phase, or the TAO loop. The smoke_test.py is a live-server probe (requires a running Railway/local instance and TAO_PASSWORD) and is excluded from standard pytest runs; it is not wired as a pytest integration test.",
+      "file": "tests/test_auth.py",
+      "recommendation": "Add a pytest integration test module (e.g. tests/test_pipeline_integration.py) that spins up the FastAPI app via httpx.AsyncClient and exercises the /api/build → SSE stream → session completion path end-to-end using a mocked claude_agent_sdk client.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "high",
+      "claim": "spec implies build logs stream to browser in real time via SSE (distinct from WebSocket /ws/build/{sid})",
+      "reality": "The only real-time streaming endpoint visible in the provided and referenced source is the WebSocket at /ws/build/{sid} (routes/utils.py). No SSE endpoint that iterates session.output_lines and emits text/event-stream is present in sessions.py (the facade) or registered in main.py. The client-side dashboard/hooks/useSSE.ts hook exists but has no confirmed server-side SSE producer in the audited files; CLAUDE.md's own note to 'reframe SSE drops as reconnecting, poll /api/sessions as truth' implies the SSE surface is unreliable or absent, not a fully wired stream.",
+      "file": "app/server/routes/utils.py",
+      "recommendation": "Add a GET /api/sessions/{sid}/stream endpoint (text/event-stream, chunked) in routes/sessions.py that reads session.output_lines and flushes new entries as SSE data frames, then register it in main.py alongside the existing WebSocket so useSSE.ts has a real server-side counterpart.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build) as implemented",
+      "reality": "The provided route.ts contains helper functions (triggerBuild, getPiCeoStatus, getLinearBacklog, createLinearIssue) that support command handling, but the file is truncated mid-function before the POST webhook handler that would contain the command dispatch switch/if-chain. No explicit /start or /help handlers are visible in the provided code; /build routing cannot be confirmed due to truncation.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Verify the complete file includes a POST handler with explicit dispatch for /start, /help, and /build text prefixes; add /start and /help handlers if absent.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "smoke_test.py is truncated in the provided source so the exact check count cannot be verified; the visible checks cover /health, auth, and basic API surface but not the evaluator response parsing, push-phase HMAC, or session persistence paths that are explicitly called out as hard-won patterns in CLAUDE.md.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Add smoke checks for /api/build (mock or canary brief), SSE log streaming (/ws/build/{sid} or /api/sessions/{id}/logs), and a push-phase canary to bring the suite to full pipeline coverage and make the '22-check complete' claim accurate.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 5,
+    "critical_count": 0,
+    "high_count": 3,
+    "low_count": 2,
+    "duration_s": 197.2,
+    "audited_at": "2026-06-24T05:09:11.833653+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": []
+  }
+}

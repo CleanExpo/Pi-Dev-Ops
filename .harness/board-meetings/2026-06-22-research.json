@@ -1,0 +1,109 @@
+{
+  "research_required": true,
+  "questions": [
+    "What are Anthropic's current trial credit policies and API key requirements for new signups as of June 2026, and do they support platform-managed credits that remove the need for a user-supplied key?",
+    "Has Anthropic announced any pricing or access changes to Claude API plans effective around 22 June 2026 that would affect the Mythos-as-planner strategy?",
+    "What is the current status of ABR (Australian Business Register) API availability and any known outages or authentication changes affecting ABN lookups in June 2026?",
+    "What competing AI-powered insurance or disaster recovery report generation platforms have launched or updated their onboarding flows in the past 60 days that RestoreAssist should be aware of for its organic launch?"
+  ],
+  "findings": [
+    {
+      "question": "What are Anthropic's current trial credit policies and API key requirements for new signups as of June 2026, and do they support platform-managed credits that remove the need for a user-supplied key?",
+      "claim": "Anthropic grants new API signups a small free credit allotment (reported as ~$5 by multiple secondary sources) with phone verification but no credit card required; the official pricing FAQ confirms 'new users receive a small amount of free credits to test the API.' Anthropic does not offer a native platform-managed credit feature that removes the need for an end-user API key — that pattern requires the platform operator to embed their own Anthropic key, or a third-party integration layer such as Relay.app.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/about-claude/pricing",
+          "title": "Pricing - Claude API Docs",
+          "fetched": "2026-06-22",
+          "excerpt": "New users receive a small amount of free credits to test the API. Contact sales for information about extended trials for enterprise evaluation."
+        },
+        {
+          "url": "https://www.getaiperks.com/en/ai/free-anthropic-api-key",
+          "title": "How to Get a Free Anthropic API Key in 2026 (Plus Free Credits) | Get AI Perks",
+          "fetched": "2026-06-22",
+          "excerpt": "Trial credits ($5) are auto-granted on signup. Phone verification is required. Adding a payment method is optional and only needed when you want to spend beyond your credit balance."
+        },
+        {
+          "url": "https://www.relay.app/blog/how-to-buy-credits-for-the-anthropic-claude-api",
+          "title": "How to buy credits for the Anthropic API to use the Claude models | Relay.app Blog",
+          "fetched": "2026-06-22",
+          "excerpt": "Relay.app allows you to build AI agents and automations on Claude models without setting up your own Claude API key, and without needing to buy platform credits."
+        }
+      ]
+    },
+    {
+      "question": "Has Anthropic announced any pricing or access changes to Claude API plans effective around 22 June 2026 that would affect the Mythos-as-planner strategy?",
+      "claim": "The headline June 15 billing change (Agent SDK / claude -p moved to a separate monthly credit pool) was officially paused on June 16 and did not take effect; as of June 22 all SDK and subscription usage continues unchanged. Separately, the official pricing page confirms Claude Mythos 5 is listed at $10/MTok input and $50/MTok output but carries a 'limited availability' flag gated behind Project Glasswing approval — access constraints, not price, are the practical risk for a Mythos-as-planner strategy.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://www.digitalapplied.com/blog/anthropic-claude-credit-overhaul-june-15-2026",
+          "title": "Claude Credit Overhaul 2026: Anthropic Pauses the June 15 Change",
+          "fetched": "2026-06-22",
+          "excerpt": "Anthropic has paused the June 15 Agent SDK billing change — it is not taking effect. Agent SDK calls continue drawing from Pro, Max, Team, and Enterprise subscription limits exactly as before."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/about-claude/pricing",
+          "title": "Pricing - Claude API Docs",
+          "fetched": "2026-06-22",
+          "excerpt": "Claude Mythos 5 (limited availability – anthropic.com/glasswing): $10/MTok input, $50/MTok output. Same token rate as Fable 5."
+        },
+        {
+          "url": "https://levelup.gitconnected.com/anthropic-will-quietly-reprice-your-claude-pro-plan-on-june-15-the-free-20-credit-replacing-1ebd922a7786",
+          "title": "Anthropic Just Quietly Raised Claude Pro Bill (June 15 Repricing for Agent SDK) | Level Up Coding",
+          "fetched": "2026-06-22",
+          "excerpt": "Anthropic stated it is 'reworking the plan to better support how users build with Claude subscriptions' and will provide advance notice before implementing any revised version."
+        }
+      ]
+    },
+    {
+      "question": "What is the current status of ABR (Australian Business Register) API availability and any known outages or authentication changes affecting ABN lookups in June 2026?",
+      "claim": "As of June 22, 2026 the ABR status page reports all systems operational — ABN System, ABR Web Services, and Identifier Search are all green with no incidents recorded between June 8–22. Authentication remains GUID-based (issued via email on registration approval) with no published changes to that flow.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://status.abr.gov.au/",
+          "title": "Australian Business Register Status",
+          "fetched": "2026-06-22",
+          "excerpt": "All Systems Operational. ABN System: Operational. ABR Web Services: Operational. Identifier Search: Operational. No incidents June 8–22 2026."
+        },
+        {
+          "url": "https://abr.business.gov.au/Documentation/WebServiceRegistration",
+          "title": "Web services registration | ABN Lookup",
+          "fetched": "2026-06-22",
+          "excerpt": "When you register for access to the ABN Lookup web services, you will receive an authentication GUID via email."
+        }
+      ]
+    },
+    {
+      "question": "What competing AI-powered insurance or disaster recovery report generation platforms have launched or updated their onboarding flows in the past 60 days that RestoreAssist should be aware of for its organic launch?",
+      "claim": "BriteCore launched eight embedded AI copilots on May 21, 2026, including document generation and claims-summary workflows, targeting enterprise insurers via an MCP infrastructure layer — it is a workflow-automation competitor, not a self-serve consumer-facing disaster recovery report generator. No direct Australian-market or end-user-onboarding competitor specifically targeting property disaster-recovery report generation was identified in this search window.",
+      "confidence": "low",
+      "sources": [
+        {
+          "url": "https://fintech.global/2026/05/21/britecore-launches-ai-copilots-for-insurance-workflows/",
+          "title": "BriteCore launches AI copilots for insurance workflows",
+          "fetched": "2026-06-22",
+          "excerpt": "BriteCore released eight embedded AI copilots including Submission Intake & Readiness Copilot, claims summaries, document generation, and reporting — reducing manual work by 80–90% per vendor claim."
+        },
+        {
+          "url": "https://www.marketingcode.com/roofing-ai-claims-storm-season-may-2026/",
+          "title": "Roofing 2026: The Carrier AI Counter-Stack For Storm Season",
+          "fetched": "2026-06-22",
+          "excerpt": "AI storm-season claim stacks emerging in US roofing vertical, carrier-side focus. No Australian consumer self-serve onboarding equivalent identified."
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "Does Anthropic operate a formal 'platform operator credit' program (analogous to OpenAI's operator key model) that would allow RestoreAssist to absorb API costs on behalf of end-users without requiring each user to supply their own key — no documentation of this was found in official Anthropic docs as of June 22 2026.",
+    "What is the exact dollar amount of Anthropic's trial credit for new API signups — official docs confirm credits exist but do not publish a figure; secondary sources cite $5 but this is unconfirmed from a primary source.",
+    "When will Project Glasswing approval for Claude Mythos 5 become broadly available, and what are the eligibility criteria — the pricing page links to anthropic.com/glasswing but that URL was not publicly fetchable for detailed terms.",
+    "Are there any Australian-built or Australian-launched AI property-damage report generation platforms (e.g. targeting insurer-policyholder workflows post-flood or bushfire) that have updated onboarding in the April–June 2026 window — searches returned no matching launch announcements."
+  ],
+  "completed_at": "2026-06-22T05:02:38.890000+00:00",
+  "cost_seconds": 137.4,
+  "failure_reason": null,
+  "mode": "fast"
+}

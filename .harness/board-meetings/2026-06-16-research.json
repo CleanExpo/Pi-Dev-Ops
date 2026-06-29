@@ -1,0 +1,56 @@
+{
+  "research_required": true,
+  "questions": [
+    "What is the current status and pricing of Mythos AI's planner product, and what pricing changes are scheduled to take effect around 22 June 2026?",
+    "What are the ABR API's current authentication requirements and have there been any recent changes to the ABR_API_GUID parameter or endpoint behaviour?",
+    "Has DigitalOcean made any recent changes to their container registry or build pipeline that could affect monkfish-app builds failing since commit 0060d6f?"
+  ],
+  "findings": [
+    {
+      "question": "What is the current status and pricing of Mythos AI's planner product, and what pricing changes are scheduled to take effect around 22 June 2026?",
+      "claim": "No company named 'Mythos AI' with a discrete 'planner' product was found. All results reference Anthropic's Mythos model tier, publicly available as Claude Fable 5 (launched 9 June 2026) at $10/M input tokens and $50/M output tokens. The pricing change taking effect 23 June 2026 removes Fable 5 from Pro/Max/Team/Enterprise subscription plans, requiring usage-credit billing on top of the monthly subscription; Anthropic states it will reinstate flat-rate access once capacity permits.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/news/claude-fable-5-mythos-5",
+          "title": "Claude Fable 5 and Claude Mythos 5 | Anthropic",
+          "fetched": "2026-06-16",
+          "excerpt": "Starting June 23, Fable 5 will be removed from Pro, Max, Team, and seat-based Enterprise plans; usage credits required thereafter. $10/M input, $50/M output."
+        },
+        {
+          "url": "https://techcrunch.com/2026/06/09/anthropics-claude-fable-5-is-a-version-of-mythos-the-public-can-access-today/",
+          "title": "Anthropic releases Claude Fable, a version of Mythos, days after warning AI is becoming too dangerous",
+          "fetched": "2026-06-16",
+          "excerpt": "Anthropic released Fable 5 on June 9 2026, a public Mythos-class model. Access through June 22 is included in paid plans; from June 23 usage credits apply."
+        }
+      ]
+    },
+    {
+      "question": "What are the ABR API's current authentication requirements and have there been any recent changes to the ABR_API_GUID parameter or endpoint behaviour?",
+      "claim": "The ABR API still requires a GUID obtained at registration ('AuthenticationGuid') for all web service calls; no changes to this parameter or the two SOAP endpoints (Document/RPC style at abr.business.gov.au) are documented. The latest recommended method is SearchByABNv202001; older versions remain active. Documentation is at version 9.9.7. A routine maintenance window was scheduled for 17 June 2026 but no authentication or endpoint changes were announced.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://abr.business.gov.au/Documentation/WebServiceRegistration",
+          "title": "Web services registration | ABN Lookup",
+          "fetched": "2026-06-16",
+          "excerpt": "We will process your application and e-mail you an authentication GUID required to access the ABN Lookup web services. Version 9.9.7. Scheduled maintenance June 17."
+        },
+        {
+          "url": "https://abr.business.gov.au/Documentation/WebServiceMethods",
+          "title": "Web services methods | ABN Lookup",
+          "fetched": "2026-06-16",
+          "excerpt": "AuthenticationGuid: The GUID provided when you registered. Latest version: SearchByABNv202001. Two endpoints available: Document and RPC style. No endpoint changes noted."
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "What is the current status and pricing of Mythos AI's planner product, and what pricing changes are scheduled to take effect around 22 June 2026? — No company 'Mythos AI' with a standalone 'planner' product was found; if this refers to a startup distinct from Anthropic's Mythos model tier, no public pricing or June-22 change announcement could be sourced.",
+    "Has DigitalOcean made any recent changes to their container registry or build pipeline that could affect monkfish-app builds failing since commit 0060d6f? — 'monkfish-app' and commit 0060d6f appear to be a private repository; no public DigitalOcean changelog entry, release note, or community thread specifically linking a platform-side change to this project or commit was found. The only platform-level context available is an ongoing BuildKit limitation on App Platform (RUN --mount directives unsupported) and a May 2026 multi-region build incident, neither of which can be tied to this specific commit without access to the private repo's CI logs."
+  ],
+  "completed_at": "2026-06-16T05:02:42.979482+00:00",
+  "cost_seconds": 126.8,
+  "failure_reason": null,
+  "mode": "fast"
+}
