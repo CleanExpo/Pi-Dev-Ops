@@ -41,6 +41,10 @@ jobs:
         run: pytest tests/ -v --tb=short
         working-directory: .
 
+      - name: Pytest swarm tests
+        run: pytest swarm/ -v --tb=short
+        working-directory: .
+
   # ── Frontend: TypeScript + ESLint + build ────────────────────────────────────
   frontend:
     name: Frontend (tsc + eslint + build)

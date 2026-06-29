@@ -154,7 +154,16 @@ class GroundedResearchDepthTests(unittest.TestCase):
         fake_module = MagicMock()
         fake_module.grounded_research = fake_grounded_research
         import sys
-        with patch.dict(sys.modules, {"swarm.research.gemini_research": fake_module}):
+        # pm_scoper does `from swarm.research import gemini_research`, so the
+        # name resolves as an ATTRIBUTE of the parent package — which is not a
+        # real package on disk. Provide a parent whose .gemini_research is the
+        # fake module (and register both in sys.modules for import machinery).
+        fake_parent = MagicMock()
+        fake_parent.gemini_research = fake_module
+        with patch.dict(sys.modules, {
+            "swarm.research": fake_parent,
+            "swarm.research.gemini_research": fake_module,
+        }):
             summary, citations = mod._run_grounded_research(ticket)
         self.assertIn("spec body", summary)
         self.assertEqual(citations, 0)
