@@ -114,6 +114,7 @@ mcp/node_modules/
 .harness/anthropic-docs/2*/
 .harness/secrets-scan/
 .harness/post-deploy-metrics/
+.harness/burndown-state.json
 
 # ── Harness feedback loop / BVI state (runtime, not config) ──────────
 .harness/shipped-features.jsonl
