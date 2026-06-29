@@ -1,6 +1,8 @@
 # dashboard — Wiki
 
-_Last updated: 2026-06-17T19:40:34Z (commits 3ea6465..bf87856)_
+_Last updated: 2026-06-29T08:07:41Z (commits e1a9606..e215e97)_
 
 ## Recent changes
-- bf87856 — fix(proxy): stream session SSE alias through Pi CEO proxy
+- e215e97 — feat(dashboard): Loop Cockpit — read-only surface for the autonomous loop (RA-6862) (#384)
+
+
