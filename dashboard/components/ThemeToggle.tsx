@@ -4,19 +4,28 @@
 import { useEffect, useState } from "react";
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<"dark" | "light">("light");
+  // Dark-first, matching the layout's theme-init script. Starting in "light"
+  // desynced the button from the actual <html> class, so the first click set
+  // the theme to whatever it already was (a visible no-op).
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
 
   useEffect(() => {
-    const stored = localStorage.getItem("pi-theme");
-    const initial = stored === "dark" ? "dark" : "light";
-    setTheme(initial);
+    // Trust the real DOM state set by the init script (it has already applied
+    // localStorage + the dark-first default), not a fresh re-read.
+    const current = document.documentElement.classList.contains("light") ? "light" : "dark";
+    setTheme(current);
   }, []);
 
   function toggle() {
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
     localStorage.setItem("pi-theme", next);
-    document.documentElement.className = next;
+    // Toggle ONLY the theme class via classList — overwriting className wiped
+    // the next/font variable classes the init script also sets on <html>,
+    // breaking the fonts after a toggle.
+    const html = document.documentElement;
+    html.classList.toggle("dark", next === "dark");
+    html.classList.toggle("light", next === "light");
   }
 
   return (
