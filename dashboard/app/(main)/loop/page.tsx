@@ -127,6 +127,10 @@ export default function LoopPage() {
   for (const a of mc?.observability?.actions ?? []) needs.push({ text: a, color: "var(--warning)" });
   if (mc?.queue?.next_issue_id) needs.push({ text: `Next queued ticket: ${mc.queue.next_issue_id}`, color: "var(--text-muted)" });
 
+  // All four fetches null = we never reached the backend (unauthenticated or
+  // backend down). Absent data must NOT read as "healthy".
+  const disconnected = !autonomy && !mc && !swarm && !routines;
+
   const burndownRuns = (routines?.runs ?? []).filter((r) => (r.name ?? "").toLowerCase().includes("burndown"));
   const hourly = mc?.throughput?.hourly ?? [];
   const completed24h = hourly.reduce((acc, n) => acc + (n || 0), 0);
@@ -152,18 +156,22 @@ export default function LoopPage() {
           className="flex flex-col gap-2 p-4"
           style={{
             background: "var(--panel)",
-            border: `1px solid ${needs.length ? "var(--warning)" : "var(--border)"}`,
+            border: `1px solid ${disconnected ? "var(--error)" : needs.length ? "var(--warning)" : "var(--border)"}`,
             borderRadius: 8,
           }}
           aria-label="Needs me"
         >
           <div className="flex items-center gap-2">
-            <Dot color={needs.length ? "var(--warning)" : "var(--success)"} />
+            <Dot color={disconnected ? "var(--error)" : needs.length ? "var(--warning)" : "var(--success)"} />
             <h2 className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
               Needs me
             </h2>
           </div>
-          {needs.length === 0 ? (
+          {disconnected ? (
+            <p className="text-sm" style={{ color: "var(--text)" }}>
+              Disconnected — not authenticated or the Pi-CEO backend is unreachable, so live data is unavailable. Log in to populate the cockpit.
+            </p>
+          ) : needs.length === 0 ? (
             <p className="text-sm" style={{ color: "var(--text-muted)" }}>
               Nothing needs you — the loop is healthy.
             </p>
