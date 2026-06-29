@@ -1,22 +1,34 @@
 #!/usr/bin/env bash
 # install.sh — install the self-improving-system LaunchAgents.
 #
-# RUN AFTER this PR merges AND the production checkout (~/Pi-CEO/Pi-Dev-Ops, the
-# path the existing pi-ceo LaunchAgents use) has pulled the new scripts. The
-# plists point at that path; installing before the scripts exist there would log
-# file-not-found on the first fire.
+# The plists run their scripts from a dedicated git worktree pinned to `main`
+# (~/Pi-CEO/Pi-Dev-Ops-routines), NOT the live dev checkout (~/Pi-CEO/Pi-Dev-Ops).
+# The dev checkout doubles as a human workspace and gets parked on feature
+# branches that predate these scripts, which would make every fire log
+# file-not-found. A main-pinned worktree never moves when the dev checkout
+# switches branches. This script creates that worktree if it is missing.
 #
 # Validates plists, copies them to ~/Library/LaunchAgents, and (re)loads them.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEST="$HOME/Library/LaunchAgents"
-PROD="$HOME/Pi-CEO/Pi-Dev-Ops/scripts"
+REPO="$HOME/Pi-CEO/Pi-Dev-Ops"
+WORKTREE="$HOME/Pi-CEO/Pi-Dev-Ops-routines"
+PROD="$WORKTREE/scripts"
 
 for f in com.pi-ceo.data-ingestion com.pi-ceo.improve-system; do
   plutil -lint "$HERE/$f.plist"                      # fail fast on malformed plist
 done
-[ -f "$PROD/data_ingestion.sh" ] || { echo "WARN: $PROD/data_ingestion.sh missing — pull the prod checkout first"; exit 1; }
-[ -f "$PROD/improve_system.py" ] || { echo "WARN: $PROD/improve_system.py missing — pull the prod checkout first"; exit 1; }
+
+# Create the main-pinned worktree on first install (idempotent).
+if [ ! -d "$WORKTREE" ]; then
+  echo "creating routines worktree (main) at $WORKTREE"
+  git -C "$REPO" fetch origin main --quiet || true
+  git -C "$REPO" worktree add "$WORKTREE" main
+fi
+
+[ -f "$PROD/data_ingestion.sh" ] || { echo "WARN: $PROD/data_ingestion.sh missing — worktree not on a branch with the scripts"; exit 1; }
+[ -f "$PROD/improve_system.py" ] || { echo "WARN: $PROD/improve_system.py missing — worktree not on a branch with the scripts"; exit 1; }
 
 for f in com.pi-ceo.data-ingestion com.pi-ceo.improve-system; do
   cp "$HERE/$f.plist" "$DEST/$f.plist"
