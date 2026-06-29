@@ -411,6 +411,9 @@ async def _fire_trigger(trigger: dict, log) -> None:
     elif trigger_type == "discovery_archive":                   # RA-2027
         from .discovery_archive import _fire_discovery_archive_trigger  # noqa: PLC0415
         await _fire_discovery_archive_trigger(trigger, log)
+    elif trigger_type == "burndown":                            # RA-6670
+        from .burndown import _fire_burndown_trigger  # noqa: PLC0415
+        await _fire_burndown_trigger(trigger, log)
     elif trigger_type == "build":
         await create_session(
             repo_url=trigger["repo_url"],
