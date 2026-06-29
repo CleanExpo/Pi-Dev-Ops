@@ -8,7 +8,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/scripts/data_ingestion.sh</string>
+    <string>/Users/phill-mac/Pi-CEO/Pi-Dev-Ops-routines/scripts/data_ingestion.sh</string>
   </array>
 
   <!-- Tue (2) + Fri (5) at 09:00 local — the B.U.I.L.D. ingestion routine -->
