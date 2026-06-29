@@ -1,8 +1,8 @@
 # .spm — Wiki
 
-_Last updated: 2026-06-27T04:43:40Z (commits bd9768d..bf6d861)_
+_Last updated: 2026-06-29T07:23:13Z (commits 28c56c0..b84fcc7)_
 
 ## Recent changes
-- bf6d861 — feat(spm): add senior project manager command (#371)
+- b84fcc7 — You are the Brand Guardian reviewer for Unite-Group. Per [[feedback-d...
 
 
