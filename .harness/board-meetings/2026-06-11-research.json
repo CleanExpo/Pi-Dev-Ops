@@ -1,0 +1,94 @@
+{
+  "research_required": true,
+  "questions": [
+    "What are the exact pricing changes Anthropic is implementing for Claude API on or around 22 June 2026 that would affect the Mythos-as-planner strategy?",
+    "Are there any known breaking changes or deprecations in the Claude Agent SDK released in the last 30 days that could affect the Pi-CEO orchestrator pipeline?",
+    "What is the current status of Telegram Bot API getUpdates long-polling vs webhook conflicts — has Telegram published any guidance or rate-limit changes affecting concurrent pollers in 2026?"
+  ],
+  "findings": [
+    {
+      "question": "What are the exact pricing changes Anthropic is implementing for Claude API on or around 22 June 2026 that would affect the Mythos-as-planner strategy?",
+      "claim": "No pricing changes specifically dated 22 June 2026 appear in any primary source. The materially relevant cluster is: (1) June 9 — Claude Mythos 5 launched at $10/$50 per MTok input/output (limited availability, Project Glasswing only), with a new tokenizer that produces ~30% more tokens for the same text versus pre-Opus-4.7 models — an effective cost increase even at unchanged per-token rates; (2) June 15 — Claude Sonnet 4 and Claude Opus 4 retired on the API; (3) June 15 — subscription Agent SDK credit split takes effect, moving programmatic claude-agent-sdk calls to a separate monthly credit pool ($20/$100/$200 for Pro/Max-5x/Max-20x, no rollover). Additionally, Mythos 5 hard-blocks temperature/top_p/top_k non-default values and thinking:{type:\"disabled\"} with a 400 error, and requires 30-day data retention (ZDR not available).",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/about-claude/pricing",
+          "title": "Pricing - Claude API Docs",
+          "fetched": "2026-06-11",
+          "excerpt": "Claude Mythos 5 (limited availability): $10/MTok input, $50/MTok output. Opus 4.7 and later use a new tokenizer — may use up to 35% more tokens for the same fixed text."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/release-notes/overview",
+          "title": "Claude Platform Release Notes",
+          "fetched": "2026-06-11",
+          "excerpt": "June 9: Fable 5 and Mythos 5 launched. thinking:{type:\"disabled\"} returns 400. New tokenizer ~30% more tokens vs pre-Opus-4.7. Mythos 5 requires 30-day data retention."
+        },
+        {
+          "url": "https://codersera.com/blog/anthropic-june-2026-billing-change-claude-code/",
+          "title": "Anthropic's June 15 Billing Change: What Every Claude Code & Agent SDK User Must Do",
+          "fetched": "2026-06-11",
+          "excerpt": "After June 15, Agent SDK flows move to a dedicated monthly Agent SDK credit ($20 Pro, $100 Max 5x, $200 Max 20x), billed at full API rates, no rollover."
+        }
+      ]
+    },
+    {
+      "question": "Are there any known breaking changes or deprecations in the Claude Agent SDK released in the last 30 days that could affect the Pi-CEO orchestrator pipeline?",
+      "claim": "Three hard breaking changes in the last 30 days affect any pipeline targeting Opus 4.8 (May 28) or Fable 5/Mythos 5 (June 9): setting temperature, top_p, or top_k to non-default values now returns a 400 error on all three models; thinking:{type:\"disabled\"} and assistant prefill return 400 on Fable 5/Mythos 5; and the new tokenizer (Opus 4.7 lineage) adds ~30% more tokens per prompt, bloating planning calls. Separately, the June 15 billing split moves Agent SDK calls to a separate metered credit — a financial break, not a code break. Claude Opus 4.1 was deprecated June 5 with retirement August 5; Sonnet 4 and Opus 4 retired June 15.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/release-notes/overview",
+          "title": "Claude Platform Release Notes",
+          "fetched": "2026-06-11",
+          "excerpt": "May 28 (Opus 4.8): temperature/top_p/top_k non-default → 400 error. June 9 (Fable 5/Mythos 5): thinking:{type:\"disabled\"} → 400, assistant prefill → 400. New tokenizer ~30% more tokens."
+        },
+        {
+          "url": "https://usagebox.com/articles/anthropic-june-15-agent-sdk-credit-split-claude-4-retirement",
+          "title": "Anthropic June 15 Double Hit: Agent SDK Leaves Your Subscription, Claude 4 Retires",
+          "fetched": "2026-06-11",
+          "excerpt": "On Opus 4.7 and later, temperature, top_p, and top_k return a 400 error when set to non-default values — a naive model-string find-and-replace can break a working request."
+        },
+        {
+          "url": "https://theplanettools.ai/blog/claude-agent-sdk-billing-model-deprecation-june-15-2026-migration-playbook",
+          "title": "Claude Agent SDK Changes June 15 2026: Migration Playbook",
+          "fetched": "2026-06-11",
+          "excerpt": "June 15 is a billing and model-deprecation event, not a fresh package swap; the SDK itself has no code-breaking release, but model retirements and sampling param restrictions can break pipelines."
+        }
+      ]
+    },
+    {
+      "question": "What is the current status of Telegram Bot API getUpdates long-polling vs webhook conflicts — has Telegram published any guidance or rate-limit changes affecting concurrent pollers in 2026?",
+      "claim": "No new 2026 guidance or rate-limit changes have been published. The official API docs maintain the existing mutual-exclusion rule: getUpdates will not work while a webhook is set (and vice versa), returning a 409 Conflict for concurrent use. The May 2026 Bot API 10.0 release addressed guest mode, chat management, polls, and live photos — no changes to update-delivery policy or getUpdates rate limits. The only documented conflict mechanism remains the 409 error on simultaneous polling from the same token.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://core.telegram.org/bots/api",
+          "title": "Telegram Bot API",
+          "fetched": "2026-06-11",
+          "excerpt": "This method will not work if an outgoing webhook is set up. You will not be able to receive updates using getUpdates for as long as an outgoing webhook is set up."
+        },
+        {
+          "url": "https://kuoo.uk/en/blog/openclaw-telegram-409-conflict-getupdates-fix-2026/",
+          "title": "OpenClaw Telegram 409 Conflict Fix — 2026 Checklist",
+          "fetched": "2026-06-11",
+          "excerpt": "Telegram rejects concurrent getUpdates calls from the same bot token. If two processes poll simultaneously, one gets a 409 Conflict error. No new 2026 policy changes."
+        },
+        {
+          "url": "https://gramio.dev/updates/webhook",
+          "title": "Long Polling vs Webhook — How Telegram Bots Receive Updates",
+          "fetched": "2026-06-11",
+          "excerpt": "The two methods are mutually exclusive. Use timeout 30–60s in production; timeout:0 is short polling and hammers Telegram's servers."
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "No primary source documents any pricing or API change specifically dated 22 June 2026 — the question premise may reference an internal calendar note or rumour not yet publicly announced; confirm whether a specific Anthropic communication triggered this date.",
+    "Whether Pi-CEO's existing Mythos-as-planner calls set temperature/top_p/top_k (would hard-break on Mythos 5 today) or use thinking:{type:\"disabled\"} — not determinable from public sources alone.",
+    "Whether Pi-CEO's Project Glasswing access is confirmed for Mythos 5 (limited availability gating) — not verifiable externally."
+  ],
+  "completed_at": "2026-06-11T05:03:13.547927+00:00",
+  "cost_seconds": 165.9,
+  "failure_reason": null,
+  "mode": "fast"
+}

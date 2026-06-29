@@ -1,0 +1,58 @@
+{
+  "critical": [],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "webhook.py implements only the inbound half: signature verification and parse_linear_event() converts incoming Linear payloads into build briefs. There is no outbound issueUpdate mutation, no linear_update_issue call, and no HTTP client targeting the Linear API in any of the provided source files. The sync is one-directional (Linear → Pi-CEO builds only).",
+      "file": "app/server/webhook.py",
+      "recommendation": "Add an outbound Linear issueUpdate GraphQL mutation call in routes/webhooks.py or sessions.py (after build phase completion) to update the triggering issue state — e.g. transition to 'In Progress' on build start and 'Done'/'Cancelled' on completion — to close the sync loop.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build) as implemented",
+      "reality": "dashboard/app/api/telegram/route.ts contains only helper functions (send, getLinearBacklog, createLinearIssue, getPiCeoStatus, triggerBuild). The file is truncated mid-statement inside triggerBuild and no command-dispatch/routing logic is visible — there is no switch/if block that matches incoming message.text against '/start', '/help', or '/build', meaning these commands are not demonstrably wired to any handler in the provided source.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Complete the POST handler with explicit command routing (e.g. if (text === '/start') ... else if (text === '/help') ... else if (text?.startsWith('/build')) ...) and confirm the file is not silently truncated in the repo.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "scripts/smoke_test.py is an external HTTP probe (urllib-based, hits live endpoints) — it is not an integration or E2E test of the build pipeline. No test file covering the session creation → generator → evaluator → push chain is present in the provided code. test_auth.py and test_webhook.py are pure unit tests of isolated helpers, not pipeline stages.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Add a pytest integration test (e.g. tests/test_pipeline_e2e.py) that mocks the Claude SDK and exercises the full sessions.py phase sequence — clone, plan, generate, evaluate, push — asserting each phase transitions correctly rather than relying on an external HTTP probe.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "CLAUDE.md explicitly documents '3 pre-existing failures in test_sdk_phase2.py (claude_agent_sdk not installed locally)'; the spec presents coverage as ✅ Complete without qualifying these known failures, creating a misleading coverage signal.",
+      "file": "tests/test_sdk_phase2.py",
+      "recommendation": "Add a pytest.ini [known_failures] marker or xfail decorators on the 3 sdk_phase2 tests so CI distinguishes expected-missing-dep failures from regressions, and update the spec claim to note the qualification.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The smoke_test.py file is truncated in the provided source (ends mid-function inside _req); the actual check count cannot be verified from the code as provided. If the file is incomplete on disk the suite may run fewer than 22 checks.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Verify the on-disk file is not truncated and add a self-counting assertion or a CI step that fails if the detected check count drops below 22.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 5,
+    "critical_count": 0,
+    "high_count": 3,
+    "low_count": 2,
+    "duration_s": 248.0,
+    "audited_at": "2026-06-18T05:08:57.714195+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": []
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "critical": [],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "webhook.py implements only inbound parsing (parse_linear_event, linear_issue_to_brief) — no outbound Linear API calls (issueUpdate mutation or linear_update_issue) appear in either provided file; the flow is one-directional: Linear → Pi-CEO only",
+      "file": "app/server/webhook.py",
+      "recommendation": "Add an outbound Linear issueUpdate call (e.g. via httpx POST to https://api.linear.app/graphql with the issueUpdate mutation) after a session completes or transitions state, wired from routes/webhooks.py or routes/sessions.py where the session terminal state is set.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The tests/ directory contains only unit tests (test_auth.py, test_webhook.py). No pytest E2E or integration tests exist for the build pipeline phases — sessions, evaluator, or push. The smoke_test.py is a standalone live-server script requiring --url and --password args; it is not importable by pytest and is excluded from the standard `pytest tests/ -x -q` CI run. It only executes in the CI smoke-prod job post-deploy on main, meaning the pipeline phases are never integration-tested on PRs.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Add a pytest integration test module (tests/test_pipeline_e2e.py) that covers at minimum: POST /api/build, polling /api/sessions/{id} to terminal state, and verifying a branch was pushed; gate it with a TEST_SERVER_URL env var so it skips in unit-only runs but executes in CI.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "high",
+      "claim": "SSE streaming: dashboard/hooks/useSSE.ts, exponential-backoff reconnect (listed as a Key Pattern in CLAUDE.md, implying build logs stream to the browser in real time via SSE)",
+      "reality": "The canonical route table in CLAUDE.md documents only a WebSocket endpoint at /ws/build/{sid} inside routes/utils.py for live build output. No SSE endpoint (StreamingResponse with media_type='text/event-stream' serving session.output_lines) appears in any router registered in main.py, and none is documented in the CLAUDE.md module map. The client-side useSSE.ts hook (EventSource protocol) has no corresponding server-side text/event-stream endpoint for build-log streaming.",
+      "file": "app/server/routes/utils.py",
+      "recommendation": "Add a GET /api/sessions/{sid}/logs endpoint returning StreamingResponse(media_type='text/event-stream') that replays existing session.output_lines on connect and pushes new lines as they arrive, or change dashboard/hooks/useSSE.ts to wrap the existing WebSocket /ws/build/{sid} so the transport matches what the server actually provides.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build) as implemented",
+      "reality": "The file `dashboard/app/api/telegram/route.ts` is truncated mid-function (`triggerBuild` is cut off before the closing brace and the main POST handler that dispatches commands is not visible). Helper functions for build triggering (`triggerBuild`), status (`getPiCeoStatus`), and Linear operations exist, but no `/start` or `/help` command handlers appear anywhere in the visible portion of the file — the routing/dispatch logic that would match incoming `/start` or `/help` text and call a handler is absent from what is readable.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Verify the full file includes a POST handler with explicit `if (text === '/start')` and `if (text === '/help')` branches; if not, add them with a brief usage string so the bot responds to both commands.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The smoke_test.py file is truncated in the audit view at the _req() helper — the actual 22 check assertions are not visible in the provided source, so the claimed count cannot be verified against the implementation.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Read the full smoke_test.py to count and enumerate the actual checks; update the spec claim to reflect the verified number and which pipeline stages each check exercises.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "CLAUDE.md explicitly documents 3 pre-existing failures in tests/test_sdk_phase2.py (claude_agent_sdk not installed locally), meaning the SDK integration layer — the core path for generator/evaluator — has no passing automated test coverage in the standard pytest run.",
+      "file": "tests/test_sdk_phase2.py",
+      "recommendation": "Either install claude_agent_sdk in CI and fix the 3 failing tests, or mark them xfail with a tracked Linear ticket so the CI pass rate honestly reflects coverage status.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "Budget tracker is instantiated but not wired. BudgetTracker in src/tao/budget/tracker.py is a correct implementation, but session_sdk.py does not instantiate it. SDK metric rows capture output_len but not tokens_used.",
+      "reality": "Confirmed by the spec itself as a known open gap — session_sdk.py re-exported from sessions.py does not call BudgetTracker, so per-session token spend is never recorded in the tracker even though the class exists and budget_to_params() is called on session creation.",
+      "file": "app/server/session_sdk.py",
+      "recommendation": "Inside _run_claude_via_sdk(), instantiate BudgetTracker per session, extract tokens_used from the SDK response usage field after the stream closes, and call tracker.record() so per-session spend is tracked end-to-end.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 7,
+    "critical_count": 0,
+    "high_count": 3,
+    "low_count": 4,
+    "duration_s": 224.0,
+    "audited_at": "2026-06-13T05:09:26.924654+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": [
+      "RA-6539",
+      "RA-6540",
+      "RA-6541"
+    ]
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "research_required": true,
+  "questions": [
+    "What pricing changes is Mythos (or its underlying model provider) implementing on or around 22 June 2026 that would affect the Pi-CEO planner strategy?",
+    "What are the current GitHub Actions secrets management best practices for canary/pilot deployments as of mid-2026?",
+    "Has DigitalOcean published any known issues or breaking changes affecting Node.js app builds on their App Platform since commit 0060d6f (circa early 2026)?",
+    "What WCAG 2.1 enforcement actions or legal cases have occurred in 2025-2026 related to the user-scalable=no viewport meta tag violation?"
+  ],
+  "findings": [
+    {
+      "question": "What pricing changes is Mythos (or its underlying model provider) implementing on or around 22 June 2026 that would affect the Pi-CEO planner strategy?",
+      "claim": "Anthropic is moving Claude Fable 5 (the publicly available Mythos-class model) from free inclusion in Pro/Max/Team/Enterprise subscription plans to usage-credit billing on June 23 2026, at approximately twice the Opus 4.8 API rate ($10/1M input, $50/1M output). Pi-CEO's planner role, currently pinned to Opus, faces a significant cost step-up if upgraded to Fable 5/Mythos-class after June 22.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://techjacksolutions.com/ai-brief/from-cli-toggle-to-enterprise-ga-what-five-months-of-mythos/",
+          "title": "From CLI Toggle to Enterprise GA: What Five Months of Mythos-Class AI Releases Mean for Agentic Pricing",
+          "fetched": "2026-06-15",
+          "excerpt": "usage credits are required after June 23; API pricing is approximately twice the cost of Claude Opus 4.8, per Anthropic's disclosure"
+        },
+        {
+          "url": "https://9to5mac.com/2026/06/09/anthropic-just-released-public-mythos-class-ai-model-called-claude-fable-details-here/",
+          "title": "Anthropic just released public Mythos-class AI model called Claude Fable, details here - 9to5Mac",
+          "fetched": "2026-06-15",
+          "excerpt": "Claude Fable 5 now generally available; through June 22 included at no extra cost on Pro, Max, Team, and seat-based Enterprise plans"
+        }
+      ]
+    },
+    {
+      "question": "What are the current GitHub Actions secrets management best practices for canary/pilot deployments as of mid-2026?",
+      "claim": "OIDC keyless authentication is the preferred approach (no stored credentials, no rotation), combined with environment-scoped secrets gated by required-reviewer approvals for canary/pilot environments. GitHub's 2026 security roadmap (public preview in 3-6 months) introduces scoped secrets binding credentials to specific branches, environments, or workflow identities, removes implicit secret inheritance in reusable workflows, and decouples secret management from repository write access.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://github.blog/news-insights/product-news/whats-coming-to-our-github-actions-2026-security-roadmap/",
+          "title": "What's coming to our GitHub Actions 2026 security roadmap - The GitHub Blog",
+          "fetched": "2026-06-15",
+          "excerpt": "Secrets scoped to specific repos/branches/environments/workflow identities; write access will no longer grant secret management permissions; workflow lockfile pins action SHAs"
+        },
+        {
+          "url": "https://eastondev.com/blog/en/posts/dev/20260418-github-actions-secrets/",
+          "title": "GitHub Actions Secrets Management: From Leak Risks to OIDC Keyless Deployment · BetterLink Blog",
+          "fetched": "2026-06-15",
+          "excerpt": "OIDC is the first choice for authenticating cloud deployment, offering no secrets storage and no rotation hassles"
+        },
+        {
+          "url": "https://github.com/orgs/community/discussions/170113",
+          "title": "Best practices for managing secrets in GitHub Actions across multiple environments · community · Discussion #170113",
+          "fetched": "2026-06-15",
+          "excerpt": "Use Environment Secrets with environment protections like reviewers and approvals; rotate secrets every 30-90 days"
+        }
+      ]
+    },
+    {
+      "question": "Has DigitalOcean published any known issues or breaking changes affecting Node.js app builds on their App Platform since commit 0060d6f (circa early 2026)?",
+      "claim": "Two relevant changes were identified: (1) A global ~11.7-hour App Platform build outage on Feb 26-27 2026 caused by a fault in older Node.js buildpack versions required upgrading to the latest buildpack as both workaround and permanent fix. (2) DigitalOcean updated the default Node.js runtime from v20 to v22 LTS and deprecated the legacy Node.js buildpack in favour of the Heroku Node.js Buildpack — apps without a pinned engine version in package.json may receive an unexpected runtime upgrade on next redeploy.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://isdown.app/status/digitalocean/incidents/543201-app-platform-deployments",
+          "title": "DigitalOcean App Platform Deployments — Feb 2026 | IsDown",
+          "fetched": "2026-06-15",
+          "excerpt": "Build failures for apps using older Node.js buildpack versions; affected customers globally ~11.7 hours between 14:30 UTC Feb 26 and 00:01 UTC Feb 27 2026"
+        },
+        {
+          "url": "https://docs.digitalocean.com/products/app-platform/reference/buildpacks/legacy-nodejs/",
+          "title": "Legacy Node.js Buildpack on App Platform | DigitalOcean Documentation",
+          "fetched": "2026-06-15",
+          "excerpt": "Legacy Node.js buildpack is deprecated; App Platform updated default Node.js version from v20 to v22, current stable LTS"
+        }
+      ]
+    },
+    {
+      "question": "What WCAG 2.1 enforcement actions or legal cases have occurred in 2025-2026 related to the user-scalable=no viewport meta tag violation?",
+      "claim": "No enforcement actions or lawsuits specifically targeting the user-scalable=no viewport attribute were found in public lawsuit trackers. The broader enforcement landscape shows 3,117 US federal ADA web-accessibility lawsuits in 2025 (+27% YoY); the six violation types driving 96% of cases are low-contrast text, missing alt text, missing form labels, empty links, empty buttons, and missing document language — viewport zoom is not listed. The DOJ WCAG 2.1 AA mandate for US government entities took effect April 24 2026; EU Accessibility Act enforcement began June 28 2025.",
+      "confidence": "low",
+      "sources": [
+        {
+          "url": "https://wcagsafe.com/blog/ada-lawsuit-statistics",
+          "title": "ADA Lawsuit Statistics 2025–2026: Data & Trends - WCAGsafe",
+          "fetched": "2026-06-15",
+          "excerpt": "3,117 federal lawsuits in 2025 (+27%); top 6 issues account for 96% of all WCAG failures; viewport zoom restriction not among top categories"
+        },
+        {
+          "url": "https://testparty.ai/blog/wcag-2-2-us-companies-2026",
+          "title": "WCAG 2.2 Compliance: What U.S. Companies Must Know in 2026 | TestParty",
+          "fetched": "2026-06-15",
+          "excerpt": "DOJ ADA Title II web rule requires WCAG 2.1 Level AA for state and local governments, compliance deadline April 24 2026 for populations ≥50k"
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "No primary Anthropic announcement URL (e.g., anthropic.com/news or anthropic.com/pricing) was located to directly confirm the June 23 Fable 5 usage-credit transition; all sources are trade-press synthesis of Anthropic disclosures — verify at anthropic.com/pricing before acting on this finding.",
+    "No enforcement actions, settlement records, or court filings specifically citing user-scalable=no or pinch-to-zoom disabling as the primary basis of an ADA/WCAG claim were found in public lawsuit trackers as of 2026-06-15; the question may require a Westlaw/PACER search for definitive case law."
+  ],
+  "completed_at": "2026-06-14T22:58:00.637125+00:00",
+  "cost_seconds": 169.0,
+  "failure_reason": null,
+  "mode": "fast"
+}

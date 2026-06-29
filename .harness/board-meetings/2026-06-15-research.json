@@ -1,0 +1,102 @@
+{
+  "research_required": true,
+  "questions": [
+    "What is the current ABR API status and any known outages or changes to the ABR GUID lookup endpoint that could explain MALFORMED responses in production?",
+    "Has Anthropic announced any pricing changes effective on or before 22 June 2026 that would affect the Mythos-as-planner strategy deadline?",
+    "What are the current WCAG 2.1 enforcement trends or recent legal actions in Australia related to viewport meta user-scalable failures that could elevate RA-4864 urgency?",
+    "Has DigitalOcean announced any changes to their App Platform build pipeline or Node.js/Prisma support that could explain the monkfish-app CI failure at commit 0060d6f?"
+  ],
+  "findings": [
+    {
+      "question": "What is the current ABR API status and any known outages or changes to the ABR GUID lookup endpoint that could explain MALFORMED responses in production?",
+      "claim": "As of 16 June 2026, the ABR status page reports all services operational — ABR Web Services, Identifier Search, ABN System, Apply, and Update are all green — with no incidents recorded in the preceding 15 days (June 2–16). No platform-level outage or GUID endpoint change that would explain MALFORMED responses is documented on the official status dashboard.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://status.abr.gov.au/",
+          "title": "Australian Business Register Status",
+          "fetched": "2026-06-16",
+          "excerpt": "All ABR services operational. No incidents reported for the past 15 days (June 2–16, 2026). ABR Web Services and Identifier Search listed as Operational."
+        },
+        {
+          "url": "https://abr.business.gov.au/Tools/WebServices",
+          "title": "Web services | ABN Lookup - Business.gov.au",
+          "fetched": "2026-06-16",
+          "excerpt": "ABR GUID-authenticated web services documentation. No change notices or deprecation warnings surfaced during search."
+        }
+      ]
+    },
+    {
+      "question": "Has Anthropic announced any pricing changes effective on or before 22 June 2026 that would affect the Mythos-as-planner strategy deadline?",
+      "claim": "Two billing changes land on or before the 22 June deadline. First, from 15 June 2026, Agent SDK and headless claude -p usage is separated from subscription limits and billed against a dedicated monthly credit at standard API rates ($20 Pro / $100 Max 5× / $200 Max 20×). Second, Claude Fable 5 is included in paid plans at no extra cost through 22 June 2026 only — from 23 June it requires usage credits billed at API rates. The Mythos-as-planner deadline of 22 June aligns exactly with the last day of free Fable 5 plan access before API-rate billing activates.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://claudefa.st/blog/guide/development/fable-5-usage-credits",
+          "title": "Claude Fable 5 Pricing & Usage Credits Explained",
+          "fetched": "2026-06-16",
+          "excerpt": "Claude Fable 5 included at no extra cost June 9–22 2026. On June 23 Anthropic removes it from plan limits; continued use requires usage credits billed at API rates."
+        },
+        {
+          "url": "https://www.digitalapplied.com/blog/anthropic-claude-credit-overhaul-june-15-2026",
+          "title": "Claude Credit Overhaul 2026: What Changes on June 15",
+          "fetched": "2026-06-16",
+          "excerpt": "Starting June 15, Agent SDK calls draw from a separate monthly credit billed at standard API rates. Eliminates effective 15–30× subsidy for programmatic loops. Interactive Claude Code and Cowork unaffected."
+        },
+        {
+          "url": "https://www.techtimes.com/articles/317625/20260602/anthropic-ends-subscription-subsidy-agents-june-15-credit-pool-replaces-flat-rate-access.htm",
+          "title": "Anthropic Ends Subscription Subsidy for Agents June 15: Credit Pool Replaces Flat-Rate Access",
+          "fetched": "2026-06-16",
+          "excerpt": "Anthropic separating Agent SDK usage from subscription pool effective June 15, 2026, replacing unlimited flat-rate access with per-usage API billing."
+        }
+      ]
+    },
+    {
+      "question": "What are the current WCAG 2.1 enforcement trends or recent legal actions in Australia related to viewport meta user-scalable failures that could elevate RA-4864 urgency?",
+      "claim": "Australia's DDA 1992 framework is seeing increased accessibility complaints in 2026 via the Australian Human Rights Commission, with broader WCAG 2 AA enforcement exposure growing across public and commercial digital services. No specific legal actions or AHRC determinations targeting viewport meta user-scalable=no failures under WCAG 2.1 SC 1.4.4 were found in public indexes.",
+      "confidence": "low",
+      "sources": [
+        {
+          "url": "https://www.accessibilitychecker.org/guides/dda/",
+          "title": "DDA Compliance: Web Accessibility in Australia (2026)",
+          "fetched": "2026-06-16",
+          "excerpt": "DDA 1992 requires WCAG 2 Level AA compliance. Complaints to AHRC can escalate to Federal Court. Disability discrimination complaints related to inaccessible websites increasing steadily in Australia in 2026."
+        },
+        {
+          "url": "https://d2itechnology.com/blogs/australia-web-accessibility-2026-updates/",
+          "title": "Australia Web Accessibility 2026: Updates, Laws & WCAG Compliance Guide",
+          "fetched": "2026-06-16",
+          "excerpt": "2026 enforcement expectations increasing; NSW, Victoria, Queensland published updated accessibility guidance for public sector websites with measurable compliance requirements and audit frameworks."
+        }
+      ]
+    },
+    {
+      "question": "Has DigitalOcean announced any changes to their App Platform build pipeline or Node.js/Prisma support that could explain the monkfish-app CI failure at commit 0060d6f?",
+      "claim": "DigitalOcean has updated the App Platform Node.js buildpack default runtime from v20 to v22 (current LTS); apps without a version pinned in the engines field of package.json silently receive v22 builds, which can break Prisma client generation if native binaries or postinstall scripts are incompatible. A separate platform-wide build failure incident lasted ~11.7 hours on 26–27 February 2026. No Prisma-specific breaking change was found in DigitalOcean documentation, and neither event is tied to commit 0060d6f specifically.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://docs.digitalocean.com/products/app-platform/reference/buildpacks/nodejs/",
+          "title": "Node.js Buildpack on App Platform | DigitalOcean Documentation",
+          "fetched": "2026-06-16",
+          "excerpt": "App Platform uses Node.js 22.x by default if no version specified in engines. Updated from v20 (now maintenance phase) to v22 (current stable LTS). Pin version in package.json to avoid unexpected build failures."
+        },
+        {
+          "url": "https://isdown.app/status/digitalocean/incidents/543201-app-platform-deployments",
+          "title": "DigitalOcean App Platform Deployments — Feb 2026 | IsDown",
+          "fetched": "2026-06-16",
+          "excerpt": "App Platform experienced build failures for ~11.7 hours between 14:30 UTC Feb 26 and 00:01 UTC Feb 27 2026. Engineering fix restored normal build operations."
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "Root cause of MALFORMED ABR GUID lookup responses in production — the ABR status page confirms no platform-level outage June 2–16 2026, so the fault likely lies client-side (GUID expiry or format change, auth header schema drift, or silent rate-limiting) rather than an ABR infrastructure event; no public incident report exists to confirm or deny this.",
+    "Specific Australian AHRC determinations or Federal Court actions targeting viewport meta user-scalable=no failures under WCAG 2.1 SC 1.4.4 — no publicly indexed enforcement decisions found; the Anthropic pricing sources for Fable 5 are third-party only; an official Anthropic announcement URL could not be confirmed, leaving the June 22–23 transition date at medium rather than high confidence.",
+    "Whether the DigitalOcean Node.js v20→v22 default change or another buildpack event is the direct cause of the monkfish-app CI failure at commit 0060d6f — the build log for that specific commit would be required to confirm; no DigitalOcean changelog entry dated to that commit hash was found."
+  ],
+  "completed_at": "2026-06-15T21:15:54.111092+00:00",
+  "cost_seconds": 184.4,
+  "failure_reason": null,
+  "mode": "fast"
+}

@@ -1,0 +1,114 @@
+{
+  "research_required": true,
+  "questions": [
+    "What pricing changes did Anthropic announce for June 2026 that would affect the Mythos-as-planner strategy deadline of 22 June?",
+    "What is the current status and timeline of ZTE's enterprise AI infrastructure offerings that could affect Pi-CEO competitive positioning?",
+    "What WCAG 2.1 enforcement actions or legal precedents from 2025-2026 make the user-scalable=no viewport meta (RA-4864) an active compliance liability?",
+    "What is the latest DigitalOcean App Platform build failure pattern for Node.js monorepos that could explain the monkfish-app CI block (RA-4188)?"
+  ],
+  "findings": [
+    {
+      "question": "What pricing changes did Anthropic announce for June 2026 that would affect the Mythos-as-planner strategy deadline of 22 June?",
+      "claim": "Two changes converge on the 22 June window. First, effective June 15 2026, all programmatic Claude usage (Agent SDK, claude -p, GitHub Actions) moves off the shared subscription pool onto a separate metered credit pool ($20/month Pro, $100 Max-5x, $200 Max-20x); unused credits do not roll over and heavy SDK users face 12×–150× effective cost increases. Second, Claude Mythos 5 is not available as a general API model: it remains gated exclusively to Project Glasswing partners at $25/$125 per million input/output tokens, with no public release date announced, meaning a Mythos-as-planner architecture cannot be executed through the standard API at any price prior to 22 June unless Glasswing partner access has been secured.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://codersera.com/blog/anthropic-june-2026-billing-change-claude-code/",
+          "title": "Anthropic's June 15 Billing Change: What Every Claude Code & Agent SDK User Must Do",
+          "fetched": "2026-06-13",
+          "excerpt": "Claude Agent SDK and claude -p usage no longer counts toward your Claude plan's usage limits. Pro gets $20/month credit pool; Max 20x gets $200. Unused credits do not roll over."
+        },
+        {
+          "url": "https://www.anthropic.com/project/glasswing",
+          "title": "Project Glasswing – Anthropic",
+          "fetched": "2026-06-13",
+          "excerpt": "Mythos Preview costs $25/$125 per million input/output tokens, accessible only to Project Glasswing participants. No public release timeline stated."
+        },
+        {
+          "url": "https://finance.yahoo.com/markets/crypto/articles/anthropic-claude-mythos-launches-today-142844796.html",
+          "title": "Anthropic's Claude Fable 5 and Mythos 5 Launch: What To Know",
+          "fetched": "2026-06-13",
+          "excerpt": "Mythos 5 is currently limited to Project Glasswing partners and selected biology researchers; Fable 5 is GA at $10/$50 per million tokens."
+        }
+      ]
+    },
+    {
+      "question": "What is the current status and timeline of ZTE's enterprise AI infrastructure offerings that could affect Pi-CEO competitive positioning?",
+      "claim": "At MWC Barcelona 2026 (March), ZTE unveiled a full-stack 'AI Factory' comprising AI servers with OEX architecture, the AI Agent Studio, Co-Claw enterprise AI agent, Elastic AIDC modular data-centre solution, and SuperPOD (up to 128 GPUs per rack). On June 3 2026 ZTE and Tencent announced a strategic partnership to ship an AI Cloud PC bundle running WorkBuddy; procurement pilots are expected to convert to scaled deployments by Q4 2026. No enterprise pricing has been publicly disclosed.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://www.theregister.com/2026/03/02/zte-unveils-full-stack-ai-infrastructure",
+          "title": "ZTE Unveils Full-Stack AI Infrastructure, Driving Co-Design – The Register",
+          "fetched": "2026-06-13",
+          "excerpt": "ZTE's AI Factory features OEX architecture, AI Booster OS, AI Agent Studio, and AI Factory Twin. Token throughput gains of 5–20× cited; no pricing or GA dates disclosed."
+        },
+        {
+          "url": "https://www.aicerts.ai/news/zte-tencent-unveil-ai-cloud-pc-for-next-gen-enterprises/",
+          "title": "ZTE, Tencent Unveil AI Cloud PC for Next-Gen Enterprises – AI CERTs News",
+          "fetched": "2026-06-13",
+          "excerpt": "ZTE and Tencent disclosed a strategic partnership June 3 2026 to ship AI Cloud PC with WorkBuddy; scaled deployments expected Q4 2026."
+        },
+        {
+          "url": "https://www.zte.com.cn/global/about/news/ZTE-Showcases-Full-Stack-AI-Innovations-at-MWC-Barcelona-2026-Creating-an-Intelligent-Future.html",
+          "title": "ZTE Showcases Full-Stack AI Innovations at MWC Barcelona 2026",
+          "fetched": "2026-06-13",
+          "excerpt": "Co-Claw enterprise AI agent integrated into office work, R&D, and operations; Elastic AIDC promises 25% energy efficiency improvement."
+        }
+      ]
+    },
+    {
+      "question": "What WCAG 2.1 enforcement actions or legal precedents from 2025-2026 make the user-scalable=no viewport meta (RA-4864) an active compliance liability?",
+      "claim": "No court ruling or regulator filing specifically citing user-scalable=no as a named violation was found. The broader compliance liability is real but established indirectly: WCAG 2.1 SC 1.4.4 (Resize Text, Level AA) is violated by viewport meta tags that prevent scaling, the DOJ finalised mandatory WCAG 2.1 Level AA compliance under ADA Title II (public-entity deadline April 24 2026), and 5,000+ federal digital-accessibility lawsuits were filed in 2025 with courts treating WCAG Level AA failure as evidence of an ADA barrier (Fernandez v. SEB Management Group LLC, S.D. Fla., Apr. 13 2026). No settlement or injunction specifically naming the viewport meta tag was surfaced in three searches.",
+      "confidence": "low",
+      "sources": [
+        {
+          "url": "https://convergeaccessibility.com/2026/05/04/legal-update-april-2026/",
+          "title": "April 2026 Accessibility Legal Update – Converge Accessibility",
+          "fetched": "2026-06-13",
+          "excerpt": "Fernandez v. SEB Management Group LLC, 2026 U.S. Dist. LEXIS 83040 (S.D. Fla. Apr. 13 2026): court found website inaccessibility as intangible barrier; WCAG used as evidence of acceptable accessibility standard."
+        },
+        {
+          "url": "https://www.adatitleiii.com/2026/04/doj-extends-ada-title-ii-website-accessibility-deadlines-for-governmental-entities-but-litigation-and-compliance-risks-remain/",
+          "title": "DOJ Extends ADA Title II Website Accessibility Deadlines – ADA Title III Blog",
+          "fetched": "2026-06-13",
+          "excerpt": "DOJ finalised WCAG 2.1 Level AA as required standard under Title II; April 24 2026 compliance deadline for large public entities; Title III litigation risk remains."
+        },
+        {
+          "url": "https://wcagsafe.com/blog/ada-lawsuit-statistics",
+          "title": "ADA Lawsuit Statistics 2025–2026: Data & Trends – WCAGsafe",
+          "fetched": "2026-06-13",
+          "excerpt": "5,000+ digital accessibility lawsuits filed in 2025, ~20% YoY increase; zoom and reflow issues frequently cited in e-commerce and financial services cases."
+        }
+      ]
+    },
+    {
+      "question": "What is the latest DigitalOcean App Platform build failure pattern for Node.js monorepos that could explain the monkfish-app CI block (RA-4188)?",
+      "claim": "The established failure pattern for pnpm-based Node.js monorepos on DigitalOcean App Platform is a buildpack-timing race: the Node.js buildpack v0.4.x attempts to restore cached node_modules before pnpm is installed, producing 'pnpm: executable file not found in $PATH' then 'WARN Local package.json exists, but node_modules missing' and downstream 'tsc: not found' errors. A secondary corepack compatibility issue with most heroku-buildpack-nodejs versions compounds this. DigitalOcean patched the buildpack for pnpm support but the fix requires explicit pnpm version pinning in package.json engines and disabling the build cache on first deploy.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://www.digitalocean.com/community/questions/how-to-setup-do-app-platform-with-pnpm-monorepo",
+          "title": "How to setup DO App Platform with pnpm monorepo – DigitalOcean Community",
+          "fetched": "2026-06-13",
+          "excerpt": "'pnpm: executable file not found in $PATH'; 'WARN Local package.json exists, but node_modules missing'; pnpm 9.0.6, Node 18.17.1, Buildpack v0.4.0. DigitalOcean updated buildpack; corepack issue persists on most heroku buildpack versions."
+        },
+        {
+          "url": "https://docs.digitalocean.com/products/app-platform/reference/buildpacks/nodejs/",
+          "title": "Node.js Buildpack on App Platform – DigitalOcean Documentation",
+          "fetched": "2026-06-13",
+          "excerpt": "Official buildpack reference; pnpm support added; configuration options available for package manager selection and cache behaviour."
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "Whether any court or regulator has issued a ruling, consent decree, or enforcement notice that specifically names the user-scalable=no (or maximum-scale=1) viewport meta attribute as a standalone WCAG 2.1 violation — no primary legal source was found in three searches.",
+    "Whether Anthropic intends to make Claude Mythos generally available via the standard API before or after 22 June 2026, and under what pricing structure outside Project Glasswing.",
+    "Whether DigitalOcean has issued a formal incident report or changelog entry for a platform-wide build regression affecting Node.js monorepos in 2025–2026 beyond the known pnpm/corepack timing issue."
+  ],
+  "completed_at": "2026-06-13T05:03:35.938971+00:00",
+  "cost_seconds": 163.5,
+  "failure_reason": null,
+  "mode": "fast"
+}

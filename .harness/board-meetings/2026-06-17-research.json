@@ -1,0 +1,94 @@
+{
+  "research_required": true,
+  "questions": [
+    "What is the current status and reliability of the Australian Business Register (ABR) API, and have there been any recent outages or GUID format changes affecting ABN lookups?",
+    "What are the current pricing changes taking effect around 22 June 2026 for Anthropic's Claude models that would affect the Mythos-as-planner strategy?",
+    "What Australian regulatory or compliance requirements apply to SaaS platforms handling ABN verification data for business onboarding flows?"
+  ],
+  "findings": [
+    {
+      "question": "What is the current status and reliability of the Australian Business Register (ABR) API, and have there been any recent outages or GUID format changes affecting ABN lookups?",
+      "claim": "As of 18 June 2026, all ABR services (ABN System, ABR Web Services, Identifier Search) are fully operational with zero incidents reported across the preceding 15 days. The API change control log (v9.9.7) shows no GUID format or authentication changes since 2012; the GUID-based auth mechanism is unchanged.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://status.abr.gov.au/",
+          "title": "Australian Business Register Status",
+          "fetched": "2026-06-18",
+          "excerpt": "All Systems Operational. No incidents reported for each date from June 4–18, 2026."
+        },
+        {
+          "url": "https://abr.business.gov.au/Documentation/ChangeControl",
+          "title": "Change control | ABN Lookup Web Services",
+          "fetched": "2026-06-18",
+          "excerpt": "Version 9.9.7. Last major API change: May 2012 (business names registration). Changes managed via new methods, not modifications to existing ones."
+        },
+        {
+          "url": "https://abr.business.gov.au/Documentation/Default",
+          "title": "Web services user guide | ABN Lookup",
+          "fetched": "2026-06-18",
+          "excerpt": "GUID authentication required for ABN Lookup web services. Scheduled maintenance Fri 12:15am–7am and Sat 11:30pm–Sun 7am AEST."
+        }
+      ]
+    },
+    {
+      "question": "What are the current pricing changes taking effect around 22 June 2026 for Anthropic's Claude models that would affect the Mythos-as-planner strategy?",
+      "claim": "The Agent SDK billing change announced for 15–16 June 2026 — which would have moved claude -p and Agent SDK usage out of subscription pools into separate credit pools at API rates — was indefinitely suspended by Anthropic on 15 June 2026. Current API pricing for Claude Mythos 5 (limited availability via Glasswing) remains $10/MTok input and $50/MTok output, identical to Claude Fable 5; no new pricing changes are in effect as of 18 June 2026.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://www.digitaltoday.co.kr/en/view/66431/anthropic-suspends-claude-agent-sdk-pricing-change-no-changes-for-now",
+          "title": "Anthropic abruptly suspends Claude Agent SDK pricing change",
+          "fetched": "2026-06-18",
+          "excerpt": "June 15, 2026: Anthropic postponed the planned billing restructure. 'For now, nothing is changing' — SDK users continue under existing subscription limits."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/about-claude/pricing",
+          "title": "Pricing - Claude API Docs",
+          "fetched": "2026-06-18",
+          "excerpt": "Claude Mythos 5 (limited availability via Glasswing): $10/MTok input, $50/MTok output. Batch: $5/$25 MTok. No June 22 pricing change listed."
+        },
+        {
+          "url": "https://www.digitalapplied.com/blog/anthropic-claude-credit-overhaul-june-15-2026",
+          "title": "Claude Credit Overhaul 2026: Anthropic Pauses the June 15 Change",
+          "fetched": "2026-06-18",
+          "excerpt": "Proposed separate credits: $20 for Pro, $100 for Max 5x, $200 for Max 20x — all paused; Anthropic revising plans."
+        }
+      ]
+    },
+    {
+      "question": "What Australian regulatory or compliance requirements apply to SaaS platforms handling ABN verification data for business onboarding flows?",
+      "claim": "SaaS platforms verifying ABNs in onboarding flows face a two-track obligation: a sole trader's ABN is personal information under Privacy Act 1988 and triggers full Australian Privacy Principles (APP 1, 5, 8, 11) including collection notification and cross-border transfer constraints; a company ABN alone is not personal information. From 10 December 2026, the mandatory ADM disclosure requirement also applies to automated onboarding and credit-assessment systems, and the Bunnings v Privacy Commissioner [2026] ARTA 130 ruling establishes that even transient processing of personal data constitutes 'collection', tightening obligations at the API-call layer.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://www.corrs.com.au/insights/australian-privacy-compliance-four-key-developments-in-2026",
+          "title": "Australian privacy compliance: four key developments in 2026 - Corrs Chambers Westgarth",
+          "fetched": "2026-06-18",
+          "excerpt": "ADM disclosure effective Dec 10, 2026 — covers customer onboarding, credit assessments. Bunnings [2026] ARTA 130: transient processing = collection under Privacy Act."
+        },
+        {
+          "url": "https://complydog.com/blog/australia-privacy-act-apps-compliance-guide-saas-companies",
+          "title": "Australia Privacy Act: Complete APPs Compliance Guide for SaaS Companies",
+          "fetched": "2026-06-18",
+          "excerpt": "APP 1 accountability + APP 11 security require privacy-by-design in SaaS architecture. Sole trader ABN links to individual → personal information in scope."
+        },
+        {
+          "url": "https://dev.to/sachhm/i-built-a-rest-api-for-australian-business-data-heres-how-b94",
+          "title": "Australian business data APIs are a mess — here's how to fix it in one call",
+          "fetched": "2026-06-18",
+          "excerpt": "Company ABN/name/address do not qualify as personal information on their own; sole trader ABN links directly to an individual, pulling it into APP scope."
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "Does the ABR intend to migrate from SOAP/XML to a REST/JSON-first web services architecture, and if so on what timeline?",
+    "Has OAIC issued specific guidance on API-layer ABN verification (e.g. minimum data fields, retention limits) for SaaS onboarding — distinct from general APP guidance?",
+    "What is the anticipated timeline for Claude Mythos 5 to move from limited Glasswing availability to general API availability, and will pricing change at that point?"
+  ],
+  "completed_at": "2026-06-17T20:32:16.613354+00:00",
+  "cost_seconds": 117.9,
+  "failure_reason": null,
+  "mode": "fast"
+}

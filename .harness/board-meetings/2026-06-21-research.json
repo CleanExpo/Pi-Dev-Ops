@@ -1,0 +1,96 @@
+{
+  "research_required": true,
+  "questions": [
+    "What are the current Anthropic trial credit policies and API key requirements for new accounts as of June 2026, specifically whether platform-managed trial credits bypass the need for a user-supplied API key?",
+    "Has Anthropic made any pricing or access changes to the Claude API in the 30 days prior to 22 June 2026 that would affect orchestration platforms relying on OAuth or subscription tokens?",
+    "What is the current status and public documentation of the Australian Business Register (ABR) API, including any recent outages, GUID requirement changes, or authentication updates affecting ABN lookups?",
+    "What competing AI-powered business intelligence or report-generation platforms (e.g. Jasper, Copy.ai, Notion AI) have shipped onboarding or trial-credit flows in the last 60 days that RestoreAssist should benchmark against?"
+  ],
+  "findings": [
+    {
+      "question": "What are the current Anthropic trial credit policies and API key requirements for new accounts as of June 2026, specifically whether platform-managed trial credits bypass the need for a user-supplied API key?",
+      "claim": "Anthropic's official pricing docs confirm new API accounts receive 'a small amount of free credits to test the API' but require billing infrastructure to be configured before requests succeed. The 'no-key option' circulating in guides refers to OAuth-based CLI authentication (via `ant auth login`), which still mandates billing setup and does not constitute a platform-managed bypass — there is no documented mechanism by which an orchestration platform can inject trial credits that eliminate the per-user API key or billing requirement.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/about-claude/pricing",
+          "title": "Pricing - Claude API Docs",
+          "fetched": "2026-06-22",
+          "excerpt": "New users receive a small amount of free credits to test the API. Contact sales for information about extended trials for enterprise evaluation."
+        },
+        {
+          "url": "https://tygartmedia.com/how-to-get-anthropic-api-key/",
+          "title": "How to Get an Anthropic API Key in 2026 (Step-by-Step, Plus the New No-Key Option) - Tygart Media",
+          "fetched": "2026-06-22",
+          "excerpt": "The Anthropic API is usage-priced per million tokens with no permanent free tier and requires billing setup before keys function. A Claude Pro subscription is separate from API access."
+        }
+      ]
+    },
+    {
+      "question": "Has Anthropic made any pricing or access changes to the Claude API in the 30 days prior to 22 June 2026 that would affect orchestration platforms relying on OAuth or subscription tokens?",
+      "claim": "Anthropic announced a June 15, 2026 Agent SDK billing split that would have moved programmatic access (claude -p, Agent SDK, Claude Code GitHub Actions, third-party tools like Conductor and Zed) to a separate monthly credit pool billed at standard API rates — but this change was PAUSED before the effective date and has not been implemented. The status quo remains unchanged: Agent SDK and headless usage continue drawing from existing subscription limits. Separately, a February 2026 ToS revision formally restricts OAuth subscription tokens to Claude Code and Claude.ai only, meaning orchestration platforms cannot rely on subscription OAuth tokens for programmatic access.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://www.digitalapplied.com/blog/anthropic-claude-credit-overhaul-june-15-2026",
+          "title": "Claude Credit Overhaul 2026: Anthropic Pauses the June 15 Change",
+          "fetched": "2026-06-22",
+          "excerpt": "Anthropic has paused the June 15 Agent SDK billing change — it is not taking effect. Agent SDK and headless tools continue drawing from existing Pro/Max/Team/Enterprise subscription limits."
+        },
+        {
+          "url": "https://help.apiyi.com/en/anthropic-claude-subscription-agent-sdk-billing-split-june-2026-en.html",
+          "title": "Anthropic June 15 Claude subscription billing overhaul: Agent SDK separate billing pool - Apiyi.com Blog",
+          "fetched": "2026-06-22",
+          "excerpt": "Third-party Agent frameworks previously relied on subscription arbitrage; platforms using programmatic Claude access must now budget for dedicated Agent SDK credits or direct API billing."
+        }
+      ]
+    },
+    {
+      "question": "What is the current status and public documentation of the Australian Business Register (ABR) API, including any recent outages, GUID requirement changes, or authentication updates affecting ABN lookups?",
+      "claim": "The ABR API is fully operational as of 22 June 2026 with all sub-services (ABN System, ABR Web Services, Identifier Search) reporting operational status. No incidents have been reported from June 9–22, 2026. GUID-based authentication remains the current requirement for ABN Lookup web services access, with no documented changes to the registration or authentication process.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://status.abr.gov.au/",
+          "title": "Australian Business Register Status",
+          "fetched": "2026-06-22",
+          "excerpt": "All Systems Operational. No incidents reported June 9–22 2026. ABN System: Operational. ABR Web Services: Operational. Identifier Search: Operational."
+        },
+        {
+          "url": "https://abr.business.gov.au/Documentation/WebServiceRegistration",
+          "title": "Web services registration | ABN Lookup",
+          "fetched": "2026-06-22",
+          "excerpt": "Access to ABN Lookup web services requires an authentication GUID (Globally Unique Identifier). No recent changes to authentication protocols documented on this page."
+        }
+      ]
+    },
+    {
+      "question": "What competing AI-powered business intelligence or report-generation platforms (e.g. Jasper, Copy.ai, Notion AI) have shipped onboarding or trial-credit flows in the last 60 days that RestoreAssist should benchmark against?",
+      "claim": "Notion AI made the most significant recent onboarding change: Custom Agents exited their free exploration period on May 3, 2026, and since May 4, 2026 require paid Notion Credits ($10/1,000 credits, pooled workspace-wide, no rollover), with a Business plan minimum ($20/user/month) required before credits can be purchased. Free-plan users get limited trial prompts for reactive AI features only. Jasper maintains a 7-day free trial with an optional 10,000-word credit offer; no major onboarding change was found in the April–June 2026 window. Copy.ai retains a 2,000-words/month free tier with no documented recent change.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://techjacksolutions.com/ai-tools/notion-ai/notion-ai-pricing/",
+          "title": "Notion AI Pricing: Plans, Credits & Real Costs (2026)",
+          "fetched": "2026-06-22",
+          "excerpt": "Custom Agents moved to paid credits May 4 2026 after free exploration ended May 3. $10 per 1,000 credits, pooled per workspace, no rollover. Business plan minimum required."
+        },
+        {
+          "url": "https://cybernaira.com/jasper-ai-free-trial/",
+          "title": "Jasper AI Free Trial 2026 + 10,000 Words Free Credits - CyberNaira",
+          "fetched": "2026-06-22",
+          "excerpt": "Jasper offers a 7-day free trial on Creator and Pro plans plus an optional 10,000-word credit offer; onboarding takes approximately 20 minutes including brand voice training."
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "Whether Anthropic offers any formal 'platform-managed trial credit' programme allowing orchestration platforms to provision API access on behalf of end users without requiring those users to supply their own API keys or billing details — this is not documented in current public Anthropic developer docs.",
+    "Specific Jasper AI or Copy.ai onboarding or trial-credit changes shipped in the April–June 2026 window: no primary-source announcement or changelog was found confirming material changes within that period.",
+    "Whether the February 2026 Anthropic ToS OAuth restriction has been enforced in practice against existing third-party orchestration platforms or only applied to new integrations."
+  ],
+  "completed_at": "2026-06-21T20:11:13.420110+00:00",
+  "cost_seconds": 158.8,
+  "failure_reason": null,
+  "mode": "fast"
+}

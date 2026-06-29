@@ -1,0 +1,116 @@
+{
+  "research_required": true,
+  "questions": [
+    "What are Anthropic's current trial credit policies and API key requirements for new platform users as of June 2026?",
+    "Has Anthropic announced any changes to managed trial credits or free-tier API access in the last 30 days that would affect third-party platforms?",
+    "What is the current status and pricing of Anthropic's Claude API as of June 2026, particularly regarding platform-managed vs user-managed API keys?",
+    "Are there any known outages or reliability issues with the Australian Business Register (ABR) API that could explain ABN lookup failures in production environments?",
+    "What Australian business registration or ABN lookup API alternatives exist that could serve as fallbacks if the ABR API remains unreliable?"
+  ],
+  "findings": [
+    {
+      "question": "What are Anthropic's current trial credit policies and API key requirements for new platform users as of June 2026?",
+      "claim": "New Anthropic console accounts receive a small amount of free trial credits automatically on sign-up (commonly cited as ~$5); phone verification is required but no credit card. API keys are created in the Claude Console under Settings > API Keys, and there is no durable free tier — continued API use beyond the trial credit requires prepaid Console credits.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/about-claude/pricing",
+          "title": "Pricing - Claude API Docs",
+          "fetched": "2026-06-24",
+          "excerpt": "New users receive a small amount of free credits to test the API. Contact sales for information about extended trials for enterprise evaluation."
+        },
+        {
+          "url": "https://www.digitalapplied.com/blog/anthropic-claude-credit-overhaul-june-15-2026",
+          "title": "Claude Credit Overhaul 2026: Anthropic Pauses the June 15 Change",
+          "fetched": "2026-06-24",
+          "excerpt": "Trial credits ($5) are auto-granted on signup. There is no free tier for direct API access."
+        }
+      ]
+    },
+    {
+      "question": "Has Anthropic announced any changes to managed trial credits or free-tier API access in the last 30 days that would affect third-party platforms?",
+      "claim": "Anthropic announced on May 14, 2026 that Agent SDK, claude -p, and third-party app usage would be separated from subscription pools into a per-user monthly credit pool (Pro: $20/mo, Max 5×: $100/mo, Max 20×: $200/mo) effective June 15 — but paused this change before implementation. As of June 15, 2026, Agent SDK and claude -p continue drawing from subscription pools as before; Anthropic stated it will rework the plan with advance notice.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://www.digitalapplied.com/blog/anthropic-claude-credit-overhaul-june-15-2026",
+          "title": "Claude Credit Overhaul 2026: Anthropic Pauses the June 15 Change",
+          "fetched": "2026-06-24",
+          "excerpt": "Anthropic confirmed in its Help Center that the planned move of Agent SDK, claude -p, and third-party app usage to a separate monthly credit is no longer happening."
+        },
+        {
+          "url": "https://www.techtimes.com/articles/317625/20260602/anthropic-ends-subscription-subsidy-agents-june-15-credit-pool-replaces-flat-rate-access.htm",
+          "title": "Anthropic Ends Subscription Subsidy for Agents June 15: Credit Pool Replaces Flat-Rate Access",
+          "fetched": "2026-06-24",
+          "excerpt": "Anthropic announced it would separate Agent SDK and claude -p usage from Pro, Max, Team, and Enterprise subscription pools, replacing the prior unlimited subsidy."
+        }
+      ]
+    },
+    {
+      "question": "What is the current status and pricing of Anthropic's Claude API as of June 2026, particularly regarding platform-managed vs user-managed API keys?",
+      "claim": "The Anthropic API uses a single standard API key model (created in the Claude Console); there is no distinct 'platform-managed' key type — platforms use their own key on behalf of users or require users to supply their own (BYOK). Current per-MTok pricing: Fable 5 $10 in / $50 out; Opus 4.8 $5/$25; Sonnet 4.6 $3/$15; Haiku 4.5 $1/$5. Claude Managed Agents adds $0.08/session-hour on top of token costs.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/about-claude/pricing",
+          "title": "Pricing - Claude API Docs",
+          "fetched": "2026-06-24",
+          "excerpt": "Claude Fable 5: $10/MTok input, $50/MTok output. Claude Opus 4.8: $5/$25. Claude Sonnet 4.6: $3/$15. Claude Haiku 4.5: $1/$5. Session runtime $0.08/session-hour."
+        }
+      ]
+    },
+    {
+      "question": "Are there any known outages or reliability issues with the Australian Business Register (ABR) API that could explain ABN lookup failures in production environments?",
+      "claim": "The ABR status page shows all systems fully operational as of June 24, 2026, with no incidents reported between June 10–24. No current or recent ABR outage explains production ABN lookup failures; the likely causes are GUID authentication expiry, SOAP endpoint deprecation, or rate-limiting rather than platform-wide downtime.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://status.abr.gov.au/",
+          "title": "Australian Business Register Status",
+          "fetched": "2026-06-24",
+          "excerpt": "All Systems Operational. ABN System: Operational. ABR Web Services: Operational. No incidents reported June 10–24, 2026."
+        },
+        {
+          "url": "https://abr.business.gov.au/Tools/WebServices",
+          "title": "Web services | ABN Lookup",
+          "fetched": "2026-06-24",
+          "excerpt": "Access the ABN Lookup web services by registering for an authentication GUID, which is required to access the ABN Lookup web services."
+        }
+      ]
+    },
+    {
+      "question": "What Australian business registration or ABN lookup API alternatives exist that could serve as fallbacks if the ABR API remains unreliable?",
+      "claim": "Three credible fallback options exist: (1) the official ABN Lookup Web Services (abr.business.gov.au) — free, SOAP + limited JSON, requires a registered GUID; (2) businessapi.com.au — commercial REST API, ASIC-registered agent and ATO Digital Software Provider, supports ABN/ACN validation, lookup, and registration; (3) Zephira.ai — commercial multi-jurisdiction API joining ABR, ASIC, and 100+ international registries on a single data model.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://abr.business.gov.au/Tools/WebServices",
+          "title": "Web services | ABN Lookup",
+          "fetched": "2026-06-24",
+          "excerpt": "ABN Lookup offers web services for ABN validation and pre-fill on forms. Free of charge. Requires authentication GUID. SOAP and limited JSON support."
+        },
+        {
+          "url": "https://businessapi.com.au/",
+          "title": "Business API - A better way to provide business registrations",
+          "fetched": "2026-06-24",
+          "excerpt": "RESTful API for ABN/ACN validation and lookup helpers, ABN registrations, company incorporations. Official ASIC Registered Agent and ATO Digital Software Provider."
+        },
+        {
+          "url": "https://zephira.ai/australian-company-registry-data-how-to-search-asic-abr-abn-lookup-in-2026/",
+          "title": "Australian Company Registry Data: How to Search ASIC, ABR & ABN Lookup in 2026 - Zephira.ai",
+          "fetched": "2026-06-24",
+          "excerpt": "Zephira joins Australian data to Singapore, Hong Kong, UK, Germany, UAE and 100+ other jurisdictions on a single data model with REST API and SLA."
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "Whether Anthropic offers any formal reseller or platform-provisioned trial credit programme allowing third-party platforms to grant trial credits to their end users (no such mechanism found in official docs).",
+    "Specific SLA, rate limits, and GUID registration approval timeline for the ABR Web Services API in 2026.",
+    "Whether Datarade-listed ABR alternatives (Venturecap Insights, Accutrend, Doorda, Global Database) cover Australian ABN data specifically or only broader company registration data."
+  ],
+  "completed_at": "2026-06-23T20:18:31.834171+00:00",
+  "cost_seconds": 145.6,
+  "failure_reason": null,
+  "mode": "fast"
+}

@@ -1,0 +1,74 @@
+{
+  "critical": [],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "webhook.py only handles inbound Linear events (parse_linear_event, verify_linear_signature, linear_issue_to_brief). There are zero outbound Linear API calls — no issueUpdate GraphQL mutation, no linear_update_issue helper, no state transition writes back to Linear — anywhere in the two provided files.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Add an outbound helper (e.g. async def linear_update_issue_state(issue_id, state_id, api_key)) that POSTs the issueUpdate mutation to api.linear.app/graphql and call it from routes/webhooks.py after a build completes or fails.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build) as implemented",
+      "reality": "dashboard/app/api/telegram/route.ts shows no /start or /help command handlers in the visible code. The triggerBuild function exists (suggesting /build may be routed), but the file is truncated mid-function (ends at `const cookie = aw`) — /start and /help dispatch is not visible in any of the provided source.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Provide the full file to confirm /start and /help handlers exist; if absent, add explicit command routing (e.g. `if (text === '/start') ...`) before the Claude delegation fallback.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "high",
+      "claim": "Telegram bot maintains conversation history across turns",
+      "reality": "HISTORY is a module-level `Map<number, Turn[]>` stored in Node.js memory. On Vercel (serverless), every cold start discards all history — multi-turn context is lost unpredictably, making the advertised CEO-delegation conversation loop unreliable in production.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Persist conversation history to an external store (e.g. Supabase or Upstash Redis) keyed by chat_id so it survives cold starts.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite) covering the full build pipeline (sessions, evaluator, push)",
+      "reality": "The tests/ directory contains only test_auth.py (auth/rate-limiting unit tests) and test_webhook.py (signature-verification unit tests). No test file for sessions, the evaluator, pipeline phases, or the push layer exists in the provided source. The smoke_test.py is a live-server black-box HTTP probe that requires --url and --password at runtime and is not a substitute for pipeline integration tests.",
+      "file": "tests/",
+      "recommendation": "Add tests/test_pipeline.py covering at minimum: session creation, the evaluator verdict path, and the Phase 5 push branch (mock the GitHub REST call); then update the spec claim to distinguish smoke coverage from integration coverage.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "Budget tracker is instantiated but not wired — `session_sdk.py` does not instantiate it",
+      "reality": "The spec itself documents this gap as a known finding, not a completed item; the code matches the spec's stated reality (tracker exists but is unconnected).",
+      "file": "src/tao/budget/tracker.py",
+      "recommendation": "No action needed for the audit finding itself — the spec accurately describes the gap; wire BudgetTracker in session_sdk.py to close it.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "low",
+      "claim": "22-check smoke test suite (implied complete and runnable in CI)",
+      "reality": "scripts/smoke_test.py is truncated in the audit corpus so the 22-check count cannot be verified, and the --agent-sdk flag that covers the SDK path (RA-575) is off by default, meaning standard runs omit SDK verification entirely.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Enable --agent-sdk in the CI smoke-prod job and document which numbered checks map to which pipeline stages so the count claim is independently verifiable.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "Budget tracker is instantiated but not wired (partially acknowledged in spec: 'The tracker is e...')",
+      "reality": "The spec text is cut off mid-sentence confirming BudgetTracker in src/tao/budget/tracker.py is not wired into session_sdk.py; no test exercises the tracker integration path, so any future wiring will land without a regression guard.",
+      "file": "src/tao/budget/tracker.py",
+      "recommendation": "Add a unit test asserting that session_sdk._run_claude_via_sdk() increments BudgetTracker.tokens_used after each SDK call before closing the acknowledged gap.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 7,
+    "critical_count": 0,
+    "high_count": 4,
+    "low_count": 3,
+    "duration_s": 250.0,
+    "audited_at": "2026-06-22T05:08:42.093098+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": []
+  }
+}

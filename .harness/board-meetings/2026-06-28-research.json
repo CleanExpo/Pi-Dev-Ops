@@ -1,0 +1,76 @@
+{
+  "research_required": true,
+  "questions": [
+    "Has Anthropic changed its API key requirements or trial credit policies in the last 30 days in a way that would affect platform-managed credits for new signups?",
+    "What is the current status and documentation for the Australian Business Register (ABR) API, and are there any known outages or GUID/authentication changes affecting ABN lookups?",
+    "What are the current Anthropic Claude API pricing tiers and trial credit offerings as of June 2026 that would affect RestoreAssist's onboarding flow?"
+  ],
+  "findings": [
+    {
+      "question": "Has Anthropic changed its API key requirements or trial credit policies in the last 30 days in a way that would affect platform-managed credits for new signups?",
+      "claim": "Anthropic announced on May 14, 2026 that Agent SDK and claude -p usage would move to separate metered credit pools starting June 15, 2026 — but on June 15 Anthropic confirmed via its Help Center that the change is 'no longer happening' and those surfaces continue drawing from Pro/Max/Team/Enterprise subscription limits exactly as before. No changes were made to API key requirements or trial credit grants for new signups; new accounts still receive a small free credit allocation via the standard console registration flow.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://www.digitalapplied.com/blog/anthropic-claude-credit-overhaul-june-15-2026",
+          "title": "Claude Credit Overhaul 2026: Anthropic Pauses the June 15 Change",
+          "fetched": "2026-06-28",
+          "excerpt": "Anthropic paused the June 15 Agent SDK billing change — it is not taking effect. Nothing changes for now: surfaces continue drawing from subscription limits exactly as before."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/about-claude/pricing",
+          "title": "Pricing - Claude Platform Docs",
+          "fetched": "2026-06-28",
+          "excerpt": "New users receive a small amount of free credits to test the API. Contact sales for information about extended trials for enterprise evaluation."
+        }
+      ]
+    },
+    {
+      "question": "What is the current status and documentation for the Australian Business Register (ABR) API, and are there any known outages or GUID/authentication changes affecting ABN lookups?",
+      "claim": "As of June 28, 2026, the ABR reports all systems operational with no incidents in the past two weeks. GUID-based authentication for ABN Lookup web services remains unchanged — GUIDs are obtained via free registration at abr.business.gov.au and no authentication scheme changes have been announced. Scheduled Christmas/New Year maintenance runs midday AEDT 24 Dec 2026 through 4 Jan 2027.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://status.abr.gov.au/",
+          "title": "Australian Business Register Status",
+          "fetched": "2026-06-28",
+          "excerpt": "All Systems Operational. ABN System, ABR Web Services, Identifier Search — no incidents reported June 15–28, 2026."
+        },
+        {
+          "url": "https://abr.business.gov.au/Tools/WebServices",
+          "title": "Web services | ABN Lookup - Business.gov.au",
+          "fetched": "2026-06-28",
+          "excerpt": "Access to the ABN Lookup web services is free of charge. Register to receive an authentication GUID for integration into your own applications."
+        }
+      ]
+    },
+    {
+      "question": "What are the current Anthropic Claude API pricing tiers and trial credit offerings as of June 2026 that would affect RestoreAssist's onboarding flow?",
+      "claim": "Anthropic's current API tiers (from primary docs, June 2026): Haiku 4.5 at $1/$5 per MTok input/output; Sonnet 4.5/4.6 at $3/$15; Opus 4.5–4.8 at $5/$25; Fable 5 and Mythos 5 at $10/$50. New accounts receive a small free credit allocation (third-party sources cite $5); a phone-verified registration is required. The Batch API applies a 50% discount across all models. No additional per-use charges were introduced in the last 30 days — the June 15 subscription-billing change was paused.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/about-claude/pricing",
+          "title": "Pricing - Claude Platform Docs",
+          "fetched": "2026-06-28",
+          "excerpt": "Haiku 4.5: $1/$5 MTok. Sonnet 4.6: $3/$15 MTok. Opus 4.5–4.8: $5/$25 MTok. Fable 5: $10/$50 MTok. Batch API: 50% discount. New users receive a small amount of free credits."
+        },
+        {
+          "url": "https://www.digitalapplied.com/blog/anthropic-claude-credit-overhaul-june-15-2026",
+          "title": "Claude Credit Overhaul 2026: Anthropic Pauses the June 15 Change",
+          "fetched": "2026-06-28",
+          "excerpt": "Credit amounts were to equal each plan's subscription fee ($20 Pro, $100 Max 5×, $200 Max 20×) — but this never took effect. Subscription billing unchanged."
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "The exact dollar amount of Anthropic's new-account trial credit is not confirmed in primary Anthropic documentation (only 'a small amount'); the $5 figure comes from third-party sources and may not reflect a formally published policy.",
+    "Whether RestoreAssist's onboarding uses direct API key issuance (new-signup trial credits) or a subscription seat model is not determinable from public sources — if it uses Pro/Max/Team seats, the paused June 15 change would have been directly relevant; confirm which billing surface RestoreAssist provisions for new users.",
+    "No ABR changelog or developer newsletter was found confirming the absence of GUID format changes; only the status page was checked. A direct query to ABR developer support would give higher certainty."
+  ],
+  "completed_at": "2026-06-28T05:01:42.195804+00:00",
+  "cost_seconds": 94.5,
+  "failure_reason": null,
+  "mode": "fast"
+}

@@ -1,0 +1,84 @@
+{
+  "research_required": true,
+  "questions": [
+    "What is Anthropic's current policy on trial credits and API key requirements for platform-managed accounts as of June 2025?",
+    "Has Anthropic announced any changes to Claude API pricing or access tiers in the 30 days prior to June 25 2026 that would affect orchestrator cost modelling?",
+    "What is the current ABR (Australian Business Register) API status and any known outages or GUID format changes affecting ABN lookups?",
+    "Are there any publicly announced pricing changes from Mythos or competing AI planner platforms effective around 22 June 2026?"
+  ],
+  "findings": [
+    {
+      "question": "What is Anthropic's current policy on trial credits and API key requirements for platform-managed accounts as of June 2025?",
+      "claim": "New Anthropic Console accounts receive a small amount of free credits on sign-up (official docs confirm credits exist but do not state the dollar amount; third-party sources report $5). A proposed June 15 2026 change that would have split Agent SDK usage into separate per-user credit pools at full API rates was reversed on June 16 2026; Agent SDK, claude -p, and ACP usage continue on existing subscription terms until Anthropic provides advance notice of any future change.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/about-claude/pricing",
+          "title": "Pricing - Claude API Docs",
+          "fetched": "2026-06-25",
+          "excerpt": "New users receive a small amount of free credits to test the API. Contact sales for information about extended trials for enterprise evaluation."
+        },
+        {
+          "url": "https://zed.dev/blog/anthropic-subscription-changes",
+          "title": "What Anthropic's New Claude Billing Means for Zed Users — Zed's Blog",
+          "fetched": "2026-06-25",
+          "excerpt": "Anthropic has told subscribers that the billing change is not taking effect yet. ACP usage, claude -p, and the Claude Agent SDK continue to work with Claude subscriptions exactly as they did before."
+        }
+      ]
+    },
+    {
+      "question": "Has Anthropic announced any changes to Claude API pricing or access tiers in the 30 days prior to June 25 2026 that would affect orchestrator cost modelling?",
+      "claim": "Two material changes affect orchestrator cost modelling since May 26 2026: (1) Claude Fable 5 and Claude Mythos 5 launched June 9 at $10/$50 per MTok input/output (roughly 60% cheaper than Mythos Preview at $25/$125), with Batch API at $5/$25; (2) Claude Managed Agents pricing was introduced at $0.08 per session-hour on top of standard token rates, with Batch API discount, Fast Mode, and Data Residency multipliers explicitly excluded from Managed Agent sessions.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/about-claude/pricing",
+          "title": "Pricing - Claude API Docs",
+          "fetched": "2026-06-25",
+          "excerpt": "Claude Fable 5: $10/MTok input, $50/MTok output. Claude Managed Agents session runtime: $0.08 per session-hour, accruing only while status is 'running'."
+        },
+        {
+          "url": "https://www.anthropic.com/news/claude-fable-5-mythos-5",
+          "title": "Claude Fable 5 and Claude Mythos 5 — Anthropic",
+          "fetched": "2026-06-25",
+          "excerpt": "Both models priced at $10 per million input tokens and $50 per million output tokens—less than half the price of Claude Mythos Preview. Announced June 9, 2026."
+        }
+      ]
+    },
+    {
+      "question": "What is the current ABR (Australian Business Register) API status and any known outages or GUID format changes affecting ABN lookups?",
+      "claim": "All ABR web services (ABN System, Apply for an ABN, Update your ABN, ABR Web Services, Identifier Search) are fully operational as of June 25 2026, with no incidents recorded since at least June 11 2026. No GUID format changes were surfaced on the official status page or in any search results.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://status.abr.gov.au/",
+          "title": "Australian Business Register Status",
+          "fetched": "2026-06-25",
+          "excerpt": "All Systems Operational. No incidents reported for the period June 11–25, 2026 across all monitored ABR services."
+        }
+      ]
+    },
+    {
+      "question": "Are there any publicly announced pricing changes from Mythos or competing AI planner platforms effective around 22 June 2026?",
+      "claim": "In the AI API context, 'Mythos' resolves to Anthropic's Claude Mythos model tier. The key change effective June 23 2026 is that Claude Fable 5 (the public Mythos-class model) was removed from no-extra-cost subscription access (Pro, Max, Team, Enterprise) after a free-access window from June 9–22; API pricing remained fixed at $10/$50 per MTok from launch. No evidence of pricing changes from any separate company or product named 'Mythos' was found across three searches.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://www.anthropic.com/news/claude-fable-5-mythos-5",
+          "title": "Claude Fable 5 and Claude Mythos 5 — Anthropic",
+          "fetched": "2026-06-25",
+          "excerpt": "June 9–22: Fable 5 included at no extra cost on Pro, Max, Team, and Enterprise plans. June 23 onward: usage credits required for subscription-plan access."
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "Exact dollar amount of Anthropic's new-account trial credits — official docs confirm credits exist but do not specify the amount; third-party sources cite $5 but no primary source confirmed this.",
+    "Whether any GUID format changes have been made or are planned for the ABR ABN Lookup API — no announcement found; direct confirmation requires contacting ABR support on 139226.",
+    "Whether a standalone company or SaaS product called 'Mythos' (distinct from Claude Mythos) has announced pricing changes effective around 22 June 2026 — no evidence found after three searches."
+  ],
+  "completed_at": "2026-06-25T05:03:39.743587+00:00",
+  "cost_seconds": 155.7,
+  "failure_reason": null,
+  "mode": "fast"
+}

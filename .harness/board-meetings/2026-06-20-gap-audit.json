@@ -1,0 +1,74 @@
+{
+  "critical": [],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "webhook.py implements only the inbound direction: HMAC signature verification, event parsing (parse_linear_event), and brief generation (linear_issue_to_brief). There are zero outbound Linear API calls — no issueUpdate GraphQL mutation, no linear_update_issue helper, no HTTP client call to api.linear.app anywhere in the two provided files. The 'state updates flow back to Linear' half of the two-way sync is absent from all shown source.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Add a linear_update_issue(issue_id, state_id, token) helper to webhook.py (or a dedicated linear_client.py) that fires the issueUpdate GraphQL mutation, then call it from routes/webhooks.py at session-start (→ In Progress) and session-complete/failed (→ Done/Cancelled).",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The provided test files (test_auth.py, test_webhook.py) contain only unit tests for auth and webhook signature verification. There are zero integration or E2E tests covering the build pipeline — no tests for /api/build, session lifecycle, evaluator invocation, or the push phase. smoke_test.py is a manual live-server script (requires --url and --password, exits 1/0) and is truncated at the HTTP helper section; it cannot run in CI without a live server and therefore does not constitute automated E2E coverage.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Add a pytest-based integration test (e.g. tests/test_pipeline_e2e.py) that spins up the FastAPI app via httpx.AsyncClient, POSTs a minimal /api/build payload against a mocked claude_agent_sdk, and asserts session state transitions through to push phase completion.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "high",
+      "claim": "spec implies build logs stream to browser in real time (SSE streaming: dashboard/hooks/useSSE.ts, exponential-backoff reconnect; 'Reframe SSE drops as reconnecting, poll /api/sessions as truth')",
+      "reality": "The provided server-side source files show only a WebSocket endpoint at /ws/build/{sid} (registered via utils.router in main.py). No SSE endpoint that yields session.output_lines as text/event-stream is present in sessions.py (the facade) or any router registered in main.py. The dashboard/hooks/useSSE.ts client hook has no corresponding server route in the audited files.",
+      "file": "app/server/routes/utils.py",
+      "recommendation": "Audit routes/sessions.py (not provided) for a GET /api/sessions/{sid}/logs or similar SSE route; if absent, add one that streams output_lines as text/event-stream so the useSSE.ts hook has a real server-side counterpart.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "The route file defines triggerBuild(), getPiCeoStatus(), createLinearIssue(), and getLinearBacklog() helpers, but the file is truncated before the POST handler where command dispatch (/start, /help, /build routing) would live. No explicit /start or /help string-match handler is visible in the provided excerpt.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Confirm the POST handler below the truncation point contains explicit text.startsWith('/start'), text.startsWith('/help'), and text.startsWith('/build') branches; if any are absent, add them with appropriate responses.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "low",
+      "claim": "BudgetTracker in src/tao/budget/tracker.py is a correct implementation, but session_sdk.py does not instantiate it. SDK metric rows capture output_len but not tokens_used",
+      "reality": "The spec itself acknowledges this gap — BudgetTracker is implemented but not wired into session_sdk.py. No test in the provided suite exercises BudgetTracker integration or verifies that token usage is recorded. The claim of Complete test coverage is therefore also false for this subsystem.",
+      "file": "tests/test_auth.py",
+      "recommendation": "Add a unit test in tests/test_budget_tracker.py that patches the SDK response and asserts BudgetTracker.record() is called with a non-zero token count after _run_claude_via_sdk() completes.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "op:// refs in .env not resolved by dotenv | RA-1Password | Pydantic validator must detect and return None",
+      "reality": "No test in the provided suite verifies that the Pydantic field_validator correctly intercepts op:// strings and returns None. The implementation may exist in config.py but is untested in the provided test files.",
+      "file": "tests/test_auth.py",
+      "recommendation": "Add a test in tests/test_config.py that constructs the Settings model with an op:// value for a password field and asserts the validator returns None rather than the raw op:// string.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "SDK metric rows capture output_len (implying token tracking is wired)",
+      "reality": "The spec itself notes BudgetTracker in src/tao/budget/tracker.py is not instantiated in session_sdk.py and tokens_used is never populated — SDK rows capture output_len (byte length) not actual token counts, so the budget tracker produces no useful signal despite existing.",
+      "file": "app/server/session_sdk.py",
+      "recommendation": "In _run_claude_via_sdk(), instantiate BudgetTracker and populate tokens_used from the structured SDK response token-count fields before writing the metrics row.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 7,
+    "critical_count": 0,
+    "high_count": 3,
+    "low_count": 4,
+    "duration_s": 215.9,
+    "audited_at": "2026-06-20T05:07:47.805619+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": []
+  }
+}

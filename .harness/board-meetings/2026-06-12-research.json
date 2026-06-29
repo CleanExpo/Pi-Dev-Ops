@@ -1,0 +1,108 @@
+{
+  "research_required": true,
+  "questions": [
+    "What pricing changes is Anthropic (Claude API) introducing around 22 June 2026 that would affect the Mythos-as-planner strategy?",
+    "What are the current WCAG 2.1 Success Criterion 1.4.4 compliance enforcement precedents or penalties relevant to Australian SaaS products?",
+    "What is the current status and known issues with DigitalOcean App Platform build failures related to Node.js or monorepo configurations in 2026?",
+    "Has Anthropic or any major AI orchestration vendor shipped changes to agent SDK behaviour or permission models in the last 30 days that affect Claude Code harnesses?"
+  ],
+  "findings": [
+    {
+      "question": "What pricing changes is Anthropic (Claude API) introducing around 22 June 2026 that would affect the Mythos-as-planner strategy?",
+      "claim": "Effective June 15 2026, all programmatic Claude usage via the Agent SDK and `claude -p` exits subscription limits and draws instead from a separate metered monthly credit ($20 Pro / $100 Max-5x / $200 Max-20x, no rollover). Anthropic's own coverage notes that Opus-heavy pipelines and recursive agents will exhaust this credit within days; Claude Fable 5 (the first publicly available Mythos-class model, launched June 9) is priced at $10/1M input tokens, and Mythos 5 itself remains limited-preview under Project Glasswing — meaning any Mythos-as-planner architecture running over the SDK now faces full API-rate metering with no subscription subsidy.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://codersera.com/blog/anthropic-june-2026-billing-change-claude-code/",
+          "title": "Anthropic's June 15 Billing Change: What Every Claude Code & Agent SDK User Must Do",
+          "fetched": "2026-06-12",
+          "excerpt": "Starting June 15, 2026, Claude Agent SDK and claude -p usage no longer counts toward your Claude plan's usage limits. Heavy agents — Opus-heavy pipelines, parallel CI runs — will deplete credit within days."
+        },
+        {
+          "url": "https://www.techtimes.com/articles/317625/20260602/anthropic-ends-subscription-subsidy-agents-june-15-credit-pool-replaces-flat-rate-access.htm",
+          "title": "Anthropic Ends Subscription Subsidy for Agents June 15: Credit Pool Replaces Flat-Rate Access",
+          "fetched": "2026-06-12",
+          "excerpt": "Agent SDK usage, claude -p commands, Claude Code GitHub Actions, and third-party apps authenticated through Agent SDK will move to separate monthly credits billed at API rates."
+        },
+        {
+          "url": "https://www.aipricing.guru/anthropic-pricing/",
+          "title": "Anthropic Claude API Pricing 2026 - Fable 5 $10/1M, Opus $5, Sonnet $3",
+          "fetched": "2026-06-12",
+          "excerpt": "Claude Fable 5 becomes the new generally available top tier; limited-preview Claude Mythos 5 above the public lineup for approved Project Glasswing customers."
+        }
+      ]
+    },
+    {
+      "question": "What are the current WCAG 2.1 Success Criterion 1.4.4 compliance enforcement precedents or penalties relevant to Australian SaaS products?",
+      "claim": "Australia's Disability Discrimination Act (DDA) covers SaaS platforms explicitly; the Australian Human Rights Commission's April 2025 updated guidance sets WCAG 2.2 Level AA as the minimum standard for digital products including SaaS and AI tools. DDA non-compliance can result in complaints, conciliation, and court-awarded compensation up to AUD 100,000 per complainant, with fines reaching AUD 250,000 per violation — but no citable enforcement case specifically naming SC 1.4.4 (Resize Text) against an Australian SaaS vendor was found in available sources.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://www.deque.com/blog/accessibility-updates-in-australia-in-2026/",
+          "title": "Three major accessibility updates in Australia, and what they mean for your organization in 2026",
+          "fetched": "2026-06-12",
+          "excerpt": "AHRC affirmed WCAG 2.2 Level AA as the minimum standard in April 2025; SaaS platforms, AI tools, and two-factor authentication systems are specifically covered."
+        },
+        {
+          "url": "https://www.accessibilitychecker.org/guides/dda/",
+          "title": "DDA Compliance: Web Accessibility in Australia (2026)",
+          "fetched": "2026-06-12",
+          "excerpt": "Penalties can reach up to $250,000 per violation; organizations may face compensation payments of up to AUD 100,000 under the DDA for accessibility violations."
+        },
+        {
+          "url": "https://d2itechnology.com/blogs/australia-web-accessibility-2026-updates/",
+          "title": "Australia Web Accessibility 2026: Updates, Laws & WCAG Compliance Guide",
+          "fetched": "2026-06-12",
+          "excerpt": "2026 seeing increased enforcement expectations; disability discrimination complaints related to inaccessible websites have increased steadily in Australia."
+        }
+      ]
+    },
+    {
+      "question": "What is the current status and known issues with DigitalOcean App Platform build failures related to Node.js or monorepo configurations in 2026?",
+      "claim": "A confirmed 11.7-hour global App Platform outage on February 26–27 2026 was caused by failures in older Node.js buildpack versions; DigitalOcean resolved it by February 27 04:55 UTC and simultaneously changed the default Node.js version from v20 to v22 LTS. No active open incidents were found as of June 2026, but the version bump (v20→v22) is a known breaking-change vector for projects that do not pin their Node.js version in package.json.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://isdown.app/status/digitalocean/incidents/543201-app-platform-deployments",
+          "title": "DigitalOcean App Platform Deployments — Feb 2026 | IsDown",
+          "fetched": "2026-06-12",
+          "excerpt": "Build failures affecting older Node.js buildpack versions, global impact, ~11.7 hours duration 14:30 UTC Feb 26 to 00:01 UTC Feb 27 2026. Resolved Feb 27 04:55 UTC."
+        },
+        {
+          "url": "https://docs.digitalocean.com/products/app-platform/reference/buildpacks/nodejs/",
+          "title": "Node.js Buildpack on App Platform | DigitalOcean Documentation",
+          "fetched": "2026-06-12",
+          "excerpt": "Default Node.js version updated from v20 to v22 (current stable LTS). Pin the version in package.json to avoid unexpected build failures on future upgrades."
+        }
+      ]
+    },
+    {
+      "question": "Has Anthropic or any major AI orchestration vendor shipped changes to agent SDK behaviour or permission models in the last 30 days that affect Claude Code harnesses?",
+      "claim": "Claude Code v2.1.172 (shipped within the last 30 days) introduced nested sub-agents up to 5 levels deep, fixed `availableModels` restrictions not being applied to subagent model overrides and the agent-dispatch model picker, fixed background sub-agents reading another directory's project settings when dispatched on pre-warmed workers, and fixed worktree-isolated workflow agents being blocked from editing their own worktree files. v2.1.169 fixed enterprise managed MCP policies not being enforced on reconnect or before remote settings loaded. Separately, the June 15 billing change means Agent SDK calls from harnesses now draw from a capped metered credit rather than subscription limits.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://releasebot.io/updates/anthropic/claude-code",
+          "title": "Claude Code Updates by Anthropic - June 2026 - Releasebot",
+          "fetched": "2026-06-12",
+          "excerpt": "v2.1.172: Sub-agents can now spawn their own sub-agents (up to 5 levels). Fixed availableModels restrictions not applied to subagent overrides. Fixed background agents reading wrong project settings on pre-warmed workers."
+        },
+        {
+          "url": "https://codersera.com/blog/anthropic-june-2026-billing-change-claude-code/",
+          "title": "Anthropic's June 15 Billing Change: What Every Claude Code & Agent SDK User Must Do",
+          "fetched": "2026-06-12",
+          "excerpt": "Agent SDK and claude -p move to separate metered credit ($20–$200/month). Once depleted, automated requests stop unless overflow billing is manually enabled."
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "Specific Anthropic-published API pricing for Claude Mythos 5 tokens (input/output per MTok) — Mythos 5 is limited-preview under Project Glasswing and no public pricing sheet was found.",
+    "Cited Australian enforcement case or ACCC/AHRC formal determination specifically naming SC 1.4.4 (Resize Text) against a SaaS product — general penalty framework found but no SC-specific precedent.",
+    "Whether DigitalOcean App Platform has any active known issues with monorepo (pnpm/Yarn workspaces) build configurations as of June 2026 — only the resolved February incident was found; community forum threads exist but no confirmed current bug tracker entry."
+  ],
+  "completed_at": "2026-06-12T05:03:09.054348+00:00",
+  "cost_seconds": 155.3,
+  "failure_reason": null,
+  "mode": "fast"
+}

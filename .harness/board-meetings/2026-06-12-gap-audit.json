@@ -1,0 +1,78 @@
+{
+  "critical": [],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "webhook.py only handles inbound Linear events (parse_linear_event, verify_linear_signature, linear_issue_to_brief). There are zero outbound Linear API calls in the provided files — no issueUpdate GraphQL mutation, no linear_update_issue helper, no state transition (e.g. In Progress → Done/Cancelled) written back to Linear from any build lifecycle event.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Add an outbound Linear helper (e.g. routes/webhooks.py or a dedicated linear_client.py) that calls the issueUpdate mutation with the correct stateId when a TAO session starts, completes, or fails, completing the advertised two-way sync.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "No E2E or integration tests exist for the full build pipeline (session creation, evaluator phase, push phase). test_auth.py and test_webhook.py are pure unit tests. smoke_test.py is a live-server regression probe that requires a running Railway/local server and is only executed on post-deploy (main branch only per CI config) — it tests API surface, not internal pipeline integrity. Zero automated tests cover sessions.py orchestration, evaluator scoring, or _phase_push.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Add integration tests in tests/test_pipeline_integration.py that mock the claude_agent_sdk and assert session state transitions through all phases (plan → generate → evaluate → push) without requiring a live server.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "high",
+      "claim": "Budget tracker is instantiated but not wired. BudgetTracker in src/tao/budget/tracker.py is a correct implementation, but session_sdk.py does not instantiate it.",
+      "reality": "The spec itself acknowledges BudgetTracker is unconnected — SDK metric rows capture output_len but not tokens_used — yet the overall coverage status is marked ✅ Complete. There are no tests in the provided suite exercising budget enforcement, ceiling checks, or the TAO_MAX_COST_USD abort axis via the tracker.",
+      "file": "tests/test_auth.py",
+      "recommendation": "Wire BudgetTracker into session_sdk.py._run_claude_via_sdk() and add a test asserting KillSwitchAbort is raised when the USD ceiling is exceeded mid-session.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "The visible portion of dashboard/app/api/telegram/route.ts contains helper functions (getPiCeoStatus, triggerBuild, getLinearBacklog, createLinearIssue) but no explicit /start or /help command handlers are present in the provided code. The file is truncated before the POST export handler where command dispatch would live, so /start and /help may simply be absent.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Add explicit /start (welcome message) and /help (command list) branches in the POST handler's command-dispatch switch/if block alongside the existing triggerBuild and status paths.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "low",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "triggerBuild() exists as a helper but the source is cut off at `const cookie = aw` — the full implementation and whether /build is wired into the command router cannot be verified from the provided excerpt.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Confirm the POST handler dispatches the /build command to triggerBuild() and returns a user-visible response (session ID / progress link) rather than fire-and-forget, per RA-1109.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "smoke_test.py is truncated in the provided source (cuts off mid-token at json.JSONDecod), making it impossible to verify the claimed 22-check count from code alone.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Verify actual check count in the complete file; if fewer than 22 checks exist, update the spec count or add the missing checks.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "Sprint 10 complete (2026-04-14): ZTE v2 Section C wired (RA-672)",
+      "reality": "No test in test_auth.py or test_webhook.py exercises ZTE v2 Section C logic; the claim is marked complete but there is no regression test to prevent future regressions of this metric.",
+      "file": "tests/test_auth.py",
+      "recommendation": "Add a test that instantiates the ZTE scorer and asserts Section C returns a score ≥ the claimed baseline, so CI catches any regression.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 7,
+    "critical_count": 0,
+    "high_count": 3,
+    "low_count": 4,
+    "duration_s": 230.5,
+    "audited_at": "2026-06-12T05:09:07.910009+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": [
+      "RA-6515",
+      "RA-6516",
+      "RA-6517"
+    ]
+  }
+}

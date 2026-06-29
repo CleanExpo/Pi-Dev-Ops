@@ -1,0 +1,69 @@
+{
+  "critical": [],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "webhook.py implements only the inbound direction: verify_linear_signature, parse_linear_event, and linear_issue_to_brief. There is no outbound issueUpdate GraphQL mutation, no linear_update_issue helper, and no HTTP call to api.linear.app in any provided Python file. The CLAUDE.md references mcp__pi-ceo__linear_create_issue (Node.js MCP, not Python) for outbound writes, but that covers ticket creation only — not state transitions back to Linear after a build completes or fails.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Add a Python helper (e.g. update_linear_issue_state(issue_id, state_id, token)) that POSTs an issueUpdate mutation to https://api.linear.app/graphql and call it from routes/webhooks.py (or the session completion hook) to mark issues In Progress on build start and Done/Cancelled on build end.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "SSE streaming: dashboard/hooks/useSSE.ts, exponential-backoff reconnect",
+      "reality": "The backend module map documents only a WebSocket endpoint at /ws/build/{sid} (routes/utils.py) for real-time log delivery. No SSE endpoint that pipes session.output_lines appears in any route registered in main.py or in the CLAUDE.md module map. The frontend useSSE.ts hook has no corresponding backend SSE route.",
+      "file": "app/server/main.py",
+      "recommendation": "Add a GET /api/sessions/{sid}/logs/stream endpoint (text/event-stream) in routes/sessions.py that yields from session.output_lines, or update CLAUDE.md to document that real-time streaming is WebSocket-only and retire useSSE.ts in favour of the WebSocket client.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "The visible portion of dashboard/app/api/telegram/route.ts shows helper functions (getPiCeoStatus, triggerBuild, createLinearIssue, getLinearBacklog) that could back /build and /status commands, but no /start or /help command handlers are present anywhere in the visible code. The file is truncated mid-function (triggerBuild cuts off at `const cookie = aw`), so the main exported POST handler and its command-dispatch switch/if-chain are not visible — making it impossible to confirm /start or /help routing exists at all.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Verify the complete file exports a POST handler with explicit branches for /start and /help text inputs; if those branches are absent, add them to the command dispatcher alongside the existing triggerBuild and getPiCeoStatus helpers.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "scripts/smoke_test.py requires a live running server (--url or --target=prod) and is invoked as a standalone script, not via pytest. The actual 22 checks are not visible in the provided snippet to confirm they cover sessions, evaluator, or push pipeline stages. No integration tests for those pipeline stages appear in tests/test_auth.py or tests/test_webhook.py.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Add at least one pytest integration test (e.g. tests/test_pipeline_e2e.py) that exercises the /api/build → session status → push path using a mocked claude_agent_sdk, so pipeline coverage runs in the standard 'python' CI job without requiring a live server.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The --agent-sdk flag described as 'SDK path verification checks (RA-575)' also requires a running server and is not wired into the standard pytest suite. CLAUDE.md notes 3 pre-existing failures in test_sdk_phase2.py due to claude_agent_sdk not being installed locally, meaning the SDK layer that drives sessions and evaluator has known failing tests in the standard run.",
+      "file": "tests/test_auth.py",
+      "recommendation": "Patch claude_agent_sdk with AsyncMock in test_sdk_phase2.py (as documented in CLAUDE.md's SDK Architecture section) so all SDK path tests pass in the standard pytest run without the real SDK installed.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "Budget tracker is instantiated but not wired. BudgetTracker in src/tao/budget/tracker.py is a correct implementation, but session_sdk.py does not instantiate it.",
+      "reality": "create_session in sessions.py imports and calls budget_to_params when budget_minutes is provided, but the function body is truncated in the source at `resolved_model =` with no visible instantiation or pass-through of a BudgetTracker to _run_claude_via_sdk. The spec itself acknowledges the gap, and the code confirms it is unresolved.",
+      "file": "app/server/sessions.py",
+      "recommendation": "Instantiate BudgetTracker after calling budget_to_params in create_session and pass it into run_build / _run_claude_via_sdk so token spend is actually tracked per session.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 6,
+    "critical_count": 0,
+    "high_count": 2,
+    "low_count": 4,
+    "duration_s": 223.0,
+    "audited_at": "2026-06-14T23:02:38.901235+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": [
+      "RA-6593",
+      "RA-6594"
+    ]
+  }
+}
