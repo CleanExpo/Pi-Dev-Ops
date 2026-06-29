@@ -32,10 +32,14 @@ const COOKIE_NAME = "pi_session";
 const LOGIN_PATH = "/";
 
 const PROTECTED_PAGE_PREFIXES = [
+  "/overview",
+  "/brain",
   "/control",
+  "/loop",
   "/dashboard",
   "/health",
   "/builds",
+  "/routines",
   "/chat",
   "/settings",
   "/history",
