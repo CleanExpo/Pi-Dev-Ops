@@ -8,7 +8,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>/usr/bin/python3</string>
-    <string>/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/scripts/improve_system.py</string>
+    <string>/Users/phill-mac/Pi-CEO/Pi-Dev-Ops-routines/scripts/improve_system.py</string>
   </array>
 
   <!-- Tue (2) + Fri (5) at 18:00 local — EOD improvement routine (review-first,
