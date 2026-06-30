@@ -1,7 +1,8 @@
 """tests/test_tao_planner.py — unit tests for the lookahead planner.
 
-Mocks `_run_claude_via_sdk` so every test is deterministic and SDK-free,
-mirroring tests/test_tao_loop.py / test_tao_judge.py style.
+The planning brain is orchestrator._decompose_brief; make_plan tests mock it so
+they are deterministic and SDK-free. _plan_descriptions is tested against the
+real orchestrator topo-sort/brief helpers.
 """
 from __future__ import annotations
 
@@ -10,41 +11,38 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 
-# ── pure parse helper ────────────────────────────────────────────
+# ── _plan_descriptions: flatten _decompose_brief output ──────────
 
-def test_parse_steps_extracts_ordered_strings():
-    from app.server.tao_planner import _parse_steps
-    raw = '{"steps": ["read the failing test", "write the fixture", "run pytest"]}'
-    assert _parse_steps(raw, horizon=15) == [
-        "read the failing test",
-        "write the fixture",
-        "run pytest",
+def test_plan_descriptions_topo_orders_dicts_and_injects_scenarios():
+    from app.server.tao_planner import _plan_descriptions
+    tasks = [
+        {"id": 2, "title": "B", "brief": "do B", "depends_on": [1],
+         "test_scenarios": ["happy: x"], "is_behavioral": True},
+        {"id": 1, "title": "A", "brief": "do A", "depends_on": [],
+         "test_scenarios": [], "is_behavioral": False},
     ]
+    descs = _plan_descriptions(tasks, horizon=15)
+    # Topologically ordered: A (no deps) before B (depends on 1).
+    assert descs[0].startswith("do A")
+    assert descs[1].startswith("do B")
+    assert "happy: x" in descs[1]  # scenarios folded into the brief
 
 
-def test_parse_steps_clamps_to_horizon():
-    from app.server.tao_planner import _parse_steps
-    raw = '{"steps": ["a", "b", "c", "d", "e"]}'
-    assert _parse_steps(raw, horizon=3) == ["a", "b", "c"]
+def test_plan_descriptions_clamps_to_horizon():
+    from app.server.tao_planner import _plan_descriptions
+    tasks = [{"id": i, "brief": f"t{i}", "depends_on": []} for i in range(10)]
+    assert len(_plan_descriptions(tasks, horizon=3)) == 3
 
 
-def test_parse_steps_tolerates_prose_around_json():
-    from app.server.tao_planner import _parse_steps
-    raw = 'Sure, here is the plan:\n{"steps": ["x", "y"]}\nHope that helps.'
-    assert _parse_steps(raw, horizon=15) == ["x", "y"]
+def test_plan_descriptions_passes_through_string_fallback():
+    from app.server.tao_planner import _plan_descriptions
+    assert _plan_descriptions(["alpha", "  ", "beta"], horizon=15) == ["alpha", "beta"]
 
 
-def test_parse_steps_drops_empty_and_nonstring_entries():
-    from app.server.tao_planner import _parse_steps
-    raw = '{"steps": ["keep", "", "  ", 42, null, "also-keep"]}'
-    assert _parse_steps(raw, horizon=15) == ["keep", "also-keep"]
-
-
-def test_parse_steps_fails_safe_to_empty_on_junk():
-    from app.server.tao_planner import _parse_steps
-    assert _parse_steps("not json at all", horizon=15) == []
-    assert _parse_steps('{"nope": 1}', horizon=15) == []
-    assert _parse_steps("", horizon=15) == []
+def test_plan_descriptions_empty_returns_empty():
+    from app.server.tao_planner import _plan_descriptions
+    assert _plan_descriptions([], horizon=15) == []
+    assert _plan_descriptions(None, horizon=15) == []
 
 
 # ── Plan / PlanStep mechanics ────────────────────────────────────
@@ -97,46 +95,57 @@ def test_format_step_goal_no_active_returns_overall():
     assert format_step_goal(plan, "g") == "g"
 
 
-# ── make_plan (SDK-mocked) ───────────────────────────────────────
-
-pytestmark_async = pytest.mark.asyncio
-
+# ── make_plan (backed by _decompose_brief, mocked) ───────────────
 
 @pytest.mark.asyncio
-async def test_make_plan_builds_plan_from_sdk(monkeypatch):
+async def test_make_plan_builds_plan_from_decompose(monkeypatch):
     import app.server.tao_planner as tp
-    sdk = AsyncMock(return_value=(0, '{"steps": ["a", "b", "c"]}', 0.0))
-    with patch.object(tp, "_run_claude_via_sdk", sdk):
+    tasks = [
+        {"id": 1, "title": "A", "brief": "do A", "depends_on": [], "test_scenarios": []},
+        {"id": 2, "title": "B", "brief": "do B", "depends_on": [1], "test_scenarios": []},
+    ]
+    dec = AsyncMock(return_value=tasks)
+    with patch("app.server.orchestrator._decompose_brief", dec):
         plan = await tp.make_plan("goal", "/tmp/x", horizon=15)
-    assert [s.description for s in plan.steps] == ["a", "b", "c"]
-    assert plan.active_step().description == "a"
-    # planner role (Opus) must be the model selected
-    assert sdk.await_args.kwargs["model"] == tp.select_model("planner")
+    assert [s.description.split("\n")[0] for s in plan.steps] == ["do A", "do B"]
+    assert plan.active_step().description.startswith("do A")
+    # Decomposition runs on the Opus orchestrator role (RA-1099) inside _decompose_brief.
+    assert dec.await_args.kwargs["n_workers"] == 15
 
 
 @pytest.mark.asyncio
 async def test_make_plan_clamps_horizon_to_max():
     import app.server.tao_planner as tp
-    steps = ",".join(f'"s{i}"' for i in range(40))
-    sdk = AsyncMock(return_value=(0, f'{{"steps": [{steps}]}}', 0.0))
-    with patch.object(tp, "_run_claude_via_sdk", sdk):
+    tasks = [{"id": i, "brief": f"s{i}", "depends_on": []} for i in range(40)]
+    dec = AsyncMock(return_value=tasks)
+    with patch("app.server.orchestrator._decompose_brief", dec):
         plan = await tp.make_plan("goal", "/tmp/x", horizon=999)
     assert len(plan.steps) == tp.MAX_HORIZON
+    assert dec.await_args.kwargs["n_workers"] == tp.MAX_HORIZON
 
 
 @pytest.mark.asyncio
-async def test_make_plan_falls_back_to_single_step_on_junk():
+async def test_make_plan_falls_back_to_single_step_on_empty():
     import app.server.tao_planner as tp
-    sdk = AsyncMock(return_value=(0, "the planner refused to answer", 0.0))
-    with patch.object(tp, "_run_claude_via_sdk", sdk):
+    dec = AsyncMock(return_value=[])
+    with patch("app.server.orchestrator._decompose_brief", dec):
         plan = await tp.make_plan("achieve the goal", "/tmp/x", horizon=15)
     assert [s.description for s in plan.steps] == ["achieve the goal"]
 
 
 @pytest.mark.asyncio
-async def test_make_plan_falls_back_on_sdk_error_rc():
+async def test_make_plan_falls_back_on_decompose_exception():
     import app.server.tao_planner as tp
-    sdk = AsyncMock(return_value=(1, "", 0.0))
-    with patch.object(tp, "_run_claude_via_sdk", sdk):
+    dec = AsyncMock(side_effect=RuntimeError("sdk down"))
+    with patch("app.server.orchestrator._decompose_brief", dec):
         plan = await tp.make_plan("achieve the goal", "/tmp/x", horizon=15)
     assert [s.description for s in plan.steps] == ["achieve the goal"]
+
+
+@pytest.mark.asyncio
+async def test_make_plan_handles_string_fallback_from_decompose():
+    import app.server.tao_planner as tp
+    dec = AsyncMock(return_value=["step one", "step two"])
+    with patch("app.server.orchestrator._decompose_brief", dec):
+        plan = await tp.make_plan("goal", "/tmp/x", horizon=15)
+    assert [s.description for s in plan.steps] == ["step one", "step two"]

@@ -1,33 +1,31 @@
 """app/server/tao_planner.py — lookahead planner for the autonomous loop.
 
-Gives ``tao_loop.run_until_done`` a 15-20 move planning horizon. Instead of
-reacting one generator step at a time, decompose the goal into an ordered plan
-of concrete steps (via the Opus ``planner`` role — RA-1099 allows Opus only for
-``planner``/``orchestrator``), execute the active step each iteration, advance
-on completion, and re-plan when the judge stalls or the horizon is exhausted.
+Gives ``tao_loop.run_until_done`` a planning horizon: instead of reacting one
+generator step at a time, decompose the goal into an ordered plan, execute the
+active step each iteration, advance on completion, and re-plan when the horizon
+is exhausted.
 
-Pure logic + a single SDK call (``make_plan``). JSON parsing is isolated in
-``_parse_steps`` so it is unit-testable without the SDK. Fails safe: any
-planner failure (bad JSON, rc!=0, empty output) degrades to a single-step plan
-``[goal]`` — i.e. exactly the existing reactive behaviour, never a crash.
+The planning brain is the EXISTING orchestrator decomposition
+(``orchestrator._decompose_brief``) — one planning vocabulary for the whole
+codebase, not a second divergent one. This module is a thin adapter: it calls
+``_decompose_brief``, topologically orders the resulting task DAG (reusing the
+orchestrator's wave sort), and folds it into the linear ``Plan`` the loop
+consumes. ``_decompose_brief`` runs on the Opus ``orchestrator`` role
+(RA-1099-allowed) and forces JSON-only output.
 
-The planner prompt forces JSON-only and never requests human confirmation,
-mirroring ``tao_judge``'s prompt discipline (see CLAUDE.md "Planning prompt
-forces JSON-only").
+Fails safe: any planner failure (SDK error, unparseable output, empty result)
+degrades to a single-step plan ``[goal]`` — exactly the reactive behaviour —
+never a crash.
 """
 from __future__ import annotations
 
-import json
 import logging
+import subprocess
 from dataclasses import dataclass, field
 from typing import Final
 
-from .model_policy import select_model
-from .session_sdk import _run_claude_via_sdk
-
 log = logging.getLogger("pi-ceo.tao_planner")
 
-PLANNER_ROLE: Final[str] = "planner"
 DEFAULT_HORIZON: Final[int] = 15
 MAX_HORIZON: Final[int] = 20
 
@@ -86,87 +84,66 @@ class Plan:
 
 
 # ============================================================
-# Parsing (SDK-free, unit-tested)
+# Decomposition-backed planning (SDK-free helpers are unit-tested)
 # ============================================================
 
-def _parse_steps(out: str, horizon: int) -> list[str]:
-    """Extract an ordered list of step strings from the planner's JSON.
-
-    Tolerant of prose around the JSON object. On any failure returns ``[]``
-    so the caller can fall back to a single-step plan.
-    """
-    stripped = (out or "").strip()
-    start = stripped.find("{")
-    end = stripped.rfind("}") + 1
-    if start < 0 or end <= start:
-        return []
+def _git_remote(workspace: str) -> str:
+    """Best-effort origin URL for planner context; '' on any failure."""
     try:
-        obj = json.loads(stripped[start:end])
-    except (json.JSONDecodeError, ValueError):
+        proc = subprocess.run(
+            ["git", "-C", workspace, "remote", "get-url", "origin"],
+            capture_output=True, text=True, timeout=10, check=False,
+        )
+        return (proc.stdout or "").strip()
+    except (subprocess.SubprocessError, OSError):
+        return ""
+
+
+def _plan_descriptions(tasks, horizon: int) -> list[str]:
+    """Flatten ``_decompose_brief`` output into an ordered list of step briefs.
+
+    Rich dict tasks are topologically ordered (via the orchestrator's wave
+    sort) and rendered with their test scenarios; plain-string fallbacks are
+    used as-is. Clamped to ``horizon``. Empty input -> [] so the caller falls
+    back to a single-step plan.
+    """
+    if not tasks:
         return []
-    if not isinstance(obj, dict):
-        return []
-    raw_steps = obj.get("steps")
-    if not isinstance(raw_steps, list):
-        return []
-    cleaned = [s.strip() for s in raw_steps if isinstance(s, str) and s.strip()]
+    if isinstance(tasks[0], dict):
+        # Lazy import: avoid any import cycle and the heavy orchestrator deps
+        # on the default (planner-off) path.
+        from .orchestrator import _topological_sort, _task_brief
+        ordered = [t for wave in _topological_sort(tasks) for t in wave]
+        descs = [_task_brief(t) for t in ordered]
+    else:
+        descs = [str(t) for t in tasks]
+    cleaned = [d.strip() for d in descs if d and d.strip()]
     return cleaned[:horizon]
 
-
-def _build_prompt(goal: str, horizon: int) -> str:
-    return (
-        "You are the planner. Decompose the goal into an ordered, concrete "
-        f"execution plan of at most {horizon} steps. Each step is one discrete "
-        "action a coding worker can complete in a single iteration.\n\n"
-        f"GOAL:\n{goal}\n\n"
-        "Rules:\n"
-        "- Output JSON ONLY. First character '{', last character '}'.\n"
-        '- Shape: {"steps": ["<step 1>", "<step 2>", ...]}\n'
-        "- Order steps so each builds on the previous.\n"
-        "- Be specific and actionable; no vague placeholders.\n"
-        "- Never ask for confirmation; assume reasonable defaults on ambiguity.\n"
-    )
-
-
-# ============================================================
-# The planner call
-# ============================================================
 
 async def make_plan(
     goal: str,
     workspace: str,
     *,
     horizon: int = DEFAULT_HORIZON,
-    timeout_s: int = 120,
     session_id: str = "",
 ) -> Plan:
-    """Produce an ordered ``Plan`` for ``goal`` via the Opus planner role.
+    """Produce an ordered ``Plan`` for ``goal`` via ``_decompose_brief``.
 
-    Fails safe to a single-step plan (``[goal]``) on any SDK error, non-zero
-    rc, empty output, or unparseable JSON — so the loop degrades to its
-    existing reactive behaviour rather than crashing.
+    Fails safe to a single-step plan (``[goal]``) on any error so the loop
+    degrades to its reactive behaviour rather than crashing. ``session_id`` is
+    accepted for caller compatibility; ``_decompose_brief`` manages its own.
     """
     horizon = max(1, min(int(horizon), MAX_HORIZON))
-    prompt = _build_prompt(goal, horizon)
     try:
-        rc, out, _cost = await _run_claude_via_sdk(
-            prompt=prompt,
-            model=select_model(PLANNER_ROLE),
-            workspace=workspace,
-            timeout=timeout_s,
-            session_id=session_id,
-            phase=f"{PLANNER_ROLE}.tao_planner",
+        from .orchestrator import _decompose_brief  # lazy: avoid import cycle
+        tasks = await _decompose_brief(
+            goal, n_workers=horizon, repo_url=_git_remote(workspace), workspace=workspace,
         )
     except Exception as exc:  # pragma: no cover — defensive; never kill the loop
-        log.warning("tao_planner SDK failure: %s — falling back to single step", exc)
+        log.warning("tao_planner decompose failure: %s — single-step fallback", exc)
         return Plan.from_steps(goal, [], horizon=horizon)
-
-    if rc != 0 or not (out or "").strip():
-        log.info("tao_planner rc=%s/empty — falling back to single step", rc)
-        return Plan.from_steps(goal, [], horizon=horizon)
-
-    steps = _parse_steps(out, horizon)
-    return Plan.from_steps(goal, steps, horizon=horizon)
+    return Plan.from_steps(goal, _plan_descriptions(tasks, horizon), horizon=horizon)
 
 
 def format_step_goal(plan: Plan, overall_goal: str) -> str:
@@ -193,10 +170,8 @@ def format_step_goal(plan: Plan, overall_goal: str) -> str:
 __all__ = [
     "DEFAULT_HORIZON",
     "MAX_HORIZON",
-    "PLANNER_ROLE",
     "Plan",
     "PlanStep",
     "format_step_goal",
     "make_plan",
-    "select_model",
 ]
