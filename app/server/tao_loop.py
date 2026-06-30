@@ -35,7 +35,7 @@ from . import kill_switch as _ks
 from .model_policy import select_model
 from .session_sdk import _run_claude_via_sdk
 from .tao_judge import JudgeState, JudgeVerdict, judge
-from .tao_planner import format_step_goal, make_plan
+from .tao_planner import Plan, format_step_goal, make_plan
 
 log = logging.getLogger("pi-ceo.tao_loop")
 
@@ -152,6 +152,7 @@ async def run_until_done(
     on_event: EventCallback | None = None,
     session_id: str = "",
     planner_horizon: int | None = None,
+    max_replans: int = 2,
 ) -> LoopResult:
     """Drive worker iterations until judge says done or kill-switch fires.
 
@@ -167,6 +168,11 @@ async def run_until_done(
     judge always scores the OVERALL goal, not the per-step prompt. ``None``
     (default) is byte-identical to the reactive loop — the planner is never
     invoked.
+
+    ``max_replans`` hard-caps Opus re-plans within a single loop (RA-1099 spend
+    bound). Once the cap is hit, a ``planner_replan_capped`` event is emitted and
+    the loop degrades to reactive execution on the overall goal — it never stalls
+    on the planner.
     """
     counter = _make_counter(max_iters, max_cost_usd)
     judge_history: list[JudgeVerdict] = []
@@ -175,9 +181,24 @@ async def run_until_done(
     done: bool = False
     every = max(1, int(judge_every_n_iters))
 
-    plan = None
+    plan: Plan | None = None
+    replans = 0
     if planner_horizon and planner_horizon > 0:
         plan = await make_plan(
+            goal, workspace, horizon=planner_horizon, session_id=session_id,
+        )
+
+    async def _replan() -> Plan | None:
+        """Re-plan if under the hard cap; else emit + degrade to reactive."""
+        nonlocal replans
+        if replans >= max_replans:
+            _emit(on_event, {
+                "action": "planner_replan_capped",
+                "replans": replans, "max_replans": max_replans,
+            })
+            return None
+        replans += 1
+        return await make_plan(
             goal, workspace, horizon=planner_horizon, session_id=session_id,
         )
 
@@ -191,9 +212,7 @@ async def run_until_done(
 
         # Lookahead: re-plan from current state once the horizon is spent.
         if plan is not None and plan.is_exhausted():
-            plan = await make_plan(
-                goal, workspace, horizon=planner_horizon, session_id=session_id,
-            )
+            plan = await _replan()
         worker_goal = format_step_goal(plan, goal) if plan is not None else goal
 
         rc, _out, cost_iter = await _run_worker_step(
@@ -230,10 +249,7 @@ async def run_until_done(
         # Lookahead progression: re-plan on a stall, else advance one step.
         if plan is not None:
             if verdict is not None and verdict.reason == "INSUFFICIENT_PROGRESS":
-                plan = await make_plan(
-                    goal, workspace,
-                    horizon=planner_horizon, session_id=session_id,
-                )
+                plan = await _replan()
             else:
                 plan.advance()
 
