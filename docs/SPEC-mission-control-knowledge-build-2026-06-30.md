@@ -186,3 +186,21 @@ All five Board lenses converge on one verdict: this is a HARDENING update to an 
 - **Wiki pages written:** `open-source-ai-tooling-2026-06`, `claude-income-strategy-2026-06`, `claude-code-cinematic-ads-2026-06`, `model-stack-glm-minimax-2026-06`, `oh-my-codex-orchestration-2026-06`; confirmed-stack appends to `carsi.md`, `ccw.md`.
 - **Tier split:** 6 tier-2 (CARSI ×2, CCW-CRM ×3, oh-my-codex) = verified; 4 tier-3 (Berman tools, Hummus income, cinematic-ads, GLM/MiniMax) = directional.
 - **Synthesis:** 5 independent Board lenses + Senior-PM convergence (STORM). Full lens viewpoints retained in the run record.
+
+## Readiness gate (2026-06-30)
+
+**Verdict: spec is READY to slice into Linear tickets. Two P0 design decisions must be made before P0 code merges; P1 work can start immediately.**
+
+| Item | Slice-ready? | Merge-ready? | Blocker before merge |
+|---|---|---|---|
+| P0-1 Model-resilience failover | ✅ | ❌ | Decide **auto-failover vs break-glass** (live tension #1) AND define the **credential-scrubbing boundary** before any payload crosses to OpenRouter (open question). Keys exist (`reference-openrouter-keys`). |
+| P0-2 Skill-security gate | ✅ | ❌ | Decide **tooling**: pilot Nvidia SkillSpector (tier-3, unverified) vs an Anthropic-native/own-built scanner. Contrarian vetoes vendoring an unvetted scanner into the trust path. |
+| P1-1 CARSI bounded-assistant contract | ✅ | ✅ | None — strongest-grounded (tier-2 verified). Roll out **report-only** first to avoid false-positive compliance failures. |
+| P1-2 Per-client revenue panel | ✅ | ✅ | None blocking — rails exist (`stripe-milestone-invoice`, `mcp-linear`). Read-only join first. |
+| P1-3 Composio connector standard | ✅ | ⚠️ | Document the **Desktop-MCP fallback** for Composio's known account-binding fragility before standardising. |
+| P1-4 Guardrail ADR | ✅ | ✅ | None — write it now; it's the cheapest item and unblocks the others by settling won't-do. |
+| P2-1/2/3 Pilots | ✅ | ❌ | Pilot-and-measure only; no merge-to-default until benchmarks verified in isolation. |
+
+**Recommended build order:** (1) **P1-4 Guardrail ADR** first — codifies the won't-do list, settling the mandate boundary cheaply. (2) **P1-1 CARSI contract (report-only)** — lowest risk, highest grounding. (3) Resolve the two P0 design tensions (auto-vs-break-glass; scanner tooling), then ship **P0-1** and **P0-2**. (4) P1-2/P1-3. (5) P2 pilots last, measured.
+
+**Hard gate on P0-1:** failover must NOT carry credential-bearing or client-confidential loop payloads across the OpenRouter boundary until scrubbing/scoping is proven — otherwise the resilience fix becomes a data-exfil surface (the Technical Architect's own risk #1).
