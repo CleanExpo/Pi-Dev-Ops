@@ -1,6 +1,8 @@
 # swarm — Wiki
 
-_Last updated: 2026-05-27T08:32:54Z (commits a3b0ae8..3a2eb7f)_
+_Last updated: 2026-06-30T22:00:08Z (commits d7f4fa5..71662bc)_
 
 ## Recent changes
-- 3a2eb7f — feat(nexus): C6 — SupabaseWorkspaceLookup adapter + webhook handler wiring (#301)
+- 71662bc — feat(swarm): compose the autonomous closed-loop spine (UNI-2214) (#398)
+
+
