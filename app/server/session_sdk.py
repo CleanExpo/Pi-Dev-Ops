@@ -280,7 +280,7 @@ async def _run_claude_via_sdk(
         # callback decides autonomously — no human prompt — so RA-1172's
         # "waiting for permission" failure mode does not return.
         _gate_on = config.TAO_TOOL_GATE
-        options = ClaudeAgentOptions(
+        _opts: dict = dict(
             cwd=workspace,
             model=model,
             thinking=_thinking_cfg,
@@ -288,6 +288,13 @@ async def _run_claude_via_sdk(
             permission_mode="default" if _gate_on else "bypassPermissions",
             can_use_tool=_make_can_use_tool() if _gate_on else None,
         )
+        if _gate_on:
+            # Pin setting_sources to [] so no filesystem allow-rule (e.g. a
+            # `Bash(*)` entry in ~/.claude/settings.json) can be consulted
+            # before can_use_tool and silently turn the gate into a no-op for
+            # exactly the commands it guards.
+            _opts["setting_sources"] = []
+        options = ClaudeAgentOptions(**_opts)
         _prompt_arg = _tool_gate_stream(prompt, session_id) if _gate_on else prompt
         text_parts: list[str] = []
 
