@@ -138,9 +138,9 @@ export async function GET(): Promise<NextResponse<CapabilitiesResponse>> {
     ],
     supportedModels: [
       process.env.ORCHESTRATOR_MODEL || "claude-opus-4-7",
-      process.env.ANALYST_MODEL || "claude-sonnet-5",
+      process.env.ANALYST_MODEL || "claude-sonnet-4-6",
       process.env.WORKER_MODEL || "claude-haiku-4-5-20251001",
-      process.env.ANALYSIS_MODEL || "claude-sonnet-5",
+      process.env.ANALYSIS_MODEL || "claude-sonnet-4-6",
     ],
     metadata: {
       zteLevel: 3, // Agentic layer satisfied

@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
   const settings = await getSettings();
 
   const ghToken = (settings.githubToken || url.searchParams.get("token") || process.env.GITHUB_TOKEN || "").trim();
-  const model   = settings.analysisModel || process.env.ANALYSIS_MODEL || "claude-sonnet-5";
+  const model   = settings.analysisModel || process.env.ANALYSIS_MODEL || "claude-sonnet-4-6";
 
   // Per-phase model selection — worker tier (haiku-4-5) for listing/summarisation,
   // analyst tier (sonnet-4-6) for intelligence-heavy phases.
