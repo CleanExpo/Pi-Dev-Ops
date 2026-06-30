@@ -105,7 +105,7 @@ async def delegate_task(
     def _call_llm() -> tuple[str, float]:
         if anthropic_key:
             import anthropic as _anthropic  # noqa: PLC0415
-            model = os.environ.get("TAO_MID_MODEL", "claude-sonnet-4-6").strip()
+            model = os.environ.get("TAO_MID_MODEL", "claude-sonnet-5").strip()
             client = _anthropic.Anthropic(api_key=anthropic_key)
             fallback_kwargs: dict = {}
             if model.startswith(("claude-fable", "claude-mythos")):

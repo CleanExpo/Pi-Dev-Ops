@@ -487,7 +487,7 @@ def _extract_spec_claims(spec_text: str) -> list[str]:
 
 def _run_prompt_via_sdk(
     prompt: str,
-    model: str = "claude-sonnet-4-6",
+    model: str = "claude-sonnet-5",
     timeout: int = 120,
     thinking: str = "adaptive",
 ) -> str:
@@ -568,7 +568,7 @@ def _run_prompt_via_sdk(
 def _run_prompt_with_cache(
     system_text: str,
     user_content: str,
-    model: str = "claude-sonnet-4-6",
+    model: str = "claude-sonnet-5",
     timeout: int = 120,
 ) -> str:
     """RA-655 — Run a single-shot prompt via direct Anthropic API with prompt caching.
@@ -733,14 +733,14 @@ Output ONLY the JSON array.
         raw = _run_prompt_with_cache(
             system_text=system_prompt,
             user_content=audit_only_prompt,
-            model="claude-sonnet-4-6",
+            model="claude-sonnet-5",
             timeout=120,
         )
         if not raw:
             log.info("board-cache returned empty — falling back for category=%s", audit_target["category"])
 
     if not raw:
-        raw = _run_prompt_via_sdk(prompt, model="claude-sonnet-4-6", timeout=120)
+        raw = _run_prompt_via_sdk(prompt, model="claude-sonnet-5", timeout=120)
         if not raw:
             log.info("SDK returned empty for category=%s", audit_target["category"])
 
@@ -1104,7 +1104,7 @@ def _resolve_board_research_mode() -> str:
 def _run_research_via_sdk(
     prompt: str,
     *,
-    model: str = "claude-sonnet-4-6",
+    model: str = "claude-sonnet-5",
     timeout: int = 180,
     max_turns: int = 10,
 ) -> str:

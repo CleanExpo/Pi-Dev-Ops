@@ -167,7 +167,7 @@ describe("getSettings", () => {
 
   // ── Default values ──────────────────────────────────────────────────────
 
-  it("default analysisModel is claude-sonnet-4-6 when env var is undefined", async () => {
+  it("default analysisModel is claude-sonnet-5 when env var is undefined", async () => {
     // Don't stub ANALYSIS_MODEL — leave it undefined so the ?? fallback activates.
     // Stubbing to "" passes an empty string which .trim() returns as "", not the default.
     delete process.env.ANALYSIS_MODEL;
@@ -176,7 +176,7 @@ describe("getSettings", () => {
     const { getSettings } = await import("@/lib/supabase/settings");
     const s = await getSettings();
 
-    expect(s.analysisModel).toBe("claude-sonnet-4-6");
+    expect(s.analysisModel).toBe("claude-sonnet-5");
   });
 
   it("default cronRepos is an empty array", async () => {

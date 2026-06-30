@@ -111,9 +111,9 @@ def test_unknown_role_defaults_to_mid():
 
 
 def test_tao_top_model_env_overrides_default(monkeypatch):
-    monkeypatch.setenv("TAO_TOP_MODEL", "claude-sonnet-4-6")
+    monkeypatch.setenv("TAO_TOP_MODEL", "claude-sonnet-5")
     pm = PR.select_provider_model("planner")
-    assert pm.model_id == "claude-sonnet-4-6"
+    assert pm.model_id == "claude-sonnet-5"
 
 
 def test_tao_cheap_model_env_routes_openrouter_when_slash(monkeypatch):

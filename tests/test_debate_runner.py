@@ -71,7 +71,7 @@ def _install_fake_sdk(monkeypatch, *, drafter_text: str, redteam_text: str,
         return "sonnet"
 
     def fake_resolve(short_or_id):
-        return "claude-sonnet-4-6"
+        return "claude-sonnet-5"
 
     # Build fake modules that match the import-paths used inside debate_runner.
     import types

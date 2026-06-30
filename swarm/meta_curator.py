@@ -390,7 +390,7 @@ def _compose_skill_body_via_sdk(
         import asyncio
         async def _run() -> str | None:
             opts = ClaudeAgentOptions(
-                model="claude-sonnet-4-6",
+                model="claude-sonnet-5",
                 permission_mode="bypassPermissions",
             )
             chunks: list[str] = []
