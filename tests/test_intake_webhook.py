@@ -46,12 +46,23 @@ def test_happy_path_enqueues_with_provenance(client, spy_enqueue):
     assert spy_enqueue[0]["chat_id"] == "123"
 
 
-def test_missing_secret_config_is_fail_closed(client, monkeypatch, spy_enqueue):
+def test_presented_secret_but_unconfigured_is_503(client, monkeypatch, spy_enqueue):
+    # Header present but server can't validate (unconfigured) → 503, never accept.
     monkeypatch.setattr(webhooks.config, "INTAKE_WEBHOOK_SECRET", "")
     r = client.post("/api/webhook/intake",
                     headers={"X-Intake-Secret": "anything"},
                     json={"source": "email", "text": "x"})
-    assert r.status_code == 500
+    assert r.status_code == 503
+    assert spy_enqueue == []
+
+
+def test_no_header_is_401_even_when_unconfigured(client, monkeypatch, spy_enqueue):
+    # The config-independent guarantee that keeps the smoke probe stable: an
+    # unauthenticated request (no header) is always 401, configured or not.
+    monkeypatch.setattr(webhooks.config, "INTAKE_WEBHOOK_SECRET", "")
+    r = client.post("/api/webhook/intake",
+                    json={"source": "email", "text": "x"})
+    assert r.status_code == 401
     assert spy_enqueue == []
 
 

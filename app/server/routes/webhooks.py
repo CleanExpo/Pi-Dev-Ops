@@ -591,13 +591,18 @@ async def intake_webhook(request: Request):
     without Phill driving. Secured by a shared secret (X-Intake-Secret); the
     enqueued trigger carries its source as provenance.
     """
-    expected = config.INTAKE_WEBHOOK_SECRET
-    # Fail-closed (mirror the Telegram webhook): an unconfigured secret means
-    # the endpoint refuses everything rather than accepting anonymous intake.
-    if not expected:
-        raise HTTPException(500, "Intake webhook secret not configured")
     import hmac as _hmac  # noqa: PLC0415
+    expected = config.INTAKE_WEBHOOK_SECRET
     presented = request.headers.get("X-Intake-Secret", "")
+    # Fail-closed, but with a config-independent response to an unauthenticated
+    # caller: a request with NO secret header is always 401 (whether or not the
+    # server secret is configured) so the unauthenticated smoke probe is stable.
+    # A presented secret the server can't validate (unconfigured) is 503; a
+    # presented-but-wrong secret is 401. Anonymous intake is never accepted.
+    if not presented:
+        raise HTTPException(401, "X-Intake-Secret header required")
+    if not expected:
+        raise HTTPException(503, "Intake webhook secret not configured")
     if not _hmac.compare_digest(presented, expected):
         raise HTTPException(401, "Invalid intake secret")
 
