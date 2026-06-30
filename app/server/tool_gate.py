@@ -87,10 +87,27 @@ _SHELL_SEP = re.compile(r"&&|\|\||;|\n")
 
 _BASH_TOOLS = {"Bash", "bash", "BashOutput"}
 
+# Allowlist (default-deny): the only built-in tools the autonomous generator may
+# use. Bash is permitted but its command is inspected (see _inspect_bash). Task
+# is deliberately EXCLUDED — a subagent's tool calls never reach this gate, so
+# allowing Task would be a blanket bypass. MCP tools are governed separately
+# (read-only allowed, writes/destructive denied) in _mcp_decision.
+ALLOWED_TOOLS: frozenset[str] = frozenset({
+    "Bash", "bash", "BashOutput",
+    "Read", "Edit", "Write", "MultiEdit",
+    "Glob", "Grep", "LS",
+    "NotebookEdit", "NotebookRead", "TodoWrite",
+})
+
 # MCP tools whose name alone implies an irreversible/production effect.
 _MCP_DESTRUCTIVE_NAME = re.compile(
     r"mcp__.*(?:apply_migration|delete_branch|delete_project|pause_project|"
-    r"reset_branch|deploy_to_vercel|delete_event)", re.IGNORECASE)
+    r"reset_branch|deploy_to_vercel|delete_event|delete_|merge_branch)", re.IGNORECASE)
+
+# MCP tools that only read — safe to allow under the default-deny posture.
+_MCP_READONLY_NAME = re.compile(
+    r"mcp__.*(?:list_|get_|search|read_|fetch|check_|status|describe|"
+    r"download_|find_|suggest|complete_authentication|authenticate)", re.IGNORECASE)
 
 
 def _command_text(tool_name: str, tool_input: dict) -> str:
@@ -101,14 +118,24 @@ def _command_text(tool_name: str, tool_input: dict) -> str:
     return cmd if isinstance(cmd, str) else ""
 
 
+_ALLOWLIST_LABELS = {"tool-not-allowlisted", "mcp-write-not-allowlisted"}
+
+
 def _deny(label: str) -> ToolGateDecision:
-    return ToolGateDecision(
-        allow=False, reversibility="irreversible", label=label,
-        reason=(
+    if label in _ALLOWLIST_LABELS:
+        reason = (
+            f"Tool not permitted for the autonomous generator ({label}). Only "
+            f"code-editing, search, and inspected-Bash tools are allowed; "
+            f"writes to external systems go through the structured approval gate."
+        )
+    else:
+        reason = (
             f"Blocked irreversible operation ({label}). Per the locked autonomy "
             f"boundary, destructive/irreversible actions require founder approval "
             f"and are not auto-run."
-        ),
+        )
+    return ToolGateDecision(
+        allow=False, reversibility="irreversible", label=label, reason=reason,
     )
 
 
@@ -116,7 +143,12 @@ _ALLOW = ToolGateDecision(True, "reversible", "", "")
 
 
 def _mcp_decision(tool_name: str, tool_input: dict) -> ToolGateDecision:
-    """Inspect MCP tool calls: destructive by name, or execute_sql by payload."""
+    """Govern MCP tool calls under default-deny.
+
+    Destructive-by-name → deny; execute_sql → inspect payload; read-only name →
+    allow; anything else (an MCP write) → deny. The autonomous generator writes
+    code + runs tests; it has no need to mutate Linear/Supabase/Vercel mid-run.
+    """
     if _MCP_DESTRUCTIVE_NAME.search(tool_name):
         return _deny("mcp-destructive")
     if "execute_sql" in tool_name.lower():
@@ -125,23 +157,14 @@ def _mcp_decision(tool_name: str, tool_input: dict) -> ToolGateDecision:
             for label, pat in _SEGMENT_RULES:
                 if label.startswith("sql-") and pat.search(sql):
                     return _deny(label)
-    return _ALLOW
+        return _ALLOW
+    if _MCP_READONLY_NAME.search(tool_name):
+        return _ALLOW
+    return _deny("mcp-write-not-allowlisted")
 
 
-def decide(tool_name: str, tool_input: dict | None) -> ToolGateDecision:
-    """Return an allow/deny decision for a single tool call.
-
-    Bash-family commands are inspected per shell segment; MCP tools by name and
-    (for execute_sql) by payload. All other tools (Read, Edit, Write, Grep, …)
-    are allowed — file edits are git-reversible. Recognised irreversible calls
-    are denied with a founder-facing reason. Errs toward ALLOW on anything
-    unrecognised (see module scope note).
-    """
-    tool_input = tool_input or {}
-
-    if tool_name.startswith("mcp__"):
-        return _mcp_decision(tool_name, tool_input)
-
+def _inspect_bash(tool_name: str, tool_input: dict) -> ToolGateDecision:
+    """Per-segment + whole-command denylist over a Bash command. Allow if clean."""
     cmd = _command_text(tool_name, tool_input)
     if not cmd:
         return _ALLOW
@@ -156,6 +179,34 @@ def decide(tool_name: str, tool_input: dict | None) -> ToolGateDecision:
         for label, pat in _SEGMENT_RULES:
             if pat.search(seg):
                 return _deny(label)
+
+    return _ALLOW
+
+
+def decide(tool_name: str, tool_input: dict | None) -> ToolGateDecision:
+    """Allowlist gate (default-deny) for a single tool call.
+
+    * MCP tools → governed by _mcp_decision (read-only allowed, writes denied).
+    * Built-in tools NOT on ALLOWED_TOOLS → denied (e.g. Task, which would let a
+      subagent's tool calls bypass this gate entirely).
+    * Bash → permitted but the command is inspected for destructive operations.
+    * Other allowlisted tools (Read, Edit, Write, Grep, …) → allowed; file edits
+      are git-reversible.
+
+    Honest limit (see module scope note): Bash must stay permitted for a coding
+    agent, so write-a-script-then-execute-it and arbitrary interpreter payloads
+    are not fully closed. This bounds the tool surface; it is not a sandbox.
+    """
+    tool_input = tool_input or {}
+
+    if tool_name.startswith("mcp__"):
+        return _mcp_decision(tool_name, tool_input)
+
+    if tool_name not in ALLOWED_TOOLS:
+        return _deny("tool-not-allowlisted")
+
+    if tool_name in _BASH_TOOLS:
+        return _inspect_bash(tool_name, tool_input)
 
     return _ALLOW
 

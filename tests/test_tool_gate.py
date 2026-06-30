@@ -137,3 +137,54 @@ def test_mcp_execute_sql_inspects_payload():
 
 def test_mcp_benign_allowed():
     assert decide("mcp__claude_ai_Linear__list_issues", {}).allow is True
+
+
+# ---- allowlist posture (default-deny) ----------------------------------------
+
+@pytest.mark.parametrize("tool", [
+    "Bash", "Read", "Edit", "Write", "MultiEdit", "Glob", "Grep", "LS",
+    "NotebookEdit", "TodoWrite",
+])
+def test_allowlisted_builtin_tools_allowed(tool):
+    inp = {"command": "ls"} if tool == "Bash" else {}
+    assert decide(tool, inp).allow is True
+
+
+@pytest.mark.parametrize("tool", [
+    "Task",            # subagent tool calls would bypass this gate — must deny
+    "ExitPlanMode",
+    "SomeUnknownTool",
+    "WebFetch",        # not needed by the generator; default-deny
+])
+def test_non_allowlisted_builtin_tools_denied(tool):
+    d = decide(tool, {})
+    assert d.allow is False
+    assert d.label == "tool-not-allowlisted"
+    assert "not permitted" in d.reason.lower()
+
+
+@pytest.mark.parametrize("tool", [
+    "mcp__claude_ai_Linear__save_issue",
+    "mcp__claude_ai_Google_Drive__create_file",
+    "mcp__claude_ai_Google_Calendar__update_event",
+    "mcp__claude_ai_Slack__slack_send_message",
+])
+def test_mcp_writes_denied_by_default(tool):
+    d = decide(tool, {})
+    assert d.allow is False
+    assert d.label == "mcp-write-not-allowlisted"
+
+
+@pytest.mark.parametrize("tool", [
+    "mcp__claude_ai_Linear__get_issue",
+    "mcp__claude_ai_Google_Drive__search_files",
+    "mcp__claude_ai_Vercel__list_deployments",
+    "mcp__claude_ai_Supabase__list_tables",
+])
+def test_mcp_readonly_allowed(tool):
+    assert decide(tool, {}).allow is True
+
+
+def test_mcp_destructive_beats_readonly_name():
+    # delete_branch contains neither but matches destructive; ensure order holds.
+    assert decide("mcp__claude_ai_Supabase__delete_branch", {}).allow is False
