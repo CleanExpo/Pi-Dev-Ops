@@ -398,7 +398,7 @@ def run_pending_triggers(*, repo_root: Path | None = None,
     path = rr / CYCLES_DIR_REL / TRIGGERS_FILE
     if not path.exists():
         return []
-    lines = [l for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
+    lines = [ln for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
     if not lines:
         return []
 
