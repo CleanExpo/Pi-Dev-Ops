@@ -1,0 +1,432 @@
+"""swarm/closed_loop.py — UNI-2214: compose the autonomous closed loop (spine).
+
+The autonomous primitives already exist as runnable engines under ``swarm/``;
+what was missing was the *composition* that chains them into one end-to-end
+cycle that pulls its own work, plans, decides, dispatches, gates, and reports
+OUT — with a finding written back so the next cycle is richer.
+
+This module is a PURE COMPOSITION. It reuses, in order, engines that already
+exist — it reimplements none of them:
+
+  1. INTAKE   swarm.intent_router.classify            (classify a trigger)
+  2. PLAN     forward-planner validate_plan.validate  (win condition + moves)
+  3. DECIDE   swarm.board.request_deliberation         (queue Board, non-blocking)
+  4. DISPATCH swarm.flow_engine.execute_flow           (the call CoS only stubs)
+  5. GATE     swarm.draft_review.post_draft            (HITL — live mode only)
+  6. REPORT   swarm.six_pager.assemble_six_pager       (the OUT channel)
+
+Then it writes a cycle record to ``.harness/closed_loop/cycles.jsonl`` and
+exposes ``recall_recent_cycles`` so a written-back finding is retrievable on the
+next cycle (the cost↓/knowledge↑ flywheel, spine-level).
+
+Scope of THIS slice (the spine):
+  * The plan is composed deterministically from the intent and gated through the
+    forward-planner validator; the LLM-authored 15-move plan is a later slice.
+  * The Board request is *queued* (no SDK call / no cost) in the loop; the SDK
+    deliberation runs on the orchestrator's existing ``board.process_pending``
+    step. ``dry_run`` never spends, never sends.
+  * Model-routing sophistication (UNI-2212 slice-2) and the live OUT send are
+    deferred; the spine proves the wiring end-to-end in dry-run.
+
+Kill-switch: the orchestrator drain self-gates on ``config.SWARM_ENABLED`` and
+``TAO_CLOSED_LOOP_ENABLED``; ``/panic`` halts the whole swarm one cycle up.
+"""
+from __future__ import annotations
+
+import importlib.util
+import json
+import logging
+import uuid
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+log = logging.getLogger("swarm.closed_loop")
+
+CYCLES_DIR_REL = ".harness/closed_loop"
+CYCLES_FILE = "cycles.jsonl"
+TRIGGERS_FILE = "triggers.jsonl"
+
+STAGES = ("intake", "plan", "decide", "dispatch", "gate", "report")
+
+
+# ── Data shapes ──────────────────────────────────────────────────────────────
+
+
+@dataclass
+class StageResult:
+    """Outcome of one stage in the cycle."""
+    name: str
+    status: str                       # "ok" | "skipped" | "error"
+    detail: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class CycleResult:
+    """Outcome of one composed autonomous cycle."""
+    cycle_id: str
+    trigger: str
+    dry_run: bool
+    started_at: str
+    ended_at: str
+    stages: list[StageResult]
+    intent: str = "unknown"
+    board_session_id: str | None = None
+    brief_excerpt: str = ""
+    written_to: str | None = None
+
+    @property
+    def ok(self) -> bool:
+        """True when no stage errored (skipped stages are acceptable)."""
+        return all(s.status != "error" for s in self.stages)
+
+    def stage(self, name: str) -> StageResult | None:
+        for s in self.stages:
+            if s.name == name:
+                return s
+        return None
+
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _repo_root(repo_root: Path | None) -> Path:
+    return repo_root or Path(__file__).resolve().parents[1]
+
+
+def _cycles_dir(repo_root: Path) -> Path:
+    d = repo_root / CYCLES_DIR_REL
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+_VALIDATE_FN = None
+
+
+def _load_plan_validator(repo_root: Path):
+    """Import the forward-planner validator from its (non-package) script path.
+
+    forward-planner is an LLM-executed skill; its only runnable code is the
+    standalone ``validate_plan.py``. We load it by file path rather than
+    duplicating its rules here.
+    """
+    global _VALIDATE_FN
+    if _VALIDATE_FN is not None:
+        return _VALIDATE_FN
+    script = (repo_root / "skills" / "forward-planner" / "scripts"
+              / "validate_plan.py")
+    if not script.exists():
+        return None
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "forward_planner_validate_plan", script)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)  # type: ignore[union-attr]
+        _VALIDATE_FN = getattr(mod, "validate", None)
+    except Exception as exc:  # noqa: BLE001
+        log.debug("closed_loop: plan validator unavailable (%s)", exc)
+        _VALIDATE_FN = None
+    return _VALIDATE_FN
+
+
+def _build_plan(intent_payload: dict[str, Any]) -> dict[str, Any]:
+    """Compose a minimal, validator-shaped forward-plan from an intent.
+
+    The spine produces a single-move plan anchored on a win condition so the
+    loop is plan-driven (anti-whack-a-mole) from cycle one; the full 15-move
+    LLM plan is a later slice. Shape matches validate_plan.validate's required
+    top-level fields: project_id, goal, win_condition, moves[].
+    """
+    intent = intent_payload.get("intent", "unknown")
+    fields = intent_payload.get("fields", {})
+    topic = (
+        fields.get("topic")
+        or fields.get("title_hint")
+        or fields.get("what")
+        or fields.get("raw_text")
+        or intent_payload.get("raw_message", "")
+    )
+    return {
+        "project_id": "pi-dev-ops",
+        "goal": f"Resolve {intent} intent: {str(topic)[:120]}",
+        "win_condition": [
+            {
+                "id": "wc-1",
+                "statement": (
+                    "Triggered intent is dispatched, gated, and reported OUT "
+                    "with a finding written back for the next cycle."
+                ),
+            }
+        ],
+        "moves": [
+            {
+                "id": "move-1",
+                "summary": f"Dispatch the {intent} intent via the existing engines",
+                "depends_on": [],
+                "satisfies": ["wc-1"],
+                "linear": {"project_id": "pi-dev-ops"},
+                "verify": "closed-loop cycle completes with all stages ok",
+            }
+        ],
+    }
+
+
+def _dispatch_flow(intent_payload: dict[str, Any]) -> dict[str, Any]:
+    """Build the dispatcher-core flow for this cycle.
+
+    The first step re-runs the builtin ``skill.intent-parser`` tool over the
+    raw trigger — a real dispatcher-core invocation (this is exactly the call
+    ``chief_of_staff._route``'s ``flow`` branch currently only describes in a
+    Wave-2 stub).
+    """
+    raw = intent_payload.get("raw_message", "")
+    return {
+        "name": "closed-loop-dispatch",
+        "tool_allowlist": ["skill.intent-parser"],
+        "steps": [
+            {
+                "id": "reclassify",
+                "tool": "skill.intent-parser",
+                "args": {"message_text": raw},
+            }
+        ],
+    }
+
+
+# ── The composed cycle ───────────────────────────────────────────────────────
+
+
+def run_cycle(
+    trigger_text: str,
+    *,
+    repo_root: Path | None = None,
+    dry_run: bool = True,
+    chat_id: str | None = None,
+) -> CycleResult:
+    """Run one composed autonomous cycle over a single trigger.
+
+    Pure composition of existing engines. ``dry_run=True`` (default) never
+    spends and never sends: the Board request is queued but not processed, the
+    dispatch flow runs in dry-run, the gate is recorded not posted, and the
+    6-pager is assembled (file-read only) but not transmitted.
+    """
+    from . import intent_router, board, flow_engine, six_pager
+
+    rr = _repo_root(repo_root)
+    cycle_id = f"loop-{uuid.uuid4().hex[:10]}"
+    started_at = _now_iso()
+    stages: list[StageResult] = []
+
+    # 1. INTAKE ───────────────────────────────────────────────────────────────
+    intent_payload = intent_router.classify(trigger_text, chat_id=chat_id)
+    intent = intent_payload.get("intent", "unknown")
+    stages.append(StageResult(
+        "intake", "ok",
+        {"intent": intent, "confidence": intent_payload.get("confidence", 0.0)},
+    ))
+
+    # 2. PLAN ───────────────────────────────────────────────────────────────────
+    plan = _build_plan(intent_payload)
+    validate = _load_plan_validator(rr)
+    if validate is None:
+        stages.append(StageResult("plan", "skipped",
+                                  {"reason": "validator unavailable"}))
+    else:
+        errors, warnings = validate(plan)
+        stages.append(StageResult(
+            "plan", "error" if errors else "ok",
+            {"errors": errors, "warnings": warnings,
+             "win_condition": plan["win_condition"]},
+        ))
+
+    # 3. DECIDE (Board — queue only; SDK runs on the orchestrator's own step) ───
+    board_session_id: str | None = None
+    try:
+        brief = board.BoardBrief(
+            topic=plan["goal"],
+            triggered_by="founder",
+            triggering_actor="closed-loop",
+            material_input=(
+                f"Trigger: {trigger_text[:500]}\n"
+                f"Intent: {intent}\n"
+                f"Win condition: {plan['win_condition']}"
+            ),
+            requested_decisions=[f"Prioritise the {intent} move?"],
+        )
+        board_session_id = board.request_deliberation(brief, repo_root=rr)
+        stages.append(StageResult("decide", "ok",
+                                  {"board_session_id": board_session_id}))
+    except Exception as exc:  # noqa: BLE001
+        stages.append(StageResult("decide", "error", {"error": repr(exc)}))
+
+    # 4. DISPATCH (dispatcher-core — the call CoS only stubs today) ─────────────
+    try:
+        flow = _dispatch_flow(intent_payload)
+        flow_state = flow_engine.execute_flow(
+            flow, context={"cycle_id": cycle_id}, dry_run=dry_run)
+        stages.append(StageResult(
+            "dispatch",
+            "ok" if flow_state.get("status") in ("completed", "running") else "error",
+            {"flow_id": flow_state.get("flow_id"),
+             "flow_status": flow_state.get("status")},
+        ))
+    except Exception as exc:  # noqa: BLE001
+        stages.append(StageResult("dispatch", "error", {"error": repr(exc)}))
+
+    # 5. GATE (HITL — live mode only; dry-run records intent, never posts) ──────
+    if dry_run:
+        stages.append(StageResult("gate", "skipped",
+                                  {"reason": "dry_run — no HITL post"}))
+    else:
+        try:
+            from . import draft_review
+            gate = draft_review.post_draft(
+                draft_text=(
+                    f"🔁 Closed-loop cycle {cycle_id}\n"
+                    f"Intent: {intent}\nGoal: {plan['goal']}"
+                ),
+                destination_chat_id=str(chat_id or ""),
+                drafted_by_role="ClosedLoop",
+                originating_intent_id=intent_payload.get("originating_message_id"),
+            )
+            stages.append(StageResult(
+                "gate", "ok" if gate.get("status") != "aborted_pii" else "error",
+                {"draft_id": gate.get("draft_id"), "status": gate.get("status")},
+            ))
+        except Exception as exc:  # noqa: BLE001
+            stages.append(StageResult("gate", "error", {"error": repr(exc)}))
+
+    # 6. REPORT OUT (6-pager — assembled file-read; transmitted in live mode) ───
+    brief_excerpt = ""
+    try:
+        brief_text = six_pager.assemble_six_pager(repo_root=rr)
+        brief_excerpt = brief_text[:280]
+        report_detail: dict[str, Any] = {"brief_chars": len(brief_text)}
+        if not dry_run:
+            from . import telegram_alerts
+            telegram_alerts.send_daily_report(brief_text)
+            report_detail["transmitted"] = True
+        stages.append(StageResult("report", "ok", report_detail))
+    except Exception as exc:  # noqa: BLE001
+        stages.append(StageResult("report", "error", {"error": repr(exc)}))
+
+    result = CycleResult(
+        cycle_id=cycle_id,
+        trigger=trigger_text[:500],
+        dry_run=dry_run,
+        started_at=started_at,
+        ended_at=_now_iso(),
+        stages=stages,
+        intent=intent,
+        board_session_id=board_session_id,
+        brief_excerpt=brief_excerpt,
+    )
+
+    # Write-back — the cycle record becomes retrievable next cycle (flywheel).
+    result.written_to = _write_back(result, repo_root=rr)
+    log.info("closed_loop: cycle %s intent=%s ok=%s dry_run=%s",
+             cycle_id, intent, result.ok, dry_run)
+    return result
+
+
+# ── Write-back + retrieval (the flywheel) ────────────────────────────────────
+
+
+def _write_back(result: CycleResult, *, repo_root: Path | None = None) -> str:
+    """Append the cycle record to the corpus so it's retrievable next cycle."""
+    rr = _repo_root(repo_root)
+    path = _cycles_dir(rr) / CYCLES_FILE
+    row = asdict(result)
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")
+    return str(path)
+
+
+def recall_recent_cycles(*, repo_root: Path | None = None,
+                          limit: int = 10) -> list[dict[str, Any]]:
+    """Read back the most recent written cycle records (retrieval arm)."""
+    rr = _repo_root(repo_root)
+    path = rr / CYCLES_DIR_REL / CYCLES_FILE
+    if not path.exists():
+        return []
+    out: list[dict[str, Any]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            out.append(json.loads(line))
+        except Exception:  # noqa: BLE001
+            continue
+    return out[-max(1, limit):]
+
+
+# ── Trigger queue + orchestrator drain ───────────────────────────────────────
+
+
+def enqueue_trigger(trigger_text: str, *,
+                    repo_root: Path | None = None,
+                    chat_id: str | None = None) -> None:
+    """Append a trigger for the orchestrator to drain on its next cycle.
+
+    Intake skills (email-listener / calendar-watcher / CoS ``flow`` branch /
+    cron) call this to feed work into the loop without Phill driving.
+    """
+    rr = _repo_root(repo_root)
+    path = _cycles_dir(rr) / TRIGGERS_FILE
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(
+            {"trigger": trigger_text, "chat_id": chat_id, "queued_at": _now_iso()},
+            ensure_ascii=False) + "\n")
+
+
+def run_pending_triggers(*, repo_root: Path | None = None,
+                         dry_run: bool = True,
+                         limit: int = 1) -> list[CycleResult]:
+    """Drain up to ``limit`` queued triggers through ``run_cycle``.
+
+    The orchestrator calls this once per cycle. An empty queue is a no-op, so
+    wiring this into the live loop carries zero behavioural risk until a
+    trigger is explicitly enqueued.
+    """
+    rr = _repo_root(repo_root)
+    path = rr / CYCLES_DIR_REL / TRIGGERS_FILE
+    if not path.exists():
+        return []
+    lines = [l for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
+    if not lines:
+        return []
+
+    take, rest = lines[:max(1, limit)], lines[max(1, limit):]
+    # Re-queue the remainder atomically before processing (crash-safe: a crash
+    # mid-cycle drops at most the in-flight trigger, never the whole backlog).
+    tmp = path.with_suffix(".jsonl.tmp")
+    tmp.write_text("\n".join(rest) + ("\n" if rest else ""), encoding="utf-8")
+    tmp.replace(path)
+
+    results: list[CycleResult] = []
+    for line in take:
+        try:
+            row = json.loads(line)
+        except Exception:  # noqa: BLE001
+            continue
+        results.append(run_cycle(
+            row.get("trigger", ""),
+            repo_root=rr,
+            dry_run=dry_run,
+            chat_id=row.get("chat_id"),
+        ))
+    return results
+
+
+__all__ = [
+    "StageResult", "CycleResult",
+    "run_cycle", "recall_recent_cycles",
+    "enqueue_trigger", "run_pending_triggers",
+    "STAGES",
+]

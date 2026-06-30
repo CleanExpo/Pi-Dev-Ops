@@ -341,6 +341,21 @@ def run() -> None:
         except Exception as exc:  # noqa: BLE001
             log.warning("Board process_pending failed (continuing): %s", exc)
 
+        # ── UNI-2214 — Closed loop: drain queued triggers through the composed
+        # intake→plan→Board→dispatch→gate→report cycle. Self-gates on
+        # CLOSED_LOOP_ENABLED; an empty queue is a no-op, so this carries zero
+        # behavioural risk to the live loop until a trigger is enqueued. Runs in
+        # dry-run whenever SHADOW_MODE is set (queues Board, never sends).
+        if config.CLOSED_LOOP_ENABLED:
+            try:
+                from . import closed_loop  # noqa: PLC0415
+                _cycles = closed_loop.run_pending_triggers(dry_run=config.SHADOW_MODE)
+                if _cycles:
+                    log.info("closed_loop: ran %d cycle(s) — last intent=%s ok=%s",
+                             len(_cycles), _cycles[-1].intent, _cycles[-1].ok)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("closed_loop drain failed (continuing): %s", exc)
+
         # ── Brain-1 Sources watcher: auto-ingest new clips every cycle ──────
         # Cheap — pure filesystem diff; LLM only fires when new files found.
         try:
