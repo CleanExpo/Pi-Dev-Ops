@@ -18,6 +18,14 @@ except Exception:
 
 # Only ship inside a git repo that opted in (autogit on → .autogit.json present).
 command -v autogit >/dev/null 2>&1 || exit 0
+
+# Never auto-ship/auto-PR human/agent review branches (feat/*, fix/*) or protected
+# branches — autogit only ships its own autonomous work branches.
+b="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+case "$b" in
+  feat/*|feature/*|fix/*|main|master|HEAD) exit 0 ;;
+esac
+
 # Re-feed the payload so autogit can mine the prompt for the commit subject.
 printf '%s' "$payload" | autogit ship 2>/dev/null || true
 exit 0

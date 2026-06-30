@@ -67,10 +67,23 @@ def harden(path):
         for grp in groups:
             for h in grp.get("hooks", []) if isinstance(grp, dict) else []:
                 c = h.get("command", "")
-                if "autogit" in c and "command -v autogit" not in c:
-                    verb = "ship" if "autogit ship" in c else "busy"
-                    h["command"] = (f'export PATH="{BINS}:$PATH"; cd "${{CLAUDE_PROJECT_DIR:-.}}" '
-                                    f'&& command -v autogit >/dev/null 2>&1 && autogit {verb} || true')
+                prefix = (f'export PATH="{BINS}:$PATH"; cd "${{CLAUDE_PROJECT_DIR:-.}}" '
+                          f'&& command -v autogit >/dev/null 2>&1 && ')
+                # `ship` commits+pushes+PRs the current branch. Guard it so it never
+                # fires on human/agent review branches (feat/*, fix/*) or protected
+                # branches — autogit only ships its own autonomous work branches.
+                # Re-runs on already-hardened-but-unguarded hooks (guard absent) so
+                # enlisted machines pick up the fix on the next bootstrap. Idempotent:
+                # skips once the guard ("feat/*") is already present.
+                if "autogit ship" in c and "feat/*" not in c:
+                    run = ('{ b="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"; '
+                           'case "$b" in feat/*|feature/*|fix/*|main|master|HEAD) ;; '
+                           '*) autogit ship ;; esac; }')
+                    h["command"] = prefix + run + " || true"
+                    changed = True
+                # `busy` is a harmless state signal; only harden the bare form.
+                elif "autogit busy" in c and "command -v autogit" not in c:
+                    h["command"] = prefix + "autogit busy || true"
                     changed = True
     if changed:
         json.dump(d, open(path, "w"), indent=2)
