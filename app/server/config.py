@@ -270,6 +270,15 @@ USE_AGENT_SDK        = True
 # to static system-prompt content, reducing cost up to 90% on repeated sessions.
 ENABLE_PROMPT_CACHING_1H: bool = os.environ.get("ENABLE_PROMPT_CACHING_1H", "0") == "1"
 
+# SDK-layer irreversible-action interceptor (app.server.tool_gate). Default OFF
+# so the proven bypassPermissions path is unchanged. When ON, every generator
+# turn routes tool-permission decisions through can_use_tool, denying recognised
+# destructive commands inside the turn (rm -rf, prod deploy, DROP TABLE) — the
+# only layer that enforces the locked autonomy boundary on a coding agent.
+# Flip to 1 once the streaming path is validated (founder-gated, like
+# SWARM_TELEGRAM_ALERTS).
+TAO_TOOL_GATE: bool = os.environ.get("TAO_TOOL_GATE", "0") == "1"
+
 LINEAR_API_KEY       = os.environ.get("LINEAR_API_KEY",                 "")
 
 # RA-6502 — Linear outbound sync feature flag.

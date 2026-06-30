@@ -29,8 +29,69 @@ from pathlib import Path
 from typing import Optional
 
 from . import config
+from . import tool_gate
 
 _log = logging.getLogger("pi-ceo.session_sdk")
+
+
+# ── Tool gate (RA — SDK-layer irreversible-action interceptor) ──────────────────
+
+async def _tool_gate_stream(prompt: str, session_id: str):
+    """Wrap a string prompt as the single-message async stream can_use_tool needs.
+
+    can_use_tool requires streaming mode (AsyncIterable prompt), not a str —
+    see claude_agent_sdk client.py. This yields exactly one user message.
+    """
+    yield {
+        "type": "user",
+        "message": {"role": "user", "content": prompt},
+        "parent_tool_use_id": None,
+        "session_id": session_id or "tao",
+    }
+
+
+def _escalate_blocked_tool(label: str, tool_name: str, reason: str) -> None:
+    """Best-effort, edge-triggered Telegram escalation for a blocked tool call.
+
+    Lazy import of swarm.telegram_alerts so app.server stays decoupled from the
+    swarm package; any failure is swallowed — escalation must never break the
+    loop. dedup_key keeps a persistent block from re-paging every turn.
+    """
+    try:
+        from swarm.telegram_alerts import send  # noqa: PLC0415
+        send(
+            f"⛔ Tool gate blocked an irreversible action.\n\nTool: {tool_name}\n{reason}",
+            severity="critical",
+            bot_name="ToolGate",
+            dedup_key=f"toolgate:{label}",
+        )
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("tool gate escalation failed (label=%s): %s", label, exc)
+
+
+def _make_can_use_tool():
+    """Build the SDK can_use_tool callback backed by tool_gate.decide.
+
+    Returns PermissionResultAllow for reversible/unrecognised calls and
+    PermissionResultDeny (with a founder-facing message) for recognised
+    irreversible ones. Imports the SDK permission types lazily so this module
+    stays importable when claude_agent_sdk is absent.
+    """
+    from claude_agent_sdk.types import (  # noqa: PLC0415
+        PermissionResultAllow,
+        PermissionResultDeny,
+    )
+
+    async def _can_use_tool(tool_name: str, tool_input: dict, context):  # noqa: ANN001
+        decision = tool_gate.decide(tool_name, tool_input)
+        if decision.allow:
+            return PermissionResultAllow(updated_input=tool_input)
+        _log.warning("tool gate DENY (%s): %s", decision.label, tool_name)
+        _escalate_blocked_tool(decision.label, tool_name, decision.reason)
+        return PermissionResultDeny(message=decision.reason, interrupt=False)
+
+    return _can_use_tool
+
 
 # ── SDK metrics directory ──────────────────────────────────────────────────────
 
@@ -212,19 +273,35 @@ async def _run_claude_via_sdk(
         # like an empty diff, causing Phase 5 to score 1/10 and retry
         # forever. CLAUDE.md documents this as the 3rd of 3 required
         # layers (settings.json + ClaudeAgentOptions + CLI flag).
-        options = ClaudeAgentOptions(
+        # RA — SDK-layer tool gate (TAO_TOOL_GATE). Default OFF keeps the proven
+        # bypassPermissions path. When ON, route every tool call through
+        # can_use_tool (requires streaming prompt + a non-bypass mode) so
+        # recognised irreversible commands are denied inside the turn. The
+        # callback decides autonomously — no human prompt — so RA-1172's
+        # "waiting for permission" failure mode does not return.
+        _gate_on = config.TAO_TOOL_GATE
+        _opts: dict = dict(
             cwd=workspace,
             model=model,
             thinking=_thinking_cfg,
             betas=_sdk_betas,  # type: ignore[arg-type]
-            permission_mode="bypassPermissions",
+            permission_mode="default" if _gate_on else "bypassPermissions",
+            can_use_tool=_make_can_use_tool() if _gate_on else None,
         )
+        if _gate_on:
+            # Pin setting_sources to [] so no filesystem allow-rule (e.g. a
+            # `Bash(*)` entry in ~/.claude/settings.json) can be consulted
+            # before can_use_tool and silently turn the gate into a no-op for
+            # exactly the commands it guards.
+            _opts["setting_sources"] = []
+        options = ClaudeAgentOptions(**_opts)
+        _prompt_arg = _tool_gate_stream(prompt, session_id) if _gate_on else prompt
         text_parts: list[str] = []
 
         # RA-1170 — enforce timeout on the async iterator. query() has no
         # built-in stream timeout (tracked upstream as SDK #666).
         async def _run_stream() -> None:
-            async for msg in query(prompt=prompt, options=options):
+            async for msg in query(prompt=_prompt_arg, options=options):
                 if isinstance(msg, AssistantMessage):
                     for block in msg.content:
                         if isinstance(block, TextBlock):
