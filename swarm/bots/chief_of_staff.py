@@ -195,11 +195,37 @@ def _route(intent_payload: dict[str, Any]) -> dict[str, Any]:
         )
 
     if intent == "flow":
+        # UNI-2214 slice 2 — intake without Phill. A multi-step request is the
+        # natural unit of a closed-loop cycle: enqueue it so the orchestrator's
+        # existing drain runs intake→plan→Board→dispatch→gate→report next cycle,
+        # with zero manual orchestration. Additive (the HITL ack still posts)
+        # and self-gated on CLOSED_LOOP_ENABLED — the same flag the drain gates
+        # on — so this is a no-op until the loop is switched on.
+        queued = False
+        if config.CLOSED_LOOP_ENABLED:
+            from .. import closed_loop  # noqa: PLC0415
+            # The enqueue is a best-effort file write; a failure (permission,
+            # disk full) must NOT swallow the HITL ack below — every other
+            # branch in this function stays defensive, and the additive
+            # guarantee depends on post_draft always being reached.
+            try:
+                closed_loop.enqueue_trigger(
+                    intent_payload.get("raw_message", "")
+                    or fields.get("raw_steps_text", ""),
+                    chat_id=str(intent_payload.get("originating_chat_id") or "") or None,
+                )
+                queued = True
+            except Exception:  # noqa: BLE001
+                log.exception("flow intent: enqueue_trigger failed (continuing)")
         draft = (
             f"🔀 FLOW intent — multi-step request detected\n"
             f"{specialist_line}\n"
             f"Raw text: {fields.get('raw_steps_text', '?')[:200]}\n"
-            f"\n(Wave 2: would invoke flow_engine.execute_flow here.)"
+            + (
+                "\n✅ Queued into the closed loop — runs on the next cycle."
+                if queued
+                else "\n(Closed loop off: enable TAO_CLOSED_LOOP_ENABLED to auto-run.)"
+            )
         )
         return draft_review.post_draft(
             draft_text=draft,
