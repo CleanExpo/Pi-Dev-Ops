@@ -2,7 +2,7 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.6.0",
+    "version": "1.7.0",
     "generated_at": "2026-06-27T04:38:55.833585+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
@@ -1946,6 +1946,25 @@
       "status": "(unset)",
       "path": "skills\\skybridge-rollout\\SKILL.md",
       "sha256": "5142756ac49018e2b28294b0ff487796dfc6c543a94c8efc4205fdd37b50ddff",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "skill-authoring-standard",
+      "description": "Design or review any skill to the Library standard — frontmatter, structure, steering, and pruning.",
+      "owner_role": "Tier-Architect (skill authoring standard; doctrine + frontmatter SSOT)",
+      "status": "active",
+      "path": "skills\\skill-authoring-standard\\SKILL.md",
+      "sha256": "ad683d94cabbfdeb1301f8aaf3a8e6419fb2482ee94590f6b13cbdf46a5bf08b",
       "dependencies": {
         "tools": [],
         "skills": []
