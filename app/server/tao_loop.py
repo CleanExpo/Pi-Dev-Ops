@@ -35,6 +35,7 @@ from . import kill_switch as _ks
 from .model_policy import select_model
 from .session_sdk import _run_claude_via_sdk
 from .tao_judge import JudgeState, JudgeVerdict, judge
+from .tao_planner import format_step_goal, make_plan
 
 log = logging.getLogger("pi-ceo.tao_loop")
 
@@ -150,12 +151,22 @@ async def run_until_done(
     timeout_per_iter_s: int = 600,
     on_event: EventCallback | None = None,
     session_id: str = "",
+    planner_horizon: int | None = None,
 ) -> LoopResult:
     """Drive worker iterations until judge says done or kill-switch fires.
 
     See module docstring for the abort matrix. Returns a fully-populated
     LoopResult; never raises KillSwitchAbort to the caller (captured into
     the result).
+
+    When ``planner_horizon`` is set (1-20), the loop runs in *lookahead* mode:
+    a plan of up to ``planner_horizon`` ordered steps is built up front via the
+    Opus planner role, the active step is folded into each worker prompt, the
+    plan advances per iteration, and a judge ``INSUFFICIENT_PROGRESS`` verdict
+    (or an exhausted horizon) triggers a re-plan from the current state. The
+    judge always scores the OVERALL goal, not the per-step prompt. ``None``
+    (default) is byte-identical to the reactive loop — the planner is never
+    invoked.
     """
     counter = _make_counter(max_iters, max_cost_usd)
     judge_history: list[JudgeVerdict] = []
@@ -163,6 +174,12 @@ async def run_until_done(
     reason: str = "JUDGE_NEVER_SATISFIED"
     done: bool = False
     every = max(1, int(judge_every_n_iters))
+
+    plan = None
+    if planner_horizon and planner_horizon > 0:
+        plan = await make_plan(
+            goal, workspace, horizon=planner_horizon, session_id=session_id,
+        )
 
     while True:
         # Cheap pre-check: HARD_STOP file precedes anything else.
@@ -172,8 +189,15 @@ async def run_until_done(
             reason = abort.reason
             break
 
+        # Lookahead: re-plan from current state once the horizon is spent.
+        if plan is not None and plan.is_exhausted():
+            plan = await make_plan(
+                goal, workspace, horizon=planner_horizon, session_id=session_id,
+            )
+        worker_goal = format_step_goal(plan, goal) if plan is not None else goal
+
         rc, _out, cost_iter = await _run_worker_step(
-            goal=goal, workspace=workspace,
+            goal=worker_goal, workspace=workspace,
             timeout_s=timeout_per_iter_s, session_id=session_id,
         )
 
@@ -202,6 +226,16 @@ async def run_until_done(
                     "rc": rc,
                 })
                 break
+
+        # Lookahead progression: re-plan on a stall, else advance one step.
+        if plan is not None:
+            if verdict is not None and verdict.reason == "INSUFFICIENT_PROGRESS":
+                plan = await make_plan(
+                    goal, workspace,
+                    horizon=planner_horizon, session_id=session_id,
+                )
+            else:
+                plan.advance()
 
         _emit(on_event, {
             "action": "iter_complete", "iters": counter.iters,
