@@ -27,7 +27,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Final
 
-from .kill_switch import KillSwitchAbort
+from . import kill_switch as _ks
 from .model_policy import select_model
 from .session_sdk import _run_claude_via_sdk
 
@@ -155,7 +155,9 @@ async def judge(
             session_id=session_id,
             phase=f"{JUDGE_ROLE}.tao_judge",
         )
-    except KillSwitchAbort:
+    except _ks.KillSwitchAbort:
+        # Module-attribute lookup (not a bound class) so this stays correct
+        # if `kill_switch` is reloaded — mirrors tao_loop's `_ks` pattern (RA-6869).
         raise
     except Exception as exc:  # pragma: no cover — defensive
         log.warning("tao_judge SDK failure: %s", exc)

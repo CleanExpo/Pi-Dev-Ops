@@ -348,7 +348,14 @@ def approve_spend(
     draft_review (HITL gate), return status='pending' with draft_id.
     If amount_usd > ceiling and post_draft is None → return status='blocked'.
     """
-    if amount_usd <= spend_ceiling:
+    # Reversibility of a spend = whether it sits under the autonomous ceiling.
+    # Route the auto/HITL split through the central policy module
+    # (swarm.nexus.policy) so there is a single source of truth: <=ceiling is
+    # "low" (auto-approve, no human); over ceiling is "high" (route to HITL).
+    from swarm.nexus.policy import classify_policy
+    reversibility = "low" if amount_usd <= spend_ceiling else "high"
+
+    if classify_policy(reversibility) == "auto":
         log.info("CFO auto-approved $%.2f to %s for %s",
                  amount_usd, vendor, business_id)
         return SpendDecision(
@@ -378,6 +385,7 @@ def approve_spend(
         destination_chat_id=str(review_chat_id or "review"),
         drafted_by_role="CFO",
         originating_intent_id=f"cfo-spend-{business_id}",
+        reversibility=reversibility,
     )
     return SpendDecision(
         status="pending",
