@@ -25,6 +25,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal
 
+from swarm.nexus.types import Reversibility
+
 log = logging.getLogger("swarm.draft_review")
 
 DraftStatus = Literal["pending", "sent", "revise", "deferred", "expired", "queued", "aborted_pii"]
@@ -124,6 +126,7 @@ def post_draft(
     originating_intent_id: str | None = None,
     destination_thread_id: str | None = None,
     timeout_hours: int = DEFAULT_TIMEOUT_HOURS,
+    reversibility: Reversibility = "medium",
 ) -> dict[str, Any]:
     """Queue a draft for review. Posts to REVIEW_CHAT_ID; returns draft_id + status.
 
@@ -168,6 +171,55 @@ def post_draft(
     draft_id = uuid.uuid4().hex[:12]
     now = _now_iso()
     expires = (datetime.now(timezone.utc) + timedelta(hours=timeout_hours)).isoformat()
+
+    # Autonomous reversibility gate (swarm.nexus.policy): a reversible action
+    # needs no human — auto-approve and send immediately, honouring the SAME
+    # TAO_SWARM_ENABLED kill-switch the 👍 reaction path uses. Medium / high /
+    # irreversible fall through to the HITL review below.
+    from swarm.nexus.policy import classify_policy
+    if classify_policy(reversibility) == "auto":
+        record = {
+            "draft_id": draft_id,
+            "review_message_id": None,
+            "destination_chat_id": destination_chat_id,
+            "destination_thread_id": destination_thread_id,
+            "drafted_by_role": drafted_by_role,
+            "originating_intent_id": originating_intent_id,
+            "draft_text": draft_text,
+            "status": "pending",
+            "drafted_at": now,
+            "expires_at": expires,
+            "transitions": [],
+            "policy_level": "auto",
+            "reversibility": reversibility,
+        }
+        swarm_enabled = os.environ.get("TAO_SWARM_ENABLED", "0") == "1"
+        if swarm_enabled or TEST_MODE:
+            sent_ok = _do_send(record) if not TEST_MODE else True
+            record["status"] = "sent" if sent_ok else "revise"
+            reason = "auto-approved (reversible)" if sent_ok else "auto-send failed"
+        else:
+            record["status"] = "deferred"
+            reason = "auto-approved but kill-switch active; send halted"
+        record["transitions"].append(
+            {"ts": _now_iso(), "to": record["status"], "reason": reason}
+        )
+        _append_jsonl(_drafts_jsonl(), {**record, "audit_event": "draft_auto_approved"})
+        from . import audit_emit
+        audit_emit.row("draft_auto_approved", drafted_by_role,
+                       draft_id=draft_id, reversibility=reversibility,
+                       status=record["status"])
+        snap = _load_snapshot()
+        snap[draft_id] = record
+        _save_snapshot(snap)
+        log.info("Draft %s auto-approved (reversible=%s) -> %s",
+                 draft_id, reversibility, record["status"])
+        return {
+            "draft_id": draft_id,
+            "review_message_id": None,
+            "status": record["status"],
+            "policy_level": "auto",
+        }
 
     review_text = (
         f"✏️ <b>DRAFT</b> ({drafted_by_role}) — for chat <code>{destination_chat_id}</code>\n"
