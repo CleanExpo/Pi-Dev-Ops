@@ -2,7 +2,7 @@
 
 **Role:** Portfolio health intelligence layer. Interprets scan results over time, detects regressions, identifies systemic cross-repo patterns, generates remediation guidance for Tier 2-4 findings, and routes critical alerts through TriageEngine.
 
-**Model:** `claude-sonnet-4-6`
+**Model:** `claude-sonnet-5`
 
 **Responsibilities:**
 1. Read latest scan results for all configured projects from `.harness/scan-results/`

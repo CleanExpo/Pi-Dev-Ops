@@ -5,10 +5,10 @@ swarm degrades gracefully when any single provider is rate-limited or down:
 
     Tier            Primary                    Fallback ladder
     ──────────────────────────────────────────────────────────────────────
-    FRONTIER        Anthropic Opus 4.7         → Anthropic Sonnet 4.6
+    FRONTIER        Anthropic Opus 4.7         → Anthropic Sonnet 5
                                                 → OpenRouter Sonnet
                                                 → raise NoProviderAvailable
-    WORKING         Anthropic Sonnet 4.6       → Anthropic Haiku 4.5
+    WORKING         Anthropic Sonnet 5         → Anthropic Haiku 4.5
                                                 → OpenRouter Llama 3.3 70B
                                                 → raise NoProviderAvailable
     REMEDIAL        OpenRouter Llama 3.3 70B   → OpenRouter DeepSeek-V3
@@ -315,11 +315,11 @@ class OllamaProvider:
 # explicit provider lists into `get_client`.
 _DEFAULT_FRONTIER_LADDER = (
     ("anthropic", "claude-opus-4-7"),
-    ("anthropic", "claude-sonnet-4-6"),
+    ("anthropic", "claude-sonnet-5"),
     ("openrouter", "anthropic/claude-sonnet-4.5"),
 )
 _DEFAULT_WORKING_LADDER = (
-    ("anthropic", "claude-sonnet-4-6"),
+    ("anthropic", "claude-sonnet-5"),
     ("anthropic", "claude-haiku-4-5-20251001"),
     ("openrouter", "meta-llama/llama-3.3-70b-instruct"),
 )

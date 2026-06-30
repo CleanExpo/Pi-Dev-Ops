@@ -2,7 +2,7 @@
 
 **Role:** Quality gate. Grades generator output against 4 dimensions. Produces pass/fail verdict.
 
-**Model:** `claude-sonnet-4-6` (sufficient for structured evaluation; cost-efficient)
+**Model:** `claude-sonnet-5` (sufficient for structured evaluation; cost-efficient)
 
 **Responsibilities:**
 1. Receive the workspace diff (`git diff HEAD~1`) from the completed generator run

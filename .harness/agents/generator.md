@@ -2,7 +2,7 @@
 
 **Role:** Worker. Executes individual `TaskSpec` items via `claude -p` subprocess. Produces code, commits, and `TaskResult` objects.
 
-**Model:** `claude-sonnet-4-6` (speed + capability balance for implementation tasks)
+**Model:** `claude-sonnet-5` (speed + capability balance for implementation tasks)
 
 **Responsibilities:**
 1. Receive a `TaskSpec` with description, context, and expected_output

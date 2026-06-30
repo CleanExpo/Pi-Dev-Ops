@@ -14,7 +14,7 @@ Pi CEO uses a **Tiered Agent Orchestrator (TAO)** model with three Claude tiers:
 |------|-------|------|
 | Flagship | Fable 5 (`claude-fable-5`) | Hardest planning, strategy synthesis, adversarial review |
 | Orchestrator | Opus 4.8 (`claude-opus-4-8`) | Plans, decomposes, reviews |
-| Specialist | Sonnet 4.6 (`claude-sonnet-4-6`) | Complex features, code review |
+| Specialist | Sonnet 5 (`claude-sonnet-5`) | Complex features, code review |
 | Worker | Haiku 4.5 (`claude-haiku-4-5-20251001`) | Discrete tasks, fast execution |
 
 The system includes **33 skills** organised across 4 layers (Core, Frameworks, Strategic, Foundation) that encode engineering methodology — from tier architecture and agent workflows to ZTE maturity scoring and leverage audits.

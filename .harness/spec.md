@@ -465,7 +465,7 @@ These dataclasses define the contract between tier layers. `Escalation` is raise
 
 ```python
 TierConfig:  name, model, role, parent, max_concurrency, token_budget_pct, fallback_model
-MODEL_MAP:   opus→claude-opus-4-7, sonnet→claude-sonnet-4-6, haiku→claude-haiku-4-5-20251001
+MODEL_MAP:   opus→claude-opus-4-7, sonnet→claude-sonnet-5, haiku→claude-haiku-4-5-20251001
 ```
 
 `load_config(path)` reads YAML, returns `(List[TierConfig], total_token_budget)`. The 3-tier webapp preset allocates:

@@ -50,7 +50,7 @@ The decision is therefore to **decommission the Managed Agents PoC code path** i
 ### Phase 1 — Board meeting gap audit
 
 - **Target:** `app/server/agents/board_meeting.py:241` (`_call_claude_for_discrepancies`)
-- **Current shape:** single-shot `subprocess.run(["claude", "-p", prompt, "--output-format", "text", "--model", "claude-sonnet-4-6"], timeout=120)`
+- **Current shape:** single-shot `subprocess.run(["claude", "-p", prompt, "--output-format", "text", "--model", "claude-sonnet-5"], timeout=120)`
 - **Why first:** smallest call site in the codebase. One prompt, no session resume, no JSON event stream, no retry loop, no budget tracking, no Linear sync. If the SDK adapter regresses here the only output that changes is `.harness/board-meetings/<date>-board-minutes.md`.
 - **Reuses:** `ClaudeSDKClient` instantiation pattern at `telegram-bot/src/claude/sdk_integration.py:241-355`
 - **Implementation note:** keep `re.search(r"\[.*\]", raw, re.DOTALL)` JSON-array extraction unchanged — the SDK returns the same text payload

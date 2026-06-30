@@ -59,7 +59,7 @@ def _install_fake_sdk(monkeypatch, *, drafter="DRAFT", redteam="CRIT",
     fake_session_sdk = types.SimpleNamespace(_run_claude_via_sdk=fake_sdk)
     fake_model_policy = types.SimpleNamespace(
         select_model=lambda role, requested=None: "sonnet",
-        resolve_to_id=lambda s: "claude-sonnet-4-6",
+        resolve_to_id=lambda s: "claude-sonnet-5",
         assert_model_allowed=lambda *a, **k: None,
     )
     monkeypatch.setitem(sys.modules, "app.server.session_sdk", fake_session_sdk)

@@ -187,7 +187,7 @@ OPUS_ALLOWED_ROLES   = set(
 # Long-form model IDs returned by _resolve_model_id() in pipeline.py and
 # session_evaluator.py. Kept here so a single edit changes both readers.
 MODEL_ID_OPUS        = "claude-opus-4-7"
-MODEL_ID_SONNET      = "claude-sonnet-4-6"
+MODEL_ID_SONNET      = "claude-sonnet-5"
 MODEL_ID_HAIKU       = "claude-haiku-4-5-20251001"
 MODEL_SHORT_TO_ID    = {
     "opus":   MODEL_ID_OPUS,

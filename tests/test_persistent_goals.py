@@ -265,7 +265,7 @@ def test_debate_runner_advances_goal_on_success(tmp_path, monkeypatch):
     fake_sdk_mod = types.SimpleNamespace(_run_claude_via_sdk=fake_sdk)
     fake_mp = types.SimpleNamespace(
         select_model=lambda r, requested=None: "sonnet",
-        resolve_to_id=lambda s: "claude-sonnet-4-6",
+        resolve_to_id=lambda s: "claude-sonnet-5",
         assert_model_allowed=lambda *a, **k: None,
     )
     monkeypatch.setitem(sys.modules, "app.server.session_sdk", fake_sdk_mod)
@@ -320,7 +320,7 @@ def test_debate_runner_no_goal_id_does_not_advance(tmp_path, monkeypatch):
     fake_sdk_mod = types.SimpleNamespace(_run_claude_via_sdk=fake_sdk)
     fake_mp = types.SimpleNamespace(
         select_model=lambda r, requested=None: "sonnet",
-        resolve_to_id=lambda s: "claude-sonnet-4-6",
+        resolve_to_id=lambda s: "claude-sonnet-5",
         assert_model_allowed=lambda *a, **k: None,
     )
     monkeypatch.setitem(sys.modules, "app.server.session_sdk", fake_sdk_mod)

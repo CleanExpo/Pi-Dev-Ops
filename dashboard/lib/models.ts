@@ -10,14 +10,14 @@
 
 export const MODELS = {
   // ── Tier 1: Full intelligence ────────────────────────────────────────────────
-  ANALYST:      (process.env.ANALYST_MODEL      ?? "claude-sonnet-4-6").trim(),
+  ANALYST:      (process.env.ANALYST_MODEL      ?? "claude-sonnet-5").trim(),
   ORCHESTRATOR: (process.env.ORCHESTRATOR_MODEL ?? "claude-opus-4-7").trim(),
 
   // ── Tier 2: Fast/cheap tasks ─────────────────────────────────────────────────
   WORKER:       (process.env.WORKER_MODEL       ?? "claude-haiku-4-5").trim(),
 
   // ── Default (used by settings, chat, actions) ────────────────────────────────
-  DEFAULT:      (process.env.ANALYSIS_MODEL     ?? "claude-sonnet-4-6").trim(),
+  DEFAULT:      (process.env.ANALYSIS_MODEL     ?? "claude-sonnet-5").trim(),
 } as const;
 
 // Mythos-class models (claude-fable-*, claude-mythos-*) run safety classifiers
