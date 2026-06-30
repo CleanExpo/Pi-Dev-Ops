@@ -22,6 +22,13 @@ SWARM_ENABLED: bool = os.environ.get("TAO_SWARM_ENABLED", "0") == "1"
 # Set TAO_SWARM_SHADOW=0 only after board sign-off on Phase 2 activation.
 SHADOW_MODE: bool = os.environ.get("TAO_SWARM_SHADOW", "1") == "1"
 
+# ── Closed-loop composer (UNI-2214) ───────────────────────────────────────────
+# When True, the orchestrator drains the closed-loop trigger queue each cycle
+# and runs the composed intake→plan→Board→dispatch→gate→report cycle. Default
+# OFF; an empty trigger queue is a no-op even when enabled. Live sends require
+# SHADOW_MODE off as well.
+CLOSED_LOOP_ENABLED: bool = os.environ.get("TAO_CLOSED_LOOP_ENABLED", "0") == "1"
+
 # ── Safety limits ─────────────────────────────────────────────────────────────
 # Swarm auto-suspends after this many iterations without human acknowledgement.
 # Default: 288 = 24 hours at the default 5-min cycle interval.
