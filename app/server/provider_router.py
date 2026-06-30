@@ -13,9 +13,9 @@ Tier mapping (defaults; all overridable via env):
                   debate.redteam, margot.synthesis (Phase 2)
                   Env: TAO_TOP_MODEL=claude-opus-4-7
 
-  TIER 2 — MID    Anthropic Sonnet 4.6
+  TIER 2 — MID    Anthropic Sonnet 5
                   Roles: generator, evaluator, senior-brief
-                  Env: TAO_MID_MODEL=claude-sonnet-4-6
+                  Env: TAO_MID_MODEL=claude-sonnet-5
 
   TIER 3 — CHEAP  OpenRouter → Gemma 3 27B (default; configurable)
                   Roles: margot.casual, intent_classify, monitor,
@@ -63,7 +63,7 @@ Provider = Literal["anthropic", "openrouter", "ollama", "claude_print"]
 # ── Defaults — all env-overridable ──────────────────────────────────────────
 
 DEFAULT_TOP_MODEL = "claude-opus-4-7"
-DEFAULT_MID_MODEL = "claude-sonnet-4-6"
+DEFAULT_MID_MODEL = "claude-sonnet-5"
 
 # Cheap tier resolution:
 #   1. Probe Ollama at localhost:11434 (or OLLAMA_BASE_URL).

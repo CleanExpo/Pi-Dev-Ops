@@ -245,7 +245,7 @@ def _skill_prefix(skill_names: list[str]) -> str:
 
 _MODEL_MAP = {
     "opus":   "claude-opus-4-7",
-    "sonnet": "claude-sonnet-4-6",
+    "sonnet": "claude-sonnet-5",
     "haiku":  "claude-haiku-4-5-20251001",
 }
 

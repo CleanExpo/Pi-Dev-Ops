@@ -20,7 +20,7 @@ Google Cloud Next 2025 announced Gemini 1.5 Pro reaching 1M context window and t
 ```python
 MODEL_MAP = {
     'opus': 'claude-opus-4-6',
-    'sonnet': 'claude-sonnet-4-6',
+    'sonnet': 'claude-sonnet-5',
     'haiku': 'claude-haiku-4-5-20251001'
 }
 ```

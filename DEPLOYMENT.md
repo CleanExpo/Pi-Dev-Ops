@@ -202,7 +202,7 @@ python scripts/fallback_dryrun.py --dry-run
 python scripts/fallback_dryrun.py
 
 # Test against a specific model:
-python scripts/fallback_dryrun.py --model claude-sonnet-4-6
+python scripts/fallback_dryrun.py --model claude-sonnet-5
 ```
 
 Results are appended to `.harness/fallback-dryrun-log.jsonl`. On failure, an Urgent Linear ticket is automatically created (if `LINEAR_API_KEY` is set).
