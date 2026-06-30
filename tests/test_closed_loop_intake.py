@@ -82,6 +82,26 @@ def test_flow_intent_is_noop_when_loop_disabled(monkeypatch, spy_enqueue):
     assert action.get("status") == "pending"
 
 
+def test_flow_ack_still_posts_when_enqueue_raises(monkeypatch):
+    """The additive guarantee: an enqueue failure must not swallow the HITL ack.
+
+    enqueue_trigger does an unguarded file write that can raise (permission /
+    disk full); _route must catch it and still reach post_draft, matching the
+    defensive contract of every other intent branch.
+    """
+    monkeypatch.setattr(CFG, "CLOSED_LOOP_ENABLED", True)
+
+    def _boom(*a, **k):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(CL, "enqueue_trigger", _boom)
+
+    action = COS._route(_flow_payload())
+
+    # The exception was swallowed; the ack was still produced.
+    assert action.get("status") == "pending"
+
+
 def test_non_flow_intent_never_enqueues(monkeypatch, spy_enqueue):
     monkeypatch.setattr(CFG, "CLOSED_LOOP_ENABLED", True)
 

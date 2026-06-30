@@ -204,12 +204,19 @@ def _route(intent_payload: dict[str, Any]) -> dict[str, Any]:
         queued = False
         if config.CLOSED_LOOP_ENABLED:
             from .. import closed_loop  # noqa: PLC0415
-            closed_loop.enqueue_trigger(
-                intent_payload.get("raw_message", "")
-                or fields.get("raw_steps_text", ""),
-                chat_id=str(intent_payload.get("originating_chat_id") or "") or None,
-            )
-            queued = True
+            # The enqueue is a best-effort file write; a failure (permission,
+            # disk full) must NOT swallow the HITL ack below — every other
+            # branch in this function stays defensive, and the additive
+            # guarantee depends on post_draft always being reached.
+            try:
+                closed_loop.enqueue_trigger(
+                    intent_payload.get("raw_message", "")
+                    or fields.get("raw_steps_text", ""),
+                    chat_id=str(intent_payload.get("originating_chat_id") or "") or None,
+                )
+                queued = True
+            except Exception:  # noqa: BLE001
+                log.exception("flow intent: enqueue_trigger failed (continuing)")
         draft = (
             f"🔀 FLOW intent — multi-step request detected\n"
             f"{specialist_line}\n"
