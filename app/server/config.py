@@ -279,6 +279,18 @@ ENABLE_PROMPT_CACHING_1H: bool = os.environ.get("ENABLE_PROMPT_CACHING_1H", "0")
 # SWARM_TELEGRAM_ALERTS).
 TAO_TOOL_GATE: bool = os.environ.get("TAO_TOOL_GATE", "0") == "1"
 
+# RA-1970 lookahead executor (app.server.tao_planner). Default 0 = OFF: the loop
+# runs in its proven reactive mode (one judge-gated step, no planner). When set
+# to 1-20, run_tdd builds an up-front plan via the Opus planner and executes it
+# one step per iteration (kill-switch cadence unchanged), re-planning on a stall
+# or an exhausted horizon. Founder-gated activation like TAO_TOOL_GATE.
+TAO_PLANNER_HORIZON: int = int(os.environ.get("TAO_PLANNER_HORIZON", "0"))
+# Hard cap on Opus re-plans within a single loop. Once hit, the loop stops
+# re-planning and degrades to reactive execution on the overall goal. Bounds
+# Opus spend (RA-1099) independently of the max_cost_usd ceiling; 0 disables
+# re-planning after the initial plan.
+TAO_PLANNER_MAX_REPLANS: int = int(os.environ.get("TAO_PLANNER_MAX_REPLANS", "2"))
+
 LINEAR_API_KEY       = os.environ.get("LINEAR_API_KEY",                 "")
 
 # RA-6502 — Linear outbound sync feature flag.
