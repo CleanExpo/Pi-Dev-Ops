@@ -190,6 +190,13 @@ def _tier_default(tier: str) -> tuple[Provider, str]:
             return "claude_print", model
         return "anthropic", model
 
+    # Tier-0 gathering lane (UNI-2212) — free OpenRouter first, capacity-aware,
+    # spilling to paid/local. Returns the head lane; callers needing failover
+    # walk tier0_lane.resolve_tier0_chain() directly.
+    if tier == "tier0":
+        from . import tier0_lane  # noqa: PLC0415
+        return tier0_lane.select_tier0_lane()  # type: ignore[return-value]
+
     # Cheap tier — multi-step resolution
     return _resolve_cheap_tier()
 
