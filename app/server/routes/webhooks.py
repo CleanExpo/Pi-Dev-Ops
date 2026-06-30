@@ -549,6 +549,80 @@ async def telegram_webhook(request: Request):
     return {"ok": True}
 
 
+# ── UNI-2214 item 1: authenticated closed-loop intake webhook ─────────────────
+
+_INTAKE_SOURCES: frozenset[str] = frozenset(
+    {"email", "calendar", "linear", "external"}
+)
+
+
+class IntakePayload(BaseModel):
+    """Normalized push-intake from any external producer.
+
+    A producer that holds content (email-listener / calendar-watcher, or any
+    system) POSTs this; the route enqueues it into the closed loop so the
+    orchestrator drains it on its next cycle.
+    """
+    source: str
+    text: str
+    chat_id: str | None = None
+
+    @field_validator("source")
+    @classmethod
+    def _check_source(cls, v: str) -> str:
+        if v not in _INTAKE_SOURCES:
+            raise ValueError(f"source must be one of {sorted(_INTAKE_SOURCES)}")
+        return v
+
+    @field_validator("text")
+    @classmethod
+    def _check_text(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("text must be non-empty")
+        return v
+
+
+@router.post("/api/webhook/intake", dependencies=[Depends(require_rate_limit)])
+async def intake_webhook(request: Request):
+    """Receive a normalized intake event and enqueue it into the closed loop.
+
+    The push-intake substrate for UNI-2214 item 1: lets email-listener,
+    calendar-watcher, or any external system feed the autonomous loop over HTTP
+    without Phill driving. Secured by a shared secret (X-Intake-Secret); the
+    enqueued trigger carries its source as provenance.
+    """
+    expected = config.INTAKE_WEBHOOK_SECRET
+    # Fail-closed (mirror the Telegram webhook): an unconfigured secret means
+    # the endpoint refuses everything rather than accepting anonymous intake.
+    if not expected:
+        raise HTTPException(500, "Intake webhook secret not configured")
+    import hmac as _hmac  # noqa: PLC0415
+    presented = request.headers.get("X-Intake-Secret", "")
+    if not _hmac.compare_digest(presented, expected):
+        raise HTTPException(401, "Invalid intake secret")
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid JSON")
+    try:
+        payload = IntakePayload(**body)
+    except Exception as exc:
+        raise HTTPException(422, f"Invalid intake payload: {exc}")
+
+    # Prefix the source so the loop's intake stage sees provenance.
+    trigger_text = f"[{payload.source}] {payload.text}".strip()
+    try:
+        from swarm import closed_loop  # noqa: PLC0415
+        closed_loop.enqueue_trigger(trigger_text, chat_id=payload.chat_id)
+    except Exception as exc:
+        log.error("intake webhook: enqueue_trigger failed: %s", exc, exc_info=True)
+        raise HTTPException(503, "Failed to enqueue intake")
+
+    log.info("intake webhook: queued source=%s chars=%d", payload.source, len(payload.text))
+    return {"ok": True, "queued": True, "source": payload.source}
+
+
 # ── RA-1011: Routine run outcome tracker ─────────────────────────────────────
 
 _ROUTINE_RUNS_DIR_NAME = "routine-runs"
