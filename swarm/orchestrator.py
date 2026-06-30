@@ -341,6 +341,21 @@ def run() -> None:
         except Exception as exc:  # noqa: BLE001
             log.warning("Board process_pending failed (continuing): %s", exc)
 
+        # ── UNI-2214 items 1 & 7 — Intake producers: feed the loop without Phill.
+        # Runs BEFORE the drain so freshly-enqueued triggers can begin draining
+        # this cycle. Daily cron heartbeat (always-on self-trigger) + hourly
+        # Linear agent-ready pull. Self-gates on CLOSED_LOOP_ENABLED + internal
+        # cadence; one failure never crashes the cycle.
+        try:
+            from . import intake_producers as _ip  # noqa: PLC0415
+            if _ip.should_run(state):
+                ir = _ip.run_cycle(state)
+                if ir.enqueued:
+                    log.info("intake_producers: enqueued %d trigger(s): %s",
+                             len(ir.enqueued), ir.sources)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("intake_producers failed (continuing): %s", exc)
+
         # ── UNI-2214 — Closed loop: drain queued triggers through the composed
         # intake→plan→Board→dispatch→gate→report cycle. Self-gates on
         # CLOSED_LOOP_ENABLED; an empty queue is a no-op, so this carries zero
