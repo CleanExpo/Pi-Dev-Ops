@@ -1,6 +1,8 @@
 # app — Wiki
 
-_Last updated: 2026-05-28T01:21:18Z (commits 5483a3b..585bb3e)_
+_Last updated: 2026-06-30T20:28:11Z (commits 55ebd67..9b1e6fe)_
 
 ## Recent changes
-- 585bb3e — refactor: route evaluator through provider router
+- 9b1e6fe — feat(tao): SDK-layer tool gate — interceptor + default-deny allowlist (#388)
+
+
