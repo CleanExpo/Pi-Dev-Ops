@@ -453,6 +453,13 @@ TELEGRAM_WEBHOOK_SECRET = os.environ.get(
     TELEGRAM_BOT_TOKEN.split(":")[0] if ":" in TELEGRAM_BOT_TOKEN else TELEGRAM_BOT_TOKEN,
 )
 
+# UNI-2214 item 1 — shared secret for the authenticated closed-loop intake
+# webhook (POST /api/webhook/intake). External producers (email-listener,
+# calendar-watcher, or any system holding content) present it in the
+# X-Intake-Secret header. Fail-closed: when unset the endpoint refuses all
+# requests (500), so an unconfigured deployment can never be fed anonymously.
+INTAKE_WEBHOOK_SECRET = os.environ.get("TAO_INTAKE_WEBHOOK_SECRET", "")
+
 # RA-651 / RA-633 — Supabase server-side writes (gate_checks, alert_escalations).
 # NEXT_PUBLIC_SUPABASE_URL matches the dashboard env var (same project).
 # SUPABASE_SERVICE_ROLE_KEY is the service-role secret — bypasses RLS for writes.
