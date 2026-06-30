@@ -38,6 +38,11 @@ MAX_UNACKED_ITERATIONS: int = int(os.environ.get("TAO_SWARM_MAX_UNACKED_ITERS", 
 # Seconds between each bot's observation cycle (default: 5 minutes).
 CYCLE_INTERVAL_S: int = int(os.environ.get("TAO_SWARM_CYCLE_S", "300"))
 
+# UNI-2214 item 1 — the Linear team the closed-loop intake producer pulls
+# ``agent-ready`` tickets from. Resolved by linear_tools._resolve_team (key,
+# name, or UUID all accepted). Override with TAO_INTAKE_LINEAR_TEAM.
+INTAKE_LINEAR_TEAM: str = os.environ.get("TAO_INTAKE_LINEAR_TEAM", "Unite-Group")
+
 # Board-mandated rate limit: max autonomous PRs the Builder may open per calendar day.
 # CONTRARIAN's condition — holds until 20 consecutive green supervised merges logged.
 # Override with TAO_SWARM_MAX_DAILY_PRS env var.
