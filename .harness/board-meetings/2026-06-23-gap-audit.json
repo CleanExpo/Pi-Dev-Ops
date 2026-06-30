@@ -1,0 +1,66 @@
+{
+  "critical": [],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "webhook.py implements only the inbound direction: HMAC verification, parse_linear_event(), and linear_issue_to_brief() convert incoming Linear webhooks into build briefs. There are zero outbound Linear API calls in the provided files — no issueUpdate GraphQL mutation, no linear_update_issue helper, no state transition back to Linear (e.g. marking the issue In Progress or Done after a build completes). main.py is a pure router assembler and adds nothing. The 'two-way' half of two-way sync is absent from the audited code.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Add an outbound helper (e.g. `update_linear_issue_state(issue_id, state_id)`) that calls the Linear GraphQL API with an issueUpdate mutation and wire it into the session completion callback in routes/sessions.py so build outcomes are reflected back on the originating Linear issue.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The two test files provided (test_auth.py, test_webhook.py) are pure unit tests covering only auth and webhook signature verification. No integration or E2E test file covering the full build pipeline (session creation, SDK evaluator invocation, push phase) is present in the provided source. scripts/smoke_test.py is a live-server HTTP surface check that requires a running server with valid credentials — it cannot exercise the evaluator or push phases in CI without real API keys and a live Railway instance.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Add a pytest integration test (e.g. tests/test_pipeline_e2e.py) that patches ClaudeSDKClient and GitHub push helpers, then drives the full session lifecycle — build → evaluate → push — asserting each phase transitions correctly without hitting real external services.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "high",
+      "claim": "SSE streaming: dashboard/hooks/useSSE.ts, exponential-backoff reconnect (CLAUDE.md key pattern — implies a server-side SSE endpoint pipes session.output_lines to the browser)",
+      "reality": "The backend module map documents only a WebSocket endpoint (WS /ws/build/{sid}) in routes/utils.py. No SSE endpoint that streams session.output_lines appears in the documented route map, in sessions.py (the facade), or in the routers registered in main.py. If useSSE.ts targets a non-existent SSE path, the dashboard receives no live log stream and silently falls back to polling /api/sessions — which surfaces session status but not individual log lines.",
+      "file": "app/server/routes/utils.py",
+      "recommendation": "Add a GET /api/sessions/{sid}/stream SSE endpoint in routes/utils.py that iterates session.output_lines via an async generator and yields text/event-stream chunks, then update useSSE.ts to target that path.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "scripts/smoke_test.py is truncated in the source view; the actual 22 named checks cannot be verified from the provided file. The visible portion only covers argument parsing, metrics emission, Linear ticket creation, and HTTP helpers — the checks themselves are not shown, so completeness of the claimed 22-check count is unverifiable.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Ensure the full smoke_test.py is committed and not accidentally truncated; add a top-of-file comment listing all 22 check names so the count can be audited against the spec claim.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "Budget tracker is instantiated but not wired. BudgetTracker in src/tao/budget/tracker.py is a correct implementation, but session_sdk.py does not instantiate it.",
+      "reality": "No test in the provided files asserts that BudgetTracker is (or is not) wired into session_sdk.py; the spec itself flags this as an open gap ('instantiated but not wired'), yet no regression test guards against it being silently removed or remaining disconnected.",
+      "file": "tests/test_auth.py",
+      "recommendation": "Add a unit test in tests/test_budget_tracker.py that imports session_sdk, runs a mocked SDK call, and asserts BudgetTracker.record() is invoked, preventing silent regression of the wiring gap.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "Dashboard UX: 'Reframe SSE drops as reconnecting, poll /api/sessions as truth' (CLAUDE.md) — implies SSE and polling are two independent, wired layers",
+      "reality": "sessions.py is a pure re-export facade with no route definitions; main.py registers sessions.router but the underlying routes/sessions.py is not included in the provided source. The fallback polling path (/api/sessions) exists, but the primary SSE path it is meant to back up is unconfirmed from the provided files, so the two-layer guarantee cannot be verified.",
+      "file": "app/server/sessions.py",
+      "recommendation": "Confirm routes/sessions.py exposes both /api/sessions (poll) and an SSE streaming route, and add an integration test that disconnects the SSE stream and asserts the client falls back to polling.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 6,
+    "critical_count": 0,
+    "high_count": 3,
+    "low_count": 3,
+    "duration_s": 194.7,
+    "audited_at": "2026-06-23T20:23:37.327513+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": []
+  }
+}

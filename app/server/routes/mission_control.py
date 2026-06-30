@@ -12,6 +12,7 @@ Shape:
     "recent_completions": [{id, repo, branch, score, pr_url, completed_at}],
     "queue": {"urgent": int, "high": int, "next_issue_id": str | None},
     "pulse": {"last_at": iso | None, "comments_today": int, "pulse_issue_id": str | None},
+    "observability": {"fully_observed": bool, "degraded_components": [...], "actions": [...]},
     "ts": iso8601 now
   }
 
@@ -23,13 +24,16 @@ from __future__ import annotations
 import json
 import logging
 import os
+import tomllib
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, Depends
 
 from ..auth import require_auth
+from .health_full import gather_components, _is_observed
 
 log = logging.getLogger("pi-ceo.mission_control")
 router = APIRouter(prefix="/api/mission-control", tags=["mission-control"])
@@ -245,6 +249,149 @@ def _pulse_status() -> dict:
     }
 
 
+# ── Observability action ledger ─────────────────────────────────────────────
+_OBSERVABILITY_ACTIONS = {
+    "railway_deploy_config": {
+        "owner": "Deploy/infra operator",
+        "severity": "high",
+        "next_action": "Restore Railway's repo-backed deploy contract: Dockerfile builder, Dockerfile path, uvicorn start command, and /health healthcheck.",
+        "evidence_required": ["railway.toml contract check passes", "Railway latest deployment manifest matches Dockerfile + /health"],
+    },
+    "hermes_gateway": {
+        "owner": "Hermes/Codex operator",
+        "severity": "high",
+        "next_action": "Start or repair the Mac Mini Hermes heartbeat writer so .harness/hermes/heartbeat.jsonl updates within five minutes.",
+        "evidence_required": ["fresh heartbeat.jsonl row", "Mission Control fully_observed recalculation"],
+    },
+    "margot_route": {
+        "owner": "Margot operator",
+        "severity": "medium",
+        "next_action": "Run a Margot turn or sync conversation evidence so .harness/margot/conversations has a fresh record.",
+        "evidence_required": ["fresh Margot conversation JSONL", "last_turn_at within 24h"],
+    },
+    "openrouter": {
+        "owner": "LLM routing steward",
+        "severity": "medium",
+        "next_action": "Generate a low-cost model-router heartbeat or restore the llm-cost log writer.",
+        "evidence_required": ["fresh .harness/llm-cost.jsonl row"],
+    },
+    "supabase": {
+        "owner": "Data/CRM operator",
+        "severity": "high",
+        "next_action": "Implement or repair supabase_log.health_check so Mission Control proves Supabase writes are observable.",
+        "evidence_required": ["supabase_log.health_check returns true", "integration health check evidence"],
+    },
+    "telegram_polling": {
+        "owner": "Mobile/operator comms",
+        "severity": "high",
+        "next_action": "Start or repair Telegram polling heartbeat so .harness/telegram-poll-heartbeat updates within two minutes.",
+        "evidence_required": ["fresh telegram-poll-heartbeat mtime", "operator alert route verified"],
+    },
+}
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
+def _railway_deploy_config_component() -> dict:
+    path = _repo_root() / "railway.toml"
+    if not path.exists():
+        return {
+            "ok": False,
+            "observed": True,
+            "status": "missing",
+            "error": "railway.toml is missing",
+        }
+    try:
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        return {
+            "ok": False,
+            "observed": True,
+            "status": "invalid",
+            "error": f"railway.toml unreadable: {exc}",
+        }
+
+    build = data.get("build") if isinstance(data.get("build"), dict) else {}
+    deploy = data.get("deploy") if isinstance(data.get("deploy"), dict) else {}
+    expected = {
+        "builder": "DOCKERFILE",
+        "dockerfilePath": "Dockerfile",
+        "healthcheckPath": "/health",
+        "healthcheckTimeout": 30,
+    }
+    mismatches = {
+        key: {"expected": value, "actual": (build if key in build else deploy).get(key)}
+        for key, value in expected.items()
+        if (build if key in build else deploy).get(key) != value
+    }
+    start = str(deploy.get("startCommand") or "")
+    if "uvicorn app.server.main:app" not in start or "--port 8080" not in start:
+        mismatches["startCommand"] = {
+            "expected": "uvicorn app.server.main:app ... --port 8080",
+            "actual": start or None,
+        }
+    return {
+        "ok": not mismatches,
+        "observed": True,
+        "status": "configured" if not mismatches else "drift",
+        "note": "railway.toml deploy contract is present" if not mismatches else "railway.toml deploy contract drift",
+        "mismatches": mismatches,
+    }
+
+
+def _observability_action(name: str, payload: dict) -> dict:
+    template = _OBSERVABILITY_ACTIONS.get(name, {
+        "owner": "Senior PM",
+        "severity": "medium",
+        "next_action": "Inspect the component probe and record a concrete recovery action.",
+        "evidence_required": ["component-specific health evidence"],
+    })
+    return {
+        "component": name,
+        "status": payload.get("status") or ("red" if not payload.get("ok") else "not_observed"),
+        "ok": bool(payload.get("ok")),
+        "observed": _is_observed(payload),
+        "owner": template["owner"],
+        "severity": template["severity"],
+        "next_action": template["next_action"],
+        "evidence_required": template["evidence_required"],
+        "detail": payload.get("note") or payload.get("error") or payload.get("last_seen") or payload.get("last_turn_at"),
+    }
+
+
+async def _observability_snapshot() -> dict:
+    try:
+        components = await gather_components()
+    except Exception as exc:  # noqa: BLE001
+        log.debug("observability snapshot failed: %s", exc)
+        return {
+            "source": "health_full",
+            "ok": False,
+            "fully_observed": False,
+            "red_components": ["health_full"],
+            "degraded_components": [],
+            "actions": [_observability_action("health_full", {"ok": False, "status": "red", "error": str(exc)[:120]})],
+        }
+
+    components = {**components, "railway_deploy_config": _railway_deploy_config_component()}
+    red_components = sorted(name for name, payload in components.items() if not bool(payload.get("ok")))
+    degraded_components = sorted(
+        name for name, payload in components.items()
+        if bool(payload.get("ok")) and not _is_observed(payload)
+    )
+    action_names = red_components + degraded_components
+    return {
+        "source": "health_full",
+        "ok": not red_components,
+        "fully_observed": not red_components and not degraded_components,
+        "red_components": red_components,
+        "degraded_components": degraded_components,
+        "actions": [_observability_action(name, components.get(name, {})) for name in action_names],
+    }
+
+
 # ── Route ────────────────────────────────────────────────────────────────────
 @router.get("/live", dependencies=[Depends(require_auth)])
 async def live_activity() -> dict:
@@ -255,4 +402,5 @@ async def live_activity() -> dict:
         "recent_completions": _recent_completions(),
         "queue": _queue_snapshot(),
         "pulse": _pulse_status(),
+        "observability": await _observability_snapshot(),
     }

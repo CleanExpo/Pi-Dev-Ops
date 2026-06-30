@@ -1,0 +1,90 @@
+{
+  "research_required": true,
+  "questions": [
+    "What is Anthropic's current policy on trial credits and API key requirements for new signups as of June 2026?",
+    "Has Anthropic made any changes in the last 30 days to Claude model pricing or the Sonnet/Opus tier structure that would affect Pi-CEO orchestration costs?",
+    "What is the current Australian Business Register (ABR) API status and any known outages or authentication changes affecting ABN lookup in June 2026?",
+    "What competing AI-powered business intelligence or report-generation platforms have launched or updated their onboarding flows in the last 60 days that RestoreAssist should benchmark against?"
+  ],
+  "findings": [
+    {
+      "question": "What is Anthropic's current policy on trial credits and API key requirements for new signups as of June 2026?",
+      "claim": "New API accounts at console.anthropic.com receive approximately $5 in free trial credits on signup with no credit card required; phone number verification is mandatory before API access is granted. The proposed June 15 billing change — which would have split Agent SDK, claude -p, and third-party app usage into a separate monthly credit pool — was paused and did not take effect; subscription usage continues drawing from existing Pro/Max/Team/Enterprise pools unchanged.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://www.digitalapplied.com/blog/anthropic-claude-credit-overhaul-june-15-2026",
+          "title": "Claude Credit Overhaul 2026: Anthropic Pauses the June 15 Change",
+          "fetched": "2026-06-19",
+          "excerpt": "The planned move of Agent SDK, claude -p, and third-party app usage to a separate monthly credit is not taking effect. Anthropic is reworking the plan and will provide advance notice before implementing any revised version."
+        },
+        {
+          "url": "https://www.getaiperks.com/en/ai/free-anthropic-api-key",
+          "title": "How to Get a Free Anthropic API Key in 2026 (Plus Free Credits)",
+          "fetched": "2026-06-19",
+          "excerpt": "New accounts receive ~$5 in free trial credits. No credit card required to start. Phone verification is mandatory before accessing the API and credits."
+        }
+      ]
+    },
+    {
+      "question": "Has Anthropic made any changes in the last 30 days to Claude model pricing or the Sonnet/Opus tier structure that would affect Pi-CEO orchestration costs?",
+      "claim": "No per-token price changes to Sonnet or Opus in the last 30 days. Current API rates are Claude Sonnet 4.6 at $3.00/$15.00 per 1M input/output tokens and Claude Opus 4.8 at $5.00/$25.00 per 1M tokens; the 1M-token context window is now included at standard per-token pricing with no premium surcharge. The paused June 15 Agent SDK billing split means Pi-CEO orchestration costs on subscription plans remain unchanged.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://devtk.ai/en/blog/claude-api-pricing-guide-2026/",
+          "title": "Current Anthropic Claude API Pricing 2026: Opus, Sonnet & Haiku Costs",
+          "fetched": "2026-06-19",
+          "excerpt": "Sonnet 4.6: $3/$15 per 1M tokens. Opus 4.8: $5/$25 per 1M tokens. 1M context window now included at standard per-token rates — previously a premium feature."
+        },
+        {
+          "url": "https://www.digitalapplied.com/blog/anthropic-claude-credit-overhaul-june-15-2026",
+          "title": "Claude Credit Overhaul 2026: Anthropic Pauses the June 15 Change",
+          "fetched": "2026-06-19",
+          "excerpt": "Agent SDK billing split paused; Anthropic reworking the plan. Current subscription pools unchanged. No new per-token rate changes announced alongside the pause."
+        }
+      ]
+    },
+    {
+      "question": "What is the current Australian Business Register (ABR) API status and any known outages or authentication changes affecting ABN lookup in June 2026?",
+      "claim": "The ABR API — covering ABN System, ABR Web Services, and Identifier Search — is fully operational as of June 19 2026 with no incidents, outages, or authentication changes recorded at any point in June 2026.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://status.abr.gov.au/",
+          "title": "Australian Business Register Status",
+          "fetched": "2026-06-19",
+          "excerpt": "All Systems Operational. No incidents reported today. Incident history shows clean records across ABN System, ABR Web Services, and Identifier Search throughout June 2026."
+        }
+      ]
+    },
+    {
+      "question": "What competing AI-powered business intelligence or report-generation platforms have launched or updated their onboarding flows in the last 60 days that RestoreAssist should benchmark against?",
+      "claim": "Two notable launches in the April–June 2026 window: Sakana AI opened a closed beta (≈300 professionals across financial institutions and consulting firms) for an 'ultra deep research' agent producing 100+ page reports in ~8 hours; and Perplexity launched its 'Computer' enterprise AI agent routing proprietary Snowflake data and legal contracts for BI use cases, targeting Microsoft and Salesforce enterprise buyers. Specific onboarding-flow UX details were not available from indexed sources.",
+      "confidence": "low",
+      "sources": [
+        {
+          "url": "https://venturebeat.com/technology/when-deep-research-isnt-enough-for-your-business-sakana-ai-launches-ultra-deep-research-agent-for-100-page-reports-in-8-hours",
+          "title": "Sakana AI launches ultra deep research agent for 100+ page reports in 8 hours | VentureBeat",
+          "fetched": "2026-06-19",
+          "excerpt": "Sakana AI ran a closed beta beginning April 2026 with ~300 professionals at financial institutions, consulting firms, and think tanks for its long-form report generation agent."
+        },
+        {
+          "url": "https://venturebeat.com/technology/perplexity-takes-its-computer-ai-agent-into-the-enterprise-taking-aim-at",
+          "title": "Perplexity takes its 'Computer' AI agent into the enterprise, taking aim at Microsoft and Salesforce | VentureBeat",
+          "fetched": "2026-06-19",
+          "excerpt": "Perplexity's Computer enterprise agent routes Snowflake data, legal contracts, and proprietary business intelligence for enterprise customers — launched for enterprise in early 2026."
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "What exact date will Anthropic implement its revised Agent SDK billing plan after the June 15 2026 pause — no revised timeline published as of June 19 2026.",
+    "Are there specific onboarding-flow UX details (step count, free-trial gate, friction benchmarks) for Sakana AI ultra deep research or Perplexity Computer enterprise? Primary VentureBeat articles were rate-limited; only search-result excerpts retrieved.",
+    "Are there Australian disaster-recovery or insurance-vertical AI report-generation tools (beyond general BI platforms) that updated onboarding in this window? No indexed sources found at this specificity level."
+  ],
+  "completed_at": "2026-06-19T05:02:49.634699+00:00",
+  "cost_seconds": 153.7,
+  "failure_reason": null,
+  "mode": "fast"
+}

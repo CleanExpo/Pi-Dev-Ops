@@ -1,0 +1,85 @@
+{
+  "research_required": true,
+  "questions": [
+    "What is Anthropic's current policy on trial credits and API key requirements for new signups as of June 2026?",
+    "Has Anthropic announced any changes to platform-managed credits or free tier access in the last 30 days that could affect third-party SaaS products?",
+    "What is the current status and pricing of the Australian Business Register (ABR) API, and are there known outages or credential/GUID requirements that changed recently?",
+    "What did Anthropic ship in the last 30 days that affects orchestrator or multi-agent SDK behaviour relevant to Pi-CEO?"
+  ],
+  "findings": [
+    {
+      "question": "What is Anthropic's current policy on trial credits and API key requirements for new signups as of June 2026?",
+      "claim": "New Anthropic API accounts receive $5 in free trial credits upon signup with no payment details required; the API key is issued immediately via platform.claude.com. Larger grants ($300–$1,000+) require application through programs such as AWS Activate or the Anthropic Startup Program; Claude for Open Source gives qualifying maintainers six months of Max 20x free.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://www.nxcode.io/resources/news/claude-code-pricing-2026-free-api-costs-max-plan",
+          "title": "Claude Code Pricing 2026: Free Credits, API Costs & Max Plan Explained | NxCode",
+          "fetched": "2026-06-20",
+          "excerpt": "New Anthropic API accounts receive $5 in free trial credits on signup; no payment details required to claim."
+        },
+        {
+          "url": "https://pricepertoken.com/endpoints/anthropic/free",
+          "title": "Anthropic Free Tier 2026 — Free Models, Credits & Limits | Price Per Token",
+          "fetched": "2026-06-20",
+          "excerpt": "Anthropic provides $5 in free API credits for new accounts to test Claude models; trial credits auto-granted on signup."
+        }
+      ]
+    },
+    {
+      "question": "Has Anthropic announced any changes to platform-managed credits or free tier access in the last 30 days that could affect third-party SaaS products?",
+      "claim": "Anthropic announced on May 14 a plan to move Agent SDK, claude -p, and third-party app usage to a separate monthly credit pool billed at full API rates (no rollover); on June 15 that change was officially paused with Anthropic stating it is reworking the plan. Agent SDK and headless usage continue drawing from existing subscription limits unchanged until advance notice of any revised rollout. A contradicting report claims metered credits ($20/$100/$200 by plan tier) did activate June 15 — this discrepancy is unresolved.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://www.digitalapplied.com/blog/anthropic-claude-credit-overhaul-june-15-2026",
+          "title": "Claude Credit Overhaul 2026: Anthropic Pauses the June 15 Change",
+          "fetched": "2026-06-20",
+          "excerpt": "The change did not take effect. Anthropic confirmed the planned move of Agent SDK, claude -p, and third-party app usage to a separate monthly credit is not taking effect. Current operations unchanged."
+        },
+        {
+          "url": "https://codingwithai.com/news/claude-agent-sdk-credits-june-2026",
+          "title": "Anthropic Brings Back Third-Party Agents on Claude With Monthly SDK Credits | Coding with AI",
+          "fetched": "2026-06-20",
+          "excerpt": "Contradicting source: metered Agent SDK credits ($20/$100/$200 by plan tier) reported as activated June 15, non-rollover monthly allocation, replacing subsidised compute."
+        }
+      ]
+    },
+    {
+      "question": "What is the current status and pricing of the Australian Business Register (ABR) API, and are there known outages or credential/GUID requirements that changed recently?",
+      "claim": "The ABR ABN Lookup web services API is free of charge with no usage limits. Access requires a GUID obtained at no cost by accepting the web services agreement at abr.business.gov.au. No GUID requirement or pricing changes were found in the primary source; a maintenance window causing delayed ABN updates was documented but the year on that notice was ambiguous (2025 not 2026).",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://abr.business.gov.au/Documentation/WebServiceRegistration",
+          "title": "Web services registration | ABN Lookup",
+          "fetched": "2026-06-20",
+          "excerpt": "Access to the ABN Lookup web services is free of charge. GUID issued after accepting the web services agreement. No credential or pricing changes documented on the page."
+        }
+      ]
+    },
+    {
+      "question": "What did Anthropic ship in the last 30 days that affects orchestrator or multi-agent SDK behaviour relevant to Pi-CEO?",
+      "claim": "May–June 2026 shipments relevant to Pi-CEO's orchestrator: multiagent sessions and Outcomes public beta (May 6); live MCP server and tool config updates during active sessions plus 100K-token tool output auto-spill to sandbox files (May 19); Opus 4.8 adaptive thinking that fires only when needed (May 28); scheduled cron deployments, Vault env-var credentials for secure CLI/SDK auth, and multi-agent thread webhooks with new session_thread_id field for cross-agent routing (June 9); self-hosted sandboxes on AWS with IAM access control via AnthropicSelfHostedEnvironmentAccess managed policy (June 10). Claude Fable 5 launched June 9 with always-on adaptive thinking, 1M context, 128k max output, and stop_reason: refusal safety classifier.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://releasebot.io/updates/anthropic/claude-developer-platform",
+          "title": "Claude Developer Platform Updates by Anthropic - June 2026 - Releasebot",
+          "fetched": "2026-06-20",
+          "excerpt": "May 6: multiagent sessions & Outcomes beta. May 19: live MCP updates, 100K tool output spill. May 28: Opus 4.8. June 9: cron deployments, Vault creds, session_thread_id. June 10: AWS sandboxes + IAM."
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "Whether the June 15 credit change was truly paused or partially activated — digitalapplied.com (fetched) reports a pause while codingwithai.com (fetched) reports activation; no official Anthropic changelog page was directly accessible to adjudicate.",
+    "Whether the ABR maintenance window noted in the fetched source refers to June 20–21 2025 or 2026 — the page timestamp was ambiguous and no 2026-specific outage notice was found.",
+    "Exact API key issuance UX for new signups on platform.claude.com — the $5 trial credit figure comes from third-party summaries, not a directly fetched primary Anthropic docs or pricing page.",
+    "Whether the new session_thread_id webhook field and Vault credentials (June 9) require Pi-CEO's orchestrator to update its ACP/SDK client version to receive or emit these fields."
+  ],
+  "completed_at": "2026-06-20T05:02:37.640331+00:00",
+  "cost_seconds": 154.6,
+  "failure_reason": null,
+  "mode": "fast"
+}

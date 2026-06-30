@@ -393,7 +393,7 @@ async def _fire_trigger(trigger: dict, log) -> None:
         await _fire_monitor_trigger(trigger, log)
     elif trigger_type == "intel_refresh":                      # RA-587
         await _fire_intel_refresh_trigger(trigger, log)
-    elif trigger_type in ("analyse_lessons", "fallback_dryrun", "zte_v2_score"):
+    elif trigger_type in ("analyse_lessons", "fallback_dryrun", "zte_v2_score", "script", "capability_loop"):
         await _fire_script_trigger(trigger, log)
     elif trigger_type == "board_meeting":
         await _fire_board_meeting_trigger(trigger, log)
@@ -411,6 +411,9 @@ async def _fire_trigger(trigger: dict, log) -> None:
     elif trigger_type == "discovery_archive":                   # RA-2027
         from .discovery_archive import _fire_discovery_archive_trigger  # noqa: PLC0415
         await _fire_discovery_archive_trigger(trigger, log)
+    elif trigger_type == "burndown":                            # RA-6670
+        from .burndown import _fire_burndown_trigger  # noqa: PLC0415
+        await _fire_burndown_trigger(trigger, log)
     elif trigger_type == "build":
         await create_session(
             repo_url=trigger["repo_url"],

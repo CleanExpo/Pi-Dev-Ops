@@ -1,0 +1,82 @@
+{
+  "research_required": true,
+  "questions": [
+    "What is Anthropic's current policy on trial credits and API key requirements for platform-managed accounts as of June 2026?",
+    "Has Anthropic made any changes in the last 30 days to how Claude API keys are provisioned or managed for SaaS platforms offering trial access to end users?",
+    "What is the current ABR (Australian Business Register) API status and any known outages or GUID authentication changes affecting third-party integrations in June 2026?"
+  ],
+  "findings": [
+    {
+      "question": "What is Anthropic's current policy on trial credits and API key requirements for platform-managed accounts as of June 2026?",
+      "claim": "Access to the Claude API requires either a static API key (issued via Console at platform.claude.com) or a short-lived token obtained through Workload Identity Federation; no ongoing free tier exists in official documentation, though new accounts have historically received approximately $5 in complimentary credits per third-party sources. A restructure that would have created separate per-user monthly credit pools ($20–$200 by subscription tier) for Agent SDK and third-party platform usage was announced May 13, 2026 and officially paused on June 15, 2026 — subscription limits for Pro, Max, Team, and Enterprise accounts remain unchanged as of today.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/api/overview",
+          "title": "API overview - Claude API Docs",
+          "fetched": "2026-06-24",
+          "excerpt": "To use the Claude API, you'll need: A Claude Console account; An API key, or a configured Workload Identity Federation rule."
+        },
+        {
+          "url": "https://www.digitalapplied.com/blog/anthropic-claude-credit-overhaul-june-15-2026",
+          "title": "Claude Credit Overhaul 2026: Anthropic Pauses the June 15 Change",
+          "fetched": "2026-06-24",
+          "excerpt": "Nothing changes for now: those surfaces continue drawing from your Pro, Max, Team, and Enterprise subscription limits exactly as before."
+        }
+      ]
+    },
+    {
+      "question": "Has Anthropic made any changes in the last 30 days to how Claude API keys are provisioned or managed for SaaS platforms offering trial access to end users?",
+      "claim": "The single material change within the last 30 days was Anthropic's May 13 announcement — and June 15 pause — of a plan to split Agent SDK, claude -p, and third-party SaaS app usage into a standalone monthly dollar credit pool (billed at standard API rates, non-rollover); that change did not take effect and the status quo is preserved. Workload Identity Federation (WIF), replacing static API keys with short-lived IAM-scoped credentials, was also introduced within this period as an alternative authentication path for enterprise/cloud workloads.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://www.digitalapplied.com/blog/anthropic-claude-credit-overhaul-june-15-2026",
+          "title": "Claude Credit Overhaul 2026: Anthropic Pauses the June 15 Change",
+          "fetched": "2026-06-24",
+          "excerpt": "The proposed change was paused on June 15, 2026. Anthropic shelved plans to separate Agent SDK billing from subscription pools."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/api/overview",
+          "title": "API overview - Claude API Docs",
+          "fetched": "2026-06-24",
+          "excerpt": "An API key, or a configured Workload Identity Federation rule. All requests to the Claude API must include x-api-key or Authorization Bearer token."
+        },
+        {
+          "url": "https://thenewstack.io/anthropic-agent-sdk-credits/",
+          "title": "Anthropic splits billing again: Agent SDK gets separate credit pools - The New Stack",
+          "fetched": "2026-06-24",
+          "excerpt": "Agent SDK, claude-p, Claude Code GitHub Actions, and third-party apps that authenticate through the Agent SDK will no longer draw from standard subscription limits."
+        }
+      ]
+    },
+    {
+      "question": "What is the current ABR (Australian Business Register) API status and any known outages or GUID authentication changes affecting third-party integrations in June 2026?",
+      "claim": "As of June 24, 2026, the ABR status page shows ABR Web Services and Identifier Search both at degraded performance, while ABN lookup, application, and update functions remain operational; no formal incidents have been logged June 10–24. The GUID authentication mechanism (email registration → emailed GUID required on all web service calls) remains the current standard per version 9.9.7 of the web services documentation, with no announced changes to that authentication method found.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://status.abr.gov.au/",
+          "title": "Australian Business Register Status",
+          "fetched": "2026-06-24",
+          "excerpt": "ABR Web Services: Degraded Performance. Identifier Search: Degraded Performance. ABN System, Apply for ABN, Update ABN: Operational. No incidents June 10–24."
+        },
+        {
+          "url": "https://abr.business.gov.au/Documentation/WebServiceRegistration",
+          "title": "Web services registration | ABN Lookup",
+          "fetched": "2026-06-24",
+          "excerpt": "We will process your application and e-mail you an authentication GUID (Globally Unique Identifier) which is required to access the ABN Lookup web services."
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "Whether Anthropic has published explicit guidance for SaaS platforms wishing to provision trial API access to their own end users (no primary-source documentation for a 'platform-managed accounts' tier was found — the concept does not appear in current Claude API docs).",
+    "Whether the ABR's current degraded performance on Web Services and Identifier Search has a documented root cause or estimated resolution time — the status page shows no linked incident report.",
+    "Whether Anthropic's newly paused credit-pool plan will be re-introduced in revised form, and on what timeline — no forward date has been announced as of June 24, 2026."
+  ],
+  "completed_at": "2026-06-24T05:02:56.827327+00:00",
+  "cost_seconds": 143.0,
+  "failure_reason": null,
+  "mode": "fast"
+}

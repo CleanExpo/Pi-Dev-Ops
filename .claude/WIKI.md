@@ -1,8 +1,8 @@
 # .claude — Wiki
 
-_Last updated: 2026-05-09T17:54:08Z (commits 44b4be4..d259e2d)_
+_Last updated: 2026-06-27T04:43:40Z (commits bd9768d..bf6d861)_
 
 ## Recent changes
-- d259e2d — ops: skills, swarm agents, preview-canvas, brand configs, scripts [harness sync] (#202)
+- bf6d861 — feat(spm): add senior project manager command (#371)
 
-Not logged in · Please run /login
+

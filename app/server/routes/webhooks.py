@@ -46,6 +46,45 @@ def _telegram_send(token: str, chat_id: int | str, text: str) -> None:
         log.warning("Telegram reply failed: %s", exc)
 
 
+def _drain_telegram_update(data: dict) -> dict:
+    """Route a Telegram webhook update through the same inbox path as polling."""
+    try:
+        from scripts import marathon_telegram_inbox, marathon_watchdog  # noqa: PLC0415
+
+        _, allowed_chat_ids = marathon_telegram_inbox._resolve_config()
+        ingested_path = marathon_telegram_inbox._ingest_update(
+            data,
+            allowed_chat_ids,
+            dry_run=False,
+        )
+        ingested = 1 if ingested_path is not None else 0
+        dropped = 0 if ingested else 1
+        offset = int(data.get("update_id") or 0) + 1
+        marathon_telegram_inbox._write_heartbeat(
+            polled=1,
+            ingested=ingested,
+            dropped=dropped,
+            gc_count=0,
+            offset=offset,
+        )
+        processed = 0
+        replies: list[str] = []
+        if ingested:
+            processed, replies = marathon_watchdog._drain_inbox()
+        return {
+            "ok": True,
+            "ingested": ingested,
+            "dropped": dropped,
+            "processed": processed,
+            "replies": replies[:3],
+        }
+    except SystemExit as exc:
+        return {"ok": False, "error": f"telegram_config_exit:{exc.code}"}
+    except Exception as exc:
+        log.warning("Telegram webhook intake failed: %s", exc, exc_info=True)
+        return {"ok": False, "error": str(exc)[:160]}
+
+
 @router.post("/api/webhook", dependencies=[Depends(require_rate_limit)])
 async def webhook(request: Request):
     raw_body = await request.body()
@@ -496,6 +535,16 @@ async def telegram_webhook(request: Request):
             return {"ok": True}
         if token and chat_id:
             _telegram_send(token, chat_id, f"✅ Alert `{alert_key}` acknowledged — re-paging stopped.")
+    elif text:
+        result = _drain_telegram_update(data)
+        log.info(
+            "Telegram webhook intake: chat=%s ingested=%s processed=%s error=%s",
+            chat_id,
+            result.get("ingested"),
+            result.get("processed"),
+            result.get("error", ""),
+        )
+        return result
 
     return {"ok": True}
 

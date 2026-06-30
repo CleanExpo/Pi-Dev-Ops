@@ -1,0 +1,86 @@
+{
+  "critical": [],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "webhook.py implements only inbound parsing (Linear → system): verify_linear_signature, parse_linear_event, and linear_issue_to_brief. There are zero outbound Linear API calls — no issueUpdate GraphQL mutation, no linear_update_issue function, no HTTP client targeting the Linear API. Only one direction of the claimed two-way sync exists in code.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Add an outbound Linear client (e.g. POST to https://api.linear.app/graphql with issueUpdate mutation) and call it from the pipeline completion handler to transition issue state back to 'done' or 'in review', completing the missing half of the two-way sync.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The only E2E test file is scripts/smoke_test.py, which requires a live running server (--url, --password flags) and is not an automated CI integration test. The file is truncated in the audit so the 22 checks cannot be verified. No dedicated integration test files exist for the full build pipeline (sessions, evaluator, push) in the tests/ directory — only unit tests for auth and webhook parsing are present.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Add integration tests in tests/ (e.g. test_pipeline.py) that cover sessions, evaluator, and push stages without requiring a live server, or explicitly document that CI gates on smoke_test.py and wire it into the CI pipeline with a test server fixture.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "high",
+      "claim": "spec implies build logs stream to browser in real time via SSE endpoint that pipes session.output_lines (distinct from WebSocket /ws/build/{sid})",
+      "reality": "Neither sessions.py nor main.py defines or registers an SSE route. sessions.py accesses output_lines only in _has_terminal_success_marker for stale-session reconciliation, not for streaming. main.py includes sessions.router but the actual routes/sessions.py file is absent from the provided source; no SSE handler is visible anywhere in the supplied code surface.",
+      "file": "app/server/main.py",
+      "recommendation": "Confirm whether routes/sessions.py contains an SSE endpoint (e.g. @router.get('/api/sessions/{sid}/stream') yielding output_lines as text/event-stream); if only WebSocket is implemented, remove the SSE claim from the spec.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "The route file has utility functions (triggerBuild, getPiCeoStatus, getLinearBacklog, createLinearIssue) but the actual command-dispatch logic (the POST handler that matches message.text against /start, /help, /build) is not present in the provided code — the file is truncated mid-function inside triggerBuild. No /start or /help handler is visible anywhere in the shown code.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Ensure the POST handler contains explicit branches for /start (welcome + usage), /help (command list), and /build <repo> <brief> before the AI fallback path, and verify the file is not accidentally truncated in the deployed bundle.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "low",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "clearHistory() is defined but no /reset or /clear command handler is wired in the visible code, meaning conversation history can only grow to MAX_HISTORY_TURNS with no user-visible way to reset it across Vercel function restarts (where HISTORY Map is wiped anyway, making in-memory history non-persistent).",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Either persist history to an external store (KV/DB) so it survives cold starts, or document that history resets on each Vercel instance recycle and remove the /reset stub if it exists.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "low",
+      "claim": "op:// refs in .env not resolved by dotenv | RA-1Password | Pydantic validator must detect and return None",
+      "reality": "No test in tests/test_auth.py, tests/test_webhook.py, or smoke_test.py exercises Pydantic validator behaviour for op:// prefixed values. The fix is claimed complete but has no regression test to prevent reversion.",
+      "file": "tests/test_auth.py",
+      "recommendation": "Add a unit test in a config or validator test file that asserts a settings field returns None when its value starts with 'op://'.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "Budget tracker is instantiated but not wired — BudgetTracker in src/tao/budget/tracker.py is a correct implementation",
+      "reality": "No test in any visible test file covers BudgetTracker instantiation, token counting, or the unwired path in session_sdk.py. The spec notes the gap but provides no test to document expected behaviour or catch future regressions.",
+      "file": "tests/test_auth.py",
+      "recommendation": "Add a unit test that instantiates BudgetTracker and asserts it updates correctly from a mock SDK response, so the wiring gap is at least tracked as a failing/skipped test rather than silent dead code.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "Budget tracker is instantiated but not wired. BudgetTracker in src/tao/budget/tracker.py is a correct implementation, but session_sdk.py does not instantiate it. SDK metric rows capture output_len but not tokens_used.",
+      "reality": "sessions.py re-exports _write_sdk_metric and _emit_sdk_canary_metric from session_sdk but no BudgetTracker import or instantiation appears anywhere in the visible code surface; create_session calls budget_to_params only to derive model/timeout params, leaving per-session token accounting unimplemented at runtime.",
+      "file": "app/server/sessions.py",
+      "recommendation": "Instantiate BudgetTracker inside session_sdk.py's _run_claude_via_sdk and populate tokens_used from the structured SDK response before writing the metric row.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 8,
+    "critical_count": 0,
+    "high_count": 3,
+    "low_count": 5,
+    "duration_s": 199.9,
+    "audited_at": "2026-06-11T05:08:27.666164+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": [
+      "RA-6502",
+      "RA-6503",
+      "RA-6504"
+    ]
+  }
+}

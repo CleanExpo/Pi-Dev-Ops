@@ -413,6 +413,60 @@ def _route_inbox_message(text: str) -> tuple[str, str]:
     return ("note", text)
 
 
+def _append_phone_idea_jsonl(data: dict, text: str, detail: str) -> Path:
+    """Append an idea record in the format consumed by process_ideas_inbox.py."""
+    IDEAS_DIR.mkdir(parents=True, exist_ok=True)
+    ts = data.get("received_at") or _now().isoformat()
+    record = {
+        "ts": ts,
+        "user_name": data.get("from", "Phill"),
+        "text": detail or text,
+        "source": "telegram",
+        "processed": False,
+        "telegram": {
+            "update_id": data.get("update_id"),
+            "message_id": data.get("message_id"),
+            "chat_id": data.get("chat_id"),
+            "received_at": data.get("received_at"),
+        },
+    }
+    daily_file = IDEAS_DIR / f"{ts[:10]}.jsonl"
+    with daily_file.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+    return daily_file
+
+
+def _auto_promote_phone_ideas(jsonl_file: Path) -> str:
+    """Try to create Linear work immediately; leave JSONL queued if unavailable."""
+    if os.environ.get("IDEAS_INBOX_AUTO_LINEAR", "1").strip().lower() in {
+        "0",
+        "false",
+        "no",
+        "off",
+    }:
+        return "auto-linear disabled"
+    api_key = os.environ.get("LINEAR_API_KEY", "").strip()
+    if not api_key:
+        return "queued; LINEAR_API_KEY not available to watchdog"
+    try:
+        from scripts import process_ideas_inbox
+
+        already_done, created, failed = process_ideas_inbox.process_file(
+            jsonl_file,
+            api_key,
+            dry_run=False,
+        )
+    except Exception as exc:
+        return f"queued; Linear promotion error: {exc}"
+    if created:
+        return f"Linear promoted now ({created} created)"
+    if failed:
+        return f"queued; Linear promotion failed ({failed} failed)"
+    if already_done:
+        return "already promoted"
+    return "queued; no unprocessed idea records found"
+
+
 def _drain_inbox() -> tuple[int, list[str]]:
     """Read every unprocessed file in .harness/telegram-inbox/, route each
     message, write the route result back into the file, and return a summary.
@@ -453,16 +507,21 @@ def _drain_inbox() -> tuple[int, list[str]]:
             # Write a dated brief so it's visible on return
             IDEAS_DIR.mkdir(parents=True, exist_ok=True)
             idea_file = IDEAS_DIR / f"{data.get('update_id', 'x'):012}.md"
+            jsonl_file = _append_phone_idea_jsonl(data, text, detail)
             idea_file.write_text(
                 f"# Idea from Phill via Telegram\n\n"
                 f"**Received:** {data.get('received_at', '')}\n"
                 f"**From:** {data.get('from', 'Phill')}\n\n"
                 f"## Raw text\n\n{text}\n\n"
                 f"## Status\n\nQueued. Not yet planned. Next marathon-watchdog or "
-                f"manual pass will convert this into a Linear issue or spec.\n",
+                f"ideas-inbox drain will convert this into a Linear issue and "
+                f"2nd-brain expansion packet.\n",
                 encoding="utf-8",
             )
-            replies.append(f"+ idea filed: '{detail[:60]}' -> {idea_file.name}")
+            replies.append(
+                f"+ idea queued for Linear: '{detail[:60]}' -> {jsonl_file.name} "
+                f"({_auto_promote_phone_ideas(jsonl_file)})"
+            )
         elif route == "note":
             replies.append(f"+ note received: '{text[:60]}'")
 

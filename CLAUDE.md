@@ -282,3 +282,115 @@ A pre-flight crew gets a product launch-ready, then hands off to existing machin
 - **Run:** `/ship-it` → `launch-charter` → `launch-project-audit` → `launch-review` → `launch-enhance-debloat` (propose only) → sync via `pi-dev-linear-contract` → **STOP for human go**.
 - **On go:** build through `ship-chain` / `tao-loop` + `tao-judge` / `ship-release`; autonomy queue = status `Ready for Pi-Dev` + label `pi-dev:autonomous`.
 - **Wiring:** skills load from `skills/<name>/SKILL.md`; `/ship-it` routed via `_INTENT_SKILLS` in `src/tao/skills.py`. Regenerate `agentskills.json` after adding skills.
+
+## Judge Gate
+
+Before approving or building any feature, connector, automation, agent, hook, MCP server, database change, UI change, or architecture plan, run:
+
+```text
+/judge <proposal>
+```
+
+Judge is read-only. It must challenge the plan, check first-source evidence, identify existing capability, review UI/UX, review security/privacy, define loop/stress tests, and score the proposal out of 100 before any implementation starts. It must not implement code; implementation only follows a separate, explicit user approval after the Judge Report.
+
+- **Claude Code:** `/judge` → `.claude/skills/judge/SKILL.md`
+- **Codex:** `$judge` or `/skills` → select `judge` → `.agents/skills/judge/SKILL.md`
+- **Shared docs:** `.judge/` (evidence ranking, approval policy, report template, example)
+- Distinct from `tao-judge` (machine loop-termination scorer); `judge` decides *whether to build*, `tao-judge` decides *whether an in-flight loop is done*.
+
+## Session Handoff Command
+
+Before stopping, changing terminals, handing work to another agent, opening a PR, or leaving a task partially complete, run:
+
+```text
+/session-handoff
+```
+
+Use a scoped version when helpful:
+
+```text
+/session-handoff <ticket, branch, PR, feature, or repo area>
+```
+
+The handoff must include: summary of what was done, where it started, decisions locked + what shipped, key files, running state, verification (how to confirm things still work), deferred + open questions, and pick up here.
+
+Rules:
+
+- Read-only by default.
+- Do not claim tests passed unless they were run.
+- Do not claim anything shipped unless committed/pushed/merged evidence exists.
+- Do not claim a process is still running unless verified.
+- Always provide the first command the next agent should run.
+
+- **Claude Code:** `/session-handoff` → `.claude/skills/session-handoff/SKILL.md`
+- **Codex:** `$session-handoff` or `/skills` → select `session-handoff` → `.agents/skills/session-handoff/SKILL.md`
+- **Shared docs:** `.session-handoff/` (report template, verification checklist)
+- Companion to `judge`: `/judge` decides *whether to build*; `/session-handoff` records *what happened and where the next agent picks up*.
+
+## Resume From Handoff Command
+
+When picking work back up from a previous session's handoff, run:
+
+```text
+/resume-from-handoff <path to handoff file, pasted handoff, branch, or PR>
+```
+
+It reads the handoff, verifies the repo still matches it, reconciles drift, and continues from the documented pickup point — without re-deriving old context.
+
+Rules:
+
+- Verification (Phases 1–3) is read-only and mandatory **before** any work resumes.
+- It must not edit, commit, push, deploy, or migrate until the reconciliation verdict is reported.
+- On MATERIAL DRIFT or CANNOT RESUME (missing branch/commits, conflicting changes, obsolete PR), STOP and surface — do not resume blindly.
+- Skip the handoff's "Do not redo" list; respect repo gates (run `/judge` before building anything new not already approved).
+
+- **Claude Code:** `/resume-from-handoff` → `.claude/skills/resume-from-handoff/SKILL.md`
+- **Codex:** `$resume-from-handoff` or `/skills` → select `resume-from-handoff` → `.agents/skills/resume-from-handoff/SKILL.md`
+- **Shared docs:** `.resume-from-handoff/` (README, reconciliation checklist)
+- Completes the trio with `judge` (build?) and `session-handoff` (what happened?).
+
+## SPM Command
+
+Before implementing a non-trivial feature, fix, connector, automation, agent, hook, MCP change, UI change, database change, or architecture change, run:
+
+```text
+/spm <task>
+```
+
+`/spm` is the Senior Project Manager command. It must produce a decision-grade spec before implementation. The spec must include:
+
+1. Task being planned
+2. Current project context
+3. Problem statement
+4. Desired outcome
+5. Scope and non-goals
+6. Existing capability review
+7. Specialist board review
+8. Judge challenge
+9. Proposed solution
+10. UX requirements
+11. Technical requirements
+12. Security/privacy requirements
+13. Verification plan
+14. Loop/stress testing
+15. Acceptance criteria
+16. Goal command
+17. Implementation sequence
+18. Session handoff seed
+19. Final recommendation
+
+Default behaviour is read-only. Do not implement until the spec is accepted.
+
+- **Claude Code:** `/spm` → `.claude/skills/spm/SKILL.md`
+- **Codex:** `$spm` or `/skills` → select `spm` → `.agents/skills/spm/SKILL.md`
+- **Shared docs:** `.spm/` (spec template, agent board, goal template, verification template)
+
+Recommended command chain:
+
+```text
+/judge <idea>
+/spm <task>
+/goal <completion condition>
+/session-handoff
+/resume-from-handoff
+```

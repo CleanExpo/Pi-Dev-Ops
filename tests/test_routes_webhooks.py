@@ -233,6 +233,53 @@ def test_workspace_intel_refresh_invalid_date_returns_400(webhook_client, tmp_pa
     assert resp.status_code == 400
 
 
+def test_telegram_webhook_routes_idea_into_intake(webhook_client, monkeypatch):
+    import app.server.config as cfg
+    from app.server.routes import webhooks
+
+    monkeypatch.setattr(cfg, "TELEGRAM_BOT_TOKEN", "bot-token")
+    monkeypatch.setattr(cfg, "TELEGRAM_WEBHOOK_SECRET", "hook-secret")
+    calls: list[dict] = []
+
+    def fake_drain(data: dict) -> dict:
+        calls.append(data)
+        return {"ok": True, "ingested": 1, "dropped": 0, "processed": 1, "replies": []}
+
+    monkeypatch.setattr(webhooks, "_drain_telegram_update", fake_drain)
+
+    resp = webhook_client.post(
+        "/webhook/telegram",
+        headers={"X-Telegram-Bot-Api-Secret-Token": "hook-secret"},
+        json={
+            "update_id": 123,
+            "message": {
+                "message_id": 456,
+                "chat": {"id": 789},
+                "from": {"first_name": "Phill"},
+                "text": "idea: verify production Telegram Linear intake",
+            },
+        },
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["processed"] == 1
+    assert calls[0]["update_id"] == 123
+
+
+def test_telegram_webhook_rejects_bad_secret(webhook_client, monkeypatch):
+    import app.server.config as cfg
+
+    monkeypatch.setattr(cfg, "TELEGRAM_WEBHOOK_SECRET", "hook-secret")
+
+    resp = webhook_client.post(
+        "/webhook/telegram",
+        headers={"X-Telegram-Bot-Api-Secret-Token": "wrong"},
+        json={"message": {"text": "idea: nope"}},
+    )
+
+    assert resp.status_code == 401
+
+
 def test_workspace_intel_refresh_requires_secret_when_configured(webhook_client, tmp_path, monkeypatch):
     """POST returns 401 when WEBHOOK_SECRET is set but header is absent."""
     import app.server.config as cfg

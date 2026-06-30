@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import http.client
 import os
+import pathlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
@@ -54,6 +55,27 @@ class RelayHandler(BaseHTTPRequestHandler):
             return
         body = self.rfile.read(length)
 
+        # Filesystem-direct write when a real vault is available on this host.
+        # Removes the dependency on the Obsidian app/plugin being up — the relay
+        # runs on the Mac that owns the vault, so it writes the note itself.
+        vault = getattr(self.server, "vault", "")  # type: ignore[attr-defined]
+        if vault:
+            rel = parsed_path[len("/vault/"):]  # e.g. Wiki/analyst/foo.md
+            base = pathlib.Path(vault).resolve()
+            target = (base / rel).resolve()
+            if base != target and base not in target.parents:
+                self.send_error(403, "path escapes vault")
+                return
+            try:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(body)
+            except OSError as exc:
+                self.send_error(500, f"vault write failed: {exc}")
+                return
+            self.send_response(204)
+            self.end_headers()
+            return
+
         upstream = urlparse(self.server.upstream_url)  # type: ignore[attr-defined]
         conn = http.client.HTTPConnection(upstream.hostname, upstream.port or 80, timeout=15)
         try:
@@ -84,10 +106,13 @@ class RelayHandler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
 
-def build_server(host: str, port: int, upstream_url: str, token: str) -> ThreadingHTTPServer:
+def build_server(
+    host: str, port: int, upstream_url: str, token: str, vault: str = ""
+) -> ThreadingHTTPServer:
     server = ThreadingHTTPServer((host, port), RelayHandler)
     server.upstream_url = upstream_url.rstrip("/")  # type: ignore[attr-defined]
     server.obsidian_token = token  # type: ignore[attr-defined]
+    server.vault = vault  # type: ignore[attr-defined]
     return server
 
 
@@ -96,16 +121,18 @@ def main() -> int:
     parser.add_argument("--host", default=os.environ.get("OBSIDIAN_RELAY_HOST", DEFAULT_LISTEN_HOST))
     parser.add_argument("--port", type=int, default=int(os.environ.get("OBSIDIAN_RELAY_PORT", DEFAULT_LISTEN_PORT)))
     parser.add_argument("--upstream", default=os.environ.get("OBSIDIAN_RELAY_UPSTREAM", DEFAULT_UPSTREAM))
+    parser.add_argument("--vault", default=os.environ.get("OBSIDIAN_VAULT", ""))
     args = parser.parse_args()
 
     token = os.environ.get("OBSIDIAN_TOKEN", "")
     if not token:
         raise SystemExit("OBSIDIAN_TOKEN is required")
 
-    server = build_server(args.host, args.port, args.upstream, token)
+    server = build_server(args.host, args.port, args.upstream, token, args.vault)
+    sink = f"vault://{args.vault}" if args.vault else args.upstream
     print(
         f"obsidian analyst relay listening on http://{args.host}:{args.port} "
-        f"-> {args.upstream} ({ALLOWED_PREFIX} only)",
+        f"-> {sink} ({ALLOWED_PREFIX} only)",
         flush=True,
     )
     server.serve_forever()

@@ -11,6 +11,7 @@ const NAV = [
   { href: "/overview",  label: "Overview",  icon: "◈", key: "overview"  },
   { href: "/brain",     label: "Brain",     icon: "◎", key: "brain"     },
   { href: "/control",   label: "Control",   icon: "⊞", key: "control"   },
+  { href: "/loop",      label: "Loop",      icon: "∞", key: "loop"      },
   { href: "/builds",    label: "Builds",    icon: "⚙", key: "builds"   },
   { href: "/routines",  label: "Routines",  icon: "↻", key: "routines"  },
   { href: "/projects",  label: "Portfolio", icon: "◫", key: "projects"  },

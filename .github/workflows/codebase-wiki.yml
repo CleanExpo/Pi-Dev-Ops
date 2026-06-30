@@ -59,8 +59,18 @@ jobs:
           cache-dependency-path: app/requirements.txt
 
       - name: Install dependencies
+        # RA-5700 — the default pip retry budget (3 retries, 15 s read timeout)
+        # is too small for the intermittent pypi.org ReadTimeoutError that has
+        # failed this job on main (run 27332720919: "No matching distribution
+        # found for httpcore==1.*" after three 15 s timeouts fetching httpcore).
+        # Widen the network budget and refresh pip so a transient index blip no
+        # longer red-X's the post-merge wiki refresh.
+        env:
+          PIP_RETRIES: "5"
+          PIP_DEFAULT_TIMEOUT: "60"
         run: |
-          pip install -r app/requirements.txt
+          python -m pip install --upgrade pip
+          pip install --retries 5 --timeout 60 -r app/requirements.txt
 
       - name: Compute previous merge SHA
         id: prev
