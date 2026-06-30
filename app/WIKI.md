@@ -1,8 +1,8 @@
 # app — Wiki
 
-_Last updated: 2026-06-30T20:28:11Z (commits 55ebd67..9b1e6fe)_
+_Last updated: 2026-06-30T21:27:51Z (commits 9ca3f07..ec0450c)_
 
 ## Recent changes
-- 9b1e6fe — feat(tao): SDK-layer tool gate — interceptor + default-deny allowlist (#388)
+- ec0450c — You are the chief-of-staff synthesising a daily portfolio pulse for P... (#394)
 
 
