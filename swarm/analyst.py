@@ -348,25 +348,53 @@ def _should_override_obsidian_dns(host: str, remote_ip: str) -> bool:
     return False
 
 
-def _mirror_obsidian(vault_relative_path: str, content: str) -> bool:
-    """Write note to Obsidian vault — REST API or filesystem fallback."""
+def _local_vault_is_real() -> bool:
+    """True only for a genuine on-disk Obsidian vault — not a bare false-positive
+    path inside an off-Mac container. A real vault has a `.obsidian/` config dir
+    or the `Wiki/` content dir."""
     from . import config  # noqa: PLC0415
 
-    # Off-Mac runtimes (Railway, Windows collectors) must use the REST bridge.
-    # A configured OBSIDIAN_VAULT path inside a container can otherwise become a
-    # false-positive local write that never reaches the founder's Mac Mini vault.
+    vault = config.OBSIDIAN_VAULT
+    if not vault:
+        return False
+    root = Path(vault)
+    return root.is_dir() and ((root / ".obsidian").is_dir() or (root / "Wiki").is_dir())
+
+
+def _obsidian_fs_write(vault_relative_path: str, content: str) -> bool:
+    from . import config  # noqa: PLC0415
+    try:
+        abs_path = Path(config.OBSIDIAN_VAULT) / vault_relative_path
+        abs_path.parent.mkdir(parents=True, exist_ok=True)
+        abs_path.write_text(content, encoding="utf-8")
+        log.debug("analyst: obsidian filesystem write %s", vault_relative_path)
+        return True
+    except OSError as exc:
+        log.warning("analyst: obsidian filesystem write failed (%s)", exc)
+        return False
+
+
+def _mirror_obsidian(vault_relative_path: str, content: str) -> bool:
+    """Write note to Obsidian vault.
+
+    Order:
+    1. A GENUINE local vault wins — a direct filesystem write is resilient to
+       Obsidian REST/app outages and never emits a "No Obsidian" failure on a
+       host that actually holds the vault (the Mac brain host).
+    2. Off-Mac runtimes use the REST bridge.
+    3. A configured-but-bare OBSIDIAN_VAULT path (container false-positive) falls
+       through to REST so writes still reach the real vault.
+    """
+    from . import config  # noqa: PLC0415
+
+    if _local_vault_is_real() and _obsidian_fs_write(vault_relative_path, content):
+        return True
+
     if config.OBSIDIAN_REMOTE_URL:
         return _mirror_obsidian_rest(vault_relative_path, content)
 
-    if config.OBSIDIAN_VAULT:
-        try:
-            abs_path = Path(config.OBSIDIAN_VAULT) / vault_relative_path
-            abs_path.parent.mkdir(parents=True, exist_ok=True)
-            abs_path.write_text(content, encoding="utf-8")
-            log.debug("analyst: obsidian filesystem write %s", vault_relative_path)
-            return True
-        except OSError as exc:
-            log.warning("analyst: obsidian filesystem write failed (%s)", exc)
+    if config.OBSIDIAN_VAULT and _obsidian_fs_write(vault_relative_path, content):
+        return True
 
     return _mirror_obsidian_rest(vault_relative_path, content)
 

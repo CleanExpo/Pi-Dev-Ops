@@ -1,0 +1,6 @@
+{
+  "eval_id": 1,
+  "eval_name": "unite-hub-client-portal",
+  "prompt": "I want to add a client portal to Unite-Hub where clients can log in, see their projects, and message us. Before we build anything, plan the full path 15 moves ahead \u2014 I keep finding the build is missing something, so I want the whole route mapped including the stuff that's easy to forget.",
+  "assertions": []
+}

@@ -1,0 +1,85 @@
+{
+  "critical": [],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "webhook.py implements only inbound Linear webhook parsing (verify_linear_signature, parse_linear_event, linear_issue_to_brief). There are zero outbound Linear API calls — no issueUpdate GraphQL mutation, no linear_update_issue function, no Linear API client instantiation anywhere in the provided files. The sync is one-directional: Linear → Pi CEO only.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Implement an outbound Linear client (e.g. POST to https://api.linear.app/graphql with issueUpdate mutation) and call it from the build completion path to transition issue state back to 'done' or 'in review'.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "spec implies build logs stream to browser in real time via SSE endpoint that pipes session.output_lines",
+      "reality": "Neither sessions.py nor main.py defines or registers an SSE endpoint. main.py includes sessions.router, webhooks.router, pipeline.router, and 14 other routers but none are named for SSE/log-streaming. The em() helper is imported and used in kill_session (event emission to in-memory store), but no HTTP endpoint that delivers those events to the browser via Server-Sent Events is visible in the provided files. Only a WebSocket path (/ws/build/{sid}) is referenced in the probe context.",
+      "file": "app/server/main.py",
+      "recommendation": "Add a GET /api/sessions/{sid}/stream route (SSE, text/event-stream) in routes/sessions.py that reads session.output_lines and yields them as data: frames, then include the router in main.py.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "The route.ts file is truncated before the POST handler and command-dispatch logic is reached. Helper functions for /build (triggerBuild) and /status (getPiCeoStatus) exist, but no /start or /help command handlers are visible in the provided source excerpt. Cannot confirm /start or /help are wired.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Confirm the full POST handler contains explicit branches for /start and /help text commands; if absent, add minimal handlers that reply with an intro and command list respectively.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The tests/ directory contains only unit tests (test_auth.py: 13 auth tests, test_webhook.py: ~14 webhook signature tests). No pytest-based E2E or integration tests covering the build pipeline (sessions, evaluator, push) exist in the test suite — coverage for those paths relies entirely on smoke_test.py which requires a live server and is not run in CI as a standard pytest suite.",
+      "file": "tests/test_auth.py",
+      "recommendation": "Add a pytest integration test module (e.g. tests/test_pipeline_e2e.py) that spins up the server in-process and exercises the session→evaluator→push flow end-to-end, rather than relying solely on the live-server smoke script.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "RA-1154: pipeline probe — canary marker, no functional change (listed under Sprint 10 complete)",
+      "reality": "The code comment in smoke_test.py reads explicitly 'RA-1154: pipeline probe — canary marker, no functional change', confirming this PR added no actual test logic — it was a marker commit only. The spec counting it as a completed pipeline coverage item overstates what was delivered.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Remove RA-1154 from the 'E2E coverage complete' checklist or replace the canary comment with a real pipeline probe assertion (e.g. a /api/pipeline/{id} status check in the 22-check suite).",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The --agent-sdk flag that triggers 'SDK path verification checks (RA-575)' is opt-in (action='store_true', defaults to False). Standard smoke test runs invoked without that flag skip all SDK path verification, so the claimed complete SDK coverage is not exercised by default.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Either make --agent-sdk the default when TAO_USE_AGENT_SDK=1 is set in the environment, or split SDK checks into a separate always-on check block so they are never silently omitted.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "BudgetTracker in src/tao/budget/tracker.py is a correct implementation, but session_sdk.py does not instantiate it — SDK metric rows capture output_len but not tokens_used",
+      "reality": "create_session in sessions.py imports budget_to_params and describe_budget for parameter tuning (model, thresholds) but never imports or instantiates BudgetTracker. Token-level tracking (tokens_used field) is therefore absent from SDK metric rows, consistent with the spec's own admission that the tracker is unconnected.",
+      "file": "app/server/sessions.py",
+      "recommendation": "In session_sdk.py, instantiate BudgetTracker at session start, increment it from the structured SDK response's usage field after each query call, and write the final tokens_used value into the SDK metric row.",
+      "category": "build log SSE streaming"
+    },
+    {
+      "severity": "low",
+      "claim": "kill_session is a complete session lifecycle operation",
+      "reality": "kill_session has no except clause around the terminate/kill block; any OSError or ProcessLookupError (e.g. process already exited) will propagate uncaught to the caller rather than returning False gracefully.",
+      "file": "app/server/sessions.py",
+      "recommendation": "Wrap the terminate/kill/status block in try/except (OSError, ProcessLookupError) and return False on error so callers receive a clean boolean rather than an unhandled exception.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 8,
+    "critical_count": 0,
+    "high_count": 2,
+    "low_count": 6,
+    "duration_s": 209.7,
+    "audited_at": "2026-06-10T09:07:00.439186+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": [
+      "RA-5732",
+      "RA-5733"
+    ]
+  }
+}

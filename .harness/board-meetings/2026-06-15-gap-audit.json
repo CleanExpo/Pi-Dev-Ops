@@ -1,0 +1,45 @@
+{
+  "critical": [],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "webhook.py implements only the inbound direction: HMAC verification (verify_linear_signature), event parsing (parse_linear_event), and brief generation (linear_issue_to_brief). There are zero outbound Linear API calls in the provided source — no issueUpdate GraphQL mutation, no linear_update_issue helper, no HTTP POST to api.linear.app/graphql to transition issue state after a build completes or fails.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Add an async helper (e.g. linear_update_issue_state) that POSTs the issueUpdate mutation to https://api.linear.app/graphql with Authorization: lin_api_... and call it from the build completion path in routes/sessions.py to close the two-way loop.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The test/ directory contains only unit tests for auth (test_auth.py) and webhook signature parsing (test_webhook.py). No integration or E2E tests exist covering the build pipeline: sessions.py route, the evaluator, or the push phase. scripts/smoke_test.py is a live-server HTTP probe that requires a running instance and cannot run in CI without one — it is not an integration test suite.",
+      "file": "tests/",
+      "recommendation": "Add pytest integration tests under tests/ that mock the Claude Agent SDK and exercise the full session-create → evaluator → phase-push flow without requiring a live server.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "scripts/smoke_test.py itself carries the comment 'RA-1154: pipeline probe — canary marker, no functional change', indicating the pipeline check was added as a placeholder marker, not a real coverage assertion. The file is also truncated in the provided source so the 22-check count cannot be independently verified.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Replace the canary-marker comment with a real pipeline invocation check (POST /api/build → poll /api/sessions/{id} until terminal state) and assert the 22-check count matches the actual number of passing assertions.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 3,
+    "critical_count": 0,
+    "high_count": 2,
+    "low_count": 1,
+    "duration_s": 191.8,
+    "audited_at": "2026-06-15T21:21:06.430907+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": [
+      "RA-6707",
+      "RA-6708"
+    ]
+  }
+}

@@ -239,6 +239,14 @@ TAO_MAX_COST_USD     = float(os.environ.get("TAO_MAX_COST_USD",   "5.00"))
 TAO_HARD_STOP_FILE   = os.environ.get("TAO_HARD_STOP_FILE",
                             os.path.join(os.path.expanduser("~"), ".claude", "HARD_STOP"))
 
+# RA-6670 — bounded daily P3 backlog-burndown cap. The `burndown` cron trigger
+# claims at most this many open P3 (priority-3) Todo findings per run and drives
+# each to a terminal state (worked → PR, or closed-with-reason). The cap is the
+# primary spend bound — set to 0 to disable burndown (fetch + decide, claim none)
+# without removing the trigger. Lowering the autonomy threshold to P3 was
+# rejected: it would spawn ~219 build sessions at once (flood + uncapped spend).
+TAO_BURNDOWN_DAILY_CAP = int(os.environ.get("TAO_BURNDOWN_DAILY_CAP", "5"))
+
 # ---------------------------------------------------------------------------
 # Pi-SEO scanner settings
 # ---------------------------------------------------------------------------

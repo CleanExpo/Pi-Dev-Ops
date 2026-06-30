@@ -1,8 +1,8 @@
 # src — Wiki
 
-_Last updated: 2026-05-23T07:20:42Z (commits 2d31934..aa28d3f)_
+_Last updated: 2026-06-27T04:43:40Z (commits bd9768d..bf6d861)_
 
 ## Recent changes
-- aa28d3f — feat(skills): add launch-crew pre-flight + wire ship-it intent routing (#252)
+- bf6d861 — feat(spm): add senior project manager command (#371)
 
-Not logged in · Please run /login
+

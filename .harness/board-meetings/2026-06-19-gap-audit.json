@@ -1,0 +1,66 @@
+{
+  "critical": [],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "webhook.py implements only the inbound direction: HMAC verification, parse_linear_event(), and linear_issue_to_brief() convert Linear webhooks into build briefs. There are zero outbound Linear API calls in either provided file — no linear_update_issue(), no issueUpdate GraphQL mutation, no HTTP call to api.linear.app. The 'state updates flow back to Linear' half of the two-way sync is entirely absent from the provided source.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Add an outbound Linear state-update function (e.g. linear_update_issue_state(issue_id, state)) that posts an issueUpdate mutation to https://api.linear.app/graphql using LINEAR_API_KEY, and call it from routes/webhooks.py after a session completes or fails.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The only test files present cover auth unit tests (test_auth.py, 14 tests) and webhook signature unit tests (test_webhook.py, 11 tests). The '22-check smoke test suite' lives in scripts/smoke_test.py which requires a live running server via --url and is not a pytest-runnable integration test. Zero automated tests exist for the full build pipeline: no session creation/lifecycle tests, no evaluator invocation tests, no push-phase tests. CLAUDE.md itself notes 'test_sdk_phase2.py' has 3 pre-existing failures because claude_agent_sdk is not installed locally — confirming SDK pipeline path is not testable in CI.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Add pytest integration tests (using mocked SDK and git backends) that exercise the session create → generate → evaluate → push lifecycle, and mark the smoke_test.py clearly as a manual live-server probe rather than counting it as the CI coverage gate.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "Telegram handling is implemented as a Next.js API route (dashboard/app/api/telegram/route.ts), not as an MCP tool. The provided source is truncated mid-function (triggerBuild cuts off at `const cookie = aw`), so the POST handler and command-dispatch logic that would match /start, /help, /build text strings are not present in the excerpt. Helper functions for build triggering (triggerBuild), status (getPiCeoStatus), and Linear backlog (getLinearBacklog) exist, confirming partial implementation, but /start and /help handler presence cannot be confirmed from the visible code.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Read the full file to verify a command-dispatch block (switch on text or a series of startsWith checks) exists for /start, /help, and /build; if /start or /help handlers are absent, add them — /start returns a welcome string, /help lists available commands.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "scripts/smoke_test.py is truncated in the provided source (cut off mid-function inside _req); the actual number and names of the 22 checks cannot be verified from the code. It is impossible to confirm all 22 checks are implemented as claimed.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Ensure the full smoke_test.py is committed without truncation and add a CI step that counts assertions to guard against silent removal of checks.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "Neither test_auth.py nor test_webhook.py import or exercise any session, evaluator, pipeline, or push route code. The evaluator (session_sdk.py _run_single_eval), the board meeting (agents/board_meeting.py), and the push phase (_phase_push in sessions.py) have no coverage at all in the pytest suite.",
+      "file": "tests/test_auth.py",
+      "recommendation": "Add at minimum one integration test per pipeline phase (plan, generate, evaluate, push) using AsyncMock on claude_agent_sdk.ClaudeSDKClient as documented in CLAUDE.md SDK testing guidance.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "spec implies build logs stream to browser in real time",
+      "reality": "Real-time build log delivery is implemented via WebSocket at /ws/build/{sid} (routes/utils.py), not SSE. No SSE endpoint piping session.output_lines exists in the codebase. The SSE infrastructure (dashboard/hooks/useSSE.ts with exponential-backoff reconnect) is wired to /api/mission-control/live (live-autonomy aggregator), not to individual session build logs. The two transports serve different surfaces.",
+      "file": "app/server/routes/utils.py",
+      "recommendation": "Update spec and architecture docs to state that per-session build logs are delivered via WebSocket (/ws/build/{sid}), not SSE; if an SSE fallback for build logs is genuinely required (e.g. for environments where WebSocket is blocked), add a GET /api/sessions/{sid}/stream endpoint that yields output_lines as text/event-stream.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 6,
+    "critical_count": 0,
+    "high_count": 2,
+    "low_count": 4,
+    "duration_s": 192.6,
+    "audited_at": "2026-06-19T05:08:39.033633+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": []
+  }
+}

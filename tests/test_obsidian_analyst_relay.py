@@ -66,3 +66,28 @@ def test_relay_forwards_only_authenticated_analyst_writes():
     conn.close()
     relay.shutdown()
     upstream.shutdown()
+
+
+def test_relay_writes_to_vault_filesystem_without_upstream(tmp_path):
+    """With a vault configured, the relay writes the note directly to disk and
+    needs no Obsidian app/upstream — the durable fix for production 'No Obsidian'."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    # upstream points nowhere reachable; filesystem path must be used instead.
+    relay = build_server("127.0.0.1", 0, "http://127.0.0.1:1", "secret-token", str(vault))
+    _serve(relay)
+
+    conn = http.client.HTTPConnection("127.0.0.1", relay.server_port, timeout=5)
+    conn.request(
+        "PUT",
+        "/vault/Wiki/analyst/proof.md",
+        body=b"# Proof\n",
+        headers={"Authorization": "Bearer secret-token", "Content-Type": "text/markdown"},
+    )
+    resp = conn.getresponse()
+    resp.read()
+    assert resp.status == 204
+    assert (vault / "Wiki" / "analyst" / "proof.md").read_bytes() == b"# Proof\n"
+
+    conn.close()
+    relay.shutdown()

@@ -1,4 +1,6 @@
 """Plaud → Brain ingester. Spec: docs/superpowers/specs/2026-05-17-plaud-brain-ingestion-design.md"""
+from __future__ import annotations
+
 import re
 import unicodedata
 
@@ -535,7 +537,11 @@ import argparse
 import subprocess
 
 
-DEFAULT_WIKI_DIR = Path.home() / "2nd Brain" / "2nd Brain" / "Wiki"
+# Honor BRAIN1_WIKI_DIR so Plaud notes land in the real Obsidian vault (the
+# Hermes 2nd brain, e.g. ~/2nd-brain/Wiki) rather than a stray non-vault folder.
+DEFAULT_WIKI_DIR = Path(
+    os.environ.get("BRAIN1_WIKI_DIR", str(Path.home() / "2nd Brain" / "2nd Brain" / "Wiki"))
+)
 DEFAULT_STATE_PATH = Path.home() / ".hermes" / "plaud-state.json"
 DEFAULT_LOCK_PATH = Path.home() / ".hermes" / "plaud-ingest.lock"
 DEFAULT_LOG_PATH = Path.home() / ".hermes" / "logs" / "plaud-ingest.log"

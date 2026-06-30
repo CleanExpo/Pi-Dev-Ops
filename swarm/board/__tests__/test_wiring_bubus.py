@@ -3,6 +3,11 @@ import asyncio
 
 import pytest
 
+# bubus is an optional, dormant dependency (BUBUS_ENABLED=0 by default) and is
+# not in app/requirements.txt, so it is absent in CI. swarm.board.wiring imports
+# it at module level — skip the whole module rather than error collection.
+pytest.importorskip("bubus", reason="bubus optional dep not installed (dormant feature)")
+
 from swarm.board.wiring import (
     BoardDispatchEvent,
     PersonaOpinionEvent,

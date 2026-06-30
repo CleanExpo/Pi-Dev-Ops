@@ -1,0 +1,101 @@
+{
+  "research_required": true,
+  "questions": [
+    "What changes has Anthropic made to trial credit policies or API key requirements in the last 30 days that could affect platform-managed credit flows?",
+    "What is the current status of Anthropic's pricing changes scheduled around 22 June 2026 that could impact Mythos-as-planner strategy?",
+    "Are there any known outages or changes to the Australian Business Register (ABR) API that could affect ABN lookup reliability in production?",
+    "What competing RestoreAssist or disaster recovery SaaS platforms have launched or updated their offerings in the last 60 days?"
+  ],
+  "findings": [
+    {
+      "question": "What changes has Anthropic made to trial credit policies or API key requirements in the last 30 days that could affect platform-managed credit flows?",
+      "claim": "Anthropic announced on May 14, 2026 that Agent SDK and headless claude -p usage would move to separate monthly credit pools (Pro $20, Max 5x $100, Max 20x $200) effective June 15; however, on June 15 Anthropic confirmed the change was shelved and all usage continues drawing from existing subscription limits unchanged. Trial API credit policy is unaltered: new accounts receive a small free credit grant; no new key-gating requirement was introduced.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://www.digitalapplied.com/blog/anthropic-claude-credit-overhaul-june-15-2026",
+          "title": "Claude Credit Overhaul 2026: Anthropic Pauses the June 15 Change",
+          "fetched": "2026-06-18",
+          "excerpt": "On June 15, 2026, Anthropic confirmed the change was shelved. Agent SDK and headless usage continue drawing from existing subscription limits unchanged."
+        },
+        {
+          "url": "https://platform.claude.com/docs/en/about-claude/pricing",
+          "title": "Pricing - Claude API Docs",
+          "fetched": "2026-06-18",
+          "excerpt": "New users receive a small amount of free credits to test the API. Contact sales for information about extended trials for enterprise evaluation."
+        },
+        {
+          "url": "https://www.techtimes.com/articles/317625/20260602/anthropic-ends-subscription-subsidy-agents-june-15-credit-pool-replaces-flat-rate-access.htm",
+          "title": "Anthropic Ends Subscription Subsidy for Agents June 15: Credit Pool Replaces Flat-Rate Access",
+          "fetched": "2026-06-18",
+          "excerpt": "Starting June 15, 2026, Claude Agent SDK usage, the claude -p command, Claude Code GitHub Actions will no longer draw from standard subscription usage limits."
+        }
+      ]
+    },
+    {
+      "question": "What is the current status of Anthropic's pricing changes scheduled around 22 June 2026 that could impact Mythos-as-planner strategy?",
+      "claim": "Claude Fable 5 subscription access (free on Pro and Team tiers) ends June 22, 2026; post-22 June subscription terms have not been published. Separately, Claude Mythos 5 — the model relevant to a Mythos-as-planner strategy — is priced at $10/MTok input and $50/MTok output via the API (same as Fable 5) and is currently under limited availability via the glasswing program; its API token pricing is stable with no announced changes around June 22.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/about-claude/pricing",
+          "title": "Pricing - Claude API Docs",
+          "fetched": "2026-06-18",
+          "excerpt": "Claude Mythos 5 (limited availability via anthropic.com/glasswing): $10/MTok input, $50/MTok output. Claude Fable 5: $10/MTok input, $50/MTok output."
+        },
+        {
+          "url": "https://www.mindstudio.ai/blog/claude-fable-5-pricing-access-usage-limits",
+          "title": "Claude Fable 5 Pricing, Access, and Usage Limits: What You Need to Know",
+          "fetched": "2026-06-18",
+          "excerpt": "Claude Fable 5 is available to Pro and Team subscription users at no additional cost until June 22. Anthropic has not published exact post-June 22 terms for all subscription tiers."
+        }
+      ]
+    },
+    {
+      "question": "Are there any known outages or changes to the Australian Business Register (ABR) API that could affect ABN lookup reliability in production?",
+      "claim": "As of June 18, 2026, the ABR reports all systems fully operational — ABN System, ABR Web Services, and Identifier Search are green with no incidents recorded in the past two weeks (June 4–18). No API-breaking changes or deprecation notices are active; the only scheduled downtime is the Christmas/New Year closure (24 Dec 2026 – 4 Jan 2027).",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://status.abr.gov.au/",
+          "title": "Australian Business Register Status",
+          "fetched": "2026-06-18",
+          "excerpt": "All Systems Operational. No incidents reported June 4–18, 2026. ABN System, ABR Web Services, Identifier Search: all operational."
+        },
+        {
+          "url": "https://www.abr.gov.au/general-information/scheduled-site-maintenance",
+          "title": "Scheduled site maintenance | Australian Business Register",
+          "fetched": "2026-06-18",
+          "excerpt": "ABR will close normal operations from midday AEDT Thursday 24 December 2026, resuming Monday 4 January 2027."
+        }
+      ]
+    },
+    {
+      "question": "What competing RestoreAssist or disaster recovery SaaS platforms have launched or updated their offerings in the last 60 days?",
+      "claim": "HYCU R-Cloud added Hyper-V and Proxmox VE 9.0 support with a real-time replication engine in April 2026; no direct RestoreAssist-category (insurance-claims-focused disaster recovery for Australian SMEs) platform launch was found across PR Newswire, BusinessWire, or major review sites in the April–June 2026 window.",
+      "confidence": "low",
+      "sources": [
+        {
+          "url": "https://www.hycu.com/new",
+          "title": "New Features and Innovations in the HYCU R-Cloud Platform | HYCU",
+          "fetched": "2026-06-18",
+          "excerpt": "HYCU recently launched protections for Hyper-V with HYCU R-Cloud including backup, disaster recovery, mobility, and cyber resiliency features."
+        },
+        {
+          "url": "https://controlmonkey.io/resource/cloud-disaster-recovery-solutions/",
+          "title": "10 Best Cloud Disaster Recovery Solutions In 2026",
+          "fetched": "2026-06-18",
+          "excerpt": "Best cloud disaster recovery solutions in 2026 are ControlMonkey, Acronis, and Druva. No RestoreAssist-class competitor identified."
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "What specific post-June 22 subscription-tier terms will Anthropic publish for Fable 5 and Mythos 5 access — will Mythos 5 remain limited-availability indefinitely or transition to general availability with changed pricing?",
+    "Are there Australia-specific or insurance-claims-workflow SaaS platforms (direct RestoreAssist competitors) that launched or updated in April–June 2026 that did not surface in general DR SaaS review-site searches?"
+  ],
+  "completed_at": "2026-06-18T05:02:47.795253+00:00",
+  "cost_seconds": 116.7,
+  "failure_reason": null,
+  "mode": "fast"
+}

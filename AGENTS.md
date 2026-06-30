@@ -145,4 +145,110 @@ Run `npx tsc --noEmit && npm run build` before committing any change to `dashboa
 
 ---
 
+## Judge Gate
+
+Before approving or building any feature, connector, automation, agent, hook, MCP server, database change, UI change, or architecture plan, invoke the repo skill:
+
+```text
+$judge <proposal>
+```
+
+In Codex, use `$judge` or `/skills` and select `judge`. In Claude Code, use `/judge`.
+
+Judge is read-only. It must produce a Judge Report (first-source evidence, existing capability, devil's advocate objections, UX gaps, security/privacy risks, loop/stress test plan, score out of 100, decision) before implementation. It must not build, edit, commit, push, migrate, or deploy. Implementation only follows separate explicit approval after the report.
+
+- **Codex skill:** `.agents/skills/judge/SKILL.md`
+- **Claude Code skill:** `.claude/skills/judge/SKILL.md`
+- **Shared docs:** `.judge/`
+- Distinct from `tao-judge` (machine loop-termination scorer).
+
+---
+
+## Session Handoff Boundary
+
+Agents may freely create or update handoff command assets in:
+
+| Path | Permission |
+|---|---|
+| `.claude/skills/session-handoff/` | ✅ |
+| `.agents/skills/session-handoff/` | ✅ |
+| `.session-handoff/` | ✅ |
+| `skills/session-handoff/` | ✅ |
+
+Before ending a work session, invoke:
+
+```text
+$session-handoff
+```
+
+In Claude Code, use `/session-handoff`. The command is read-only by default and must not mutate repo state unless separately authorised. It must produce a structured handoff (summary, starting point, locked decisions, what shipped, key files, running state, verification commands, deferred/open questions, exact pickup point, risk notes, quality check) and always give the first command the next agent should run.
+
+- **Codex skill:** `.agents/skills/session-handoff/SKILL.md`
+- **Claude Code skill:** `.claude/skills/session-handoff/SKILL.md`
+- **Shared docs:** `.session-handoff/`
+- Companion to `judge`: `/judge` decides whether to build; `/session-handoff` records where the next agent picks up.
+
+---
+
+## Resume From Handoff Boundary
+
+Agents may freely create or update resume command assets in:
+
+| Path | Permission |
+|---|---|
+| `.claude/skills/resume-from-handoff/` | ✅ |
+| `.agents/skills/resume-from-handoff/` | ✅ |
+| `.resume-from-handoff/` | ✅ |
+| `skills/resume-from-handoff/` | ✅ |
+
+To pick work back up from a handoff, invoke:
+
+```text
+$resume-from-handoff <handoff path, pasted handoff, branch, or PR>
+```
+
+In Claude Code, use `/resume-from-handoff`. Verification (load handoff → verify repo state → reconcile) is read-only and mandatory; the command must not mutate repo state until it has reported a reconciliation verdict, and must STOP rather than resume on material drift or a missing branch/commit. When it does resume, it skips the handoff's "Do not redo" list and respects repo gates (run `judge` before building anything new not already approved).
+
+- **Codex skill:** `.agents/skills/resume-from-handoff/SKILL.md`
+- **Claude Code skill:** `.claude/skills/resume-from-handoff/SKILL.md`
+- **Shared docs:** `.resume-from-handoff/`
+- Completes the trio with `judge` (build?) and `session-handoff` (what happened?).
+
+---
+
+## SPM Boundary
+
+Agents may freely create or update SPM command assets in:
+
+| Path | Permission |
+|---|---|
+| `.claude/skills/spm/` | ✅ |
+| `.agents/skills/spm/` | ✅ |
+| `.spm/` | ✅ |
+| `skills/spm/` | ✅ |
+
+Before implementation of any non-trivial change, invoke:
+
+```text
+$spm <task>
+```
+
+In Claude Code, use `/spm <task>`. The SPM command is read-only by default and must not mutate repo state unless implementation is separately authorised. It produces a decision-grade spec (sections 1–19) and the exact `/goal` command to run after the spec is accepted.
+
+- **Codex skill:** `.agents/skills/spm/SKILL.md`
+- **Claude Code skill:** `.claude/skills/spm/SKILL.md`
+- **Shared docs:** `.spm/`
+
+Recommended command chain:
+
+```text
+/judge <idea>
+/spm <task>
+/goal <completion condition>
+/session-handoff
+/resume-from-handoff
+```
+
+---
+
 Last updated: 2026-04-14 (MARATHON-4 / RA-588)

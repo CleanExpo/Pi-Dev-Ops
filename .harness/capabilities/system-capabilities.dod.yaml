@@ -1,0 +1,120 @@
+# System Capability Registry — what Pi-Dev-Ops ACTUALLY has (verified, not claimed)
+#
+# This is the foundational block of the "product factory": for the Senior PM to
+# compose your assets into a finished product, it must first KNOW what assets
+# truly exist and work. This registry is run by the same honest engine as the
+# DoD checks (scripts/coverage_check.py) — each capability carries a probe, so
+# the inventory is PROVEN by execution, not asserted in prose.
+#
+# Run it:
+#   python scripts/coverage_check.py .harness/capabilities/system-capabilities.dod.yaml
+#
+# A capability that can't be verified shows UNKNOWN — never silently "present".
+
+project_id: pi-dev-ops-capabilities
+generated: 2026-06-07
+note: >
+  The system's self-knowledge of its own tools. The honest answer to
+  "do we have what we need to build a product?" — backed by probes.
+
+requirements:
+  # ── Planning & thinking ──────────────────────────────────────────
+  - id: cap-forward-planner
+    statement: "Can plan a product 15+ moves ahead (forward-planner)."
+    check: path_exists
+    path: skills/forward-planner/SKILL.md
+
+  - id: cap-senior-pm
+    statement: "Has a Senior Project Manager module (intake SPM)."
+    check: path_exists
+    path: swarm/intake/spm.py
+
+  - id: cap-pm-scoper
+    statement: "Can turn vague requests into concrete specs (pm_scoper)."
+    check: path_exists
+    path: swarm/pm_scoper.py
+
+  # ── Construct (build) ────────────────────────────────────────────
+  - id: cap-skills-library
+    statement: "Has a large reusable skills library (>=50 SKILL.md)."
+    check: command
+    cmd: "test $(find skills -maxdepth 2 -name SKILL.md | wc -l) -ge 50"
+
+  - id: cap-build-orchestrator
+    statement: "Can orchestrate autonomous build work (orchestrator + fix_orchestrator)."
+    check: command
+    cmd: "test -f swarm/orchestrator.py && test -f swarm/fix_orchestrator.py"
+
+  - id: cap-production-coordinator
+    statement: "Has a production handoff coordinator."
+    check: path_exists
+    path: swarm/production_coordinator.py
+
+  # ── Connect (the CLIs/APIs/MCPs that reach the backend) ──────────
+  - id: cap-mcp-server
+    statement: "Exposes an MCP server (tools other agents can call)."
+    check: path_exists
+    path: mcp/pi-ceo-server.js
+
+  - id: cap-supabase
+    statement: "Has a database layer (Supabase migrations present)."
+    check: path_exists
+    path: supabase
+
+  - id: cap-integrations-wired
+    statement: "Integrations configured (Linear / Supabase / Telegram / Vercel / Railway)."
+    check: command
+    cmd: "grep -qiE 'linear|supabase|telegram' app/server/config.py"
+
+  # ── Design / furnish (UI + content) ──────────────────────────────
+  - id: cap-frontend-console
+    statement: "Has a deployable frontend Console (Next.js dashboard)."
+    check: path_exists
+    path: dashboard/app/layout.tsx
+
+  - id: cap-deploy-frontend
+    statement: "Frontend deploy target configured (Vercel)."
+    check: path_exists
+    path: dashboard/vercel.json
+
+  - id: cap-deploy-backend
+    statement: "Backend deploy target configured (Railway Dockerfile + /health contract with TOML and JSON fallbacks)."
+    check: command
+    cmd: "test -f railway.toml && test -f railway.json && grep -q 'builder = \"DOCKERFILE\"' railway.toml && grep -q 'dockerfilePath = \"Dockerfile\"' railway.toml && grep -q 'healthcheckPath = \"/health\"' railway.toml && grep -q 'healthcheckTimeout = 30' railway.toml && grep -q 'uvicorn app.server.main:app' railway.toml && grep -q -- '--port 8080' railway.toml && python3 -m json.tool railway.json >/dev/null && grep -q '\"builder\": \"DOCKERFILE\"' railway.json && grep -q '\"dockerfilePath\": \"Dockerfile\"' railway.json && grep -q '\"healthcheckPath\": \"/health\"' railway.json && grep -q '\"healthcheckTimeout\": 30' railway.json && grep -q 'uvicorn app.server.main:app' railway.json && grep -q -- '--port 8080' railway.json"
+
+  - id: cap-backend-live
+    statement: "Backend is actually live and answering."
+    check: http
+    url: "https://pi-dev-ops-production.up.railway.app/health"
+    expect_status: 200
+
+  # ── Verify (honest done) ─────────────────────────────────────────
+  - id: cap-verification
+    statement: "Can verify completeness with executable checks (coverage_check)."
+    check: command
+    cmd: "python3 -m py_compile scripts/coverage_check.py"
+
+  - id: cap-gap-detection
+    statement: "Can detect gaps and file work (gap_detector)."
+    check: path_exists
+    path: swarm/gap_detector.py
+
+  # ── THE MISSING ELEMENT (honest red — this is what you're chasing) ─
+  - id: cap-pm-composes-from-registry
+    statement: "Senior PM reads this capability registry and composes a full product plan from it."
+    check: command
+    cmd: "grep -rql 'system-capabilities' swarm app 2>/dev/null"
+    note: >
+      Expected to FAIL today. Nothing yet reads the capability registry to
+      compose a product. This is the precise missing block — the system has
+      the tools but no component that knows-its-tools-and-combines-them.
+
+  # ── THE HUMAN GATE (intentionally not autonomous) ────────────────
+  - id: cap-market-sell
+    statement: "Final go-to-market / sell decision."
+    check: human
+    note: >
+      Deliberately human-gated forever. Selling involves payments, pricing,
+      legal, and customers — irreversible, trust-and-money actions. The factory
+      builds and stages a sellable product; a person says 'launch'. This is a
+      design choice, not a limitation.

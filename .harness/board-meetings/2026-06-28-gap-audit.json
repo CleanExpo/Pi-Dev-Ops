@@ -1,0 +1,98 @@
+{
+  "critical": [],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "app/server/webhook.py implements only the inbound direction: HMAC verification, parse_linear_event(), and linear_issue_to_brief(). There are zero outbound Linear API calls (no issueUpdate GraphQL mutation, no linear_update_issue helper) anywhere in the provided Python source. The MCP server (mcp/pi-ceo-server.js) is referenced in CLAUDE.md for Linear writes, but that is a Node.js sidecar, not the Python backend — meaning the Python pipeline never writes state back to Linear directly.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Add a Python helper (e.g. routes/webhooks.py or a linear_client.py) that POSTs the issueUpdate GraphQL mutation with Authorization: lin_api_... after a build completes, and wire it into the session completion handler in routes/sessions.py.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The tests/ directory contains only unit tests (test_auth.py, test_webhook.py) covering auth and webhook signature verification. There are zero integration or E2E tests for the full build pipeline (sessions, evaluator, push). The 22-check 'smoke test' lives in scripts/smoke_test.py and requires a live running server plus CLI flags (--url, --password) — it is never executed by pytest and is absent from the standard test gate (python -m pytest tests/ -x -q).",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Either add a pytest-based integration test module under tests/test_pipeline_integration.py that stubs the Claude SDK and exercises the sessions→evaluator→push flow, or explicitly note in the spec that the 22-check suite is a manual/CI-stage smoke test requiring a live server, not a unit-test-suite claim.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "high",
+      "claim": "spec implies build logs stream to browser in real time via SSE (dashboard/hooks/useSSE.ts with exponential-backoff reconnect)",
+      "reality": "The backend exposes a WebSocket endpoint (WS /ws/build/{sid}) in routes/utils.py for real-time log delivery. No distinct SSE endpoint piping session.output_lines exists in the provided server code. If useSSE.ts attempts to connect to a build-log SSE URL, it will fail silently and the client falls back to 4-second polling of /api/sessions — meaning live log streaming is not functional for the build view.",
+      "file": "app/server/routes/utils.py",
+      "recommendation": "Either add a GET /api/sessions/{sid}/stream SSE endpoint in routes/utils.py that yields session.output_lines as text/event-stream, or update dashboard/hooks/useSSE.ts to connect to the existing WebSocket endpoint so the advertised real-time streaming actually works.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "webhook triggers builds AND state updates flow back to Linear",
+      "reality": "parse_linear_event() correctly handles both the action=update/state→started trigger and the RA-888 action=create/Urgent-High trigger, so the inbound half works. However, no code sets the Linear issue to In Progress on build start or to Done/Completed on build success — the issue state visible in Linear is never updated by the Python backend.",
+      "file": "app/server/webhook.py",
+      "recommendation": "After dispatching a build session (routes/sessions.py), call an outbound Linear issueUpdate mutation to transition the issue state to 'In Progress'; on session completion, transition to 'Done'.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "low",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "The provided source (dashboard/app/api/telegram/route.ts) defines helper functions (send, piCeoLogin, getPiCeoStatus, triggerBuild, createLinearIssue, getLinearBacklog) but the file is truncated mid-function — the actual command-dispatch switch/if-else block that routes incoming message.text to /start, /help, /build, etc. is not present in the visible code. Whether it exists beyond the truncation point cannot be confirmed from the provided excerpt.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Confirm the POST handler body contains explicit command routing (e.g. text.startsWith('/start'), '/help', '/build') and add integration tests that send each command to the route and assert the expected reply.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "low",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "triggerBuild() is defined but the file is cut off at `const cookie = aw` — the function body is incomplete in the audited source, so it is unknown whether the /build command path (parse repo URL from text, call triggerBuild, reply with session ID) is actually wired end-to-end.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Ensure triggerBuild() is complete and that the POST handler calls it when the incoming text matches /build <repo-url>, then surface a confirmation message back to the Telegram chat.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "scripts/smoke_test.py is truncated in the provided source — the _req helper function is cut off mid-body and the actual 22 check definitions are not visible. The claimed check count cannot be verified from available code.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Read the full smoke_test.py and count actual check() / assert calls to confirm the 22-check claim is accurate before marking coverage complete.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "Budget tracker is instantiated but not wired — SDK metric rows capture output_len but not tokens_used",
+      "reality": "The spec itself acknowledges this gap, but the provided test files (test_auth.py, test_webhook.py) contain no test asserting BudgetTracker behaviour or SDK metric token capture, meaning the gap will not be caught by CI regression.",
+      "file": "tests/test_auth.py",
+      "recommendation": "Add a unit test for BudgetTracker.tick() and a mock-SDK test asserting that tokens_used is populated in the metric row when the SDK returns a structured response.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "op:// refs in .env not resolved by dotenv — Pydantic validator must detect and return None",
+      "reality": "The CLAUDE.md documents this as a required pattern (field_validator(mode='before') returning None for op:// strings), but neither sessions.py nor main.py import or reference any such validator; the implementation must exist elsewhere (e.g. config.py) but is not visible in the provided files, so conformance cannot be confirmed.",
+      "file": "app/server/sessions.py",
+      "recommendation": "Verify that a Pydantic field_validator guarding op:// strings exists in config.py or models.py and add a unit test that asserts the validator returns None for an 'op://...' input so the contract is regression-protected.",
+      "category": "build log SSE streaming"
+    },
+    {
+      "severity": "low",
+      "claim": "BudgetTracker in src/tao/budget/tracker.py is a correct implementation (spec marks it complete)",
+      "reality": "The spec itself acknowledges the tracker is instantiated but not wired into session_sdk.py — SDK metric rows capture output_len but not tokens_used. The re-export in sessions.py does not include BudgetTracker, confirming it is unreachable from the session pipeline.",
+      "file": "app/server/sessions.py",
+      "recommendation": "Instantiate BudgetTracker inside _run_claude_via_sdk() in session_sdk.py and feed it the structured SDK response's token counts so the tracker actually accumulates spend rather than sitting idle.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 10,
+    "critical_count": 0,
+    "high_count": 3,
+    "low_count": 7,
+    "duration_s": 194.3,
+    "audited_at": "2026-06-28T05:06:52.564682+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": []
+  }
+}

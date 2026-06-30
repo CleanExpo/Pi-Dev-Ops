@@ -5,6 +5,8 @@ Parses YAML frontmatter (name, description) + markdown body from
 each skills/*/SKILL.md file. Provides lookup by name and by intent
 (maps PITER intents to relevant skill sets).
 """
+from __future__ import annotations
+
 import os
 import re
 
@@ -89,21 +91,67 @@ def get_skill(name: str) -> dict | None:
 
 # ── Intent-to-skills mapping ─────────────────────────────────────────────────
 _INTENT_SKILLS = {
-    "feature": ["tier-architect", "tier-worker", "tier-evaluator", "agent-workflow"],
+    "feature": [
+        "compound-development-loop",
+        "tier-architect",
+        "tier-worker",
+        "tier-evaluator",
+        "agent-workflow",
+    ],
     "bug": ["tier-worker", "agentic-loop", "tier-evaluator"],
     "chore": ["tier-worker", "agent-workflow"],
-    "spike": ["ceo-mode", "context-compressor", "tier-orchestrator"],
+    "spike": [
+        "compound-development-loop",
+        "ceo-mode",
+        "context-compressor",
+        "tier-orchestrator",
+    ],
     "hotfix": ["tier-worker", "agentic-loop", "closed-loop-prompt"],
     "monitor": ["pi-seo-scanner", "pi-seo-health-monitor", "pi-seo-remediation", "maintenance-manager"],
-    "spec":    ["ship-chain", "define-spec"],
-    "plan":    ["ship-chain", "technical-plan"],
+    "spec":    ["compound-development-loop", "ship-chain", "define-spec"],
+    "plan":    ["compound-development-loop", "ship-chain", "technical-plan"],
     "test":    ["ship-chain", "verify-test"],
     "ship":    ["ship-chain", "ship-release"],
+    "review":  ["review-command", "launch-review", "agentic-review", "tier-evaluator", "leverage-audit"],
+    # Pre-build challenge gate. "/judge" is read-only and explicit-invoke
+    # (automation:manual in its frontmatter, so skills_manifest() classifies it
+    # as manual even though it is intent-routed here). Distinct from "tao-judge"
+    # (machine loop-termination scorer): judge decides whether to build.
+    "judge":   ["judge"],
+    # Durable end-of-session handoff. Companion to "judge". Read-only and
+    # explicit-invoke (automation:manual), so skills_manifest() classifies it
+    # as manual even though it is intent-routed here.
+    "handoff": ["session-handoff"],
+    # Read-side companion to "session-handoff": verify repo state against a
+    # handoff, then resume the work. Explicit-invoke (automation:manual).
+    "resume":  ["resume-from-handoff"],
+    # Senior Project Manager: turn a rough request into a decision-grade spec
+    # before the builder starts. Read-only and explicit-invoke (automation:manual).
+    "spm":     ["spm"],
+    "video": [
+        "remotion-orchestrator",
+        "remotion-script",
+        "remotion-production",
+        "remotion-direction",
+        "remotion-editing",
+        "remotion-integrations",
+        "remotion-professionalism",
+    ],
+    "remotion-video": [
+        "remotion-orchestrator",
+        "remotion-script",
+        "remotion-production",
+        "remotion-direction",
+        "remotion-editing",
+        "remotion-integrations",
+        "remotion-professionalism",
+    ],
     # Launch crew (wave-4): launch-readiness pre-flight. "ship-it" orchestrates
     # charter -> project-audit -> review -> enhance-debloat, then hands off to the
     # existing ship-chain / tao-loop / ship-release. These skills are
     # automation:manual, so skills_manifest() still classifies them as explicit-
     # invoke even though they are intent-routed here. "launch" is an alias.
+    "northstar": ["northstar-shipit", "launch-charter", "ship-it", "launch-project-audit", "launch-review", "launch-enhance-debloat"],
     "ship-it": ["ship-it", "launch-charter", "launch-project-audit", "launch-review", "launch-enhance-debloat"],
     "launch":  ["ship-it", "launch-charter", "launch-project-audit", "launch-review", "launch-enhance-debloat"],
     # RA-693: content + design intents now route to local skill stubs that

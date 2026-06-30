@@ -1,0 +1,22 @@
+{
+  "research_required": false,
+  "questions": [
+    "What is the current patched status and CVE severity of GHSA-ggv3-7p47-pfv8 (Next.js HTTP request smuggling / null-origin CSRF) and has next.js@16.2.3 or later been officially released?",
+    "What is the current CVE severity and exploit status of GHSA-5c6j-r48x-rmvq (basic-ftp path traversal / CRLF injection) and what is the latest patched version of basic-ftp?",
+    "Has serialize-javascript released a patch beyond 7.0.2 that fixes the RCE via RegExp.flags vulnerability, and are there any public exploits in the wild?",
+    "What is the current state of DigitalOcean App Platform build reliability in June 2026 — are there known outages or regressions affecting Node.js / monorepo builds?",
+    "What organic SEO and content launch strategies are currently recommended for SaaS disaster-recovery tools targeting Australian SMBs in mid-2026?"
+  ],
+  "findings": [],
+  "open_questions": [
+    "What is the current patched status and CVE severity of GHSA-ggv3-7p47-pfv8 (Next.js HTTP request smuggling / null-origin CSRF) and has next.js@16.2.3 or later been officially released?",
+    "What is the current CVE severity and exploit status of GHSA-5c6j-r48x-rmvq (basic-ftp path traversal / CRLF injection) and what is the latest patched version of basic-ftp?",
+    "Has serialize-javascript released a patch beyond 7.0.2 that fixes the RCE via RegExp.flags vulnerability, and are there any public exploits in the wild?",
+    "What is the current state of DigitalOcean App Platform build reliability in June 2026 — are there known outages or regressions affecting Node.js / monorepo builds?",
+    "What organic SEO and content launch strategies are currently recommended for SaaS disaster-recovery tools targeting Australian SMBs in mid-2026?"
+  ],
+  "completed_at": "2026-06-10T09:01:42.290171+00:00",
+  "cost_seconds": 200.9,
+  "failure_reason": "research subagent returned empty (timeout or SDK failure)",
+  "mode": "fast"
+}

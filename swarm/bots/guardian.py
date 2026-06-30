@@ -149,9 +149,12 @@ def run_cycle(unacked_count: int) -> dict:
 
     obs_text = "\n".join(f"- {o}" for o in observations)
     flag_text = "\n".join(f"- {f}" for f in (critical_flags + high_flags))
+    # Hoisted out of the f-string: backslashes in f-string expressions are a
+    # SyntaxError before Python 3.12 (CI runs 3.11).
+    issues_block = ("Issues flagged:\n" + flag_text) if (critical_flags or high_flags) else ""
     assessment_prompt = (
         f"Swarm cycle observations:\n{obs_text}\n"
-        f"{'Issues flagged:\\n' + flag_text if (critical_flags or high_flags) else ''}\n"
+        f"{issues_block}\n"
         f"Unacknowledged iteration count: {unacked_count}/{config.MAX_UNACKED_ITERATIONS}\n"
         f"Shadow mode: {config.SHADOW_MODE}"
     )
