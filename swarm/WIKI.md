@@ -1,8 +1,8 @@
 # swarm — Wiki
 
-_Last updated: 2026-07-01T00:47:21Z (commits a9c1e7f..9d430af)_
+_Last updated: 2026-07-01T06:32:51Z (commits 46809f6..1c57d03)_
 
 ## Recent changes
-- 9d430af — feat(swarm): LLM-authored multi-move plan in the closed loop, double-gated (UNI-2214) (#406)
+- 1c57d03 — feat(autonomy): converge the two autonomy gates on one shared classifier (RA-6882) (#424)
 
 

@@ -1,8 +1,8 @@
 # docs — Wiki
 
-_Last updated: 2026-06-29T03:01:40Z (commits 9ab6d44..71e5695)_
+_Last updated: 2026-07-01T06:32:51Z (commits 46809f6..1c57d03)_
 
 ## Recent changes
-- 71e5695 — You are the Contrarian reviewer for Unite-Group Pi-CEO Board. Your jo...
+- 1c57d03 — feat(autonomy): converge the two autonomy gates on one shared classifier (RA-6882) (#424)
 
 
