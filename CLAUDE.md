@@ -314,9 +314,18 @@ Use a scoped version when helpful:
 
 The handoff must include: summary of what was done, where it started, decisions locked + what shipped, key files, running state, verification (how to confirm things still work), deferred + open questions, and pick up here.
 
+**1-2 combo (gate-first).** `/session-handoff` (the "1") and `/resume-from-handoff` (the "2")
+are a pair. `/session-handoff` runs `scripts/handoff-loop.sh` in Phase 0 — the definition-of-
+done gates (clean → deps → generated-files → type → lint → tests → build → audits), logging
+to `.handoff-logs/handoff-<ts>.log` — and only writes the report (to
+`docs/session-handoffs/handoff-<ts>.md`) when it exits 0. `/resume-from-handoff` re-runs the
+same gate before resuming, so the tree is proven green on the way out and back in.
+
 Rules:
 
-- Read-only by default.
+- Gate first: run `scripts/handoff-loop.sh`; a non-zero exit ⇒ write a **BLOCKED** handoff
+  naming the failing gate, don't claim ready. It writes the report + log but must NOT commit,
+  push, deploy, migrate, rotate secrets, or touch production.
 - Do not claim tests passed unless they were run.
 - Do not claim anything shipped unless committed/pushed/merged evidence exists.
 - Do not claim a process is still running unless verified.
@@ -324,7 +333,7 @@ Rules:
 
 - **Claude Code:** `/session-handoff` → `.claude/skills/session-handoff/SKILL.md`
 - **Codex:** `$session-handoff` or `/skills` → select `session-handoff` → `.agents/skills/session-handoff/SKILL.md`
-- **Shared docs:** `.session-handoff/` (report template, verification checklist)
+- **Shared docs:** `.session-handoff/` (report template, verification checklist) · gate runner: `scripts/handoff-loop.sh`
 - Companion to `judge`: `/judge` decides *whether to build*; `/session-handoff` records *what happened and where the next agent picks up*.
 
 ## Resume From Handoff Command
@@ -339,7 +348,7 @@ It reads the handoff, verifies the repo still matches it, reconciles drift, and 
 
 Rules:
 
-- Verification (Phases 1–3) is read-only and mandatory **before** any work resumes.
+- Verification (Phases 1–3) is read-only and mandatory **before** any work resumes; it loads the latest `docs/session-handoffs/` report and re-runs `scripts/handoff-loop.sh` as its gate (non-zero exit ⇒ CANNOT RESUME until fixed).
 - It must not edit, commit, push, deploy, or migrate until the reconciliation verdict is reported.
 - On MATERIAL DRIFT or CANNOT RESUME (missing branch/commits, conflicting changes, obsolete PR), STOP and surface — do not resume blindly.
 - Skip the handoff's "Do not redo" list; respect repo gates (run `/judge` before building anything new not already approved).

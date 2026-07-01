@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.8.0",
-    "generated_at": "2026-07-01T01:56:23.719296+00:00",
+    "version": "1.9.1",
+    "generated_at": "2026-07-01T04:12:13.351585+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -43,11 +43,11 @@
     },
     {
       "id": "agent-workflow",
-      "description": "ADWs - reusable workflow templates from trigger to deploy.",
+      "description": "Use when defining, scoping, promoting, or debugging an agent or ADW \u2014 the 5-part agent contract, scoping formula, promotion ladder, and 4-way break diagnostic.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/agent-workflow/SKILL.md",
-      "sha256": "f8366e05ca6326763249c7ca03f84893e43d4e55bf1497180145d8512a3bce73",
+      "sha256": "bf1a85c686b9985cdf05ae770328f22b2bf43e4616769358d236ff12ef111754",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -56,7 +56,9 @@
         "requires_kill_switch": false,
         "requires_hitl_gate": false,
         "pii_handling": "pass-through"
-      }
+      },
+      "inferred": true,
+      "low_confidence": true
     },
     {
       "id": "agentic-layer",
@@ -414,6 +416,25 @@
       "status": "\"wave-6\"",
       "path": "skills/compound-development-loop/SKILL.md",
       "sha256": "fe41c9c9c500b89ddabba7c694864cc4ccb6b73f01144d971fe7f9d5315ac5fd",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "context-cockpit",
+      "description": "Audit and reclaim a session's context/token budget in one pass \u2014 read /context, trim MCP tools, clear vs compact, CLI-over-MCP, model ladder, red-MCP triage.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/context-cockpit/SKILL.md",
+      "sha256": "a9e64465da34800a8882e00be296ca0dadc3cd186dc5a22d527c17f0a0cc2581",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -826,11 +847,11 @@
     },
     {
       "id": "hooks-system",
-      "description": "Lifecycle hooks for agent observability and safety.",
+      "description": "Use when adding lifecycle hooks or safety guardrails to a project \u2014 the 6 hook types plus the starter guardrail hookset (danger-word block, scope-lock, draft-only).",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/hooks-system/SKILL.md",
-      "sha256": "ff405e7f93bfd1c5126eac4b929ea3da1110d24647ac1ca4ac5c98a0d77b54d6",
+      "sha256": "6099ceb77620a38398fe21b3b9c611b401bbf20c79e32be1f6a519dc7419b1bf",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -839,7 +860,9 @@
         "requires_kill_switch": false,
         "requires_hitl_gate": false,
         "pii_handling": "pass-through"
-      }
+      },
+      "inferred": true,
+      "low_confidence": true
     },
     {
       "id": "intent-parser",
@@ -1755,7 +1778,7 @@
       "owner_role": "Tier-Architect (handoff resumption; verify-then-resume)",
       "status": "active",
       "path": "skills/resume-from-handoff/SKILL.md",
-      "sha256": "a6048623f93d86d00a6d365bcb0b3c550a6f96bdc11064b0b54f77b85c909c84",
+      "sha256": "1b0f62a3ca5e109a29176bb486d40acdf1a9ad2cb173e693f9fa3d72863b2540",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1865,11 +1888,11 @@
     },
     {
       "id": "session-handoff",
-      "description": "Durable session handoff (/session-handoff). Generate a precise handoff before stopping, switching terminals, opening a PR, handing work to another agent, or resuming later. Read-only \u2014 captures what was done, where it started, decisions locked, what shipped, key files, running state, verification commands, deferred/open questions, exact pickup point, risk notes, and a handoff quality check.",
-      "owner_role": "Tier-Architect (end-of-session handoff; read-only reporter)",
+      "description": "Durable session handoff (/session-handoff). Gates the tree green via scripts/handoff-loop.sh, then generates a precise handoff before stopping, switching terminals, opening a PR, handing work to another agent, or resuming later. Writes a durable report + healthcheck log; the \"1\" of the 1-2 combo with /resume-from-handoff. Captures what was done, decisions locked, what shipped, key files, running state, verification, deferred/open questions, exact pickup point, risk notes, and a quality check.",
+      "owner_role": "Tier-Architect (end-of-session handoff; gate-then-report)",
       "status": "active",
       "path": "skills/session-handoff/SKILL.md",
-      "sha256": "815152af073e7cf95337d584181bf666a782c62a03d7ab3758ab9eefe87c5979",
+      "sha256": "ba58220a5a86f455a0e589b760275442cf4be7aad76359b4d8ac7eed1c3c2fe8",
       "dependencies": {
         "tools": [],
         "skills": []
