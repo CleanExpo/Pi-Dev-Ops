@@ -26,7 +26,7 @@ from .ship_gate import (
 )
 from .spm_runner import run_spm
 from .storm_evidence import gather_evidence
-from .prebuild_judge import iterate_to_100
+from .liaison_loop import judge_with_liaison
 
 log = logging.getLogger("pi-ceo.spec_pipeline")
 
@@ -152,34 +152,28 @@ async def run_pipeline(
     })
     stages.append({"stage": "storm", "status": "ok", "count": len(evidence)})
 
-    final_judge, history = await iterate_to_100(
+    working_proposal, final_judge, _history, evidence = await judge_with_liaison(
+        pipeline_id,
         proposal,
-        evidence=evidence,
+        evidence,
         repo_context=_repo_context(),
-        max_iters=5,
+        stages=stages,
     )
-    for i, rep in enumerate(history, 1):
-        persist.write_json(pipeline_id, f"02-judge-iter-{i}.json", rep.to_dict())
-    stages.append({
-        "stage": "judge",
-        "status": "ok" if final_judge.score >= 100 and not final_judge.honest_ceiling else "ceiling",
-        "score": final_judge.score,
-    })
 
     if final_judge.score < 100 or final_judge.has_open_evidence_gaps() or final_judge.honest_ceiling:
         reason = final_judge.ceiling_reason or f"judge score {final_judge.score}"
-        _write_handoff(pipeline_id, status="BLOCKED", proposal=proposal, reason=reason, extra={})
+        _write_handoff(pipeline_id, status="BLOCKED", proposal=working_proposal, reason=reason, extra={})
         return PipelineResult(
             pipeline_id, "blocked", reason,
             judge_score=final_judge.score, stages=stages,
         )
 
-    spec = await run_spm(proposal, final_judge)
+    spec = await run_spm(working_proposal, final_judge)
     persist.write_text(pipeline_id, "03-spm-spec.md", spec.markdown)
     stages.append({"stage": "spm", "status": "ok"})
 
     br_prompt = (
-        f"Should we build this proposal?\n\n{proposal}\n\n"
+        f"Should we build this proposal?\n\n{working_proposal}\n\n"
         f"Judge score: {final_judge.score}\n\nSpec excerpt:\n{spec.markdown[:4000]}"
     )
     boardroom = await boardroom_query(

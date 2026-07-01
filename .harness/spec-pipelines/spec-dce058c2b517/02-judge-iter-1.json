@@ -1,0 +1,98 @@
+{
+  "category_scores": {
+    "clear_problem": 14,
+    "cost_simplicity": 2,
+    "first_source_evidence": 20,
+    "reuse_existing": 13,
+    "security_privacy": 12,
+    "testability": 4,
+    "ux_clarity": 6
+  },
+  "ceiling_reason": "Multiple evidence rows are UNSUPPORTED (UI spec, auth design, test plan) and several gaps are structural, not cosmetic. Even with all backend primitives confirmed, the proposal as stated lacks the detail required for a safe, reviewable build. Score cannot reach 100 without a concrete component spec, API contract, auth model, and test plan.",
+  "decision": "REDUCE_SCOPE",
+  "evidence": [
+    {
+      "claim": "dry-run concept exists in spec pipeline module",
+      "perspective": "Backend spec_pipeline module already implements dry-run logic, confirming the backend primitive exists to surface in a panel",
+      "source_title": "app/server/spec_pipeline/__init__.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/__init__.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "dedicated test file for spec pipeline dry-run exists",
+      "perspective": "Test coverage for the dry-run path already exists, lowering risk of regression when adding UI panel",
+      "source_title": "tests/test_spec_pipeline_dry_run.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_spec_pipeline_dry_run.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "dashboard/components/ is safe to modify freely per AGENTS.md",
+      "perspective": "Panel component additions fall in the \u2705 tier, no extra approval needed",
+      "source_title": "AGENTS.md \u2014 Pi-Dev-Ops Boundary Matrix",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/AGENTS.md",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Mission Control panel concept is referenced in app/static/index.html",
+      "perspective": "Static HTML mentions 'spec', suggesting some existing UI surface, but Mission Control as a named panel is not confirmed",
+      "source_title": "app/static/index.html",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/static/index.html",
+      "status": "PARTIAL"
+    },
+    {
+      "claim": "pipeline route module exists and is safe to extend",
+      "perspective": "app/server/routes/ including pipeline route is listed as \u2705 free to modify",
+      "source_title": "AGENTS.md \u2014 Directory Map",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/AGENTS.md",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "dry-run is referenced across multiple test files indicating broad usage pattern",
+      "perspective": "dry-run pattern is cross-cutting, not isolated to spec_pipeline, supporting value of a unified panel",
+      "source_title": "tests/test_boardroom.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_boardroom.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "proposal defines specific UI layout, interaction model, or data contract for the panel",
+      "perspective": "Proposal text is a single sentence with no wireframe, API contract, or component spec \u2014 UX clarity is entirely absent",
+      "source_title": "",
+      "source_url": "",
+      "status": "UNSUPPORTED"
+    },
+    {
+      "claim": "proposal specifies authentication/authorisation requirements for the dry-run panel endpoint",
+      "perspective": "No mention of auth gating; dry-run could expose pipeline internals if endpoint is unguarded",
+      "source_title": "",
+      "source_url": "",
+      "status": "UNSUPPORTED"
+    },
+    {
+      "claim": "proposal defines acceptance criteria or new test cases for the panel",
+      "perspective": "No test plan stated; existing test_spec_pipeline_dry_run.py covers backend only, not the UI panel",
+      "source_title": "",
+      "source_url": "",
+      "status": "UNSUPPORTED"
+    },
+    {
+      "claim": "cost/token impact of exposing dry-run results in real-time panel is assessed",
+      "perspective": "Dry-run may invoke Claude calls; no budget or rate-limit analysis provided",
+      "source_title": "",
+      "source_url": "",
+      "status": "NOT CHECKED"
+    }
+  ],
+  "gaps": [
+    "No UI specification: missing component name, props interface, data-fetch strategy (polling vs WebSocket vs REST), and placement within Mission Control layout",
+    "No API contract: which endpoint serves dry-run results to the panel, what request/response schema, and whether it is a new route or extension of existing pipeline route",
+    "No auth/authorisation design: dry-run panel could expose sensitive pipeline internals; proposal must specify required role/token scope",
+    "No acceptance criteria or definition of done beyond 'add panel'",
+    "No cost analysis: dry-run invocations may consume Claude tokens or Railway compute; budget impact not addressed",
+    "No error-state UX defined: what does the panel show on dry-run failure, timeout, or partial result?",
+    "Iteration 1 with no prior feedback loop \u2014 proposal has not been refined against any reviewer input"
+  ],
+  "honest_ceiling": true,
+  "iteration": 1,
+  "proposal": "Add dry-run spec pipeline panel to Mission Control",
+  "score": 71
+}

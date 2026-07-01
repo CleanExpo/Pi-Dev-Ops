@@ -25,12 +25,13 @@ async def test_pipeline_dry_run_happy_path(monkeypatch):
     async def fake_evidence(proposal):
         return [EvidenceRow(claim="skill exists", status="SUPPORTED", source_title="skills/judge/SKILL.md")]
 
-    async def fake_iterate(proposal, *, evidence, repo_context, max_iters=5):
+    async def fake_liaison(pipeline_id, proposal, evidence, *, repo_context, stages):
         report = JudgeReport(
             proposal=proposal, score=100, decision="APPROVE_BUILD",
             evidence=evidence,
         )
-        return report, [report]
+        stages.append({"stage": "judge", "status": "ok", "score": 100})
+        return proposal, report, [report], evidence
 
     async def fake_spm(proposal, judge_report):
         from app.server.spec_pipeline.spm_runner import SpmSpec
@@ -46,7 +47,7 @@ async def test_pipeline_dry_run_happy_path(monkeypatch):
         )
 
     monkeypatch.setattr("app.server.spec_pipeline.gather_evidence", fake_evidence)
-    monkeypatch.setattr("app.server.spec_pipeline.iterate_to_100", fake_iterate)
+    monkeypatch.setattr("app.server.spec_pipeline.judge_with_liaison", fake_liaison)
     monkeypatch.setattr("app.server.spec_pipeline.run_spm", fake_spm)
     monkeypatch.setattr("app.server.spec_pipeline.boardroom_query", fake_boardroom)
 
