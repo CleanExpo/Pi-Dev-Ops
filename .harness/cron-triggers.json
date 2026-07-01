@@ -191,7 +191,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744502400,
-    "last_fired_at": 1777622456.4920828,
+    "last_fired_at": 1782892859.650012,
     "note": "RA-689 \u2014 reads shipped-features.jsonl, detects outcome signals from Linear, writes outcome lessons, flags stale features, returns BVI contribution data."
   },
   {
