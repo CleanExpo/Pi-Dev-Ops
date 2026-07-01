@@ -1,0 +1,166 @@
+{
+  "category_scores": {
+    "clear_problem": 15,
+    "cost_simplicity": 3,
+    "first_source_evidence": 18,
+    "reuse_existing": 13,
+    "security_privacy": 8,
+    "testability": 7,
+    "ux_clarity": 7
+  },
+  "ceiling_reason": "Two NOT CHECKED security rows (auth-gating on chip endpoint), four PARTIAL rows including the critical 'live' real-time semantics ambiguity, one UNSUPPORTED row, and five documented gaps prevent a score above ~75. The proposal is buildable but requires auth confirmation, definition of 'live', and an end-to-end test before it is fully de-risked.",
+  "decision": "REDUCE_SCOPE",
+  "evidence": [
+    {
+      "claim": "A 'chip' UI component pattern already exists in the dashboard codebase and can be reused for the live status chip",
+      "perspective": "Chip pattern is established; reuse is low-risk and avoids new component scaffolding",
+      "source_title": "TopBar.tsx \u2013 existing chip usage in control panel",
+      "source_url": "dashboard/components/control/TopBar.tsx",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "A 'chip' UI component pattern already exists in the dashboard codebase and can be reused for the live status chip",
+      "perspective": "Second confirmation of chip pattern; clone-and-feature-flag path is viable",
+      "source_title": "HealthGrid.tsx \u2013 existing chip usage in health/status grid",
+      "source_url": "dashboard/components/control/HealthGrid.tsx",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "The overview page already renders chip-style elements, confirming a reusable pattern for the Mission Control panel",
+      "perspective": "Third confirmation; chip is a first-class UI primitive in this codebase",
+      "source_title": "overview/page.tsx \u2013 chip rendering in main dashboard",
+      "source_url": "dashboard/app/(main)/overview/page.tsx",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Live pipeline status data is already being tracked server-side and can feed the chip",
+      "perspective": "Cron-based triggers expose status fields but may not support sub-minute real-time updates; polling latency unconfirmed",
+      "source_title": "cron_triggers.py \u2013 live and status references in pipeline scheduling",
+      "source_url": "app/server/cron_triggers.py",
+      "status": "PARTIAL"
+    },
+    {
+      "claim": "A cron store exists that tracks pipeline state, providing a backend source for live status",
+      "perspective": "Minimal chip implementation can read directly from cron_store without new backend; strongest backend evidence row",
+      "source_title": "cron_store.py \u2013 live state storage for pipelines",
+      "source_url": "app/server/cron_store.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Observability tests for Mission Control already exist, reducing risk of undetected regressions",
+      "perspective": "Safety net exists; rollback is testable",
+      "source_title": "test_mission_control_observability.py \u2013 live status observability tests",
+      "source_url": "tests/test_mission_control_observability.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Linear pulse integration tracks status changes and could serve as a live data source for the chip",
+      "perspective": "Linear is an external dependency; latency and availability make it a secondary, not primary, data source for a live chip",
+      "source_title": "linear_pulse.py \u2013 status tracking via Linear integration",
+      "source_url": "app/server/linear_pulse.py",
+      "status": "PARTIAL"
+    },
+    {
+      "claim": "The static frontend already references 'spec' and 'status', suggesting some pipeline status surface exists in the UI",
+      "perspective": "Static HTML references are weak evidence; does not confirm dynamic status propagation to the Next.js dashboard",
+      "source_title": "index.html \u2013 spec and status references in static frontend",
+      "source_url": "app/static/index.html",
+      "status": "PARTIAL"
+    },
+    {
+      "claim": "No evidence of auth-gating or role checks on the Mission Control panel chip endpoint; boundary risks are unverified",
+      "perspective": "This is a security gap, not a supporting claim; auth boundary for the new status endpoint must be confirmed before ship",
+      "source_title": "cron_triggers.py \u2013 status and live data exposed without confirmed auth layer",
+      "source_url": "app/server/cron_triggers.py",
+      "status": "NOT CHECKED"
+    },
+    {
+      "claim": "Live status polling from the chip could expose internal pipeline state to unauthorized dashboard viewers",
+      "perspective": "Auth boundary for HealthGrid chip is unconfirmed; same risk applies to proposed new chip",
+      "source_title": "HealthGrid.tsx \u2013 chip renders status data with unknown auth boundary",
+      "source_url": "dashboard/components/control/HealthGrid.tsx",
+      "status": "NOT CHECKED"
+    },
+    {
+      "claim": "No secrets or credentials are referenced in the chip or status components reviewed",
+      "perspective": "Positive security signal; chip layer does not handle credentials directly",
+      "source_title": "TopBar.tsx \u2013 chip component with no visible secret handling",
+      "source_url": "dashboard/components/control/TopBar.tsx",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Session recovery tests exist, suggesting auth session handling is tested but not confirmed for the new chip endpoint",
+      "perspective": "Session recovery coverage is adjacent but does not close the auth-gating gap on the chip endpoint",
+      "source_title": "test_session_recovery.py \u2013 session and status recovery coverage",
+      "source_url": "tests/test_session_recovery.py",
+      "status": "PARTIAL"
+    },
+    {
+      "claim": "The proposal may be over-scoped if 'live' status requires real-time WebSocket or polling infrastructure not yet in place",
+      "perspective": "Real-time semantics are undefined; if 'live' means WebSocket push, new infrastructure is required; if polling is acceptable, cron_store suffices",
+      "source_title": "cron_triggers.py \u2013 cron-based triggers may not support true real-time live status",
+      "source_url": "app/server/cron_triggers.py",
+      "status": "PARTIAL"
+    },
+    {
+      "claim": "Chip pattern is already used in multiple dashboard components, so adding another is low-risk and not over-scoped",
+      "perspective": "Consistent with other SUPPORTED chip evidence; scope risk is low for the UI layer specifically",
+      "source_title": "overview/page.tsx \u2013 precedent for chip reuse reduces scope risk",
+      "source_url": "dashboard/app/(main)/overview/page.tsx",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Spec pipeline tests exist but do not confirm end-to-end live status propagation to the UI chip",
+      "perspective": "Gap in end-to-end test coverage; backend-to-chip data flow is untested",
+      "source_title": "test_sdk_phase2.py \u2013 spec pipeline tests without confirmed UI status propagation",
+      "source_url": "tests/test_sdk_phase2.py",
+      "status": "PARTIAL"
+    },
+    {
+      "claim": "Specialised skill foundation tests reference 'spec' but do not validate Mission Control chip behavior",
+      "perspective": "These tests are irrelevant to the chip; their existence neither supports nor undermines the proposal",
+      "source_title": "test_specialised_skill_foundation.py \u2013 spec tests not covering chip UI",
+      "source_url": "tests/test_specialised_skill_foundation.py",
+      "status": "UNSUPPORTED"
+    },
+    {
+      "claim": "The smallest reversible version is a static chip reading from an existing cron_store status field, with no new backend required",
+      "perspective": "Strongly supports a low-risk MVP; aligns with RA-1109 surface-treatment prohibition by avoiding unnecessary new infrastructure",
+      "source_title": "cron_store.py \u2013 existing status field usable for minimal chip implementation",
+      "source_url": "app/server/cron_store.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Existing HealthGrid chip pattern can be cloned and feature-flagged for a safe, reversible rollout",
+      "perspective": "Feature-flag path is sound; reversibility is confirmed by existing test coverage",
+      "source_title": "HealthGrid.tsx \u2013 chip component suitable for feature-flagged clone",
+      "source_url": "dashboard/components/control/HealthGrid.tsx",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Mission Control observability tests provide a safety net for reverting the chip if it causes regressions",
+      "perspective": "Rollback safety is confirmed; this is the strongest testability signal in the proposal",
+      "source_title": "test_mission_control_observability.py \u2013 regression coverage for safe rollback",
+      "source_url": "tests/test_mission_control_observability.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Next.js config and ESLint config are in place, so the new chip component will be linted and built consistently",
+      "perspective": "Standard build hygiene; not a differentiating factor but confirms no tooling gaps",
+      "source_title": "next.config.ts \u2013 build pipeline supports new dashboard components",
+      "source_url": "dashboard/next.config.ts",
+      "status": "SUPPORTED"
+    }
+  ],
+  "gaps": [
+    "Auth boundary for the new chip's status endpoint is NOT CHECKED \u2014 must confirm the cron_store or cron_triggers status route is protected by the same auth middleware as other Mission Control routes before shipping",
+    "'Live' is undefined: proposal does not specify whether 'live' means WebSocket push, SSE, or polling interval \u2014 this ambiguity risks scope creep into new real-time infrastructure; must be pinned to a concrete mechanism (recommend: polling cron_store every 30s as MVP)",
+    "No end-to-end test covering the full path: cron_store status field \u2192 API route \u2192 chip render \u2192 correct label displayed; test_sdk_phase2.py and test_mission_control_observability.py are adjacent but do not close this gap",
+    "Proposal does not specify which exact field in cron_store maps to the chip label/colour states (e.g. idle, running, failed, succeeded) \u2014 data contract between backend and chip is unspecified",
+    "No mention of error/fallback state for the chip when the status endpoint is unreachable \u2014 UX for degraded connectivity is undefined"
+  ],
+  "honest_ceiling": true,
+  "iteration": 1,
+  "proposal": "Add live status chip to Spec Pipeline Mission Control panel",
+  "score": 71
+}
