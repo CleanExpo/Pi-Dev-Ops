@@ -1,22 +1,36 @@
 """Canonical LLM model IDs for Pi-Dev-Ops (SSOT).
 
-Update this file when Anthropic or OpenRouter ship new pinned snapshots.
+Official reference:
+  https://platform.claude.com/docs/en/about-claude/models/overview
 
-As of July 01 2026:
-  Opus   → claude-opus-4-8        (Anthropic GA May 2026)
-  Sonnet → claude-sonnet-5        (Anthropic GA June 30 2026)
-  Haiku  → claude-haiku-4-5-20251001
-  Panel  → deepseek/deepseek-v4-flash (OpenRouter)
+As of July 01 2026 (Anthropic "Latest models comparison"):
+  Opus   → claude-opus-4-8
+  Sonnet → claude-sonnet-5
+  Haiku  → claude-haiku-4-5-20251001  (alias: claude-haiku-4-5)
+
+Mythos-class (not wired by default — safety-classifier refusal risk):
+  claude-fable-5, claude-mythos-5 (Glasswing only)
+
+OpenRouter boardroom panellist:
+  deepseek/deepseek-v4-flash
 """
 from __future__ import annotations
 
 MODEL_REGISTRY_AS_OF = "July 01 2026"
+DOCS_MODELS_OVERVIEW = "https://platform.claude.com/docs/en/about-claude/models/overview"
 
 # ── Anthropic Messages API (direct / Agent SDK) ─────────────────────────────
 
 ANTHROPIC_OPUS = "claude-opus-4-8"
 ANTHROPIC_SONNET = "claude-sonnet-5"
 ANTHROPIC_HAIKU = "claude-haiku-4-5-20251001"
+
+# Convenience aliases from Anthropic docs (pinned snapshots, not evergreen pointers)
+ANTHROPIC_ALIASES: dict[str, str] = {
+    ANTHROPIC_OPUS: ANTHROPIC_OPUS,
+    ANTHROPIC_SONNET: ANTHROPIC_SONNET,
+    ANTHROPIC_HAIKU: "claude-haiku-4-5",
+}
 
 SHORT_TO_ANTHROPIC: dict[str, str] = {
     "opus": ANTHROPIC_OPUS,

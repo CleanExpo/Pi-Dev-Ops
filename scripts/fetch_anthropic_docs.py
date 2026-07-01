@@ -42,7 +42,7 @@ DOCS = [
     },
     {
         "key": "models-overview",
-        "url": "https://docs.anthropic.com/en/docs/models-overview",
+        "url": "https://platform.claude.com/docs/en/about-claude/models/overview",
         "title": "Models Overview",
     },
     {
