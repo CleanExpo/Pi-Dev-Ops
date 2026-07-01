@@ -1,8 +1,8 @@
 # swarm — Wiki
 
-_Last updated: 2026-06-30T22:00:08Z (commits d7f4fa5..71662bc)_
+_Last updated: 2026-07-01T00:47:21Z (commits a9c1e7f..9d430af)_
 
 ## Recent changes
-- 71662bc — feat(swarm): compose the autonomous closed-loop spine (UNI-2214) (#398)
+- 9d430af — feat(swarm): LLM-authored multi-move plan in the closed loop, double-gated (UNI-2214) (#406)
 
 
