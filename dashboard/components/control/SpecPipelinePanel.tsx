@@ -176,11 +176,21 @@ export default function SpecPipelinePanel() {
       <p className="text-xs" style={{ color: "var(--text-muted)" }}>
         Validate → STORM → Judge ↔ Board ↔ SPM → Boardroom. Dry-run stops before build.
       </p>
+      <details className="text-xs" style={{ color: "var(--text-muted)" }}>
+        <summary className="cursor-pointer hover:underline">Proposal validation rules</summary>
+        <ul className="mt-1 list-disc pl-4 space-y-0.5">
+          <li>At least 10 characters after trimming</li>
+          <li>Not a bare type token (str, int, bool, …)</li>
+          <li>No angle-bracket placeholders like &lt;feature-name&gt;</li>
+          <li>Must not target 🚫 boundary files (config.py, auth.py, secrets)</li>
+        </ul>
+      </details>
       <textarea
         value={proposal}
         onChange={(e) => setProposal(e.target.value)}
         rows={4}
         placeholder="Proposal to judge and spec…"
+        title="Min 10 chars; no bare type tokens (str); no <placeholders>"
         className="w-full text-sm p-2 rounded resize-y"
         style={{ background: "var(--background)", border: "1px solid var(--border)", color: "var(--text)" }}
       />
