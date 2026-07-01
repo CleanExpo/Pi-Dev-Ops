@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "canonical_name": "Margot",
+  "canonical_asset_path": "/Users/phill-mac/2nd Brain/2nd Brain/Wiki/assets/margot/margot-canonical-avatar-2026-07-01.png",
+  "canonical_wiki_page": "/Users/phill-mac/2nd Brain/2nd Brain/Wiki/margot-visual-identity.md",
+  "default_output_dir": ".harness/margot/generated-assets",
+  "openai": {
+    "api": "image",
+    "endpoint": "https://api.openai.com/v1/images/generations",
+    "model": "gpt-image-2",
+    "size": "1024x1536",
+    "quality": "high",
+    "n": 1
+  },
+  "identity": {
+    "age": 32,
+    "presentation": "realistic original adult woman, professional executive operator, not robotic",
+    "hair": "polished blonde shoulder-length blowout",
+    "skin": "light tan skin with natural texture",
+    "wardrobe": "crisp fitted white collar polo shirt with tasteful Unite-Group chest branding",
+    "demeanour": "calm, direct, warm, high-trust, operationally sharp",
+    "brand_boundary": "brand-safe and client-safe; no deliberate sexualisation, no celebrity likeness, no robot parts"
+  },
+  "base_prompt": "Create a photorealistic original AI assistant character named Margot for the Unite-Group Nexus ecosystem. Margot is a 32-year-old adult woman with a polished blonde shoulder-length blowout, light tan skin with natural texture, a calm direct expression, and a professional executive-operator presence. She is not robotic and has no robot parts. She wears a crisp fitted white collar polo shirt with tasteful Unite-Group chest branding. Keep the identity consistent with the canonical Margot avatar while making the output suitable for business software, founder operations, and client-safe project surfaces. No celebrity likeness. No deliberate sexualisation.",
+  "projects": {
+    "unite-group": {
+      "display_name": "Unite-Group Nexus",
+      "overlay": "Use broad Unite-Group operating-system cues: executive command centre, portfolio intelligence, clean white and navy branding, trusted founder-side operator."
+    },
+    "pi-dev-ops": {
+      "display_name": "Pi-Dev-Ops",
+      "overlay": "Emphasise autonomous engineering operations: repo dashboards, build evidence, quiet technical confidence, precise DevOps control surfaces."
+    },
+    "synthex": {
+      "display_name": "Synthex",
+      "overlay": "Emphasise marketing automation and creative production: campaign boards, media variants, polished growth-operator energy, no hype."
+    },
+    "restoreassist": {
+      "display_name": "RestoreAssist",
+      "overlay": "Emphasise restoration-field support: practical operator confidence, property restoration context, clear mobile-first task handoff."
+    },
+    "carsi": {
+      "display_name": "CARSI",
+      "overlay": "Emphasise compliance and audit readiness: precise documentation, checklists, assurance posture, disciplined risk control."
+    },
+    "dr-nrpg": {
+      "display_name": "DR/NRPG",
+      "overlay": "Emphasise disaster recovery and industry association authority: calm crisis coordination, standards, training, and sector leadership."
+    },
+    "ccw": {
+      "display_name": "CCW",
+      "overlay": "Emphasise trade-commerce and customer operations: practical sales support, supplier trust, service responsiveness, clean CRM context."
+    }
+  },
+  "variants": {
+    "avatar": {
+      "slug": "avatar",
+      "direction": "Three-quarter portrait, neutral studio background, realistic commercial photography, reusable assistant avatar."
+    },
+    "dashboard": {
+      "slug": "dashboard",
+      "direction": "Waist-up dashboard companion pose, slightly angled toward a product cockpit, enough negative space for UI chrome."
+    },
+    "project-card": {
+      "slug": "project-card",
+      "direction": "Project-specific card hero, professional portrait plus subtle contextual background cues, no decorative clutter."
+    },
+    "media-reference": {
+      "slug": "media-reference",
+      "direction": "Clean reference image for future thumbnails, decks, and video keyframes; high identity consistency and readable Unite-Group branding."
+    }
+  },
+  "safety_rules": [
+    "Keep Margot realistic, original, adult, and professional.",
+    "Do not imitate a real celebrity or named public figure.",
+    "Do not add deliberate sexual emphasis or body-emphasis details.",
+    "Do not include secrets, customer data, private documents, or live screenshots.",
+    "Do not imply public endorsement by Unite-Group clients or partners."
+  ]
+}
