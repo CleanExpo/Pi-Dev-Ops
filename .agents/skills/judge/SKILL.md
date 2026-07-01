@@ -67,6 +67,26 @@ Decision rules:
 - 70–84 = REDUCE SCOPE or APPROVE EXPERIMENT
 - 85–100 = APPROVE BUILD
 
+## Convergence — do not stop until a REAL 100/100
+
+`/judge` does not end at the first score. It iterates: score → list every gap with its
+first-source anchor → drive the real fix (gather the missing evidence, reduce or reshape
+scope, clean cache and bloat, correct any false claim) → re-score. Repeat until the proposal
+genuinely earns 100/100.
+
+A 100 is valid ONLY when ALL of these hold — never by inflation:
+- **Real data:** every evidence row is SUPPORTED by first-source; zero UNSUPPORTED / PARTIAL /
+  NOT CHECKED remain. Checked, not asserted.
+- **Cache and bloat cleaned:** no dead code, duplication, sediment, unused abstraction, or
+  stale copy survives the deletion test.
+- **True and correct:** every claim is verified against the source at real scale — no
+  plausible-but-unproven statement counts.
+- **No open blocker:** all review passes clear.
+
+**Honesty rail (non-negotiable):** if the scope cannot honestly reach 100, do NOT fake the
+number — reshape it until a real 100 is reachable, or halt and report the honest ceiling with
+the exact reason and what would lift it. A fabricated 100 is a gate failure, not a pass.
+
 ## Output format
 
 ### Judge Report
