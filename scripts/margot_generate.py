@@ -154,10 +154,78 @@ def build_provenance(
     }
 
 
+def build_matrix_packet(
+    manifest: dict[str, Any],
+    *,
+    projects: list[str] | None = None,
+    variants: list[str] | None = None,
+    notes: str = "",
+) -> dict[str, Any]:
+    selected_projects = projects or sorted(manifest["projects"].keys())
+    selected_variants = variants or sorted(manifest["variants"].keys())
+    items: list[dict[str, Any]] = []
+    for project in selected_projects:
+        _resolve_project(manifest, project)
+        for variant in selected_variants:
+            _resolve_variant(manifest, variant)
+            payload = build_image_payload(
+                manifest,
+                project=project,
+                variant=variant,
+                notes=notes,
+            )
+            image_path, provenance_path = output_paths(
+                manifest,
+                project=project,
+                variant=variant,
+                prompt=payload["prompt"],
+            )
+            provenance = build_provenance(
+                manifest,
+                project=project,
+                variant=variant,
+                payload=payload,
+                output_path=image_path,
+            )
+            items.append({
+                "project": project,
+                "variant": variant,
+                "payload": payload,
+                "provenance": provenance,
+                "planned_image_path": str(image_path),
+                "planned_provenance_path": str(provenance_path),
+            })
+    return {
+        "schema_version": manifest["schema_version"],
+        "mode": "dry_run_matrix",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "canonical_asset_path": manifest["canonical_asset_path"],
+        "item_count": len(items),
+        "items": items,
+    }
+
+
 def output_paths(manifest: dict[str, Any], *, project: str, variant: str, prompt: str) -> tuple[Path, Path]:
     output_dir = REPO_ROOT / manifest.get("default_output_dir", ".harness/margot/generated-assets")
     slug = asset_slug(project=project, variant=variant, prompt=prompt)
     return output_dir / f"{slug}.png", output_dir / f"{slug}.json"
+
+
+def _split_csv(value: str) -> list[str] | None:
+    parts = [part.strip() for part in value.split(",") if part.strip()]
+    return parts or None
+
+
+def _default_build_packet_path() -> Path:
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return REPO_ROOT / ".harness/margot/build-packets" / f"margot-build-packet-{stamp}.json"
+
+
+def write_build_packet(packet: dict[str, Any], path: Path | None = None) -> Path:
+    target = path or _default_build_packet_path()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(packet, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return target
 
 
 def write_live_image(
@@ -211,6 +279,16 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--live", action="store_true", help="Call OpenAI Image API and write PNG/provenance files.")
     parser.add_argument("--require-asset", action="store_true", help="Require canonical avatar file to exist.")
     parser.add_argument("--list", action="store_true", help="List valid projects and variants.")
+    parser.add_argument("--all", action="store_true", help="Build a dry-run packet for all selected projects and variants.")
+    parser.add_argument("--projects", default="", help="Comma-separated project slugs for --all.")
+    parser.add_argument("--variants", default="", help="Comma-separated variant slugs for --all.")
+    parser.add_argument(
+        "--write-build-packet",
+        nargs="?",
+        const="",
+        default=None,
+        help="Write matrix packet JSON to a path or default build-packets directory.",
+    )
     return parser.parse_args(argv)
 
 
@@ -221,6 +299,28 @@ def main(argv: list[str] | None = None) -> int:
         validate_manifest(manifest, require_asset=bool(args.live or args.require_asset))
         if args.list:
             print(json.dumps(list_options(manifest), indent=2, sort_keys=True))
+            return 0
+        if args.all and args.live:
+            raise MargotGenerationError("--all cannot be combined with --live; run live generation one asset at a time")
+        if args.all:
+            packet = build_matrix_packet(
+                manifest,
+                projects=_split_csv(args.projects),
+                variants=_split_csv(args.variants),
+                notes=args.notes,
+            )
+            if args.write_build_packet is not None:
+                packet_path = write_build_packet(
+                    packet,
+                    Path(args.write_build_packet) if args.write_build_packet else None,
+                )
+                print(json.dumps({
+                    "build_packet": str(packet_path),
+                    "item_count": packet["item_count"],
+                    "mode": packet["mode"],
+                }, indent=2, sort_keys=True))
+            else:
+                print(json.dumps(packet, indent=2, sort_keys=True))
             return 0
         payload = build_image_payload(
             manifest,
