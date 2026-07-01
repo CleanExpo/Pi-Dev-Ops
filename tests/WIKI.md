@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-06-30T22:00:08Z (commits d7f4fa5..71662bc)_
+_Last updated: 2026-06-30T23:54:26Z (commits 305daf5..65859ef)_
 
 ## Recent changes
-- 71662bc — feat(swarm): compose the autonomous closed-loop spine (UNI-2214) (#398)
+- 65859ef — feat(intake): authenticated push-intake webhook for the closed loop (UNI-2214 item 1) (#403)
 
 
