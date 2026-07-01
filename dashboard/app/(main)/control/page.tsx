@@ -12,6 +12,7 @@ import ActiveBuildStrip from "@/components/control/ActiveBuildStrip";
 import LiveActivityFeed from "@/components/control/LiveActivityFeed";
 import CuratorProposalsPanel from "@/components/control/CuratorProposalsPanel";
 import MargotAssetsPanel from "@/components/control/MargotAssetsPanel";
+import SpecPipelinePanel from "@/components/control/SpecPipelinePanel";
 
 export default function ControlPage() {
   return (
@@ -74,6 +75,11 @@ export default function ControlPage() {
           {/* Panel 6 — Margot asset preview (dry-run matrix + packets) */}
           <div className="md:col-span-2">
             <MargotAssetsPanel />
+          </div>
+
+          {/* Panel 7 — Machine spec pipeline */}
+          <div className="md:col-span-2">
+            <SpecPipelinePanel />
           </div>
         </div>
       </div>

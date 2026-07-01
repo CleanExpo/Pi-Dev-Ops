@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.11.0",
-    "generated_at": "2026-07-01T08:13:47.692653+00:00",
+    "version": "1.12.0",
+    "generated_at": "2026-07-01T10:22:44.643769+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -249,6 +249,25 @@
       "status": "(unset)",
       "path": "skills/big-three/SKILL.md",
       "sha256": "a6ef67fecf682260ef041c3aec99322080c3fcb87f2b6b3b3caefe48c9d14721",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "boardroom",
+      "description": "Multi-model triangulation for high-stakes decisions. Fan out 2\u20134 panellists, score divergence via Jaccard, synthesise one answer. Use for architecture, strategy, or machine spec pipeline board review \u2014 not routine single-model tasks.",
+      "owner_role": "Orchestrator",
+      "status": "active",
+      "path": "skills/boardroom/SKILL.md",
+      "sha256": "a61d7b7674adf2343fb3190a4526195c19f434f3bbd3c4ec73cc458563b3657e",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -965,7 +984,7 @@
       "owner_role": "Tier-Architect (pre-build challenge gate; read-only reviewer)",
       "status": "active",
       "path": "skills/judge/SKILL.md",
-      "sha256": "ae6158cb8bb8327607777a2bb3ac85ffe17f08e247ceba0fb0a3af7579bb4ab6",
+      "sha256": "eaa96bc97952c2d15446fb9f1e1ffcc4492eda0981bf51b7ac8e72805af9995d",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2101,7 +2120,7 @@
       "owner_role": "Tier-Architect (senior project manager; spec author, not builder)",
       "status": "active",
       "path": "skills/spm/SKILL.md",
-      "sha256": "e2176e3ebb8aafe902c0e1da91b00f5f15f76ba253f3d4b50ff31b7f137ea77b",
+      "sha256": "b79802aa672a1153cbc84e862d25a165091ae16cc7a9561735cddbf989545e88",
       "dependencies": {
         "tools": [],
         "skills": []

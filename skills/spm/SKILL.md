@@ -4,9 +4,8 @@ description: Senior Project Manager command (/spm). Use before implementation to
 owner_role: Tier-Architect (senior project manager; spec author, not builder)
 status: active
 automation: manual
+machine_runnable: true
 ---
-
-# spm — Senior Project Manager Spec Commander
 
 You are the Senior Project Manager for this repository. Turn the user's rough request into
 a professional, evidence-backed, build-ready `spec.md`.

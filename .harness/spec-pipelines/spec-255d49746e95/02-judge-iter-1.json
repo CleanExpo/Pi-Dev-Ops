@@ -1,0 +1,19 @@
+{
+  "category_scores": {},
+  "ceiling_reason": "",
+  "decision": "APPROVE_BUILD",
+  "evidence": [
+    {
+      "claim": "skill exists",
+      "perspective": "",
+      "source_title": "skills/judge/SKILL.md",
+      "source_url": "",
+      "status": "SUPPORTED"
+    }
+  ],
+  "gaps": [],
+  "honest_ceiling": false,
+  "iteration": 1,
+  "proposal": "Add Mission Control dry-run spec panel",
+  "score": 100
+}
