@@ -51,6 +51,17 @@
     ]
   },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/autonomy_gate_hook.py\""
+          }
+        ]
+      }
+    ],
     "WorktreeCreate": [
       {
         "hooks": [
