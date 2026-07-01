@@ -2,7 +2,6 @@
 name: session-handoff
 description: Gate the tree green, then generate a precise session handoff before stopping, switching terminals, opening a PR, handing work to another agent, or resuming later. Runs the definition-of-done gates via scripts/handoff-loop.sh, writes a durable report + healthcheck log, then captures what was done, decisions locked, files changed, running state, verification, deferred questions, and exact pickup point.
 argument-hint: "[optional: ticket, branch, PR, feature, repo area, or handoff scope]"
-disable-model-invocation: true
 allowed-tools: Read, Grep, Glob, LS, Bash, Write
 ---
 

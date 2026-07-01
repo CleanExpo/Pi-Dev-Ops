@@ -5,7 +5,6 @@ import logging
 import re
 import subprocess
 from pathlib import Path
-from typing import Any
 
 from .llm import complete, parse_json_object
 from .prebuild_judge import EvidenceRow

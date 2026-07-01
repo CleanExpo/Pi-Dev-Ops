@@ -24,7 +24,9 @@ class MargotGenerationError(RuntimeError):
     """Raised for user-facing generator errors."""
 
 
-def load_manifest(path: Path = DEFAULT_MANIFEST) -> dict[str, Any]:
+def load_manifest(path: Path | None = None) -> dict[str, Any]:
+    if path is None:
+        path = DEFAULT_MANIFEST
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
