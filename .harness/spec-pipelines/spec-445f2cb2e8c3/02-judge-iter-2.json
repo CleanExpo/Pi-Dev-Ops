@@ -1,0 +1,36 @@
+{
+  "category_scores": {
+    "clear_problem": 0,
+    "cost_simplicity": 0,
+    "first_source_evidence": 0,
+    "reuse_existing": 0,
+    "security_privacy": 0,
+    "testability": 0,
+    "ux_clarity": 0
+  },
+  "ceiling_reason": "The proposal field contains only the template placeholder 'str     # Single-paragraph refined proposal text'. There is zero evaluable content. A score above 0 would be fabricated. Resubmit with a real proposal paragraph.",
+  "decision": "REJECT",
+  "evidence": [
+    {
+      "claim": "Proposal text was provided for evaluation",
+      "perspective": "The proposal field contains only the literal placeholder string 'str     # Single-paragraph refined proposal text' \u2014 no actual proposal was submitted.",
+      "source_title": "Proposal field",
+      "source_url": "",
+      "status": "UNSUPPORTED"
+    }
+  ],
+  "gaps": [
+    "No proposal text was provided \u2014 the 'str' placeholder was never replaced with actual content.",
+    "Cannot evaluate first_source_evidence: no claims exist to check against repo context.",
+    "Cannot evaluate clear_problem: no problem statement present.",
+    "Cannot evaluate reuse_existing: no design decisions described.",
+    "Cannot evaluate security_privacy: no data flows or auth decisions described.",
+    "Cannot evaluate ux_clarity: no user-facing behaviour described.",
+    "Cannot evaluate testability: no acceptance criteria or test strategy described.",
+    "Cannot evaluate cost_simplicity: no implementation scope described."
+  ],
+  "honest_ceiling": true,
+  "iteration": 1,
+  "proposal": "str     # Single-paragraph refined proposal text",
+  "score": 0
+}

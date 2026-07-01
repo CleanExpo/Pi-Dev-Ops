@@ -9,6 +9,12 @@ from typing import Any
 
 from .llm import complete, parse_json_object
 
+from app.server.model_registry import (
+    OPENROUTER_DEEPSEEK_FLASH,
+    OPENROUTER_OPUS,
+    OPENROUTER_SONNET,
+)
+
 log = logging.getLogger("pi-ceo.spec_pipeline.boardroom")
 
 STOPWORDS = frozenset({
@@ -20,12 +26,12 @@ STOPWORDS = frozenset({
 })
 
 DEFAULT_PANEL = (
-    {"provider": "openrouter", "model_id": "deepseek/deepseek-v4-flash"},
-    {"provider": "openrouter", "model_id": "anthropic/claude-sonnet-4-6"},
+    {"provider": "openrouter", "model_id": OPENROUTER_DEEPSEEK_FLASH},
+    {"provider": "openrouter", "model_id": OPENROUTER_SONNET},
 )
 
-DEFAULT_SYNTHESISER = {"provider": "openrouter", "model_id": "anthropic/claude-sonnet-4-6"}
-DEFAULT_ESCALATION = {"provider": "openrouter", "model_id": "anthropic/claude-opus-4-6"}
+DEFAULT_SYNTHESISER = {"provider": "openrouter", "model_id": OPENROUTER_SONNET}
+DEFAULT_ESCALATION = {"provider": "openrouter", "model_id": OPENROUTER_OPUS}
 
 
 @dataclass

@@ -8,10 +8,10 @@ turns, intent classification, monitor cycles).
 
 Tier mapping (defaults; all overridable via env):
 
-  TIER 1 — TOP    Anthropic Opus 4.7
+  TIER 1 — TOP    Anthropic Opus 4.8
                   Roles: planner, orchestrator, board, debate.drafter,
                   debate.redteam, margot.synthesis (Phase 2)
-                  Env: TAO_TOP_MODEL=claude-opus-4-7
+                  Env: TAO_TOP_MODEL=claude-opus-4-8
 
   TIER 2 — MID    Anthropic Sonnet 5
                   Roles: generator, evaluator, senior-brief
@@ -55,6 +55,8 @@ import re
 from dataclasses import dataclass
 from typing import Literal
 
+from app.server.model_registry import ANTHROPIC_OPUS, ANTHROPIC_SONNET
+
 log = logging.getLogger("app.server.provider_router")
 
 Provider = Literal["anthropic", "openrouter", "ollama", "claude_print"]
@@ -62,8 +64,8 @@ Provider = Literal["anthropic", "openrouter", "ollama", "claude_print"]
 
 # ── Defaults — all env-overridable ──────────────────────────────────────────
 
-DEFAULT_TOP_MODEL = "claude-opus-4-7"
-DEFAULT_MID_MODEL = "claude-sonnet-5"
+DEFAULT_TOP_MODEL = ANTHROPIC_OPUS
+DEFAULT_MID_MODEL = ANTHROPIC_SONNET
 
 # Cheap tier resolution:
 #   1. Probe Ollama at localhost:11434 (or OLLAMA_BASE_URL).

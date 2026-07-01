@@ -1,0 +1,9 @@
+{
+  "dry_run": true,
+  "issue_id": null,
+  "pipeline_id": "spec-445f2cb2e8c3",
+  "proposal": "Machine spec pipeline: judge gaps auto-resolve via CEO-board liaison and SPM gap-resolution before boardroom, with live Mission Control status polling",
+  "status": "running",
+  "trigger": "cli",
+  "updated_at": "2026-07-01T11:29:31.709813+00:00"
+}

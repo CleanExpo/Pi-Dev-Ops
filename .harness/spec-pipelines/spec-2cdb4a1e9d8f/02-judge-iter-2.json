@@ -1,0 +1,98 @@
+{
+  "category_scores": {
+    "clear_problem": 17,
+    "cost_simplicity": 0,
+    "first_source_evidence": 20,
+    "reuse_existing": 12,
+    "security_privacy": 7,
+    "testability": 8,
+    "ux_clarity": 7
+  },
+  "ceiling_reason": "Multiple evidence rows are PARTIAL (planned, not confirmed present), one is CONFLICTING (stage name mismatch SPM vs gap_resolver), two are NOT CHECKED (STORM re-fetch, score threshold enforcement), and one is UNSUPPORTED (security hardening explicitly deferred). A score of 100 is unreachable until all planned code is confirmed implemented, the stage name conflict is resolved, and STORM re-fetch has a traceable source.",
+  "decision": "REDUCE_SCOPE",
+  "evidence": [
+    {
+      "claim": "GapResolver class exists in prebuild_judge.py",
+      "perspective": "Evidence row is SUPPORTED in the proposal's own evidence list, but the claim says 'to be extended' implying it is planned, not yet present. The source file exists but the class may not yet contain GapResolver.",
+      "source_title": "prebuild_judge.py \u2014 GapResolver class to extend existing partial logic",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/prebuild_judge.py",
+      "status": "PARTIAL"
+    },
+    {
+      "claim": "StageGate in __init__.py enforces ordered sequence (judge \u2192 liaison \u2192 gap_resolver \u2192 boardroom)",
+      "perspective": "Evidence row says 'to be codified', meaning StageGate and PIPELINE_STAGES are planned additions, not confirmed present. File exists but enforcement mechanism is not yet implemented.",
+      "source_title": "spec_pipeline __init__.py \u2014 PIPELINE_STAGES to be codified",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/__init__.py",
+      "status": "PARTIAL"
+    },
+    {
+      "claim": "PipelineStatusEvent hooks exist in autonomy.py for async Mission Control broadcast",
+      "perspective": "Evidence row is SUPPORTED and autonomy.py exists with 'machine' references, but 'broadcast hooks' are described as to-be-added. Partial implementation likely.",
+      "source_title": "autonomy.py \u2014 async PipelineStatusEvent broadcast hooks",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/autonomy.py",
+      "status": "PARTIAL"
+    },
+    {
+      "claim": "PipelineCheckpoint dataclass with 2-retry + Linear ticket fallback exists in prebuild_judge.py",
+      "perspective": "Evidence row is SUPPORTED in the proposal list. File exists. However the dataclass is described as a new addition, so current presence is unconfirmed.",
+      "source_title": "prebuild_judge.py \u2014 PipelineCheckpoint dataclass",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/prebuild_judge.py",
+      "status": "PARTIAL"
+    },
+    {
+      "claim": "Four new tests in tests/test_judge_skill.py cover PARTIAL/UNSUPPORTED/order/broadcaster scenarios",
+      "perspective": "File exists (confirmed by evidence row). Evidence row says 'to be added', meaning tests are planned, not yet present. Testability design is sound.",
+      "source_title": "test_judge_skill.py \u2014 four new test functions to be added",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_judge_skill.py",
+      "status": "PARTIAL"
+    },
+    {
+      "claim": "Security hardening of Mission Control broadcast endpoint is deferred with a TODO marker in autonomy.py",
+      "perspective": "Explicitly deferred. No authentication, rate-limiting, or input validation is specified for the broadcast endpoint. This is a known open risk acknowledged in the proposal.",
+      "source_title": "autonomy.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/autonomy.py",
+      "status": "UNSUPPORTED"
+    },
+    {
+      "claim": "Pipeline ordering enforces gap_resolver as a distinct named stage between liaison and boardroom",
+      "perspective": "Proposal text says sequence is judge \u2192 liaison \u2192 gap_resolver \u2192 boardroom, but evidence row for pipeline ordering says 'judge \u2192 liaison \u2192 SPM \u2192 boardroom'. The 'SPM' label conflicts with 'gap_resolver' in the proposal narrative. Stage name inconsistency is unresolved.",
+      "source_title": "spec_pipeline __init__.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/__init__.py",
+      "status": "CONFLICTING"
+    },
+    {
+      "claim": "NOT_CHECKED rows trigger a STORM re-fetch",
+      "perspective": "No evidence row, no source file, no existing STORM re-fetch mechanism referenced anywhere in the repo context. This behaviour is entirely unverified.",
+      "source_title": "",
+      "source_url": "",
+      "status": "NOT CHECKED"
+    },
+    {
+      "claim": "Score threshold \u226570 with zero hard blocks is enforced as the proceed gate",
+      "perspective": "Threshold logic is described in the proposal but no evidence row confirms it is currently implemented or tested. Existing judge logic may have a different threshold.",
+      "source_title": "prebuild_judge.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/prebuild_judge.py",
+      "status": "NOT CHECKED"
+    },
+    {
+      "claim": "mcp__pi-ceo__linear_create_issue is used for Linear ticket filing on rollback halt",
+      "perspective": "CLAUDE.md confirms this tool is the standard for filing tickets. Usage in rollback path is consistent with repo conventions. Plausible but not confirmed in pipeline code.",
+      "source_title": "CLAUDE.md \u2014 durable rule 2",
+      "source_url": "",
+      "status": "PARTIAL"
+    }
+  ],
+  "gaps": [
+    "Stage name inconsistency: proposal body says 'gap_resolver' but the SUPPORTED evidence row for __init__.py says 'SPM'. These must be reconciled before build \u2014 a misnamed stage will break StageGate ordering.",
+    "STORM re-fetch for NOT_CHECKED rows has zero source evidence. No STORM class, module, or hook is referenced anywhere in the repo context. This feature is either phantom or requires a new dependency that is undeclared.",
+    "Score threshold (\u226570) enforcement location and test coverage are unspecified. No test case in the four listed tests exercises the threshold boundary condition.",
+    "Security deferral on Mission Control broadcast endpoint is an explicit open risk. The TODO marker approach is acceptable only if the endpoint is not externally reachable in this sprint; the proposal does not confirm network exposure scope.",
+    "Broadcaster failure non-fatal behaviour (test 4) needs to confirm the internal event bus does not silently drop critical pipeline state that downstream consumers depend on \u2014 proposal does not address state consistency on broadcaster failure.",
+    "PipelineCheckpoint max-2-retries logic: no test covers the retry exhaustion \u2192 Linear ticket path. This is a gap in testability coverage for the rollback mechanism.",
+    "cost_simplicity: The proposal introduces five new classes/dataclasses, async event hooks, a new retry+ticketing path, and deferred security work. No complexity budget or LOC estimate is provided. Risk of scope creep is high given CLAUDE.md's surface-treatment prohibition (RA-1109)."
+  ],
+  "honest_ceiling": true,
+  "iteration": 1,
+  "proposal": "Machine Spec Pipeline v2: Judge gaps are auto-resolved via a GapResolver class (in prebuild_judge.py) invoked by the CEO-Board Liaison before the boardroom stage. The pipeline follows a strict ordered sequence (judge \u2192 liaison \u2192 gap_resolver \u2192 boardroom) enforced by StageGate in __init__.py. Auto-resolve semantics: PARTIAL evidence rows are warned-and-continued; UNSUPPORTED rows raise HardBlockError halting the pipeline; NOT_CHECKED rows trigger a STORM re-fetch. Score threshold for proceed: \u226570 with zero hard blocks. Mission Control status is broadcast asynchronously via PipelineStatusEvent hooks in autonomy.py (push model, internal event bus, non-fatal on broadcaster failure). Rollback uses PipelineCheckpoint dataclass with max 2 retries before halting and filing a Linear ticket via mcp__pi-ceo__linear_create_issue. Four new tests in tests/test_judge_skill.py cover: (1) PARTIAL row auto-resolves without HardBlockError, (2) UNSUPPORTED row raises HardBlockError, (3) out-of-order stage call raises PipelineOrderError, (4) broadcaster failure is non-fatal and pipeline continues. Security hardening of the Mission Control broadcast endpoint is explicitly deferred to a follow-on sprint with a TODO marker in autonomy.py.",
+  "score": 71
+}

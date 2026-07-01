@@ -167,8 +167,8 @@ CLAUDE_EXTRA_FLAGS   = [] if _INTERACTIVE else ["--dangerously-skip-permissions"
 ALLOWED_MODELS       = ["opus", "sonnet", "haiku"]
 
 # ── MODEL ROUTING POLICY (RA-1099 — hardwired 2026-04-17) ──────────────────
-# Opus 4.7 is reserved for Senior PM (planner) and Senior Orchestrator agents.
-# Every other agent role MUST use Sonnet 4.6 or Haiku 4.5.
+# Opus 4.8 is reserved for Senior PM (planner) and Senior Orchestrator agents.
+# Every other agent role MUST use Sonnet 5 or Haiku 4.5.
 # Override via TAO_OPUS_ALLOWED_ROLES if you ever need to widen this — but the
 # default is strict by design (cost + latency).
 OPUS_ALLOWED_ROLES   = set(
@@ -177,23 +177,20 @@ OPUS_ALLOWED_ROLES   = set(
         "planner,orchestrator,adversary,portfolio",
     ).split(",")
 )
-# RA-1743 — `adversary` runs the pre-push opus-adversary review gate. Opus 4.7
-# is required for genuine model-diversity vs Sonnet 4.6 generator/evaluator.
+# RA-1743 — `adversary` runs the pre-push opus-adversary review gate. Opus 4.8
+# is required for genuine model-diversity vs Sonnet 5 generator/evaluator.
 # RA-1922 — `portfolio` is the role bucket for the cross-portfolio synthesis
 # (RA-1892, the "10x layer" of the daily Portfolio Pulse). session_sdk.py:127
 # strips dot-suffixes via `phase.split(".")[0]`, so `portfolio.synthesis`
 # arrives at the policy check as bare `portfolio`. Synthesis runs once per
 # day across the whole portfolio (~365 calls/year) — cost is bounded.
-# Long-form model IDs returned by _resolve_model_id() in pipeline.py and
-# session_evaluator.py. Kept here so a single edit changes both readers.
-MODEL_ID_OPUS        = "claude-opus-4-7"
-MODEL_ID_SONNET      = "claude-sonnet-5"
-MODEL_ID_HAIKU       = "claude-haiku-4-5-20251001"
-MODEL_SHORT_TO_ID    = {
-    "opus":   MODEL_ID_OPUS,
-    "sonnet": MODEL_ID_SONNET,
-    "haiku":  MODEL_ID_HAIKU,
-}
+# Long-form model IDs — SSOT in model_registry.py; re-exported here for legacy imports.
+from app.server.model_registry import (  # noqa: E402
+    ANTHROPIC_HAIKU as MODEL_ID_HAIKU,
+    ANTHROPIC_OPUS as MODEL_ID_OPUS,
+    ANTHROPIC_SONNET as MODEL_ID_SONNET,
+    SHORT_TO_ANTHROPIC as MODEL_SHORT_TO_ID,
+)
 MAX_CONCURRENT_SESSIONS = int(os.environ.get("TAO_MAX_SESSIONS",        "3"))
 RATE_LIMIT_PER_MIN   = int(os.environ.get("TAO_RATE_LIMIT",             "30"))
 WORKSPACE_ROOT       = os.environ.get("TAO_WORKSPACE",

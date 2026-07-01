@@ -1,0 +1,144 @@
+{
+  "rows": [
+    {
+      "claim": "Repo mentions 'machine' in app/server/spec_pipeline/ceo_board_liaison.py",
+      "perspective": "architect",
+      "source_title": "app/server/spec_pipeline/ceo_board_liaison.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/ceo_board_liaison.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'machine' in app/server/spec_pipeline/ship_gate.py",
+      "perspective": "architect",
+      "source_title": "app/server/spec_pipeline/ship_gate.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/ship_gate.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'machine' in tests/test_judge_skill.py",
+      "perspective": "architect",
+      "source_title": "tests/test_judge_skill.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_judge_skill.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'machine' in app/server/spec_pipeline/__init__.py",
+      "perspective": "architect",
+      "source_title": "app/server/spec_pipeline/__init__.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/__init__.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'machine' in tests/swarm/nexus/test_onboarding.py",
+      "perspective": "architect",
+      "source_title": "tests/swarm/nexus/test_onboarding.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/swarm/nexus/test_onboarding.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'machine' in tests/test_hermes_production_unit.py",
+      "perspective": "architect",
+      "source_title": "tests/test_hermes_production_unit.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_hermes_production_unit.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'machine' in app/server/autonomy.py",
+      "perspective": "architect",
+      "source_title": "app/server/autonomy.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/autonomy.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'machine' in app/server/cron_fire_agents.py",
+      "perspective": "architect",
+      "source_title": "app/server/cron_fire_agents.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/cron_fire_agents.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in app/static/index.html",
+      "perspective": "architect",
+      "source_title": "app/static/index.html",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/static/index.html",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in dashboard/vitest.config.ts",
+      "perspective": "architect",
+      "source_title": "dashboard/vitest.config.ts",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/dashboard/vitest.config.ts",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in skills/marketing-analytics-attribution/SKILL.md",
+      "perspective": "architect",
+      "source_title": "skills/marketing-analytics-attribution/SKILL.md",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/skills/marketing-analytics-attribution/SKILL.md",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in tests/test_discovery_archive.py",
+      "perspective": "architect",
+      "source_title": "tests/test_discovery_archive.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_discovery_archive.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in app/server/cron_triggers.py",
+      "perspective": "architect",
+      "source_title": "app/server/cron_triggers.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/cron_triggers.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in tests/test_sdk_phase2.py",
+      "perspective": "architect",
+      "source_title": "tests/test_sdk_phase2.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_sdk_phase2.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in dashboard/lib/claude.ts",
+      "perspective": "architect",
+      "source_title": "dashboard/lib/claude.ts",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/dashboard/lib/claude.ts",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in app/server/cron_watchdogs.py",
+      "perspective": "architect",
+      "source_title": "app/server/cron_watchdogs.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/cron_watchdogs.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'pipeline' in skills/marketing-analytics-attribution/SKILL.md",
+      "perspective": "architect",
+      "source_title": "skills/marketing-analytics-attribution/SKILL.md",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/skills/marketing-analytics-attribution/SKILL.md",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'pipeline' in app/server/cron_triggers.py",
+      "perspective": "architect",
+      "source_title": "app/server/cron_triggers.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/cron_triggers.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'pipeline' in dashboard/lib/models.ts",
+      "perspective": "architect",
+      "source_title": "dashboard/lib/models.ts",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/dashboard/lib/models.ts",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'pipeline' in app/server/spec_pipeline/prebuild_judge.py",
+      "perspective": "architect",
+      "source_title": "app/server/spec_pipeline/prebuild_judge.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/prebuild_judge.py",
+      "status": "SUPPORTED"
+    }
+  ]
+}

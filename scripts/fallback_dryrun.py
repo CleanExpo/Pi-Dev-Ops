@@ -97,7 +97,7 @@ def _raise_linear_ticket(error_msg: str, linear_api_key: str) -> str | None:
         return None
 
 
-def run_dryrun(model: str = "claude-sonnet-4-5", dry_run: bool = False) -> bool:
+def run_dryrun(model: str = "claude-sonnet-5", dry_run: bool = False) -> bool:
     """
     Execute the fallback path test. Returns True on success, False on failure.
 

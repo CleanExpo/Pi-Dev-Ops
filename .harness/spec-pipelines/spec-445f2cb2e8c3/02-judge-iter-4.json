@@ -1,0 +1,94 @@
+{
+  "category_scores": {
+    "clear_problem": 20,
+    "cost_simplicity": 5,
+    "first_source_evidence": 23,
+    "reuse_existing": 15,
+    "security_privacy": 15,
+    "testability": 9,
+    "ux_clarity": 9
+  },
+  "ceiling_reason": "Three evidence rows are PARTIAL because the implementation does not yet exist in the repo (forward claims on code to be written), the prebuild_judge.py internals are not fully visible to verify the >0 scoring guarantee, and the bare-type-name detection rule has an unresolved edge-case ambiguity. Score cannot reach 100 until implementation is present, py_compile verified, and the detection rule is precisely specified.",
+  "decision": "APPROVE_EXPERIMENT",
+  "evidence": [
+    {
+      "claim": "ceo_board_liaison.py exists in the spec_pipeline module and is the correct insertion point for pre-flight validation",
+      "perspective": "The proposal correctly identifies this file as the upstream guard insertion point; the Round 1 unsubstituted 'str' token failure is a documented real event in this pipeline.",
+      "source_title": "ceo_board_liaison.py \u2014 spec_pipeline module",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/ceo_board_liaison.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "prebuild_judge.py exists and contains pipeline scoring logic that can be structurally mapped to schema fields",
+      "perspective": "Confirmed present in repo context; proposal's structural mapping of seven judge dimensions to seven schema fields is coherent and directly addresses the 'no content to evaluate' gap.",
+      "source_title": "prebuild_judge.py \u2014 spec_pipeline module",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/prebuild_judge.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "app/server/models.py is boundary-matrix safe (\u2705) for adding new Pydantic fields without human approval",
+      "perspective": "AGENTS.md explicitly lists models.py as \u2705 free-modify. No approval gate required for this change.",
+      "source_title": "AGENTS.md \u2014 Root Boundary Matrix",
+      "source_url": "AGENTS.md",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Test infrastructure for spec pipeline exists and can host new schema validation tests",
+      "perspective": "Existing pipeline tests confirm the tests/ directory is active and the pattern for new test files is established.",
+      "source_title": "tests/test_debate_runner.py \u2014 existing pipeline test pattern",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_debate_runner.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Proposal text was provided for evaluation (resolving the UNSUPPORTED open evidence row from Round 1)",
+      "perspective": "This Round 2 submission contains fully substituted, substantive proposal text \u2014 the exact failure mode being addressed is not reproduced here.",
+      "source_title": "Round 2 refined_proposal field \u2014 machine board memo",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/ceo_board_liaison.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "No external API calls, no user PII, no new auth surface introduced",
+      "perspective": "All changes are internal to the spec pipeline. validate_proposal_text() is a pure string-inspection function. No network calls, no credential handling, no new routes. Security posture is unchanged or improved.",
+      "source_title": "Proposal security/privacy section",
+      "source_url": "",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "A proposal containing the bare string 'str' is rejected with ValueError before reaching the judge",
+      "perspective": "The proposed implementation raises ValueError on bare type names. This is testable and deterministic. However, the actual implementation does not yet exist in the repo \u2014 this is a forward claim on code to be written.",
+      "source_title": "Acceptance criterion (a) \u2014 validate_proposal_text()",
+      "source_url": "",
+      "status": "PARTIAL"
+    },
+    {
+      "claim": "A proposal with all seven fields populated scores > 0 on every judge dimension",
+      "perspective": "The structural mapping of judge dimensions to schema fields is sound in design. Actual scoring behaviour depends on prebuild_judge.py internals not fully visible in repo context \u2014 cannot fully verify without reading the current scoring logic.",
+      "source_title": "Acceptance criterion (b) \u2014 prebuild_judge.py structural mapping",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/prebuild_judge.py",
+      "status": "PARTIAL"
+    },
+    {
+      "claim": "python -m py_compile passes on all modified files",
+      "perspective": "This is a process requirement already mandated by CLAUDE.md. The proposal correctly includes it as an acceptance criterion. Cannot verify until implementation exists.",
+      "source_title": "CLAUDE.md \u2014 Smoke-test before committing rule",
+      "source_url": "CLAUDE.md",
+      "status": "PARTIAL"
+    },
+    {
+      "claim": "Implementation scope is ~80-120 lines net addition across 3 modified files and 1 new test file",
+      "perspective": "Estimate is plausible for the described changes (Pydantic field additions, one validation function, one structural mapping update, two test cases). No evidence of scope underestimation.",
+      "source_title": "Proposal implementation scope section",
+      "source_url": "",
+      "status": "SUPPORTED"
+    }
+  ],
+  "gaps": [
+    "prebuild_judge.py internal scoring logic is not visible in repo context \u2014 cannot confirm that structural field mapping alone guarantees >0 scores on all seven dimensions without reviewing current dimension-evaluation code paths.",
+    "validate_proposal_text() regex/heuristic for 'bare type names' is not yet specified precisely \u2014 edge cases (e.g. a proposal legitimately discussing Python's 'str' type in prose) could produce false-positive rejections; proposal should define the detection rule more narrowly (e.g. field value == 'str' exactly, not substring match).",
+    "No migration or backward-compatibility note for existing proposals already stored without the seven new required Pydantic fields \u2014 if any persistence layer serialises/deserialises ProposalModel, adding required fields is a breaking schema change that needs a default or Optional guard."
+  ],
+  "honest_ceiling": true,
+  "iteration": 1,
+  "proposal": "Add a pre-flight proposal validator and structured schema enforcement to the Pi-Dev-Ops spec pipeline to eliminate null/template-token submissions reaching the prebuild judge. Problem: The ceo_board_liaison.py pipeline emitted an unsubstituted template token ('str') as proposal text in Round 1, causing a 0/100 judge score across all seven evaluation dimensions. This is a systemic gap: the judge correctly detected the failure but had no upstream guard to prevent it. Design decisions reusing existing repo structure: (1) Extend the existing Pydantic proposal model in app/server/models.py with seven required fields (problem_statement, evidence_refs, design_decisions, data_flows, ux_behaviour, acceptance_criteria, implementation_scope); (2) Add validate_proposal_text() to app/server/spec_pipeline/ceo_board_liaison.py \u2014 raises ValueError on bare type names, angle-bracket placeholders, or empty strings before the judge is invoked; (3) Update app/server/spec_pipeline/prebuild_judge.py to structurally map each of its seven scoring dimensions to the corresponding required schema field, eliminating 'no content to evaluate' gaps. Data flows and auth: all processing is internal to the spec pipeline; no external API calls, no user PII, no new auth surface introduced. UX behaviour: pipeline operators (machine board agents) receive an immediate, descriptive error at submission time if a proposal is malformed, rather than a 0/100 score with opaque gaps. Acceptance criteria: (a) A proposal containing the bare string 'str' is rejected with ValueError before reaching the judge; (b) A proposal with all seven fields populated scores > 0 on every judge dimension; (c) python -m py_compile passes on all modified files; (d) New test file tests/test_prebuild_judge_schema.py covers both cases. Implementation scope: ~3 files modified (models.py, ceo_board_liaison.py, prebuild_judge.py), 1 new test file, estimated 80-120 lines net addition. Low risk, high leverage, fully reversible.",
+  "score": 91
+}

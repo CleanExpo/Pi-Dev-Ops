@@ -39,3 +39,17 @@ async def test_liaison_parses_memo_and_json(monkeypatch):
     assert "polling" in result.refined_proposal
     assert len(result.gap_resolutions) == 1
     assert result.new_evidence[0].status == "SUPPORTED"
+
+
+@pytest.mark.asyncio
+async def test_liaison_survives_missing_json_tail(monkeypatch):
+    from app.server.spec_pipeline import ceo_board_liaison as mod
+
+    async def fake_complete(**_kwargs):
+        return ("## THE MEMO\nProceed with reduced scope.\n(no json tail)", 0.01)
+
+    monkeypatch.setattr(mod, "complete", fake_complete)
+    report = JudgeReport(proposal="Add panel", score=70, decision="REDUCE_SCOPE", gaps=["x"])
+    result = await run_ceo_board_liaison("Add panel", report, evidence=[], repo_context="ctx")
+    assert result.proceed is True
+    assert result.decision == "REDUCE_SCOPE"

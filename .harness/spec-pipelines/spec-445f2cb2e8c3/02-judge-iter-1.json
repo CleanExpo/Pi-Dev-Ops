@@ -1,0 +1,99 @@
+{
+  "category_scores": {
+    "clear_problem": 13,
+    "cost_simplicity": 1,
+    "first_source_evidence": 17,
+    "reuse_existing": 12,
+    "security_privacy": 10,
+    "testability": 3,
+    "ux_clarity": 5
+  },
+  "ceiling_reason": "Two core components (SPM gap-resolution, Mission Control polling) have zero source evidence in the repo. Auto-resolve logic and boardroom handoff are only partially evidenced. Testability is near-zero without a test plan. Score cannot reach 100 until all gaps are closed and every evidence row is SUPPORTED.",
+  "decision": "REJECT",
+  "evidence": [
+    {
+      "claim": "spec_pipeline/ceo_board_liaison.py exists in repo",
+      "perspective": "CEO-board liaison component referenced in proposal already exists as a file",
+      "source_title": "ceo_board_liaison.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/ceo_board_liaison.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "spec_pipeline/prebuild_judge.py exists in repo",
+      "perspective": "Pre-build judge gate already exists; this proposal extends it",
+      "source_title": "prebuild_judge.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/prebuild_judge.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "spec_pipeline/ship_gate.py exists in repo",
+      "perspective": "Ship gate pipeline component exists, relevant to gap-resolution flow",
+      "source_title": "ship_gate.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/ship_gate.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "spec_pipeline/__init__.py exists, indicating a package",
+      "perspective": "spec_pipeline is an established package; new components should slot in here",
+      "source_title": "__init__.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/__init__.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "A 'SPM gap-resolution' module exists in the repo",
+      "perspective": "Proposal references SPM gap-resolution as a distinct component but no file evidence for it appears in the repo context",
+      "source_title": "",
+      "source_url": "",
+      "status": "UNSUPPORTED"
+    },
+    {
+      "claim": "Live Mission Control status polling mechanism exists",
+      "perspective": "No Mission Control polling module or endpoint is evidenced in the provided repo context; WebSocket streaming exists but is not the same as a named Mission Control poller",
+      "source_title": "",
+      "source_url": "",
+      "status": "UNSUPPORTED"
+    },
+    {
+      "claim": "Judge gap auto-resolve logic exists or is scaffolded",
+      "perspective": "prebuild_judge.py exists but proposal's 'auto-resolve' behaviour is not confirmed as implemented \u2014 only the file exists",
+      "source_title": "prebuild_judge.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/prebuild_judge.py",
+      "status": "PARTIAL"
+    },
+    {
+      "claim": "Machine spec pipeline is referenced in existing code",
+      "perspective": "Multiple files reference 'machine' and 'spec pipeline' confirming the domain exists",
+      "source_title": "spec_pipeline/__init__.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/__init__.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Tests exist for the spec pipeline / board components",
+      "perspective": "Pipeline tests exist but no test file specifically covering judge gap-resolution or SPM gap-resolution is evidenced",
+      "source_title": "test_tao_tdd_pipeline.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_tao_tdd_pipeline.py",
+      "status": "PARTIAL"
+    },
+    {
+      "claim": "Boardroom integration point is defined and reachable",
+      "perspective": "Proposal says gaps resolve 'before boardroom' but no boardroom route or agent file is cited in the repo context provided",
+      "source_title": "",
+      "source_url": "",
+      "status": "NOT CHECKED"
+    }
+  ],
+  "gaps": [
+    "SPM (Spec Pipeline Manager?) gap-resolution module is undefined \u2014 no file, no interface contract, no schema. Must be specified before build.",
+    "Mission Control polling: no endpoint URL, polling interval, auth mechanism, or failure-mode defined. Ambiguous whether this is a new service or reuse of existing WebSocket stream.",
+    "Auto-resolve logic for judge gaps is not specified: what constitutes a 'gap', what resolution strategies exist, what happens on unresolvable gaps (halt vs. escalate vs. default)?",
+    "No test plan provided for the new auto-resolve path \u2014 existing pipeline tests do not cover this flow.",
+    "'Boardroom' integration point is referenced but not defined in repo context; the handoff contract (data shape, trigger condition) is missing.",
+    "Security/auth for live Mission Control polling is unspecified \u2014 if polling is external-facing, auth must be declared.",
+    "Cost impact of live polling (frequency, compute, Railway/Vercel billing) is not estimated.",
+    "No rollback or circuit-breaker defined if CEO-board liaison or SPM resolution hangs mid-pipeline."
+  ],
+  "honest_ceiling": true,
+  "iteration": 1,
+  "proposal": "Machine spec pipeline: judge gaps auto-resolve via CEO-board liaison and SPM gap-resolution before boardroom, with live Mission Control status polling",
+  "score": 61
+}

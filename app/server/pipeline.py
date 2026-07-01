@@ -243,11 +243,7 @@ def _skill_prefix(skill_names: list[str]) -> str:
         return ""
 
 
-_MODEL_MAP = {
-    "opus":   "claude-opus-4-7",
-    "sonnet": "claude-sonnet-5",
-    "haiku":  "claude-haiku-4-5-20251001",
-}
+from app.server.model_registry import SHORT_TO_ANTHROPIC as _MODEL_MAP
 
 # RA-1094B — _resolve_claude_bin / _run_claude_subprocess removed.
 # The Agent SDK is the only execution path (SDK-only mandate, RA-576).

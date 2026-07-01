@@ -1,0 +1,95 @@
+{
+  "category_scores": {
+    "clear_problem": 20,
+    "cost_simplicity": 5,
+    "first_source_evidence": 23,
+    "reuse_existing": 15,
+    "security_privacy": 15,
+    "testability": 9,
+    "ux_clarity": 9
+  },
+  "ceiling_reason": "Two acceptance criteria (a and b) are PARTIAL because the implementation does not yet exist \u2014 they are forward claims. One criterion (c, py_compile) is NOT CHECKED for the same reason. A score of 100 requires all evidence rows to be SUPPORTED with no gaps; that state is only reachable after the implementation is committed and smoke-tested.",
+  "decision": "APPROVE_EXPERIMENT",
+  "evidence": [
+    {
+      "claim": "ceo_board_liaison.py exists in the spec_pipeline module and is the correct insertion point for pre-flight validation",
+      "perspective": "The file is confirmed present in the repo and is the documented emission point of the unsubstituted 'str' token that caused the Round 1 0/100 failure. Adding validate_proposal_text() here is the minimal, highest-leverage insertion point.",
+      "source_title": "ceo_board_liaison.py \u2014 spec_pipeline module",
+      "source_url": "app/server/spec_pipeline/ceo_board_liaison.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "prebuild_judge.py exists and contains pipeline scoring logic that can be structurally mapped to schema fields",
+      "perspective": "Confirmed present. The proposal's plan to map each of the seven scoring dimensions to a required schema field is architecturally sound and eliminates the 'no content to evaluate' gap that produced zero scores across all dimensions.",
+      "source_title": "prebuild_judge.py \u2014 spec_pipeline module",
+      "source_url": "app/server/spec_pipeline/prebuild_judge.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "app/server/models.py is boundary-matrix safe (\u2705) for adding new Pydantic fields without human approval",
+      "perspective": "AGENTS.md explicitly lists app/server/models.py as \u2705 \u2014 modify freely. No approval gate required for the seven-field schema extension.",
+      "source_title": "AGENTS.md \u2014 Root Boundary Matrix",
+      "source_url": "AGENTS.md",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Test infrastructure for spec pipeline exists and can host new schema validation tests",
+      "perspective": "Confirmed. The existing test file demonstrates the pattern for pipeline-level tests. tests/test_prebuild_judge_schema.py follows the same convention and is a natural extension.",
+      "source_title": "tests/test_debate_runner.py \u2014 existing pipeline test pattern",
+      "source_url": "tests/test_debate_runner.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "The unsubstituted 'str' token caused a 0/100 judge score across all seven evaluation dimensions in Round 1",
+      "perspective": "Stated as the motivating incident. The proposal correctly identifies this as a systemic gap (no upstream guard) rather than a one-off. The causal chain \u2014 template token \u2192 empty content \u2192 judge scores zero \u2014 is internally consistent.",
+      "source_title": "Round 1 failure \u2014 machine board memo",
+      "source_url": "app/server/spec_pipeline/ceo_board_liaison.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "No external API calls, no user PII, no new auth surface introduced",
+      "perspective": "All three modified files are internal to the spec pipeline. Pydantic validation and ValueError raising are pure Python with no I/O side-effects. Security posture is unchanged or improved (earlier rejection of malformed input).",
+      "source_title": "Data flows and auth \u2014 proposal body",
+      "source_url": "app/server/spec_pipeline/ceo_board_liaison.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Acceptance criterion (a): a proposal containing bare string 'str' is rejected with ValueError before reaching the judge",
+      "perspective": "The criterion is precise and mechanically testable. The regex/string-match approach for bare type names and angle-bracket placeholders is standard and low-risk. Implementation is not yet present in the repo \u2014 this is a forward claim, but the design is unambiguous.",
+      "source_title": "validate_proposal_text() \u2014 proposed implementation",
+      "source_url": "app/server/spec_pipeline/ceo_board_liaison.py",
+      "status": "PARTIAL"
+    },
+    {
+      "claim": "Acceptance criterion (b): a proposal with all seven fields populated scores > 0 on every judge dimension",
+      "perspective": "Depends on the judge's scoring logic correctly consuming the new schema fields. The structural mapping is described but not yet implemented. The claim is testable once implemented; currently forward-looking.",
+      "source_title": "prebuild_judge.py \u2014 structural field mapping",
+      "source_url": "app/server/spec_pipeline/prebuild_judge.py",
+      "status": "PARTIAL"
+    },
+    {
+      "claim": "python -m py_compile passes on all modified files",
+      "perspective": "This is a process gate, not a current state claim. CLAUDE.md mandates py_compile before committing. The proposal correctly cites it as acceptance criterion (c). Cannot be verified pre-implementation.",
+      "source_title": "CLAUDE.md \u2014 smoke-test rule 3",
+      "source_url": "CLAUDE.md",
+      "status": "NOT CHECKED"
+    },
+    {
+      "claim": "Implementation scope is ~80-120 lines net addition across 3 modified files and 1 new test file",
+      "perspective": "Estimate is plausible for the described changes: a Pydantic model extension (~20L), a validator function (~15L), judge field mapping (~25L), and two test cases (~40L). No evidence of scope underestimation.",
+      "source_title": "Implementation scope \u2014 proposal body",
+      "source_url": "app/server/spec_pipeline/ceo_board_liaison.py",
+      "status": "SUPPORTED"
+    }
+  ],
+  "gaps": [
+    "Acceptance criteria (a) and (b) are forward claims \u2014 the validate_proposal_text() function and the structural judge field mapping do not yet exist in the repo. The proposal is approved to build them, but the judge cannot mark these SUPPORTED until implementation is present and smoke-tested.",
+    "The proposal does not specify the exact regex patterns for 'bare type names' and 'angle-bracket placeholders'. A future revision should document the canonical pattern list (e.g. r'^str$', r'^int$', r'<[^>]+>') in the validator to prevent ambiguity during code review.",
+    "No rollback procedure is described for the case where the new Pydantic required fields break existing callers that pass partial proposal objects. A migration note or Optional[] fallback strategy for legacy call sites would close this gap.",
+    "The test file tests/test_prebuild_judge_schema.py is named but its fixture strategy (mock judge, live judge, or stub) is unspecified. Clarifying whether it mocks prebuild_judge.py or invokes it end-to-end would prevent test brittleness."
+  ],
+  "honest_ceiling": true,
+  "iteration": 1,
+  "proposal": "Add a pre-flight proposal validator and structured schema enforcement to the Pi-Dev-Ops spec pipeline to eliminate null/template-token submissions reaching the prebuild judge. Problem: The ceo_board_liaison.py pipeline emitted an unsubstituted template token ('str') as proposal text in Round 1, causing a 0/100 judge score across all seven evaluation dimensions. This is a systemic gap: the judge correctly detected the failure but had no upstream guard to prevent it. Design decisions reusing existing repo structure: (1) Extend the existing Pydantic proposal model in app/server/models.py with seven required fields (problem_statement, evidence_refs, design_decisions, data_flows, ux_behaviour, acceptance_criteria, implementation_scope); (2) Add validate_proposal_text() to app/server/spec_pipeline/ceo_board_liaison.py \u2014 raises ValueError on bare type names, angle-bracket placeholders, or empty strings before the judge is invoked; (3) Update app/server/spec_pipeline/prebuild_judge.py to structurally map each of its seven scoring dimensions to the corresponding required schema field, eliminating 'no content to evaluate' gaps. Data flows and auth: all processing is internal to the spec pipeline; no external API calls, no user PII, no new auth surface introduced. UX behaviour: pipeline operators (machine board agents) receive an immediate, descriptive error at submission time if a proposal is malformed, rather than a 0/100 score with opaque gaps. Acceptance criteria: (a) A proposal containing the bare string 'str' is rejected with ValueError before reaching the judge; (b) A proposal with all seven fields populated scores > 0 on every judge dimension; (c) python -m py_compile passes on all modified files; (d) New test file tests/test_prebuild_judge_schema.py covers both cases. Implementation scope: ~3 files modified (models.py, ceo_board_liaison.py, prebuild_judge.py), 1 new test file, estimated 80-120 lines net addition. Low risk, high leverage, fully reversible.",
+  "score": 91
+}

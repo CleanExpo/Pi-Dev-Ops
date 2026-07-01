@@ -1,0 +1,110 @@
+{
+  "category_scores": {
+    "clear_problem": 19,
+    "cost_simplicity": 2,
+    "first_source_evidence": 24,
+    "reuse_existing": 14,
+    "security_privacy": 13,
+    "testability": 10,
+    "ux_clarity": 9
+  },
+  "ceiling_reason": "Three evidence rows are PARTIAL because key artifacts (StageGate, PipelineOrderError, six test functions) are explicitly 'to be codified/added' rather than confirmed present in the current repo state. Score cannot reach 100 until build-time verification confirms these artifacts exist and tests pass.",
+  "decision": "APPROVE_EXPERIMENT",
+  "evidence": [
+    {
+      "claim": "GapResolver class in prebuild_judge.py invoked by CEO-Board Liaison within SPM stage",
+      "perspective": "Repo confirms prebuild_judge.py exists and GapResolver is scoped there; liaison invocation path is asserted but not independently verified from ceo_board_liaison.py source",
+      "source_title": "prebuild_judge.py \u2014 GapResolver class to extend existing partial logic",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/prebuild_judge.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "PIPELINE_STAGES tuple ('judge', 'liaison', 'SPM', 'boardroom') enforced by StageGate in __init__.py",
+      "perspective": "Evidence row explicitly notes 'to be codified' \u2014 this is a planned artifact, not yet confirmed as implemented; StageGate class existence in __init__.py is unverified",
+      "source_title": "spec_pipeline __init__.py \u2014 PIPELINE_STAGES to be codified",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/__init__.py",
+      "status": "PARTIAL"
+    },
+    {
+      "claim": "PARTIAL evidence rows are warned-and-continued; UNSUPPORTED rows raise HardBlockError; NOT_CHECKED rows treated as WARN_CONTINUE with structured log entry",
+      "perspective": "Proposal semantics are clearly defined; repo evidence confirms the file exists and the NOT_CHECKED/STORM handling is scoped; no STORM re-fetch dependency is a clean constraint",
+      "source_title": "prebuild_judge.py \u2014 NOT_CHECKED row handling without STORM",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/prebuild_judge.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "GapResolver.resolve() raises ThresholdNotMetError if final_score < 70 or hard_block_count > 0; ThresholdNotMetError is a subclass of HardBlockError defined in prebuild_judge.py",
+      "perspective": "Evidence row directly supports threshold enforcement in prebuild_judge.py; subclass relationship is proposal-defined and consistent with Python idiom; no conflicting evidence",
+      "source_title": "prebuild_judge.py \u2014 GapResolver.resolve() threshold enforcement",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/prebuild_judge.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "PipelineStatusEvent broadcast via internal async event bus in autonomy.py; no HTTP route, webhook, or external socket registered; TODO marker scopes future hardening",
+      "perspective": "autonomy.py exists and is confirmed in repo context; internal-bus-only constraint and TODO marker are well-scoped; no evidence of conflicting external exposure",
+      "source_title": "autonomy.py \u2014 PipelineStatusEvent internal bus only with scoped TODO",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/autonomy.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Broadcaster failure is non-fatal; exceptions log WARNING but do not mutate PipelineCheckpoint; PipelineCheckpoint is single source of truth",
+      "perspective": "PipelineCheckpoint is confirmed as the rollback artifact; non-fatal broadcaster semantics are clearly specified; test case 4 directly covers this invariant",
+      "source_title": "PipelineCheckpoint dataclass with 2-retry + Linear ticket fallback",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/prebuild_judge.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Rollback uses PipelineCheckpoint dataclass with max 2 retries before halting and filing a Linear ticket via mcp__pi-ceo__linear_create_issue with team_id and project_id from .harness/projects.json",
+      "perspective": "Linear ticket routing via .harness/projects.json is consistent with CLAUDE.md standing mandate; mcp__pi-ceo__linear_create_issue is the canonical tool; test case 6 covers retry exhaustion path",
+      "source_title": "PipelineCheckpoint dataclass with 2-retry + Linear ticket fallback",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/prebuild_judge.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Six tests in tests/test_judge_skill.py cover all six specified paths",
+      "perspective": "test_judge_skill.py exists in repo; evidence row confirms six-test scope; actual test implementations are 'to be added' per evidence note, not yet verified as present",
+      "source_title": "test_judge_skill.py \u2014 six test functions covering all critical paths",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_judge_skill.py",
+      "status": "PARTIAL"
+    },
+    {
+      "claim": "Net new LOC budget capped at 350 lines: prebuild_judge.py +180L, __init__.py +40L, autonomy.py +60L, test_judge_skill.py +70L",
+      "perspective": "LOC budget is internally consistent (180+40+60+70=350); no external dependency is introduced; budget is a proposal constraint with no conflicting repo evidence",
+      "source_title": "prebuild_judge.py \u2014 GapResolver class to extend existing partial logic",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/prebuild_judge.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "No new external dependencies introduced",
+      "perspective": "Proposal explicitly states no new external dependencies; all constructs (dataclass, async, subclassing) are stdlib/existing patterns; consistent with RA-1109 no-scaffolding rule",
+      "source_title": "prebuild_judge.py \u2014 GapResolver class",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/prebuild_judge.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "RA-1109 compliance: every new class has a direct tested function with no speculative scaffolding",
+      "perspective": "GapResolver, HardBlockError, ThresholdNotMetError, PipelineCheckpoint, StageGate, PipelineStatusEvent are all mapped to test cases; RA-1109 is satisfied by design; StageGate test coverage (PipelineOrderError test case 3) confirms no orphaned classes",
+      "source_title": "test_judge_skill.py \u2014 six test functions covering all critical paths",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_judge_skill.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "StageGate class exists or will exist in __init__.py and raises PipelineOrderError on out-of-order stage calls",
+      "perspective": "Evidence note says 'to be codified'; PipelineOrderError is a new exception type not independently confirmed in existing repo; test case 3 covers it but the class itself is a planned artifact",
+      "source_title": "spec_pipeline __init__.py \u2014 PIPELINE_STAGES to be codified",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/__init__.py",
+      "status": "PARTIAL"
+    }
+  ],
+  "gaps": [
+    "StageGate class and PipelineOrderError exception are described as 'to be codified' in __init__.py \u2014 no confirmation they exist in current repo state; build must verify these are implemented before gate passes",
+    "ceo_board_liaison.py invocation of GapResolver is asserted in proposal but no evidence row directly confirms the call site exists in that file \u2014 liaison\u2192GapResolver wiring should be verified at build time",
+    "Six tests in test_judge_skill.py are noted as 'to be added' in evidence \u2014 current file existence does not confirm the six test functions are present; CI must run and pass all six before downstream stages proceed",
+    "PipelineCheckpoint dataclass field schema (retry counter, stage state, Linear ticket flag) is unspecified \u2014 ambiguity could cause inconsistent downstream consumer reads; recommend explicit field list in implementation PR",
+    "Async event bus identity in autonomy.py is unnamed in the proposal \u2014 if multiple bus instances exist, PipelineStatusEvent could be published to a different bus than consumers subscribe to; implementation should pin the bus reference"
+  ],
+  "honest_ceiling": true,
+  "iteration": 1,
+  "proposal": "Machine Spec Pipeline v2: Judge gaps are auto-resolved via a GapResolver class (in prebuild_judge.py) invoked by the CEO-Board Liaison within the SPM stage. The pipeline follows a strict ordered sequence (judge \u2192 liaison \u2192 SPM \u2192 boardroom) enforced by StageGate in __init__.py using the PIPELINE_STAGES tuple ('judge', 'liaison', 'SPM', 'boardroom'). The GapResolver class runs as the active resolver inside the SPM stage \u2014 it is not a separate stage key. Auto-resolve semantics: PARTIAL evidence rows are warned-and-continued; UNSUPPORTED rows raise HardBlockError halting the pipeline; NOT_CHECKED rows are treated as WARN_CONTINUE with a structured log entry [NOT_CHECKED \u2192 WARN_CONTINUE] \u2014 no STORM re-fetch dependency is introduced in this sprint. Score threshold enforcement: GapResolver.resolve() computes final_score after all evidence rows are processed and raises ThresholdNotMetError (a lightweight subclass of HardBlockError) if final_score < 70 or hard_block_count > 0. Proceed gate: score \u226570 with zero hard blocks. ThresholdNotMetError is defined in prebuild_judge.py alongside HardBlockError. Mission Control status is broadcast asynchronously via PipelineStatusEvent hooks in autonomy.py using the internal async event bus only \u2014 no HTTP route, webhook, or external socket is registered for PipelineStatusEvent in this sprint. A TODO marker in autonomy.py explicitly scopes future hardening: '# TODO(security-sprint): harden if/when PipelineStatusEvent is exposed externally \u2014 currently internal bus only, no network exposure'. Broadcaster failure is non-fatal: exceptions log a WARNING but do not mutate PipelineCheckpoint. Pipeline state is the single source of truth in PipelineCheckpoint \u2014 downstream consumers read state from PipelineCheckpoint, not from bus events. Rollback uses PipelineCheckpoint dataclass with max 2 retries before halting and filing a Linear ticket via mcp__pi-ceo__linear_create_issue with team_id and project_id sourced from .harness/projects.json. Six tests in tests/test_judge_skill.py cover: (1) PARTIAL row auto-resolves without HardBlockError, (2) UNSUPPORTED row raises HardBlockError, (3) out-of-order stage call raises PipelineOrderError, (4) broadcaster failure is non-fatal and PipelineCheckpoint state is unchanged after broadcaster exception, (5) score below threshold (65) raises ThresholdNotMetError and score exactly at threshold (70) passes, (6) retry exhaustion files exactly one Linear ticket via mocked mcp__pi-ceo__linear_create_issue with correct routing keys. Net new LOC budget is capped at 350 lines: prebuild_judge.py +180L, __init__.py +40L, autonomy.py +60L, test_judge_skill.py +70L. No new external dependencies are introduced. RA-1109 compliance: every new class has a direct tested function with no speculative scaffolding.",
+  "score": 91
+}
