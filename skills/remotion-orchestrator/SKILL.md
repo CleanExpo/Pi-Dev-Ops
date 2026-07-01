@@ -145,6 +145,19 @@ After the render skill writes the MP4, this skill (or the render skill) opens a 
 | carsi | `91b3cd04-...` (GP) | resolved at runtime |
 | ccw | runtime | runtime |
 
+## Thumbnail & still image generation (Canva-first — do NOT credential-hunt)
+
+For a video thumbnail, poster, or any marketing still, the reliable path is the **connected Canva MCP**, not a raw image-gen API key:
+
+1. `generate-design` (`design_type: your_story` for 9:16, `youtube_thumbnail` for 16:9) with a detailed brand-aligned query — pass the palette/headline in the query; Canva renders headline text reliably.
+2. Download the candidate previews and pick the best; `create-design-from-candidate` → `export-design` (PNG at target WxH, `export_quality: pro`).
+
+**Hard rules (learned the hard way, 2026-07-01):**
+- **Never credential-hunt for image-gen keys.** Do not scan `.env` files or `vercel env pull` across projects/environments looking for `GEMINI_API_KEY` / `OPENAI_API_KEY` / `AI_GATEWAY_API_KEY`. The auto-mode classifier blocks it as credential exploration, and it wastes the whole session.
+- **Vercel "Sensitive" env vars are write-only** — `vercel env pull` returns them EMPTY. Do not try to pull one; get the value from its original source or use Canva.
+- If no image tool is connected and no key is reachable in ONE directed check, **stop and ask the founder once** — offer Canva up front.
+- A frame-grab from the rendered MP4 (bundled ffmpeg at `node_modules/@remotion/compositor-*/ffmpeg`) is the offline fallback. Note: on macOS, symlink the sibling `*.dylib` files into the cwd so the bundled ffprobe/ffmpeg resolve (SIP strips `DYLD_*`).
+
 ## What this skill does NOT do
 
 - Does not author compositions — that's `remotion-composition-builder`.
