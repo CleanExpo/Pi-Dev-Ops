@@ -28,6 +28,16 @@ Place in the command chain — do not merge these responsibilities:
 `/spm` is not a builder. It is the Senior Project Manager that produces the best possible
 spec before the builder (`/goal`) starts.
 
+## Fast lane — component spec micro-pattern
+
+The full 19-section spec is the default. For a single component or tightly-scoped
+behaviour, write a 4-section micro-spec instead — `container · behaviour · UI · kicker`:
+container is one self-contained line (stands alone); behaviour and UI are one rule per
+bullet (if a bullet needs a comma to join two clauses, it is two rules — split it);
+kicker is the single highest-value finishing detail (the empty/error state or
+micro-interaction that separates shipped from sloppy). More than ~8 bullets ⇒ escalate to
+the full spec. Still `No spec. No build.` — it produces the micro-spec, not the code.
+
 ## Workflow
 
 1. Understand the user request (`$ARGUMENTS`; if empty, ask what to plan).
