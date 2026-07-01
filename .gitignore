@@ -186,3 +186,7 @@ remotion-studio/public/audio/_cache/
 remotion-studio/public/captures/
 remotion-studio/public/ra-wave-1-screencaps/
 .harness/artefacts/synthex/sandbox/Synthex/
+
+# Session-handoff runtime artifacts (dirs + READMEs tracked; generated files local-only)
+docs/session-handoffs/handoff-*.md
+.handoff-logs/*.log
