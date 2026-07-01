@@ -1,9 +1,0 @@
-{
-  "dry_run": true,
-  "issue_id": null,
-  "pipeline_id": "spec-42e89d04c474",
-  "proposal": "Add dry-run spec pipeline panel to Mission Control",
-  "status": "running",
-  "trigger": "mission_control",
-  "updated_at": "2026-07-01T11:12:24.781647+00:00"
-}

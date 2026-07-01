@@ -15,8 +15,8 @@ interface ZteResponse {
   source: "backend" | "harness" | "default";
 }
 
-const DEFAULT_MODEL = "Opus 4.7";
-const DEFAULT_MODEL_ID = "claude-opus-4-7";
+const DEFAULT_MODEL = "Opus 4.8";
+const DEFAULT_MODEL_ID = "claude-opus-4-8";
 
 async function fromBackend(): Promise<Partial<ZteResponse> | null> {
   const base = process.env.RAILWAY_URL ?? process.env.PI_CEO_URL;

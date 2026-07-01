@@ -24,7 +24,7 @@ function useLiveClock(): string {
 }
 
 function useModelChip(): string {
-  const [model, setModel] = useState<string>("claude-opus-4-7");
+  const [model, setModel] = useState<string>("claude-opus-4-8");
   useEffect(() => {
     let cancelled = false;
     fetch("/api/zte")

@@ -51,7 +51,7 @@ DEFAULT_TIER0_FREE_CHAIN = (
 # Paid spill when the free pool is exhausted (founder-sanctioned credits):
 # DeepSeek first (best cheap JSON+tools), Kimi for long-horizon tool chains.
 DEFAULT_TIER0_PAID_SPILL = (
-    "deepseek/deepseek-v3.2",
+    "deepseek/deepseek-v4-flash",
     "moonshotai/kimi-k2.6",
 )
 

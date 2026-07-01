@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from .llm import complete, parse_json_object
+from .proposal_validator import enrich_proposal_for_judge
 
 log = logging.getLogger("pi-ceo.spec_pipeline.prebuild_judge")
 
@@ -84,6 +85,7 @@ def _build_prompt(
     repo_context: str,
     iteration: int,
 ) -> str:
+    proposal = enrich_proposal_for_judge(proposal)
     ev_lines = "\n".join(
         f"- [{e.status}] {e.claim} | {e.source_title} {e.source_url}".strip()
         for e in evidence

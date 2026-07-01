@@ -11,7 +11,7 @@ import {
 } from "@/lib/github";
 import { makeClient, buildContext, runPhase, getAnalysisMode, THINK_SEEDS } from "@/lib/claude";
 import { PHASES, PHASE_PROMPTS, applyPhaseResult } from "@/lib/phases";
-import { phaseModel } from "@/lib/models";
+import { phaseModel, MODELS } from "@/lib/models";
 
 /** Fetch a single file from GitHub. Returns empty string if not found. */
 async function fetchGitHubFile(
@@ -61,10 +61,10 @@ export async function GET(req: NextRequest) {
   const settings = await getSettings();
 
   const ghToken = (settings.githubToken || url.searchParams.get("token") || process.env.GITHUB_TOKEN || "").trim();
-  const model   = settings.analysisModel || process.env.ANALYSIS_MODEL || "claude-sonnet-4-6";
+  const model   = settings.analysisModel || process.env.ANALYSIS_MODEL || MODELS.DEFAULT;
 
   // Per-phase model selection — worker tier (haiku-4-5) for listing/summarisation,
-  // analyst tier (sonnet-4-6) for intelligence-heavy phases.
+  // analyst tier (sonnet-5) for intelligence-heavy phases.
   // phaseModel() reads from lib/models.ts — update models there, not here.
 
   const stream = new ReadableStream({

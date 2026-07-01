@@ -125,3 +125,31 @@ class TestRequest(BaseModel):
 
 class ShipRequest(BaseModel):
     pipeline_id: str
+
+
+class MachineSpecProposalBody(BaseModel):
+    """Seven-field machine spec proposal schema (spec pipeline pre-flight)."""
+
+    problem_statement: str = Field(..., min_length=20)
+    evidence_refs: str = Field(..., min_length=10)
+    design_decisions: str = Field(..., min_length=10)
+    data_flows: str = Field(..., min_length=10)
+    ux_behaviour: str = Field(..., min_length=10)
+    acceptance_criteria: str = Field(..., min_length=10)
+    implementation_scope: str = Field(..., min_length=10)
+
+    @field_validator(
+        "problem_statement",
+        "evidence_refs",
+        "design_decisions",
+        "data_flows",
+        "ux_behaviour",
+        "acceptance_criteria",
+        "implementation_scope",
+    )
+    @classmethod
+    def strip_nonempty(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("field cannot be empty")
+        return v

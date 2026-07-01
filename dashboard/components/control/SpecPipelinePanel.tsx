@@ -5,6 +5,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 const API = "/api/pi-ceo/api/spec-pipeline";
 const POLL_MS = 4000;
 
+type StageRow = {
+  stage: string;
+  status: string;
+  reason?: string;
+  score?: number;
+  decision?: string;
+  count?: number;
+};
+
 type PipelineRow = {
   pipeline_id: string;
   status: string;
@@ -13,10 +22,32 @@ type PipelineRow = {
 };
 
 type PipelineDetail = {
-  meta: { pipeline_id: string; status: string; reason?: string; pr_url?: string };
+  meta: {
+    pipeline_id: string;
+    status: string;
+    reason?: string;
+    pr_url?: string;
+    stages?: StageRow[];
+    judge_score?: number;
+  };
   running?: string;
   handoff: boolean;
 };
+
+function stageLabel(row: StageRow): string {
+  const bits = [row.stage, row.status];
+  if (row.score != null) bits.push(`${row.score}`);
+  if (row.decision) bits.push(row.decision);
+  if (row.reason) bits.push(row.reason.slice(0, 48));
+  return bits.join(" · ");
+}
+
+function statusColour(status: string): string {
+  if (status === "blocked" || status === "error") return "#F87171";
+  if (status === "dry_complete" || status === "complete") return "#4ADE80";
+  if (status === "running" || status === "queued") return "#FBBF24";
+  return "var(--text-muted)";
+}
 
 export default function SpecPipelinePanel() {
   const [proposal, setProposal] = useState("");
@@ -45,10 +76,10 @@ export default function SpecPipelinePanel() {
       if (!r.ok) return;
       const data = (await r.json()) as PipelineDetail;
       setLive(data);
+      const terminal = data.meta.status;
       if (
-        data.running &&
-        !["running", "queued"].includes(data.running) &&
-        data.meta.status !== "running"
+        terminal !== "running" &&
+        (!data.running || !["running", "queued"].includes(data.running))
       ) {
         await refresh();
       }
@@ -77,6 +108,7 @@ export default function SpecPipelinePanel() {
     }
     setBusy(true);
     setError(null);
+    setLive(null);
     try {
       const r = await fetch(`${API}/run`, {
         method: "POST",
@@ -94,6 +126,14 @@ export default function SpecPipelinePanel() {
       setBusy(false);
     }
   };
+
+  const displayStatus = live
+    ? (live.running && ["running", "queued"].includes(live.running)
+        ? live.running
+        : live.meta.status)
+    : null;
+
+  const stages = live?.meta.stages ?? [];
 
   return (
     <section
@@ -115,7 +155,7 @@ export default function SpecPipelinePanel() {
         </button>
       </header>
       <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-        Judge 100 → STORM → SPM → Boardroom. Dry-run stops before build.
+        Validate → STORM → Judge ↔ Board ↔ SPM → Boardroom. Dry-run stops before build.
       </p>
       <textarea
         value={proposal}
@@ -140,21 +180,40 @@ export default function SpecPipelinePanel() {
       </button>
       {error && <p className="text-xs text-red-500">{error}</p>}
       {lastId && (
-        <div className="text-xs space-y-1" style={{ color: "var(--text-muted)" }}>
+        <div className="text-xs space-y-2" style={{ color: "var(--text-muted)" }}>
           <p>
             Pipeline: <code>{lastId}</code>
           </p>
-          {live && (
+          {displayStatus && (
             <p>
-              Status: <strong>{live.running ?? live.meta.status}</strong>
-              {live.meta.reason ? ` — ${live.meta.reason}` : ""}
-              {live.meta.pr_url ? (
+              Status:{" "}
+              <strong style={{ color: statusColour(displayStatus) }}>{displayStatus}</strong>
+              {live?.meta.reason ? ` — ${live.meta.reason}` : ""}
+              {live?.meta.judge_score != null ? ` (judge ${live.meta.judge_score})` : ""}
+              {live?.meta.pr_url ? (
                 <>
                   {" "}
                   — <a href={live.meta.pr_url}>PR</a>
                 </>
               ) : null}
             </p>
+          )}
+          {stages.length > 0 && (
+            <ul className="flex flex-wrap gap-1" aria-label="Pipeline stages">
+              {stages.map((s, i) => (
+                <li
+                  key={`${s.stage}-${i}`}
+                  className="font-mono px-1.5 py-0.5 rounded text-[10px]"
+                  style={{
+                    border: "1px solid var(--border)",
+                    color: s.status === "blocked" ? "#F87171" : "var(--text-muted)",
+                  }}
+                  title={s.reason}
+                >
+                  {stageLabel(s)}
+                </li>
+              ))}
+            </ul>
           )}
           <p>
             Artifacts: <code>.harness/spec-pipelines/{lastId}/</code>
@@ -165,7 +224,13 @@ export default function SpecPipelinePanel() {
       <ul className="text-xs flex-1 overflow-auto space-y-1" style={{ color: "var(--text-muted)" }}>
         {pipelines.map((p) => (
           <li key={p.pipeline_id}>
-            <span className="font-mono">{p.pipeline_id}</span> — {p.status}: {p.proposal}
+            <button
+              type="button"
+              className="text-left hover:underline"
+              onClick={() => setLastId(p.pipeline_id)}
+            >
+              <span className="font-mono">{p.pipeline_id}</span> — {p.status}: {p.proposal}
+            </button>
           </li>
         ))}
       </ul>

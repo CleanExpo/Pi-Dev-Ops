@@ -8,6 +8,7 @@ from typing import Any
 from . import persistence as persist
 from .ceo_board_liaison import run_ceo_board_liaison
 from .prebuild_judge import EvidenceRow, JudgeReport, iterate_to_100
+from .proposal_validator import ProposalValidationError, validate_proposal_text
 from .spm_runner import extract_refined_proposal, run_spm_gap_resolution
 
 log = logging.getLogger("pi-ceo.spec_pipeline.liaison_loop")
@@ -131,9 +132,17 @@ async def judge_with_liaison(
         )
         stages.append({"stage": "spm_gap_resolution", "round": liaison_round + 1, "status": "ok"})
 
-        working_proposal = extract_refined_proposal(
+        next_proposal = extract_refined_proposal(
             spm_packet, liaison.refined_proposal,
         )
+        try:
+            working_proposal = validate_proposal_text(next_proposal)
+        except ProposalValidationError as exc:
+            log.warning(
+                "liaison round %d: SPM proposal rejected (%s); using liaison refinement",
+                liaison_round + 1, exc,
+            )
+            working_proposal = liaison.refined_proposal
         merged_evidence = merge_evidence(
             merged_evidence,
             liaison.new_evidence,
