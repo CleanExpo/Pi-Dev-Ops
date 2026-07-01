@@ -1,6 +1,8 @@
 # scripts — Wiki
 
-_Last updated: 2026-05-27T07:04:39Z (commits 9cd2495..4fdb316)_
+_Last updated: 2026-07-01T08:30:24Z (commits 052ee4a..21efc57)_
 
 ## Recent changes
-- 4fdb316 — feat(nexus): C3 — historical backfill CLI (#298)
+- 21efc57 — feat(margot): add Codex build packet workflow (#435)
+
+
