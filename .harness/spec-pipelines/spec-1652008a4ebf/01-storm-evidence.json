@@ -1,0 +1,144 @@
+{
+  "rows": [
+    {
+      "claim": "Repo mentions 'dry-run' in skills/cross-tool-flow/SKILL.md",
+      "perspective": "architect",
+      "source_title": "skills/cross-tool-flow/SKILL.md",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/skills/cross-tool-flow/SKILL.md",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'dry-run' in tests/test_margot_asset_generator.py",
+      "perspective": "architect",
+      "source_title": "tests/test_margot_asset_generator.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_margot_asset_generator.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'dry-run' in tests/test_idea_expansion.py",
+      "perspective": "architect",
+      "source_title": "tests/test_idea_expansion.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_idea_expansion.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'dry-run' in tests/test_boardroom.py",
+      "perspective": "architect",
+      "source_title": "tests/test_boardroom.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_boardroom.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'dry-run' in tests/test_notebooklm_refresh.py",
+      "perspective": "architect",
+      "source_title": "tests/test_notebooklm_refresh.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_notebooklm_refresh.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'dry-run' in tests/test_spec_pipeline_dry_run.py",
+      "perspective": "architect",
+      "source_title": "tests/test_spec_pipeline_dry_run.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_spec_pipeline_dry_run.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'dry-run' in skills/cto/SKILL.md",
+      "perspective": "architect",
+      "source_title": "skills/cto/SKILL.md",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/skills/cto/SKILL.md",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'dry-run' in tests/test_remotion_video_command_skill.py",
+      "perspective": "architect",
+      "source_title": "tests/test_remotion_video_command_skill.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_remotion_video_command_skill.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in tests/test_xero_shim.py",
+      "perspective": "architect",
+      "source_title": "tests/test_xero_shim.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_xero_shim.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in skills/marketing-analytics-attribution/SKILL.md",
+      "perspective": "architect",
+      "source_title": "skills/marketing-analytics-attribution/SKILL.md",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/skills/marketing-analytics-attribution/SKILL.md",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in dashboard/vitest.config.ts",
+      "perspective": "architect",
+      "source_title": "dashboard/vitest.config.ts",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/dashboard/vitest.config.ts",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in tests/test_ceo_board_liaison.py",
+      "perspective": "architect",
+      "source_title": "tests/test_ceo_board_liaison.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_ceo_board_liaison.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in tests/test_boardroom.py",
+      "perspective": "architect",
+      "source_title": "tests/test_boardroom.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_boardroom.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in app/static/index.html",
+      "perspective": "architect",
+      "source_title": "app/static/index.html",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/static/index.html",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in skills/cross-tool-flow/SKILL.md",
+      "perspective": "architect",
+      "source_title": "skills/cross-tool-flow/SKILL.md",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/skills/cross-tool-flow/SKILL.md",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in tests/test_notebooklm_refresh.py",
+      "perspective": "architect",
+      "source_title": "tests/test_notebooklm_refresh.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_notebooklm_refresh.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'pipeline' in tests/test_feedback_eval.py",
+      "perspective": "architect",
+      "source_title": "tests/test_feedback_eval.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_feedback_eval.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'pipeline' in tests/test_ceo_board_liaison.py",
+      "perspective": "architect",
+      "source_title": "tests/test_ceo_board_liaison.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_ceo_board_liaison.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'pipeline' in tests/test_margot_realtime.py",
+      "perspective": "architect",
+      "source_title": "tests/test_margot_realtime.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_margot_realtime.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'pipeline' in tests/test_boardroom.py",
+      "perspective": "architect",
+      "source_title": "tests/test_boardroom.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_boardroom.py",
+      "status": "SUPPORTED"
+    }
+  ]
+}
