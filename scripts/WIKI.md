@@ -1,8 +1,8 @@
 # scripts — Wiki
 
-_Last updated: 2026-07-01T08:30:24Z (commits 052ee4a..21efc57)_
+_Last updated: 2026-07-01T12:33:07Z (commits c4a55a2..8356b4f)_
 
 ## Recent changes
-- 21efc57 — feat(margot): add Codex build packet workflow (#435)
+- 8356b4f — Codex/margot codex build (#439)
 
 
