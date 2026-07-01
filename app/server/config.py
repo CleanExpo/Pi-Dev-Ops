@@ -185,12 +185,12 @@ OPUS_ALLOWED_ROLES   = set(
 # arrives at the policy check as bare `portfolio`. Synthesis runs once per
 # day across the whole portfolio (~365 calls/year) — cost is bounded.
 # Long-form model IDs — SSOT in model_registry.py; re-exported here for legacy imports.
-from app.server.model_registry import (  # noqa: E402
-    ANTHROPIC_HAIKU as MODEL_ID_HAIKU,
-    ANTHROPIC_OPUS as MODEL_ID_OPUS,
-    ANTHROPIC_SONNET as MODEL_ID_SONNET,
-    SHORT_TO_ANTHROPIC as MODEL_SHORT_TO_ID,
-)
+from app.server import model_registry  # noqa: E402
+
+MODEL_ID_OPUS = model_registry.ANTHROPIC_OPUS
+MODEL_ID_SONNET = model_registry.ANTHROPIC_SONNET
+MODEL_ID_HAIKU = model_registry.ANTHROPIC_HAIKU
+MODEL_SHORT_TO_ID = model_registry.SHORT_TO_ANTHROPIC
 MAX_CONCURRENT_SESSIONS = int(os.environ.get("TAO_MAX_SESSIONS",        "3"))
 RATE_LIMIT_PER_MIN   = int(os.environ.get("TAO_RATE_LIMIT",             "30"))
 WORKSPACE_ROOT       = os.environ.get("TAO_WORKSPACE",

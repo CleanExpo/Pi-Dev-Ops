@@ -7,7 +7,7 @@ import re
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-from .llm import complete, parse_json_object
+from .llm import complete
 
 from app.server.model_registry import (
     OPENROUTER_DEEPSEEK_FLASH,
