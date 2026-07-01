@@ -36,6 +36,13 @@ CLOSED_LOOP_ENABLED: bool = os.environ.get("TAO_CLOSED_LOOP_ENABLED", "0") == "1
 # deterministic single-move plan.
 CLOSED_LOOP_LLM_PLAN: bool = os.environ.get("TAO_CLOSED_LOOP_LLM_PLAN", "0") == "1"
 
+# UNI-2214 — live Board SDK inside the loop. Double-gated like CLOSED_LOOP_LLM_PLAN:
+# the DECIDE stage processes the queued Board brief inline (SDK spend) ONLY when
+# this flag is on AND the cycle is live (not dry_run / not SHADOW_MODE). Default
+# OFF, so the loop only *queues* the brief until both are explicitly set; the
+# orchestrator's separate board.process_pending step remains the fallback.
+CLOSED_LOOP_BOARD_INLINE: bool = os.environ.get("TAO_CLOSED_LOOP_BOARD_INLINE", "0") == "1"
+
 # ── Safety limits ─────────────────────────────────────────────────────────────
 # Swarm auto-suspends after this many iterations without human acknowledgement.
 # Default: 288 = 24 hours at the default 5-min cycle interval.
