@@ -489,3 +489,65 @@ def test_run_via_provider_claude_print_cli_missing(monkeypatch):
     ))
     assert rc == 127
     assert "not found" in error.lower()
+
+
+# ── Tier-0 gathering-lane execution wiring (UNI-2212) ────────────────────────
+
+
+def _tier0_pm():
+    return PR.ProviderModel(
+        provider="openrouter", model_id="x/y:free", tier="tier0",
+        role="gather", source="test",
+    )
+
+
+def _fake_tier0_runner(monkeypatch, *, result, seen):
+    mod = types.ModuleType("app.server.tier0_runner")
+
+    async def run_tier0(prompt, *, confidential=False, role="gather",
+                        session_id="", timeout_s=60.0, **kw):
+        seen.update(prompt=prompt, confidential=confidential, role=role)
+        return result
+
+    mod.run_tier0 = run_tier0
+    monkeypatch.setitem(sys.modules, "app.server.tier0_runner", mod)
+
+
+def test_run_via_provider_tier0_walks_runner(monkeypatch):
+    monkeypatch.setattr(PR, "select_provider_model", lambda *a, **k: _tier0_pm())
+    result = types.SimpleNamespace(
+        ok=True, text="gathered", provider="openrouter",
+        model_id="x/y:free", cost_usd=0.0, error=None)
+    seen: dict = {}
+    _fake_tier0_runner(monkeypatch, result=result, seen=seen)
+
+    rc, text, cost, err = asyncio.run(
+        PR.run_via_provider("summarise", role="gather"))
+    assert (rc, text, err) == (0, "gathered", None)
+    assert seen["confidential"] is False
+
+
+def test_run_via_provider_tier0_passes_confidential(monkeypatch):
+    monkeypatch.setattr(PR, "select_provider_model", lambda *a, **k: _tier0_pm())
+    result = types.SimpleNamespace(
+        ok=True, text="local", provider="ollama",
+        model_id="qwen3.5:latest", cost_usd=0.0, error=None)
+    seen: dict = {}
+    _fake_tier0_runner(monkeypatch, result=result, seen=seen)
+
+    rc, text, cost, err = asyncio.run(
+        PR.run_via_provider("PII", role="gather", confidential=True))
+    assert rc == 0 and text == "local"
+    assert seen["confidential"] is True
+
+
+def test_run_via_provider_tier0_failure_maps_rc1(monkeypatch):
+    monkeypatch.setattr(PR, "select_provider_model", lambda *a, **k: _tier0_pm())
+    result = types.SimpleNamespace(
+        ok=False, text="", provider=None, model_id=None,
+        cost_usd=0.0, error="all_tier0_lanes_failed")
+    _fake_tier0_runner(monkeypatch, result=result, seen={})
+
+    rc, text, cost, err = asyncio.run(
+        PR.run_via_provider("triage", role="gather"))
+    assert rc == 1 and err == "all_tier0_lanes_failed"

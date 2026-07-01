@@ -7,7 +7,8 @@ light file triage) is routed here to take load OFF the Claude Max plans —
 
 This module is a pure resolver + capacity tracker; it picks an ordered
 fallback chain of (provider, model_id) lanes. Runtime chain-walk-on-failure
-and live per-slug smoke-testing land in a follow-up slice.
+now lives in ``tier0_runner.run_tier0``; live per-slug smoke-testing of
+tool-calling + JSON lands in a follow-up slice.
 
 Ordered lane policy (most-preferred first):
   1. Free OpenRouter slugs   — while the account's free pool has headroom.
@@ -154,6 +155,17 @@ def free_capacity_available() -> bool:
     return rpd < _rpd_cap() and rpm < _rpm_cap()
 
 
+def free_rpd_today() -> int:
+    """Free-slug requests booked against today's RPD bucket (observability)."""
+    return int(_load_ledger().get("rpd", {}).get(_day_key(), 0))
+
+
+def free_slugs() -> frozenset[str]:
+    """Model-ids currently treated as FREE (env-aware). The runtime executor
+    uses this to decide which attempts book against the shared free pool."""
+    return frozenset(_free_chain())
+
+
 def record_free_request() -> None:
     """Count one free-slug request against the RPD + RPM ledger. Fires an
     edge-triggered alert the first time either ceiling is reached."""
@@ -237,6 +249,8 @@ __all__ = [
     "DEFAULT_TIER0_RPD_CAP",
     "DEFAULT_TIER0_RPM_CAP",
     "free_capacity_available",
+    "free_rpd_today",
+    "free_slugs",
     "record_free_request",
     "resolve_tier0_chain",
     "select_tier0_lane",
