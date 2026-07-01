@@ -1,0 +1,6 @@
+{
+  "pipeline_id": "spec-a17e235db9fe",
+  "reason": "proposal validation: proposal is bare type token: 'str'",
+  "status": "blocked",
+  "updated_at": "2026-07-01T12:22:55.354776+00:00"
+}

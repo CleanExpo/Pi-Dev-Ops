@@ -49,7 +49,17 @@ async def test_liaison_survives_missing_json_tail(monkeypatch):
         return ("## THE MEMO\nProceed with reduced scope.\n(no json tail)", 0.01)
 
     monkeypatch.setattr(mod, "complete", fake_complete)
-    report = JudgeReport(proposal="Add panel", score=70, decision="REDUCE_SCOPE", gaps=["x"])
-    result = await run_ceo_board_liaison("Add panel", report, evidence=[], repo_context="ctx")
+    report = JudgeReport(
+        proposal="Add polling status chip to Mission Control panel",
+        score=70,
+        decision="REDUCE_SCOPE",
+        gaps=["x"],
+    )
+    result = await run_ceo_board_liaison(
+        "Add polling status chip to Mission Control panel",
+        report,
+        evidence=[],
+        repo_context="ctx",
+    )
     assert result.proceed is True
     assert result.decision == "REDUCE_SCOPE"

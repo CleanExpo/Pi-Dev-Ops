@@ -19,6 +19,15 @@ async def test_pipeline_dry_run_blocked_on_boundary(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_pipeline_blocks_bare_str_proposal():
+    from app.server.spec_pipeline import run_pipeline
+
+    result = await run_pipeline("str", dry_run=True)
+    assert result.status == "blocked"
+    assert "proposal validation" in result.reason or "bare type" in result.reason
+
+
+@pytest.mark.asyncio
 async def test_pipeline_dry_run_happy_path(monkeypatch):
     from app.server.spec_pipeline import run_pipeline
 

@@ -1,0 +1,144 @@
+{
+  "rows": [
+    {
+      "claim": "Repo mentions 'dry-run' in tests/test_margot_asset_generator.py",
+      "perspective": "architect",
+      "source_title": "tests/test_margot_asset_generator.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_margot_asset_generator.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'dry-run' in tests/test_idea_expansion.py",
+      "perspective": "architect",
+      "source_title": "tests/test_idea_expansion.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_idea_expansion.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'dry-run' in tests/test_spec_pipeline_dry_run.py",
+      "perspective": "architect",
+      "source_title": "tests/test_spec_pipeline_dry_run.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_spec_pipeline_dry_run.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'dry-run' in tests/test_boardroom.py",
+      "perspective": "architect",
+      "source_title": "tests/test_boardroom.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_boardroom.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'dry-run' in tests/test_spec_pipeline_route.py",
+      "perspective": "architect",
+      "source_title": "tests/test_spec_pipeline_route.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_spec_pipeline_route.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'dry-run' in tests/test_notebooklm_refresh.py",
+      "perspective": "architect",
+      "source_title": "tests/test_notebooklm_refresh.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_notebooklm_refresh.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'dry-run' in tests/test_remotion_video_command_skill.py",
+      "perspective": "architect",
+      "source_title": "tests/test_remotion_video_command_skill.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_remotion_video_command_skill.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'dry-run' in tests/test_run_capability_loop.py",
+      "perspective": "architect",
+      "source_title": "tests/test_run_capability_loop.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_run_capability_loop.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in app/static/index.html",
+      "perspective": "architect",
+      "source_title": "app/static/index.html",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/static/index.html",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in skills/marketing-analytics-attribution/SKILL.md",
+      "perspective": "architect",
+      "source_title": "skills/marketing-analytics-attribution/SKILL.md",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/skills/marketing-analytics-attribution/SKILL.md",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in dashboard/vitest.config.ts",
+      "perspective": "architect",
+      "source_title": "dashboard/vitest.config.ts",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/dashboard/vitest.config.ts",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in app/server/cron_triggers.py",
+      "perspective": "architect",
+      "source_title": "app/server/cron_triggers.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/cron_triggers.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in tests/test_spec_pipeline_route.py",
+      "perspective": "architect",
+      "source_title": "tests/test_spec_pipeline_route.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_spec_pipeline_route.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in app/server/spec_pipeline/prebuild_judge.py",
+      "perspective": "architect",
+      "source_title": "app/server/spec_pipeline/prebuild_judge.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/app/server/spec_pipeline/prebuild_judge.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in skills/piter-framework/SKILL.md",
+      "perspective": "architect",
+      "source_title": "skills/piter-framework/SKILL.md",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/skills/piter-framework/SKILL.md",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'spec' in tests/test_model_policy_evaluator.py",
+      "perspective": "architect",
+      "source_title": "tests/test_model_policy_evaluator.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_model_policy_evaluator.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'pipeline' in tests/_sprinkle_helpers.py",
+      "perspective": "architect",
+      "source_title": "tests/_sprinkle_helpers.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/_sprinkle_helpers.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'pipeline' in tests/test_ceo_board_liaison.py",
+      "perspective": "architect",
+      "source_title": "tests/test_ceo_board_liaison.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_ceo_board_liaison.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'pipeline' in tests/test_boardroom.py",
+      "perspective": "architect",
+      "source_title": "tests/test_boardroom.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_boardroom.py",
+      "status": "SUPPORTED"
+    },
+    {
+      "claim": "Repo mentions 'pipeline' in tests/test_spec_pipeline_dry_run.py",
+      "perspective": "architect",
+      "source_title": "tests/test_spec_pipeline_dry_run.py",
+      "source_url": "file:///Users/phill-mac/Pi-Dev-Ops/tests/test_spec_pipeline_dry_run.py",
+      "status": "SUPPORTED"
+    }
+  ]
+}

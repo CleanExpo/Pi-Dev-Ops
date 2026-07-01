@@ -7,6 +7,7 @@ from typing import Any
 
 from .llm import complete, try_parse_json_object
 from .prebuild_judge import EvidenceRow, JudgeReport
+from .proposal_validator import ProposalValidationError, validate_proposal_text
 
 log = logging.getLogger("pi-ceo.spec_pipeline.ceo_board_liaison")
 
@@ -129,6 +130,15 @@ async def run_ceo_board_liaison(
         decision = "REDUCE_SCOPE"
     proceed = bool(data.get("proceed", decision != "REJECT"))
     refined = str(data.get("refined_proposal") or proposal).strip() or proposal
+    if data.get("refined_proposal"):
+        try:
+            refined = validate_proposal_text(refined)
+        except ProposalValidationError as exc:
+            log.warning(
+                "ceo_board_liaison: refined proposal rejected (%s); keeping original",
+                exc,
+            )
+            refined = proposal
     resolutions = [
         GapResolution(
             gap=str(item.get("gap", "")),

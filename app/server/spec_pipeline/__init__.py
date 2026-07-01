@@ -27,6 +27,7 @@ from .ship_gate import (
 from .spm_runner import run_spm
 from .storm_evidence import gather_evidence
 from .liaison_loop import judge_with_liaison
+from .proposal_validator import ProposalValidationError, validate_proposal_text
 
 log = logging.getLogger("pi-ceo.spec_pipeline")
 
@@ -144,6 +145,18 @@ async def run_pipeline(
             "pipeline_id": pipeline_id, "status": "blocked", "reason": reason,
             "updated_at": datetime.now(timezone.utc).isoformat(),
         })
+        return PipelineResult(pipeline_id, "blocked", reason, stages=stages)
+
+    try:
+        proposal = validate_proposal_text(proposal)
+    except ProposalValidationError as exc:
+        reason = f"proposal validation: {exc}"
+        _write_handoff(pipeline_id, status="BLOCKED", proposal=proposal, reason=reason, extra={})
+        persist.write_json(pipeline_id, "meta.json", {
+            "pipeline_id": pipeline_id, "status": "blocked", "reason": reason,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        })
+        stages.append({"stage": "proposal_validator", "status": "blocked", "reason": str(exc)})
         return PipelineResult(pipeline_id, "blocked", reason, stages=stages)
 
     evidence = await gather_evidence(proposal)
