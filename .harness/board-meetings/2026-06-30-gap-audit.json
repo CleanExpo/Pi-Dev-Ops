@@ -1,0 +1,58 @@
+{
+  "critical": [],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "webhook.py implements only the inbound direction: HMAC verification, event parsing, and brief construction. There are zero outbound Linear API calls — no issueUpdate GraphQL mutation, no HTTP POST to api.linear.app, no linear_update_issue helper — so build completion/failure state is never written back to the Linear issue.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Add a linear_update_issue(issue_id, state_id) helper that POSTs the issueUpdate mutation to https://api.linear.app/graphql, then call it from the session completion/failure path in routes/sessions.py (or routes/webhooks.py) to close the sync loop.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The only automated test files provided (tests/test_auth.py, tests/test_webhook.py) cover auth unit tests and webhook signature verification only. There are zero E2E or integration tests for the full build pipeline: no tests exercise sessions.py build flow, the evaluator, or the Phase-5 push layer. scripts/smoke_test.py is a live-server CLI script requiring a running backend and manual invocation (--url, --password flags); it is not collected by pytest and does not run in CI as an integration test.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Add a pytest-based integration test module (e.g. tests/test_pipeline_integration.py) that mocks the Claude SDK and GitHub push layer, then exercises the full sessions.py build → evaluator → push sequence end-to-end under pytest so CI can gate on it.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "spec/MCP describe Telegram bot commands (/start, /help, /build)",
+      "reality": "The visible portion of the file defines all the helper infrastructure (send, getHistory, getPiCeoStatus, triggerBuild, getLinearBacklog, createLinearIssue) but contains zero slash-command dispatch logic — no text.startsWith('/start'), '/help', or '/build' branch appears anywhere in the shown code. The file is truncated mid-function (triggerBuild cuts off at `const cookie = aw`), so the main POST handler and any command-routing switch/if-chain are not visible. /start and /help are static informational responses that would normally appear early in the handler and are absent from all visible code.",
+      "file": "dashboard/app/api/telegram/route.ts",
+      "recommendation": "Confirm the truncated POST handler contains explicit branches for /start, /help, and /build (calling the already-defined helper functions); if absent, add them — /start sends a welcome string, /help lists commands, /build calls triggerBuild with the remaining message text as the repo URL and brief.",
+      "category": "Telegram commands"
+    },
+    {
+      "severity": "low",
+      "claim": "RA-1154: pipeline probe — canary marker, no functional change",
+      "reality": "The RA-1154 comment in smoke_test.py explicitly labels itself 'no functional change', confirming the pipeline probe was only a marker commit and never expanded into actual pipeline E2E coverage, contradicting the broader ✅ Complete claim for test coverage.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Remove the 'no functional change' qualifier from RA-1154 and replace it with substantive pipeline probe assertions (trigger a build, poll session status to completion, assert evaluator score > 0 and branch pushed).",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "22-check smoke test suite",
+      "reality": "The smoke_test.py content is truncated and the 22 individual checks cannot be verified from the provided source. The script requires a live Railway/local server, is not run by pytest, and has no CI job wiring visible in the provided files — the '22 checks' count is unverifiable and may refer only to the manual prod invocation path.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Document the 22 check names in a comment block at the top of smoke_test.py and wire the script into the CI smoke-prod job so the count is machine-verifiable on every deploy.",
+      "category": "E2E and integration test coverage"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 5,
+    "critical_count": 0,
+    "high_count": 2,
+    "low_count": 3,
+    "duration_s": 211.1,
+    "audited_at": "2026-06-30T05:09:00.476988+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": []
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "critical": [],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "spec claims Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "webhook.py contains only inbound parsing (verify_linear_signature, parse_linear_event, linear_issue_to_brief) — there are zero outbound Linear API calls. No issueUpdate mutation, no linear_update_issue helper, and no HTTP client call to api.linear.app is present in either provided file. Only one direction of the claimed two-way sync exists in code.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Implement outbound state-write in routes/webhooks.py: after a build completes, call the Linear GraphQL API with an issueUpdate mutation (stateId → In Review / Done) using the issue_id captured during parse_linear_event, and surface the Linear API key from environment.",
+      "category": "Linear two-way sync"
+    },
+    {
+      "severity": "high",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "The test directory contains only unit tests for auth (test_auth.py) and webhook parsing (test_webhook.py). No E2E or integration tests exist for the full build pipeline — there are zero tests exercising sessions creation, the evaluator phase, or the push phase. scripts/smoke_test.py is a manual CLI tool requiring a live running server and is not wired into pytest or CI as an automated integration test.",
+      "file": "tests/",
+      "recommendation": "Add a pytest-based integration test module (e.g. tests/test_pipeline_integration.py) that stubs the SDK and covers at minimum: POST /api/build creates a session, evaluator scores the output, and phase 5 push fires — then update the spec claim to distinguish unit vs integration coverage.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "high",
+      "claim": "spec implies build logs stream to browser in real time via SSE (Server-Sent Events) endpoint piping session.output_lines",
+      "reality": "The only documented streaming mechanism for build sessions is WebSocket at /ws/build/{sid} (routes/utils.py per CLAUDE.md module map). No SSE endpoint that pipes session.output_lines appears in the provided source files. The sessions.py facade exposes output_lines via BuildSession (used only in _has_terminal_success_marker for stale-session reconciliation), and main.py includes sessions.router and utils.router — but the module map for routes/utils.py lists only the WebSocket, not an SSE logs endpoint. The dashboard/hooks/useSSE.ts hook exists on the frontend but its backend SSE target for build logs is not confirmed in provided code.",
+      "file": "app/server/routes/utils.py",
+      "recommendation": "Confirm or add a GET /api/build/{sid}/logs SSE endpoint (text/event-stream) in routes/sessions.py that iterates session.output_lines and streams new events; if the WebSocket is the canonical streaming path, update the spec to reflect that and remove SSE claims for build logs.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "spec marks test coverage as ✅ Complete (22-check smoke test suite)",
+      "reality": "scripts/smoke_test.py is described as a '22-check' suite but the file is truncated in the audit snapshot so the actual check count cannot be verified; additionally CLAUDE.md documents 3 pre-existing failures in test_sdk_phase2.py ('claude_agent_sdk not installed locally') meaning the SDK path — which the spec treats as Complete — cannot be validated in a clean local environment.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Add a CI step that runs the smoke test against a local server with a test password and assert the exit code is 0, and mock the SDK dependency in test_sdk_phase2.py so all tests pass without requiring the installed package.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "BudgetTracker in src/tao/budget/tracker.py is a correct implementation, but session_sdk.py does not instantiate it — SDK metric rows capture output_len but not tokens_used",
+      "reality": "sessions.py confirms budget_to_params/describe_budget are imported and called inside create_session for parameter selection, but the code is truncated mid-assignment (resolved_model =) and no BudgetTracker instantiation is visible in the provided facade or any re-exported symbol list from session_sdk.py. The spec itself flags this gap, so there is no false completion claim — drift is doc-vs-code wording only.",
+      "file": "app/server/session_sdk.py",
+      "recommendation": "Instantiate BudgetTracker inside _run_claude_via_sdk and increment it from the SDK response's usage field; then surface tokens_used in the existing sdk-metrics JSONL rows.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 5,
+    "critical_count": 0,
+    "high_count": 3,
+    "low_count": 2,
+    "duration_s": 217.0,
+    "audited_at": "2026-06-29T05:09:29.441133+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": []
+  }
+}

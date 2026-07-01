@@ -1,5 +1,21 @@
 # Pi Dev Ops — Leverage Audit
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## Current Score: 85 / 100 (ZTE v2) — Zero Touch Band
 
 _ZTE v2 framework: 100-point scale (Section A: AI Pipeline 60pts + Section B: Operational Health 15pts + Section C: External Validation 25pts). See `.harness/zte-framework-v2.md`._

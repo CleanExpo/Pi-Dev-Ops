@@ -14,7 +14,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1777713157.148844
+    "last_fired_at": 1782864030.962098
   },
   {
     "id": "scan-high-0600",
@@ -31,7 +31,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1778824815.379054
+    "last_fired_at": 1782885616.363729
   },
   {
     "id": "scan-high-1200",
@@ -80,7 +80,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1777687254.399947
+    "last_fired_at": 1782871209.8388438
   },
   {
     "id": "scan-low-0300",
@@ -94,7 +94,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1777690839.199657
+    "last_fired_at": 1782874859.553557
   },
   {
     "id": "monitor-0100",
@@ -105,7 +105,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1777713157.149434
+    "last_fired_at": 1782867634.334626
   },
   {
     "id": "monitor-0700",
@@ -116,7 +116,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1778828404.900268
+    "last_fired_at": 1782889206.124222
   },
   {
     "id": "monitor-1300",
@@ -160,7 +160,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744588800,
-    "last_fired_at": 1778821841.835309,
+    "last_fired_at": 1782882529.909166,
     "note": "Daily board sync \u2014 reviews in-flight PRs, evaluator scores, flagged risks"
   },
   {
@@ -203,7 +203,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1776108628,
-    "last_fired_at": 1777690839.321027
+    "last_fired_at": 1782874859.746475
   },
   {
     "id": "intel-refresh-daily-0200",
@@ -213,7 +213,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1776582512,
-    "last_fired_at": 1777687258.473123,
+    "last_fired_at": 1782871212.5993578,
     "note": "Feeds fresh Anthropic docs + release notes into planner/orchestrator context"
   },
   {
@@ -224,7 +224,7 @@
     "minute": 30,
     "enabled": true,
     "created_at": 1776582512,
-    "last_fired_at": 1777696254.515628,
+    "last_fired_at": 1782880219.842277,
     "note": "RA-684 \u2014 external tooling discovery, scores against ZTE, creates scout-tagged Linear tickets"
   },
   {
@@ -282,7 +282,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1777704664,
-    "last_fired_at": null,
+    "last_fired_at": 1782874859.773033,
     "note": "RA-1839 \u2014 clusters merged PRs touching the same file path and proposes skills from recurrence patterns. HITL-gated."
   },
   {
@@ -323,7 +323,8 @@
     "hour": 2,
     "minute": 0,
     "enabled": true,
-    "note": "RA-2027 \u2014 daily 02:00 UTC sweep. Operator decision 2026-05-06: tickets with `discovery-loop` label at priority 3-4 (sev 4-5) with `updatedAt` >7 days ago auto-close to Cancelled with explanatory comment. Priority 1-2 (sev>=6) NEVER auto-closes. Prerequisite for Discovery going live across all 7 personas (~196 findings/day would exhaust Linear quotas without this)."
+    "note": "RA-2027 \u2014 daily 02:00 UTC sweep. Operator decision 2026-05-06: tickets with `discovery-loop` label at priority 3-4 (sev 4-5) with `updatedAt` >7 days ago auto-close to Cancelled with explanatory comment. Priority 1-2 (sev>=6) NEVER auto-closes. Prerequisite for Discovery going live across all 7 personas (~196 findings/day would exhaust Linear quotas without this).",
+    "last_fired_at": 1782871212.966295
   },
   {
     "id": "kpi-watchdog-daily-0900",
