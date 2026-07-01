@@ -1,6 +1,8 @@
 # adrs — Wiki
 
-_Last updated: 2026-05-24T05:08:09Z (commits d0f084a..6aea988)_
+_Last updated: 2026-07-01T11:20:07Z (commits 7bac5ef..1dd0aa5)_
 
 ## Recent changes
-- 6aea988 — feat(pilot): Pilot V1 — schema + sources + UX + voice + scheduler + cutover gate (Phases 1-8) (#238)
+- 1dd0aa5 — I would love to have the /judge look through all questions, work with...
+
+
