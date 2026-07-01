@@ -4,9 +4,8 @@ description: Mandatory pre-build challenge gate (/judge). Run before approving o
 owner_role: Tier-Architect (pre-build challenge gate; read-only reviewer)
 status: active
 automation: manual
+machine_runnable: true
 ---
-
-# judge — First Evidence Challenge Gate
 
 Review only — `/judge` never builds, edits, commits, pushes, migrates, or deploys.
 It challenges the proposal before any build work starts. Implementation may only
