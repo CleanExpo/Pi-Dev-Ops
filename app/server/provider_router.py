@@ -369,14 +369,39 @@ async def run_via_provider(prompt: str, *, role: str,
                              workspace: str | None = None,
                              session_id: str = "",
                              thinking: str = "adaptive",
+                             confidential: bool = False,
                              ) -> tuple[int, str, float, str | None]:
     """Single dispatch entry. Returns (rc, text, cost_usd, error_or_None).
 
     Picks (provider, model_id) via select_provider_model, then routes to
     the right SDK. Anthropic still fires through session_sdk to preserve
     the model_policy gate; OpenRouter goes through provider_openrouter.
+    Tier-0 gathering roles walk the full free→paid→local chain with failover
+    via tier0_runner; ``confidential=True`` forces that walk local-only.
     """
     pm = select_provider_model(role, task_class=task_class)
+
+    # Tier-0 gathering lane (UNI-2212): the head-lane selection alone can't
+    # fail over, so run the full resolved chain. Inert for every non-tier0
+    # role today (no role maps to tier0 until the lane is activated).
+    if pm.tier == "tier0":
+        try:
+            import sys as _sys  # noqa: PLC0415
+            tier0_runner = _sys.modules.get("app.server.tier0_runner")
+            if tier0_runner is None:
+                from . import tier0_runner  # noqa: PLC0415
+        except Exception as exc:  # noqa: BLE001
+            return 1, "", 0.0, f"tier0_runner_import_failed: {exc}"
+        r = await tier0_runner.run_tier0(
+            prompt, confidential=confidential, role=role,
+            session_id=session_id, timeout_s=timeout_s,
+        )
+        if r.ok and r.cost_usd > 0:
+            _record_cost_safe(
+                provider=r.provider or "tier0", role=role,
+                model=r.model_id or "", cost_usd=r.cost_usd,
+            )
+        return (0 if r.ok else 1), r.text, r.cost_usd, r.error
 
     # claude --print path ($0 marginal under Max plan)
     if pm.provider == "claude_print":
