@@ -7,6 +7,8 @@ keep *different dispositions* on purpose (unattended SDK loop = default-deny
 allowlist; interactive CLI hook = deny-only-L3); this test pins that intended
 matrix so a future edit that silently re-forks it fails here.
 """
+import pytest
+
 import app.server.tool_gate as tool_gate
 import swarm.nexus.autonomy_gate as autonomy_gate
 import swarm.nexus.autonomy_ladder as ladder
@@ -76,10 +78,6 @@ MATRIX = [
     ("Bash", {"command": "gh secret set K --body v"}, ladder.TIER_IRREVERSIBLE, False, True,
      "secret set: CLI-deny, SDK-gap"),
 ]
-
-
-import pytest
-
 
 @pytest.mark.parametrize("name,inp,tier,sdk_deny,cli_deny,note", MATRIX)
 def test_tier_is_consistent_across_both_paths(name, inp, tier, sdk_deny, cli_deny, note):
