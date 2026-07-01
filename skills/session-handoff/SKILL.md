@@ -1,21 +1,32 @@
 ---
 name: session-handoff
-description: Durable session handoff (/session-handoff). Generate a precise handoff before stopping, switching terminals, opening a PR, handing work to another agent, or resuming later. Read-only — captures what was done, where it started, decisions locked, what shipped, key files, running state, verification commands, deferred/open questions, exact pickup point, risk notes, and a handoff quality check.
-owner_role: Tier-Architect (end-of-session handoff; read-only reporter)
+description: Durable session handoff (/session-handoff). Gates the tree green via scripts/handoff-loop.sh, then generates a precise handoff before stopping, switching terminals, opening a PR, handing work to another agent, or resuming later. Writes a durable report + healthcheck log; the "1" of the 1-2 combo with /resume-from-handoff. Captures what was done, decisions locked, what shipped, key files, running state, verification, deferred/open questions, exact pickup point, risk notes, and a quality check.
+owner_role: Tier-Architect (end-of-session handoff; gate-then-report)
 status: active
 automation: manual
 ---
 
 # session-handoff — Durable Session Handoff
 
-Review/report only — `/session-handoff` never edits, commits, pushes, deploys, migrates,
-modifies tickets, or changes external systems. It produces a handoff so another terminal
-or agent can resume without rereading the whole conversation. Any mutation may only follow
-a separate, explicit user request after the handoff.
+The **"1" of the handoff combo** with `/resume-from-handoff`: gate the tree green, then write
+a durable handoff the resume side verifies against. It runs LOCAL verification gates and
+writes the report + log — but never commits, pushes, deploys, migrates, modifies tickets,
+rotates secrets, or touches production. Any such mutation follows a separate, explicit user
+request after the handoff.
 
 Companion to `judge`: `/judge` decides *whether to build*; `/session-handoff` records
 *what happened and where the next agent picks up*. Distinct from `tao-judge` (machine
 loop-termination scorer).
+
+## Phase 0 — Gate the tree green (run first, every time)
+
+```bash
+scripts/handoff-loop.sh          # --quick for interim; --full to install deps first
+```
+
+Runs the definition-of-done gates (clean → deps → generated-files → type → lint → tests →
+build → audits), logging to `.handoff-logs/handoff-<ts>.log`. **Exit 0** → write the handoff.
+**Non-zero** → write a **BLOCKED** handoff naming the failing gate; do not claim ready.
 
 ## Input scope
 
@@ -23,7 +34,7 @@ Handoff scope is supplied as `$ARGUMENTS` (a ticket, branch, PR, feature, or rep
 If empty, infer scope from the current branch, git status, recent commits, current diff,
 recently changed files, conversation context, and the CLAUDE.md / AGENTS.md guidance.
 
-## Read-only inspection
+## Inspection
 
 ```bash
 git branch --show-current
@@ -33,12 +44,11 @@ git diff --stat
 git diff --name-only
 ```
 
-Only run tests if the user explicitly asks for verification execution; otherwise report
-the commands to run. Do not modify anything.
-
 ## Required output — Session Handoff
 
-Produce a handoff with this exact structure (see `.session-handoff/report-template.md`):
+**Write it to `docs/session-handoffs/handoff-<ts>.md`** (so `/resume-from-handoff` can find
+it) AND print it. Use this structure (see `.session-handoff/report-template.md`); cite the
+Phase 0 log path in §5/§6:
 
 1. Summary of what was done (attempted / completed / partial / not touched)
 2. Where it started (request, branch, files, problem, constraints; `Unknown from available context` if unclear)
@@ -60,3 +70,9 @@ End with: `Handoff complete. Next safe action: <one sentence>.`
 - Do not claim a process is running unless verified.
 - Clearly separate completed work from deferred work.
 - Always provide the first command the next agent should run.
+
+## The 1-2 combo
+
+`/session-handoff` (this) gates + writes; `/resume-from-handoff` reads the latest
+`docs/session-handoffs/` report and re-runs `scripts/handoff-loop.sh` before resuming — the
+tree is proven green on the way out AND back in.
