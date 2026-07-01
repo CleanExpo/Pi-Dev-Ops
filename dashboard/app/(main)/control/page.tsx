@@ -11,6 +11,7 @@ import RoutineTable from "@/components/control/RoutineTable";
 import ActiveBuildStrip from "@/components/control/ActiveBuildStrip";
 import LiveActivityFeed from "@/components/control/LiveActivityFeed";
 import CuratorProposalsPanel from "@/components/control/CuratorProposalsPanel";
+import MargotAssetsPanel from "@/components/control/MargotAssetsPanel";
 
 export default function ControlPage() {
   return (
@@ -68,6 +69,11 @@ export default function ControlPage() {
           {/* Panel 5 — RA-1839 Curator proposals (spans both columns) */}
           <div className="md:col-span-2">
             <CuratorProposalsPanel />
+          </div>
+
+          {/* Panel 6 — Margot asset preview (dry-run matrix + packets) */}
+          <div className="md:col-span-2">
+            <MargotAssetsPanel />
           </div>
         </div>
       </div>
