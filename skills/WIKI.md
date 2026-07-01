@@ -1,8 +1,8 @@
 # skills — Wiki
 
-_Last updated: 2026-07-01T03:50:12Z (commits 14a5316..1193e4b)_
+_Last updated: 2026-07-01T04:45:44Z (commits 2a840ea..1bd3788)_
 
 ## Recent changes
-- 1193e4b — feat(skills): Phase 4c Part-A — context-cockpit + agent-workflow/hooks-system (#414)
+- 1bd3788 — feat(skills): track agent-coordination layer (council, heygen-director, autonomy-ladder, eeat) (#419)
 
 
