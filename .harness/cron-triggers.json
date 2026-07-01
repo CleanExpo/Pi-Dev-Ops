@@ -14,7 +14,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782898965.770942
+    "last_fired_at": 1782898700.6214771
   },
   {
     "id": "scan-high-0600",
@@ -48,7 +48,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782907259.489162
+    "last_fired_at": 1782898700.6215858
   },
   {
     "id": "scan-high-1800",
@@ -65,7 +65,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782898965.771084
+    "last_fired_at": 1782898700.621683
   },
   {
     "id": "scan-medium-0200",
@@ -105,7 +105,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782898965.771179
+    "last_fired_at": 1782898700.621773
   },
   {
     "id": "monitor-0700",
@@ -127,7 +127,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782898965.77125
+    "last_fired_at": 1782898700.6218581
   },
   {
     "id": "monitor-1900",
@@ -138,7 +138,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782898965.7713149
+    "last_fired_at": 1782898700.621952
   },
   {
     "id": "analyse-lessons-weekly",
@@ -150,7 +150,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1775804551,
-    "last_fired_at": 1782898981.807626
+    "last_fired_at": 1782898700.782233
   },
   {
     "id": "board-meeting-daily",
@@ -179,7 +179,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1775865600,
-    "last_fired_at": 1782898981.91314,
+    "last_fired_at": 1782898700.825106,
     "note": "RA-634 \u2014 tests direct Anthropic SDK path (TAO_USE_FALLBACK contingency). See DEPLOYMENT.md \u2192 Contingency: API Fallback."
   },
   {
@@ -191,7 +191,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744502400,
-    "last_fired_at": 1782898983.056323,
+    "last_fired_at": 1782898700.826062,
     "note": "RA-689 \u2014 reads shipped-features.jsonl, detects outcome signals from Linear, writes outcome lessons, flags stale features, returns BVI contribution data."
   },
   {
@@ -235,7 +235,7 @@
     "minute": 30,
     "enabled": true,
     "created_at": 1776582512,
-    "last_fired_at": 1782898990.121069,
+    "last_fired_at": 1782898702.9865742,
     "note": "Second daily sweep \u2014 catches west-coast / overnight releases"
   },
   {
@@ -257,7 +257,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1776582512,
-    "last_fired_at": 1782907260.5382988,
+    "last_fired_at": 1782898702.987242,
     "note": "Analyses last 24h session outcomes; surfaces patterns to evaluator + board"
   },
   {
@@ -270,7 +270,7 @@
     "weekday": 6,
     "enabled": true,
     "created_at": 1777704664,
-    "last_fired_at": 1782898991.1620271,
+    "last_fired_at": 1782898702.9991732,
     "note": "RA-1839 \u2014 clusters .harness/lessons.jsonl rows by (category, repo) and proposes new SKILL.md drafts via skill-creator SDK. HITL-gated through draft_review."
   },
   {
@@ -292,7 +292,7 @@
     "hour": 20,
     "minute": 0,
     "enabled": true,
-    "last_fired_at": 1782899026.295244
+    "last_fired_at": 1782898722.9309492
   },
   {
     "id": "weekly-recap-friday",
@@ -306,7 +306,7 @@
     "recap_label": "\ud83d\uddd3 Pi-CEO Weekly Recap",
     "enabled": true,
     "note": "RA-2006 \u2014 fires Thu 22:00 UTC = Fri 08:00 AEST. Cron uses datetime.utcnow().weekday(), so weekday=3 (Thursday UTC) is correct here even though the operator-facing day is Friday. Reuses portfolio_pulse with lookback_window(168h) + Telegram delivery enabled. Founder request 2026-05-05.",
-    "last_fired_at": 1782899060.6186721
+    "last_fired_at": 1782898741.146304
   },
   {
     "id": "discovery-restoreassist",
@@ -340,7 +340,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1778530000,
-    "last_fired_at": 1782899062.147491,
+    "last_fired_at": 1782898741.2118158,
     "note": "RA-3007 \u2014 Daily 09:00 UTC scan of guardian + cs + cfo + cto state. Posts Telegram only on breach. See scripts/kpi_watchdog.py."
   },
   {
@@ -352,7 +352,7 @@
     "minute": 30,
     "enabled": true,
     "created_at": 1781568000,
-    "last_fired_at": 1782899067.237184,
+    "last_fired_at": 1782898746.711849,
     "note": "Runs external AI capability scout, writes Obsidian/2nd-brain artifacts, validates CRM intake. CRM posting remains opt-in via UNITE_CRM_CAPABILITY_POST=1."
   }
 ]

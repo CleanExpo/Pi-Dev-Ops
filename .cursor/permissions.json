@@ -1,0 +1,27 @@
+{
+  "terminalAllowlist": [
+    "git",
+    "python",
+    "python3",
+    "npm",
+    "npx",
+    "pnpm",
+    "pytest",
+    "uvicorn",
+    "vercel",
+    "railway",
+    "gh",
+    "bash scripts/"
+  ],
+  "mcpAllowlist": ["*:*"],
+  "autoRun": {
+    "allow_instructions": [
+      "Routine Pi-Dev-Ops dev: pytest, tsc, py_compile, git status/diff/log, npm run build.",
+      "Local env sync via scripts/sync_app_env_from_vercel.sh after vercel env pull is expected.",
+      "Read-only inspection of .harness/spec-pipelines artifacts is fine."
+    ],
+    "block_instructions": [
+      "Pause before git push --force, rm -rf outside workspace, or editing production deploy config without explicit ask."
+    ]
+  }
+}
