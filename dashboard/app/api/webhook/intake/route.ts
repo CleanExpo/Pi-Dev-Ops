@@ -6,10 +6,22 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { timingSafeEqual } from "crypto";
+import { createHash, timingSafeEqual } from "crypto";
 
 const PI_CEO_URL = (process.env.PI_CEO_URL ?? "http://127.0.0.1:7777").replace(/\/$/, "");
-const INTAKE_WEBHOOK_SECRET = process.env.INTAKE_WEBHOOK_SECRET ?? "";
+// .trim() — Vercel appends a trailing newline to env values; an untrimmed
+// secret ("s3cr3t\n") would never match the header and reject all traffic.
+const INTAKE_WEBHOOK_SECRET = (process.env.INTAKE_WEBHOOK_SECRET ?? "").trim();
+
+// Constant-time compare via SHA-256 digests: fixed 32-byte length regardless of
+// input, so timingSafeEqual never throws on a length mismatch (Buffer UTF-8 vs
+// String.padEnd UTF-16 code-unit skew) and the comparison stays timing-safe.
+function secretsMatch(a: string, b: string): boolean {
+  return timingSafeEqual(
+    createHash("sha256").update(a).digest(),
+    createHash("sha256").update(b).digest(),
+  );
+}
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const incoming = req.headers.get("x-intake-secret") ?? "";
@@ -22,11 +34,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Timing-safe comparison (pad to equal length).
-  const maxLen = Math.max(incoming.length, INTAKE_WEBHOOK_SECRET.length);
-  const a = Buffer.from(incoming.padEnd(maxLen));
-  const b = Buffer.from(INTAKE_WEBHOOK_SECRET.padEnd(maxLen));
-  if (!timingSafeEqual(a, b)) {
+  if (!secretsMatch(incoming, INTAKE_WEBHOOK_SECRET)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
