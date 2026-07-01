@@ -23,7 +23,11 @@ def test_spec_pipeline_list_empty(client: TestClient):
     assert "pipelines" in r.json()
 
 
-def test_spec_pipeline_run_queues(client: TestClient):
+def test_spec_pipeline_run_queues(client: TestClient, monkeypatch):
+    def fake_run_bg(pipeline_id: str, proposal: str, dry_run: bool) -> None:
+        spec_pipeline._running[pipeline_id] = "mocked"
+
+    monkeypatch.setattr(spec_pipeline, "_run_bg", fake_run_bg)
     r = client.post(
         "/api/spec-pipeline/run",
         json={"proposal": "Add dry-run spec pipeline panel to Mission Control", "dry_run": True},
