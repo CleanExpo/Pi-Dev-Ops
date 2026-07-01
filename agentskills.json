@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.10.2",
-    "generated_at": "2026-07-01T06:42:30.903464+00:00",
+    "version": "1.11.0",
+    "generated_at": "2026-07-01T08:13:47.692653+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -435,6 +435,25 @@
       "status": "\"wave-6\"",
       "path": "skills/compound-development-loop/SKILL.md",
       "sha256": "fe41c9c9c500b89ddabba7c694864cc4ccb6b73f01144d971fe7f9d5315ac5fd",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "connecting-meta-facebook-instagram",
+      "description": "Use when connecting or fixing Facebook/Instagram (Meta) OAuth in a web app \u2014 Connect button no-ops or errors, \"Meta Login for Business config missing\", config_id/app mismatch, \"Can't load URL / App Domains not included\", pages_manage_posts / instagram_content_publish rejected, or repointing Synthex-style social posting to a Meta app you actually control after an ex-employee set it up.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/connecting-meta-facebook-instagram/SKILL.md",
+      "sha256": "f19e5588d1afd6c62cd28bea93e116107eac6548f2b06afd875d2f7c1b3f430a",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2063,7 +2082,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/specialist-council/SKILL.md",
-      "sha256": "4fc9206f8d9ddfbc647c44e7fb81270c42a7487fa8e6d452bfea36c4cb6cfb4d",
+      "sha256": "992444de5a26cb2839d0598928e834d8230324551692d9ce24498f59690f49e2",
       "dependencies": {
         "tools": [],
         "skills": [
