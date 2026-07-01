@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.9.1
-  generated_at: "2026-07-01T04:12:13.351585+00:00"
+  version: 1.10.0
+  generated_at: "2026-07-01T05:00:21.200757+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: afk-agent
@@ -173,6 +173,21 @@ skills:
       requires_kill_switch: false
       requires_hitl_gate: false
       pii_handling: pass-through
+  - id: autonomy-ladder
+    description: "Capability-tiered autonomy gating for all agent action \u2014 maps the DeepMind AGI\u2192ASI continuum (arXiv:2606.12683) onto four autonomy tiers (L0 advise \u2192 L3 strategic/irreversible), each with an explicit gate. Use to decide \"can this agent do this action un-gated, or must it stop for a human/Board?\" before any autonomous or multi-move execution, and to design where the gate is ENFORCED. Triggers on \"autonomy ladder\", \"autonomy gate\", \"can the agent do X autonomously\", \"gate this action\", \"should this escalate\", multi-move executor design. The formal, capability-scaled version of the decision-rights matrix."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/autonomy-ladder/SKILL.md
+    sha256: e2490b617fca90265257968d9409592c4c203a65171404e2af51a34a18520b02
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: true
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
   - id: big-three
     description: The foundational framework - Model, Prompt, Context. Every decision maps to one of these.
     owner_role: (unset)
@@ -532,7 +547,7 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/design-intelligence/SKILL.md
-    sha256: 2d351b525cd1e0c6b2cc8dd2e52d7949f8c6961950ac3c52eded990167b762ea
+    sha256: fa9fecd7c7e288a28132ec1edc58ffe3c91e38e42989ecc950b3add8d37b6207
     dependencies:
       tools: []
       skills: []
@@ -587,6 +602,21 @@ skills:
       requires_kill_switch: true
       requires_hitl_gate: true
       pii_handling: pass-through
+  - id: eeat
+    description: "E-E-A-T specialist \u2014 a first-class UPSTREAM consult lens that scores content for Google's Experience, Expertise, Authoritativeness, and Trust signals BEFORE it's finalized, and returns structured fixes. Use when producing or auditing any content, page, or claim that needs to rank / be cited / be trusted (blog, landing page, YMYL, client deliverable). Consumed by the specialist-council, marketing, seo, and geo-optimization; complements source-ingest (credibility of sources) and brand-guardian (terminal accuracy gate). Triggers on \"E-E-A-T\", \"EEAT\", \"experience expertise authoritativeness trust\", \"trust signals\", \"author authority\", \"does this look credible/trustworthy\"."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/eeat/SKILL.md
+    sha256: 7baf844e2a351b3b6ceebe25120a16909ad98116da9cbdf01e0e8f704fa9f748
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
   - id: email-listener
     description: "Convert inbound Gmail messages into Pi-CEO sessions via webhook \u2192 intent-parser \u2192 orchestrator. Closes the \"no email-triggered session creation\" gap. Use this when Phill wants Pi-CEO to act on emails \u2014 replies, ticket creation, research dispatch \u2014 without him CC-ing it manually."
     owner_role: Chief of Staff
@@ -660,6 +690,21 @@ skills:
       requires_kill_switch: true
       requires_hitl_gate: true
       pii_handling: redacts
+    inferred: true
+    low_confidence: true
+  - id: heygen-director
+    description: "HeyGen specialist agent \u2014 owns avatar / talking-head / spokesperson video via the HyperFrames-by-HeyGen MCP, with a structured status contract the video-director and specialist-council can consult. Use for presenter-led explainers, multilingual avatar localization, UGC-style spokesperson clips, and programmatic HTML video projects. Triggers on \"HeyGen\", \"avatar video\", \"talking head\", \"AI presenter\", \"spokesperson video\", \"hyperframes\". CRITICAL BOUNDARY: this is NOT for generative cinematic b-roll \u2014 the video skills prohibit \"AI slop frames\" for client hero footage; HeyGen here means a real-looking presenter avatar, not synthetic scenery."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/heygen-director/SKILL.md
+    sha256: 9ceda3b4693b190756640850192bb8b896ccec04e00bd0f2aa18aa350712ab0e
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
     inferred: true
     low_confidence: true
   - id: hooks-system
@@ -1308,7 +1353,7 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/remotion-orchestrator/SKILL.md
-    sha256: 6aff8ab886e5f765a9da1ff853d846b03e307dec8172c05dda549ce653eac56c
+    sha256: 29cdad94e8d8fa68cd4a8c277b150681e6455162ea175b07d470fa90c08f6180
     dependencies:
       tools: []
       skills: []
@@ -1573,12 +1618,26 @@ skills:
       pii_handling: pass-through
     inferred: true
     low_confidence: true
+  - id: specialist-council
+    description: "AI Communication Intelligence layer \u2014 the bidirectional cross-specialist consultation protocol that makes specialist agents TALK TO EACH OTHER before an artifact is finalized. Use when a task spans domains and the output needs input from multiple specialists (e.g. marketing copy that must satisfy SEO + GEO + E-E-A-T + brand voice, or a video that needs Remotion + HeyGen + design + brand). Any orchestrator or /spm invokes it to pull structured input from the RIGHT specialists and fold it back in. Triggers on \"AI communication intelligence\", \"agents talking to each other\", \"cross-specialist\", \"specialists should consult each other\", \"get input from all relevant specialists\", \"council\". NOT a builder and NOT a replacement for the single-domain orchestrators \u2014 it is the round-trip consultation they lack."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/specialist-council/SKILL.md
+    sha256: 4fc9206f8d9ddfbc647c44e7fb81270c42a7487fa8e6d452bfea36c4cb6cfb4d
+    dependencies:
+      tools: []
+      skills:
+        - skill.specialist-council
+    safety:
+      requires_kill_switch: true
+      requires_hitl_gate: false
+      pii_handling: pass-through
   - id: spm
     description: "Senior Project Manager command (/spm). Use before implementation to turn a rough task, feature, bug, idea, ticket, PR, or repo area into a decision-grade spec.md \u2014 via read-only project inspection, a 15+ year specialist board, judge-style challenge, verification + stress-test planning, and goal-ready acceptance criteria. Read-only: produces the spec, never the build."
     owner_role: Tier-Architect (senior project manager; spec author, not builder)
     status: active
     path: skills/spm/SKILL.md
-    sha256: 1f8a6b16274d3aca8bb8a77b4db82f89b9a9140cd3e802099b0bf5b1fdd0859a
+    sha256: e2176e3ebb8aafe902c0e1da91b00f5f15f76ba253f3d4b50ff31b7f137ea77b
     dependencies:
       tools: []
       skills: []

@@ -30,6 +30,32 @@ The output of this command is a decision-grade SPM Spec.
 
 Implementation comes later through `/goal`, after the spec is accepted.
 
+## Fast lane — component spec micro-pattern
+
+A full 19-section spec is the default. For a single component or a tightly-scoped
+behaviour where that would be overkill, write a **4-section micro-spec** instead —
+`container · behaviour · UI · kicker`:
+
+1. **Container** — one self-contained line naming the thing and where it lives.
+   The line must stand alone: someone who reads only it knows what is being built
+   and where it goes, with no surrounding context.
+2. **Behaviour** — what it does, **one rule per bullet**. If a bullet needs a comma
+   to join two clauses, it is two rules — split it. Each bullet is a single,
+   independently testable statement.
+3. **UI** — how it renders, **one rule per bullet** (same discipline).
+4. **Kicker** — the one highest-value detail that makes it feel finished: the edge
+   case handled, the empty/loading/error state, or the micro-interaction that
+   separates shipped from sloppy. Exactly one.
+
+Discipline:
+
+- One rule per bullet is the whole point — a bullet doing two jobs hides a defect.
+- The container line is self-contained; if it needs a preamble to make sense, rewrite it.
+- If behaviour + UI need more than ~8 bullets, the scope is too big for the fast lane —
+  escalate to the full SPM Spec below.
+
+The fast lane still respects `No spec. No build.` — it produces the micro-spec, not the code.
+
 ## Required read-only project scan
 
 Before writing the spec, inspect the repo using read-only commands:

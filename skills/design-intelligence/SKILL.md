@@ -129,6 +129,69 @@ component builder to match that aesthetic for specific pages or sections.
 
 ---
 
+## DESIGN.md from a screenshot (vision path)
+
+When there is no codebase and no live URL — only an image of a design you like — build the
+DESIGN.md by reading the screenshot directly:
+
+1. Read the image. Name the palette (sample the actual pixels, don't guess), the type
+   hierarchy, spacing rhythm, and elevation.
+2. Produce all 9 DESIGN.md sections from what is observed, not from defaults.
+3. Emit a single self-contained `preview.html` that renders the tokens (swatches, type
+   scale, one of each component) so the extraction is visually checkable before any real UI
+   is built.
+
+## Reverse-engineer a live site → reusable skill (one-shot)
+
+Beyond extracting a one-off DESIGN.md, bottle a reference aesthetic into a *reusable* skill
+so every future build inherits it:
+
+```bash
+npx skillui --url https://linear.app --mode ultra --emit-skill
+```
+
+This produces a `SKILL.md` (name, description, trigger, the extracted tokens as the
+procedure) — not just a document. Register it in the router so "make it feel like Linear"
+routes to a grounded skill instead of re-scraping. One reference site → one durable skill.
+
+## Design laws — the taste layer
+
+The kit guarantees the floor; taste raises the ceiling. Grounding a build in tokens stops
+AI-default slop only if these laws hold:
+
+- **OKLCH, not raw hex.** Author colour in OKLCH so lightness/chroma stay perceptually even
+  across a ramp; convert to hex at output only.
+- **Never pure `#000` / `#fff`.** Use a near-black and a warm off-white — pure values read as
+  unfinished and vibrate against each other.
+- **One accent, used with restraint.** A single accent, applied sparingly, reads as
+  intentional; two or more accents read as a template.
+- **Theme from the scene.** Pull the palette from the hero image/content, not from a swatch
+  picker — the page and its imagery must share one light.
+- **No em dashes in display copy.** They read as machine-written in headlines.
+- **Anti-slop bans** (flag on sight): the gradient blob background, three identical feature
+  cards, the stock team-photo grid, floating geometric shapes, the generic purple→blue AI
+  gradient.
+
+## Scroll & motion styles (for animated / 3D sites)
+
+When a brief calls for a scroll-driven or 3D site, name the motion style up front — pick one,
+don't blend:
+
+| Style | Motion |
+|-------|--------|
+| **A — Loop** | Hero animation loops seamlessly; alive at rest, never freezes |
+| **B — Scrub** | Scroll position scrubs a timeline (frames, not mp4 — WebP frames scrub smoother) |
+| **C — Cursor** | Elements react to cursor position |
+| **D — Horizontal** | Vertical scroll drives horizontal travel |
+| **E — Exploded** | Parts assemble/disassemble on scroll |
+| **F — Push-through** | Camera pushes through layered planes |
+| **G — Scrollytelling** | Copy beats pinned to scroll milestones |
+
+Motion render laws: locked camera, constant velocity, motion-blur off, `START = END` for any
+loop. A frozen hero reads as broken.
+
+---
+
 ## Anti-Patterns to Flag
 
 When reviewing a DESIGN.md or a design brief, flag these:
