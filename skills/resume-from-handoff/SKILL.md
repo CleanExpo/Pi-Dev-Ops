@@ -43,9 +43,12 @@ git diff --stat
 
 Check claim by claim: branch present/checked out; claimed commits exist
 (`git cat-file -t <sha>`); shipped/key files exist with claimed status; working tree
-clean/dirty as implied; PR/issue state (`gh pr view` if available). Re-run only safe,
-read-only verification commands; report pass/fail honestly; mark unchecked items
-`NOT CHECKED`.
+clean/dirty as implied; PR/issue state (`gh pr view` if available).
+
+**Re-run the gate** — if `scripts/handoff-loop.sh` exists, run it (the same gate
+`/session-handoff` ran on the way out); a non-zero exit is a **CANNOT RESUME** until the
+named gate is fixed. Otherwise re-run only safe, read-only verification commands; report
+pass/fail honestly; mark unchecked items `NOT CHECKED`.
 
 ## Phase 3 — Reconciliation report
 
