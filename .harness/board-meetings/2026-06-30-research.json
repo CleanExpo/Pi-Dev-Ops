@@ -1,0 +1,69 @@
+{
+  "research_required": true,
+  "questions": [
+    "What is the current status of Anthropic's platform-managed trial credits API and whether API keys are required for trial-tier usage as of June 2026?",
+    "Have any Australian Business Register (ABR) API authentication or GUID requirements changed in the last 90 days that could affect ABN lookup integrations?",
+    "What are the current Stripe subscription gate best practices for SaaS onboarding flows, particularly around free-trial-to-paid transitions in 2026?"
+  ],
+  "findings": [
+    {
+      "question": "What is the current status of Anthropic's platform-managed trial credits API and whether API keys are required for trial-tier usage as of June 2026?",
+      "claim": "Anthropic's proposed June 15, 2026 billing restructure — which would have created a separate per-user monthly credit pool for Agent SDK and `claude -p` usage — was paused before taking effect; nothing changed and subscription limits remain as before. API keys are required for all direct API access; new Console accounts receive a one-time ~$5 starter credit (phone verification required, no credit card), after which prepaid Console credits must be purchased. Claude Pro/Max chat subscriptions do not include API access.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://www.digitalapplied.com/blog/anthropic-claude-credit-overhaul-june-15-2026",
+          "title": "Claude Credit Overhaul 2026: Anthropic Pauses the June 15 Change",
+          "fetched": "2026-06-30",
+          "excerpt": "Anthropic has paused the June 15 Agent SDK billing change — it is not taking effect. Nothing changes for now: those surfaces continue drawing from your Pro, Max, Team, and Enterprise subscription limits."
+        },
+        {
+          "url": "https://blog.laozhang.ai/en/posts/claude-api-key-free-tier",
+          "title": "Claude API Key Free Tier 2026: What's Actually Free, What Isn't, and When You Need Console Credits",
+          "fetched": "2026-06-30",
+          "excerpt": "Anthropic's pricing FAQ says new users receive a small amount of free credits to test the API. Key creation in Claude Console is available without purchasing a paid chat plan first."
+        }
+      ]
+    },
+    {
+      "question": "Have any Australian Business Register (ABR) API authentication or GUID requirements changed in the last 90 days that could affect ABN lookup integrations?",
+      "claim": "No changes to ABR API authentication or GUID requirements were detected. The official ABR web services registration page (currently version 9.9.7) still requires a GUID issued post-registration; no change notices, deprecation notices, or 2026 migration announcements were present in official documentation.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://abr.business.gov.au/Documentation/WebServiceRegistration",
+          "title": "Web services registration | ABN Lookup",
+          "fetched": "2026-06-30",
+          "excerpt": "An authentication GUID (Globally Unique Identifier) is required to access the ABN Lookup web services. Applications are processed and a GUID is emailed to the applicant. Version: 9.9.7."
+        }
+      ]
+    },
+    {
+      "question": "What are the current Stripe subscription gate best practices for SaaS onboarding flows, particularly around free-trial-to-paid transitions in 2026?",
+      "claim": "Stripe's current recommended approach for new integrations is the 'trial offers' API (requires `billing_mode=flexible` and API version `2026-03-25.preview` or later), which distinguishes 0-USD trials (status: `trialling`, no card required) from paid trials (status: `active`, card required); the legacy `trial_period_days` / `trial_end` parameter remains valid but is flagged as the legacy path and is the only option compatible with Stripe Checkout. Key end-behaviour options are cancel, pause, or create_invoice when no payment method exists at trial end; listening to `customer.subscription.trial_will_end` 3 days before expiry is the standard conversion hook.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://docs.stripe.com/billing/subscriptions/trials",
+          "title": "Configure trial offers on subscriptions | Stripe Documentation",
+          "fetched": "2026-06-30",
+          "excerpt": "Use flexible billing mode. API version 2026-03-25.preview or later. 0 USD trial → status trialling; >0 USD trial → status active. Incompatible with Stripe Checkout; use legacy trial_end for Checkout."
+        },
+        {
+          "url": "https://docs.stripe.com/billing/subscriptions/trials/free-trials",
+          "title": "Use free trial periods on subscriptions | Stripe Documentation",
+          "fetched": "2026-06-30",
+          "excerpt": "trial_settings[end_behavior][missing_payment_method]: cancel | pause | create_invoice. payment_settings[save_default_payment_method]=on_subscription. This is the legacy integration path; new implementations should use trial offers."
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "Whether Anthropic has published a revised Agent SDK billing plan since pausing the June 15 change — the pause announcement committed to 'advance notice before any future change' but gave no timeline; no primary Anthropic changelog or console.anthropic.com announcement was reachable to confirm.",
+    "Whether the ABR has issued any out-of-band advisory (email to registered GUID holders, ATO developer newsletter) about upcoming authentication changes not yet reflected in the public documentation — the official page carries no dated change log."
+  ],
+  "completed_at": "2026-06-30T05:02:38.411648+00:00",
+  "cost_seconds": 115.6,
+  "failure_reason": null,
+  "mode": "fast"
+}

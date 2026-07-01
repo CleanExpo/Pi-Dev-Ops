@@ -1,33 +1,32 @@
 # Anthropic Docs — Latest Snapshot
-**Generated:** 2026-05-02T02:00:58Z
-**Source files:** 59 files in .harness/anthropic-docs/
+**Generated:** 2026-07-01T02:00:12Z
+**Source files:** 182 files in .harness/anthropic-docs/
 
 ## What Changed Since Last Snapshot
-**Line changes:** +1304 / -444 lines across all files
+**Line changes:** +1338 / -498 lines across all files
 
 ## New SDK Features & MCP Updates
-- )</script><div class="max-lg:contents lg:flex lg:w-full" data-docs-theme="mint"><div class="max-lg:contents lg:flex-1 lg:min-w-0 lg:overflow-x-clip"><div id="na
+- )</script><div class="max-lg:contents lg:flex lg:w-full" data-docs-theme="mint"><div class="max-lg:contents lg:flex-1 lg:min-w-0 lg:overflow-x-clip"><header id=
 - </code></pre></div></div><div class="print:hidden" data-fade-overlay="true" aria-hidden="true" style="--fade-color-light:#ffffff;--fade-color-dark:#0B0C0E"></di
 - <span data-as="p">Each surface connects to the same underlying Claude Code engine, so your CLAUDE.md files, settings, and MCP servers work across all of them.</
 - <div data-table-wrapper="true" class="[--page-padding:20px] overflow-x-auto flex w-[calc(100%+(var(--page-padding)*2))] my-[1em] py-[1em] -mx-[var(--page-paddin
 - </ul></div><div class="feedback-toolbar pb-16 w-full flex flex-col gap-y-8"><div class="flex flex-row flex-wrap gap-4 items-center justify-between"><p class="in
-- ease-[cubic-bezier(0.165,0.85,0.45,1)] h-8 w-8 rounded-md Button_fill__JiIcX Button_ghost__BUAoh" type="button" id="radix-_R_1bcntiuuljb_" aria-haspopup="menu" 
+- ease-[cubic-bezier(0.165,0.85,0.45,1)] h-8 w-8 rounded-md Button_fill__JiIcX Button_ghost__BUAoh" type="button" id="radix-_R_lmbupffj2mdb_" aria-haspopup="menu"
 - <div class="flex w-full rounded-lg px-4 py-3 gap-1 items-start text-sm border-0.5 my-6 border-accent-100 bg-accent-100/10 callout"><div class="flex mr-2 shrink-
 - <li class="mb-2 last:mb-0 relative before:absolute before:left-[-2rem] before:w-6 before:text-center [ul&gt;&amp;]:before:content-[&#x27;•&#x27;] [ol&gt;&amp;]:
-- <div class="overflow-x-auto my-6 text-sm"><table class="w-full border-collapse"><thead class=""><tr class="border-b-0.5 border-border-400 last:border-b-0"><th c
 - ease-[cubic-bezier(0.165,0.85,0.45,1)] h-8 w-8 rounded-md mb-1 ml-1 p-0 Button_fill__JiIcX Button_ghost__BUAoh" type="button"><svg xmlns="http://www.w3.org/2000
 - Learn more in <a class="inline-link" href="/docs/en/agents-and-tools/tool-use/overview">Tool use with Claude</a>.</li>
 
 ## Model Additions / Changes
-- )</script><div class="max-lg:contents lg:flex lg:w-full" data-docs-theme="mint"><div class="max-lg:contents lg:flex-1 lg:min-w-0 lg:overflow-x-clip"><div id="na
+- )</script><div class="max-lg:contents lg:flex lg:w-full" data-docs-theme="mint"><div class="max-lg:contents lg:flex-1 lg:min-w-0 lg:overflow-x-clip"><header id=
 - <span data-as="p">Choose your environment to get started. Most surfaces require a <a href="https://claude.com/pricing?utm_source=claude_code&amp;utm_medium=docs
 - </ul><span data-as="p">After installing, launch Claude, sign in, and click the <strong>Code</strong> tab to start coding. A <a href="https://claude.com/pricing?
 - <li><a href="https://code.claude.com/" target="_blank" rel="noreferrer" class="link">code.claude.com</a>: demos, pricing, and product details</li>
 - </ul></div><div class="feedback-toolbar pb-16 w-full flex flex-col gap-y-8"><div class="flex flex-row flex-wrap gap-4 items-center justify-between"><p class="in
-- <!DOCTYPE html><html class="h-screen antialiased bg-bg-100 __variable_8d1da5 __variable_2d8cf6 __variable_5581e8" lang="en-US" data-theme="claude" data-mode="au
-- <p class="mb-2 last:mb-0">Claude is available through the direct Claude API and through partner platforms. Choose based on your infrastructure, compliance requi
+- <p class="mb-2 last:mb-0">Claude is available through the direct Claude API and through cloud platforms. Choose based on your infrastructure, feature availabili
 - ease-[cubic-bezier(0.165,0.85,0.45,1)] h-8 w-8 rounded-md mb-1 ml-1 p-0 Button_fill__JiIcX Button_ghost__BUAoh" type="button"><svg xmlns="http://www.w3.org/2000
 - <li class="mb-2 last:mb-0 relative before:absolute before:left-[-2rem] before:w-6 before:text-center [ul&gt;&amp;]:before:content-[&#x27;•&#x27;] [ol&gt;&amp;]:
+- " style="word-break:break-word;overflow-wrap:anywhere" data-state="closed">claude-opus-4-8</span>), our most capable generally available model. Claude Opus 4.8 
 - <p class="mb-2 last:mb-0"><em><sup>* - Opus 4.1 does not allow both <code class="relative inline bg-bg-300 px-2 py-0.5 rounded text-sm font-mono break-words box
 
 ## Recommended Platform Actions for Pi-Dev-Ops
@@ -35,6 +34,129 @@
 2. Model availability has changed — update `.harness/config.yaml` default model references if newer Claude versions are now preferred.
 
 ## Full Document Index
+- `2026-07-01/claude-code-overview.md` — 2026-07-01 02:00 UTC — Claude Code Overview (snapshot: 2026-07-01)
+- `2026-07-01/api-overview.md` — 2026-07-01 02:00 UTC — Api Overview (snapshot: 2026-07-01)
+- `2026-07-01/release-notes-overview.md` — 2026-07-01 02:00 UTC — Release Notes Overview (snapshot: 2026-07-01)
+- `2026-06-30/claude-code-overview.md` — 2026-06-30 02:00 UTC — Claude Code Overview (snapshot: 2026-06-30)
+- `2026-06-30/api-overview.md` — 2026-06-30 02:00 UTC — Api Overview (snapshot: 2026-06-30)
+- `2026-06-30/release-notes-overview.md` — 2026-06-30 02:00 UTC — Release Notes Overview (snapshot: 2026-06-30)
+- `2026-06-29/claude-code-overview.md` — 2026-06-29 02:00 UTC — Claude Code Overview (snapshot: 2026-06-29)
+- `2026-06-29/api-overview.md` — 2026-06-29 02:00 UTC — Api Overview (snapshot: 2026-06-29)
+- `2026-06-29/release-notes-overview.md` — 2026-06-29 02:00 UTC — Release Notes Overview (snapshot: 2026-06-29)
+- `2026-06-28/claude-code-overview.md` — 2026-06-28 02:00 UTC — Claude Code Overview (snapshot: 2026-06-28)
+- `2026-06-28/api-overview.md` — 2026-06-28 02:00 UTC — Api Overview (snapshot: 2026-06-28)
+- `2026-06-28/release-notes-overview.md` — 2026-06-28 02:00 UTC — Release Notes Overview (snapshot: 2026-06-28)
+- `2026-06-27/claude-code-overview.md` — 2026-06-27 02:00 UTC — Claude Code Overview (snapshot: 2026-06-27)
+- `2026-06-27/api-overview.md` — 2026-06-27 02:00 UTC — Api Overview (snapshot: 2026-06-27)
+- `2026-06-27/release-notes-overview.md` — 2026-06-27 02:00 UTC — Release Notes Overview (snapshot: 2026-06-27)
+- `2026-06-26/claude-code-overview.md` — 2026-06-26 02:00 UTC — Claude Code Overview (snapshot: 2026-06-26)
+- `2026-06-26/api-overview.md` — 2026-06-26 02:00 UTC — Api Overview (snapshot: 2026-06-26)
+- `2026-06-26/release-notes-overview.md` — 2026-06-26 02:00 UTC — Release Notes Overview (snapshot: 2026-06-26)
+- `2026-06-25/claude-code-overview.md` — 2026-06-25 02:00 UTC — Claude Code Overview (snapshot: 2026-06-25)
+- `2026-06-25/api-overview.md` — 2026-06-25 02:00 UTC — Api Overview (snapshot: 2026-06-25)
+- `2026-06-25/release-notes-overview.md` — 2026-06-25 02:00 UTC — Release Notes Overview (snapshot: 2026-06-25)
+- `2026-06-24/claude-code-overview.md` — 2026-06-24 02:00 UTC — Claude Code Overview (snapshot: 2026-06-24)
+- `2026-06-24/api-overview.md` — 2026-06-24 02:00 UTC — Api Overview (snapshot: 2026-06-24)
+- `2026-06-24/release-notes-overview.md` — 2026-06-24 02:00 UTC — Release Notes Overview (snapshot: 2026-06-24)
+- `2026-06-23/claude-code-overview.md` — 2026-06-23 20:23 UTC — Claude Code Overview (snapshot: 2026-06-23)
+- `2026-06-23/api-overview.md` — 2026-06-23 20:23 UTC — Api Overview (snapshot: 2026-06-23)
+- `2026-06-23/release-notes-overview.md` — 2026-06-23 20:23 UTC — Release Notes Overview (snapshot: 2026-06-23)
+- `2026-06-22/claude-code-overview.md` — 2026-06-22 02:00 UTC — Claude Code Overview (snapshot: 2026-06-22)
+- `2026-06-22/api-overview.md` — 2026-06-22 02:00 UTC — Api Overview (snapshot: 2026-06-22)
+- `2026-06-22/release-notes-overview.md` — 2026-06-22 02:00 UTC — Release Notes Overview (snapshot: 2026-06-22)
+- `2026-06-21/claude-code-overview.md` — 2026-06-21 20:18 UTC — Claude Code Overview (snapshot: 2026-06-21)
+- `2026-06-21/api-overview.md` — 2026-06-21 20:18 UTC — Api Overview (snapshot: 2026-06-21)
+- `2026-06-21/release-notes-overview.md` — 2026-06-21 20:18 UTC — Release Notes Overview (snapshot: 2026-06-21)
+- `2026-06-20/claude-code-overview.md` — 2026-06-20 02:00 UTC — Claude Code Overview (snapshot: 2026-06-20)
+- `2026-06-20/api-overview.md` — 2026-06-20 02:00 UTC — Api Overview (snapshot: 2026-06-20)
+- `2026-06-20/release-notes-overview.md` — 2026-06-20 02:00 UTC — Release Notes Overview (snapshot: 2026-06-20)
+- `2026-06-19/claude-code-overview.md` — 2026-06-19 02:00 UTC — Claude Code Overview (snapshot: 2026-06-19)
+- `2026-06-19/api-overview.md` — 2026-06-19 02:00 UTC — Api Overview (snapshot: 2026-06-19)
+- `2026-06-19/release-notes-overview.md` — 2026-06-19 02:00 UTC — Release Notes Overview (snapshot: 2026-06-19)
+- `2026-06-17/claude-code-overview.md` — 2026-06-17 20:39 UTC — Claude Code Overview (snapshot: 2026-06-17)
+- `2026-06-17/api-overview.md` — 2026-06-17 20:39 UTC — Api Overview (snapshot: 2026-06-17)
+- `2026-06-17/release-notes-overview.md` — 2026-06-17 20:39 UTC — Release Notes Overview (snapshot: 2026-06-17)
+- `2026-06-16/claude-code-overview.md` — 2026-06-16 02:00 UTC — Claude Code Overview (snapshot: 2026-06-16)
+- `2026-06-16/api-overview.md` — 2026-06-16 02:00 UTC — Api Overview (snapshot: 2026-06-16)
+- `2026-06-16/release-notes-overview.md` — 2026-06-16 02:00 UTC — Release Notes Overview (snapshot: 2026-06-16)
+- `2026-06-15/claude-code-overview.md` — 2026-06-15 21:21 UTC — Claude Code Overview (snapshot: 2026-06-15)
+- `2026-06-15/api-overview.md` — 2026-06-15 21:21 UTC — Api Overview (snapshot: 2026-06-15)
+- `2026-06-15/release-notes-overview.md` — 2026-06-15 21:21 UTC — Release Notes Overview (snapshot: 2026-06-15)
+- `2026-06-14/claude-code-overview.md` — 2026-06-14 23:02 UTC — Claude Code Overview (snapshot: 2026-06-14)
+- `2026-06-14/api-overview.md` — 2026-06-14 23:02 UTC — Api Overview (snapshot: 2026-06-14)
+- `2026-06-14/release-notes-overview.md` — 2026-06-14 23:02 UTC — Release Notes Overview (snapshot: 2026-06-14)
+- `2026-06-13/claude-code-overview.md` — 2026-06-13 02:00 UTC — Claude Code Overview (snapshot: 2026-06-13)
+- `2026-06-13/api-overview.md` — 2026-06-13 02:00 UTC — Api Overview (snapshot: 2026-06-13)
+- `2026-06-13/release-notes-overview.md` — 2026-06-13 02:00 UTC — Release Notes Overview (snapshot: 2026-06-13)
+- `2026-06-12/claude-code-overview.md` — 2026-06-12 02:00 UTC — Claude Code Overview (snapshot: 2026-06-12)
+- `2026-06-12/api-overview.md` — 2026-06-12 02:00 UTC — Api Overview (snapshot: 2026-06-12)
+- `2026-06-12/release-notes-overview.md` — 2026-06-12 02:00 UTC — Release Notes Overview (snapshot: 2026-06-12)
+- `2026-06-11/claude-code-overview.md` — 2026-06-11 02:00 UTC — Claude Code Overview (snapshot: 2026-06-11)
+- `2026-06-11/api-overview.md` — 2026-06-11 02:00 UTC — Api Overview (snapshot: 2026-06-11)
+- `2026-06-11/release-notes-overview.md` — 2026-06-11 02:00 UTC — Release Notes Overview (snapshot: 2026-06-11)
+- `2026-06-10/claude-code-overview.md` — 2026-06-10 09:07 UTC — Claude Code Overview (snapshot: 2026-06-10)
+- `2026-06-10/api-overview.md` — 2026-06-10 09:07 UTC — Api Overview (snapshot: 2026-06-10)
+- `2026-06-10/release-notes-overview.md` — 2026-06-10 09:07 UTC — Release Notes Overview (snapshot: 2026-06-10)
+- `2026-05-22/claude-code-overview.md` — 2026-05-22 02:00 UTC — Claude Code Overview (snapshot: 2026-05-22)
+- `2026-05-22/api-overview.md` — 2026-05-22 02:00 UTC — Api Overview (snapshot: 2026-05-22)
+- `2026-05-22/release-notes-overview.md` — 2026-05-22 02:00 UTC — Release Notes Overview (snapshot: 2026-05-22)
+- `2026-05-21/claude-code-overview.md` — 2026-05-21 02:00 UTC — Claude Code Overview (snapshot: 2026-05-21)
+- `2026-05-21/api-overview.md` — 2026-05-21 02:00 UTC — Api Overview (snapshot: 2026-05-21)
+- `2026-05-21/release-notes-overview.md` — 2026-05-21 02:00 UTC — Release Notes Overview (snapshot: 2026-05-21)
+- `2026-05-20/claude-code-overview.md` — 2026-05-20 02:00 UTC — Claude Code Overview (snapshot: 2026-05-20)
+- `2026-05-20/api-overview.md` — 2026-05-20 02:00 UTC — Api Overview (snapshot: 2026-05-20)
+- `2026-05-20/release-notes-overview.md` — 2026-05-20 02:00 UTC — Release Notes Overview (snapshot: 2026-05-20)
+- `2026-05-19/claude-code-overview.md` — 2026-05-19 10:37 UTC — Claude Code Overview (snapshot: 2026-05-19)
+- `2026-05-19/api-overview.md` — 2026-05-19 10:37 UTC — Api Overview (snapshot: 2026-05-19)
+- `2026-05-19/release-notes-overview.md` — 2026-05-19 10:37 UTC — Release Notes Overview (snapshot: 2026-05-19)
+- `2026-05-18/claude-code-overview.md` — 2026-05-18 10:05 UTC — Claude Code Overview (snapshot: 2026-05-18)
+- `2026-05-18/api-overview.md` — 2026-05-18 10:05 UTC — Api Overview (snapshot: 2026-05-18)
+- `2026-05-18/release-notes-overview.md` — 2026-05-18 10:05 UTC — Release Notes Overview (snapshot: 2026-05-18)
+- `2026-05-17/claude-code-overview.md` — 2026-05-17 02:00 UTC — Claude Code Overview (snapshot: 2026-05-17)
+- `2026-05-17/api-overview.md` — 2026-05-17 02:00 UTC — Api Overview (snapshot: 2026-05-17)
+- `2026-05-17/release-notes-overview.md` — 2026-05-17 02:00 UTC — Release Notes Overview (snapshot: 2026-05-17)
+- `2026-05-16/claude-code-overview.md` — 2026-05-16 15:19 UTC — Claude Code Overview (snapshot: 2026-05-16)
+- `2026-05-16/api-overview.md` — 2026-05-16 15:19 UTC — Api Overview (snapshot: 2026-05-16)
+- `2026-05-16/release-notes-overview.md` — 2026-05-16 15:19 UTC — Release Notes Overview (snapshot: 2026-05-16)
+- `2026-05-15/claude-code-overview.md` — 2026-05-15 02:00 UTC — Claude Code Overview (snapshot: 2026-05-15)
+- `2026-05-15/api-overview.md` — 2026-05-15 02:00 UTC — Api Overview (snapshot: 2026-05-15)
+- `2026-05-15/release-notes-overview.md` — 2026-05-15 02:00 UTC — Release Notes Overview (snapshot: 2026-05-15)
+- `2026-05-14/claude-code-overview.md` — 2026-05-14 20:35 UTC — Claude Code Overview (snapshot: 2026-05-14)
+- `2026-05-14/api-overview.md` — 2026-05-14 20:35 UTC — Api Overview (snapshot: 2026-05-14)
+- `2026-05-14/release-notes-overview.md` — 2026-05-14 20:35 UTC — Release Notes Overview (snapshot: 2026-05-14)
+- `2026-05-13/claude-code-overview.md` — 2026-05-13 02:00 UTC — Claude Code Overview (snapshot: 2026-05-13)
+- `2026-05-13/api-overview.md` — 2026-05-13 02:00 UTC — Api Overview (snapshot: 2026-05-13)
+- `2026-05-13/release-notes-overview.md` — 2026-05-13 02:00 UTC — Release Notes Overview (snapshot: 2026-05-13)
+- `2026-05-12/claude-code-overview.md` — 2026-05-12 21:29 UTC — Claude Code Overview (snapshot: 2026-05-12)
+- `2026-05-12/api-overview.md` — 2026-05-12 21:29 UTC — Api Overview (snapshot: 2026-05-12)
+- `2026-05-12/release-notes-overview.md` — 2026-05-12 21:29 UTC — Release Notes Overview (snapshot: 2026-05-12)
+- `2026-05-11/claude-code-overview.md` — 2026-05-11 20:18 UTC — Claude Code Overview (snapshot: 2026-05-11)
+- `2026-05-11/api-overview.md` — 2026-05-11 20:18 UTC — Api Overview (snapshot: 2026-05-11)
+- `2026-05-11/release-notes-overview.md` — 2026-05-11 20:18 UTC — Release Notes Overview (snapshot: 2026-05-11)
+- `2026-05-10/claude-code-overview.md` — 2026-05-10 23:03 UTC — Claude Code Overview (snapshot: 2026-05-10)
+- `2026-05-10/api-overview.md` — 2026-05-10 23:03 UTC — Api Overview (snapshot: 2026-05-10)
+- `2026-05-10/release-notes-overview.md` — 2026-05-10 23:03 UTC — Release Notes Overview (snapshot: 2026-05-10)
+- `2026-05-09/claude-code-overview.md` — 2026-05-09 02:00 UTC — Claude Code Overview (snapshot: 2026-05-09)
+- `2026-05-09/api-overview.md` — 2026-05-09 02:00 UTC — Api Overview (snapshot: 2026-05-09)
+- `2026-05-09/release-notes-overview.md` — 2026-05-09 02:00 UTC — Release Notes Overview (snapshot: 2026-05-09)
+- `2026-05-08/claude-code-overview.md` — 2026-05-08 02:00 UTC — Claude Code Overview (snapshot: 2026-05-08)
+- `2026-05-08/api-overview.md` — 2026-05-08 02:00 UTC — Api Overview (snapshot: 2026-05-08)
+- `2026-05-08/release-notes-overview.md` — 2026-05-08 02:00 UTC — Release Notes Overview (snapshot: 2026-05-08)
+- `2026-05-07/claude-code-overview.md` — 2026-05-07 02:00 UTC — Claude Code Overview (snapshot: 2026-05-07)
+- `2026-05-07/api-overview.md` — 2026-05-07 02:00 UTC — Api Overview (snapshot: 2026-05-07)
+- `2026-05-07/release-notes-overview.md` — 2026-05-07 02:00 UTC — Release Notes Overview (snapshot: 2026-05-07)
+- `2026-05-06/claude-code-overview.md` — 2026-05-06 02:00 UTC — Claude Code Overview (snapshot: 2026-05-06)
+- `2026-05-06/api-overview.md` — 2026-05-06 02:00 UTC — Api Overview (snapshot: 2026-05-06)
+- `2026-05-06/release-notes-overview.md` — 2026-05-06 02:00 UTC — Release Notes Overview (snapshot: 2026-05-06)
+- `2026-05-05/claude-code-overview.md` — 2026-05-05 11:39 UTC — Claude Code Overview (snapshot: 2026-05-05)
+- `2026-05-05/api-overview.md` — 2026-05-05 11:39 UTC — Api Overview (snapshot: 2026-05-05)
+- `2026-05-05/release-notes-overview.md` — 2026-05-05 11:39 UTC — Release Notes Overview (snapshot: 2026-05-05)
+- `2026-05-04/claude-code-overview.md` — 2026-05-04 02:00 UTC — Claude Code Overview (snapshot: 2026-05-04)
+- `2026-05-04/api-overview.md` — 2026-05-04 02:00 UTC — Api Overview (snapshot: 2026-05-04)
+- `2026-05-04/release-notes-overview.md` — 2026-05-04 02:00 UTC — Release Notes Overview (snapshot: 2026-05-04)
+- `2026-05-03/claude-code-overview.md` — 2026-05-03 02:00 UTC — Claude Code Overview (snapshot: 2026-05-03)
+- `2026-05-03/api-overview.md` — 2026-05-03 02:00 UTC — Api Overview (snapshot: 2026-05-03)
+- `2026-05-03/release-notes-overview.md` — 2026-05-03 02:00 UTC — Release Notes Overview (snapshot: 2026-05-03)
 - `2026-05-02/claude-code-overview.md` — 2026-05-02 02:00 UTC — Claude Code Overview (snapshot: 2026-05-02)
 - `2026-05-02/api-overview.md` — 2026-05-02 02:00 UTC — Api Overview (snapshot: 2026-05-02)
 - `2026-05-02/release-notes-overview.md` — 2026-05-02 02:00 UTC — Release Notes Overview (snapshot: 2026-05-02)
