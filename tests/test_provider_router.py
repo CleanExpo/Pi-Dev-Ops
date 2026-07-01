@@ -415,12 +415,12 @@ def test_top_use_claude_print_flag_off_routes_anthropic(monkeypatch):
 def test_per_role_override_to_claude_print(monkeypatch):
     """A specific role can opt in via TAO_MODEL_<ROLE>=claude_print:<model>."""
     monkeypatch.setenv(
-        "TAO_MODEL_MARGOT_CASUAL", "claude_print:claude-opus-4-7",
+        "TAO_MODEL_MARGOT_CASUAL", "claude_print:claude-opus-4-8",
     )
     pm = PR.select_provider_model("margot.casual")
     assert pm.source == "env_role_override"
     assert pm.provider == "claude_print"
-    assert pm.model_id == "claude-opus-4-7"
+    assert pm.model_id == "claude-opus-4-8"
 
 
 def test_is_claude_print_helper():

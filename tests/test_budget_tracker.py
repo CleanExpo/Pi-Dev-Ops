@@ -62,7 +62,7 @@ def test_supabase_failure_does_not_break_record_cost(isolated_log, monkeypatch):
     )
     # Must not raise
     bt.record_cost(
-        provider="anthropic", role="planner", model="claude-opus-4-7",
+        provider="anthropic", role="planner", model="claude-opus-4-8",
         cost_usd=0.50, tokens_in=500, tokens_out=300,
     )
     # JSONL still written

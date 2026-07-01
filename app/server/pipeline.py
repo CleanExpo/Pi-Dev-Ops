@@ -243,12 +243,6 @@ def _skill_prefix(skill_names: list[str]) -> str:
         return ""
 
 
-_MODEL_MAP = {
-    "opus":   "claude-opus-4-7",
-    "sonnet": "claude-sonnet-5",
-    "haiku":  "claude-haiku-4-5-20251001",
-}
-
 # RA-1094B — _resolve_claude_bin / _run_claude_subprocess removed.
 # The Agent SDK is the only execution path (SDK-only mandate, RA-576).
 
