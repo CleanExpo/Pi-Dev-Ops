@@ -19,12 +19,17 @@ async def test_pipeline_dry_run_blocked_on_boundary(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_pipeline_blocks_bare_str_proposal():
+async def test_pipeline_blocked_persists_stages_in_meta(monkeypatch):
     from app.server.spec_pipeline import run_pipeline
+    from app.server.spec_pipeline import persistence as persist
 
     result = await run_pipeline("str", dry_run=True)
     assert result.status == "blocked"
-    assert "proposal validation" in result.reason or "bare type" in result.reason
+    meta = persist.read_json(result.pipeline_id, "meta.json")
+    assert meta is not None
+    assert meta.get("reason", "").startswith("proposal validation")
+    stages = meta.get("stages") or []
+    assert any(s.get("stage") == "proposal_validator" for s in stages)
 
 
 @pytest.mark.asyncio

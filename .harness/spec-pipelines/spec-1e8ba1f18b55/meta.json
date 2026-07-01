@@ -1,6 +1,0 @@
-{
-  "pipeline_id": "spec-1e8ba1f18b55",
-  "reason": "boundary blocked: ['app/server/config.py']",
-  "status": "blocked",
-  "updated_at": "2026-07-01T12:19:38.391704+00:00"
-}

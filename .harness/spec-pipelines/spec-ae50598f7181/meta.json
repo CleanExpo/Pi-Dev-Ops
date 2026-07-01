@@ -1,9 +1,0 @@
-{
-  "dry_run": true,
-  "issue_id": null,
-  "pipeline_id": "spec-ae50598f7181",
-  "proposal": "Add live status chip to Spec Pipeline Mission Control panel",
-  "status": "running",
-  "trigger": "cli",
-  "updated_at": "2026-07-01T11:12:34.463909+00:00"
-}
