@@ -179,7 +179,7 @@ don't blend:
 
 | Style | Motion |
 |-------|--------|
-| **A — Loop** | Hero animation loops seamlessly; alive at rest, never freezes |
+| **A — Loop** | Hero animation loops with no visible seam; alive at rest, never freezes |
 | **B — Scrub** | Scroll position scrubs a timeline (frames, not mp4 — WebP frames scrub smoother) |
 | **C — Cursor** | Elements react to cursor position |
 | **D — Horizontal** | Vertical scroll drives horizontal travel |
