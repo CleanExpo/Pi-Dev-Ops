@@ -23,7 +23,11 @@ def test_spec_pipeline_list_empty(client: TestClient):
     assert "pipelines" in r.json()
 
 
-def test_spec_pipeline_run_queues(client: TestClient):
+def test_spec_pipeline_run_queues(client: TestClient, monkeypatch):
+    def fake_run_bg(pipeline_id: str, proposal: str, dry_run: bool) -> None:
+        spec_pipeline._running[pipeline_id] = "mocked"
+
+    monkeypatch.setattr(spec_pipeline, "_run_bg", fake_run_bg)
     r = client.post(
         "/api/spec-pipeline/run",
         json={"proposal": "Add dry-run spec pipeline panel to Mission Control", "dry_run": True},
@@ -33,6 +37,14 @@ def test_spec_pipeline_run_queues(client: TestClient):
     assert body["pipeline_id"].startswith("spec-")
     assert body["status"] == "queued"
     assert body["dry_run"] is True
+
+
+def test_spec_pipeline_run_rejects_short_proposal(client: TestClient):
+    r = client.post(
+        "/api/spec-pipeline/run",
+        json={"proposal": "str", "dry_run": True},
+    )
+    assert r.status_code == 422
 
 
 def test_spec_pipeline_get_invalid_id(client: TestClient):
