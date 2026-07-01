@@ -42,6 +42,25 @@ export const RemotionRoot: React.FC = () => {
         }}
       />
       <Composition
+        id="ExplainerVertical"
+        component={Explainer}
+        durationInFrames={1800}
+        fps={FPS}
+        width={1080}
+        height={1920}
+        schema={explainerSchema}
+        defaultProps={defaultExplainerProps}
+        calculateMetadata={({ props }) => {
+          const sb = (props as { storyboard?: Array<{ durationSec?: number }> }).storyboard;
+          if (!Array.isArray(sb) || sb.length === 0) {
+            return { durationInFrames: 1800 };
+          }
+          const totalSec = sb.reduce((s, sc) => s + (sc.durationSec ?? 0), 0);
+          const frames = Math.max(1, Math.round(totalSec * FPS));
+          return { durationInFrames: frames };
+        }}
+      />
+      <Composition
         id="CoutisIntro75"
         component={CoutisIntro75}
         durationInFrames={75 * FPS}
