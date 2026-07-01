@@ -24,6 +24,23 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+# RA-6882: the destructive/strategic signature registry and the ``ALLOWED_TOOLS``
+# allowlist now live in ``swarm.nexus.autonomy_ladder`` — the single source of
+# truth shared with the interactive CLI gate ``swarm/nexus/autonomy_gate.py``.
+# This module keeps only its *disposition*: default-deny allowlist for the
+# unattended SDK loop, with Bash inspected against the shared denylist. The
+# subset it enforces (segment + whole rules, MCP-name governance) is a
+# deliberately broader denylist than the CLI hook's tier==L3-only rule; that
+# divergence is intentional (unattended vs human-present) and documented here.
+from swarm.nexus.autonomy_ladder import (
+    ALLOWED_TOOLS,
+    MCP_DESTRUCTIVE_NAME as _MCP_DESTRUCTIVE_NAME,
+    MCP_READONLY_NAME as _MCP_READONLY_NAME,
+    SEGMENT_RULES as _SEGMENT_RULES,
+    SHELL_SEP as _SHELL_SEP,
+    WHOLE_RULES as _WHOLE_RULES,
+)
+
 
 @dataclass(frozen=True)
 class ToolGateDecision:
@@ -33,81 +50,7 @@ class ToolGateDecision:
     label: str = ""     # short tag of the matched rule, for audit/dedup
 
 
-# Per-segment rules: matched against each shell segment independently (split on
-# &&, ||, ;, newline) so flags from an unrelated chained command cannot bleed
-# into another's match. Each is narrow — operations that destroy state with no
-# git/undo path, or that push to a production/external system.
-_SEGMENT_RULES: list[tuple[str, re.Pattern[str]]] = [
-    # Recursive+forced delete (rm -rf, rm -fr, rm -r -f, rm --recursive --force)
-    ("rm-rf", re.compile(
-        r"\brm\b(?=(?:[^\n]*\s-{1,2}[a-z-]*r))(?=(?:[^\n]*\s-{1,2}[a-z-]*f))",
-        re.IGNORECASE)),
-    # find-based bulk delete
-    ("find-delete", re.compile(r"\bfind\b[^\n]*\s-delete\b", re.IGNORECASE)),
-    ("find-exec-rm", re.compile(r"\bfind\b[^\n]*-exec\s+rm\b", re.IGNORECASE)),
-    # Force push to a remote (--force, --force-with-lease, -f, or +refspec)
-    ("git-force-push", re.compile(
-        r"\bgit\s+push\b[^\n]*\s(?:--force\b|--force-with-lease\b|-[a-z]*f\b|\+[\w./-]+)",
-        re.IGNORECASE)),
-    # Destructive SQL
-    ("sql-drop", re.compile(r"\bDROP\s+(?:TABLE|DATABASE|SCHEMA)\b", re.IGNORECASE)),
-    ("sql-truncate", re.compile(r"\bTRUNCATE\s+(?:TABLE\s+)?\w", re.IGNORECASE)),
-    ("sql-delete-no-where", re.compile(
-        r"\bDELETE\s+FROM\b(?![\s\S]*\bWHERE\b)", re.IGNORECASE)),
-    # Production / external publishing
-    ("vercel-prod", re.compile(r"\bvercel\b[^\n]*--prod\b", re.IGNORECASE)),
-    ("supabase-db-push", re.compile(r"\bsupabase\s+db\s+push\b", re.IGNORECASE)),
-    ("prisma-migrate", re.compile(r"\bprisma\s+migrate\s+(?:deploy|reset)\b", re.IGNORECASE)),
-    ("npm-publish", re.compile(r"\bnpm\s+publish\b", re.IGNORECASE)),
-    ("gh-release", re.compile(r"\bgh\s+release\s+create\b", re.IGNORECASE)),
-    ("terraform", re.compile(r"\bterraform\s+(?:apply|destroy)\b", re.IGNORECASE)),
-    ("kubectl-delete", re.compile(r"\bkubectl\s+delete\b", re.IGNORECASE)),
-    # Disk / device destruction
-    ("mkfs", re.compile(r"\bmkfs\b", re.IGNORECASE)),
-    ("dd-to-device", re.compile(r"\bdd\b[^\n]*\bof=/dev/", re.IGNORECASE)),
-]
-
-# Whole-command rules: inherently cross-segment (a pipe IS the payload), so they
-# must see the full command, not a split segment.
-_WHOLE_RULES: list[tuple[str, re.Pattern[str]]] = [
-    ("pipe-to-shell", re.compile(
-        r"(?:curl|wget|fetch|base64)\b[^\n]*\|\s*(?:sudo\s+)?(?:ba)?sh\b", re.IGNORECASE)),
-    ("eval-exec", re.compile(r"\beval\s+[\"'$]", re.IGNORECASE)),
-    # Interpreter one-liners that delete from the filesystem. Whole-command:
-    # the payload after -c/-e legitimately contains `;`, so it must not be split.
-    ("interpreter-delete", re.compile(
-        r"\b(?:python3?|node|ruby|perl)\b[^\n]*\s-[ce]\b[^\n]*"
-        r"(?:rmtree|os\.remove|os\.unlink|unlinkSync|rmSync|File\.delete)",
-        re.IGNORECASE)),
-]
-
-# Split on shell command separators — but NOT a bare pipe, so pipelines stay
-# intact (handled by _WHOLE_RULES) and `find ... | xargs rm` is not severed.
-_SHELL_SEP = re.compile(r"&&|\|\||;|\n")
-
 _BASH_TOOLS = {"Bash", "bash", "BashOutput"}
-
-# Allowlist (default-deny): the only built-in tools the autonomous generator may
-# use. Bash is permitted but its command is inspected (see _inspect_bash). Task
-# is deliberately EXCLUDED — a subagent's tool calls never reach this gate, so
-# allowing Task would be a blanket bypass. MCP tools are governed separately
-# (read-only allowed, writes/destructive denied) in _mcp_decision.
-ALLOWED_TOOLS: frozenset[str] = frozenset({
-    "Bash", "bash", "BashOutput",
-    "Read", "Edit", "Write", "MultiEdit",
-    "Glob", "Grep", "LS",
-    "NotebookEdit", "NotebookRead", "TodoWrite",
-})
-
-# MCP tools whose name alone implies an irreversible/production effect.
-_MCP_DESTRUCTIVE_NAME = re.compile(
-    r"mcp__.*(?:apply_migration|delete_branch|delete_project|pause_project|"
-    r"reset_branch|deploy_to_vercel|delete_event|delete_|merge_branch)", re.IGNORECASE)
-
-# MCP tools that only read — safe to allow under the default-deny posture.
-_MCP_READONLY_NAME = re.compile(
-    r"mcp__.*(?:list_|get_|search|read_|fetch|check_|status|describe|"
-    r"download_|find_|suggest|complete_authentication|authenticate)", re.IGNORECASE)
 
 
 def _command_text(tool_name: str, tool_input: dict) -> str:
