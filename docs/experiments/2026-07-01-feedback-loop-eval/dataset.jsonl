@@ -1,0 +1,40 @@
+# feedback_loop classifier golden set — synthetic, no PII (ADR-006 prerequisite).
+# Fields: pipeline_id, comments[], state, days_since, gold_category (positive|negative|neutral).
+# 36 cases, 12 per category. Neutral cases are deliberately ambiguous — that is the
+# class the keyword classifier escalates to the LLM for.
+{"pipeline_id":"PL-P01","comments":["Deployed to prod, client confirmed it works end to end.","Marked done — no follow ups."],"state":"Done","days_since":3,"gold_category":"positive"}
+{"pipeline_id":"PL-P02","comments":["Client used the new export the day it shipped and thanked the team."],"state":"Done","days_since":2,"gold_category":"positive"}
+{"pipeline_id":"PL-P03","comments":["Live for a week now, zero issues, adoption looks strong."],"state":"Done","days_since":7,"gold_category":"positive"}
+{"pipeline_id":"PL-P04","comments":["Merged and verified in production. Dashboards green."],"state":"Done","days_since":4,"gold_category":"positive"}
+{"pipeline_id":"PL-P05","comments":["Feature confirmed working by two separate customers.","Closing as complete."],"state":"Done","days_since":6,"gold_category":"positive"}
+{"pipeline_id":"PL-P06","comments":["Rolled out to all tenants, all good, no rollback needed."],"state":"Done","days_since":9,"gold_category":"positive"}
+{"pipeline_id":"PL-P07","comments":["The import flow shipped and is being used daily. Great result."],"state":"Done","days_since":5,"gold_category":"positive"}
+{"pipeline_id":"PL-P08","comments":["QA passed, deployed, stakeholder signed off."],"state":"Done","days_since":2,"gold_category":"positive"}
+{"pipeline_id":"PL-P09","comments":["Confirmed live and stable after 10 days in prod."],"state":"Done","days_since":11,"gold_category":"positive"}
+{"pipeline_id":"PL-P10","comments":["Client says this saved them hours. Working as intended."],"state":"Done","days_since":8,"gold_category":"positive"}
+{"pipeline_id":"PL-P11","comments":["Shipped the fix; the reported error is gone in production."],"state":"Done","days_since":3,"gold_category":"positive"}
+{"pipeline_id":"PL-P12","comments":["All acceptance criteria met and verified in prod. Done."],"state":"Done","days_since":4,"gold_category":"positive"}
+{"pipeline_id":"PL-N01","comments":["Had to revert — broke the checkout page for a subset of users.","Rollback deployed."],"state":"Done","days_since":3,"gold_category":"negative"}
+{"pipeline_id":"PL-N02","comments":["Regression found two releases later; hotfix in progress."],"state":"In Progress","days_since":14,"gold_category":"negative"}
+{"pipeline_id":"PL-N03","comments":["Client complaint: the new flow is confusing and errored on submit."],"state":"In Review","days_since":5,"gold_category":"negative"}
+{"pipeline_id":"PL-N04","comments":["Incident opened — feature caused a spike in 500s in prod."],"state":"Done","days_since":2,"gold_category":"negative"}
+{"pipeline_id":"PL-N05","comments":["Reverted the merge, it was failing CI intermittently downstream."],"state":"Done","days_since":4,"gold_category":"negative"}
+{"pipeline_id":"PL-N06","comments":["Not working for enterprise tenants; rollback scheduled."],"state":"In Progress","days_since":6,"gold_category":"negative"}
+{"pipeline_id":"PL-N07","comments":["Emergency hotfix required — the change crashed the worker queue."],"state":"Done","days_since":1,"gold_category":"negative"}
+{"pipeline_id":"PL-N08","comments":["Customer reported data mismatch after this shipped. Investigating regression."],"state":"In Review","days_since":8,"gold_category":"negative"}
+{"pipeline_id":"PL-N09","comments":["Broke the nightly report; had to roll back and patch."],"state":"Done","days_since":5,"gold_category":"negative"}
+{"pipeline_id":"PL-N10","comments":["Feature caused a performance regression, users complained about latency."],"state":"In Progress","days_since":10,"gold_category":"negative"}
+{"pipeline_id":"PL-N11","comments":["Bug in the release — reverted same day, root cause still open."],"state":"In Progress","days_since":2,"gold_category":"negative"}
+{"pipeline_id":"PL-N12","comments":["Client escalated: the export produced corrupt files. Rollback done."],"state":"Done","days_since":3,"gold_category":"negative"}
+{"pipeline_id":"PL-U01","comments":["Shipped. Haven't heard back from the client yet.","Will check in next week."],"state":"Done","days_since":9,"gold_category":"neutral"}
+{"pipeline_id":"PL-U02","comments":["Deployed but usage is unclear so far, need more data."],"state":"Done","days_since":12,"gold_category":"neutral"}
+{"pipeline_id":"PL-U03","comments":["Merged. No feedback either way; monitoring."],"state":"Done","days_since":7,"gold_category":"neutral"}
+{"pipeline_id":"PL-U04","comments":["Feature is live. Some users tried it, mixed early signals."],"state":"Done","days_since":10,"gold_category":"neutral"}
+{"pipeline_id":"PL-U05","comments":["Shipped a while ago, no complaints but also no confirmation of use."],"state":"Done","days_since":20,"gold_category":"neutral"}
+{"pipeline_id":"PL-U06","comments":["Done. Awaiting the client's review before we call it a win."],"state":"Done","days_since":6,"gold_category":"neutral"}
+{"pipeline_id":"PL-U07","comments":["Rolled out behind a flag; adoption not measured yet."],"state":"Done","days_since":8,"gold_category":"neutral"}
+{"pipeline_id":"PL-U08","comments":["Landed. One user asked a question, otherwise quiet."],"state":"Done","days_since":5,"gold_category":"neutral"}
+{"pipeline_id":"PL-U09","comments":["Shipped; metrics are flat, hard to tell if it moved the needle."],"state":"Done","days_since":15,"gold_category":"neutral"}
+{"pipeline_id":"PL-U10","comments":["Deployed. Follow-up scheduled to gather outcome data."],"state":"Done","days_since":4,"gold_category":"neutral"}
+{"pipeline_id":"PL-U11","comments":["Complete. No signal yet — too early to judge the outcome."],"state":"Done","days_since":3,"gold_category":"neutral"}
+{"pipeline_id":"PL-U12","comments":["Merged and live; nobody has reported anything so far."],"state":"Done","days_since":11,"gold_category":"neutral"}
