@@ -45,7 +45,7 @@ would actually change the output — irrelevant consults are noise.
 | Content / copy / blog / landing page | `seo`, `geo-optimization`, `eeat` (E-E-A-T), `brand-guardian` |
 | Campaign / GTM / launch | `marketing-orchestrator` (owner), `seo`, `geo-optimization`, `eeat` |
 | Video / explainer / reel | `video-director` (owner), `heygen-director`, `remotion-designer`, `brand-guardian` |
-| Static / social visual | `remotion-designer` / design-asset, `brand-guardian` |
+| Static / social visual — incl. "Canva"-class graphics, carousels, thumbnails, one-pagers | `remotion-designer` + `design-board` / `design-canvas-html` (layout), `margot image_generate` (imagery), `brand-guardian` — our-stack substitute for Canva; no new tool |
 | Any client-facing FACT claim | `source-ingest`, `eeat`, `brand-guardian` |
 
 (Specialists marked "owner" produce; the rest consult. Add `opus-adversary` as a
@@ -99,7 +99,7 @@ communication layer:
 - **Cooperation gate (anti-"solipsism"):** each consulted specialist must cite and address at least one PEER's objection before its input is accepted — isolated, non-cooperative optimization is rejected. The paper names "solipsistic superintelligence" (agents optimizing in isolation) as the core failure mode; cooperation is a gate here, not a nicety. This is the council's oversight layer.
 - **Advise ≠ decide:** the owner integrates; the council never overrides intent silently — conflicts are surfaced.
 - **Autonomy ladder:** bounded single-domain consults run un-gated; cross-domain "group agent" strategic output (the ASI-shaped work) routes through human/Board review before shipping — maps to the existing policy-gate concern that multi-move execution is otherwise unguarded (see `pi-dev-ops-autonomy-gate-layer`).
-- **No new tools:** consult only existing skills. Missing specialists (Canva/design) are created separately (E-E-A-T now exists as `eeat`), not stubbed here.
+- **No new tools:** consult only existing skills. The design/"Canva" lens is RESOLVED by substitution — Canva-class requests map to `remotion-designer` + `design-board` / `design-canvas-html` (layout) + `margot image_generate` (imagery), gated by `brand-guardian` (per `feedback-skool-substitute-our-stack`: install nothing new). E-E-A-T exists as `eeat`. Nothing stubbed here.
 
 ## Integration
 - **Orchestrators:** add a `wave 0: consult` entry to the wave-plan/production-brief
