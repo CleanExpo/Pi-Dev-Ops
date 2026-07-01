@@ -5,6 +5,24 @@ import { useCallback, useEffect, useRef, useState } from "react";
 const API = "/api/pi-ceo/api/spec-pipeline";
 const POLL_MS = 4000;
 
+const BARE_TYPE_TOKENS = new Set([
+  "str", "int", "bool", "float", "dict", "list", "tuple", "none", "any",
+]);
+
+function validateProposalClient(text: string): string | null {
+  const proposal = text.trim();
+  if (proposal.length < 10) {
+    return "Proposal must be at least 10 characters";
+  }
+  if (BARE_TYPE_TOKENS.has(proposal.toLowerCase())) {
+    return `Rejected before submit: bare type token "${proposal}"`;
+  }
+  if (/<[A-Za-z][\w\s-]*>/.test(proposal)) {
+    return "Rejected before submit: angle-bracket placeholder detected";
+  }
+  return null;
+}
+
 type StageRow = {
   stage: string;
   status: string;
@@ -102,8 +120,9 @@ export default function SpecPipelinePanel() {
   }, [lastId, fetchDetail]);
 
   const run = async () => {
-    if (proposal.trim().length < 10) {
-      setError("Proposal must be at least 10 characters");
+    const clientErr = validateProposalClient(proposal);
+    if (clientErr) {
+      setError(clientErr);
       return;
     }
     setBusy(true);
