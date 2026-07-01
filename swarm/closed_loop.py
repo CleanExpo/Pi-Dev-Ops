@@ -22,17 +22,28 @@ next cycle (the cost↓/knowledge↑ flywheel, spine-level).
 Scope of THIS slice (the spine):
   * The plan is composed deterministically from the intent and gated through the
     forward-planner validator; the LLM-authored 15-move plan is a later slice.
-  * The Board request is *queued* (no SDK call / no cost) in the loop; the SDK
-    deliberation runs on the orchestrator's existing ``board.process_pending``
-    step. ``dry_run`` never spends, never sends.
+  * The Board request is *queued* (no SDK call / no cost) in the loop by default;
+    a later slice (inline Board) can also *process* that queued brief in the same
+    cycle — double-gated so it never spends in prod until explicitly enabled.
   * Model-routing sophistication (UNI-2212 slice-2) and the live OUT send are
     deferred; the spine proves the wiring end-to-end in dry-run.
+
+Inline Board deliberation (UNI-2214 slice — live Board SDK inside the loop):
+  The DECIDE stage always queues the brief (durable record; the orchestrator's
+  separate ``board.process_pending`` step remains a fallback). When *both* gates
+  are open it also runs the deliberation inline via ``board.process_session`` so
+  the cycle that queued the brief captures its directives in the same pass:
+    1. ``not dry_run``  — SHADOW_MODE off (the loop's top-level spend gate); and
+    2. ``TAO_CLOSED_LOOP_BOARD_INLINE=1`` — explicit inline opt-in.
+  In prod ``SHADOW_MODE=1`` maps to ``dry_run=True``, so the SDK is never called
+  and no cost is incurred until an operator flips both gates.
 
 Kill-switch: the orchestrator drain self-gates on ``config.SWARM_ENABLED`` and
 ``TAO_CLOSED_LOOP_ENABLED``; ``/panic`` halts the whole swarm one cycle up.
 """
 from __future__ import annotations
 
+import asyncio
 import importlib.util
 import json
 import logging
@@ -73,6 +84,7 @@ class CycleResult:
     stages: list[StageResult]
     intent: str = "unknown"
     board_session_id: str | None = None
+    board_processed_inline: bool = False
     brief_excerpt: str = ""
     written_to: str | None = None
 
@@ -310,12 +322,13 @@ def run_cycle(
     dispatch flow runs in dry-run, the gate is recorded not posted, and the
     6-pager is assembled (file-read only) but not transmitted.
     """
-    from . import intent_router, board, flow_engine, six_pager
+    from . import intent_router, board, flow_engine, six_pager, config
 
     rr = _repo_root(repo_root)
     cycle_id = f"loop-{uuid.uuid4().hex[:10]}"
     started_at = _now_iso()
     stages: list[StageResult] = []
+    board_processed_inline = False
 
     # 1. INTAKE ───────────────────────────────────────────────────────────────
     intent_payload = intent_router.classify(trigger_text, chat_id=chat_id)
@@ -339,7 +352,10 @@ def run_cycle(
              "win_condition": plan["win_condition"]},
         ))
 
-    # 3. DECIDE (Board — queue only; SDK runs on the orchestrator's own step) ───
+    # 3. DECIDE (Board) — always queue the brief (durable; orchestrator's
+    # process_pending is the fallback). Double-gated inline processing runs the
+    # deliberation in THIS cycle only when the loop is live AND the inline flag
+    # is on, so it never spends in prod until both are set (mirrors _build_plan).
     board_session_id: str | None = None
     try:
         brief = board.BoardBrief(
@@ -354,8 +370,21 @@ def run_cycle(
             requested_decisions=[f"Prioritise the {intent} move?"],
         )
         board_session_id = board.request_deliberation(brief, repo_root=rr)
-        stages.append(StageResult("decide", "ok",
-                                  {"board_session_id": board_session_id}))
+        decide_detail: dict[str, Any] = {"board_session_id": board_session_id,
+                                         "processed_inline": False}
+        if config.CLOSED_LOOP_BOARD_INLINE and not dry_run:
+            session = asyncio.run(
+                board.process_session(board_session_id, repo_root=rr))
+            if session is not None:
+                board_processed_inline = True
+                decide_detail.update({
+                    "processed_inline": True,
+                    "board_ok": session.succeeded(),
+                    "directive_count": len(session.directives),
+                    "hitl_required": session.hitl_required,
+                    "cost_usd": session.cost_usd,
+                })
+        stages.append(StageResult("decide", "ok", decide_detail))
     except Exception as exc:  # noqa: BLE001
         stages.append(StageResult("decide", "error", {"error": repr(exc)}))
 
@@ -419,6 +448,7 @@ def run_cycle(
         stages=stages,
         intent=intent,
         board_session_id=board_session_id,
+        board_processed_inline=board_processed_inline,
         brief_excerpt=brief_excerpt,
     )
 
