@@ -1,0 +1,9 @@
+{
+  "answer": "yes\n{\"decision\":\"APPROVE_BUILD\",\"confidence\":0.95}",
+  "confidence": 0.95,
+  "decision": "APPROVE_BUILD",
+  "escalated": false,
+  "min_pairwise_similarity": 0.8,
+  "panel": [],
+  "synthesised_by": ""
+}

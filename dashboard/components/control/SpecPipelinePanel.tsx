@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const API = "/api/pi-ceo/api/spec-pipeline";
+const POLL_MS = 4000;
 
 type PipelineRow = {
   pipeline_id: string;
@@ -11,13 +12,21 @@ type PipelineRow = {
   updated_at?: string;
 };
 
+type PipelineDetail = {
+  meta: { pipeline_id: string; status: string; reason?: string; pr_url?: string };
+  running?: string;
+  handoff: boolean;
+};
+
 export default function SpecPipelinePanel() {
   const [proposal, setProposal] = useState("");
   const [dryRun, setDryRun] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastId, setLastId] = useState<string | null>(null);
+  const [live, setLive] = useState<PipelineDetail | null>(null);
   const [pipelines, setPipelines] = useState<PipelineRow[]>([]);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -29,6 +38,37 @@ export default function SpecPipelinePanel() {
       /* ignore */
     }
   }, []);
+
+  const fetchDetail = useCallback(async (pipelineId: string) => {
+    try {
+      const r = await fetch(`${API}/${pipelineId}`, { credentials: "include" });
+      if (!r.ok) return;
+      const data = (await r.json()) as PipelineDetail;
+      setLive(data);
+      if (
+        data.running &&
+        !["running", "queued"].includes(data.running) &&
+        data.meta.status !== "running"
+      ) {
+        await refresh();
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [refresh]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    if (!lastId) return;
+    void fetchDetail(lastId);
+    pollRef.current = setInterval(() => void fetchDetail(lastId), POLL_MS);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [lastId, fetchDetail]);
 
   const run = async () => {
     if (proposal.trim().length < 10) {
@@ -100,10 +140,27 @@ export default function SpecPipelinePanel() {
       </button>
       {error && <p className="text-xs text-red-500">{error}</p>}
       {lastId && (
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-          Queued: <code>{lastId}</code> — artifacts in{" "}
-          <code>.harness/spec-pipelines/{lastId}/</code>
-        </p>
+        <div className="text-xs space-y-1" style={{ color: "var(--text-muted)" }}>
+          <p>
+            Pipeline: <code>{lastId}</code>
+          </p>
+          {live && (
+            <p>
+              Status: <strong>{live.running ?? live.meta.status}</strong>
+              {live.meta.reason ? ` — ${live.meta.reason}` : ""}
+              {live.meta.pr_url ? (
+                <>
+                  {" "}
+                  — <a href={live.meta.pr_url}>PR</a>
+                </>
+              ) : null}
+            </p>
+          )}
+          <p>
+            Artifacts: <code>.harness/spec-pipelines/{lastId}/</code>
+            {live?.handoff ? " (handoff written)" : ""}
+          </p>
+        </div>
       )}
       <ul className="text-xs flex-1 overflow-auto space-y-1" style={{ color: "var(--text-muted)" }}>
         {pipelines.map((p) => (
