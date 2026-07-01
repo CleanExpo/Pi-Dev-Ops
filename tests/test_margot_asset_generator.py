@@ -125,3 +125,57 @@ def test_cli_dry_run_outputs_payload(tmp_path: Path, capsys):
     out = json.loads(capsys.readouterr().out)
     assert out["payload"]["model"] == "gpt-image-2"
     assert out["provenance"]["canonical_name"] == "Margot"
+
+
+def test_build_matrix_packet_includes_selected_pairs(tmp_path: Path):
+    manifest = _manifest(tmp_path)
+    packet = MG.build_matrix_packet(
+        manifest,
+        projects=["unite-group", "synthex"],
+        variants=["avatar", "dashboard"],
+    )
+    assert packet["schema_version"] == 1
+    assert packet["mode"] == "dry_run_matrix"
+    assert packet["item_count"] == 4
+    assert {(item["project"], item["variant"]) for item in packet["items"]} == {
+        ("unite-group", "avatar"),
+        ("unite-group", "dashboard"),
+        ("synthex", "avatar"),
+        ("synthex", "dashboard"),
+    }
+    assert all(item["payload"]["model"] == "gpt-image-2" for item in packet["items"])
+
+
+def test_cli_all_writes_build_packet(tmp_path: Path, capsys):
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(_manifest(tmp_path)), encoding="utf-8")
+    packet_path = tmp_path / "packet.json"
+    code = MG.main([
+        "--manifest",
+        str(manifest_path),
+        "--all",
+        "--projects",
+        "unite-group,synthex",
+        "--variants",
+        "avatar",
+        "--write-build-packet",
+        str(packet_path),
+    ])
+    assert code == 0
+    summary = json.loads(capsys.readouterr().out)
+    assert summary["build_packet"] == str(packet_path)
+    packet = json.loads(packet_path.read_text())
+    assert packet["item_count"] == 2
+
+
+def test_cli_all_rejects_live(tmp_path: Path, capsys):
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(_manifest(tmp_path)), encoding="utf-8")
+    code = MG.main([
+        "--manifest",
+        str(manifest_path),
+        "--all",
+        "--live",
+    ])
+    assert code == 2
+    assert "--all cannot be combined with --live" in capsys.readouterr().err
