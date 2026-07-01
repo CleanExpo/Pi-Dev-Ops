@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.10.1
-  generated_at: "2026-07-01T05:43:15.421667+00:00"
+  version: 1.10.2
+  generated_at: "2026-07-01T06:42:30.903464+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: afk-agent
@@ -648,11 +648,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: geo-optimization
-    description: Generative Engine Optimization (GEO) standard for AI search visibility — the 2026 successor to SEO. Use when adding or auditing GEO infrastructure (llms.txt, JSON-LD schema, WebMCP, Lighthouse Agentic) on any portfolio site or via the Synthex client-audit module.
+    description: Generative + Answer Engine Optimization (GEO/AEO) standard for AI search visibility — the 2026 successor to SEO. Use when adding or auditing GEO infrastructure (llms.txt, JSON-LD schema, WebMCP, Lighthouse Agentic) OR AEO content-layer work (becoming the cited/quoted answer inside ChatGPT, Perplexity, Gemini, Google AI Overviews) on any portfolio site or via the Synthex client-audit module.
     owner_role: (unset)
     status: (unset)
     path: skills/geo-optimization/SKILL.md
-    sha256: 5826f3d04292817dee628de7e38cb737e4f1ead0162808184ad6693efa3107a1
+    sha256: 31d63223e57efaa622ec28991b594876b2ae0beef2f2981a2d90cbf43abf4b4a
     dependencies:
       tools: []
       skills: []
