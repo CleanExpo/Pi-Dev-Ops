@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-07-01T06:32:51Z (commits 46809f6..1c57d03)_
+_Last updated: 2026-07-01T08:30:24Z (commits 052ee4a..21efc57)_
 
 ## Recent changes
-- 1c57d03 — feat(autonomy): converge the two autonomy gates on one shared classifier (RA-6882) (#424)
+- 21efc57 — feat(margot): add Codex build packet workflow (#435)
 
 
