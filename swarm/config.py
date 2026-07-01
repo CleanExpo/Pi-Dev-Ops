@@ -29,6 +29,13 @@ SHADOW_MODE: bool = os.environ.get("TAO_SWARM_SHADOW", "1") == "1"
 # SHADOW_MODE off as well.
 CLOSED_LOOP_ENABLED: bool = os.environ.get("TAO_CLOSED_LOOP_ENABLED", "0") == "1"
 
+# UNI-2214 — LLM-authored multi-move plan in the closed loop. Double-gated: the
+# LLM plan is generated ONLY when this flag is on AND the cycle is live
+# (not dry_run / not SHADOW_MODE), so it never spends in production until both
+# are explicitly set. Any generation/validation failure falls back to the
+# deterministic single-move plan.
+CLOSED_LOOP_LLM_PLAN: bool = os.environ.get("TAO_CLOSED_LOOP_LLM_PLAN", "0") == "1"
+
 # ── Safety limits ─────────────────────────────────────────────────────────────
 # Swarm auto-suspends after this many iterations without human acknowledgement.
 # Default: 288 = 24 hours at the default 5-min cycle interval.
