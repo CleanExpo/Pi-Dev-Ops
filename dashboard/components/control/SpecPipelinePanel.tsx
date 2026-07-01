@@ -23,6 +23,23 @@ function validateProposalClient(text: string): string | null {
   return null;
 }
 
+function formatApiError(data: unknown, fallback: string): string {
+  if (!data || typeof data !== "object" || !("detail" in data)) return fallback;
+  const detail = (data as { detail?: unknown }).detail;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => {
+        if (item && typeof item === "object" && "msg" in item) {
+          return String((item as { msg: string }).msg);
+        }
+        return String(item);
+      })
+      .join("; ");
+  }
+  return fallback;
+}
+
 type StageRow = {
   stage: string;
   status: string;
@@ -75,6 +92,7 @@ export default function SpecPipelinePanel() {
   const [lastId, setLastId] = useState<string | null>(null);
   const [live, setLive] = useState<PipelineDetail | null>(null);
   const [pipelines, setPipelines] = useState<PipelineRow[]>([]);
+  const [copiedId, setCopiedId] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(async () => {
@@ -136,13 +154,24 @@ export default function SpecPipelinePanel() {
         body: JSON.stringify({ proposal: proposal.trim(), dry_run: dryRun }),
       });
       const data = await r.json();
-      if (!r.ok) throw new Error(data.detail ?? r.statusText);
+      if (!r.ok) throw new Error(formatApiError(data, r.statusText));
       setLastId(data.pipeline_id);
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Run failed");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const copyPipelineId = async () => {
+    if (!lastId) return;
+    try {
+      await navigator.clipboard.writeText(lastId);
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 2000);
+    } catch {
+      setError("Clipboard copy denied");
     }
   };
 
@@ -210,8 +239,19 @@ export default function SpecPipelinePanel() {
       {error && <p className="text-xs text-red-500">{error}</p>}
       {lastId && (
         <div className="text-xs space-y-2" style={{ color: "var(--text-muted)" }}>
-          <p>
-            Pipeline: <code>{lastId}</code>
+          <p className="flex items-center gap-2 flex-wrap">
+            <span>
+              Pipeline: <code>{lastId}</code>
+            </span>
+            <button
+              type="button"
+              onClick={() => void copyPipelineId()}
+              className="text-[10px] px-1.5 py-0.5 rounded"
+              style={{ border: "1px solid var(--border)" }}
+              aria-label="Copy pipeline id"
+            >
+              {copiedId ? "Copied" : "Copy id"}
+            </button>
           </p>
           {displayStatus && (
             <p>
