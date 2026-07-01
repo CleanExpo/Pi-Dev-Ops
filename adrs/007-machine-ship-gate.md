@@ -12,6 +12,7 @@ The command chain `/judge → STORM → /spm → /boardroom → build → /revie
 1. **`TAO_MACHINE_SHIP_MODE=1`** enables the machine spec pipeline (`app/server/spec_pipeline/`). Default off.
 2. **Machine gates replace human HITL for planning** when all hold:
    - Prebuild judge score == 100 with no `UNSUPPORTED` / `NOT CHECKED` evidence rows
+   - On judge gaps, **CEO-board liaison + SPM gap-resolution** loop (max `TAO_SPEC_LIAISON_ROUNDS`, default 3) refines proposal/evidence and re-judges before blocking
    - Boardroom synthesis parses to `APPROVE_BUILD`
    - Boundary scan finds no 🚫-tier paths in proposed scope
 3. **Immutable launch-charter limits are NOT waived:**
