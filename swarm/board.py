@@ -546,6 +546,35 @@ async def process_pending(*, repo_root: Path | None = None,
     return out
 
 
+async def process_session(session_id: str, *,
+                            repo_root: Path | None = None
+                            ) -> BoardSession | None:
+    """Run one *specific* queued session by id. Inline closed-loop path.
+
+    Unlike ``process_pending`` (which pulls the oldest pending files), this
+    processes the exact session a caller just queued — so the closed loop can
+    deliberate the brief it enqueued in the same cycle rather than waiting for
+    the orchestrator's separate ``process_pending`` step to reach it. Returns
+    ``None`` when no pending file exists for ``session_id`` (already processed
+    or never queued). Never raises.
+    """
+    rr = repo_root or Path(__file__).resolve().parents[1]
+    p = _pending_path(rr, session_id)
+    if not p.exists():
+        return None
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        brief = BoardBrief(**data["brief"])
+    except Exception as exc:  # noqa: BLE001
+        log.warning("board: process_session %s unreadable (%s)", session_id, exc)
+        return None
+    try:
+        return await _process_one(brief, repo_root=rr)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("board: process_session %s raised (%s)", session_id, exc)
+        return None
+
+
 def get_pending(*, repo_root: Path | None = None) -> list[str]:
     """Return session_ids currently queued."""
     rr = repo_root or Path(__file__).resolve().parents[1]
@@ -617,7 +646,7 @@ def get_directives_for_role(role: str, *,
 
 __all__ = [
     "BoardBrief", "Directive", "BoardSession",
-    "request_deliberation", "process_pending", "deliberate",
+    "request_deliberation", "process_pending", "process_session", "deliberate",
     "get_pending", "get_completed", "get_directives_for_role",
     "assemble_brief",
 ]
