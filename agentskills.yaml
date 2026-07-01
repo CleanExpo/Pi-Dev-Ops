@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.10.0
-  generated_at: "2026-07-01T05:00:21.200757+00:00"
+  version: 1.10.1
+  generated_at: "2026-07-01T05:35:28.381539+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: afk-agent
@@ -547,7 +547,7 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/design-intelligence/SKILL.md
-    sha256: fa9fecd7c7e288a28132ec1edc58ffe3c91e38e42989ecc950b3add8d37b6207
+    sha256: 0938bacfcf42f5cfa6711adebbadbe764131dfce2c48032e290844934aa40c2d
     dependencies:
       tools: []
       skills: []
