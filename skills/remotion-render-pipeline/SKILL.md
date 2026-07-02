@@ -61,9 +61,9 @@ Turns the composition into a delivered MP4.
 
 ## Reused
 
-- [`render/render.ts`](/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/remotion-studio/render/render.ts)
-- [`render/voiceover.ts`](/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/remotion-studio/render/voiceover.ts)
-- `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/app/server/telegram_video.py` (shared util)
+- [`render/render.ts`](/Users/phill-mac/Pi-Dev-Ops/remotion-studio/render/render.ts)
+- [`render/voiceover.ts`](/Users/phill-mac/Pi-Dev-Ops/remotion-studio/render/voiceover.ts)
+- `/Users/phill-mac/Pi-Dev-Ops/app/server/telegram_video.py` (shared util)
 - `.harness/projects.json` for Linear team/project resolution
 
 ## Per-project API keys
@@ -81,7 +81,7 @@ Invocation pattern from a project shell:
 ```bash
 cd ~/Pi-CEO/Synthex
 source .env.local                     # project's own keys
-cd /Users/phill-mac/Pi-CEO/Pi-Dev-Ops/remotion-studio
+cd /Users/phill-mac/Pi-Dev-Ops/remotion-studio
 npx tsx render/render.ts \
   --comp=Explainer \
   --out=$OLDPWD/.remotion-renders/synthex-launch.mp4 \

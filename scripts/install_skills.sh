@@ -7,9 +7,9 @@
 # reported and skipped so machine-local skills survive.
 #
 # Cross-machine flow ("pull the skills from Pi"):
-#   git -C ~/Pi-CEO/Pi-Dev-Ops pull
-#   bash ~/Pi-CEO/Pi-Dev-Ops/scripts/install_skills.sh           # apply
-#   bash ~/Pi-CEO/Pi-Dev-Ops/scripts/install_skills.sh --dry-run # preview only
+#   git -C ~/Pi-Dev-Ops pull
+#   bash ~/Pi-Dev-Ops/scripts/install_skills.sh           # apply
+#   bash ~/Pi-Dev-Ops/scripts/install_skills.sh --dry-run # preview only
 #
 # Authoring standard for every skill it installs: skills/skill-authoring-standard/SKILL.md.
 set -euo pipefail

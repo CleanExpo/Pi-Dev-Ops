@@ -6,7 +6,7 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000,
-      "cwd": "/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/dashboard"
+      "cwd": "/Users/phill-mac/Pi-Dev-Ops/dashboard"
     }
   ]
 }

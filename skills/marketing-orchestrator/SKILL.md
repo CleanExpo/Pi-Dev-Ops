@@ -1,13 +1,13 @@
 ---
 name: marketing-orchestrator
-description: ENTRY POINT for the Marketing Skills Package. Use the moment a brief mentions "marketing skills package", "marketing package", "use marketing", "campaign", "launch", "positioning", "go-to-market", "GTM", "marketing strategy", "marketing plan", or asks to produce marketing assets (landing page, ad creative, blog post, email sequence, launch runbook, social content) for one of the portfolio brands (DR, NRPG, RestoreAssist/RA, CARSI, CCW, Synthex, Unite) or any customer brand. Globally available at ~/.claude/skills/marketing-* (symlinked to /Users/phill-mac/Pi-CEO/Pi-Dev-Ops/skills/marketing-*). Reads the brief, classifies (campaign type, brand, audience, channel mix, budget, timeline), emits a wave-plan JSON, dispatches sub-skills in topological order. Composes with the Remotion Skills Package — calls remotion-orchestrator for any video output.
+description: ENTRY POINT for the Marketing Skills Package. Use the moment a brief mentions "marketing skills package", "marketing package", "use marketing", "campaign", "launch", "positioning", "go-to-market", "GTM", "marketing strategy", "marketing plan", or asks to produce marketing assets (landing page, ad creative, blog post, email sequence, launch runbook, social content) for one of the portfolio brands (DR, NRPG, RestoreAssist/RA, CARSI, CCW, Synthex, Unite) or any customer brand. Globally available at ~/.claude/skills/marketing-* (symlinked to /Users/phill-mac/Pi-Dev-Ops/skills/marketing-*). Reads the brief, classifies (campaign type, brand, audience, channel mix, budget, timeline), emits a wave-plan JSON, dispatches sub-skills in topological order. Composes with the Remotion Skills Package — calls remotion-orchestrator for any video output.
 automation: automatic
 intents: marketing, campaign, launch, gtm, go-to-market, positioning, value-prop, icp, target-audience, channel-strategy, content-strategy, ad-copy, landing-page, email-sequence, blog-post, seo, attribution, marketing-skills-package
 ---
 
 # marketing-orchestrator — Marketing Skills Package entry point
 
-Single entry point for the Marketing Skills Package — 10 sibling skills (`marketing-orchestrator`, `marketing-campaign-planner`, `marketing-positioning`, `marketing-icp-research`, `marketing-channel-strategist`, `marketing-copywriter`, `marketing-seo-researcher`, `marketing-social-content`, `marketing-launch-runbook`, `marketing-analytics-attribution`) installed globally at `~/.claude/skills/marketing-*` (symlinked to `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/skills/marketing-*`). Available in every project, not just Pi-Dev-Ops.
+Single entry point for the Marketing Skills Package — 10 sibling skills (`marketing-orchestrator`, `marketing-campaign-planner`, `marketing-positioning`, `marketing-icp-research`, `marketing-channel-strategist`, `marketing-copywriter`, `marketing-seo-researcher`, `marketing-social-content`, `marketing-launch-runbook`, `marketing-analytics-attribution`) installed globally at `~/.claude/skills/marketing-*` (symlinked to `/Users/phill-mac/Pi-Dev-Ops/skills/marketing-*`). Available in every project, not just Pi-Dev-Ops.
 
 ## Discovery brief gate (turn 1, mandatory)
 
@@ -47,7 +47,7 @@ The user can invoke the package by:
 Templates, frameworks, and per-job artifacts live at:
 
 ```
-/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/marketing-studio/
+/Users/phill-mac/Pi-Dev-Ops/marketing-studio/
 ├── templates/         — campaign-brief, launch-runbook, email-sequence, landing-spec, …
 ├── frameworks/        — JTBD canvas, positioning canvas, ICP canvas, AIDA, PAS
 ├── scripts/           — UTM builder, attribution helpers
@@ -129,7 +129,7 @@ The package is shared infrastructure; each calling project supplies its own runt
 | Concern | Where it lives |
 |---|---|
 | Skill definitions | `~/.claude/skills/marketing-*` (symlinked → `Pi-Dev-Ops/skills/marketing-*`) — globally available |
-| Substrate (templates, frameworks) | `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/marketing-studio/` |
+| Substrate (templates, frameworks) | `/Users/phill-mac/Pi-Dev-Ops/marketing-studio/` |
 | Brand configs | `Synthex/packages/brand-config/src/brands/{slug}.ts` — shared with Remotion pack (canonical home; per RA-1985) |
 | API keys | The **calling project's** `.env` / `.env.local` |
 | Output | `<calling-project>/.marketing/` by default; falls back to `marketing-studio/outputs/{job-id}/` |

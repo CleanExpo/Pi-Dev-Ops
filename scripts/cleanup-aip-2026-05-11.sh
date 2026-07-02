@@ -8,7 +8,7 @@
 #   gcloud config set account contact@unite-group.in
 #
 # Then run this script:
-#   bash ~/Pi-CEO/Pi-Dev-Ops/scripts/cleanup-aip-2026-05-11.sh
+#   bash ~/Pi-Dev-Ops/scripts/cleanup-aip-2026-05-11.sh
 #
 # The script:
 #   1. Verifies gcloud is authed as contact@unite-group.in (fail fast if not)
@@ -94,7 +94,7 @@ trap "rm -f $TMP" EXIT
 # Try Pi-Dev-Ops first since that's where Vercel is most likely linked.
 # Fall back to RestoreAssist repo if that's where the project linkage lives.
 PULL_DIR=""
-for d in "/Users/phill-mac/RestoreAssist" "/Users/phill-mac/Pi-CEO/Pi-Dev-Ops"; do
+for d in "/Users/phill-mac/RestoreAssist" "/Users/phill-mac/Pi-Dev-Ops"; do
   if [ -d "$d/.vercel" ]; then
     PULL_DIR="$d"
     break

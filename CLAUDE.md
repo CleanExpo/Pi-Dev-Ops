@@ -4,7 +4,7 @@
 
 - **Canonical name:** Pi-Dev-Ops (aliases: "Pi DevOps", "Pi-CEO Dev Ops")
 - **GitHub:** `CleanExpo/Pi-Dev-Ops`
-- **Local path:** `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops`
+- **Local path:** `/Users/phill-mac/Pi-Dev-Ops`
 
 ## Autonomous Operation Mandate (2026-04-18 — authorised by user)
 

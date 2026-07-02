@@ -9,7 +9,7 @@
   <array>
     <string>/bin/bash</string>
     <string>-lc</string>
-    <string>/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/scripts/run-obsidian-analyst-relay.sh</string>
+    <string>/Users/phill-mac/Pi-Dev-Ops/scripts/run-obsidian-analyst-relay.sh</string>
   </array>
   <key>RunAtLoad</key>
   <true/>
@@ -20,6 +20,6 @@
   <key>StandardErrorPath</key>
   <string>/Users/phill-mac/Library/Logs/pi-ceo-obsidian-analyst-relay.err.log</string>
   <key>WorkingDirectory</key>
-  <string>/Users/phill-mac/Pi-CEO/Pi-Dev-Ops</string>
+  <string>/Users/phill-mac/Pi-Dev-Ops</string>
 </dict>
 </plist>
