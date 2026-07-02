@@ -2,7 +2,7 @@
 # RA-6915 — Enable Gmail + Google Drive MCPs on Mac mini Hermes (Margot)
 #
 # Idempotent setup: OAuth client JSON → GDrive auth → Gmail refresh token →
-# patch ~/.hermes/config.yaml → restart gateway → smoke test.
+# patch ~/.hermes/profiles/empire/config.yaml (or ~/.hermes/config.yaml) → restart gateway → smoke test.
 #
 # Prerequisites (Google Cloud Console — one project is fine):
 #   1. Enable APIs: Gmail API + Google Drive API
