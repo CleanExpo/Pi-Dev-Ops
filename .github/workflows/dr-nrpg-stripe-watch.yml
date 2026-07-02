@@ -1,0 +1,38 @@
+# Hourly Stripe-key watch for CleanExpo/DR-NRPG (egress-proof).
+#
+# Cloud Agent sandboxes with default network policy cannot reach *.vercel.app.
+# This workflow runs on GitHub-hosted runners (full egress) so the watch keeps
+# firing even when the Cursor automation environment is not allowlisted yet.
+#
+# Exit 1 (infrastructure) fails the job. Exit 2/3 (missing keys) are reported
+# but do not fail CI — keys are human-gated per STRIPE-SETUP-FOR-RANA.md.
+
+name: DR-NRPG Stripe Watch
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe DR-NRPG Stripe configuration
+        run: |
+          set +e
+          python scripts/probe_dr_nrpg_stripe_keys.py --json | tee /tmp/probe.json
+          code=$?
+          exit_code=$(python -c "import json; print(json.load(open('/tmp/probe.json'))['exit_code'])")
+          if [ "$exit_code" = "1" ]; then
+            echo "::error::Probe could not reach dr-nrpg-platform.vercel.app"
+            exit 1
+          fi
+          echo "Probe finished with exit_code=$exit_code (0=all green, 2=secret key missing, 3=webhook missing)"
+          exit 0
