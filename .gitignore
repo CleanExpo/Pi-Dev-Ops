@@ -108,7 +108,7 @@ mcp/node_modules/
 .harness/monitor-digests/
 .harness/scan-results/
 .harness/build-logs/
-.harness/pipeline/
+.harness/marketing-bridge-state.json
 .harness/spec-pipelines/
 .harness/llm-cost.jsonl
 .harness/agent-sdk-metrics/
