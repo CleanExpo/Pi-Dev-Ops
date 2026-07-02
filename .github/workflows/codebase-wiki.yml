@@ -25,8 +25,13 @@ jobs:
       TAO_MAX_COST_USD: "0.05"
       TAO_HARD_STOP_FILE: "/tmp/never-exists"
       WIKI_BOT_TOKEN: ${{ secrets.WIKI_BOT_TOKEN }}
+      # RA-6905 — optional ISO date (YYYY-MM-DD). Workflow warns when unset; fails when expired.
+      WIKI_BOT_TOKEN_EXPIRES_AT: ${{ secrets.WIKI_BOT_TOKEN_EXPIRES_AT }}
 
     steps:
+      - name: Check WIKI_BOT_TOKEN expiry (RA-6905)
+        if: env.WIKI_BOT_TOKEN != ''
+        run: python scripts/check_wiki_bot_token_expiry.py --fail-on-warn
       - name: Checkout with wiki bot token
         id: wiki_bot_checkout
         if: env.WIKI_BOT_TOKEN != ''
