@@ -1,8 +1,8 @@
 # skills — Wiki
 
-_Last updated: 2026-07-02T14:14:34Z (commits 45e5f09..7cd9b03)_
+_Last updated: 2026-07-02T23:51:28Z (commits 621d719..0d25d54)_
 
 ## Recent changes
-- 7cd9b03 — Feature/dr nrpg stripe watch (#483)
+- 0d25d54 — feat(skills): add nexus + boardroom, tighten judge/spm/skill-authoring-standard (#485)
 
 
