@@ -4,8 +4,13 @@
 RA-1694/1696. Uses locked Margot ElevenLabs voice (not edge-tts / Voicebox).
 
 Usage:
-  python scripts/desk_voice_loop.py --mode ptt
-  python scripts/desk_voice_loop.py --mode vad
+  python scripts/desk_voice_loop.py --mode ptt   # requires external mic (USB headset)
+  python scripts/desk_voice_loop.py --mode vad   # requires external mic
+  python scripts/desk_voice_loop.py --mode text  # no mic — type at prompt, hear reply
+
+Mac mini has no built-in microphone. PTT/VAD need a USB headset or desk mic.
+For voice-in without local hardware, use Telegram voice notes (RA-1886) or
+iPhone Shortcut path (RA-1698). Text mode validates Hermes + ElevenLabs playback.
 
 Env: ELEVENLABS_API_KEY, optional MARGOT_ELEVENLABS_VOICE_ID override.
 Hermes: http://localhost:8642/v1 (api_server platform).
@@ -30,7 +35,17 @@ if str(_REPO) not in sys.path:
 from swarm import voice_compose as VC  # noqa: E402
 
 HERMES_BASE = os.environ.get("HERMES_OPENAI_BASE", "http://localhost:8642/v1")
-HERMES_MODEL = "margot"
+HERMES_MODEL = os.environ.get("HERMES_OPENAI_MODEL", "empire")
+PI_CEO_BASE = os.environ.get(
+    "PI_CEO_API_URL", "https://pi-dev-ops-production.up.railway.app"
+).rstrip("/")
+PI_CEO_SECRET = os.environ.get("PI_CEO_API_KEY") or os.environ.get("TAO_WEBHOOK_SECRET")
+DESK_CHAT_ID = os.environ.get("MARGOT_DESK_CHAT_ID", "8792816988")
+HERMES_API_KEY = (
+    os.environ.get("API_SERVER_KEY")
+    or os.environ.get("HERMES_OPENAI_API_KEY")
+    or "local"
+)
 SAMPLE_RATE = 16_000
 CHANNELS = 1
 SILENCE_THRESHOLD = 1.5
@@ -111,28 +126,60 @@ class HermesSession:
         try:
             from openai import OpenAI
 
-            self._client = OpenAI(base_url=HERMES_BASE, api_key="local")
+            self._client = OpenAI(base_url=HERMES_BASE, api_key=HERMES_API_KEY)
         except ImportError:
             self._client = None
 
+    def _chat_piceo(self, user_text: str) -> str:
+        if not PI_CEO_SECRET:
+            raise RuntimeError("PI_CEO_API_KEY / TAO_WEBHOOK_SECRET not set")
+        import urllib.request
+
+        body = json.dumps(
+            {
+                "chat_id": DESK_CHAT_ID,
+                "user_text": user_text,
+                "tenant_id": "pi-ceo",
+            }
+        ).encode()
+        req = urllib.request.Request(
+            f"{PI_CEO_BASE}/api/margot/turn",
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "X-Pi-CEO-Secret": PI_CEO_SECRET,
+            },
+        )
+        with urllib.request.urlopen(req, timeout=120) as r:
+            payload = json.loads(r.read())
+        return str(payload.get("reply") or "")
+
     def chat(self, user_text: str) -> str:
         self._history.append({"role": "user", "content": user_text})
-        if self._client:
-            resp = self._client.chat.completions.create(
-                model=HERMES_MODEL, messages=self._history, stream=False
-            )
-            reply = resp.choices[0].message.content or ""
-        else:
-            import urllib.request
+        reply = ""
+        try:
+            if self._client:
+                resp = self._client.chat.completions.create(
+                    model=HERMES_MODEL, messages=self._history, stream=False
+                )
+                reply = resp.choices[0].message.content or ""
+            else:
+                import urllib.request
 
-            body = json.dumps({"model": HERMES_MODEL, "messages": self._history}).encode()
-            req = urllib.request.Request(
-                f"{HERMES_BASE}/chat/completions",
-                data=body,
-                headers={"Content-Type": "application/json"},
-            )
-            with urllib.request.urlopen(req, timeout=60) as r:
-                reply = json.loads(r.read())["choices"][0]["message"]["content"]
+                body = json.dumps({"model": HERMES_MODEL, "messages": self._history}).encode()
+                req = urllib.request.Request(
+                    f"{HERMES_BASE}/chat/completions",
+                    data=body,
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {HERMES_API_KEY}",
+                    },
+                )
+                with urllib.request.urlopen(req, timeout=60) as r:
+                    reply = json.loads(r.read())["choices"][0]["message"]["content"]
+        except Exception as exc:
+            log.warning("Local Hermes failed (%s), falling back to Pi-CEO margot_turn", exc)
+            reply = self._chat_piceo(user_text)
         self._history.append({"role": "assistant", "content": reply})
         return reply
 
@@ -140,6 +187,7 @@ class HermesSession:
 def record_ptt() -> bytes | None:
     sd = _require_package("sounddevice", "sounddevice")
     sf = _require_package("soundfile", "soundfile")
+    _require_package("numpy", "numpy")
     _require_package("pynput", "pynput.keyboard")
     import threading
     from pynput.keyboard import Listener as KbListener
@@ -187,36 +235,54 @@ def record_ptt() -> bytes | None:
     return buf.getvalue()
 
 
+def _read_text_turn() -> str | None:
+    try:
+        line = input("  You: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        return None
+    return line or None
+
+
 def run_loop(mode: str) -> None:
     _check_profile()
-    stt = WhisperSTT()
+    print(f"\nMargot desk voice loop — mode={mode} (ElevenLabs TTS)")
+    if mode == "text":
+        print("   Type a message and press Enter. Ctrl+C or empty line to quit.\n")
+    else:
+        print("   Ctrl+C to quit.\n")
+
+    stt = None
+    if mode != "text":
+        print("  Loading speech model…", flush=True)
+        stt = WhisperSTT()
     tts = MargotElevenLabsTTS()
     hermes = HermesSession()
-
-    print(f"\nMargot desk voice loop — mode={mode} (ElevenLabs TTS)")
-    print("   Ctrl+C to quit.\n")
 
     while True:
         t_start = time.monotonic()
         try:
-            audio_bytes = record_ptt() if mode in ("ptt", "wake") else None
+            if mode == "text":
+                transcript = _read_text_turn()
+                if transcript is None:
+                    print("\nBye.")
+                    return
+            else:
+                audio_bytes = record_ptt() if mode in ("ptt", "wake") else None
+                if not audio_bytes:
+                    continue
+                try:
+                    transcript = stt.transcribe(audio_bytes)  # type: ignore[union-attr]
+                except Exception as exc:
+                    log.error("STT failed: %s", exc)
+                    print("  [couldn't hear you — try again]")
+                    continue
+                if not transcript.strip():
+                    print("  [no speech detected]")
+                    continue
+                print(f"  You:    {transcript}")
         except KeyboardInterrupt:
             print("\nBye.")
             return
-        if not audio_bytes:
-            continue
-
-        try:
-            transcript = stt.transcribe(audio_bytes)
-        except Exception as exc:
-            log.error("STT failed: %s", exc)
-            print("  [couldn't hear you — try again]")
-            continue
-        if not transcript.strip():
-            print("  [no speech detected]")
-            continue
-
-        print(f"  You:    {transcript}")
         try:
             reply = hermes.chat(transcript)
         except Exception as exc:
@@ -239,7 +305,12 @@ def run_loop(mode: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Margot desk voice loop (ElevenLabs)")
-    parser.add_argument("--mode", choices=["ptt", "vad", "wake"], default="ptt")
+    parser.add_argument(
+        "--mode",
+        choices=["ptt", "vad", "wake", "text"],
+        default="ptt",
+        help="ptt/vad/wake need external mic; text = keyboard in, speakers out",
+    )
     args = parser.parse_args()
     try:
         run_loop(args.mode)
