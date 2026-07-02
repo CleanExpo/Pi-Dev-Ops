@@ -1,0 +1,19 @@
+{
+  "sandbox": {
+    "networkAccess": "user_config_with_defaults",
+    "networkAllowlist": [
+      "dr-nrpg-platform.vercel.app",
+      "*.vercel.app",
+      "api.vercel.com",
+      "nrpg.business",
+      "www.nrpg.business"
+    ]
+  },
+  "webFetchDomainAllowlist": [
+    "dr-nrpg-platform.vercel.app",
+    "*.vercel.app",
+    "api.vercel.com",
+    "nrpg.business",
+    "www.nrpg.business"
+  ]
+}
