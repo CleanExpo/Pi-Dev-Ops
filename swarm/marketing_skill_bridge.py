@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import urllib.request
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -85,19 +86,53 @@ def _parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
     return meta, parts[2].strip()
 
 
+def _social_supabase() -> tuple[str | None, str | None]:
+    """The publisher cron drains social_posts in the UNITE-GROUP Supabase project.
+
+    supabase_log._insert targets the Pi-CEO logging project — rows written there
+    are invisible to the unite-group cron and never drain (UNI-2233 root cause).
+    """
+    import os  # noqa: PLC0415
+
+    url = (os.environ.get("SUPABASE_UNITE_GROUP_URL") or "").strip().rstrip("/")
+    key = (os.environ.get("SUPABASE_UNITE_GROUP_SERVICE_KEY") or "").strip()
+    return (url or None, key or None)
+
+
+def _post_row_to_supabase(url: str, key: str, row: dict[str, Any]) -> bool:
+    req = urllib.request.Request(
+        f"{url}/rest/v1/social_posts",
+        data=json.dumps(row).encode(),
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+            "Prefer": "return=minimal",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=8) as resp:
+        resp.read()
+    return True
+
+
 def _insert_social_post(row: dict[str, Any]) -> str | None:
     if not row.get("founder_id"):
         log.warning("marketing_bridge: skipping insert — founder_id not configured")
         return None
+    url, key = _social_supabase()
+    if not url or not key:
+        log.warning(
+            "marketing_bridge: SUPABASE_UNITE_GROUP_URL/_SERVICE_KEY unset — row not written"
+        )
+        return None
     post_id = str(row.get("id") or uuid.uuid4())
     row["id"] = post_id
     try:
-        from app.server.supabase_log import _insert  # noqa: PLC0415
-
-        if _insert("social_posts", row):
+        if _post_row_to_supabase(url, key, row):
             return post_id
     except Exception as exc:  # noqa: BLE001
-        log.warning("marketing_bridge: supabase insert failed: %s", exc)
+        log.warning("marketing_bridge: social_posts insert failed: %s", exc)
     return None
 
 
@@ -117,14 +152,10 @@ def _row_from_post(post: Any, *, scheduled_hours: int = 24) -> dict[str, Any]:
         "platforms": post.platforms,
         "status": status,
         "scheduled_at": scheduled_at,
-        "metadata": {
-            **post.metadata,
-            "hashtags": post.hashtags,
-            "quality_verdict": post.scores.verdict,
-            "bridge": "marketing_skill_bridge",
-        },
-        "eeat_score": post.scores.eeat,
-        "geo_score": post.scores.geo,
+        # unite-group social_posts has no metadata/eeat_score/geo_score columns —
+        # unknown keys 400 the insert. Hashtags already live inside content;
+        # quality scores stay in the bridge artefacts/state.
+        "media_urls": [],
     }
 
 
