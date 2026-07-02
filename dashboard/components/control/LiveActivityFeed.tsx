@@ -233,12 +233,12 @@ export default function LiveActivityFeed() {
         <div className="flex items-center gap-3">
           <LiveDot active={isLive} />
           <h2 className="text-lg font-semibold text-slate-100">Mission Control</h2>
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-text-muted">
             {err ? `⚠ ${err}` : isLive ? "live · polling 5s" : "stalled"}
           </span>
         </div>
         {data && !err && (
-          <span className="text-xs text-slate-500 tabular-nums">
+          <span className="text-xs text-text-muted tabular-nums">
             updated {fmtAgo(data.ts)}
           </span>
         )}
@@ -250,13 +250,13 @@ export default function LiveActivityFeed() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border-b border-slate-800">
             {/* Throughput */}
             <div>
-              <div className="text-xs uppercase text-slate-500 mb-1">24h throughput</div>
+              <div className="text-xs uppercase text-text-muted mb-1">24h throughput</div>
               <Sparkline data={data.throughput.hourly_24h} />
             </div>
 
             {/* Queue */}
             <div>
-              <div className="text-xs uppercase text-slate-500 mb-1">Linear queue</div>
+              <div className="text-xs uppercase text-text-muted mb-1">Linear queue</div>
               <div className="flex items-baseline gap-3">
                 <div>
                   <span className="text-3xl font-bold text-rose-400 tabular-nums">
@@ -284,7 +284,7 @@ export default function LiveActivityFeed() {
 
             {/* Pulse */}
             <div>
-              <div className="text-xs uppercase text-slate-500 mb-1">Pulse heartbeat</div>
+              <div className="text-xs uppercase text-text-muted mb-1">Pulse heartbeat</div>
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-bold text-emerald-400 tabular-nums">
                   {data.pulse.comments_today}
@@ -294,7 +294,7 @@ export default function LiveActivityFeed() {
               <div className="text-xs text-slate-400 mt-1">
                 last: <span className="font-mono">{fmtAgo(data.pulse.last_at)}</span>
                 {data.pulse.pulse_issue_id && (
-                  <span className="ml-2 text-slate-500">
+                  <span className="ml-2 text-text-muted">
                     → {data.pulse.pulse_issue_id}
                   </span>
                 )}
@@ -306,7 +306,7 @@ export default function LiveActivityFeed() {
           {data.observability && (
             <div className="p-4 border-b border-slate-800">
               <div className="flex items-center justify-between gap-3 mb-2">
-                <div className="text-xs uppercase text-slate-500">
+                <div className="text-xs uppercase text-text-muted">
                   Observability readiness
                 </div>
                 <span
@@ -341,7 +341,7 @@ export default function LiveActivityFeed() {
                           <div className="font-mono text-xs text-cyan-300">
                             {action.component}
                           </div>
-                          <div className="text-xs text-slate-500">
+                          <div className="text-xs text-text-muted">
                             {action.owner} · {action.status}
                           </div>
                         </div>
@@ -358,7 +358,7 @@ export default function LiveActivityFeed() {
                       <p className="text-sm text-slate-200 mt-2">
                         {action.next_action}
                       </p>
-                      <div className="text-xs text-slate-500 mt-2">
+                      <div className="text-xs text-text-muted mt-2">
                         evidence: {action.evidence_required.join(", ")}
                       </div>
                     </div>
@@ -370,14 +370,14 @@ export default function LiveActivityFeed() {
 
           {/* Active sessions */}
           <div className="p-4 border-b border-slate-800">
-            <div className="text-xs uppercase text-slate-500 mb-2 flex items-center gap-2">
+            <div className="text-xs uppercase text-text-muted mb-2 flex items-center gap-2">
               Active sessions
               <span className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-300 tabular-nums">
                 {data.active_sessions.length}
               </span>
             </div>
             {data.active_sessions.length === 0 ? (
-              <div className="text-sm text-slate-500 italic">
+              <div className="text-sm text-text-muted italic">
                 No active sessions — poller waits for next tick or queue empty.
               </div>
             ) : (
@@ -411,11 +411,11 @@ export default function LiveActivityFeed() {
 
           {/* Recent completions */}
           <div className="p-4">
-            <div className="text-xs uppercase text-slate-500 mb-2">
+            <div className="text-xs uppercase text-text-muted mb-2">
               Recent completions
             </div>
             {data.recent_completions.length === 0 ? (
-              <div className="text-sm text-slate-500 italic">
+              <div className="text-sm text-text-muted italic">
                 No completions yet — first session in flight.
               </div>
             ) : (
@@ -426,7 +426,7 @@ export default function LiveActivityFeed() {
                     className="flex items-center gap-3 py-1.5 px-3 rounded bg-slate-900/30 text-xs"
                   >
                     <span className="text-emerald-400">✓</span>
-                    <span className="font-mono text-slate-500">{c.id}</span>
+                    <span className="font-mono text-text-muted">{c.id}</span>
                     <span className="text-slate-200 font-medium">{c.repo}</span>
                     {c.branch && (
                       <span className="text-slate-400 font-mono truncate max-w-[200px]">
@@ -456,7 +456,7 @@ export default function LiveActivityFeed() {
                         PR →
                       </a>
                     )}
-                    <span className="text-slate-500 tabular-nums">
+                    <span className="text-text-muted tabular-nums">
                       {fmtAgo(c.completed_at)}
                     </span>
                   </div>

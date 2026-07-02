@@ -10,12 +10,12 @@ Single source of truth for production services, hosting, env vars, and rollback 
 
 | Service | Canonical URL | Status |
 |---------|--------------|--------|
-| Dashboard (frontend) | https://dashboard-unite-group.vercel.app | ✅ Live |
+| Dashboard (frontend) | https://pi-dev-ops.vercel.app | ✅ Live |
 | Backend API | https://pi-dev-ops-production.up.railway.app | ✅ Live |
 | Backend health | https://pi-dev-ops-production.up.railway.app/health | ✅ |
 | Telegram Bot | (Railway background service, no public URL) | ✅ Live |
 
-**URL note:** The canonical frontend URL is `dashboard-unite-group.vercel.app`. A second Vercel project (`pi-dev-ops-unite-group.vercel.app`, `prj_I5sYqNTlL51DlvyzSFjiHX6FrLAX`) is GitHub-linked and auto-deploys from `main`. Both point at the same Next.js code; `dashboard` is the primary serving alias.
+**URL note:** The canonical frontend URL is `pi-dev-ops.vercel.app`. A second Vercel project (`pi-dev-ops-unite-group.vercel.app`, `prj_I5sYqNTlL51DlvyzSFjiHX6FrLAX`) is GitHub-linked and auto-deploys from `main`. Both point at the same Next.js code; `dashboard` is the primary serving alias.
 
 ---
 
@@ -25,7 +25,7 @@ Single source of truth for production services, hosting, env vars, and rollback 
 
 | Project | Vercel Project ID | Domain | GitHub Repo | Root Dir |
 |---------|-------------------|--------|-------------|---------|
-| dashboard | `prj_eIA6deQ13rgCFU3jhMBHAA4g27ng` | dashboard-unite-group.vercel.app | (manual deploy) | — |
+| dashboard | `prj_eIA6deQ13rgCFU3jhMBHAA4g27ng` | pi-dev-ops.vercel.app | (manual deploy) | — |
 | pi-dev-ops | `prj_I5sYqNTlL51DlvyzSFjiHX6FrLAX` | pi-dev-ops-unite-group.vercel.app | CleanExpo/Pi-Dev-Ops | `dashboard/` |
 | Team | `team_KMZACI5rIltoCRhAtGCXlxUf` | — | — | — |
 

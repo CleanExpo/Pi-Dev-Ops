@@ -167,7 +167,7 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
       <Section title="GitHub Webhook">
         <Field
           label={<>Webhook Secret <Badge set={initial.webhook_secret_set} /></>}
-          hint="Set this as the secret in your GitHub repo → Settings → Webhooks. Point the webhook at: https://dashboard-unite-group.vercel.app/api/webhook/github"
+          hint="Set this as the secret in your GitHub repo → Settings → Webhooks. Point the webhook at: https://pi-dev-ops.vercel.app/api/webhook/github"
         >
           <input
             type="password"
