@@ -1,8 +1,7 @@
 ---
 name: skill-authoring-standard
-description: Design or review any skill to the Library standard — frontmatter, structure, steering, and pruning.
+description: Use when creating, editing, reviewing, or generating any skill — a SKILL.md, skill frontmatter, or a skill-foundation packet. Load BEFORE writing the skill so the four gates and frontmatter schema apply from the first line.
 argument-hint: "<skill name/path to review, or the idea for a new skill>"
-disable-model-invocation: true
 allowed-tools: Read, Grep, Glob, LS, Bash
 ---
 
