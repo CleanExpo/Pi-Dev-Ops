@@ -354,5 +354,16 @@
     "created_at": 1781568000,
     "last_fired_at": 1782970214.0,
     "note": "Runs external AI capability scout, writes Obsidian/2nd-brain artifacts, validates CRM intake. CRM posting remains opt-in via UNITE_CRM_CAPABILITY_POST=1."
+  },
+  {
+    "id": "marketing-bridge-daily-2030",
+    "type": "marketing_bridge",
+    "name": "Marketing skill bridge — daily 20:30 UTC (UNI-2236)",
+    "hour": 20,
+    "minute": 30,
+    "enabled": true,
+    "created_at": 1782958800,
+    "last_fired_at": 0,
+    "note": "Pipes marketing-skill output into social_posts with eeat/geo scoring for publisher crons."
   }
 ]

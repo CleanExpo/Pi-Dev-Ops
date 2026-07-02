@@ -331,6 +331,11 @@ def run_daily(repo_root: Path | None = None) -> ProductionResult:
                         "output_path": job.output_path,
                     }
                     _save_manifest(manifest)
+                    try:
+                        from swarm.marketing_skill_bridge import ingest_production_output  # noqa: PLC0415
+                        ingest_production_output(job)
+                    except Exception as exc:  # noqa: BLE001
+                        log.debug("production: marketing bridge ingest skipped: %s", exc)
 
                 job.linear_ticket_id = _file_linear_ticket(job)
                 result.jobs_dispatched.append(job)

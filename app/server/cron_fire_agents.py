@@ -469,3 +469,47 @@ async def _fire_feedback_trigger(trigger: dict, log) -> None:
 
     log.info("Feedback trigger id=%s complete: analysed=%d stale_issues=%d",
              trigger["id"], analysed, len(stale_issues))
+
+
+async def _fire_marketing_bridge_trigger(trigger: dict, log) -> None:
+    """UNI-2236 — seed social_posts from marketing skills on schedule."""
+    from swarm.marketing_skill_bridge import run_scheduled_bridge  # noqa: PLC0415
+
+    result = run_scheduled_bridge()
+    summary = (
+        f"*Marketing bridge* `{trigger.get('id', 'marketing')}`\n"
+        f"written: {result.rows_written} | skipped: {result.rows_skipped}"
+    )
+    if result.errors:
+        summary += f"\nerrors: {len(result.errors)}"
+    log.info(
+        "Marketing bridge trigger id=%s: written=%d skipped=%d errors=%d",
+        trigger.get("id"),
+        result.rows_written,
+        result.rows_skipped,
+        len(result.errors),
+    )
+    try:
+        from . import config  # noqa: PLC0415
+        token = config.TELEGRAM_BOT_TOKEN
+        chat_id = config.TELEGRAM_ALERT_CHAT_ID
+        if token and chat_id and (result.rows_written or result.errors):
+            import json as _json
+            import urllib.request as _ureq
+
+            payload = _json.dumps({
+                "chat_id": chat_id,
+                "text": summary,
+                "parse_mode": "Markdown",
+                "disable_web_page_preview": True,
+            }).encode()
+            req = _ureq.Request(
+                f"https://api.telegram.org/bot{token}/sendMessage",
+                data=payload,
+                method="POST",
+                headers={"Content-Type": "application/json"},
+            )
+            with _ureq.urlopen(req, timeout=10):
+                pass
+    except Exception as exc:  # noqa: BLE001
+        log.debug("marketing bridge telegram skipped: %s", exc)

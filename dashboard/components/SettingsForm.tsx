@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import { CSS } from "@/lib/brand-tokens";
 
 interface InitialSettings {
   github_token:           string;
@@ -31,7 +32,7 @@ const MODELS = [
 
 function Badge({ set }: { set: boolean }) {
   return (
-    <span className="font-mono text-[10px] ml-2" style={{ color: set ? "#4ADE80" : "#F87171" }}>
+    <span className="font-mono text-[10px] ml-2" style={{ color: set ? CSS.success : CSS.error }}>
       {set ? "● SET" : "○ NOT SET"}
     </span>
   );
@@ -257,7 +258,7 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
 
       {/* ── Save bar ─────────────────────────────────────────── */}
       {error && (
-        <p className="font-mono text-[10px] mt-2" style={{ color: "#F87171" }}>✗ {error}</p>
+        <p className="font-mono text-[10px] mt-2" style={{ color: CSS.error }}>✗ {error}</p>
       )}
 
       <div className="flex items-center gap-4 mt-6">
@@ -276,7 +277,7 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
           {saving ? "SAVING…" : "SAVE SETTINGS"}
         </button>
         {saved && (
-          <span className="font-mono text-[10px]" style={{ color: "#4ADE80" }}>✓ Saved</span>
+          <span className="font-mono text-[10px]" style={{ color: CSS.success }}>✓ Saved</span>
         )}
       </div>
     </div>
