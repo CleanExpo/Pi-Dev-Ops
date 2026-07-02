@@ -211,9 +211,14 @@ def test_provider_with_token_calls_real_path(monkeypatch):
     assert pdo is not None
     assert pdo.deploys_last_week == 1
 
+    # margot maps to the same repo — shares real DORA metrics (RA-6892)
+    margot = by_bid.get("margot")
+    assert margot is not None
+    assert margot.deploys_last_week == 1
+
     # Some other business should have synthetic deploys (could be any number,
     # just confirm it's matching the synthetic value, not 1)
     from swarm.providers.synthetic_platform import synthetic_platform_one
-    other_bid = next(b for b in by_bid if b != "pi-dev-ops")
+    other_bid = next(b for b in by_bid if b not in ("pi-dev-ops", "margot"))
     expected = synthetic_platform_one(other_bid).deploys_last_week
     assert by_bid[other_bid].deploys_last_week == expected
