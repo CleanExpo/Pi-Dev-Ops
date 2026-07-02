@@ -1,8 +1,8 @@
 # skills — Wiki
 
-_Last updated: 2026-07-02T05:35:29Z (commits ca1bf5a..f10cd8d)_
+_Last updated: 2026-07-02T13:34:57Z (commits 026284a..bed2057)_
 
 ## Recent changes
-- f10cd8d — feat(om1): enable 15-move lookahead planner (#462)
+- bed2057 — fix(skills): fleet overhaul — frontmatter, refs, portable paths (RA-6913) (#480)
 
 
