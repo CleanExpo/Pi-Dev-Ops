@@ -200,6 +200,25 @@ def _elapsed_minutes(started_at: str | None) -> int:
         return 0
 
 
+def _prune_stale_pulse_state(state: dict, active_ids: set[str]) -> None:
+    """RA-6903 — drop stuck:* keys for sessions no longer in-flight."""
+    drop: list[str] = []
+    for key in list(state):
+        if not str(key).startswith("stuck:"):
+            continue
+        parts = str(key).split(":")
+        if len(parts) < 2:
+            continue
+        sid = parts[1]
+        if sid not in active_ids:
+            drop.append(key)
+            alerted = f"{key}:alerted"
+            if alerted in state:
+                drop.append(alerted)
+    for key in drop:
+        state.pop(key, None)
+
+
 def run_pulse() -> dict:
     """Single pulse tick. Safe to call every 15 min.
 
@@ -207,12 +226,14 @@ def run_pulse() -> dict:
     """
     now = datetime.now(timezone.utc).isoformat()
     state = _load_state()
+    sessions = _active_sessions()
+    _prune_stale_pulse_state(state, {s["id"] for s in sessions})
 
     session_comments = 0
     stuck_alerts = 0
 
     # 1. Per-session comments
-    for sess in _active_sessions():
+    for sess in sessions:
         iid = sess.get("issue_id")
         if not iid:
             continue

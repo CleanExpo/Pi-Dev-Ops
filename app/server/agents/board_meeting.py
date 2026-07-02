@@ -2142,18 +2142,28 @@ def run_status_phase() -> dict[str, Any]:
         if match:
             status["zte_score"] = f"{match.group(1)}/{match.group(2)}"
 
-    # Marathon watchdog health
+    # Marathon watchdog health — ignore files older than 24h (RA-6902).
     watchdog_path = _HARNESS_ROOT / "marathon-watchdog-status.json"
     if watchdog_path.exists():
-        try:
-            w = json.loads(watchdog_path.read_text(encoding="utf-8"))
+        import time as _time
+
+        age_hours = (_time.time() - watchdog_path.stat().st_mtime) / 3600
+        if age_hours > 24:
             status["cron_health"] = {
-                "last_run": w.get("last_run"),
-                "status": w.get("status", "unknown"),
-                "missed_cycles": w.get("missed_cycles", 0),
+                "status": "stale",
+                "age_hours": round(age_hours, 1),
+                "note": "watchdog file older than 24h — not used for board health",
             }
-        except Exception:
-            status["cron_health"] = "parse error"
+        else:
+            try:
+                w = json.loads(watchdog_path.read_text(encoding="utf-8"))
+                status["cron_health"] = {
+                    "last_run": w.get("last_run"),
+                    "status": w.get("status", "unknown"),
+                    "missed_cycles": w.get("missed_cycles", 0),
+                }
+            except Exception:
+                status["cron_health"] = "parse error"
 
     # Open Urgent issues from Linear
     try:

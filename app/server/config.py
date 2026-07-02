@@ -488,6 +488,14 @@ TELEGRAM_WEBHOOK_SECRET = os.environ.get(
 # requests (500), so an unconfigured deployment can never be fed anonymously.
 INTAKE_WEBHOOK_SECRET = os.environ.get("TAO_INTAKE_WEBHOOK_SECRET", "")
 
+# RA-6899 — dedicated secrets for Gmail Pub/Sub + Calendar push intake routes.
+# Fail-closed when unset (same contract as INTAKE_WEBHOOK_SECRET). Gmail may
+# also authenticate via Google Pub/Sub OIDC Bearer when TAO_GMAIL_PUBSUB_AUDIENCE
+# matches the push subscription endpoint URL.
+GMAIL_WEBHOOK_SECRET = os.environ.get("TAO_GMAIL_WEBHOOK_SECRET", "")
+CALENDAR_WEBHOOK_SECRET = os.environ.get("TAO_CALENDAR_WEBHOOK_SECRET", "")
+GMAIL_PUBSUB_AUDIENCE = os.environ.get("TAO_GMAIL_PUBSUB_AUDIENCE", "")
+
 # RA-651 / RA-633 — Supabase server-side writes (gate_checks, alert_escalations).
 # NEXT_PUBLIC_SUPABASE_URL matches the dashboard env var (same project).
 # SUPABASE_SERVICE_ROLE_KEY is the service-role secret — bypasses RLS for writes.

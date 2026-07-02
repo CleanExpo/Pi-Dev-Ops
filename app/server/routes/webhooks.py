@@ -206,19 +206,31 @@ _REPO_LINEAR_ROUTING: dict[str, dict[str, str]] = {
 
 
 # RA-1008: Persist dedup set so restarts don't emit duplicate CI tickets.
-# Stored as a JSON list of integers in DATA_DIR/dedup-run-ids.json.
+# Stored as a JSON list of stable sha256 hex keys in DATA_DIR/dedup-run-ids.json.
 _DEDUP_FILE = Path(config.DATA_DIR) / "dedup-run-ids.json"
 _DEDUP_MAX = 500  # cap size; oldest half evicted when full
 
 
-def _load_dedup_set() -> set[int]:
+def _workflow_dedup_key(repo: str, sha_full: str) -> str:
+    """Stable dedup key — must not use hash() (PYTHONHASHSEED randomises per process)."""
+    import hashlib
+
+    return hashlib.sha256(f"{repo}:{sha_full}".encode()).hexdigest()
+
+
+def _load_dedup_set() -> set[str]:
     try:
-        return set(json.loads(_DEDUP_FILE.read_text()))
+        raw = json.loads(_DEDUP_FILE.read_text())
+        out: set[str] = set()
+        for item in raw:
+            if isinstance(item, str) and item:
+                out.add(item)
+        return out
     except Exception:
         return set()
 
 
-def _save_dedup_set(s: set[int]) -> None:
+def _save_dedup_set(s: set[str]) -> None:
     try:
         tmp = _DEDUP_FILE.with_suffix(".tmp")
         tmp.write_text(json.dumps(list(s)))
@@ -227,7 +239,7 @@ def _save_dedup_set(s: set[int]) -> None:
         pass
 
 
-_processed_run_ids: set[int] = _load_dedup_set()
+_processed_run_ids: set[str] = _load_dedup_set()
 
 
 async def _handle_workflow_run(payload: dict, request: Request) -> None:
@@ -245,7 +257,7 @@ async def _handle_workflow_run(payload: dict, request: Request) -> None:
     # 3+ deliveries (CI, Security Scanning, Deploy) all for the same SHA.
     repo = payload.get("repository", {}).get("full_name", "unknown/repo")
     sha_full = run.get("head_sha", "")
-    dedup_key = hash((repo, sha_full))
+    dedup_key = _workflow_dedup_key(repo, sha_full)
     if dedup_key in _processed_run_ids:
         log.debug("RA-847 dedup: skipping duplicate workflow_run repo=%s sha=%s", repo, sha_full[:8])
         return
@@ -945,6 +957,75 @@ _GMAIL_INTAKE_LOG = Path(__file__).resolve().parents[3] / ".harness" / "swarm" /
 _CALENDAR_INTAKE_LOG = Path(__file__).resolve().parents[3] / ".harness" / "swarm" / "calendar_intake.jsonl"
 
 
+def _verify_google_pubsub_oidc(token: str) -> bool:
+    """RA-6899 — verify Google Pub/Sub push OIDC JWT (Authorization: Bearer)."""
+    audience = config.GMAIL_PUBSUB_AUDIENCE
+    if not audience or not token:
+        return False
+    try:
+        import jwt
+        from jwt import PyJWKClient
+
+        jwks_client = PyJWKClient(
+            "https://www.googleapis.com/oauth2/v3/certs",
+            cache_keys=True,
+        )
+        signing_key = jwks_client.get_signing_key_from_jwt(token)
+        jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=audience,
+            issuer=["accounts.google.com", "https://accounts.google.com"],
+        )
+        return True
+    except Exception as exc:
+        log.debug("Gmail Pub/Sub OIDC verify failed: %s", exc)
+        return False
+
+
+def _require_gmail_webhook_auth(request: Request) -> None:
+    """RA-6899 — fail-closed Gmail Pub/Sub intake gate."""
+    import hmac as _hmac
+
+    bearer = request.headers.get("authorization", "")
+    if bearer.lower().startswith("bearer "):
+        token = bearer[7:].strip()
+        if token and _verify_google_pubsub_oidc(token):
+            return
+        if token:
+            raise HTTPException(401, "Invalid Authorization")
+
+    presented = request.headers.get("X-Gmail-Webhook-Secret", "")
+    if not presented:
+        raise HTTPException(401, "X-Gmail-Webhook-Secret or Authorization required")
+    expected = config.GMAIL_WEBHOOK_SECRET
+    if not expected:
+        raise HTTPException(503, "Gmail webhook secret not configured")
+    if not _hmac.compare_digest(presented, expected):
+        raise HTTPException(401, "Invalid Gmail webhook secret")
+
+
+def _require_calendar_webhook_auth(request: Request) -> None:
+    """RA-6899 — fail-closed Calendar push intake gate."""
+    import hmac as _hmac
+
+    presented = (
+        request.headers.get("x-goog-channel-token", "")
+        or request.headers.get("X-Calendar-Webhook-Secret", "")
+    )
+    if not presented:
+        raise HTTPException(
+            401,
+            "X-Goog-Channel-Token or X-Calendar-Webhook-Secret required",
+        )
+    expected = config.CALENDAR_WEBHOOK_SECRET
+    if not expected:
+        raise HTTPException(503, "Calendar webhook secret not configured")
+    if not _hmac.compare_digest(presented, expected):
+        raise HTTPException(401, "Invalid calendar webhook secret")
+
+
 def _append_intake(p: Path, row: dict) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     with p.open("a", encoding="utf-8") as f:
@@ -953,6 +1034,7 @@ def _append_intake(p: Path, row: dict) -> None:
 
 @router.post("/api/webhook/gmail", dependencies=[Depends(require_rate_limit)])
 async def webhook_gmail(request: Request):
+    _require_gmail_webhook_auth(request)
     """RA-1839 — Gmail Pub/Sub push for label `pi-ceo/inbox`.
 
     Pub/Sub envelope shape:
@@ -994,6 +1076,7 @@ async def webhook_gmail(request: Request):
 
 @router.post("/api/webhook/calendar", dependencies=[Depends(require_rate_limit)])
 async def webhook_calendar(request: Request):
+    _require_calendar_webhook_auth(request)
     """RA-1839 — Google Calendar push for events.watch.
 
     Calendar push has no body — the headers carry the channel state:
