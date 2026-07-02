@@ -86,7 +86,7 @@ Same Composio pattern as `email-listener` — calendar OAuth via `phill.mcgurk_w
 
 ## References
 
-- Topology: `/Users/phill-mac/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`
+- Topology: `~/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`
 - Composio substrate: `~/.claude/projects/-Users-phill-mac-Pi-CEO/memory/project_composio_substrate.md`
 - Existing cron scheduler: `Pi-Dev-Ops/app/server/cron_scheduler.py`
 - Google Calendar push: https://developers.google.com/calendar/api/guides/push

@@ -9,7 +9,7 @@
   <array>
     <string>/usr/bin/env</string>
     <string>python3</string>
-    <string>/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/scripts/plaud_ingest.py</string>
+    <string>/Users/phill-mac/Pi-Dev-Ops/scripts/plaud_ingest.py</string>
   </array>
 
   <key>StartInterval</key>

@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/Toast";
+import { ThemeInitScript } from "@/components/ThemeInitScript";
 
 // Inter: primary UI font. JetBrains Mono: code/terminal companion.
 // CSS variables are named generically (--font-sans / --font-mono) so future
@@ -27,22 +28,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // attribute, React would warn about the className mismatch. Standard pattern for
     // localStorage-driven themes (next-themes uses the same technique).
     <html lang="en" className={`${sans.variable} ${mono.variable}`} suppressHydrationWarning>
-      <head>
-        {/* Raw <script> (not next/script) so suppressHydrationWarning can be applied
-            directly. Placed in <head> so it runs synchronously before hydration,
-            preventing theme flash. */}
-        <script
-          id="theme-init"
-          nonce={nonce || undefined}
-          suppressHydrationWarning
-          dangerouslySetInnerHTML={{ __html: themeInit }}
-        />
-      </head>
       <body
         className="bg-background text-text font-sans min-h-screen flex flex-col"
         suppressHydrationWarning
         {...(nonce ? { "data-nonce": nonce } : {})}
       >
+        <ThemeInitScript nonce={nonce} code={themeInit} />
         <ToastProvider>
           {children}
         </ToastProvider>

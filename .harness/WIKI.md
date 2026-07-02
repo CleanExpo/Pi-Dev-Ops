@@ -1,6 +1,8 @@
 # .harness — Wiki
 
-_Last updated: 2026-05-24T05:08:09Z (commits d0f084a..6aea988)_
+_Last updated: 2026-07-02T13:52:10Z (commits df2a188..89211a9)_
 
 ## Recent changes
-- 6aea988 — feat(pilot): Pilot V1 — schema + sources + UX + voice + scheduler + cutover gate (Phases 1-8) (#238)
+- 89211a9 — feat(swarm): add OpenRouter enforce gate default-off (RA-6470 phase-1) (#482)
+
+

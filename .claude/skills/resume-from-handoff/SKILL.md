@@ -25,9 +25,10 @@ $ARGUMENTS
 ```
 
 `$ARGUMENTS` may be: a path to a handoff file, pasted handoff text, or a branch / PR
-reference. If empty, look for the most recent handoff under `.session-handoff/`
-(e.g. a `handoffs/` directory or a saved report), or in the current conversation
-context. If none can be found, ask the user to provide the handoff and stop.
+reference. If empty, load the **latest report under `docs/session-handoffs/`** (the durable
+output of `/session-handoff`, the "1" of this combo) and its paired **latest
+`.handoff-logs/handoff-<ts>.log`**; fall back to `.session-handoff/` or the current
+conversation context. If none can be found, ask the user to provide the handoff and stop.
 
 ## Phase 1 — Load the handoff (read-only)
 
@@ -64,9 +65,17 @@ Check, claim by claim:
 - **Working tree** — is it clean/dirty as the handoff's running state implies?
 - **Open PR/issue** — still open/merged as stated? (`gh pr view` if available)
 
-Re-run the handoff's **verification commands** only if they are safe and read-only
-(type-checks, `import` smoke checks, test suites). Report pass/fail honestly — never fake
-a result. Mark anything you could not check as `NOT CHECKED`.
+**Re-run the gate.** If `scripts/handoff-loop.sh` exists, run it — it is the same
+definition-of-done gate `/session-handoff` ran on the way out, so the tree is proven green
+on the way back in too. Compare its verdict against the log the handoff cited:
+
+```bash
+scripts/handoff-loop.sh            # exit 0 = READY to resume; non-zero = fix the named gate first
+```
+
+A non-zero exit is a **CANNOT RESUME** condition until the failing gate is fixed. Otherwise
+re-run the handoff's own **verification commands** only if safe and read-only. Report
+pass/fail honestly — never fake a result. Mark anything you could not check as `NOT CHECKED`.
 
 ## Phase 3 — Reconciliation report
 

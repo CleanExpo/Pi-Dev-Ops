@@ -477,3 +477,30 @@ def test_queue_depth_and_list_pending(tmp_path, monkeypatch):
         board_bot.from_founder(prompt=f"test {i}")
     assert board_bot.queue_depth() == 2
     assert len(board_bot.list_pending()) == 2
+
+
+# ── process_session (inline closed-loop path — UNI-2214) ────────────────────
+
+
+def test_process_session_runs_specific_queued_id(tmp_path, monkeypatch):
+    _stub_sdk(monkeypatch, text=_VALID_DELIBERATION, cost=0.33)
+    # Queue two; process only the SECOND by id.
+    b1 = B.BoardBrief(topic="first", triggered_by="founder",
+                      triggering_actor="founder", material_input="x")
+    b2 = B.BoardBrief(topic="second", triggered_by="founder",
+                      triggering_actor="founder", material_input="y")
+    B.request_deliberation(b1, repo_root=tmp_path)
+    B.request_deliberation(b2, repo_root=tmp_path)
+
+    session = asyncio.run(B.process_session(b2.session_id, repo_root=tmp_path))
+    assert session is not None and session.succeeded()
+    assert session.session_id == b2.session_id
+    # Only b2 left pending state; b1 still queued, b2 now completed.
+    assert b1.session_id in B.get_pending(repo_root=tmp_path)
+    assert b2.session_id not in B.get_pending(repo_root=tmp_path)
+    assert B.get_completed(b2.session_id, repo_root=tmp_path) is not None
+
+
+def test_process_session_unknown_id_returns_none(tmp_path):
+    assert asyncio.run(
+        B.process_session("brd-doesnotexist", repo_root=tmp_path)) is None

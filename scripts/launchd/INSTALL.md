@@ -8,7 +8,7 @@ detected by the daily `--check` cron (see RA-3752).
 
 | File | Purpose |
 |---|---|
-| `com.piceo.fastapi-standby.plist` | Pi-CEO FastAPI at `127.0.0.1:7777`. KeepAlive + RunAtLoad. |
+| `com.piceo.fastapi-standby.plist` | Pi-CEO FastAPI at `127.0.0.1:7777`. KeepAlive + RunAtLoad. Resolves secrets via `op run --env-file=app/.env.local`, then sets `TAO_MACHINE_SHIP_MODE=1` and `TAO_AUTONOMY_POLL_INTERVAL=60` for local continuous autonomy. |
 | `com.piceo.healthcheck.plist` | Every 5 min probe of Ollama + n8n + Pi-CEO API. Auto-restarts Pi-CEO if down (RA-3753). Telegram alerts on failure. |
 | `health_check.py` | The script driven by `com.piceo.healthcheck.plist`. |
 | `../install_launchd_agents.sh` | Idempotent installer — copies canonical plists into `~/Library/LaunchAgents/` and `launchctl bootstrap`s each one. Detects `.disabled` renames + canonical drift. |

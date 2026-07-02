@@ -61,11 +61,34 @@ Score out of 100:
 | Testability | 10 |
 | Cost/control simplicity | 5 |
 
-Decision rules:
+Decision rules (HARD LINE — 100/100 is the only build bar):
 
-- 0–69 = REJECT
-- 70–84 = REDUCE SCOPE or APPROVE EXPERIMENT
-- 85–100 = APPROVE BUILD
+- **APPROVE BUILD requires a real 100/100** — every mandatory Convergence criterion satisfied.
+  There is no 85 pass; 85–99 is a list of gaps to close, not an approval.
+- 0–99 = **NOT APPROVED.** Iterate per Convergence until a real 100 is earned, or halt and
+  report the honest ceiling with the exact blocker. Never approve below 100, never inflate.
+- REJECT (0–69) / REDUCE SCOPE / APPROVE EXPERIMENT (70–99) are iteration states only; none
+  authorise a production build. Only a real 100 does.
+
+## Convergence — do not stop until a REAL 100/100
+
+`/judge` does not end at the first score. It iterates: score → list every gap with its
+first-source anchor → drive the real fix (gather the missing evidence, reduce or reshape
+scope, clean cache and bloat, correct any false claim) → re-score. Repeat until the proposal
+genuinely earns 100/100.
+
+A 100 is valid ONLY when ALL of these hold — never by inflation:
+- **Real data:** every evidence row is SUPPORTED by first-source; zero UNSUPPORTED / PARTIAL /
+  NOT CHECKED remain. Checked, not asserted.
+- **Cache and bloat cleaned:** no dead code, duplication, sediment, unused abstraction, or
+  stale copy survives the deletion test.
+- **True and correct:** every claim is verified against the source at real scale — no
+  plausible-but-unproven statement counts.
+- **No open blocker:** all review passes clear.
+
+**Honesty rail (non-negotiable):** if the scope cannot honestly reach 100, do NOT fake the
+number — reshape it until a real 100 is reachable, or halt and report the honest ceiling with
+the exact reason and what would lift it. A fabricated 100 is a gate failure, not a pass.
 
 ## Output format
 

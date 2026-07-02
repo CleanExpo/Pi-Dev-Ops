@@ -1,8 +1,8 @@
 # skills — Wiki
 
-_Last updated: 2026-06-27T04:43:40Z (commits bd9768d..bf6d861)_
+_Last updated: 2026-07-02T13:34:57Z (commits 026284a..bed2057)_
 
 ## Recent changes
-- bf6d861 — feat(spm): add senior project manager command (#371)
+- bed2057 — fix(skills): fleet overhaul — frontmatter, refs, portable paths (RA-6913) (#480)
 
 

@@ -139,13 +139,19 @@ def deep_research_max(topic: str, use_corpus: bool = False,
             {"topic": topic, "use_corpus": use_corpus},
         )
         interaction_id = result.get("interaction_id") or uuid.uuid4().hex[:16]
-        _record_inflight({
+        chat_id = None
+        if originating_session_id and originating_session_id.startswith("margot_chat:"):
+            chat_id = originating_session_id.split(":", 1)[1]
+        inflight_row: dict[str, Any] = {
             "ts": _now_iso(),
             "interaction_id": interaction_id,
             "topic": topic,
             "originating_session_id": originating_session_id,
             "status": "dispatched",
-        })
+        }
+        if chat_id:
+            inflight_row["chat_id"] = chat_id
+        _record_inflight(inflight_row)
         return {
             "interaction_id": interaction_id,
             "status": "dispatched",

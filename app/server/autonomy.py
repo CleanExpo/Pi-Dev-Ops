@@ -245,6 +245,7 @@ def _log_event(event: dict) -> None:
 # that hadn't been triaged for autonomous execution. Status-name + label
 # is the only authorised signal.
 _AUTONOMY_LABEL = "pi-dev:autonomous"
+_MACHINE_SHIP_LABEL = "pi-dev:machine-ship"
 _READY_STATUS_NAME = "Ready for Pi-Dev"
 _BLOCKED_STATUS_NAME = "Pi-Dev: Blocked"
 _BLOCKED_REASON_SESSION_LOST = "pi-dev:blocked-reason:session-lost"
@@ -306,33 +307,37 @@ def fetch_todo_issues(api_key: str) -> list[dict]:
     merged: list[dict] = []
 
     for p in projects:
-        try:
-            data = _gql(
-                api_key,
-                _TODO_ISSUES_QUERY,
-                {
-                    "projectId":     p["project_id"],
-                    "statusName":    _READY_STATUS_NAME,
-                    "autonomyLabel": _AUTONOMY_LABEL,
-                },
-            )
-        except Exception as exc:
-            log.warning("Autonomy: project %s fetch failed: %s", p["name"], exc)
-            continue
-
-        nodes = (data.get("project") or {}).get("issues", {}).get("nodes") or []
-        for issue in nodes:
-            iid = issue.get("id")
-            if not iid or iid in seen:
+        for label in (_AUTONOMY_LABEL, _MACHINE_SHIP_LABEL):
+            try:
+                data = _gql(
+                    api_key,
+                    _TODO_ISSUES_QUERY,
+                    {
+                        "projectId":     p["project_id"],
+                        "statusName":    _READY_STATUS_NAME,
+                        "autonomyLabel": label,
+                    },
+                )
+            except Exception as exc:
+                log.warning(
+                    "Autonomy: project %s label %s fetch failed: %s",
+                    p["name"], label, exc,
+                )
                 continue
-            seen.add(iid)
-            # Annotate with mapped project context so the poller can route
-            # transitions/comments to the correct team and start the session
-            # against the right repo without a `repo:` label.
-            issue["_repo_url"]     = p["repo_url"]
-            issue["_team_id"]      = p["team_id"]
-            issue["_project_name"] = p["name"]
-            merged.append(issue)
+
+            nodes = (data.get("project") or {}).get("issues", {}).get("nodes") or []
+            for issue in nodes:
+                iid = issue.get("id")
+                if not iid or iid in seen:
+                    continue
+                seen.add(iid)
+                # Annotate with mapped project context so the poller can route
+                # transitions/comments to the correct team and start the session
+                # against the right repo without a `repo:` label.
+                issue["_repo_url"]     = p["repo_url"]
+                issue["_team_id"]      = p["team_id"]
+                issue["_project_name"] = p["name"]
+                merged.append(issue)
 
     # RA-2209 — apply q2-priority post-filter when env var is set.
     # GraphQL filter approach was considered but rejected: Linear's IssueFilter
@@ -617,6 +622,27 @@ def _should_skip_no_code(issue: dict) -> tuple[bool, str | None]:
     return False, None
 
 
+_TERMINAL_SESSION_STATUSES = frozenset({
+    "complete", "done", "failed", "error", "killed", "interrupted", "blocked",
+})
+
+
+def _live_session_ids(sessions: dict) -> set[str]:
+    """Session IDs that are still actively running (not terminal).
+
+    Interrupted sessions restored from disk must not block orphan recovery —
+    otherwise tickets like RA-1691 stay stuck In Progress forever after a
+    failed evaluator pass.
+    """
+    out: set[str] = set()
+    for sid, sess in sessions.items():
+        status = (getattr(sess, "status", None) or "").lower()
+        if status in _TERMINAL_SESSION_STATUSES:
+            continue
+        out.add(sid[:12])
+    return out
+
+
 def _is_pi_ceo_orphan(issue: dict, live_session_ids: set[str]) -> bool:
     """True iff the issue was claimed by Pi-CEO but its session is gone.
 
@@ -658,7 +684,7 @@ async def _orphan_recovery(api_key: str) -> None:
     up again by the next poll without human review.
     """
     from .sessions import _sessions  # late import to avoid circular
-    live_ids = {s[:12] for s in _sessions.keys()}
+    live_ids = _live_session_ids(_sessions)
 
     projects = _load_portfolio_projects()
     reverted = 0
@@ -907,6 +933,43 @@ async def _process_autonomy_issue(
         })
         return
 
+    label_names = {
+        n.get("name", "")
+        for n in (issue.get("labels") or {}).get("nodes", [])
+        if isinstance(n, dict)
+    }
+    if _MACHINE_SHIP_LABEL in label_names and os.environ.get("TAO_MACHINE_SHIP_MODE", "0") == "1":
+        from app.server.spec_pipeline import run_pipeline  # noqa: PLC0415
+
+        transitioned_to = _transition_to_in_progress(
+            config, issue_id, identifier, title, team_id,
+        )
+        if transitioned_to is None:
+            return
+        proposal = f"{title}\n\n{issue.get('description') or ''}"
+        try:
+            result = await run_pipeline(
+                proposal,
+                trigger="linear",
+                issue_id=issue_id,
+                dry_run=False,
+            )
+            _log_event({
+                "action": "machine_spec_pipeline",
+                "ticket": identifier,
+                "pipeline_id": result.pipeline_id,
+                "status": result.status,
+                "pr_url": result.pr_url,
+            })
+        except Exception as exc:  # noqa: BLE001
+            log.exception("Autonomy machine-ship failed for %s", identifier)
+            _log_event({
+                "action": "machine_spec_pipeline_error",
+                "ticket": identifier,
+                "error": str(exc),
+            })
+        return
+
     transitioned_to = _transition_to_in_progress(config, issue_id, identifier, title, team_id)
     if transitioned_to is None:
         return
@@ -1126,6 +1189,8 @@ def _calc_effective_autonomy(events: list[dict]) -> dict:
 def autonomy_status() -> dict:
     """Return poller heartbeat + recent events for the status endpoint."""
     from . import config
+    from .machine_ship_readiness import machine_ship_readiness
+
     now = time.time()
     age = round(now - _last_poll_at) if _last_poll_at else None
     return {
@@ -1139,5 +1204,12 @@ def autonomy_status() -> dict:
         "poller_iteration_errors": _poller_iteration_errors,
         "last_iteration_error": _last_iteration_error,
         "effective_autonomy": _calc_effective_autonomy(_recent_events),  # RA-626
+        "machine_ship": machine_ship_readiness(),  # RA-6885
+        "planner": _planner_runtime_status(),  # OM-1 lookahead
         "recent_events": _recent_events,
     }
+
+
+def _planner_runtime_status() -> dict:
+    from .tao_planner import planner_runtime_status
+    return planner_runtime_status()

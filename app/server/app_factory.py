@@ -44,7 +44,6 @@ ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "https://pi-dev-ops.vercel.app",
-    "https://dashboard-unite-group.vercel.app",
 ] + _extra_origins
 
 
@@ -177,8 +176,10 @@ async def on_startup():
             "If launched from a terminal running the claude CLI, start with: "
             "source .env.local && uvicorn ..."
         )
-    if not config.WEBHOOK_SECRET:
-        log.warning("TAO_WEBHOOK_SECRET not set — GitHub webhook endpoint is unprotected")
+    if not config.GITHUB_WEBHOOK_SECRET:
+        log.warning("TAO_GITHUB_WEBHOOK_SECRET not set — GitHub webhook endpoint is unprotected")
+    if not config.INTERNAL_WEBHOOK_SECRET:
+        log.warning("TAO_INTERNAL_WEBHOOK_SECRET not set — internal intake webhooks are disabled (503)")
     if not config.LINEAR_WEBHOOK_SECRET:
         log.warning("TAO_LINEAR_WEBHOOK_SECRET not set — Linear webhook endpoint is unprotected")
     cache_status = "enabled" if config.ENABLE_PROMPT_CACHING_1H else "disabled"

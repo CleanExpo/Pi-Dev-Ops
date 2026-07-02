@@ -247,7 +247,7 @@ Add to `swarm/audit_emit.py::_VALID_TYPES` (additive):
 - Existing intent router: `Pi-Dev-Ops/skills/intent-parser/SKILL.md` + `swarm/intent_router.py`
 - Existing draft review: `swarm/draft_review.py` (Wave 5 #5 extends with `destination_kind`)
 - Existing autonomy poller: `app/server/autonomy.py`
-- Approved plan: `/Users/phill-mac/.claude/plans/breezy-wiggling-map.md`
+- Approved plan: `~/.claude/plans/breezy-wiggling-map.md`
 - Companion skill: `sandcastle-runner` (the executor)
 - Companion skill: `vercel-env-puller` (secrets feed for the executor)
 - Parent epic: <issue id="RA-1856">RA-1856</issue>

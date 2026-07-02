@@ -1,6 +1,8 @@
 # packages — Wiki
 
-_Last updated: 2026-05-17T11:31:13Z (commits 838e758..b34e3c6)_
+_Last updated: 2026-07-02T05:35:29Z (commits ca1bf5a..f10cd8d)_
 
 ## Recent changes
-- b34e3c6 — Feat/hermes plugin mirror (#240)
+- f10cd8d — feat(om1): enable 15-move lookahead planner (#462)
+
+

@@ -1,8 +1,8 @@
 # .agents — Wiki
 
-_Last updated: 2026-06-27T04:43:40Z (commits bd9768d..bf6d861)_
+_Last updated: 2026-07-02T05:07:03Z (commits b6d0e6f..6e8c826)_
 
 ## Recent changes
-- bf6d861 — feat(spm): add senior project manager command (#371)
+- 6e8c826 — feat(judge): hard-line 100/100 build gate — no 85 pass (OM-6) (#461)
 
 

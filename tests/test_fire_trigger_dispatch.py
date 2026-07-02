@@ -37,6 +37,26 @@ def test_fire_trigger_raises_on_unknown_type():
         asyncio.run(_fire_trigger(trigger, _NullLog()))
 
 
+def test_fire_trigger_routes_plan_discovery(monkeypatch):
+    calls: list[str] = []
+
+    async def fake_plan_discovery(trigger, log):
+        calls.append(trigger["id"])
+
+    import app.server.plan_discovery_cron as pdc  # noqa: E402
+    monkeypatch.setattr(pdc, "_fire_plan_discovery_trigger", fake_plan_discovery)
+
+    trigger = {
+        "id": "plan-discovery-daily-0300",
+        "type": "plan_discovery",
+        "hour": 3,
+        "minute": 0,
+        "enabled": True,
+    }
+    asyncio.run(_fire_trigger(trigger, _NullLog()))
+    assert calls == ["plan-discovery-daily-0300"]
+
+
 def test_fire_trigger_routes_capability_loop_to_script_runner(monkeypatch):
     calls = []
 

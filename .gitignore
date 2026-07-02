@@ -108,7 +108,8 @@ mcp/node_modules/
 .harness/monitor-digests/
 .harness/scan-results/
 .harness/build-logs/
-.harness/pipeline/
+.harness/marketing-bridge-state.json
+.harness/spec-pipelines/
 .harness/llm-cost.jsonl
 .harness/agent-sdk-metrics/
 .harness/anthropic-docs/2*/
@@ -165,6 +166,7 @@ venv/
 .harness/swarm/green_merge_counter.json
 .harness/swarm/pr_rate_limit.json
 .harness/swarm/telegram_drafts.json
+.harness/swarm/voice/desk-loop/
 .harness/cron-triggers.json
 .harness/notebooklm-freshness.json
 .harness/zte-reality-status.json
@@ -186,3 +188,7 @@ remotion-studio/public/audio/_cache/
 remotion-studio/public/captures/
 remotion-studio/public/ra-wave-1-screencaps/
 .harness/artefacts/synthex/sandbox/Synthex/
+
+# Session-handoff runtime artifacts (dirs + READMEs tracked; generated files local-only)
+docs/session-handoffs/handoff-*.md
+.handoff-logs/*.log

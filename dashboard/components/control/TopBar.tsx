@@ -24,7 +24,7 @@ function useLiveClock(): string {
 }
 
 function useModelChip(): string {
-  const [model, setModel] = useState<string>("claude-opus-4-7");
+  const [model, setModel] = useState<string>("claude-opus-4-8");
   useEffect(() => {
     let cancelled = false;
     fetch("/api/zte")
@@ -72,7 +72,7 @@ export default function TopBar() {
           style={{ color: "var(--accent)" }}
           aria-label="Pi CEO"
         >
-          ⬡ Pi-CEO
+          ⬡ Pi CEO
         </span>
         <span
           className="hidden sm:inline text-[10px] font-mono"

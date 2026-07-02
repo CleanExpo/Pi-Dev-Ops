@@ -61,11 +61,11 @@ class DelegateResponse(BaseModel):
 
 
 def _check_secret(x_pi_ceo_secret: Optional[str]) -> None:
-    if not config.WEBHOOK_SECRET:
-        raise HTTPException(503, "TAO_WEBHOOK_SECRET not configured on server")
+    if not config.INTERNAL_WEBHOOK_SECRET:
+        raise HTTPException(503, "TAO_INTERNAL_WEBHOOK_SECRET not configured on server")
     if not x_pi_ceo_secret:
         raise HTTPException(401, "Missing X-Pi-CEO-Secret header")
-    if not _hmac.compare_digest(x_pi_ceo_secret, config.WEBHOOK_SECRET):
+    if not _hmac.compare_digest(x_pi_ceo_secret, config.INTERNAL_WEBHOOK_SECRET):
         raise HTTPException(401, "Invalid X-Pi-CEO-Secret")
 
 
@@ -105,7 +105,9 @@ async def delegate_task(
     def _call_llm() -> tuple[str, float]:
         if anthropic_key:
             import anthropic as _anthropic  # noqa: PLC0415
-            model = os.environ.get("TAO_MID_MODEL", "claude-sonnet-4-6").strip()
+            from app.server.model_registry import ANTHROPIC_OPUS, ANTHROPIC_SONNET
+
+            model = os.environ.get("TAO_MID_MODEL", ANTHROPIC_SONNET).strip()
             client = _anthropic.Anthropic(api_key=anthropic_key)
             fallback_kwargs: dict = {}
             if model.startswith(("claude-fable", "claude-mythos")):
@@ -113,7 +115,7 @@ async def delegate_task(
                 # (HTTP 200, stop_reason="refusal"); retry on Opus server-side.
                 fallback_kwargs = {
                     "extra_headers": {"anthropic-beta": "server-side-fallback-2026-06-01"},
-                    "extra_body": {"fallbacks": [{"model": "claude-opus-4-8"}]},
+                    "extra_body": {"fallbacks": [{"model": ANTHROPIC_OPUS}]},
                 }
             message = client.messages.create(
                 model=model, max_tokens=2048,
@@ -129,7 +131,9 @@ async def delegate_task(
         else:
             # OpenRouter fallback — available on Railway via OPENROUTER_API_KEY
             import httpx  # noqa: PLC0415
-            model = "anthropic/claude-sonnet-4-6"
+            from app.server.model_registry import OPENROUTER_SONNET
+
+            model = OPENROUTER_SONNET
             resp = httpx.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={"Authorization": f"Bearer {openrouter_key}",

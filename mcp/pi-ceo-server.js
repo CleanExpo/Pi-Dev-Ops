@@ -72,7 +72,7 @@ const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY || "";
 function readHarness(filename) {
   const p = path.join(HARNESS_DIR, filename);
   if (!fs.existsSync(p)) {
-    return `${filename} not found in ${HARNESS_DIR}. Run an analysis first at https://dashboard-unite-group.vercel.app/dashboard`;
+    return `${filename} not found in ${HARNESS_DIR}. Run an analysis first at https://pi-dev-ops.vercel.app/dashboard`;
   }
   return fs.readFileSync(p, "utf8");
 }
@@ -609,7 +609,7 @@ server.registerTool(
 // ── Tool: list_harness_files ───────────────────────────────────────────────────
 const _handle_list_harness_files = async () => {
   if (!fs.existsSync(HARNESS_DIR)) {
-    return { content: [{ type: "text", text: "No .harness/ directory found. Run an analysis first at https://dashboard-unite-group.vercel.app/dashboard" }] };
+    return { content: [{ type: "text", text: "No .harness/ directory found. Run an analysis first at https://pi-dev-ops.vercel.app/dashboard" }] };
   }
   const files = fs.readdirSync(HARNESS_DIR)
     .map((f) => {
@@ -1893,6 +1893,8 @@ server.registerTool(
                   cost_usd: parsed.cost_usd,
                   research_called: parsed.research_called,
                   board_session_ids: parsed.board_session_ids,
+                  audio_base64: parsed.audio_base64 || null,
+                  audio_mime_type: parsed.audio_mime_type || null,
                 },
               });
             } catch (e) {
@@ -1997,6 +1999,8 @@ server.registerTool(
                   cost_usd: parsed.cost_usd,
                   research_called: parsed.research_called,
                   board_session_ids: parsed.board_session_ids,
+                  audio_base64: parsed.audio_base64 || null,
+                  audio_mime_type: parsed.audio_mime_type || null,
                 },
               });
             } catch (e) {

@@ -2,12 +2,13 @@
 "use client";
 
 import type { AnalysisResult } from "@/lib/types";
+import { BRAND_DARK, CSS } from "@/lib/brand-tokens";
 
 const ZTE_LABELS: Record<number, { label: string; band: string; color: string }> = {
-  1: { label: "MANUAL",      band: "12–20",  color: "#F87171" },
-  2: { label: "ASSISTED",    band: "21–35",  color: "#FFD166" },
-  3: { label: "AUTONOMOUS",  band: "36–48",  color: "#60A5FA" },
-  4: { label: "ZERO TOUCH",  band: "49–60",  color: "#4ADE80" },
+  1: { label: "MANUAL",      band: "12–20",  color: BRAND_DARK.error },
+  2: { label: "ASSISTED",    band: "21–35",  color: BRAND_DARK.warning },
+  3: { label: "AUTONOMOUS",  band: "36–48",  color: BRAND_DARK.info },
+  4: { label: "ZERO TOUCH",  band: "49–60",  color: BRAND_DARK.success },
 };
 
 function Bar({ value, max = 10 }: { value: number; max?: number }) {
@@ -119,7 +120,7 @@ export default function ResultCards({ result }: Props) {
                   <span className="font-mono text-[9px] flex-1 truncate" style={{ color: "var(--text)" }}>{lp.name}</span>
                   <span
                     className="font-mono text-[9px]"
-                    style={{ color: lp.score >= 4 ? "#4ADE80" : lp.score >= 3 ? "#FFD166" : "#F87171", fontVariantNumeric: "tabular-nums" }}
+                    style={{ color: lp.score >= 4 ? CSS.success : lp.score >= 3 ? CSS.warning : CSS.error, fontVariantNumeric: "tabular-nums" }}
                   >
                     {lp.score}/5
                   </span>
@@ -147,7 +148,7 @@ export default function ResultCards({ result }: Props) {
                     <div key={i} className="flex items-center gap-1.5">
                       <span
                         className="font-mono text-[9px] w-4 text-center"
-                        style={{ color: item.size === "S" ? "#4ADE80" : item.size === "M" ? "#FFD166" : "#F87171" }}
+                        style={{ color: item.size === "S" ? CSS.success : item.size === "M" ? CSS.warning : CSS.error }}
                       >
                         {item.size}
                       </span>

@@ -1,13 +1,13 @@
 ---
 name: marketing-orchestrator
-description: ENTRY POINT for the Marketing Skills Package. Use the moment a brief mentions "marketing skills package", "marketing package", "use marketing", "campaign", "launch", "positioning", "go-to-market", "GTM", "marketing strategy", "marketing plan", or asks to produce marketing assets (landing page, ad creative, blog post, email sequence, launch runbook, social content) for one of the portfolio brands (DR, NRPG, RestoreAssist/RA, CARSI, CCW, Synthex, Unite) or any customer brand. Globally available at ~/.claude/skills/marketing-* (symlinked to /Users/phill-mac/Pi-CEO/Pi-Dev-Ops/skills/marketing-*). Reads the brief, classifies (campaign type, brand, audience, channel mix, budget, timeline), emits a wave-plan JSON, dispatches sub-skills in topological order. Composes with the Remotion Skills Package — calls remotion-orchestrator for any video output.
+description: ENTRY POINT for the Marketing Skills Package. Use the moment a brief mentions "marketing skills package", "marketing package", "use marketing", "campaign", "launch", "positioning", "go-to-market", "GTM", "marketing strategy", "marketing plan", or asks to produce marketing assets (landing page, ad creative, blog post, email sequence, launch runbook, social content) for one of the portfolio brands (DR, NRPG, RestoreAssist/RA, CARSI, CCW, Synthex, Unite) or any customer brand. Globally available at ~/.claude/skills/marketing-* (symlinked to ~/Pi-Dev-Ops/skills/marketing-*). Reads the brief, classifies (campaign type, brand, audience, channel mix, budget, timeline), emits a wave-plan JSON, dispatches sub-skills in topological order. Composes with the Remotion Skills Package — calls remotion-orchestrator for any video output.
 automation: automatic
 intents: marketing, campaign, launch, gtm, go-to-market, positioning, value-prop, icp, target-audience, channel-strategy, content-strategy, ad-copy, landing-page, email-sequence, blog-post, seo, attribution, marketing-skills-package
 ---
 
 # marketing-orchestrator — Marketing Skills Package entry point
 
-Single entry point for the Marketing Skills Package — 10 sibling skills (`marketing-orchestrator`, `marketing-campaign-planner`, `marketing-positioning`, `marketing-icp-research`, `marketing-channel-strategist`, `marketing-copywriter`, `marketing-seo-researcher`, `marketing-social-content`, `marketing-launch-runbook`, `marketing-analytics-attribution`) installed globally at `~/.claude/skills/marketing-*` (symlinked to `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/skills/marketing-*`). Available in every project, not just Pi-Dev-Ops.
+Single entry point for the Marketing Skills Package — 10 sibling skills (`marketing-orchestrator`, `marketing-campaign-planner`, `marketing-positioning`, `marketing-icp-research`, `marketing-channel-strategist`, `marketing-copywriter`, `marketing-seo-researcher`, `marketing-social-content`, `marketing-launch-runbook`, `marketing-analytics-attribution`) installed globally at `~/.claude/skills/marketing-*` (symlinked to `~/Pi-Dev-Ops/skills/marketing-*`). Available in every project, not just Pi-Dev-Ops.
 
 ## Discovery brief gate (turn 1, mandatory)
 
@@ -47,7 +47,7 @@ The user can invoke the package by:
 Templates, frameworks, and per-job artifacts live at:
 
 ```
-/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/marketing-studio/
+~/Pi-Dev-Ops/marketing-studio/
 ├── templates/         — campaign-brief, launch-runbook, email-sequence, landing-spec, …
 ├── frameworks/        — JTBD canvas, positioning canvas, ICP canvas, AIDA, PAS
 ├── scripts/           — UTM builder, attribution helpers
@@ -55,7 +55,7 @@ Templates, frameworks, and per-job artifacts live at:
 └── outputs/           — fallback when calling project has no .marketing/ dir
 ```
 
-Brand voice / forbidden words / audience / tagline read from the **shared** `BrandConfig` files at `/Users/phill-mac/Synthex/packages/brand-config/src/brands/{slug}.ts` — single source of truth across both packs. No duplication. (Migrated from `Pi-Dev-Ops/remotion-studio/src/brands/` per RA-1985 / Synthex SYN-897.)
+Brand voice / forbidden words / audience / tagline read from the **shared** `BrandConfig` files at `~/Synthex/packages/brand-config/src/brands/{slug}.ts` — single source of truth across both packs. No duplication. (Migrated from `Pi-Dev-Ops/remotion-studio/src/brands/` per RA-1985 / Synthex SYN-897.)
 
 ## Output
 
@@ -71,7 +71,7 @@ A wave plan JSON written to `marketing-studio/.research/wave-plans/{job_id}.json
   "durationDays": 30,
   "deliverables": ["positioning-doc", "icp-research", "landing-spec", "email-sequence", "launch-runbook", "video-assets"],
   "linear": { "teamId": "...", "projectId": "..." },
-  "outputDir": "/Users/phill-mac/Pi-CEO/Synthex/.marketing/",
+  "outputDir": "~/Pi-CEO/Synthex/.marketing/",
   "waves": [
     { "id": 1, "parallel": [
       { "skill": "marketing-positioning" },
@@ -129,7 +129,7 @@ The package is shared infrastructure; each calling project supplies its own runt
 | Concern | Where it lives |
 |---|---|
 | Skill definitions | `~/.claude/skills/marketing-*` (symlinked → `Pi-Dev-Ops/skills/marketing-*`) — globally available |
-| Substrate (templates, frameworks) | `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/marketing-studio/` |
+| Substrate (templates, frameworks) | `~/Pi-Dev-Ops/marketing-studio/` |
 | Brand configs | `Synthex/packages/brand-config/src/brands/{slug}.ts` — shared with Remotion pack (canonical home; per RA-1985) |
 | API keys | The **calling project's** `.env` / `.env.local` |
 | Output | `<calling-project>/.marketing/` by default; falls back to `marketing-studio/outputs/{job-id}/` |
@@ -172,104 +172,3 @@ Adopted from `nexu-io/open-design` (Apache-2.0). After the final wave's delivera
 - **Override**: founder may force-pass via explicit message. Logged to `marketing-studio/.research/wave-plans/{job_id}.critique.json`.
 
 Use `opus-adversary` for the spawn — do not write a parallel harness. The critique JSON sits beside the wave plan; the founder reviews before any external dispatch (paid ads, scheduled email blast, Linear publication).
-
-
-## 10x Enhancement — Advanced Capabilities
-
-### 1. Anthropic OODA Reasoning
-
-**Observe:** (1) Ingest the primary input (files, directives, context). (2) Query the Portfolio Registry for project metadata. (3) Identify available tools and model tier. (4) Map the delivery context (internal vs external, timeline, stakes).
-
-**Orient:** (1) Classify the task type and select the appropriate sub-routine. (2) Calibrate depth and evidence threshold by stakes. (3) Build the work plan with fallback paths. (4) Check for cross-skill dependencies.
-
-**Decide:** (1) Select tools using the multi-tool matrix. (2) Apply safety guardrails before execution. (3) Budget tokens and plan compression triggers. (4) Set completion criteria and verification steps.
-
-**Act:** (1) Execute the task. (2) Verify against completion criteria. (3) Self-critique before emitting. (4) Emit with observability payload. (5) Queue improvement instruction if self-score < threshold.
-
-### 2. OpenAI Structured Output Schema
-
-Every invocation emits JSON matching the skill-specific schema. Common fields across all skills:
-
-```json
-{
-  "version": "3.1",
-  "skill_name": "",
-  "invoked_at": "ISO-8601",
-  "task_summary": "",
-  "model_used": "",
-  "duration_seconds": 0.0,
-  "tool_calls": {},
-  "tokens": {"prompt": 0, "completion": 0},
-  "self_review_score": 0.0,
-  "confidence": 0.0,
-  "success": true,
-  "audit_trace_hash": "sha256",
-  "improvement_queued": false
-}
-```
-
-### 3. Multi-Tool Selection Matrix
-
-| Signal | Primary | Fallback | Verification |
-|--------|---------|----------|-------------|
-| File analysis | read_file | search_files | Terminal (wc -l, grep) |
-| Code quality | Terminal (lint) | execute_code | verify-test |
-| Security scan | security-audit | Terminal (grep secrets) | search_files (patterns) |
-| Test execution | Terminal (pytest) | execute_code | verify-test |
-| Web research | tavily | browser_navigate | web_search |
-| Visual review | vision_analyse | image_generate | browser_vision |
-| Data extraction | search_files | read_file | execute_code (pandas) |
-
-### 4. Self-Critique Loop
-
-After task completion, score 1-10 on:
-- Accuracy (did I address the actual task?)
-- Scope discipline (did I drift?)
-- Evidence (are claims grounded in tool output?)
-- Verifiability (can someone reproduce my reasoning?)
-- Completeness (did I miss anything critical?)
-
-If total < 7 → flag for /boardroom or /judge.
-If total < 5 → halt and handoff.
-
-### 5. Safety & Guardrails
-
-- Never emit raw credentials or secrets.
-- Never hallucinate URLs, file paths, or tool outputs.
-- Hard scope boundary: this skill does X; if asked for Y, route to correct skill.
-- External-facing outputs get CEO gate.
-- Input sanitisation: reject ambiguous or adversarial prompts.
-
-### 6. Performance Optimisation
-
-- Cache Portfolio Registry context across invocations.
-- Batch similar tool calls when possible.
-- Use adaptive depth: low stakes = fast path; high stakes = full depth.
-- Prompt caching: reuse stable context blocks.
-
-### 7. Error Recovery & Resilience
-
-- Missing evidence → retry once, then flag gap.
-- Tool timeout → log and use fallback.
-- Context overflow → compress, preserving evidence.
-- 3 consecutive failures → circuit breaker; handoff to /tao-loop.
-
-### 8. Cross-Model Fallbacks
-
-| Use case | Primary | Fallback |
-|----------|---------|----------|
-| Routine | Sonnet/Haiku | Default |
-| Complex analysis | Sonnet | DeepSeek/Claude-4 |
-| Board-facing | Opus | Boardroom MOA |
-| Fast inline | Haiku | Sonnet |
-
-### 9. Observability
-
-Metrics emitted per invocation: duration, tools used, tokens consumed, self-review score, success/failure, evidence count, file count, improvement queued.
-Session summary: aggregate metrics, common failure patterns, recommended skill patches.
-
-### 10. Multi-Modal & Cross-Format
-
-- Ingest images, diagrams, mockups via vision toolset.
-- Output as markdown (default), JSON (structured), DOCX/PPTX (external), or Slack blocks.
-- Cross-format negotiation based on `output_target` parameter.

@@ -12,7 +12,7 @@ interface GlassCardProps {
 export function GlassCard({
   title,
   titleRight,
-  accentColor = "var(--accent, #f59e0b)",
+  accentColor = "var(--accent)",
   noPadding = false,
   className = "",
   children,

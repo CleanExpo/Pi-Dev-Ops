@@ -2,7 +2,7 @@ import yaml
 from dataclasses import dataclass
 from typing import Optional
 
-MODEL_MAP = {'opus':'claude-opus-4-7','sonnet':'claude-sonnet-5','haiku':'claude-haiku-4-5-20251001'}
+MODEL_MAP = {'opus':'claude-opus-4-8','sonnet':'claude-sonnet-5','haiku':'claude-haiku-4-5-20251001'}
 
 @dataclass
 class TierConfig:

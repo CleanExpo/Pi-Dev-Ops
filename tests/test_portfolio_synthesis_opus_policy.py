@@ -33,7 +33,7 @@ def test_portfolio_role_can_use_opus_by_default(monkeypatch):
     config, model_policy = _reload_policy_with(None, monkeypatch)
     assert "portfolio" in config.OPUS_ALLOWED_ROLES
     # Should not raise.
-    model_policy.assert_model_allowed("portfolio", "claude-opus-4-7")
+    model_policy.assert_model_allowed("portfolio", "claude-opus-4-8")
 
 
 def test_portfolio_synthesis_dot_suffix_strips_to_portfolio_bucket(monkeypatch):
@@ -44,14 +44,14 @@ def test_portfolio_synthesis_dot_suffix_strips_to_portfolio_bucket(monkeypatch):
     role_bucket = role_full.split(".")[0]  # mirror session_sdk.py:127
     assert role_bucket == "portfolio"
     # Should not raise.
-    model_policy.assert_model_allowed(role_bucket, "claude-opus-4-7")
+    model_policy.assert_model_allowed(role_bucket, "claude-opus-4-8")
 
 
 def test_unrelated_role_still_rejected(monkeypatch):
     """Adding ``portfolio`` must not loosen the gate for arbitrary roles."""
     _, model_policy = _reload_policy_with(None, monkeypatch)
     with pytest.raises(ValueError, match="role=evaluator cannot use opus"):
-        model_policy.assert_model_allowed("evaluator", "claude-opus-4-7")
+        model_policy.assert_model_allowed("evaluator", "claude-opus-4-8")
 
 
 def test_env_override_can_still_remove_portfolio(monkeypatch):
@@ -59,7 +59,7 @@ def test_env_override_can_still_remove_portfolio(monkeypatch):
     config, model_policy = _reload_policy_with("planner,orchestrator", monkeypatch)
     assert "portfolio" not in config.OPUS_ALLOWED_ROLES
     with pytest.raises(ValueError, match="role=portfolio cannot use opus"):
-        model_policy.assert_model_allowed("portfolio", "claude-opus-4-7")
+        model_policy.assert_model_allowed("portfolio", "claude-opus-4-8")
 
 
 def test_planner_orchestrator_adversary_still_allowed(monkeypatch):
@@ -67,4 +67,4 @@ def test_planner_orchestrator_adversary_still_allowed(monkeypatch):
     _, model_policy = _reload_policy_with(None, monkeypatch)
     for role in ("planner", "orchestrator", "adversary"):
         # Should not raise for any of these.
-        model_policy.assert_model_allowed(role, "claude-opus-4-7")
+        model_policy.assert_model_allowed(role, "claude-opus-4-8")

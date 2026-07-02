@@ -1,8 +1,8 @@
 # app — Wiki
 
-_Last updated: 2026-06-30T21:27:51Z (commits 9ca3f07..ec0450c)_
+_Last updated: 2026-07-02T07:12:08Z (commits 2304cbb..7be626f)_
 
 ## Recent changes
-- ec0450c — You are the chief-of-staff synthesising a daily portfolio pulse for P... (#394)
+- 7be626f — fix(security): split webhook secrets + fail-closed internal intake (RA-6904) (#469)
 
 

@@ -19,6 +19,7 @@ import time
 from .cron_fire_agents import (
     _fire_board_meeting_trigger,
     _fire_feedback_trigger,
+    _fire_marketing_bridge_trigger,
     _fire_meta_curator_trigger,
     _fire_scout_trigger,
 )
@@ -414,6 +415,11 @@ async def _fire_trigger(trigger: dict, log) -> None:
     elif trigger_type == "burndown":                            # RA-6670
         from .burndown import _fire_burndown_trigger  # noqa: PLC0415
         await _fire_burndown_trigger(trigger, log)
+    elif trigger_type == "plan_discovery":
+        from .plan_discovery_cron import _fire_plan_discovery_trigger  # noqa: PLC0415
+        await _fire_plan_discovery_trigger(trigger, log)
+    elif trigger_type == "marketing_bridge":                    # UNI-2236
+        await _fire_marketing_bridge_trigger(trigger, log)
     elif trigger_type == "build":
         await create_session(
             repo_url=trigger["repo_url"],

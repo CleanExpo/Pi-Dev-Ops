@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import type { AnalysisResult } from "@/lib/types";
+import { CSS } from "@/lib/brand-tokens";
 
 type ActionId = "board_notes" | "cowork_brief" | "github_issues" | "dockerfile";
 
@@ -165,19 +166,19 @@ export default function ActionsPanel({ result, branch }: Props) {
             className="flex flex-col items-start px-3 py-3 text-left transition-colors disabled:opacity-40"
             style={{
               background:   activeAction === a.id ? "#181616" : "#111111",
-              borderBottom: activeAction === a.id ? "1px solid #E8751A" : "1px solid transparent",
+              borderBottom: activeAction === a.id ? `1px solid ${CSS.accent}` : "1px solid transparent",
             }}
           >
             <div className="flex items-center gap-1.5 mb-1">
-              <span className="font-mono text-[12px]" style={{ color: "#E8751A" }}>{a.icon}</span>
-              <span className="font-mono text-[9px] tracking-widest" style={{ color: "#F0EDE8" }}>
+              <span className="font-mono text-[12px]" style={{ color: CSS.accent }}>{a.icon}</span>
+              <span className="font-mono text-[10px] tracking-widest" style={{ color: "#F0EDE8" }}>
                 {a.label}
               </span>
               {loading && activeAction === a.id && (
-                <span className="font-mono text-[8px]" style={{ color: "#E8751A" }}>…</span>
+                <span className="font-mono text-[10px]" style={{ color: CSS.accent }}>…</span>
               )}
             </div>
-            <p className="font-mono text-[8px] leading-relaxed" style={{ color: "#888480" }}>
+            <p className="font-mono text-[10px] leading-relaxed" style={{ color: "#888480" }}>
               {a.desc}
             </p>
           </button>
@@ -186,7 +187,7 @@ export default function ActionsPanel({ result, branch }: Props) {
 
       {/* Error */}
       {error && (
-        <div className="px-3 py-2 font-mono text-[10px]" style={{ background: "#1a0808", color: "#F87171" }}>
+        <div className="px-3 py-2 font-mono text-[10px]" style={{ background: "var(--panel)", color: CSS.error }}>
           ✗ {error}
         </div>
       )}
@@ -199,20 +200,20 @@ export default function ActionsPanel({ result, branch }: Props) {
             className="flex items-center justify-between px-3 py-1.5 shrink-0"
             style={{ borderTop: "1px solid #2A2727", borderBottom: "1px solid #2A2727" }}
           >
-            <span className="font-mono text-[9px] uppercase tracking-widest" style={{ color: "#C8C5C0" }}>
+            <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "#C8C5C0" }}>
               {activeAction_?.label} OUTPUT
             </span>
             <div className="flex items-center gap-3">
               <button
                 onClick={openInClaude}
-                className="font-mono text-[9px] tracking-wider"
-                style={{ color: "#E8751A" }}
+                className="font-mono text-[10px] tracking-wider"
+                style={{ color: CSS.accent }}
               >
                 CLAUDE ↗
               </button>
               <button
                 onClick={download}
-                className="font-mono text-[9px] tracking-wider"
+                className="font-mono text-[10px] tracking-wider"
                 style={{ color: "#6B8CFF" }}
                 title={`Download as ${activeAction_?.filename}`}
               >
@@ -223,7 +224,7 @@ export default function ActionsPanel({ result, branch }: Props) {
                   onClick={commitToBranch}
                   disabled={committing}
                   className="font-mono text-[9px] tracking-wider disabled:opacity-40"
-                  style={{ color: committing ? "#888480" : "#FFD166" }}
+                  style={{ color: committing ? "var(--text-dim)" : CSS.warning }}
                   title={`Commit to ${branch}`}
                 >
                   {committing ? "…" : "⊕ COMMIT"}
@@ -231,8 +232,8 @@ export default function ActionsPanel({ result, branch }: Props) {
               )}
               <button
                 onClick={copy}
-                className="font-mono text-[9px] tracking-wider"
-                style={{ color: copied ? "#4ADE80" : "#C8C5C0" }}
+                className="font-mono text-[10px] tracking-wider"
+                style={{ color: copied ? CSS.success : "var(--text-muted)" }}
               >
                 {copied ? "COPIED ✓" : "COPY"}
               </button>
@@ -242,8 +243,8 @@ export default function ActionsPanel({ result, branch }: Props) {
           {/* Commit feedback */}
           {commitMsg && (
             <div
-              className="px-3 py-1 font-mono text-[9px]"
-              style={{ color: commitMsg.startsWith("✓") ? "#4ADE80" : "#F87171", background: "#0C0C0C" }}
+              className="px-3 py-1 font-mono text-[10px]"
+              style={{ color: commitMsg.startsWith("✓") ? CSS.success : CSS.error, background: "var(--background)" }}
             >
               {commitMsg}
             </div>
@@ -261,10 +262,10 @@ export default function ActionsPanel({ result, branch }: Props) {
 
       {/* Footer */}
       <div
-        className="px-3 py-2 shrink-0 font-mono text-[8px]"
+        className="px-3 py-2 shrink-0 font-mono text-[10px]"
         style={{ borderTop: "1px solid #2A2727", color: "#888480" }}
       >
-        <span style={{ color: "#4ADE80" }}>●</span> Claude Desktop MCP registered · pi-ceo server active
+        <span style={{ color: CSS.success }}>●</span> Claude Desktop MCP registered · pi-ceo server active
         <br />
         Ask Claude: <span style={{ color: "#C8C5C0" }}>&ldquo;get_last_analysis&rdquo;</span> or{" "}
         <span style={{ color: "#C8C5C0" }}>&ldquo;generate_board_notes&rdquo;</span>

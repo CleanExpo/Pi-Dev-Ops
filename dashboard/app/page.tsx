@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import Image from "next/image";
+import { CSS } from "@/lib/brand-tokens";
 
 function LoginForm() {
   const router = useRouter();
@@ -43,7 +44,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="fixed inset-0 flex flex-col items-center justify-center overflow-hidden">
+    <div className="dark fixed inset-0 flex flex-col items-center justify-center overflow-hidden">
 
       {/* ── Optimised hero image via next/image (LCP, lazy decode, blur-up) ── */}
       <Image
@@ -72,45 +73,53 @@ function LoginForm() {
         {/* Orange π */}
         <span
           className="font-mono mb-3"
-          style={{ color: "#f97316", fontSize: "18px", letterSpacing: "0.4em" }}
+          style={{ color: CSS.accent, fontSize: "18px", letterSpacing: "0.4em" }}
         >
           π
         </span>
 
-        {/* PI CEO wordmark */}
-        <h1
-          className="font-sans font-bold leading-none"
-          style={{
-            fontSize: "clamp(72px, 14vw, 160px)",
-            color: "#fafafa",
-            letterSpacing: "0.06em",
-            textShadow: "0 2px 40px rgba(0,0,0,0.8)",
-          }}
-        >
-          PI CEO
-        </h1>
+        {/* Pi CEO wordmark — hidden in login mode to avoid double-render bleed */}
+        {mode === "hero" && (
+          <>
+            <h1
+              className="font-sans font-bold leading-none"
+              style={{
+                fontSize: "clamp(72px, 14vw, 160px)",
+                color: CSS.text,
+                letterSpacing: "0.06em",
+                textShadow: "0 2px 40px rgba(0,0,0,0.8)",
+              }}
+            >
+              Pi CEO
+            </h1>
 
-        {/* Tagline */}
-        <p
-          className="font-sans font-semibold mt-2"
-          style={{
-            fontSize: "clamp(14px, 2.5vw, 22px)",
-            color: "#fafafa",
-            letterSpacing: "0.35em",
-            textTransform: "uppercase",
-            opacity: 0.9,
-          }}
-        >
-          Solo DevOps Tool
-        </p>
+            <p
+              className="font-sans font-semibold mt-2"
+              style={{
+                fontSize: "clamp(14px, 2.5vw, 22px)",
+                color: CSS.text,
+                letterSpacing: "0.35em",
+                textTransform: "uppercase",
+                opacity: 0.9,
+              }}
+            >
+              Solo DevOps Tool
+            </p>
 
-        {/* Powered by */}
-        <p
-          className="font-mono mt-3"
-          style={{ fontSize: "10px", color: "#f97316", letterSpacing: "0.3em", textTransform: "uppercase", opacity: 0.85 }}
-        >
-          Powered by Claude Harness
-        </p>
+            <p
+              className="font-mono mt-3"
+              style={{ fontSize: "10px", color: CSS.accent, letterSpacing: "0.3em", textTransform: "uppercase", opacity: 0.85 }}
+            >
+              Powered by Claude Harness
+            </p>
+          </>
+        )}
+
+        {mode === "login" && (
+          <p className="font-sans font-semibold mb-2" style={{ fontSize: "14px", color: CSS.text, letterSpacing: "0.2em" }}>
+            Sign in
+          </p>
+        )}
 
         {/* ── CTA / Login form ── */}
         {mode === "hero" ? (
@@ -118,14 +127,14 @@ function LoginForm() {
             onClick={() => { setMode("login"); setTimeout(() => inputRef.current?.focus(), 50); }}
             className="mt-12 font-sans font-semibold tracking-widest transition-all hover:opacity-80 hover:scale-105 active:scale-95 rounded-md"
             style={{
-              background: "#f97316",
-              color: "#ffffff",
+              background: CSS.accent,
+              color: CSS.onAccent,
               padding: "14px 56px",
               fontSize: "13px",
               letterSpacing: "0.15em",
               border: "none",
               cursor: "pointer",
-              boxShadow: "0 0 32px rgba(249,115,22,0.35)",
+              boxShadow: "0 0 32px color-mix(in srgb, var(--accent) 35%, transparent)",
             }}
           >
             Enter ↗
@@ -139,6 +148,9 @@ function LoginForm() {
             <div className="relative w-full">
               <input
                 ref={inputRef}
+                id="password"
+                name="password"
+                autoComplete="current-password"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
@@ -147,8 +159,8 @@ function LoginForm() {
                 className="font-sans w-full text-center rounded-md"
                 style={{
                   background: "rgba(250,250,250,0.08)",
-                  border: "1px solid rgba(249,115,22,0.6)",
-                  color: "#fafafa",
+                  border: "1px solid color-mix(in srgb, var(--accent) 60%, transparent)",
+                  color: CSS.text,
                   padding: "12px 40px 12px 20px",
                   fontSize: "16px",
                   letterSpacing: "0.15em",
@@ -173,7 +185,7 @@ function LoginForm() {
                   border: "none",
                   cursor: "pointer",
                   padding: "4px",
-                  color: "rgba(249,115,22,0.7)",
+                  color: "color-mix(in srgb, var(--accent) 70%, transparent)",
                   display: "flex",
                   alignItems: "center",
                 }}
@@ -194,7 +206,7 @@ function LoginForm() {
             </div>
 
             {error && (
-              <p className="font-sans text-sm" style={{ color: "#ef4444" }}>
+              <p className="font-sans text-sm" style={{ color: CSS.error }}>
                 {error}
               </p>
             )}
@@ -204,14 +216,14 @@ function LoginForm() {
               disabled={loading || !password}
               className="font-sans font-semibold tracking-widest w-full transition-opacity hover:opacity-80 disabled:opacity-40 rounded-md"
               style={{
-                background: "#f97316",
-                color: "#ffffff",
+                background: CSS.accent,
+                color: CSS.onAccent,
                 padding: "14px 0",
                 fontSize: "13px",
                 letterSpacing: "0.15em",
                 border: "none",
                 cursor: "pointer",
-                boxShadow: "0 0 24px rgba(249,115,22,0.3)",
+                boxShadow: "0 0 24px color-mix(in srgb, var(--accent) 30%, transparent)",
               }}
             >
               {loading ? "Authenticating…" : "Authenticate ↗"}
@@ -221,7 +233,7 @@ function LoginForm() {
 
         {/* Footer tagline */}
         <p className="font-mono mt-8" style={{ fontSize: "9px", color: "#fafafa", opacity: 0.35, letterSpacing: "0.2em" }}>
-          8 ANALYSIS PHASES · CLAUDE OPUS 4.7 · TAO FRAMEWORK
+          8 ANALYSIS PHASES · CLAUDE OPUS 4.8 · TAO FRAMEWORK
         </p>
       </div>
     </div>

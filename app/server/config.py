@@ -35,8 +35,27 @@ def _load_env_file(path: Path) -> None:
         cur = os.environ.get(k, "<unset>")
         if cur == "<unset>" or cur == "" or cur.startswith("op://"):
             os.environ[k] = v
+
+
+def _load_app_env_file(path: Path) -> None:
+    """Load app/.env.local — local dev SSOT; overrides inherited shell env."""
+    if not path.is_file():
+        return
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, _, v = line.partition("=")
+        k = k.strip()
+        v = v.strip().strip('"').strip("'")
+        if v.startswith("op://"):
+            continue
+        os.environ[k] = v
+
+
 _load_env_file(_root / ".env")
 _load_env_file(_root / ".env.local")
+_load_app_env_file(_root / "app" / ".env.local")
 
 # ---------------------------------------------------------------------------
 # 1Password op:// ref guard (hardwired lesson, RA-1169+)
@@ -167,8 +186,8 @@ CLAUDE_EXTRA_FLAGS   = [] if _INTERACTIVE else ["--dangerously-skip-permissions"
 ALLOWED_MODELS       = ["opus", "sonnet", "haiku"]
 
 # ── MODEL ROUTING POLICY (RA-1099 — hardwired 2026-04-17) ──────────────────
-# Opus 4.7 is reserved for Senior PM (planner) and Senior Orchestrator agents.
-# Every other agent role MUST use Sonnet 4.6 or Haiku 4.5.
+# Opus 4.8 is reserved for Senior PM (planner) and Senior Orchestrator agents.
+# Every other agent role MUST use Sonnet 5 or Haiku 4.5.
 # Override via TAO_OPUS_ALLOWED_ROLES if you ever need to widen this — but the
 # default is strict by design (cost + latency).
 OPUS_ALLOWED_ROLES   = set(
@@ -177,23 +196,20 @@ OPUS_ALLOWED_ROLES   = set(
         "planner,orchestrator,adversary,portfolio",
     ).split(",")
 )
-# RA-1743 — `adversary` runs the pre-push opus-adversary review gate. Opus 4.7
-# is required for genuine model-diversity vs Sonnet 4.6 generator/evaluator.
+# RA-1743 — `adversary` runs the pre-push opus-adversary review gate. Opus 4.8
+# is required for genuine model-diversity vs Sonnet 5 generator/evaluator.
 # RA-1922 — `portfolio` is the role bucket for the cross-portfolio synthesis
 # (RA-1892, the "10x layer" of the daily Portfolio Pulse). session_sdk.py:127
 # strips dot-suffixes via `phase.split(".")[0]`, so `portfolio.synthesis`
 # arrives at the policy check as bare `portfolio`. Synthesis runs once per
 # day across the whole portfolio (~365 calls/year) — cost is bounded.
-# Long-form model IDs returned by _resolve_model_id() in pipeline.py and
-# session_evaluator.py. Kept here so a single edit changes both readers.
-MODEL_ID_OPUS        = "claude-opus-4-7"
-MODEL_ID_SONNET      = "claude-sonnet-5"
-MODEL_ID_HAIKU       = "claude-haiku-4-5-20251001"
-MODEL_SHORT_TO_ID    = {
-    "opus":   MODEL_ID_OPUS,
-    "sonnet": MODEL_ID_SONNET,
-    "haiku":  MODEL_ID_HAIKU,
-}
+# Long-form model IDs — SSOT in model_registry.py; re-exported here for legacy imports.
+from app.server import model_registry  # noqa: E402
+
+MODEL_ID_OPUS = model_registry.ANTHROPIC_OPUS
+MODEL_ID_SONNET = model_registry.ANTHROPIC_SONNET
+MODEL_ID_HAIKU = model_registry.ANTHROPIC_HAIKU
+MODEL_SHORT_TO_ID = model_registry.SHORT_TO_ANTHROPIC
 MAX_CONCURRENT_SESSIONS = int(os.environ.get("TAO_MAX_SESSIONS",        "3"))
 RATE_LIMIT_PER_MIN   = int(os.environ.get("TAO_RATE_LIMIT",             "30"))
 WORKSPACE_ROOT       = os.environ.get("TAO_WORKSPACE",
@@ -217,6 +233,10 @@ EVAL_AUTOSHIP_SCORE      = float(os.environ.get("TAO_EVAL_AUTOSHIP_SCORE",      
 EVAL_AUTOSHIP_CONFIDENCE = float(os.environ.get("TAO_EVAL_AUTOSHIP_CONFIDENCE", "90"))
 EVAL_FLAG_CONFIDENCE     = float(os.environ.get("TAO_EVAL_FLAG_CONFIDENCE",     "60"))
 WEBHOOK_SECRET       = os.environ.get("TAO_WEBHOOK_SECRET",             "")
+# RA-6904 — split GitHub HMAC secret from internal X-Pi-CEO-Secret intake routes.
+# During transition, new vars fall back to TAO_WEBHOOK_SECRET when unset.
+GITHUB_WEBHOOK_SECRET = os.environ.get("TAO_GITHUB_WEBHOOK_SECRET", "") or WEBHOOK_SECRET
+INTERNAL_WEBHOOK_SECRET = os.environ.get("TAO_INTERNAL_WEBHOOK_SECRET", "") or WEBHOOK_SECRET
 LINEAR_WEBHOOK_SECRET = os.environ.get("TAO_LINEAR_WEBHOOK_SECRET",     "")
 
 # RA-677 — AUTONOMY_BUDGET: single-knob pipeline configuration (minutes).
@@ -284,7 +304,19 @@ TAO_TOOL_GATE: bool = os.environ.get("TAO_TOOL_GATE", "0") == "1"
 # to 1-20, run_tdd builds an up-front plan via the Opus planner and executes it
 # one step per iteration (kill-switch cadence unchanged), re-planning on a stall
 # or an exhausted horizon. Founder-gated activation like TAO_TOOL_GATE.
-TAO_PLANNER_HORIZON: int = int(os.environ.get("TAO_PLANNER_HORIZON", "0"))
+#
+# OM-1: set TAO_OM1_ENABLED=1 to turn on the 15-move default horizon when
+# TAO_PLANNER_HORIZON is unset/0. Explicit TAO_PLANNER_HORIZON (1-20) always wins.
+def _clamp_planner_horizon(raw: str | None) -> int:
+    try:
+        value = int((raw or "0").strip())
+    except ValueError:
+        return 0
+    return max(0, min(value, 20))
+
+
+TAO_PLANNER_HORIZON: int = _clamp_planner_horizon(os.environ.get("TAO_PLANNER_HORIZON"))
+TAO_OM1_ENABLED: bool = os.environ.get("TAO_OM1_ENABLED", "0") == "1"
 # Hard cap on Opus re-plans within a single loop. Once hit, the loop stops
 # re-planning and degrades to reactive execution on the overall goal. Bounds
 # Opus spend (RA-1099) independently of the max_cost_usd ceiling; 0 disables
@@ -452,6 +484,21 @@ TELEGRAM_WEBHOOK_SECRET = os.environ.get(
     "TELEGRAM_WEBHOOK_SECRET",
     TELEGRAM_BOT_TOKEN.split(":")[0] if ":" in TELEGRAM_BOT_TOKEN else TELEGRAM_BOT_TOKEN,
 )
+
+# UNI-2214 item 1 — shared secret for the authenticated closed-loop intake
+# webhook (POST /api/webhook/intake). External producers (email-listener,
+# calendar-watcher, or any system holding content) present it in the
+# X-Intake-Secret header. Fail-closed: when unset the endpoint refuses all
+# requests (500), so an unconfigured deployment can never be fed anonymously.
+INTAKE_WEBHOOK_SECRET = os.environ.get("TAO_INTAKE_WEBHOOK_SECRET", "")
+
+# RA-6899 — dedicated secrets for Gmail Pub/Sub + Calendar push intake routes.
+# Fail-closed when unset (same contract as INTAKE_WEBHOOK_SECRET). Gmail may
+# also authenticate via Google Pub/Sub OIDC Bearer when TAO_GMAIL_PUBSUB_AUDIENCE
+# matches the push subscription endpoint URL.
+GMAIL_WEBHOOK_SECRET = os.environ.get("TAO_GMAIL_WEBHOOK_SECRET", "")
+CALENDAR_WEBHOOK_SECRET = os.environ.get("TAO_CALENDAR_WEBHOOK_SECRET", "")
+GMAIL_PUBSUB_AUDIENCE = os.environ.get("TAO_GMAIL_PUBSUB_AUDIENCE", "")
 
 # RA-651 / RA-633 — Supabase server-side writes (gate_checks, alert_escalations).
 # NEXT_PUBLIC_SUPABASE_URL matches the dashboard env var (same project).

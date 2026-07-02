@@ -118,8 +118,9 @@ export default function BuildForm() {
           repo
         </span>
         <input
+          id="build-repo"
+          name="repo"
           type="text"
-          value={repo}
           onChange={(e) => setRepo(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !running) submit(); }}
           onFocus={() => setRepoFocused(true)}
@@ -151,6 +152,8 @@ export default function BuildForm() {
           msg
         </span>
         <textarea
+          id="build-brief"
+          name="brief"
           value={brief}
           onChange={(e) => setBrief(e.target.value)}
           onFocus={() => setBriefFocused(true)}
@@ -175,7 +178,7 @@ export default function BuildForm() {
           className="h-8 px-3 rounded-md text-xs font-mono font-medium disabled:opacity-30 transition-colors"
           style={{
             background: running ? "var(--error)" : "var(--accent)",
-            color: "#fff",
+            color: "var(--on-accent)",
           }}
         >
           {running ? "■ stop" : "▶ run"}
@@ -260,7 +263,7 @@ export default function BuildForm() {
               {/* macOS-style traffic lights */}
               <div className="flex items-center gap-1.5">
                 <span className="w-3 h-3 rounded-full" style={{ background: "#ef4444" }} aria-hidden="true" />
-                <span className="w-3 h-3 rounded-full" style={{ background: "#f59e0b" }} aria-hidden="true" />
+                <span className="w-3 h-3 rounded-full" style={{ background: "var(--warning)" }} aria-hidden="true" />
                 <span className="w-3 h-3 rounded-full" style={{ background: "#22c55e" }} aria-hidden="true" />
                 <span className="text-[10px] font-mono ml-3" style={{ color: "var(--text-dim)" }}>
                   pi-ceo build — live output

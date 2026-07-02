@@ -30,6 +30,20 @@ log = logging.getLogger("pi-ceo.main")
 router = APIRouter()
 
 
+def _require_internal_webhook_secret(request: Request) -> None:
+    """RA-6904: fail-closed auth for X-Pi-CEO-Secret internal intake routes."""
+    import hmac as _hmac
+
+    expected = config.INTERNAL_WEBHOOK_SECRET
+    if not expected:
+        raise HTTPException(503, "Internal webhook secret not configured")
+    secret_header = request.headers.get("x-pi-ceo-secret", "")
+    if not secret_header:
+        raise HTTPException(401, "X-Pi-CEO-Secret header required")
+    if not _hmac.compare_digest(secret_header, expected):
+        raise HTTPException(401, "Invalid secret")
+
+
 def _telegram_send(token: str, chat_id: int | str, text: str) -> None:
     """Fire-and-forget helper — sends a message via Telegram Bot API."""
     import urllib.request as _ur
@@ -94,9 +108,9 @@ async def webhook(request: Request):
 
     if gh_event and gh_sig:
         # GitHub webhook
-        if not config.WEBHOOK_SECRET:
-            raise HTTPException(500, "Webhook secret not configured")
-        if not verify_github_signature(raw_body, gh_sig, config.WEBHOOK_SECRET):
+        if not config.GITHUB_WEBHOOK_SECRET:
+            raise HTTPException(500, "GitHub webhook secret not configured")
+        if not verify_github_signature(raw_body, gh_sig, config.GITHUB_WEBHOOK_SECRET):
             raise HTTPException(401, "Invalid signature")
         try:
             payload = json.loads(raw_body)
@@ -206,19 +220,31 @@ _REPO_LINEAR_ROUTING: dict[str, dict[str, str]] = {
 
 
 # RA-1008: Persist dedup set so restarts don't emit duplicate CI tickets.
-# Stored as a JSON list of integers in DATA_DIR/dedup-run-ids.json.
+# Stored as a JSON list of stable sha256 hex keys in DATA_DIR/dedup-run-ids.json.
 _DEDUP_FILE = Path(config.DATA_DIR) / "dedup-run-ids.json"
 _DEDUP_MAX = 500  # cap size; oldest half evicted when full
 
 
-def _load_dedup_set() -> set[int]:
+def _workflow_dedup_key(repo: str, sha_full: str) -> str:
+    """Stable dedup key — must not use hash() (PYTHONHASHSEED randomises per process)."""
+    import hashlib
+
+    return hashlib.sha256(f"{repo}:{sha_full}".encode()).hexdigest()
+
+
+def _load_dedup_set() -> set[str]:
     try:
-        return set(json.loads(_DEDUP_FILE.read_text()))
+        raw = json.loads(_DEDUP_FILE.read_text())
+        out: set[str] = set()
+        for item in raw:
+            if isinstance(item, str) and item:
+                out.add(item)
+        return out
     except Exception:
         return set()
 
 
-def _save_dedup_set(s: set[int]) -> None:
+def _save_dedup_set(s: set[str]) -> None:
     try:
         tmp = _DEDUP_FILE.with_suffix(".tmp")
         tmp.write_text(json.dumps(list(s)))
@@ -227,7 +253,7 @@ def _save_dedup_set(s: set[int]) -> None:
         pass
 
 
-_processed_run_ids: set[int] = _load_dedup_set()
+_processed_run_ids: set[str] = _load_dedup_set()
 
 
 async def _handle_workflow_run(payload: dict, request: Request) -> None:
@@ -245,7 +271,7 @@ async def _handle_workflow_run(payload: dict, request: Request) -> None:
     # 3+ deliveries (CI, Security Scanning, Deploy) all for the same SHA.
     repo = payload.get("repository", {}).get("full_name", "unknown/repo")
     sha_full = run.get("head_sha", "")
-    dedup_key = hash((repo, sha_full))
+    dedup_key = _workflow_dedup_key(repo, sha_full)
     if dedup_key in _processed_run_ids:
         log.debug("RA-847 dedup: skipping duplicate workflow_run repo=%s sha=%s", repo, sha_full[:8])
         return
@@ -444,17 +470,11 @@ async def morning_intel_webhook(request: Request):
 
     Writes to .harness/morning-intel/YYYY-MM-DD.json (atomic write).
     Board meeting build_board_system_prompt() reads it at run time.
-    Protected by X-Pi-CEO-Secret header == TAO_WEBHOOK_SECRET.
+    Protected by X-Pi-CEO-Secret header == TAO_INTERNAL_WEBHOOK_SECRET (falls back to TAO_WEBHOOK_SECRET).
     """
-    import hmac as _hmac
     from datetime import datetime, timezone
 
-    secret_header = request.headers.get("x-pi-ceo-secret", "")
-    if config.WEBHOOK_SECRET:
-        if not secret_header:
-            raise HTTPException(401, "X-Pi-CEO-Secret header required")
-        if not _hmac.compare_digest(secret_header, config.WEBHOOK_SECRET):
-            raise HTTPException(401, "Invalid secret")
+    _require_internal_webhook_secret(request)
 
     raw_body = await request.body()
     try:
@@ -549,6 +569,85 @@ async def telegram_webhook(request: Request):
     return {"ok": True}
 
 
+# ── UNI-2214 item 1: authenticated closed-loop intake webhook ─────────────────
+
+_INTAKE_SOURCES: frozenset[str] = frozenset(
+    {"email", "calendar", "linear", "external"}
+)
+
+
+class IntakePayload(BaseModel):
+    """Normalized push-intake from any external producer.
+
+    A producer that holds content (email-listener / calendar-watcher, or any
+    system) POSTs this; the route enqueues it into the closed loop so the
+    orchestrator drains it on its next cycle.
+    """
+    source: str
+    text: str
+    chat_id: str | None = None
+
+    @field_validator("source")
+    @classmethod
+    def _check_source(cls, v: str) -> str:
+        if v not in _INTAKE_SOURCES:
+            raise ValueError(f"source must be one of {sorted(_INTAKE_SOURCES)}")
+        return v
+
+    @field_validator("text")
+    @classmethod
+    def _check_text(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("text must be non-empty")
+        return v
+
+
+@router.post("/api/webhook/intake", dependencies=[Depends(require_rate_limit)])
+async def intake_webhook(request: Request):
+    """Receive a normalized intake event and enqueue it into the closed loop.
+
+    The push-intake substrate for UNI-2214 item 1: lets email-listener,
+    calendar-watcher, or any external system feed the autonomous loop over HTTP
+    without Phill driving. Secured by a shared secret (X-Intake-Secret); the
+    enqueued trigger carries its source as provenance.
+    """
+    import hmac as _hmac  # noqa: PLC0415
+    expected = config.INTAKE_WEBHOOK_SECRET
+    presented = request.headers.get("X-Intake-Secret", "")
+    # Fail-closed, but with a config-independent response to an unauthenticated
+    # caller: a request with NO secret header is always 401 (whether or not the
+    # server secret is configured) so the unauthenticated smoke probe is stable.
+    # A presented secret the server can't validate (unconfigured) is 503; a
+    # presented-but-wrong secret is 401. Anonymous intake is never accepted.
+    if not presented:
+        raise HTTPException(401, "X-Intake-Secret header required")
+    if not expected:
+        raise HTTPException(503, "Intake webhook secret not configured")
+    if not _hmac.compare_digest(presented, expected):
+        raise HTTPException(401, "Invalid intake secret")
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid JSON")
+    try:
+        payload = IntakePayload(**body)
+    except Exception as exc:
+        raise HTTPException(422, f"Invalid intake payload: {exc}")
+
+    # Prefix the source so the loop's intake stage sees provenance.
+    trigger_text = f"[{payload.source}] {payload.text}".strip()
+    try:
+        from swarm import closed_loop  # noqa: PLC0415
+        closed_loop.enqueue_trigger(trigger_text, chat_id=payload.chat_id)
+    except Exception as exc:
+        log.error("intake webhook: enqueue_trigger failed: %s", exc, exc_info=True)
+        raise HTTPException(503, "Failed to enqueue intake")
+
+    log.info("intake webhook: queued source=%s chars=%d", payload.source, len(payload.text))
+    return {"ok": True, "queued": True, "source": payload.source}
+
+
 # ── RA-1011: Routine run outcome tracker ─────────────────────────────────────
 
 _ROUTINE_RUNS_DIR_NAME = "routine-runs"
@@ -587,19 +686,13 @@ async def routine_complete_webhook(request: Request):
     """
     RA-1011 — Receive Claude Code Routine completion events.
 
-    Protected by X-Pi-CEO-Secret header == TAO_WEBHOOK_SECRET.
+    Protected by X-Pi-CEO-Secret header == TAO_INTERNAL_WEBHOOK_SECRET (falls back to TAO_WEBHOOK_SECRET).
     Writes one JSONL entry per run to .harness/routine-runs/YYYY-MM-DD.jsonl.
     Creates a Linear ticket when status == 'failure'.
     """
-    import hmac as _hmac
     from datetime import datetime, timezone
 
-    secret_header = request.headers.get("x-pi-ceo-secret", "")
-    if config.WEBHOOK_SECRET:
-        if not secret_header:
-            raise HTTPException(401, "X-Pi-CEO-Secret header required")
-        if not _hmac.compare_digest(secret_header, config.WEBHOOK_SECRET):
-            raise HTTPException(401, "Invalid secret")
+    _require_internal_webhook_secret(request)
 
     raw_body = await request.body()
     try:
@@ -714,17 +807,11 @@ async def workspace_intel_refresh(request: Request):
       }
 
     Stores one JSONL entry per batch to .harness/workspace-intel/YYYY-MM-DD.jsonl (atomic).
-    Protected by X-Pi-CEO-Secret header == TAO_WEBHOOK_SECRET.
+    Protected by X-Pi-CEO-Secret header == TAO_INTERNAL_WEBHOOK_SECRET (falls back to TAO_WEBHOOK_SECRET).
     """
-    import hmac as _hmac
     from datetime import datetime, timezone
 
-    secret_header = request.headers.get("x-pi-ceo-secret", "")
-    if config.WEBHOOK_SECRET:
-        if not secret_header:
-            raise HTTPException(401, "X-Pi-CEO-Secret header required")
-        if not _hmac.compare_digest(secret_header, config.WEBHOOK_SECRET):
-            raise HTTPException(401, "Invalid secret")
+    _require_internal_webhook_secret(request)
 
     raw_body = await request.body()
     try:
@@ -777,17 +864,10 @@ async def get_workspace_intel(
     """
     RA-826 — Return recent workspace intel batches for the weekly brief workflow.
 
-    Protected by X-Pi-CEO-Secret header (same token used by n8n webhooks).
+    Protected by X-Pi-CEO-Secret header (TAO_INTERNAL_WEBHOOK_SECRET).
     Returns up to `limit` most-recent batches sorted newest-first.
     """
-    import hmac as _hmac
-
-    secret_header = request.headers.get("x-pi-ceo-secret", "")
-    if config.WEBHOOK_SECRET:
-        if not secret_header:
-            raise HTTPException(401, "X-Pi-CEO-Secret header required")
-        if not _hmac.compare_digest(secret_header, config.WEBHOOK_SECRET):
-            raise HTTPException(401, "Invalid secret")
+    _require_internal_webhook_secret(request)
 
     intel_dir = Path(config.DATA_DIR).parent.parent / ".harness" / _WORKSPACE_INTEL_DIR_NAME
     entries: list[dict] = []
@@ -866,6 +946,75 @@ _GMAIL_INTAKE_LOG = Path(__file__).resolve().parents[3] / ".harness" / "swarm" /
 _CALENDAR_INTAKE_LOG = Path(__file__).resolve().parents[3] / ".harness" / "swarm" / "calendar_intake.jsonl"
 
 
+def _verify_google_pubsub_oidc(token: str) -> bool:
+    """RA-6899 — verify Google Pub/Sub push OIDC JWT (Authorization: Bearer)."""
+    audience = config.GMAIL_PUBSUB_AUDIENCE
+    if not audience or not token:
+        return False
+    try:
+        import jwt
+        from jwt import PyJWKClient
+
+        jwks_client = PyJWKClient(
+            "https://www.googleapis.com/oauth2/v3/certs",
+            cache_keys=True,
+        )
+        signing_key = jwks_client.get_signing_key_from_jwt(token)
+        jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=audience,
+            issuer=["accounts.google.com", "https://accounts.google.com"],
+        )
+        return True
+    except Exception as exc:
+        log.debug("Gmail Pub/Sub OIDC verify failed: %s", exc)
+        return False
+
+
+def _require_gmail_webhook_auth(request: Request) -> None:
+    """RA-6899 — fail-closed Gmail Pub/Sub intake gate."""
+    import hmac as _hmac
+
+    bearer = request.headers.get("authorization", "")
+    if bearer.lower().startswith("bearer "):
+        token = bearer[7:].strip()
+        if token and _verify_google_pubsub_oidc(token):
+            return
+        if token:
+            raise HTTPException(401, "Invalid Authorization")
+
+    presented = request.headers.get("X-Gmail-Webhook-Secret", "")
+    if not presented:
+        raise HTTPException(401, "X-Gmail-Webhook-Secret or Authorization required")
+    expected = config.GMAIL_WEBHOOK_SECRET
+    if not expected:
+        raise HTTPException(503, "Gmail webhook secret not configured")
+    if not _hmac.compare_digest(presented, expected):
+        raise HTTPException(401, "Invalid Gmail webhook secret")
+
+
+def _require_calendar_webhook_auth(request: Request) -> None:
+    """RA-6899 — fail-closed Calendar push intake gate."""
+    import hmac as _hmac
+
+    presented = (
+        request.headers.get("x-goog-channel-token", "")
+        or request.headers.get("X-Calendar-Webhook-Secret", "")
+    )
+    if not presented:
+        raise HTTPException(
+            401,
+            "X-Goog-Channel-Token or X-Calendar-Webhook-Secret required",
+        )
+    expected = config.CALENDAR_WEBHOOK_SECRET
+    if not expected:
+        raise HTTPException(503, "Calendar webhook secret not configured")
+    if not _hmac.compare_digest(presented, expected):
+        raise HTTPException(401, "Invalid calendar webhook secret")
+
+
 def _append_intake(p: Path, row: dict) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     with p.open("a", encoding="utf-8") as f:
@@ -874,6 +1023,7 @@ def _append_intake(p: Path, row: dict) -> None:
 
 @router.post("/api/webhook/gmail", dependencies=[Depends(require_rate_limit)])
 async def webhook_gmail(request: Request):
+    _require_gmail_webhook_auth(request)
     """RA-1839 — Gmail Pub/Sub push for label `pi-ceo/inbox`.
 
     Pub/Sub envelope shape:
@@ -915,6 +1065,7 @@ async def webhook_gmail(request: Request):
 
 @router.post("/api/webhook/calendar", dependencies=[Depends(require_rate_limit)])
 async def webhook_calendar(request: Request):
+    _require_calendar_webhook_auth(request)
     """RA-1839 — Google Calendar push for events.watch.
 
     Calendar push has no body — the headers carry the channel state:

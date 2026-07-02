@@ -101,7 +101,7 @@ REPO=$(find /sessions -type d -name Pi-Dev-Ops 2>/dev/null | head -1)
 cd "$REPO"
 ```
 
-**DON'T** hardcode local Mac paths (`/Users/phill-mac/...`) in task prompts — they fail on every execution.
+**DON'T** hardcode local Mac paths (`~/...`) in task prompts — they fail on every execution.
 
 ## Health Endpoint Truth
 

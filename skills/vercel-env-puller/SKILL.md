@@ -269,7 +269,7 @@ Initial seed: run `vercel env ls --json --environment=production` for each, clas
 
 - Vercel CLI docs: `vercel env ls --json`, `vercel env pull`
 - Sandcastle env resolution: `~/.cache/sandcastle/EnvResolver.ts` (in node_modules)
-- Approved plan: `/Users/phill-mac/.claude/plans/breezy-wiggling-map.md`
+- Approved plan: `~/.claude/plans/breezy-wiggling-map.md`
 - Companion skill: `sandcastle-runner` (consumer)
 - Existing audit substrate: `swarm/audit_emit.py`
 - Existing CFO bot (Wave 4.1, RA-1850 — DONE): `swarm/cfo.py` + `swarm/bots/cfo.py`

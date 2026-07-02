@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from app.server import config
+from app.server.board_decision_index import build_decision_index, check_mandate_consistency
 
 
 log = logging.getLogger("pi-ceo.agents.board-meeting")
@@ -921,6 +922,7 @@ def run_gap_audit_phase(dry_run: bool = False) -> dict[str, Any]:
     if linear_api_key and not dry_run:
         canonical_map = _fetch_gap_audit_canonical()
         cleanup_label_id = _get_or_create_label("cleanup")
+        decision_index = build_decision_index()
         # Auto-LLM severity calls cap at High (2). Linear priority 1 (Urgent)
         # is reserved for human-reported outages — gap-audit drift is never urgent.
         for sev, priority in (("critical", 2), ("high", 3)):
@@ -958,6 +960,15 @@ def run_gap_audit_phase(dry_run: bool = False) -> dict[str, Any]:
 
                 # No canonical → create new issue
                 title = f"[GAP-AUDIT] {item['category']}: {item['claim'][:80]}"
+                mandate_text = f"{item['claim']} {item['recommendation']}"
+                consistency = check_mandate_consistency(mandate_text, decision_index)
+                if not consistency.allowed:
+                    log.warning(
+                        "GAP-AUDIT blocked by board-consistency gate (%s): %s",
+                        consistency.contradictions[0]["decision_id"],
+                        consistency.reason,
+                    )
+                    continue
                 description = (
                     f"**Gap detected by board meeting gap audit**\n\n"
                     f"**Spec claim:** {item['claim']}\n\n"
@@ -2142,18 +2153,28 @@ def run_status_phase() -> dict[str, Any]:
         if match:
             status["zte_score"] = f"{match.group(1)}/{match.group(2)}"
 
-    # Marathon watchdog health
+    # Marathon watchdog health — ignore files older than 24h (RA-6902).
     watchdog_path = _HARNESS_ROOT / "marathon-watchdog-status.json"
     if watchdog_path.exists():
-        try:
-            w = json.loads(watchdog_path.read_text(encoding="utf-8"))
+        import time as _time
+
+        age_hours = (_time.time() - watchdog_path.stat().st_mtime) / 3600
+        if age_hours > 24:
             status["cron_health"] = {
-                "last_run": w.get("last_run"),
-                "status": w.get("status", "unknown"),
-                "missed_cycles": w.get("missed_cycles", 0),
+                "status": "stale",
+                "age_hours": round(age_hours, 1),
+                "note": "watchdog file older than 24h — not used for board health",
             }
-        except Exception:
-            status["cron_health"] = "parse error"
+        else:
+            try:
+                w = json.loads(watchdog_path.read_text(encoding="utf-8"))
+                status["cron_health"] = {
+                    "last_run": w.get("last_run"),
+                    "status": w.get("status", "unknown"),
+                    "missed_cycles": w.get("missed_cycles", 0),
+                }
+            except Exception:
+                status["cron_health"] = "parse error"
 
     # Open Urgent issues from Linear
     try:

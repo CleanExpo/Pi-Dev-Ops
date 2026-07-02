@@ -1,6 +1,8 @@
 # scripts — Wiki
 
-_Last updated: 2026-05-27T07:04:39Z (commits 9cd2495..4fdb316)_
+_Last updated: 2026-07-02T12:26:48Z (commits 423855a..b1f5801)_
 
 ## Recent changes
-- 4fdb316 — feat(nexus): C3 — historical backfill CLI (#298)
+- b1f5801 — feat(margot): add Hermes Gmail and GDrive MCP setup script (RA-6915) (#478)
+
+

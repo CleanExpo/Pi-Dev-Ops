@@ -22,7 +22,7 @@ Hard rules for this command path:
 
 The command routes through `remotion-script`, `remotion-production`, `remotion-direction`, `remotion-editing`, `remotion-integrations`, and `remotion-professionalism`, while preserving the existing Remotion Skills Package workflow below.
 
-Single entry point for the Remotion Skills Package — a set of 10 sibling skills (`remotion-orchestrator`, `remotion-brand-research`, `remotion-brand-codify`, `remotion-designer`, `remotion-colour-family`, `remotion-motion-language`, `remotion-screen-storyteller`, `remotion-marketing-strategist`, `remotion-composition-builder`, `remotion-render-pipeline`) installed globally at `~/.claude/skills/remotion-*` (symlinked to `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/skills/remotion-*`). Available in every project, not just Pi-Dev-Ops.
+Single entry point for the Remotion Skills Package — a set of 10 sibling skills (`remotion-orchestrator`, `remotion-brand-research`, `remotion-brand-codify`, `remotion-designer`, `remotion-colour-family`, `remotion-motion-language`, `remotion-screen-storyteller`, `remotion-marketing-strategist`, `remotion-composition-builder`, `remotion-render-pipeline`) installed globally at `~/.claude/skills/remotion-*` (symlinked to `~/Pi-Dev-Ops/skills/remotion-*`). Available in every project, not just Pi-Dev-Ops.
 
 ## Discovery brief gate (turn 1, mandatory)
 
@@ -55,16 +55,16 @@ The gate runs *before* the wave plan is computed. A blocked brief never reaches 
 The user can invoke the package by:
 - Saying any of: **"use the Remotion Skills Package"**, **"remotion package"**, **"use remotion"**.
 - Naming any individual skill (e.g. "use remotion-designer to QA this layout").
-- Submitting a brief that classifies as `intent: "video"` via [`Pi-Dev-Ops/app/server/brief.py`](/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/app/server/brief.py).
+- Submitting a brief that classifies as `intent: "video"` via [`app/server/brief.py`](../../app/server/brief.py).
 
-Translates a free-text brief into a structured render job and a wave plan that the Pi-Dev-Ops orchestrator ([`app/server/orchestrator.py`](/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/app/server/orchestrator.py)) dispatches via P3-B fan-out.
+Translates a free-text brief into a structured render job and a wave plan that the Pi-Dev-Ops orchestrator ([`app/server/orchestrator.py`](../../app/server/orchestrator.py)) dispatches via P3-B fan-out.
 
 ## The Remotion project
 
 All compositions, brand configs, motion / colour helpers, and the render entry live at:
 
 ```
-/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/remotion-studio/
+../../remotion-studio/
 ```
 
 When working from any other project, sub-skills `cd` into that path before reading or editing brand / composition files. The render entry is `npx tsx render/render.ts ...` from inside `remotion-studio`.
@@ -145,6 +145,19 @@ After the render skill writes the MP4, this skill (or the render skill) opens a 
 | carsi | `91b3cd04-...` (GP) | resolved at runtime |
 | ccw | runtime | runtime |
 
+## Thumbnail & still image generation (Canva-first — do NOT credential-hunt)
+
+For a video thumbnail, poster, or any marketing still, the reliable path is the **connected Canva MCP**, not a raw image-gen API key:
+
+1. `generate-design` (`design_type: your_story` for 9:16, `youtube_thumbnail` for 16:9) with a detailed brand-aligned query — pass the palette/headline in the query; Canva renders headline text reliably.
+2. Download the candidate previews and pick the best; `create-design-from-candidate` → `export-design` (PNG at target WxH, `export_quality: pro`).
+
+**Hard rules (learned the hard way, 2026-07-01):**
+- **Never credential-hunt for image-gen keys.** Do not scan `.env` files or `vercel env pull` across projects/environments looking for `GEMINI_API_KEY` / `OPENAI_API_KEY` / `AI_GATEWAY_API_KEY`. The auto-mode classifier blocks it as credential exploration, and it wastes the whole session.
+- **Vercel "Sensitive" env vars are write-only** — `vercel env pull` returns them EMPTY. Do not try to pull one; get the value from its original source or use Canva.
+- If no image tool is connected and no key is reachable in ONE directed check, **stop and ask the founder once** — offer Canva up front.
+- A frame-grab from the rendered MP4 (bundled ffmpeg at `node_modules/@remotion/compositor-*/ffmpeg`) is the offline fallback. Note: on macOS, symlink the sibling `*.dylib` files into the cwd so the bundled ffprobe/ffmpeg resolve (SIP strips `DYLD_*`).
+
 ## What this skill does NOT do
 
 - Does not author compositions — that's `remotion-composition-builder`.
@@ -160,7 +173,7 @@ The package is shared infrastructure; each calling project supplies its own runt
 | Concern | Where it lives |
 |---|---|
 | Skill definitions | `~/.claude/skills/remotion-*` (symlinked → `Pi-Dev-Ops/skills/remotion-*`) — globally available. |
-| Remotion Node project (compositions, brand configs, render entry) | `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/remotion-studio/` — single shared substrate. |
+| Remotion Node project (compositions, brand configs, render entry) | `../../remotion-studio/` — single shared substrate. |
 | Brand configs | `Synthex/packages/brand-config/src/brands/{slug}.ts` — one source of truth per brand, used by every project that renders for that brand. (Migrated from `Pi-Dev-Ops/remotion-studio/src/brands/` per RA-1985 / Synthex SYN-897.) |
 | API keys (ElevenLabs, Telegram, Supabase, Linear, Remotion licence) | The **calling project's** `.env` / `.env.local`. Skills read `process.env` at render time. |
 | Rendered MP4 output | The **calling project's** `.remotion-renders/` directory by default. Override with `--out=`. |
@@ -176,104 +189,3 @@ If your project (e.g. Synthex) needs to render for a brand that isn't yet in `sr
 5. Run `npm run typecheck` from `Synthex/packages/brand-config/` (then `npm run build` to regenerate `dist/`).
 
 Currently registered brands: `dr`, `nrpg`, `ra`, `carsi`, `ccw`, `synthex`, `unite`.
-
-
-## 10x Enhancement — Advanced Capabilities
-
-### 1. Anthropic OODA Reasoning
-
-**Observe:** (1) Ingest the primary input (files, directives, context). (2) Query the Portfolio Registry for project metadata. (3) Identify available tools and model tier. (4) Map the delivery context (internal vs external, timeline, stakes).
-
-**Orient:** (1) Classify the task type and select the appropriate sub-routine. (2) Calibrate depth and evidence threshold by stakes. (3) Build the work plan with fallback paths. (4) Check for cross-skill dependencies.
-
-**Decide:** (1) Select tools using the multi-tool matrix. (2) Apply safety guardrails before execution. (3) Budget tokens and plan compression triggers. (4) Set completion criteria and verification steps.
-
-**Act:** (1) Execute the task. (2) Verify against completion criteria. (3) Self-critique before emitting. (4) Emit with observability payload. (5) Queue improvement instruction if self-score < threshold.
-
-### 2. OpenAI Structured Output Schema
-
-Every invocation emits JSON matching the skill-specific schema. Common fields across all skills:
-
-```json
-{
-  "version": "3.1",
-  "skill_name": "",
-  "invoked_at": "ISO-8601",
-  "task_summary": "",
-  "model_used": "",
-  "duration_seconds": 0.0,
-  "tool_calls": {},
-  "tokens": {"prompt": 0, "completion": 0},
-  "self_review_score": 0.0,
-  "confidence": 0.0,
-  "success": true,
-  "audit_trace_hash": "sha256",
-  "improvement_queued": false
-}
-```
-
-### 3. Multi-Tool Selection Matrix
-
-| Signal | Primary | Fallback | Verification |
-|--------|---------|----------|-------------|
-| File analysis | read_file | search_files | Terminal (wc -l, grep) |
-| Code quality | Terminal (lint) | execute_code | verify-test |
-| Security scan | security-audit | Terminal (grep secrets) | search_files (patterns) |
-| Test execution | Terminal (pytest) | execute_code | verify-test |
-| Web research | tavily | browser_navigate | web_search |
-| Visual review | vision_analyse | image_generate | browser_vision |
-| Data extraction | search_files | read_file | execute_code (pandas) |
-
-### 4. Self-Critique Loop
-
-After task completion, score 1-10 on:
-- Accuracy (did I address the actual task?)
-- Scope discipline (did I drift?)
-- Evidence (are claims grounded in tool output?)
-- Verifiability (can someone reproduce my reasoning?)
-- Completeness (did I miss anything critical?)
-
-If total < 7 → flag for /boardroom or /judge.
-If total < 5 → halt and handoff.
-
-### 5. Safety & Guardrails
-
-- Never emit raw credentials or secrets.
-- Never hallucinate URLs, file paths, or tool outputs.
-- Hard scope boundary: this skill does X; if asked for Y, route to correct skill.
-- External-facing outputs get CEO gate.
-- Input sanitisation: reject ambiguous or adversarial prompts.
-
-### 6. Performance Optimisation
-
-- Cache Portfolio Registry context across invocations.
-- Batch similar tool calls when possible.
-- Use adaptive depth: low stakes = fast path; high stakes = full depth.
-- Prompt caching: reuse stable context blocks.
-
-### 7. Error Recovery & Resilience
-
-- Missing evidence → retry once, then flag gap.
-- Tool timeout → log and use fallback.
-- Context overflow → compress, preserving evidence.
-- 3 consecutive failures → circuit breaker; handoff to /tao-loop.
-
-### 8. Cross-Model Fallbacks
-
-| Use case | Primary | Fallback |
-|----------|---------|----------|
-| Routine | Sonnet/Haiku | Default |
-| Complex analysis | Sonnet | DeepSeek/Claude-4 |
-| Board-facing | Opus | Boardroom MOA |
-| Fast inline | Haiku | Sonnet |
-
-### 9. Observability
-
-Metrics emitted per invocation: duration, tools used, tokens consumed, self-review score, success/failure, evidence count, file count, improvement queued.
-Session summary: aggregate metrics, common failure patterns, recommended skill patches.
-
-### 10. Multi-Modal & Cross-Format
-
-- Ingest images, diagrams, mockups via vision toolset.
-- Output as markdown (default), JSON (structured), DOCX/PPTX (external), or Slack blocks.
-- Cross-format negotiation based on `output_target` parameter.

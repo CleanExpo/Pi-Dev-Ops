@@ -13,7 +13,7 @@ Apply these rules whenever writing or editing a scheduled task prompt that runs 
 
 - **Minimise tool-approval surface.** Scheduled tasks run inside the desktop Claude session and do NOT inherit the repo `.claude/settings.json` allowlist. Shrink every scheduled task prompt to a single shell command that calls a standalone Python helper script. This reduces the required tool approvals to Bash alone, which is approvable with one "Run now" click.
 
-- **Never hardcode local Mac paths.** Scheduled tasks execute inside a fresh sandbox with a new session ID on every run. Hardcoded paths (e.g. `/Users/phill-mac/...`) will fail. Always discover the repo dynamically at the top of the task prompt:
+- **Never hardcode local Mac paths.** Scheduled tasks execute inside a fresh sandbox with a new session ID on every run. Hardcoded paths (e.g. `~/...`) will fail. Always discover the repo dynamically at the top of the task prompt:
   ```
   REPO=$(find /sessions -type d -name <repo-name> | head -1) && cd "$REPO"
   ```

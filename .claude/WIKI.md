@@ -1,8 +1,8 @@
 # .claude — Wiki
 
-_Last updated: 2026-06-27T04:43:40Z (commits bd9768d..bf6d861)_
+_Last updated: 2026-07-01T12:33:07Z (commits c4a55a2..8356b4f)_
 
 ## Recent changes
-- bf6d861 — feat(spm): add senior project manager command (#371)
+- 8356b4f — Codex/margot codex build (#439)
 
 

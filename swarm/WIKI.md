@@ -1,8 +1,8 @@
 # swarm — Wiki
 
-_Last updated: 2026-06-30T22:00:08Z (commits d7f4fa5..71662bc)_
+_Last updated: 2026-07-02T13:52:10Z (commits df2a188..89211a9)_
 
 ## Recent changes
-- 71662bc — feat(swarm): compose the autonomous closed-loop spine (UNI-2214) (#398)
+- 89211a9 — feat(swarm): add OpenRouter enforce gate default-off (RA-6470 phase-1) (#482)
 
 

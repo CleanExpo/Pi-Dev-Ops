@@ -1,3 +1,8 @@
+---
+name: pi-dev-linear-contract
+description: Binding Pi-Dev-Ops × Linear contract — Pattern B repo→project routing, autonomy pickup requires status Ready for Pi-Dev plus pi-dev:autonomous label, run_id idempotency on every autonomous run, Pi-Dev workflow statuses, ticket footer format. Use before any Linear read/write by Pi-CEO code paths, autonomy poller work, or launch-crew sync. Triggers on "linear contract", "pi-dev linear", "Ready for Pi-Dev", "pi-dev:autonomous", "run_id", "Pattern B routing".
+---
+
 # Pi-Dev × Linear Contract
 
 **Binding contract — both sides MUST obey or the 2nd-Brain drifts. Source: Phill's 18 Apr 2026 PM spec.**

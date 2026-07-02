@@ -48,7 +48,7 @@ Output lands in `<calling-project>/.marketing/`. Override with explicit `outputD
 ## UTM helper
 
 ```bash
-cd /Users/phill-mac/Pi-CEO/Pi-Dev-Ops/marketing-studio
+cd /Users/phill-mac/Pi-Dev-Ops/marketing-studio
 npx tsx scripts/utm-builder.ts \
   --base=https://synthex.com/launch \
   --brand=synthex \

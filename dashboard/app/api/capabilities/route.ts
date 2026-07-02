@@ -2,6 +2,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
+import { MODELS } from "@/lib/models";
 
 interface Capability {
   name: string;
@@ -137,10 +138,10 @@ export async function GET(): Promise<NextResponse<CapabilitiesResponse>> {
       "manual",
     ],
     supportedModels: [
-      process.env.ORCHESTRATOR_MODEL || "claude-opus-4-7",
-      process.env.ANALYST_MODEL || "claude-sonnet-4-6",
-      process.env.WORKER_MODEL || "claude-haiku-4-5-20251001",
-      process.env.ANALYSIS_MODEL || "claude-sonnet-4-6",
+      process.env.ORCHESTRATOR_MODEL || MODELS.ORCHESTRATOR,
+      process.env.ANALYST_MODEL || MODELS.ANALYST,
+      process.env.WORKER_MODEL || MODELS.WORKER,
+      process.env.ANALYSIS_MODEL || MODELS.DEFAULT,
     ],
     metadata: {
       zteLevel: 3, // Agentic layer satisfied

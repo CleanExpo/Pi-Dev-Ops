@@ -1,0 +1,88 @@
+{
+  "research_required": true,
+  "questions": [
+    "What is Anthropic's current policy on trial credits for API access, and do platform-managed trial credits bypass the requirement for an explicit Anthropic API key in third-party apps?",
+    "Has Anthropic made any recent changes (last 30 days) to API key requirements or credit management that could affect how orchestration platforms handle report generation on behalf of users?",
+    "What is the current status and reliability of the Australian Business Register (ABR) API for ABN lookups, and are there known outages or GUID-related breaking changes affecting third-party integrations?"
+  ],
+  "findings": [
+    {
+      "question": "What is Anthropic's current policy on trial credits for API access, and do platform-managed trial credits bypass the requirement for an explicit Anthropic API key in third-party apps?",
+      "claim": "Anthropic provides a one-time small trial credit (described as 'starter testing credit', no published dollar amount) to new Console accounts requiring SMS phone verification. Platform-managed credits do not bypass the explicit API key requirement — all self-serve API access requires a Claude Console API key; the key is the credential and credits are the funding pool, and these are not substitutable.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://blog.laozhang.ai/en/posts/claude-api-key-free-tier",
+          "title": "Claude API Key Free Tier 2026: What's Actually Free, What Isn't, and When You Need Console Credits",
+          "fetched": "2026-06-29",
+          "excerpt": "Anthropic does not offer platform-managed access without an explicit API key. All self-serve API usage requires creating a Claude API key in Claude Console."
+        },
+        {
+          "url": "https://www.digitalapplied.com/blog/anthropic-claude-credit-overhaul-june-15-2026",
+          "title": "Claude Credit Overhaul 2026: Anthropic Pauses the June 15 Change",
+          "fetched": "2026-06-29",
+          "excerpt": "Agent SDK usage continues drawing from existing Pro, Max, Team, and Enterprise subscription limits exactly as before; no credit to claim, subscription limits unchanged."
+        }
+      ]
+    },
+    {
+      "question": "Has Anthropic made any recent changes (last 30 days) to API key requirements or credit management that could affect how orchestration platforms handle report generation on behalf of users?",
+      "claim": "Anthropic announced a 'programmatic credit pool' in May 2026 that would have separated agentic/Agent SDK usage from subscription chat credits for orchestration platforms, but paused the planned June 15 implementation — no billing or key-requirement change has taken effect. The standing guidance for production orchestration is to use the Claude Platform with an explicit API key under pay-as-you-go; subscription OAuth tokens remain restricted to Claude Code and Claude.ai only (enforced since April 2026).",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://siliconangle.com/2026/05/14/anthropic-announces-programmatic-credit-pool-agentic-tool-use-rises/",
+          "title": "Anthropic announces 'programmatic credit pool' as agentic tool use rises - SiliconANGLE",
+          "fetched": "2026-06-29",
+          "excerpt": "Anthropic introduced a programmatic credit pool for paid tier users; agents connect third-party tools to Claude using dedicated programmatic credits operating independently from chat."
+        },
+        {
+          "url": "https://www.digitalapplied.com/blog/anthropic-claude-credit-overhaul-june-15-2026",
+          "title": "Claude Credit Overhaul 2026: Anthropic Pauses the June 15 Change",
+          "fetched": "2026-06-29",
+          "excerpt": "Anthropic has paused the June 15 Agent SDK billing change — it is not taking effect. Agent SDK and claude -p still draw from subscription as before."
+        },
+        {
+          "url": "https://venturebeat.com/technology/anthropic-reinstates-openclaw-and-third-party-agent-usage-on-claude-subscriptions-with-a-catch",
+          "title": "Anthropic reinstates OpenClaw and third-party agent usage on Claude subscriptions — with a catch | VentureBeat",
+          "fetched": "2026-06-29",
+          "excerpt": "Third-party agents can reconnect through the new programmatic credit pool; subscription OAuth tokens remain restricted to Claude Code and Claude.ai only."
+        }
+      ]
+    },
+    {
+      "question": "What is the current status and reliability of the Australian Business Register (ABR) API for ABN lookups, and are there known outages or GUID-related breaking changes affecting third-party integrations?",
+      "claim": "ABR Web Services are fully operational as of 29 June 2026 with no incidents reported in the past 15 days across all services (ABN System, ABR Web Services, Identifier Search). No GUID-related breaking changes or API deprecations were found in official documentation; the GUID authentication model remains unchanged. Next planned downtime is 24 December 2026 midday AEDT through 4 January 2027.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://status.abr.gov.au/",
+          "title": "Australian Business Register Status",
+          "fetched": "2026-06-29",
+          "excerpt": "All Systems Operational. ABN System, ABR Web Services, and Identifier Search all marked operational; no incidents reported in last 15 days (from June 15, 2026)."
+        },
+        {
+          "url": "https://abr.business.gov.au/Documentation/WebServiceRegistration",
+          "title": "Web services registration | ABN Lookup",
+          "fetched": "2026-06-29",
+          "excerpt": "We will process your application and e-mail you an authentication GUID (Globally Unique Identifier) which is required to access the ABN Lookup web services."
+        },
+        {
+          "url": "https://www.abr.gov.au/general-information/scheduled-site-maintenance",
+          "title": "Scheduled site maintenance | Australian Business Register",
+          "fetched": "2026-06-29",
+          "excerpt": "ABR will close normal operations from midday AEDT Thursday 24 December 2026; business resuming Monday 4 January 2027."
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "Whether Anthropic's paused 'programmatic credit pool' — when eventually implemented — will allow orchestration platforms to supply pooled credits in lieu of a per-user API key for report generation on behalf of users, or whether a per-user key will still be required.",
+    "Whether the ABR authentication GUID has any undocumented expiry, rotation, or renewal requirement that could silently break long-lived third-party integrations (not addressed in any publicly available documentation found).",
+    "The exact dollar amount of Anthropic's current trial credit for new Console accounts — Anthropic does not publish a canonical figure in publicly accessible documentation."
+  ],
+  "completed_at": "2026-06-29T05:02:50.961728+00:00",
+  "cost_seconds": 131.0,
+  "failure_reason": null,
+  "mode": "fast"
+}

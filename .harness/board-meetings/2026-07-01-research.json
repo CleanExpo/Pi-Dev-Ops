@@ -1,0 +1,95 @@
+{
+  "research_required": true,
+  "questions": [
+    "What is Anthropic's current policy on platform-managed trial credits for API access, and does it allow third-party platforms to proxy Anthropic API calls without end-user keys?",
+    "Have there been any recent changes to ABR (Australian Business Register) API authentication or GUID requirements in 2026 that could explain production lookup failures?",
+    "What are the current Stripe subscription gate best practices for SaaS onboarding flows, particularly around trial-to-paid conversion verification?",
+    "Has Anthropic shipped any model or API changes in the last 30 days that affect orchestrator compatibility or Claude Code SDK behaviour?"
+  ],
+  "findings": [
+    {
+      "question": "What is Anthropic's current policy on platform-managed trial credits for API access, and does it allow third-party platforms to proxy Anthropic API calls without end-user keys?",
+      "claim": "Anthropic's API requires an API key (or Workload Identity Federation token) per organisation — no public platform-managed trial-credits scheme exists in the documented API. A May 2026 proposal to move Agent SDK / claude -p / third-party usage to separate monthly credits was paused before its June 15 implementation date; all subscription-linked surfaces (including third-party tools via ACP) continue drawing from Pro/Max pools unchanged. No explicit permission or prohibition on proxying API calls without end-user keys appears in public documentation.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://platform.claude.com/docs/en/api/getting-started",
+          "title": "Claude API Getting Started — Anthropic Platform Docs",
+          "fetched": "2026-07-01",
+          "excerpt": "To use the Claude API you'll need: a Claude Console account; an API key, or a configured Workload Identity Federation rule. All requests must include x-api-key or Authorization."
+        },
+        {
+          "url": "https://www.digitalapplied.com/blog/anthropic-claude-credit-overhaul-june-15-2026",
+          "title": "Claude Credit Overhaul 2026: Anthropic Pauses the June 15 Change",
+          "fetched": "2026-07-01",
+          "excerpt": "Anthropic has paused the June 15 Agent SDK billing change — it is not taking effect. Nothing changes: those surfaces continue drawing from subscription limits exactly as before."
+        }
+      ]
+    },
+    {
+      "question": "Have there been any recent changes to ABR (Australian Business Register) API authentication or GUID requirements in 2026 that could explain production lookup failures?",
+      "claim": "No documented GUID rotation, revocation, or authentication-format changes were found for 2026. However, the ABR live status dashboard (checked 2026-07-01) shows 'ABR Web Services — Degraded Performance' and 'Identifier Search — Degraded Performance' with no formal incidents logged since June 17 — degraded infrastructure performance is the most likely documented cause of current production lookup failures, not an authentication change.",
+      "confidence": "medium",
+      "sources": [
+        {
+          "url": "https://status.abr.gov.au/",
+          "title": "Australian Business Register Status",
+          "fetched": "2026-07-01",
+          "excerpt": "ABR Web Services: Degraded Performance. Identifier Search: Degraded Performance. No incidents reported Jun 17–Jul 1 2026."
+        },
+        {
+          "url": "https://abr.business.gov.au/Documentation/WebServiceRegistration",
+          "title": "Web Services Registration | ABN Lookup — Business.gov.au",
+          "fetched": "2026-07-01",
+          "excerpt": "Registrants receive an authentication GUID (Globally Unique Identifier) which is required to access the ABN Lookup web services."
+        }
+      ]
+    },
+    {
+      "question": "What are the current Stripe subscription gate best practices for SaaS onboarding flows, particularly around trial-to-paid conversion verification?",
+      "claim": "Stripe's canonical gate pattern is webhook-driven: listen for checkout.session.completed to begin provisioning, invoice.paid to renew access each billing cycle, and invoice.payment_failed to restrict access immediately. Use Stripe Entitlements (linked to checkout.session.completed) to mark the precise trial-to-paid conversion moment; store subscription.id and customer.id in your database as the gate source of truth rather than re-querying Stripe on each request.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://docs.stripe.com/get-started/use-cases/saas-subscriptions",
+          "title": "Sell subscriptions as a SaaS startup | Stripe Documentation",
+          "fetched": "2026-07-01",
+          "excerpt": "Listen to checkout.session.completed, invoice.paid, invoice.payment_failed. Use entitlements to provision the subscription — this marks the explicit moment trial access converts to paid."
+        },
+        {
+          "url": "https://docs.stripe.com/saas",
+          "title": "Integrate a SaaS business on Stripe | Stripe Documentation",
+          "fetched": "2026-07-01",
+          "excerpt": "Store customer.id and subscription.id from webhook events in your database for verification purposes before granting feature access."
+        }
+      ]
+    },
+    {
+      "question": "Has Anthropic shipped any model or API changes in the last 30 days that affect orchestrator compatibility or Claude Code SDK behaviour?",
+      "claim": "Multiple breaking-adjacent changes shipped in June–July 2026: SDK v2.1.197 makes Claude Sonnet 5 the default model (1M context window, promotional pricing through Aug 31); v2.1.187 fixes structured output reliability (StructuredOutput can no longer be re-called indefinitely after a successful call) and introduces a 5-minute idle abort for remote MCP tool calls that previously blocked forever (overridable via CLAUDE_CODE_MCP_TOOL_IDLE_TIMEOUT); org-level model restrictions now gate --model/ANTHROPIC_MODEL; v2.1.196 fixes background job data loss and adds auto-resume after server restart.",
+      "confidence": "high",
+      "sources": [
+        {
+          "url": "https://releasebot.io/updates/anthropic/claude-code",
+          "title": "Claude Code Updates by Anthropic — July 2026 — Releasebot",
+          "fetched": "2026-07-01",
+          "excerpt": "v2.1.197: Sonnet 5 default, 1M context, promo to Aug 31. v2.1.187: structured output reliability fix, MCP 5-min idle timeout → abort, org model restrictions. v2.1.196: background job auto-resume."
+        },
+        {
+          "url": "https://docs.anthropic.com/en/release-notes/api",
+          "title": "Claude Platform Release Notes — Anthropic",
+          "fetched": "2026-07-01",
+          "excerpt": "June 2026: Claude Sonnet 4 and Opus 4 retired June 15; billing refusals that produce no output no longer charged; 90-second per-cell code-execution limit disclosed."
+        }
+      ]
+    }
+  ],
+  "open_questions": [
+    "Anthropic does not publicly document whether it permits third-party SaaS platforms to proxy API calls on behalf of end users without requiring per-user API keys — this requires direct confirmation from Anthropic's sales or legal team via the Console usage-policy page or enterprise agreement review.",
+    "No evidence was found of specific ABR GUID rotation, revocation, or format changes in 2026 that would break previously working GUIDs — only platform-level degraded performance that appears transient and undocumented in the incident log."
+  ],
+  "completed_at": "2026-07-01T05:03:18.707284+00:00",
+  "cost_seconds": 162.2,
+  "failure_reason": null,
+  "mode": "fast"
+}
