@@ -31,7 +31,9 @@ MARGOT_DIR="${HOME}/.margot"
 OAUTH_KEYS="${MARGOT_DIR}/gcp-oauth.keys.json"
 GDRIVE_CREDENTIALS="${MARGOT_DIR}/.gdrive-server-credentials.json"
 GMAIL_TOKEN_CACHE="${MARGOT_DIR}/.gmail-mcp-token.json"
-HERMES_CONFIG="${HOME}/.hermes/config.yaml"
+HERMES_CONFIG="${HERMES_CONFIG:-${HOME}/.hermes/profiles/empire/config.yaml}"
+# Fallback if empire profile missing (dev installs)
+[ -f "$HERMES_CONFIG" ] || HERMES_CONFIG="${HOME}/.hermes/config.yaml"
 HERMES_GATEWAY_LABEL="ai.hermes.gateway"
 
 NODE_VERSION="${SETUP_MARGOT_NODE_VERSION:-v24.14.1}"
