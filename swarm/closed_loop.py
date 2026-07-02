@@ -44,9 +44,11 @@ Kill-switch: the orchestrator drain self-gates on ``config.SWARM_ENABLED`` and
 from __future__ import annotations
 
 import asyncio
+import fcntl
 import importlib.util
 import json
 import logging
+import os
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -504,10 +506,19 @@ def enqueue_trigger(trigger_text: str, *,
     """
     rr = _repo_root(repo_root)
     path = _cycles_dir(rr) / TRIGGERS_FILE
-    with path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(
-            {"trigger": trigger_text, "chat_id": chat_id, "queued_at": _now_iso()},
-            ensure_ascii=False) + "\n")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    row = json.dumps(
+        {"trigger": trigger_text, "chat_id": chat_id, "queued_at": _now_iso()},
+        ensure_ascii=False,
+    ) + "\n"
+    with path.open("a+", encoding="utf-8") as f:
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+        try:
+            f.seek(0, os.SEEK_END)
+            f.write(row)
+            f.flush()
+        finally:
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
 
 def run_pending_triggers(*, repo_root: Path | None = None,
@@ -523,16 +534,22 @@ def run_pending_triggers(*, repo_root: Path | None = None,
     path = rr / CYCLES_DIR_REL / TRIGGERS_FILE
     if not path.exists():
         return []
-    lines = [ln for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
-    if not lines:
-        return []
 
-    take, rest = lines[:max(1, limit)], lines[max(1, limit):]
-    # Re-queue the remainder atomically before processing (crash-safe: a crash
-    # mid-cycle drops at most the in-flight trigger, never the whole backlog).
-    tmp = path.with_suffix(".jsonl.tmp")
-    tmp.write_text("\n".join(rest) + ("\n" if rest else ""), encoding="utf-8")
-    tmp.replace(path)
+    with path.open("r+", encoding="utf-8") as f:
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+        try:
+            lines = [ln for ln in f.read().splitlines() if ln.strip()]
+            if not lines:
+                return []
+
+            take, rest = lines[:max(1, limit)], lines[max(1, limit):]
+            f.seek(0)
+            f.truncate()
+            if rest:
+                f.write("\n".join(rest) + "\n")
+            f.flush()
+        finally:
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
     results: list[CycleResult] = []
     for line in take:
