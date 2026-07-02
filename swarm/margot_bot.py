@@ -60,6 +60,7 @@ class MargotTurn:
     """One turn in the conversation."""
     turn_id: str = field(default_factory=lambda: f"mt-{uuid.uuid4().hex[:10]}")
     chat_id: str = ""
+    tenant_id: str = "pi-ceo"
     user_text: str = ""
     margot_text: str = ""
     user_message_id: str | None = None
@@ -98,7 +99,7 @@ def _supabase_payload(turn: MargotTurn) -> dict[str, Any]:
     return {
         "turn_id": turn.turn_id,
         "chat_id": turn.chat_id,
-        "tenant_id": "pi-ceo",
+        "tenant_id": turn.tenant_id or "pi-ceo",
         "user_text": turn.user_text,
         "margot_text": turn.margot_text,
         "user_message_id": turn.user_message_id,
@@ -530,6 +531,26 @@ Your behaviour
    seamless, elevate. Direct prose only.
 """
 
+_TENANT_SCOPE_LOCKS: dict[str, str] = {
+    "unite-group": (
+        "You operate ONLY for Unite-Group portfolio context (founder operations, "
+        "CRM, command centre, cross-business priorities). Do not answer as "
+        "RestoreAssist, CARSI, or other portfolio products unless the user "
+        "explicitly asks for a comparison. Never invent client data."
+    ),
+    "restoreassist": (
+        "You operate ONLY for RestoreAssist (Australian water-damage restoration "
+        "platform). Use RestoreAssist features, workflows, and help content only. "
+        "Do not discuss Unite-Group internal ops, CARSI courses, or unrelated "
+        "portfolio businesses."
+    ),
+    "carsi": (
+        "You operate ONLY for CARSI (carsi.com.au) published courses, LMS flows, "
+        "and IICRC learning context. Do not discuss RestoreAssist restoration "
+        "workflows or Unite-Group internal operations."
+    ),
+}
+
 
 def _trim_dict_for_prompt(d: dict[str, Any] | None,
                             *, max_chars: int = 600) -> str:
@@ -549,7 +570,8 @@ def _format_wiki_for_prompt(wiki: dict[str, str] | None) -> str:
 
 def build_prompt(*, user_text: str, history: list[MargotTurn],
                   context: dict[str, Any],
-                  extra_context: str = "") -> str:
+                  extra_context: str = "",
+                  tenant_id: str = "pi-ceo") -> str:
     """Build the full prompt sent to the LLM."""
     history_block = ""
     if history:
@@ -578,8 +600,18 @@ def build_prompt(*, user_text: str, history: list[MargotTurn],
             f"{extra_context.strip()}\n\n"
         )
 
+    scope_block = ""
+    scope_lock = _TENANT_SCOPE_LOCKS.get(tenant_id)
+    if scope_lock:
+        scope_block = (
+            "Project scope (mandatory)\n"
+            "======================\n"
+            f"{scope_lock}\n\n"
+        )
+
     prompt = (
         f"{_MARGOT_SYSTEM_PROMPT}\n\n"
+        f"{scope_block}"
         f"{ctx_block}\n"
         f"{extra_block}"
         f"Conversation so far\n"
@@ -1223,6 +1255,7 @@ def _audit(type_: str, **fields: Any) -> None:
 async def handle_turn(*, chat_id: str, user_text: str,
                        message_id: str | None = None,
                        repo_root: Path | None = None,
+                       tenant_id: str = "pi-ceo",
                        _send: bool = True) -> MargotTurn:
     """Handle one Margot turn end-to-end.
 
@@ -1240,6 +1273,7 @@ async def handle_turn(*, chat_id: str, user_text: str,
     turn = MargotTurn(
         chat_id=str(chat_id), user_text=user_text,
         user_message_id=message_id, started_at=started_at,
+        tenant_id=tenant_id or "pi-ceo",
     )
 
     history = load_history(str(chat_id), repo_root=rr)
@@ -1266,7 +1300,8 @@ async def handle_turn(*, chat_id: str, user_text: str,
         extra_context = "\n".join(lines).strip()
 
     prompt = build_prompt(user_text=user_text, history=history,
-                           context=context, extra_context=extra_context)
+                           context=context, extra_context=extra_context,
+                           tenant_id=turn.tenant_id)
 
     direct_sentinel = any(
         marker in user_text

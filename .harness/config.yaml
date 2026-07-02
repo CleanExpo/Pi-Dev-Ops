@@ -91,3 +91,14 @@ staleness:
   max_age_days: 2
   watchdog_enabled: true
   watchdog_fires: "Medium Linear ticket if .harness/ docs are >48h stale"
+
+# OM-1 — 15-20 move lookahead planner (app.server.tao_planner + tao_loop).
+# Enable with TAO_OM1_ENABLED=1 (default 15-step horizon) or explicit
+# TAO_PLANNER_HORIZON=1..20. Wired into run_tdd, spec_pipeline, CLIs.
+om1_planner:
+  env_enable: TAO_OM1_ENABLED
+  env_horizon: TAO_PLANNER_HORIZON
+  env_max_replans: TAO_PLANNER_MAX_REPLANS
+  default_horizon: 15
+  max_horizon: 20
+  status_path: /api/autonomy/status → planner

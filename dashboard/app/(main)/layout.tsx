@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import CeoHealthPanel from "@/components/CeoHealthPanel";
+import MargotBubble from "@/components/margot/MargotBubble";
 import { useEffect, useState } from "react";
 
 const NAV = [
@@ -193,6 +194,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       ══════════════════════════════════════════════════════════════ */}
       <div className="flex-1 flex flex-col min-w-0 sm:mt-0 mt-[52px] pb-16 sm:pb-0">
         {children}
+        <MargotBubble />
       </div>
 
       {/* ══════════════════════════════════════════════════════════════
