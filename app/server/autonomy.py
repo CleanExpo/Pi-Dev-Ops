@@ -1168,6 +1168,8 @@ def _calc_effective_autonomy(events: list[dict]) -> dict:
 def autonomy_status() -> dict:
     """Return poller heartbeat + recent events for the status endpoint."""
     from . import config
+    from .machine_ship_readiness import machine_ship_readiness
+
     now = time.time()
     age = round(now - _last_poll_at) if _last_poll_at else None
     return {
@@ -1181,5 +1183,6 @@ def autonomy_status() -> dict:
         "poller_iteration_errors": _poller_iteration_errors,
         "last_iteration_error": _last_iteration_error,
         "effective_autonomy": _calc_effective_autonomy(_recent_events),  # RA-626
+        "machine_ship": machine_ship_readiness(),  # RA-6885
         "recent_events": _recent_events,
     }
