@@ -96,6 +96,33 @@ async def _check_pi_ceo_railway() -> dict[str, Any]:
 
 async def _check_margot_route() -> dict[str, Any]:
     try:
+        # Supabase is the durable source of truth (RA-1905); JSONL is hot cache.
+        try:
+            from app.server import supabase_log  # noqa: PLC0415
+            rows = supabase_log._select(  # type: ignore[attr-defined]
+                "margot_conversations",
+                "order=started_at.desc&limit=1&select=started_at",
+            )
+            if rows:
+                started = rows[0].get("started_at")
+                if started:
+                    try:
+                        mtime = datetime.datetime.fromisoformat(
+                            str(started).replace("Z", "+00:00"),
+                        ).timestamp()
+                    except ValueError:
+                        mtime = time.time()
+                    age_h = (time.time() - mtime) / 3600
+                    return {
+                        "ok": age_h < 24,
+                        "observed": True,
+                        "status": "live" if age_h < 24 else "stale",
+                        "last_turn_at": _iso(mtime),
+                        "source": "supabase",
+                    }
+        except Exception as exc:  # noqa: BLE001
+            log.debug("margot_route supabase probe failed: %s", exc)
+
         pattern = str(_HARNESS / "margot" / "conversations" / "*.jsonl")
         files = glob.glob(pattern)
         if not files:
@@ -103,7 +130,7 @@ async def _check_margot_route() -> dict[str, Any]:
         newest = max(files, key=lambda p: os.path.getmtime(p))
         mtime = os.path.getmtime(newest)
         age_h = (time.time() - mtime) / 3600
-        return {"ok": age_h < 24, "observed": True, "status": "live" if age_h < 24 else "stale", "last_turn_at": _iso(mtime)}
+        return {"ok": age_h < 24, "observed": True, "status": "live" if age_h < 24 else "stale", "last_turn_at": _iso(mtime), "source": "jsonl"}
     except Exception as exc:
         return {"ok": False, "error": str(exc)[:120]}
 

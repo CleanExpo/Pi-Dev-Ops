@@ -548,7 +548,8 @@ def _format_wiki_for_prompt(wiki: dict[str, str] | None) -> str:
 
 
 def build_prompt(*, user_text: str, history: list[MargotTurn],
-                  context: dict[str, Any]) -> str:
+                  context: dict[str, Any],
+                  extra_context: str = "") -> str:
     """Build the full prompt sent to the LLM."""
     history_block = ""
     if history:
@@ -571,9 +572,16 @@ def build_prompt(*, user_text: str, history: list[MargotTurn],
         f"CCW first-client state:\n{_trim_dict_for_prompt(context.get('ccw'))}\n"
     )
 
+    extra_block = ""
+    if extra_context.strip():
+        extra_block = (
+            f"{extra_context.strip()}\n\n"
+        )
+
     prompt = (
         f"{_MARGOT_SYSTEM_PROMPT}\n\n"
         f"{ctx_block}\n"
+        f"{extra_block}"
         f"Conversation so far\n"
         f"===================\n"
         f"{history_block.strip() or '(this is the first turn)'}\n\n"
@@ -589,8 +597,11 @@ def build_prompt(*, user_text: str, history: list[MargotTurn],
 # ── Phase-2 research execution ──────────────────────────────────────────────
 
 
-async def _run_research_batch(requests: list["ResearchRequest"]
-                                ) -> list[dict[str, Any]]:
+async def _run_research_batch(
+    requests: list["ResearchRequest"],
+    *,
+    chat_id: str,
+) -> list[dict[str, Any]]:
     """Fire deep_research for each [RESEARCH] sentinel in parallel.
 
     Returns a list of {topic, depth, status, summary, error} dicts in the
@@ -602,6 +613,7 @@ async def _run_research_batch(requests: list["ResearchRequest"]
 
     try:
         margot_tools = importlib.import_module("swarm.margot_tools")
+        from .margot_inflight import margot_chat_session_id  # noqa: PLC0415
     except Exception as exc:  # noqa: BLE001
         log.warning("margot: margot_tools import failed (%s)", exc)
         return [
@@ -609,6 +621,8 @@ async def _run_research_batch(requests: list["ResearchRequest"]
              "error": f"margot_tools_unavailable: {exc}"}
             for r in requests
         ]
+
+    session_id = margot_chat_session_id(chat_id)
 
     def _fire(r: "ResearchRequest") -> dict[str, Any]:
         """Sync call wrapped for asyncio.to_thread."""
@@ -624,6 +638,7 @@ async def _run_research_batch(requests: list["ResearchRequest"]
                 # safe in dev environments.
                 out = margot_tools.deep_research_max(
                     topic=r.topic, use_corpus=True,
+                    originating_session_id=session_id,
                 )
                 if out.get("error"):
                     return {"topic": r.topic, "depth": "deep",
@@ -1175,48 +1190,20 @@ def _maybe_compose_voice(*, text: str, turn_id: str,
 def _send_telegram(*, chat_id: str, text: str,
                     reply_to_message_id: str | None = None,
                     audio_path: Path | None = None) -> bool:
-    """Direct send to Telegram. Uses the existing telegram_alerts helper
-    when available; falls back to log-only in test environments.
-
-    When audio_path is provided, the caller's intent is voice + text. The
-    underlying telegram_alerts.send signature may or may not support audio
-    attachments — this wrapper passes the path as a kwarg and lets the
-    sender decide. If the sender doesn't support audio, the text still
-    sends (audio is best-effort).
-    """
+    """Direct send to Telegram via Bot API (per-chat, optional voice)."""
     try:
-        from . import telegram_alerts  # noqa: PLC0415
+        from .margot_telegram import send_margot_reply  # noqa: PLC0415
     except Exception as exc:  # noqa: BLE001
-        log.warning("margot: telegram_alerts unavailable (%s) — log only", exc)
+        log.warning("margot: margot_telegram unavailable (%s) — log only", exc)
         log.info("margot reply (chat=%s, audio=%s): %s",
                  chat_id, audio_path is not None, text[:500])
         return False
-    try:
-        sender = getattr(telegram_alerts, "send", None)
-        if not callable(sender):
-            log.info("margot reply (chat=%s, no send fn): %s",
-                     chat_id, text[:500])
-            return False
-        kwargs: dict[str, Any] = {
-            "severity": "info", "bot_name": "Margot",
-            "chat_id": chat_id,
-        }
-        if audio_path is not None:
-            kwargs["audio_path"] = str(audio_path)
-        sender(text, **kwargs)
-        return True
-    except TypeError:
-        # Fallback: sender doesn't accept audio_path / chat_id → call
-        # without the optional kwargs.
-        try:
-            sender(text, severity="info", bot_name="Margot")
-            return True
-        except Exception as exc:  # noqa: BLE001
-            log.warning("margot: telegram send fallback failed (%s)", exc)
-            return False
-    except Exception as exc:  # noqa: BLE001
-        log.warning("margot: telegram send failed (%s)", exc)
-        return False
+    return send_margot_reply(
+        chat_id=chat_id,
+        text=text,
+        reply_to_message_id=reply_to_message_id,
+        audio_path=audio_path,
+    )
 
 
 # ── Audit ───────────────────────────────────────────────────────────────────
@@ -1257,8 +1244,29 @@ async def handle_turn(*, chat_id: str, user_text: str,
 
     history = load_history(str(chat_id), repo_root=rr)
     context = build_context(repo_root=rr)
+
+    try:
+        from .margot_inflight import harvest_completed_for_chat  # noqa: PLC0415
+        harvested = harvest_completed_for_chat(str(chat_id))
+    except Exception as exc:  # noqa: BLE001
+        log.debug("margot: inflight harvest skipped (%s)", exc)
+        harvested = []
+
+    extra_context = ""
+    if harvested:
+        turn.research_called = True
+        lines = [
+            "Completed async deep research (deliver prominently to Phill now):",
+            "",
+        ]
+        for i, finding in enumerate(harvested, start=1):
+            lines.append(f"--- Async finding {i}: {finding.get('topic', '?')} ---")
+            lines.append(str(finding.get("summary") or "").strip())
+            lines.append("")
+        extra_context = "\n".join(lines).strip()
+
     prompt = build_prompt(user_text=user_text, history=history,
-                           context=context)
+                           context=context, extra_context=extra_context)
 
     direct_sentinel = any(
         marker in user_text
@@ -1336,7 +1344,8 @@ async def handle_turn(*, chat_id: str, user_text: str,
             # Fire research + truth-check + realtime in parallel
             import asyncio as _aio  # noqa: PLC0415
             external_findings, truth_findings, realtime_findings = await _aio.gather(
-                _run_research_batch(research_requests) if research_requests
+                _run_research_batch(research_requests, chat_id=str(chat_id))
+                if research_requests
                 else _aio.sleep(0, result=[]),
                 _run_truth_check_batch(truth_requests) if truth_requests
                 else _aio.sleep(0, result=[]),
@@ -1468,6 +1477,9 @@ async def handle_turn(*, chat_id: str, user_text: str,
             reply_to_message_id=message_id,
             audio_path=audio_path,
         )
+
+    if audio_path is not None:
+        turn.voice_audio_path = str(audio_path)
 
     append_turn(turn, repo_root=rr)
     _audit("margot_turn_complete",
