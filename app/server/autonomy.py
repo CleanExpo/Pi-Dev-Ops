@@ -622,6 +622,27 @@ def _should_skip_no_code(issue: dict) -> tuple[bool, str | None]:
     return False, None
 
 
+_TERMINAL_SESSION_STATUSES = frozenset({
+    "complete", "done", "failed", "error", "killed", "interrupted", "blocked",
+})
+
+
+def _live_session_ids(sessions: dict) -> set[str]:
+    """Session IDs that are still actively running (not terminal).
+
+    Interrupted sessions restored from disk must not block orphan recovery —
+    otherwise tickets like RA-1691 stay stuck In Progress forever after a
+    failed evaluator pass.
+    """
+    out: set[str] = set()
+    for sid, sess in sessions.items():
+        status = (getattr(sess, "status", None) or "").lower()
+        if status in _TERMINAL_SESSION_STATUSES:
+            continue
+        out.add(sid[:12])
+    return out
+
+
 def _is_pi_ceo_orphan(issue: dict, live_session_ids: set[str]) -> bool:
     """True iff the issue was claimed by Pi-CEO but its session is gone.
 
@@ -663,7 +684,7 @@ async def _orphan_recovery(api_key: str) -> None:
     up again by the next poll without human review.
     """
     from .sessions import _sessions  # late import to avoid circular
-    live_ids = {s[:12] for s in _sessions.keys()}
+    live_ids = _live_session_ids(_sessions)
 
     projects = _load_portfolio_projects()
     reverted = 0
