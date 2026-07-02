@@ -35,8 +35,27 @@ def _load_env_file(path: Path) -> None:
         cur = os.environ.get(k, "<unset>")
         if cur == "<unset>" or cur == "" or cur.startswith("op://"):
             os.environ[k] = v
+
+
+def _load_app_env_file(path: Path) -> None:
+    """Load app/.env.local — local dev SSOT; overrides inherited shell env."""
+    if not path.is_file():
+        return
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, _, v = line.partition("=")
+        k = k.strip()
+        v = v.strip().strip('"').strip("'")
+        if v.startswith("op://"):
+            continue
+        os.environ[k] = v
+
+
 _load_env_file(_root / ".env")
 _load_env_file(_root / ".env.local")
+_load_app_env_file(_root / "app" / ".env.local")
 
 # ---------------------------------------------------------------------------
 # 1Password op:// ref guard (hardwired lesson, RA-1169+)

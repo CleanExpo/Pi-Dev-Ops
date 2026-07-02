@@ -17,7 +17,7 @@ if str(_ROOT) not in sys.path:
 
 
 def _load_app_env_local() -> None:
-    """Load app/.env.local when unset values only (mirrors server bootstrap)."""
+    """Load app/.env.local — always wins over inherited shell env (local dev SSOT)."""
     path = _ROOT / "app" / ".env.local"
     if not path.is_file():
         return
@@ -28,9 +28,9 @@ def _load_app_env_local() -> None:
         key, _, value = line.partition("=")
         key = key.strip()
         value = value.strip().strip('"').strip("'")
-        cur = os.environ.get(key, "<unset>")
-        if cur == "<unset>" or cur == "" or cur.startswith("op://"):
-            os.environ[key] = value
+        if value.startswith("op://"):
+            continue
+        os.environ[key] = value
 
 
 def _autonomy_enabled() -> bool:
