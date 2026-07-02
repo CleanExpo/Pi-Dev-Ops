@@ -125,6 +125,6 @@ Flow files are checked into git. Convention: include a `version: N` field in the
 ## References
 
 - Engine spec: `Pi-Dev-Ops/skills/dispatcher-core/SKILL.md`
-- Topology: `/Users/phill-mac/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`
+- Topology: `~/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`
 - Existing cron scheduler: `Pi-Dev-Ops/app/server/cron_scheduler.py`
 - Existing webhook router: `Pi-Dev-Ops/app/server/routes/webhooks.py`

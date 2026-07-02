@@ -94,4 +94,4 @@ If `/panic` fires more than 5 times in 1 hour, escalate to Telegram with `severi
 - Hermes-Swarm Recommendation §5 — 15 mandatory safety controls, kill-switch row
 - Existing kill-switch: `swarm/orchestrator.py` `_check_kill_switch()` + `swarm/config.py` `SWARM_ENABLED`
 - Existing operator chat: `swarm/config.py` `TELEGRAM_CHAT_ID`
-- Topology: `/Users/phill-mac/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`
+- Topology: `~/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`

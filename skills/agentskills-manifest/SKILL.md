@@ -123,6 +123,6 @@ These flags are best-effort. Manual override file: `.harness/agentskills_overrid
 ## References
 
 - Closes Hermes RA-1838 SWARM-009 + answers original brief open question #5
-- Hermes Path C verdict: `/Users/phill-mac/Pi-CEO/Hermes-Swarm-Recommendation-2026-04-14.md` v0.12.0 Re-evaluation appendix
-- Topology: `/Users/phill-mac/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`
+- Hermes Path C verdict: `~/Pi-CEO/Hermes-Swarm-Recommendation-2026-04-14.md` v0.12.0 Re-evaluation appendix
+- Topology: `~/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`
 - agentskills.io v1 schema (offline-vendored): `Pi-Dev-Ops/.harness/agentskills_v1.schema.json` (to be added with the Wave 3 implementation)

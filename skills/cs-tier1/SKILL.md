@@ -121,7 +121,7 @@ Per-business (worst NPS first):
 
 ## References
 
-- Blueprint: `/Users/phill-mac/Pi-CEO/Senior-Agent-Operations-Blueprint-2026-05-02.md` §Role 17 Customer Success
+- Blueprint: `~/Pi-CEO/Senior-Agent-Operations-Blueprint-2026-05-02.md` §Role 17 Customer Success
 - Parent ticket: <issue id="RA-1862">RA-1862</issue> (epic <issue id="RA-1858">RA-1858</issue>)
 - Outbound substrate: `skills/telegram-draft-for-review/SKILL.md` (Scribe gate)
 - HITL gate substrate: `swarm/draft_review.py`

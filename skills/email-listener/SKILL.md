@@ -89,7 +89,7 @@ Pi-CEO already creates sessions on Linear and GitHub webhook events (`app/server
 
 ## References
 
-- Topology: `/Users/phill-mac/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`
+- Topology: `~/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`
 - Existing webhook router: `Pi-Dev-Ops/app/server/routes/webhooks.py`
 - Composio substrate memory: `~/.claude/projects/-Users-phill-mac-Pi-CEO/memory/project_composio_substrate.md`
 - Gmail push notifications: https://developers.google.com/gmail/api/guides/push

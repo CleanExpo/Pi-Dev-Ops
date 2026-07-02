@@ -22,7 +22,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` under `
   "mcpServers": {
     "margot": {
       "command": "python3",
-      "args": ["/Users/phill-mac/.margot/margot-deep-research/server.py"],
+      "args": ["~/.margot/margot-deep-research/server.py"],
       "env": {
         "MARGOT_FILE_SEARCH_STORE": ""
       }
@@ -36,7 +36,7 @@ Restart Claude Desktop. Margot's tools appear as `mcp__margot__deep_research`, e
 ### For Claude Code (CLI)
 
 ```sh
-claude mcp add margot python3 /Users/phill-mac/.margot/margot-deep-research/server.py
+claude mcp add margot python3 ~/.margot/margot-deep-research/server.py
 ```
 
 ### For Pi-CEO orchestrator (server-side)
@@ -107,5 +107,5 @@ From Pi-CEO repo:
 ## References
 
 - Margot source: `~/.margot/margot-deep-research/server.py` (read-only)
-- Topology doc: `/Users/phill-mac/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`
-- Plan: `/Users/phill-mac/.claude/plans/breezy-wiggling-map.md`
+- Topology doc: `~/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`
+- Plan: `~/.claude/plans/breezy-wiggling-map.md`

@@ -147,7 +147,7 @@ Per-repo:
 
 ## References
 
-- Blueprint: `/Users/phill-mac/Pi-CEO/Senior-Agent-Operations-Blueprint-2026-05-02.md` §Role 3 CTO
+- Blueprint: `~/Pi-CEO/Senior-Agent-Operations-Blueprint-2026-05-02.md` §Role 3 CTO
 - Parent ticket: <issue id="RA-1861">RA-1861</issue> (epic <issue id="RA-1858">RA-1858</issue>)
 - DORA benchmarks: Google State of DevOps Report 2024
 - HITL gate substrate: `swarm/draft_review.py`

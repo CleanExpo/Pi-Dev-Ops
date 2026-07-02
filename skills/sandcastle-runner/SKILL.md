@@ -212,8 +212,8 @@ This skill ships the contract + the subprocess + the audit. The plumbing on eith
 ## References
 
 - Sandcastle source: https://github.com/mattpocock/sandcastle (MIT, 0.5.7, HEAD May 1 2026)
-- Approved plan: `/Users/phill-mac/.claude/plans/breezy-wiggling-map.md`
-- Senior-Agent blueprint: `/Users/phill-mac/Pi-CEO/Senior-Agent-Operations-Blueprint-2026-05-02.md`
+- Approved plan: `~/.claude/plans/breezy-wiggling-map.md`
+- Senior-Agent blueprint: `~/Pi-CEO/Senior-Agent-Operations-Blueprint-2026-05-02.md`
 - Existing kill-switch substrate: `swarm/kill_switch.py`
 - Existing audit substrate: `swarm/audit_emit.py`
 - Existing session lifecycle: `app/server/sessions.py` + `app/server/session_phases.py`
