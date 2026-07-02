@@ -70,11 +70,16 @@ Score out of 100:
 | Testability | 10 |
 | Cost/control simplicity | 5 |
 
-Decision rules:
+Decision rules (HARD LINE — 100/100 is the only build bar):
 
-- 0–69 = REJECT
-- 70–84 = REDUCE SCOPE or APPROVE EXPERIMENT
-- 85–100 = APPROVE BUILD
+- **APPROVE BUILD requires a real 100/100** — every mandatory criterion in the Convergence
+  section satisfied, no exceptions. There is no 85 pass. 85–99 is not "good enough"; it is a
+  list of gaps to close.
+- 0–99 = **NOT APPROVED.** Do not build. Iterate per Convergence (close every gap, re-score)
+  until a real 100 is earned, or — if 100 is honestly unreachable at this scope — halt and
+  report the honest ceiling with the exact blocker (never approve below 100, never inflate).
+- Intermediate labels REJECT (0–69) / REDUCE SCOPE / APPROVE EXPERIMENT (70–99) describe the
+  *iteration state* only; none of them authorise a production build. Only a real 100 does.
 
 ## Convergence — do not stop until a REAL 100/100
 
