@@ -166,6 +166,7 @@ venv/
 .harness/swarm/green_merge_counter.json
 .harness/swarm/pr_rate_limit.json
 .harness/swarm/telegram_drafts.json
+.harness/swarm/voice/desk-loop/
 .harness/cron-triggers.json
 .harness/notebooklm-freshness.json
 .harness/zte-reality-status.json
