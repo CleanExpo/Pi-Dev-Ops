@@ -1,6 +1,8 @@
 # mcp — Wiki
 
-_Last updated: 2026-05-10T06:28:26Z (commits a51168b..8ff4e8c)_
+_Last updated: 2026-07-02T04:45:56Z (commits 67e4a07..ed0edff)_
 
 ## Recent changes
-- 8ff4e8c — fix(swarm): expand Builder repo map to all 10 businesses + Obsidian filesystem fallback
+- ed0edff — fix(margot): P0 go-live — inflight harvest, voice bridge, Telegram send, health (#460)
+
+

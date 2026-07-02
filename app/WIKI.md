@@ -1,8 +1,8 @@
 # app — Wiki
 
-_Last updated: 2026-07-02T02:25:23Z (commits 6b4c701..c7effc0)_
+_Last updated: 2026-07-02T04:45:56Z (commits 67e4a07..ed0edff)_
 
 ## Recent changes
-- c7effc0 — fix(cron): wire plan_discovery handler + orphan recovery for interrupted sessions (RA-6893) (#454)
+- ed0edff — fix(margot): P0 go-live — inflight harvest, voice bridge, Telegram send, health (#460)
 
 
