@@ -161,6 +161,7 @@ def test_voice_route_missing_secret_returns_401(monkeypatch):
     """
     from app.server import config
     monkeypatch.setattr(config, "WEBHOOK_SECRET", "test-secret")
+    monkeypatch.setattr(config, "INTERNAL_WEBHOOK_SECRET", "test-secret")
     from fastapi.testclient import TestClient
     from app.server.routes.margot import router
 
@@ -180,6 +181,7 @@ def test_voice_route_wrong_secret_returns_401(monkeypatch):
     """Wrong X-Pi-CEO-Secret → 401."""
     from app.server import config
     monkeypatch.setattr(config, "WEBHOOK_SECRET", "test-secret")
+    monkeypatch.setattr(config, "INTERNAL_WEBHOOK_SECRET", "test-secret")
     from fastapi.testclient import TestClient
     from app.server.routes.margot import router
 
