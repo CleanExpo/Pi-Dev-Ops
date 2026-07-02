@@ -31,7 +31,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782951571.0
+    "last_fired_at": 1782972001.582837
   },
   {
     "id": "scan-high-1200",
@@ -160,7 +160,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744588800,
-    "last_fired_at": 1782968444.729922,
+    "last_fired_at": 1782968475.0,
     "note": "Daily board sync \u2014 reviews in-flight PRs, evaluator scores, flagged risks"
   },
   {
@@ -352,7 +352,7 @@
     "minute": 30,
     "enabled": true,
     "created_at": 1781568000,
-    "last_fired_at": 1782951828.0,
+    "last_fired_at": 1782970214.0,
     "note": "Runs external AI capability scout, writes Obsidian/2nd-brain artifacts, validates CRM intake. CRM posting remains opt-in via UNITE_CRM_CAPABILITY_POST=1."
   }
 ]
