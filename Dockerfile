@@ -56,6 +56,9 @@ ENV TAO_HOST=0.0.0.0
 ENV TAO_PORT=8080
 ENV PYTHONPATH=/pi-ceo
 ENV MARGOT_SERVER_PATH=/pi-ceo/vendor/margot-deep-research/server.py
+# OM-1: 15-move lookahead planner (override per-deploy via Railway env).
+ENV TAO_OM1_ENABLED=1
+ENV TAO_PLANNER_MAX_REPLANS=2
 
 EXPOSE 8080
 

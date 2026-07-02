@@ -45,6 +45,12 @@ def main(argv: list[str] | None = None) -> int:
                         help="Judge call cadence (every N iters)")
     parser.add_argument("--timeout-per-iter", type=int, default=600)
     parser.add_argument("--session-id", default="cli-tdd")
+    parser.add_argument(
+        "--planner-horizon",
+        type=int,
+        default=None,
+        help="Lookahead steps (1-20). Omit to use TAO_PLANNER_HORIZON / OM-1 default.",
+    )
     args = parser.parse_args(argv)
 
     if not args.workspace.is_dir():
@@ -60,6 +66,7 @@ def main(argv: list[str] | None = None) -> int:
         on_event=_stderr_event,
         session_id=args.session_id,
         judge_every_n_iters=args.judge_every,
+        planner_horizon=args.planner_horizon,
     ))
 
     out_payload = {

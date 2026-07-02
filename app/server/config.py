@@ -300,7 +300,19 @@ TAO_TOOL_GATE: bool = os.environ.get("TAO_TOOL_GATE", "0") == "1"
 # to 1-20, run_tdd builds an up-front plan via the Opus planner and executes it
 # one step per iteration (kill-switch cadence unchanged), re-planning on a stall
 # or an exhausted horizon. Founder-gated activation like TAO_TOOL_GATE.
-TAO_PLANNER_HORIZON: int = int(os.environ.get("TAO_PLANNER_HORIZON", "0"))
+#
+# OM-1: set TAO_OM1_ENABLED=1 to turn on the 15-move default horizon when
+# TAO_PLANNER_HORIZON is unset/0. Explicit TAO_PLANNER_HORIZON (1-20) always wins.
+def _clamp_planner_horizon(raw: str | None) -> int:
+    try:
+        value = int((raw or "0").strip())
+    except ValueError:
+        return 0
+    return max(0, min(value, 20))
+
+
+TAO_PLANNER_HORIZON: int = _clamp_planner_horizon(os.environ.get("TAO_PLANNER_HORIZON"))
+TAO_OM1_ENABLED: bool = os.environ.get("TAO_OM1_ENABLED", "0") == "1"
 # Hard cap on Opus re-plans within a single loop. Once hit, the loop stops
 # re-planning and degrades to reactive execution on the overall goal. Bounds
 # Opus spend (RA-1099) independently of the max_cost_usd ceiling; 0 disables
