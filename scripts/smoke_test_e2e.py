@@ -109,10 +109,13 @@ class Session:
         path: str,
         body: Any = None,
         timeout: float = 15.0,
+        extra_headers: dict[str, str] | None = None,
     ) -> tuple[int, str]:
         url = self.base_url + path
         data = None
         headers = {"User-Agent": "pi-ceo-smoke-e2e/1.0"}
+        if extra_headers:
+            headers.update(extra_headers)
         if body is not None:
             data = json.dumps(body).encode()
             headers["Content-Type"] = "application/json"
@@ -201,6 +204,7 @@ def run_horizontal(session: Session, password: str, surfaces: list[dict]) -> Tes
             s["path"],
             body=s.get("body"),
             timeout=30.0,
+            extra_headers=s.get("headers"),
         )
         dt_ms = int((time.perf_counter() - t0) * 1000)
         expected = s.get("expected_status", 200)
