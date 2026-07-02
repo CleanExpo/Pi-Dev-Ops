@@ -30,6 +30,7 @@ log = logging.getLogger("linear_evidence_audit")
 
 LINEAR_API_URL = "https://api.linear.app/graphql"
 AUDIT_MARKER = "[evidence-audit]"
+STALE_MARKER = "[stale-active]"
 SUSPECT_LABEL = "unverified-complete"
 EXEMPT_LABEL = "no-code-change"
 DEFAULT_PROJECT_IDS = [
@@ -87,6 +88,49 @@ def recently_completed(api_key: str, project_ids: list[str], since: dt.datetime)
     return nodes
 
 
+def stale_active(api_key: str, project_ids: list[str], days: int) -> list[dict]:
+    """Started-state issues untouched for ≥ days — zombie In Progress/In Review."""
+    query = """
+    query($filter: IssueFilter!, $after: String) {
+      issues(filter: $filter, first: 100, after: $after) {
+        nodes {
+          id identifier title updatedAt
+          state { type }
+          comments { nodes { body createdAt } }
+        }
+        pageInfo { hasNextPage endCursor }
+      }
+    }"""
+    cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)
+    flt = {
+        "project": {"id": {"in": project_ids}},
+        "state": {"type": {"eq": "started"}},
+        "updatedAt": {"lt": cutoff.isoformat()},
+    }
+    nodes, after = [], None
+    while True:
+        data = gql(api_key, query, {"filter": flt, "after": after})["issues"]
+        nodes += data["nodes"]
+        if not data["pageInfo"]["hasNextPage"]:
+            break
+        after = data["pageInfo"]["endCursor"]
+    # deliberately-parked founder-gated tickets are not zombies — don't re-ping them
+    return [n for n in nodes if "AWAITING" not in n["title"].upper()]
+
+
+def flag_stale(api_key: str, issue: dict, days: int) -> None:
+    comment = (
+        f"{STALE_MARKER} This issue has sat in an active state for {days}+ days with no "
+        f"updates (last touch {issue['updatedAt'][:10]}). Active columns must reflect live "
+        f"work: post a status update, move it back to Todo/Backlog, or close it with "
+        f"evidence. Flagged by the daily audit."
+    )
+    gql(api_key, """
+      mutation($input: CommentCreateInput!) {
+        commentCreate(input: $input) { success }
+      }""", {"input": {"issueId": issue["id"], "body": comment}})
+
+
 def has_merge_evidence(issue: dict) -> bool:
     return any("github.com" in (a["url"] or "") for a in issue["attachments"]["nodes"])
 
@@ -138,6 +182,8 @@ def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     ap = argparse.ArgumentParser()
     ap.add_argument("--hours", type=int, default=26)
+    ap.add_argument("--stale-days", type=int, default=14,
+                    help="flag started-state issues untouched this many days (0 disables)")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--project-ids", default=",".join(DEFAULT_PROJECT_IDS))
     args = ap.parse_args()
@@ -155,11 +201,14 @@ def main() -> int:
     ]
     log.info("completed in window: %d | new unevidenced: %d", len(issues), len(suspects))
 
-    if not suspects:
-        return 0
+    stale = stale_active(api_key, args.project_ids.split(","), args.stale_days) if args.stale_days else []
+    log.info("stale-active (%dd untouched): %d", args.stale_days, len(stale))
+
     if args.dry_run:
         for i in suspects:
             log.info("DRY-RUN would flag %s — %s", i["identifier"], i["title"][:70])
+        for i in stale:
+            log.info("DRY-RUN would stale-flag %s (%s) — %s", i["identifier"], i["updatedAt"][:10], i["title"][:70])
         return 0
 
     label_cache: dict[str, str] = {}
@@ -169,6 +218,9 @@ def main() -> int:
             label_cache[team_id] = ensure_label(api_key, team_id, SUSPECT_LABEL)
         flag(api_key, i, label_cache[team_id])
         log.info("flagged %s — %s", i["identifier"], i["title"][:70])
+    for i in stale:
+        flag_stale(api_key, i, args.stale_days)
+        log.info("stale-flagged %s — %s", i["identifier"], i["title"][:70])
     return 0
 
 
