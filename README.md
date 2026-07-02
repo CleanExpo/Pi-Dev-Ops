@@ -32,7 +32,7 @@ The backend is decomposed into focused modules (≤300L each):
 
 ### Dashboard (Next.js)
 
-Frontend (`dashboard/`) deployed to Vercel at `https://dashboard-unite-group.vercel.app`. Runs analysis phases against GitHub repos using Claude. Supports dual-mode execution: CLI (Claude Max, zero cost) or SDK (Anthropic API key). Built with Next.js 16, React 19, Tailwind, and Octokit.
+Frontend (`dashboard/`) deployed to Vercel at `https://pi-dev-ops.vercel.app`. Runs analysis phases against GitHub repos using Claude. Supports dual-mode execution: CLI (Claude Max, zero cost) or SDK (Anthropic API key). Built with Next.js 16, React 19, Tailwind, and Octokit.
 
 ### MCP Server
 
@@ -98,7 +98,7 @@ docker run -p 7777:7777 -e TAO_PASSWORD=your-password pi-ceo
 
 | Service | URL |
 |---------|-----|
-| Dashboard | https://dashboard-unite-group.vercel.app |
+| Dashboard | https://pi-dev-ops.vercel.app |
 | Backend API | https://pi-dev-ops-production.up.railway.app |
 | Health | https://pi-dev-ops-production.up.railway.app/health |
 
