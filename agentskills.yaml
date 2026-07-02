@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.12.0
-  generated_at: "2026-07-01T10:22:44.643769+00:00"
+  version: 1.13.0
+  generated_at: "2026-07-02T04:03:44.693698+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: afk-agent
@@ -208,7 +208,7 @@ skills:
     owner_role: Orchestrator
     status: active
     path: skills/boardroom/SKILL.md
-    sha256: a61d7b7674adf2343fb3190a4526195c19f434f3bbd3c4ec73cc458563b3657e
+    sha256: 245320f3fd5e4fc1dad9164f307b77ee473293fb4e2732c65aa305163db55948
     dependencies:
       tools: []
       skills: []
@@ -902,6 +902,21 @@ skills:
       pii_handling: redacts
     inferred: true
     low_confidence: true
+  - id: margot-routing
+    description: Linear routing checklist for Margot — place broad ideas in the parent project first, then copy to vertical projects only where scope belongs. Use when Margot creates tickets, triages founder ideas, or spans portfolio repos.
+    owner_role: Margot
+    status: active
+    path: skills/margot-routing/SKILL.md
+    sha256: 736eb14439880eb99e3c2d98544afe0ab36735224c3650dcc69a925f1c138e51
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
   - id: margot-sandcastle-bridge
     description: "After a Margot Deep Research finding completes, classify \"action-shaped vs informational\" via existing intent_router, draft a Linear ticket body, route through draft_review HITL gate. On \ud83d\udc4d, create the Linear issue with `sandcastle:high-isolation` + `pi-dev:autonomous` labels. The existing autonomy.py poller picks it up and the sandcastle-runner skill executes the work in an isolated container. Closes Wave 5 #4 (RA-1856 epic). This is what makes Margot autonomous."
     owner_role: Margot (research) → Chief of Staff (HITL) → Builder (execution)
@@ -1079,6 +1094,21 @@ skills:
     safety:
       requires_kill_switch: false
       requires_hitl_gate: true
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: nexus
+    description: "Use when dispatching any task to a sub-Fable Claude model (Opus/Sonnet/Haiku subagent, SDK call, or another CLI) that should run at Fable-5-grade discipline \u2014 wrap the task in the Nexus Prompt. Also use when a skill or agent asks for \"the Nexus Prompt\", \"nexus wrapper\", or a model-calibrated task preamble."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/nexus/SKILL.md
+    sha256: 543456c68abf54f603ff5848ae78512dd5ca10a44d5a8a6d0654f9788c22e39c
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
       pii_handling: pass-through
     inferred: true
     low_confidence: true
@@ -1619,11 +1649,11 @@ skills:
     inferred: true
     low_confidence: true
   - id: skill-authoring-standard
-    description: Design or review any skill to the Library standard — frontmatter, structure, steering, and pruning.
+    description: Use when creating, editing, reviewing, or generating any skill — a SKILL.md, skill frontmatter, or a skill-foundation packet. Load BEFORE writing the skill so the four gates and frontmatter schema apply from the first line.
     owner_role: (unset)
     status: (unset)
     path: skills/skill-authoring-standard/SKILL.md
-    sha256: ad683d94cabbfdeb1301f8aaf3a8e6419fb2482ee94590f6b13cbdf46a5bf08b
+    sha256: a04c0bf0f6a309a7f79f0c17188f9548c9d75655e589f3b5630bcc3c0881e954
     dependencies:
       tools: []
       skills: []
