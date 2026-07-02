@@ -11,8 +11,12 @@ const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET ?? "";
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const incoming = req.headers.get("x-pi-ceo-secret") ?? "";
 
-  // Always require the secret — if env is unset we can't verify, so reject all.
-  if (!WEBHOOK_SECRET || !incoming) {
+  // RA-6904: unconfigured deploy → 503 (matches Railway fail-closed), not 401.
+  if (!WEBHOOK_SECRET) {
+    return NextResponse.json({ error: "Webhook secret not configured" }, { status: 503 });
+  }
+
+  if (!incoming) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

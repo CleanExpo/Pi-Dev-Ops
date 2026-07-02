@@ -37,7 +37,17 @@ def _founder_id() -> str | None:
     import os  # noqa: PLC0415
 
     raw = (os.environ.get("TAO_FOUNDER_USER_ID") or os.environ.get("FOUNDER_USER_ID") or "").strip()
-    return raw or None
+    if raw:
+        return raw
+    try:
+        from app.server.supabase_log import _select  # noqa: PLC0415
+
+        rows = _select("settings", "select=value&key=eq.founder_user_id&limit=1")
+        if rows and rows[0].get("value"):
+            return str(rows[0]["value"]).strip() or None
+    except Exception as exc:  # noqa: BLE001
+        log.debug("marketing_bridge: settings founder_user_id lookup failed: %s", exc)
+    return None
 
 
 @dataclass
