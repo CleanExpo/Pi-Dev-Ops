@@ -1,8 +1,8 @@
 # scripts — Wiki
 
-_Last updated: 2026-07-02T11:58:04Z (commits ce17863..f5cc577)_
+_Last updated: 2026-07-02T12:26:48Z (commits 423855a..b1f5801)_
 
 ## Recent changes
-- f5cc577 — feat(margot): desk voice text mode + Pi-CEO fallback (RA-1696) (#477)
+- b1f5801 — feat(margot): add Hermes Gmail and GDrive MCP setup script (RA-6915) (#478)
 
 
