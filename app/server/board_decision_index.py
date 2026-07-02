@@ -110,7 +110,6 @@ def build_decision_index(meetings_dir: Path | None = None) -> list[BoardDecision
 
 
 def _mandate_contradicts_decision(mandate: str, decision: BoardDecision) -> str | None:
-    mandate_lower = mandate.lower()
     if not _NEGATION_RE.search(mandate):
         return None
 
