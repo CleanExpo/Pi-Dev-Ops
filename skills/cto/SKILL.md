@@ -152,3 +152,101 @@ Per-repo:
 - DORA benchmarks: Google State of DevOps Report 2024
 - HITL gate substrate: `swarm/draft_review.py`
 - Multi-agent debate scaffold: `swarm/debate_runner.py` (RA-1867)
+
+
+## 10x Enhancement — Advanced Capabilities
+
+### 1. Anthropic OODA Reasoning
+
+**Observe:** (1) Ingest the technical requirement or architecture question. (2) Query the Org Technical Landscape: ADRs, architecture registry, infrastructural-visual-mapping. (3) Gather current stack, dependency graph, and technical debt register. (4) Identify affected systems and integration points.
+
+**Orient:** (1) Classify the decision type (build vs buy, stack migration, API design, infra scaling, security hardening). (2) Apply the 5 priority questions: What? Why? How? When? Where? (3) Map against the Master Plan phase and Pi-CEO roadmap. (4) Check for dependencies on other skill outputs (e.g., /spm spec, /judge review).
+
+**Decide:** (1) Apply finite-compare-process (build vs buy: cost, time, maintainability, vendor lock-in). (2) Craft a rebuild-roadmap with milestones. (3) Identify monitoring-indicators for the new system. (4) Resolve known dependencies (NPM, API versions, env vars).
+
+**Act:** (1) Emit the full technical assessment/blueprint. (2) Attach the rationale and trade-off analysis. (3) If a pre-existing Immutable Technical Decision exists → deliver the path to transition or work-around. (4) Create a follow-up tracking item.
+
+### 2. OpenAI Structured Output Schema
+
+Every CTO output includes:
+
+```json
+{
+  "version": "3.1",
+  "assessment_type": "build_vs_buy | stack_migration | api_design | infra_scaling | security_hardening | technical_debt | architecture_review",
+  "affected_systems": [],
+  "dependencies": {"npm": [], "apis": [], "env_vars": []},
+  "priority_answers": {"what": "", "why": "", "how": "", "when": "", "where": ""},
+  "finite_compare": {
+    "options": [{"option": "", "cost": "", "time": "", "maintainability": "", "vendor_lock_in": "", "recommended": false}],
+    "decision_rationale": ""
+  },
+  "rebuild_roadmap": [{"milestone": "", "target_date": "", "deliverables": [], "owner": ""}],
+  "monitoring_indicators": [{"indicator": "", "threshold": "", "alert_action": ""}],
+  "draft_builds_needed": true,
+  "transition_path": {"pre_existing_decision": "", "transition_or_workaround": ""},
+  "master_plan_alignment": {"phase": "", "pi_ceo_roadmap_fit": true},
+  "audit_trace": {"pi_metrics": {}, "date": "", "verification_hash": ""},
+  "follow_up_tracking": "",
+  "confidence": 0.0
+}
+```
+
+### 3. Multi-Tool Selection Matrix
+
+| CTO question | Analysis approach | Skills/tools |
+|-------------|-----------------|--------------|
+| "Should we build or buy X?" | Finite compare process | cto + ceo-mode (budget) |
+| "Migrate to new stack?" | Rebuild roadmap + monitoring | cto + spm (spec) + storm (audit) |
+| "API contract for Y?" | Interface engineering + OpenAPI | cto + spm (section 7) |
+| "Scale infra for Z?" | Load analysis + cost modelling | cto + Terminal (metrics) |
+| "Security gap?" | Threat model + hardening plan | cto + security-audit |
+| "Review this architecture?" | Finite compare + rebuild roadmap | cto + storm + judge |
+
+### 4. Self-Critique Loop
+
+After emitting:
+- Did I apply finite-compare for all major decisions? (yes/no)
+- Are monitoring indicators practical and measurable? (check)
+- Did I check pre-existing Immutable Technical Decisions? (verify ADR registry)
+- Is the rebuild roadmap realistic with milestones < 2 weeks? (validate)
+- Does the Master Plan alignment check pass? (yes/no)
+- Score: completeness (0.2), rigor (0.2), realism (0.2), alignment (0.2), monitoring (0.1), follow-up (0.1). Total < 8 → escalate to /boardroom.
+
+### 5. Safety & Guardrails
+
+- Never recommend a stack change without finite-compare evidence.
+- Never bypass pre-existing Immutable Technical Decisions; always provide transition or work-around.
+- Hard stop on: short-sighted architecture, unmeasured "it's faster", missing dependency checks.
+- Output flagged as external-facing if it affects client-facing systems.
+
+### 6. Performance Optimisation
+
+- Cache Org Technical Landscape once per session.
+- Pre-populate ADR registry context.
+- Batch finite-compare when multiple build-vs-buy questions arise.
+
+### 7. Error Recovery
+
+- Missing ADR registry → note "no historical decisions; risk of duplication."
+- Conflicting ADRs → flag and require /boardroom resolution.
+- Missing dependency info → schedule discovery task to cto-loop.
+
+### 8. Cross-Model Fallbacks
+
+| Complexity | Primary | Fallback |
+|------------|---------|----------|
+| Routine architecture Q | Sonnet | Default |
+| System redesign | Opus | DeepSeek Reasoner |
+| Board-level infra proposal | Opus | Boardroom MOA |
+| Multi-system integration | Sonnet + parallel | Opus |
+
+### 9. Observability
+
+Emit: assessment type, affected systems count, dependencies resolved, finite-compare options, roadmap milestones, monitoring indicators, pre-existing decisions referenced, confidence score.
+
+### 10. Multi-Modal & Cross-Format
+
+- Ingest architecture diagrams as images (vision) for assessment.
+- Output as markdown, Mermaid diagrams (for architecture), or PPTX (for stakeholder presentations).
+- Ingest API screenshots for interface contract review.

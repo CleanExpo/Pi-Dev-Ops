@@ -55,3 +55,99 @@ UX / technical / security / verification / loop+stress testing / acceptance crit
 command / implementation sequence / session-handoff seed / final recommendation).
 
 End with: `SPM spec complete. Next safe action: <one sentence>.`
+
+
+## 10x Enhancement — Advanced Capabilities
+
+### 1. Anthropic OODA Reasoning
+
+**Observe:** (1) Ingest the rough request. (2) Classify the project type (RA-* = RestoreAssist; UNI-* = Group-level). (3) Identify stakeholders: Raquel (Tech Lead), Luis (Team Lead), Phill (Product Owner / CEO), Margot (Group Assistant). (4) Gather Portfolio Registry context: project metadata, current priorities, dependencies.
+
+**Orient:** (1) Calibrate the spec complexity level (1-5 based on request size). (2) Select mandatory spec sections. (3) Build the pragmatic-path plan. (4) Weight risk by delivery context.
+
+**Decide:** (1) Draft each spec section. (2) Apply Post-Generation Crystalization Pass. (3) Run self-review. (4) Lock the spec.
+
+**Act:** (1) Emit the spec.md to the designated output path. (2) Create the observability audit trace. (3) Append the Post-Approval Fit Check requirements. (4) If self-review < 8/10, flag for /judge review.
+
+### 2. OpenAI Structured Output Schema
+
+Every spec.md includes a frontmatter block matching this JSON schema:
+
+```json
+{
+  "version": "3.1",
+  "spec_id": "PRJ-NNN",
+  "complexity_level": 1,
+  "project_type": "RA-NNN | UNI-NNN",
+  "owner_tech": "Raquel",
+  "owner_team": "Luis",
+  "owner_product": "Phill",
+  "stakeholders": ["Raquel", "Luis", "Phill", "Margot"],
+  "sections_populated": [1,2,3,4,5,7,9,...,19],
+  "non_compliances": [],
+  "pragmatic_path_prnthical_rank": 2,
+  "self_review_score": {"accuracy": 0, "depth": 0, "pragmatism": 0, "stakeholder_alignment": 0, "completeness": 0, "total": 0},
+  "policies_mandates_registered": 8,
+  "decision_pathway_hash": "sha256",
+  "observability_audit_trace": "DEPLOY-SCOPE-DATA-NAV",
+  "security_gate_passed": true
+}
+```
+
+### 3. Multi-Tool Selection Matrix
+
+| Request signal | Path | Tools |
+|---------------|------|-------|
+| "I have an idea" | Full spec (sections 1-19) | spm then judge |
+| "Quick PR scope" | Sections 1, 7, 9, 14 only | spm |
+| "Fix this bug" | Sections 1, 5, 9, 14, 16 | spm then storm |
+| "Design a feature" | Sections 1-4, 7-9, 14-16 | spm then design-consultation (if available) then storm |
+| "Refactor this" | Sections 1, 3, 5, 9, 13, 16 | spm then maintenance-manager |
+
+### 4. Self-Critique Loop
+
+After generating the spec:
+- Did I include the pragmatic path with downsides and fallback? (if not, add)
+- Did I register all 8 Pi-Dev-Ops Policies and Mandates? (if not, add missing)
+- Did I miss non-compliance entries? (if yes, add placeholders)
+- Are the risk registers acceptably mild? (score severities)
+- Does the spec answer "what won't this do?" (section 12)
+- Self-score 1-10 per dimension; total < 8 → /judge review.
+
+### 5. Safety & Guardrails
+
+- No spec without: Owner, Contact, Deadline, Engineering lead.
+- NSNNTP: every "no" must have a consequence note.
+- Hard boundary: spm generates specs; it does not implement. If asked to code, route to tao-loop.
+- CEO gate: every output must be final-production-quality in tone, formatting, and accuracy.
+
+### 6. Performance Optimisation
+
+- Section templates: keep a template per project type (RA-* vs UNI-*) in memory to speed drafting.
+- Batching: when multiple specs are needed, batch the stakeholder lookup and Portfolio Registry reads.
+- Adaptive depth: Level 1 specs (<2 pages) skip sections 8-11. Level 5 specs (enterprise) expand sections 4, 10, 11 with diagrams.
+
+### 7. Error Recovery
+
+- Missing Portfolio Registry entry → generate with generic stakeholder defaults and flag for manual correction.
+- Unclear request → auto-invoke /judge for clarity check before drafting.
+- Context overflow for large specs → split into Phase 1, Phase 2 with linkages.
+
+### 8. Cross-Model Fallbacks
+
+| Model tier | Use when |
+|-----------|----------|
+| Default | Level 1-2 specs (<200 lines of final output) |
+| Sonnet | Level 3-4 specs (detailed constraints, multiple stakeholders) |
+| Opus | Level 5 specs (enterprise, security-critical, board-facing) |
+| MOA | When spec disagrees with review from storm/judge |
+
+### 9. Observability
+
+Emit: spec sections count, complexity level, pragmatic path risk level, policies registered, self-review total, observability hash, duration, tokens used.
+
+### 10. Multi-Modal Awareness
+
+- Ingest architecture diagrams as image inputs for section 10 (Architecture).
+- Ingest API screenshots for section 7 (Interface Contract).
+- Output spec as markdown (.md), Word (.docx via pandoc if available), or PPTX (for board review).
