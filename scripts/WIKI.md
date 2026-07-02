@@ -1,8 +1,8 @@
 # scripts — Wiki
 
-_Last updated: 2026-07-02T05:35:29Z (commits ca1bf5a..f10cd8d)_
+_Last updated: 2026-07-02T05:46:26Z (commits 741f981..881a044)_
 
 ## Recent changes
-- f10cd8d — feat(om1): enable 15-move lookahead planner (#462)
+- 881a044 — fix(security): close Nexus audit gaps RA-6899–6903 (#464)
 
 
