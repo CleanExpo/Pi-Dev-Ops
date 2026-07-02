@@ -43,7 +43,7 @@ the full spec. Still `No spec. No build.` — it produces the micro-spec, not th
 2. Inspect current project state (read-only: `git branch`/`status`/`log`/`diff`, README, CLAUDE.md, AGENTS.md, `.judge/`, `.session-handoff/`, `.resume-from-handoff/`, `.spm/`, `skills/`, `scripts/`, `tests/`, `.harness/`, relevant `app/`/`dashboard/`/`mcp/`/`src/`).
 3. Review existing capabilities (do not rebuild what exists).
 4. Apply 15+ year specialist perspectives (see `.spm/agent-board.md`): Product Manager, Software Architect, UX/UI Reviewer, Security Reviewer, QA/Test Lead, Devil's Advocate / Judge. Use subagents where helpful.
-5. Apply judge-style pushback (score out of 100; REJECT / REDUCE SCOPE / APPROVE EXPERIMENT / APPROVE BUILD; below 85 → recommend a smaller experiment).
+5. Apply judge-style pushback (score out of 100; REJECT / REDUCE SCOPE / APPROVE EXPERIMENT / APPROVE BUILD). **Hard line: APPROVE BUILD requires a real 100/100 — every mandatory criterion satisfied. Below 100 is never a build authorisation; iterate to a real 100 or report the honest ceiling.**
 6. Define scope, risks, UX, security, testing, and acceptance criteria.
 7. Produce a high-quality SPM Spec (see `.spm/spec-template.md`).
 8. Generate the exact `/goal` command to implement the spec (see `.spm/goal-template.md`).

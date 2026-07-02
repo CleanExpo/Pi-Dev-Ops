@@ -113,8 +113,8 @@ Decision: REJECT, REDUCE SCOPE, APPROVE EXPERIMENT, APPROVE BUILD.
 Thresholds:
 
 - 0–69 = REJECT
-- 70–84 = REDUCE SCOPE or APPROVE EXPERIMENT
-- 85–100 = APPROVE BUILD
+- 70–99 = REDUCE SCOPE or APPROVE EXPERIMENT — NOT a build authorisation
+- 100 (all mandatory criteria pass) = APPROVE BUILD. There is no 85 pass; iterate to a real 100.
 
 ## 9. Proposed solution
 
