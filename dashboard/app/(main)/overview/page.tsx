@@ -242,7 +242,7 @@ export default function OverviewPage() {
         <Link
           href="/control"
           className="text-xs font-medium px-3 py-1.5 rounded-md transition-colors"
-          style={{ background: "var(--accent)", color: "#fff" }}
+          style={{ background: "var(--accent)", color: "var(--on-accent)" }}
         >
           Run Analysis ▶
         </Link>

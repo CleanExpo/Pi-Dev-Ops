@@ -421,7 +421,7 @@ function ProjectDrillDown({
                       className="text-[10px] font-mono px-2 py-1 rounded disabled:opacity-50"
                       style={{
                         background: "var(--accent)",
-                        color: "#fff",
+                        color: "var(--on-accent)",
                       }}
                     >
                       {fixing === f.title ? "Spawning…" : "▶ Fix with Claude"}
@@ -682,7 +682,7 @@ function FixSessionLive({
               <button
                 onClick={onFixNext}
                 className="text-[11px] font-mono font-semibold px-3 py-1.5 rounded transition-opacity hover:opacity-90"
-                style={{ background: "var(--accent)", color: "#fff" }}
+                style={{ background: "var(--accent)", color: "var(--on-accent)" }}
               >
                 Fix next ↗
               </button>

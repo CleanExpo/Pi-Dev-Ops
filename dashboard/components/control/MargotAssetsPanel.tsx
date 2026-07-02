@@ -226,7 +226,7 @@ export default function MargotAssetsPanel() {
           <button
             type="button"
             className="rounded px-3 py-1.5 font-medium"
-            style={{ background: "var(--accent)", color: "#fff" }}
+            style={{ background: "var(--accent)", color: "var(--on-accent)" }}
             disabled={previewLoading}
             onClick={() => { void runPreview(); }}
           >
