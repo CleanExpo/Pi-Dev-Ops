@@ -69,3 +69,15 @@ def test_run_scheduled_bridge_generates_when_no_files(monkeypatch):
         result = run_scheduled_bridge(max_rows=1)
     assert result.rows_written == 1
     assert not result.errors
+
+
+def test_founder_id_from_settings(monkeypatch):
+    monkeypatch.delenv("TAO_FOUNDER_USER_ID", raising=False)
+    monkeypatch.delenv("FOUNDER_USER_ID", raising=False)
+    with patch(
+        "app.server.supabase_log._select",
+        return_value=[{"value": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"}],
+    ):
+        from swarm.marketing_skill_bridge import _founder_id
+
+        assert _founder_id() == "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"

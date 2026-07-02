@@ -29,9 +29,6 @@ jobs:
       WIKI_BOT_TOKEN_EXPIRES_AT: ${{ secrets.WIKI_BOT_TOKEN_EXPIRES_AT }}
 
     steps:
-      - name: Check WIKI_BOT_TOKEN expiry (RA-6905)
-        if: env.WIKI_BOT_TOKEN != ''
-        run: python scripts/check_wiki_bot_token_expiry.py --fail-on-warn
       - name: Checkout with wiki bot token
         id: wiki_bot_checkout
         if: env.WIKI_BOT_TOKEN != ''
@@ -56,6 +53,10 @@ jobs:
           # can run. If WIKI_BOT_TOKEN exists but has expired or lacks read
           # access, this step still lets the updater run; the later protected-
           # branch push may still be blocked.
+
+      - name: Check WIKI_BOT_TOKEN expiry (RA-6905)
+        if: env.WIKI_BOT_TOKEN != ''
+        run: python scripts/check_wiki_bot_token_expiry.py
 
       - uses: actions/setup-python@v5
         with:
