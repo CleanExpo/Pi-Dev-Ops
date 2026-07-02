@@ -29,8 +29,15 @@ SOCIAL_DIR = REPO_ROOT / "marketing-studio" / ".marketing" / "social"
 ARTEFACTS_DIR = REPO_ROOT / ".harness" / "artefacts"
 STATE_PATH = REPO_ROOT / ".harness" / "marketing-bridge-state.json"
 
-DEFAULT_TENANT = "pi-ceo"
 AUTHORITY_BRANDS = ("synthex", "restoreassist", "carsi")
+
+
+def _founder_id() -> str | None:
+    """Unite-Hub social-publisher filters on FOUNDER_USER_ID — must match."""
+    import os  # noqa: PLC0415
+
+    raw = (os.environ.get("TAO_FOUNDER_USER_ID") or os.environ.get("FOUNDER_USER_ID") or "").strip()
+    return raw or None
 
 
 @dataclass
@@ -79,6 +86,9 @@ def _parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
 
 
 def _insert_social_post(row: dict[str, Any]) -> str | None:
+    if not row.get("founder_id"):
+        log.warning("marketing_bridge: skipping insert — founder_id not configured")
+        return None
     post_id = str(row.get("id") or uuid.uuid4())
     row["id"] = post_id
     try:
@@ -92,12 +102,15 @@ def _insert_social_post(row: dict[str, Any]) -> str | None:
 
 
 def _row_from_post(post: Any, *, scheduled_hours: int = 24) -> dict[str, Any]:
+    founder_id = _founder_id()
+    if not founder_id:
+        log.warning("marketing_bridge: TAO_FOUNDER_USER_ID / FOUNDER_USER_ID unset — row will not drain")
     scheduled_at = (_utc_now() + timedelta(hours=scheduled_hours)).isoformat()
     status = "scheduled" if post.scores.verdict != "fail" else "draft"
     post_id = str(uuid.uuid4())
     return {
         "id": post_id,
-        "tenant_id": DEFAULT_TENANT,
+        "founder_id": founder_id,
         "business_key": post.business_key,
         "title": post.title,
         "content": post.content,

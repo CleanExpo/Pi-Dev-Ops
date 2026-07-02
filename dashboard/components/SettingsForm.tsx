@@ -127,6 +127,8 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
           hint="ghp_... — needs repo + workflow scopes"
         >
           <input
+            id="settings-github-token"
+            name="github_token"
             type="password"
             value={form.github_token}
             onChange={(e) => set("github_token", e.target.value)}
@@ -140,6 +142,8 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
           hint="sk-ant-api03-... — used for all analysis phases"
         >
           <input
+            id="settings-anthropic-api-key"
+            name="anthropic_api_key"
             type="password"
             value={form.anthropic_api_key}
             onChange={(e) => set("anthropic_api_key", e.target.value)}
@@ -153,6 +157,8 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
       <Section title="Model">
         <Field label="Analysis Model" hint="Used for all 8 analysis phases">
           <select
+            id="settings-analysis-model"
+            name="analysis_model"
             value={form.analysis_model}
             onChange={(e) => set("analysis_model", e.target.value)}
             style={{ ...inputBaseStyle, cursor: "pointer" }}
@@ -171,8 +177,9 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
           hint="Set this as the secret in your GitHub repo → Settings → Webhooks. Point the webhook at: https://pi-dev-ops.vercel.app/api/webhook/github"
         >
           <input
+            id="settings-webhook-secret"
+            name="webhook_secret"
             type="password"
-            value={form.webhook_secret}
             onChange={(e) => set("webhook_secret", e.target.value)}
             placeholder={initial.webhook_secret_set ? "Leave blank to keep existing" : "your-webhook-secret"}
             style={inputBaseStyle}
@@ -187,8 +194,9 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
           hint="Enable automatic preview deployments for analysis branches"
         >
           <input
+            id="settings-vercel-token"
+            name="vercel_token"
             type="password"
-            value={form.vercel_token}
             onChange={(e) => set("vercel_token", e.target.value)}
             placeholder={initial.vercel_token_set ? "Leave blank to keep existing" : "vercel_..."}
             style={inputBaseStyle}
@@ -203,8 +211,9 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
           hint="lin_api_... — used for two-way issue sync, triage tickets, and ship→Done transitions"
         >
           <input
+            id="settings-linear-api-key"
+            name="linear_api_key"
             type="password"
-            value={form.linear_api_key}
             onChange={(e) => set("linear_api_key", e.target.value)}
             placeholder={initial.linear_api_key_set ? "Leave blank to keep existing" : "lin_api_..."}
             style={inputBaseStyle}
@@ -219,8 +228,9 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
           hint="Get from @BotFather — format: 1234567890:AAFN..."
         >
           <input
+            id="settings-telegram-bot-token"
+            name="telegram_bot_token"
             type="password"
-            value={form.telegram_bot_token}
             onChange={(e) => set("telegram_bot_token", e.target.value)}
             placeholder={initial.telegram_bot_token_set ? "Leave blank to keep existing" : "1234567890:AAFN..."}
             style={inputBaseStyle}
@@ -231,8 +241,9 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
           hint="Your Telegram user or group chat ID (e.g. -1001234567890)"
         >
           <input
+            id="settings-telegram-chat-id"
+            name="telegram_chat_id"
             type="text"
-            value={form.telegram_chat_id}
             onChange={(e) => set("telegram_chat_id", e.target.value)}
             placeholder="-1001234567890"
             style={inputBaseStyle}
@@ -247,6 +258,8 @@ export default function SettingsForm({ initial }: { initial: InitialSettings }) 
           hint="One GitHub repo per line in owner/repo format. Analysed every Monday at 09:00 UTC."
         >
           <textarea
+            id="settings-cron-repos"
+            name="cron_repos"
             value={form.cron_repos}
             onChange={(e) => set("cron_repos", e.target.value)}
             placeholder={"CleanExpo/Pi-Dev-Ops\nowner/another-repo"}

@@ -171,14 +171,14 @@ export default function ActionsPanel({ result, branch }: Props) {
           >
             <div className="flex items-center gap-1.5 mb-1">
               <span className="font-mono text-[12px]" style={{ color: CSS.accent }}>{a.icon}</span>
-              <span className="font-mono text-[9px] tracking-widest" style={{ color: "#F0EDE8" }}>
+              <span className="font-mono text-[10px] tracking-widest" style={{ color: "#F0EDE8" }}>
                 {a.label}
               </span>
               {loading && activeAction === a.id && (
-                <span className="font-mono text-[8px]" style={{ color: CSS.accent }}>…</span>
+                <span className="font-mono text-[10px]" style={{ color: CSS.accent }}>…</span>
               )}
             </div>
-            <p className="font-mono text-[8px] leading-relaxed" style={{ color: "#888480" }}>
+            <p className="font-mono text-[10px] leading-relaxed" style={{ color: "#888480" }}>
               {a.desc}
             </p>
           </button>
@@ -200,20 +200,20 @@ export default function ActionsPanel({ result, branch }: Props) {
             className="flex items-center justify-between px-3 py-1.5 shrink-0"
             style={{ borderTop: "1px solid #2A2727", borderBottom: "1px solid #2A2727" }}
           >
-            <span className="font-mono text-[9px] uppercase tracking-widest" style={{ color: "#C8C5C0" }}>
+            <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "#C8C5C0" }}>
               {activeAction_?.label} OUTPUT
             </span>
             <div className="flex items-center gap-3">
               <button
                 onClick={openInClaude}
-                className="font-mono text-[9px] tracking-wider"
+                className="font-mono text-[10px] tracking-wider"
                 style={{ color: CSS.accent }}
               >
                 CLAUDE ↗
               </button>
               <button
                 onClick={download}
-                className="font-mono text-[9px] tracking-wider"
+                className="font-mono text-[10px] tracking-wider"
                 style={{ color: "#6B8CFF" }}
                 title={`Download as ${activeAction_?.filename}`}
               >
@@ -232,7 +232,7 @@ export default function ActionsPanel({ result, branch }: Props) {
               )}
               <button
                 onClick={copy}
-                className="font-mono text-[9px] tracking-wider"
+                className="font-mono text-[10px] tracking-wider"
                 style={{ color: copied ? CSS.success : "var(--text-muted)" }}
               >
                 {copied ? "COPIED ✓" : "COPY"}
@@ -243,7 +243,7 @@ export default function ActionsPanel({ result, branch }: Props) {
           {/* Commit feedback */}
           {commitMsg && (
             <div
-              className="px-3 py-1 font-mono text-[9px]"
+              className="px-3 py-1 font-mono text-[10px]"
               style={{ color: commitMsg.startsWith("✓") ? CSS.success : CSS.error, background: "var(--background)" }}
             >
               {commitMsg}
@@ -262,7 +262,7 @@ export default function ActionsPanel({ result, branch }: Props) {
 
       {/* Footer */}
       <div
-        className="px-3 py-2 shrink-0 font-mono text-[8px]"
+        className="px-3 py-2 shrink-0 font-mono text-[10px]"
         style={{ borderTop: "1px solid #2A2727", color: "#888480" }}
       >
         <span style={{ color: CSS.success }}>●</span> Claude Desktop MCP registered · pi-ceo server active
