@@ -1,0 +1,47 @@
+# linear_evidence_audit.yml — the no-false-complete gate
+#
+# Daily sweep of the RestoreAssist Linear projects: any issue moved to Done in
+# the last 26h with no linked GitHub PR/commit attachment gets the
+# `unverified-complete` label and one audit comment. Legit non-code closes are
+# exempted with the `no-code-change` label. Report-only — never reopens.
+#
+# Why GitHub Actions not Railway cron: always-on requirement per CLAUDE.md;
+# script is standalone stdlib, visible fire history in the Actions UI.
+#
+# Schedule: 20:33 UTC = 06:33 AEST Brisbane — lands before the 07:03 morning
+# briefing so flags are visible in the same morning.
+
+name: Linear Evidence Audit (06:33 AEST)
+
+on:
+  schedule:
+    - cron: "33 20 * * *"
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: "Lookback window in hours"
+        required: false
+        default: "26"
+      dry_run:
+        description: "Log suspects without labeling/commenting"
+        required: false
+        default: "false"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run evidence audit
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          FLAGS="--hours ${{ github.event.inputs.hours || '26' }}"
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then FLAGS="$FLAGS --dry-run"; fi
+          python3 scripts/linear_evidence_audit.py $FLAGS
