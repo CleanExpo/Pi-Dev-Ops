@@ -1,8 +1,8 @@
 # .github — Wiki
 
-_Last updated: 2026-07-02T07:03:39Z (commits 811f400..22d4b9e)_
+_Last updated: 2026-07-02T07:12:08Z (commits 2304cbb..7be626f)_
 
 ## Recent changes
-- 22d4b9e — fix(dashboard): dark-mode WCAG AA contrast (RA-6888) (#468)
+- 7be626f — fix(security): split webhook secrets + fail-closed internal intake (RA-6904) (#469)
 
 

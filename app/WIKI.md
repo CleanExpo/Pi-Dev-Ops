@@ -1,8 +1,8 @@
 # app — Wiki
 
-_Last updated: 2026-07-02T05:46:26Z (commits 741f981..881a044)_
+_Last updated: 2026-07-02T07:12:08Z (commits 2304cbb..7be626f)_
 
 ## Recent changes
-- 881a044 — fix(security): close Nexus audit gaps RA-6899–6903 (#464)
+- 7be626f — fix(security): split webhook secrets + fail-closed internal intake (RA-6904) (#469)
 
 
