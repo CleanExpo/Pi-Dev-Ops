@@ -1893,6 +1893,8 @@ server.registerTool(
                   cost_usd: parsed.cost_usd,
                   research_called: parsed.research_called,
                   board_session_ids: parsed.board_session_ids,
+                  audio_base64: parsed.audio_base64 || null,
+                  audio_mime_type: parsed.audio_mime_type || null,
                 },
               });
             } catch (e) {
@@ -1997,6 +1999,8 @@ server.registerTool(
                   cost_usd: parsed.cost_usd,
                   research_called: parsed.research_called,
                   board_session_ids: parsed.board_session_ids,
+                  audio_base64: parsed.audio_base64 || null,
+                  audio_mime_type: parsed.audio_mime_type || null,
                 },
               });
             } catch (e) {
