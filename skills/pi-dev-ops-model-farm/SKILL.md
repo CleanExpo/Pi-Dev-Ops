@@ -189,10 +189,12 @@ pi-dev-ops-farm gc
 
 | File | Path |
 |------|------|
+| Farm skill | `skills/pi-dev-ops-model-farm/SKILL.md` |
+| Farm daemon | `skills/pi-dev-ops-model-farm/scripts/model-farm.py` |
+| Farm starter | `skills/pi-dev-ops-model-farm/scripts/init-farm.sh` |
 | Farm config | `~/.hermes/.farm/farm-config.json` |
-| Worker sessions | `~/.hermes/.farm/<worker>.session` |
 | Task queue | `~/.hermes/.farm/queue.jsonl` |
-| Results buffer | `~/.hermes/.farm/<worker>.out.json` |
+| Results buffer | `~/.hermes/.farm/<worker>.out-<taskid>.json` |
 | Metrics log | `~/.hermes/.farm/metrics.jsonl` |
 | Health log | `~/.hermes/.farm/health.jsonl` |
 
@@ -200,13 +202,14 @@ pi-dev-ops-farm gc
 
 - [ ] All 3 Claude accounts logged in (`claude auth login` x3)
 - [ ] Codex account logged in (`codex login` x1)
-- [ ] Tmux installed (`tmux -V`)
+- [ ] Python 3.11+ available (`python3 --version`)
+- [ ] `claude` CLI on PATH (Winget install)
+- [ ] `codex` CLI on PATH (npm install -g @anthropic-ai/codex)
 - [ ] Farm directory created (`mkdir -p ~/.hermes/.farm`)
-- [ ] First worker spun up and responding to test task
+- [ ] Run `python3 model-farm.py --start` to spin workers
+- [ ] Test dispatch: write a `.in-*.json` task file and confirm result `.out-*.json` appears
 - [ ] Hermes config updated with `model_farm.enabled: true`
-- [ ] Cron health monitor created
-- [ ] Test dispatch + collect round-trip verified
-
+- [ ] Cron health monitor set up if needed
 ## Safety Rules
 
 1. Never run destructive CLI commands (rm, git reset --hard, rm -rf) through claude/codex farm workers without Hermes-level approval.
