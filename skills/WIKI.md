@@ -1,8 +1,8 @@
 # skills — Wiki
 
-_Last updated: 2026-07-02T13:34:57Z (commits 026284a..bed2057)_
+_Last updated: 2026-07-02T14:14:34Z (commits 45e5f09..7cd9b03)_
 
 ## Recent changes
-- bed2057 — fix(skills): fleet overhaul — frontmatter, refs, portable paths (RA-6913) (#480)
+- 7cd9b03 — Feature/dr nrpg stripe watch (#483)
 
 
