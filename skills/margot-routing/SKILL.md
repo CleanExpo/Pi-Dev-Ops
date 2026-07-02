@@ -23,6 +23,7 @@ Cross-project routing hygiene for Margot (RA-6814). Prevents duplicate or orphan
    - Read `.harness/projects.json` — match repo name (case-insensitive) → `linear_team_id` + `linear_project_id`.
    - Pi-Dev-Ops harness work → team RestoreAssist, project **Pi - Dev - Ops**.
    - Margot persona / voice / Telegram → project **Margot**.
+   - **Margot ElevenLabs voice ID (Margot only):** `p43fx6U8afP2xoq1Ai9f` — `MARGOT_ELEVENLABS_VOICE_ID` / `resolve_margot_voice_id()`. **Never** `ELEVENLABS_VOICE_ID` (that is another agent's voice).
    - RestoreAssist product → project **RestoreAssist** (not Pi-Dev-Ops unless the change is in `CleanExpo/Pi-Dev-Ops`).
 
 3. **Labels**
