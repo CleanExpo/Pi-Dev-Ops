@@ -14,7 +14,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782898700.6214771
+    "last_fired_at": 1782950405.0
   },
   {
     "id": "scan-high-0600",
@@ -31,7 +31,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782885616.363729
+    "last_fired_at": 1782951571.0
   },
   {
     "id": "scan-high-1200",
@@ -48,7 +48,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782898700.6215858
+    "last_fired_at": 1782951571.0
   },
   {
     "id": "scan-high-1800",
@@ -65,7 +65,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782898700.621683
+    "last_fired_at": 1782928821.0
   },
   {
     "id": "scan-medium-0200",
@@ -80,7 +80,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782871209.8388438
+    "last_fired_at": 1782951571.0
   },
   {
     "id": "scan-low-0300",
@@ -94,7 +94,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782874859.553557
+    "last_fired_at": 1782951571.0
   },
   {
     "id": "monitor-0100",
@@ -105,7 +105,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782898700.621773
+    "last_fired_at": 1782951571.0
   },
   {
     "id": "monitor-0700",
@@ -116,7 +116,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782889206.124222
+    "last_fired_at": 1782951571.0
   },
   {
     "id": "monitor-1300",
@@ -127,7 +127,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782898700.6218581
+    "last_fired_at": 1782951571.0
   },
   {
     "id": "monitor-1900",
@@ -138,7 +138,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782898700.621952
+    "last_fired_at": 1782932446.0
   },
   {
     "id": "analyse-lessons-weekly",
@@ -150,7 +150,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1775804551,
-    "last_fired_at": 1782898700.782233
+    "last_fired_at": 1782691250.0
   },
   {
     "id": "board-meeting-daily",
@@ -160,7 +160,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744588800,
-    "last_fired_at": 1782882529.909166,
+    "last_fired_at": 1782951816.0,
     "note": "Daily board sync \u2014 reviews in-flight PRs, evaluator scores, flagged risks"
   },
   {
@@ -179,7 +179,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1775865600,
-    "last_fired_at": 1782898700.825106,
+    "last_fired_at": 1782925250.0,
     "note": "RA-634 \u2014 tests direct Anthropic SDK path (TAO_USE_FALLBACK contingency). See DEPLOYMENT.md \u2192 Contingency: API Fallback."
   },
   {
@@ -191,7 +191,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744502400,
-    "last_fired_at": 1782898700.826062,
+    "last_fired_at": 1782951816.0,
     "note": "RA-689 \u2014 reads shipped-features.jsonl, detects outcome signals from Linear, writes outcome lessons, flags stale features, returns BVI contribution data."
   },
   {
@@ -203,7 +203,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1776108628,
-    "last_fired_at": 1782874859.746475
+    "last_fired_at": 1782951816.0
   },
   {
     "id": "intel-refresh-daily-0200",
@@ -213,7 +213,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1776582512,
-    "last_fired_at": 1782871212.5993578,
+    "last_fired_at": 1782951818.0,
     "note": "Feeds fresh Anthropic docs + release notes into planner/orchestrator context"
   },
   {
@@ -224,7 +224,7 @@
     "minute": 30,
     "enabled": true,
     "created_at": 1776582512,
-    "last_fired_at": 1782880219.842277,
+    "last_fired_at": 1782951824.0,
     "note": "RA-684 \u2014 external tooling discovery, scores against ZTE, creates scout-tagged Linear tickets"
   },
   {
@@ -235,7 +235,7 @@
     "minute": 30,
     "enabled": true,
     "created_at": 1776582512,
-    "last_fired_at": 1782898702.9865742,
+    "last_fired_at": 1782952338.4428842,
     "note": "Second daily sweep \u2014 catches west-coast / overnight releases"
   },
   {
@@ -257,7 +257,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1776582512,
-    "last_fired_at": 1782898702.987242,
+    "last_fired_at": 1782951824.0,
     "note": "Analyses last 24h session outcomes; surfaces patterns to evaluator + board"
   },
   {
@@ -270,7 +270,7 @@
     "weekday": 6,
     "enabled": true,
     "created_at": 1777704664,
-    "last_fired_at": 1782898702.9991732,
+    "last_fired_at": 1782685188.0,
     "note": "RA-1839 \u2014 clusters .harness/lessons.jsonl rows by (category, repo) and proposes new SKILL.md drafts via skill-creator SDK. HITL-gated through draft_review."
   },
   {
@@ -282,7 +282,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1777704664,
-    "last_fired_at": 1782874859.773033,
+    "last_fired_at": 1782951824.0,
     "note": "RA-1839 \u2014 clusters merged PRs touching the same file path and proposes skills from recurrence patterns. HITL-gated."
   },
   {
@@ -292,7 +292,7 @@
     "hour": 20,
     "minute": 0,
     "enabled": true,
-    "last_fired_at": 1782898722.9309492
+    "last_fired_at": 1782936134.0
   },
   {
     "id": "weekly-recap-friday",
@@ -306,7 +306,7 @@
     "recap_label": "\ud83d\uddd3 Pi-CEO Weekly Recap",
     "enabled": true,
     "note": "RA-2006 \u2014 fires Thu 22:00 UTC = Fri 08:00 AEST. Cron uses datetime.utcnow().weekday(), so weekday=3 (Thursday UTC) is correct here even though the operator-facing day is Friday. Reuses portfolio_pulse with lookback_window(168h) + Telegram delivery enabled. Founder request 2026-05-05.",
-    "last_fired_at": 1782898741.146304
+    "last_fired_at": 1782475775.0
   },
   {
     "id": "discovery-restoreassist",
@@ -326,7 +326,7 @@
     "minute": 0,
     "enabled": true,
     "note": "RA-2027 \u2014 daily 02:00 UTC sweep. Operator decision 2026-05-06: tickets with `discovery-loop` label at priority 3-4 (sev 4-5) with `updatedAt` >7 days ago auto-close to Cancelled with explanatory comment. Priority 1-2 (sev>=6) NEVER auto-closes. Prerequisite for Discovery going live across all 7 personas (~196 findings/day would exhaust Linear quotas without this).",
-    "last_fired_at": 1782871212.966295
+    "last_fired_at": 1782951824.0
   },
   {
     "id": "kpi-watchdog-daily-0900",
@@ -340,7 +340,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1778530000,
-    "last_fired_at": 1782898741.2118158,
+    "last_fired_at": 1782951824.0,
     "note": "RA-3007 \u2014 Daily 09:00 UTC scan of guardian + cs + cfo + cto state. Posts Telegram only on breach. See scripts/kpi_watchdog.py."
   },
   {
@@ -352,7 +352,7 @@
     "minute": 30,
     "enabled": true,
     "created_at": 1781568000,
-    "last_fired_at": 1782898746.711849,
+    "last_fired_at": 1782951828.0,
     "note": "Runs external AI capability scout, writes Obsidian/2nd-brain artifacts, validates CRM intake. CRM posting remains opt-in via UNITE_CRM_CAPABILITY_POST=1."
   }
 ]
