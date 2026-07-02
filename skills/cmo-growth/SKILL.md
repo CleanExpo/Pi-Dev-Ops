@@ -144,7 +144,7 @@ Per-business:
 
 ## References
 
-- Blueprint: `/Users/phill-mac/Pi-CEO/Senior-Agent-Operations-Blueprint-2026-05-02.md` §Role 5 CMO/Growth
+- Blueprint: `~/Pi-CEO/Senior-Agent-Operations-Blueprint-2026-05-02.md` §Role 5 CMO/Growth
 - Parent ticket: <issue id="RA-1860">RA-1860</issue> (epic <issue id="RA-1858">RA-1858</issue>)
 - Sibling creative skills: `marketing-orchestrator` and `marketing-*` family
 - HITL gate substrate: `swarm/draft_review.py`

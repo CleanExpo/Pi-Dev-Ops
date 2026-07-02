@@ -15,7 +15,7 @@ The boundary the whole launch crew operates inside. Capability is the variable; 
 
 Autonomous building drifts toward "self-deregulating" if nothing pins the rails down. An agent that can edit its own guardrails is not autonomous — it is unsupervised, which is different and dangerous. This charter is the one file the crew loads before doing anything, and the one file no agent may rewrite.
 
-It does not invent new rules or new controls — it binds the generic launch-crew rails to the rails and controls already enforced in this repo: [`AGENTS.md`](AGENTS.md), [`CLAUDE.md`](CLAUDE.md), the [`kill-switch-binding`](../kill-switch-binding/SKILL.md), [`pii-redactor`](../pii-redactor/SKILL.md), the [`tao-judge`](../tao-judge/SKILL.md)/`tier-evaluator` gate, and the [`meta-curator`](../meta-curator/SKILL.md) self-improvement loop — so there is a single source of truth.
+It does not invent new rules or new controls — it binds the generic launch-crew rails to the rails and controls already enforced in this repo: [`AGENTS.md`](../../AGENTS.md), [`CLAUDE.md`](../../CLAUDE.md), the [`kill-switch-binding`](../kill-switch-binding/SKILL.md), [`pii-redactor`](../pii-redactor/SKILL.md), the [`tao-judge`](../tao-judge/SKILL.md)/`tier-evaluator` gate, and the [`meta-curator`](../meta-curator/SKILL.md) self-improvement loop — so there is a single source of truth.
 
 ## Triggers
 
@@ -74,7 +74,7 @@ A run is compliant when, checked against `.harness/swarm/swarm.jsonl` and the PR
 
 ## References
 
-- [`AGENTS.md`](AGENTS.md) — the live boundary matrix this charter binds to.
-- [`CLAUDE.md`](CLAUDE.md) — autonomous operation mandate.
+- [`AGENTS.md`](../../AGENTS.md) — the live boundary matrix this charter binds to.
+- [`CLAUDE.md`](../../CLAUDE.md) — autonomous operation mandate.
 - Existing controls bound by this charter: [`kill-switch-binding`](../kill-switch-binding/SKILL.md), [`pii-redactor`](../pii-redactor/SKILL.md), [`tao-judge`](../tao-judge/SKILL.md), [`meta-curator`](../meta-curator/SKILL.md).
 - [`ship-it`](../ship-it/SKILL.md) — loads this skill as step 1.

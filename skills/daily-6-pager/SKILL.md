@@ -77,7 +77,7 @@ Each section degrades gracefully when its upstream ledger is missing (returns a 
 
 ## References
 
-- Blueprint: `/Users/phill-mac/Pi-CEO/Senior-Agent-Operations-Blueprint-2026-05-02.md` §"Solo-CEO leverage patterns" (the 6-pager paradigm)
+- Blueprint: `~/Pi-CEO/Senior-Agent-Operations-Blueprint-2026-05-02.md` §"Solo-CEO leverage patterns" (the 6-pager paradigm)
 - Parent ticket: <issue id="RA-1863">RA-1863</issue> (epic <issue id="RA-1858">RA-1858</issue>)
 - Composes: `swarm/cfo.py` · `swarm/cmo.py` · `swarm/cto.py` · `swarm/cs.py`
 - HITL gate substrate: `swarm/draft_review.py`
