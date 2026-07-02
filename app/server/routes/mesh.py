@@ -33,9 +33,9 @@ router = APIRouter(prefix="/api/mesh", tags=["mesh"])
 
 
 def _check_secret(secret: Optional[str]) -> None:
-    if not config.WEBHOOK_SECRET:
-        raise HTTPException(503, "TAO_WEBHOOK_SECRET not configured on server")
-    if not secret or not _hmac.compare_digest(secret, config.WEBHOOK_SECRET):
+    if not config.INTERNAL_WEBHOOK_SECRET:
+        raise HTTPException(503, "TAO_INTERNAL_WEBHOOK_SECRET not configured on server")
+    if not secret or not _hmac.compare_digest(secret, config.INTERNAL_WEBHOOK_SECRET):
         raise HTTPException(401, "Invalid or missing X-Pi-CEO-Secret")
 
 

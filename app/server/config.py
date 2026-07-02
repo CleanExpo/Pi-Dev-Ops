@@ -233,6 +233,10 @@ EVAL_AUTOSHIP_SCORE      = float(os.environ.get("TAO_EVAL_AUTOSHIP_SCORE",      
 EVAL_AUTOSHIP_CONFIDENCE = float(os.environ.get("TAO_EVAL_AUTOSHIP_CONFIDENCE", "90"))
 EVAL_FLAG_CONFIDENCE     = float(os.environ.get("TAO_EVAL_FLAG_CONFIDENCE",     "60"))
 WEBHOOK_SECRET       = os.environ.get("TAO_WEBHOOK_SECRET",             "")
+# RA-6904 — split GitHub HMAC secret from internal X-Pi-CEO-Secret intake routes.
+# During transition, new vars fall back to TAO_WEBHOOK_SECRET when unset.
+GITHUB_WEBHOOK_SECRET = os.environ.get("TAO_GITHUB_WEBHOOK_SECRET", "") or WEBHOOK_SECRET
+INTERNAL_WEBHOOK_SECRET = os.environ.get("TAO_INTERNAL_WEBHOOK_SECRET", "") or WEBHOOK_SECRET
 LINEAR_WEBHOOK_SECRET = os.environ.get("TAO_LINEAR_WEBHOOK_SECRET",     "")
 
 # RA-677 — AUTONOMY_BUDGET: single-knob pipeline configuration (minutes).
