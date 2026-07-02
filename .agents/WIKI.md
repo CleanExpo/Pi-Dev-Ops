@@ -1,8 +1,8 @@
 # .agents — Wiki
 
-_Last updated: 2026-07-01T02:00:08Z (commits a728830..5d3894e)_
+_Last updated: 2026-07-02T05:07:03Z (commits b6d0e6f..6e8c826)_
 
 ## Recent changes
-- 5d3894e — fix(skills): publish /storm to Pi-Dev-Ops + sync judge convergence across all copies (#412)
+- 6e8c826 — feat(judge): hard-line 100/100 build gate — no 85 pass (OM-6) (#461)
 
 
