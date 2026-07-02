@@ -86,7 +86,7 @@ def test_run_research_batch_calls_quick_for_default(monkeypatch):
         margot_bot.ResearchRequest(topic="A", depth="quick"),
         margot_bot.ResearchRequest(topic="B", depth="quick"),
     ]
-    findings = asyncio.run(margot_bot._run_research_batch(requests))
+    findings = asyncio.run(margot_bot._run_research_batch(requests, chat_id="test-chat"))
     assert len(findings) == 2
     assert findings[0]["summary"] == "Quick result for A"
     assert findings[1]["summary"] == "Quick result for B"
@@ -105,8 +105,12 @@ def test_run_research_batch_passes_use_corpus_true_for_deep(monkeypatch):
     """RA-2022 regression — deep_research_max also passes use_corpus=True."""
     deep_calls: list[dict] = []
 
-    def fake_max(*, topic, use_corpus=False):
-        deep_calls.append({"topic": topic, "use_corpus": use_corpus})
+    def fake_max(*, topic, use_corpus=False, originating_session_id=None):
+        deep_calls.append({
+            "topic": topic,
+            "use_corpus": use_corpus,
+            "originating_session_id": originating_session_id,
+        })
         return {"interaction_id": "int-abc", "status": "dispatched"}
 
     fake_module = types.SimpleNamespace(
@@ -117,10 +121,14 @@ def test_run_research_batch_passes_use_corpus_true_for_deep(monkeypatch):
 
     requests = [margot_bot.ResearchRequest(topic="DR-NRPG accreditation",
                                             depth="deep")]
-    findings = asyncio.run(margot_bot._run_research_batch(requests))
+    findings = asyncio.run(margot_bot._run_research_batch(requests, chat_id="test-chat"))
     assert len(findings) == 1
     assert findings[0]["error"] is None
-    assert deep_calls == [{"topic": "DR-NRPG accreditation", "use_corpus": True}]
+    assert deep_calls == [{
+        "topic": "DR-NRPG accreditation",
+        "use_corpus": True,
+        "originating_session_id": "margot_chat:test-chat",
+    }]
 
 
 def test_run_research_batch_calls_max_for_deep(monkeypatch):
@@ -133,7 +141,7 @@ def test_run_research_batch_calls_max_for_deep(monkeypatch):
     monkeypatch.setitem(sys.modules, "swarm.margot_tools", fake_module)
 
     requests = [margot_bot.ResearchRequest(topic="X", depth="deep")]
-    findings = asyncio.run(margot_bot._run_research_batch(requests))
+    findings = asyncio.run(margot_bot._run_research_batch(requests, chat_id="test-chat"))
     assert len(findings) == 1
     assert findings[0]["depth"] == "deep"
     assert "int-xyz" in findings[0]["summary"]
@@ -148,7 +156,7 @@ def test_run_research_batch_handles_error_response(monkeypatch):
     monkeypatch.setitem(sys.modules, "swarm.margot_tools", fake_module)
 
     requests = [margot_bot.ResearchRequest(topic="X", depth="quick")]
-    findings = asyncio.run(margot_bot._run_research_batch(requests))
+    findings = asyncio.run(margot_bot._run_research_batch(requests, chat_id="test-chat"))
     assert len(findings) == 1
     assert findings[0]["error"] == "margot_unreachable"
     assert findings[0]["summary"] == ""
@@ -165,7 +173,7 @@ def test_run_research_batch_uses_mcp_report_field(monkeypatch):
     monkeypatch.setitem(sys.modules, "swarm.margot_tools", fake_module)
 
     requests = [margot_bot.ResearchRequest(topic="Brain host", depth="quick")]
-    findings = asyncio.run(margot_bot._run_research_batch(requests))
+    findings = asyncio.run(margot_bot._run_research_batch(requests, chat_id="test-chat"))
 
     assert findings[0]["summary"] == "Corpus-backed report for the requested topic."
     assert findings[0]["error"] is None
@@ -185,7 +193,7 @@ def test_run_research_batch_logs_mcp_store_and_model(monkeypatch, caplog):
 
     caplog.set_level(logging.INFO, logger="swarm.margot_bot")
     requests = [margot_bot.ResearchRequest(topic="Brain corpus", depth="quick")]
-    findings = asyncio.run(margot_bot._run_research_batch(requests))
+    findings = asyncio.run(margot_bot._run_research_batch(requests, chat_id="test-chat"))
 
     assert findings[0]["summary"] == "Corpus-backed report."
     assert "fileSearchStores/brain1wiki-test" in caplog.text
@@ -202,7 +210,7 @@ def test_run_research_batch_handles_exception(monkeypatch):
     monkeypatch.setitem(sys.modules, "swarm.margot_tools", fake_module)
 
     requests = [margot_bot.ResearchRequest(topic="X", depth="quick")]
-    findings = asyncio.run(margot_bot._run_research_batch(requests))
+    findings = asyncio.run(margot_bot._run_research_batch(requests, chat_id="test-chat"))
     assert "research_call_raised" in findings[0]["error"]
 
 
@@ -210,7 +218,7 @@ def test_run_research_batch_module_unavailable(monkeypatch):
     """When margot_tools import itself fails, return error entries."""
     monkeypatch.setitem(sys.modules, "swarm.margot_tools", None)
     requests = [margot_bot.ResearchRequest(topic="X", depth="quick")]
-    findings = asyncio.run(margot_bot._run_research_batch(requests))
+    findings = asyncio.run(margot_bot._run_research_batch(requests, chat_id="test-chat"))
     # One entry, error set
     assert len(findings) == 1
     assert findings[0]["error"]

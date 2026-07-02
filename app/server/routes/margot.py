@@ -28,6 +28,7 @@ the morning-intel + Linear webhook routes already use.
 from __future__ import annotations
 
 import asyncio
+import base64
 import hmac as _hmac
 import logging
 import os
@@ -61,6 +62,8 @@ class MargotTurnResponse(BaseModel):
     research_called: bool
     board_session_ids: list[str]
     turn_id: str
+    audio_base64: Optional[str] = None
+    audio_mime_type: Optional[str] = None
 
 
 def _check_secret(x_pi_ceo_secret: Optional[str]) -> None:
@@ -70,6 +73,37 @@ def _check_secret(x_pi_ceo_secret: Optional[str]) -> None:
         raise HTTPException(401, "Missing X-Pi-CEO-Secret header")
     if not _hmac.compare_digest(x_pi_ceo_secret, config.WEBHOOK_SECRET):
         raise HTTPException(401, "Invalid X-Pi-CEO-Secret")
+
+
+_MAX_AUDIO_B64_BYTES = 4_500_000
+
+
+def _encode_voice_attachment(turn: object) -> tuple[str | None, str | None]:
+    """Base64-encode composed Margot voice MP3 when present on the turn."""
+    raw_path = getattr(turn, "voice_audio_path", None)
+    if not raw_path:
+        return None, None
+    path = Path(str(raw_path))
+    if not path.exists():
+        return None, None
+    data = path.read_bytes()
+    if not data or len(data) > _MAX_AUDIO_B64_BYTES:
+        return None, None
+    mime = "audio/mpeg" if path.suffix.lower() in {".mp3", ".mpeg"} else "audio/ogg"
+    return base64.b64encode(data).decode("ascii"), mime
+
+
+def _response_from_turn(turn: object) -> dict[str, object]:
+    audio_b64, audio_mime = _encode_voice_attachment(turn)
+    return {
+        "reply": getattr(turn, "margot_text", "") or "",
+        "cost_usd": float(getattr(turn, "cost_usd", 0.0) or 0.0),
+        "research_called": bool(getattr(turn, "research_called", False)),
+        "board_session_ids": list(getattr(turn, "board_session_ids", []) or []),
+        "turn_id": str(getattr(turn, "turn_id", "")),
+        "audio_base64": audio_b64,
+        "audio_mime_type": audio_mime,
+    }
 
 
 def _margot_turn_timeout_s() -> float:
@@ -123,13 +157,7 @@ async def margot_turn(
         log.exception("margot_turn failed chat_id=%s", body.chat_id)
         raise HTTPException(500, f"Margot turn failed: {exc}") from exc
 
-    return MargotTurnResponse(
-        reply=turn.margot_text or "",
-        cost_usd=float(turn.cost_usd or 0.0),
-        research_called=bool(getattr(turn, "research_called", False)),
-        board_session_ids=list(getattr(turn, "board_session_ids", []) or []),
-        turn_id=str(getattr(turn, "turn_id", "")),
-    )
+    return MargotTurnResponse(**_response_from_turn(turn))
 
 
 # ── RA-1886: voice route ────────────────────────────────────────────────────
@@ -153,6 +181,8 @@ class MargotVoiceResponse(BaseModel):
     research_called: bool
     board_session_ids: list[str]
     turn_id: str
+    audio_base64: Optional[str] = None
+    audio_mime_type: Optional[str] = None
 
 
 def _resolve_telegram_token() -> str:
@@ -299,11 +329,8 @@ async def margot_voice_turn(
                 500, f"Margot voice turn failed: {exc}",
             ) from exc
 
+    payload = _response_from_turn(turn)
     return MargotVoiceResponse(
-        reply=turn.margot_text or "",
         transcript=transcript,
-        cost_usd=float(turn.cost_usd or 0.0),
-        research_called=bool(getattr(turn, "research_called", False)),
-        board_session_ids=list(getattr(turn, "board_session_ids", []) or []),
-        turn_id=str(getattr(turn, "turn_id", "")),
+        **payload,
     )
