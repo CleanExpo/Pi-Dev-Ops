@@ -276,7 +276,7 @@ def _check_git_unpushed() -> Check:
         return Check(
             "git", False, "warn",
             f"{len(lines)} commit(s) not pushed to origin",
-            needs_founder=f"run `cd ~/Pi-CEO/Pi-Dev-Ops && git push origin main` — unpushed commits: {', '.join(lines[:3])}",
+            needs_founder=f"run `cd ~/Pi-Dev-Ops && git push origin main` — unpushed commits: {', '.join(lines[:3])}",
         )
     except Exception as e:
         return Check("git", True, "info", f"git check skipped: {e}")

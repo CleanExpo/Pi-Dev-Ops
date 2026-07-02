@@ -4,7 +4,7 @@
     {
       "name": "preview-canvas",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/preview-canvas", "run", "dev"],
+      "runtimeArgs": ["--prefix", "/Users/phill-mac/Pi-Dev-Ops/preview-canvas", "run", "dev"],
       "port": 3030
     }
   ]

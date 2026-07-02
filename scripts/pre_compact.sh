@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-LOG_DIR="/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/.harness/swarm"
+LOG_DIR="/Users/phill-mac/Pi-Dev-Ops/.harness/swarm"
 LOG_FILE="$LOG_DIR/compaction_log.jsonl"
 
 mkdir -p "$LOG_DIR"

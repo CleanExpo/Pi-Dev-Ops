@@ -51,7 +51,7 @@ log "Step 1: cutover_gate.py"
 if [ -d /tmp/pilot-v1-greenfield ]; then
   WORKTREE=/tmp/pilot-v1-greenfield
 else
-  WORKTREE=~/Pi-CEO/Pi-Dev-Ops
+  WORKTREE=~/Pi-Dev-Ops
   (cd "$WORKTREE" && git checkout feat/pilot-v1) || { log "FATAL: cannot checkout feat/pilot-v1"; exit 1; }
 fi
 cd "$WORKTREE"
@@ -82,7 +82,7 @@ log "  pytest PASS ✓"
 
 # Step 4 — ensure both branches at origin (already pushed earlier this session)
 log "Step 4: verify branches at origin"
-cd ~/Pi-CEO/Pi-Dev-Ops
+cd ~/Pi-Dev-Ops
 git fetch origin feat/pilot-v1 feat/hermes-plugin-mirror 2>&1 | tee -a "$LOG"
 log "  branches verified ✓"
 

@@ -22,7 +22,7 @@ Hard rules for this command path:
 
 The command routes through `remotion-script`, `remotion-production`, `remotion-direction`, `remotion-editing`, `remotion-integrations`, and `remotion-professionalism`, while preserving the existing Remotion Skills Package workflow below.
 
-Single entry point for the Remotion Skills Package — a set of 10 sibling skills (`remotion-orchestrator`, `remotion-brand-research`, `remotion-brand-codify`, `remotion-designer`, `remotion-colour-family`, `remotion-motion-language`, `remotion-screen-storyteller`, `remotion-marketing-strategist`, `remotion-composition-builder`, `remotion-render-pipeline`) installed globally at `~/.claude/skills/remotion-*` (symlinked to `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/skills/remotion-*`). Available in every project, not just Pi-Dev-Ops.
+Single entry point for the Remotion Skills Package — a set of 10 sibling skills (`remotion-orchestrator`, `remotion-brand-research`, `remotion-brand-codify`, `remotion-designer`, `remotion-colour-family`, `remotion-motion-language`, `remotion-screen-storyteller`, `remotion-marketing-strategist`, `remotion-composition-builder`, `remotion-render-pipeline`) installed globally at `~/.claude/skills/remotion-*` (symlinked to `/Users/phill-mac/Pi-Dev-Ops/skills/remotion-*`). Available in every project, not just Pi-Dev-Ops.
 
 ## Discovery brief gate (turn 1, mandatory)
 
@@ -55,16 +55,16 @@ The gate runs *before* the wave plan is computed. A blocked brief never reaches 
 The user can invoke the package by:
 - Saying any of: **"use the Remotion Skills Package"**, **"remotion package"**, **"use remotion"**.
 - Naming any individual skill (e.g. "use remotion-designer to QA this layout").
-- Submitting a brief that classifies as `intent: "video"` via [`Pi-Dev-Ops/app/server/brief.py`](/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/app/server/brief.py).
+- Submitting a brief that classifies as `intent: "video"` via [`Pi-Dev-Ops/app/server/brief.py`](/Users/phill-mac/Pi-Dev-Ops/app/server/brief.py).
 
-Translates a free-text brief into a structured render job and a wave plan that the Pi-Dev-Ops orchestrator ([`app/server/orchestrator.py`](/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/app/server/orchestrator.py)) dispatches via P3-B fan-out.
+Translates a free-text brief into a structured render job and a wave plan that the Pi-Dev-Ops orchestrator ([`app/server/orchestrator.py`](/Users/phill-mac/Pi-Dev-Ops/app/server/orchestrator.py)) dispatches via P3-B fan-out.
 
 ## The Remotion project
 
 All compositions, brand configs, motion / colour helpers, and the render entry live at:
 
 ```
-/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/remotion-studio/
+/Users/phill-mac/Pi-Dev-Ops/remotion-studio/
 ```
 
 When working from any other project, sub-skills `cd` into that path before reading or editing brand / composition files. The render entry is `npx tsx render/render.ts ...` from inside `remotion-studio`.
@@ -173,7 +173,7 @@ The package is shared infrastructure; each calling project supplies its own runt
 | Concern | Where it lives |
 |---|---|
 | Skill definitions | `~/.claude/skills/remotion-*` (symlinked → `Pi-Dev-Ops/skills/remotion-*`) — globally available. |
-| Remotion Node project (compositions, brand configs, render entry) | `/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/remotion-studio/` — single shared substrate. |
+| Remotion Node project (compositions, brand configs, render entry) | `/Users/phill-mac/Pi-Dev-Ops/remotion-studio/` — single shared substrate. |
 | Brand configs | `Synthex/packages/brand-config/src/brands/{slug}.ts` — one source of truth per brand, used by every project that renders for that brand. (Migrated from `Pi-Dev-Ops/remotion-studio/src/brands/` per RA-1985 / Synthex SYN-897.) |
 | API keys (ElevenLabs, Telegram, Supabase, Linear, Remotion licence) | The **calling project's** `.env` / `.env.local`. Skills read `process.env` at render time. |
 | Rendered MP4 output | The **calling project's** `.remotion-renders/` directory by default. Override with `--out=`. |

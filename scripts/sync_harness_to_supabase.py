@@ -26,7 +26,7 @@ if not SERVICE_KEY:
         "python3 scripts/sync_harness_to_supabase.py\n"
         "RA-3034: hardcoded fallback removed; key rotation is tracked in RA-2989."
 )
-HARNESS_DIR = Path("/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/.harness")
+HARNESS_DIR = Path("/Users/phill-mac/Pi-Dev-Ops/.harness")
 
 
 def now_utc():

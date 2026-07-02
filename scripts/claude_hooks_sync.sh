@@ -4,7 +4,7 @@
 # must be version-controlled, not left as on-disk-only artefacts.
 set -e
 SRC="$HOME/.claude/hooks/"
-DST="$HOME/Pi-CEO/Pi-Dev-Ops/claude-hooks-mirror/"
+DST="$HOME/Pi-Dev-Ops/claude-hooks-mirror/"
 rsync -av --delete \
   --exclude='__pycache__' \
   --exclude='*.pyc' --exclude='*.pyo' \
@@ -12,7 +12,7 @@ rsync -av --delete \
   --exclude='state.json' --exclude='session_start.json' --exclude='progress_throttle.json' \
   --exclude='.DS_Store' \
   "$SRC" "$DST" > /dev/null
-cd "$HOME/Pi-CEO/Pi-Dev-Ops"
+cd "$HOME/Pi-Dev-Ops"
 if git status --short claude-hooks-mirror/ | grep -q .; then
   git add claude-hooks-mirror/
   git -c commit.gpgsign=false commit -q -m "chore(hooks): nightly mirror sync of ~/.claude/hooks/ ($(date +%Y-%m-%d))" >/dev/null
