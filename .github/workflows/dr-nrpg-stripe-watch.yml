@@ -24,12 +24,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Probe DR-NRPG Stripe configuration
         run: |
           set +e
-          python scripts/probe_dr_nrpg_stripe_keys.py --json | tee /tmp/probe.json
+          python3 scripts/probe_dr_nrpg_stripe_keys.py --json | tee /tmp/probe.json
           code=$?
-          exit_code=$(python -c "import json; print(json.load(open('/tmp/probe.json'))['exit_code'])")
+          exit_code=$(python3 -c "import json; print(json.load(open('/tmp/probe.json'))['exit_code'])")
           if [ "$exit_code" = "1" ]; then
             echo "::error::Probe could not reach dr-nrpg-platform.vercel.app"
             exit 1
