@@ -44,7 +44,6 @@ ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "https://pi-dev-ops.vercel.app",
-    "https://dashboard-unite-group.vercel.app",
 ] + _extra_origins
 
 
