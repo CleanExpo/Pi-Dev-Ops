@@ -1,8 +1,8 @@
 # scripts — Wiki
 
-_Last updated: 2026-07-01T12:33:07Z (commits c4a55a2..8356b4f)_
+_Last updated: 2026-07-02T01:54:28Z (commits 8760f56..cf11184)_
 
 ## Recent changes
-- 8356b4f — Codex/margot codex build (#439)
+- cf11184 — Fix the local LINEAR_API_KEY issues, everything is already setup
 
 
