@@ -1,8 +1,8 @@
 # dashboard — Wiki
 
-_Last updated: 2026-07-02T07:03:39Z (commits 811f400..22d4b9e)_
+_Last updated: 2026-07-02T08:40:09Z (commits 6a37201..1987436)_
 
 ## Recent changes
-- 22d4b9e — fix(dashboard): dark-mode WCAG AA contrast (RA-6888) (#468)
+- 1987436 — fix(UNI-2236,RA-6911): CI smoke + wiki workflow + founder settings fallback
 
 
