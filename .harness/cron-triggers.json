@@ -31,7 +31,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782885616.363729
+    "last_fired_at": 1782952951.772466
   },
   {
     "id": "scan-high-1200",
@@ -48,7 +48,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782898700.6215858
+    "last_fired_at": 1782952951.772685
   },
   {
     "id": "scan-high-1800",
@@ -80,7 +80,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782871209.8388438
+    "last_fired_at": 1782952951.772834
   },
   {
     "id": "scan-low-0300",
@@ -94,7 +94,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782874859.553557
+    "last_fired_at": 1782952951.772971
   },
   {
     "id": "monitor-0100",
@@ -105,7 +105,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782898700.621773
+    "last_fired_at": 1782954009.337323
   },
   {
     "id": "monitor-0700",
@@ -116,7 +116,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782889206.124222
+    "last_fired_at": 1782952951.773254
   },
   {
     "id": "monitor-1300",
@@ -127,7 +127,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782910848.604383
+    "last_fired_at": 1782952951.77338
   },
   {
     "id": "monitor-1900",
@@ -160,7 +160,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744588800,
-    "last_fired_at": 1782882529.909166,
+    "last_fired_at": 1782953223.762861,
     "note": "Daily board sync \u2014 reviews in-flight PRs, evaluator scores, flagged risks"
   },
   {
@@ -203,7 +203,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1776108628,
-    "last_fired_at": 1782874859.746475
+    "last_fired_at": 1782953223.8701582
   },
   {
     "id": "intel-refresh-daily-0200",
@@ -213,7 +213,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1776582512,
-    "last_fired_at": 1782871212.5993578,
+    "last_fired_at": 1782953226.35967,
     "note": "Feeds fresh Anthropic docs + release notes into planner/orchestrator context"
   },
   {
@@ -224,7 +224,7 @@
     "minute": 30,
     "enabled": true,
     "created_at": 1776582512,
-    "last_fired_at": 1782880219.842277,
+    "last_fired_at": 1782953233.032896,
     "note": "RA-684 \u2014 external tooling discovery, scores against ZTE, creates scout-tagged Linear tickets"
   },
   {
@@ -235,7 +235,7 @@
     "minute": 30,
     "enabled": true,
     "created_at": 1776582512,
-    "last_fired_at": 1782923430.388288,
+    "last_fired_at": 1782953238.351147,
     "note": "Second daily sweep \u2014 catches west-coast / overnight releases"
   },
   {
@@ -257,7 +257,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1776582512,
-    "last_fired_at": 1782898702.987242,
+    "last_fired_at": 1782953239.5455449,
     "note": "Analyses last 24h session outcomes; surfaces patterns to evaluator + board"
   },
   {
@@ -282,7 +282,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1777704664,
-    "last_fired_at": 1782874859.773033,
+    "last_fired_at": 1782953239.586967,
     "note": "RA-1839 \u2014 clusters merged PRs touching the same file path and proposes skills from recurrence patterns. HITL-gated."
   },
   {
@@ -326,7 +326,7 @@
     "minute": 0,
     "enabled": true,
     "note": "RA-2027 \u2014 daily 02:00 UTC sweep. Operator decision 2026-05-06: tickets with `discovery-loop` label at priority 3-4 (sev 4-5) with `updatedAt` >7 days ago auto-close to Cancelled with explanatory comment. Priority 1-2 (sev>=6) NEVER auto-closes. Prerequisite for Discovery going live across all 7 personas (~196 findings/day would exhaust Linear quotas without this).",
-    "last_fired_at": 1782871212.966295
+    "last_fired_at": 1782953240.9115462
   },
   {
     "id": "kpi-watchdog-daily-0900",
@@ -340,7 +340,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1778530000,
-    "last_fired_at": 1782898741.2118158,
+    "last_fired_at": 1782953246.081825,
     "note": "RA-3007 \u2014 Daily 09:00 UTC scan of guardian + cs + cfo + cto state. Posts Telegram only on breach. See scripts/kpi_watchdog.py."
   },
   {
@@ -352,7 +352,7 @@
     "minute": 30,
     "enabled": true,
     "created_at": 1781568000,
-    "last_fired_at": 1782898746.711849,
+    "last_fired_at": 1782953251.279361,
     "note": "Runs external AI capability scout, writes Obsidian/2nd-brain artifacts, validates CRM intake. CRM posting remains opt-in via UNITE_CRM_CAPABILITY_POST=1."
   }
 ]

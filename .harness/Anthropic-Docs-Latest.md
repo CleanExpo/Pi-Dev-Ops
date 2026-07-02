@@ -1,6 +1,6 @@
 # Anthropic Docs — Latest Snapshot
-**Generated:** 2026-07-01T02:00:12Z
-**Source files:** 182 files in .harness/anthropic-docs/
+**Generated:** 2026-07-02T00:47:06Z
+**Source files:** 185 files in .harness/anthropic-docs/
 
 ## What Changed Since Last Snapshot
 **Line changes:** +1338 / -498 lines across all files
@@ -34,6 +34,9 @@
 2. Model availability has changed — update `.harness/config.yaml` default model references if newer Claude versions are now preferred.
 
 ## Full Document Index
+- `2026-07-02/claude-code-overview.md` — 2026-07-02 00:47 UTC — Claude Code Overview (snapshot: 2026-07-02)
+- `2026-07-02/api-overview.md` — 2026-07-02 00:47 UTC — Api Overview (snapshot: 2026-07-02)
+- `2026-07-02/release-notes-overview.md` — 2026-07-02 00:47 UTC — Release Notes Overview (snapshot: 2026-07-02)
 - `2026-07-01/claude-code-overview.md` — 2026-07-01 02:00 UTC — Claude Code Overview (snapshot: 2026-07-01)
 - `2026-07-01/api-overview.md` — 2026-07-01 02:00 UTC — Api Overview (snapshot: 2026-07-01)
 - `2026-07-01/release-notes-overview.md` — 2026-07-01 02:00 UTC — Release Notes Overview (snapshot: 2026-07-01)

@@ -1,0 +1,42 @@
+{
+  "critical": [],
+  "high": [
+    {
+      "severity": "high",
+      "claim": "Linear two-way sync — webhook triggers builds AND state updates flow back to Linear",
+      "reality": "app/server/webhook.py only implements the inbound half: signature verification, parsing GitHub/Linear webhook payloads, and converting a Linear issue into a build brief (parse_linear_event, linear_issue_to_brief). There is no outbound call in this file that updates a Linear issue's state (no issueUpdate mutation, no linear_update_issue call, no POST to Linear's API). main.py's router wiring also shows no dedicated Linear-write route module. Sync is one-way (Linear → build trigger), not two-way.",
+      "file": "app/server/webhook.py",
+      "recommendation": "Either add an outbound Linear issueUpdate call (e.g. mark issue In Progress/Done as the build session progresses) or correct the spec to describe the sync as one-way inbound-trigger-only.",
+      "category": "Linear two-way sync"
+    }
+  ],
+  "low": [
+    {
+      "severity": "low",
+      "claim": "✅ Complete (22-check smoke test suite)",
+      "reality": "The test suite consists of `tests/test_auth.py` and `tests/test_webhook.py`, which are unit tests for password hashing, session tokens, rate limiting, and webhook signature/payload parsing — none exercise the actual build pipeline. `scripts/smoke_test.py` is an HTTP-level black-box script that requires a live server and checks API surface responses (login, health, etc.); it does not verify that a session actually runs the generator, evaluator, and push phases end-to-end, nor does it mock/assert on `session_sdk.py`'s SDK calls. No `test_sessions.py`, `test_pipeline.py`, or generator/evaluator integration test exists among the shown files.",
+      "file": "scripts/smoke_test.py",
+      "recommendation": "Reword the spec to describe the 22 checks as an HTTP surface smoke test (not full pipeline E2E coverage), or add an integration test that mocks `ClaudeSDKClient` to assert the sessions → generator → evaluator → push phase sequence actually executes.",
+      "category": "E2E and integration test coverage"
+    },
+    {
+      "severity": "low",
+      "claim": "SSE streaming: dashboard/hooks/useSSE.ts, exponential-backoff reconnect / SSE drops through Vercel's 10 s proxy; the session continues server-side",
+      "reality": "app/server/main.py registers no dedicated SSE route module (no /api/build/stream or similar) among its 20 included routers; the only real-time transport documented for build sessions is the WebSocket endpoint `WS /ws/build/{sid}` owned by routes/utils.py. sessions.py's re-exports (session_phases.py, session_sdk.py) contain no SSE-generator or EventSourceResponse pattern piping session.output_lines — the 'SSE' terminology in CLAUDE.md appears to describe the WebSocket-based live-log mechanism rather than a distinct Server-Sent-Events endpoint.",
+      "file": "app/server/main.py",
+      "recommendation": "Either implement a true SSE endpoint (e.g. EventSourceResponse over session.output_lines) if genuinely needed, or correct the CLAUDE.md/dashboard hook naming from 'SSE' to 'WebSocket' to match the actual /ws/build/{sid} transport.",
+      "category": "build log SSE streaming"
+    }
+  ],
+  "summary": {
+    "total_discrepancies": 3,
+    "critical_count": 0,
+    "high_count": 1,
+    "low_count": 2,
+    "duration_s": 133.6,
+    "audited_at": "2026-07-02T00:47:01.282690+00:00",
+    "spec_claims_scanned": 3,
+    "dry_run": false,
+    "linear_tickets_created": []
+  }
+}
