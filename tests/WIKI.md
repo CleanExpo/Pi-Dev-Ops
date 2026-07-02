@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-07-02T08:40:09Z (commits 6a37201..1987436)_
+_Last updated: 2026-07-02T09:30:46Z (commits 811d3ce..711cc16)_
 
 ## Recent changes
-- 1987436 — fix(UNI-2236,RA-6911): CI smoke + wiki workflow + founder settings fallback
+- 711cc16 — fix(bridge): write social_posts to the UNITE-GROUP Supabase project (UNI-2233) (#475)
 
 
