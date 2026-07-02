@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-07-02T07:12:08Z (commits 2304cbb..7be626f)_
+_Last updated: 2026-07-02T08:40:09Z (commits 6a37201..1987436)_
 
 ## Recent changes
-- 7be626f — fix(security): split webhook secrets + fail-closed internal intake (RA-6904) (#469)
+- 1987436 — fix(UNI-2236,RA-6911): CI smoke + wiki workflow + founder settings fallback
 
 
