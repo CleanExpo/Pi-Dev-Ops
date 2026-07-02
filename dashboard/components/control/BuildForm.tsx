@@ -260,7 +260,7 @@ export default function BuildForm() {
               {/* macOS-style traffic lights */}
               <div className="flex items-center gap-1.5">
                 <span className="w-3 h-3 rounded-full" style={{ background: "#ef4444" }} aria-hidden="true" />
-                <span className="w-3 h-3 rounded-full" style={{ background: "#f59e0b" }} aria-hidden="true" />
+                <span className="w-3 h-3 rounded-full" style={{ background: "var(--warning)" }} aria-hidden="true" />
                 <span className="w-3 h-3 rounded-full" style={{ background: "#22c55e" }} aria-hidden="true" />
                 <span className="text-[10px] font-mono ml-3" style={{ color: "var(--text-dim)" }}>
                   pi-ceo build — live output

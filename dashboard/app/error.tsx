@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { CSS } from "@/lib/brand-tokens";
 
 export default function GlobalError({
   error,
@@ -16,28 +17,28 @@ export default function GlobalError({
 
   return (
     <div
-      className="flex flex-col items-center justify-center min-h-screen font-mono"
-      style={{ background: "#0A0A0A", color: "#F0EDE8" }}
+      className="dark flex flex-col items-center justify-center min-h-screen font-mono"
+      style={{ background: "var(--background)", color: "var(--text)" }}
     >
       <div
         className="w-full max-w-lg mx-4 p-8"
-        style={{ border: "1px solid #F87171", background: "#1a0808" }}
+        style={{ border: `1px solid ${CSS.error}`, background: "var(--panel)" }}
       >
         <div className="flex items-center gap-3 mb-4">
-          <span className="text-[18px]" style={{ color: "#F87171" }}>✗</span>
+          <span className="text-[18px]" style={{ color: CSS.error }}>✗</span>
           <span
             className="text-[14px] font-bold uppercase tracking-widest"
-            style={{ color: "#F87171", fontFamily: "'Bebas Neue', sans-serif" }}
+            style={{ color: CSS.error, fontFamily: "'Bebas Neue', sans-serif" }}
           >
             Application Error
           </span>
         </div>
 
-        <p className="text-[11px] mb-2 leading-relaxed" style={{ color: "#C8C5C0" }}>
+        <p className="text-[11px] mb-2 leading-relaxed" style={{ color: "var(--text-muted)" }}>
           {error.message || "An unexpected error occurred."}
         </p>
         {error.digest && (
-          <p className="text-[9px] mb-6" style={{ color: "#888480" }}>
+          <p className="text-[9px] mb-6" style={{ color: "var(--text-dim)" }}>
             Error ID: {error.digest}
           </p>
         )}
@@ -46,14 +47,14 @@ export default function GlobalError({
           <button
             onClick={reset}
             className="font-mono text-[10px] px-5 py-2 tracking-wider"
-            style={{ background: "#E8751A", color: "#FFF", fontWeight: 700 }}
+            style={{ background: CSS.accent, color: CSS.onAccent, fontWeight: 700 }}
           >
             RETRY
           </button>
           <a
             href="/control"
             className="font-mono text-[10px] px-5 py-2 tracking-wider"
-            style={{ background: "#141414", color: "#C8C5C0", border: "1px solid #3A3632" }}
+            style={{ background: "var(--panel-hover)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
           >
             ← CONTROL
           </a>
