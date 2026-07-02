@@ -48,15 +48,17 @@ def test_ingest_markdown_file_writes_row(tmp_path, monkeypatch):
         "Autonomous marketing bridge seeds publisher queues.\n",
         encoding="utf-8",
     )
-    with patch("app.server.supabase_log._insert", return_value=True) as ins:
+    monkeypatch.setenv("SUPABASE_UNITE_GROUP_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_UNITE_GROUP_SERVICE_KEY", "test-key")
+    with patch("swarm.marketing_skill_bridge._post_row_to_supabase", return_value=True) as ins:
         row_id = ingest_markdown_file(md, business_key="synthex", channel="linkedin")
     assert row_id
     ins.assert_called_once()
-    row = ins.call_args[0][1]
+    row = ins.call_args[0][2]
     assert row["business_key"] == "synthex"
     assert row["founder_id"] == "00000000-0000-4000-8000-000000000001"
-    assert row["eeat_score"]
-    assert row["geo_score"]
+    assert row["media_urls"] == []
+    assert "eeat_score" not in row and "metadata" not in row
 
 
 def test_run_scheduled_bridge_generates_when_no_files(monkeypatch):
@@ -65,7 +67,9 @@ def test_run_scheduled_bridge_generates_when_no_files(monkeypatch):
         "swarm.marketing_skill_bridge._discover_skill_outputs",
         lambda: [],
     )
-    with patch("app.server.supabase_log._insert", return_value=True):
+    monkeypatch.setenv("SUPABASE_UNITE_GROUP_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_UNITE_GROUP_SERVICE_KEY", "test-key")
+    with patch("swarm.marketing_skill_bridge._post_row_to_supabase", return_value=True):
         result = run_scheduled_bridge(max_rows=1)
     assert result.rows_written == 1
     assert not result.errors
