@@ -83,6 +83,20 @@ def test_is_pi_ceo_orphan_no_comments():
     assert autonomy._is_pi_ceo_orphan(issue, set()) is False
 
 
+def test_live_session_ids_excludes_interrupted():
+    """Interrupted restored sessions must not block orphan recovery."""
+    class _Sess:
+        def __init__(self, status: str):
+            self.status = status
+
+    sessions = {
+        "deadbeef0001": _Sess("interrupted"),
+        "cafebabe0002": _Sess("building"),
+    }
+    live = autonomy._live_session_ids(sessions)
+    assert live == {"cafebabe0002"}
+
+
 def test_is_pi_ceo_orphan_multiple_comments_latest_session_dead():
     """Multiple session comments; ANY live match → NOT orphan; none live → orphan."""
     issue = {
