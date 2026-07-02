@@ -4,9 +4,8 @@ description: Mandatory pre-build challenge gate (/judge). Run before approving o
 owner_role: Tier-Architect (pre-build challenge gate; read-only reviewer)
 status: active
 automation: manual
+machine_runnable: true
 ---
-
-# judge — First Evidence Challenge Gate
 
 Review only — `/judge` never builds, edits, commits, pushes, migrates, or deploys.
 It challenges the proposal before any build work starts. Implementation may only
@@ -76,6 +75,31 @@ Decision rules:
 - 0–69 = REJECT
 - 70–84 = REDUCE SCOPE or APPROVE EXPERIMENT
 - 85–100 = APPROVE BUILD
+
+## Convergence — do not stop until a REAL 100/100
+
+`/judge` does not end at the first score. It iterates: score → list every gap with its
+first-source anchor → drive the real fix (gather the missing evidence, reduce or reshape
+scope, clean cache and bloat, correct any false claim) → re-score. Repeat until the proposal
+genuinely earns 100/100.
+
+A 100 is valid ONLY when ALL of these hold — never by inflation:
+- **Real data:** every row of the evidence table is SUPPORTED by first-source; zero
+  UNSUPPORTED / PARTIAL / NOT CHECKED remain. Checked, not asserted.
+- **Cache and bloat cleaned:** no dead code, duplication, sediment, unused abstraction, or
+  stale copy survives the deletion test. The proposal carries nothing it does not need.
+- **True and correct:** every claim is verified against the source at real scale
+  (proof-discipline) — no plausible-but-unproven statement counts.
+- **No open blocker:** all seven review lenses pass.
+
+**Honesty rail (non-negotiable):** if the current scope cannot honestly reach 100 — an
+inherent tradeoff, evidence you cannot obtain, or an owner-gated decision — you MUST NOT fake
+the number. Reshape the proposal (reduce to the reversible core, split the risky part out,
+gather the evidence) until a real 100 is reachable, or halt and report the honest ceiling with
+the exact reason and what would lift it. A fabricated 100 is a failure of the gate, not a pass.
+
+Record each iteration — score, gaps closed, evidence added, bloat removed — so the path to 100
+is auditable, not asserted.
 
 ## Required output — Judge Report
 
