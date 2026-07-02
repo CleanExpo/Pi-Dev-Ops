@@ -30,6 +30,20 @@ log = logging.getLogger("pi-ceo.main")
 router = APIRouter()
 
 
+def _require_internal_webhook_secret(request: Request) -> None:
+    """RA-6904: fail-closed auth for X-Pi-CEO-Secret internal intake routes."""
+    import hmac as _hmac
+
+    expected = config.INTERNAL_WEBHOOK_SECRET
+    if not expected:
+        raise HTTPException(503, "Internal webhook secret not configured")
+    secret_header = request.headers.get("x-pi-ceo-secret", "")
+    if not secret_header:
+        raise HTTPException(401, "X-Pi-CEO-Secret header required")
+    if not _hmac.compare_digest(secret_header, expected):
+        raise HTTPException(401, "Invalid secret")
+
+
 def _telegram_send(token: str, chat_id: int | str, text: str) -> None:
     """Fire-and-forget helper — sends a message via Telegram Bot API."""
     import urllib.request as _ur
@@ -94,9 +108,9 @@ async def webhook(request: Request):
 
     if gh_event and gh_sig:
         # GitHub webhook
-        if not config.WEBHOOK_SECRET:
-            raise HTTPException(500, "Webhook secret not configured")
-        if not verify_github_signature(raw_body, gh_sig, config.WEBHOOK_SECRET):
+        if not config.GITHUB_WEBHOOK_SECRET:
+            raise HTTPException(500, "GitHub webhook secret not configured")
+        if not verify_github_signature(raw_body, gh_sig, config.GITHUB_WEBHOOK_SECRET):
             raise HTTPException(401, "Invalid signature")
         try:
             payload = json.loads(raw_body)
@@ -456,17 +470,11 @@ async def morning_intel_webhook(request: Request):
 
     Writes to .harness/morning-intel/YYYY-MM-DD.json (atomic write).
     Board meeting build_board_system_prompt() reads it at run time.
-    Protected by X-Pi-CEO-Secret header == TAO_WEBHOOK_SECRET.
+    Protected by X-Pi-CEO-Secret header == TAO_INTERNAL_WEBHOOK_SECRET (falls back to TAO_WEBHOOK_SECRET).
     """
-    import hmac as _hmac
     from datetime import datetime, timezone
 
-    secret_header = request.headers.get("x-pi-ceo-secret", "")
-    if config.WEBHOOK_SECRET:
-        if not secret_header:
-            raise HTTPException(401, "X-Pi-CEO-Secret header required")
-        if not _hmac.compare_digest(secret_header, config.WEBHOOK_SECRET):
-            raise HTTPException(401, "Invalid secret")
+    _require_internal_webhook_secret(request)
 
     raw_body = await request.body()
     try:
@@ -678,19 +686,13 @@ async def routine_complete_webhook(request: Request):
     """
     RA-1011 — Receive Claude Code Routine completion events.
 
-    Protected by X-Pi-CEO-Secret header == TAO_WEBHOOK_SECRET.
+    Protected by X-Pi-CEO-Secret header == TAO_INTERNAL_WEBHOOK_SECRET (falls back to TAO_WEBHOOK_SECRET).
     Writes one JSONL entry per run to .harness/routine-runs/YYYY-MM-DD.jsonl.
     Creates a Linear ticket when status == 'failure'.
     """
-    import hmac as _hmac
     from datetime import datetime, timezone
 
-    secret_header = request.headers.get("x-pi-ceo-secret", "")
-    if config.WEBHOOK_SECRET:
-        if not secret_header:
-            raise HTTPException(401, "X-Pi-CEO-Secret header required")
-        if not _hmac.compare_digest(secret_header, config.WEBHOOK_SECRET):
-            raise HTTPException(401, "Invalid secret")
+    _require_internal_webhook_secret(request)
 
     raw_body = await request.body()
     try:
@@ -805,17 +807,11 @@ async def workspace_intel_refresh(request: Request):
       }
 
     Stores one JSONL entry per batch to .harness/workspace-intel/YYYY-MM-DD.jsonl (atomic).
-    Protected by X-Pi-CEO-Secret header == TAO_WEBHOOK_SECRET.
+    Protected by X-Pi-CEO-Secret header == TAO_INTERNAL_WEBHOOK_SECRET (falls back to TAO_WEBHOOK_SECRET).
     """
-    import hmac as _hmac
     from datetime import datetime, timezone
 
-    secret_header = request.headers.get("x-pi-ceo-secret", "")
-    if config.WEBHOOK_SECRET:
-        if not secret_header:
-            raise HTTPException(401, "X-Pi-CEO-Secret header required")
-        if not _hmac.compare_digest(secret_header, config.WEBHOOK_SECRET):
-            raise HTTPException(401, "Invalid secret")
+    _require_internal_webhook_secret(request)
 
     raw_body = await request.body()
     try:
@@ -868,17 +864,10 @@ async def get_workspace_intel(
     """
     RA-826 — Return recent workspace intel batches for the weekly brief workflow.
 
-    Protected by X-Pi-CEO-Secret header (same token used by n8n webhooks).
+    Protected by X-Pi-CEO-Secret header (TAO_INTERNAL_WEBHOOK_SECRET).
     Returns up to `limit` most-recent batches sorted newest-first.
     """
-    import hmac as _hmac
-
-    secret_header = request.headers.get("x-pi-ceo-secret", "")
-    if config.WEBHOOK_SECRET:
-        if not secret_header:
-            raise HTTPException(401, "X-Pi-CEO-Secret header required")
-        if not _hmac.compare_digest(secret_header, config.WEBHOOK_SECRET):
-            raise HTTPException(401, "Invalid secret")
+    _require_internal_webhook_secret(request)
 
     intel_dir = Path(config.DATA_DIR).parent.parent / ".harness" / _WORKSPACE_INTEL_DIR_NAME
     entries: list[dict] = []

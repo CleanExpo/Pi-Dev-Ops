@@ -188,14 +188,23 @@ def _sample_payload(batch_date: str = "2026-04-19") -> dict:
     }
 
 
+def _enable_internal_webhooks(monkeypatch, secret: str = "test-secret") -> None:
+    """RA-6904: internal intake routes require INTERNAL_WEBHOOK_SECRET."""
+    import app.server.config as cfg
+    monkeypatch.setattr(cfg, "INTERNAL_WEBHOOK_SECRET", secret)
+    monkeypatch.setattr(cfg, "WEBHOOK_SECRET", secret)
+
+
 def test_workspace_intel_refresh_stores_batch(webhook_client, tmp_path, monkeypatch):
     """POST stores one JSONL entry and returns ok + correct count."""
     import app.server.config as cfg
     monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path / "app" / "data"))
-    monkeypatch.setattr(cfg, "WEBHOOK_SECRET", "")
+    _enable_internal_webhooks(monkeypatch)
 
     resp = webhook_client.post(
-        "/api/webhook/workspace-intel-refresh", json=_sample_payload()
+        "/api/webhook/workspace-intel-refresh",
+        json=_sample_payload(),
+        headers={"X-Pi-CEO-Secret": "test-secret"},
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -212,10 +221,14 @@ def test_workspace_intel_refresh_empty_items_not_stored(webhook_client, tmp_path
     """POST with empty items list returns stored=False and writes nothing to disk."""
     import app.server.config as cfg
     monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path / "app" / "data"))
-    monkeypatch.setattr(cfg, "WEBHOOK_SECRET", "")
+    _enable_internal_webhooks(monkeypatch)
 
     payload = {"batch_date": "2026-04-19", "count": 0, "items": [], "source": "test"}
-    resp = webhook_client.post("/api/webhook/workspace-intel-refresh", json=payload)
+    resp = webhook_client.post(
+        "/api/webhook/workspace-intel-refresh",
+        json=payload,
+        headers={"X-Pi-CEO-Secret": "test-secret"},
+    )
     assert resp.status_code == 200
     assert resp.json() == {"ok": True, "stored": False, "reason": "empty_items"}
     assert not _intel_dir(tmp_path).exists()
@@ -225,11 +238,15 @@ def test_workspace_intel_refresh_invalid_date_returns_400(webhook_client, tmp_pa
     """POST with a malformed batch_date returns HTTP 400."""
     import app.server.config as cfg
     monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path / "app" / "data"))
-    monkeypatch.setattr(cfg, "WEBHOOK_SECRET", "")
+    _enable_internal_webhooks(monkeypatch)
 
     payload = _sample_payload()
     payload["batch_date"] = "not-a-date"
-    resp = webhook_client.post("/api/webhook/workspace-intel-refresh", json=payload)
+    resp = webhook_client.post(
+        "/api/webhook/workspace-intel-refresh",
+        json=payload,
+        headers={"X-Pi-CEO-Secret": "test-secret"},
+    )
     assert resp.status_code == 400
 
 
@@ -281,20 +298,31 @@ def test_telegram_webhook_rejects_bad_secret(webhook_client, monkeypatch):
 
 
 def test_workspace_intel_refresh_requires_secret_when_configured(webhook_client, tmp_path, monkeypatch):
-    """POST returns 401 when WEBHOOK_SECRET is set but header is absent."""
+    """POST returns 401 when INTERNAL_WEBHOOK_SECRET is set but header is absent."""
     import app.server.config as cfg
     monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path / "app" / "data"))
-    monkeypatch.setattr(cfg, "WEBHOOK_SECRET", "correct-secret")
+    _enable_internal_webhooks(monkeypatch, "correct-secret")
 
     resp = webhook_client.post("/api/webhook/workspace-intel-refresh", json=_sample_payload())
     assert resp.status_code == 401
+
+
+def test_workspace_intel_refresh_fail_closed_when_unconfigured(webhook_client, tmp_path, monkeypatch):
+    """POST returns 503 when INTERNAL_WEBHOOK_SECRET is unset (RA-6904)."""
+    import app.server.config as cfg
+    monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path / "app" / "data"))
+    monkeypatch.setattr(cfg, "INTERNAL_WEBHOOK_SECRET", "")
+    monkeypatch.setattr(cfg, "WEBHOOK_SECRET", "")
+
+    resp = webhook_client.post("/api/webhook/workspace-intel-refresh", json=_sample_payload())
+    assert resp.status_code == 503
 
 
 def test_workspace_intel_refresh_wrong_secret_returns_401(webhook_client, tmp_path, monkeypatch):
     """POST returns 401 when provided secret does not match configured secret."""
     import app.server.config as cfg
     monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path / "app" / "data"))
-    monkeypatch.setattr(cfg, "WEBHOOK_SECRET", "correct-secret")
+    _enable_internal_webhooks(monkeypatch, "correct-secret")
 
     resp = webhook_client.post(
         "/api/webhook/workspace-intel-refresh",
@@ -308,12 +336,17 @@ def test_get_workspace_intel_returns_stored_entries(webhook_client, tmp_path, mo
     """GET /api/workspace-intel returns batches previously stored via POST."""
     import app.server.config as cfg
     monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path / "app" / "data"))
-    monkeypatch.setattr(cfg, "WEBHOOK_SECRET", "")
+    _enable_internal_webhooks(monkeypatch)
+    headers = {"X-Pi-CEO-Secret": "test-secret"}
 
     # Store a batch first
-    webhook_client.post("/api/webhook/workspace-intel-refresh", json=_sample_payload())
+    webhook_client.post(
+        "/api/webhook/workspace-intel-refresh",
+        json=_sample_payload(),
+        headers=headers,
+    )
 
-    resp = webhook_client.get("/api/workspace-intel")
+    resp = webhook_client.get("/api/workspace-intel", headers=headers)
     assert resp.status_code == 200
     data = resp.json()
     assert data["total"] == 1
@@ -326,9 +359,12 @@ def test_get_workspace_intel_empty_when_no_data(webhook_client, tmp_path, monkey
     """GET returns empty entries list when no intel has been stored yet."""
     import app.server.config as cfg
     monkeypatch.setattr(cfg, "DATA_DIR", str(tmp_path / "app" / "data"))
-    monkeypatch.setattr(cfg, "WEBHOOK_SECRET", "")
+    _enable_internal_webhooks(monkeypatch)
 
-    resp = webhook_client.get("/api/workspace-intel")
+    resp = webhook_client.get(
+        "/api/workspace-intel",
+        headers={"X-Pi-CEO-Secret": "test-secret"},
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert data["entries"] == []

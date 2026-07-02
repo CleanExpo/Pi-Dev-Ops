@@ -24,6 +24,7 @@ def client(monkeypatch, tmp_path):
     sys.modules.pop("swarm.budget_tracker", None)
     from app.server import config as _config  # noqa: PLC0415
     monkeypatch.setattr(_config, "WEBHOOK_SECRET", "test-secret", raising=False)
+    monkeypatch.setattr(_config, "INTERNAL_WEBHOOK_SECRET", "test-secret", raising=False)
     sys.modules.pop("app.server.routes.cost_report", None)
     from app.server.routes import cost_report  # noqa: PLC0415
     app = FastAPI()
