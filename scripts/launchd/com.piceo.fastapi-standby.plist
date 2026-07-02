@@ -16,11 +16,11 @@
     <array>
         <string>/bin/bash</string>
         <string>-lc</string>
-        <string>cd /Users/phill-mac/Pi-CEO/Pi-Dev-Ops &amp;&amp; [ -f .env.local ] &amp;&amp; set -a &amp;&amp; source .env.local &amp;&amp; set +a; exec /Users/phill-mac/.pyenv/versions/3.13.13/bin/python -m uvicorn app.server.main:app --host 127.0.0.1 --port 7777</string>
+        <string>cd /Users/phill-mac/Pi-Dev-Ops/app &amp;&amp; [ -f .env.local ] &amp;&amp; set -a &amp;&amp; source .env.local &amp;&amp; set +a &amp;&amp; cd /Users/phill-mac/Pi-Dev-Ops &amp;&amp; exec /Users/phill-mac/.pyenv/versions/3.13.13/bin/python -m uvicorn app.server.main:app --host 127.0.0.1 --port 7777</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/phill-mac/Pi-CEO/Pi-Dev-Ops</string>
+    <string>/Users/phill-mac/Pi-Dev-Ops</string>
 
     <key>EnvironmentVariables</key>
     <dict>
@@ -31,7 +31,7 @@
         <key>TAO_USE_AGENT_SDK</key>
         <string>1</string>
         <key>PI_CEO_HARNESS_DIR</key>
-        <string>/Users/phill-mac/Pi-CEO/Pi-Dev-Ops/.harness</string>
+        <string>/Users/phill-mac/Pi-Dev-Ops/.harness</string>
     </dict>
 
     <key>RunAtLoad</key>
