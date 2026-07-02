@@ -28,6 +28,25 @@
       "_comment_path_exclusions": "scanner.py contains regex patterns that match its own dangerous-pattern detectors \u2014 eval(), dangerouslySetInnerHTML, nosec, TODO-near-secret \u2014 all false positives from self-scanning (RA-675)"
     },
     {
+      "id": "margot",
+      "repo": "CleanExpo/Pi-Dev-Ops",
+      "linear_project_id": "94da87f8-a2a5-4fbb-9903-0047ff84d92c",
+      "linear_project_name": "Margot",
+      "linear_team_id": "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673",
+      "linear_team_key": "RA",
+      "stack": [
+        "Python",
+        "FastAPI",
+        "Telegram"
+      ],
+      "deployments": {
+        "backend": "https://pi-dev-ops-production.up.railway.app"
+      },
+      "scan_priority": "medium",
+      "scan_schedule": "0 0 * * *",
+      "notes": "Margot voice/agent work ships in Pi-Dev-Ops repo; autonomy poller maps tickets here to CleanExpo/Pi-Dev-Ops"
+    },
+    {
       "id": "restoreassist",
       "repo": "CleanExpo/RestoreAssist",
       "linear_project_id": "3c78358a-b558-4029-b47d-367a65beea7b",

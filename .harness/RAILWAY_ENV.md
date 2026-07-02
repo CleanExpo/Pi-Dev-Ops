@@ -15,6 +15,7 @@
 
 ## Optional / Feature flags
 - `TAO_AUTONOMY_ENABLED=1` — enable autonomous Linear issue polling
+- `TAO_MACHINE_SHIP_MODE=1` — enable machine spec-pipeline ship gate (judge → STORM → SPM → boardroom → build → PR merge). Default off; required for `pi-dev:machine-ship` tickets.
 - `TAO_USE_AGENT_SDK=1` — use Agent SDK (required, must be 1)
 - `TAO_SWARM_SHADOW=0` — swarm active mode (set 0 for production)
 - `TAO_SWARM_MAX_DAILY_PRS=3` — **operator knob (RA-3019)** — max autonomous PRs the Builder may open per UTC day. Defaults to `3`. Auto-clamped to `SAFE_FALLBACK_MAX_DAILY_PRS=3` regardless of override until `.harness/swarm/green_merge_counter.json` shows `consecutive_green >= 20`. Recommended progression once threshold met: `3 → 5 → 8 → 12`. Raise/lower with `scripts/raise_pr_cap.sh <N>`. Inspect live state via `GET /api/swarm/status` → `pr_quota`.
