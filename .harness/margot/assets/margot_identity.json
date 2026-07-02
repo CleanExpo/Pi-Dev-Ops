@@ -12,6 +12,12 @@
     "quality": "high",
     "n": 1
   },
+  "elevenlabs": {
+    "voice_id": "p43fx6U8afP2xoq1Ai9f",
+    "provider": "elevenlabs",
+    "persona": "calm executive operator",
+    "notes": "Margot-only TTS voice. Do NOT use ELEVENLABS_VOICE_ID (other agents). SSOT mirrored in app/server/margot_voice.py and @unite-group/brand-config MARGOT_ELEVENLABS_VOICE_ID."
+  },
   "identity": {
     "age": 32,
     "presentation": "realistic original adult woman, professional executive operator, not robotic",
