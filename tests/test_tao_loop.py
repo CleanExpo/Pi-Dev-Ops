@@ -5,7 +5,6 @@ separately so every test is deterministic and runs in milliseconds.
 """
 from __future__ import annotations
 
-import importlib
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -16,17 +15,18 @@ pytestmark = pytest.mark.asyncio
 
 
 def _reload_modules(monkeypatch, **env):
-    """Reload kill_switch + tao_loop with patched env so LoopCounter limits
-    pick up env values at construction time."""
+    """Patch env limits for LoopCounter without reloading kill_switch.
+
+    Reloading kill_switch rebinds KillSwitchAbort and breaks cross-module
+    identity checks (RA-6869). LoopCounter reads env at construction time
+    inside run_until_done, so monkeypatch alone is sufficient.
+    """
     for k, v in env.items():
         if v is None:
             monkeypatch.delenv(k, raising=False)
         else:
             monkeypatch.setenv(k, str(v))
-    import app.server.kill_switch as ks
-    importlib.reload(ks)
     import app.server.tao_loop as tl
-    importlib.reload(tl)
     return tl
 
 
