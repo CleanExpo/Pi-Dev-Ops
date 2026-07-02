@@ -402,8 +402,12 @@ var brands = {
   synthex,
   unite
 };
+
+// src/constants/margot-elevenlabs.ts
+var MARGOT_ELEVENLABS_VOICE_ID = "p43fx6U8afP2xoq1Ai9f";
 export {
   FORBIDDEN_PRONOUNS,
+  MARGOT_ELEVENLABS_VOICE_ID,
   brands,
   carsi,
   ccw,

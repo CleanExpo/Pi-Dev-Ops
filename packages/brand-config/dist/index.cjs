@@ -21,6 +21,7 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var index_exports = {};
 __export(index_exports, {
   FORBIDDEN_PRONOUNS: () => FORBIDDEN_PRONOUNS,
+  MARGOT_ELEVENLABS_VOICE_ID: () => MARGOT_ELEVENLABS_VOICE_ID,
   brands: () => brands,
   carsi: () => carsi,
   ccw: () => ccw,
@@ -548,9 +549,13 @@ function themeFactory(brand) {
     }
   };
 }
+
+// src/constants/margot-elevenlabs.ts
+var MARGOT_ELEVENLABS_VOICE_ID = "p43fx6U8afP2xoq1Ai9f";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   FORBIDDEN_PRONOUNS,
+  MARGOT_ELEVENLABS_VOICE_ID,
   brands,
   carsi,
   ccw,

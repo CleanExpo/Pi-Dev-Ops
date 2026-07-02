@@ -10,3 +10,4 @@ export {
   type CssVarMap,
   type TailwindFragment,
 } from './theme-factory';
+export { MARGOT_ELEVENLABS_VOICE_ID } from './constants/margot-elevenlabs';
