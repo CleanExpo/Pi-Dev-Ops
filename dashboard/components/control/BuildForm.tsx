@@ -175,7 +175,7 @@ export default function BuildForm() {
           className="h-8 px-3 rounded-md text-xs font-mono font-medium disabled:opacity-30 transition-colors"
           style={{
             background: running ? "var(--error)" : "var(--accent)",
-            color: "#fff",
+            color: "var(--on-accent)",
           }}
         >
           {running ? "■ stop" : "▶ run"}

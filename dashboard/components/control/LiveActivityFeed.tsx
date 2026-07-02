@@ -97,7 +97,7 @@ function Sparkline({ data }: { data: number[] }) {
     <div className="flex flex-col gap-1">
       <div className="flex items-baseline gap-2">
         <span className="text-3xl font-bold text-cyan-400 tabular-nums">{total}</span>
-        <span className="text-xs text-slate-400">sessions / 24h</span>
+        <span className="text-xs text-text-muted">sessions / 24h</span>
       </div>
       <svg width={w} height={h} className="overflow-visible">
         <polygon points={fillPoints} fill="rgb(6 182 212 / 0.15)" />
@@ -221,7 +221,7 @@ export default function LiveActivityFeed() {
   if (!data && !err) {
     return (
       <div className="rounded-lg border border-slate-700/50 bg-slate-900/50 p-6 backdrop-blur-sm">
-        <div className="animate-pulse text-slate-400">Loading Mission Control…</div>
+        <div className="animate-pulse text-text-muted">Loading Mission Control…</div>
       </div>
     );
   }
@@ -262,17 +262,17 @@ export default function LiveActivityFeed() {
                   <span className="text-3xl font-bold text-rose-400 tabular-nums">
                     {data.queue.urgent}
                   </span>
-                  <span className="text-xs text-slate-400 ml-1">urgent</span>
+                  <span className="text-xs text-text-muted ml-1">urgent</span>
                 </div>
                 <div>
                   <span className="text-2xl font-semibold text-amber-400 tabular-nums">
                     {data.queue.high}
                   </span>
-                  <span className="text-xs text-slate-400 ml-1">high</span>
+                  <span className="text-xs text-text-muted ml-1">high</span>
                 </div>
               </div>
               {data.queue.next_issue_id && (
-                <div className="text-xs text-slate-400 mt-2 truncate">
+                <div className="text-xs text-text-muted mt-2 truncate">
                   next:{" "}
                   <span className="font-mono text-cyan-400">
                     {data.queue.next_issue_id}
@@ -289,9 +289,9 @@ export default function LiveActivityFeed() {
                 <span className="text-3xl font-bold text-emerald-400 tabular-nums">
                   {data.pulse.comments_today}
                 </span>
-                <span className="text-xs text-slate-400">comments today</span>
+                <span className="text-xs text-text-muted">comments today</span>
               </div>
-              <div className="text-xs text-slate-400 mt-1">
+              <div className="text-xs text-text-muted mt-1">
                 last: <span className="font-mono">{fmtAgo(data.pulse.last_at)}</span>
                 {data.pulse.pulse_issue_id && (
                   <span className="ml-2 text-text-muted">
@@ -388,7 +388,7 @@ export default function LiveActivityFeed() {
                     className="flex items-center gap-3 py-2 px-3 rounded bg-slate-900/50 border border-slate-800"
                   >
                     <LiveDot active={true} />
-                    <span className="font-mono text-xs text-slate-400">
+                    <span className="font-mono text-xs text-text-muted">
                       {s.id}
                     </span>
                     <PhasePill phase={s.phase || s.status} />
@@ -400,7 +400,7 @@ export default function LiveActivityFeed() {
                         {s.issue_id}
                       </span>
                     )}
-                    <span className="ml-auto text-xs text-slate-400 tabular-nums">
+                    <span className="ml-auto text-xs text-text-muted tabular-nums">
                       {fmtElapsed(s.elapsed_s)}
                     </span>
                   </div>
@@ -429,7 +429,7 @@ export default function LiveActivityFeed() {
                     <span className="font-mono text-text-muted">{c.id}</span>
                     <span className="text-slate-200 font-medium">{c.repo}</span>
                     {c.branch && (
-                      <span className="text-slate-400 font-mono truncate max-w-[200px]">
+                      <span className="text-text-muted font-mono truncate max-w-[200px]">
                         {c.branch}
                       </span>
                     )}
