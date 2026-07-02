@@ -105,7 +105,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782951571.0
+    "last_fired_at": 1782954003.0
   },
   {
     "id": "monitor-0700",
@@ -179,7 +179,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1775865600,
-    "last_fired_at": 1782925250.0,
+    "last_fired_at": 1782954676.113594,
     "note": "RA-634 \u2014 tests direct Anthropic SDK path (TAO_USE_FALLBACK contingency). See DEPLOYMENT.md \u2192 Contingency: API Fallback."
   },
   {
@@ -235,7 +235,7 @@
     "minute": 30,
     "enabled": true,
     "created_at": 1776582512,
-    "last_fired_at": 1782952338.4428842,
+    "last_fired_at": 1782952338.0,
     "note": "Second daily sweep \u2014 catches west-coast / overnight releases"
   },
   {
