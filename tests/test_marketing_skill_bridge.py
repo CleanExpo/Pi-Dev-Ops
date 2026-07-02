@@ -41,6 +41,7 @@ def test_generate_social_post_includes_scores():
 
 
 def test_ingest_markdown_file_writes_row(tmp_path, monkeypatch):
+    monkeypatch.setenv("TAO_FOUNDER_USER_ID", "00000000-0000-4000-8000-000000000001")
     md = tmp_path / "synthex-linkedin-1.md"
     md.write_text(
         "---\nbrand: synthex\nchannel: linkedin\ntopic: Bridge test\n---\n\n"
@@ -53,11 +54,13 @@ def test_ingest_markdown_file_writes_row(tmp_path, monkeypatch):
     ins.assert_called_once()
     row = ins.call_args[0][1]
     assert row["business_key"] == "synthex"
+    assert row["founder_id"] == "00000000-0000-4000-8000-000000000001"
     assert row["eeat_score"]
     assert row["geo_score"]
 
 
 def test_run_scheduled_bridge_generates_when_no_files(monkeypatch):
+    monkeypatch.setenv("TAO_FOUNDER_USER_ID", "00000000-0000-4000-8000-000000000001")
     monkeypatch.setattr(
         "swarm.marketing_skill_bridge._discover_skill_outputs",
         lambda: [],

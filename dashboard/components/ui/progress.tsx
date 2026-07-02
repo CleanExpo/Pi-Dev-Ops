@@ -9,9 +9,9 @@ interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const variantColor: Record<string, string> = {
   default: "var(--accent)",
-  success: "#4ADE80",
-  warning: "#FFD166",
-  error:   "#F87171",
+  success: "var(--success)",
+  warning: "var(--warning)",
+  error:   "var(--error)",
 };
 
 const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(

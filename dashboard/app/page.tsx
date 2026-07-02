@@ -78,40 +78,48 @@ function LoginForm() {
           π
         </span>
 
-        {/* Pi CEO wordmark */}
-        <h1
-          className="font-sans font-bold leading-none"
-          style={{
-            fontSize: "clamp(72px, 14vw, 160px)",
-            color: CSS.text,
-            letterSpacing: "0.06em",
-            textShadow: "0 2px 40px rgba(0,0,0,0.8)",
-          }}
-        >
-          Pi CEO
-        </h1>
+        {/* Pi CEO wordmark — hidden in login mode to avoid double-render bleed */}
+        {mode === "hero" && (
+          <>
+            <h1
+              className="font-sans font-bold leading-none"
+              style={{
+                fontSize: "clamp(72px, 14vw, 160px)",
+                color: CSS.text,
+                letterSpacing: "0.06em",
+                textShadow: "0 2px 40px rgba(0,0,0,0.8)",
+              }}
+            >
+              Pi CEO
+            </h1>
 
-        {/* Tagline */}
-        <p
-          className="font-sans font-semibold mt-2"
-          style={{
-            fontSize: "clamp(14px, 2.5vw, 22px)",
-            color: CSS.text,
-            letterSpacing: "0.35em",
-            textTransform: "uppercase",
-            opacity: 0.9,
-          }}
-        >
-          Solo DevOps Tool
-        </p>
+            <p
+              className="font-sans font-semibold mt-2"
+              style={{
+                fontSize: "clamp(14px, 2.5vw, 22px)",
+                color: CSS.text,
+                letterSpacing: "0.35em",
+                textTransform: "uppercase",
+                opacity: 0.9,
+              }}
+            >
+              Solo DevOps Tool
+            </p>
 
-        {/* Powered by */}
-        <p
-          className="font-mono mt-3"
-          style={{ fontSize: "10px", color: CSS.accent, letterSpacing: "0.3em", textTransform: "uppercase", opacity: 0.85 }}
-        >
-          Powered by Claude Harness
-        </p>
+            <p
+              className="font-mono mt-3"
+              style={{ fontSize: "10px", color: CSS.accent, letterSpacing: "0.3em", textTransform: "uppercase", opacity: 0.85 }}
+            >
+              Powered by Claude Harness
+            </p>
+          </>
+        )}
+
+        {mode === "login" && (
+          <p className="font-sans font-semibold mb-2" style={{ fontSize: "14px", color: CSS.text, letterSpacing: "0.2em" }}>
+            Sign in
+          </p>
+        )}
 
         {/* ── CTA / Login form ── */}
         {mode === "hero" ? (
@@ -140,6 +148,9 @@ function LoginForm() {
             <div className="relative w-full">
               <input
                 ref={inputRef}
+                id="password"
+                name="password"
+                autoComplete="current-password"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={e => setPassword(e.target.value)}

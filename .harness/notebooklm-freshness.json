@@ -3,21 +3,21 @@
   "notebooks": {
     "e2d607ca-38cd-41c5-a172-01a72ce681e3": {
       "entity": "RestoreAssist",
-      "last_attempted": "2026-07-02T01:00:07+00:00",
+      "last_attempted": "2026-07-02T08:13:48+00:00",
       "outcome": "needs_credentials",
       "error": "NOTEBOOKLM_GCP_PROJECT_ID env var not set",
       "sources_count": 4
     },
     "7742cc83-0c5e-4486-bab9-333f0992ce4c": {
       "entity": "Synthex",
-      "last_attempted": "2026-07-02T01:00:07+00:00",
+      "last_attempted": "2026-07-02T08:13:48+00:00",
       "outcome": "needs_credentials",
       "error": "NOTEBOOKLM_GCP_PROJECT_ID env var not set",
       "sources_count": 3
     },
     "1b446605-87eb-438f-8688-944332d0bb83": {
       "entity": "CleanExpo",
-      "last_attempted": "2026-07-02T01:00:07+00:00",
+      "last_attempted": "2026-07-02T08:13:48+00:00",
       "outcome": "needs_credentials",
       "error": "NOTEBOOKLM_GCP_PROJECT_ID env var not set",
       "sources_count": 3

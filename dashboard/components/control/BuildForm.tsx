@@ -118,8 +118,9 @@ export default function BuildForm() {
           repo
         </span>
         <input
+          id="build-repo"
+          name="repo"
           type="text"
-          value={repo}
           onChange={(e) => setRepo(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !running) submit(); }}
           onFocus={() => setRepoFocused(true)}
@@ -151,6 +152,8 @@ export default function BuildForm() {
           msg
         </span>
         <textarea
+          id="build-brief"
+          name="brief"
           value={brief}
           onChange={(e) => setBrief(e.target.value)}
           onFocus={() => setBriefFocused(true)}

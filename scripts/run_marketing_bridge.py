@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""UNI-2236 — run marketing skill bridge once (cron / manual)."""
+"""UNI-2236 — run marketing skill bridge once (cron / manual).
+
+Requires TAO_FOUNDER_USER_ID (or FOUNDER_USER_ID) — must match Unite-Hub
+FOUNDER_USER_ID so /api/cron/social-publisher drains seeded rows.
+"""
 from __future__ import annotations
 
 import json

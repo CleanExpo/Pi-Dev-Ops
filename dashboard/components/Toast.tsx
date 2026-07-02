@@ -2,6 +2,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useRef, useState } from "react";
+import { BRAND_DARK, CSS } from "@/lib/brand-tokens";
 
 export type ToastVariant = "success" | "error" | "info";
 
@@ -22,9 +23,9 @@ export function useToast() {
 }
 
 const COLORS: Record<ToastVariant, { bg: string; border: string; color: string }> = {
-  success: { bg: "#0d1a0d", border: "#4ADE80", color: "#4ADE80" },
-  error:   { bg: "#1a0808", border: "#F87171", color: "#F87171" },
-  info:    { bg: "#0d0d1a", border: "#6B8CFF", color: "#C8C5C0" },
+  success: { bg: "#0d1a0d", border: BRAND_DARK.success, color: BRAND_DARK.success },
+  error:   { bg: "#1a0808", border: BRAND_DARK.error, color: BRAND_DARK.error },
+  info:    { bg: "#0d0d1a", border: BRAND_DARK.info, color: CSS.textMuted },
 };
 
 const ICONS: Record<ToastVariant, string> = {
