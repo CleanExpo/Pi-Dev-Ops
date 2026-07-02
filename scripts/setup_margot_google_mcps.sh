@@ -68,6 +68,23 @@ need_cmd() {
     command -v "$1" >/dev/null 2>&1 || die "'$1' not found — install it first"
 }
 
+NODE_BIN="node"
+
+activate_node() {
+    # Hermes MCP globals are installed under nvm; default shell node may differ (e.g. v20).
+    if [ -s "${NVM_ROOT}/nvm.sh" ]; then
+        # shellcheck disable=SC1091
+        . "${NVM_ROOT}/nvm.sh"
+        nvm use "${NODE_VERSION}" >/dev/null 2>&1 || nvm install "${NODE_VERSION}"
+        NODE_BIN="${NVM_ROOT}/versions/node/${NODE_VERSION}/bin/node"
+    fi
+    if [ ! -x "$NODE_BIN" ]; then
+        NODE_BIN="$(command -v node || true)"
+    fi
+    [ -n "$NODE_BIN" ] && [ -x "$NODE_BIN" ] || die "node not found — install Node ${NODE_VERSION} via nvm"
+    GDRIVE_PKG_DIR="$(dirname "$GDRIVE_SERVER")/.."
+}
+
 resolve_gdrive_server() {
     if [ -f "$GDRIVE_SERVER" ]; then
         return 0
@@ -157,7 +174,7 @@ run_gdrive_auth() {
 
     GDRIVE_OAUTH_PATH="$OAUTH_KEYS" \
     GDRIVE_CREDENTIALS_PATH="$GDRIVE_CREDENTIALS" \
-    node "$GDRIVE_SERVER" auth
+    "$NODE_BIN" "$GDRIVE_SERVER" auth
 
     [ -f "$GDRIVE_CREDENTIALS" ] || die "GDrive auth finished but $GDRIVE_CREDENTIALS was not created"
     chmod 600 "$GDRIVE_CREDENTIALS"
@@ -199,13 +216,19 @@ PY
 
     # Reuse @google-cloud/local-auth from the globally installed GDrive MCP package.
     resolve_gdrive_server || die "GDrive MCP package required for Gmail OAuth helper"
+    activate_node
 
-    NODE_PATH="${GDRIVE_PKG_DIR}/node_modules" \
+    local local_auth="${GDRIVE_PKG_DIR}/node_modules/@google-cloud/local-auth/build/src/index.js"
+    [ -f "$local_auth" ] || die "GDrive MCP missing @google-cloud/local-auth — reinstall: npm install -g @modelcontextprotocol/server-gdrive"
+
+    LOCAL_AUTH_PATH="$local_auth" \
     OAUTH_KEYS="$OAUTH_KEYS" \
     GMAIL_TOKEN_CACHE="$GMAIL_TOKEN_CACHE" \
-    node --input-type=module <<'NODE'
-import { authenticate } from "@google-cloud/local-auth";
+    "$NODE_BIN" --input-type=module <<'NODE'
+import { pathToFileURL } from "node:url";
 import fs from "fs";
+
+const { authenticate } = await import(pathToFileURL(process.env.LOCAL_AUTH_PATH).href);
 
 const keyfile = process.env.OAUTH_KEYS;
 const out = process.env.GMAIL_TOKEN_CACHE;
@@ -383,8 +406,10 @@ main() {
     log ""
 
     need_cmd python3
-    need_cmd node
     need_cmd npm
+
+    resolve_gdrive_server || true
+    activate_node
 
     stage_oauth_keys
     validate_oauth_json
