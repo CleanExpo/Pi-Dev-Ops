@@ -79,12 +79,12 @@ def _transcribe_smoke(
 ) -> dict[str, object]:
     import subprocess
 
+    wav_literal = json.dumps(str(wav_path))
     script = f"""
 import time
-from pathlib import Path
 from faster_whisper import WhisperModel
 
-wav = Path({wav_path!r})
+wav = {wav_literal}
 model = WhisperModel({model!r}, device={device!r}, compute_type={compute_type!r})
 start = time.perf_counter()
 segments, _ = model.transcribe(str(wav), beam_size=5, language="en")
