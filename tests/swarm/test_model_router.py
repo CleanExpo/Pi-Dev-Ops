@@ -15,6 +15,9 @@ from swarm.model_router import (
     NoProviderAvailable,
     Tier,
     get_client,
+    is_openrouter_allowed_for_role,
+    is_openrouter_enforce_enabled,
+    openrouter_allowed_roles,
 )
 
 
@@ -250,3 +253,102 @@ def test_llmresponse_is_frozen():
     resp = client.complete(system="s", user="u")
     with pytest.raises((AttributeError, Exception)):
         resp.text = "mutated"  # type: ignore[misc]
+
+
+# ============================================================
+# OpenRouter enforce (RA-6470 phase 1)
+# ============================================================
+
+class TestOpenRouterEnforce:
+    def test_enforce_defaults_off(self, monkeypatch):
+        monkeypatch.delenv("TAO_OPENROUTER_ENFORCE", raising=False)
+        assert is_openrouter_enforce_enabled() is False
+
+    def test_default_allowed_roles_include_remedial_sub_agent(self, monkeypatch):
+        monkeypatch.delenv("TAO_OPENROUTER_ALLOWED_ROLES", raising=False)
+        allowed = openrouter_allowed_roles()
+        assert "margot.casual" in allowed
+        assert "sub_agent" in allowed
+        assert "generator" not in allowed
+        assert "evaluator" not in allowed
+
+    def test_generator_blocked_when_enforce_on(self, monkeypatch):
+        monkeypatch.setenv("TAO_OPENROUTER_ENFORCE", "1")
+        assert is_openrouter_allowed_for_role("generator") is False
+        assert is_openrouter_allowed_for_role("evaluator") is False
+
+    def test_remedial_role_allowed_when_enforce_on(self, monkeypatch):
+        monkeypatch.setenv("TAO_OPENROUTER_ENFORCE", "1")
+        assert is_openrouter_allowed_for_role("margot.casual") is True
+        assert is_openrouter_allowed_for_role("sub_agent") is True
+
+    def test_generator_cannot_fallback_to_openrouter_when_enforced(self, monkeypatch):
+        monkeypatch.setenv("TAO_OPENROUTER_ENFORCE", "1")
+        primary = StubProvider(name="anthropic", available=False)
+        fallback = StubProvider(name="openrouter", model="fb")
+        client = get_client(
+            Tier.FRONTIER,
+            role="generator",
+            providers=[primary, fallback],
+        )
+        with pytest.raises(NoProviderAvailable):
+            client.complete(system="s", user="u")
+        assert primary.calls == 0
+        assert fallback.calls == 0
+
+    def test_evaluator_cannot_fallback_to_openrouter_when_enforced(self, monkeypatch):
+        monkeypatch.setenv("TAO_OPENROUTER_ENFORCE", "1")
+        primary = StubProvider(
+            name="anthropic",
+            raises=urllib.error.HTTPError("u", 429, "rate-limited", {}, None),
+        )
+        fallback = StubProvider(name="openrouter", model="fb")
+        client = get_client(
+            Tier.WORKING,
+            role="evaluator",
+            providers=[primary, fallback],
+        )
+        with pytest.raises(NoProviderAvailable):
+            client.complete(system="s", user="u")
+        assert primary.calls == 1
+        assert fallback.calls == 0
+
+    def test_allowed_role_keeps_openrouter_fallback(self, monkeypatch):
+        monkeypatch.setenv("TAO_OPENROUTER_ENFORCE", "1")
+        primary = StubProvider(name="anthropic", available=False)
+        fallback = StubProvider(name="openrouter", model="fb")
+        client = get_client(
+            Tier.REMEDIAL,
+            role="margot.casual",
+            providers=[primary, fallback],
+        )
+        resp = client.complete(system="s", user="u")
+        assert resp.provider == "openrouter"
+        assert fallback.calls == 1
+
+    def test_enforce_off_preserves_openrouter_for_generator(self, monkeypatch):
+        monkeypatch.delenv("TAO_OPENROUTER_ENFORCE", raising=False)
+        primary = StubProvider(name="anthropic", available=False)
+        fallback = StubProvider(name="openrouter", model="fb")
+        client = get_client(
+            Tier.FRONTIER,
+            role="generator",
+            providers=[primary, fallback],
+        )
+        resp = client.complete(system="s", user="u")
+        assert resp.provider == "openrouter"
+
+    def test_custom_allowed_roles_env(self, monkeypatch):
+        monkeypatch.setenv("TAO_OPENROUTER_ENFORCE", "1")
+        monkeypatch.setenv("TAO_OPENROUTER_ALLOWED_ROLES", "generator,evaluator")
+        assert is_openrouter_allowed_for_role("generator") is True
+        assert is_openrouter_allowed_for_role("margot.casual") is False
+
+    def test_no_role_skips_enforce_filter(self, monkeypatch):
+        """Callers without role= keep legacy ladder behaviour when enforce is on."""
+        monkeypatch.setenv("TAO_OPENROUTER_ENFORCE", "1")
+        primary = StubProvider(name="anthropic", available=False)
+        fallback = StubProvider(name="openrouter", model="fb")
+        client = get_client(Tier.FRONTIER, providers=[primary, fallback])
+        resp = client.complete(system="s", user="u")
+        assert resp.provider == "openrouter"
