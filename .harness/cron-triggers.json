@@ -14,7 +14,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782950405.0
+    "last_fired_at": 1782980340.0
   },
   {
     "id": "scan-high-0600",
@@ -31,7 +31,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782972001.582837
+    "last_fired_at": 1782972001.0
   },
   {
     "id": "scan-high-1200",
@@ -48,7 +48,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782951571.0
+    "last_fired_at": 1782981233.0
   },
   {
     "id": "scan-high-1800",
@@ -116,7 +116,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782951571.0
+    "last_fired_at": 1782975604.0
   },
   {
     "id": "monitor-1300",
@@ -127,7 +127,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782951571.0
+    "last_fired_at": 1782981233.0
   },
   {
     "id": "monitor-1900",
@@ -235,7 +235,7 @@
     "minute": 30,
     "enabled": true,
     "created_at": 1776582512,
-    "last_fired_at": 1782952338.0,
+    "last_fired_at": 1782981237.0,
     "note": "Second daily sweep \u2014 catches west-coast / overnight releases"
   },
   {
@@ -257,7 +257,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1776582512,
-    "last_fired_at": 1782951824.0,
+    "last_fired_at": 1782981237.0,
     "note": "Analyses last 24h session outcomes; surfaces patterns to evaluator + board"
   },
   {
@@ -340,7 +340,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1778530000,
-    "last_fired_at": 1782951824.0,
+    "last_fired_at": 1782982802.026963,
     "note": "RA-3007 \u2014 Daily 09:00 UTC scan of guardian + cs + cfo + cto state. Posts Telegram only on breach. See scripts/kpi_watchdog.py."
   },
   {
@@ -358,12 +358,12 @@
   {
     "id": "marketing-bridge-daily-2030",
     "type": "marketing_bridge",
-    "name": "Marketing skill bridge — daily 20:30 UTC (UNI-2236)",
+    "name": "Marketing skill bridge \u2014 daily 20:30 UTC (UNI-2236)",
     "hour": 20,
     "minute": 30,
     "enabled": true,
     "created_at": 1782958800,
-    "last_fired_at": 0,
+    "last_fired_at": 1782978952.0,
     "note": "Pipes marketing-skill output into social_posts with eeat/geo scoring for publisher crons."
   }
 ]
