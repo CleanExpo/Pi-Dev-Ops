@@ -14,7 +14,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782898700.6214771
+    "last_fired_at": 1782950405.8348758
   },
   {
     "id": "scan-high-0600",
@@ -65,7 +65,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782898700.621683
+    "last_fired_at": 1782928811.657961
   },
   {
     "id": "scan-medium-0200",
@@ -127,7 +127,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782898700.6218581
+    "last_fired_at": 1782910848.604383
   },
   {
     "id": "monitor-1900",
@@ -138,7 +138,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1744243200,
-    "last_fired_at": 1782898700.621952
+    "last_fired_at": 1782932451.186367
   },
   {
     "id": "analyse-lessons-weekly",
@@ -179,7 +179,7 @@
     "minute": 0,
     "enabled": true,
     "created_at": 1775865600,
-    "last_fired_at": 1782898700.825106,
+    "last_fired_at": 1782925241.3341708,
     "note": "RA-634 \u2014 tests direct Anthropic SDK path (TAO_USE_FALLBACK contingency). See DEPLOYMENT.md \u2192 Contingency: API Fallback."
   },
   {
@@ -235,7 +235,7 @@
     "minute": 30,
     "enabled": true,
     "created_at": 1776582512,
-    "last_fired_at": 1782898702.9865742,
+    "last_fired_at": 1782923430.388288,
     "note": "Second daily sweep \u2014 catches west-coast / overnight releases"
   },
   {
@@ -292,7 +292,7 @@
     "hour": 20,
     "minute": 0,
     "enabled": true,
-    "last_fired_at": 1782898722.9309492
+    "last_fired_at": 1782936069.563605
   },
   {
     "id": "weekly-recap-friday",
