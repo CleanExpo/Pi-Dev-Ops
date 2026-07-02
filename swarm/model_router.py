@@ -22,12 +22,18 @@ Env vars (read on demand, NOT at import time, so callers can rotate keys):
     ANTHROPIC_API_KEY     — required for ANY Anthropic tier
     OPENROUTER_API_KEY    — required for any OpenRouter fallback
     OLLAMA_BASE_URL       — defaults to http://localhost:11434
+    TAO_OPENROUTER_ENFORCE — when 1/true/yes, strip OpenRouter from ladders for
+                             roles not listed in TAO_OPENROUTER_ALLOWED_ROLES
+                             (default off — RA-6470 phase 1)
+    TAO_OPENROUTER_ALLOWED_ROLES — comma-separated roles that may use OpenRouter
+                             when enforce is on (default: margot.casual,research,
+                             sub_agent,remedial)
 
 Public surface (the only API callers should touch):
     Tier                     — enum, the four tiers above
     LLMResponse              — frozen dataclass (text, model, tier, provider, latency_ms)
     NoProviderAvailable     — raised when every fallback exhausts
-    get_client(tier)         — returns a ModelClient honouring the ladder
+    get_client(tier, role=…) — returns a ModelClient honouring the ladder
     ModelClient.complete()   — one synchronous text completion
 
 This module is import-side-effect-free. Tests stub providers via the
@@ -36,6 +42,7 @@ ModelProvider Protocol (no real HTTP).
 from __future__ import annotations
 
 import json
+import logging
 import os
 import time
 import urllib.error
@@ -43,6 +50,75 @@ import urllib.request
 from dataclasses import dataclass
 from enum import Enum
 from typing import Literal, Protocol, runtime_checkable
+
+log = logging.getLogger("swarm.model_router")
+
+_DEFAULT_OPENROUTER_ALLOWED_ROLES = frozenset({
+    "margot.casual",
+    "research",
+    "sub_agent",
+    "remedial",
+})
+
+_TRUTHY = frozenset({"1", "true", "yes", "on"})
+
+
+def is_openrouter_enforce_enabled() -> bool:
+    """True when TAO_OPENROUTER_ENFORCE is set (default off)."""
+    return (os.environ.get("TAO_OPENROUTER_ENFORCE") or "").strip().lower() in _TRUTHY
+
+
+def openrouter_allowed_roles() -> frozenset[str]:
+    """Roles permitted to use OpenRouter when enforce is on."""
+    raw = (os.environ.get("TAO_OPENROUTER_ALLOWED_ROLES") or "").strip()
+    if not raw:
+        return _DEFAULT_OPENROUTER_ALLOWED_ROLES
+    return frozenset(r.strip().lower() for r in raw.split(",") if r.strip())
+
+
+def is_openrouter_allowed_for_role(role: str | None) -> bool:
+    """Whether OpenRouter may appear in this role's provider ladder."""
+    if not is_openrouter_enforce_enabled():
+        return True
+    if not role:
+        return True
+    return role.strip().lower() in openrouter_allowed_roles()
+
+
+def _filter_openrouter_ladder(
+    providers: list[ModelProvider],
+    *,
+    role: str | None,
+) -> list[ModelProvider]:
+    if is_openrouter_allowed_for_role(role):
+        return providers
+    filtered = [p for p in providers if p.name != "openrouter"]
+    if len(filtered) < len(providers):
+        log.info(
+            "openrouter_enforce: stripped openrouter for role=%r (allowed=%s)",
+            role,
+            sorted(openrouter_allowed_roles()),
+        )
+    return filtered
+
+
+def _log_fleet_recommendation(role: str | None) -> None:
+    if not role:
+        return
+    try:
+        from swarm.fleet_value_optimizer import is_dry_run, recommend_plan  # noqa: PLC0415
+
+        decision = recommend_plan(role)
+        log.debug(
+            "fleet_value_optimizer role=%s plan=%s util=%.1f%% dry_run=%s — %s",
+            role,
+            decision.recommended_plan,
+            decision.utilization_pct,
+            is_dry_run(),
+            decision.reason,
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.debug("fleet_value_optimizer recommend_plan skipped: %s", exc)
 
 
 # ============================================================
@@ -348,10 +424,17 @@ def _build_provider(kind: str, model: str) -> ModelProvider:
 class ModelClient:
     """The single object callers use. Wraps the ladder and the fallback logic."""
 
-    def __init__(self, tier: Tier, *, providers: list[ModelProvider] | None = None):
+    def __init__(
+        self,
+        tier: Tier,
+        *,
+        role: str | None = None,
+        providers: list[ModelProvider] | None = None,
+    ):
         self._tier = tier
+        self._role = role
         if providers is not None:
-            self._ladder = providers
+            self._ladder = _filter_openrouter_ladder(providers, role=role)
         else:
             ladder_def = {
                 Tier.FRONTIER: _DEFAULT_FRONTIER_LADDER,
@@ -359,7 +442,9 @@ class ModelClient:
                 Tier.REMEDIAL: _DEFAULT_REMEDIAL_LADDER,
                 Tier.LOCAL: _DEFAULT_LOCAL_LADDER,
             }[tier]
-            self._ladder = [_build_provider(k, m) for k, m in ladder_def]
+            built = [_build_provider(k, m) for k, m in ladder_def]
+            self._ladder = _filter_openrouter_ladder(built, role=role)
+        _log_fleet_recommendation(role)
 
     @property
     def tier(self) -> Tier:
@@ -412,6 +497,11 @@ class ModelClient:
         )
 
 
-def get_client(tier: Tier, *, providers: list[ModelProvider] | None = None) -> ModelClient:
+def get_client(
+    tier: Tier,
+    *,
+    role: str | None = None,
+    providers: list[ModelProvider] | None = None,
+) -> ModelClient:
     """Get a tiered client. `providers` override is used by tests."""
-    return ModelClient(tier=tier, providers=providers)
+    return ModelClient(tier=tier, role=role, providers=providers)
