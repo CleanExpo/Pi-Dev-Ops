@@ -1,8 +1,8 @@
 # skills — Wiki
 
-_Last updated: 2026-07-01T04:45:44Z (commits 2a840ea..1bd3788)_
+_Last updated: 2026-07-02T04:08:02Z (commits e69af50..fb2c7b2)_
 
 ## Recent changes
-- 1bd3788 — feat(skills): track agent-coordination layer (council, heygen-director, autonomy-ladder, eeat) (#419)
+- fb2c7b2 — feat(skills): nexus master-prompt skill + model-invocable skill-authoring-standard (#459)
 
 
