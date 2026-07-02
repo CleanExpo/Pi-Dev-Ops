@@ -50,3 +50,22 @@ into `LoopResult.reason`.
 ## CLI
 
 `python scripts/run_tao_loop.py --goal "..." --workspace /path --max-iters N --max-cost X --judge-every N`
+
+### Lookahead mode (OM-1 / RA-1970)
+
+Set `TAO_OM1_ENABLED=1` for a 15-step default horizon, or `TAO_PLANNER_HORIZON=1..20`
+explicitly. The loop decomposes the goal up front via the Opus orchestrator planner,
+executes one step per iteration, and re-plans on stall or horizon exhaustion
+(capped by `TAO_PLANNER_MAX_REPLANS`, default 2).
+
+```python
+result = await run_until_done(
+    goal="implement X",
+    workspace="/path/to/repo",
+    planner_horizon=15,   # or omit and rely on OM-1 / env
+    max_replans=2,
+    ...
+)
+```
+
+Status: `GET /api/autonomy/status` → `planner` block (`mode`, `effective_horizon`).

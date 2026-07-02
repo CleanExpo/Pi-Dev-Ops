@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from app.server import supabase_log
+from app.server.tao_planner import resolve_planner_loop_kwargs
 from app.server.tao_loop import run_until_done
 
 from . import persistence as persist
@@ -303,6 +304,7 @@ async def run_pipeline(
         max_iters=int(os.environ.get("TAO_MAX_ITERS", "25")),
         judge_every_n_iters=1,
         timeout_per_iter_s=600,
+        **resolve_planner_loop_kwargs(),
     )
     persist.append_jsonl(pipeline_id, "05-build-loop.jsonl", {
         "done": loop_result.done,

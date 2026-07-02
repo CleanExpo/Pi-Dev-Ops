@@ -167,6 +167,57 @@ def format_step_goal(plan: Plan, overall_goal: str) -> str:
     )
 
 
+def resolve_planner_horizon(*, explicit: int | None = None) -> int | None:
+    """Return active planner horizon (1-20) or None for reactive mode.
+
+    Precedence: explicit arg > TAO_PLANNER_HORIZON > OM-1 default (15).
+    """
+    from . import config  # noqa: PLC0415
+
+    if explicit is not None:
+        value = max(0, min(int(explicit), MAX_HORIZON))
+        return value or None
+    if config.TAO_PLANNER_HORIZON > 0:
+        return config.TAO_PLANNER_HORIZON
+    if config.TAO_OM1_ENABLED:
+        return DEFAULT_HORIZON
+    return None
+
+
+def resolve_planner_loop_kwargs(
+    *,
+    planner_horizon: int | None = None,
+    max_replans: int | None = None,
+) -> dict[str, int | None]:
+    """Shared kwargs for ``run_until_done`` planner wiring (OM-1)."""
+    from . import config  # noqa: PLC0415
+
+    return {
+        "planner_horizon": resolve_planner_horizon(explicit=planner_horizon),
+        "max_replans": (
+            config.TAO_PLANNER_MAX_REPLANS
+            if max_replans is None
+            else max(0, int(max_replans))
+        ),
+    }
+
+
+def planner_runtime_status() -> dict[str, int | bool | str | None]:
+    """Surface OM-1 / lookahead planner state for health + autonomy."""
+    from . import config  # noqa: PLC0415
+
+    effective = resolve_planner_horizon()
+    return {
+        "om1_enabled": config.TAO_OM1_ENABLED,
+        "configured_horizon": config.TAO_PLANNER_HORIZON,
+        "effective_horizon": effective,
+        "max_replans": config.TAO_PLANNER_MAX_REPLANS,
+        "mode": "lookahead" if effective else "reactive",
+        "default_horizon_when_om1": DEFAULT_HORIZON,
+        "max_horizon": MAX_HORIZON,
+    }
+
+
 __all__ = [
     "DEFAULT_HORIZON",
     "MAX_HORIZON",
@@ -174,4 +225,7 @@ __all__ = [
     "PlanStep",
     "format_step_goal",
     "make_plan",
+    "planner_runtime_status",
+    "resolve_planner_horizon",
+    "resolve_planner_loop_kwargs",
 ]

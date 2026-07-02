@@ -232,12 +232,10 @@ async def run_tdd(
     enriched_goal = _enrich_goal_with_preamble(goal)
     log.info("tao_tdd: starting; workspace=%s session_id=%s", workspace, session_id)
 
-    # Lookahead horizon: explicit arg wins; else the founder-gated config flag
-    # (TAO_PLANNER_HORIZON, default 0 = OFF → byte-identical reactive loop).
-    from . import config
-    horizon = (
-        planner_horizon if planner_horizon is not None else config.TAO_PLANNER_HORIZON
-    )
+    # Lookahead horizon: explicit arg wins; else OM-1 / TAO_PLANNER_HORIZON config.
+    from .tao_planner import resolve_planner_loop_kwargs
+
+    planner_kwargs = resolve_planner_loop_kwargs(planner_horizon=planner_horizon)
 
     loop = await run_until_done(
         goal=enriched_goal,
@@ -248,8 +246,7 @@ async def run_tdd(
         timeout_per_iter_s=timeout_per_iter_s,
         on_event=on_event,
         session_id=session_id,
-        planner_horizon=horizon or None,
-        max_replans=config.TAO_PLANNER_MAX_REPLANS,
+        **planner_kwargs,
     )
 
     # Post-loop TDD-specific checks. Run regardless of `loop.done` so the

@@ -51,6 +51,10 @@ DEFAULT_MARGOT_TURN_TIMEOUT_S = 240.0
 class MargotTurnRequest(BaseModel):
     chat_id: str = Field(..., description="Telegram chat_id as string")
     user_text: str = Field(..., min_length=1, max_length=4000)
+    tenant_id: Optional[str] = Field(
+        default="pi-ceo",
+        description="Per-project tenant slug (unite-group, restoreassist, carsi)",
+    )
     message_id: Optional[str] = Field(
         default=None, description="Telegram message_id (optional, for traceability)",
     )
@@ -146,6 +150,7 @@ async def margot_turn(
                 chat_id=body.chat_id,
                 user_text=body.user_text,
                 message_id=body.message_id,
+                tenant_id=(body.tenant_id or "pi-ceo").strip(),
                 _send=False,
             ),
             timeout=timeout_s,

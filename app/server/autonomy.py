@@ -1205,5 +1205,11 @@ def autonomy_status() -> dict:
         "last_iteration_error": _last_iteration_error,
         "effective_autonomy": _calc_effective_autonomy(_recent_events),  # RA-626
         "machine_ship": machine_ship_readiness(),  # RA-6885
+        "planner": _planner_runtime_status(),  # OM-1 lookahead
         "recent_events": _recent_events,
     }
+
+
+def _planner_runtime_status() -> dict:
+    from .tao_planner import planner_runtime_status
+    return planner_runtime_status()

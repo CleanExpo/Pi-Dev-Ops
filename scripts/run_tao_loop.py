@@ -30,6 +30,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from app.server.tao_planner import resolve_planner_loop_kwargs
 from app.server.tao_loop import run_until_done  # noqa: E402
 
 
@@ -41,6 +42,18 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--max-cost", type=float, default=None)
     p.add_argument("--judge-every", type=int, default=1)
     p.add_argument("--timeout-per-iter", type=int, default=600)
+    p.add_argument(
+        "--planner-horizon",
+        type=int,
+        default=None,
+        help="Lookahead steps (1-20). Omit to use TAO_PLANNER_HORIZON / OM-1 default.",
+    )
+    p.add_argument(
+        "--max-replans",
+        type=int,
+        default=None,
+        help="Cap Opus re-plans per loop (else TAO_PLANNER_MAX_REPLANS).",
+    )
     return p.parse_args()
 
 
@@ -56,6 +69,10 @@ def _result_to_dict(result) -> dict:  # type: ignore[no-untyped-def]
 
 
 async def _amain(args: argparse.Namespace) -> int:
+    planner_kwargs = resolve_planner_loop_kwargs(
+        planner_horizon=args.planner_horizon,
+        max_replans=args.max_replans,
+    )
     result = await run_until_done(
         goal=args.goal,
         workspace=args.workspace,
@@ -64,6 +81,7 @@ async def _amain(args: argparse.Namespace) -> int:
         judge_every_n_iters=args.judge_every,
         timeout_per_iter_s=args.timeout_per_iter,
         on_event=_emit_event,
+        **planner_kwargs,
     )
     sys.stdout.write(json.dumps(_result_to_dict(result), default=str) + "\n")
     sys.stdout.flush()
