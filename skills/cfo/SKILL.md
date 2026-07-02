@@ -141,7 +141,7 @@ Action requests today:
 
 ## References
 
-- Blueprint: `/Users/phill-mac/Pi-CEO/Senior-Agent-Operations-Blueprint-2026-05-02.md` §Role 2 CFO
+- Blueprint: `~/Pi-CEO/Senior-Agent-Operations-Blueprint-2026-05-02.md` §Role 2 CFO
 - Parent ticket: <issue id="RA-1850">RA-1850</issue> (epic <issue id="RA-1849">RA-1849</issue>)
 - Margot research (2026-05-02): "burn multiple <1.0x; AI-native target <0.5x; gross margin floor 85%; NRR 120% B2B"
 - HITL gate substrate: `swarm/draft_review.py` (RA-1839, pii-redactor wired RA-1839 today)

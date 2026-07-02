@@ -116,6 +116,6 @@ Re-run on every change to the pattern set. CI gate.
 
 ## References
 
-- Hermes Sprint 1 SWARM-005 requirement: `/Users/phill-mac/Pi-CEO/Hermes-Swarm-Recommendation-2026-04-14.md` §7
+- Hermes Sprint 1 SWARM-005 requirement: `~/Pi-CEO/Hermes-Swarm-Recommendation-2026-04-14.md` §7
 - 15 mandatory safety controls §5 (same memo)
-- Topology: `/Users/phill-mac/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`
+- Topology: `~/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`

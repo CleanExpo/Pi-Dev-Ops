@@ -93,9 +93,9 @@ Migration is safe to ship one module at a time — old + new emitters produce th
 
 ## References
 
-- Hermes Sprint 1 SWARM-006 (replaced by Langfuse per Path C verdict): `/Users/phill-mac/Pi-CEO/Hermes-Swarm-Recommendation-2026-04-14.md`
+- Hermes Sprint 1 SWARM-006 (replaced by Langfuse per Path C verdict): `~/Pi-CEO/Hermes-Swarm-Recommendation-2026-04-14.md`
 - Existing audit producers (to be migrated):
   - `swarm/draft_review.py` — `_append_jsonl(_audit_swarm_jsonl(), ...)`
   - `swarm/flow_engine.py` — `_append_audit(...)`
   - `swarm/orchestrator.py` — daily report emits
-- Topology: `/Users/phill-mac/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`
+- Topology: `~/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`

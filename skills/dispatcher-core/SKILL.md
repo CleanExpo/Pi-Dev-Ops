@@ -120,5 +120,5 @@ Run the example flow in `--dry-run` mode (no real Linear ticket, no real Margot 
 
 ## References
 
-- Topology: `/Users/phill-mac/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`
+- Topology: `~/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`
 - Patterns borrowed from: `parallel-delegate` (fan-out shape), `ship-chain` (gate enforcement), existing swarm orchestrator state machine

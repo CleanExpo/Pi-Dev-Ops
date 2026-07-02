@@ -96,6 +96,6 @@ End-to-end live test happens in Wave 2 once the reaction listener is extended in
 
 ## References
 
-- Topology: `/Users/phill-mac/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`
+- Topology: `~/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`
 - Existing send path (do not modify in Wave 1): `Pi-Dev-Ops/swarm/telegram_alerts.py`
-- 15 mandatory safety controls: `/Users/phill-mac/Pi-CEO/Hermes-Swarm-Recommendation-2026-04-14.md` §5
+- 15 mandatory safety controls: `~/Pi-CEO/Hermes-Swarm-Recommendation-2026-04-14.md` §5

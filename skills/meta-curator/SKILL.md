@@ -111,6 +111,6 @@ The skill-creator returns the draft; meta-curator wraps it in the proposal recor
 
 ## References
 
-- Topology: `/Users/phill-mac/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`
+- Topology: `~/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`
 - Existing skill: `anthropic-skills:skill-creator` (wrapped by this skill)
 - Existing lessons stream: `Pi-Dev-Ops/.harness/lessons.jsonl`

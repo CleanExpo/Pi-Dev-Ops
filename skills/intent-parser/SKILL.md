@@ -73,5 +73,5 @@ Paste 10 sample Telegram messages — 3 research, 3 ticket, 2 reply, 2 reminder 
 
 ## References
 
-- Topology: `/Users/phill-mac/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`
+- Topology: `~/Pi-CEO/Second-Brain-Agent-Topology-2026-05-01.md`
 - Existing Telegram cmd handler (do not modify): `Pi-Dev-Ops/swarm/orchestrator.py`
