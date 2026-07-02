@@ -2,7 +2,7 @@
 # install.sh — install the self-improving-system LaunchAgents.
 #
 # The plists run their scripts from a dedicated git worktree pinned to `main`
-# (~/Pi-CEO/Pi-Dev-Ops-routines), NOT the live dev checkout (~/Pi-CEO/Pi-Dev-Ops).
+# (~/Pi-CEO/Pi-Dev-Ops-routines), NOT the live dev checkout (/Users/phill-mac/Pi-Dev-Ops).
 # The dev checkout doubles as a human workspace and gets parked on feature
 # branches that predate these scripts, which would make every fire log
 # file-not-found. A main-pinned worktree never moves when the dev checkout
@@ -12,8 +12,8 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEST="$HOME/Library/LaunchAgents"
-REPO="$HOME/Pi-CEO/Pi-Dev-Ops"
-WORKTREE="$HOME/Pi-CEO/Pi-Dev-Ops-routines"
+REPO="/Users/phill-mac/Pi-Dev-Ops"
+WORKTREE="/Users/phill-mac/Pi-CEO/Pi-Dev-Ops-routines"
 PROD="$WORKTREE/scripts"
 
 for f in com.pi-ceo.data-ingestion com.pi-ceo.improve-system; do

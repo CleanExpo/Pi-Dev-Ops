@@ -46,7 +46,7 @@ Telethon setup (one-time, run by Phill before the LaunchAgent fires):
   3. Install Telethon into the pyenv 3.13.13 env (NOT global):
         /Users/phill-mac/.pyenv/versions/3.13.13/bin/pip install telethon
   4. First-time login (creates the session file):
-        cd /Users/phill-mac/Pi-CEO/Pi-Dev-Ops
+        cd /Users/phill-mac/Pi-Dev-Ops
         /Users/phill-mac/.pyenv/versions/3.13.13/bin/python -c \\
           "from swarm.inbox.botfather_minter import _login; _login()"
      Telethon will prompt for the SMS code + 2FA password (if set).

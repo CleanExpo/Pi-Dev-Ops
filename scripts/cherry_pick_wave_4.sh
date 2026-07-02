@@ -22,7 +22,7 @@
 set -euo pipefail
 
 SANDBOX="${SANDBOX:-/tmp/pi-ceo-workspaces/wave-4-resume}"
-TARGET_REPO="${TARGET_REPO:-/Users/phill-mac/Pi-CEO/Pi-Dev-Ops}"
+TARGET_REPO="${TARGET_REPO:-/Users/phill-mac/Pi-Dev-Ops}"
 PUSH=0
 OPEN_PR=0
 
