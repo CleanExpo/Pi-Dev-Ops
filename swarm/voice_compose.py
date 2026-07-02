@@ -32,7 +32,6 @@ from pathlib import Path
 log = logging.getLogger("swarm.voice_compose")
 
 ELEVENLABS_API_BASE = "https://api.elevenlabs.io/v1"
-DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # ElevenLabs default "Rachel"
 HTTP_TIMEOUT_S = 30.0
 
 
@@ -157,9 +156,9 @@ def synthesise_voice(text: str, *, out_path: Path,
         log.info("voice_compose: ELEVENLABS_API_KEY missing — text-only fallback")
         return None
 
-    voice_id = voice_id or os.environ.get(
-        "ELEVENLABS_VOICE_ID", DEFAULT_VOICE_ID
-    )
+    if voice_id is None:
+        from app.server.margot_voice import resolve_margot_voice_id  # noqa: PLC0415
+        voice_id = resolve_margot_voice_id()
 
     try:
         import httpx  # noqa: PLC0415
