@@ -1,8 +1,8 @@
 # scripts — Wiki
 
-_Last updated: 2026-07-02T01:54:28Z (commits 8760f56..cf11184)_
+_Last updated: 2026-07-02T02:25:23Z (commits 6b4c701..c7effc0)_
 
 ## Recent changes
-- cf11184 — Fix the local LINEAR_API_KEY issues, everything is already setup
+- c7effc0 — fix(cron): wire plan_discovery handler + orphan recovery for interrupted sessions (RA-6893) (#454)
 
 
