@@ -33,10 +33,17 @@ AUDIT_MARKER = "[evidence-audit]"
 SUSPECT_LABEL = "unverified-complete"
 EXEMPT_LABEL = "no-code-change"
 DEFAULT_PROJECT_IDS = [
-    "3c78358a-b558-4029-b47d-367a65beea7b",  # RestoreAssist
-    "8027986f-e10d-4d46-9061-a3809e5dc8c3",  # RestoreAssist V2
+    "3c78358a-b558-4029-b47d-367a65beea7b",  # RestoreAssist (RA)
+    "8027986f-e10d-4d46-9061-a3809e5dc8c3",  # RestoreAssist V2 (RA)
+    "f45212be-3259-4bfb-89b1-54c122c939a7",  # Pi-Dev-Ops (RA)
+    "3125c6e4-b729-48d4-a718-400a2b83ddc5",  # Synthex (SYN)
+    "20538e04-ba27-467d-b632-1fb346063089",  # CARSI (GP)
+    "b62d9b14-9d9c-46c7-a3f4-05fbd49550ff",  # Unite-Group (UNI)
+    "40c7dc3d-35ff-4e2c-ac1e-f903c1f5c856",  # CCW CRM (UNI)
+    "ba150052-ff1c-4750-a0bc-7a8261d4d72b",  # DR-NRPG Contractor Go-Live (DR)
+    "ec4e8059-988f-495e-8ba7-38af44073cec",  # DR-NRPG Ops (DR)
+    "d2c1d63b-1e85-424d-9278-efff15b0d46b",  # Disaster Recovery Website (DR)
 ]
-RA_TEAM_ID = "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673"
 
 
 def gql(api_key: str, query: str, variables: dict | None = None) -> dict:
@@ -58,6 +65,7 @@ def recently_completed(api_key: str, project_ids: list[str], since: dt.datetime)
       issues(filter: $filter, first: 100, after: $after) {
         nodes {
           id identifier title completedAt
+          team { id }
           labels { nodes { name } }
           attachments { nodes { url } }
           comments { nodes { body } }
@@ -154,9 +162,12 @@ def main() -> int:
             log.info("DRY-RUN would flag %s — %s", i["identifier"], i["title"][:70])
         return 0
 
-    label_id = ensure_label(api_key, RA_TEAM_ID, SUSPECT_LABEL)
+    label_cache: dict[str, str] = {}
     for i in suspects:
-        flag(api_key, i, label_id)
+        team_id = i["team"]["id"]
+        if team_id not in label_cache:
+            label_cache[team_id] = ensure_label(api_key, team_id, SUSPECT_LABEL)
+        flag(api_key, i, label_cache[team_id])
         log.info("flagged %s — %s", i["identifier"], i["title"][:70])
     return 0
 
