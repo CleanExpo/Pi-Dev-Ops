@@ -10,8 +10,6 @@ deterministic and SDK-free (mirrors tests/test_tao_loop.py).
 """
 from __future__ import annotations
 
-import importlib
-
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -21,15 +19,13 @@ pytestmark = pytest.mark.asyncio
 
 
 def _reload_modules(monkeypatch, **env):
+    """Patch env limits without reloading kill_switch (RA-6869)."""
     for k, v in env.items():
         if v is None:
             monkeypatch.delenv(k, raising=False)
         else:
             monkeypatch.setenv(k, str(v))
-    import app.server.kill_switch as ks
-    importlib.reload(ks)
     import app.server.tao_loop as tl
-    importlib.reload(tl)
     return tl
 
 

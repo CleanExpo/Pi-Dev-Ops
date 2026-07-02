@@ -14,7 +14,6 @@ Loop internals are mocked (`_run_worker_step`, `judge`, `_build_state`,
 """
 from __future__ import annotations
 
-import importlib
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -24,14 +23,10 @@ pytestmark = pytest.mark.asyncio
 
 
 def _reload_loop(monkeypatch, **env):
-    """Reload kill_switch + tao_loop with patched env (LoopCounter freezes
-    its limits at construction, so env must be set before reload)."""
+    """Patch env limits without reloading kill_switch (RA-6869)."""
     for k, v in env.items():
         monkeypatch.setenv(k, str(v))
-    import app.server.kill_switch as ks
-    importlib.reload(ks)
     import app.server.tao_loop as tl
-    importlib.reload(tl)
     return tl
 
 
