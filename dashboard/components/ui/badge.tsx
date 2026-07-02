@@ -35,7 +35,7 @@ function Badge({ className, variant, accentLine, ...props }: BadgeProps) {
         {props.children}
         <div
           className="absolute bottom-0 left-0 right-0 h-[2px] pointer-events-none"
-          style={{ background: "linear-gradient(90deg, var(--accent, #f59e0b), transparent)" }}
+          style={{ background: "linear-gradient(90deg, var(--accent), transparent)" }}
         />
       </div>
     );

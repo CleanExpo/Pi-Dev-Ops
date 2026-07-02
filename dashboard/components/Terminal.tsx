@@ -4,13 +4,14 @@
 import { useEffect, useRef } from "react";
 import "xterm/css/xterm.css";
 import type { TermLine, TermLineType } from "@/lib/types";
+import { BRAND_DARK } from "@/lib/brand-tokens";
 
-// ANSI colour codes — Bloomberg palette kept for terminal canvas readability
+// ANSI colour codes — aligned to dashboard brand tokens (dark theme)
 const ANSI: Record<TermLineType, string> = {
-  phase:   "\x1b[38;2;232;117;26m",   // #E8751A orange
-  success: "\x1b[38;2;74;222;128m",   // #4ADE80 green
-  error:   "\x1b[38;2;248;113;113m",  // #F87171 red
-  tool:    "\x1b[38;2;255;209;102m",  // #FFD166 yellow
+  phase:   "\x1b[38;2;255;59;92m",
+  success: "\x1b[38;2;0;217;126m",
+  error:   "\x1b[38;2;229;72;77m",
+  tool:    "\x1b[38;2;255;138;31m",
   agent:   "\x1b[38;2;240;237;232m",  // #F0EDE8 cream
   system:  "\x1b[38;2;168;165;160m",  // #A8A5A0 warm gray
   output:  "\x1b[38;2;232;228;222m",  // #E8E4DE near-cream
@@ -27,25 +28,25 @@ const PREFIX: Record<TermLineType, string> = {
   output:  "  ",
 };
 
-// xterm theme — Bloomberg colors kept unchanged for terminal canvas
+// xterm theme — brand tokens (dark)
 const XTERM_THEME = {
   background:          "#0C0C0C",
   foreground:          "#F0EDE8",
-  cursor:              "#E8751A",
+  cursor:              BRAND_DARK.accent,
   cursorAccent:        "#0C0C0C",
-  selectionBackground: "#E8751A44",
+  selectionBackground: `${BRAND_DARK.accent}44`,
   black:               "#0C0C0C",
-  red:                 "#F87171",
-  green:               "#4ADE80",
-  yellow:              "#FFD166",
+  red:                 BRAND_DARK.error,
+  green:               BRAND_DARK.success,
+  yellow:              BRAND_DARK.warning,
   blue:                "#6B8CFF",
   magenta:             "#C678DD",
   cyan:                "#56B6C2",
   white:               "#F0EDE8",
   brightBlack:         "#888480",
-  brightRed:           "#F87171",
-  brightGreen:         "#4ADE80",
-  brightYellow:        "#FFD166",
+  brightRed:           BRAND_DARK.error,
+  brightGreen:         BRAND_DARK.success,
+  brightYellow:        BRAND_DARK.warning,
   brightBlue:          "#6B8CFF",
   brightMagenta:       "#C678DD",
   brightCyan:          "#56B6C2",

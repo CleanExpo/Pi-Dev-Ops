@@ -3,7 +3,7 @@
   "version": 1,
 
   "horizontal": [
-    {"name": "landing",          "path": "/",                                              "method": "GET",  "auth": false, "expected_status": 200},
+    {"name": "landing",          "path": "/",                                              "method": "GET",  "auth": false, "expected_status": 200, "_comment": "RA-6889: login hero uses dark-theme --accent/--on-accent tokens; wordmark standardized to Pi CEO."},
     {"name": "control-redirect", "path": "/control",                                       "method": "GET",  "auth": false, "expected_status": 307},
     {"name": "loop-redirect",    "path": "/loop",                                          "method": "GET",  "auth": false, "expected_status": 307, "_comment": "RA-6862 / PR #385: /loop (Loop Cockpit) added to PROTECTED_PAGE_PREFIXES in proxy.ts. It is data-only (every panel reads /api/pi-ceo/* which 401s without a session), so an unauthenticated visit must redirect to login (307) rather than render a bare shell."},
     {"name": "brain-page",       "path": "/brain",                                         "method": "GET",  "auth": false, "expected_status": 200, "body_contains": ["Brain", "Mac Mini"], "_comment": "PR #310: persistent Brain status/checklist page for the Mac Mini Obsidian REST host setup."},
