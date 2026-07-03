@@ -1,4 +1,4 @@
-# skills — Wiki
+# brain — Wiki
 
 _Last updated: 2026-07-03T00:33:41Z (commits 012a5f4..b7f6e82)_
 
