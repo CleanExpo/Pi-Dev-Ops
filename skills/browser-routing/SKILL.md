@@ -12,7 +12,7 @@ turns (e.g. driving login flows through raw CDP, or running Lighthouse through t
 
 | Job | Surface |
 |---|---|
-| Logged-in flows in the user's real session, visual UI review, forms, GIF evidence recordings | **claude-in-chrome extension** (invoke the `claude-in-chrome` skill first, then the MCP tools) |
+| Logged-in flows in the user's real session, visual UI review, forms, GIF evidence recordings | **claude-in-chrome extension** (invoke the `chrome-browser` skill first, then the MCP tools) |
 | Lighthouse audits, performance traces, console/network debugging, heap snapshots | **chrome-devtools MCP** |
 | Mechanical scripted automation where no visual judgment is needed | **`browser-harness`** (CDP into running Chrome) |
 | PASS/FAIL QA coverage of a deploy or feature | **`vibetest`** |
