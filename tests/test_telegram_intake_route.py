@@ -14,6 +14,8 @@ def _clear_webhook_env(monkeypatch):
     monkeypatch.delenv("PI_CEO_PUBLIC_URL", raising=False)
     monkeypatch.delenv("PI_CEO_URL", raising=False)
     monkeypatch.delenv("RAILWAY_PUBLIC_DOMAIN", raising=False)
+    monkeypatch.delenv("RAILWAY_ENVIRONMENT_NAME", raising=False)
+    monkeypatch.delenv("RAILWAY_ENVIRONMENT", raising=False)
 
 
 def test_telegram_intake_reports_configured_with_phone_chat(monkeypatch):
@@ -66,6 +68,7 @@ def test_telegram_intake_webhook_mode_sets_webhook_and_skips_poll(monkeypatch):
     monkeypatch.setenv("TELEGRAM_WEBHOOK_SECRET", "secret")
     monkeypatch.setenv("TELEGRAM_WEBHOOK_URL", "https://example.test/webhook/telegram")
     monkeypatch.setenv("PHONE_COMPANION_CHAT_ID", "12345")
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT_NAME", "production")
 
     class FakeInbox:
         @staticmethod
@@ -98,3 +101,45 @@ def test_telegram_intake_webhook_mode_sets_webhook_and_skips_poll(monkeypatch):
     assert telegram_intake._last_poll_exit == 0
     assert telegram_intake._last_webhook_ok is True
     assert telegram_intake._last_webhook_error == ""
+
+
+def test_telegram_intake_preview_deploy_never_registers_webhook(monkeypatch):
+    """A PR/preview deploy inherits the shared bot token + secret but must not
+    call setWebhook — otherwise each ephemeral pr-N host hijacks delivery from
+    production. It must fall back to getUpdates polling instead."""
+    _clear_webhook_env(monkeypatch)
+    calls: list[str] = []
+    requests: list[object] = []
+
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
+    monkeypatch.setenv("TELEGRAM_WEBHOOK_SECRET", "secret")
+    monkeypatch.setenv("TELEGRAM_WEBHOOK_URL", "https://pr-489.up.railway.app/webhook/telegram")
+    monkeypatch.setenv("PHONE_COMPANION_CHAT_ID", "12345")
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT_NAME", "pr-489")
+
+    class FakeInbox:
+        @staticmethod
+        def main() -> int:
+            calls.append("poll")
+            return 0
+
+    class FakeWatchdog:
+        @staticmethod
+        def _drain_inbox() -> tuple[int, list[str]]:
+            calls.append("drain")
+            return 0, []
+
+    def fake_urlopen(req, timeout=0):
+        requests.append(req)
+        raise AssertionError("preview deploy must never call setWebhook")
+
+    monkeypatch.setattr(scripts, "marathon_telegram_inbox", FakeInbox, raising=False)
+    monkeypatch.setattr(scripts, "marathon_watchdog", FakeWatchdog, raising=False)
+    monkeypatch.setattr(telegram_intake.urllib.request, "urlopen", fake_urlopen)
+
+    assert telegram_intake._should_use_webhook_mode() is False
+
+    asyncio.run(telegram_intake._run_iteration())
+
+    assert requests == []
+    assert calls == ["poll", "drain"]

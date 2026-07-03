@@ -70,6 +70,22 @@ def _webhook_autoconfigure_enabled() -> bool:
     return _env_flag("TELEGRAM_WEBHOOK_AUTOCONFIGURE", "1")
 
 
+def _is_production_deploy() -> bool:
+    """Only the production Railway deployment may register the shared webhook.
+
+    Preview/PR deploys inherit the same TELEGRAM_BOT_TOKEN and would each call
+    setWebhook with their own ephemeral ``pr-N.up.railway.app`` URL, hijacking
+    delivery from production and from each other. Gate webhook autoconfigure to
+    the production environment so previews never touch the live bot's webhook.
+    """
+    env = (
+        os.environ.get("RAILWAY_ENVIRONMENT_NAME")
+        or os.environ.get("RAILWAY_ENVIRONMENT")
+        or ""
+    )
+    return env.strip().lower() == "production"
+
+
 def _telegram_webhook_secret() -> str:
     return os.environ.get("TELEGRAM_WEBHOOK_SECRET", "").strip()
 
@@ -93,6 +109,7 @@ def _telegram_webhook_url() -> str:
 def _should_use_webhook_mode() -> bool:
     return bool(
         _webhook_autoconfigure_enabled()
+        and _is_production_deploy()
         and os.environ.get("TELEGRAM_BOT_TOKEN")
         and _telegram_webhook_secret()
     )
