@@ -56,6 +56,34 @@ def _write_log(entry: dict) -> None:
         f.write(json.dumps(entry) + "\n")
 
 
+def _remediation_steps(error_msg: str) -> str:
+    """Return remediation steps matched to the failure mode.
+
+    A billing rejection ("credit balance too low") is a valid, authenticated
+    key hitting an unfunded account — the generic key/package checks misdirect
+    the operator, so emit funding-specific guidance instead.
+    """
+    low = error_msg.lower()
+    is_billing = "credit balance" in low or "plans & billing" in low or (
+        "too low" in low and "balance" in low
+    )
+    if is_billing:
+        return (
+            "**This is a billing failure, not a key/package problem.** The key "
+            "authenticated (HTTP 400, not 401) but the account is out of credits.\n"
+            "1. Fund the Anthropic pay-per-token account tied to the Railway "
+            "`ANTHROPIC_API_KEY` (Anthropic Console → Plans & Billing). A small "
+            "balance covers the quarterly 32-token haiku test.\n"
+            "2. Re-run `python scripts/fallback_dryrun.py` until exit code 0."
+        )
+    return (
+        "1. Verify `ANTHROPIC_API_KEY` is set and valid in Railway env vars\n"
+        "2. Check that the `anthropic` Python package is installed (`anthropic>=0.90`)\n"
+        "3. Run `python scripts/fallback_dryrun.py` manually and observe the error\n"
+        "4. Fix and re-run until exit code 0 is achieved"
+    )
+
+
 def _raise_linear_ticket(error_msg: str, linear_api_key: str) -> str | None:
     """Create an Urgent Linear ticket when the dry-run fails. Returns identifier or None."""
     mutation = """
@@ -72,10 +100,7 @@ def _raise_linear_ticket(error_msg: str, linear_api_key: str) -> str | None:
                 "The quarterly `scripts/fallback_dryrun.py` test failed.\n\n"
                 f"**Error:** {error_msg}\n\n"
                 "**Action required:**\n"
-                "1. Verify `ANTHROPIC_API_KEY` is set and valid in Railway env vars\n"
-                "2. Check that the `anthropic` Python package is installed (`anthropic>=0.90`)\n"
-                "3. Run `python scripts/fallback_dryrun.py` manually and observe the error\n"
-                "4. Fix and re-run until exit code 0 is achieved\n\n"
+                f"{_remediation_steps(error_msg)}\n\n"
                 "See DEPLOYMENT.md → *Contingency: API Fallback* for full procedures.\n\n"
                 "**Risk Register:** R-02 — this is why we test quarterly."
             ),
