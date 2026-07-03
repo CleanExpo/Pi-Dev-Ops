@@ -9,6 +9,7 @@ from app.server.webhook import (
     verify_linear_signature,
     parse_github_event,
     parse_linear_event,
+    linear_issue_to_brief,
 )
 
 
@@ -141,3 +142,145 @@ def test_parse_linear_non_started_state():
         },
     }
     assert parse_linear_event(payload) is None
+
+
+def test_parse_linear_update_without_state_change_skipped():
+    # RA-6787 gap: an update whose diff does not touch stateId must be ignored,
+    # even if the current state happens to be "started".
+    payload = {
+        "type": "Issue",
+        "action": "update",
+        "updatedFrom": {"title": "old title"},  # no stateId → not a transition
+        "data": {
+            "id": "abc",
+            "title": "Renamed issue",
+            "state": {"name": "In Progress", "type": "started"},
+            "description": "",
+        },
+    }
+    assert parse_linear_event(payload) is None
+
+
+# ── Linear RA-888 instant create path ─────────────────────────────────────────
+
+def test_parse_linear_issue_created_urgent():
+    payload = {
+        "type": "Issue",
+        "action": "create",
+        "data": {
+            "id": "new-1",
+            "title": "Prod is down",
+            "priority": 1,  # Urgent
+            "state": {"name": "Todo", "type": "unstarted"},
+            "description": "repo:https://github.com/org/repo",
+        },
+    }
+    event = parse_linear_event(payload)
+    assert event is not None
+    assert event["event"] == "issue_created"
+    assert event["priority"] == 1
+    assert event["repo_url"] == "https://github.com/org/repo"
+
+
+def test_parse_linear_issue_created_high():
+    payload = {
+        "type": "Issue",
+        "action": "create",
+        "data": {
+            "id": "new-2",
+            "title": "Important",
+            "priority": 2,  # High
+            "state": {"type": "unstarted"},
+            "description": "",
+        },
+    }
+    event = parse_linear_event(payload)
+    assert event is not None
+    assert event["event"] == "issue_created"
+
+
+def test_parse_linear_created_low_priority_skipped():
+    payload = {
+        "type": "Issue",
+        "action": "create",
+        "data": {
+            "id": "new-3",
+            "title": "Someday",
+            "priority": 3,  # Normal — below the instant-trigger bar
+            "state": {"type": "unstarted"},
+        },
+    }
+    assert parse_linear_event(payload) is None
+
+
+def test_parse_linear_created_started_state_skipped():
+    payload = {
+        "type": "Issue",
+        "action": "create",
+        "data": {
+            "id": "new-4",
+            "title": "Already moving",
+            "priority": 1,
+            "state": {"type": "started"},  # not unstarted → skip
+        },
+    }
+    assert parse_linear_event(payload) is None
+
+
+def test_parse_linear_unhandled_action_skipped():
+    payload = {"type": "Issue", "action": "remove", "data": {"id": "x"}}
+    assert parse_linear_event(payload) is None
+
+
+def test_parse_linear_repo_from_label():
+    # RA-6787 gap: repo URL supplied via a `repo:` label rather than description.
+    payload = {
+        "type": "Issue",
+        "action": "update",
+        "updatedFrom": {"stateId": "prev"},
+        "data": {
+            "id": "abc-123",
+            "title": "Fix auth bug",
+            "state": {"type": "started"},
+            "labels": [{"name": "bug"}, {"name": "repo:https://github.com/org/repo"}],
+            "description": "no repo line here",
+        },
+    }
+    event = parse_linear_event(payload)
+    assert event is not None
+    assert event["repo_url"] == "https://github.com/org/repo"
+    assert event["labels"] == ["bug", "repo:https://github.com/org/repo"]
+
+
+# ── linear_issue_to_brief ─────────────────────────────────────────────────────
+
+def test_brief_issue_started_includes_description():
+    brief = linear_issue_to_brief({
+        "title": "Fix auth bug",
+        "description": "Users cannot log in",
+        "priority": 3,
+        "event": "issue_started",
+    })
+    assert "[NORMAL] Fix auth bug" in brief
+    assert "Users cannot log in" in brief
+    assert "moving to In Progress" in brief
+
+
+def test_brief_issue_created_uses_instant_trigger_line():
+    brief = linear_issue_to_brief({
+        "title": "Prod is down",
+        "description": "",
+        "priority": 1,
+        "event": "issue_created",
+    })
+    assert "[URGENT] Prod is down" in brief
+    assert "RA-888 instant webhook" in brief
+
+
+def test_brief_priority_labels_and_defaults():
+    high = linear_issue_to_brief({"title": "H", "priority": 2, "event": "issue_started"})
+    assert high.startswith("[HIGH] H")
+    # Unknown/absent priority and event fall back to NORMAL + In-Progress trigger.
+    fallback = linear_issue_to_brief({"title": "U"})
+    assert fallback.startswith("[NORMAL] U")
+    assert "moving to In Progress" in fallback
