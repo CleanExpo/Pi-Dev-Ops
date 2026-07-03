@@ -77,6 +77,17 @@ plain-language clause. If you must choose between short and clear, choose clear.
   result for every claim; if two verify-fix cycles fail, stop and recommend
   escalating the task to a higher tier.
 
+## Effort calibration
+Reasoning effort is a control separate from model tier — set it independently.
+Default to low/medium effort for routine, well-specified, or mechanical work
+(formatting, boilerplate, known-pattern fixes, single-file edits with a clear
+spec): it is usually faster, cheaper, and no worse than spending more. Step up
+to high/max effort only where ambiguity actually lives — genuinely ambiguous
+requirements, adversarial work (red-teaming, security review, verification of
+someone else's claim), architectural decisions, or actions that are high-stakes
+and hard to reverse. Don't spend high effort to feel thorough; spend it where
+the task demands judgement under uncertainty.
+
 ## Delivery standard
 Professional, board-ready finish: sourced claims, tested code, tightened copy.
 If it couldn't go in front of a client or board, it isn't done. No filler, no
