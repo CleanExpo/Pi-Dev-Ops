@@ -10,6 +10,7 @@ Covers `scripts.analyse_lessons._claude_cluster_title`:
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -92,3 +93,41 @@ def test_cluster_title_returns_none_on_router_exception(monkeypatch, analyse_les
     )
 
     assert out is None
+
+
+# ── load_lessons self-test exclusion (RA-6825) ───────────────────────────────
+def _write_lessons(tmp_path: Path, entries: list[dict]) -> Path:
+    path = tmp_path / "lessons.jsonl"
+    path.write_text("".join(json.dumps(e) + "\n" for e in entries))
+    return path
+
+
+def test_load_lessons_excludes_smoke_category(analyse_lessons, tmp_path):
+    """The pipeline-smoke build (intent='smoke') floods lessons.jsonl with
+    category='smoke' evaluator warnings; these must not seed proposals."""
+    path = _write_lessons(tmp_path, [
+        {"category": "smoke", "source": "evaluator", "lesson": "completeness scored 0.0/10: empty diff"},
+        {"category": "smoke", "source": "evaluator", "lesson": "Build scored 1.0/10 (below 7.5)"},
+        {"category": "security", "source": "scanner", "lesson": "hardcoded token in config"},
+    ])
+    loaded = analyse_lessons.load_lessons(path)
+    assert [e["category"] for e in loaded] == ["security"]
+
+
+def test_load_lessons_excludes_smoke_test_category(analyse_lessons, tmp_path):
+    """Existing smoke-test exclusion (scripts/smoke_test.py writer) still holds."""
+    path = _write_lessons(tmp_path, [
+        {"category": "smoke-test", "source": "smoke-test", "lesson": "endpoint 200"},
+        {"category": "architecture", "source": "planner", "lesson": "prefer async session"},
+    ])
+    loaded = analyse_lessons.load_lessons(path)
+    assert [e["category"] for e in loaded] == ["architecture"]
+
+
+def test_load_lessons_keeps_real_categories(analyse_lessons, tmp_path):
+    path = _write_lessons(tmp_path, [
+        {"category": "deployment", "source": "evaluator", "lesson": "lockfile drift"},
+        {"category": "claude", "source": "evaluator", "lesson": "read too many files"},
+    ])
+    loaded = analyse_lessons.load_lessons(path)
+    assert {e["category"] for e in loaded} == {"deployment", "claude"}
