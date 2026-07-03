@@ -1,8 +1,8 @@
 # app — Wiki
 
-_Last updated: 2026-07-03T11:54:41Z (commits 945c978..bcfe567)_
+_Last updated: 2026-07-03T12:11:32Z (commits 2332393..57e35f3)_
 
 ## Recent changes
-- bcfe567 — fix(scout): close cross-process dup race with deterministic Linear issue id (#503)
+- 57e35f3 — fix(lessons): skip evaluator lessons on empty-diff builds (#505)
 
 

@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-07-03T12:03:11Z (commits 8a7ad78..a835453)_
+_Last updated: 2026-07-03T12:11:32Z (commits 2332393..57e35f3)_
 
 ## Recent changes
-- a835453 — fix(lessons): exclude smoke-eval noise from improvement-proposal analysis (#504)
+- 57e35f3 — fix(lessons): skip evaluator lessons on empty-diff builds (#505)
 
 
