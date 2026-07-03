@@ -1,8 +1,8 @@
 # swarm — Wiki
 
-_Last updated: 2026-07-03T03:10:59Z (commits 8d220ad..17c49e5)_
+_Last updated: 2026-07-03T03:11:33Z (commits 7e2bed4..5db228c)_
 
 ## Recent changes
-- 17c49e5 — feat(swarm): repo history parser — classify issues/PRs into lifecycle map (RA-6472) (#490)
+- 5db228c — feat(intake): per-project specialist fan-out primitive (RA-6671 P1) (#494)
 
 
