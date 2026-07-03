@@ -1,8 +1,8 @@
 # scripts — Wiki
 
-_Last updated: 2026-07-02T14:14:34Z (commits 45e5f09..7cd9b03)_
+_Last updated: 2026-07-03T03:30:11Z (commits e07bbdc..005b7a6)_
 
 ## Recent changes
-- 7cd9b03 — Feature/dr nrpg stripe watch (#483)
+- 005b7a6 — feat(skill-self-update): skill self-improvement pipeline (scan -> draft -> review -> PR) (#496)
 
 

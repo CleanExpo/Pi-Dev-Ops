@@ -1,8 +1,8 @@
 # skills — Wiki
 
-_Last updated: 2026-07-03T03:06:48Z (commits f392d24..66cd15c)_
+_Last updated: 2026-07-03T03:30:11Z (commits e07bbdc..005b7a6)_
 
 ## Recent changes
-- 66cd15c — docs(skills): point browser-routing at chrome-browser skill (#495)
+- 005b7a6 — feat(skill-self-update): skill self-improvement pipeline (scan -> draft -> review -> PR) (#496)
 
 
