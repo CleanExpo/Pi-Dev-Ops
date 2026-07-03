@@ -17,6 +17,7 @@ import os
 import re
 import urllib.request
 import urllib.parse
+import uuid
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
@@ -310,6 +311,24 @@ def _get_or_create_scout_label(api_key: str) -> str | None:
         return None
 
 
+# Fixed namespace for deriving a deterministic, idempotent Linear issue id from a
+# finding URL. Passing this id in IssueCreateInput makes issueCreate idempotent:
+# Linear enforces uniqueness on the issue id, so two scout processes racing to file
+# the same URL (local + Railway autopilot-runner) can only ever create one issue —
+# the loser's create collides on the id and no duplicate is produced (RA-6927).
+_SCOUT_IDEMPOTENCY_NS = uuid.UUID("dad2a841-c34d-4984-b129-59151c6d8f22")
+
+
+def _scout_issue_id(url: str) -> str:
+    """Deterministic UUIDv5 issue id for a finding URL (RA-6927 race guard).
+
+    Normalised the same way as the canonical URL dedup key (lowercase, trailing
+    dot stripped) so the id is stable across environments and runs.
+    """
+    normalised = url.strip().lower().rstrip(".")
+    return str(uuid.uuid5(_SCOUT_IDEMPOTENCY_NS, normalised))
+
+
 def _create_linear_issue(finding: dict[str, Any], label_id: str | None, api_key: str) -> str | None:
     """Create a Linear issue for a scout finding. Returns identifier or None."""
     source = finding["source"].upper()
@@ -329,6 +348,7 @@ def _create_linear_issue(finding: dict[str, Any], label_id: str | None, api_key:
     }
     """
     issue_input: dict[str, Any] = {
+        "id": _scout_issue_id(finding["url"]),
         "teamId": _TEAM_ID,
         "projectId": _PROJECT_ID,
         "title": issue_title,
@@ -344,10 +364,21 @@ def _create_linear_issue(finding: dict[str, Any], label_id: str | None, api_key:
             headers={"Content-Type": "application/json", "Authorization": api_key},
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read()).get("data", {})
-        identifier = (data.get("issueCreate") or {}).get("issue", {}).get("identifier")
-        log.info("Created Linear issue %s for %s: %s", identifier, finding["source"], title_short)
-        return identifier
+            body = json.loads(resp.read())
+        identifier = (
+            (((body.get("data") or {}).get("issueCreate") or {}).get("issue") or {}).get("identifier")
+        )
+        if identifier:
+            log.info("Created Linear issue %s for %s: %s", identifier, finding["source"], title_short)
+            return identifier
+        # No issue returned: a duplicate deterministic id (a concurrent race with the
+        # other runner, or a URL that was already filed) surfaces as a GraphQL error
+        # here. That is the idempotency guard working, not a failure — do not re-file.
+        log.info(
+            "Scout: no issue returned for %r (idempotency-key collision — duplicate "
+            "avoided): %s", finding["title"][:60], body.get("errors"),
+        )
+        return None
     except Exception as exc:
         log.warning("Linear issue creation failed for %r: %s", finding["title"], exc)
         return None

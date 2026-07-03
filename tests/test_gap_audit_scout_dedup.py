@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import sys
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -411,3 +412,65 @@ def test_existing_scout_canonical_none_on_failure(monkeypatch):
         raise OSError("connection refused")
     monkeypatch.setattr(scout.urllib.request, "urlopen", boom)
     assert scout._existing_scout_canonical("lin_api_test") is None
+
+
+# ── RA-6927: deterministic idempotency key (cross-process race guard) ──────────
+
+def test_scout_issue_id_is_deterministic():
+    """Same URL always maps to the same UUID (stable across envs/runs)."""
+    url = "https://arxiv.org/abs/2606.28187v1"
+    assert scout._scout_issue_id(url) == scout._scout_issue_id(url)
+
+
+def test_scout_issue_id_normalises_url():
+    """Case and trailing-dot variants collapse to one id (matches canonical key)."""
+    base = scout._scout_issue_id("https://arxiv.org/abs/2606.28187v1")
+    assert scout._scout_issue_id("  https://ArXiv.org/abs/2606.28187v1.  ") == base
+
+
+def test_scout_issue_id_distinct_per_url():
+    """Different URLs produce different ids and a valid UUID string."""
+    a = scout._scout_issue_id("https://github.com/org/a")
+    b = scout._scout_issue_id("https://github.com/org/b")
+    assert a != b
+    assert uuid.UUID(a).version == 5
+
+
+def test_create_linear_issue_sends_idempotency_id(monkeypatch):
+    """_create_linear_issue passes the deterministic id in IssueCreateInput so a
+    concurrent create for the same URL collides on Linear's unique issue id."""
+    captured: dict[str, Any] = {}
+
+    def fake_urlopen(req, timeout=10):
+        captured["input"] = json.loads(req.data)["variables"]["input"]
+
+        class _Resp:
+            def read(self):
+                return json.dumps(
+                    {"data": {"issueCreate": {"success": True, "issue": {"identifier": "RA-9001"}}}}
+                ).encode()
+            def __enter__(self): return self
+            def __exit__(self, *a): pass
+        return _Resp()
+
+    monkeypatch.setattr(scout.urllib.request, "urlopen", fake_urlopen)
+    ident = scout._create_linear_issue(dict(_FINDING), "lbl-1", "lin_api_test")
+
+    assert ident == "RA-9001"
+    assert captured["input"]["id"] == scout._scout_issue_id(_FINDING["url"])
+
+
+def test_create_linear_issue_dupe_id_returns_none(monkeypatch):
+    """A duplicate-id GraphQL error (race loser) yields None, not a crash — no re-file."""
+    def fake_urlopen(req, timeout=10):
+        class _Resp:
+            def read(self):
+                return json.dumps(
+                    {"data": None, "errors": [{"message": "Entity with id already exists"}]}
+                ).encode()
+            def __enter__(self): return self
+            def __exit__(self, *a): pass
+        return _Resp()
+
+    monkeypatch.setattr(scout.urllib.request, "urlopen", fake_urlopen)
+    assert scout._create_linear_issue(dict(_FINDING), None, "lin_api_test") is None
