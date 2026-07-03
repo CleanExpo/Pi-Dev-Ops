@@ -1,8 +1,8 @@
 # skills — Wiki
 
-_Last updated: 2026-07-03T03:30:11Z (commits e07bbdc..005b7a6)_
+_Last updated: 2026-07-03T19:18:12Z (commits dfcee0b..028440a)_
 
 ## Recent changes
-- 005b7a6 — feat(skill-self-update): skill self-improvement pipeline (scan -> draft -> review -> PR) (#496)
+- 028440a — feat(skills): add output-tournament — generate/judge/synthesise creative variants (#498)
 
 
