@@ -167,6 +167,15 @@ def _consolidation_marker_fresh() -> bool:
 
 # ─── lesson loading ────────────────────────────────────────────────────────────
 
+# Self-test noise categories that must never seed improvement proposals. The
+# smoke pipeline fires /api/build with intent="smoke" against a trivial
+# comment-only brief, so its evaluator warnings land in lessons.jsonl as
+# category="smoke" (session_phases.py categorises evaluator lessons by
+# resolved_intent); scripts/smoke_test.py writes category="smoke-test". Both are
+# harness self-checks, not real system lessons — analysing them produced the
+# empty-diff garbage proposals in RA-6825/6826/6827.
+_SELF_TEST_CATEGORIES = {"smoke-test", "smoke"}
+
 
 def load_lessons(path: Path) -> list[dict]:
     lessons: list[dict] = []
@@ -180,12 +189,12 @@ def load_lessons(path: Path) -> list[dict]:
                 continue
             try:
                 entry = json.loads(line)
-                if entry.get("category") == "smoke-test":
+                if entry.get("category") in _SELF_TEST_CATEGORIES:
                     continue
                 lessons.append(entry)
             except json.JSONDecodeError:
                 pass
-    log.info("Loaded %d lessons (smoke-test excluded)", len(lessons))
+    log.info("Loaded %d lessons (self-test categories excluded)", len(lessons))
     return lessons
 
 
