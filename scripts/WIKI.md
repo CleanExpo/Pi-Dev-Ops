@@ -1,8 +1,8 @@
 # scripts — Wiki
 
-_Last updated: 2026-07-03T03:30:11Z (commits e07bbdc..005b7a6)_
+_Last updated: 2026-07-03T08:08:55Z (commits 37257d7..b9701d9)_
 
 ## Recent changes
-- 005b7a6 — feat(skill-self-update): skill self-improvement pipeline (scan -> draft -> review -> PR) (#496)
+- b9701d9 — fix(fallback-dryrun): classify billing failures with funding-specific remediation (#502)
 
 

@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-07-03T06:44:57Z (commits 9a31042..beacfaf)_
+_Last updated: 2026-07-03T08:08:55Z (commits 37257d7..b9701d9)_
 
 ## Recent changes
-- beacfaf — test(webhook): cover Linear create-path, label repo-extract, brief builder (#500)
+- b9701d9 — fix(fallback-dryrun): classify billing failures with funding-specific remediation (#502)
 
 
