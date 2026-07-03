@@ -1,0 +1,42 @@
+[
+  {
+    "question": "Plan and spec a project task before implementation.",
+    "expected_files": ["spm/SKILL.md"]
+  },
+  {
+    "question": "Run a pre-build devil's-advocate challenge gate before approving a build.",
+    "expected_files": ["judge/SKILL.md"]
+  },
+  {
+    "question": "Draft a go-to-market launch plan with landing page and email sequence.",
+    "expected_files": ["marketing-orchestrator/SKILL.md"]
+  },
+  {
+    "question": "Produce an AI avatar talking-head presenter video.",
+    "expected_files": ["heygen-director/SKILL.md"]
+  },
+  {
+    "question": "Optimize content for AI search engine citations and AI Overviews.",
+    "expected_files": ["geo-optimization/SKILL.md"]
+  },
+  {
+    "question": "Wrap a task for a sub-Fable model at full operating discipline.",
+    "expected_files": ["nexus/SKILL.md"]
+  },
+  {
+    "question": "Audit this session's context and trim heavy MCP tools.",
+    "expected_files": ["context-cockpit/SKILL.md"]
+  },
+  {
+    "question": "Assess author authority and E-E-A-T trust signals on a page.",
+    "expected_files": ["eeat/SKILL.md"]
+  },
+  {
+    "question": "Decide whether an agent may take an action autonomously or must escalate.",
+    "expected_files": ["autonomy-ladder/SKILL.md"]
+  },
+  {
+    "question": "Author or review a skill against the authoring standard.",
+    "expected_files": ["skill-authoring-standard/SKILL.md"]
+  }
+]
