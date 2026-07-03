@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-07-03T03:30:51Z (commits 3de26b0..e4dbe7e)_
+_Last updated: 2026-07-03T06:35:30Z (commits 4f23b88..33a07f1)_
 
 ## Recent changes
-- e4dbe7e — fix(telegram): gate webhook autoconfigure to production (RA-6924) (#492)
+- 33a07f1 — feat(feedback-loop): Pydantic-validated bounded re-ask on cheap-tier classifier (RA-6872) (#499)
 
 
