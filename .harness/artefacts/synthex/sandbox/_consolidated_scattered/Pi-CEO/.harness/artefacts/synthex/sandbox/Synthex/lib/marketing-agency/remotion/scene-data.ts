@@ -1,1 +1,0 @@
-export { restoreAssistLaunchStoryboards } from '../storyboards';

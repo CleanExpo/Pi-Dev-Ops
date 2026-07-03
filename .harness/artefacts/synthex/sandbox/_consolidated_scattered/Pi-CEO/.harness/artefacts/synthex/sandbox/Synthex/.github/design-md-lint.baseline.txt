@@ -1,3 +1,0 @@
-# DESIGN.md lint baseline — Synthex
-# Generated 2026-05-11 when DESIGN.md adoption shipped.
-icon_imports=61
