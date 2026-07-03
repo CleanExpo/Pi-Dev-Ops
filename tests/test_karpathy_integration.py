@@ -127,6 +127,67 @@ def test_karpathy_failure_appends_to_lessons_jsonl():
     assert "karpathy" in appended[0]["lesson"]
 
 
+# ── Test 6 — empty diffs never seed evaluator lessons (RA-6826/6827) ─────────
+
+def test_empty_diff_skips_evaluator_lessons():
+    """A no-op build (empty diff) must append zero evaluator lessons, even when
+    every dimension fails. Empty-diff warnings ("empty diff", "fails all
+    Karpathy principles", "complete failure to produce any output") are
+    artefacts of a build that changed nothing, not system lessons — feeding
+    them to lessons.jsonl produced the garbage improvement proposals in
+    RA-6825/6826/6827."""
+    eval_text = (
+        "COMPLETENESS: 0/10 — empty diff, nothing implemented\n"
+        "CORRECTNESS: 0/10 — no code to assess\n"
+        "CONCISENESS: 0/10 — no output\n"
+        "FORMAT: 0/10 — no output\n"
+        "KARPATHY: 0/10 — empty diffs fail all Karpathy principles\n"
+        "OVERALL: 0/10 — FAIL\n"
+    )
+    threshold = 7
+    resolved_intent = "spike"
+    dims = _parse_evaluator_dimensions(eval_text)
+    appended: list[dict] = []
+
+    def _fake_append(source, category, lesson, severity="info"):
+        appended.append({"category": category, "lesson": lesson})
+        return appended[-1]
+
+    # Replicate the guarded loop from session_phases._phase_evaluate.
+    for diff_full, expect in (("", 0), ("+ real change\n", 6)):
+        appended.clear()
+        diff_is_empty = not (diff_full or "").strip()
+        with patch("app.server.session_phases.append_lesson", side_effect=_fake_append):
+            from app.server.session_phases import append_lesson as _al
+
+            passed = False
+            if not diff_is_empty:
+                for dim_name, (score, reason) in dims.items():
+                    if score < threshold:
+                        cat = "karpathy" if dim_name == "karpathy" else resolved_intent
+                        _al(source="evaluator", category=cat,
+                            lesson=f"{dim_name} scored {score}/10: {reason}", severity="warn")
+                if not passed:
+                    weak = ", ".join(d for d, (s, _) in dims.items() if s < threshold)
+                    _al(source="evaluator", category=resolved_intent,
+                        lesson=f"Build scored 0/10 (below {threshold}). Weak: {weak}", severity="warn")
+        assert len(appended) == expect, (
+            f"empty={diff_is_empty}: expected {expect} lessons, got {len(appended)}"
+        )
+
+
+def test_empty_diff_guard_present_in_source():
+    """Bind the behaviour test to the real implementation: the evaluator phase
+    must gate lesson-writing on a non-empty diff."""
+    import inspect
+
+    from app.server import session_phases
+
+    src = inspect.getsource(session_phases._phase_evaluate)
+    assert "diff_is_empty" in src
+    assert "if not diff_is_empty:" in src
+
+
 # ── Test 5 — soft gate: low karpathy alone does not block a passing build ────
 
 def test_soft_gate_does_not_block_on_karpathy_alone():

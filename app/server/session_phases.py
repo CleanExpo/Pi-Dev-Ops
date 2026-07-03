@@ -1096,19 +1096,30 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
             # as lessons so operators can tighten the gate later without a
             # regression risk today.
             passed = session.evaluator_score >= threshold
+            # RA-6826/6827 — an empty diff means the build changed nothing: a
+            # harness self-test (smoke pipeline, default codebase-analysis spike)
+            # or a genuine build failure. Its low-score warnings ("empty diff",
+            # "fails all Karpathy principles", "complete failure to produce any
+            # output") are artefacts of a no-op build, not lessons about the
+            # system — writing them to lessons.jsonl seeds the garbage
+            # improvement proposals that produced RA-6825/6826/6827. The build
+            # failure itself is already captured by evaluator_score + status;
+            # only real (non-empty) diffs yield actionable evaluator lessons.
+            diff_is_empty = not (diff_full or "").strip()
             try:
                 dimensions = _parse_evaluator_dimensions(eval_text)
-                for dim_name, (score, reason) in dimensions.items():
-                    if score < threshold:
-                        lesson_category = "karpathy" if dim_name == "karpathy" else resolved_intent
-                        append_lesson(source="evaluator", category=lesson_category,
-                            lesson=f"{dim_name} scored {score}/10: {reason}",
-                            severity="warn" if score < threshold - 1 else "info")
-                if not passed:
-                    weak = ", ".join(d for d, (s, _) in dimensions.items() if s < threshold)
-                    append_lesson(source="evaluator", category=resolved_intent,
-                        lesson=f"Build scored {session.evaluator_score}/10 (below {threshold}). Weak: {weak}",
-                        severity="warn")
+                if not diff_is_empty:
+                    for dim_name, (score, reason) in dimensions.items():
+                        if score < threshold:
+                            lesson_category = "karpathy" if dim_name == "karpathy" else resolved_intent
+                            append_lesson(source="evaluator", category=lesson_category,
+                                lesson=f"{dim_name} scored {score}/10: {reason}",
+                                severity="warn" if score < threshold - 1 else "info")
+                    if not passed:
+                        weak = ", ".join(d for d, (s, _) in dimensions.items() if s < threshold)
+                        append_lesson(source="evaluator", category=resolved_intent,
+                            lesson=f"Build scored {session.evaluator_score}/10 (below {threshold}). Weak: {weak}",
+                            severity="warn")
             except Exception:
                 pass
             # RA-1028 — auto-extract structured lesson from evaluator output
