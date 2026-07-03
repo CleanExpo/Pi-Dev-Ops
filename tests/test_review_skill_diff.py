@@ -50,6 +50,39 @@ def test_diff_introducing_banned_frontmatter_field_fails(tmp_path):
     assert any("version" in f.lower() or "banned" in f.lower() for f in result.failures)
 
 
+def test_diff_introducing_banned_owner_role_field_fails(tmp_path):
+    skill_md = _make_skill_md(tmp_path, line_count=50)
+    diff = (
+        "--- a/SKILL.md\n+++ b/SKILL.md\n@@ -1,4 +1,5 @@\n ---\n"
+        " name: test-skill\n+owner_role: admin\n description: test\n ---\n"
+    )
+    result = review_diff(diff, skill_md)
+    assert result.passed is False
+    assert any("owner_role" in f.lower() or "banned" in f.lower() for f in result.failures)
+
+
+def test_diff_introducing_banned_status_field_fails(tmp_path):
+    skill_md = _make_skill_md(tmp_path, line_count=50)
+    diff = (
+        "--- a/SKILL.md\n+++ b/SKILL.md\n@@ -1,4 +1,5 @@\n ---\n"
+        " name: test-skill\n+status: active\n description: test\n ---\n"
+    )
+    result = review_diff(diff, skill_md)
+    assert result.passed is False
+    assert any("status" in f.lower() or "banned" in f.lower() for f in result.failures)
+
+
+def test_diff_introducing_banned_metadata_requires_field_fails(tmp_path):
+    skill_md = _make_skill_md(tmp_path, line_count=50)
+    diff = (
+        "--- a/SKILL.md\n+++ b/SKILL.md\n@@ -1,4 +1,5 @@\n ---\n"
+        " name: test-skill\n+metadata:\n description: test\n ---\n"
+    )
+    result = review_diff(diff, skill_md)
+    assert result.passed is False
+    assert any("metadata" in f.lower() or "banned" in f.lower() for f in result.failures)
+
+
 def test_diff_touching_a_different_file_fails(tmp_path):
     skill_md = _make_skill_md(tmp_path, line_count=50)
     diff = "--- a/OTHER.md\n+++ b/OTHER.md\n@@ -1,1 +1,2 @@\n content\n+new content\n"
