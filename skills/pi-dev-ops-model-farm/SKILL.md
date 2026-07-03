@@ -40,10 +40,10 @@ This skill turns those into a managed worker pool alongside Hermes' native OpenR
 
 | Worker | CLI | Auth | Model | Best For | Session File |
 |--------|-----|------|-------|----------|--------------|
-| `claude-1` | `claude` | Max Plan #1 | Opus | `/judge`, `/boardroom`, `/tao-judge` | `~/.hermes/.farm/claude-1.session` |
-| `claude-2` | `claude` | Max Plan #2 | Sonnet | `/storm`, `/cto`, `security-audit` | `~/.hermes/.farm/claude-2.session` |
-| `claude-3` | `claude` | Max Plan #3 | Sonnet | `/spm`, `/ceo-mode`, external comms | `~/.hermes/.farm/claude-3.session` |
-| `codex-1` | `codex` | ChatGPT | o3 / o4-mini | Coding agents, file editing, PR reviews | `~/.hermes/.farm/codex-1.session` |
+| `claude-1` | `claude` | Max Plan #1 | `claude-opus-4-8` | `/judge`, `/boardroom`, `/tao-judge` | `~/.hermes/.farm/claude-1.session` |
+| `claude-2` | `claude` | Max Plan #2 | `claude-sonnet-5` | `/storm`, `/cto`, `security-audit` | `~/.hermes/.farm/claude-2.session` |
+| `claude-3` | `claude` | Max Plan #3 | `claude-sonnet-5` | `/spm`, `/ceo-mode`, external comms | `~/.hermes/.farm/claude-3.session` |
+| `codex-1` | `codex` | ChatGPT | Codex CLI default (see `codex --version`) | Coding agents, file editing, PR reviews | `~/.hermes/.farm/codex-1.session` |
 
 ## Farm Operations
 
@@ -54,7 +54,7 @@ Create a tmux session per worker that passes `--print` to avoid interactive prom
 ```bash
 # Claude worker (non-interactive, pipe-ready)
 tmux new-session -d -s claude-1 -x 120 -y 40 \
-  'claude --print --permission-mode bypassPermissions --model opus "$@"'
+  'claude --print --permission-mode bypassPermissions --model claude-opus-4-8 "$@"'
 
 # Codex worker
 tmux new-session -d -s codex-1 -x 120 -y 40 \
@@ -97,7 +97,7 @@ Worker logs symlink: `~/.hermes/.farm/<worker>.out.json`
   "completed_at": "2026-07-02T21:00:00Z",
   "status": "success|failure|timeout",
   "output": "...",
-  "model_used": "claude-opus-4",
+  "model_used": "claude-opus-4-8",
   "duration_seconds": 45,
   "tokens_used": {"prompt": 1200, "completion": 800},
   "tool_calls": 0
