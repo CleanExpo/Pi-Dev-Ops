@@ -78,6 +78,10 @@ app/workspaces/
 app/logs/
 app/data/
 *.log
+
+# ── One-time consolidation dumps (never source) ──────────────────────
+_consolidated_scattered/
+.harness/artefacts/**/sandbox/
 *.db
 *.db-journal
 *.sqlite
