@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-07-03T11:54:41Z (commits 945c978..bcfe567)_
+_Last updated: 2026-07-03T12:03:11Z (commits 8a7ad78..a835453)_
 
 ## Recent changes
-- bcfe567 — fix(scout): close cross-process dup race with deterministic Linear issue id (#503)
+- a835453 — fix(lessons): exclude smoke-eval noise from improvement-proposal analysis (#504)
 
 

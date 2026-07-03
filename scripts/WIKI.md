@@ -1,8 +1,8 @@
 # scripts — Wiki
 
-_Last updated: 2026-07-03T08:08:55Z (commits 37257d7..b9701d9)_
+_Last updated: 2026-07-03T12:03:11Z (commits 8a7ad78..a835453)_
 
 ## Recent changes
-- b9701d9 — fix(fallback-dryrun): classify billing failures with funding-specific remediation (#502)
+- a835453 — fix(lessons): exclude smoke-eval noise from improvement-proposal analysis (#504)
 
 
