@@ -16,7 +16,9 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
+
+from pydantic import BaseModel, ValidationError, field_validator
 
 log = logging.getLogger("pi-ceo.agents.feedback-loop")
 
@@ -32,6 +34,38 @@ _AUTONOMY_LOG = _HARNESS_ROOT / "autonomy.jsonl"
 _PATTERN_ROLE = "sprinkle.feedback"
 _PATTERN_MAX_TOKENS = 200
 _PATTERN_TIMEOUT_S = 90  # Cold-start tolerant; matches triage.py timeout
+# Bounded re-asks when the cheap tier returns malformed/off-schema JSON. One
+# extra cheap-tier call per retry, capped — never the paid Anthropic path.
+_PATTERN_MAX_RETRIES = 2
+
+
+class OutcomeClassification(BaseModel):
+    """Validated shape of the cheap-tier classifier's JSON output (RA-6872).
+
+    Mirrors the exact contract the manual parser enforced before: a whitelisted
+    category, a <=120-char label, and a confidence clamped to [0, 1]. `label`
+    and `confidence` coerce/clamp rather than reject (a model returning 1.5 or a
+    stray string shouldn't waste a re-ask); only a missing/invalid `category`
+    fails validation and triggers the bounded re-ask loop.
+    """
+
+    category: Literal["positive", "negative", "neutral"]
+    label: str = ""
+    confidence: float = 0.0
+
+    @field_validator("label", mode="before")
+    @classmethod
+    def _clean_label(cls, v: Any) -> str:
+        return str(v or "").strip()[:120]
+
+    @field_validator("confidence", mode="before")
+    @classmethod
+    def _clamp_confidence(cls, v: Any) -> float:
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return 0.0
+        return min(1.0, max(0.0, f))
 
 _PATTERN_PROMPT = (
     "This feature shipped {days} days ago. Read the Linear thread below and classify the outcome: "
@@ -72,8 +106,6 @@ def _classify_with_claude(
 
     try:
         from app.server.provider_router import run_via_provider_blocking  # noqa: PLC0415
-
-        rc, raw, _cost, error, pm = run_via_provider_blocking(prompt, _PATTERN_ROLE, _PATTERN_TIMEOUT_S)
     except Exception as exc:  # noqa: BLE001
         _log_sprinkle_event({
             "sprinkle": "feedback_loop", "outcome": "router_unavailable",
@@ -81,55 +113,71 @@ def _classify_with_claude(
         })
         return None
 
-    if rc != 0 or not raw:
-        _log_sprinkle_event({
-            "sprinkle": "feedback_loop", "outcome": "call_failed",
-            "pipeline_id": pipeline_id,
-            "provider": pm.provider, "model": pm.model_id,
-            "error": error or "empty_response",
-        })
-        return None
+    # Bounded re-ask loop: the cheap tier occasionally emits malformed or
+    # off-schema JSON. Rather than fall straight through to the keyword verdict,
+    # re-ask up to _PATTERN_MAX_RETRIES times, feeding the validation error back
+    # into the prompt. Only malformed *output* is retried — a transport failure
+    # (rc != 0) returns immediately so a stalling provider can't multiply cost.
+    # Every attempt stays on the cheap tier (role unchanged) per RA-2989/RA-2995.
+    last_error = ""
+    for attempt in range(_PATTERN_MAX_RETRIES + 1):
+        call_prompt = prompt if attempt == 0 else (
+            f"{prompt}\n\nYour previous output was invalid: {last_error}. "
+            "Return ONLY valid JSON matching the schema, nothing else."
+        )
+        try:
+            rc, raw, _cost, error, pm = run_via_provider_blocking(
+                call_prompt, _PATTERN_ROLE, _PATTERN_TIMEOUT_S,
+            )
+        except Exception as exc:  # noqa: BLE001
+            _log_sprinkle_event({
+                "sprinkle": "feedback_loop", "outcome": "router_unavailable",
+                "pipeline_id": pipeline_id, "error": type(exc).__name__,
+            })
+            return None
 
-    raw = raw.strip()
-    if raw.startswith("```"):
-        raw = raw.strip("`").lstrip("json").strip()
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        _log_sprinkle_event({
-            "sprinkle": "feedback_loop", "outcome": "json_parse_failed",
-            "pipeline_id": pipeline_id,
-            "provider": pm.provider, "model": pm.model_id,
-            "raw_head": raw[:120],
-        })
-        return None
+        if rc != 0 or not raw:
+            _log_sprinkle_event({
+                "sprinkle": "feedback_loop", "outcome": "call_failed",
+                "pipeline_id": pipeline_id,
+                "provider": pm.provider, "model": pm.model_id,
+                "error": error or "empty_response",
+            })
+            return None
 
-    category = str(data.get("category", "")).strip()
-    if category not in {"positive", "negative", "neutral"}:
+        raw = raw.strip()
+        if raw.startswith("```"):
+            raw = raw.strip("`").lstrip("json").strip()
+
+        try:
+            parsed = OutcomeClassification.model_validate_json(raw)
+        except ValidationError as ve:
+            last_error = "; ".join(
+                f"{'.'.join(str(p) for p in e['loc'])}: {e['msg']}"
+                for e in ve.errors()
+            )[:200] or "schema validation failed"
+            _log_sprinkle_event({
+                "sprinkle": "feedback_loop", "outcome": "invalid_output",
+                "pipeline_id": pipeline_id, "attempt": attempt,
+                "provider": pm.provider, "model": pm.model_id,
+                "raw_head": raw[:120], "error": last_error,
+            })
+            continue
+
+        out = parsed.model_dump()
         _log_sprinkle_event({
-            "sprinkle": "feedback_loop", "outcome": "bad_shape",
+            "sprinkle": "feedback_loop", "outcome": "ok",
             "pipeline_id": pipeline_id,
             "provider": pm.provider, "model": pm.model_id,
+            **out,
         })
-        return None
-    try:
-        confidence = float(data.get("confidence", 0.0))
-    except (TypeError, ValueError):
-        confidence = 0.0
-    # Model may return values outside [0,1] under malformed or injected output.
-    confidence = min(1.0, max(0.0, confidence))
-    out = {
-        "category": category,
-        "label": str(data.get("label", "")).strip()[:120],
-        "confidence": confidence,
-    }
+        return out
+
     _log_sprinkle_event({
-        "sprinkle": "feedback_loop", "outcome": "ok",
-        "pipeline_id": pipeline_id,
-        "provider": pm.provider, "model": pm.model_id,
-        **out,
+        "sprinkle": "feedback_loop", "outcome": "retries_exhausted",
+        "pipeline_id": pipeline_id, "attempts": _PATTERN_MAX_RETRIES + 1,
     })
-    return out
+    return None
 
 # How many days before a feature is considered stale (no outcome signal)
 _STALE_DAYS = 30

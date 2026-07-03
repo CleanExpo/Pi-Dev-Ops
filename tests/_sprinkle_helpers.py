@@ -46,14 +46,26 @@ class FakeProviderRouter:
         error: str | None = None,
         raise_exc: Exception | None = None,
         provider_model: _ProviderModelStub | None = None,
+        responses: list[str] | None = None,
     ):
         self.response = response
+        # Optional per-call script: each call consumes the next entry; the last
+        # entry sticks once exhausted. Lets a test drive a retry sequence such as
+        # malformed-then-valid without a bespoke fake (RA-6872).
+        self.responses = list(responses) if responses else None
         self.rc = rc
         self.error = error
         self.raise_exc = raise_exc
         self.provider_model = provider_model or _ProviderModelStub()
         self.calls: list[dict] = []
         self.select_calls: list[str] = []
+
+    def _next_response(self) -> str:
+        if not self.responses:
+            return self.response
+        if len(self.responses) == 1:
+            return self.responses[0]
+        return self.responses.pop(0)
 
     async def run_via_provider(
         self,
@@ -73,7 +85,7 @@ class FakeProviderRouter:
         })
         if self.raise_exc is not None:
             raise self.raise_exc
-        return self.rc, self.response, 0.0, self.error
+        return self.rc, self._next_response(), 0.0, self.error
 
     def run_via_provider_blocking(
         self,
@@ -90,7 +102,7 @@ class FakeProviderRouter:
         })
         if self.raise_exc is not None:
             raise self.raise_exc
-        return self.rc, self.response, 0.0, self.error, self.provider_model
+        return self.rc, self._next_response(), 0.0, self.error, self.provider_model
 
     def select_provider_model(self, role: str):
         self.select_calls.append(role)
