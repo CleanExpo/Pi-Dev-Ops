@@ -1,8 +1,8 @@
 # skills — Wiki
 
-_Last updated: 2026-07-03T03:02:56Z (commits 303e685..d0dccc9)_
+_Last updated: 2026-07-03T03:06:48Z (commits f392d24..66cd15c)_
 
 ## Recent changes
-- d0dccc9 — feat(nexus): tier-selection guidance + session-handoff/resume connector (#491)
+- 66cd15c — docs(skills): point browser-routing at chrome-browser skill (#495)
 
 
