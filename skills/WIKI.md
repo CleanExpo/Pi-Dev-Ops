@@ -1,8 +1,8 @@
 # skills — Wiki
 
-_Last updated: 2026-07-04T07:41:58Z (commits 813e773..a906452)_
+_Last updated: 2026-07-04T23:59:08Z (commits 0637388..0fe5d10)_
 
 ## Recent changes
-- a906452 — feat(skills): add wiki-growth — review-board vault triage router (#506)
+- 0fe5d10 — Weekly cross-repo enhancement loop on OpenRouter (#507)
 
 

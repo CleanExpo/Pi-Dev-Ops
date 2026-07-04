@@ -1,8 +1,8 @@
 # scripts — Wiki
 
-_Last updated: 2026-07-03T12:03:11Z (commits 8a7ad78..a835453)_
+_Last updated: 2026-07-04T23:59:08Z (commits 0637388..0fe5d10)_
 
 ## Recent changes
-- a835453 — fix(lessons): exclude smoke-eval noise from improvement-proposal analysis (#504)
+- 0fe5d10 — Weekly cross-repo enhancement loop on OpenRouter (#507)
 
 

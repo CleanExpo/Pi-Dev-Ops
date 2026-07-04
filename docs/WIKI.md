@@ -1,8 +1,8 @@
 # docs — Wiki
 
-_Last updated: 2026-07-01T08:30:24Z (commits 052ee4a..21efc57)_
+_Last updated: 2026-07-04T23:59:08Z (commits 0637388..0fe5d10)_
 
 ## Recent changes
-- 21efc57 — feat(margot): add Codex build packet workflow (#435)
+- 0fe5d10 — Weekly cross-repo enhancement loop on OpenRouter (#507)
 
 
