@@ -9,7 +9,13 @@ REM  - Re-links any brand-new skill folders as native symlinks.
 REM  - Existing skills are symlinks into this repo, so a pull updates them with
 REM    no copying. Machine-local skills (not in the repo) are left untouched.
 REM
-REM  Usage:  D:\Pi-Dev-Ops\update-skills.cmd
+REM  RECOMMENDED (stable launcher): keep a COPY of this script OUTSIDE the repo
+REM  (e.g. in your home folder) and run THAT one. A reset/force-push can delete
+REM  files inside the repo, so an in-repo launcher can remove itself; an external
+REM  copy cannot. Point the external copy's REPO variable at this repo's absolute
+REM  path. This in-repo copy is the versioned source of record.
+REM
+REM  Usage:  D:\Pi-Dev-Ops\update-skills.cmd   (or an out-of-repo copy)
 REM ============================================================================
 setlocal
 set "REPO=%~dp0"
