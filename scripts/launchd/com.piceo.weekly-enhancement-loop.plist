@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.piceo.weekly-enhancement-loop</string>
+
+    <!--
+      Local Mac fallback for the weekly enhancement loop (8-Claude-Loops
+      improve-system method). The always-on path is
+      .github/workflows/weekly-enhancement-loop.yml — prefer that. This plist
+      only fires if the Mac is awake at the scheduled time.
+
+      Runs Mondays at 02:00 local (AEST). API-mode Opus/Sonnet/Haiku — Fable-5
+      left the Max plan 2026-07-08, so ANTHROPIC_API_KEY must be a real
+      sk-ant-api key. Secrets load from ~/.config/piceo/enhancement.env:
+
+        mkdir -p ~/.config/piceo
+        cat > ~/.config/piceo/enhancement.env <<'EOF'
+        ANTHROPIC_API_KEY=sk-ant-api03-...
+        GH_ENHANCE_PAT=github_pat_...
+        EOF
+        chmod 600 ~/.config/piceo/enhancement.env
+    -->
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>set -a; [ -f $HOME/.config/piceo/enhancement.env ] &amp;&amp; source $HOME/.config/piceo/enhancement.env; set +a; cd $HOME/Pi-Dev-Ops &amp;&amp; exec /usr/bin/env python3 scripts/weekly_enhancement_loop.py</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>1</integer>
+        <key>Hour</key>
+        <integer>2</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/phill-mac/pi-ceo/logs/weekly-enhancement-loop.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/phill-mac/pi-ceo/logs/weekly-enhancement-loop_err.log</string>
+</dict>
+</plist>
