@@ -11,13 +11,14 @@
       .github/workflows/weekly-enhancement-loop.yml — prefer that. This plist
       only fires if the Mac is awake at the scheduled time.
 
-      Runs Mondays at 02:00 local (AEST). API-mode Opus/Sonnet/Haiku — Fable-5
-      left the Max plan 2026-07-08, so ANTHROPIC_API_KEY must be a real
-      sk-ant-api key. Secrets load from ~/.config/piceo/enhancement.env:
+      Runs Mondays at 02:00 local (AEST). Claude Opus/Sonnet/Haiku via OpenRouter
+      — Fable-5 left the Max plan 2026-07-08 and the direct Anthropic org has no
+      API credit, so OPENROUTER_API_KEY funds the ladder. Secrets load from
+      ~/.config/piceo/enhancement.env:
 
         mkdir -p ~/.config/piceo
         cat > ~/.config/piceo/enhancement.env <<'EOF'
-        ANTHROPIC_API_KEY=sk-ant-api03-...
+        OPENROUTER_API_KEY=sk-or-v1-...
         GH_ENHANCE_PAT=github_pat_...
         EOF
         chmod 600 ~/.config/piceo/enhancement.env

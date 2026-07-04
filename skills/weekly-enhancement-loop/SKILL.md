@@ -1,6 +1,6 @@
 ---
 name: weekly-enhancement-loop
-description: "Weekly cross-repo self-improvement loop. Every Monday 02:00 AEST it applies the 8-Claude-Loops method (INGEST / BUILD / COMPOUND + North Star) across every repo in .harness/projects.json, opening review PRs so all projects compound over time. API-mode Opus/Sonnet/Haiku ladder."
+description: "Weekly cross-repo self-improvement loop. Every Monday 02:00 AEST it applies the 8-Claude-Loops method (INGEST / BUILD / COMPOUND + North Star) across every repo in .harness/projects.json, opening review PRs so all projects compound over time. Claude Opus/Sonnet/Haiku ladder via OpenRouter."
 owner_role: "Senior PM"
 status: "wave-6"
 automation: scheduled
@@ -91,21 +91,27 @@ For each repo in the registry the runner executes the improve-system loop:
   generator/evaluator; Haiku for monitor. The runner passes explicit model IDs;
   it must not let Opus leak into build/scan roles.
 
-## Model ladder — API mode (post-2026-07-08 cutover)
+## Model ladder — OpenRouter (post-2026-07-08 cutover)
 
-Fable-5 left the Max plan on 2026-07-08, so this loop runs **via the Anthropic
-API**, not the Max OAuth subscription. `ANTHROPIC_API_KEY` must be set (GitHub
-Actions secret for the always-on path; `~/.config/piceo/enhancement.env` for the
-launchd path). Latest models:
+Fable-5 left the Max plan on 2026-07-08 **and** the direct Anthropic org has no
+API credit, so this loop bills **OpenRouter** credit while keeping the same Claude
+tier. OpenRouter's `/v1/messages` endpoint speaks native Anthropic tool-use, so
+`scripts/weekly_enhancement_loop.py` is a self-contained tool-use agent
+(read_file / write_file / list_dir / run_bash, scoped to the clone) — the Claude
+Code CLI is not used because it rejects OpenRouter slash-slugs.
 
-| Role | Model ID | Env override |
-|------|----------|--------------|
-| planner / orchestrator (Opus) | `claude-opus-4-6` | `ENHANCE_MODEL_OPUS` |
-| generator / evaluator (Sonnet) | `claude-sonnet-4-6` | `ENHANCE_MODEL_SONNET` |
-| monitor / scan (Haiku) | `claude-haiku-4-5-20251001` | `ENHANCE_MODEL_HAIKU` |
+`OPENROUTER_API_KEY` must be set (GitHub Actions secret for the always-on path;
+`~/.config/piceo/enhancement.env` for the launchd path). Slugs:
 
-Override the IDs via env when Anthropic ships newer point releases — do not
-hard-code new pins in code.
+| Role | OpenRouter slug | Env override |
+|------|-----------------|--------------|
+| planner / orchestrator (Opus) | `anthropic/claude-opus-4.6` | `ENHANCE_MODEL_OPUS` |
+| generator / evaluator (Sonnet) | `anthropic/claude-sonnet-4.6` | `ENHANCE_MODEL_SONNET` |
+| monitor / scan (Haiku) | `anthropic/claude-haiku-4.5` | `ENHANCE_MODEL_HAIKU` |
+
+Override the slugs via env when newer point releases ship — do not hard-code new
+pins in code. Spend is tracked from OpenRouter `usage.cost` and drains at
+`TAO_MAX_COST_USD`; `ENHANCE_MAX_PHASE_ITERS` caps tool-use rounds per phase.
 
 ## Verification
 

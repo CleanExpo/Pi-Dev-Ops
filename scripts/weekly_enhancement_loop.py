@@ -7,21 +7,27 @@ model ladder, then opens a review PR (never merges). See
 skills/weekly-enhancement-loop/SKILL.md and
 docs/sources/8-claude-loops-to-build-10x-faster.md.
 
-Model ladder is API-mode (Fable-5 left the Max plan 2026-07-08 — this loop uses
-ANTHROPIC_API_KEY, not the Max OAuth subscription):
+Model ladder runs on OpenRouter (Anthropic Messages API surface). Fable-5 left
+the Max plan 2026-07-08 and the direct Anthropic org has no API credit, so this
+loop bills OpenRouter credit while keeping the same Claude model tier:
 
-    planner/orchestrator (Opus)  -> ENHANCE_MODEL_OPUS    (claude-opus-4-6)
-    generator/evaluator (Sonnet) -> ENHANCE_MODEL_SONNET  (claude-sonnet-4-6)
-    monitor/scan        (Haiku)  -> ENHANCE_MODEL_HAIKU   (claude-haiku-4-5-20251001)
+    planner/orchestrator (Opus)  -> ENHANCE_MODEL_OPUS    (anthropic/claude-opus-4.6)
+    generator/evaluator (Sonnet) -> ENHANCE_MODEL_SONNET  (anthropic/claude-sonnet-4.6)
+    monitor/scan        (Haiku)  -> ENHANCE_MODEL_HAIKU   (anthropic/claude-haiku-4.5)
+
+OpenRouter's /v1/messages endpoint speaks native Anthropic tool-use, so this file
+is a self-contained tool-use agent (read_file / write_file / list_dir / run_bash,
+all scoped to the cloned workspace). No Claude Code CLI, no claude_agent_sdk —
+the CLI rejects OpenRouter slash-slugs, so the agent loop lives here.
 
 Abort axes (shared with every TAO loop, RA-1966): TAO_HARD_STOP_FILE,
-TAO_MAX_COST_USD, and a per-loop repo cap. Nothing is merged to main; each repo
-yields at most one open PR per week on branch enhance/weekly-<date>.
+TAO_MAX_COST_USD (real spend from OpenRouter usage.cost), and a per-phase
+iteration cap. Nothing is merged to main; each repo yields at most one open PR per
+week on branch enhance/weekly-<date>.
 """
 from __future__ import annotations
 
 import argparse
-import asyncio
 import datetime as _dt
 import json
 import logging
@@ -30,6 +36,8 @@ import shutil
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -41,15 +49,25 @@ REGISTRY = REPO_ROOT / ".harness" / "projects.json"
 LOG_DIR = REPO_ROOT / ".harness" / "enhancement-loop"
 WORKSPACE_ROOT = Path(os.environ.get("ENHANCE_WORKSPACE", "/tmp/pi-ceo-enhance"))
 
-MODEL_OPUS = os.environ.get("ENHANCE_MODEL_OPUS", "claude-opus-4-6")
-MODEL_SONNET = os.environ.get("ENHANCE_MODEL_SONNET", "claude-sonnet-4-6")
-MODEL_HAIKU = os.environ.get("ENHANCE_MODEL_HAIKU", "claude-haiku-4-5-20251001")
+OPENROUTER_URL = "https://openrouter.ai/api/v1/messages"
+ANTHROPIC_VERSION = "2023-06-01"
+
+MODEL_OPUS = os.environ.get("ENHANCE_MODEL_OPUS", "anthropic/claude-opus-4.6")
+MODEL_SONNET = os.environ.get("ENHANCE_MODEL_SONNET", "anthropic/claude-sonnet-4.6")
+MODEL_HAIKU = os.environ.get("ENHANCE_MODEL_HAIKU", "anthropic/claude-haiku-4.5")
 
 HARD_STOP_FILE = Path(os.environ.get("TAO_HARD_STOP_FILE", str(Path.home() / ".claude" / "HARD_STOP")))
 MAX_COST_USD = float(os.environ.get("TAO_MAX_COST_USD", "5.00"))
+# Per-phase cap on tool-use round-trips — bounds a runaway agent even before the
+# dollar ceiling trips (RA-1966 TAO_MAX_ITERS analogue).
+MAX_PHASE_ITERS = int(os.environ.get("ENHANCE_MAX_PHASE_ITERS", "40"))
 # The loop's self-repo — enhancing it is allowed but must never push a ref the
 # autonomy webhook re-triggers on (RA-1182: 43 zombie branches).
 SELF_REPO = "CleanExpo/Pi-Dev-Ops"
+
+
+class CostCeilingHit(RuntimeError):
+    """Raised when accumulated OpenRouter spend crosses TAO_MAX_COST_USD."""
 
 
 def _kill_switch_tripped() -> str | None:
@@ -63,48 +81,166 @@ def load_repos() -> list[str]:
     return sorted({p["repo"] for p in data["projects"]})
 
 
-def _ensure_api_mode() -> None:
-    """Post-2026-07-08: a real sk-ant-api key is required (Max OAuth is gone).
-
-    Unlike session_sdk (which pops the key to fall back to OAuth), this loop must
-    keep a genuine API key so every call is billed API-mode Opus/Sonnet/Haiku.
-    """
-    key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-    if not key or key.startswith("sk-ant-oat01-"):
+def _openrouter_key() -> str:
+    key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not key:
         raise SystemExit(
-            "ANTHROPIC_API_KEY missing or is a Max OAuth token. Fable-5 left the "
-            "Max plan 2026-07-08 — set a real sk-ant-api... key (Actions secret or "
-            "~/.config/piceo/enhancement.env)."
+            "OPENROUTER_API_KEY missing. This loop bills OpenRouter credit (the "
+            "direct Anthropic org has no API credit and Fable-5 left the Max plan "
+            "2026-07-08). Set it as an Actions secret or in "
+            "~/.config/piceo/enhancement.env."
         )
-    os.environ["ANTHROPIC_API_KEY"] = key  # normalise (strip trailing newline)
+    return key
 
 
-async def run_phase(role: str, model: str, prompt: str, cwd: Path, timeout: int) -> str:
-    """One agentic phase via claude_agent_sdk.query() — mirrors session_sdk.py."""
-    from claude_agent_sdk import (  # noqa: PLC0415
-        AssistantMessage,
-        ClaudeAgentOptions,
-        ResultMessage,
-        TextBlock,
-        query,
+# --- Tool implementations (all scoped to the cloned workspace) ---------------
+
+TOOLS: list[dict[str, Any]] = [
+    {
+        "name": "read_file",
+        "description": "Read a UTF-8 text file relative to the repo root.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"path": {"type": "string"}},
+            "required": ["path"],
+        },
+    },
+    {
+        "name": "write_file",
+        "description": "Create or overwrite a UTF-8 text file relative to the repo root.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"path": {"type": "string"}, "content": {"type": "string"}},
+            "required": ["path", "content"],
+        },
+    },
+    {
+        "name": "list_dir",
+        "description": "List entries in a directory relative to the repo root (default '.').",
+        "input_schema": {
+            "type": "object",
+            "properties": {"path": {"type": "string"}},
+        },
+    },
+    {
+        "name": "run_bash",
+        "description": "Run a shell command in the repo root. Use for git diff/status, grep, "
+        "build/lint/type checks. Never run destructive or network-mutating commands.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"cmd": {"type": "string"}},
+            "required": ["cmd"],
+        },
+    },
+]
+
+
+def _resolve(cwd: Path, rel: str) -> Path:
+    """Resolve rel against cwd, refusing to escape the workspace.
+
+    Resolve the base too — on macOS /tmp and mkdtemp go through a /private
+    symlink, so comparing an unresolved cwd against a resolved target would
+    wrongly reject in-workspace paths.
+    """
+    base = cwd.resolve()
+    target = (base / rel).resolve()
+    if base not in target.parents and target != base:
+        raise ValueError(f"path escapes workspace: {rel}")
+    return target
+
+
+def _exec_tool(name: str, args: dict[str, Any], cwd: Path) -> str:
+    try:
+        if name == "read_file":
+            p = _resolve(cwd, args["path"])
+            if not p.is_file():
+                return f"ERROR: not a file: {args['path']}"
+            return p.read_text(encoding="utf-8", errors="replace")[:60000]
+        if name == "write_file":
+            p = _resolve(cwd, args["path"])
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(args["content"], encoding="utf-8")
+            return f"wrote {len(args['content'])} bytes to {args['path']}"
+        if name == "list_dir":
+            p = _resolve(cwd, args.get("path", "."))
+            if not p.is_dir():
+                return f"ERROR: not a dir: {args.get('path', '.')}"
+            return "\n".join(sorted(e.name + ("/" if e.is_dir() else "") for e in p.iterdir()))[:20000]
+        if name == "run_bash":
+            r = subprocess.run(
+                ["bash", "-lc", args["cmd"]], cwd=str(cwd),
+                capture_output=True, text=True, timeout=300,
+            )
+            out = (r.stdout + r.stderr)[:30000]
+            return f"exit={r.returncode}\n{out}"
+        return f"ERROR: unknown tool {name}"
+    except Exception as exc:  # tool errors are fed back to the model, not fatal
+        return f"ERROR: {type(exc).__name__}: {exc}"
+
+
+def _post(payload: dict[str, Any], key: str, timeout: int) -> dict[str, Any]:
+    data = json.dumps(payload).encode()
+    req = urllib.request.Request(
+        OPENROUTER_URL, data=data, method="POST",
+        headers={
+            "Authorization": f"Bearer {key}",
+            "anthropic-version": ANTHROPIC_VERSION,
+            "content-type": "application/json",
+            "HTTP-Referer": "https://github.com/CleanExpo/Pi-Dev-Ops",
+            "X-Title": "weekly-enhancement-loop",
+        },
     )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode())
 
-    options = ClaudeAgentOptions(cwd=str(cwd), model=model, permission_mode="bypassPermissions")
-    parts: list[str] = []
 
-    async def _stream() -> None:
-        async for msg in query(prompt=prompt, options=options):
-            if isinstance(msg, AssistantMessage):
-                for block in msg.content:
-                    if isinstance(block, TextBlock):
-                        parts.append(block.text)
-            elif isinstance(msg, ResultMessage):
-                break
+def run_phase(role: str, model: str, prompt: str, cwd: Path, timeout: int,
+              spent: dict[str, float]) -> str:
+    """One agentic phase: native Anthropic tool-use loop over OpenRouter.
 
+    Loops model <-> tools until the model stops requesting tools, the per-phase
+    iteration cap is hit, or the dollar ceiling trips (CostCeilingHit).
+    """
+    key = _openrouter_key()
+    messages: list[dict[str, Any]] = [{"role": "user", "content": prompt}]
+    text_out: list[str] = []
     t0 = time.monotonic()
-    await asyncio.wait_for(_stream(), timeout=timeout)
-    log.info("phase %s (%s) done in %.1fs", role, model, time.monotonic() - t0)
-    return "\n".join(parts)
+
+    for _ in range(MAX_PHASE_ITERS):
+        if reason := _kill_switch_tripped():
+            raise CostCeilingHit(f"kill-switch during phase {role}: {reason}")
+        payload = {
+            "model": model,
+            "max_tokens": 8000,
+            "usage": {"include": True},
+            "tools": TOOLS,
+            "messages": messages,
+        }
+        resp = _post(payload, key, timeout)
+        spent["usd"] += float(resp.get("usage", {}).get("cost", 0.0) or 0.0)
+        if spent["usd"] >= MAX_COST_USD:
+            raise CostCeilingHit(f"spend ${spent['usd']:.4f} >= cap ${MAX_COST_USD:.2f}")
+
+        content = resp.get("content", [])
+        messages.append({"role": "assistant", "content": content})
+        tool_results = []
+        for block in content:
+            if block.get("type") == "text":
+                text_out.append(block["text"])
+            elif block.get("type") == "tool_use":
+                out = _exec_tool(block["name"], block.get("input", {}), cwd)
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": block["id"],
+                    "content": out,
+                })
+        if resp.get("stop_reason") != "tool_use":
+            break
+        messages.append({"role": "user", "content": tool_results})
+
+    log.info("phase %s (%s) done in %.1fs; run spend $%.4f",
+             role, model, time.monotonic() - t0, spent["usd"])
+    return "\n".join(text_out)
 
 
 def _clone(repo: str, dest: Path) -> None:
@@ -114,8 +250,6 @@ def _clone(repo: str, dest: Path) -> None:
     token = os.environ.get("GH_ENHANCE_PAT") or os.environ.get("GITHUB_TOKEN", "")
     url = f"https://x-access-token:{token}@github.com/{repo}.git" if token else f"https://github.com/{repo}.git"
     subprocess.run(["git", "clone", "--depth", "1", url, str(dest)], check=True, capture_output=True)
-    # Plant a stub CLAUDE.md so Claude's upward search can't inherit Pi-CEO's
-    # instructions from a parent dir (RA-1169). /tmp has none, but be explicit.
 
 
 def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess:
@@ -124,7 +258,8 @@ def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess:
 
 ENHANCE_PROMPT = """You are the weekly enhancement loop for the repo checked out at the current
 working directory. Apply the improve-system method (loops 4-8 of
-"8 Claude Loops to Build 10x Faster").
+"8 Claude Loops to Build 10x Faster"). Use the read_file/write_file/list_dir/run_bash
+tools to inspect and edit files; run git diff/status to check your own work.
 
 1. SCAN: read the codebase, README/WIKI.md, and recent changes. Find concrete,
    low-risk enhancements: dead-code removal, obvious dependency drift, lint/type
@@ -145,7 +280,7 @@ Never run destructive git commands. Never merge. Only edit files in this workspa
 """
 
 
-async def enhance_repo(repo: str, dry_run: bool, spent: dict[str, float]) -> dict[str, Any]:
+def enhance_repo(repo: str, dry_run: bool, spent: dict[str, float]) -> dict[str, Any]:
     date = _dt.date.today().isoformat()
     slug = repo.split("/")[-1].lower()
     ws = WORKSPACE_ROOT / slug
@@ -155,20 +290,21 @@ async def enhance_repo(repo: str, dry_run: bool, spent: dict[str, float]) -> dic
     _clone(repo, ws)
 
     # Monitor (Haiku) → Plan (Opus) → Build+triage (Sonnet) → Review (Sonnet).
-    scan = await run_phase("monitor", MODEL_HAIKU,
-                           "List the 5 highest-leverage, lowest-risk enhancement targets in this "
-                           "repo as terse bullets. No edits.", ws, timeout=300)
-    plan = await run_phase("planner", MODEL_OPUS,
-                           f"Given these scan findings, write a bounded, safe implementation plan "
-                           f"(affected files, sequencing, rollback). Findings:\n{scan[:4000]}",
-                           ws, timeout=600)
-    await run_phase("generator", MODEL_SONNET,
-                    f"{ENHANCE_PROMPT}\n\nApproved plan:\n{plan[:6000]}", ws, timeout=900)
-    review = await run_phase("evaluator", MODEL_SONNET,
-                             "Review the working-tree diff (git diff). Revert any change that is "
-                             "unsafe, out of scope, or touches secrets/CI/auth/migrations. Confirm "
-                             "ENHANCEMENT_REVIEW.md's three buckets match the actual diff.",
-                             ws, timeout=600)
+    scan = run_phase("monitor", MODEL_HAIKU,
+                     "List the 5 highest-leverage, lowest-risk enhancement targets in this "
+                     "repo as terse bullets. Read files as needed. Make no edits.",
+                     ws, timeout=300, spent=spent)
+    plan = run_phase("planner", MODEL_OPUS,
+                     f"Given these scan findings, write a bounded, safe implementation plan "
+                     f"(affected files, sequencing, rollback). Findings:\n{scan[:4000]}",
+                     ws, timeout=600, spent=spent)
+    run_phase("generator", MODEL_SONNET,
+              f"{ENHANCE_PROMPT}\n\nApproved plan:\n{plan[:6000]}", ws, timeout=900, spent=spent)
+    review = run_phase("evaluator", MODEL_SONNET,
+                       "Review the working-tree diff (run `git diff`). Revert any change that is "
+                       "unsafe, out of scope, or touches secrets/CI/auth/migrations. Confirm "
+                       "ENHANCEMENT_REVIEW.md's three buckets match the actual diff.",
+                       ws, timeout=600, spent=spent)
     result["review_summary"] = review[:500]
 
     status = _git(ws, "status", "--porcelain").stdout.strip()
@@ -221,7 +357,7 @@ def _open_pr(repo: str, branch: str, date: str) -> str | None:
     return None
 
 
-async def main() -> int:
+def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", help="single repo (owner/name); default all in registry")
     ap.add_argument("--dry-run", action="store_true", help="commit locally, do not push/PR")
@@ -230,7 +366,7 @@ async def main() -> int:
     if reason := _kill_switch_tripped():
         log.error("kill-switch: %s — aborting", reason)
         return 2
-    _ensure_api_mode()
+    _openrouter_key()  # fail fast if the credential is absent
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     run_log = LOG_DIR / f"{_dt.date.today().isoformat()}.jsonl"
 
@@ -242,18 +378,25 @@ async def main() -> int:
             log.error("kill-switch tripped mid-run: %s — draining", reason)
             break
         try:
-            res = await enhance_repo(repo, args.dry_run, spent)
+            res = enhance_repo(repo, args.dry_run, spent)
+        except CostCeilingHit as exc:
+            log.error("cost/kill ceiling hit: %s — draining run", exc)
+            results.append({"repo": repo, "outcome": f"aborted: {exc}"})
+            break
         except Exception as exc:  # one repo failing must not sink the whole run
             res = {"repo": repo, "outcome": f"error: {type(exc).__name__}: {exc}"}
             log.warning("repo %s failed: %s", repo, exc)
+        else:
+            res["spend_usd"] = round(spent["usd"], 4)
         results.append(res)
         with run_log.open("a") as fh:
             fh.write(json.dumps(res) + "\n")
 
     ok = sum(1 for r in results if r.get("outcome") in {"pr-opened", "dry-run", "no-op"})
-    log.info("run complete: %d/%d repos processed cleanly; log=%s", ok, len(results), run_log)
+    log.info("run complete: %d/%d repos processed cleanly; spend $%.4f; log=%s",
+             ok, len(results), spent["usd"], run_log)
     return 0 if ok == len(results) else 1
 
 
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main()))
+    sys.exit(main())

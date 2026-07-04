@@ -1,8 +1,10 @@
 name: Weekly Enhancement Loop
 
 # 8-Claude-Loops improve-system pass across every repo in .harness/projects.json.
-# Opens a review PR per repo; never merges. Model ladder runs API-mode
-# (Opus/Sonnet/Haiku) because Fable-5 left the Max plan on 2026-07-08.
+# Opens a review PR per repo; never merges. Model ladder runs on OpenRouter
+# (Claude Opus/Sonnet/Haiku via its Anthropic /v1/messages surface) because
+# Fable-5 left the Max plan on 2026-07-08 and the direct Anthropic org has no
+# API credit. The runner is a self-contained tool-use agent — no Claude Code CLI.
 #
 # Monday 02:00 AEST (UTC+10, no DST) == Sunday 16:00 UTC.
 on:
@@ -32,14 +34,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 300
     env:
-      # Real sk-ant-api key (NOT a Max OAuth token) — API-mode billing.
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      # OpenRouter credit funds the Claude model ladder (direct Anthropic org has
+      # no API credit; Max OAuth is gone post-2026-07-08).
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       # PAT with repo scope across the CleanExpo org so the loop can clone the
       # other 10 private repos and open PRs. GITHUB_TOKEN cannot reach them.
       GH_ENHANCE_PAT: ${{ secrets.GH_ENHANCE_PAT }}
-      ENHANCE_MODEL_OPUS: claude-opus-4-6
-      ENHANCE_MODEL_SONNET: claude-sonnet-4-6
-      ENHANCE_MODEL_HAIKU: claude-haiku-4-5-20251001
+      ENHANCE_MODEL_OPUS: anthropic/claude-opus-4.6
+      ENHANCE_MODEL_SONNET: anthropic/claude-sonnet-4.6
+      ENHANCE_MODEL_HAIKU: anthropic/claude-haiku-4.5
       TAO_MAX_COST_USD: "40.00"
     steps:
       - name: Checkout Pi-Dev-Ops
@@ -49,11 +52,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      - name: Install Claude Agent SDK + CLI
-        run: |
-          pip install claude-agent-sdk
-          npm install -g @anthropic-ai/claude-code
 
       - name: Run weekly enhancement loop
         run: |
