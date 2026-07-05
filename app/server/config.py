@@ -183,7 +183,7 @@ CLAUDE_CMD           = os.environ.get("TAO_CLAUDE_CMD",                 "claude"
 # Default ON for marathon mode; set TAO_CLAUDE_INTERACTIVE=1 to disable for local dev.
 _INTERACTIVE         = os.environ.get("TAO_CLAUDE_INTERACTIVE", "0") == "1"
 CLAUDE_EXTRA_FLAGS   = [] if _INTERACTIVE else ["--dangerously-skip-permissions"]
-ALLOWED_MODELS       = ["opus", "sonnet", "haiku"]
+ALLOWED_MODELS       = ["opus", "sonnet", "haiku", "fable"]
 
 # ── MODEL ROUTING POLICY (RA-1099 — hardwired 2026-04-17) ──────────────────
 # Opus 4.8 is reserved for Senior PM (planner) and Senior Orchestrator agents.
@@ -203,12 +203,23 @@ OPUS_ALLOWED_ROLES   = set(
 # strips dot-suffixes via `phase.split(".")[0]`, so `portfolio.synthesis`
 # arrives at the policy check as bare `portfolio`. Synthesis runs once per
 # day across the whole portfolio (~365 calls/year) — cost is bounded.
+
+# RA-1099 Wave-3 canary switch — roles allowed to run on the claude-fable-5 tier.
+# DEFAULT EMPTY = canary OFF. To enable the 7-day adversary canary, set
+# TAO_FABLE_ALLOWED_ROLES=adversary in the Railway env; to revert, unset it
+# (no code redeploy needed). The .harness/config.yaml adversary model stays
+# 'opus', so this env var is the ONLY switch in either direction. When a role is
+# listed here, session_sdk resolves its effective model to claude-fable-5, strips
+# sampling params (adaptive-thinking-only), and falls back to claude-opus-4-8 on
+# a refusal or model-unavailability error so the review never silently passes.
+FABLE_ALLOWED_ROLES  = set(filter(None, os.environ.get("TAO_FABLE_ALLOWED_ROLES", "").split(",")))
 # Long-form model IDs — SSOT in model_registry.py; re-exported here for legacy imports.
 from app.server import model_registry  # noqa: E402
 
 MODEL_ID_OPUS = model_registry.ANTHROPIC_OPUS
 MODEL_ID_SONNET = model_registry.ANTHROPIC_SONNET
 MODEL_ID_HAIKU = model_registry.ANTHROPIC_HAIKU
+MODEL_ID_FABLE = model_registry.ANTHROPIC_FABLE  # RA-1099 Wave-3 canary tier
 MODEL_SHORT_TO_ID = model_registry.SHORT_TO_ANTHROPIC
 MAX_CONCURRENT_SESSIONS = int(os.environ.get("TAO_MAX_SESSIONS",        "3"))
 RATE_LIMIT_PER_MIN   = int(os.environ.get("TAO_RATE_LIMIT",             "30"))

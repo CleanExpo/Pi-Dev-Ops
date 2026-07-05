@@ -8,8 +8,14 @@ As of July 01 2026 (Anthropic "Latest models comparison"):
   Sonnet → claude-sonnet-5
   Haiku  → claude-haiku-4-5-20251001  (alias: claude-haiku-4-5)
 
-Mythos-class (not wired by default — safety-classifier refusal risk):
-  claude-fable-5, claude-mythos-5 (Glasswing only)
+Mythos-class:
+  claude-fable-5 — GATED CANARY tier (RA-1099 Wave 3). NOT a default for any
+    role. Reachable only when a role is allow-listed via TAO_FABLE_ALLOWED_ROLES
+    (default empty = OFF); today that is the `adversary` pre-push review role
+    only. Adaptive-thinking-only (no temperature/top_p/top_k/budget_tokens) and
+    may return stop_reason="refusal" — the session_sdk fable path strips sampling
+    params and falls back to claude-opus-4-8 on a refusal/error.
+  claude-mythos-5 (Glasswing only) — still not wired.
 
 OpenRouter boardroom panellist:
   deepseek/deepseek-v4-flash
@@ -24,18 +30,22 @@ DOCS_MODELS_OVERVIEW = "https://platform.claude.com/docs/en/about-claude/models/
 ANTHROPIC_OPUS = "claude-opus-4-8"
 ANTHROPIC_SONNET = "claude-sonnet-5"
 ANTHROPIC_HAIKU = "claude-haiku-4-5-20251001"
+# RA-1099 Wave 3 — gated canary tier (adversary role only; env-flag off by default).
+ANTHROPIC_FABLE = "claude-fable-5"
 
 # Convenience aliases from Anthropic docs (pinned snapshots, not evergreen pointers)
 ANTHROPIC_ALIASES: dict[str, str] = {
     ANTHROPIC_OPUS: ANTHROPIC_OPUS,
     ANTHROPIC_SONNET: ANTHROPIC_SONNET,
     ANTHROPIC_HAIKU: "claude-haiku-4-5",
+    ANTHROPIC_FABLE: ANTHROPIC_FABLE,
 }
 
 SHORT_TO_ANTHROPIC: dict[str, str] = {
     "opus": ANTHROPIC_OPUS,
     "sonnet": ANTHROPIC_SONNET,
     "haiku": ANTHROPIC_HAIKU,
+    "fable": ANTHROPIC_FABLE,
 }
 
 # ── OpenRouter slugs (provider/model) ───────────────────────────────────────

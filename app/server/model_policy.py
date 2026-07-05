@@ -14,6 +14,9 @@ The function:
   3. If the role tries to use opus but is not in OPUS_ALLOWED_ROLES,
      auto-downshifts to sonnet AND emits a structured violation record so the
      drift can be caught in CI / monitoring.
+  4. RA-1099 Wave-3 canary: if the role is in config.FABLE_ALLOWED_ROLES (set by
+     TAO_FABLE_ALLOWED_ROLES, default empty = OFF), the effective model is the
+     claude-fable-5 tier and assert_model_allowed() permits it for that role.
 
 Why this lives outside config.py:
 - config.py is loaded extremely early (before logging is configured in some
@@ -122,6 +125,12 @@ def select_model(role: str, requested: Optional[str] = None) -> str:
         _log.warning("model_policy: requested=%s not in ALLOWED_MODELS — ignoring", requested)
         requested = None
 
+    # RA-1099 Wave-3 canary — allow-listed roles run on the fable tier when the
+    # operator sets TAO_FABLE_ALLOWED_ROLES. Default empty = no effect. An
+    # explicit caller `requested` (e.g. pinning "haiku") still wins.
+    if requested is None and role in config.FABLE_ALLOWED_ROLES:
+        return "fable"
+
     # Read role's configured model from harness
     agent_cfg = (_load_harness().get("agents") or {}).get(role, {})
     role_default = agent_cfg.get("model", "sonnet") if isinstance(agent_cfg, dict) else "sonnet"
@@ -155,6 +164,13 @@ def assert_model_allowed(role: str, model_id_or_short: str) -> None:
         if model_id_or_short == lid:
             short = s
             break
+    if short == "fable" and role not in config.FABLE_ALLOWED_ROLES:
+        _record_violation(role=role, requested=model_id_or_short, granted="REJECTED",
+                          reason="assert_model_allowed: fable canary not enabled for role")
+        raise ValueError(
+            f"model_policy violation: role={role} cannot use fable "
+            f"(enable via TAO_FABLE_ALLOWED_ROLES; current: {sorted(config.FABLE_ALLOWED_ROLES)})"
+        )
     if short == "opus" and role not in config.OPUS_ALLOWED_ROLES:
         _record_violation(role=role, requested=model_id_or_short, granted="REJECTED",
                           reason="assert_model_allowed: opus violation")

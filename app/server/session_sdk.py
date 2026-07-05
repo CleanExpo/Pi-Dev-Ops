@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Optional
 
 from . import config
+from . import model_registry
 from . import tool_gate
 
 _log = logging.getLogger("pi-ceo.session_sdk")
@@ -111,11 +112,18 @@ def _write_sdk_metric(
     latency_s: float,
     output_len: int,
     error: Optional[str] = None,
+    output_tokens: Optional[int] = None,
+    stop_reason: Optional[str] = None,
 ) -> None:
     """Append one SDK invocation row to today's JSONL metrics file.
 
     Non-blocking by design: any I/O error is silently swallowed so metrics
     failures never affect the build pipeline.
+
+    RA-1099 Wave-3 — output_tokens (billed output from the ResultMessage usage)
+    and stop_reason are captured so the fable-canary amplification metric
+    (billed output tokens per 1K visible output chars) is computable per run;
+    the kill-threshold is ~1100 tok / 1K visible chars on adversary runs.
     """
     try:
         os.makedirs(_SDK_METRICS_DIR, exist_ok=True)
@@ -130,6 +138,8 @@ def _write_sdk_metric(
             "success": success,
             "latency_s": round(latency_s, 3),
             "output_len": output_len,
+            "output_tokens": output_tokens,
+            "stop_reason": stop_reason,
             "error": error,
         })
         with open(path, "a", encoding="utf-8") as f:
@@ -157,6 +167,23 @@ def _emit_sdk_canary_metric(session_id: str, success: bool) -> None:
 
 
 # ── Core SDK runner ────────────────────────────────────────────────────────────
+
+def _usage_output_tokens(usage) -> Optional[int]:  # noqa: ANN001
+    """Best-effort extract billed output_tokens from an SDK usage payload.
+
+    The agent SDK usage may be a dict (`{"output_tokens": N}`) or an object with
+    an `.output_tokens` attribute. Returns None when unavailable — amplification
+    logging is best-effort and must never raise.
+    """
+    if usage is None:
+        return None
+    try:
+        if isinstance(usage, dict):
+            return usage.get("output_tokens")
+        return getattr(usage, "output_tokens", None)
+    except Exception:
+        return None
+
 
 async def _run_claude_via_sdk(
     prompt: str,
@@ -192,6 +219,17 @@ async def _run_claude_via_sdk(
     # fails loudly here rather than running expensively in production.
     from .model_policy import assert_model_allowed, effort_for_role  # noqa: PLC0415
     _role = (phase or "").split(".")[0] or "generator"
+
+    # RA-1099 Wave-3 canary — env-gated fable tier (default OFF). When the role
+    # is allow-listed via TAO_FABLE_ALLOWED_ROLES the effective model becomes
+    # claude-fable-5; .harness/config.yaml keeps the role on 'opus', so flip-on
+    # and revert are a single env-var change with zero code change. The adversary
+    # phase passes model='opus' directly (it bypasses select_model), so the
+    # override lives here — the single documented code path.
+    _fable_canary = _role in config.FABLE_ALLOWED_ROLES
+    if _fable_canary:
+        model = model_registry.ANTHROPIC_FABLE
+
     try:
         assert_model_allowed(_role, model)
     except ValueError as policy_err:
@@ -224,113 +262,182 @@ async def _run_claude_via_sdk(
             "claude_agent_sdk not installed — set USE_AGENT_SDK=0 or run: pip install claude_agent_sdk"
         ) from exc
 
-    # RA-659 — build thinking config
-    _thinking_cfg: ThinkingConfigAdaptive | ThinkingConfigEnabled | ThinkingConfigDisabled | None
-    if thinking == "adaptive":
-        _thinking_cfg = ThinkingConfigAdaptive(type="adaptive")
-    elif thinking == "enabled":
-        _thinking_cfg = ThinkingConfigEnabled(type="enabled", budget_tokens=8000)
-    else:
-        _thinking_cfg = ThinkingConfigDisabled(type="disabled")
+    _fable_id = model_registry.ANTHROPIC_FABLE
 
-    t0 = time.monotonic()
-    error_msg: Optional[str] = None
-    output_text = ""
-    try:
-        # cwd=workspace so Claude edits files in the right directory.
-        # No allowed_tools restriction — generator needs Bash + Edit + Write.
-        # RA-1009 — prompt caching: pass beta flag when ENABLE_PROMPT_CACHING_1H=1.
-        # The claude CLI forwards this beta to the Anthropic API, enabling server-side
-        # cache reads on repeated sessions with the same static prompt prefix.
-        _sdk_betas: list[str] = (
-            ["prompt-caching-2024-07-31"]  # type: ignore[list-item]
-            if config.ENABLE_PROMPT_CACHING_1H
-            else []
-        )
-        # RA-1171 — Switch from ClaudeSDKClient to top-level query() per
-        # Anthropic SDK issue #576 (https://github.com/anthropics/claude-agent-sdk-python/issues/576):
-        # ClaudeSDKClient silently hangs when reused across FastAPI/ASGI
-        # request tasks because the subprocess is spawned in task A's anyio
-        # scope but subsequent receive_messages() calls run in task B whose
-        # queue is owned by a dead task. We saw this as 8+ min of silence
-        # in Phase 4 generator, zero AssistantMessage events, no error.
-        #
-        # Top-level query() is stateless — each call spawns a fresh
-        # subprocess in the CURRENT task's scope and returns an async
-        # iterator that terminates on ResultMessage. It's the documented
-        # pattern for one-shot generation inside a request handler.
-        #
-        # RA-1169-adjacent — explicitly pop ANTHROPIC_API_KEY when empty.
-        # The `claude` CLI sets it to "" in some contexts; SDK treats ""
-        # as "use API key mode, key is empty" rather than falling back to
-        # OAuth. Ensure it's genuinely absent so the SDK picks up the
-        # `claude setup-token` credentials from ~/.claude/.
-        if (_k := os.environ.get("ANTHROPIC_API_KEY", "")) == "" or _k.startswith("sk-ant-oat01-"):
-            os.environ.pop("ANTHROPIC_API_KEY", None)
+    async def _attempt(attempt_model: str):
+        """Run one SDK query on attempt_model. Returns
+        (rc, output_text, cost, stop_reason, output_tokens, error) and writes
+        exactly one sdk-metric row. rc=1 on timeout, exception, OR a hard
+        refusal (stop_reason == 'refusal', or empty output on the fable tier).
+        """
+        # RA-1099 Wave-3 PARAM STRIP — fable is adaptive-thinking-only; an
+        # explicit budget_tokens/disabled config 400s. Force adaptive on the
+        # fable tier regardless of the caller's `thinking` arg. No temperature/
+        # top_p/top_k is ever built into ClaudeAgentOptions below, so nothing
+        # else needs stripping for the fable path.
+        _is_fable = attempt_model == _fable_id
+        _thinking = "adaptive" if (_is_fable and thinking != "adaptive") else thinking
 
-        # RA-1172 — permission_mode='bypassPermissions' is MANDATORY for
-        # autonomous sessions. Without it Claude hits tool-permission
-        # prompts and emits text like "Let me know once permission is
-        # granted and I'll handle the rest." — which looks to the evaluator
-        # like an empty diff, causing Phase 5 to score 1/10 and retry
-        # forever. CLAUDE.md documents this as the 3rd of 3 required
-        # layers (settings.json + ClaudeAgentOptions + CLI flag).
-        # RA — SDK-layer tool gate (TAO_TOOL_GATE). Default OFF keeps the proven
-        # bypassPermissions path. When ON, route every tool call through
-        # can_use_tool (requires streaming prompt + a non-bypass mode) so
-        # recognised irreversible commands are denied inside the turn. The
-        # callback decides autonomously — no human prompt — so RA-1172's
-        # "waiting for permission" failure mode does not return.
-        _gate_on = config.TAO_TOOL_GATE
-        _opts: dict = dict(
-            cwd=workspace,
-            model=model,
-            thinking=_thinking_cfg,
-            effort=_effort,
-            betas=_sdk_betas,  # type: ignore[arg-type]
-            permission_mode="default" if _gate_on else "bypassPermissions",
-            can_use_tool=_make_can_use_tool() if _gate_on else None,
-        )
-        if _gate_on:
-            # Pin setting_sources to [] so no filesystem allow-rule (e.g. a
-            # `Bash(*)` entry in ~/.claude/settings.json) can be consulted
-            # before can_use_tool and silently turn the gate into a no-op for
-            # exactly the commands it guards.
-            _opts["setting_sources"] = []
-        options = ClaudeAgentOptions(**_opts)
-        _prompt_arg = _tool_gate_stream(prompt, session_id) if _gate_on else prompt
-        text_parts: list[str] = []
+        # RA-659 — build thinking config
+        _thinking_cfg: ThinkingConfigAdaptive | ThinkingConfigEnabled | ThinkingConfigDisabled | None
+        if _thinking == "adaptive":
+            _thinking_cfg = ThinkingConfigAdaptive(type="adaptive")
+        elif _thinking == "enabled":
+            _thinking_cfg = ThinkingConfigEnabled(type="enabled", budget_tokens=8000)
+        else:
+            _thinking_cfg = ThinkingConfigDisabled(type="disabled")
 
-        # RA-1170 — enforce timeout on the async iterator. query() has no
-        # built-in stream timeout (tracked upstream as SDK #666).
-        async def _run_stream() -> None:
-            async for msg in query(prompt=_prompt_arg, options=options):
-                if isinstance(msg, AssistantMessage):
-                    for block in msg.content:
-                        if isinstance(block, TextBlock):
-                            text_parts.append(block.text)
-                elif isinstance(msg, ResultMessage):
-                    break
+        t0 = time.monotonic()
+        output_text = ""
+        captured = {"stop_reason": None, "output_tokens": None}
+        try:
+            # cwd=workspace so Claude edits files in the right directory.
+            # No allowed_tools restriction — generator needs Bash + Edit + Write.
+            # RA-1009 — prompt caching: pass beta flag when ENABLE_PROMPT_CACHING_1H=1.
+            # The claude CLI forwards this beta to the Anthropic API, enabling server-side
+            # cache reads on repeated sessions with the same static prompt prefix.
+            _sdk_betas: list[str] = (
+                ["prompt-caching-2024-07-31"]  # type: ignore[list-item]
+                if config.ENABLE_PROMPT_CACHING_1H
+                else []
+            )
+            # RA-1171 — Switch from ClaudeSDKClient to top-level query() per
+            # Anthropic SDK issue #576 (https://github.com/anthropics/claude-agent-sdk-python/issues/576):
+            # ClaudeSDKClient silently hangs when reused across FastAPI/ASGI
+            # request tasks because the subprocess is spawned in task A's anyio
+            # scope but subsequent receive_messages() calls run in task B whose
+            # queue is owned by a dead task. We saw this as 8+ min of silence
+            # in Phase 4 generator, zero AssistantMessage events, no error.
+            #
+            # Top-level query() is stateless — each call spawns a fresh
+            # subprocess in the CURRENT task's scope and returns an async
+            # iterator that terminates on ResultMessage. It's the documented
+            # pattern for one-shot generation inside a request handler.
+            #
+            # RA-1169-adjacent — explicitly pop ANTHROPIC_API_KEY when empty.
+            # The `claude` CLI sets it to "" in some contexts; SDK treats ""
+            # as "use API key mode, key is empty" rather than falling back to
+            # OAuth. Ensure it's genuinely absent so the SDK picks up the
+            # `claude setup-token` credentials from ~/.claude/.
+            if (_k := os.environ.get("ANTHROPIC_API_KEY", "")) == "" or _k.startswith("sk-ant-oat01-"):
+                os.environ.pop("ANTHROPIC_API_KEY", None)
 
-        await asyncio.wait_for(_run_stream(), timeout=timeout)
-        output_text = "\n".join(text_parts)
+            # RA-1172 — permission_mode='bypassPermissions' is MANDATORY for
+            # autonomous sessions. Without it Claude hits tool-permission
+            # prompts and emits text like "Let me know once permission is
+            # granted and I'll handle the rest." — which looks to the evaluator
+            # like an empty diff, causing Phase 5 to score 1/10 and retry
+            # forever. CLAUDE.md documents this as the 3rd of 3 required
+            # layers (settings.json + ClaudeAgentOptions + CLI flag).
+            # RA — SDK-layer tool gate (TAO_TOOL_GATE). Default OFF keeps the proven
+            # bypassPermissions path. When ON, route every tool call through
+            # can_use_tool (requires streaming prompt + a non-bypass mode) so
+            # recognised irreversible commands are denied inside the turn. The
+            # callback decides autonomously — no human prompt — so RA-1172's
+            # "waiting for permission" failure mode does not return.
+            _gate_on = config.TAO_TOOL_GATE
+            _opts: dict = dict(
+                cwd=workspace,
+                model=attempt_model,
+                thinking=_thinking_cfg,
+                effort=_effort,
+                betas=_sdk_betas,  # type: ignore[arg-type]
+                permission_mode="default" if _gate_on else "bypassPermissions",
+                can_use_tool=_make_can_use_tool() if _gate_on else None,
+            )
+            if _gate_on:
+                # Pin setting_sources to [] so no filesystem allow-rule (e.g. a
+                # `Bash(*)` entry in ~/.claude/settings.json) can be consulted
+                # before can_use_tool and silently turn the gate into a no-op for
+                # exactly the commands it guards.
+                _opts["setting_sources"] = []
+            options = ClaudeAgentOptions(**_opts)
+            _prompt_arg = _tool_gate_stream(prompt, session_id) if _gate_on else prompt
+            text_parts: list[str] = []
+
+            # RA-1170 — enforce timeout on the async iterator. query() has no
+            # built-in stream timeout (tracked upstream as SDK #666).
+            # RA-1099 Wave-3 STOP-REASON GUARD + AMPLIFICATION — capture
+            # stop_reason and billed output_tokens off the Assistant/Result
+            # messages so a hard refusal is visible (not silently success) and
+            # billed-output-per-1K-visible-chars is computable per run.
+            async def _run_stream() -> None:
+                async for msg in query(prompt=_prompt_arg, options=options):
+                    if isinstance(msg, AssistantMessage):
+                        for block in msg.content:
+                            if isinstance(block, TextBlock):
+                                text_parts.append(block.text)
+                        _sr = getattr(msg, "stop_reason", None)
+                        if _sr is not None:
+                            captured["stop_reason"] = _sr
+                        _ot = _usage_output_tokens(getattr(msg, "usage", None))
+                        if _ot is not None:
+                            captured["output_tokens"] = _ot
+                    elif isinstance(msg, ResultMessage):
+                        _sr = getattr(msg, "stop_reason", None)
+                        if _sr is not None:
+                            captured["stop_reason"] = _sr
+                        _ot = _usage_output_tokens(getattr(msg, "usage", None))
+                        if _ot is not None:
+                            captured["output_tokens"] = _ot
+                        break
+
+            await asyncio.wait_for(_run_stream(), timeout=timeout)
+            output_text = "\n".join(text_parts)
+            _stop = captured["stop_reason"]
+            _out_tok = captured["output_tokens"]
+
+            # STOP-REASON GUARD — a hard refusal (or empty output on the fable
+            # tier) is a FAILURE, not silent success. Emit an explicit metric and
+            # return the failure tuple so the caller (and the fable→opus fallback
+            # below) never greenlights an empty/partial review.
+            _refused = _stop == "refusal"
+            _empty_fable = _is_fable and not output_text.strip()
+            if _refused or _empty_fable:
+                _err = "refusal" if _refused else "empty_output_fable"
+                _write_sdk_metric(
+                    session_id=session_id, phase=phase, model=attempt_model,
+                    success=False, latency_s=time.monotonic() - t0,
+                    output_len=len(output_text), output_tokens=_out_tok,
+                    stop_reason=_stop, error=_err,
+                )
+                return (1, "", 0.0, _stop, _out_tok, _err)
+
+            _write_sdk_metric(
+                session_id=session_id, phase=phase, model=attempt_model,
+                success=True, latency_s=time.monotonic() - t0,
+                output_len=len(output_text), output_tokens=_out_tok,
+                stop_reason=_stop,
+            )
+            return (0, output_text, 0.0, _stop, _out_tok, None)
+
+        except asyncio.TimeoutError:
+            error_msg = f"timeout after {timeout}s"
+            _log.warning("SDK generator timed out after %ds", timeout)
+        except Exception as exc:
+            error_msg = f"{type(exc).__name__}: {exc}"
+            _log.warning("SDK generator failed: %s (%s)", exc, type(exc).__name__)
+
         _write_sdk_metric(
-            session_id=session_id, phase=phase, model=model,
-            success=True, latency_s=time.monotonic() - t0,
-            output_len=len(output_text),
+            session_id=session_id, phase=phase, model=attempt_model,
+            success=False, latency_s=time.monotonic() - t0,
+            output_len=0, output_tokens=captured["output_tokens"],
+            stop_reason=captured["stop_reason"], error=error_msg,
         )
-        return (0, output_text, 0.0)
+        return (1, "", 0.0, captured["stop_reason"], captured["output_tokens"], error_msg)
 
-    except asyncio.TimeoutError:
-        error_msg = f"timeout after {timeout}s"
-        _log.warning("SDK generator timed out after %ds", timeout)
-    except Exception as exc:
-        error_msg = f"{type(exc).__name__}: {exc}"
-        _log.warning("SDK generator failed: %s (%s)", exc, type(exc).__name__)
+    rc, text, cost, _stop, _out_tok, _err = await _attempt(model)
 
-    _write_sdk_metric(
-        session_id=session_id, phase=phase, model=model,
-        success=False, latency_s=time.monotonic() - t0,
-        output_len=0, error=error_msg,
-    )
-    return (1, "", 0.0)
+    # RA-1099 Wave-3 ERROR-PATH FALLBACK — the Board requires that a fable
+    # refusal OR a fable unavailability error retries the SAME call on
+    # claude-opus-4-8 before giving up, so the adversary pre-push gate never
+    # silently passes on an errored/refused review. One-shot retry only.
+    if model == _fable_id and rc != 0:
+        _log.warning(
+            "fable canary attempt failed (stop_reason=%s error=%s) — "
+            "falling back to %s for role=%s",
+            _stop, _err, config.MODEL_ID_OPUS, _role,
+        )
+        rc, text, cost, _stop, _out_tok, _err = await _attempt(config.MODEL_ID_OPUS)
+
+    return (rc, text, cost)
