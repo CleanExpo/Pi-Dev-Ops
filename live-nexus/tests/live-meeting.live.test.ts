@@ -35,7 +35,7 @@ describe.skipIf(!RUN_LIVE)("live integration", () => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 256,
         system: "Reply only via the test_tool tool.",
         messages: [{ role: "user", content: "Just call the tool with topics=['ok'] and actions=[]" }],

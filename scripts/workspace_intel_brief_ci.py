@@ -36,7 +36,7 @@ from datetime import datetime, timezone
 # ─── Configuration ────────────────────────────────────────────────────────────
 
 _CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
-_CLAUDE_MODEL   = "claude-haiku-4-5"
+_CLAUDE_MODEL   = "claude-haiku-4-5-20251001"
 _SYSTEM_PROMPT  = (
     "You are a senior technology advisor briefing a founder. "
     "Write a concise executive brief on recent Google Workspace updates. Rules:\n"

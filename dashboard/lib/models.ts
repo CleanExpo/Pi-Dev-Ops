@@ -15,7 +15,7 @@ export const MODELS = {
   ORCHESTRATOR: (process.env.ORCHESTRATOR_MODEL ?? "claude-opus-4-8").trim(),
 
   // ── Tier 2: Fast/cheap tasks ─────────────────────────────────────────────────
-  WORKER:       (process.env.WORKER_MODEL       ?? "claude-haiku-4-5").trim(),
+  WORKER:       (process.env.WORKER_MODEL       ?? "claude-haiku-4-5-20251001").trim(),
 
   // ── Default (used by settings, chat, actions) ────────────────────────────────
   DEFAULT:      (process.env.ANALYSIS_MODEL     ?? "claude-sonnet-5").trim(),
