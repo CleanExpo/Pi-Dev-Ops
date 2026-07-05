@@ -1,8 +1,8 @@
 # swarm — Wiki
 
-_Last updated: 2026-07-03T07:19:52Z (commits 3a8dfe5..1bf7715)_
+_Last updated: 2026-07-05T09:41:33Z (commits 08e44d3..b3b8fa9)_
 
 ## Recent changes
-- 1bf7715 — refactor(board): replace exec() compat shim with real swarm.board module (RA-6923) (#501)
+- b3b8fa9 — Wave 2: wire effort per RA-1099 role (Python lanes; TS skipped, SDK too old) (#516)
 
 

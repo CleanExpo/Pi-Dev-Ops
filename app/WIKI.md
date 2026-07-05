@@ -1,8 +1,8 @@
 # app — Wiki
 
-_Last updated: 2026-07-05T08:52:28Z (commits 64a6939..f99d458)_
+_Last updated: 2026-07-05T09:41:33Z (commits 08e44d3..b3b8fa9)_
 
 ## Recent changes
-- f99d458 — fix(models): correct stale model IDs in seeds, deploy scaffolding, and haiku defaults (#515)
+- b3b8fa9 — Wave 2: wire effort per RA-1099 role (Python lanes; TS skipped, SDK too old) (#516)
 
 

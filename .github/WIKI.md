@@ -1,8 +1,8 @@
 # .github — Wiki
 
-_Last updated: 2026-07-05T06:41:56Z (commits 4e68c39..94271b2)_
+_Last updated: 2026-07-05T09:41:33Z (commits 08e44d3..b3b8fa9)_
 
 ## Recent changes
-- 94271b2 — fix(mesh): hardening batch — kill-released Linear reversal + reaper F1-F3 (UNI-2303) (#512)
+- b3b8fa9 — Wave 2: wire effort per RA-1099 role (Python lanes; TS skipped, SDK too old) (#516)
 
 
