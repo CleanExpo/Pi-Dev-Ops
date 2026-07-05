@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -264,6 +265,24 @@ def runner(monkeypatch, tmp_path):
     monkeypatch.setattr(mod, "IDLE_RECLAIM_DELAY", 0.01)
     # Never spawn a real agent/git worktree.
     monkeypatch.setattr(mod.subprocess, "run", lambda *a, **k: None)
+
+    class _ImmediateProc:
+        """Default fake agent process: exits clean on the first poll so tests
+        that don't care about the kill-switch poll loop still land 'done'."""
+
+        def poll(self):
+            return 0
+
+        def wait(self, timeout=None):
+            return 0
+
+        def terminate(self):
+            pass
+
+        def kill(self):
+            pass
+
+    monkeypatch.setattr(mod.subprocess, "Popen", lambda *a, **k: _ImmediateProc())
     # Record every sleep; only the full poll-cycle sleep ends the loop. The
     # idle-path floor sleep (IDLE_RECLAIM_DELAY) is recorded and returns, so
     # tests can assert the loop never re-claims without pausing.
@@ -346,6 +365,105 @@ def test_run_claim_branch_unique_per_run(runner):
     p2 = runner.run_claim({"linear_id": "UNI-A"}, dry_run=True)
     assert p1["branch"] != p2["branch"]
     assert p1["branch"].startswith("mesh/testnode/uni-a-")
+
+
+class _FakeAgentProc:
+    """Controllable stand-in for the Popen handle of an in-flight agent run.
+
+    `running_polls` is how many times poll() reports "still running" (None)
+    before it reports exited (0), unless terminated/killed first."""
+
+    def __init__(self, running_polls=0):
+        self._remaining = running_polls
+        self.terminated = False
+        self.killed = False
+
+    def poll(self):
+        if self.terminated:
+            return -15
+        if self.killed:
+            return -9
+        if self._remaining > 0:
+            self._remaining -= 1
+            return None
+        return 0
+
+    def terminate(self):
+        self.terminated = True
+
+    def kill(self):
+        self.killed = True
+
+    def wait(self, timeout=None):
+        if not (self.terminated or self.killed):
+            raise subprocess.TimeoutExpired(cmd="agent", timeout=timeout)
+        return -15 if self.terminated else -9
+
+
+def test_run_claim_mid_run_hard_stop_releases_claim(runner, monkeypatch):
+    """(a) HARD_STOP appearing mid-run terminates the subprocess within one poll
+    interval and the claim is PATCHed to `released` (not done/failed)."""
+    monkeypatch.setattr(runner, "MESH_KILL_POLL_SECONDS", 0.01)
+    server = FakeMeshServer([])
+    runner._api = server.api
+    proc = _FakeAgentProc(running_polls=999)  # would run forever without the stop
+    monkeypatch.setattr(runner.subprocess, "Popen", lambda *a, **k: proc)
+
+    # HARD_STOP appears only after the run has started (mid-run), simulated by
+    # writing it as a side effect of the first poll-interval sleep.
+    def fake_sleep(secs):
+        runner.HARD_STOP.write_text("stop")
+
+    monkeypatch.setattr(runner.time, "sleep", fake_sleep)
+
+    plan = runner.run_claim({"linear_id": "UNI-A"}, dry_run=False)
+
+    assert plan["state"] == "released"
+    assert proc.terminated is True
+    assert proc.killed is False  # terminate() succeeded within the grace period
+    assert server.claims["UNI-A"] == "released"
+
+
+def test_run_claim_normal_completion_lands_done(runner):
+    """(b) Normal completion still lands `done`."""
+    server = FakeMeshServer([])
+    runner._api = server.api
+    plan = runner.run_claim({"linear_id": "UNI-A"}, dry_run=False)
+    assert plan["state"] == "done"
+    assert server.claims["UNI-A"] == "done"
+
+
+def test_run_claim_timeout_kills_and_fails(runner, monkeypatch):
+    """(c) The 3600s ceiling still lands `failed` once it is exceeded, now
+    enforced by the poll loop instead of subprocess.run(timeout=...)."""
+    monkeypatch.setattr(runner, "AGENT_TIMEOUT_SECONDS", 0)
+    server = FakeMeshServer([])
+    runner._api = server.api
+    proc = _FakeAgentProc(running_polls=999)  # never exits on its own
+    monkeypatch.setattr(runner.subprocess, "Popen", lambda *a, **k: proc)
+
+    plan = runner.run_claim({"linear_id": "UNI-A"}, dry_run=False)
+
+    assert plan["state"] == "failed"
+    assert proc.killed is True
+    assert server.claims["UNI-A"] == "failed"
+
+
+def test_run_claim_poll_respects_configured_interval(runner, monkeypatch):
+    """(d) The poll loop sleeps MESH_KILL_POLL_SECONDS between checks while the
+    agent is still running."""
+    monkeypatch.setattr(runner, "MESH_KILL_POLL_SECONDS", 7)
+    server = FakeMeshServer([])
+    runner._api = server.api
+    proc = _FakeAgentProc(running_polls=2)  # exits on the 3rd poll
+    monkeypatch.setattr(runner.subprocess, "Popen", lambda *a, **k: proc)
+    sleep_calls: list[float] = []
+    monkeypatch.setattr(runner.time, "sleep", lambda secs: sleep_calls.append(secs))
+
+    plan = runner.run_claim({"linear_id": "UNI-A"}, dry_run=False)
+
+    assert plan["state"] == "done"
+    assert sleep_calls == [7, 7]
 
 
 def test_runner_prefers_preassigned_over_self_claim(runner):

@@ -10,7 +10,10 @@ as the prompt, lets autogit ship every turn, then marks the claim done and updat
 Linear. Branch-only — production `main` stays PR+CI gated.
 
 Kill switch: honours `~/.claude/HARD_STOP`, re-checked every cycle before any
-work. (The Pi-CEO /api/swarm/kill state is NOT consulted yet — file check only.)
+work AND polled every `MESH_KILL_POLL_SECONDS` while an agent subprocess is in
+flight, so a stop mid-run terminates the subprocess instead of waiting up to
+the 3600s timeout. (The Pi-CEO /api/swarm/kill state is NOT consulted yet —
+file check only.)
 
 This is P1/P2 infrastructure — it goes live once the /api/mesh/* endpoints are
 deployed to Railway. Until then `--once --dry-run` exercises the full claim→run
@@ -49,6 +52,14 @@ IDLE_RECLAIM_DELAY = float(os.environ.get("MESH_IDLE_RECLAIM_DELAY", "3"))
 # Breadcrumb the heartbeat daemon reads so Mission Control shows the live task.
 STATE_FILE = Path(os.environ.get(
     "MESH_RUNNER_STATE", str(Path.home() / ".claude" / "mesh-runner-state.json")))
+# How often an in-flight agent subprocess is polled for HARD_STOP so a kill
+# request lands promptly instead of waiting for the process to exit on its own.
+MESH_KILL_POLL_SECONDS = float(os.environ.get("MESH_KILL_POLL_SECONDS", "5"))
+# Grace period after SIGTERM before escalating to SIGKILL on a kill-switch stop.
+MESH_KILL_GRACE_SECONDS = 10
+# Hard ceiling on a single agent run, enforced manually now that the process is
+# polled rather than blocked on via subprocess.run(timeout=...).
+AGENT_TIMEOUT_SECONDS = 3600
 
 
 def _api(method: str, path: str, body=None) -> dict:
@@ -122,8 +133,30 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
     prompt = (f"Work the Linear ticket {linear_id}. Make a small, verifiable change, "
               f"run the repo's gates, and stop. autogit ships each turn to {branch}.")
     try:
-        subprocess.run([AGENT_CMD, "-p", prompt], cwd=str(wt), check=False, timeout=3600)
-        plan["state"] = "done"
+        proc = subprocess.Popen([AGENT_CMD, "-p", prompt], cwd=str(wt))
+        deadline = time.monotonic() + AGENT_TIMEOUT_SECONDS
+        while True:
+            if proc.poll() is not None:
+                plan["state"] = "done"
+                break
+            if killed():
+                # Mid-run HARD_STOP: end the agent, not the ticket — release the
+                # claim so it is honestly re-claimable once the stop is lifted.
+                proc.terminate()
+                try:
+                    proc.wait(timeout=MESH_KILL_GRACE_SECONDS)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait()
+                plan["state"] = "released"
+                break
+            if time.monotonic() >= deadline:
+                proc.kill()
+                proc.wait()
+                plan["state"] = "failed"
+                plan["error"] = f"timed out after {AGENT_TIMEOUT_SECONDS}s"
+                break
+            time.sleep(MESH_KILL_POLL_SECONDS)
     except Exception as e:  # noqa: BLE001
         plan["state"] = "failed"; plan["error"] = str(e)
     finally:
