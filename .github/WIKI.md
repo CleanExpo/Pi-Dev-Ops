@@ -1,8 +1,8 @@
 # .github — Wiki
 
-_Last updated: 2026-07-05T09:41:33Z (commits 08e44d3..b3b8fa9)_
+_Last updated: 2026-07-05T22:09:21Z (commits f2b9691..d27561d)_
 
 ## Recent changes
-- b3b8fa9 — Wave 2: wire effort per RA-1099 role (Python lanes; TS skipped, SDK too old) (#516)
+- d27561d — feat(canary): daily Fable-5 adversary-canary watch (endpoint + workflow) (#522)
 
 

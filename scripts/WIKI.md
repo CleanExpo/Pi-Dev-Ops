@@ -1,8 +1,8 @@
 # scripts — Wiki
 
-_Last updated: 2026-07-05T08:52:28Z (commits 64a6939..f99d458)_
+_Last updated: 2026-07-05T22:09:21Z (commits f2b9691..d27561d)_
 
 ## Recent changes
-- f99d458 — fix(models): correct stale model IDs in seeds, deploy scaffolding, and haiku defaults (#515)
+- d27561d — feat(canary): daily Fable-5 adversary-canary watch (endpoint + workflow) (#522)
 
 
