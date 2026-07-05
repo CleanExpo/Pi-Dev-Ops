@@ -1,8 +1,8 @@
 # skills — Wiki
 
-_Last updated: 2026-07-05T08:52:28Z (commits 64a6939..f99d458)_
+_Last updated: 2026-07-05T11:21:00Z (commits c2b5c53..23351b5)_
 
 ## Recent changes
-- f99d458 — fix(models): correct stale model IDs in seeds, deploy scaffolding, and haiku defaults (#515)
+- 23351b5 — feat(nexus): master-orchestrator upgrade (/nexus Prime) (#519)
 
 
