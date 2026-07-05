@@ -1,8 +1,8 @@
 # app — Wiki
 
-_Last updated: 2026-07-05T09:41:33Z (commits 08e44d3..b3b8fa9)_
+_Last updated: 2026-07-05T10:19:44Z (commits 9698daa..9095122)_
 
 ## Recent changes
-- b3b8fa9 — Wave 2: wire effort per RA-1099 role (Python lanes; TS skipped, SDK too old) (#516)
+- 9095122 — feat(model-policy): fable-5 adversary canary, env-gated + opus fallback (RA-1099 Wave 3) (#517)
 
 

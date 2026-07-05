@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-07-05T06:41:56Z (commits 4e68c39..94271b2)_
+_Last updated: 2026-07-05T10:19:44Z (commits 9698daa..9095122)_
 
 ## Recent changes
-- 94271b2 — fix(mesh): hardening batch — kill-released Linear reversal + reaper F1-F3 (UNI-2303) (#512)
+- 9095122 — feat(model-policy): fable-5 adversary canary, env-gated + opus fallback (RA-1099 Wave 3) (#517)
 
 
