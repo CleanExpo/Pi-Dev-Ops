@@ -144,8 +144,18 @@ async def fleet(
 _LINEAR_ENDPOINT = "https://api.linear.app/graphql"
 _MESH_AUTO_QUERY = (
     'query{issues(first:50,filter:{labels:{name:{eq:"mesh:auto"}},'
-    'state:{type:{in:["backlog","unstarted"]}}}){nodes{id identifier title}}}'
+    'state:{type:{in:["backlog","unstarted"]}}}){nodes{id identifier title priority}}}'
 )
+
+
+def _priority_rank(priority: Any) -> int:
+    """Linear priority → sort key (lower = claimed first). 1=Urgent .. 4=Low;
+    0/None ("No priority") sorts last so real priorities win."""
+    try:
+        p = int(priority)
+    except (TypeError, ValueError):
+        return 99
+    return p if p > 0 else 99
 
 
 def _linear_graphql(query: str) -> dict:
@@ -191,6 +201,10 @@ class ClaimUpdate(BaseModel):
     linear_id: str
     state: str  # working | done | released | failed
     branch: Optional[str] = None
+
+
+class SelfClaimRequest(BaseModel):
+    host: str  # the node claiming for itself
 
 
 @router.get("/claims")
@@ -258,3 +272,33 @@ async def dispatch(
             idx += 1
         # status 409 = already claimed by a racing dispatch → skip silently
     return {"assigned": assigned, "online_machines": [m["host"] for m in machines]}
+
+
+@router.post("/claim/self")
+async def claim_self(
+    body: SelfClaimRequest,
+    x_pi_ceo_secret: Optional[str] = Header(default=None, alias="X-Pi-CEO-Secret"),
+):
+    """An idle runner self-claims the top-priority unclaimed `mesh:auto` ticket
+    for itself, so capacity never idles waiting on the dispatcher.
+
+    Atomic: each attempt POSTs a claim row; the `mesh_work_claims_one_open`
+    partial unique index rejects a racing double-claim with 409, and we fall
+    through to the next candidate — so two idle nodes can never take the same
+    ticket. Returns the ticket claimed, or null when the queue is empty/drained."""
+    _check_secret(x_pi_ceo_secret)
+    nodes = _linear_graphql(_MESH_AUTO_QUERY).get("issues", {}).get("nodes", [])
+    open_ids = _open_claim_ids()
+    candidates = sorted(
+        (n for n in nodes if n.get("identifier") and n["identifier"] not in open_ids),
+        key=lambda n: (_priority_rank(n.get("priority")), n["identifier"]),
+    )
+    for tk in candidates:
+        ident = tk["identifier"]
+        status, _ = _sb("POST", "mesh_work_claims",
+                        {"linear_id": ident, "machine": body.host, "state": "claimed"},
+                        prefer="return=minimal")
+        if status < 300:
+            return {"claimed": {"linear_id": ident, "machine": body.host}}
+        # status 409 = raced by another node → try the next candidate
+    return {"claimed": None, "reason": "queue empty or fully claimed"}
