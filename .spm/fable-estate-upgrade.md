@@ -68,3 +68,19 @@ Discovery journal: `~/.claude/projects/-Users-phill-mac/8dfa6c8d-51d9-4534-8290-
 
 ## 19. Final recommendation
 The estate doesn't need more Fable doctrine — it needs the switches flipped. Do the break-fixes immediately (they're failing now), consolidate registries before any bump, plumb effort (the cheapest documented capability win), fix the distill starvation, and take the Fable judgment-gate decision to the Board this week while the window is provably open. Everything else is a controlled, smoke-gated ID bump.
+
+## Addendum — Gap-closer 1 results (2026-07-05)
+
+Empirical baseline from 1,197 local session JSONL files (text-only assistant turns, n≥20 per model). Finding: transcripts never persist thinking blocks but `output_tokens` bills them, so the per-turn ratio measures **billed-output amplification** (tokenizer × invisible thinking), which is the number cost dashboards actually need:
+
+| Model | n | median billed output tok / 1K visible chars |
+|---|---|---|
+| claude-opus-4-8 | 2,757 | 2,210 (≈5.5× old-gen — effort defaults high, heavy invisible thinking) |
+| claude-sonnet-4-6 | 131 | 634 |
+| claude-sonnet-5 | 75 | 599 |
+| claude-fable-5 | 245 | 512 (adaptive thinking economizes) |
+| claude-opus-4-7 | 37 | 386 |
+
+Implications: (1) Opus 4.8 lanes carry ~5.5× billed-output amplification — Wave 2 effort plumbing directly attacks this (drop WORKER/mechanical lanes to low effort); (2) Fable 5/Sonnet 5 are CHEAPER per visible char than Sonnet 4.6 on this workload despite the +30% raw tokenizer (official figure, release notes) — the adaptive-thinking economy more than offsets it; (3) pure tokenizer drift cannot be isolated from local data (thinking invisible); the +30% figure remains doc-sourced. API count_tokens verification deferred: no confirmed non-OAuth Anthropic key on this machine (credential-prefix classification was policy-blocked). Workload-mix caveat: opus-4-8 turns skew adversary/review-heavy.
+
+Gap-closer 1: CLOSED (empirical amplification baseline recorded; per-model rows above are the dashboard seed values).
