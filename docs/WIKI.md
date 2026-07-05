@@ -1,8 +1,8 @@
 # docs — Wiki
 
-_Last updated: 2026-07-05T10:19:44Z (commits 9698daa..9095122)_
+_Last updated: 2026-07-05T10:27:59Z (commits 8c374a3..37584ea)_
 
 ## Recent changes
-- 9095122 — feat(model-policy): fable-5 adversary canary, env-gated + opus fallback (RA-1099 Wave 3) (#517)
+- 37584ea — docs(runbook): correct fable-canary revert to 'railway variable delete' (set-empty is a no-op); record rehearsed revert 2026-07-05 (#518)
 
 
