@@ -1,6 +1,6 @@
 ---
 name: nexus
-description: "Master-orchestrator command. Type /nexus <goal> to have the estate's best minds work a goal end-to-end — frame it, research it to primary sources, deploy the right specialists, think past the obvious downstream, verify it adversarially, and hand back a decision a non-technical founder can act on. Default-lean: it does the minimum the goal actually needs."
+description: Master-orchestrator command. Type /nexus <goal> to have the estate's best minds work a goal end-to-end — frame it, research it to primary sources, deploy the right specialists, think past the obvious downstream, verify it adversarially, and hand back a decision a non-technical founder can act on. Default-lean; it does the minimum the goal actually needs.
 argument-hint: "<the goal or question to work — plain language>"
 disable-model-invocation: true
 allowed-tools: Read, Grep, Glob, Bash, Agent, Task, WebSearch, WebFetch, Skill
