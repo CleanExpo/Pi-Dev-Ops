@@ -17,10 +17,11 @@ from __future__ import annotations
 import hmac as _hmac
 import json
 import logging
+import os
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Header, HTTPException
@@ -30,6 +31,13 @@ from .. import config
 
 log = logging.getLogger("pi-ceo.routes.mesh")
 router = APIRouter(prefix="/api/mesh", tags=["mesh"])
+
+# Stale-claim reaper (UNI-2301): a runner that dies mid-claim leaves the row
+# stuck in claimed/working forever, since mesh_work_claims_one_open keeps the
+# ticket locked and nothing else stamps released_at. Threshold is measured
+# against claimed_at — the only timestamp the row carries — which already
+# banks headroom past the runner's 3600s agent-run cap.
+MESH_CLAIM_TTL_MINUTES = int(os.environ.get("MESH_CLAIM_TTL_MINUTES", "90"))
 
 
 def _check_secret(secret: Optional[str]) -> None:
@@ -203,6 +211,77 @@ def _mark_issue_in_progress(issue: dict) -> bool:
     return ok
 
 
+def _team_unstarted_state_id(team_id: str) -> str:
+    """Resolve the team's first 'unstarted'-type workflow state (e.g. Todo),
+    dynamically — the mirror of _team_started_state_id, used to put a reaped
+    issue back into the claimable mesh:auto pool."""
+    q = f'query{{team(id:"{team_id}"){{states{{nodes{{id type position}}}}}}}}'
+    nodes = (((_linear_graphql(q).get("team") or {}).get("states") or {}).get("nodes")) or []
+    todo = sorted((n for n in nodes if n.get("type") == "unstarted"),
+                 key=lambda n: n.get("position") or 0)
+    return todo[0]["id"] if todo else ""
+
+
+def _mark_issue_reaped(linear_id: str) -> bool:
+    """A reaped claim's Linear issue moves back to the team's first
+    unstarted-type state, so it re-enters _MESH_AUTO_QUERY and can be claimed
+    again — without this, a dead runner's ticket would sit claimable-never in
+    Linear even though the mesh_work_claims row was freed. Best-effort: looked
+    up by identifier since claim rows don't carry the Linear issue/team uuid."""
+    q = f'query{{issue(id:"{linear_id}"){{id team{{id}}}}}}'
+    issue = _linear_graphql(q).get("issue") or {}
+    issue_id = issue.get("id")
+    team_id = (issue.get("team") or {}).get("id")
+    if not issue_id or not team_id:
+        log.warning("reap: could not resolve issue/team for %s", linear_id)
+        return False
+    state_id = _team_unstarted_state_id(team_id)
+    if not state_id:
+        log.warning("reap: no unstarted-type state found for team %s", team_id)
+        return False
+    m = f'mutation{{issueUpdate(id:"{issue_id}",input:{{stateId:"{state_id}"}}){{success}}}}'
+    ok = bool((_linear_graphql(m).get("issueUpdate") or {}).get("success"))
+    if not ok:
+        log.warning("reap: issueUpdate → unstarted failed for %s", linear_id)
+    return ok
+
+
+def _reap_stale_claims() -> list[dict]:
+    """Release claims stuck in claimed/working past MESH_CLAIM_TTL_MINUTES,
+    freeing the mesh_work_claims_one_open unique index so the ticket becomes
+    claimable again. Guarded by machine liveness: a claim past TTL is only
+    reaped when the claiming machine's heartbeat is itself stale or absent
+    (mesh_fleet.is_stale) — a live heartbeat means the runner may legitimately
+    still be inside its up-to-3600s agent run, so leave it alone."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=MESH_CLAIM_TTL_MINUTES)).isoformat()
+    _, body = _sb(
+        "GET",
+        "mesh_work_claims?select=id,linear_id,machine,claimed_at&state=in.(claimed,working)"
+        f"&claimed_at=lt.{urllib.parse.quote(cutoff)}",
+    )
+    candidates = _rows(body)
+    if not candidates:
+        return []
+    _, fleet_body = _sb("GET", "mesh_fleet?select=host,is_stale")
+    stale_by_host = {m["host"]: m.get("is_stale") for m in _rows(fleet_body)}
+    now_iso = datetime.now(timezone.utc).isoformat()
+    reaped: list[dict] = []
+    for c in candidates:
+        machine = c.get("machine")
+        if machine is not None and stale_by_host.get(machine) is False:
+            continue  # fresh heartbeat — runner may still be legitimately working
+        status, _ = _sb(
+            "PATCH",
+            f"mesh_work_claims?id=eq.{c['id']}&state=in.(claimed,working)",
+            {"state": "released", "released_at": now_iso},
+            prefer="return=minimal",
+        )
+        if status < 300:
+            reaped.append({"linear_id": c["linear_id"], "machine": machine})
+            _mark_issue_reaped(c["linear_id"])
+    return reaped
+
+
 def _rows(body: str) -> list:
     """Parse a PostgREST body to a list of row dicts; [] on error or error-object."""
     try:
@@ -269,6 +348,17 @@ async def claim_update(
     return {"ok": True, "linear_id": u.linear_id, "state": u.state}
 
 
+@router.post("/claims/reap")
+async def reap_claims(
+    x_pi_ceo_secret: Optional[str] = Header(default=None, alias="X-Pi-CEO-Secret"),
+):
+    """Manual/ops trigger for the stale-claim sweep (UNI-2301) — the same sweep
+    also runs inline at the top of claim_self and dispatch, so this endpoint is
+    only needed to force a reap on demand."""
+    _check_secret(x_pi_ceo_secret)
+    return {"reaped": _reap_stale_claims()}
+
+
 @router.post("/dispatch")
 async def dispatch(
     body: DispatchRequest,
@@ -277,6 +367,7 @@ async def dispatch(
     """Assign unclaimed work to free nodes. One tick. Idempotent — already-claimed
     tickets are skipped, and the unique index rejects any racing double-claim."""
     _check_secret(x_pi_ceo_secret)
+    _reap_stale_claims()  # piggyback: free any dead-runner claims before assigning
     if body.linear_ids:
         tickets = [{"identifier": t} for t in body.linear_ids]
     else:
@@ -318,6 +409,7 @@ async def claim_self(
     through to the next candidate — so two idle nodes can never take the same
     ticket. Returns the ticket claimed, or null when the queue is empty/drained."""
     _check_secret(x_pi_ceo_secret)
+    _reap_stale_claims()  # piggyback: free any dead-runner claims before self-claiming
     nodes = _linear_graphql(_MESH_AUTO_QUERY).get("issues", {}).get("nodes", [])
     open_ids = _open_claim_ids()
     candidates = sorted(
