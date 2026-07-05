@@ -37,7 +37,11 @@ router = APIRouter(prefix="/api/mesh", tags=["mesh"])
 # ticket locked and nothing else stamps released_at. Threshold is measured
 # against claimed_at — the only timestamp the row carries — which already
 # banks headroom past the runner's 3600s agent-run cap.
-MESH_CLAIM_TTL_MINUTES = int(os.environ.get("MESH_CLAIM_TTL_MINUTES", "90"))
+# Floor: 65 = the runner's 3600s (60min) agent-run cap + 5min margin — the TTL
+# must never undercut that cap, or the reaper could release a claim while the
+# runner is still legitimately working. Unlike MESH_MAX_CLAIMS, an explicit
+# "0" here is NOT a special case: every configured value is clamped.
+MESH_CLAIM_TTL_MINUTES = max(int(os.environ.get("MESH_CLAIM_TTL_MINUTES", "90")), 65)
 
 
 def _check_secret(secret: Optional[str]) -> None:
@@ -270,16 +274,30 @@ def _reap_stale_claims() -> list[dict]:
         machine = c.get("machine")
         if machine is not None and stale_by_host.get(machine) is False:
             continue  # fresh heartbeat — runner may still be legitimately working
-        status, _ = _sb(
+        status, body = _sb(
             "PATCH",
             f"mesh_work_claims?id=eq.{c['id']}&state=in.(claimed,working)",
             {"state": "released", "released_at": now_iso},
-            prefer="return=minimal",
+            prefer="return=representation",
         )
-        if status < 300:
+        # return=representation: a 0-row response means a racing reap (or the
+        # runner itself) already flipped this claim's state — don't record a
+        # reap or fire a redundant Linear transition for a row we didn't touch.
+        if status < 300 and _rows(body):
             reaped.append({"linear_id": c["linear_id"], "machine": machine})
             _mark_issue_reaped(c["linear_id"])
     return reaped
+
+
+def _reap_sweep_best_effort() -> None:
+    """Run the stale-claim sweep without letting a Supabase hiccup 502 the
+    caller's hot path (claim_self / dispatch). The explicit POST
+    /api/mesh/claims/reap endpoint still propagates errors so ops can see
+    them there."""
+    try:
+        _reap_stale_claims()
+    except HTTPException as e:
+        log.warning("inline reap sweep failed (%s), continuing without it", e.detail)
 
 
 def _rows(body: str) -> list:
@@ -342,9 +360,18 @@ async def claim_update(
         patch["branch"] = u.branch
     if u.state in ("done", "released", "failed"):
         patch["released_at"] = datetime.now(timezone.utc).isoformat()
-    _sb("PATCH",
+    status, _ = _sb("PATCH",
         f"mesh_work_claims?linear_id=eq.{urllib.parse.quote(u.linear_id)}&state=in.(claimed,working)",
         patch, prefer="return=minimal")
+    if u.state == "released" and status < 300:
+        # A HARD_STOP-released claim must return its Linear issue to the
+        # unstarted pool, same as a reaped claim — otherwise it strands
+        # In Progress forever even though the mesh_work_claims row is freed.
+        # Best-effort: a Linear failure here must never fail the claim update.
+        try:
+            _mark_issue_reaped(u.linear_id)
+        except Exception:  # noqa: BLE001
+            log.warning("claim_update: Linear reversal failed for %s", u.linear_id, exc_info=True)
     return {"ok": True, "linear_id": u.linear_id, "state": u.state}
 
 
@@ -367,7 +394,7 @@ async def dispatch(
     """Assign unclaimed work to free nodes. One tick. Idempotent — already-claimed
     tickets are skipped, and the unique index rejects any racing double-claim."""
     _check_secret(x_pi_ceo_secret)
-    _reap_stale_claims()  # piggyback: free any dead-runner claims before assigning
+    _reap_sweep_best_effort()  # piggyback: free any dead-runner claims before assigning
     if body.linear_ids:
         tickets = [{"identifier": t} for t in body.linear_ids]
     else:
@@ -409,7 +436,7 @@ async def claim_self(
     through to the next candidate — so two idle nodes can never take the same
     ticket. Returns the ticket claimed, or null when the queue is empty/drained."""
     _check_secret(x_pi_ceo_secret)
-    _reap_stale_claims()  # piggyback: free any dead-runner claims before self-claiming
+    _reap_sweep_best_effort()  # piggyback: free any dead-runner claims before self-claiming
     nodes = _linear_graphql(_MESH_AUTO_QUERY).get("issues", {}).get("nodes", [])
     open_ids = _open_claim_ids()
     candidates = sorted(
