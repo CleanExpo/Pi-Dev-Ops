@@ -9,8 +9,8 @@ assigned to THIS machine, and for each one: creates an isolated git worktree on 
 as the prompt, lets autogit ship every turn, then marks the claim done and updates
 Linear. Branch-only — production `main` stays PR+CI gated.
 
-Kill switch: honours `~/.claude/HARD_STOP` and the Pi-CEO /api/swarm/kill state,
-exactly like the existing TAO loops (CLAUDE.md: three-layer kill-switch).
+Kill switch: honours `~/.claude/HARD_STOP`, re-checked every cycle before any
+work. (The Pi-CEO /api/swarm/kill state is NOT consulted yet — file check only.)
 
 This is P1/P2 infrastructure — it goes live once the /api/mesh/* endpoints are
 deployed to Railway. Until then `--once --dry-run` exercises the full claim→run
@@ -27,6 +27,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+import uuid
 from pathlib import Path
 
 PI_CEO_API_URL = os.environ.get("PI_CEO_API_URL", "https://pi-dev-ops-production.up.railway.app")
@@ -35,6 +36,19 @@ HOST = socket.gethostname().split(".")[0]
 HARD_STOP = Path.home() / ".claude" / "HARD_STOP"
 AGENT_CMD = os.environ.get("MESH_AGENT_CMD", "claude")  # claude | codex
 POLL_INTERVAL = int(os.environ.get("MESH_POLL_INTERVAL", "30"))
+# Capacity: how many agents may run on THIS machine at once. Idle detection keeps
+# the node pulling work while under this ceiling instead of sleeping a poll cycle.
+MAX_PARALLEL = int(os.environ.get("MESH_MAX_PARALLEL", "1"))
+# Cost mandate: hard cap on claims a single runner lifetime may process.
+# Defaults to 25 so a misbehaving selection loop can never spend unbounded;
+# operators may set an explicit "0" to opt in to unlimited.
+MAX_CLAIMS = int(os.environ.get("MESH_MAX_CLAIMS", "25"))
+# Sleep floor between immediate re-claims on the idle-detection path — the loop
+# must never spin hot even if claim selection misbehaves.
+IDLE_RECLAIM_DELAY = float(os.environ.get("MESH_IDLE_RECLAIM_DELAY", "3"))
+# Breadcrumb the heartbeat daemon reads so Mission Control shows the live task.
+STATE_FILE = Path(os.environ.get(
+    "MESH_RUNNER_STATE", str(Path.home() / ".claude" / "mesh-runner-state.json")))
 
 
 def _api(method: str, path: str, body=None) -> dict:
@@ -55,21 +69,55 @@ def killed() -> bool:
     return HARD_STOP.exists()
 
 
+def write_state(current_task, state: str) -> None:
+    """Drop a breadcrumb the heartbeat daemon reads so Mission Control shows this
+    runner's live task + state per agent. Best-effort; never blocks the loop."""
+    try:
+        STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        STATE_FILE.write_text(json.dumps({
+            "runtime": AGENT_CMD, "current_task": current_task,
+            "state": state, "ts": int(time.time())}))
+    except OSError:
+        pass
+
+
 def my_claims() -> list[dict]:
     fleet = _api("GET", "/api/mesh/fleet")
     return [c for c in fleet.get("claims", []) if c.get("machine") == HOST and c.get("state") == "claimed"]
+
+
+def active_agent_count() -> int:
+    """Non-idle agents on THIS machine, per the fleet snapshot (mesh_agents)."""
+    fleet = _api("GET", "/api/mesh/fleet")
+    return sum(1 for a in fleet.get("agents", []) if a.get("machine") == HOST)
+
+
+def get_work() -> list[dict]:
+    """Pre-assigned claims first; if none, atomically self-claim the top-priority
+    unclaimed `mesh:auto` ticket so capacity never idles waiting on the dispatcher."""
+    claims = my_claims()
+    if claims:
+        return claims
+    resp = _api("POST", "/api/mesh/claim/self", {"host": HOST})
+    claimed = resp.get("claimed")
+    return [claimed] if claimed else []
 
 
 def run_claim(claim: dict, *, dry_run: bool) -> dict:
     """Execute one work claim in an isolated worktree on a mesh branch."""
     linear_id = claim["linear_id"]
     repo_dir = claim.get("repo_dir") or os.getcwd()
-    branch = f"mesh/{HOST.lower()}/{linear_id.lower()}"
+    # Unique per-run suffix: a re-run of the same linear_id (retry, re-dispatch)
+    # must not insta-fail on "branch already exists" / a leftover worktree dir.
+    run_id = uuid.uuid4().hex[:8]
+    branch = f"mesh/{HOST.lower()}/{linear_id.lower()}-{run_id}"
     plan = {"linear_id": linear_id, "repo_dir": repo_dir, "branch": branch, "agent": AGENT_CMD}
     if dry_run:
         plan["dry_run"] = True
         return plan
-    wt = Path("/tmp") / f"mesh-{linear_id}"
+    write_state(linear_id, "working")
+    _api("POST", "/api/mesh/claim/update", {"linear_id": linear_id, "state": "working", "branch": branch})
+    wt = Path("/tmp") / f"mesh-{linear_id}-{run_id}"
     subprocess.run(["git", "-C", repo_dir, "worktree", "add", "-b", branch, str(wt)], check=False)
     prompt = (f"Work the Linear ticket {linear_id}. Make a small, verifiable change, "
               f"run the repo's gates, and stop. autogit ships each turn to {branch}.")
@@ -80,6 +128,7 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
         plan["state"] = "failed"; plan["error"] = str(e)
     finally:
         subprocess.run(["git", "-C", repo_dir, "worktree", "remove", "--force", str(wt)], check=False)
+        write_state(None, "idle")
     _api("POST", "/api/mesh/claim/update", {"linear_id": linear_id, "state": plan["state"], "branch": branch})
     return plan
 
@@ -89,14 +138,28 @@ def main() -> int:
     ap.add_argument("--once", action="store_true", help="process current claims once and exit")
     ap.add_argument("--dry-run", action="store_true", help="plan only; no worktrees, no agent runs")
     args = ap.parse_args()
+    processed = 0
     while True:
+        # Kill switch + cost mandate, re-checked every cycle before any work.
         if killed():
+            write_state(None, "idle")
             print(json.dumps({"runner": HOST, "status": "HARD_STOP"})); return 0
-        claims = my_claims()
-        results = [run_claim(c, dry_run=args.dry_run) for c in claims]
-        print(json.dumps({"runner": HOST, "claims": len(claims), "results": results}))
+        if MAX_CLAIMS and processed >= MAX_CLAIMS:
+            write_state(None, "idle")
+            print(json.dumps({"runner": HOST, "status": "MAX_CLAIMS", "processed": processed})); return 0
+        work = get_work()
+        results = [run_claim(c, dry_run=args.dry_run) for c in work]
+        processed += len(work)
+        print(json.dumps({"runner": HOST, "claims": len(work), "results": results, "processed": processed}))
         if args.once:
             return 0
+        # Idle detection: if we did work and stay under this machine's capacity,
+        # pull the next claim after a short floor delay instead of waiting a full
+        # poll cycle — keeps the node draining the queue without ever spinning hot.
+        if work and active_agent_count() < MAX_PARALLEL:
+            time.sleep(IDLE_RECLAIM_DELAY)
+            continue
+        write_state(None, "idle")
         time.sleep(POLL_INTERVAL)
 
 
