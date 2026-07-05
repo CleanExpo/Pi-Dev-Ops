@@ -1,8 +1,8 @@
 # swarm — Wiki
 
-_Last updated: 2026-07-05T09:41:33Z (commits 08e44d3..b3b8fa9)_
+_Last updated: 2026-07-05T11:55:01Z (commits 42e850e..a2975b9)_
 
 ## Recent changes
-- b3b8fa9 — Wave 2: wire effort per RA-1099 role (Python lanes; TS skipped, SDK too old) (#516)
+- a2975b9 — fix(swarm): Guardian requires 2 consecutive misses before Ollama CRITICAL (#521)
 
 
