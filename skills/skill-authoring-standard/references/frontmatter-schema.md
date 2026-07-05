@@ -71,7 +71,7 @@ allowed-tools: Read, Grep, Glob, LS, Bash
 name: qa-lead
 description: Use when a deliverable needs a pass/fail gate before it ships or merges — code PRs, content, SEO reports, designs.
 allowed-tools: Read, Grep, Glob, Bash
-model: claude-sonnet-4-6
+model: claude-sonnet-5
 ---
 ```
 

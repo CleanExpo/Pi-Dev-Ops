@@ -29,7 +29,7 @@ log = logging.getLogger("plaud_actions")
 
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_VERSION = "2023-06-01"
-ANTHROPIC_MODEL = "claude-haiku-4-5"
+ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
 
 PROMPT_TEMPLATE = (Path(__file__).parent / "prompts" / "action_extraction.md").read_text()
 

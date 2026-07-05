@@ -269,7 +269,7 @@ async def _classify_failure(eval_text: str, diff_text: str, session) -> dict:
     REPAIR_INSTRUCTIONS.  Returns {} on any error — caller falls back to
     the legacy retry_brief format.
     """
-    haiku_model = getattr(config, "HAIKU_MODEL", "claude-haiku-4-5")
+    haiku_model = getattr(config, "HAIKU_MODEL", "claude-haiku-4-5-20251001")
     classification_prompt = (
         "You are a code repair classifier. Analyse the evaluator output and diff, "
         "then classify the failure concisely.\n\n"

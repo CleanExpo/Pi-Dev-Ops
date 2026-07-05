@@ -19,9 +19,9 @@ describe("MODELS constants", () => {
     vi.unstubAllEnvs();
   });
 
-  it("WORKER default is claude-haiku-4-5 (not 3-5)", async () => {
+  it("WORKER default is claude-haiku-4-5-20251001 (not 3-5)", async () => {
     const { MODELS } = await import("@/lib/models");
-    expect(MODELS.WORKER).toBe("claude-haiku-4-5");
+    expect(MODELS.WORKER).toBe("claude-haiku-4-5-20251001");
   });
 
   it("ANALYST default is claude-sonnet-5", async () => {

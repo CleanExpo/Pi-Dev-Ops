@@ -19,7 +19,7 @@ CREATE POLICY "service_only_write" ON settings FOR ALL TO service_role USING (tr
 INSERT INTO settings (key, value) VALUES
   ('github_token',       ''),
   ('anthropic_api_key',  ''),
-  ('analysis_model',     'claude-sonnet-4-6'),
+  ('analysis_model',     'claude-sonnet-5'),
   ('webhook_secret',     ''),
   ('cron_repos',         '[]'),
   ('vercel_token',       ''),
