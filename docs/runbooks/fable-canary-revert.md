@@ -10,8 +10,12 @@ rebuild): `TAO_FABLE_ALLOWED_ROLES=adversary`. Effective model then resolves to
 `claude-fable-5` for the adversary role only; all other roles are unaffected.
 
 ## Revert (kill switch)
-Delete the var (or set it empty) and restart the service. Adversary immediately
-returns to `opus` (the committed default). No code change, no rebuild.
+`railway variable delete TAO_FABLE_ALLOWED_ROLES -s Pi-Dev-Ops` (verified 2026-07-05),
+then the service restarts. Adversary immediately returns to `opus` (the committed
+default). No code change, no rebuild. NOTE: `railway variables --set
+TAO_FABLE_ALLOWED_ROLES=` (set-empty) is a **no-op** — Railway keeps the prior value;
+you MUST use `variable delete`. Rehearsed revert (delete → confirm gone → re-set)
+executed 2026-07-05 and confirmed working.
 
 ## Kill-threshold — amplification
 Kill the canary if billed output tokens per 1K visible chars on adversary runs
