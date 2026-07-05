@@ -77,6 +77,32 @@ def _save_last_sig(sig: str) -> None:
         log.warning("guardian: could not persist escalation signature: %s", exc)
 
 
+# A single Ollama liveness check can be a stale/momentary read (e.g. the
+# daemon hasn't finished starting after the Mac woke from sleep, or one
+# `GET /api/tags` call raced a restart). Require the outage to be confirmed
+# across consecutive cycles before paging CRITICAL, instead of trusting one
+# stale sample.
+OLLAMA_DOWN_CONFIRM_STREAK = 2
+
+
+def _ollama_streak_path() -> Path:
+    return config.SWARM_LOG_DIR / "guardian_ollama_streak.json"
+
+
+def _load_ollama_streak() -> int:
+    try:
+        return int(json.loads(_ollama_streak_path().read_text(encoding="utf-8")).get("streak", 0))
+    except Exception:
+        return 0
+
+
+def _save_ollama_streak(streak: int) -> None:
+    try:
+        _ollama_streak_path().write_text(json.dumps({"streak": streak}), encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001
+        log.warning("guardian: could not persist ollama streak: %s", exc)
+
+
 def run_cycle(unacked_count: int) -> dict:
     """Execute one Guardian observation cycle.
 
@@ -99,8 +125,17 @@ def run_cycle(unacked_count: int) -> dict:
     # 1 — Ollama liveness
     available_models = list_models()
     if not available_models:
-        critical_flags.append("Ollama not responding — swarm LLM backend is DOWN")
+        streak = _load_ollama_streak() + 1
+        _save_ollama_streak(streak)
+        if streak >= OLLAMA_DOWN_CONFIRM_STREAK:
+            critical_flags.append("Ollama not responding — swarm LLM backend is DOWN")
+        else:
+            observations.append(
+                f"Ollama check failed ({streak}/{OLLAMA_DOWN_CONFIRM_STREAK}) — "
+                "treating as a possibly-stale read, confirming before escalating"
+            )
     else:
+        _save_ollama_streak(0)
         observations.append(f"Ollama live — {len(available_models)} model(s) available")
 
     # 2 — Required models present
