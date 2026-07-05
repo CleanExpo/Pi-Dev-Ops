@@ -190,13 +190,15 @@ async def _run_claude_via_sdk(
     # assert the model is allowed for that role. Opus is reserved for Senior
     # PM (planner) + Senior Orchestrator. Any other role attempting opus
     # fails loudly here rather than running expensively in production.
-    from .model_policy import assert_model_allowed  # noqa: PLC0415
+    from .model_policy import assert_model_allowed, effort_for_role  # noqa: PLC0415
     _role = (phase or "").split(".")[0] or "generator"
     try:
         assert_model_allowed(_role, model)
     except ValueError as policy_err:
         _log.error("RA-1099 model policy violation in _run_claude_via_sdk: %s", policy_err)
         raise
+    # Wave 2 — thread the role's default effort level through to the SDK.
+    _effort = effort_for_role(_role)
 
     try:
         from claude_agent_sdk import (  # noqa: PLC0415
@@ -284,6 +286,7 @@ async def _run_claude_via_sdk(
             cwd=workspace,
             model=model,
             thinking=_thinking_cfg,
+            effort=_effort,
             betas=_sdk_betas,  # type: ignore[arg-type]
             permission_mode="default" if _gate_on else "bypassPermissions",
             can_use_tool=_make_can_use_tool() if _gate_on else None,

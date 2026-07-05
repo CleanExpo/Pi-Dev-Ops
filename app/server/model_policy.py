@@ -83,6 +83,27 @@ def _record_violation(role: str, requested: str, granted: str, reason: str) -> N
         _log.error("model_policy: failed to record violation (non-fatal): %s", exc)
 
 
+# ── Effort routing (Wave 2 — output_config.effort / ClaudeAgentOptions.effort) ──
+# Per-role default reasoning-effort level. Cheap/rote roles run low so the
+# model doesn't burn reasoning tokens on trivial classification; roles that
+# must catch real mistakes (adversary) run xhigh. Unlisted roles default to
+# "medium". Values: "low" | "medium" | "high" | "xhigh" | "max".
+ROLE_EFFORT = {
+    "monitor":      "low",
+    "generator":    "medium",
+    "evaluator":    "high",
+    "adversary":    "xhigh",
+    "planner":      "high",
+    "orchestrator": "high",
+    "portfolio":    "high",
+}
+
+
+def effort_for_role(role: str) -> str:
+    """Return the default reasoning-effort level for a role. Unlisted roles → "medium"."""
+    return ROLE_EFFORT.get(role, "medium")
+
+
 def select_model(role: str, requested: Optional[str] = None) -> str:
     """Return the short model name (opus/sonnet/haiku) the given role should use.
 

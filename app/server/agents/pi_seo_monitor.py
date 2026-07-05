@@ -567,6 +567,9 @@ def _run_agent_analysis(
             max_tokens=2000,
             system=_MONITOR_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
+            # Wave 2 — monitor role (RA-1099): low effort, this is a
+            # digest-summarisation pass, not deep reasoning.
+            output_config={"effort": "low"},
         )
         text = response.content[0].text.strip()
         # Strip markdown code block if present
