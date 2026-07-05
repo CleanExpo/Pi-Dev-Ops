@@ -70,12 +70,15 @@ class FakeSupabase:
                 return 200, json.dumps([{"id": lid, "state": "released"}])
             return 200, json.dumps([])
         if method == "PATCH" and path.startswith("mesh_work_claims?linear_id=eq."):
+            # Mirrors return=representation like the real PostgREST: the row on
+            # a match, [] when the state filter matched nothing (0-row race —
+            # claim already done/absent), still with a 2xx status either way.
             lid = path.split("linear_id=eq.")[1].split("&")[0]
             if lid in self.claims and self.claims[lid]["state"] in ("claimed", "working"):
                 self.claims[lid]["state"] = (body or {}).get("state", self.claims[lid]["state"])
                 self.patched.append(lid)
-                return 204, ""
-            return 204, ""
+                return 200, json.dumps([{"linear_id": lid, "state": self.claims[lid]["state"]}])
+            return 200, json.dumps([])
         return 200, "[]"
 
 
@@ -270,6 +273,28 @@ def test_non_released_claim_update_does_not_touch_linear(mesh_client):
     mesh._linear_graphql = lambda q: pytest.fail("Linear should not be touched for a non-released transition")
     r = client.post("/api/mesh/claim/update",
                      json={"linear_id": "UNI-A", "state": "done"}, headers=HDR)
+    assert r.status_code == 200
+
+
+def test_released_update_zero_row_does_not_touch_linear(mesh_client):
+    """A `released` update whose PATCH matches 0 rows (claim already done, or
+    absent entirely) must NOT fire the Linear reversal — otherwise a stale
+    runner's HARD_STOP teardown for a claim the reaper already released and
+    another runner re-claimed would yank the fresh claim's ticket back to
+    Todo. The update itself still 200s (idempotent report)."""
+    client, mesh = mesh_client
+    fake = FakeSupabase(
+        claims={"UNI-A": {"machine": "nodeA", "state": "done", "claimed_at": _old(1)}})
+    mesh._sb = fake.sb
+    mesh._linear_graphql = lambda q: pytest.fail("Linear must not be touched on a 0-row released update")
+    # already-done claim
+    r = client.post("/api/mesh/claim/update",
+                     json={"linear_id": "UNI-A", "state": "released"}, headers=HDR)
+    assert r.status_code == 200
+    assert fake.claims["UNI-A"]["state"] == "done"  # untouched
+    # claim absent entirely
+    r = client.post("/api/mesh/claim/update",
+                     json={"linear_id": "UNI-GHOST", "state": "released"}, headers=HDR)
     assert r.status_code == 200
 
 

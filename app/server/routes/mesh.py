@@ -360,10 +360,14 @@ async def claim_update(
         patch["branch"] = u.branch
     if u.state in ("done", "released", "failed"):
         patch["released_at"] = datetime.now(timezone.utc).isoformat()
-    status, _ = _sb("PATCH",
+    status, body = _sb("PATCH",
         f"mesh_work_claims?linear_id=eq.{urllib.parse.quote(u.linear_id)}&state=in.(claimed,working)",
-        patch, prefer="return=minimal")
-    if u.state == "released" and status < 300:
+        patch, prefer="return=representation")
+    # return=representation: a 0-row match (claim already done/absent — e.g. the
+    # reaper released it and another runner re-claimed) still 2xxs, so gate the
+    # reversal on rows actually returned or a stale runner's `released` would
+    # yank a freshly re-claimed ticket back to Todo.
+    if u.state == "released" and status < 300 and _rows(body):
         # A HARD_STOP-released claim must return its Linear issue to the
         # unstarted pool, same as a reaped claim — otherwise it strands
         # In Progress forever even though the mesh_work_claims row is freed.
