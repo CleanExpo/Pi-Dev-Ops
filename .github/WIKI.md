@@ -1,8 +1,8 @@
 # .github — Wiki
 
-_Last updated: 2026-07-04T23:59:08Z (commits 0637388..0fe5d10)_
+_Last updated: 2026-07-05T00:57:32Z (commits 584652e..301fd61)_
 
 ## Recent changes
-- 0fe5d10 — Weekly cross-repo enhancement loop on OpenRouter (#507)
+- 301fd61 — perf(enhance-loop): swap Opus/Sonnet/Haiku for cost-optimised open-weight ladder (#508)
 
 
