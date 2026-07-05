@@ -9,8 +9,8 @@ assigned to THIS machine, and for each one: creates an isolated git worktree on 
 as the prompt, lets autogit ship every turn, then marks the claim done and updates
 Linear. Branch-only — production `main` stays PR+CI gated.
 
-Kill switch: honours `~/.claude/HARD_STOP` and the Pi-CEO /api/swarm/kill state,
-exactly like the existing TAO loops (CLAUDE.md: three-layer kill-switch).
+Kill switch: honours `~/.claude/HARD_STOP`, re-checked every cycle before any
+work. (The Pi-CEO /api/swarm/kill state is NOT consulted yet — file check only.)
 
 This is P1/P2 infrastructure — it goes live once the /api/mesh/* endpoints are
 deployed to Railway. Until then `--once --dry-run` exercises the full claim→run
@@ -27,6 +27,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+import uuid
 from pathlib import Path
 
 PI_CEO_API_URL = os.environ.get("PI_CEO_API_URL", "https://pi-dev-ops-production.up.railway.app")
@@ -38,8 +39,13 @@ POLL_INTERVAL = int(os.environ.get("MESH_POLL_INTERVAL", "30"))
 # Capacity: how many agents may run on THIS machine at once. Idle detection keeps
 # the node pulling work while under this ceiling instead of sleeping a poll cycle.
 MAX_PARALLEL = int(os.environ.get("MESH_MAX_PARALLEL", "1"))
-# Cost mandate: hard cap on claims a single runner lifetime may process (0 = unlimited).
-MAX_CLAIMS = int(os.environ.get("MESH_MAX_CLAIMS", "0"))
+# Cost mandate: hard cap on claims a single runner lifetime may process.
+# Defaults to 25 so a misbehaving selection loop can never spend unbounded;
+# operators may set an explicit "0" to opt in to unlimited.
+MAX_CLAIMS = int(os.environ.get("MESH_MAX_CLAIMS", "25"))
+# Sleep floor between immediate re-claims on the idle-detection path — the loop
+# must never spin hot even if claim selection misbehaves.
+IDLE_RECLAIM_DELAY = float(os.environ.get("MESH_IDLE_RECLAIM_DELAY", "3"))
 # Breadcrumb the heartbeat daemon reads so Mission Control shows the live task.
 STATE_FILE = Path(os.environ.get(
     "MESH_RUNNER_STATE", str(Path.home() / ".claude" / "mesh-runner-state.json")))
@@ -101,14 +107,17 @@ def run_claim(claim: dict, *, dry_run: bool) -> dict:
     """Execute one work claim in an isolated worktree on a mesh branch."""
     linear_id = claim["linear_id"]
     repo_dir = claim.get("repo_dir") or os.getcwd()
-    branch = f"mesh/{HOST.lower()}/{linear_id.lower()}"
+    # Unique per-run suffix: a re-run of the same linear_id (retry, re-dispatch)
+    # must not insta-fail on "branch already exists" / a leftover worktree dir.
+    run_id = uuid.uuid4().hex[:8]
+    branch = f"mesh/{HOST.lower()}/{linear_id.lower()}-{run_id}"
     plan = {"linear_id": linear_id, "repo_dir": repo_dir, "branch": branch, "agent": AGENT_CMD}
     if dry_run:
         plan["dry_run"] = True
         return plan
     write_state(linear_id, "working")
     _api("POST", "/api/mesh/claim/update", {"linear_id": linear_id, "state": "working", "branch": branch})
-    wt = Path("/tmp") / f"mesh-{linear_id}"
+    wt = Path("/tmp") / f"mesh-{linear_id}-{run_id}"
     subprocess.run(["git", "-C", repo_dir, "worktree", "add", "-b", branch, str(wt)], check=False)
     prompt = (f"Work the Linear ticket {linear_id}. Make a small, verifiable change, "
               f"run the repo's gates, and stop. autogit ships each turn to {branch}.")
@@ -145,9 +154,10 @@ def main() -> int:
         if args.once:
             return 0
         # Idle detection: if we did work and stay under this machine's capacity,
-        # immediately pull the next claim instead of waiting a full poll cycle —
-        # keeps the node draining the queue. Only sleep when idle or at capacity.
+        # pull the next claim after a short floor delay instead of waiting a full
+        # poll cycle — keeps the node draining the queue without ever spinning hot.
         if work and active_agent_count() < MAX_PARALLEL:
+            time.sleep(IDLE_RECLAIM_DELAY)
             continue
         write_state(None, "idle")
         time.sleep(POLL_INTERVAL)

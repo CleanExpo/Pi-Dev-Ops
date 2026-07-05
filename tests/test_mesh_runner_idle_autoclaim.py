@@ -56,7 +56,41 @@ class FakeSupabase:
             return 201, ""
         if method == "GET" and path.startswith("mesh_work_claims?select=linear_id"):
             return 200, json.dumps([{"linear_id": lid} for lid in sorted(self.open)])
+        if method == "PATCH" and path.startswith("mesh_work_claims?linear_id=eq."):
+            lid = path.split("linear_id=eq.")[1].split("&")[0]
+            if (body or {}).get("state") in ("done", "released", "failed"):
+                self.open.discard(lid)   # partial index frees the linear_id
+            return 204, ""
+        if method == "GET" and path.startswith("mesh_fleet"):
+            return 200, json.dumps([{"host": "nodeA", "is_stale": False,
+                                     "active_agents": 0, "load1": 0.1}])
         return 200, "[]"
+
+
+class FakeLinear:
+    """Models the Linear side of the loop guard: a mesh:auto pool plus the
+    issueUpdate state transition. An issue moved to a started-type state stops
+    appearing in the auto query — exactly what prevents a completed ticket from
+    being re-served and re-claimed forever."""
+
+    def __init__(self, *specs):  # (identifier, priority)
+        self.pool = {i: {"id": i, "identifier": i, "title": i, "priority": p,
+                         "team": {"id": "team-1"}} for i, p in specs}
+        self.started: set[str] = set()
+
+    def graphql(self, query: str) -> dict:
+        if query.startswith("query{issues"):
+            return {"issues": {"nodes": [n for i, n in self.pool.items()
+                                         if i not in self.started]}}
+        if query.startswith("query{team"):
+            return {"team": {"states": {"nodes": [
+                {"id": "st-todo", "type": "unstarted", "position": 0},
+                {"id": "st-progress", "type": "started", "position": 1}]}}}
+        if query.startswith("mutation{issueUpdate"):
+            issue_id = query.split('id:"')[1].split('"')[0]
+            self.started.add(issue_id)
+            return {"issueUpdate": {"success": True}}
+        return {}
 
 
 @pytest.fixture
@@ -135,6 +169,50 @@ def test_three_tickets_two_nodes_drain_no_doublework(mesh_client):
     assert claimed[0] == "UNI-A"                               # highest priority first
 
 
+def test_claim_self_transitions_issue_out_of_pool(mesh_client):
+    """A successful self-claim moves the Linear issue to a started-type state
+    (resolved dynamically from the team's states), so the mesh:auto query stops
+    returning it."""
+    client, mesh = mesh_client
+    fl = FakeLinear(("UNI-A", 1))
+    mesh._linear_graphql = fl.graphql
+    mesh._sb = FakeSupabase().sb
+    r = client.post("/api/mesh/claim/self", json={"host": "nodeA"}, headers=HDR).json()
+    assert r["claimed"]["linear_id"] == "UNI-A"
+    assert fl.started == {"UNI-A"}  # issueUpdate fired with the started stateId
+
+
+def test_completed_ticket_is_not_reclaimed(mesh_client):
+    """REGRESSION (infinite re-claim loop): claim UNI-A, complete it via
+    claim/update (open claim released), then ask for work again — the ticket
+    must NOT be re-served, because it left the backlog/unstarted pool."""
+    client, mesh = mesh_client
+    fl = FakeLinear(("UNI-A", 1))
+    fake = FakeSupabase()
+    mesh._linear_graphql = fl.graphql
+    mesh._sb = fake.sb
+    r1 = client.post("/api/mesh/claim/self", json={"host": "nodeA"}, headers=HDR).json()
+    assert r1["claimed"]["linear_id"] == "UNI-A"
+    # runner finishes the ticket: open claim released by the partial-index rules
+    client.post("/api/mesh/claim/update",
+                json={"linear_id": "UNI-A", "state": "done"}, headers=HDR)
+    assert "UNI-A" not in fake.open  # claim row is closed — old bug's precondition
+    r2 = client.post("/api/mesh/claim/self", json={"host": "nodeA"}, headers=HDR).json()
+    assert r2["claimed"] is None            # NOT re-served
+    assert fake.inserts == ["UNI-A"]        # claimed exactly once, ever
+
+
+def test_dispatch_transitions_issue_out_of_pool(mesh_client):
+    """The dispatcher path applies the same Linear transition on assignment."""
+    client, mesh = mesh_client
+    fl = FakeLinear(("UNI-A", 1))
+    mesh._linear_graphql = fl.graphql
+    mesh._sb = FakeSupabase().sb
+    r = client.post("/api/mesh/dispatch", json={"linear_ids": []}, headers=HDR).json()
+    assert r["assigned"] == [{"linear_id": "UNI-A", "machine": "nodeA"}]
+    assert fl.started == {"UNI-A"}
+
+
 def monkeypatch_linear(mesh, data):
     mesh._linear_graphql = lambda q: data
 
@@ -183,9 +261,21 @@ def runner(monkeypatch, tmp_path):
     monkeypatch.setattr(mod, "STATE_FILE", tmp_path / "state.json")
     monkeypatch.setattr(mod, "MAX_PARALLEL", 4)  # never at capacity in test
     monkeypatch.setattr(mod, "MAX_CLAIMS", 0)
+    monkeypatch.setattr(mod, "IDLE_RECLAIM_DELAY", 0.01)
     # Never spawn a real agent/git worktree.
     monkeypatch.setattr(mod.subprocess, "run", lambda *a, **k: None)
-    monkeypatch.setattr(mod.time, "sleep", lambda *_: (_ for _ in ()).throw(_Break()))
+    # Record every sleep; only the full poll-cycle sleep ends the loop. The
+    # idle-path floor sleep (IDLE_RECLAIM_DELAY) is recorded and returns, so
+    # tests can assert the loop never re-claims without pausing.
+    sleep_calls: list[float] = []
+
+    def fake_sleep(secs):
+        sleep_calls.append(secs)
+        if secs == mod.POLL_INTERVAL:
+            raise _Break()
+
+    monkeypatch.setattr(mod.time, "sleep", fake_sleep)
+    mod.test_sleep_calls = sleep_calls
     return mod
 
 
@@ -212,13 +302,50 @@ def _main_returns(mod):
 
 
 def test_runner_drains_queue_via_idle_detection(runner):
-    """3 queued tickets → the runner pulls each one back-to-back (no sleep between)
-    and drains the whole queue in a single wake, then sleeps only when empty."""
+    """3 queued tickets → the runner pulls each one after only the short floor
+    delay (not a full poll cycle) and drains the whole queue in a single wake,
+    then falls back to the poll sleep only when the queue is empty."""
     server = FakeMeshServer(["UNI-A", "UNI-B", "UNI-C"])
     runner._api = server.api
-    _run_main(runner, ["runner"])          # loops; _Break fires on the first sleep
+    _run_main(runner, ["runner"])          # loops; _Break fires on the poll sleep
     assert server.worked == ["UNI-A", "UNI-B", "UNI-C"]
     assert len(server.worked) == len(set(server.worked))  # no double-work
+
+
+def test_runner_idle_reclaim_has_sleep_floor(runner):
+    """REGRESSION (hot loop): every immediate re-claim on the idle path must pass
+    through the IDLE_RECLAIM_DELAY floor — the loop can never spin unthrottled,
+    even if claim selection misbehaves."""
+    server = FakeMeshServer(["UNI-A", "UNI-B"])
+    runner._api = server.api
+    _run_main(runner, ["runner"])
+    floor_sleeps = [s for s in runner.test_sleep_calls if s == runner.IDLE_RECLAIM_DELAY]
+    # one floor sleep after each worked claim (A, B) before re-checking the queue
+    assert len(floor_sleeps) == 2
+    # and the loop ended on exactly one full poll-cycle sleep
+    assert runner.test_sleep_calls.count(runner.POLL_INTERVAL) == 1
+
+
+def test_max_claims_defaults_to_capped(monkeypatch):
+    """Cost mandate: an unset MESH_MAX_CLAIMS defaults to 25, not unlimited."""
+    monkeypatch.delenv("MESH_MAX_CLAIMS", raising=False)
+    mod = _load("mesh_runner_default_cap", "mesh/runner.py")
+    assert mod.MAX_CLAIMS == 25
+
+
+def test_max_claims_explicit_zero_means_unlimited(monkeypatch):
+    monkeypatch.setenv("MESH_MAX_CLAIMS", "0")
+    mod = _load("mesh_runner_zero_cap", "mesh/runner.py")
+    assert mod.MAX_CLAIMS == 0
+
+
+def test_run_claim_branch_unique_per_run(runner):
+    """REGRESSION (insta-fail on retry): re-running the same linear_id must not
+    collide on an existing branch/worktree — each run gets a unique suffix."""
+    p1 = runner.run_claim({"linear_id": "UNI-A"}, dry_run=True)
+    p2 = runner.run_claim({"linear_id": "UNI-A"}, dry_run=True)
+    assert p1["branch"] != p2["branch"]
+    assert p1["branch"].startswith("mesh/testnode/uni-a-")
 
 
 def test_runner_prefers_preassigned_over_self_claim(runner):

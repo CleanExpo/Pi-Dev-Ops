@@ -144,7 +144,7 @@ async def fleet(
 _LINEAR_ENDPOINT = "https://api.linear.app/graphql"
 _MESH_AUTO_QUERY = (
     'query{issues(first:50,filter:{labels:{name:{eq:"mesh:auto"}},'
-    'state:{type:{in:["backlog","unstarted"]}}}){nodes{id identifier title priority}}}'
+    'state:{type:{in:["backlog","unstarted"]}}}){nodes{id identifier title priority team{id}}}}'
 )
 
 
@@ -171,6 +171,36 @@ def _linear_graphql(query: str) -> dict:
     except Exception as e:  # noqa: BLE001
         log.warning("linear query failed: %s", e)
         return {}
+
+
+def _team_started_state_id(team_id: str) -> str:
+    """Resolve the team's first 'started'-type workflow state (e.g. In Progress),
+    dynamically — no hardcoded state UUIDs."""
+    q = f'query{{team(id:"{team_id}"){{states{{nodes{{id type position}}}}}}}}'
+    nodes = (((_linear_graphql(q).get("team") or {}).get("states") or {}).get("nodes")) or []
+    started = sorted((n for n in nodes if n.get("type") == "started"),
+                     key=lambda n: n.get("position") or 0)
+    return started[0]["id"] if started else ""
+
+
+def _mark_issue_in_progress(issue: dict) -> bool:
+    """Transition a just-claimed issue out of backlog/unstarted so _MESH_AUTO_QUERY
+    stops returning it. Without this, a completed ticket re-enters the pool and is
+    re-claimed forever (the infinite re-claim loop). Best-effort: only possible for
+    tickets that came from the auto query (explicit dispatch ids carry no node id)."""
+    issue_id = issue.get("id")
+    team_id = (issue.get("team") or {}).get("id")
+    if not issue_id or not team_id:
+        return False
+    state_id = _team_started_state_id(team_id)
+    if not state_id:
+        log.warning("no started-type state found for team %s", team_id)
+        return False
+    m = f'mutation{{issueUpdate(id:"{issue_id}",input:{{stateId:"{state_id}"}}){{success}}}}'
+    ok = bool((_linear_graphql(m).get("issueUpdate") or {}).get("success"))
+    if not ok:
+        log.warning("issueUpdate → started failed for %s", issue.get("identifier") or issue_id)
+    return ok
 
 
 def _rows(body: str) -> list:
@@ -270,6 +300,7 @@ async def dispatch(
             assigned.append({"linear_id": ident, "machine": host})
             open_ids.add(ident)
             idx += 1
+            _mark_issue_in_progress(tk)  # leave the mesh:auto pool — no re-claim loop
         # status 409 = already claimed by a racing dispatch → skip silently
     return {"assigned": assigned, "online_machines": [m["host"] for m in machines]}
 
@@ -299,6 +330,7 @@ async def claim_self(
                         {"linear_id": ident, "machine": body.host, "state": "claimed"},
                         prefer="return=minimal")
         if status < 300:
+            _mark_issue_in_progress(tk)  # leave the mesh:auto pool — no re-claim loop
             return {"claimed": {"linear_id": ident, "machine": body.host}}
         # status 409 = raced by another node → try the next candidate
     return {"claimed": None, "reason": "queue empty or fully claimed"}
