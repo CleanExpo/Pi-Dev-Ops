@@ -1,8 +1,8 @@
 # .github — Wiki
 
-_Last updated: 2026-07-05T03:14:51Z (commits 124aa48..162ae3e)_
+_Last updated: 2026-07-05T03:49:25Z (commits d07e92d..1bcf35f)_
 
 ## Recent changes
-- 162ae3e — feat(mesh): runner idle detection + atomic self-claim (UNI-2248) (#509)
+- 1bcf35f — feat(mesh): stale-claim reaper — release dead-runner claims (UNI-2301) (#511)
 
 
