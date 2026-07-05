@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.14.0",
-    "generated_at": "2026-07-04T07:35:22.228854+00:00",
+    "version": "1.15.1",
+    "generated_at": "2026-07-05T11:12:14.389639+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -1438,11 +1438,11 @@
     },
     {
       "id": "nexus",
-      "description": "Use when dispatching any task to a sub-Fable Claude model (Opus/Sonnet/Haiku subagent, SDK call, or another CLI) that should run at Fable-5-grade discipline \u2014 wrap the task in the Nexus Prompt. Also use when a skill or agent asks for \"the Nexus Prompt\", \"nexus wrapper\", or a model-calibrated task preamble.",
+      "description": "Master-orchestrator command. Type /nexus <goal> to have the estate's best minds work a goal end-to-end \u2014 frame it, research it to primary sources, deploy the right specialists, think past the obvious downstream, verify it adversarially, and hand back a decision a non-technical founder can act on. Default-lean; it does the minimum the goal actually needs.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/nexus/SKILL.md",
-      "sha256": "be188324e9653d88f393c3dea0bea8d7536e413819180d8bee70c1100d1479db",
+      "sha256": "35f7cb4b3251388bd8db22fa3780503bc697b1c49b49c657d38764494067f539",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2693,6 +2693,25 @@
       },
       "safety": {
         "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "weekly-enhancement-loop",
+      "description": "\"Weekly cross-repo self-improvement loop. Every Monday 02:00 AEST it applies the 8-Claude-Loops method (INGEST / BUILD / COMPOUND + North Star) across every repo in .harness/projects.json, opening review PRs so all projects compound over time. Cost-optimised open-weight ladder (Qwen/DeepSeek) via OpenRouter \u2014 cheap grunt tiers, one reserved reasoner for the planner handoff (~$5/full run).\"",
+      "owner_role": "\"Senior PM\"",
+      "status": "\"wave-6\"",
+      "path": "skills/weekly-enhancement-loop/SKILL.md",
+      "sha256": "4331d482edbf1a5da588100ea81c752cf0faacba43a22ecf2ae1733295c1fa29",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": true,
         "requires_hitl_gate": false,
         "pii_handling": "pass-through"
       },
