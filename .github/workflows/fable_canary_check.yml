@@ -1,0 +1,30 @@
+# Daily watch on the Fable-5 adversary canary (RA-1099 Wave 3).
+# Why GitHub Actions not Railway cron: always-on requirement per CLAUDE.md.
+# Schedule: 21:07 UTC = 07:07 AEST Brisbane — after the overnight autonomous runs,
+# before the morning brief. Silent on clean; Telegrams only on DISARMED or BREACH.
+name: fable-canary-check
+
+on:
+  schedule:
+    - cron: "7 21 * * *"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.repository == 'CleanExpo/Pi-Dev-Ops'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check Fable canary metrics
+        env:
+          TAO_PROD_URL: ${{ secrets.TAO_PROD_URL }}
+          TAO_PASSWORD: ${{ secrets.TAO_PROD_PASSWORD }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_ALERT_CHAT_ID }}
+        run: python3 scripts/fable_canary_check.py

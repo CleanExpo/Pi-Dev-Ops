@@ -40,6 +40,54 @@ async def get_autonomy_status():
     return autonomy_status()
 
 
+# RA-1099 Wave-3: surface the Fable-5 adversary-canary amplification so a daily
+# job can watch it (the sdk-metrics jsonl is ephemeral on the Railway container).
+_CANARY_KILL_THRESHOLD = 1100.0  # billed output tokens / 1k visible chars on adversary runs
+
+
+@router.get("/api/canary/fable", dependencies=[Depends(require_auth)])
+async def get_fable_canary():
+    """Amplification summary for the Fable-5 adversary canary over the last 7 days."""
+    import glob
+    import json
+    import os
+    import statistics
+    from pathlib import Path
+
+    metrics_dir = Path(__file__).resolve().parents[3] / ".harness" / "agent-sdk-metrics"
+    amps: list[float] = []
+    fable_runs = refusals = 0
+    for fp in sorted(glob.glob(str(metrics_dir / "*.jsonl")))[-7:]:
+        try:
+            for line in open(fp, encoding="utf-8"):
+                try:
+                    r = json.loads(line)
+                except ValueError:
+                    continue
+                if r.get("phase") != "adversary" or "fable" not in str(r.get("model", "")):
+                    continue
+                fable_runs += 1
+                if r.get("stop_reason") == "refusal" or r.get("error") == "refusal":
+                    refusals += 1
+                ot, olen = r.get("output_tokens"), r.get("output_len")
+                if ot and olen:
+                    amps.append(ot / (olen / 1000.0))
+        except OSError:
+            continue
+    median_amp = round(statistics.median(amps), 1) if amps else None
+    armed = "adversary" in os.environ.get("TAO_FABLE_ALLOWED_ROLES", "")
+    breached = median_amp is not None and median_amp > _CANARY_KILL_THRESHOLD
+    return {
+        "armed": armed,
+        "fable_adversary_runs_7d": fable_runs,
+        "refusals_7d": refusals,
+        "median_amplification": median_amp,
+        "kill_threshold": _CANARY_KILL_THRESHOLD,
+        "breached": breached,
+        "status": "DISARMED" if not armed else "BREACH" if breached else "OK",
+    }
+
+
 @router.websocket("/ws/build/{sid}")
 async def ws_build(websocket: WebSocket, sid: str):
     # Accept token from cookie or Authorization header (cookie may not cross-origin on WS)
