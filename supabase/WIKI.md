@@ -1,6 +1,8 @@
 # supabase — Wiki
 
-_Last updated: 2026-05-28T03:50:57Z (commits dd7ef11..16f9ab1)_
+_Last updated: 2026-07-05T08:52:28Z (commits 64a6939..f99d458)_
 
 ## Recent changes
-- 16f9ab1 — feat(intake): Phase 1 SQL schema for client Telegram intake pipeline (CIP-PR1) (#271)
+- f99d458 — fix(models): correct stale model IDs in seeds, deploy scaffolding, and haiku defaults (#515)
+
+

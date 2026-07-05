@@ -1,8 +1,8 @@
 # app — Wiki
 
-_Last updated: 2026-07-05T06:41:56Z (commits 4e68c39..94271b2)_
+_Last updated: 2026-07-05T08:52:28Z (commits 64a6939..f99d458)_
 
 ## Recent changes
-- 94271b2 — fix(mesh): hardening batch — kill-released Linear reversal + reaper F1-F3 (UNI-2303) (#512)
+- f99d458 — fix(models): correct stale model IDs in seeds, deploy scaffolding, and haiku defaults (#515)
 
 

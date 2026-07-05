@@ -1,8 +1,8 @@
 # .harness — Wiki
 
-_Last updated: 2026-07-03T00:45:46Z (commits b465f49..93ee69d)_
+_Last updated: 2026-07-05T08:52:28Z (commits 64a6939..f99d458)_
 
 ## Recent changes
-- 93ee69d — chore(repo): purge stale Synthex consolidation dump and guard against recurrence (#487)
+- f99d458 — fix(models): correct stale model IDs in seeds, deploy scaffolding, and haiku defaults (#515)
 
 
