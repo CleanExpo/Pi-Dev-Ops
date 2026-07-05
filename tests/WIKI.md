@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-07-03T12:11:32Z (commits 2332393..57e35f3)_
+_Last updated: 2026-07-05T03:14:51Z (commits 124aa48..162ae3e)_
 
 ## Recent changes
-- 57e35f3 — fix(lessons): skip evaluator lessons on empty-diff builds (#505)
+- 162ae3e — feat(mesh): runner idle detection + atomic self-claim (UNI-2248) (#509)
 
 

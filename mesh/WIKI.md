@@ -1,4 +1,4 @@
-# app — Wiki
+# mesh — Wiki
 
 _Last updated: 2026-07-05T03:14:51Z (commits 124aa48..162ae3e)_
 
