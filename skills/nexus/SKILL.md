@@ -47,10 +47,14 @@ adversary pass) and jump to G7. Only real breadth or irreversibility opens the g
 - Completion: appetite named (small vs broad) and the null case honoured — a well-specified
   ask may correctly warrant zero research, zero specialists, zero verification.
 
-**G2 — Frame & mine.** Restate the *real* intent behind the words; mine the repo/wiki/memory
-you already hold before reaching outward. New domain vocabulary → invoke `grill-with-docs`
-first; an architecture-class change → invoke `design-pressure-test` before anything locks.
-- Completion: the goal is restated as an outcome, and context you already had is used.
+**G2 — Frame & mine.** Run the unknowns-quadrant scan first (full method in the playbook):
+classify the goal's dominant unknown type, then apply the cheapest technique — Blind Spot
+Pass for new domains (Unknown Unknowns), Interview for known gaps (Known Unknowns),
+References for "I'll know it when I see it" (Unknown Knowns), Prototype for design goals.
+Then restate the *real* intent and mine the repo/wiki/memory before reaching outward.
+New domain vocabulary → `grill-with-docs`; architecture-class change → `design-pressure-test`.
+- Completion: dominant quadrant named, technique run or skipped with a reason, goal restated
+  as an outcome, existing context used.
 
 **G3 — Deep research (skip unless the goal turns on an external/unknown fact).** Discover
 3-5 perspectives; fan out one research subagent per perspective; each returns

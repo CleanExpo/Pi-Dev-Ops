@@ -24,6 +24,42 @@ that alone is never the signal; only an unknown fact, cross-domain breadth, or i
 is. The null case is real and common: a well-specified internal task correctly warrants zero
 research, zero specialists, zero verification.
 
+## G2 — Unknowns scan (the frame-and-mine method)
+
+Before reaching outward, classify the founder's unknowns. The quadrant (source: Thariq,
+"A Field Guide to Fable: Finding Your Unknowns", 2026-07-04; wiki: `fable-unknowns-field-guide`)
+tells you which technique cuts the most waste — and sharpens the G1 score.
+
+| Quadrant | Definition | Signal | Cheapest technique |
+|---|---|---|---|
+| **Known Knowns** | What the prompt says | Detailed, constrained ask | Mine repo/memory — no extra step |
+| **Known Unknowns** | Gaps the founder knows they have | "I haven't figured out X yet" | **Interview** — one Q at a time; prioritise Qs whose answers change the architecture |
+| **Unknown Knowns** | Criteria obvious to the founder but never written down | "I'll know it when I see it" | **References** — point at a codebase, design, or component that does what they want |
+| **Unknown Unknowns** | What the founder hasn't considered at all | New domain, unfamiliar codebase | **Blind Spot Pass** — surface what questions to ask before any implementation begins |
+
+**G1 sharpener**: A goal dense with Unknown Unknowns (entirely new territory) scores Broad
+regardless of how narrow the stated scope sounds. Add a row to the G1 table mentally:
+`Unknown Unknowns density — none → small, high → broad`.
+
+**Technique rules — run the cheapest one that covers the dominant quadrant, never all four:**
+- **Blind Spot Pass**: Ask what the founder doesn't know they don't know, focused on the
+  goal's domain. Use when the ask is "help me think about X" or the codebase area is new.
+  Example: *"What should I be asking about X that I'm not asking?"* This is the Unknown
+  Unknowns antidote; it must happen before any specialist fires or plan locks.
+- **Interview**: Ask one question at a time. Prioritise questions where the answer changes
+  the architecture, data model, or user flow — not surface questions. Stop when the plan
+  is unambiguous. Useful before G3/G4 when the goal has known gaps.
+- **References**: When the founder can't describe the output but would recognise it, ask for
+  a codebase, URL, component, or design to target. Claude reads the underlying code (not just
+  screenshots), providing richer implementation signal than prose description.
+- **Prototype first** (design/UX goals): Show 3-4 design or approach variations before
+  touching real code. Unknown Knowns in visual design surface cheaply in prototypes and
+  expensively mid-implementation.
+
+**Completing G2**: dominant quadrant named, appropriate technique run or skipped with a
+one-line reason, goal restated as an outcome (not the founder's words), existing
+repo/wiki/memory context mined.
+
 ## G4 — Specialist routing menu (a menu, never a quota)
 Deploy the *fewest* specialists that cover the goal's real breadth. Default fan-out is zero;
 default cap is ≤3; escalate past that only when named needs demand it. Each entry earns its slot
@@ -42,6 +78,7 @@ what G3 already ran.
 | Content / SEO / GEO | `seo`, `geo-optimization`, `eeat`, `marketing-orchestrator` |
 | Ship / go-live readiness | `readiness-architect`, `qa-lead`, `readiness` gates |
 | Strategic / go-no-go decision | `ceo-board` (deliberation), `boardroom` (multi-model triangulation), `judge` |
+| Knowledge base / project brain adoption (index a repo or bot's knowledge tree, retrieval standard, drift gates) | `second-brain-adopt` — preflights hands-off/autogit gates, applies the brain-1 adoption kit, ships via PR lane |
 | Cross-domain (≥3 of the above) | `specialist-council` — one call returns `{verdict, must_fix, suggestions}` |
 | Finance / growth / infra / support metrics | senior agents CFO / CMO / CTO / CS (Pi-Dev-Ops swarm) |
 
@@ -127,3 +164,13 @@ classification); verified via opus-adversary flip-test of the retention claim.
 
 That is the shape: a marketing/design founder can act on the top five lines; the engineer-register
 evidence is intact but below the fold.
+
+### Implementation notes (long-horizon tasks only)
+When a task spans many files or requires autonomous decisions mid-execution, instruct the
+agent to maintain a temporary `implementation-notes` file (markdown or HTML). Protocol: if
+the agent hits an edge case that forces deviation from the plan, it picks the conservative
+option, logs the deviation under "Deviations" with its reasoning, and continues. This converts
+Unknown Unknowns that surface during execution into documented decisions the founder can
+review — and gives G6 (adversarial verify) the *actual* decision surface rather than the
+planned one. Skip for small, well-scoped tasks; apply for anything that might run for
+multiple files or sessions.
