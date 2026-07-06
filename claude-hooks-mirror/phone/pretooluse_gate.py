@@ -57,7 +57,22 @@ def main() -> int:
     tool_input = payload.get("tool_input") or payload.get("toolInput") or {}
     session_id = session_id_from_payload(payload)
 
+    # Autonomy-ladder tier gate: prompt the human ONLY for L3 (irreversible /
+    # secret / prod / destructive). L0-L2 pass automatically. On any classifier
+    # error, fail SAFE — treat as L3 and gate.
+    try:
+        from tier_classifier import classify, GATE_TIER
+        tier, rule = classify(tool_name, tool_input)
+    except Exception as exc:  # classifier import/exec failure → gate
+        tier, rule, GATE_TIER = 3, f"classifier unavailable (fail-safe): {exc}", 3
+
+    if tier < GATE_TIER:
+        # Allowed without prompting. Announce the tier for the audit trail.
+        print(f"tier-gate: L{tier} auto-allowed ({rule})", file=sys.stderr)
+        return 0
+
     summary, reason = _summarise_input(tool_name, tool_input)
+    reason = f"[L{tier}: {rule}] {reason}"
 
     # RA-1109: every gate must have a terminal state visible on the phone.
     # We rely on the backend to edit the card when status flips.
