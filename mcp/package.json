@@ -7,11 +7,16 @@
     "start": "node pi-ceo-server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["mcp", "claude", "linear", "pi-dev-ops"],
+  "keywords": [
+    "mcp",
+    "claude",
+    "linear",
+    "pi-dev-ops"
+  ],
   "author": "Unite Group",
   "license": "ISC",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "zod": "^4.3.6"
+    "zod": "^3.25.76"
   }
 }
