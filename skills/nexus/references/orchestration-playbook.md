@@ -87,12 +87,27 @@ pipeline). Wrap each subagent prompt in the Nexus Prompt (`references/NEXUS_PROM
 calibrated tier. Reconcile their condensed returns — do not paste raw subagent output into the
 answer.
 
-### Tier ladder for dispatched seats (nexus calibration)
-- **Fable 5** — final cross-seat synthesis / the judgment call itself. Not routine dispatch.
-- **Opus 4.8** — security, architecture, adversarial/verification seats; ambiguity that is
-  costly to get wrong.
+### Tier ladder for dispatched seats (nexus calibration — Fable Free)
+Standing default is **Opus 4.8**, not Fable 5 — the estate flipped off a Fable-only substrate on
+2026-07-08 (`fable-free-orchestration-2026-07-08` in the vault). Fable 5 is an explicit per-route
+carve-out, never the ambient default. nexus is the control surface: it selects the seat model from
+this ladder and only reaches for Fable when the route is on the carve-out list below.
+- **Opus 4.8** — the standing orchestrator + final cross-seat synthesis / judgment seat, and the
+  security, architecture, adversarial/verification seats; ambiguity that is costly to get wrong.
 - **Sonnet 5** — default execution: recon, drafting, known-pattern work.
 - **Haiku 4.5** — mechanical, single-increment sub-tasks; escalate after 2 failed verify cycles.
+- **Fable 5 (carve-out only)** — request explicitly, per-route, for: the nightshift long-horizon
+  autonomous executor, SOTA-vision routes, or an operator-flagged capability-critical one-shot.
+  Not routine dispatch and not the default synthesis seat.
+
+**Provider-outage resilience (distinct axis).** A model being *unavailable* (429/529/5xx / Max-plan
+pull) is a different failure from a *content refusal* (`stop_reason:"refusal"`, which stays inside
+Anthropic and is handled inline). For unavailability, fail over down an **ordered chain**
+(Opus → GLM-5.2 → MiniMax-M3), never an N× race — racing needs a correctness oracle nexus doesn't
+have and breaches the ~$15/day ceiling. This failover path is a Board-gated pitch with open gaps
+(OpenRouter is itself a SPOF; Codex is barred from autonomous loops; the long-lived Anthropic OAuth
+token is unprovisioned) — do NOT claim unattended resilience until those close. Full design:
+`fable-free-orchestration-2026-07-08`.
 
 ### Recursion + cost guard (mandatory when G4 opens)
 A dispatched specialist must never re-enter this orchestrator (no nexus-inside-nexus). Dispatch
