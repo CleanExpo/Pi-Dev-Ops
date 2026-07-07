@@ -8,7 +8,7 @@ and a runner (run_calibration.py) supplies live verdicts when a model is reachab
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 # The <20% disagreement bar from the grill (Grills/08-prove-it-gate.md, Q2).
 MAX_DISAGREEMENT = 0.20
@@ -19,6 +19,7 @@ class CalibrationCase:
     case_id: str
     expert_pass: bool          # the expert label
     judge_passes: list[bool]   # one entry per repeated judge run (variance signal)
+    _errors: list[str] = field(default_factory=list)  # judge-error raws (runner use; ignored by math)
 
 
 @dataclass(frozen=True)

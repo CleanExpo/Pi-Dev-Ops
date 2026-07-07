@@ -25,24 +25,36 @@ from evals.judge import judge_binary, judge_binary_cli
 _SET = Path(__file__).parent / "golden" / "intent_calibration.yaml"
 
 
-async def _run(runs: int, backend: str) -> int:
+async def _one_run(candidate: str, rubric: str, backend: str, sem: asyncio.Semaphore) -> "Verdict":
+    from evals.judge import Verdict  # noqa: PLC0415
+    async with sem:
+        if backend == "cli":
+            # judge_binary_cli is sync (subprocess) — run it off the event loop so the
+            # semaphore actually parallelises across cases.
+            return await asyncio.to_thread(judge_binary_cli, candidate, rubric)
+        return await judge_binary(candidate, rubric)
+
+
+async def _run(runs: int, backend: str, concurrency: int) -> int:
     data = yaml.safe_load(_SET.read_text())
     rubric, raw_cases = data["rubric"], data["cases"]
+    sem = asyncio.Semaphore(concurrency)
 
-    cases: list[CalibrationCase] = []
-    for c in raw_cases:
+    async def votes_for(c: dict) -> CalibrationCase:
         candidate = f'{{"message": {c["message"]!r}, "assigned_intent": {c["assigned_intent"]!r}}}'
-        votes: list[bool] = []
-        for _ in range(runs):
-            if backend == "cli":
-                v = judge_binary_cli(candidate, rubric)
-            else:
-                v = await judge_binary(candidate, rubric)
-            if v.raw.startswith("judge-error"):
-                print(f"ABORT — judge not runnable: {v.raw}", file=sys.stderr)
-                return 2  # no model path; measure nothing rather than fake a number
-            votes.append(v.passed)
-        cases.append(CalibrationCase(case_id=c["id"], expert_pass=c["correct"], judge_passes=votes))
+        verdicts = await asyncio.gather(
+            *[_one_run(candidate, rubric, backend, sem) for _ in range(runs)]
+        )
+        return CalibrationCase(
+            case_id=c["id"], expert_pass=c["correct"], judge_passes=[v.passed for v in verdicts],
+            _errors=[v.raw for v in verdicts if v.raw.startswith("judge-error")],
+        )
+
+    cases = await asyncio.gather(*[votes_for(c) for c in raw_cases])
+    errs = [e for c in cases for e in c._errors]
+    if errs:
+        print(f"ABORT — judge not runnable ({len(errs)} errors): {errs[0]}", file=sys.stderr)
+        return 2  # no model path; measure nothing rather than fake a number
 
     report = compute_calibration(cases)
     print(format_report(report))
@@ -54,8 +66,9 @@ def main() -> None:
     ap.add_argument("--runs", type=int, default=3, help="judge runs per case (variance signal)")
     ap.add_argument("--backend", choices=["sdk", "cli"], default="sdk",
                     help="cli = `claude -p` (ambient auth, no token/SDK needed)")
+    ap.add_argument("--concurrency", type=int, default=8, help="max parallel judge calls")
     args = ap.parse_args()
-    raise SystemExit(asyncio.run(_run(args.runs, args.backend)))
+    raise SystemExit(asyncio.run(_run(args.runs, args.backend, args.concurrency)))
 
 
 if __name__ == "__main__":
