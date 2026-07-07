@@ -1,0 +1,57 @@
+"""Live judge-calibration runner — Prove-It Gate slice 3a (RA-7014).
+
+Runs the binary judge N times over the expert-labelled calibration set and reports
+judge↔expert disagreement + run-to-run flip-rate against the <20% bar. This is the
+step that decides whether the gate may go blocking (slice 3b).
+
+Requires a runnable model path (Anthropic OAuth token or ANTHROPIC_API_KEY +
+claude_agent_sdk). Without one it exits 2 and measures nothing — it never fabricates
+an agreement number.
+
+    uv run python -m evals.run_calibration --runs 3
+"""
+from __future__ import annotations
+
+import argparse
+import asyncio
+import sys
+from pathlib import Path
+
+import yaml
+
+from evals.calibration import CalibrationCase, compute_calibration, format_report
+from evals.judge import judge_binary
+
+_SET = Path(__file__).parent / "golden" / "intent_calibration.yaml"
+
+
+async def _run(runs: int) -> int:
+    data = yaml.safe_load(_SET.read_text())
+    rubric, raw_cases = data["rubric"], data["cases"]
+
+    cases: list[CalibrationCase] = []
+    for c in raw_cases:
+        candidate = f'{{"message": {c["message"]!r}, "assigned_intent": {c["assigned_intent"]!r}}}'
+        votes: list[bool] = []
+        for _ in range(runs):
+            v = await judge_binary(candidate, rubric)
+            if v.raw.startswith("judge-error"):
+                print(f"ABORT — judge not runnable: {v.raw}", file=sys.stderr)
+                return 2  # no model path; measure nothing rather than fake a number
+            votes.append(v.passed)
+        cases.append(CalibrationCase(case_id=c["id"], expert_pass=c["correct"], judge_passes=votes))
+
+    report = compute_calibration(cases)
+    print(format_report(report))
+    return 0 if report.calibrated else 1
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--runs", type=int, default=3, help="judge runs per case (variance signal)")
+    args = ap.parse_args()
+    raise SystemExit(asyncio.run(_run(args.runs)))
+
+
+if __name__ == "__main__":
+    main()

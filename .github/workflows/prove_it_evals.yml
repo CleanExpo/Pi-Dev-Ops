@@ -7,9 +7,9 @@ name: Prove-It Evals
 
 on:
   push:
-    branches: [main]
+    branches: [main, "ra-7014-**"]
   pull_request:
-    branches: [main]
+    branches: [main, "ra-7014-**"]
 
 jobs:
   evals:
