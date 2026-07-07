@@ -1,0 +1,67 @@
+# Golden dataset — intent classification judged by the binary LLM judge (RA-7014 slice 2).
+#
+# Pilot subject: swarm/intent_router.py — the CoS 6-intent classifier
+# (research | ticket | reply | reminder | flow | unknown). Its label output can't be
+# graded by == alone on ambiguous inputs, so a judge rates whether the assigned intent
+# is correct for the message. Each case pairs a message with an intent shown to the
+# judge, plus the EXPERT verdict (expected_pass) — the label the calibration step
+# (slice 3a) measures the judge against.
+#
+# Cases are drawn from skills/intent-parser/SKILL.md worked examples + deliberate
+# mislabels (expected_pass: false) so the judge is tested on both true and false.
+rubric: |
+  The candidate is a JSON object {message, assigned_intent}. The six valid intents are:
+  research (a question / lookup / deep-dive), ticket (file/track a bug or task),
+  reply (draft a response to someone), reminder (schedule a time-based nudge),
+  flow (run a multi-step automation), unknown (ambiguous / below confidence / PII-guarded).
+  PASS if assigned_intent is the single best fit for the message. FAIL if a different
+  intent clearly fits better, or the message is ambiguous but was not marked unknown.
+
+cases:
+  # correct classifications — judge should PASS
+  - message: "what's the latest on Hermes v0.13?"
+    assigned_intent: research
+    expected_pass: true
+  - message: "deep dive on UK SMB SaaS pricing 2026"
+    assigned_intent: research
+    expected_pass: true
+  - message: "file a Linear ticket for the auth bug in CARSI"
+    assigned_intent: ticket
+    expected_pass: true
+  - message: "open a P2 in Pi-Dev-Ops about the Telegram /panic gap"
+    assigned_intent: ticket
+    expected_pass: true
+  - message: "remind me Thursday morning to call the insurer"
+    assigned_intent: reminder
+    expected_pass: true
+  - message: "draft a reply to Toby thanking him for the CCW update"
+    assigned_intent: reply
+    expected_pass: true
+  - message: "run the weekly content pipeline for RestoreAssist"
+    assigned_intent: flow
+    expected_pass: true
+  - message: "asdkjh 4029 ~~ ??"
+    assigned_intent: unknown
+    expected_pass: true
+  # deliberate mislabels — judge should FAIL them
+  - message: "file a Linear ticket for the auth bug in CARSI"
+    assigned_intent: research
+    expected_pass: false
+  - message: "what's the latest on Hermes v0.13?"
+    assigned_intent: ticket
+    expected_pass: false
+  - message: "remind me Thursday morning to call the insurer"
+    assigned_intent: reply
+    expected_pass: false
+  - message: "draft a reply to Toby thanking him for the CCW update"
+    assigned_intent: reminder
+    expected_pass: false
+  - message: "run the weekly content pipeline for RestoreAssist"
+    assigned_intent: research
+    expected_pass: false
+  - message: "deep dive on UK SMB SaaS pricing 2026"
+    assigned_intent: flow
+    expected_pass: false
+  - message: "open a P2 in Pi-Dev-Ops about the Telegram /panic gap"
+    assigned_intent: reminder
+    expected_pass: false

@@ -33,7 +33,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r app/requirements.txt
-          pip install "pytest>=8" pyyaml
+          pip install "pytest>=8" pytest-asyncio pyyaml
 
       - name: Run Prove-It golden evals
         run: pytest evals/ -v --tb=short
