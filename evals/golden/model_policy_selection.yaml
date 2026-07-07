@@ -1,0 +1,26 @@
+# Golden dataset — model_policy.select_model + effort_for_role (Prove-It Gate, RA-7014).
+#
+# The model-selection gate is security- AND cost-critical: it enforces the Opus
+# allowlist (RA-1099 — opus reserved for planner/orchestrator) and the per-role
+# effort tier. A regression here silently widens Opus access (cost/security) or
+# mis-tiers effort. These are code-checkable deterministic assertions; no judge.
+# Ground-truthed 2026-07-08 against app/server/model_policy.py.
+selection:
+  # role -> resolved model + effort (no explicit request)
+  - {role: planner,       model: opus,   effort: high}
+  - {role: orchestrator,  model: opus,   effort: high}
+  - {role: generator,     model: sonnet, effort: medium}
+  - {role: evaluator,     model: sonnet, effort: high}
+  - {role: board,         model: sonnet, effort: medium}
+  - {role: monitor,       model: haiku,  effort: low}
+  - {role: margot.casual, model: sonnet, effort: medium}
+  # unmapped role must default to sonnet/medium — never opus (cost + security guard)
+  - {role: some_unmapped_role, model: sonnet, effort: medium}
+
+allowlist:
+  # (role, requested_model) -> granted model. The security-critical downshift.
+  - {role: generator,    requested: opus, granted: sonnet}   # not allowed → downshift
+  - {role: board,        requested: opus, granted: sonnet}   # not allowed → downshift
+  - {role: monitor,      requested: opus, granted: sonnet}   # not allowed → downshift
+  - {role: planner,      requested: opus, granted: opus}     # allowed → kept
+  - {role: orchestrator, requested: opus, granted: opus}     # allowed → kept
