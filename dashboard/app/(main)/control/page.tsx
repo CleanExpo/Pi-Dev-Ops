@@ -13,6 +13,7 @@ import LiveActivityFeed from "@/components/control/LiveActivityFeed";
 import CuratorProposalsPanel from "@/components/control/CuratorProposalsPanel";
 import MargotAssetsPanel from "@/components/control/MargotAssetsPanel";
 import SpecPipelinePanel from "@/components/control/SpecPipelinePanel";
+import TerminalPanel from "@/components/control/TerminalPanel";
 
 export default function ControlPage() {
   return (
@@ -80,6 +81,11 @@ export default function ControlPage() {
           {/* Panel 7 — Machine spec pipeline */}
           <div className="md:col-span-2">
             <SpecPipelinePanel />
+          </div>
+
+          {/* Panel 8 — RA-7012 Terminal fleet (live redacted tmux panes) */}
+          <div className="md:col-span-2">
+            <TerminalPanel />
           </div>
         </div>
       </div>
