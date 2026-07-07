@@ -1,8 +1,8 @@
 # dashboard — Wiki
 
-_Last updated: 2026-07-05T08:52:28Z (commits 64a6939..f99d458)_
+_Last updated: 2026-07-07T22:50:22Z (commits 0166cb3..13d4cd7)_
 
 ## Recent changes
-- f99d458 — fix(models): correct stale model IDs in seeds, deploy scaffolding, and haiku defaults (#515)
+- 13d4cd7 — feat(dashboard): TerminalPanel — live redacted tmux pane view (RA-7012) (#533)
 
 

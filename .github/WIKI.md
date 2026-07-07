@@ -1,8 +1,8 @@
 # .github — Wiki
 
-_Last updated: 2026-07-05T22:09:21Z (commits f2b9691..d27561d)_
+_Last updated: 2026-07-07T22:50:22Z (commits 0166cb3..13d4cd7)_
 
 ## Recent changes
-- d27561d — feat(canary): daily Fable-5 adversary-canary watch (endpoint + workflow) (#522)
+- 13d4cd7 — feat(dashboard): TerminalPanel — live redacted tmux pane view (RA-7012) (#533)
 
 
