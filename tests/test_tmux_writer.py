@@ -25,6 +25,10 @@ class _FakeSession:
     def __init__(self, name):
         self.name = name
         self.active_pane = _FakePane()
+        self.killed = False
+
+    def kill(self):
+        self.killed = True
 
 
 class _FakeServer:
@@ -119,3 +123,41 @@ def test_open_never_clobbers_existing_session(audit_dir):
     assert r["ok"] is False
     assert "already exists" in r["reason"]
     assert len(srv.sessions) == 1  # unchanged
+
+
+# ── close_session (slice 3 — L3 human-gated) ─────────────────────────────────
+def test_close_without_approval_is_blocked_never_kills(audit_dir):
+    """The load-bearing L3 invariant: no autonomous close, ever."""
+    srv = _FakeServer(names=("w1",))
+    r = tmux_writer.close_session("w1", server=srv, audit_dir=audit_dir)
+    assert r["ok"] is False
+    assert "human approval" in r["reason"]
+    assert srv.sessions[0].killed is False  # NOT killed
+
+
+def test_close_with_draft_routes_to_human_not_kill(audit_dir):
+    srv = _FakeServer(names=("w1",))
+    routed = {}
+
+    def _post_draft(*, draft_text, destination_chat_id, drafted_by_role):
+        routed["text"] = draft_text
+
+    r = tmux_writer.close_session("w1", server=srv, audit_dir=audit_dir, post_draft=_post_draft)
+    assert r["status"] == "pending-approval"
+    assert srv.sessions[0].killed is False  # routed, not killed
+    assert "Close tmux session 'w1'" in routed["text"]
+
+
+def test_close_with_approval_kills_and_audits(audit_dir):
+    srv = _FakeServer(names=("w1",))
+    r = tmux_writer.close_session("w1", approved=True, server=srv, audit_dir=audit_dir)
+    assert r["ok"] is True
+    assert srv.sessions[0].killed is True
+    assert any("closed" in row for row in _rows(audit_dir))
+
+
+def test_close_missing_session_refused(audit_dir):
+    srv = _FakeServer(names=("other",))
+    r = tmux_writer.close_session("w1", approved=True, server=srv, audit_dir=audit_dir)
+    assert r["ok"] is False
+    assert "not found" in r["reason"]

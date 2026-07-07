@@ -133,6 +133,62 @@ def open_session(
     return {"ok": True, "session": name, "audit_id": audit_id, "reason": "opened"}
 
 
+def close_session(
+    name: str,
+    *,
+    approved: bool = False,
+    post_draft=None,
+    audit_dir=None,
+    server=None,
+) -> dict:
+    """Kill a tmux session — **L3, human-gated. Never autonomous.** (RA-7012 slice 3)
+
+    `close`/`kill_session` is destructive and could kill another agent's in-flight
+    work, so no path here acts without an explicit human `approved=True`:
+      - not approved + `post_draft` → route the approval request to a human, return
+        `pending-approval` (does NOT kill).
+      - not approved + no draft → **blocked**.
+      - approved → validate name → audit(intent, fail-closed) → session.kill().
+    """
+    if not _SAFE_SESSION_NAME.match(name or ""):
+        _audit_safe(audit_dir, {"verb": "close", "session": name, "result": "refused",
+                                "reason": "unsafe session name", "ts": _now_iso()})
+        return {"ok": False, "reason": "unsafe session name"}
+
+    srv = server if server is not None else _get_server()
+    sess = next((s for s in srv.sessions if s.name == name), None)
+    if sess is None:
+        _audit_safe(audit_dir, {"verb": "close", "session": name, "result": "no-session",
+                                "ts": _now_iso()})
+        return {"ok": False, "reason": f"session {name!r} not found"}
+
+    # L3 GATE — no autonomous close, ever.
+    if not approved:
+        if post_draft is not None:
+            post_draft(draft_text=f"🛑 Close tmux session '{name}'? React 👍 to approve · ❌ to reject",
+                       destination_chat_id="", drafted_by_role="terminal-orchestrator")
+            _audit_safe(audit_dir, {"verb": "close", "session": name,
+                                    "result": "approval-requested", "ts": _now_iso()})
+            return {"ok": False, "status": "pending-approval",
+                    "reason": "close is L3 — routed to human approval"}
+        _audit_safe(audit_dir, {"verb": "close", "session": name, "result": "blocked",
+                                "reason": "L3 human approval required", "ts": _now_iso()})
+        return {"ok": False, "reason": "close is L3 — human approval required (approved=True)"}
+
+    # Approved by a human — audit the intent (fail-closed), then kill.
+    try:
+        audit_id = tmux_audit.append({"verb": "close", "session": name, "approved": True,
+                                      "result": "attempt", "ts": _now_iso()},
+                                     audit_dir=audit_dir)
+    except tmux_audit.AuditUnwritableError as exc:
+        return {"ok": False, "reason": f"audit unwritable — aborted before close: {exc}"}
+
+    sess.kill()
+    _audit_safe(audit_dir, {"verb": "close", "session": name, "result": "closed",
+                            "audit_id": audit_id, "ts": _now_iso()})
+    return {"ok": True, "session": name, "audit_id": audit_id, "reason": "closed"}
+
+
 def _audit_safe(audit_dir, event: dict) -> None:
     """Best-effort trailing audit (the intent row already made the action durable)."""
     try:
@@ -141,4 +197,4 @@ def _audit_safe(audit_dir, event: dict) -> None:
         pass
 
 
-__all__ = ["send", "open_session", "SEND_CEILING"]
+__all__ = ["send", "open_session", "close_session", "SEND_CEILING"]
