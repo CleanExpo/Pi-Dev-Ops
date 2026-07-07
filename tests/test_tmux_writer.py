@@ -31,6 +31,10 @@ class _FakeServer:
     def __init__(self, names=("w1",)):
         self.sessions = [_FakeSession(n) for n in names]
 
+    def new_session(self, session_name, attach=False):
+        self.sessions.append(_FakeSession(session_name))
+        return self.sessions[-1]
+
 
 @pytest.fixture
 def audit_dir(tmp_path) -> Path:
@@ -91,3 +95,27 @@ def test_level_ceiling_refuses_escalation(audit_dir):
     r = tmux_writer.send("w1", "", server=srv, audit_dir=audit_dir)
     assert r["ok"] is False
     assert srv.sessions[0].active_pane.sent == []
+
+
+# ── open_session (slice 2) ───────────────────────────────────────────────────
+def test_open_creates_new_session_and_audits(audit_dir):
+    srv = _FakeServer(names=())
+    r = tmux_writer.open_session("build1", server=srv, audit_dir=audit_dir)
+    assert r["ok"] is True
+    assert any(s.name == "build1" for s in srv.sessions)
+    assert any("opened" in row for row in _rows(audit_dir))
+
+
+def test_open_refuses_unsafe_name(audit_dir):
+    srv = _FakeServer(names=())
+    r = tmux_writer.open_session("bad;$(whoami)", server=srv, audit_dir=audit_dir)
+    assert r["ok"] is False
+    assert srv.sessions == []  # nothing created
+
+
+def test_open_never_clobbers_existing_session(audit_dir):
+    srv = _FakeServer(names=("w1",))
+    r = tmux_writer.open_session("w1", server=srv, audit_dir=audit_dir)
+    assert r["ok"] is False
+    assert "already exists" in r["reason"]
+    assert len(srv.sessions) == 1  # unchanged

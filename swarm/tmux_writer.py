@@ -13,9 +13,15 @@ Public surface: `send()`.
 """
 from __future__ import annotations
 
+import re
+
 from swarm import tmux_audit
 from swarm.tmux_observer import _get_server, _now_iso
 from swarm.tmux_validator import Level, redact_secrets, validate_command
+
+# A session name must be a safe identifier — no shell metacharacters, path
+# separators, or tmux-target punctuation that could redirect the operation.
+_SAFE_SESSION_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
 
 # Autonomy ceiling for a plain send. A command whose validator `level_required`
 # exceeds this is refused (escalation is the caller's decision, not the writer's).
@@ -85,6 +91,48 @@ def send(
     return {"ok": True, "reason": "sent", "audit_id": audit_id}
 
 
+def open_session(
+    name: str,
+    *,
+    level: Level = SEND_CEILING,
+    server=None,
+    audit_dir=None,
+) -> dict:
+    """Create a new tmux session `name`, gated + audited. Fail-closed. L2.
+
+    Refuses an unsafe name, a name that fails the command validator, or a name
+    that already exists (never clobbers a live session). Returns {ok, session,
+    audit_id?, reason}.
+    """
+    # (1) NAME GATE — a session name is an identifier, not a shell command, so the
+    # safe-identifier regex is the correct gate here (validate_command is for the
+    # command strings that `send` carries, not for names).
+    if not _SAFE_SESSION_NAME.match(name or ""):
+        _audit_safe(audit_dir, {"verb": "open", "session": name, "result": "refused",
+                                "reason": "unsafe session name", "ts": _now_iso()})
+        return {"ok": False, "reason": "unsafe session name"}
+
+    srv = server if server is not None else _get_server()
+    if any(s.name == name for s in srv.sessions):
+        _audit_safe(audit_dir, {"verb": "open", "session": name, "result": "exists",
+                                "ts": _now_iso()})
+        return {"ok": False, "reason": f"session {name!r} already exists"}
+
+    # (2) AUDIT THE INTENT — fail-closed.
+    try:
+        audit_id = tmux_audit.append({"verb": "open", "session": name, "level": level,
+                                      "result": "attempt", "ts": _now_iso()},
+                                     audit_dir=audit_dir)
+    except tmux_audit.AuditUnwritableError as exc:
+        return {"ok": False, "reason": f"audit unwritable — aborted before open: {exc}"}
+
+    # (3) ACT.
+    srv.new_session(session_name=name, attach=False)
+    _audit_safe(audit_dir, {"verb": "open", "session": name, "result": "opened",
+                            "audit_id": audit_id, "ts": _now_iso()})
+    return {"ok": True, "session": name, "audit_id": audit_id, "reason": "opened"}
+
+
 def _audit_safe(audit_dir, event: dict) -> None:
     """Best-effort trailing audit (the intent row already made the action durable)."""
     try:
@@ -93,4 +141,4 @@ def _audit_safe(audit_dir, event: dict) -> None:
         pass
 
 
-__all__ = ["send", "SEND_CEILING"]
+__all__ = ["send", "open_session", "SEND_CEILING"]
