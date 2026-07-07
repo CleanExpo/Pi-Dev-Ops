@@ -1,7 +1,7 @@
 # Experiment: feedback_loop classifier eval harness (2026-07-01)
 
-**Status:** Harness + golden set shipped and unit-tested. Live baseline number pending
-a run against the cheap tier (Ollama / OpenRouter) — see "Running the baseline".
+**Status:** Harness + golden set shipped and unit-tested. **Baseline measured 2026-07-08**
+— see "Baseline result" below.
 
 ## Why this exists
 
@@ -59,9 +59,27 @@ Record the printed accuracy here as the **baseline** once run against the live t
 DSPy-optimized prompt or Langfuse experiment is only worth adopting if it beats this
 number on the same set (per ADR-006's "ship only on measured lift").
 
+## Baseline result (measured 2026-07-08)
+
+```
+dataset=docs/experiments/2026-07-01-feedback-loop-eval/dataset.jsonl
+n=36  accuracy=0.944  abstentions=0
+  negative  n=12  acc=1.000
+  neutral   n=12  acc=0.917
+  positive  n=12  acc=0.917
+```
+
+- **Provider:** OpenRouter `google/gemma-4-26b-a4b-it` (cheap tier; Ollama not running,
+  fell through to OpenRouter as designed). Total eval cost ≈ $0.001 for 36 calls.
+- **Reading:** 34/36 correct; the two misses are one `neutral` and one `positive` case.
+  This is the number DSPy or Langfuse must beat on the same set — at 94.4% there is
+  little headroom, which strengthens the ADR-006 Contrarian's case that the plain
+  CSV harness may be enough.
+
 ## Next
 
-1. Run the baseline against the cheap tier; record the number in this README.
+1. ~~Run the baseline against the cheap tier; record the number in this README.~~ Done
+   2026-07-08 (above).
 2. DSPy PoV: swap `_PATTERN_PROMPT` for a DSPy `Signature`/`Predict`, compile against a
    train split of this set using `category_agreement` as the metric, evaluate on a held-out
    split, compare to baseline. Keep compile OFF Opus; respect `TAO_MAX_COST_USD` by wiring a
