@@ -535,6 +535,28 @@
       "auth": true,
       "expected_status": 401,
       "_comment": "RA-1099 Wave-3: Fable adversary-canary amplification summary; require_auth so unauth=401. Daily watch via .github/workflows/fable_canary_check.yml."
+    },
+    {
+      "name": "proxy-terminal-sessions",
+      "path": "/api/pi-ceo/api/terminal/sessions",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "sessions"
+      ],
+      "_comment": "RA-7012: Terminal Orchestrator read API. Returns {sessions:[...]} or {sessions:[],error} if no tmux on the deploy \u2014 the sessions key is always present so the smoke holds."
+    },
+    {
+      "name": "proxy-terminal-tail",
+      "path": "/api/pi-ceo/api/terminal/tail?session=smoke",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "lines"
+      ],
+      "_comment": "RA-7012: redacted pane tail; returns {session,lines:[],error} when the session is absent on the deploy \u2014 lines key always present."
     }
   ],
   "vertical": {
