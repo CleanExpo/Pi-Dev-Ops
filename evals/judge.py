@@ -47,6 +47,28 @@ def parse_verdict(raw: str) -> bool:
     return bool(m) and m.group(1).upper() == "PASS"
 
 
+def judge_binary_cli(candidate: str, rubric: str, *, model: str = "sonnet") -> Verdict:
+    """Binary judge via the `claude -p` CLI (uses the ambient Claude Code auth).
+
+    A headless path that needs neither an API key nor claude_agent_sdk — used by the
+    calibration runner to measure real judge↔expert agreement in environments where
+    only the CLI is authenticated. Fail-closed on any non-zero exit / parse miss.
+    """
+    import subprocess  # noqa: PLC0415
+
+    prompt = build_prompt(candidate, rubric)
+    try:
+        proc = subprocess.run(
+            ["claude", "-p", prompt, "--model", model],
+            capture_output=True, text=True, timeout=120,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return Verdict(passed=False, raw=f"judge-error: cli {exc}")
+    if proc.returncode != 0:
+        return Verdict(passed=False, raw=f"judge-error: cli exit {proc.returncode}: {proc.stderr[:160]}")
+    return Verdict(passed=parse_verdict(proc.stdout), raw=proc.stdout.strip())
+
+
 async def judge_binary(candidate: str, rubric: str, *, session_id: str = "prove-it") -> Verdict:
     """Run the binary judge via provider_router role 'evaluator' (claude-sonnet-5).
 

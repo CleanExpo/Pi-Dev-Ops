@@ -20,12 +20,12 @@ from pathlib import Path
 import yaml
 
 from evals.calibration import CalibrationCase, compute_calibration, format_report
-from evals.judge import judge_binary
+from evals.judge import judge_binary, judge_binary_cli
 
 _SET = Path(__file__).parent / "golden" / "intent_calibration.yaml"
 
 
-async def _run(runs: int) -> int:
+async def _run(runs: int, backend: str) -> int:
     data = yaml.safe_load(_SET.read_text())
     rubric, raw_cases = data["rubric"], data["cases"]
 
@@ -34,7 +34,10 @@ async def _run(runs: int) -> int:
         candidate = f'{{"message": {c["message"]!r}, "assigned_intent": {c["assigned_intent"]!r}}}'
         votes: list[bool] = []
         for _ in range(runs):
-            v = await judge_binary(candidate, rubric)
+            if backend == "cli":
+                v = judge_binary_cli(candidate, rubric)
+            else:
+                v = await judge_binary(candidate, rubric)
             if v.raw.startswith("judge-error"):
                 print(f"ABORT — judge not runnable: {v.raw}", file=sys.stderr)
                 return 2  # no model path; measure nothing rather than fake a number
@@ -49,8 +52,10 @@ async def _run(runs: int) -> int:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", type=int, default=3, help="judge runs per case (variance signal)")
+    ap.add_argument("--backend", choices=["sdk", "cli"], default="sdk",
+                    help="cli = `claude -p` (ambient auth, no token/SDK needed)")
     args = ap.parse_args()
-    raise SystemExit(asyncio.run(_run(args.runs)))
+    raise SystemExit(asyncio.run(_run(args.runs, args.backend)))
 
 
 if __name__ == "__main__":
