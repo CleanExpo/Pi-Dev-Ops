@@ -1,0 +1,39 @@
+name: Prove-It Evals
+
+# RA-7014 slice 1 — the Prove-It Gate, running NON-BLOCKING during bring-up.
+# It reports golden-dataset eval results but does not block merges yet. It is
+# flipped to a blocking gate (removing continue-on-error) only after the judged +
+# calibrated slices land and the judge clears the <20% expert-disagreement bar.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  evals:
+    name: Golden-dataset evals (non-blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true # NON-BLOCKING — see header. Remove to make blocking.
+
+    env:
+      TAO_CHEAP_PROVIDER: openrouter # skip the ollama probe → deterministic cheap-tier
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r app/requirements.txt
+          pip install "pytest>=8" pyyaml
+
+      - name: Run Prove-It golden evals
+        run: pytest evals/ -v --tb=short

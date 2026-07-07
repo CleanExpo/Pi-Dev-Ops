@@ -1,0 +1,72 @@
+# Golden dataset — provider_router role→tier routing (Prove-It Gate, RA-7014 slice 1)
+# Each case is a code-checkable expectation of select_provider_model(role).
+# Captures CURRENT behaviour as a regression baseline; when Cap 1 (RA-7010) extends
+# the router with the Fable-Free ladder, update these expectations in the same PR.
+# Ground-truthed 2026-07-08 against app/server/provider_router.py.
+cases:
+  # TOP tier — Anthropic Opus 4.8 (quality-critical reasoning)
+  - role: planner
+    tier: top
+    provider: anthropic
+    model_id: claude-opus-4-8
+  - role: orchestrator
+    tier: top
+    provider: anthropic
+    model_id: claude-opus-4-8
+  - role: board
+    tier: top
+    provider: anthropic
+    model_id: claude-opus-4-8
+  - role: debate.drafter
+    tier: top
+    provider: anthropic
+    model_id: claude-opus-4-8
+  - role: margot.synthesis
+    tier: top
+    provider: anthropic
+    model_id: claude-opus-4-8
+  - role: realtime_lookup
+    tier: top
+    provider: anthropic
+    model_id: claude-opus-4-8
+  # MID tier — Anthropic Sonnet 5 (production-quality output)
+  - role: generator
+    tier: mid
+    provider: anthropic
+    model_id: claude-sonnet-5
+  - role: evaluator
+    tier: mid
+    provider: anthropic
+    model_id: claude-sonnet-5
+  - role: senior_brief
+    tier: mid
+    provider: anthropic
+    model_id: claude-sonnet-5
+  - role: research
+    tier: mid
+    provider: anthropic
+    model_id: claude-sonnet-5
+  # MID by DEFAULT — an unmapped role must fall through to mid, never top (cost guard)
+  - role: some_unmapped_role_xyz
+    tier: mid
+    provider: anthropic
+    model_id: claude-sonnet-5
+  # CHEAP tier — never Anthropic (provider varies ollama/openrouter by probe; assert not-anthropic)
+  - role: margot.casual
+    tier: cheap
+    not_anthropic: true
+  - role: intent_classify
+    tier: cheap
+    not_anthropic: true
+  - role: monitor
+    tier: cheap
+    not_anthropic: true
+  - role: guardian
+    tier: cheap
+    not_anthropic: true
+  - role: scribe.draft
+    tier: cheap
+    not_anthropic: true
+  - role: sprinkle.triage
+    tier: cheap
+    not_anthropic: true
