@@ -6,6 +6,23 @@ a worked example. The governing rule for everything here: **the baseline you mus
 Fable-5 answer with the FABLE_PLAYBOOK already in context.** If opening a gate wouldn't change
 the answer, don't open it.
 
+## Gate skills — check out on demand, never preload
+
+nexus is the puller. These specialised skills are **not** loaded into context by default — they sit
+out-of-context in the Library and nexus checks each one out (via the Skill tool) **only when its gate
+opens**, then lets it fall out of context again. Never preload them "just in case" — that is the
+context-bloat the Library exists to prevent. When-to-pull:
+
+| Gate skill | nexus pulls it when… | At gate |
+|---|---|---|
+| `nexus-recall` | the goal could turn on prior estate context (a question, a plan, "have we decided X") — i.e. almost always | G2 (frame & mine), before any external research |
+| `nexus-copywriter` | the deliverable includes client-/public-facing words (copy, post, email, script, thought-leadership) | G7 (deliver), before the words ship — then `brand-guardian` |
+| any G4 specialist | a stated need in the routing menu demands it (default fan-out zero) | G4 |
+
+Rule: pull the fewest, only when the gate earns them. A small/well-specified goal (G1) may pull none
+except `nexus-recall`. Do not restate a pulled skill's body into the answer — consume its output
+contract, then let it check back in.
+
 ## G1 — Appetite classifier
 One cheap read, no tools. Score the goal on two axes and route:
 
@@ -56,9 +73,16 @@ regardless of how narrow the stated scope sounds. Add a row to the G1 table ment
   touching real code. Unknown Knowns in visual design surface cheaply in prototypes and
   expensively mid-implementation.
 
+**Deterministic wiki-mine (always, before reaching outward)**: run `nexus-recall` as the G2 mine
+step — `node "$HOME/2nd Brain/2nd Brain/_system/brain.js" find "<goal>"`. It scores every estate
+index (vault OKF + MEMORY.md + skills index), opens the single best section, and grounds the frame in
+it before any external research. On a miss: Grep the vault, then add the missing index line
+(self-heal). This is the cheap-first, context-lean pass Fable's effort discipline demands — external
+research (G3) only fires on a genuine recall gap.
+
 **Completing G2**: dominant quadrant named, appropriate technique run or skipped with a
-one-line reason, goal restated as an outcome (not the founder's words), existing
-repo/wiki/memory context mined.
+one-line reason, goal restated as an outcome (not the founder's words), `nexus-recall` run and its
+grounding cited (or a clean miss recorded + index repaired), existing repo/memory context mined.
 
 ## G4 — Specialist routing menu (a menu, never a quota)
 Deploy the *fewest* specialists that cover the goal's real breadth. Default fan-out is zero;
