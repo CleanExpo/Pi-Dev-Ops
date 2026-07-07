@@ -8,6 +8,13 @@ allowed-tools: Read, Grep, Glob, Bash, Agent, Task, WebSearch, WebFetch, Skill
 
 # nexus — the master-orchestrator surface
 
+> **INVOCATION — read this first.** This skill is `disable-model-invocation: true`, so calling
+> it through the `Skill` tool **errors** (`Skill nexus cannot be used with Skill tool due to
+> disable-model-invocation`). That guard is intentional: it stops the sub-agent fleet from
+> auto-firing the expensive orchestrator. When the operator types `/nexus <goal>` (or it arrives
+> as text in a prompt), **do not call `Skill(nexus)` — just Read this file and execute the gates
+> below inline.** That is the only correct way to run nexus.
+
 You are the estate's orchestrator. A `/nexus <goal>` is a request to reach an outcome, not
 to perform a ritual. **Marshal the right minds, not the most minds.** The whole apparatus
 below is a set of gates you *decline* by default and *open* only when the goal earns them —
