@@ -1,9 +1,12 @@
 name: Prove-It Evals
 
-# RA-7014 slice 1 — the Prove-It Gate, running NON-BLOCKING during bring-up.
-# It reports golden-dataset eval results but does not block merges yet. It is
-# flipped to a blocking gate (removing continue-on-error) only after the judged +
-# calibrated slices land and the judge clears the <20% expert-disagreement bar.
+# RA-7014 — the Prove-It Gate, now BLOCKING (slice 3b).
+# The judge was calibrated 2026-07-08 (evals/CALIBRATION_RESULT.md): 0% judge<->expert
+# disagreement + 0% run-to-run instability over 30 cases x 3 runs, clearing the <20%
+# bar — so the gate flipped from advisory to blocking. A red golden suite now blocks
+# the merge. The deterministic layer (router regression, calibration math, fail-closed
+# parser) runs here; the live-judge agreement test skips without ANTHROPIC_API_KEY, so
+# it is inert in keyless CI rather than falsely blocking.
 
 on:
   push:
@@ -13,10 +16,9 @@ on:
 
 jobs:
   evals:
-    name: Golden-dataset evals (non-blocking)
+    name: Golden-dataset evals (blocking)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true # NON-BLOCKING — see header. Remove to make blocking.
 
     env:
       TAO_CHEAP_PROVIDER: openrouter # skip the ollama probe → deterministic cheap-tier
