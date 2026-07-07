@@ -1,8 +1,8 @@
 # skills — Wiki
 
-_Last updated: 2026-07-05T11:21:00Z (commits c2b5c53..23351b5)_
+_Last updated: 2026-07-06T08:33:27Z (commits ffa1ecd..8be9070)_
 
 ## Recent changes
-- 23351b5 — feat(nexus): master-orchestrator upgrade (/nexus Prime) (#519)
+- 8be9070 — nexus: add second-brain-adopt to G4 specialist routing menu; commit stranded G2 unknowns-quadrant upgrade
 
 
