@@ -322,3 +322,36 @@ ALTER TABLE llm_costs ENABLE ROW LEVEL SECURITY;
 -- surface reads cost data (budget_tracker aggregates from the JSONL, not here).
 DROP POLICY IF EXISTS "service_only" ON llm_costs;
 CREATE POLICY "service_only" ON llm_costs FOR ALL TO service_role USING (true);
+
+-- ── RA-1905: margot_conversations ─────────────────────────────────────────────
+-- Durable Margot conversation memory (survives Railway redeploys). Written by
+-- supabase_log.insert_margot_conversation(); read on rehydrate via
+-- select_margot_conversations(). JSONL under .harness/margot/ stays as the hot
+-- local cache; this table is the source of truth.
+-- (A standalone copy exists in supabase/migrations/20260503_margot_conversations.sql
+-- and was applied manually at RA-1905 time — appended here so the canonical file
+-- run in the SQL Editor is complete. Idempotent; re-running is a no-op.)
+CREATE TABLE IF NOT EXISTS margot_conversations (
+  turn_id           TEXT         PRIMARY KEY,
+  chat_id           TEXT         NOT NULL,
+  tenant_id         TEXT         NOT NULL DEFAULT 'pi-ceo',
+  user_text         TEXT,
+  margot_text       TEXT,
+  user_message_id   TEXT,
+  board_session_ids JSONB        DEFAULT '[]'::jsonb,
+  research_called   BOOLEAN      DEFAULT false,
+  cost_usd          FLOAT8       DEFAULT 0.0,
+  started_at        TIMESTAMPTZ,
+  ended_at          TIMESTAMPTZ,
+  error             TEXT,
+  created_at        TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS margot_conversations_chat_started_idx
+  ON margot_conversations (tenant_id, chat_id, started_at DESC);
+
+ALTER TABLE margot_conversations ENABLE ROW LEVEL SECURITY;
+-- Service role only — both the writer and the rehydrate reader run on the
+-- service-role backend; no anon surface touches conversation memory.
+DROP POLICY IF EXISTS "service_only" ON margot_conversations;
+CREATE POLICY "service_only" ON margot_conversations FOR ALL TO service_role USING (true);
