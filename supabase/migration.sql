@@ -154,6 +154,13 @@ CREATE POLICY "service_insert" ON gate_checks FOR INSERT TO service_role WITH CH
 -- RA-672: ZTE v2 timing columns — trigger-to-deploy measurement (C3)
 ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS session_started_at TIMESTAMPTZ;
 ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS push_timestamp TIMESTAMPTZ;
+
+-- RA-674/RA-676: evaluator confidence + scope-contract columns — the writer
+-- (supabase_log.log_gate_check) has sent these since 2026-04 but the DDL was
+-- never added, so any insert including them 400'd and the row was lost.
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS confidence FLOAT8;
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS scope_adhered BOOLEAN;
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS files_modified INTEGER;
 CREATE INDEX IF NOT EXISTS gate_checks_push_ts_idx ON gate_checks (push_timestamp DESC) WHERE push_timestamp IS NOT NULL;
 
 -- RA-674: evaluator confidence score (0–100%) per gate_check
