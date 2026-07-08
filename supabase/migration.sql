@@ -384,3 +384,19 @@ ALTER TABLE eval_candidates ENABLE ROW LEVEL SECURITY;
 -- Service role only — prod writer and founder CLI both use the service key.
 DROP POLICY IF EXISTS "service_only" ON eval_candidates;
 CREATE POLICY "service_only" ON eval_candidates FOR ALL TO service_role USING (true);
+
+-- ── margot_research_queue ─────────────────────────────────────────────────────
+-- Planned in the 2026-05-14 agency-bot-pilot; the pilot source
+-- (swarm/pilot/sources/margot_source.py) polls it but the table was never
+-- created, producing steady PostgREST 404s. Consumer contract:
+-- select id,topic,status,vertical where status=eq.pending.
+CREATE TABLE IF NOT EXISTS margot_research_queue (
+  id         BIGSERIAL    PRIMARY KEY,
+  topic      TEXT         NOT NULL,
+  vertical   TEXT,
+  status     TEXT         NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+ALTER TABLE margot_research_queue ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "service_only" ON margot_research_queue;
+CREATE POLICY "service_only" ON margot_research_queue FOR ALL TO service_role USING (true);

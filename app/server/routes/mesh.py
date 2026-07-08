@@ -120,8 +120,13 @@ async def heartbeat(
         {"state": "idle"}, prefer="return=minimal")
     for a in hb.agents:
         row = {"machine": hb.host, "runtime": a.runtime, "session_id": a.session_id or a.runtime,
-               "repo": a.repo, "branch": a.branch, "current_task": a.current_task, "state": a.state}
-        _sb("POST", "mesh_agents", row,
+               "repo": a.repo, "branch": a.branch, "current_task": a.current_task, "state": a.state,
+               "updated_at": datetime.now(timezone.utc).isoformat()}
+        # on_conflict targets the (machine, runtime, session_id) UNIQUE constraint —
+        # merge-duplicates alone resolves only against the uuid PK, so every repeat
+        # heartbeat 409'd instead of upserting. updated_at is stamped explicitly for
+        # the same reason last_seen is above: column defaults only fire on INSERT.
+        _sb("POST", "mesh_agents?on_conflict=machine,runtime,session_id", row,
             prefer="resolution=merge-duplicates,return=minimal")
     return {"ok": True, "host": hb.host, "agents": len(hb.agents)}
 
