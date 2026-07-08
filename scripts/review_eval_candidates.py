@@ -26,10 +26,10 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.server.agents.feedback_loop import (  # noqa: E402
-    _NEGATIVE_KEYWORDS,
-    _POSITIVE_KEYWORDS,
-)
+# NOTE: app.server.agents.feedback_loop is imported lazily inside keyword_tier().
+# Importing it at module level pulls app.server.config, which loads .env.local
+# into os.environ — when this module is imported by tests, that pollutes pytest
+# collection and un-skips evals/test_intent_judge's keyless guard.
 
 GOLDEN_PATH = Path(__file__).resolve().parents[1] / "evals" / "golden" / "feedback_loop.yaml"
 LOCAL_QUEUE = Path(".harness/eval-candidates/candidates.jsonl")
@@ -40,6 +40,11 @@ def keyword_tier(paraphrase: str, label: str) -> str:
     """'keyword' only when the frozen keyword classifier is decidable AND agrees
     with the founder label — otherwise 'llm', so a promotion can never land a
     case that immediately fails the blocking CI suite."""
+    from app.server.agents.feedback_loop import (  # noqa: PLC0415 — see NOTE above
+        _NEGATIVE_KEYWORDS,
+        _POSITIVE_KEYWORDS,
+    )
+
     has_neg = any(kw in paraphrase for kw in _NEGATIVE_KEYWORDS)
     has_pos = any(kw in paraphrase for kw in _POSITIVE_KEYWORDS)
     verdict = "negative" if has_neg else ("positive" if has_pos else "neutral")
