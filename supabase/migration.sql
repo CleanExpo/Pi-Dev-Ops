@@ -294,3 +294,31 @@ ALTER TABLE notebooklm_health ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_read"    ON notebooklm_health FOR SELECT USING (true);
 DROP POLICY IF EXISTS "service_insert" ON notebooklm_health;
 CREATE POLICY "service_insert" ON notebooklm_health FOR INSERT TO service_role WITH CHECK (true);
+
+-- ── RA-1909: llm_costs ────────────────────────────────────────────────────────
+-- Per-call LLM cost telemetry. Written by swarm/budget_tracker.py record_cost()
+-- via supabase_log._insert("llm_costs", row) on every cheap-tier LLM call.
+-- Mirrors the local JSONL log (.harness/llm-cost.jsonl); survives Railway
+-- redeploys. Columns map 1:1 to the record_cost row schema.
+-- (A standalone copy exists in supabase/migrations/20260503_llm_costs.sql but
+-- was never applied — this canonical file is the one run in the SQL Editor.)
+CREATE TABLE IF NOT EXISTS llm_costs (
+  id         BIGSERIAL      PRIMARY KEY,
+  ts         TIMESTAMPTZ    NOT NULL DEFAULT now(),
+  tenant_id  TEXT           NOT NULL DEFAULT 'pi-ceo',
+  provider   TEXT           NOT NULL,
+  role       TEXT,
+  model      TEXT,
+  cost_usd   NUMERIC(10,6)  NOT NULL,
+  tokens_in  INTEGER,
+  tokens_out INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS llm_costs_ts_idx     ON llm_costs (ts DESC);
+CREATE INDEX IF NOT EXISTS llm_costs_tenant_idx ON llm_costs (tenant_id, ts DESC);
+
+ALTER TABLE llm_costs ENABLE ROW LEVEL SECURITY;
+-- Service role only — the sole writer is the service-role backend and no anon
+-- surface reads cost data (budget_tracker aggregates from the JSONL, not here).
+DROP POLICY IF EXISTS "service_only" ON llm_costs;
+CREATE POLICY "service_only" ON llm_costs FOR ALL TO service_role USING (true);
