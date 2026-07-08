@@ -355,3 +355,32 @@ ALTER TABLE margot_conversations ENABLE ROW LEVEL SECURITY;
 -- service-role backend; no anon surface touches conversation memory.
 DROP POLICY IF EXISTS "service_only" ON margot_conversations;
 CREATE POLICY "service_only" ON margot_conversations FOR ALL TO service_role USING (true);
+
+-- ── RA-7014 slice 4: eval_candidates ──────────────────────────────────────────
+-- Online-eval capture queue (spec: docs/specs/spec-cap5-slice4-online-eval.md).
+-- Written fire-and-forget by app/server/agents/eval_capture.py when
+-- TAO_EVAL_SAMPLING=1; read by scripts/review_eval_candidates.py on the founder's
+-- machine. Redacted-only at rest; rows are promoted into evals/golden/ as
+-- human-approved SYNTHETIC paraphrases only — client-derived text never enters git.
+CREATE TABLE IF NOT EXISTS eval_candidates (
+  id                 BIGSERIAL    PRIMARY KEY,
+  captured_at        TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  pipeline_id        TEXT,
+  thread_redacted    TEXT         NOT NULL,
+  state              TEXT,
+  days_since         INTEGER,
+  predicted_category TEXT,
+  predicted_label    TEXT,
+  confidence         FLOAT8,
+  provider           TEXT,
+  model              TEXT,
+  status             TEXT         NOT NULL DEFAULT 'pending'
+);
+
+CREATE INDEX IF NOT EXISTS eval_candidates_status_idx
+  ON eval_candidates (status, captured_at ASC);
+
+ALTER TABLE eval_candidates ENABLE ROW LEVEL SECURITY;
+-- Service role only — prod writer and founder CLI both use the service key.
+DROP POLICY IF EXISTS "service_only" ON eval_candidates;
+CREATE POLICY "service_only" ON eval_candidates FOR ALL TO service_role USING (true);

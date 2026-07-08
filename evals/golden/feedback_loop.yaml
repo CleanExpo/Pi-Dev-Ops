@@ -1,0 +1,25 @@
+# Prove-It golden suite — feedback_loop outcome classifier (RA-7014 slice 4).
+#
+# Grown ONLY via scripts/review_eval_candidates.py — every case is a
+# HUMAN-ACCEPTED synthetic paraphrase; client-derived text never enters this
+# file (grill NO-GO, Grills/08b-prove-it-gate-online-eval.md).
+#
+# tier: keyword → asserted deterministically against _detect_signal (CI-safe)
+# tier: llm     → schema-validated only in keyless CI
+cases:
+- id: seed-positive-deploy
+  tier: keyword
+  comments:
+  - deployed to production this morning and the client confirmed the csv export works
+    end to end
+  state: Done
+  days_since: 5
+  expected: positive
+- id: seed-negative-rollback
+  tier: keyword
+  comments:
+  - rollback executed after the regression in the invoice sync, client complaint logged
+    with support
+  state: Done
+  days_since: 9
+  expected: negative

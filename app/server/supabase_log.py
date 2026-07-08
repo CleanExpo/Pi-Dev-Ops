@@ -439,6 +439,25 @@ def insert_margot_conversation(row: dict[str, Any]) -> bool:
     return _insert("margot_conversations", row)
 
 
+# ── RA-7014 slice 4: eval_candidates — online-eval capture queue ──────────────
+
+def insert_eval_candidate(row: dict[str, Any]) -> bool:
+    """Fire-and-forget insert of a redacted classifier call. Spec:
+    docs/specs/spec-cap5-slice4-online-eval.md. Returns False when Supabase is
+    unconfigured or the insert fails — caller falls back to the local JSONL."""
+    return _insert("eval_candidates", row)
+
+
+def select_eval_candidates(status: str = "pending", limit: int = 50) -> list[dict[str, Any]]:
+    """Fetch capture-queue rows for the founder promotion CLI."""
+    return _select("eval_candidates", f"status=eq.{status}&order=captured_at.asc&limit={limit}")
+
+
+def update_eval_candidate_status(candidate_id: int, status: str) -> bool:
+    """Mark a candidate promoted/rejected after founder review."""
+    return _patch("eval_candidates", f"id=eq.{candidate_id}", {"status": status})
+
+
 def select_margot_conversations(
     *,
     chat_id: str,

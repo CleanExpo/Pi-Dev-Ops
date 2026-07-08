@@ -171,6 +171,15 @@ def _classify_with_claude(
             "provider": pm.provider, "model": pm.model_id,
             **out,
         })
+        try:
+            from app.server.agents.eval_capture import maybe_capture_candidate  # noqa: PLC0415
+            maybe_capture_candidate(
+                comments=comments, state=state, days_since=days_since,
+                pipeline_id=pipeline_id, predicted=out,
+                provider=pm.provider, model=pm.model_id,
+            )
+        except Exception:  # noqa: BLE001 — capture must never affect classification
+            pass
         return out
 
     _log_sprinkle_event({
