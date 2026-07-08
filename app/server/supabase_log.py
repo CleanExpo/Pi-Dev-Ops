@@ -439,6 +439,50 @@ def insert_margot_conversation(row: dict[str, Any]) -> bool:
     return _insert("margot_conversations", row)
 
 
+def _patch(table: str, params: str, row: dict[str, Any]) -> bool:
+    url, key = _cfg()
+    if not url or not key:
+        return False
+    payload = json.dumps(row).encode()
+    req = urllib.request.Request(
+        f"{url}/rest/v1/{table}?{params}",
+        data=payload,
+        method="PATCH",
+        headers={
+            "Content-Type": "application/json",
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+            "Prefer": "return=minimal",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            resp.read()
+        return True
+    except Exception as exc:
+        log.warning("Supabase patch %s failed (non-fatal): %s", table, exc)
+        return False
+
+
+# ── RA-7014 slice 4: eval_candidates — online-eval capture queue ──────────────
+
+def insert_eval_candidate(row: dict[str, Any]) -> bool:
+    """Fire-and-forget insert of a redacted classifier call. Spec:
+    docs/specs/spec-cap5-slice4-online-eval.md. Returns False when Supabase is
+    unconfigured or the insert fails — caller falls back to the local JSONL."""
+    return _insert("eval_candidates", row)
+
+
+def select_eval_candidates(status: str = "pending", limit: int = 50) -> list[dict[str, Any]]:
+    """Fetch capture-queue rows for the founder promotion CLI."""
+    return _select("eval_candidates", f"status=eq.{status}&order=captured_at.asc&limit={limit}")
+
+
+def update_eval_candidate_status(candidate_id: int, status: str) -> bool:
+    """Mark a candidate promoted/rejected after founder review."""
+    return _patch("eval_candidates", f"id=eq.{candidate_id}", {"status": status})
+
+
 def select_margot_conversations(
     *,
     chat_id: str,
