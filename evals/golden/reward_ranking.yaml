@@ -1,0 +1,37 @@
+# Golden dataset — tao_reward correctness-first reward + select_best (Prove-It Gate, RA-7020).
+#
+# Encodes the AlphaDev reward discipline: correctness is a hard gate, cost ranks.
+# The load-bearing invariant is that a correct candidate ALWAYS outranks an
+# incorrect one — these deterministic cases pin both the scalar reward and the
+# lexicographic selection. No LLM judge. Ground-truthed 2026-07-08 against
+# app/server/tao_reward.py (alpha=1.0, beta=0.5).
+
+# (correct, cost) -> expected scalar reward, at defaults alpha=1.0 beta=0.5.
+reward:
+  - {correct: false, cost: 0.0, expected: 0.0}    # incorrect always scores 0
+  - {correct: false, cost: 1.0, expected: 0.0}    # cost is irrelevant when incorrect
+  - {correct: true,  cost: 0.0, expected: 1.0}    # correct + free = full reward
+  - {correct: true,  cost: 1.0, expected: 0.5}    # correct + max cost = alpha - beta
+  - {correct: true,  cost: 0.5, expected: 0.75}   # monotonic decreasing in cost
+
+# cost outside [0,1] or alpha<=beta must raise — the invariant guard.
+invalid:
+  - {correct: true,  cost: 1.5, alpha: 1.0, beta: 0.5}   # cost out of range
+  - {correct: true,  cost: -0.1, alpha: 1.0, beta: 0.5}  # cost out of range
+  - {correct: true,  cost: 0.5, alpha: 0.5, beta: 0.5}   # alpha not > beta
+  - {correct: true,  cost: 0.5, alpha: 0.4, beta: 0.5}   # alpha < beta
+
+# select_best: list of {id, correct, cost} -> id of the chosen candidate.
+selection:
+  # correct beats incorrect even when the incorrect one is cheaper
+  - candidates: [{id: a, correct: false, cost: 0.0}, {id: b, correct: true, cost: 0.9}]
+    winner: b
+  # among correct, lowest cost wins
+  - candidates: [{id: a, correct: true, cost: 0.8}, {id: b, correct: true, cost: 0.2}, {id: c, correct: true, cost: 0.5}]
+    winner: b
+  # among all-incorrect, lowest cost wins (still a deterministic choice)
+  - candidates: [{id: a, correct: false, cost: 0.7}, {id: b, correct: false, cost: 0.3}]
+    winner: b
+  # single candidate
+  - candidates: [{id: solo, correct: true, cost: 1.0}]
+    winner: solo
