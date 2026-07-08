@@ -79,6 +79,28 @@ def test_run_eval_counts_abstentions():
     assert r.accuracy == 0.0
 
 
+def test_stratified_split_deterministic_and_disjoint():
+    cases = [
+        fe.EvalCase(f"{cat}-{i}", ["x"], "Done", i, cat)
+        for cat in ("positive", "negative", "neutral")
+        for i in range(4)
+    ]
+    train, dev = fe.stratified_split(cases, 1)
+    assert len(train) == 9 and len(dev) == 3
+    # dev holds the LAST case of each class, in sorted-class order — deterministic
+    assert [c.pipeline_id for c in dev] == ["negative-3", "neutral-3", "positive-3"]
+    assert {c.pipeline_id for c in train}.isdisjoint({c.pipeline_id for c in dev})
+    # identical call → identical split
+    train2, dev2 = fe.stratified_split(cases, 1)
+    assert [c.pipeline_id for c in dev2] == [c.pipeline_id for c in dev]
+
+
+def test_stratified_split_rejects_oversized_holdout():
+    cases = [fe.EvalCase("A", ["x"], "Done", 1, "positive")]
+    with pytest.raises(ValueError):
+        fe.stratified_split(cases, 1)
+
+
 def test_golden_dataset_loads_balanced_and_min_size():
     """Bind the shipped golden set to the harness: >=30 cases, all 3 categories."""
     root = pathlib.Path(__file__).resolve().parents[1]
