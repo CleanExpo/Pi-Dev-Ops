@@ -1,0 +1,37 @@
+# Golden dataset — tao_affordance affordance-gated scoring + select_action (Prove-It Gate, RA-7021).
+#
+# Encodes the PaLM-SayCan "say x can" rule: score = p_lm * p_afford. The
+# load-bearing invariant is the "can" veto — p_afford=0 hard-blocks an action
+# regardless of p_lm, so an out-of-tier or unsafe action can never be selected.
+# No LLM judge. Ground-truthed 2026-07-08 against app/server/tao_affordance.py.
+
+# (p_lm, p_afford) -> expected combined score.
+score:
+  - {p_lm: 0.0, p_afford: 0.0, expected: 0.0}   # nothing relevant, nothing feasible
+  - {p_lm: 0.9, p_afford: 0.0, expected: 0.0}   # VETO: highly relevant but blocked -> 0
+  - {p_lm: 0.0, p_afford: 0.9, expected: 0.0}   # feasible but irrelevant -> 0
+  - {p_lm: 1.0, p_afford: 1.0, expected: 1.0}   # fully relevant + fully feasible
+  - {p_lm: 0.8, p_afford: 0.5, expected: 0.4}   # discounted by partial affordance
+  - {p_lm: 0.5, p_afford: 0.5, expected: 0.25}
+
+# out-of-range factors must raise — they would break the veto guarantee.
+invalid:
+  - {p_lm: 1.1, p_afford: 0.5}
+  - {p_lm: -0.1, p_afford: 0.5}
+  - {p_lm: 0.5, p_afford: 1.2}
+  - {p_lm: 0.5, p_afford: -0.3}
+
+# select_action: list of {id, p_lm, p_afford} -> id of chosen action, or "" if none feasible.
+selection:
+  # the veto in action: b is more relevant (0.9) but blocked; a wins despite lower relevance
+  - actions: [{id: a, p_lm: 0.3, p_afford: 1.0}, {id: b, p_lm: 0.9, p_afford: 0.0}]
+    winner: a
+  # among feasible, highest product wins
+  - actions: [{id: a, p_lm: 0.6, p_afford: 0.6}, {id: b, p_lm: 0.9, p_afford: 0.9}, {id: c, p_lm: 0.5, p_afford: 0.5}]
+    winner: b
+  # every action blocked -> no selection (ladder must escalate)
+  - actions: [{id: a, p_lm: 0.9, p_afford: 0.0}, {id: b, p_lm: 0.8, p_afford: 0.0}]
+    winner: ""
+  # single feasible action
+  - actions: [{id: solo, p_lm: 0.4, p_afford: 0.7}]
+    winner: solo
