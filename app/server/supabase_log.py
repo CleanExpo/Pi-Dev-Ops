@@ -439,31 +439,6 @@ def insert_margot_conversation(row: dict[str, Any]) -> bool:
     return _insert("margot_conversations", row)
 
 
-def _patch(table: str, params: str, row: dict[str, Any]) -> bool:
-    url, key = _cfg()
-    if not url or not key:
-        return False
-    payload = json.dumps(row).encode()
-    req = urllib.request.Request(
-        f"{url}/rest/v1/{table}?{params}",
-        data=payload,
-        method="PATCH",
-        headers={
-            "Content-Type": "application/json",
-            "apikey": key,
-            "Authorization": f"Bearer {key}",
-            "Prefer": "return=minimal",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=8) as resp:
-            resp.read()
-        return True
-    except Exception as exc:
-        log.warning("Supabase patch %s failed (non-fatal): %s", table, exc)
-        return False
-
-
 # ── RA-7014 slice 4: eval_candidates — online-eval capture queue ──────────────
 
 def insert_eval_candidate(row: dict[str, Any]) -> bool:
