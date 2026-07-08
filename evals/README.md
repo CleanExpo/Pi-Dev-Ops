@@ -19,7 +19,9 @@ versioned golden dataset. Spec: brain-1 vault `Wiki/capability-library-2026-07-0
 2. Binary LLM-as-judge + calibration harness (30–50 expert-labeled cases; gate on
    <20% judge↔expert disagreement) for a non-deterministic agent.
 3. Flip to a **blocking** tao-loop termination gate (remove `continue-on-error`).
-4. Online eval on sampled prod traces (Langfuse self-host) → trace becomes a new case.
+4. Online eval on sampled cases, in-repo (Board 2026-07-08, ADR-006 closure: Langfuse
+   DROPPED; redaction at capture, sampled JSONL in git, never raw prod traces) →
+   a sampled case becomes a new golden case. Build is `/judge`-gated.
 5. `eval-healer` self-healing optimizer with anti-gaming guardrails (SHA-256 read-only
    eval script + dataset, 5-revert restore, humans-only edit datasets).
 
