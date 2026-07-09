@@ -165,14 +165,11 @@ def _read_short_context(repo_root: str, top_dir: str) -> str:
             except OSError:
                 continue
     # Ground in primary source: a small sample of source files in this dir.
-    src_budget = 0
+    # The [:3] slice already bounds the loop to 3 files.
     for src in sorted(base.glob("*.py"))[:3]:
         try:
             head = "\n".join(src.read_text(encoding="utf-8").splitlines()[:40])
             parts.append(f"# source: {src.name}\n{head}")
-            src_budget += 1
-            if src_budget >= 3:
-                break
         except OSError:
             continue
     return "\n\n".join(parts)[:2500]
