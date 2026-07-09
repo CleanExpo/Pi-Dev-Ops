@@ -287,11 +287,13 @@ async def _watchdog_docs_staleness(log) -> None:
     Linear ticket with label [DOCS-STALE] if stale. Deduplicates via
     module-level timestamp — at most one ticket per 24h.
 
-    RA-1981 / RA-1983 — threshold raised from 48h to 192h (8 days). The
-    `intel_refresh` cron runs WEEKLY (Monday); a 48h threshold tripped on
-    every Wed/Thu poll because the previous Monday's snapshot was already
-    >48h old. 192h = 7 days + 24h grace, leaving room for one missed run
-    before alerting.
+    RA-1981 / RA-1983 — threshold raised from 48h to 192h (8 days). When the
+    threshold was set the `intel_refresh` cron ran WEEKLY (Monday) and a 48h
+    threshold tripped on every Wed/Thu poll because the previous Monday's
+    snapshot was already >48h old. The cron now runs DAILY
+    (`intel-refresh-daily-0200`); the 192h (8-day) grace window is retained so
+    a short outage or a few consecutive missed daily runs don't alert
+    prematurely.
     """
     global _docs_stale_last_raised
     from . import config
@@ -356,12 +358,12 @@ async def _watchdog_docs_staleness(log) -> None:
                 "description": (
                     f"The `.harness/anthropic-docs/` snapshot is **{age_desc}** "
                     f"(threshold: {_STALE_THRESHOLD_H:.0f}h).\n\n"
-                    "This means the weekly `intel_refresh` cron trigger "
-                    "(`intel-refresh-monday` in `.harness/cron-triggers.json`) "
+                    "This means the daily `intel_refresh` cron trigger "
+                    "(`intel-refresh-daily-0200` in `.harness/cron-triggers.json`) "
                     "has not run recently.\n\n"
                     "**Investigate:**\n"
-                    "1. Check Railway logs for `intel_refresh id=intel-refresh-monday` lines\n"
-                    "2. Verify `intel-refresh-monday` trigger is enabled in `.harness/cron-triggers.json`\n"
+                    "1. Check Railway logs for `intel_refresh id=intel-refresh-daily-0200` lines\n"
+                    "2. Verify `intel-refresh-daily-0200` trigger is enabled in `.harness/cron-triggers.json`\n"
                     "3. Check `anthropic_intel_refresh.py` for fetch errors (docs.claude.com reachable?)\n\n"
                     "**Related:** RA-635 (Risk Register R-08)"
                 ),
