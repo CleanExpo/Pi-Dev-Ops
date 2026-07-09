@@ -40,7 +40,7 @@ For raw API calls outside claude.ai, the MCP connector requires an OAuth `author
 
 ## Post-connect smoke test (any surface)
 
-1. List tools → expect image + video generation tools referencing the model catalog (Nano Banana, Seedance, Kling, Gemini Omni Flash…).
+1. **List tools and check freshness.** Expect image + video generation tools referencing the current catalog (as of 2026-07: Nano Banana Pro, Seedance 2.0, Kling 3.0, Veo 3.1, Sora 2, Artlist Original 1.0…). If the list only shows older generations than Artlist currently advertises, the client is serving a cached list — refresh/reconnect and re-list before trusting it. The tool list must be fetched live, not carried from a prior session.
 2. One minimal single-image generation with an explicit note that it consumes one round of credits.
 3. Confirm the asset appears in the Artlist account's session library.
 
