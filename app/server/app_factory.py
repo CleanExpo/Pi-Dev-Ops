@@ -220,6 +220,19 @@ async def on_startup():
     else:
         log.info("nexus scheduler NOT started (set NEXUS_SCHEDULER_ENABLED=1 to enable)")
 
+    # RA-2989 — wire the research provider's Perplexity seam to OpenRouter's
+    # Perplexity Sonar model. Perplexity's direct key was revoked; sonar now
+    # routes through OPENROUTER_API_KEY. The seam and caller both fail closed
+    # (return []) when the key or swarm module is absent, so this is safe to
+    # always attempt at startup.
+    try:
+        from swarm.research_provider import set_perplexity_caller  # noqa: PLC0415
+        from .research_sonar import sonar_caller  # noqa: PLC0415
+        set_perplexity_caller(sonar_caller)
+        log.info("research provider: Perplexity seam wired to OpenRouter sonar")
+    except Exception as exc:
+        log.warning("research provider sonar wiring failed (non-fatal): %s", exc)
+
     log.info("Pi CEO ready on %s:%s", config.HOST, config.PORT)
 
 
