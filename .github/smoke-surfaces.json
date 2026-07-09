@@ -542,11 +542,11 @@
     },
     {
       "name": "fable-canary",
-      "path": "/api/canary/fable",
+      "path": "/api/pi-ceo/api/canary/fable",
       "method": "GET",
       "auth": true,
       "expected_status": 401,
-      "_comment": "RA-1099 Wave-3: Fable adversary-canary amplification summary; require_auth so unauth=401. Daily watch via .github/workflows/fable_canary_check.yml."
+      "_comment": "RA-1099 Wave-3: Fable adversary-canary amplification summary; require_auth so unauth=401. Backend route is /api/canary/fable on Railway; the e2e runner targets the Vercel base, so it must carry the /api/pi-ceo proxy prefix like every other backend surface (bare /api/canary/fable 404s at Vercel). The standalone .github/workflows/fable_canary_check.yml hits Railway directly and keeps the unprefixed path."
     },
     {
       "name": "proxy-terminal-sessions",

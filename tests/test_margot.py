@@ -18,6 +18,25 @@ from swarm import margot_bot  # noqa: E402
 from swarm.bots import margot as margot_bot_wrapper  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def _hermetic_supabase(monkeypatch):
+    """Keep the margot history tests hermetic and CI-faithful.
+
+    load_history() reads Supabase first and only falls back to the tmp_path
+    JSONL when Supabase returns nothing. CI has no reachable Supabase, so it
+    always takes the JSONL path. A developer machine with live creds, however,
+    reaches real prod rows — chat "789" carries real conversation history, so
+    load_history returned 10 turns instead of the 2 the test seeded. Stub both
+    the select (force the JSONL fallback) and the insert (so a live-creds run
+    never writes a phantom "789" test row into prod).
+    """
+    from app.server import supabase_log
+    monkeypatch.setattr(supabase_log, "select_margot_conversations",
+                        lambda *a, **k: [])
+    monkeypatch.setattr(supabase_log, "insert_margot_conversation",
+                        lambda *a, **k: True)
+
+
 # ── Intent router: margot intent ────────────────────────────────────────────
 
 
