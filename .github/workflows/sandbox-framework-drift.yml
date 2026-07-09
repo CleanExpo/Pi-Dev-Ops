@@ -1,0 +1,94 @@
+# sandbox-framework-drift.yml — nightly audit that every *-sandbox Vercel
+# project still has a framework preset (framework != null) and a recent READY
+# deployment.
+#
+# Motivation
+# ----------
+# RA-5262 / RA-5697: a Vercel sandbox project silently drifted to
+# `framework: null`. Because its preview check is a required gate, the drift
+# wedged 7 consecutive PRs behind a permanent red check — invisible until an
+# agent stopped admin-merging and investigated. This audit catches the drift
+# on a schedule instead of on the 7th blocked PR.
+#
+# Why GitHub Actions rather than Pi-CEO cron or the scheduled-tasks MCP
+# --------------------------------------------------------------------
+# CLAUDE.md "Always-on requirement": anything depending on the Mac staying
+# awake or a local process running is not autonomous. Railway + Vercel +
+# GitHub Actions is the hardened path. This auditor is a pure-stdlib Python
+# script with no server dependency, so a cron-scheduled Action is the
+# lowest-overhead always-on surface.
+
+name: Sandbox Framework Drift
+
+on:
+  schedule:
+    # Nightly at 03:20 UTC — off-peak, staggered from other portfolio crons.
+    - cron: "20 3 * * *"
+  workflow_dispatch:
+    inputs:
+      disable_telegram:
+        description: "Skip Telegram alert even on drift"
+        required: false
+        default: "false"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Audit sandbox frameworks
+        id: audit
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+          # Telegram credentials only used when the secret is configured; a
+          # missing secret means the auditor still runs but skips the push.
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          ALLOWED_USERS: ${{ secrets.TELEGRAM_ALLOWED_USERS }}
+          SANDBOX_AUDIT_TELEGRAM: ${{ github.event.inputs.disable_telegram == 'true' && '0' || '1' }}
+        # Do not fail the whole workflow here — the summary step must always
+        # run so drift is visible in the Actions UI. Capture the script's real
+        # exit code via PIPESTATUS[0] ($? after a pipe reflects `tee`).
+        continue-on-error: true
+        run: |
+          set +e
+          python3 scripts/audit_sandboxes.py | tee audit_output.jsonl
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Summarise findings
+        if: always()
+        run: |
+          {
+            echo "# Sandbox Framework Drift"
+            echo ""
+            if [ "${{ steps.audit.outputs.exit_code }}" = "2" ]; then
+              echo "⚠️ Auditor failed to run (missing VERCEL_TOKEN or Vercel API error) — see logs."
+            elif [ ! -s audit_output.jsonl ]; then
+              echo "✅ No drift — every *-sandbox project has a framework preset and a recent READY deployment."
+            else
+              echo "🚨 Drift detected:"
+              echo ""
+              echo '```json'
+              cat audit_output.jsonl
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail job on drift
+        if: steps.audit.outputs.exit_code != '0'
+        run: |
+          echo "::error::Sandbox framework audit found drift or failed to run (exit ${{ steps.audit.outputs.exit_code }}) — see summary."
+          exit 1
