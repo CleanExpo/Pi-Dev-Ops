@@ -266,6 +266,128 @@ def test_propose_idea_creates_label_when_missing(monkeypatch):
     assert out["status"] == "created"
 
 
+# ── automated-filer dedup + circuit breaker (2026-07 anti-flood) ─────────────
+
+
+def _team_node_gql(query):
+    """Shared: resolve the RA team for any teams(first: 100) query."""
+    if "teams(first: 100)" in query:
+        return {"data": {"teams": {"nodes": [
+            {"id": "team-uuid", "key": "RA", "name": "RestoreAssist"},
+        ]}}}
+    return None
+
+
+def test_propose_idea_automated_dedups_existing_open_title(monkeypatch):
+    """Non-human originator with an existing open ticket of the same title
+    returns it and does NOT create a duplicate."""
+    margot_tools = _import_margot_tools()
+    monkeypatch.setenv("TAO_SWARM_ENABLED", "1")
+    monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
+    monkeypatch.setattr(margot_tools, "_files_created_this_run", 0)
+    created = {"flag": False}
+
+    def _fake_gql(query, variables=None, **_):
+        t = _team_node_gql(query)
+        if t is not None:
+            return t
+        if "FindOpenByTitle" in query:
+            return {"data": {"issues": {"nodes": [{"identifier": "RA-1234"}]}}}
+        if "issueCreate" in query:
+            created["flag"] = True
+            return {"data": {"issueCreate": {"success": True, "issue": {
+                "id": "i", "identifier": "RA-9999", "title": "t",
+                "url": "u", "priority": 3}}}}
+        return {"error": "unexpected"}
+
+    with patch.object(margot_tools, "_linear_gql", side_effect=_fake_gql):
+        out = margot_tools.propose_idea(
+            title="[Enhancement] Build Short-Term Memory",
+            originator="discovery_loop",
+        )
+    assert out["status"] == "deduped"
+    assert out["identifier"] == "RA-1234"
+    assert created["flag"] is False
+
+
+def test_propose_idea_automated_fails_closed_when_lookup_unavailable(monkeypatch):
+    """Non-human originator whose dedup lookup errors (dead key / network)
+    SKIPS filing rather than blind-creating a duplicate."""
+    margot_tools = _import_margot_tools()
+    monkeypatch.setenv("TAO_SWARM_ENABLED", "1")
+    monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
+    monkeypatch.setattr(margot_tools, "_files_created_this_run", 0)
+    created = {"flag": False}
+
+    def _fake_gql(query, variables=None, **_):
+        t = _team_node_gql(query)
+        if t is not None:
+            return t
+        if "FindOpenByTitle" in query:
+            return {"error": "request_failed"}  # lookup unavailable
+        if "issueCreate" in query:
+            created["flag"] = True
+            return {"data": {"issueCreate": {"success": True, "issue": {
+                "id": "i", "identifier": "RA-9999", "title": "t",
+                "url": "u", "priority": 3}}}}
+        return {"error": "unexpected"}
+
+    with patch.object(margot_tools, "_linear_gql", side_effect=_fake_gql):
+        out = margot_tools.propose_idea(title="x", originator="discovery_loop")
+    assert out["status"] == "skipped_dedup_unavailable"
+    assert created["flag"] is False
+
+
+def test_propose_idea_human_is_not_deduped(monkeypatch):
+    """Human (Telegram) ideation still files even when an open ticket of the
+    same title exists — the dedup gate is automated-only."""
+    margot_tools = _import_margot_tools()
+    monkeypatch.setenv("TAO_SWARM_ENABLED", "1")
+    monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
+    monkeypatch.setattr(margot_tools, "_files_created_this_run", 0)
+    findopen_called = {"flag": False}
+
+    def _fake_gql(query, variables=None, **_):
+        t = _team_node_gql(query)
+        if t is not None:
+            return t
+        if "FindOpenByTitle" in query:
+            findopen_called["flag"] = True
+            return {"data": {"issues": {"nodes": [{"identifier": "RA-1234"}]}}}
+        if "projects(first: 100)" in query:
+            return {"data": {"team": {"projects": {"nodes": []}}}}
+        if "labels(first: 100)" in query:
+            return {"data": {"team": {"labels": {"nodes": [
+                {"id": "label-uuid", "name": "margot-idea"}]}}}}
+        if "issueCreate" in query:
+            return {"data": {"issueCreate": {"success": True, "issue": {
+                "id": "i", "identifier": "RA-9999", "title": "x",
+                "url": "u", "priority": 3}}}}
+        return {"error": "unexpected"}
+
+    with patch.object(margot_tools, "_linear_gql", side_effect=_fake_gql):
+        out = margot_tools.propose_idea(title="x", description="y")  # originator defaults to human
+    assert out["status"] == "created"
+    assert findopen_called["flag"] is False  # dedup never ran for a human idea
+
+
+def test_propose_idea_automated_respects_run_cap(monkeypatch):
+    """Once the per-run cap is hit, further automated files are skipped."""
+    margot_tools = _import_margot_tools()
+    monkeypatch.setenv("TAO_SWARM_ENABLED", "1")
+    monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
+    monkeypatch.setattr(margot_tools, "MARGOT_MAX_FILES_PER_RUN", 2)
+    monkeypatch.setattr(margot_tools, "_files_created_this_run", 2)
+
+    def _fake_gql(query, variables=None, **_):
+        raise AssertionError("Linear should not be called once cap is reached")
+
+    with patch.object(margot_tools, "_linear_gql", side_effect=_fake_gql):
+        out = margot_tools.propose_idea(title="x", originator="discovery_loop")
+    assert out["status"] == "skipped_run_cap"
+    assert out["cap"] == 2
+
+
 # ── handle_turn integration ────────────────────────────────────────────────
 
 
