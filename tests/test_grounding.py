@@ -49,6 +49,22 @@ def test_anchor_from_text_prose_fallback():
     assert parsed.get("source_sha256", "") == ""  # drift unknown for legacy
 
 
+def test_anchor_from_text_malformed_block_falls_back_to_prose(caplog):
+    import logging
+    body = (
+        "Scan the flowchart.\n\n"
+        "<!-- ground:anchor {bad json} -->\n"
+        "---\nSource: [itr.md](brain/plaud/itr.md)"
+    )
+    with caplog.at_level(logging.WARNING):
+        parsed = grounding.anchor_from_text(body)
+    # malformed anchor block is ignored (logged), prose Source: line wins
+    assert parsed["primary_source"] == "brain/plaud/itr.md"
+    assert parsed["derived_from"] == "brain/plaud/itr.md"
+    assert parsed.get("source_sha256", "") == ""
+    assert any("malformed anchor" in rec.message.lower() for rec in caplog.records)
+
+
 def test_anchor_from_text_returns_none_when_absent():
     assert grounding.anchor_from_text("no anchor here") is None
 

@@ -18,7 +18,9 @@ from typing import NamedTuple, Optional
 sys.path.insert(0, str(Path(__file__).parent))
 from linear_helpers import create_linear_issue, TicketRef
 
-# Grounding import: needs repo root on sys.path
+# Grounding import: needs repo root on sys.path.
+# parents[1] is the repo root because this file lives in scripts/ (one level
+# down); parents[0] is scripts/, parents[1] is the repo root.
 _REPO_ROOT_FOR_GROUNDING = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT_FOR_GROUNDING) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT_FOR_GROUNDING))
