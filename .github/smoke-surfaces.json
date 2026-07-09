@@ -544,9 +544,9 @@
       "name": "fable-canary",
       "path": "/api/pi-ceo/api/canary/fable",
       "method": "GET",
-      "auth": true,
+      "auth": false,
       "expected_status": 401,
-      "_comment": "RA-1099 Wave-3: Fable adversary-canary amplification summary; require_auth so unauth=401. Backend route is /api/canary/fable on Railway; the e2e runner targets the Vercel base, so it must carry the /api/pi-ceo proxy prefix like every other backend surface (bare /api/canary/fable 404s at Vercel). The standalone .github/workflows/fable_canary_check.yml hits Railway directly and keeps the unprefixed path."
+      "_comment": "RA-1099 Wave-3: Fable adversary-canary amplification summary; require_auth so unauth=401. auth:false so the runner probes it BEFORE login with an empty cookie jar — require_auth then returns 401. (auth:true would run it post-login; the session cookie satisfies require_auth → 200, which is why RA-7028's first pass still failed 200!=401.) Backend route is /api/canary/fable on Railway; the e2e runner targets the Vercel base, so the surface must carry the /api/pi-ceo proxy prefix like every other backend surface (bare /api/canary/fable 404s at Vercel). The standalone .github/workflows/fable_canary_check.yml hits Railway directly and keeps the unprefixed path."
     },
     {
       "name": "proxy-terminal-sessions",
