@@ -1,4 +1,4 @@
-# app — Wiki
+# evals — Wiki
 
 _Last updated: 2026-07-09T03:46:26Z (commits 474b3c1..7a398ef)_
 
