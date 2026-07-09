@@ -1,6 +1,6 @@
 ---
 name: artlist-mcp
-description: Use when a task needs AI image or video generation — campaign visuals, hero shots, product or social video, thumbnails, ad creative, localized creative variants — through the official Artlist MCP (mcp.artlist.io, 100+ models incl. Nano Banana, Seedance 2.0, Kling, Gemini Omni Flash). Use also before any autonomous run that could touch media generation, because it carries the credit-spend gate. Covers connection per surface, model selection, the iterate-in-conversation loop, and failure handling.
+description: Use when a task needs AI image or video generation — campaign visuals, hero shots, product or social video, thumbnails, ad creative, localized variants — through the official Artlist MCP (mcp.artlist.io, 100+ models incl. Nano Banana Pro, Seedance 2.0, Kling 3.0, Veo 3.1, Sora 2). The model catalog is discovered live from the server every session, never a stored or cached list. Use also before any autonomous run that could touch media generation, because it carries the credit-spend gate. Covers connection per surface, live model selection, the iterate-in-conversation loop, and failure handling.
 ---
 
 # Artlist MCP
@@ -16,10 +16,10 @@ Official remote MCP for Artlist's AI Toolkit: image and video generation across 
 
 ## How to use it
 
-1. **Discover tools at runtime.** The model catalog (100+ and changing) is exposed through the server's live tool list — resolve by capability via ToolSearch, never hardcode `mcp__…` prefixes. That list is the source of truth; if a named model is missing, re-list before concluding it's gone.
-2. **Brief, don't prompt-engineer.** Describe the deliverable (subject, mood, format, market); the server maps intent to model parameters. Ask the MCP itself for a model recommendation when the brief is ambiguous.
+1. **Discover the live catalog every session.** The model roster (100+ and constantly changing — new generations land monthly) is exposed only through the server's live tool list. Fetch it fresh at the start of every session via ToolSearch; never hardcode `mcp__…` prefixes, and never reuse a tool list cached or carried over from a prior session — a stale list is a caching bug, so re-list. The live list is the sole source of truth and always overrides any model named in this file. Default to the newest generation the list currently exposes for a capability, dropping to a cheaper or faster tier only when the brief asks for it.
+2. **Brief, don't prompt-engineer.** Describe the deliverable (subject, mood, format, market); the server maps intent to model parameters. Ask the MCP itself for a model recommendation when the brief is ambiguous — its answer reflects the current catalog, this file does not.
 3. **Iterate in-thread.** brief → 2–3 directions → review inline → pick one → refine ("darker", "wider", "more movement") → localize variants. Context persists; never re-brief from scratch.
-4. **Match model to brief-part.** Verify against the live list: stills/hero → Nano Banana or Gemini Omni Flash; motion/product video → Seedance 2.0 (2.5 announced) or Kling.
+4. **Match model to brief-part (live list decides).** These names are illustrative as of 2026-07 and go stale fast — confirm each against the live list and take its current equivalent: stills/hero → Nano Banana Pro or Artlist Original 1.0; motion/product video → Seedance 2.0, Kling 3.0, or Veo 3.1; multilingual dialogue → Seedance 2.0 (native lip-sync). If a named model is absent, the catalog has replaced it with a newer generation — use that, or ask the MCP to recommend.
 5. **Retrieval.** Every generation lands in a dedicated session in the Artlist account, searchable by description — cite the session when handing assets on, so nothing is re-generated (re-generation = duplicate spend).
 
 ## Governance — charter-bound
@@ -42,7 +42,8 @@ Registered in `agentskills.json`; consumers (CCW-CRM boardroom, fleet nodes, Syn
 |---|---|---|
 | 401 from endpoint | OAuth expired or never completed | Re-auth via the surface's official flow; do not retry blind |
 | Credit/quota error | Budget exhausted | Stop, report spend, await human — never retry-loop |
-| Named model absent | Catalog rotated | Re-list tools; pick nearest equivalent or ask MCP to recommend |
+| Tool list looks stale / missing new models | Client reused a cached/prior-session list | Force a fresh `tools/list`; refresh or reconnect the connector — never select from a cached catalog |
+| Named model absent | Catalog rotated to a newer generation | Re-list; the newer generation has replaced it — use that or ask the MCP to recommend |
 | Connector missing on a fleet node | Node never authorized | Follow `references/connect.md`; auth is per-node, no fleet-wide token |
 
 ## References
