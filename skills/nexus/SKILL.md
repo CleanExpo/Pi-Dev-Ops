@@ -100,9 +100,13 @@ from the playbook — **Decision · Why it matters · Risk · What I'd do next**
 ran, one line of *consensus view vs our divergence, and what would change this*. Obey the
 register ban-list (no "consequence-tree / flip-rate / tier / contract / must_fix" at the top)
 and the length cap. Put the technical detail (file:line, sources, the deliberation) below the
-fold. Then, if the run changed durable state, write a `session-handoff`.
+fold. Then, if the run changed durable state, write a `session-handoff`. Any delivery step that
+opens a PR, pushes to a shared/deploy-on-push branch, or merges passes [[merge-gate]] **first** —
+in this estate an auto-merge treats opening a PR as authorising its merge, so the full quality bar
+runs *before* the PR opens, not after.
 - Completion: the answer leads with a decision a non-technical founder can act on; detail is
-  below it; a handoff exists if state changed.
+  below it; a handoff exists if state changed; anything that shipped cleared the merge-gate
+  pre-open gate.
 
 ## Autonomy contract
 When dispatched specialists carry a wrapped prompt, never append show-your-reasoning
