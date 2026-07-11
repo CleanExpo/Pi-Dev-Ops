@@ -122,7 +122,7 @@ def _scan_skill(skill_dir: Path) -> SkillEntry | None:
         description=fields.get("description", ""),
         owner_role=fields.get("owner_role", "(unset)"),
         status=fields.get("status", "(unset)"),
-        path=str(skill_md.relative_to(REPO_ROOT)),
+        path=skill_md.relative_to(REPO_ROOT).as_posix(),
         sha256=_sha256(content),
         dependencies=deps,
         safety=safety,
