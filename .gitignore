@@ -197,3 +197,6 @@ remotion-studio/public/ra-wave-1-screencaps/
 # Session-handoff runtime artifacts (dirs + READMEs tracked; generated files local-only)
 docs/session-handoffs/handoff-*.md
 .handoff-logs/*.log
+
+# generated graph visualisation output (not source)
+swarm/graphify-out/
