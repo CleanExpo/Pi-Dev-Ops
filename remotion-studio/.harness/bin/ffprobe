@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ffmpeg_bin="/Users/phillmcgurk/Library/Python/3.9/lib/python/site-packages/imageio_ffmpeg/binaries/ffmpeg-macos-aarch64-v7.1"
+file="${@: -1}"
+out="$($ffmpeg_bin -hide_banner -i "$file" 2>&1 || true)"
+dur="$(FFPROBE_WRAPPER_OUTPUT="$out" python3 - <<'PY'
+import os,re
+text=os.environ.get('FFPROBE_WRAPPER_OUTPUT','')
+m=re.search(r'Duration: (\d+):(\d+):(\d+(?:\.\d+)?)', text)
+if not m:
+ print('0')
+else:
+ h,mn,s=m.groups(); print(float(h)*3600+float(mn)*60+float(s))
+PY
+)"
+if printf '%s\0' "$@" | grep -q 'json'; then
+  printf '{"streams":[{"codec_type":"video","duration":"%s"},{"codec_type":"audio","duration":"%s"}],"format":{"duration":"%s"}}\n' "$dur" "$dur" "$dur"
+else
+  printf '%s\n' "$dur"
+fi
