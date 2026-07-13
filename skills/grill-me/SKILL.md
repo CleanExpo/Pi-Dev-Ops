@@ -11,6 +11,16 @@ description: Run a relentless one-question-at-a-time interview on a sketch or pl
 - User says "grill me", "interview me", "stress-test this plan", "find the rabbit holes".
 - You are about to write code AND there is no corresponding grill transcript in `2nd-brain/Grills/`. Stop and grill first.
 
+**Routing rule (Pocock, 2026-07):** if the work targets an EXISTING codebase with established
+domain language, route to `grill-with-docs` instead — same interview, plus the ubiquitous-language
+glossary and ADR context. grill-me is for greenfield/no-codebase shaping. See
+[[pocock-beyond-grill-me-for-coding-2026-07-14-ingest]].
+
+**Fidelity gate (before Q1):** confirm the target is grillable — a fat-marker sketch with real
+unknowns. If the scope is already specifiable, skip the grill and go straight to spec/pitch; if
+it's vague vibes, sketch first. If the scope spans multiple components, pre-decompose and grill
+one component per session.
+
 ## Core procedure (DO NOT DEVIATE)
 
 1. **Read the sketch.** Locate the relevant file in `2nd-brain/Sketches/`. If none exists, refuse to grill and produce a sketch first. The sketch is the input — you cannot grill an idea that hasn't been sketched.
@@ -83,10 +93,13 @@ created: YYYY-MM-DD
 3. **Never write code during a grill.** Code is downstream. The grill's only output is the transcript markdown.
 4. **Always recommend an answer.** "I don't know" is not a valid recommendation. Take a position, then let the user override.
 5. **Respect context budget.** The user has a token ceiling. Long-winded preambles burn it. Each Q+A should fit in <300 tokens of agent output.
+6. **Stay out of the dumb zone.** Run grills on a frontier model and keep the session under ~120k tokens of context; past that, question quality degrades. Never `/clear` (or abandon the session) before the transcript is written — the grill's value lives in the transcript, not the chat.
+7. **Prototype what can't be answered in words.** If a question only resolves by seeing something, pause the grill, produce a throwaway prototype, and boomerang back with the answer.
 
 ## Provenance
 
 Adapted from:
 - [mattpocock/skills /grill-me SKILL.md](https://github.com/mattpocock/skills/blob/main/skills/productivity/grill-me/SKILL.md)
+- 2026-07-14 corrections from Pocock's "9 Things People Get Wrong With My /grill-* skills" and "I stopped using /grill-me for coding" — vault pages [[pocock-grill-skills-9-mistakes-2026-07-14-ingest]], [[pocock-beyond-grill-me-for-coding-2026-07-14-ingest]]
 - [Shape Up — Chapter 4: Find the Elements](https://basecamp.com/shapeup/1.3-chapter-04) (fat marker sketch + breadboarding)
 - [Shape Up — Chapter 3: Set Boundaries](https://basecamp.com/shapeup/1.2-chapter-03) (appetite + fidelity discipline)
