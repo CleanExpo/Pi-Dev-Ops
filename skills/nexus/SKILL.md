@@ -59,7 +59,8 @@ classify the goal's dominant unknown type, then apply the cheapest technique —
 Pass for new domains (Unknown Unknowns), Interview for known gaps (Known Unknowns),
 References for "I'll know it when I see it" (Unknown Knowns), Prototype for design goals.
 Then restate the *real* intent and mine the repo/wiki/memory before reaching outward.
-New domain vocabulary → `grill-with-docs`; architecture-class change → `design-pressure-test`.
+New domain vocabulary → `grill-with-docs`; architecture-class change → `design-pressure-test`;
+unshaped plan/sketch with open decisions → `grill-me` (one-question interview to resolution).
 - Completion: dominant quadrant named, technique run or skipped with a reason, goal restated
   as an outcome, existing context used.
 

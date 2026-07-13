@@ -98,6 +98,7 @@ what G3 already ran.
 |---|---|
 | Code / refactor / architecture | `Explore` (recon), `design-pressure-test` (pre-build), `opus-adversary` (post-draft), `judge` (gate) |
 | New domain vocabulary / entities | `grill-with-docs` (establish ubiquitous language + ADRs) |
+| Unshaped plan / sketch with open decisions | `grill-me` (one-question-at-a-time interview until every branch is DECIDED / RABBIT HOLE / NO-GO) |
 | Outward-facing / market / competitor | `source-ingest` (credible data), `storm` (multi-perspective), `eeat` (trust signals), `deep-loop` (iterative MoA/swarm depth on ONE topic needing current data, when G3's single-pass fan-out is not enough) |
 | Content / SEO / GEO | `seo`, `geo-optimization`, `eeat`, `marketing-orchestrator` |
 | Ship / go-live readiness | `readiness-architect`, `qa-lead`, `readiness` gates |
