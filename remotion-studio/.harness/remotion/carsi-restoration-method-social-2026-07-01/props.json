@@ -1,0 +1,37 @@
+{
+  "brand": "carsi",
+  "hookSec": 4,
+  "ctaSec": 3,
+  "storyboard": [
+    {
+      "sceneId": "hook",
+      "durationSec": 4,
+      "voiceover": "Water damage doesn't end when the water's gone.",
+      "onScreenText": "It's not over when the water's gone."
+    },
+    {
+      "sceneId": "standard",
+      "durationSec": 8,
+      "voiceover": "Done right, restoration follows one standard — measurable drying goals, not guesswork.",
+      "onScreenText": "One standard. IICRC S500."
+    },
+    {
+      "sceneId": "method",
+      "durationSec": 10,
+      "voiceover": "Map the moisture. Set the dry goal. Verify every reading. Document the sign-off.",
+      "onScreenText": "Map · Set the goal · Verify · Document"
+    },
+    {
+      "sceneId": "payoff",
+      "durationSec": 5,
+      "voiceover": "That's the difference between dry, and dry to standard.",
+      "onScreenText": "Dry → Dry to standard"
+    },
+    {
+      "sceneId": "cta",
+      "durationSec": 3,
+      "voiceover": "Learn the method. Find an accredited professional. Restore it right, the first time.",
+      "onScreenText": "Learn the method. Find an accredited pro. Restore it right."
+    }
+  ]
+}

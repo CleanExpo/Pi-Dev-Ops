@@ -1,0 +1,141 @@
+{
+  "brand": "ra",
+  "hookSec": 7,
+  "ctaSec": 7,
+  "storyboard": [
+    {
+      "sceneId": "hook",
+      "sceneType": "hook",
+      "durationSec": 7,
+      "onScreenText": "Ask your restorer what system they use to prove the job.",
+      "voiceover": "When restoration work starts, the most important question is not just who is doing the work. It is how they prove what happened, what changed, and what comes next.",
+      "data": {
+        "eyebrow": "Client-facing RestoreAssist"
+      },
+      "voiceoverAudioPath": "audio/ra-client-facing-why-restoreassist-20260624/scene-0.mp3"
+    },
+    {
+      "sceneId": "client-problem",
+      "sceneType": "body",
+      "durationSec": 10,
+      "onScreenText": "After damage, clients need clarity \u2014 not another explanation later.",
+      "voiceover": "After water, mould, fire, or storm damage, clients are already under pressure. They need clear evidence, a clear scope, and a clear path forward, not scattered photos and repeated phone calls.",
+      "data": {
+        "eyebrow": "What clients feel"
+      },
+      "image": {
+        "path": "assets/ra-client-facing/client-clarity.svg",
+        "alt": "Client clarity from organised evidence"
+      },
+      "voiceoverAudioPath": "audio/ra-client-facing-why-restoreassist-20260624/scene-1.mp3"
+    },
+    {
+      "sceneId": "why-restorer",
+      "sceneType": "comparison",
+      "durationSec": 12,
+      "onScreenText": "RestoreAssist gives your restorer a stronger way to show the work.",
+      "voiceover": "Many tools capture one piece of the job. RestoreAssist is built around the restoration workflow, so the inspection, evidence, moisture findings, scope, and report stay connected.",
+      "data": {
+        "eyebrow": "Why it is different",
+        "comparisonRows": [
+          {
+            "them": "Photos in one place, notes in another",
+            "us": "Evidence connected to the job"
+          },
+          {
+            "them": "Scope explained from memory",
+            "us": "Scope backed by inspection data"
+          },
+          {
+            "them": "Report assembled at the end",
+            "us": "Report-ready from the start"
+          }
+        ]
+      },
+      "image": {
+        "path": "assets/ra-client-facing/restorer-proof.svg",
+        "alt": "RestoreAssist workflow compared with scattered tools"
+      },
+      "voiceoverAudioPath": "audio/ra-client-facing-why-restoreassist-20260624/scene-2.mp3"
+    },
+    {
+      "sceneId": "client-benefits",
+      "sceneType": "keypoints",
+      "durationSec": 12,
+      "onScreenText": "For the client, that means fewer grey areas.",
+      "voiceover": "For the client, that means fewer grey areas. You can see what was inspected, what evidence supports the recommendation, and why the next step makes sense.",
+      "data": {
+        "eyebrow": "What you get",
+        "keypoints": [
+          "A clearer explanation",
+          "A stronger evidence trail",
+          "Less chasing for answers",
+          "More confidence in the recommendation"
+        ]
+      },
+      "image": {
+        "path": "assets/ra-client-facing/stakeholder-confidence.svg",
+        "alt": "Client and assessor confidence"
+      },
+      "voiceoverAudioPath": "audio/ra-client-facing-why-restoreassist-20260624/scene-3.mp3"
+    },
+    {
+      "sceneId": "restorer-benefits",
+      "sceneType": "flow",
+      "durationSec": 12,
+      "onScreenText": "For the restorer, it reduces rework and protects trust.",
+      "voiceover": "For the restorer, it creates a repeatable standard. Capture the job, organise the evidence, build the scope, generate the report, and share it with confidence.",
+      "data": {
+        "eyebrow": "How it works",
+        "flowSteps": [
+          "Capture",
+          "Organise",
+          "Scope",
+          "Report",
+          "Share"
+        ]
+      },
+      "image": {
+        "path": "assets/ra-client-facing/professional-standard.svg",
+        "alt": "Professional restoration standard"
+      },
+      "voiceoverAudioPath": "audio/ra-client-facing-why-restoreassist-20260624/scene-4.mp3"
+    },
+    {
+      "sceneId": "proof",
+      "sceneType": "stat",
+      "durationSec": 10,
+      "onScreenText": "The best restoration businesses make the invisible work visible.",
+      "voiceover": "The best restoration businesses make the invisible work visible. RestoreAssist helps turn technical work into a clear, professional record everyone can follow.",
+      "data": {
+        "eyebrow": "The standard",
+        "stats": [
+          {
+            "value": "1",
+            "label": "job record"
+          },
+          {
+            "value": "1",
+            "label": "evidence chain"
+          },
+          {
+            "value": "1",
+            "label": "client-ready report"
+          }
+        ]
+      },
+      "voiceoverAudioPath": "audio/ra-client-facing-why-restoreassist-20260624/scene-5.mp3"
+    },
+    {
+      "sceneId": "cta",
+      "sceneType": "cta",
+      "durationSec": 7,
+      "onScreenText": "Choose a restorer who can show the proof.",
+      "voiceover": "Choose a restorer who can show the proof. Ask about RestoreAssist before your next restoration job.",
+      "data": {
+        "eyebrow": "RestoreAssist"
+      },
+      "voiceoverAudioPath": "audio/ra-client-facing-why-restoreassist-20260624/scene-6.mp3"
+    }
+  ]
+}
