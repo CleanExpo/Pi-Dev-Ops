@@ -2,6 +2,7 @@ import React from 'react';
 import {
   AbsoluteFill,
   Audio,
+  Img,
   Sequence,
   staticFile,
   interpolate,
@@ -30,6 +31,14 @@ export const explainerSceneSchema = z.object({
   voiceover: z.string(),
   onScreenText: z.string(),
   voiceoverAudioPath: z.string().optional(),
+  image: z
+    .object({
+      path: z.string(),
+      alt: z.string(),
+      prompt: z.string().optional(),
+      provider: z.string().optional(),
+    })
+    .optional(),
   data: z
     .object({
       stats: z
@@ -229,6 +238,34 @@ const SceneFrame: React.FC<{
       {children}
       <BrandWatermark brand={brand} />
     </AbsoluteFill>
+  );
+};
+
+const SceneImage: React.FC<{ scene: ExplainerScene; brand: BrandSlug }> = ({ scene, brand }) => {
+  if (!scene.image?.path) return null;
+  const cfg = brands[brand];
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        right: 86,
+        top: 168,
+        width: 520,
+        height: 360,
+        borderRadius: 34,
+        overflow: 'hidden',
+        border: `2px solid ${cfg.colour.accent}`,
+        boxShadow: '0 30px 100px rgba(0,0,0,0.32)',
+        opacity: 0.92,
+        zIndex: 20,
+      }}
+    >
+      <Img
+        src={staticFile(scene.image.path)}
+        alt={scene.image.alt}
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+      />
+    </div>
   );
 };
 
@@ -913,6 +950,7 @@ export const Explainer: React.FC<ExplainerProps> = ({ brand, storyboard }) => {
         return (
           <Sequence key={scene.sceneId} from={start} durationInFrames={dur} name={scene.sceneId}>
             <SceneComponent scene={scene} brand={brand} />
+            <SceneImage scene={scene} brand={brand} />
             {scene.voiceoverAudioPath ? (
               <Audio src={staticFile(scene.voiceoverAudioPath)} />
             ) : null}

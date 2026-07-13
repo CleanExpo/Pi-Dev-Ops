@@ -1,6 +1,6 @@
 ---
 name: geo-optimization
-description: Generative Engine Optimization (GEO) standard for AI search visibility — the 2026 successor to SEO. Use when adding or auditing GEO infrastructure (llms.txt, JSON-LD schema, WebMCP, Lighthouse Agentic) on any portfolio site or via the Synthex client-audit module.
+description: Generative + Answer Engine Optimization (GEO/AEO) standard for AI search visibility — the 2026 successor to SEO. Use when adding or auditing GEO infrastructure (llms.txt, JSON-LD schema, WebMCP, Lighthouse Agentic) OR AEO content-layer work (becoming the cited/quoted answer inside ChatGPT, Perplexity, Gemini, Google AI Overviews) on any portfolio site or via the Synthex client-audit module.
 version: 1.0.0
 source: Manus AI "Comprehensive SEO/GEO Research Report" — May 2026
 applies_to:
@@ -26,6 +26,7 @@ Without this skill, each repo reinvents the implementation and drifts from the s
 - Auditing a site's GEO readiness → run the checklist in §7
 - Building or extending Synthex's client-audit module → §6 is the spec
 - Reviewing a PR that touches a public-facing route, contact/intake form, or product page
+- Writing or auditing informational/content pages that need to be *cited* by AI answer engines → §11 (AEO)
 
 **Skip when:** purely internal admin tooling, build scripts, infrastructure that's not user-facing.
 
@@ -232,6 +233,10 @@ Run this checklist when auditing a site or before opening a "GEO migration" PR.
 - [ ] Lighthouse Agentic Browsing audit ≥ 0.75 (CI gate)
 - [ ] No raw AI-generated header images without original media supplement
 - [ ] All product copy unique (no manufacturer boilerplate)
+- [ ] **(AEO)** Page covers the query fan-out — primary question + implicit follow-ups (what / why / how / cost / vs / best) — each an H2 with a ≤50-word lead answer
+- [ ] **(AEO)** Every section leads with a self-contained, out-of-context-quotable claim carrying one concrete statistic
+- [ ] **(AEO)** Entity data (name, role, core claims) consistent across site + Wikidata + LinkedIn + Crunchbase + press
+- [ ] **(AEO)** Share-of-voice tracked: target query set sampled across ChatGPT / Perplexity / Gemini / AI Overviews
 
 ## §8 — Local SEO post-May-2026 update
 
@@ -281,6 +286,43 @@ When this skill is invoked from Synthex's audit module:
 - Generates an "GEO Migration Plan" PR for client repos when authorised, OR a copy-paste implementation pack for non-repo clients
 - Auto-detects May 2026 Core Update penalty risk patterns (scaled AI content, raw manufacturer copy, missing Information Gain markers)
 
+## §11 — Answer Engine Optimization (AEO)
+
+GEO (§1–§10) makes the site machine-legible and transactable — it gets you crawled, structured, and acted on. **AEO is the content-layer discipline of becoming the *quoted answer* inside conversational answer engines** (ChatGPT, Perplexity, Gemini, Claude, Google AI Overviews). GEO gets you eligible; AEO gets you cited. They share signals (§1 citation factors, §2 structure) but optimise different units.
+
+| | GEO | AEO |
+|---|---|---|
+| Optimises | infrastructure — llms.txt, JSON-LD, WebMCP, agentic browsing | answer units — extractable claims, definitions, quotable stats, Q&A |
+| Unit of optimisation | the **site** | the **passage** |
+| Win condition | crawlable, structured, transactable | lifted verbatim as the answer |
+
+### §11.1 — Cover the query fan-out
+
+Answer engines decompose one prompt into many sub-queries ("fan-out") and synthesise across them. Cover the whole fan-out on one page: the primary question **plus** its implicit follow-ups (what / why / how / cost / vs / best / near-me), each as its own H2 with a ≤50-word lead answer. A page that answers only the literal query loses to one that pre-answers the follow-ups.
+
+### §11.2 — Craft quotable answer units
+
+- Lead every section with a **self-contained declarative claim** that reads correctly out of context — the engine lifts it verbatim, with no surrounding sentences.
+- Carry **one concrete, attributable statistic** per section ("cuts response time by 34%"). Engines preferentially cite specific numbers over vague claims.
+- Put the **definition in the first sentence** ("X is a …") — this wins "what is X" answers.
+- For decision queries, use **explicit "X vs Y" framing + a comparison table** — that's the structure lifted into comparison answers.
+
+### §11.3 — Entity & corpus consistency
+
+Answer engines resolve you to a Knowledge-Graph entity before deciding to cite. Keep name, role, and core claims **identical** across your site, Wikipedia/Wikidata, LinkedIn, Crunchbase, G2, and press. Inconsistent entity data = low-confidence, so you're dropped from the answer. Feeds `Organization.sameAs` (§3) and E-E-A-T author authority (see `eeat`).
+
+### §11.4 — Route effort by platform behaviour
+
+- **ChatGPT** — Bing index + brand corpus; strong on established-brand mentions → earn Bing rankings + off-page web mentions (§1 factor 0.664).
+- **Perplexity** — freshness + explicit citations; favours recently-updated, well-sourced pages → keep `datePublished`/`dateModified` current, cite primary sources.
+- **Google AI Overviews** — top-10 organic + featured-snippet structure → traditional SEO is the floor (§1: 92% of citations rank top-10).
+- **Gemini** — pulls from YouTube, Reddit, and Google properties → community presence matters.
+- **Claude / others** — favour authoritative, well-structured primary sources → clean semantic HTML + llms.txt (§4/§6).
+
+### §11.5 — Measure AEO (share of voice)
+
+The AEO KPI is **citation presence, not rank**. Run the target query set through each engine on a schedule; record whether and where you're cited and which competitors are cited alongside. Track share-of-voice over time. The Synthex audit module (§10) should sample this per client.
+
 ## References (May 2026 source report)
 
 1. Onely — "How to Rank in Google AI Overviews"
@@ -298,3 +340,4 @@ When this skill is invoked from Synthex's audit module:
 - `seo-baseline` (legacy) — superseded by this skill for AI-search work
 - `accessibility-audit` — accessibility tree well-formedness overlaps with §6 audit 1
 - `synthex-client-audit` (forthcoming) — will invoke this skill's §7 checklist as its core engine
+- `eeat` — E-E-A-T author authority + entity trust signals feed AEO citation confidence (§11.3)

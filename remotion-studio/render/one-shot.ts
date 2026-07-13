@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { preflightScript } from './validate';
-import { remotionOneShotBriefSchema, RemotionOneShotBrief } from './brief-schema';
+import { remotionOneShotBriefSchema, RemotionImageAsset, RemotionOneShotBrief } from './brief-schema';
 
 interface Args {
   brief: RemotionOneShotBrief;
@@ -18,6 +18,7 @@ interface Scene {
   voiceover: string;
   onScreenText: string;
   data?: { eyebrow?: string; keypoints?: string[]; footnote?: string };
+  image?: { path: string; alt: string; prompt?: string; provider?: string };
 }
 
 function parseArgs(argv = process.argv.slice(2)): Args {
@@ -42,6 +43,24 @@ function sentence(input: string): string {
   return input.trim().replace(/\s+/g, ' ').replace(/[<>]/g, '');
 }
 
+function assetFor(sceneId: string, assets: RemotionImageAsset[]): RemotionImageAsset | undefined {
+  return assets.find((asset) => asset.sceneId === sceneId);
+}
+
+function attachImage(scene: Scene, assets: RemotionImageAsset[]): Scene {
+  const asset = assetFor(scene.sceneId, assets);
+  if (!asset) return scene;
+  return {
+    ...scene,
+    image: {
+      path: asset.path,
+      alt: asset.alt,
+      prompt: asset.prompt,
+      provider: asset.provider,
+    },
+  };
+}
+
 function buildStoryboard(brief: RemotionOneShotBrief): Scene[] {
   const base = sentence(brief.brief);
   const goal = sentence(brief.goal);
@@ -52,7 +71,7 @@ function buildStoryboard(brief: RemotionOneShotBrief): Scene[] {
   const durations = [8, 12, 16, 16, 8].map((n) => Math.max(4, Math.round(n * scale)));
   const delta = total - durations.reduce((s, n) => s + n, 0);
   durations[2] += delta;
-  return [
+  const scenes: Scene[] = [
     {
       sceneId: 'hook',
       sceneType: 'hook',
@@ -65,7 +84,7 @@ function buildStoryboard(brief: RemotionOneShotBrief): Scene[] {
       sceneId: 'problem',
       sceneType: 'body',
       durationSec: durations[1],
-      voiceover: `The problem is not ideas. The problem is turning scripts, visuals, timing, voice, and edits into one clean production path.`,
+      voiceover: 'The problem is not ideas. The problem is turning scripts, visuals, timing, voice, and edits into one clean production path.',
       onScreenText: 'Ideas are easy. Production discipline is the bottleneck.',
     },
     {
@@ -80,7 +99,7 @@ function buildStoryboard(brief: RemotionOneShotBrief): Scene[] {
       sceneId: 'proof',
       sceneType: 'keypoints',
       durationSec: durations[3],
-      voiceover: `Every job carries timing evidence, a single Synthex ElevenLabs voice policy, and a reproducible Remotion command so the render can be checked instead of guessed.`,
+      voiceover: 'Every job carries timing evidence, a single Synthex ElevenLabs voice policy, and a reproducible Remotion command so the render can be checked instead of guessed.',
       onScreenText: 'Evidence-backed production, not guesswork.',
       data: { keypoints: ['Timing budget', 'Single voice', 'Render evidence'] },
     },
@@ -93,11 +112,34 @@ function buildStoryboard(brief: RemotionOneShotBrief): Scene[] {
       data: { eyebrow: 'Next step' },
     },
   ];
+  return scenes.map((scene) => attachImage(scene, brief.imageAssets));
 }
 
 function writeFile(file: string, text: string): void {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, text, 'utf8');
+}
+
+function buildImagePrompts(brief: RemotionOneShotBrief, storyboard: Scene[]): string {
+  const provider = brief.imageProvider;
+  const basePrompt = brief.imagePrompt || `Professional marketing image for ${brief.brand}: ${brief.goal}`;
+  const lines = [
+    `# Image prompts for ${brief.brand}`,
+    '',
+    `Provider: ${provider}`,
+    `Global prompt: ${basePrompt}`,
+    '',
+    'Use existing approved image-generation access only. Do not create new vendor accounts.',
+    '',
+  ];
+  for (const scene of storyboard) {
+    lines.push(`## ${scene.sceneId}`);
+    lines.push(`Provider: ${scene.image?.provider || provider}`);
+    lines.push(`Prompt: ${scene.image?.prompt || `${basePrompt}. Scene: ${scene.onScreenText}`}`);
+    if (scene.image?.path) lines.push(`Asset path: ${scene.image.path}`);
+    lines.push('');
+  }
+  return `${lines.join('\n')}\n`;
 }
 
 function main(): void {
@@ -121,20 +163,28 @@ function main(): void {
       voiceProfile: 'synthex_default_single_voice',
       voiceCount: 1,
     },
+    imagePolicy: {
+      provider: args.brief.imageProvider,
+      status: args.dryRun ? 'dry-run' : 'render-requested',
+      assets: args.brief.imageAssets,
+      prompt: args.brief.imagePrompt,
+      allowedProviders: ['chatgpt', 'nano-banana-2-pro', 'none'],
+    },
   };
   const renderCommand = [
     'npx tsx render/render.ts',
     '--comp=Explainer',
     `--out=output/${args.jobId}.mp4`,
     `--jobId=${args.jobId}`,
-    `--props='${JSON.stringify(props).replace(/'/g, "'\''")}'`,
+    `--props='${JSON.stringify(props).replace(/'/g, "'\\''")}'`,
   ].join(' ');
   const preflight = preflightScript({ brand: args.brief.brand, storyboard: storyboard.map((s) => ({ ...s })) });
 
   fs.mkdirSync(jobDir, { recursive: true });
   writeFile(path.join(jobDir, 'production-packet.json'), `${JSON.stringify({ ...packet, renderCommand }, null, 2)}\n`);
+  writeFile(path.join(jobDir, 'image-prompts.md'), buildImagePrompts(args.brief, storyboard));
   const scriptBody = storyboard
-    .map((s) => `## ${s.sceneId}\n\n${s.voiceover}\n\nOn screen: ${s.onScreenText}\n`)
+    .map((s) => `## ${s.sceneId}\n\n${s.voiceover}\n\nOn screen: ${s.onScreenText}\n${s.image ? `\nImage: ${s.image.path} (${s.image.alt})\n` : ''}`)
     .join('\n');
   writeFile(path.join(jobDir, 'script.md'), `# ${args.jobId} script\n\n${scriptBody}\n`);
   const preflightRows = preflight.reports
@@ -142,7 +192,7 @@ function main(): void {
     .join('\n');
   writeFile(
     path.join(jobDir, 'preflight-report.md'),
-    `# Remotion preflight\n\n- Job: ${args.jobId}\n- Dry run: ${args.dryRun}\n- Single voice: Synthex ElevenLabs\n- Preflight: ${preflight.ok ? 'PASS' : 'WARN'}\n\n| Scene | Words | Planned | Estimated | Fits |\n|---|---:|---:|---:|---|\n${preflightRows}\n`,
+    `# Remotion preflight\n\n- Job: ${args.jobId}\n- Dry run: ${args.dryRun}\n- Single voice: Synthex ElevenLabs\n- Image provider: ${args.brief.imageProvider}\n- Preflight: ${preflight.ok ? 'PASS' : 'WARN'}\n\n| Scene | Words | Planned | Estimated | Fits |\n|---|---:|---:|---:|---|\n${preflightRows}\n`,
   );
   writeFile(path.join(jobDir, 'render-command.sh'), `#!/usr/bin/env bash\nset -euo pipefail\ncd "$(dirname "$0")/../../.."\n${renderCommand}\n`);
 

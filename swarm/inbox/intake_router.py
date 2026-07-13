@@ -94,7 +94,7 @@ DEFAULT_TIMEOUT = 15
 LONG_POLL_TIMEOUT = 0  # 0 = short poll; cron calls every minute
 WIKI_ROOT = Path(os.environ.get(
     "BRAIN1_WIKI_ROOT",
-    str(Path.home() / "2nd Brain" / "2nd Brain" / "Wiki"),
+    str(Path.home() / "2nd-brain" / "Wiki"),
 ))
 
 

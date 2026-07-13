@@ -113,9 +113,13 @@ def effective_max_daily_prs() -> int:
 
 # ── Brain-1 wiki ──────────────────────────────────────────────────────────────
 # Local directory injected into Margot's context on every turn.
+# NB: the live Obsidian vault is ~/2nd-brain (hyphen) — the ingest pipeline
+# writes Sources/ and Wiki/ there. The old ~/"2nd Brain"/"2nd Brain" (space)
+# path is a stale mirror; pointing here realigns sources_watcher (../Sources),
+# wiki_ingest, and wiki_query onto the live vault.
 BRAIN1_WIKI_DIR: str = os.environ.get(
     "BRAIN1_WIKI_DIR",
-    str(pathlib.Path.home() / "2nd Brain" / "2nd Brain" / "Wiki"),
+    str(pathlib.Path.home() / "2nd-brain" / "Wiki"),
 )
 
 # Gemini File Search store name for use_corpus=True deep_research calls.
@@ -129,7 +133,7 @@ OBSIDIAN_TOKEN: str = os.environ.get("OBSIDIAN_TOKEN", "")
 OBSIDIAN_BASE_URL: str = os.environ.get("OBSIDIAN_URL", "https://127.0.0.1:27124")
 OBSIDIAN_VAULT: str = os.environ.get(
     "OBSIDIAN_VAULT",
-    str(pathlib.Path.home() / "2nd Brain" / "2nd Brain"),
+    str(pathlib.Path.home() / "2nd-brain"),
 )
 
 # ── Tailscale remote brain host ───────────────────────────────────────────────

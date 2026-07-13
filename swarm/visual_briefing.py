@@ -126,7 +126,7 @@ def _assemble_brief(slot: str) -> str:
     # Evening slot: add wiki tech-drops + enhancement proposals
     if slot == "evening":
         try:
-            wiki = Path.home() / "2nd Brain" / "2nd Brain" / "Wiki"
+            wiki = Path.home() / "2nd-brain" / "Wiki"
             drops = wiki / "tech-drops-q2-2026.md"
             if drops.exists():
                 sections.append(f"## Latest Tech Drops\n{drops.read_text()[:1500]}")

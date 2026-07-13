@@ -1,0 +1,145 @@
+{
+  "brand": "ra",
+  "hookSec": 7,
+  "ctaSec": 7,
+  "storyboard": [
+    {
+      "sceneId": "hook",
+      "sceneType": "hook",
+      "durationSec": 7,
+      "onScreenText": "Your first 5 minutes in RestoreAssist.",
+      "voiceover": "This is your first five minutes in RestoreAssist. The goal is simple: move from a new job to a report-ready workflow without losing evidence along the way.",
+      "data": {
+        "eyebrow": "New user walkthrough"
+      },
+      "voiceoverAudioPath": "audio/ra-a1-first-5-minutes-20260624/scene-0.mp3"
+    },
+    {
+      "sceneId": "dashboard",
+      "sceneType": "body",
+      "durationSec": 10,
+      "onScreenText": "Start on the dashboard and find the next job.",
+      "voiceover": "Start on the dashboard. This is where you orient the team, see what needs attention, and choose the inspection or report you want to work on next.",
+      "data": {
+        "eyebrow": "Minute 1"
+      },
+      "image": {
+        "path": "ra-wave-1-screencaps/04-dashboard-empty-state.png",
+        "alt": "RestoreAssist dashboard"
+      },
+      "voiceoverAudioPath": "audio/ra-a1-first-5-minutes-20260624/scene-1.mp3"
+    },
+    {
+      "sceneId": "create",
+      "sceneType": "flow",
+      "durationSec": 11,
+      "onScreenText": "Create or open the inspection.",
+      "voiceover": "Create or open the inspection. Add the property, claim context, affected areas, and job details so everyone is working from the same record from the beginning.",
+      "data": {
+        "eyebrow": "Minute 2",
+        "flowSteps": [
+          "Property",
+          "Claim",
+          "Areas",
+          "Details",
+          "Assign"
+        ]
+      },
+      "image": {
+        "path": "assets/ra-a1-first-5-minutes/inspection-start.svg",
+        "alt": "Create an inspection workflow"
+      },
+      "voiceoverAudioPath": "audio/ra-a1-first-5-minutes-20260624/scene-2.mp3"
+    },
+    {
+      "sceneId": "capture",
+      "sceneType": "keypoints",
+      "durationSec": 12,
+      "onScreenText": "Capture evidence while the job is fresh.",
+      "voiceover": "Capture photos, notes, moisture readings, and site observations while the job is fresh. RestoreAssist keeps the proof connected to the inspection instead of scattered across phones and messages.",
+      "data": {
+        "eyebrow": "Minute 3",
+        "keypoints": [
+          "Photos",
+          "Notes",
+          "Moisture readings",
+          "Site observations"
+        ]
+      },
+      "image": {
+        "path": "ra-wave-1-screencaps/03-inspection-detail-tabs.png",
+        "alt": "Inspection detail tabs"
+      },
+      "voiceoverAudioPath": "audio/ra-a1-first-5-minutes-20260624/scene-3.mp3"
+    },
+    {
+      "sceneId": "gaps",
+      "sceneType": "comparison",
+      "durationSec": 11,
+      "onScreenText": "Spot missing pieces before they become delays.",
+      "voiceover": "If something is missing, the gap becomes visible early. That means less chasing later, fewer re-explanations, and a cleaner path to the report.",
+      "data": {
+        "eyebrow": "Minute 4",
+        "comparisonRows": [
+          {
+            "them": "Find gaps after handover",
+            "us": "See missing items early"
+          },
+          {
+            "them": "Photos without context",
+            "us": "Evidence tied to the job"
+          },
+          {
+            "them": "Report pressure at the end",
+            "us": "Report-ready as you work"
+          }
+        ]
+      },
+      "image": {
+        "path": "ra-wave-1-screencaps/02-storage-card-disconnected.png",
+        "alt": "RestoreAssist disconnected storage card"
+      },
+      "voiceoverAudioPath": "audio/ra-a1-first-5-minutes-20260624/scene-4.mp3"
+    },
+    {
+      "sceneId": "report-ready",
+      "sceneType": "stat",
+      "durationSec": 10,
+      "onScreenText": "By minute five, the job has a cleaner handover.",
+      "voiceover": "By minute five, the job has a cleaner handover. One job record, one evidence chain, and one clearer path toward the report.",
+      "data": {
+        "eyebrow": "Minute 5",
+        "stats": [
+          {
+            "value": "1",
+            "label": "job record"
+          },
+          {
+            "value": "1",
+            "label": "evidence chain"
+          },
+          {
+            "value": "1",
+            "label": "report path"
+          }
+        ]
+      },
+      "image": {
+        "path": "assets/ra-a1-first-5-minutes/report-ready.svg",
+        "alt": "Report-ready workflow"
+      },
+      "voiceoverAudioPath": "audio/ra-a1-first-5-minutes-20260624/scene-5.mp3"
+    },
+    {
+      "sceneId": "cta",
+      "sceneType": "cta",
+      "durationSec": 7,
+      "onScreenText": "RestoreAssist. Start every job with clarity.",
+      "voiceover": "RestoreAssist. Start every job with clarity. Create your first inspection and keep the evidence in order from day one.",
+      "data": {
+        "eyebrow": "Next step"
+      },
+      "voiceoverAudioPath": "audio/ra-a1-first-5-minutes-20260624/scene-6.mp3"
+    }
+  ]
+}

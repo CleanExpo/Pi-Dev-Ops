@@ -167,7 +167,7 @@ def _save_manifest(manifest: dict) -> None:
 
 def _wiki_context(business_id: str) -> str:
     """Load relevant wiki pages for a business to enrich the brief."""
-    wiki = Path.home() / "2nd Brain" / "2nd Brain" / "Wiki"
+    wiki = Path.home() / "2nd-brain" / "Wiki"
     pages = []
     for name in [f"{business_id}.md", "founder.md", "voice-klark-brown.md"]:
         p = wiki / name

@@ -66,7 +66,7 @@ CLAUDE_PRINT_TIMEOUT = int(os.environ.get("CLAUDE_PRINT_TIMEOUT", "120"))
 CLAUDE_CLI = os.environ.get("CLAUDE_CLI", "claude")
 WIKI_ROOT = Path(os.environ.get(
     "BRAIN1_WIKI_ROOT",
-    str(Path.home() / "2nd Brain" / "2nd Brain" / "Wiki"),
+    str(Path.home() / "2nd-brain" / "Wiki"),
 ))
 
 

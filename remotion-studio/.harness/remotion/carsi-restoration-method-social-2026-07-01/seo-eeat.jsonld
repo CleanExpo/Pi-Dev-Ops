@@ -1,0 +1,66 @@
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "VideoObject",
+      "@id": "https://carsi.com.au/learn/restoration-done-to-standard#video",
+      "name": "Dry, or dry to standard? The IICRC S500 water-damage method",
+      "description": "What separates a proper water-damage restoration from guesswork: measurable drying goals, verified moisture readings, and documented sign-off — the professional method to the IICRC S500 standard, explained in 30 seconds.",
+      "thumbnailUrl": ["https://carsi.com.au/learn/restoration-done-to-standard/thumb-16x9.jpg"],
+      "uploadDate": "2026-07-01",
+      "duration": "PT30S",
+      "inLanguage": "en-AU",
+      "contentUrl": "https://cdn.carsi.com.au/video/restoration-done-to-standard-16x9.mp4",
+      "embedUrl": "https://carsi.com.au/learn/restoration-done-to-standard",
+      "isFamilyFriendly": true,
+      "learningResourceType": "explainer video",
+      "educationalUse": "professional development",
+      "teaches": "The IICRC S500 water-damage restoration method: map moisture, set the drying goal, verify readings, document completion.",
+      "keywords": "water damage restoration, IICRC S500, structural drying, moisture mapping, drying goal, restoration standard, continuing education credits, CEC",
+      "about": [
+        { "@type": "Thing", "name": "Water damage restoration" },
+        { "@type": "Thing", "name": "IICRC S500 Standard for Professional Water Damage Restoration" },
+        { "@type": "Thing", "name": "Structural drying" }
+      ],
+      "transcript": "Water damage doesn't end when the water's gone. Done right, restoration follows one standard — measurable drying goals, not guesswork. Map the moisture. Set the dry goal. Verify every reading. Document the sign-off. That's the difference between dry, and dry to standard. Learn the method. Find an accredited professional. Restore it right, the first time.",
+      "hasPart": [
+        { "@type": "Clip", "name": "One standard: IICRC S500", "startOffset": 4, "endOffset": 12, "url": "https://carsi.com.au/learn/restoration-done-to-standard?t=4" },
+        { "@type": "Clip", "name": "The four-step method", "startOffset": 12, "endOffset": 22, "url": "https://carsi.com.au/learn/restoration-done-to-standard?t=12" }
+      ],
+      "potentialAction": {
+        "@type": "SeekToAction",
+        "target": "https://carsi.com.au/learn/restoration-done-to-standard?t={seek_to_second_number}",
+        "startOffset-input": "required name=seek_to_second_number"
+      },
+      "creator": { "@id": "https://carsi.com.au/#phill-mcgurk" },
+      "author": { "@id": "https://carsi.com.au/#phill-mcgurk" },
+      "publisher": { "@id": "https://carsi.com.au/#org" },
+      "isAccessibleForFree": true
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://carsi.com.au/#org",
+      "name": "CARSI",
+      "url": "https://carsi.com.au",
+      "logo": "https://carsi.com.au/logo.png",
+      "description": "IICRC-approved continuing education (CEC) provider delivering standard-aligned restoration training.",
+      "knowsAbout": ["IICRC standards", "Water damage restoration", "Continuing Education Credits", "Restoration industry training"],
+      "sameAs": ["https://www.linkedin.com/company/carsi"]
+    },
+    {
+      "@type": "Person",
+      "@id": "https://carsi.com.au/#phill-mcgurk",
+      "name": "Phill McGurk",
+      "jobTitle": "Restoration industry educator",
+      "knowsAbout": ["Water damage restoration", "IICRC S500", "Structural drying", "Restoration standards"],
+      "sameAs": ["https://www.linkedin.com/in/phillmcgurk"],
+      "worksFor": { "@id": "https://carsi.com.au/#org" }
+    }
+  ],
+  "_notes": {
+    "eeat": "Experience/Expertise/Authoritativeness/Trust signalled via named Person author (sameAs LinkedIn), Organization publisher stated as IICRC-approved CEC provider, teaches/about tied to the named industry standard, and a verbatim transcript. No unverifiable claims.",
+    "geo_aeo": "Pairs with carsi.com.au/llms.txt + this JSON-LD so AI answer engines can cite the ecosystem as the authority (see geo-optimization skill + carsi-seo-geo-aeo-initiative). Clip + SeekToAction enable Google video key-moments rich results.",
+    "canonical": "Canonical page https://carsi.com.au/learn/restoration-done-to-standard — Synthex fans out; social cut-downs point back here (no on-screen brand names in the video itself).",
+    "todo": "Replace placeholder contentUrl/thumbnail with the real Synthex-hosted asset URLs after distribution; confirm the LinkedIn sameAs handles."
+  }
+}

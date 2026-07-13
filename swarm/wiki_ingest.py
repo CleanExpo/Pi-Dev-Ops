@@ -283,6 +283,7 @@ def ingest(finding: str, source_type: str = "research",
             p = wdir / filename
             try:
                 content = _write_new_page(slug, finding, today)
+                p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_text(content, encoding="utf-8")
                 result.pages_created.append(filename)
                 changed.append(p)

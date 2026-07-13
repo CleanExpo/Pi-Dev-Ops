@@ -1,0 +1,141 @@
+{
+  "brand": "ra",
+  "hookSec": 7,
+  "ctaSec": 7,
+  "storyboard": [
+    {
+      "sceneId": "hook",
+      "sceneType": "hook",
+      "durationSec": 7,
+      "onScreenText": "Create a water-damage inspection from scratch.",
+      "voiceover": "Here is how to create a water-damage inspection from scratch in RestoreAssist, so the job starts clean and the report is easier later.",
+      "data": {
+        "eyebrow": "RestoreAssist inspection tutorial"
+      },
+      "voiceoverAudioPath": "audio/ra-a2-water-damage-inspection-20260624/scene-0.mp3"
+    },
+    {
+      "sceneId": "start",
+      "sceneType": "body",
+      "durationSec": 10,
+      "onScreenText": "Start with the loss details.",
+      "voiceover": "Begin with the loss details. Add the property, claim reference, cause of loss, affected areas, and the first notes that explain what happened on site.",
+      "data": {
+        "eyebrow": "Step 1"
+      },
+      "image": {
+        "path": "assets/ra-a2-water-damage-inspection/water-loss-start.svg",
+        "alt": "Water loss details captured in RestoreAssist"
+      },
+      "voiceoverAudioPath": "audio/ra-a2-water-damage-inspection-20260624/scene-1.mp3"
+    },
+    {
+      "sceneId": "rooms",
+      "sceneType": "flow",
+      "durationSec": 11,
+      "onScreenText": "Break the job into rooms and affected areas.",
+      "voiceover": "Break the job into rooms and affected areas. This gives every photo, moisture reading, scope item, and observation a place to belong.",
+      "data": {
+        "eyebrow": "Step 2",
+        "flowSteps": [
+          "Property",
+          "Rooms",
+          "Affected areas",
+          "Notes",
+          "Assign"
+        ]
+      },
+      "image": {
+        "path": "ra-wave-1-screencaps/03-inspection-detail-tabs.png",
+        "alt": "Inspection tabs for room evidence"
+      },
+      "voiceoverAudioPath": "audio/ra-a2-water-damage-inspection-20260624/scene-2.mp3"
+    },
+    {
+      "sceneId": "evidence",
+      "sceneType": "keypoints",
+      "durationSec": 12,
+      "onScreenText": "Capture photos, notes, and moisture readings together.",
+      "voiceover": "Capture the evidence while the technician is still on site. Photos, notes, readings, and observations stay tied to the same inspection instead of being reconstructed later.",
+      "data": {
+        "eyebrow": "Step 3",
+        "keypoints": [
+          "Photos",
+          "Technician notes",
+          "Moisture readings",
+          "Site observations"
+        ]
+      },
+      "image": {
+        "path": "assets/ra-a2-water-damage-inspection/moisture-evidence.svg",
+        "alt": "Moisture evidence and inspection readings"
+      },
+      "voiceoverAudioPath": "audio/ra-a2-water-damage-inspection-20260624/scene-3.mp3"
+    },
+    {
+      "sceneId": "scope",
+      "sceneType": "comparison",
+      "durationSec": 11,
+      "onScreenText": "Build the scope from what was actually found.",
+      "voiceover": "Once the evidence is in place, the scope can follow the facts. That means fewer vague notes, fewer missing items, and a cleaner explanation for the client or assessor.",
+      "data": {
+        "eyebrow": "Step 4",
+        "comparisonRows": [
+          {
+            "them": "Scope from memory",
+            "us": "Scope from evidence"
+          },
+          {
+            "them": "Missing room context",
+            "us": "Room-by-room record"
+          },
+          {
+            "them": "Questions after handover",
+            "us": "Cleaner explanation up front"
+          }
+        ]
+      },
+      "image": {
+        "path": "assets/ra-a2-water-damage-inspection/scope-report.svg",
+        "alt": "Scope and report-ready workflow"
+      },
+      "voiceoverAudioPath": "audio/ra-a2-water-damage-inspection-20260624/scene-4.mp3"
+    },
+    {
+      "sceneId": "ready",
+      "sceneType": "stat",
+      "durationSec": 10,
+      "onScreenText": "A better inspection becomes a better report.",
+      "voiceover": "A better inspection becomes a better report. The client sees the story, the assessor sees the logic, and the restorer keeps control of the handover.",
+      "data": {
+        "eyebrow": "Outcome",
+        "stats": [
+          {
+            "value": "1",
+            "label": "inspection record"
+          },
+          {
+            "value": "1",
+            "label": "evidence chain"
+          },
+          {
+            "value": "1",
+            "label": "report-ready handover"
+          }
+        ]
+      },
+      "voiceoverAudioPath": "audio/ra-a2-water-damage-inspection-20260624/scene-5.mp3"
+    },
+    {
+      "sceneId": "cta",
+      "sceneType": "cta",
+      "durationSec": 7,
+      "onScreenText": "RestoreAssist. Build the inspection right the first time.",
+      "voiceover": "RestoreAssist. Build the inspection right the first time, and make every report easier to explain.",
+      "data": {
+        "eyebrow": "Next step"
+      },
+      "voiceoverAudioPath": "audio/ra-a2-water-damage-inspection-20260624/scene-6.mp3"
+    }
+  ]
+}

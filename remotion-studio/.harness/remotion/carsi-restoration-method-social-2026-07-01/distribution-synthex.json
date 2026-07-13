@@ -1,0 +1,42 @@
+{
+  "jobId": "carsi-restoration-method-social-2026-07-01",
+  "orchestrator": "synthex",
+  "rule": "All distribution routes through Synthex (standing founder rule 2026-07-01). Do not hand-publish per channel.",
+  "canonical": {
+    "url": "https://carsi.com.au/learn/restoration-done-to-standard",
+    "note": "Single authority hub on the owning brand domain. The video carries NO on-screen brand names; every social cut-down links back here. Synthex fans out from this canonical.",
+    "schema": "seo-eeat.jsonld (VideoObject + Organization + Person, E-E-A-T + GEO/AEO)"
+  },
+  "assetBundle": {
+    "master_16x9": ".remotion-renders/carsi-restoration-method-social-2026-07-01-16x9.mp4 (1920x1080, 32.2s, gate ✓)",
+    "social_9x16": ".remotion-renders/carsi-restoration-method-social-2026-07-01-9x16.mp4 (1080x1920, 32.2s, gate ✓)",
+    "transcript": "seo-eeat.jsonld#transcript",
+    "captions_srt": ".harness/remotion/carsi-restoration-method-social-2026-07-01/captions.srt (10 cues, synced to VO)",
+    "thumbnail_9x16": ".harness/remotion/carsi-restoration-method-social-2026-07-01/thumbnail-9x16.png (1080x1920, Canva design DAHOG5kiGEg)",
+    "thumbnail_16x9": ".harness/remotion/carsi-restoration-method-social-2026-07-01/thumbnail-16x9.png (1920x1080, Canva design DAHOGz7GMUE)",
+    "jsonld": "seo-eeat.jsonld"
+  },
+  "channels": [
+    { "id": "youtube",   "format": "16x9", "durationSec": 30, "utm": "utm_source=youtube&utm_medium=social&utm_campaign=restoration-standard&utm_content=explainer-16x9" },
+    { "id": "linkedin",  "format": "16x9", "durationSec": 30, "utm": "utm_source=linkedin&utm_medium=social&utm_campaign=restoration-standard&utm_content=explainer-16x9" },
+    { "id": "website-embed", "format": "16x9", "durationSec": 30, "utm": "utm_source=carsi&utm_medium=embed&utm_campaign=restoration-standard" },
+    { "id": "instagram-reels", "format": "9x16", "durationSec": 30, "utm": "utm_source=instagram&utm_medium=reels&utm_campaign=restoration-standard&utm_content=explainer-9x16", "status": "ready" },
+    { "id": "tiktok",    "format": "9x16", "durationSec": 30, "utm": "utm_source=tiktok&utm_medium=social&utm_campaign=restoration-standard&utm_content=explainer-9x16", "status": "ready" },
+    { "id": "youtube-shorts", "format": "9x16", "durationSec": 30, "utm": "utm_source=youtube&utm_medium=shorts&utm_campaign=restoration-standard&utm_content=explainer-9x16", "status": "ready" }
+  ],
+  "eeat": {
+    "author": "Phill McGurk (sameAs LinkedIn) — restoration industry educator",
+    "publisher": "CARSI — IICRC-approved CEC provider",
+    "signals": ["named author + publisher", "verbatim transcript", "teaches/about tied to IICRC S500", "canonical on owning domain", "no unverifiable claims"],
+    "geo_aeo": "Attach seo-eeat.jsonld to the canonical page; add/refresh carsi.com.au/llms.txt so answer engines cite the ecosystem (geo-optimization skill)."
+  },
+  "crossLink": {
+    "policy": "Role-based CTAs only — never product/brand names on screen.",
+    "map": {
+      "Learn the method": "carsi (training/CEC authority)",
+      "Find an accredited professional": "dr-nrpg network + disaster-recovery (demand entry)",
+      "Restore it right — the first time": "restoreassist (on-the-job tool)"
+    }
+  },
+  "handoff": "Synthex ingests assetBundle + jsonld + per-channel UTM, publishes the canonical, and schedules the channel cut-downs. Feed this manifest to the Synthex distribution pipeline (see synthex-is-distribution-channel memory)."
+}

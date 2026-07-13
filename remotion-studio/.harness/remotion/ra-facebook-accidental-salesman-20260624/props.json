@@ -1,0 +1,129 @@
+{
+  "brand": "ra",
+  "hookSec": 7,
+  "ctaSec": 7,
+  "storyboard": [
+    {
+      "sceneId": "hook",
+      "sceneType": "hook",
+      "durationSec": 7,
+      "onScreenText": "Your report can sell the job for you.",
+      "voiceover": "Your report can sell the job for you. Clear proof does the persuading before you have to.",
+      "data": {
+        "eyebrow": "RestoreAssist for Facebook"
+      },
+      "voiceoverAudioPath": "audio/ra-facebook-accidental-salesman-20260624/scene-0.mp3"
+    },
+    {
+      "sceneId": "problem",
+      "sceneType": "comparison",
+      "durationSec": 10,
+      "onScreenText": "When the report is unclear, everyone has to sell twice.",
+      "voiceover": "Most contractors do not lose trust because the work is bad. They lose trust when photos, moisture readings, scope notes, and insurer questions all live in different places.",
+      "data": {
+        "eyebrow": "The accidental salesman",
+        "comparisonRows": [
+          {
+            "them": "Photos in the phone gallery",
+            "us": "Evidence attached to the job"
+          },
+          {
+            "them": "Scope explained over the phone",
+            "us": "Scope shown in a clean report"
+          },
+          {
+            "them": "Back-and-forth with assessors",
+            "us": "One source of truth for everyone"
+          }
+        ]
+      },
+      "image": {
+        "path": "assets/ra-facebook-promo/problem.svg",
+        "alt": "Fragmented restoration paperwork and phone photos"
+      },
+      "voiceoverAudioPath": "audio/ra-facebook-accidental-salesman-20260624/scene-1.mp3"
+    },
+    {
+      "sceneId": "mechanism",
+      "sceneType": "flow",
+      "durationSec": 11,
+      "onScreenText": "RestoreAssist turns field work into clear proof.",
+      "voiceover": "RestoreAssist turns the inspection into a simple chain. Capture the evidence. Map the moisture. Build the scope. Produce the report. Share it with confidence.",
+      "data": {
+        "eyebrow": "How the proof sells",
+        "flowSteps": [
+          "Capture",
+          "Map",
+          "Scope",
+          "Report",
+          "Share"
+        ]
+      },
+      "image": {
+        "path": "assets/ra-facebook-promo/mechanism.svg",
+        "alt": "RestoreAssist inspection workflow on tablet"
+      },
+      "voiceoverAudioPath": "audio/ra-facebook-accidental-salesman-20260624/scene-2.mp3"
+    },
+    {
+      "sceneId": "proof",
+      "sceneType": "stat",
+      "durationSec": 9,
+      "onScreenText": "Not a hard sell. A better explanation.",
+      "voiceover": "You are not pushing. You are making the decision easy because the proof is organised before anyone has to ask.",
+      "data": {
+        "eyebrow": "Why it works",
+        "stats": [
+          {
+            "value": "1",
+            "label": "inspection record"
+          },
+          {
+            "value": "0",
+            "label": "guesswork in the handover"
+          },
+          {
+            "value": "\u2713",
+            "label": "clear next step for client and assessor"
+          }
+        ]
+      },
+      "image": {
+        "path": "assets/ra-facebook-promo/proof.svg",
+        "alt": "Clean digital restoration report"
+      },
+      "voiceoverAudioPath": "audio/ra-facebook-accidental-salesman-20260624/scene-3.mp3"
+    },
+    {
+      "sceneId": "outcome",
+      "sceneType": "keypoints",
+      "durationSec": 9,
+      "onScreenText": "The job feels more professional before the invoice is sent.",
+      "voiceover": "Homeowners feel informed. Assessors see the logic. Contractors spend less time re-explaining the same job.",
+      "data": {
+        "eyebrow": "What changes",
+        "keypoints": [
+          "Homeowners feel informed",
+          "Assessors see the logic",
+          "Contractors stop re-explaining"
+        ]
+      },
+      "image": {
+        "path": "assets/ra-facebook-promo/outcome.svg",
+        "alt": "Homeowner and assessor reviewing a clear report"
+      },
+      "voiceoverAudioPath": "audio/ra-facebook-accidental-salesman-20260624/scene-4.mp3"
+    },
+    {
+      "sceneId": "cta",
+      "sceneType": "cta",
+      "durationSec": 7,
+      "onScreenText": "RestoreAssist. Let the report do the selling.",
+      "voiceover": "RestoreAssist. Let the report do the selling. Book a walkthrough today.",
+      "data": {
+        "eyebrow": "Book a walkthrough"
+      },
+      "voiceoverAudioPath": "audio/ra-facebook-accidental-salesman-20260624/scene-5.mp3"
+    }
+  ]
+}

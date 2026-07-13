@@ -17,7 +17,7 @@ from pathlib import Path
 import yaml
 
 DEFAULT_PATH = (
-    Path.home() / "2nd Brain" / "2nd Brain" / "Wiki" / "master-plan-2b-by-2028-v3.md"
+    Path.home() / "2nd-brain" / "Wiki" / "master-plan-2b-by-2028-v3.md"
 )
 TTL_SECONDS = 24 * 60 * 60
 _cache: dict[str, tuple[float, list[str]]] = {}
