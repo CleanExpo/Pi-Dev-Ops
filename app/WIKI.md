@@ -1,8 +1,8 @@
 # app — Wiki
 
-_Last updated: 2026-07-09T03:46:26Z (commits 474b3c1..7a398ef)_
+_Last updated: 2026-07-13T20:55:26Z (commits 893dae5..081d868)_
 
 ## Recent changes
-- 7a398ef — fix(tournament): order-invariant Bradley-Terry ranking for RA-7022 (RA-7024) (#551)
+- 081d868 — fix(tdd): strip ANSI colour before pytest summary parse — kill false reds (#575)
 
 

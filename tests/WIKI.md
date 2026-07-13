@@ -1,8 +1,8 @@
 # tests — Wiki
 
-_Last updated: 2026-07-05T10:19:44Z (commits 9698daa..9095122)_
+_Last updated: 2026-07-13T20:55:26Z (commits 893dae5..081d868)_
 
 ## Recent changes
-- 9095122 — feat(model-policy): fable-5 adversary canary, env-gated + opus fallback (RA-1099 Wave 3) (#517)
+- 081d868 — fix(tdd): strip ANSI colour before pytest summary parse — kill false reds (#575)
 
 
