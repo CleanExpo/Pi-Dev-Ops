@@ -130,7 +130,7 @@ async def cron_loop() -> None:
                 await _watchdog_zte_reality_check(_log)        # RA-608
                 await _watchdog_notebooklm_health(_log)        # RA-820
                 await _watchdog_notebooklm_refresh_weekly(_log)  # RA-1668
-                await _watchdog_board_meeting_silence(_log)    # RA-1472
+                await _watchdog_board_meeting_silence(_log, triggers)    # RA-1472/RA-7030
                 await _watchdog_vercel_deploy_failures(_log)   # RA-1742
                 await _watchdog_linear_auth(_log)              # RA-1908
                 await _watchdog_health_full(_log)              # RA-1910

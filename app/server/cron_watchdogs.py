@@ -30,10 +30,14 @@ _SCHEDULER_SILENT_COOLDOWN_H = 6.0
 # RA-1472 — Board meeting silence watchdog. The pi-dev-ops-board-meeting
 # Cowork task went silent 2026-04-14 → 2026-04-20 (24 missed cycles, 6 days)
 # without alerting. The fix: every 30 min, check the newest file in
-# .harness/board-meetings/. If older than 12 h, fire a Telegram alert +
-# Linear ticket. Cooldown prevents storming if the gap persists.
+# .harness/board-meetings/ AND the board_meeting trigger's last_fired_at
+# (RA-7030 — on Railway the git checkout resets file mtimes on every deploy
+# and Mac-written artefacts never reach the container, so file age alone
+# false-alarms on the always-on host). Threshold sized to the
+# board-meeting-daily cadence (24 h @ 05:00 UTC) plus slack — the old 12 h
+# predates the move from 6-hourly Cowork cycles to the daily trigger.
 _board_meeting_silent_last_raised: float = 0.0
-_BOARD_MEETING_SILENT_THRESHOLD_H = 12.0
+_BOARD_MEETING_SILENT_THRESHOLD_H = 30.0
 _BOARD_MEETING_SILENT_COOLDOWN_H = 12.0
 
 # RA-1742 — Vercel deploy-failure watchdog. The 2026-04-27 outage left
@@ -519,20 +523,23 @@ async def _watchdog_notebooklm_health(log) -> None:
         log.warning("NotebookLM health: Telegram send failed: %s", exc)
 
 
-async def _watchdog_board_meeting_silence(log) -> None:
+async def _watchdog_board_meeting_silence(log, triggers: list[dict] | None = None) -> None:
     """
-    RA-1472 — Board-meeting silence watchdog.
+    RA-1472 / RA-7030 — Board-meeting silence watchdog.
 
     Cycles 28–51 (2026-04-14 → 2026-04-20, ~6 days, 24 missed 6-hour windows)
     went silent without alerting because the pi-dev-ops-board-meeting Cowork
     task lost its workspace mount and the failure was never surfaced.
 
-    This watchdog runs alongside the others on the 30-minute tick. It checks
-    the most recent board-meeting markdown file:
-      - .harness/board-meetings/*.md  (current location)
-    If the newest is older than 12 h (or none exist at all), it raises a
-    Telegram alert + Linear ticket. Cooldown matches the threshold so we
-    don't storm during a multi-day outage.
+    This watchdog runs alongside the others on the 30-minute tick. Silence is
+    the MINIMUM of two ages, so either signal proves liveness:
+      - newest .harness/board-meetings/*.md mtime (artefact truth), and
+      - the enabled board_meeting trigger's last_fired_at (in-process truth —
+        RA-7030: on the always-on Railway host the git checkout resets file
+        mtimes on every deploy and Mac-written artefacts never reach the
+        container, so file age alone false-alarms there).
+    If both are older than the threshold (or absent), it raises a Telegram
+    alert + Linear ticket. Cooldown prevents storming during a real outage.
     """
     global _board_meeting_silent_last_raised
     from . import config
@@ -553,6 +560,15 @@ async def _watchdog_board_meeting_silence(log) -> None:
         else:
             newest = max(md_files, key=lambda p: p.stat().st_mtime)
             silence_h = (time.time() - newest.stat().st_mtime) / 3600
+
+    # RA-7030 — the trigger's own fire timestamp is equally valid proof of life.
+    for trigger in triggers or []:
+        if trigger.get("type") != "board_meeting" or not trigger.get("enabled", True):
+            continue
+        last_fired = trigger.get("last_fired_at") or 0
+        if last_fired:
+            trigger_age_h = (time.time() - last_fired) / 3600
+            silence_h = trigger_age_h if silence_h is None else min(silence_h, trigger_age_h)
 
     if silence_h is None or silence_h < _BOARD_MEETING_SILENT_THRESHOLD_H:
         return
