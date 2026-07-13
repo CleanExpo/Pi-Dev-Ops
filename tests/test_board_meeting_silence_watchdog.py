@@ -64,7 +64,7 @@ async def test_silent_when_recent_file_present(isolated_meetings_dir, _hush_netw
 @pytest.mark.asyncio
 async def test_alerts_when_newest_file_is_stale(isolated_meetings_dir, _hush_network, caplog):
     """Newest file > threshold → warning logged + cooldown bumped."""
-    _make_meeting(isolated_meetings_dir, "stale.md", age_hours=24.0)
+    _make_meeting(isolated_meetings_dir, "stale.md", age_hours=36.0)
     before = cw._board_meeting_silent_last_raised
     with caplog.at_level(logging.WARNING, logger="pi-ceo"):
         await cw._watchdog_board_meeting_silence(logging.getLogger("pi-ceo"))
@@ -98,3 +98,37 @@ async def test_cooldown_suppresses_subsequent_calls(isolated_meetings_dir, _hush
     # Second call inside cooldown — must early-return and NOT update.
     await cw._watchdog_board_meeting_silence(logging.getLogger("pi-ceo"))
     assert cw._board_meeting_silent_last_raised == first_raised_at
+
+
+@pytest.mark.asyncio
+async def test_fresh_trigger_fire_suppresses_alert_despite_stale_files(
+    isolated_meetings_dir, _hush_network, caplog
+):
+    """RA-7030: a recently-fired board_meeting trigger proves liveness even
+    when file mtimes are stale (Railway deploy resets / missing artefacts)."""
+    _make_meeting(isolated_meetings_dir, "stale.md", age_hours=200.0)
+    triggers = [{
+        "type": "board_meeting",
+        "enabled": True,
+        "last_fired_at": time.time() - 2 * 3600,
+    }]
+    with caplog.at_level(logging.WARNING, logger="pi-ceo"):
+        await cw._watchdog_board_meeting_silence(logging.getLogger("pi-ceo"), triggers)
+    assert not any("Board-meeting watchdog" in rec.message for rec in caplog.records)
+    assert cw._board_meeting_silent_last_raised == 0.0
+
+
+@pytest.mark.asyncio
+async def test_stale_trigger_and_stale_files_still_alert(
+    isolated_meetings_dir, _hush_network, caplog
+):
+    """RA-7030: a long-dead trigger must not mask genuine silence."""
+    _make_meeting(isolated_meetings_dir, "stale.md", age_hours=200.0)
+    triggers = [{
+        "type": "board_meeting",
+        "enabled": True,
+        "last_fired_at": time.time() - 100 * 3600,
+    }]
+    with caplog.at_level(logging.WARNING, logger="pi-ceo"):
+        await cw._watchdog_board_meeting_silence(logging.getLogger("pi-ceo"), triggers)
+    assert any("Board-meeting watchdog" in rec.message for rec in caplog.records)
