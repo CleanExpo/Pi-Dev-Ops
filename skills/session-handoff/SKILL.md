@@ -112,3 +112,25 @@ Division of labour: `session-handoff` = the definition-of-done gate run + comple
 classification; `merge-gate` = the git-merge boundary and auto-merge threat; `ship-chain` /
 `ship-it` / `ship-release` = the idea→ship lifecycle. Invoke `merge-gate` before any handed-off
 ship command.
+
+## Fork-slice mode (Pocock /handoff, 2026-07)
+
+Lightweight alternative to the full Definition-of-Done gate for **mid-task context forks**:
+spinning an out-of-scope task (bug, refactor, prototype spike) into a fresh agent while the
+current session keeps working. No Phase 0 gate, no classification, no durable report — instead
+of `/compact` (loses fork ability) or `/clear` (loses everything), the fresh agent boots from
+a slice:
+
+- Write a **context-slice markdown** to a temp path (e.g. `$TMPDIR/handoff-<slug>.md`), never
+  the workspace — disposable by design. Contents: task state, decisions made, next action, and
+  a **suggested-skills** list the fresh session should invoke.
+- State the fork's purpose explicitly — a slice can't be written without knowing its consumer.
+- Pointers, not duplication: reference existing docs/issues rather than restating them. Redact
+  secrets/PII (the file lands in a temp dir).
+- Boomerang: a spike session can write a slice back to the parent capturing non-obvious learnings.
+
+**Which mode:** mid-task fork / parallel spike / prototype-and-return → fork-slice. Stopping,
+switching terminals, opening a PR, or handing work to another agent → the full Phase 0 + DoD
+gate above. Fork-slice never replaces the terminal gate.
+
+Provenance: [[pocock-handoff-skill-2026-07-14-ingest]]

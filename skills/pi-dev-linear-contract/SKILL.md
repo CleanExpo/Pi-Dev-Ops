@@ -150,17 +150,6 @@ Missing footer = contract violation. The consistency-audit flags it.
 - `LINEAR_API_KEY` in Railway = **workspace-wide write**. Rotate ≥ every 90 days. Never log. Audit git history before any repo goes public. RA-1293 integration-health probes this key every 60 s and Telegram-alerts on 401.
 - Programmatic skill invocation uses the workspace key via the Linear Agent wrapper — keeps every write in one auditable place.
 
-## Phased rollout (PM-dictated discipline)
-
-| Week | Scope | Risk level |
-|---|---|---|
-| 1 | Part 1 setup on ONE project. Skill 4 only (read-only). | Zero |
-| 2 | Save Skill 1. Manual test via `/Pi-Dev: File Analysis Output`. Verify idempotency. Wire Pi-Dev auto-invocation. | Low |
-| 3 | Save Skill 2. Wire poller. One `pi-dev:autonomous` issue through full lifecycle. | Medium |
-| 4 | Save Skill 3 + Full Sweep. Weekly cron. Expand workspace setup to remaining projects. | Medium |
-
-Read-only first, single-write, single-issue autonomy, scale. Each layer proves the one below before adding risk.
-
 ## What drift looks like (watchlist)
 
 1. **Project-repo name drift** — rename a repo, forget Linear project. Routing silently wrong. → Skill 3 check 3 catches it; also part of change-control checklist.
@@ -177,19 +166,7 @@ Read-only first, single-write, single-issue autonomy, scale. Each layer proves t
 - **Auditing an incident** — trace the failure mode to the contract table above.
 - **Before any workspace-setup change** — Part 1 is a binding schema; edits need consistency-audit re-run.
 
-## Current state vs contract (2026-04-18 snapshot)
-
-- ✅ `LINEAR_API_KEY` rotated, RA-1293 health daemon probing every 60 s.
-- ✅ Multi-project poller (RA-1289) — routing works across all 10 repos.
-- ❌ Autonomy poller filters by state-type `unstarted`, NOT by `Ready for Pi-Dev` status + `pi-dev:autonomous` label (contract violation — needs RA-1297).
-- ❌ On-complete transition is generic "In Progress" not `Pi-Dev: In Progress` (contract violation — needs RA-1297).
-- ❌ On-fail transition is back to `Todo`, not `Pi-Dev: Blocked` + reason label (contract violation — needs RA-1297).
-- ❌ No `Pi-Dev Run ID` custom field population (contract violation — needs RA-1297).
-- ❌ Standard footer block not appended to poller-created tickets (contract violation — needs RA-1297).
-- ❌ Workspace statuses + labels not created yet on any project (Part 1 setup — needs RA-1298 human action).
-
-RA-1297 is the single ticket that brings Pi-Dev-Ops code into contract compliance. RA-1298 is the human-side workspace setup (can only be done via Linear UI or admin API with workspace-admin auth).
-
+Code-side compliance gaps are tracked in RA-1297; human-side workspace setup (Part 1) in RA-1298.
 
 ## Launch-crew finding sync (added by the launch crew)
 
@@ -212,3 +189,12 @@ The autonomy queue is already defined above (status `Ready for Pi-Dev` + label `
 - Each launch-crew finding maps to exactly one issue at the right priority — no duplicates across runs.
 - Only safe/reversible findings carry status `Ready for Pi-Dev` + `pi-dev:autonomous`; no 🚫-path or business-judgment issue is autonomous.
 - No new machine tag (e.g. `[hermes:build]`) is introduced — the contract's existing markers are the single source of truth.
+
+## Producer-side triage gate (Pocock /triage, 2026-07)
+
+The producer-side complement to the estate's continuous Linear pull — consumers only claim tickets triaged to ready-for-agent, so the poller never stumbles on under-specified work:
+- **Label state machine:** two category labels (`bug` / `enhancement`) plus five mutually exclusive state labels — `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wont-fix`. Every triaged issue carries exactly one of each; the invariant is trivially auditable in Linear.
+- **Ready-for-agent gate:** an issue is agent-consumable ONLY with a written agent brief — context, repro, acceptance criteria. In this contract, promotion to ready-for-agent = status `Ready for Pi-Dev` + label `pi-dev:autonomous`; never apply the markers without the brief.
+- **`.out-of-scope/` rejection ADRs:** short top-level records of features ruled out; triage checks them and auto-closes matching enhancement requests — rejections compound into policy.
+
+Provenance: [[pocock-triage-skill-backlog-2026-07-14-ingest]]

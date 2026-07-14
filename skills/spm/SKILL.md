@@ -63,4 +63,15 @@ outcome / scope / existing capability / specialist board / judge challenge / pro
 UX / technical / security / verification / loop+stress testing / acceptance criteria / goal
 command / implementation sequence / session-handoff seed / final recommendation).
 
+## Closed-loop phase validation (IndyDevDan plan F3, 2026-07)
+
+Section 17 (implementation sequence) must be phased for the builder: each phase self-contained,
+carrying a per-task state checklist (idle / WIP / complete / failed) and per-phase validation
+commands mirrored by the section-13 verification plan. The builder must not advance past a phase
+until its validations pass; a `failed` state routes back into the spec for amendment — never
+silently continue. The spec is a living artifact: amend it in place with append-only header
+metadata (modified timestamps, commits, agent/session ids), never fork a duplicate. Optionally
+render the spec as an HTML artifact with embedded diagrams/images when the founder will review it.
+[[plan-skill-rebuild-mythos-indydevdan-2026-07-14-ingest]]
+
 End with: `SPM spec complete. Next safe action: <one sentence>.`
