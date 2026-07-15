@@ -23,8 +23,16 @@ jobs:
           python-version: "3.11"
       - name: Check Fable canary metrics
         env:
+          # Optional override. No TAO_PROD_URL secret exists, so this resolves empty and
+          # the script falls back to the prod URL — the same one smoke_pipeline.yml has
+          # used successfully for months. It was the absence of this secret that made the
+          # canary skip, silently, every night.
           TAO_PROD_URL: ${{ secrets.TAO_PROD_URL }}
           TAO_PASSWORD: ${{ secrets.TAO_PROD_PASSWORD }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_ALERT_CHAT_ID }}
+          # send_telegram.py reads ALLOWED_USERS or TELEGRAM_CHAT_ID. This job was alone in
+          # wiring TELEGRAM_CHAT_ID from a TELEGRAM_ALERT_CHAT_ID secret that does not
+          # exist, so a DISARMED/BREACH alert would have gone nowhere. Use the pattern the
+          # other four alerting workflows use.
+          ALLOWED_USERS: ${{ secrets.TELEGRAM_ALLOWED_USERS }}
         run: python3 scripts/fable_canary_check.py
