@@ -324,12 +324,18 @@ def export() -> dict[str, Any]:
 
     version, reason = _bump_version(prev, prev_by_id, new_by_id)
 
+    # Re-stamping generated_at on an unchanged registry makes export()
+    # non-idempotent, which the generated-agentskills gate reads as drift.
+    generated_at = datetime.now(timezone.utc).isoformat()
+    if reason == "no_change" and prev:
+        generated_at = prev["package"]["generated_at"]
+
     manifest = {
         "manifest_version": 1,
         "package": {
             "name": PACKAGE_NAME,
             "version": version,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": generated_at,
             "source": PACKAGE_SOURCE,
         },
         "skills": sorted(new_skills, key=lambda s: s["id"]),
