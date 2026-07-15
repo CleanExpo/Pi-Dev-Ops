@@ -1,12 +1,12 @@
 # .github — Wiki
 
-_Last updated: 2026-07-15T12:12:42Z (commits a7f0366..edd3291)_
+_Last updated: 2026-07-15T13:12:46Z (commits e536924..476e9fb)_
 
 ## Recent changes
-- edd3291 — fix(brief): make the morning brief report reality, not a constant (#586)
+- 476e9fb — fix(canary): make the Fable adversary canary actually run, and fail when it can't (#587)
 
 ## Architecture (current)
 Auto-stub: `.github/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- .github/workflows/morning_briefing.yml — touched in recent commits
+- .github/workflows/fable_canary_check.yml — touched in recent commits
