@@ -132,10 +132,26 @@ def effective_max_daily_prs() -> int:
 
 # ── Brain-1 wiki ──────────────────────────────────────────────────────────────
 # Local directory injected into Margot's context on every turn.
-BRAIN1_WIKI_DIR: str = os.environ.get(
-    "BRAIN1_WIKI_DIR",
-    str(pathlib.Path.home() / "2nd Brain" / "2nd Brain" / "Wiki"),
-)
+
+
+def _resolve_brain1_wiki_dir() -> str:
+    """Locate the vault's Wiki without hardcoding a machine-specific checkout.
+
+    The vault is checked out as ~/2nd-brain on some machines and ~/2nd Brain on
+    others. Hardcoding either silently resolves to a non-existent (or near-empty)
+    directory on the other, and the miss is invisible: callers just receive no
+    context. Probe instead, preferring the first that exists; where only the legacy
+    path is present this returns exactly what it always did.
+    """
+    home = pathlib.Path.home()
+    candidates = (
+        home / "2nd-brain" / "2nd Brain" / "Wiki",
+        home / "2nd Brain" / "2nd Brain" / "Wiki",
+    )
+    return str(next((c for c in candidates if c.is_dir()), candidates[-1]))
+
+
+BRAIN1_WIKI_DIR: str = os.environ.get("BRAIN1_WIKI_DIR", _resolve_brain1_wiki_dir())
 
 # Gemini File Search store name for use_corpus=True deep_research calls.
 # Separate from the local wiki — requires uploading wiki pages to Gemini.
