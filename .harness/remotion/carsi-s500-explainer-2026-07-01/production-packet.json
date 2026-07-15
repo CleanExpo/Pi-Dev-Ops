@@ -1,0 +1,29 @@
+{
+  "jobId": "carsi-s500-explainer-2026-07-01",
+  "brand": "carsi",
+  "composition": "Explainer",
+  "channel": "youtube",
+  "aspectRatio": "1080x1920",
+  "durationSec": 60,
+  "topic": "The 3 IICRC S500 water categories (1 sanitary, 2 significant contamination, 3 grossly contaminated) and how water deteriorates Cat 1 -> 2 -> 3 over time, which decides PPE and restore-vs-discard.",
+  "audience": "Australian water-damage restoration technicians and contractors pursuing IICRC certification and CECs",
+  "voicePolicy": "single ElevenLabs voice (Synthex voice config) — NOT yet configured (ELEVENLABS_API_KEY absent)",
+  "contentSource": {
+    "provenance": "IICRC S500 source in Google Drive (S500 Definitions.pdf, fileId 1fdErXCcfgkhqDBPZS1EidT1TSAxb18MO) — verified",
+    "copyright": "facts/standard framework only; original wording; NO manual prose reproduced"
+  },
+  "brandConfig": "Synthex/packages/brand-config/src/brands/carsi.ts + carsi.design.md",
+  "waves": [
+    { "id": 1, "parallel": [ { "skill": "remotion-marketing-strategist", "note": "aspect/duration/hook+CTA timing for vertical social" } ] },
+    { "id": 2, "parallel": [ { "skill": "remotion-screen-storyteller", "note": "topic-specific storyboard from the locked voiceoverScript (do NOT use one-shot generic template)" }, { "skill": "remotion-motion-language", "if": "carsi motion empty" } ] },
+    { "id": 3, "parallel": [ { "skill": "remotion-designer", "note": "vertical layout, contrast vs carsi.design.md" } ] },
+    { "id": 4, "serial": [ { "skill": "remotion-composition-builder", "note": "author/extend a CARSI S500 vertical Explainer" }, { "skill": "remotion-render-pipeline", "note": "ElevenLabs single voice + audio-fit + validate — BLOCKED on ELEVENLABS_API_KEY" } ] }
+  ],
+  "mode": "dry-run",
+  "publish": "BLOCKED — no-auto-publish gate; founder sign-off + CARSI publish target required",
+  "blockers": [
+    "ELEVENLABS_API_KEY absent -> no voiceover -> audio + sync QA cannot pass",
+    "remotion-studio/node_modules absent -> render needs npm install",
+    "one-shot.ts storyboard is a generic brand template -> topic-specific render needs storyteller + composition-builder"
+  ]
+}
