@@ -1,8 +1,8 @@
 # skills — Wiki
 
-_Last updated: 2026-07-06T08:33:27Z (commits ffa1ecd..8be9070)_
+_Last updated: 2026-07-15T02:17:19Z (commits 50afbd8..d062fb3)_
 
 ## Recent changes
-- 8be9070 — nexus: add second-brain-adopt to G4 specialist routing menu; commit stranded G2 unknowns-quadrant upgrade
+- d062fb3 — chore(salvage): rescue unmerged work from feature/remotion-local-progress-workspace (#579)
 
 
