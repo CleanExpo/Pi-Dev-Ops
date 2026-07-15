@@ -1,8 +1,8 @@
 # .github — Wiki
 
-_Last updated: 2026-07-15T06:18:02Z (commits 8dc58c8..7d468ec)_
+_Last updated: 2026-07-15T06:49:21Z (commits c988c13..cc8442d)_
 
 ## Recent changes
-- 7d468ec — fix(ci): make Live Nexus prod smoke able to fail (#583)
+- cc8442d — fix(ci): make pipeline smoke able to fail, and A6 able to pass (#584)
 
 
