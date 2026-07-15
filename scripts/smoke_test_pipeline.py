@@ -221,8 +221,12 @@ def run_pipeline_smoke() -> int:
                 pa.generate_duration_s = event.get("duration_s")
                 print(f"  [t+{now:.0f}s] generate metric: dur={pa.generate_duration_s}s cost=${event.get('cost_usd')}")
 
-            elif etype == "push_url" or (etype == "success" and "pull_request" in text):
-                # Pi-CEO emits push_url event when the auto-PR opens
+            elif etype == "push_url" or (etype == "success" and "PR opened" in text):
+                # session_phases.py:1536 emits em(session, "success",
+                # "  ✨ PR opened: #N → <url>") when the auto-PR opens. Nothing has ever
+                # emitted "push_url", and a GitHub PR URL is ".../pull/N" -- so the previous
+                # "pull_request" substring never matched and A6 failed even on a successful
+                # PR. Match the text that is actually emitted.
                 pa.pr_url = event.get("url") or text
                 print(f"  [t+{now:.0f}s] PR URL: {pa.pr_url}")
 
