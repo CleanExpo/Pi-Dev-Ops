@@ -30,6 +30,9 @@ on:
 
 permissions:
   contents: read
+  # Required for the "Open PRs" section to query the pulls API. `contents: read`
+  # alone does not grant it, and this repo is private.
+  pull-requests: read
 
 jobs:
   brief:
@@ -50,6 +53,10 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           ALLOWED_USERS:      ${{ secrets.TELEGRAM_ALLOWED_USERS }}
+          # The "Open PRs" section asks the GitHub API. Without a token it reports
+          # itself unavailable rather than silently claiming there are none.
+          GITHUB_TOKEN:       ${{ github.token }}
+          GITHUB_REPOSITORY:  ${{ github.repository }}
         run: |
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             python3 -c "
