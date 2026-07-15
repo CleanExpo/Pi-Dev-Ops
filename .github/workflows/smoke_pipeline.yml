@@ -34,6 +34,13 @@ jobs:
           PI_CEO_URL:         https://pi-dev-ops-production.up.railway.app
           DASHBOARD_PASSWORD: ${{ secrets.TAO_PROD_PASSWORD }}
           SMOKE_MAX_WAIT_S:   "1200"
+        # `shell: bash` runs this with `bash --noprofile --norc -eo pipefail`. GitHub's
+        # default is `bash -e {0}` -- no pipefail -- so the step's status was tee's, not the
+        # smoke test's. steps.smoke.outcome was therefore permanently 'success' and BOTH
+        # steps below (Telegram, fail-the-job) were unreachable. The tee stays: the notify
+        # step reads smoke_output.txt. continue-on-error stays too, so the Telegram step
+        # still runs before the job is failed deliberately below.
+        shell: bash
         run: |
           python3 scripts/smoke_test_pipeline.py | tee smoke_output.txt
         continue-on-error: true
