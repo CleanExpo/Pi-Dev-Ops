@@ -1,8 +1,8 @@
 # .github — Wiki
 
-_Last updated: 2026-07-07T22:50:22Z (commits 0166cb3..13d4cd7)_
+_Last updated: 2026-07-15T06:18:02Z (commits 8dc58c8..7d468ec)_
 
 ## Recent changes
-- 13d4cd7 — feat(dashboard): TerminalPanel — live redacted tmux pane view (RA-7012) (#533)
+- 7d468ec — fix(ci): make Live Nexus prod smoke able to fail (#583)
 
 
