@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.18.0
-  generated_at: "2026-07-11T17:26:03.719285+00:00"
+  version: 1.19.0
+  generated_at: "2026-07-15T02:49:18.371790+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: afk-agent
@@ -10,7 +10,7 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/afk-agent/SKILL.md
-    sha256: 222bab78eb5f5327b0edbc163dd9d845cf3a5574ad977309395a797098b001f0
+    sha256: 972139e73b7e4863d66fb6e53b6f1e895a11c424530c27ef4cb0da4a0f625f47
     dependencies:
       tools: []
       skills: []
@@ -18,6 +18,8 @@ skills:
       requires_kill_switch: false
       requires_hitl_gate: false
       pii_handling: pass-through
+    inferred: true
+    low_confidence: true
   - id: agent-expert
     description: Act-Learn-Reuse cycle for agent improvement over time.
     owner_role: (unset)
@@ -66,7 +68,7 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/agentic-loop/SKILL.md
-    sha256: fbb38a51ef851d921537e3aa74c0c5a3719f2472beb069176a9940534daedd2e
+    sha256: c595db4f446a6ef464a6b088c1264fd5b25ede30e172f9f9a09ea65046840809
     dependencies:
       tools: []
       skills: []
@@ -74,6 +76,8 @@ skills:
       requires_kill_switch: false
       requires_hitl_gate: false
       pii_handling: pass-through
+    inferred: true
+    low_confidence: true
   - id: agentic-review
     description: Review agent output for quality, not just correctness.
     owner_role: (unset)
@@ -195,7 +199,7 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/autonomy-ladder/SKILL.md
-    sha256: e2490b617fca90265257968d9409592c4c203a65171404e2af51a34a18520b02
+    sha256: 4bedf8e3b496b5c6869591a7d61ef3869a4c2573440ae6e933ce68a5ae645a7e
     dependencies:
       tools: []
       skills: []
@@ -331,6 +335,21 @@ skills:
     status: (unset)
     path: skills/chrome-browser/SKILL.md
     sha256: ca56cef2bf05ba53a0ac02802ba4ccc384837a5f232e7f05b4748d1487138b9c
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: claim-verifier
+    description: "The runnable cite-or-cut gate for FINISHED Nexus copy \u2014 walks every checkable factual claim in a completed asset, resolves each to a substantiation record or cuts it, runs the Australian Consumer Law excluded-tactics deny-list, and freezes the Substantiation Ledger before publish. Use as the last gate before any copy asset ships \u2014 landing page, service page, ad, email, franchise-recruitment copy. Triggers on \"cite-or-cut\", \"substantiate this copy\", \"claim check\", \"can we publish this\", \"freeze the ledger\", \"is every claim proven\", \"ACL check the copy\". NOT research (that is `storm`), NOT trust scoring (that is `eeat`)."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/claim-verifier/SKILL.md
+    sha256: 9560f775ca7b8373a8d4a3bc1b3d52ea982032d4ee49d95ede43de217fcc1ff7
     dependencies:
       tools: []
       skills: []
@@ -774,7 +793,7 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/grill-me/SKILL.md
-    sha256: 578438dbd9e224eb0c604eb1fc6942ff6acb57fcdc1fb0160b451123bc71e93e
+    sha256: 0031f73cb4494aba4d1a07f1e04353308a4068da3a7578c1fc4e291607075f19
     dependencies:
       tools: []
       skills: []
@@ -1194,7 +1213,7 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/nexus/SKILL.md
-    sha256: f0c546e61cd95ea254ad5f59697deb15eac4153024792b8c291a73f600a9bfa5
+    sha256: dac32914287cb4cf756e62d13daa5fd96b7073c508c47ce086ed7ac654cc26e1
     dependencies:
       tools: []
       skills: []
@@ -1254,7 +1273,7 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/pi-dev-linear-contract/SKILL.md
-    sha256: 6ef09ce127d548552b681ab70d908cc9f25d99de98f7a968b4a1314ea3b6a197
+    sha256: 8ed87e05202411c5fcb6691c827f8f23994d181169c1b276a5b7788951c53e09
     dependencies:
       tools: []
       skills: []
@@ -1715,7 +1734,7 @@ skills:
     owner_role: Tier-Architect (end-of-session handoff; gate-then-report)
     status: active
     path: skills/session-handoff/SKILL.md
-    sha256: b4206b5c1818b5e69db89b14152119bd9221e273137acee9e11288ba7399f641
+    sha256: 1acf10c157b5889304c3779a78026e551cf65288203f10aafffa02975d04f3b8
     dependencies:
       tools: []
       skills: []
@@ -1819,7 +1838,7 @@ skills:
     owner_role: Tier-Architect (senior project manager; spec author, not builder)
     status: active
     path: skills/spm/SKILL.md
-    sha256: e55e5c7049da277947a0b87f649bce314879e8a64156b859cdce9971ea499be0
+    sha256: 0e6916b692d3ea0530706bac628c6de6ce6f1fd1ac8987d5560eed7b8693b26b
     dependencies:
       tools: []
       skills: []
@@ -1984,7 +2003,7 @@ skills:
     owner_role: (unset)
     status: (unset)
     path: skills/technical-plan/SKILL.md
-    sha256: 269257831923f91a9c2749a9c79fddd0e710ae3a5af7dd364180320c1f766f7c
+    sha256: 4de087a6e17524ca5c8c15b23bdcc63840bced710586cdd1641f7e284c5cf694
     dependencies:
       tools: []
       skills: []
@@ -2180,6 +2199,21 @@ skills:
     safety:
       requires_kill_switch: false
       requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: wayfinder
+    description: Chart a foggy, bigger-than-one-session effort as a shared map of decision tickets on Linear, then work the map one decision per session until the way is clear.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/wayfinder/SKILL.md
+    sha256: 9b0acf98e230bf79cbfa97f177f6dc55e3f96d3f27af4dc11adaba07b01a6848
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: true
       pii_handling: pass-through
     inferred: true
     low_confidence: true
