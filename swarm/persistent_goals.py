@@ -409,8 +409,9 @@ def read_recent_turns(goal_id: str, *, limit: int = 5,
 # action, an off-machine repo, a time-gated fire, an owner-attestation HITL
 # gate). The judge keeps returning "unsatisfied" against an unchanging residual
 # and the agent keeps re-emitting slightly reworded state. This detects "no
-# state change across N consecutive turns" and lets the driver abort + escalate
-# instead of looping. See memory goal-hook-unsatisfiable-loops + skill
+# state change across N consecutive turns" and aborts the goal (audit row
+# `goal_stalled_aborted` only — no alerting is wired here; the driver decides
+# how to surface it). See memory goal-hook-unsatisfiable-loops + skill
 # goal-circuit-breaker.
 
 import re as _re
@@ -477,13 +478,17 @@ def auto_abort_if_stalled(goal_id: str, *, window: int = DEFAULT_STALL_WINDOW,
                            threshold: float = DEFAULT_STALL_SIMILARITY,
                            repo_root: Path | None = None) -> StallReport:
     """Abort a goal that has stalled on an unreachable residual. Idempotent:
-    a non-active goal returns a non-stalled report. The driver calls this each
-    cycle and, on `stalled`, stops re-firing and escalates to the founder
-    instead of looping."""
+    a non-active goal returns a non-stalled report, and predicate-backed goals
+    are never aborted here (they resolve on real state, not on judge prose).
+    On abort this writes a `goal_stalled_aborted` audit row only — it does not
+    send any alert; surfacing the abort is the caller's job."""
     goal = _load_goal_meta(repo_root or Path(__file__).resolve().parents[1],
                             goal_id)
     if goal is None or goal.status != "active":
         return StallReport(False, window, 0, 0.0, "goal not active")
+    if goal.resolution_predicate:
+        return StallReport(False, window, 0, 0.0,
+                            "predicate-backed goal exempt from stall abort")
     rep = detect_stall(goal_id, window=window, threshold=threshold,
                         repo_root=repo_root)
     if rep.stalled:

@@ -405,6 +405,22 @@ def test_predicate_goal_exempt_from_stall_abort(tmp_path):
     assert reloaded.status == "active"
 
 
+def test_auto_abort_direct_call_exempts_predicate_goal(tmp_path):
+    g = PG.create_goal(role="CFO", business_id="portfolio",
+                        topic="runway", resolution_predicate="cfo.runway_at_least_18",
+                        repo_root=tmp_path)
+    for _ in range(3):
+        PG.advance_goal(g.goal_id, drafter_text="same",
+                        redteam_text=_STALL_VERDICT,
+                        auto_abort_on_stall=False, repo_root=tmp_path)
+    # Direct call — not via advance_goal — must still exempt the goal.
+    rep = PG.auto_abort_if_stalled(g.goal_id, repo_root=tmp_path)
+    assert rep.stalled is False
+    assert "predicate-backed" in rep.reason
+    reloaded = PG.get_goal(g.goal_id, repo_root=tmp_path)
+    assert reloaded.status == "active"
+
+
 def test_auto_abort_idempotent_on_nonactive(tmp_path):
     g = PG.create_goal(role="CoS", business_id="portfolio", topic="x",
                         repo_root=tmp_path)
