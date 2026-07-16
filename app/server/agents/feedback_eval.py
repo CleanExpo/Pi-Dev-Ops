@@ -61,6 +61,32 @@ def load_dataset(path: str | Path) -> list[EvalCase]:
     return cases
 
 
+def stratified_split(
+    cases: list[EvalCase], holdout_per_class: int,
+) -> tuple[list[EvalCase], list[EvalCase]]:
+    """Deterministic per-class split: the last `holdout_per_class` cases of each
+    gold category (in dataset order) become the held-out dev set.
+
+    Deterministic by design — no RNG — so every PoV run (DSPy, Langfuse) scores
+    against the identical dev split. Raises ValueError if a class is too small
+    to leave at least one training case.
+    """
+    by_class: dict[str, list[EvalCase]] = {}
+    for c in cases:
+        by_class.setdefault(c.gold_category, []).append(c)
+    train: list[EvalCase] = []
+    dev: list[EvalCase] = []
+    for cat in sorted(by_class):
+        group = by_class[cat]
+        if holdout_per_class >= len(group):
+            raise ValueError(
+                f"class {cat!r} has {len(group)} cases; cannot hold out {holdout_per_class}"
+            )
+        train.extend(group[:-holdout_per_class])
+        dev.extend(group[-holdout_per_class:])
+    return train, dev
+
+
 def category_agreement(gold: str, pred: str | None) -> float:
     """1.0 if the predicted category exactly matches gold, else 0.0.
 

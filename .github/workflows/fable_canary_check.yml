@@ -1,0 +1,38 @@
+# Daily watch on the Fable-5 adversary canary (RA-1099 Wave 3).
+# Why GitHub Actions not Railway cron: always-on requirement per CLAUDE.md.
+# Schedule: 21:07 UTC = 07:07 AEST Brisbane — after the overnight autonomous runs,
+# before the morning brief. Silent on clean; Telegrams only on DISARMED or BREACH.
+name: fable-canary-check
+
+on:
+  schedule:
+    - cron: "7 21 * * *"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.repository == 'CleanExpo/Pi-Dev-Ops'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check Fable canary metrics
+        env:
+          # Optional override. No TAO_PROD_URL secret exists, so this resolves empty and
+          # the script falls back to the prod URL — the same one smoke_pipeline.yml has
+          # used successfully for months. It was the absence of this secret that made the
+          # canary skip, silently, every night.
+          TAO_PROD_URL: ${{ secrets.TAO_PROD_URL }}
+          TAO_PASSWORD: ${{ secrets.TAO_PROD_PASSWORD }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          # send_telegram.py reads ALLOWED_USERS or TELEGRAM_CHAT_ID. This job was alone in
+          # wiring TELEGRAM_CHAT_ID from a TELEGRAM_ALERT_CHAT_ID secret that does not
+          # exist, so a DISARMED/BREACH alert would have gone nowhere. Use the pattern the
+          # other four alerting workflows use.
+          ALLOWED_USERS: ${{ secrets.TELEGRAM_ALLOWED_USERS }}
+        run: python3 scripts/fable_canary_check.py

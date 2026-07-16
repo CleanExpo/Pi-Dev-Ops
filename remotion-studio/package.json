@@ -7,6 +7,7 @@
     "start": "remotion studio",
     "build": "remotion render",
     "render": "tsx render/render.ts",
+    "workspace": "tsx workspace/server.ts",
     "typecheck": "tsc --noEmit",
     "upgrade": "remotion upgrade"
   },

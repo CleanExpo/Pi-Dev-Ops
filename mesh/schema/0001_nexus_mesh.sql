@@ -68,3 +68,15 @@ select
   (now() - m.last_seen) > interval '60 seconds' as is_stale,
   (select count(*) from mesh_agents a where a.machine = m.host and a.state <> 'idle') as active_agents
 from mesh_machines m;
+
+-- RLS policies: the design intent ("RLS-locked to service role") — RLS was
+-- enabled but no policies existed (advisor rls_enabled_no_policy). service_role
+-- bypasses RLS so the server keeps writing either way; these make intent explicit.
+drop policy if exists "service_only" on mesh_machines;
+create policy "service_only" on mesh_machines for all to service_role using (true);
+drop policy if exists "service_only" on mesh_agents;
+create policy "service_only" on mesh_agents for all to service_role using (true);
+drop policy if exists "service_only" on mesh_ships;
+create policy "service_only" on mesh_ships for all to service_role using (true);
+drop policy if exists "service_only" on mesh_work_claims;
+create policy "service_only" on mesh_work_claims for all to service_role using (true);

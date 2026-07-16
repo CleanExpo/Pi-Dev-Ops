@@ -1,0 +1,178 @@
+{
+  "jobId": "ra-facebook-walkthrough-20260624",
+  "brief": {
+    "brand": "ra",
+    "channel": "facebook",
+    "audience": "restoration contractors, assessors, property managers",
+    "goal": "Walk through the RestoreAssist job workflow from dashboard to report",
+    "cta": "Book a walkthrough",
+    "renderMode": "production"
+  },
+  "composition": "Explainer",
+  "props": {
+    "brand": "ra",
+    "hookSec": 7,
+    "ctaSec": 7,
+    "storyboard": [
+      {
+        "sceneId": "hook",
+        "sceneType": "hook",
+        "durationSec": 7,
+        "onScreenText": "A restoration job, from evidence to report.",
+        "voiceover": "Here is the RestoreAssist walkthrough. A restoration job, from field evidence to a clear report your client and assessor can understand.",
+        "data": {
+          "eyebrow": "RestoreAssist walkthrough"
+        },
+        "voiceoverAudioPath": "audio/ra-facebook-walkthrough-20260624/scene-0.mp3"
+      },
+      {
+        "sceneId": "dashboard",
+        "sceneType": "body",
+        "durationSec": 10,
+        "onScreenText": "Start with the job dashboard.",
+        "voiceover": "Start on the job dashboard. You can see the active work, what needs attention, and where the next inspection or report sits in the workflow.",
+        "data": {
+          "eyebrow": "Step 1"
+        },
+        "image": {
+          "path": "ra-wave-1-screencaps/04-dashboard-empty-state.png",
+          "alt": "RestoreAssist dashboard overview"
+        },
+        "voiceoverAudioPath": "audio/ra-facebook-walkthrough-20260624/scene-1.mp3"
+      },
+      {
+        "sceneId": "inspection",
+        "sceneType": "keypoints",
+        "durationSec": 12,
+        "onScreenText": "Open the inspection and keep the evidence together.",
+        "voiceover": "Open the inspection. Photos, notes, moisture readings, scope decisions, and report tabs stay connected to the same job record instead of being scattered across devices.",
+        "data": {
+          "eyebrow": "Step 2",
+          "keypoints": [
+            "Photos and notes",
+            "Moisture readings",
+            "Scope decisions",
+            "Report tabs"
+          ]
+        },
+        "image": {
+          "path": "ra-wave-1-screencaps/03-inspection-detail-tabs.png",
+          "alt": "Inspection detail tabs in RestoreAssist"
+        },
+        "voiceoverAudioPath": "audio/ra-facebook-walkthrough-20260624/scene-2.mp3"
+      },
+      {
+        "sceneId": "storage",
+        "sceneType": "comparison",
+        "durationSec": 11,
+        "onScreenText": "Spot gaps before they become delays.",
+        "voiceover": "If something is missing, RestoreAssist makes the gap visible. Instead of chasing files later, the team can fix the handover while the job is still fresh.",
+        "data": {
+          "eyebrow": "Step 3",
+          "comparisonRows": [
+            {
+              "them": "Files discovered later",
+              "us": "Missing items visible early"
+            },
+            {
+              "them": "Questions after handover",
+              "us": "Clear job state before report"
+            },
+            {
+              "them": "Rework and delay",
+              "us": "Cleaner close-out"
+            }
+          ]
+        },
+        "image": {
+          "path": "ra-wave-1-screencaps/02-storage-card-disconnected.png",
+          "alt": "RestoreAssist storage connection status"
+        },
+        "voiceoverAudioPath": "audio/ra-facebook-walkthrough-20260624/scene-3.mp3"
+      },
+      {
+        "sceneId": "closeout",
+        "sceneType": "flow",
+        "durationSec": 12,
+        "onScreenText": "Close the job with a repeatable process.",
+        "voiceover": "When the evidence is ready, close the job using a repeatable process. Review the prompt, confirm what is complete, and move toward a report with confidence.",
+        "data": {
+          "eyebrow": "Step 4",
+          "flowSteps": [
+            "Review",
+            "Confirm",
+            "Close out",
+            "Generate",
+            "Share"
+          ]
+        },
+        "image": {
+          "path": "ra-wave-1-screencaps/01-close-job-prompt.png",
+          "alt": "RestoreAssist close job prompt"
+        },
+        "voiceoverAudioPath": "audio/ra-facebook-walkthrough-20260624/scene-4.mp3"
+      },
+      {
+        "sceneId": "proof",
+        "sceneType": "stat",
+        "durationSec": 10,
+        "onScreenText": "The result is a cleaner explanation for everyone.",
+        "voiceover": "The result is simple. One job record. One evidence chain. One report that is easier to explain, approve, and act on.",
+        "data": {
+          "eyebrow": "Outcome",
+          "stats": [
+            {
+              "value": "1",
+              "label": "job record"
+            },
+            {
+              "value": "1",
+              "label": "evidence chain"
+            },
+            {
+              "value": "1",
+              "label": "clear report"
+            }
+          ]
+        },
+        "voiceoverAudioPath": "audio/ra-facebook-walkthrough-20260624/scene-5.mp3"
+      },
+      {
+        "sceneId": "cta",
+        "sceneType": "cta",
+        "durationSec": 7,
+        "onScreenText": "RestoreAssist. Book a walkthrough.",
+        "voiceover": "RestoreAssist. Evidence in order, reports with confidence. Book a walkthrough today.",
+        "data": {
+          "eyebrow": "Next step"
+        },
+        "voiceoverAudioPath": "audio/ra-facebook-walkthrough-20260624/scene-6.mp3"
+      }
+    ]
+  },
+  "voicePolicy": {
+    "provider": "local TTS tool",
+    "voiceCount": 1
+  },
+  "imagePolicy": {
+    "provider": "existing RestoreAssist screencaps",
+    "assets": [
+      {
+        "path": "ra-wave-1-screencaps/04-dashboard-empty-state.png",
+        "alt": "RestoreAssist dashboard overview"
+      },
+      {
+        "path": "ra-wave-1-screencaps/03-inspection-detail-tabs.png",
+        "alt": "Inspection detail tabs in RestoreAssist"
+      },
+      {
+        "path": "ra-wave-1-screencaps/02-storage-card-disconnected.png",
+        "alt": "RestoreAssist storage connection status"
+      },
+      {
+        "path": "ra-wave-1-screencaps/01-close-job-prompt.png",
+        "alt": "RestoreAssist close job prompt"
+      }
+    ]
+  }
+}

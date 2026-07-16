@@ -19,7 +19,7 @@ CREATE POLICY "service_only_write" ON settings FOR ALL TO service_role USING (tr
 INSERT INTO settings (key, value) VALUES
   ('github_token',       ''),
   ('anthropic_api_key',  ''),
-  ('analysis_model',     'claude-sonnet-4-6'),
+  ('analysis_model',     'claude-sonnet-5'),
   ('webhook_secret',     ''),
   ('cron_repos',         '[]'),
   ('vercel_token',       ''),
@@ -154,6 +154,13 @@ CREATE POLICY "service_insert" ON gate_checks FOR INSERT TO service_role WITH CH
 -- RA-672: ZTE v2 timing columns — trigger-to-deploy measurement (C3)
 ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS session_started_at TIMESTAMPTZ;
 ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS push_timestamp TIMESTAMPTZ;
+
+-- RA-674/RA-676: evaluator confidence + scope-contract columns — the writer
+-- (supabase_log.log_gate_check) has sent these since 2026-04 but the DDL was
+-- never added, so any insert including them 400'd and the row was lost.
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS confidence FLOAT8;
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS scope_adhered BOOLEAN;
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS files_modified INTEGER;
 CREATE INDEX IF NOT EXISTS gate_checks_push_ts_idx ON gate_checks (push_timestamp DESC) WHERE push_timestamp IS NOT NULL;
 
 -- RA-674: evaluator confidence score (0–100%) per gate_check
@@ -294,3 +301,109 @@ ALTER TABLE notebooklm_health ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_read"    ON notebooklm_health FOR SELECT USING (true);
 DROP POLICY IF EXISTS "service_insert" ON notebooklm_health;
 CREATE POLICY "service_insert" ON notebooklm_health FOR INSERT TO service_role WITH CHECK (true);
+
+-- ── RA-1909: llm_costs ────────────────────────────────────────────────────────
+-- Per-call LLM cost telemetry. Written by swarm/budget_tracker.py record_cost()
+-- via supabase_log._insert("llm_costs", row) on every cheap-tier LLM call.
+-- Mirrors the local JSONL log (.harness/llm-cost.jsonl); survives Railway
+-- redeploys. Columns map 1:1 to the record_cost row schema.
+-- (A standalone copy exists in supabase/migrations/20260503_llm_costs.sql but
+-- was never applied — this canonical file is the one run in the SQL Editor.)
+CREATE TABLE IF NOT EXISTS llm_costs (
+  id         BIGSERIAL      PRIMARY KEY,
+  ts         TIMESTAMPTZ    NOT NULL DEFAULT now(),
+  tenant_id  TEXT           NOT NULL DEFAULT 'pi-ceo',
+  provider   TEXT           NOT NULL,
+  role       TEXT,
+  model      TEXT,
+  cost_usd   NUMERIC(10,6)  NOT NULL,
+  tokens_in  INTEGER,
+  tokens_out INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS llm_costs_ts_idx     ON llm_costs (ts DESC);
+CREATE INDEX IF NOT EXISTS llm_costs_tenant_idx ON llm_costs (tenant_id, ts DESC);
+
+ALTER TABLE llm_costs ENABLE ROW LEVEL SECURITY;
+-- Service role only — the sole writer is the service-role backend and no anon
+-- surface reads cost data (budget_tracker aggregates from the JSONL, not here).
+DROP POLICY IF EXISTS "service_only" ON llm_costs;
+CREATE POLICY "service_only" ON llm_costs FOR ALL TO service_role USING (true);
+
+-- ── RA-1905: margot_conversations ─────────────────────────────────────────────
+-- Durable Margot conversation memory (survives Railway redeploys). Written by
+-- supabase_log.insert_margot_conversation(); read on rehydrate via
+-- select_margot_conversations(). JSONL under .harness/margot/ stays as the hot
+-- local cache; this table is the source of truth.
+-- (A standalone copy exists in supabase/migrations/20260503_margot_conversations.sql
+-- and was applied manually at RA-1905 time — appended here so the canonical file
+-- run in the SQL Editor is complete. Idempotent; re-running is a no-op.)
+CREATE TABLE IF NOT EXISTS margot_conversations (
+  turn_id           TEXT         PRIMARY KEY,
+  chat_id           TEXT         NOT NULL,
+  tenant_id         TEXT         NOT NULL DEFAULT 'pi-ceo',
+  user_text         TEXT,
+  margot_text       TEXT,
+  user_message_id   TEXT,
+  board_session_ids JSONB        DEFAULT '[]'::jsonb,
+  research_called   BOOLEAN      DEFAULT false,
+  cost_usd          FLOAT8       DEFAULT 0.0,
+  started_at        TIMESTAMPTZ,
+  ended_at          TIMESTAMPTZ,
+  error             TEXT,
+  created_at        TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS margot_conversations_chat_started_idx
+  ON margot_conversations (tenant_id, chat_id, started_at DESC);
+
+ALTER TABLE margot_conversations ENABLE ROW LEVEL SECURITY;
+-- Service role only — both the writer and the rehydrate reader run on the
+-- service-role backend; no anon surface touches conversation memory.
+DROP POLICY IF EXISTS "service_only" ON margot_conversations;
+CREATE POLICY "service_only" ON margot_conversations FOR ALL TO service_role USING (true);
+
+-- ── RA-7014 slice 4: eval_candidates ──────────────────────────────────────────
+-- Online-eval capture queue (spec: docs/specs/spec-cap5-slice4-online-eval.md).
+-- Written fire-and-forget by app/server/agents/eval_capture.py when
+-- TAO_EVAL_SAMPLING=1; read by scripts/review_eval_candidates.py on the founder's
+-- machine. Redacted-only at rest; rows are promoted into evals/golden/ as
+-- human-approved SYNTHETIC paraphrases only — client-derived text never enters git.
+CREATE TABLE IF NOT EXISTS eval_candidates (
+  id                 BIGSERIAL    PRIMARY KEY,
+  captured_at        TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  pipeline_id        TEXT,
+  thread_redacted    TEXT         NOT NULL,
+  state              TEXT,
+  days_since         INTEGER,
+  predicted_category TEXT,
+  predicted_label    TEXT,
+  confidence         FLOAT8,
+  provider           TEXT,
+  model              TEXT,
+  status             TEXT         NOT NULL DEFAULT 'pending'
+);
+
+CREATE INDEX IF NOT EXISTS eval_candidates_status_idx
+  ON eval_candidates (status, captured_at ASC);
+
+ALTER TABLE eval_candidates ENABLE ROW LEVEL SECURITY;
+-- Service role only — prod writer and founder CLI both use the service key.
+DROP POLICY IF EXISTS "service_only" ON eval_candidates;
+CREATE POLICY "service_only" ON eval_candidates FOR ALL TO service_role USING (true);
+
+-- ── margot_research_queue ─────────────────────────────────────────────────────
+-- Planned in the 2026-05-14 agency-bot-pilot; the pilot source
+-- (swarm/pilot/sources/margot_source.py) polls it but the table was never
+-- created, producing steady PostgREST 404s. Consumer contract:
+-- select id,topic,status,vertical where status=eq.pending.
+CREATE TABLE IF NOT EXISTS margot_research_queue (
+  id         BIGSERIAL    PRIMARY KEY,
+  topic      TEXT         NOT NULL,
+  vertical   TEXT,
+  status     TEXT         NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+ALTER TABLE margot_research_queue ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "service_only" ON margot_research_queue;
+CREATE POLICY "service_only" ON margot_research_queue FOR ALL TO service_role USING (true);

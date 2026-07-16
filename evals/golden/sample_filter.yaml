@@ -1,0 +1,39 @@
+# Golden dataset — tao_sample_filter cluster + shortlist (Prove-It Gate, RA-7023).
+#
+# Encodes the AlphaCode discipline: shortlist = top_k(rerank(cluster(sample_N))).
+# Cluster near-duplicates (by signature) to their best-scoring representative,
+# rerank by score, keep top-k for the judge. Deterministic; no LLM judge.
+# Ground-truthed 2026-07-08 against app/server/tao_sample_filter.py.
+
+# cluster: list of {id, signature, score} -> ids of surviving representatives
+# (best-scoring per signature, first-seen signature order preserved).
+cluster:
+  # two signatures; best of each survives, first-seen order (sigX then sigY)
+  - candidates: [{id: a, signature: sigX, score: 0.4}, {id: b, signature: sigY, score: 0.9}, {id: c, signature: sigX, score: 0.7}]
+    survivors: [c, b]
+  # all distinct signatures -> all survive in order
+  - candidates: [{id: a, signature: s1, score: 0.1}, {id: b, signature: s2, score: 0.2}]
+    survivors: [a, b]
+  # tie within a cluster keeps the first-seen candidate
+  - candidates: [{id: a, signature: s1, score: 0.5}, {id: b, signature: s1, score: 0.5}]
+    survivors: [a]
+
+# shortlist: {candidates, k} -> ids of the top-k cluster reps (score desc, id asc on ties).
+shortlist:
+  # dedupe by signature, then top-2 by score: b(0.9), c(0.7)
+  - candidates: [{id: a, signature: sigX, score: 0.4}, {id: b, signature: sigY, score: 0.9}, {id: c, signature: sigX, score: 0.7}]
+    k: 2
+    result: [b, c]
+  # k larger than cluster count -> all reps returned
+  - candidates: [{id: a, signature: s1, score: 0.3}, {id: b, signature: s2, score: 0.8}]
+    k: 5
+    result: [b, a]
+  # score tie broken by id ascending
+  - candidates: [{id: y, signature: s1, score: 0.5}, {id: x, signature: s2, score: 0.5}]
+    k: 2
+    result: [x, y]
+
+# k < 1 must raise.
+invalid:
+  - candidates: [{id: a, signature: s1, score: 0.5}]
+    k: 0

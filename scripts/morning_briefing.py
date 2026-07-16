@@ -25,6 +25,8 @@ from __future__ import annotations
 import json
 import os
 import sys
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -46,7 +48,11 @@ def _section(title: str, body: str) -> str:
 def _open_sessions_last_12h() -> str:
     sessions_dir = REPO_ROOT / "app" / "workspaces"
     if not sessions_dir.exists():
-        return "No workspace data."
+        # app/workspaces/ is gitignored (.gitignore:77) — it is live runtime state on
+        # the Railway host and never exists in a CI checkout, which is where this job
+        # runs. Reporting "no sessions" here would be indistinguishable from a genuinely
+        # quiet night, i.e. it would read as good news while measuring nothing.
+        return "  ⚠️ Unavailable — app/workspaces/ is runtime state, absent in CI."
 
     cutoff = datetime.now(timezone.utc) - timedelta(hours=12)
     summaries = []
@@ -68,23 +74,29 @@ def _open_sessions_last_12h() -> str:
         score_str = f" ({score}/10)" if score else ""
         summaries.append(f"  • {sid} [{status}]{score_str} — {repo}")
 
-    return "\n".join(summaries) if summaries else "No sessions in last 12h."
+    return "\n".join(summaries) if summaries else "  None started in the last 12h."
 
 
 def _zte_score() -> str:
     summary_path = REPO_ROOT / ".harness" / "executive-summary.md"
     if not summary_path.exists():
-        return "No ZTE data."
+        return "  ⚠️ Unavailable — .harness/executive-summary.md not found."
     for line in summary_path.read_text().splitlines():
         if "ZTE" in line and "/" in line:
-            return line.strip().lstrip("#").strip()
-    return "ZTE data not found in executive-summary.md"
+            # This is a checked-in static file, not a live score. It carries its own
+            # "Updated:" stamp; surface that rather than presenting the number as today's.
+            return (
+                f"  {line.strip().lstrip('#').strip()}\n"
+                "  ⚠️ Static file, not a live score — trust the Updated: date above."
+            )
+    return "  ⚠️ ZTE line not found in executive-summary.md."
 
 
 def _monitor_digest() -> str:
     digest_dir = REPO_ROOT / ".harness" / "monitor-digests"
     if not digest_dir.exists():
-        return "No monitor digest."
+        # Gitignored (.gitignore:112) — runtime state on the host, never in a CI checkout.
+        return "  ⚠️ Unavailable — .harness/monitor-digests/ is runtime state, absent in CI."
     digests = sorted(digest_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
     if not digests:
         return "No monitor digest found."
@@ -96,19 +108,53 @@ def _monitor_digest() -> str:
 
 
 def _open_prs() -> str:
-    sprint_path = REPO_ROOT / ".harness" / "sprint_plan.md"
-    if not sprint_path.exists():
-        return "No sprint plan found."
-    lines = sprint_path.read_text().splitlines()
-    prs = [l.strip() for l in lines if "PR #" in l and ("open" in l.lower() or "await" in l.lower() or "review" in l.lower())]
-    return "\n".join(f"  {p}" for p in prs[:8]) if prs else "No open PRs found in sprint plan."
+    """Open PRs, from the GitHub API.
+
+    Previously grepped .harness/sprint_plan.md for lines containing "PR #". That file
+    is checked in and was last updated 2026-04-16, so this section reported "No open
+    PRs found in sprint plan" every morning regardless of how many were actually open
+    — a constant that read as good news. Ask GitHub instead.
+    """
+    repo = os.environ.get("GITHUB_REPOSITORY", "CleanExpo/Pi-Dev-Ops")
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if not token:
+        return "  ⚠️ Unavailable — no GITHUB_TOKEN in this job's env."
+
+    req = urllib.request.Request(
+        f"https://api.github.com/repos/{repo}/pulls?state=open&per_page=30",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "pi-ceo-morning-briefing",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            prs = json.loads(resp.read().decode("utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        # Loud on purpose: a silent failure here is what this fix exists to remove.
+        return f"  ⚠️ Unavailable — GitHub API error: {exc}"
+
+    if not prs:
+        return "  None open."
+
+    lines = []
+    for pr in prs[:8]:
+        flag = " [draft]" if pr.get("draft") else ""
+        title = (pr.get("title") or "")[:60]
+        author = (pr.get("user") or {}).get("login", "?")
+        lines.append(f"  • #{pr.get('number')}{flag} — {title} ({author})")
+    if len(prs) > 8:
+        lines.append(f"  … and {len(prs) - 8} more")
+    return "\n".join(lines)
 
 
 def build_brief() -> str:
     now = datetime.now().strftime("%A %-d %B %Y, %-I:%M %p")
     parts = [
         f"🌅 *Pi-CEO Morning Brief*\n_{now}_\n",
-        _section("ZTE Score", f"  {_zte_score()}"),
+        _section("ZTE Score", _zte_score()),
         _section("Overnight Sessions (last 12h)", _open_sessions_last_12h()),
         _section("Open PRs Awaiting Merge", _open_prs()),
         _section("Monitor Digest", _monitor_digest()),

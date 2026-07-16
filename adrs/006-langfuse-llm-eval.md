@@ -1,8 +1,38 @@
 # ADR 006: Langfuse for LLM-native eval — CONDITIONAL GO (time-boxed PoV, eval slice only)
 
 **Date:** 2026-07-01
-**Status:** Conditional GO — 2-week proof-of-value, no standing adoption
+**Status:** CLOSED — DROP (Board ruling 2026-07-08, a week ahead of the 2026-07-15 kill date)
 **Decision body:** CEO Board (9-persona deliberation, research-grounded)
+
+## Closure (2026-07-08 Board ruling)
+
+**DROP Langfuse — the in-repo harness wins on demonstrated sufficiency plus forfeit.**
+This is recorded per the Contrarian's wording: NOT a head-to-head defeat — the Langfuse
+half of the bake-off was never stood up (founder-interactive signup, now cancelled) and
+its workflow value was never measured. What WAS measured:
+
+- In-repo harness: 0.944 accuracy full-set / 0.917 on the deterministic dev split,
+  ~$0.001 per run, all merged + unit-tested (PRs #535, #536).
+- DSPy PoV (llm-stack item 4): baseline 0.917 = uncompiled 0.917 = BootstrapFewShot
+  0.917 on the identical split and model — zero optimizer headroom. **DSPy is likewise
+  NOT adopted** for this classifier.
+- The DSPy PoV ran Langfuse's core job (dataset → experiment → fixed-split comparison
+  across three variants) with the in-repo harness, collapsing the remaining vendor
+  pitch to a UI over 36 rows.
+
+**Consequential:** Prove-It gate slice 4 ("online eval") is redefined in direction —
+extend the in-repo harness with redacted, sampled cases (redaction at capture, JSONL
+in git); never a platform, never raw prod traces. The build remains `/judge`-gated.
+
+**Revisit conditions:** (1) ≥3 gated agents with judge-scored suites and measurable
+run-comparison friction → fresh market scan (Langfuse/Braintrust/LangSmith/Phoenix),
+no grandfathering; (2) in-repo sampled-trace eval genuinely requires platform-grade
+storage → trace-store question returns to the Board explicitly; (3) golden set hasn't
+widened beyond one classifier by end of Q3 2026 → the extend-in-repo premise was wrong.
+
+**Risk to watch:** slice-4 scope creep (redaction/sampling/retention) re-importing a
+platform by drift instead of Board decision — that is the slow-motion breach of
+`[[feedback-no-sentry]]`.
 
 ## Context
 

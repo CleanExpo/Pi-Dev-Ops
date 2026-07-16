@@ -1,6 +1,6 @@
 ---
 name: weekly-enhancement-loop
-description: "Weekly cross-repo self-improvement loop. Every Monday 02:00 AEST it applies the 8-Claude-Loops method (INGEST / BUILD / COMPOUND + North Star) across every repo in .harness/projects.json, opening review PRs so all projects compound over time. Claude Opus/Sonnet/Haiku ladder via OpenRouter."
+description: "Weekly cross-repo self-improvement loop. Every Monday 02:00 AEST it applies the 8-Claude-Loops method (INGEST / BUILD / COMPOUND + North Star) across every repo in .harness/projects.json, opening review PRs so all projects compound over time. Cost-optimised open-weight ladder (Qwen/DeepSeek) via OpenRouter — cheap grunt tiers, one reserved reasoner for the planner handoff (~$5/full run)."
 owner_role: "Senior PM"
 status: "wave-6"
 automation: scheduled
@@ -87,36 +87,47 @@ For each repo in the registry the runner executes the improve-system loop:
   git repo, so git never pushes to the wrong remote (RA-1169).
 - **Kill-switch.** Honour `TAO_HARD_STOP_FILE`, `TAO_MAX_ITERS`, and
   `TAO_MAX_COST_USD` — same three abort axes as every other TAO loop (RA-1966).
-- **Model policy (RA-1099).** Opus only for planner/orchestrator; Sonnet for
-  generator/evaluator; Haiku for monitor. The runner passes explicit model IDs;
-  it must not let Opus leak into build/scan roles.
+- **Model policy (founder directive 2026-07-05, supersedes the RA-1099 mapping
+  for this loop).** Cheap open-weight models do all grunt work (scan, build,
+  review); one stronger open-weight reasoner is reserved for the planner handoff —
+  the single critical-call checkpoint. **No premium Anthropic model is used**, so
+  RA-1099's spirit ("never burn a premium model on scan/build") is honoured
+  absolutely. RA-1099 still binds the TAO **session** engine
+  (`model_policy.py` / `config.py`); it does not bind this standalone runner.
 
-## Model ladder — OpenRouter (post-2026-07-08 cutover)
+## Model ladder — OpenRouter open-weight (founder directive 2026-07-05)
 
 Fable-5 left the Max plan on 2026-07-08 **and** the direct Anthropic org has no
-API credit, so this loop bills **OpenRouter** credit while keeping the same Claude
-tier. OpenRouter's `/v1/messages` endpoint speaks native Anthropic tool-use, so
-`scripts/weekly_enhancement_loop.py` is a self-contained tool-use agent
-(read_file / write_file / list_dir / run_bash, scoped to the clone) — the Claude
-Code CLI is not used because it rejects OpenRouter slash-slugs.
+API credit, so this loop bills **OpenRouter** credit. The founder directed a
+cost-optimised open-weight ladder: the premium Anthropic ladder cost ~$8/repo
+(Opus planner alone was ~$4.55); the open-weight ladder projects ~$0.4/repo, so
+the full 10-repo run drops from ~$79 to ~$5. OpenRouter's `/v1/messages` endpoint
+routes open-weight models through the **native Anthropic tool-use / `usage.cost`
+schema** (verified 2026-07-05), so `scripts/weekly_enhancement_loop.py` stays a
+self-contained tool-use agent (read_file / write_file / list_dir / run_bash,
+scoped to the clone) — no Claude Code CLI, no code change to the agent loop.
 
 `OPENROUTER_API_KEY` must be set (GitHub Actions secret for the always-on path;
 `~/.config/piceo/enhancement.env` for the launchd path). Slugs:
 
-| Role | OpenRouter slug | Env override |
-|------|-----------------|--------------|
-| planner / orchestrator (Opus) | `anthropic/claude-opus-4.6` | `ENHANCE_MODEL_OPUS` |
-| generator / evaluator (Sonnet) | `anthropic/claude-sonnet-4.6` | `ENHANCE_MODEL_SONNET` |
-| monitor / scan (Haiku) | `anthropic/claude-haiku-4.5` | `ENHANCE_MODEL_HAIKU` |
+| Role | Tier | OpenRouter slug | $/Mtok (in/out) | Env override |
+|------|------|-----------------|-----------------|--------------|
+| planner (handoff / decision) | reasoner | `deepseek/deepseek-v4-pro` | 0.435 / 0.87 | `ENHANCE_MODEL_HANDOFF` |
+| generator (build) | grunt | `qwen/qwen3-coder-30b-a3b-instruct` | 0.07 / 0.27 | `ENHANCE_MODEL_BUILD` |
+| evaluator (review) | grunt | `deepseek/deepseek-v4-flash` | 0.09 / 0.28 | `ENHANCE_MODEL_REVIEW` |
+| monitor (scan) | grunt | `qwen/qwen3-235b-a22b-2507` | 0.09 / 0.10 | `ENHANCE_MODEL_SCAN` |
 
-Override the slugs via env when newer point releases ship — do not hard-code new
+Open-weight slugs are founder-registry-sanctioned (Qwen/DeepSeek — see the model
+registry memory). Override via env when newer builds ship — do not hard-code new
 pins in code. Spend is tracked from OpenRouter `usage.cost` and drains at
-`TAO_MAX_COST_USD`; `ENHANCE_MAX_PHASE_ITERS` caps tool-use rounds per phase.
+`TAO_MAX_COST_USD` (now `15.00`); `ENHANCE_MAX_PHASE_ITERS` caps tool-use rounds
+per phase.
 
 ## Verification
 
 - [ ] Dry-run against one repo produces a review file with the three buckets.
 - [ ] No branch is merged; each repo yields at most one open PR per week.
 - [ ] `.harness/enhancement-loop/<date>.jsonl` has one line per repo touched.
-- [ ] Opus never appears as generator/monitor in the run-log.
+- [ ] No premium Anthropic model appears in the run-log; grunt tiers are
+      open-weight and only the planner uses the reserved reasoner.
 - [ ] Kill-switch file drains the loop mid-run.

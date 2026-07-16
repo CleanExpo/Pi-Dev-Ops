@@ -40,10 +40,16 @@ jobs:
       # PAT with repo scope across the CleanExpo org so the loop can clone the
       # other 10 private repos and open PRs. GITHUB_TOKEN cannot reach them.
       GH_ENHANCE_PAT: ${{ secrets.GH_ENHANCE_PAT }}
-      ENHANCE_MODEL_OPUS: anthropic/claude-opus-4.6
-      ENHANCE_MODEL_SONNET: anthropic/claude-sonnet-4.6
-      ENHANCE_MODEL_HAIKU: anthropic/claude-haiku-4.5
-      TAO_MAX_COST_USD: "40.00"
+      # Cost-optimised open-weight ladder (founder directive 2026-07-05): cheap
+      # open-weight grunt tiers + one stronger open-weight reasoner reserved for
+      # the planner handoff. ~$0.4/repo vs ~$8/repo on Opus/Sonnet/Haiku.
+      ENHANCE_MODEL_HANDOFF: deepseek/deepseek-v4-pro
+      ENHANCE_MODEL_BUILD: qwen/qwen3-coder-30b-a3b-instruct
+      ENHANCE_MODEL_REVIEW: deepseek/deepseek-v4-flash
+      ENHANCE_MODEL_SCAN: qwen/qwen3-235b-a22b-2507
+      # Real spend now projects ~$5 for the full 10-repo run; keep a tight ceiling
+      # as the circuit-breaker (was 40 for the premium ladder).
+      TAO_MAX_COST_USD: "15.00"
     steps:
       - name: Checkout Pi-Dev-Ops
         uses: actions/checkout@v4

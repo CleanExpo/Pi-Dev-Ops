@@ -99,6 +99,11 @@ def record(
     appends this hop's immediate parent so reground() can detect cycles. The
     caller persists the returned dict (frontmatter for markdown, fenced block
     for ticket/JSONL bodies).
+
+    Caveat: source_sha256 hashes the parent_text passed here, but reground()
+    detects DRIFTED by re-resolving `derived_from` and comparing its current
+    hash. Pass the content of `derived_from` as parent_text so the two agree —
+    if they diverge, every reground() reports DRIFTED spuriously.
     """
     first_parent = derived_from if isinstance(derived_from, str) else derived_from[0]
     anchor: dict = {

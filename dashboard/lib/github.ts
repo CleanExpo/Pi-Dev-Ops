@@ -96,6 +96,34 @@ export async function fetchRepoContext(
     .map((r) => r.value);
 }
 
+/**
+ * True when every changed file's blob already exists verbatim on the default branch —
+ * i.e. the branch was squash-merged and its diff is stale context, not live work.
+ * Fail-safe: any file that differs, is missing, or can't be read → false (keep the branch).
+ * Mirrors the per-file-blob squash detection in Hermes unite-ecosystem-health.sh.
+ */
+async function branchContentOnDefault(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  defaultBranch: string,
+  changedFiles: { sha?: string; filename?: string }[]
+): Promise<boolean> {
+  if (changedFiles.length === 0) return false;
+  for (const f of changedFiles) {
+    if (!f.sha || !f.filename) return false;
+    try {
+      const { data } = await octokit.repos.getContent({
+        owner, repo, path: f.filename, ref: defaultBranch,
+      });
+      if (Array.isArray(data) || data.type !== "file" || data.sha !== f.sha) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
+
 export async function fetchBranchDiffs(
   octokit: Octokit,
   owner: string,
@@ -135,6 +163,12 @@ export async function fetchBranchDiffs(
         });
 
         const changedFiles = (diff.files ?? []).slice(0, 15);
+
+        // Skip squash-merged branches: if every changed file's blob is already on the
+        // default branch, this diff is stale context, not live work.
+        if (await branchContentOnDefault(octokit, owner, repo, defaultBranch, changedFiles)) {
+          continue;
+        }
 
         const fileResults = await Promise.allSettled(
           changedFiles

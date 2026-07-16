@@ -9,13 +9,18 @@ docs/sources/8-claude-loops-to-build-10x-faster.md.
 
 Model ladder runs on OpenRouter (Anthropic Messages API surface). Fable-5 left
 the Max plan 2026-07-08 and the direct Anthropic org has no API credit, so this
-loop bills OpenRouter credit while keeping the same Claude model tier:
+loop bills OpenRouter credit. Founder directive 2026-07-05: push the grunt tiers
+onto cheap open-weight models and reserve a single stronger open-weight reasoner
+for the planner handoff — the only critical-call checkpoint. This cuts the run
+from ~$8/repo (Opus/Sonnet/Haiku) to ~$0.4/repo:
 
-    planner/orchestrator (Opus)  -> ENHANCE_MODEL_OPUS    (anthropic/claude-opus-4.6)
-    generator/evaluator (Sonnet) -> ENHANCE_MODEL_SONNET  (anthropic/claude-sonnet-4.6)
-    monitor/scan        (Haiku)  -> ENHANCE_MODEL_HAIKU   (anthropic/claude-haiku-4.5)
+    planner  (handoff/decision)  -> ENHANCE_MODEL_HANDOFF (deepseek/deepseek-v4-pro)
+    generator (build grunt)      -> ENHANCE_MODEL_BUILD   (qwen/qwen3-coder-30b-a3b-instruct)
+    evaluator (review grunt)     -> ENHANCE_MODEL_REVIEW  (deepseek/deepseek-v4-flash)
+    monitor  (scan grunt)        -> ENHANCE_MODEL_SCAN    (qwen/qwen3-235b-a22b-2507)
 
-OpenRouter's /v1/messages endpoint speaks native Anthropic tool-use, so this file
+OpenRouter's /v1/messages endpoint speaks native Anthropic tool-use (it routes
+open-weight models through the same tool_use / usage.cost schema), so this file
 is a self-contained tool-use agent (read_file / write_file / list_dir / run_bash,
 all scoped to the cloned workspace). No Claude Code CLI, no claude_agent_sdk —
 the CLI rejects OpenRouter slash-slugs, so the agent loop lives here.
@@ -52,9 +57,14 @@ WORKSPACE_ROOT = Path(os.environ.get("ENHANCE_WORKSPACE", "/tmp/pi-ceo-enhance")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/messages"
 ANTHROPIC_VERSION = "2023-06-01"
 
-MODEL_OPUS = os.environ.get("ENHANCE_MODEL_OPUS", "anthropic/claude-opus-4.6")
-MODEL_SONNET = os.environ.get("ENHANCE_MODEL_SONNET", "anthropic/claude-sonnet-4.6")
-MODEL_HAIKU = os.environ.get("ENHANCE_MODEL_HAIKU", "anthropic/claude-haiku-4.5")
+# Role-based ladder (founder directive 2026-07-05): cheap open-weight models for
+# the grunt tiers, one stronger open-weight reasoner reserved for the planner
+# handoff. No Anthropic premium model is used — the RA-1099 spirit ("never spend a
+# premium model on scan/build") is honoured absolutely. Override any slug via env.
+MODEL_HANDOFF = os.environ.get("ENHANCE_MODEL_HANDOFF", "deepseek/deepseek-v4-pro")
+MODEL_BUILD = os.environ.get("ENHANCE_MODEL_BUILD", "qwen/qwen3-coder-30b-a3b-instruct")
+MODEL_REVIEW = os.environ.get("ENHANCE_MODEL_REVIEW", "deepseek/deepseek-v4-flash")
+MODEL_SCAN = os.environ.get("ENHANCE_MODEL_SCAN", "qwen/qwen3-235b-a22b-2507")
 
 HARD_STOP_FILE = Path(os.environ.get("TAO_HARD_STOP_FILE", str(Path.home() / ".claude" / "HARD_STOP")))
 MAX_COST_USD = float(os.environ.get("TAO_MAX_COST_USD", "5.00"))
@@ -285,22 +295,23 @@ def enhance_repo(repo: str, dry_run: bool, spent: dict[str, float]) -> dict[str,
     slug = repo.split("/")[-1].lower()
     ws = WORKSPACE_ROOT / slug
     result: dict[str, Any] = {"repo": repo, "date": date, "branch": None, "pr": None,
-                              "models": {"opus": MODEL_OPUS, "sonnet": MODEL_SONNET, "haiku": MODEL_HAIKU}}
+                              "models": {"handoff": MODEL_HANDOFF, "build": MODEL_BUILD,
+                                         "review": MODEL_REVIEW, "scan": MODEL_SCAN}}
     log.info("=== enhancing %s ===", repo)
     _clone(repo, ws)
 
-    # Monitor (Haiku) → Plan (Opus) → Build+triage (Sonnet) → Review (Sonnet).
-    scan = run_phase("monitor", MODEL_HAIKU,
+    # Scan (grunt) → Plan (handoff/decision) → Build (grunt) → Review (grunt).
+    scan = run_phase("monitor", MODEL_SCAN,
                      "List the 5 highest-leverage, lowest-risk enhancement targets in this "
                      "repo as terse bullets. Read files as needed. Make no edits.",
                      ws, timeout=300, spent=spent)
-    plan = run_phase("planner", MODEL_OPUS,
+    plan = run_phase("planner", MODEL_HANDOFF,
                      f"Given these scan findings, write a bounded, safe implementation plan "
                      f"(affected files, sequencing, rollback). Findings:\n{scan[:4000]}",
                      ws, timeout=600, spent=spent)
-    run_phase("generator", MODEL_SONNET,
+    run_phase("generator", MODEL_BUILD,
               f"{ENHANCE_PROMPT}\n\nApproved plan:\n{plan[:6000]}", ws, timeout=900, spent=spent)
-    review = run_phase("evaluator", MODEL_SONNET,
+    review = run_phase("evaluator", MODEL_REVIEW,
                        "Review the working-tree diff (run `git diff`). Revert any change that is "
                        "unsafe, out of scope, or touches secrets/CI/auth/migrations. Confirm "
                        "ENHANCEMENT_REVIEW.md's three buckets match the actual diff.",

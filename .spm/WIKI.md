@@ -1,8 +1,8 @@
 # .spm — Wiki
 
-_Last updated: 2026-06-29T07:23:13Z (commits 28c56c0..b84fcc7)_
+_Last updated: 2026-07-05T08:50:04Z (commits 983cd2e..38ecf5d)_
 
 ## Recent changes
-- b84fcc7 — You are the Brand Guardian reviewer for Unite-Group. Per [[feedback-d...
+- 38ecf5d — spm: skool silent-genius engagement loop spec (APPROVE EXPERIMENT, pilot executed 2026-07-05) (#513)
 
 

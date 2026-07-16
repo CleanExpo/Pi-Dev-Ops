@@ -11,9 +11,10 @@
       .github/workflows/weekly-enhancement-loop.yml — prefer that. This plist
       only fires if the Mac is awake at the scheduled time.
 
-      Runs Mondays at 02:00 local (AEST). Claude Opus/Sonnet/Haiku via OpenRouter
-      — Fable-5 left the Max plan 2026-07-08 and the direct Anthropic org has no
-      API credit, so OPENROUTER_API_KEY funds the ladder. Secrets load from
+      Runs Mondays at 02:00 local (AEST). Cost-optimised open-weight ladder
+      (Qwen/DeepSeek) via OpenRouter — Fable-5 left the Max plan 2026-07-08 and
+      the direct Anthropic org has no API credit, so OPENROUTER_API_KEY funds the
+      ladder (founder directive 2026-07-05, ~$5/full run). Secrets load from
       ~/.config/piceo/enhancement.env:
 
         mkdir -p ~/.config/piceo

@@ -48,6 +48,23 @@ PI_CEO_API_URL = (os.environ.get("PI_CEO_API_URL") or _from_env_file("PI_CEO_API
 PI_CEO_API_KEY = os.environ.get("PI_CEO_API_KEY") or _from_env_file("PI_CEO_API_KEY")
 INTERVAL = int(os.environ.get("HEARTBEAT_INTERVAL", "20"))
 AGENT_RUNTIMES = ("claude", "codex", "cursor-agent", "pi", "hermes")
+# Breadcrumb the mesh runner writes with its live task; kept in sync via env.
+MESH_RUNNER_STATE = os.environ.get(
+    "MESH_RUNNER_STATE", os.path.expanduser("~/.claude/mesh-runner-state.json"))
+
+
+def runner_breadcrumb() -> dict:
+    """Read the mesh runner's live task breadcrumb, if fresh (≤120s). Lets the
+    heartbeat report current_task + state per agent so Mission Control shows what
+    each agent is doing live. Best-effort — a missing/stale/bad file yields {}."""
+    try:
+        with open(MESH_RUNNER_STATE) as f:
+            data = json.loads(f.read())
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(data, dict) or time.time() - data.get("ts", 0) > 120:
+        return {}
+    return data
 
 
 def _run(cmd: list[str], timeout: int = 5) -> str:
@@ -151,6 +168,19 @@ def running_agent_sessions() -> list[dict]:
     for s in sessions:
         if s["runtime"] not in seen:
             seen.add(s["runtime"]); uniq.append(s)
+    # Enrich the runner's runtime with its live task so Mission Control shows it.
+    # Only when actively on a task — an idle breadcrumb must not fabricate an agent.
+    crumb = runner_breadcrumb()
+    rt, task = crumb.get("runtime"), crumb.get("current_task")
+    if rt and task:
+        for s in uniq:
+            if s["runtime"] == rt:
+                s["current_task"] = task
+                s["state"] = crumb.get("state", "working")
+                break
+        else:
+            uniq.append({"runtime": rt, "current_task": task,
+                         "state": crumb.get("state", "working")})
     return uniq
 
 

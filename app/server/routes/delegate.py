@@ -121,6 +121,9 @@ async def delegate_task(
                 model=model, max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}],
                 timeout=55.0,
+                # Wave 2 — delegation runs a full generation task, not a quick
+                # lookup; medium effort matches the RA-1099 "generator" tier.
+                output_config={"effort": "medium"},
                 **fallback_kwargs,
             )
             text = message.content[0].text if message.content else ""

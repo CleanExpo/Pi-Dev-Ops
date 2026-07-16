@@ -110,6 +110,7 @@ mcp/node_modules/
 # ── Harness runtime data (NEVER commit — may contain credential scan findings) ──
 .harness/telegram-inbox/
 .harness/monitor-digests/
+.harness/eval-candidates/
 .harness/scan-results/
 .harness/build-logs/
 .harness/marketing-bridge-state.json
@@ -196,3 +197,6 @@ remotion-studio/public/ra-wave-1-screencaps/
 # Session-handoff runtime artifacts (dirs + READMEs tracked; generated files local-only)
 docs/session-handoffs/handoff-*.md
 .handoff-logs/*.log
+
+# generated graph visualisation output (not source)
+swarm/graphify-out/

@@ -51,6 +51,8 @@ class Result:
     precision_score: float
     passed: bool
     salted_hash: str  # of ORIGINAL text (so audit can verify same payload)
+    regex_hits: int = 0  # RA-7016: honest per-method counts for telemetry
+    classify_hits: int = 0
 
 
 # ── Pattern bank ─────────────────────────────────────────────────────────────
@@ -196,6 +198,8 @@ def redact(
     text = _normalize(payload)
     regex_hits = _scan_regex(text)
 
+    explicit_classifier = claude_classify is not None
+
     # RA-1847: when strictness=high and no classifier supplied, auto-resolve
     # the default Claude-backed classifier from swarm.pii_classify. Caller can
     # still override by passing claude_classify explicitly (e.g. tests inject
@@ -207,14 +211,16 @@ def redact(
         except Exception as exc:
             log.warning(
                 "strictness=high requested but default_classifier unavailable "
-                "(continuing regex-only, precision will reflect degradation): %s",
+                "(continuing regex-only, marking result degraded): %s",
                 exc,
             )
 
     classify_hits: list[Hit] = []
+    classify_ran = False
     if claude_classify is not None:
         try:
             classify_hits = list(claude_classify(text)) or []
+            classify_ran = True
         except Exception as exc:
             log.warning("claude_classify failed (continuing regex-only): %s", exc)
 
@@ -223,15 +229,20 @@ def redact(
 
     redaction_log = [h.as_log() for h in all_hits]
 
-    # Precision score: heuristic — assume regex hits are ≥95% precise (they are
-    # exact patterns); classify pass varies. With no classify pass, score = 1.0.
-    if claude_classify is None:
-        precision = 1.0
-    else:
-        regex_count = sum(1 for h in all_hits if h.method == "regex")
-        precision = (regex_count / len(all_hits)) if all_hits else 1.0
+    regex_hit_count = sum(1 for h in all_hits if h.method == "regex")
+    classify_hit_count = len(all_hits) - regex_hit_count
 
-    passed = precision >= 0.95
+    # RA-7016: classify hits are TRUSTED catches, not false positives. The old
+    # heuristic scored precision as regex_count/total, so precision dipped below
+    # the 0.95 bar — and aborted the send — precisely when the Claude classify
+    # pass caught real PII. Runtime precision is not measurable without labels,
+    # so it is no longer inferred from method mix; true precision lives in the
+    # offline eval (grill 08b). `passed` now fails only on genuine degradation:
+    # a classify pass that was expected (strictness=high or an explicit
+    # classifier) but could not run, leaving redaction regex-only.
+    classifier_degraded = (strictness == "high" or explicit_classifier) and not classify_ran
+    precision = 0.0 if classifier_degraded else 1.0
+    passed = not classifier_degraded
 
     return Result(
         redacted_payload=redacted,
@@ -240,6 +251,8 @@ def redact(
         precision_score=precision,
         passed=passed,
         salted_hash=_salted_hash(payload),
+        regex_hits=regex_hit_count,
+        classify_hits=classify_hit_count,
     )
 
 

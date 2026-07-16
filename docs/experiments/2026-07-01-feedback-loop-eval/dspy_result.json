@@ -1,0 +1,30 @@
+{
+  "model": "openrouter/google/gemma-4-26b-a4b-it",
+  "split": {
+    "train": 24,
+    "dev": 12
+  },
+  "results": {
+    "baseline": {
+      "accuracy": 0.9166666666666666,
+      "abstentions": 0
+    },
+    "dspy-zero": {
+      "accuracy": 0.9166666666666666,
+      "abstentions": 0
+    },
+    "dspy-bfs": {
+      "accuracy": 0.9166666666666666,
+      "abstentions": 0
+    }
+  },
+  "kill_switch": {
+    "iters": 28,
+    "limit_iters": 400,
+    "cost_usd": 0.0013,
+    "limit_cost_usd": 5.0,
+    "hard_stop_file": "/Users/phill-mac/.claude/HARD_STOP",
+    "hard_stop_exists": false
+  },
+  "aborted": null
+}

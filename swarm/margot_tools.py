@@ -321,6 +321,17 @@ MARGOT_IDEA_LABEL = "margot-idea"
 MARGOT_DEFAULT_PROJECT = "Pi - Dev -Ops"
 MARGOT_DEFAULT_TEAM = "RestoreAssist"
 
+# Per-run circuit breaker. An automated filer process (scout, health monitor,
+# gap detector, production coordinator) may create at most this many tickets
+# before further automated propose_idea() calls are skipped for the life of the
+# process. Backstop against a dedup miss re-flooding the board — the 2026-06 and
+# 2026-07 storms filed thousands before anyone noticed. Human (Telegram) ideas
+# are never capped. Override with MARGOT_MAX_FILES_PER_RUN.
+MARGOT_MAX_FILES_PER_RUN = int(os.environ.get("MARGOT_MAX_FILES_PER_RUN", "20"))
+# Module-global counter; each scheduled run is a fresh process so it resets
+# naturally. Only automated creates increment it.
+_files_created_this_run = 0
+
 
 def _linear_gql(query: str, variables: dict[str, Any] | None = None,
                 *, timeout_s: int = 15) -> dict[str, Any]:
@@ -355,23 +366,28 @@ def _resolve_team_id(team_name: str) -> str | None:
     return None
 
 
-def find_open_issue_by_title(title: str, team: str = MARGOT_DEFAULT_TEAM) -> str | None:
-    """Return the identifier of an OPEN issue with this exact title, or None.
+def _lookup_open_issue(title: str,
+                       team: str = MARGOT_DEFAULT_TEAM) -> tuple[str, str | None]:
+    """Status-aware open-issue-by-title lookup. Returns (status, identifier):
 
-    Dedup guard for automated filers (2026-06-10 dupe storm: the production
-    coordinator re-filed every still-failed asset on each daily run, and scout
-    filed up to 6 copies of one finding). "Open" = triage/backlog/unstarted/
-    started — Done/Canceled tickets do not block a re-file, so a regression
-    after closure still gets a fresh ticket.
+      ("match", identifier)  — an OPEN ticket with this exact title exists
+      ("none", None)         — Linear reachable, no such open ticket
+      ("unavailable", None)  — the lookup could not be performed (auth/network)
 
-    Fail-open by design: on lookup error this returns None and the caller
-    proceeds to file. If Linear is actually unreachable the subsequent create
-    fails too, so no duplicate is minted; automated callers that can retry
-    later should prefer failing closed at their own layer (see scout.py).
+    "Open" = triage/backlog/unstarted/started — Done/Canceled do not block a
+    re-file, so a regression after closure still gets a fresh ticket.
+
+    The "unavailable" status is what lets automated callers fail CLOSED instead
+    of blind-filing. A dead LINEAR_API_KEY (401) previously made every dedup
+    lookup silently return "no match", so every scheduled run re-filed every
+    idea — thousands of duplicates. Distinguishing "unavailable" from "none"
+    stops that.
     """
     team_id = _resolve_team_id(team)
     if not team_id:
-        return None
+        # No team id almost always means Linear is unreachable / unauthorised
+        # (a real team name doesn't resolve). Treat as unavailable, not "none".
+        return ("unavailable", None)
     res = _linear_gql(
         "query FindOpenByTitle($teamId: ID!, $title: String!) { issues(filter: { "
         "team: { id: { eq: $teamId } }, "
@@ -380,9 +396,23 @@ def find_open_issue_by_title(title: str, team: str = MARGOT_DEFAULT_TEAM) -> str
         {"teamId": team_id, "title": title},
     )
     if "error" in res or res.get("errors"):
-        return None
+        return ("unavailable", None)
     nodes = ((res.get("data") or {}).get("issues") or {}).get("nodes", [])
-    return nodes[0].get("identifier") if nodes else None
+    if nodes:
+        return ("match", nodes[0].get("identifier"))
+    return ("none", None)
+
+
+def find_open_issue_by_title(title: str, team: str = MARGOT_DEFAULT_TEAM) -> str | None:
+    """Return the identifier of an OPEN issue with this exact title, or None.
+
+    Fail-open wrapper around `_lookup_open_issue` — collapses both "none" and
+    "unavailable" to None. Kept for backwards compatibility with callers that
+    dedup at their own layer (e.g. production_coordinator). New automated
+    filing should rely on propose_idea()'s built-in fail-closed dedup instead.
+    """
+    status, identifier = _lookup_open_issue(title, team)
+    return identifier if status == "match" else None
 
 
 def _resolve_project_id(team_id: str, project_name: str) -> str | None:
@@ -495,6 +525,34 @@ def propose_idea(title: str,
     if not (title or "").strip():
         return {"error": "title_required"}
 
+    # ── Automated-filer guards (RA — 2026-07 dedup+circuit-breaker) ──────────
+    # Every non-human originator (scout, health monitor, gap detector,
+    # production coordinator, discovery loop) goes through the same choke point
+    # so no filer can bypass dedup the way three of four did in the June/July
+    # storms. Human (Telegram) ideation is never deduped or capped here.
+    global _files_created_this_run
+    is_automated = originator != "human"
+    if is_automated:
+        # Circuit breaker: hard cap on automated creates per process run.
+        if _files_created_this_run >= MARGOT_MAX_FILES_PER_RUN:
+            log.warning(
+                "propose_idea: per-run cap (%d) reached — skipping %r",
+                MARGOT_MAX_FILES_PER_RUN, title.strip()[:60],
+            )
+            return {"status": "skipped_run_cap", "cap": MARGOT_MAX_FILES_PER_RUN}
+        # Dedup, fail CLOSED: if an open ticket with this title already exists,
+        # return it; if the lookup can't be performed, skip rather than
+        # blind-file (the dead-key flood mode).
+        dedup_status, existing = _lookup_open_issue(title.strip(), team)
+        if dedup_status == "match":
+            log.info("propose_idea: open ticket %s already covers %r — not re-filing",
+                     existing, title.strip()[:60])
+            return {"status": "deduped", "identifier": existing}
+        if dedup_status == "unavailable":
+            log.warning("propose_idea: dedup lookup unavailable — skipping automated "
+                        "file of %r", title.strip()[:60])
+            return {"status": "skipped_dedup_unavailable"}
+
     team_id = _resolve_team_id(team)
     if not team_id:
         return {"error": "team_not_found", "team": team}
@@ -556,6 +614,8 @@ def propose_idea(title: str,
     if not data.get("success"):
         return {"error": "create_failed", "raw": res}
     iss = data["issue"]
+    if is_automated:
+        _files_created_this_run += 1
     applied_label_names: list[str] = []
     if primary_label_id:
         applied_label_names.append(MARGOT_IDEA_LABEL)

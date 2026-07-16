@@ -1,8 +1,12 @@
 # .github — Wiki
 
-_Last updated: 2026-07-03T03:30:51Z (commits 3de26b0..e4dbe7e)_
+_Last updated: 2026-07-15T13:12:46Z (commits e536924..476e9fb)_
 
 ## Recent changes
-- e4dbe7e — fix(telegram): gate webhook autoconfigure to production (RA-6924) (#492)
+- 476e9fb — fix(canary): make the Fable adversary canary actually run, and fail when it can't (#587)
 
+## Architecture (current)
+Auto-stub: `.github/` had 1 recent commits. SDK unavailable for synthesis.
 
+## Files of interest
+- .github/workflows/fable_canary_check.yml — touched in recent commits

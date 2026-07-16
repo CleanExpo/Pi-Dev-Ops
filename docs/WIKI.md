@@ -1,8 +1,8 @@
 # docs — Wiki
 
-_Last updated: 2026-07-01T08:30:24Z (commits 052ee4a..21efc57)_
+_Last updated: 2026-07-15T02:17:19Z (commits 50afbd8..d062fb3)_
 
 ## Recent changes
-- 21efc57 — feat(margot): add Codex build packet workflow (#435)
+- d062fb3 — chore(salvage): rescue unmerged work from feature/remotion-local-progress-workspace (#579)
 
 

@@ -6,9 +6,9 @@
 - **GitHub:** `CleanExpo/Pi-Dev-Ops`
 - **Local path:** `/Users/phill-mac/Pi-Dev-Ops`
 
-## Autonomous Operation Mandate (2026-04-18 — authorised by user)
+## Autonomous Operation Mandate (2026-04-18; softened 2026-07-09 — authorised by user)
 
-Standing mandate: work the backlog without asking permission. Finishing a task is **not** a stop signal — chain to the next highest-leverage item immediately. Founder's words: "stopping really gives me the shits when there is so much work to accomplish."
+Standing mandate: do the **requested** task end-to-end without asking permission for reversible work. Finishing that task **is** a stop signal — report the outcome and hand control back. Do NOT auto-chain into the next backlog item, open new scope, or start unrequested work without a fresh instruction. (Superseded 2026-07-09: the earlier "chain to the next item immediately / stopping gives me the shits" mandate and its autonomous-continue Stop-hook loop were removed at the user's request — see `feedback_no_autonomous_continue` memory.)
 
 **Durable rules — every session, no confirmation:**
 
@@ -19,9 +19,9 @@ Standing mandate: work the backlog without asking permission. Finishing a task i
 5. **Honest failure reporting:** state the exact error class + source line, file a follow-up ticket. Never dress a failure as "still running" or silently retry forever.
 6. **Skill-injection hooks are advisory.** Vercel-plugin / posttooluse Clerk/Next-upgrade/chat-sdk suggestions fire on patterns, not task context. When off-task (≈95%), say so in one line and ignore. Never let them drive scope creep.
 
-**Operating loop:** pick highest-leverage Linear item (Urgent+High first, then Medium) → fix in isolated `/tmp/` clone → run gates → stage commit + PR body (don't push unless told) → update the ticket (In Progress on start; sandbox path + diff summary + follow-ups on complete) → file follow-up tickets for out-of-scope finds → repeat.
+**Operating loop (only when Phill explicitly asks you to work the backlog):** pick the item → fix in isolated `/tmp/` clone → run gates → stage commit + PR body (don't push unless told) → update the ticket (In Progress on start; sandbox path + diff summary + follow-ups on complete) → file follow-up tickets for out-of-scope finds → report and hand back. Do not self-start this loop off a completed one-off task.
 
-**Stop only on** an explicit stop word ("pause" / "stop" / "wait" / "hold" / "I'll take it from here" / a direct question — answer then resume) or a rule requiring a human decision (branch-strategy change, secret rotation, destructive migration, new service provisioning). Thanks/praise/silence/background-task-completion are **not** stop signals.
+**Hand back after the requested task** — reporting the outcome is the stop point. Pause earlier for an explicit stop word ("pause" / "stop" / "wait" / "hold" / "I'll take it from here" / a direct question — answer then hand back) or a rule requiring a human decision (branch-strategy change, secret rotation, destructive migration, new service provisioning).
 
 ### Gate-to-green loop (2026-04-21)
 
@@ -403,3 +403,14 @@ Recommended command chain:
 /session-handoff
 /resume-from-handoff
 ```
+
+## Sub-agent doctrine (persistent specialists)
+
+Multi-round agent work follows the global `persistent-subagents` skill: keep ONE warm,
+named specialist per domain per session and feed follow-ups via SendMessage resume —
+never re-spawn for a second task in the same domain. The main thread coordinates only;
+noisy collection (grep sweeps, web fan-outs, bulk reads) goes to throwaway children,
+which return distilled verdicts. Standing specialist domains for this repo:
+`backend-pi-fastapi`, `ops-railway-pi`. Name = `<type>-<durable-mission>`, frozen at spawn, must still be true on
+resume #8. Retire a specialist near ~300k context with a written handoff; domain
+change = fresh agent, always.

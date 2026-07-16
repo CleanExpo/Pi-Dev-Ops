@@ -45,6 +45,10 @@ jobs:
         run: pytest swarm/ -v --tb=short
         working-directory: .
 
+      - name: Provisioning gate (RA-7015 Cap 0)
+        run: python scripts/check_provisioning.py
+        working-directory: .
+
   # ── Frontend: TypeScript + ESLint + build ────────────────────────────────────
   frontend:
     name: Frontend (tsc + eslint + build)

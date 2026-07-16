@@ -1,8 +1,8 @@
 # .harness — Wiki
 
-_Last updated: 2026-07-03T00:45:46Z (commits b465f49..93ee69d)_
+_Last updated: 2026-07-15T02:17:19Z (commits 50afbd8..d062fb3)_
 
 ## Recent changes
-- 93ee69d — chore(repo): purge stale Synthex consolidation dump and guard against recurrence (#487)
+- d062fb3 — chore(salvage): rescue unmerged work from feature/remotion-local-progress-workspace (#579)
 
 

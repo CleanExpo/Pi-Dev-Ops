@@ -18,7 +18,9 @@ from typing import NamedTuple, Optional
 sys.path.insert(0, str(Path(__file__).parent))
 from linear_helpers import create_linear_issue, TicketRef
 
-# Grounding import: needs repo root on sys.path
+# Grounding import: needs repo root on sys.path.
+# parents[1] is the repo root because this file lives in scripts/ (one level
+# down); parents[0] is scripts/, parents[1] is the repo root.
 _REPO_ROOT_FOR_GROUNDING = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT_FOR_GROUNDING) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT_FOR_GROUNDING))
@@ -29,7 +31,7 @@ log = logging.getLogger("plaud_actions")
 
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_VERSION = "2023-06-01"
-ANTHROPIC_MODEL = "claude-haiku-4-5"
+ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
 
 PROMPT_TEMPLATE = (Path(__file__).parent / "prompts" / "action_extraction.md").read_text()
 

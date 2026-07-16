@@ -1,8 +1,8 @@
 # swarm — Wiki
 
-_Last updated: 2026-07-03T07:19:52Z (commits 3a8dfe5..1bf7715)_
+_Last updated: 2026-07-15T06:02:52Z (commits f2c8109..b6b5dc3)_
 
 ## Recent changes
-- 1bf7715 — refactor(board): replace exec() compat shim with real swarm.board module (RA-6923) (#501)
+- b6b5dc3 — fix(config): resolve Brain-1 wiki path instead of hardcoding a checkout (#582)
 
 

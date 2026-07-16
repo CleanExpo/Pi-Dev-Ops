@@ -159,6 +159,9 @@ def _make_classifier_with_anthropic(model: str) -> Callable[[str], list[Hit]]:
                 model=model,
                 max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}],
+                # Wave 2 — PII span classification is a rote extraction task;
+                # low effort keeps latency/cost down with no accuracy loss.
+                output_config={"effort": "low"},
                 **fallback_kwargs,
             )
             raw = "".join(

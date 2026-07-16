@@ -1,8 +1,12 @@
 # scripts — Wiki
 
-_Last updated: 2026-07-03T12:03:11Z (commits 8a7ad78..a835453)_
+_Last updated: 2026-07-16T00:52:50Z (commits f5955ec..cbecd29)_
 
 ## Recent changes
-- a835453 — fix(lessons): exclude smoke-eval noise from improvement-proposal analysis (#504)
+- cbecd29 — fix(gate): audit-secrets could not fail; the runner used the wrong interpreter (#588)
 
+## Architecture (current)
+Auto-stub: `scripts/` had 1 recent commits. SDK unavailable for synthesis.
 
+## Files of interest
+- scripts/handoff-loop.sh — touched in recent commits

@@ -5,6 +5,8 @@ Usage:
   python scripts/sync_wiki_to_supabase.py           # full sync
   python scripts/sync_wiki_to_supabase.py --since-last  # changed since last run
 """
+from __future__ import annotations
+
 import argparse
 import json
 import os

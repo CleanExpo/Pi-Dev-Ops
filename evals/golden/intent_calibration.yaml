@@ -1,0 +1,48 @@
+# Expert-labelled calibration set — Prove-It Gate slice 3a (RA-7014).
+#
+# 30 cases the judge is measured against. Each: a {message, assigned_intent} pair
+# and the EXPERT verdict (correct = the intent is right for the message). The
+# calibration runner (run_calibration.py) runs the judge N times per case and
+# checks judge↔expert disagreement < 20% AND run-to-run flip-rate < 20% before the
+# gate may go blocking. Balanced (15 correct / 15 mislabelled) so a one-sided judge
+# can't pass. Intents: research | ticket | reply | reminder | flow | unknown.
+rubric: |
+  The candidate is a JSON object {message, assigned_intent}. Valid intents:
+  research (question/lookup/deep-dive), ticket (file/track a bug or task),
+  reply (draft a response to someone), reminder (schedule a time-based nudge),
+  flow (run a multi-step automation), unknown (ambiguous / low-confidence / PII).
+  PASS if assigned_intent is the single best fit; FAIL if another intent clearly
+  fits better, or an ambiguous message was not marked unknown.
+cases:
+  # ---- correct (expert: PASS) ----
+  - {id: r1, message: "what's the status of the CCW migration?", assigned_intent: research, correct: true}
+  - {id: r2, message: "look up Vercel Workflow DevKit pricing", assigned_intent: research, correct: true}
+  - {id: r3, message: "deep dive on ANZ restoration insurance regulation", assigned_intent: research, correct: true}
+  - {id: t1, message: "file a bug: dashboard widget renders blank on Safari", assigned_intent: ticket, correct: true}
+  - {id: t2, message: "open a P1 for the Telegram webhook 500s", assigned_intent: ticket, correct: true}
+  - {id: t3, message: "track this: Xero token refresh keeps expiring", assigned_intent: ticket, correct: true}
+  - {id: y1, message: "draft a reply to Duncan confirming Tuesday works", assigned_intent: reply, correct: true}
+  - {id: y2, message: "reply to the insurer thanking them for the quote", assigned_intent: reply, correct: true}
+  - {id: m1, message: "remind me tomorrow 9am to submit the BAS", assigned_intent: reminder, correct: true}
+  - {id: m2, message: "nudge me Friday afternoon about the CARSI syllabus", assigned_intent: reminder, correct: true}
+  - {id: f1, message: "run the weekly RestoreAssist content pipeline", assigned_intent: flow, correct: true}
+  - {id: f2, message: "kick off the nightly estate CI + smoke sweep", assigned_intent: flow, correct: true}
+  - {id: u1, message: "hmm ok 4021 ???", assigned_intent: unknown, correct: true}
+  - {id: u2, message: "card 4111 1111 1111 1111 expiry 03/28", assigned_intent: unknown, correct: true}
+  - {id: u3, message: "the thing from before, you know", assigned_intent: unknown, correct: true}
+  # ---- mislabelled (expert: FAIL) ----
+  - {id: x1, message: "file a bug: dashboard widget renders blank on Safari", assigned_intent: research, correct: false}
+  - {id: x2, message: "what's the status of the CCW migration?", assigned_intent: ticket, correct: false}
+  - {id: x3, message: "remind me tomorrow 9am to submit the BAS", assigned_intent: reply, correct: false}
+  - {id: x4, message: "draft a reply to Duncan confirming Tuesday works", assigned_intent: reminder, correct: false}
+  - {id: x5, message: "run the weekly RestoreAssist content pipeline", assigned_intent: research, correct: false}
+  - {id: x6, message: "deep dive on ANZ restoration insurance regulation", assigned_intent: flow, correct: false}
+  - {id: x7, message: "open a P1 for the Telegram webhook 500s", assigned_intent: reminder, correct: false}
+  - {id: x8, message: "look up Vercel Workflow DevKit pricing", assigned_intent: reply, correct: false}
+  - {id: x9, message: "nudge me Friday afternoon about the CARSI syllabus", assigned_intent: flow, correct: false}
+  - {id: x10, message: "reply to the insurer thanking them for the quote", assigned_intent: ticket, correct: false}
+  - {id: x11, message: "kick off the nightly estate CI + smoke sweep", assigned_intent: reminder, correct: false}
+  - {id: x12, message: "track this: Xero token refresh keeps expiring", assigned_intent: research, correct: false}
+  - {id: x13, message: "what's the status of the CCW migration?", assigned_intent: flow, correct: false}
+  - {id: x14, message: "file a bug: dashboard widget renders blank on Safari", assigned_intent: reply, correct: false}
+  - {id: x15, message: "remind me tomorrow 9am to submit the BAS", assigned_intent: ticket, correct: false}

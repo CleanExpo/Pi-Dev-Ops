@@ -165,14 +165,11 @@ def _read_short_context(repo_root: str, top_dir: str) -> str:
             except OSError:
                 continue
     # Ground in primary source: a small sample of source files in this dir.
-    src_budget = 0
+    # The [:3] slice already bounds the loop to 3 files.
     for src in sorted(base.glob("*.py"))[:3]:
         try:
             head = "\n".join(src.read_text(encoding="utf-8").splitlines()[:40])
             parts.append(f"# source: {src.name}\n{head}")
-            src_budget += 1
-            if src_budget >= 3:
-                break
         except OSError:
             continue
     return "\n\n".join(parts)[:2500]
@@ -253,7 +250,17 @@ def _run_scribe_sync(prompt: str) -> str:
     except Exception as exc:  # noqa: BLE001
         log.warning("scribe SDK call failed: %s", exc)
         return ""
-    return text if rc == 0 and text else ""
+    if rc != 0 or not text:
+        return ""
+    # When unauthenticated the SDK exits 0 and returns "Not logged in · Please run /login"
+    # as its body. That string is truthy, so the caller's `or _stub_body(...)` fallback
+    # never fired; _render_wiki then stripped the message and wrote a WIKI.md with a fresh
+    # timestamp and no content. Strip here, before the caller tests truthiness, so an
+    # unusable body is falsy and the stub fallback works as designed.
+    body = _strip_generated_markdown_noise(text)
+    if not body:
+        log.warning("scribe SDK returned auth noise only — falling back to stub body")
+    return body
 
 
 def _stub_body(top_dir: str, commits: list[_Commit]) -> str:

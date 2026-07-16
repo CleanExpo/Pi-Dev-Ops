@@ -1,0 +1,41 @@
+name: Prove-It Evals
+
+# RA-7014 — the Prove-It Gate, now BLOCKING (slice 3b).
+# The judge was calibrated 2026-07-08 (evals/CALIBRATION_RESULT.md): 0% judge<->expert
+# disagreement + 0% run-to-run instability over 30 cases x 3 runs, clearing the <20%
+# bar — so the gate flipped from advisory to blocking. A red golden suite now blocks
+# the merge. The deterministic layer (router regression, calibration math, fail-closed
+# parser) runs here; the live-judge agreement test skips without ANTHROPIC_API_KEY, so
+# it is inert in keyless CI rather than falsely blocking.
+
+on:
+  push:
+    branches: [main, "ra-7014-**"]
+  pull_request:
+    branches: [main, "ra-7014-**"]
+
+jobs:
+  evals:
+    name: Golden-dataset evals (blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      TAO_CHEAP_PROVIDER: openrouter # skip the ollama probe → deterministic cheap-tier
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r app/requirements.txt
+          pip install "pytest>=8" pytest-asyncio pyyaml
+
+      - name: Run Prove-It golden evals
+        run: pytest evals/ -v --tb=short

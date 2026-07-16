@@ -1,7 +1,7 @@
 # Experiment: feedback_loop classifier eval harness (2026-07-01)
 
-**Status:** Harness + golden set shipped and unit-tested. Live baseline number pending
-a run against the cheap tier (Ollama / OpenRouter) — see "Running the baseline".
+**Status:** Harness + golden set shipped and unit-tested. **Baseline measured 2026-07-08**
+— see "Baseline result" below.
 
 ## Why this exists
 
@@ -59,9 +59,52 @@ Record the printed accuracy here as the **baseline** once run against the live t
 DSPy-optimized prompt or Langfuse experiment is only worth adopting if it beats this
 number on the same set (per ADR-006's "ship only on measured lift").
 
+## Baseline result (measured 2026-07-08)
+
+```
+dataset=docs/experiments/2026-07-01-feedback-loop-eval/dataset.jsonl
+n=36  accuracy=0.944  abstentions=0
+  negative  n=12  acc=1.000
+  neutral   n=12  acc=0.917
+  positive  n=12  acc=0.917
+```
+
+- **Provider:** OpenRouter `google/gemma-4-26b-a4b-it` (cheap tier; Ollama not running,
+  fell through to OpenRouter as designed). Total eval cost ≈ $0.001 for 36 calls.
+- **Reading:** 34/36 correct; the two misses are one `neutral` and one `positive` case.
+  This is the number DSPy or Langfuse must beat on the same set — at 94.4% there is
+  little headroom, which strengthens the ADR-006 Contrarian's case that the plain
+  CSV harness may be enough.
+
+## DSPy PoV result (measured 2026-07-08)
+
+```
+split: train=24 dev=12 (holdout 4/class, deterministic — feedback_eval.stratified_split)
+baseline   dev accuracy=0.917 abstentions=0   (live _PATTERN_PROMPT classifier)
+dspy-zero  dev accuracy=0.917 abstentions=0   (uncompiled dspy.Predict, same signature)
+dspy-bfs   dev accuracy=0.917 abstentions=0   (BootstrapFewShot, 4 demos from train)
+```
+
+- **Verdict: no lift.** All three tie at 11/12 on the identical dev split and identical
+  model (`openrouter/google/gemma-4-26b-a4b-it`). DSPy compilation buys nothing here —
+  the task is already near its ceiling with the plain prompt.
+- **Cost/guardrails:** 28 LLM calls, ≈$0.0013; `kill_switch.LoopCounter` armed
+  (`TAO_MAX_ITERS=400`, `TAO_MAX_COST_USD` default $5) and never tripped.
+- **Runner:** `scripts/dspy_pov.py` (dspy is NOT a repo dependency — run via
+  `uv run --with dspy python scripts/dspy_pov.py`). Raw numbers: `dspy_result.json`.
+- **Implication for the 2026-07-15 ADR-006 review:** this is direct evidence for the
+  Contrarian position — with a 0.944 full-set baseline and zero optimizer headroom,
+  the in-repo CSV harness is sufficient; neither DSPy adoption nor a Langfuse
+  experiment runner has a measured win to justify it on this workload.
+
 ## Next
 
-1. Run the baseline against the cheap tier; record the number in this README.
+1. ~~Run the baseline against the cheap tier; record the number in this README.~~ Done
+   2026-07-08 (above).
+2. ~~DSPy PoV.~~ Done 2026-07-08 (above) — no lift; do not adopt for this classifier.
+3. Board: rule at the ADR-006 kill date (2026-07-15) with both numbers on the table.
+
+Original DSPy plan (kept for provenance):
 2. DSPy PoV: swap `_PATTERN_PROMPT` for a DSPy `Signature`/`Predict`, compile against a
    train split of this set using `category_agreement` as the metric, evaluate on a held-out
    split, compare to baseline. Keep compile OFF Opus; respect `TAO_MAX_COST_USD` by wiring a

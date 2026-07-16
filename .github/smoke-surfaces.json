@@ -1,73 +1,616 @@
 {
-  "_comment": "RA-1154 declarative surface map. Every interactive surface (dashboard button, API endpoint, streaming route) MUST have an entry. A CI gate fails PRs touching dashboard/components, dashboard/app/api, or app/server/routes without updating this file. Read by scripts/smoke_test_e2e.py. Keep stdlib-parseable (no comments in the JSON itself — use _comment fields if needed).",
+  "_comment": "RA-1154 declarative surface map. Every interactive surface (dashboard button, API endpoint, streaming route) MUST have an entry. A CI gate fails PRs touching dashboard/components, dashboard/app/api, or app/server/routes without updating this file. Read by scripts/smoke_test_e2e.py. Keep stdlib-parseable (no comments in the JSON itself \u2014 use _comment fields if needed).",
   "version": 1,
-
   "horizontal": [
-    {"name": "landing",          "path": "/",                                              "method": "GET",  "auth": false, "expected_status": 200, "_comment": "RA-6889: login hero uses dark-theme --accent/--on-accent tokens; wordmark standardized to Pi CEO."},
-    {"name": "control-redirect", "path": "/control",                                       "method": "GET",  "auth": false, "expected_status": 307},
-    {"name": "loop-redirect",    "path": "/loop",                                          "method": "GET",  "auth": false, "expected_status": 307, "_comment": "RA-6862 / PR #385: /loop (Loop Cockpit) added to PROTECTED_PAGE_PREFIXES in proxy.ts. It is data-only (every panel reads /api/pi-ceo/* which 401s without a session), so an unauthenticated visit must redirect to login (307) rather than render a bare shell."},
-    {"name": "brain-page",       "path": "/brain",                                         "method": "GET",  "auth": false, "expected_status": 200, "body_contains": ["Brain", "Mac Mini"], "_comment": "PR #310: persistent Brain status/checklist page for the Mac Mini Obsidian REST host setup."},
-    {"name": "api-zte",          "path": "/api/zte",                                       "method": "GET",  "auth": false, "expected_status": 200, "body_contains": ["score", "model"]},
-    {"name": "api-swarm-status", "path": "/api/swarm-status",                              "method": "GET",  "auth": false, "expected_status": 200, "body_contains": ["state"]},
-    {"name": "curator-proposals-quiet", "path": "/api/curator-proposals?status=pending&limit=10", "method": "GET", "auth": false, "expected_status": 200, "body_contains": ["error", "detail"], "_comment": "PR #303: read-only Skill Curator polling must stay console-clean when the upstream is unavailable or unauthenticated; route returns a 200 degraded envelope instead of browser-visible 401/502/503 noise."},
-    {"name": "login-wrong-pw",   "path": "/api/auth/login",                                "method": "POST", "auth": false, "expected_status": 200, "body": {"password": "definitely-wrong"}, "body_contains": ["ok", "false", "Invalid password"], "_comment": "PR #303: invalid human login remains rejected in-body but returns HTTP 200 so the handled UI state does not create browser failed-resource console noise."},
-    {"name": "webhook-morning-intel-nosig", "path": "/api/webhook/morning-intel",            "method": "POST", "auth": false, "expected_status": 503, "_comment": "RA-6904: Vercel prod has WEBHOOK_SECRET unset → dashboard proxy returns 503. When WEBHOOK_SECRET is set, missing header returns 401."},
-    {"name": "proxy-health",     "path": "/api/pi-ceo/health",                             "method": "GET",  "auth": true,  "expected_status": 200, "body_contains": ["status", "sessions", "autonomy", "swarm_enabled", "pi_seo_active", "notebooklm", "recovered"], "_comment": "RA-1463: session-cookie auth now unlocks the full payload. RA-1469 added pi_seo_active. RA-1668 added notebooklm. RA-1407 PR 2 added recovered (count of sessions auto-resumed from Supabase on startup)."},
-    {"name": "proxy-projects",   "path": "/api/pi-ceo/api/projects/health",                "method": "GET",  "auth": true,  "expected_status": 200},
-    {"name": "proxy-routines",   "path": "/api/pi-ceo/api/routines?limit=1",               "method": "GET",  "auth": true,  "expected_status": 200, "body_contains": ["runs"], "_comment": "RA-1699: proxy timeout bumped 10s→25s in route.ts to absorb Railway cold-start. Smoke probes the bumped path."},
-    {"name": "proxy-autonomy",   "path": "/api/pi-ceo/api/autonomy/status",                "method": "GET",  "auth": true,  "expected_status": 200, "body_contains": ["enabled", "machine_ship"], "_comment": "RA-6885: includes machine_ship readiness block for TAO_MACHINE_SHIP_MODE gate."},
-    {"name": "proxy-findings",   "path": "/api/pi-ceo/api/projects/pi-dev-ops/findings?limit=1", "method": "GET", "auth": true, "expected_status": 200},
-    {"name": "proxy-sessions",   "path": "/api/pi-ceo/api/sessions",                        "method": "GET",  "auth": true,  "expected_status": 200, "_comment": "Backs ActiveBuildStrip poll (RA-1181)."},
-    {"name": "integrations-health", "path": "/api/pi-ceo/api/integrations/health",          "method": "GET",  "auth": true, "expected_status": 200, "body_contains": ["checks"], "_comment": "RA-1293 integration health — public, no secrets."},
-    {"name": "obsidian-health",     "path": "/api/pi-ceo/api/health/obsidian",               "method": "GET",  "auth": true, "expected_status": 200, "body_contains": ["ok", "vault_present", "rest_reachable"], "_comment": "Real Obsidian connectivity probe (app/server/routes/health.py). Always returns 200 with ok:bool so the Brain panel renders live truth instead of a hardcoded status; ok is true when a genuine local vault is writable OR the REST/relay bridge is reachable. Public on the FastAPI side; dashboard proxy gates with the session cookie."},
-    {"name": "mission-control",     "path": "/api/pi-ceo/api/mission-control/live",          "method": "GET",  "auth": true, "expected_status": 200, "body_contains": ["throughput", "queue", "pulse", "observability"], "_comment": "RA-1440 Mission Control live feed — backs LiveActivityFeed's 5s poll on /control. PR #344 adds observability action-ledger payload so degraded health signals become owner/action/evidence work instead of passive status. RA-6888: LiveActivityFeed contrast tokens only (text-text-muted, --on-accent) — no new routes or behaviours; surface assertions unchanged."},
-    {"name": "telegram-intake-status", "path": "/api/pi-ceo/api/telegram/intake/status",      "method": "GET",  "auth": true, "expected_status": 200, "body_contains": ["enabled", "configured", "has_bot_token", "has_chat_allowlist", "has_linear_api_key", "webhook_autoconfigure", "webhook_mode", "last_webhook_ok"], "_comment": "PR #346: production-host Telegram intake daemon status. PR #348 adds webhook self-heal fields so Railway can observe whether webhook mode is active without exposing token, chat, or secret values. RA-6924: webhook_autoconfigure/webhook_mode now reflect the production-only webhook gate — non-production (preview/pr-N) Railway deploys fall back to getUpdates polling and never register the shared webhook, so only the production deploy shows webhook mode active."},
-    {"name": "phone-gate-unauth",   "path": "/api/phone/gate",                                "method": "POST", "auth": false, "expected_status": 401, "body": {"session_id": "smoke", "tool_name": "Bash", "tool_input_summary": "smoke", "reason": "smoke"}, "_comment": "Phone companion: destructive-tool approval gate. 401 without TAO_PASSWORD auth proves route exists + auth enforced without creating a real Telegram card (body is ignored on 401)."},
-    {"name": "phone-progress-unauth", "path": "/api/phone/progress",                          "method": "POST", "auth": false, "expected_status": 401, "body": {"session_id": "smoke", "project": "x", "branch": "x", "current_task": "x", "last_tool": "x", "last_file": "x", "elapsed_s": 0}, "_comment": "Phone companion: live 'Now Working' card update. 401 smoke — see above."},
-    {"name": "webhook-github-nosig",  "path": "/api/webhook/github",                           "method": "POST", "auth": false, "expected_status": 401, "_comment": "RA-1504: webhook rejects unsigned requests. Surfaces the route for the RA-1109 .catch cleanup. RA-2209: dedup against open [CI FAILURE] tickets — append comment to existing ticket instead of creating a new one when same (repo, workflow) is already open."},
-    {"name": "cron-analyze-unauth",   "path": "/api/cron/analyze",                             "method": "GET",  "auth": false, "expected_status": 401, "_comment": "RA-1504: cron requires Bearer CRON_SECRET. Surfaces the route for the RA-1109 .catch cleanup."},
-    {"name": "webhook-intake-nosig",  "path": "/api/webhook/intake",                           "method": "POST", "auth": false, "expected_status": 401, "_comment": "UNI-2214 item 1: authenticated push-intake webhook for the closed loop (app/server/routes/webhooks.py intake_webhook), reached via the Vercel proxy handler dashboard/app/api/webhook/intake/route.ts (PR #405 — without it a bare /api/webhook/intake returned a spurious 200). A request with no X-Intake-Secret header is always 401 — config-independent by design (proxy returns 401 on missing/unset secret; backend returns 503 for a presented-but-unvalidatable secret, 401 for a wrong one) so this unauthenticated probe is stable whether or not the secret is set in the deploy. Anonymous intake is never accepted."},
-    {"name": "analyze-missing-repo",  "path": "/api/analyze",                                  "method": "GET",  "auth": false, "expected_status": 401, "_comment": "RA-1504: analyze SSE route requires ?repo=. Surfaces the route for the RA-1109 .catch cleanup."},
-    {"name": "margot-turn-nosig",      "path": "/api/pi-ceo/api/margot/turn",                    "method": "POST", "auth": false, "expected_status": 401, "body": {"chat_id": "smoke", "user_text": "smoke"}, "_comment": "PR #321: text Margot turn route timeout is configurable. Valid body + missing X-Pi-CEO-Secret returns 401 before any LLM/research work; reached through the dashboard proxy. PR #460: authenticated turn responses may include optional audio_base64/audio_mime_type when MARGOT_VOICE_REPLY_ENABLED=1 (Hermes sendVoice bridge)."},
-    {"name": "margot-voice-nosig",     "path": "/api/pi-ceo/api/margot/voice",                   "method": "POST", "auth": false, "expected_status": 401, "body": {"chat_id": "smoke", "file_id": "smoke"}, "_comment": "RA-1886: voice route lives on the FastAPI backend (app/server/routes/margot.py), reached via the dashboard /api/pi-ceo/[...path] proxy. 401 expected because X-Pi-CEO-Secret is missing — body ignored. PR #460: authenticated voice turn responses may include optional audio_base64 for Margot voice replies."},
-    {"name": "margot-bubble-unauth",   "path": "/api/margot/bubble",                             "method": "POST", "auth": false, "expected_status": 401, "body": {"message": "smoke"}, "_comment": "Margot brand bubble (Unite-Group personal assistant on Pi-CEO dashboard). Requires tao_session cookie; unauthenticated POST returns 401 before proxying to Railway handle_turn with tenant_id=unite-group."},
-    {"name": "gmail-webhook-nosig",    "path": "/api/pi-ceo/api/webhook/gmail",                  "method": "POST", "auth": false, "expected_status": 401, "body": {"message": {"data": ""}}, "_comment": "RA-6899: Gmail Pub/Sub intake on FastAPI (webhooks.py). Missing X-Gmail-Webhook-Secret and Authorization must return 401 before appending to gmail_intake.jsonl."},
-    {"name": "calendar-webhook-nosig", "path": "/api/pi-ceo/api/webhook/calendar",               "method": "POST", "auth": false, "expected_status": 401, "headers": {"X-Goog-Channel-Id": "smoke", "X-Goog-Resource-State": "exists"}, "_comment": "RA-6899: Calendar push intake on FastAPI. Missing X-Goog-Channel-Token must return 401 before appending to calendar_intake.jsonl."},
-    {"name": "elevenlabs-margot-post-call-nosig", "path": "/api/pi-ceo/api/elevenlabs/margot/post-call", "method": "POST", "auth": false, "expected_status": 401, "body": {"type": "post_call_transcription"}, "_comment": "PR #240: ElevenLabs post-call webhook for Margot voice intake. Missing ElevenLabs-Signature must return 401 before any CRM/Kanban side effects."},
-    {"name": "cost-report-nosig",      "path": "/api/pi-ceo/api/cost-report?since=24h",          "method": "GET",  "auth": false, "expected_status": 401, "_comment": "RA-1909: phase-1 LLM cost visibility. Requires X-Pi-CEO-Secret; 401 surfaces the route exists + auth enforced."},
-    {"name": "health-full",            "path": "/api/pi-ceo/api/health/full",                   "method": "GET",  "auth": true,  "expected_status": 200, "body_contains": ["fully_observed", "degraded_components", "red_components", "telegram_polling", "margot_route"], "_comment": "RA-1910: end-to-end health snapshot. PR #460: margot_route prefers Supabase margot_conversations (source=supabase). 200 when all 7 components green, 503 when any red."},
-    {"name": "kill-switch-status-nosig", "path": "/api/kill-switch?op=status",                  "method": "GET",  "auth": false, "expected_status": 200, "body_contains": ["error", "detail"], "_comment": "RA-3019/PR #303: dashboard status proxy that forwards to FastAPI /api/swarm/status. Read-only status polling returns a 200 envelope, including unauthenticated/degraded fallback, to keep the dashboard console clean; mutating kill/resume POSTs still preserve non-2xx failures."},
-    {"name": "nexus-health",           "path": "/api/pi-ceo/api/nexus/health",                  "method": "GET",  "auth": true,  "expected_status": 200, "body_contains": ["service"], "_comment": "Phase A wire-up (PR #286) — Nexus router health. Public on the FastAPI side; the dashboard proxy requires the session cookie."},
-    {"name": "nexus-ingest-health",    "path": "/api/pi-ceo/api/nexus/ingest/health",           "method": "GET",  "auth": true,  "expected_status": 200, "body_contains": ["providers", "as_of"], "_comment": "Phase C / C1 (PR #296) — per-provider ingest probe. Aggregates outcomes by source. Public on the FastAPI side; dashboard proxy gates with session cookie. CodeRabbit follow-up — original C1 PR forgot to add this surface."},
-    {"name": "actions-unauth",         "path": "/api/actions",                                   "method": "POST", "auth": false, "expected_status": 401, "body_contains": ["Unauthorised"], "_comment": "RA-5690 follow-up: proxy.ts (network-boundary HMAC cookie auth) returns 401 Unauthorised on unauthenticated API requests BEFORE the route handler runs — the original 400 invalid-JSON assertion never fires unauthenticated (verified against prod 2026-06-10). 401 proves route exists + auth boundary enforced before any Claude spend. RA-6887: the route's Linear finding-footer link was corrected from the dead dashboard-unite-group.vercel.app (404) to the live pi-dev-ops.vercel.app; behaviour/surface unchanged, this probe still covers it."},
-    {"name": "telegram-webhook-nobody", "path": "/api/telegram",                                  "method": "POST", "auth": false, "expected_status": 200, "body_contains": ["ok"], "_comment": "RA-5690 PR: Telegram webhook (Fable 5 refusal-fallback added in ceoAgentCall). Unparseable/absent body returns {ok:true} by design so Telegram doesn't retry-flood. The secret-mismatch 403 path needs a custom x-telegram-bot-api-secret-token header, which smoke_test_e2e.py doesn't support — this probe surfaces the route only."},
-    {"name": "telegram-webhook-intake-nosig", "path": "/api/pi-ceo/webhook/telegram",              "method": "POST", "auth": true,  "expected_status": 401, "body": {"message": {"text": "idea: smoke"}}, "_comment": "PR #347: FastAPI Telegram webhook intake bridge. Missing X-Telegram-Bot-Api-Secret-Token must reject before any inbox/Linear side effect; signed live traffic is covered by unit tests because smoke_test_e2e.py cannot set custom Telegram secret headers."},
-    {"name": "margot-delegate-nosig",  "path": "/api/pi-ceo/api/margot/delegate",                "method": "POST", "auth": false, "expected_status": 401, "body": {"task_type": "research", "spec": "smoke", "chat_id": "smoke"}, "_comment": "RA-5690 PR: RA-1631 delegation route (Fable 5 refusal-fallback added at its TAO_MID_MODEL messages.create site). Valid body + missing X-Pi-CEO-Secret returns 401 before any LLM call — same pattern as margot-voice-nosig."},
-    {"name": "session-logs-stream-v2", "path": "/api/pi-ceo/api/sessions/smoke/logs/stream?after=0", "method": "GET", "auth": true, "expected_status": 404, "body_contains": ["Session not found"], "_comment": "RA-6504: hardened SSE build-log stream (heartbeat comments, truncated event, ?after= reconnect). Reached via the dashboard proxy with the session cookie; a bogus sid returns 404 from the new handler before any streaming starts, proving the route exists end-to-end without holding a long-lived SSE connection open in smoke."},
-    {"name": "session-logs-stream-short-alias", "path": "/api/pi-ceo/api/sessions/ra6788-missing-session/stream?after=0", "method": "GET", "auth": true, "expected_status": 404, "body_contains": ["Session not found"], "_comment": "RA-6788: compatibility alias for the hardened SSE build-log stream. Uses a deliberately absent sid so production smoke gets 404 before streaming, proving the short route exists end-to-end through the dashboard proxy without holding an SSE connection open in smoke. PR #352 wires this short alias through the dashboard proxy's SSE path so upstream 404s are preserved instead of converted to quiet GET fallbacks."},
-    {"name": "spec-pipeline-list", "path": "/api/pi-ceo/api/spec-pipeline", "method": "GET", "auth": true, "expected_status": 200, "body_contains": ["pipelines"], "_comment": "Machine spec pipeline list — Mission Control SpecPipelinePanel 4s poll. Copy-id button on active pipeline row."},
-    {"name": "spec-pipeline-run-unauth", "path": "/api/pi-ceo/api/spec-pipeline/run", "method": "POST", "auth": false, "expected_status": 401, "body": {"proposal": "smoke probe for spec pipeline route registration", "dry_run": true}, "_comment": "Machine spec pipeline run — 401 without session cookie proves route exists + auth enforced before background pipeline work."},
-    {"name": "spec-pipeline-run-short-proposal", "path": "/api/pi-ceo/api/spec-pipeline/run", "method": "POST", "auth": true, "expected_status": 422, "body": {"proposal": "str", "dry_run": true}, "_comment": "PR #442: short/bare proposals rejected at Pydantic min_length before queue — mirrors SpecPipelinePanel validateProposalClient."}
+    {
+      "name": "landing",
+      "path": "/",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 200,
+      "_comment": "RA-6889: login hero uses dark-theme --accent/--on-accent tokens; wordmark standardized to Pi CEO."
+    },
+    {
+      "name": "control-redirect",
+      "path": "/control",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 307,
+      "_comment": "RA-7012: added TerminalPanel (live redacted tmux pane view) to the /control grid. Unauth still 307-redirects to login; the panel renders only when authed, so its live output is founder-verified per RA-1109 rather than smoke-asserted here."
+    },
+    {
+      "name": "loop-redirect",
+      "path": "/loop",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 307,
+      "_comment": "RA-6862 / PR #385: /loop (Loop Cockpit) added to PROTECTED_PAGE_PREFIXES in proxy.ts. It is data-only (every panel reads /api/pi-ceo/* which 401s without a session), so an unauthenticated visit must redirect to login (307) rather than render a bare shell."
+    },
+    {
+      "name": "brain-page",
+      "path": "/brain",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 200,
+      "body_contains": [
+        "Brain",
+        "Mac Mini"
+      ],
+      "_comment": "PR #310: persistent Brain status/checklist page for the Mac Mini Obsidian REST host setup."
+    },
+    {
+      "name": "api-zte",
+      "path": "/api/zte",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 200,
+      "body_contains": [
+        "score",
+        "model"
+      ]
+    },
+    {
+      "name": "api-swarm-status",
+      "path": "/api/swarm-status",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 200,
+      "body_contains": [
+        "state"
+      ]
+    },
+    {
+      "name": "curator-proposals-quiet",
+      "path": "/api/curator-proposals?status=pending&limit=10",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 200,
+      "body_contains": [
+        "error",
+        "detail"
+      ],
+      "_comment": "PR #303: read-only Skill Curator polling must stay console-clean when the upstream is unavailable or unauthenticated; route returns a 200 degraded envelope instead of browser-visible 401/502/503 noise."
+    },
+    {
+      "name": "login-wrong-pw",
+      "path": "/api/auth/login",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 200,
+      "body": {
+        "password": "definitely-wrong"
+      },
+      "body_contains": [
+        "ok",
+        "false",
+        "Invalid password"
+      ],
+      "_comment": "PR #303: invalid human login remains rejected in-body but returns HTTP 200 so the handled UI state does not create browser failed-resource console noise."
+    },
+    {
+      "name": "webhook-morning-intel-nosig",
+      "path": "/api/webhook/morning-intel",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 503,
+      "_comment": "RA-6904: Vercel prod has WEBHOOK_SECRET unset \u2192 dashboard proxy returns 503. When WEBHOOK_SECRET is set, missing header returns 401."
+    },
+    {
+      "name": "proxy-health",
+      "path": "/api/pi-ceo/health",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "status",
+        "sessions",
+        "autonomy",
+        "swarm_enabled",
+        "pi_seo_active",
+        "notebooklm",
+        "recovered"
+      ],
+      "_comment": "RA-1463: session-cookie auth now unlocks the full payload. RA-1469 added pi_seo_active. RA-1668 added notebooklm. RA-1407 PR 2 added recovered (count of sessions auto-resumed from Supabase on startup)."
+    },
+    {
+      "name": "proxy-projects",
+      "path": "/api/pi-ceo/api/projects/health",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200
+    },
+    {
+      "name": "proxy-routines",
+      "path": "/api/pi-ceo/api/routines?limit=1",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "runs"
+      ],
+      "_comment": "RA-1699: proxy timeout bumped 10s\u219225s in route.ts to absorb Railway cold-start. Smoke probes the bumped path."
+    },
+    {
+      "name": "proxy-autonomy",
+      "path": "/api/pi-ceo/api/autonomy/status",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "enabled",
+        "machine_ship"
+      ],
+      "_comment": "RA-6885: includes machine_ship readiness block for TAO_MACHINE_SHIP_MODE gate."
+    },
+    {
+      "name": "proxy-findings",
+      "path": "/api/pi-ceo/api/projects/pi-dev-ops/findings?limit=1",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200
+    },
+    {
+      "name": "proxy-sessions",
+      "path": "/api/pi-ceo/api/sessions",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "_comment": "Backs ActiveBuildStrip poll (RA-1181)."
+    },
+    {
+      "name": "integrations-health",
+      "path": "/api/pi-ceo/api/integrations/health",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "checks"
+      ],
+      "_comment": "RA-1293 integration health \u2014 public, no secrets."
+    },
+    {
+      "name": "obsidian-health",
+      "path": "/api/pi-ceo/api/health/obsidian",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "ok",
+        "vault_present",
+        "rest_reachable"
+      ],
+      "_comment": "Real Obsidian connectivity probe (app/server/routes/health.py). Always returns 200 with ok:bool so the Brain panel renders live truth instead of a hardcoded status; ok is true when a genuine local vault is writable OR the REST/relay bridge is reachable. Public on the FastAPI side; dashboard proxy gates with the session cookie."
+    },
+    {
+      "name": "mission-control",
+      "path": "/api/pi-ceo/api/mission-control/live",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "throughput",
+        "queue",
+        "pulse",
+        "observability"
+      ],
+      "_comment": "RA-1440 Mission Control live feed \u2014 backs LiveActivityFeed's 5s poll on /control. PR #344 adds observability action-ledger payload so degraded health signals become owner/action/evidence work instead of passive status. RA-6888: LiveActivityFeed contrast tokens only (text-text-muted, --on-accent) \u2014 no new routes or behaviours; surface assertions unchanged."
+    },
+    {
+      "name": "telegram-intake-status",
+      "path": "/api/pi-ceo/api/telegram/intake/status",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "enabled",
+        "configured",
+        "has_bot_token",
+        "has_chat_allowlist",
+        "has_linear_api_key",
+        "webhook_autoconfigure",
+        "webhook_mode",
+        "last_webhook_ok"
+      ],
+      "_comment": "PR #346: production-host Telegram intake daemon status. PR #348 adds webhook self-heal fields so Railway can observe whether webhook mode is active without exposing token, chat, or secret values. RA-6924: webhook_autoconfigure/webhook_mode now reflect the production-only webhook gate \u2014 non-production (preview/pr-N) Railway deploys fall back to getUpdates polling and never register the shared webhook, so only the production deploy shows webhook mode active."
+    },
+    {
+      "name": "phone-gate-unauth",
+      "path": "/api/phone/gate",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body": {
+        "session_id": "smoke",
+        "tool_name": "Bash",
+        "tool_input_summary": "smoke",
+        "reason": "smoke"
+      },
+      "_comment": "Phone companion: destructive-tool approval gate. 401 without TAO_PASSWORD auth proves route exists + auth enforced without creating a real Telegram card (body is ignored on 401)."
+    },
+    {
+      "name": "phone-progress-unauth",
+      "path": "/api/phone/progress",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body": {
+        "session_id": "smoke",
+        "project": "x",
+        "branch": "x",
+        "current_task": "x",
+        "last_tool": "x",
+        "last_file": "x",
+        "elapsed_s": 0
+      },
+      "_comment": "Phone companion: live 'Now Working' card update. 401 smoke \u2014 see above."
+    },
+    {
+      "name": "webhook-github-nosig",
+      "path": "/api/webhook/github",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "_comment": "RA-1504: webhook rejects unsigned requests. Surfaces the route for the RA-1109 .catch cleanup. RA-2209: dedup against open [CI FAILURE] tickets \u2014 append comment to existing ticket instead of creating a new one when same (repo, workflow) is already open."
+    },
+    {
+      "name": "cron-analyze-unauth",
+      "path": "/api/cron/analyze",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 401,
+      "_comment": "RA-1504: cron requires Bearer CRON_SECRET. Surfaces the route for the RA-1109 .catch cleanup."
+    },
+    {
+      "name": "webhook-intake-nosig",
+      "path": "/api/webhook/intake",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "_comment": "UNI-2214 item 1: authenticated push-intake webhook for the closed loop (app/server/routes/webhooks.py intake_webhook), reached via the Vercel proxy handler dashboard/app/api/webhook/intake/route.ts (PR #405 \u2014 without it a bare /api/webhook/intake returned a spurious 200). A request with no X-Intake-Secret header is always 401 \u2014 config-independent by design (proxy returns 401 on missing/unset secret; backend returns 503 for a presented-but-unvalidatable secret, 401 for a wrong one) so this unauthenticated probe is stable whether or not the secret is set in the deploy. Anonymous intake is never accepted."
+    },
+    {
+      "name": "analyze-missing-repo",
+      "path": "/api/analyze",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 401,
+      "_comment": "RA-1504: analyze SSE route requires ?repo=. Surfaces the route for the RA-1109 .catch cleanup."
+    },
+    {
+      "name": "margot-turn-nosig",
+      "path": "/api/pi-ceo/api/margot/turn",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body": {
+        "chat_id": "smoke",
+        "user_text": "smoke"
+      },
+      "_comment": "PR #321: text Margot turn route timeout is configurable. Valid body + missing X-Pi-CEO-Secret returns 401 before any LLM/research work; reached through the dashboard proxy. PR #460: authenticated turn responses may include optional audio_base64/audio_mime_type when MARGOT_VOICE_REPLY_ENABLED=1 (Hermes sendVoice bridge)."
+    },
+    {
+      "name": "margot-voice-nosig",
+      "path": "/api/pi-ceo/api/margot/voice",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body": {
+        "chat_id": "smoke",
+        "file_id": "smoke"
+      },
+      "_comment": "RA-1886: voice route lives on the FastAPI backend (app/server/routes/margot.py), reached via the dashboard /api/pi-ceo/[...path] proxy. 401 expected because X-Pi-CEO-Secret is missing \u2014 body ignored. PR #460: authenticated voice turn responses may include optional audio_base64 for Margot voice replies."
+    },
+    {
+      "name": "margot-bubble-unauth",
+      "path": "/api/margot/bubble",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body": {
+        "message": "smoke"
+      },
+      "_comment": "Margot brand bubble (Unite-Group personal assistant on Pi-CEO dashboard). Requires tao_session cookie; unauthenticated POST returns 401 before proxying to Railway handle_turn with tenant_id=unite-group."
+    },
+    {
+      "name": "gmail-webhook-nosig",
+      "path": "/api/pi-ceo/api/webhook/gmail",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body": {
+        "message": {
+          "data": ""
+        }
+      },
+      "_comment": "RA-6899: Gmail Pub/Sub intake on FastAPI (webhooks.py). Missing X-Gmail-Webhook-Secret and Authorization must return 401 before appending to gmail_intake.jsonl."
+    },
+    {
+      "name": "calendar-webhook-nosig",
+      "path": "/api/pi-ceo/api/webhook/calendar",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "headers": {
+        "X-Goog-Channel-Id": "smoke",
+        "X-Goog-Resource-State": "exists"
+      },
+      "_comment": "RA-6899: Calendar push intake on FastAPI. Missing X-Goog-Channel-Token must return 401 before appending to calendar_intake.jsonl."
+    },
+    {
+      "name": "elevenlabs-margot-post-call-nosig",
+      "path": "/api/pi-ceo/api/elevenlabs/margot/post-call",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body": {
+        "type": "post_call_transcription"
+      },
+      "_comment": "PR #240: ElevenLabs post-call webhook for Margot voice intake. Missing ElevenLabs-Signature must return 401 before any CRM/Kanban side effects."
+    },
+    {
+      "name": "cost-report-nosig",
+      "path": "/api/pi-ceo/api/cost-report?since=24h",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 401,
+      "_comment": "RA-1909: phase-1 LLM cost visibility. Requires X-Pi-CEO-Secret; 401 surfaces the route exists + auth enforced."
+    },
+    {
+      "name": "health-full",
+      "path": "/api/pi-ceo/api/health/full",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "fully_observed",
+        "degraded_components",
+        "red_components",
+        "telegram_polling",
+        "margot_route"
+      ],
+      "_comment": "RA-1910: end-to-end health snapshot. PR #460: margot_route prefers Supabase margot_conversations (source=supabase). 200 when all 7 components green, 503 when any red."
+    },
+    {
+      "name": "kill-switch-status-nosig",
+      "path": "/api/kill-switch?op=status",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 200,
+      "body_contains": [
+        "error",
+        "detail"
+      ],
+      "_comment": "RA-3019/PR #303: dashboard status proxy that forwards to FastAPI /api/swarm/status. Read-only status polling returns a 200 envelope, including unauthenticated/degraded fallback, to keep the dashboard console clean; mutating kill/resume POSTs still preserve non-2xx failures."
+    },
+    {
+      "name": "nexus-health",
+      "path": "/api/pi-ceo/api/nexus/health",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "service"
+      ],
+      "_comment": "Phase A wire-up (PR #286) \u2014 Nexus router health. Public on the FastAPI side; the dashboard proxy requires the session cookie."
+    },
+    {
+      "name": "nexus-ingest-health",
+      "path": "/api/pi-ceo/api/nexus/ingest/health",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "providers",
+        "as_of"
+      ],
+      "_comment": "Phase C / C1 (PR #296) \u2014 per-provider ingest probe. Aggregates outcomes by source. Public on the FastAPI side; dashboard proxy gates with session cookie. CodeRabbit follow-up \u2014 original C1 PR forgot to add this surface."
+    },
+    {
+      "name": "actions-unauth",
+      "path": "/api/actions",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body_contains": [
+        "Unauthorised"
+      ],
+      "_comment": "RA-5690 follow-up: proxy.ts (network-boundary HMAC cookie auth) returns 401 Unauthorised on unauthenticated API requests BEFORE the route handler runs \u2014 the original 400 invalid-JSON assertion never fires unauthenticated (verified against prod 2026-06-10). 401 proves route exists + auth boundary enforced before any Claude spend. RA-6887: the route's Linear finding-footer link was corrected from the dead dashboard-unite-group.vercel.app (404) to the live pi-dev-ops.vercel.app; behaviour/surface unchanged, this probe still covers it."
+    },
+    {
+      "name": "telegram-webhook-nobody",
+      "path": "/api/telegram",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 200,
+      "body_contains": [
+        "ok"
+      ],
+      "_comment": "RA-5690 PR: Telegram webhook (Fable 5 refusal-fallback added in ceoAgentCall). Unparseable/absent body returns {ok:true} by design so Telegram doesn't retry-flood. The secret-mismatch 403 path needs a custom x-telegram-bot-api-secret-token header, which smoke_test_e2e.py doesn't support \u2014 this probe surfaces the route only."
+    },
+    {
+      "name": "telegram-webhook-intake-nosig",
+      "path": "/api/pi-ceo/webhook/telegram",
+      "method": "POST",
+      "auth": true,
+      "expected_status": 401,
+      "body": {
+        "message": {
+          "text": "idea: smoke"
+        }
+      },
+      "_comment": "PR #347: FastAPI Telegram webhook intake bridge. Missing X-Telegram-Bot-Api-Secret-Token must reject before any inbox/Linear side effect; signed live traffic is covered by unit tests because smoke_test_e2e.py cannot set custom Telegram secret headers."
+    },
+    {
+      "name": "margot-delegate-nosig",
+      "path": "/api/pi-ceo/api/margot/delegate",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body": {
+        "task_type": "research",
+        "spec": "smoke",
+        "chat_id": "smoke"
+      },
+      "_comment": "RA-5690 PR: RA-1631 delegation route (Fable 5 refusal-fallback added at its TAO_MID_MODEL messages.create site). Valid body + missing X-Pi-CEO-Secret returns 401 before any LLM call \u2014 same pattern as margot-voice-nosig. Wave-2 (PR #516): output_config effort=medium set at the delegate messages.create site; auth-gate probe contract unchanged (401 before any LLM call)."
+    },
+    {
+      "name": "session-logs-stream-v2",
+      "path": "/api/pi-ceo/api/sessions/smoke/logs/stream?after=0",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 404,
+      "body_contains": [
+        "Session not found"
+      ],
+      "_comment": "RA-6504: hardened SSE build-log stream (heartbeat comments, truncated event, ?after= reconnect). Reached via the dashboard proxy with the session cookie; a bogus sid returns 404 from the new handler before any streaming starts, proving the route exists end-to-end without holding a long-lived SSE connection open in smoke."
+    },
+    {
+      "name": "session-logs-stream-short-alias",
+      "path": "/api/pi-ceo/api/sessions/ra6788-missing-session/stream?after=0",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 404,
+      "body_contains": [
+        "Session not found"
+      ],
+      "_comment": "RA-6788: compatibility alias for the hardened SSE build-log stream. Uses a deliberately absent sid so production smoke gets 404 before streaming, proving the short route exists end-to-end through the dashboard proxy without holding an SSE connection open in smoke. PR #352 wires this short alias through the dashboard proxy's SSE path so upstream 404s are preserved instead of converted to quiet GET fallbacks."
+    },
+    {
+      "name": "spec-pipeline-list",
+      "path": "/api/pi-ceo/api/spec-pipeline",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "pipelines"
+      ],
+      "_comment": "Machine spec pipeline list \u2014 Mission Control SpecPipelinePanel 4s poll. Copy-id button on active pipeline row."
+    },
+    {
+      "name": "spec-pipeline-run-unauth",
+      "path": "/api/pi-ceo/api/spec-pipeline/run",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body": {
+        "proposal": "smoke probe for spec pipeline route registration",
+        "dry_run": true
+      },
+      "_comment": "Machine spec pipeline run \u2014 401 without session cookie proves route exists + auth enforced before background pipeline work."
+    },
+    {
+      "name": "spec-pipeline-run-short-proposal",
+      "path": "/api/pi-ceo/api/spec-pipeline/run",
+      "method": "POST",
+      "auth": true,
+      "expected_status": 422,
+      "body": {
+        "proposal": "str",
+        "dry_run": true
+      },
+      "_comment": "PR #442: short/bare proposals rejected at Pydantic min_length before queue \u2014 mirrors SpecPipelinePanel validateProposalClient."
+    },
+    {
+      "name": "mesh-claim-self-nosig",
+      "path": "/api/pi-ceo/api/mesh/claim/self",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body": {
+        "host": "smoke"
+      },
+      "_comment": "UNI-2248 (PR #509): idle-runner atomic self-claim of the top-priority unclaimed mesh:auto ticket (app/server/routes/mesh.py claim_self). Requires X-Pi-CEO-Secret; unauthenticated POST returns 401 before any Linear query or mesh_work_claims insert, so this probe proves route + auth without ever creating a real claim. Same pattern as cost-report-nosig/margot-turn-nosig. An authenticated probe is deliberately NOT declared \u2014 a valid secret would self-claim a live ticket (state mutation); the claim race/priority logic is covered offline by tests/test_mesh_runner_idle_autoclaim.py."
+    },
+    {
+      "name": "mesh-claims-reap-nosig",
+      "path": "/api/pi-ceo/api/mesh/claims/reap",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "_comment": "UNI-2301: stale-claim reaper (app/server/routes/mesh.py reap_claims) \u2014 releases mesh_work_claims rows stuck in claimed/working past MESH_CLAIM_TTL_MINUTES when the claiming machine's heartbeat is itself stale or absent, so a runner dying mid-claim can't lock a ticket forever. Requires X-Pi-CEO-Secret; unauthenticated POST returns 401 before any Supabase read or Linear mutation, same pattern as mesh-claim-self-nosig. An authenticated probe is deliberately NOT declared \u2014 a valid secret would run a real sweep against live claims (state mutation); the TTL/heartbeat/reclaim logic is covered offline by tests/test_mesh_claim_reap.py. UNI-2303 hardened reap internals (return=representation, hot-path isolation, TTL floor, released-reversal); NO endpoints added/removed \u2014 this existing 401 probe still covers the surface."
+    },
+    {
+      "name": "mesh-heartbeat-nosig",
+      "path": "/api/pi-ceo/api/mesh/heartbeat",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body": {
+        "host": "smoke"
+      },
+      "_comment": "PR #542: heartbeat upsert fixed to target the (machine, runtime, session_id) UNIQUE constraint via on_conflict \u2014 merge-duplicates alone resolved against the uuid PK and every repeat heartbeat 409'd (~8.6k/day, the bulk of the Supabase failure rate). Requires X-Pi-CEO-Secret; unauthenticated POST with a valid minimal body returns 401 inside the handler before any Supabase write, same pattern as mesh-claim-self-nosig. An authenticated probe is deliberately NOT declared \u2014 a valid secret would upsert a phantom 'smoke' machine row (state mutation); upsert semantics are asserted post-merge by watching mesh_agents POSTs return 2xx not 409 in the Supabase API logs."
+    },
+    {
+      "name": "fable-canary",
+      "path": "/api/pi-ceo/api/canary/fable",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 401,
+      "_comment": "RA-1099 Wave-3: Fable adversary-canary amplification summary; require_auth so unauth=401. auth:false so the runner probes it BEFORE login with an empty cookie jar — require_auth then returns 401. (auth:true would run it post-login; the session cookie satisfies require_auth → 200, which is why RA-7028's first pass still failed 200!=401.) Backend route is /api/canary/fable on Railway; the e2e runner targets the Vercel base, so the surface must carry the /api/pi-ceo proxy prefix like every other backend surface (bare /api/canary/fable 404s at Vercel). The standalone .github/workflows/fable_canary_check.yml hits Railway directly and keeps the unprefixed path."
+    },
+    {
+      "name": "proxy-terminal-sessions",
+      "path": "/api/pi-ceo/api/terminal/sessions",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "sessions"
+      ],
+      "_comment": "RA-7012: Terminal Orchestrator read API. Returns {sessions:[...]} or {sessions:[],error} if no tmux on the deploy \u2014 the sessions key is always present so the smoke holds."
+    },
+    {
+      "name": "proxy-terminal-tail",
+      "path": "/api/pi-ceo/api/terminal/tail?session=smoke",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": [
+        "lines"
+      ],
+      "_comment": "RA-7012: redacted pane tail; returns {session,lines:[],error} when the session is absent on the deploy \u2014 lines key always present."
+    }
   ],
-
   "vertical": {
     "flow": "build_lifecycle",
     "steps": [
-      {"action": "login",
-       "path":   "/api/auth/login",
-       "expected": {"status": 200}},
-      {"action": "post",
-       "path":   "/api/pi-ceo/api/build",
-       "body":   {"repo_url": "https://github.com/CleanExpo/Pi-Dev-Ops",
-                  "brief":    "RA-1154 smoke test probe — do nothing, just verify the pipeline responds",
-                  "intent":   "smoke"},
-       "expected": {"status": 200, "body_contains": ["session_id"]}},
-      {"action": "sse",
-       "path_template": "/api/pi-ceo/api/sessions/{session_id}/logs",
-       "expected": {"min_events": 1, "timeout_s": 30}},
-      {"action": "kill",
-       "path_template": "/api/pi-ceo/api/sessions/{session_id}/kill",
-       "expected": {"status": 200}}
+      {
+        "action": "login",
+        "path": "/api/auth/login",
+        "expected": {
+          "status": 200
+        }
+      },
+      {
+        "action": "post",
+        "path": "/api/pi-ceo/api/build",
+        "body": {
+          "repo_url": "https://github.com/CleanExpo/Pi-Dev-Ops",
+          "brief": "RA-1154 smoke test probe \u2014 do nothing, just verify the pipeline responds",
+          "intent": "smoke"
+        },
+        "expected": {
+          "status": 200,
+          "body_contains": [
+            "session_id"
+          ]
+        }
+      },
+      {
+        "action": "sse",
+        "path_template": "/api/pi-ceo/api/sessions/{session_id}/logs",
+        "expected": {
+          "min_events": 1,
+          "timeout_s": 30
+        }
+      },
+      {
+        "action": "kill",
+        "path_template": "/api/pi-ceo/api/sessions/{session_id}/kill",
+        "expected": {
+          "status": 200
+        }
+      }
     ]
   }
 }

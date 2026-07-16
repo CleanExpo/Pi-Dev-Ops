@@ -1,6 +1,8 @@
 # live-nexus — Wiki
 
-_Last updated: 2026-05-17T12:05:56Z (commits 44afd59..8c590b3)_
+_Last updated: 2026-07-05T08:52:28Z (commits 64a6939..f99d458)_
 
 ## Recent changes
-- 8c590b3 — ci(live-nexus): quiet smoke workflow cleanup (#245)
+- f99d458 — fix(models): correct stale model IDs in seeds, deploy scaffolding, and haiku defaults (#515)
+
+

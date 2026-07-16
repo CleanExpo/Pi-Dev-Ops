@@ -39,6 +39,27 @@ SDK `permission_mode` callback that inspects each tool call), not only at
 policy.py's stamp. The hook classifies the pending tool call to a tier and blocks
 L3 pending human approval. That is the one engineering task that makes this real.
 
+## Bash-tool security levels (map to the tiers)
+The tier says WHEN to gate; IndyDevDan's five bash-security levels say what the
+agent's SHELL SURFACE must be at that tier. B1 prompt-level "safe mode" and B2
+system-prompt rules are non-deterministic — lost in long context, routed around
+by capable models (inline python beat an `rm -rf` block) — so they never count
+as the enforcement layer, only as token-saving self-avoidance on top of it.
+
+| Tier | Minimum bash level |
+|---|---|
+| L0 — Advise / Read | B1–B2 prompt-layer acceptable; worst case is a read |
+| L1 — Reversible single-domain | B3 bash blacklist (PreToolUse hooks) as global baseline |
+| L2 — Cross-domain / outward | B4 vetted whitelist — no allowed command reaches prod or executes arbitrary code |
+| L3 — Irreversible surfaces reachable | B5 no bash tool — explicit vetted tools (MCP) only; skills that shell out don't count |
+
+**Prod-reachability rule:** ask "are production/irreversible assets reachable
+from this agent's shell right now?" Yes → B4 immediately, B5 for anything
+customer-facing or prompt-injectable. No (a sandbox owns network + tools) →
+B2 is acceptable; the worst case is the sandbox. The stricter the reach toward
+prod, the higher the required level — only B4/B5 *guarantee* no prod damage.
+[[delete-bash-tool-agentic-security-indydevdan-2026-07-14-ingest]]
+
 ## Cooperation / oversight (anti-solipsism)
 For L2+ multi-agent work, an agent's output is accepted only if it engaged at
 least one peer's objection (the `specialist-council` cooperation gate). Isolated

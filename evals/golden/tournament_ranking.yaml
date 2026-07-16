@@ -1,0 +1,37 @@
+# Golden dataset — tao_tournament Elo ranking (Prove-It Gate, RA-7022).
+#
+# Encodes the Co-Scientist tournament mechanism: rank candidates by Elo updated
+# from pairwise "which is better" verdicts. Deterministic given a fixed result
+# order. No LLM judge (the LLM supplies verdicts upstream; ranking is arithmetic).
+# Ground-truthed 2026-07-08 against app/server/tao_tournament.py (K=32, base=1000).
+
+# expected_score(rating_a, rating_b) -> E_a. Equal ratings -> 0.5.
+expected:
+  - {rating_a: 1000.0, rating_b: 1000.0, expected: 0.5}
+  - {rating_a: 1400.0, rating_b: 1000.0, expected: 0.9090909091}   # strong favourite
+  - {rating_a: 1000.0, rating_b: 1400.0, expected: 0.0909090909}
+
+# update_ratings: after A beats B from equal 1000/1000 at K=32 -> 1016 / 984.
+update:
+  - {rating_a: 1000.0, rating_b: 1000.0, a_won: true, new_a: 1016.0, new_b: 984.0}
+  - {rating_a: 1000.0, rating_b: 1000.0, a_won: false, new_a: 984.0, new_b: 1016.0}
+
+# rank_candidates: candidates + (winner, loser) results -> ordered [id, ...] by final rating.
+ranking:
+  # a beats b and c; b beats c. Final order: a > b > c.
+  - candidates: [a, b, c]
+    results: [[a, b], [a, c], [b, c]]
+    order: [a, b, c]
+  # transitively c dominates: c beats a, c beats b, a beats b -> c > a > b
+  - candidates: [a, b, c]
+    results: [[c, a], [c, b], [a, b]]
+    order: [c, a, b]
+  # no results -> all tied at base; stable tie-break by id ascending
+  - candidates: [c, a, b]
+    results: []
+    order: [a, b, c]
+
+# a result referencing an unknown candidate must raise.
+invalid:
+  - candidates: [a, b]
+    results: [[a, z]]

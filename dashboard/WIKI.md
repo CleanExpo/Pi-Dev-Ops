@@ -1,8 +1,8 @@
 # dashboard — Wiki
 
-_Last updated: 2026-07-02T08:40:09Z (commits 6a37201..1987436)_
+_Last updated: 2026-07-15T02:58:36Z (commits 462e278..e109e63)_
 
 ## Recent changes
-- 1987436 — fix(UNI-2236,RA-6911): CI smoke + wiki workflow + founder settings fallback
+- e109e63 — fix(dashboard): skip squash-merged branches in fetchBranchDiffs (#580)
 
 

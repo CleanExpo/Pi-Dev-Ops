@@ -62,7 +62,7 @@ serves, not the hub itself.
 | [DIY-Home-Loan](https://github.com/CleanExpo/DIY-Home-Loan) | Home loan journey |
 | [brain-1](https://github.com/CleanExpo/brain-1) | Strategic memory and commercial terms |
 | [Pi-Dev-Ops](https://github.com/CleanExpo/Pi-Dev-Ops) | Discovery orchestration (this repo) |
-| [Unite-Hub](https://github.com/CleanExpo/Unite-Hub) | CRM / client portal |
+| [Unite-Hub](https://github.com/CleanExpo/Unite-Hub) | CRM / client portal (decommissioned 2026-06-20) |
 | [Unite-Group](https://github.com/CleanExpo/Unite-Group) | Synthex Authority Hub |
 
 ---
