@@ -247,7 +247,10 @@ def _yaml_scalar(v: Any) -> str:
         return str(v)
     s = str(v)
     if any(ch in s for ch in ":#\n\"'") or s in ("true", "false", "null", ""):
-        return json.dumps(s)
+        # ensure_ascii=False: the default emits \ud83d-style surrogate-pair escapes
+        # for non-BMP characters (e.g. emoji), which are invalid YAML for strict
+        # parsers (Ruby Psych) and load as two surrogate code points in PyYAML.
+        return json.dumps(s, ensure_ascii=False)
     return s
 
 

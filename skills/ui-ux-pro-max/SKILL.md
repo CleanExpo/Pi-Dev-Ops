@@ -75,14 +75,19 @@ Generate 3 variants, then select one. The builder must produce:
 
 ### Phase 4 — Audit (Skill: impeccable)
 
+`impeccable` is not a repo skill — it is installed locally at `~/.claude/skills/impeccable`
+(pbakaus/impeccable v3.9.1). If absent, install it before this phase; do not fall back to
+the deprecated `design-audit`.
+
 Run the full audit before marking anything done:
 
 ```
-/audit [component-name]
+/impeccable audit [component-name]
 ```
 
-Expect a report against the impeccable rule set. Must score 7/10 or above to proceed.
-Fix all 🔴 Critical findings. Fix all 🟡 Warning findings where possible.
+Expect an Audit Health Score out of 20 with P0-P3 severity findings. Must score 16/20 or
+above with zero P0 (Blocking) and zero P1 (Major) findings to proceed. Fix P2 (Minor)
+findings where possible.
 
 Then run the automated detector:
 ```bash
@@ -146,7 +151,7 @@ Before opening a PR, confirm all of these:
 
 | Dimension | Minimum to ship | Pro Max target |
 |-----------|-----------------|----------------|
-| impeccable audit score | 7/10 | 9/10 |
+| impeccable audit score | 16/20, no P0/P1 | 18/20, no P0/P1/P2 |
 | Anti-patterns | ≤ 1 | 0 |
 | States covered | 6/8 | 8/8 |
 | WCAG compliance | AA | AA (AAA on typography) |
@@ -178,7 +183,7 @@ npx getdesign@latest add linear.app  # Downloads Linear's full DESIGN.md
 
 - Simple copy change or icon swap → no skill needed
 - One-off script or non-UI code → no skill needed
-- Only reading existing code → `impeccable /critique` only
+- Only reading existing code → `/impeccable critique` only
 
 ---
 
@@ -188,5 +193,5 @@ A completed Pro Max workflow produces:
 1. React component file (`dashboard/components/[Name].tsx`)
 2. Updated or confirmed `DESIGN.md` (if new tokens were added)
 3. 6 screenshots (4 breakpoints + dark + reference comparison)
-4. `/audit` report saved to PR description or `.harness/design-audits/[name].md`
+4. `/impeccable audit` report saved to PR description or `.harness/design-audits/[name].md`
 5. Visual regression baseline images (Linux CI only)

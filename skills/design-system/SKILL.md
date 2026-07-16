@@ -15,21 +15,25 @@ The entry point for all UI work in the Unite-Group Nexus. This skill does not bu
 |-------|-------|------|
 | 1. Context | `design-intelligence` | Start of any UI work — read/create DESIGN.md |
 | 2. Build | `ui-component-builder` | Building or updating React components |
-| 3. Audit | `impeccable` | Before marking any component done |
+| 3. Audit | `impeccable` (installed skill) | Before marking any component done |
 | 4. Verify | `visual-qa` | After build — screenshot + regression check |
+
+**External dependency:** `impeccable` is not a repo skill — it is installed locally at
+`~/.claude/skills/impeccable` (pbakaus/impeccable v3.9.1). If it is absent on this machine,
+install it before the audit stage; do not fall back to the deprecated `design-audit`.
 
 ---
 
 ## Quick Routing Guide
 
 **"Build me a [component]"**
-→ `design-intelligence` (read DESIGN.md) → `ui-component-builder` (generate 3 variants) → `impeccable` (/audit) → `visual-qa` (screenshot matrix)
+→ `design-intelligence` (read DESIGN.md) → `ui-component-builder` (generate 3 variants) → `/impeccable audit` → `visual-qa` (screenshot matrix)
 
 **"Does this look right?"**
-→ `impeccable` (/critique) — UX + visual review, no edits
+→ `/impeccable critique` — UX + visual review, no edits
 
 **"Make this better"**
-→ `impeccable` (/polish) — targeted improvements, or (/bolder) for more presence
+→ `/impeccable polish` — targeted improvements, or `/impeccable bolder` for more presence
 
 **"Match the look of [brand/site]"**
 → `design-intelligence` (reference brand archetypes, run npxskillui) → update DESIGN.md

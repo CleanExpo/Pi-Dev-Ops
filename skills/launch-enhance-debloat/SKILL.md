@@ -13,7 +13,7 @@ Make the code that already exists get better over time — leaner, sturdier, saf
 
 ## Why this exists
 
-Every line added is a line that must be reasoned about later. Following the lean single-file-agent ethos, the best change is often a *deletion*. Its unique contribution is **dead-code / de-bloat hunting** — the repo has no general dead-weight remover. For the adjacent passes it delegates: security → [`security-audit`](../security-audit/SKILL.md); UI distillation → `impeccable` (installed skill) `/distill`. It proposes small reversible changes and applies only approved ones, in a sandbox, with the test oracle green.
+Every line added is a line that must be reasoned about later. Following the lean single-file-agent ethos, the best change is often a *deletion*. Its unique contribution is **dead-code / de-bloat hunting** — the repo has no general dead-weight remover. For the adjacent passes it delegates: security → [`security-audit`](../security-audit/SKILL.md); UI distillation → `/impeccable distill` (installed skill). It proposes small reversible changes and applies only approved ones, in a sandbox, with the test oracle green.
 
 ## Triggers
 

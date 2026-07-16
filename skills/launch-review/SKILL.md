@@ -26,7 +26,7 @@ Run on the FRONTIER model. Give every step the audit output (`.harness/audits/au
 
 1. **Fan out to existing lenses (do NOT re-implement):**
    - Engineering/security → invoke [`security-audit`](../security-audit/SKILL.md) (OWASP, secrets, supply chain) and [`agentic-review`](../agentic-review/SKILL.md) (code-quality dimensions). Confirm the oracle: `python -m pytest tests/ -x -q` + `npx tsc --noEmit && npm run build`.
-   - Design → invoke `impeccable` (installed skill, v3.9.1 rule set) with /audit.
+   - Design → invoke `/impeccable audit` (installed skill, v3.9.1 rule set).
    - Autonomy/leverage → invoke [`leverage-audit`](../leverage-audit/SKILL.md) where relevant.
    - SEO discovery → pull from `pi-seo-scanner` / `pi-seo-health-monitor` if present.
 2. **Add the two missing lenses (the new work here):**

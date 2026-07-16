@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.19.1",
-    "generated_at": "2026-07-16T11:44:11.112883+00:00",
+    "version": "1.19.2",
+    "generated_at": "2026-07-16T12:03:30.247182+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -894,7 +894,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/design-system/SKILL.md",
-      "sha256": "7d8eadebe8b0402541b3d45359a24958d12c68a7ff229c89feddcc099c2c192a",
+      "sha256": "1a6207f0de123d9c93583941fdcac3a0444228d77d9e4066ad27bf09df5c4171",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1161,7 +1161,7 @@
       "owner_role": "Builder",
       "status": "wave-4",
       "path": "skills/launch-enhance-debloat/SKILL.md",
-      "sha256": "de5c58579b2beca6daab81b16320db5d0987fdab3b9a90445f0c5bf8a6ec464f",
+      "sha256": "b461ee987dddb9f817e946bd1a32602bb473a239896bd2958f9e39c4afdbeadc",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1199,7 +1199,7 @@
       "owner_role": "Guardian",
       "status": "wave-4",
       "path": "skills/launch-review/SKILL.md",
-      "sha256": "e509d1243e1c9e819401d9e0995fe4484c1db77e776ce885885eaf06f5dfb846",
+      "sha256": "244810fb47934e78973108fcd28ac2ab4d6caee887a21fb595d43b88c3d0a5f9",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2709,7 +2709,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/ui-ux-pro-max/SKILL.md",
-      "sha256": "4647fc1cb3d033b3d8ff3561d0c79d1f61ea38bb4bc7271a22f4919176daaa1f",
+      "sha256": "601aecc80d33d377f66cc650eb65731752de1cecf5ed5923e5e7d2fcc39153c9",
       "dependencies": {
         "tools": [],
         "skills": []
