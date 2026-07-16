@@ -353,6 +353,53 @@ _STALL_VERDICT = (
 )
 
 
+def test_detect_stall_scaffold_with_changing_token_not_stalled(tmp_path):
+    """A shared 20-token template with one changing token per turn must not
+    trip the detector (raw Jaccard would be 20/22 ~= 0.91 >= 0.82)."""
+    scaffold = " ".join(f"scaffold{c}" for c in "abcdefghijklmnopqrst")
+    g = PG.create_goal(role="CoS", business_id="portfolio",
+                        topic="templated verdicts", repo_root=tmp_path)
+    for changing in ("alpha", "beta", "gamma"):
+        PG.advance_goal(g.goal_id, drafter_text="progress",
+                        redteam_text=f"{scaffold} {changing}",
+                        auto_abort_on_stall=False, repo_root=tmp_path)
+    rep = PG.detect_stall(g.goal_id, repo_root=tmp_path)
+    assert rep.stalled is False
+
+
+def test_advance_goal_returns_none_when_stall_aborts(tmp_path):
+    g = PG.create_goal(role="CoS", business_id="portfolio",
+                        topic="make all systems work", repo_root=tmp_path)
+    t1 = PG.advance_goal(g.goal_id, drafter_text="same",
+                          redteam_text=_STALL_VERDICT, repo_root=tmp_path)
+    t2 = PG.advance_goal(g.goal_id, drafter_text="same",
+                          redteam_text=_STALL_VERDICT, repo_root=tmp_path)
+    t3 = PG.advance_goal(g.goal_id, drafter_text="same",
+                          redteam_text=_STALL_VERDICT, repo_root=tmp_path)
+    assert t1 is not None and t2 is not None
+    # The turn that trips the breaker signals stop to the driver.
+    assert t3 is None
+    assert PG.get_goal(g.goal_id, repo_root=tmp_path).status == "aborted"
+
+
+def test_stall_abort_writes_schema_valid_audit_row(tmp_path, monkeypatch):
+    from swarm import config as swarm_config
+    monkeypatch.setattr(swarm_config, "SWARM_LOG_DIR", tmp_path / "logs")
+    g = PG.create_goal(role="CoS", business_id="portfolio",
+                        topic="make all systems work", repo_root=tmp_path)
+    for _ in range(3):
+        PG.advance_goal(g.goal_id, drafter_text="same",
+                        redteam_text=_STALL_VERDICT, repo_root=tmp_path)
+    assert PG.get_goal(g.goal_id, repo_root=tmp_path).status == "aborted"
+    rows = [json.loads(line) for line in
+            (tmp_path / "logs" / "swarm.jsonl").read_text().splitlines()]
+    stall_rows = [r for r in rows if r["type"] == "goal_stalled_aborted"]
+    # audit_emit.row raises on unknown types, so a persisted row is schema-valid.
+    assert len(stall_rows) == 1
+    assert stall_rows[0]["actor_role"] == "PersistentGoals"
+    assert stall_rows[0]["fields"]["goal_id"] == g.goal_id
+
+
 def test_detect_stall_flags_repeated_residual(tmp_path):
     g = PG.create_goal(role="CoS", business_id="portfolio",
                         topic="make all systems work", repo_root=tmp_path)

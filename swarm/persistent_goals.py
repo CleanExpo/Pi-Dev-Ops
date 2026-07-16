@@ -297,7 +297,10 @@ def advance_goal(goal_id: str, *, drafter_text: str, redteam_text: str,
 
     # Freeform goals can't auto-resolve — guard them against infinite re-fire.
     if auto_abort_on_stall and not goal.resolution_predicate:
-        auto_abort_if_stalled(goal_id, window=stall_window, repo_root=rr)
+        rep = auto_abort_if_stalled(goal_id, window=stall_window, repo_root=rr)
+        if rep.stalled:
+            # The goal was just aborted — signal the driver to stop this cycle.
+            return None
     return turn
 
 
@@ -463,10 +466,23 @@ def detect_stall(goal_id: str, *, window: int = DEFAULT_STALL_WINDOW,
                             "insufficient turns to judge stall")
     sigs = [_verdict_signature(t.redteam_text or t.drafter_text)
             for t in turns]
-    pairs = [(_jaccard(sigs[i], sigs[j]))
-             for i in range(len(sigs)) for j in range(i + 1, len(sigs))]
-    mean_sim = sum(pairs) / len(pairs) if pairs else 0.0
-    stalled = mean_sim >= threshold
+    # Scaffold subtraction: tokens present in EVERY window turn are template
+    # wording, not evidence of a repeated residual — a shared 20-token scaffold
+    # with one changing token per turn would otherwise score ~0.91 and abort a
+    # progressing goal. Compare only the per-turn residual token sets. All
+    # residuals empty means the verdicts are identical modulo the fingerprint:
+    # stalled when they had content, not stalled when all were empty.
+    core = frozenset.intersection(*sigs)
+    residuals = [s - core for s in sigs]
+    if all(not r for r in residuals):
+        stalled = bool(core)
+        mean_sim = 1.0 if stalled else 0.0
+    else:
+        pairs = [(_jaccard(residuals[i], residuals[j]))
+                 for i in range(len(residuals))
+                 for j in range(i + 1, len(residuals))]
+        mean_sim = sum(pairs) / len(pairs) if pairs else 0.0
+        stalled = mean_sim >= threshold
     return StallReport(
         stalled, window, len(turns), round(mean_sim, 3),
         (f"{window} consecutive turns naming the same residual "
