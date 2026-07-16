@@ -457,37 +457,40 @@ class StallReport:
 def detect_stall(goal_id: str, *, window: int = DEFAULT_STALL_WINDOW,
                   threshold: float = DEFAULT_STALL_SIMILARITY,
                   repo_root: Path | None = None) -> StallReport:
-    """Return a StallReport: True when the last `window` turns name the same
-    residual (mean pairwise verdict-signature similarity >= threshold), i.e.
-    the loop is re-firing without changing state."""
+    """Return a StallReport: True ONLY when the last `window` turns carry
+    identical verdict signatures — the loop literally re-firing the same
+    verdict without changing state.
+
+    Deliberately fail-safe. Token sets cannot distinguish "shared template +
+    one new resolved item per turn" (healthy) from "same blocker + one noise
+    token per turn" (stalled); anything short of exact signature repetition
+    therefore counts as progress. A missed stall costs cycles; a false abort
+    kills a healthy goal. `threshold` is retained for API compatibility and
+    reporting only: after scaffold subtraction over a window of n turns the
+    mean pairwise residual similarity is bounded by 1/n, so no fuzzy
+    threshold above that is reachable — exact equality is the only honest
+    trip signal, and identical signatures stall regardless of `threshold`.
+    """
+    if window < 2:
+        raise ValueError(f"stall window must be >= 2, got {window}")
     turns = read_recent_turns(goal_id, limit=window, repo_root=repo_root)
     if len(turns) < window:
         return StallReport(False, window, len(turns), 0.0,
                             "insufficient turns to judge stall")
-    sigs = [_verdict_signature(t.redteam_text or t.drafter_text)
-            for t in turns]
-    # Scaffold subtraction: tokens present in EVERY window turn are template
-    # wording, not evidence of a repeated residual — a shared 20-token scaffold
-    # with one changing token per turn would otherwise score ~0.91 and abort a
-    # progressing goal. Compare only the per-turn residual token sets. All
-    # residuals empty means the verdicts are identical modulo the fingerprint:
-    # stalled when they had content, not stalled when all were empty.
-    core = frozenset.intersection(*sigs)
-    residuals = [s - core for s in sigs]
-    if all(not r for r in residuals):
-        stalled = bool(core)
-        mean_sim = 1.0 if stalled else 0.0
-    else:
-        pairs = [(_jaccard(residuals[i], residuals[j]))
-                 for i in range(len(residuals))
-                 for j in range(i + 1, len(residuals))]
-        mean_sim = sum(pairs) / len(pairs) if pairs else 0.0
-        stalled = mean_sim >= threshold
-    return StallReport(
-        stalled, window, len(turns), round(mean_sim, 3),
-        (f"{window} consecutive turns naming the same residual "
-         f"(mean sim {mean_sim:.2f} >= {threshold})") if stalled
-        else f"progressing (mean sim {mean_sim:.2f} < {threshold})")
+    sigs = []
+    for t in turns:
+        # Whitespace-only red-team output is no verdict — fall back to the
+        # drafter text rather than fingerprinting an empty string.
+        text = (t.redteam_text or "").strip() or (t.drafter_text or "")
+        sigs.append(_verdict_signature(text))
+    identical = all(s == sigs[0] for s in sigs[1:])
+    if identical and sigs[0]:
+        return StallReport(
+            True, window, len(turns), 1.0,
+            f"{window} consecutive turns re-fired an identical verdict "
+            "signature (exact repetition)")
+    return StallReport(False, window, len(turns), 0.0,
+                        "progressing (verdict signatures not identical)")
 
 
 def auto_abort_if_stalled(goal_id: str, *, window: int = DEFAULT_STALL_WINDOW,
@@ -496,7 +499,8 @@ def auto_abort_if_stalled(goal_id: str, *, window: int = DEFAULT_STALL_WINDOW,
     """Abort a goal that has stalled on an unreachable residual. Idempotent:
     a non-active goal returns a non-stalled report, and predicate-backed goals
     are never aborted here (they resolve on real state, not on judge prose).
-    On abort this writes a `goal_stalled_aborted` audit row only — it does not
+    On abort this writes two audit rows — `goal_aborted` (emitted by
+    `abort_goal`) and `goal_stalled_aborted` (the stall detail) — and does not
     send any alert; surfacing the abort is the caller's job."""
     goal = _load_goal_meta(repo_root or Path(__file__).resolve().parents[1],
                             goal_id)
