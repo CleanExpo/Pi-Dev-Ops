@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.19.2",
-    "generated_at": "2026-07-16T12:03:30.247182+00:00",
+    "version": "1.19.3",
+    "generated_at": "2026-07-16T17:30:47.938499+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -776,11 +776,11 @@
     },
     {
       "id": "design-audit",
-      "description": "DEPRECATED (RA-7057) \u2014 superseded by the installed pbakaus/impeccable skill v3.9.1. Use `impeccable` (/audit, /critique, /polish, /bolder) instead. Kept for the archaeological record; do not route new work here.",
+      "description": "DEPRECATED (RA-7057) \u2014 superseded by the installed pbakaus/impeccable skill v3.9.1. Use `impeccable` (`/impeccable audit`, `/impeccable critique`, `/impeccable polish`, `/impeccable bolder`) instead. Kept for the archaeological record; do not route new work here.",
       "owner_role": "(unset)",
       "status": "deprecated",
       "path": "skills/design-audit/SKILL.md",
-      "sha256": "de0627995e2950ed0d03eac53480412eef551c971db4fdd47d1493b2c94e2199",
+      "sha256": "e229a08cb167c54638f73773b39a66537047b71a04e5e3d636d2ce78f643e462",
       "dependencies": {
         "tools": [],
         "skills": []
