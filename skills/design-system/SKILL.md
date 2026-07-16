@@ -1,6 +1,6 @@
 ---
 name: design-system
-description: Design stack orchestrator for Pi-CEO. Routes UI work to the correct specialist skill (design-intelligence, ui-component-builder, design-audit, visual-qa). Start here for any design task.
+description: Design stack orchestrator for Pi-CEO. Routes UI work to the correct specialist skill (design-intelligence, ui-component-builder, impeccable, visual-qa). Start here for any design task.
 automation: manual
 intents: design, feature
 ---
@@ -15,7 +15,7 @@ The entry point for all UI work in the Unite-Group Nexus. This skill does not bu
 |-------|-------|------|
 | 1. Context | `design-intelligence` | Start of any UI work — read/create DESIGN.md |
 | 2. Build | `ui-component-builder` | Building or updating React components |
-| 3. Audit | `design-audit` | Before marking any component done |
+| 3. Audit | `impeccable` | Before marking any component done |
 | 4. Verify | `visual-qa` | After build — screenshot + regression check |
 
 ---
@@ -23,13 +23,13 @@ The entry point for all UI work in the Unite-Group Nexus. This skill does not bu
 ## Quick Routing Guide
 
 **"Build me a [component]"**
-→ `design-intelligence` (read DESIGN.md) → `ui-component-builder` (generate 3 variants) → `design-audit` (/audit) → `visual-qa` (screenshot matrix)
+→ `design-intelligence` (read DESIGN.md) → `ui-component-builder` (generate 3 variants) → `impeccable` (/audit) → `visual-qa` (screenshot matrix)
 
 **"Does this look right?"**
-→ `design-audit` (/critique) — UX + visual review, no edits
+→ `impeccable` (/critique) — UX + visual review, no edits
 
 **"Make this better"**
-→ `design-audit` (/polish) — targeted improvements, or (/bolder) for more presence
+→ `impeccable` (/polish) — targeted improvements, or (/bolder) for more presence
 
 **"Match the look of [brand/site]"**
 → `design-intelligence` (reference brand archetypes, run npxskillui) → update DESIGN.md
@@ -68,6 +68,6 @@ The old `design-system` skill referenced `anthropic-skills:design-system-to-prod
 and generic shadcn/ui scaffolding. That is retired. The Nexus design stack is now:
 - Token-first (DESIGN.md → Tailwind CSS variables)
 - OKLCH colour evaluation (not HSL)
-- Anti-pattern detection (impeccable 24-pattern set)
+- Anti-pattern detection (impeccable v3.9.1 rule set)
 - Visual regression CI (Playwright, always Linux)
 - Brand archetype grounded (getdesign.md + 66 references)

@@ -1,11 +1,18 @@
 ---
 name: design-audit
-description: Design quality auditor. Detects 24 anti-patterns in UI code (impeccable patterns), critiques visual hierarchy and UX, polishes components to shipping quality. Provides /critique, /audit, /polish, and /bolder commands.
+description: DEPRECATED (RA-7057) — superseded by the installed pbakaus/impeccable skill v3.9.1. Use `impeccable` (/audit, /critique, /polish, /bolder) instead. Kept for the archaeological record; do not route new work here.
 automation: manual
+status: deprecated
+superseded-by: impeccable
 intents: design, review
 ---
 
 # Design Audit Skill
+
+> **DEPRECATED (RA-7057, 2026-07-16).** Superseded by the installed `impeccable` skill
+> (pbakaus/impeccable v3.9.1 — 46-rule set, 23 sub-commands), which covers /audit,
+> /critique, /polish, and /bolder natively. `design-system` and the launch/UI chains now
+> route to `impeccable`. This file is retained unchanged below as the archaeological record.
 
 The quality gate of the design stack. Runs after `ui-component-builder` ships a component
 and before it goes to production. Identifies technical flaws, UX problems, and aesthetic

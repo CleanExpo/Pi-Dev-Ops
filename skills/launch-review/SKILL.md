@@ -1,6 +1,6 @@
 ---
 name: launch-review
-description: Aggregate the repo's existing audit skills into ONE prioritized launch-readiness report through four lenses — PM journey, growth/SEO, engineering, design — adding only the two lenses nothing else covers (end-to-end PM journey + growth/SEO conversion) and fanning out to security-audit, design-audit, agentic-review, and leverage-audit for the rest. Review only; never fixes. Use on "is this ready to launch" or as the review step of /ship-it.
+description: Aggregate the repo's existing audit skills into ONE prioritized launch-readiness report through four lenses — PM journey, growth/SEO, engineering, design — adding only the two lenses nothing else covers (end-to-end PM journey + growth/SEO conversion) and fanning out to security-audit, impeccable, agentic-review, and leverage-audit for the rest. Review only; never fixes. Use on "is this ready to launch" or as the review step of /ship-it.
 owner_role: Guardian
 status: wave-4
 automation: manual
@@ -13,7 +13,7 @@ A demanding launch-readiness pass that **does not rebuild** the review lenses th
 
 ## Why this exists
 
-The repo already has strong single-purpose auditors (`security-audit`, `design-audit`, `agentic-review`, `tier-evaluator`, `leverage-audit`, `pi-seo-*`). What it lacks is (a) an end-to-end **PM journey** lens, (b) a **growth/SEO conversion** lens framed for a stranger arriving cold, and (c) a single de-duplicated report that ranks findings across all of them. This skill supplies a/b and does c. It is also the charter's **separate judge** for launch sign-off.
+The repo already has strong single-purpose auditors (`security-audit`, `impeccable`, `agentic-review`, `tier-evaluator`, `leverage-audit`, `pi-seo-*`). What it lacks is (a) an end-to-end **PM journey** lens, (b) a **growth/SEO conversion** lens framed for a stranger arriving cold, and (c) a single de-duplicated report that ranks findings across all of them. This skill supplies a/b and does c. It is also the charter's **separate judge** for launch sign-off.
 
 ## Triggers
 
@@ -26,7 +26,7 @@ Run on the FRONTIER model. Give every step the audit output (`.harness/audits/au
 
 1. **Fan out to existing lenses (do NOT re-implement):**
    - Engineering/security → invoke [`security-audit`](../security-audit/SKILL.md) (OWASP, secrets, supply chain) and [`agentic-review`](../agentic-review/SKILL.md) (code-quality dimensions). Confirm the oracle: `python -m pytest tests/ -x -q` + `npx tsc --noEmit && npm run build`.
-   - Design → invoke [`design-audit`](../design-audit/SKILL.md) (24 anti-patterns, 5-dim rubric).
+   - Design → invoke `impeccable` (installed skill, v3.9.1 rule set) with /audit.
    - Autonomy/leverage → invoke [`leverage-audit`](../leverage-audit/SKILL.md) where relevant.
    - SEO discovery → pull from `pi-seo-scanner` / `pi-seo-health-monitor` if present.
 2. **Add the two missing lenses (the new work here):**
@@ -58,12 +58,12 @@ Each finding keeps: lens/source-skill, what, where (file/URL), why it matters, s
 
 ## Out of scope
 
-- Re-implementing `security-audit` / `design-audit` / `agentic-review` — invoke them, don't duplicate.
+- Re-implementing `security-audit` / `impeccable` / `agentic-review` — invoke them, don't duplicate.
 - Build-state inventory — that's [`launch-project-audit`](../launch-project-audit/SKILL.md).
 - Applying fixes — that's `launch-enhance-debloat`.
 
 ## References
 
-- [`security-audit`](../security-audit/SKILL.md), [`design-audit`](../design-audit/SKILL.md), [`agentic-review`](../agentic-review/SKILL.md), [`leverage-audit`](../leverage-audit/SKILL.md) — the lenses this skill aggregates.
+- [`security-audit`](../security-audit/SKILL.md), `impeccable` (installed skill), [`agentic-review`](../agentic-review/SKILL.md), [`leverage-audit`](../leverage-audit/SKILL.md) — the lenses this skill aggregates.
 - [`launch-charter`](../launch-charter/SKILL.md) — defines this as the separate judge.
 - [`pi-dev-linear-contract`](../pi-dev-linear-contract/SKILL.md) — how findings become issues.

@@ -73,7 +73,7 @@ Generate 3 variants, then select one. The builder must produce:
 
 ---
 
-### Phase 4 — Audit (Skill: design-audit)
+### Phase 4 — Audit (Skill: impeccable)
 
 Run the full audit before marking anything done:
 
@@ -81,7 +81,7 @@ Run the full audit before marking anything done:
 /audit [component-name]
 ```
 
-Expect a report against all 24 anti-patterns. Must score 7/10 or above to proceed.
+Expect a report against the impeccable rule set. Must score 7/10 or above to proceed.
 Fix all 🔴 Critical findings. Fix all 🟡 Warning findings where possible.
 
 Then run the automated detector:
@@ -146,7 +146,7 @@ Before opening a PR, confirm all of these:
 
 | Dimension | Minimum to ship | Pro Max target |
 |-----------|-----------------|----------------|
-| design-audit score | 7/10 | 9/10 |
+| impeccable audit score | 7/10 | 9/10 |
 | Anti-patterns | ≤ 1 | 0 |
 | States covered | 6/8 | 8/8 |
 | WCAG compliance | AA | AA (AAA on typography) |
@@ -178,7 +178,7 @@ npx getdesign@latest add linear.app  # Downloads Linear's full DESIGN.md
 
 - Simple copy change or icon swap → no skill needed
 - One-off script or non-UI code → no skill needed
-- Only reading existing code → `design-audit /critique` only
+- Only reading existing code → `impeccable /critique` only
 
 ---
 
