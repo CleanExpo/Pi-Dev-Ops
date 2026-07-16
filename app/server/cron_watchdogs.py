@@ -163,9 +163,14 @@ def _validated_trigger_age_h(last_fired_at) -> float | None:
     import math
     if isinstance(last_fired_at, bool) or not isinstance(last_fired_at, (int, float)):
         return None
-    if not math.isfinite(last_fired_at):
+    try:
+        value = float(last_fired_at)
+    except (OverflowError, ValueError):
+        # e.g. an int too large for float conversion — not a credible epoch.
         return None
-    delta_s = time.time() - float(last_fired_at)
+    if not math.isfinite(value):
+        return None
+    delta_s = time.time() - value
     if delta_s < -_TRIGGER_FUTURE_SKEW_S:
         return None
     return max(delta_s, 0.0) / 3600

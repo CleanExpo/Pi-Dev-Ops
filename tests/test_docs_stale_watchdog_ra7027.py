@@ -388,3 +388,126 @@ async def test_scheduler_total_failure_advances_no_state(monkeypatch, tmp_path):
             d for d in snapshot_root.iterdir() if d.is_dir() and d.name[:4].isdigit()
         ]
         assert dated == [], "total failure must not write a snapshot"
+
+
+# ── review round 2: partial publish, same-day replace failure, overflow ───────
+
+
+def test_validated_trigger_age_rejects_overflow_int():
+    """An int too large for float conversion must be rejected, not raise."""
+    assert cw._validated_trigger_age_h(10 ** 400) is None
+
+
+@pytest.mark.asyncio
+async def test_partial_fetch_does_not_publish_snapshot(monkeypatch, tmp_path):
+    """2-of-3 sources fetched: NO dated snapshot may be written — a fresh
+    partial dir would satisfy the watchdog's artefact-age check and defeat
+    the stale trigger truth kept by the fire-bar raise."""
+    from app.server.agents import anthropic_intel_refresh as air
+
+    responses = {u: f"content for {u}\n" for u in air._DOCS_URLS}
+    responses[air._DOCS_URLS[0]] = httpx.ConnectError("dead source")
+    monkeypatch.setattr(air.httpx, "AsyncClient", _FakeClient(responses))
+    monkeypatch.chdir(tmp_path)
+
+    result = await air.refresh_anthropic_intel(dry_run=False)
+
+    assert len(result["errors"]) == 1
+    snapshot_root = tmp_path / ".harness" / "anthropic-docs"
+    if snapshot_root.exists():
+        dated = [
+            d for d in snapshot_root.iterdir() if d.is_dir() and d.name[:4].isdigit()
+        ]
+        assert dated == [], "partial fetch must not publish a dated snapshot"
+
+
+@pytest.mark.asyncio
+async def test_same_day_replace_failure_preserves_previous(monkeypatch, tmp_path):
+    """If the final rename fails on a same-day re-run, the previous snapshot
+    must be restored — the day is never left without a valid dated dir."""
+    import os as _os
+
+    from app.server.agents import anthropic_intel_refresh as air
+
+    monkeypatch.setattr(air.httpx, "AsyncClient", _FakeClient(
+        {u: f"new content for {u}\n" for u in air._DOCS_URLS}
+    ))
+    monkeypatch.chdir(tmp_path)
+
+    # Seed a complete same-day snapshot.
+    first = await air.refresh_anthropic_intel(dry_run=False)
+    dated_path = Path(first["new_snapshot_path"])
+    assert dated_path.exists()
+    original_names = sorted(p.name for p in dated_path.iterdir())
+
+    real_replace = _os.replace
+
+    def _failing_replace(src, dst):
+        # Fail ONLY the tmp-dir → dated-dir promotion, not the backup moves.
+        if ".tmp-" in str(src):
+            raise OSError("simulated rename failure")
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(air.os, "replace", _failing_replace)
+
+    with pytest.raises(OSError, match="simulated rename failure"):
+        await air.refresh_anthropic_intel(dry_run=False)
+
+    assert dated_path.exists(), "previous snapshot must be restored"
+    assert sorted(p.name for p in dated_path.iterdir()) == original_names
+    leftovers = [p for p in dated_path.parent.iterdir() if p.name.startswith(".")]
+    assert leftovers == [], f"backup/tmp dirs must not survive: {leftovers}"
+
+
+@pytest.mark.asyncio
+async def test_cron_loop_total_failure_no_persistence(monkeypatch):
+    """Drive the real cron_loop one tick with every fetch failing: the trigger's
+    last_fired_at must remain unchanged and _save_triggers must never be
+    called with an advanced timestamp (locks the contract the reviewer probed
+    manually)."""
+    import asyncio
+
+    from app.server import cron_scheduler as cs
+
+    trigger = {
+        "id": "intel-refresh-daily-0200",
+        "type": "intel_refresh",
+        "enabled": True,
+        "hour": 2,
+        "last_fired_at": 123.0,
+    }
+
+    async def _failed_refresh(dry_run=False):
+        return {"fetched_urls": [], "errors": [("a", "x"), ("b", "x"), ("c", "x")],
+                "brief_path": None, "new_snapshot_path": "", "delta_summary": {}}
+
+    from app.server.agents import anthropic_intel_refresh as air
+    monkeypatch.setattr(air, "refresh_anthropic_intel", _failed_refresh)
+    monkeypatch.setattr(cs, "_load_triggers", lambda: [trigger])
+    monkeypatch.setattr(cs, "_should_catch_up", lambda t: True)
+
+    saves: list[float] = []
+    monkeypatch.setattr(
+        cs, "_save_triggers",
+        lambda ts: saves.extend(t.get("last_fired_at", 0) for t in ts),
+    )
+
+    class _StopLoop(Exception):
+        pass
+
+    ticks = {"n": 0}
+
+    async def _one_tick_sleep(_):
+        ticks["n"] += 1
+        if ticks["n"] > 1:
+            raise _StopLoop
+
+    monkeypatch.setattr(cs.asyncio, "sleep", _one_tick_sleep)
+
+    try:
+        await cs.cron_loop()
+    except _StopLoop:
+        pass
+
+    assert trigger["last_fired_at"] == 123.0
+    assert all(v == 123.0 for v in saves), f"persisted advanced timestamps: {saves}"

@@ -217,17 +217,39 @@ Fetched {len(fetched_urls)} documentation URLs. Delta detected against snapshot 
     # that masks the artefact-age staleness check for the next 8 days. The
     # temp dir's leading "." also keeps it out of the watchdog's dated-dir
     # scan (`d.name[:4].isdigit()`) if a crash ever leaks it.
-    if not dry_run and fetched_content:
+    # RA-7027 review round 2 — publish ONLY a complete snapshot. A partial
+    # fetch must not refresh artefact truth: the trigger raise keeps
+    # `last_fired_at` stale, and a fresh partial dated dir would defeat that
+    # by satisfying the watchdog's artefact-age check for the next 8 days.
+    if not dry_run and len(fetched_content) == len(_DOCS_URLS):
         tmp_dir = Path(tempfile.mkdtemp(
             prefix=f".{new_snapshot_path.name}.tmp-", dir=snapshot_root,
         ))
+        backup_dir = None
         try:
             for url, content in fetched_content.items():
                 filename = url_to_filename[url]
                 (tmp_dir / filename).write_text(content)
             if new_snapshot_path.exists():
-                shutil.rmtree(new_snapshot_path)
-            os.replace(tmp_dir, new_snapshot_path)
+                # Same-day re-run: move the previous snapshot aside instead of
+                # deleting it, so a failed replace restores it and the day is
+                # never left without a snapshot. The leading "." keeps the
+                # backup out of the watchdog's dated-dir scan.
+                backup_dir = new_snapshot_path.with_name(
+                    f".{new_snapshot_path.name}.bak"
+                )
+                if backup_dir.exists():
+                    shutil.rmtree(backup_dir)
+                os.replace(new_snapshot_path, backup_dir)
+            try:
+                os.replace(tmp_dir, new_snapshot_path)
+            except BaseException:
+                if backup_dir is not None and not new_snapshot_path.exists():
+                    os.replace(backup_dir, new_snapshot_path)
+                    backup_dir = None
+                raise
+            if backup_dir is not None:
+                shutil.rmtree(backup_dir, ignore_errors=True)
             log.info(
                 "Wrote snapshot atomically to %s (%d files)",
                 new_snapshot_path, len(fetched_content),
