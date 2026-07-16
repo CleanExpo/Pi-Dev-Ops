@@ -13,6 +13,9 @@ import argparse
 import asyncio
 import json
 import logging
+import os
+import shutil
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -208,14 +211,30 @@ Fetched {len(fetched_urls)} documentation URLs. Delta detected against snapshot 
             brief_file.write_text(brief_content)
             log.info("Wrote brief to %s", brief_file)
 
-    # Write new snapshot
+    # Write new snapshot — atomically (RA-7027 review). Write every file into
+    # a temp sibling dir first and rename into place only once all writes
+    # succeeded, so a failed write can't leave a fresh-but-empty dated dir
+    # that masks the artefact-age staleness check for the next 8 days. The
+    # temp dir's leading "." also keeps it out of the watchdog's dated-dir
+    # scan (`d.name[:4].isdigit()`) if a crash ever leaks it.
     if not dry_run and fetched_content:
-        new_snapshot_path.mkdir(parents=True, exist_ok=True)
-        for url, content in fetched_content.items():
-            filename = url_to_filename[url]
-            snapshot_file = new_snapshot_path / filename
-            snapshot_file.write_text(content)
-            log.info("Wrote snapshot to %s", snapshot_file)
+        tmp_dir = Path(tempfile.mkdtemp(
+            prefix=f".{new_snapshot_path.name}.tmp-", dir=snapshot_root,
+        ))
+        try:
+            for url, content in fetched_content.items():
+                filename = url_to_filename[url]
+                (tmp_dir / filename).write_text(content)
+            if new_snapshot_path.exists():
+                shutil.rmtree(new_snapshot_path)
+            os.replace(tmp_dir, new_snapshot_path)
+            log.info(
+                "Wrote snapshot atomically to %s (%d files)",
+                new_snapshot_path, len(fetched_content),
+            )
+        except BaseException:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            raise
 
     return {
         "fetched_urls": fetched_urls,

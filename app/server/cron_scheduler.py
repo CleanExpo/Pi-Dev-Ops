@@ -100,8 +100,19 @@ async def cron_loop() -> None:
                         trigger["last_fired_at"] = time.time()
                         fired = True
                     except RuntimeError as exc:
-                        # Expected skip path (e.g., gated triggers raising RuntimeError)
-                        _log.warning("Trigger skipped id=%s reason=%s", trigger["id"], exc)
+                        if trigger.get("type") == "intel_refresh":
+                            # RA-7027 — intel_refresh raises RuntimeError on doc
+                            # fetch failure. That is an outage, not a gate: log
+                            # at error level with a distinct line so real
+                            # failures aren't mislabeled as expected skips.
+                            # last_fired_at intentionally NOT advanced.
+                            _log.error(
+                                "intel_refresh FAILED id=%s (last_fired_at not advanced): %s",
+                                trigger["id"], exc,
+                            )
+                        else:
+                            # Expected skip path (e.g., gated triggers raising RuntimeError)
+                            _log.warning("Trigger skipped id=%s reason=%s", trigger["id"], exc)
                     except Exception as exc:
                         # RA-1484/RA-1493/RA-1497: previously only RuntimeError was caught,
                         # so any other exception (network, subprocess, monitor cycle, etc.)

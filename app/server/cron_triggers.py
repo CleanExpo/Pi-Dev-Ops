@@ -210,22 +210,26 @@ async def _fire_monitor_trigger(trigger: dict, log) -> None:
 
 async def _fire_intel_refresh_trigger(trigger: dict, log) -> None:
     """RA-587 — Fire the Anthropic intel refresh loop directly (no subprocess)."""
-    from .agents.anthropic_intel_refresh import refresh_anthropic_intel
+    from .agents import anthropic_intel_refresh as _intel
     log.info("Firing intel_refresh trigger id=%s", trigger["id"])
-    result = await refresh_anthropic_intel(dry_run=False)
+    result = await _intel.refresh_anthropic_intel(dry_run=False)
     fetched = len(result.get("fetched_urls", []))
     brief = result.get("brief_path")
     errors = result.get("errors", [])
     if errors:
         log.warning("intel_refresh: %d fetch errors: %s", len(errors), errors)
-    # RA-7027 — a run that fetched NOTHING wrote no snapshot and must not
-    # count as a fire: raising keeps `last_fired_at` stale (the cron loop's
+    # RA-7027 — a run only counts as a fire when EVERY required doc source
+    # fetched. A partial fetch (e.g. 1 of 3) would otherwise refresh
+    # `last_fired_at` forever while the other sources stay permanently dead
+    # and unmonitored. Raising keeps `last_fired_at` stale (the cron loop's
     # skip contract), so the docs-staleness watchdog's trigger-truth overlay
-    # stays honest when docs fetches fail persistently.
-    if not fetched:
+    # stays honest.
+    required = len(_intel._DOCS_URLS)
+    if fetched < required:
+        failed_urls = [u for u, _ in errors]
         raise RuntimeError(
-            f"intel_refresh id={trigger['id']}: all {len(errors)} doc fetches failed — "
-            "no snapshot written"
+            f"intel_refresh id={trigger['id']}: only {fetched}/{required} doc sources "
+            f"fetched — failed: {failed_urls}"
         )
     log.info(
         "intel_refresh id=%s complete: fetched=%d brief=%s",

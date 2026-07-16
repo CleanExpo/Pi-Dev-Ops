@@ -140,6 +140,37 @@ def _anthropic_docs_dir():
     return Path(__file__).parent.parent.parent / ".harness" / "anthropic-docs"
 
 
+# Clock-skew allowance when validating trigger timestamps: a last_fired_at up
+# to this many seconds in the future is treated as "fired just now" rather
+# than rejected (Supabase vs container clocks can drift slightly).
+_TRIGGER_FUTURE_SKEW_S = 300.0
+
+
+def _validated_trigger_age_h(last_fired_at) -> float | None:
+    """Return the age in hours of a trigger's `last_fired_at`, or None when
+    the value cannot be trusted as proof of life.
+
+    RA-7027 review — the liveness overlays (docs staleness, board silence)
+    must not accept arbitrary truthy values:
+      * non-numeric / bool / non-finite values would raise TypeError inside
+        the watchdog and abort every watchdog scheduled after it;
+      * a bogus FUTURE epoch would yield a negative age that suppresses the
+        alert forever (the `_matches` debounce in cron_triggers.py guards
+        against the same corruption with abs()).
+    A timestamp within `_TRIGGER_FUTURE_SKEW_S` of now is clamped to age 0;
+    anything further in the future is ignored entirely.
+    """
+    import math
+    if isinstance(last_fired_at, bool) or not isinstance(last_fired_at, (int, float)):
+        return None
+    if not math.isfinite(last_fired_at):
+        return None
+    delta_s = time.time() - float(last_fired_at)
+    if delta_s < -_TRIGGER_FUTURE_SKEW_S:
+        return None
+    return max(delta_s, 0.0) / 3600
+
+
 async def _watchdog_check(triggers: list[dict], log) -> None:
     """
     12-hour watchdog. If no scan/monitor trigger has fired in the last 12h,
@@ -343,13 +374,13 @@ async def _watchdog_docs_staleness(log, triggers: list[dict] | None = None) -> N
             dir_mtime = newest.stat().st_mtime
             stale_h = (time.time() - dir_mtime) / 3600
 
-    # RA-7027 — the trigger's own fire timestamp is equally valid proof of life.
+    # RA-7027 — the trigger's own fire timestamp is equally valid proof of life
+    # (validated: malformed or future values are ignored, never trusted).
     for trigger in triggers or []:
         if trigger.get("type") != "intel_refresh" or not trigger.get("enabled", True):
             continue
-        last_fired = trigger.get("last_fired_at") or 0
-        if last_fired:
-            trigger_age_h = (time.time() - last_fired) / 3600
+        trigger_age_h = _validated_trigger_age_h(trigger.get("last_fired_at"))
+        if trigger_age_h is not None:
             stale_h = trigger_age_h if stale_h is None else min(stale_h, trigger_age_h)
 
     if stale_h is None or stale_h < _STALE_THRESHOLD_H:
@@ -586,13 +617,13 @@ async def _watchdog_board_meeting_silence(log, triggers: list[dict] | None = Non
             newest = max(md_files, key=lambda p: p.stat().st_mtime)
             silence_h = (time.time() - newest.stat().st_mtime) / 3600
 
-    # RA-7030 — the trigger's own fire timestamp is equally valid proof of life.
+    # RA-7030 — the trigger's own fire timestamp is equally valid proof of life
+    # (validated: malformed or future values are ignored, never trusted).
     for trigger in triggers or []:
         if trigger.get("type") != "board_meeting" or not trigger.get("enabled", True):
             continue
-        last_fired = trigger.get("last_fired_at") or 0
-        if last_fired:
-            trigger_age_h = (time.time() - last_fired) / 3600
+        trigger_age_h = _validated_trigger_age_h(trigger.get("last_fired_at"))
+        if trigger_age_h is not None:
             silence_h = trigger_age_h if silence_h is None else min(silence_h, trigger_age_h)
 
     if silence_h is None or silence_h < _BOARD_MEETING_SILENT_THRESHOLD_H:
