@@ -15,7 +15,7 @@ Tells a non-coder the truth about what is finished versus half-built — and whe
 
 READMEs and "done" Linear tickets lie. "It compiles" is not "it's wired." The single most common hidden gap is `built-disconnected` — a real implementation that no route imports, no button calls, no frontend hits. A non-coder cannot see it by eye; reference/dead-code tooling can. This skill produces the evidence-cited map that the rest of the crew acts on.
 
-It complements, never replaces, the existing auditors — it is the ONE thing none of them does (a feature-by-feature build-state + pipeline-stage map). Explicitly defer: security findings → [`security-audit`](../security-audit/SKILL.md); UI/design → [`design-audit`](../design-audit/SKILL.md); autonomy/leverage scoring → [`leverage-audit`](../leverage-audit/SKILL.md); runtime per-step logging → [`audit-emit`](../audit-emit/SKILL.md). This skill only owns "what's built vs stubbed vs disconnected vs wired vs tested, and how far to production."
+It complements, never replaces, the existing auditors — it is the ONE thing none of them does (a feature-by-feature build-state + pipeline-stage map). Explicitly defer: security findings → [`security-audit`](../security-audit/SKILL.md); UI/design → `impeccable` (installed skill); autonomy/leverage scoring → [`leverage-audit`](../leverage-audit/SKILL.md); runtime per-step logging → [`audit-emit`](../audit-emit/SKILL.md). This skill only owns "what's built vs stubbed vs disconnected vs wired vs tested, and how far to production."
 
 ## Triggers
 
@@ -60,11 +60,11 @@ Save to `.harness/audits/audit-<YYYY-MM-DD>.md`. Emit a `curator_proposal` row v
 ## Out of scope
 
 - Fixing anything — see [`launch-enhance-debloat`](../launch-enhance-debloat/SKILL.md).
-- Security / design / leverage scoring — delegated to `security-audit` / `design-audit` / `leverage-audit`.
+- Security / design / leverage scoring — delegated to `security-audit` / `impeccable` / `leverage-audit`.
 - Per-step runtime audit logging — that's [`audit-emit`](../audit-emit/SKILL.md).
 
 ## References
 
 - [`launch-review`](../launch-review/SKILL.md) — consumes this audit as input.
-- [`security-audit`](../security-audit/SKILL.md), [`design-audit`](../design-audit/SKILL.md), [`leverage-audit`](../leverage-audit/SKILL.md) — the auditors this skill defers to.
+- [`security-audit`](../security-audit/SKILL.md), `impeccable` (installed skill), [`leverage-audit`](../leverage-audit/SKILL.md) — the auditors this skill defers to.
 - `AGENTS.md` boundary matrix (which paths are safe to touch later).

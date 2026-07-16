@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.19.0",
-    "generated_at": "2026-07-15T02:49:18.371790+00:00",
+    "version": "1.19.3",
+    "generated_at": "2026-07-16T17:30:47.938499+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -776,11 +776,11 @@
     },
     {
       "id": "design-audit",
-      "description": "Design quality auditor. Detects 24 anti-patterns in UI code (impeccable patterns), critiques visual hierarchy and UX, polishes components to shipping quality. Provides /critique, /audit, /polish, and /bolder commands.",
+      "description": "DEPRECATED (RA-7057) \u2014 superseded by the installed pbakaus/impeccable skill v3.9.1. Use `impeccable` (`/impeccable audit`, `/impeccable critique`, `/impeccable polish`, `/impeccable bolder`) instead. Kept for the archaeological record; do not route new work here.",
       "owner_role": "(unset)",
-      "status": "(unset)",
+      "status": "deprecated",
       "path": "skills/design-audit/SKILL.md",
-      "sha256": "1261e3c8517b404e2e2c8c7afc3e977eeb6591a202825f8d2fefd10e26c38d1f",
+      "sha256": "e229a08cb167c54638f73773b39a66537047b71a04e5e3d636d2ce78f643e462",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -890,11 +890,11 @@
     },
     {
       "id": "design-system",
-      "description": "Design stack orchestrator for Pi-CEO. Routes UI work to the correct specialist skill (design-intelligence, ui-component-builder, design-audit, visual-qa). Start here for any design task.",
+      "description": "Design stack orchestrator for Pi-CEO. Routes UI work to the correct specialist skill (design-intelligence, ui-component-builder, impeccable, visual-qa). Start here for any design task.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/design-system/SKILL.md",
-      "sha256": "9234d84337bdbef317187ba34388db8392e6f8f9fcaf26f9c9eaf6cca9742833",
+      "sha256": "1a6207f0de123d9c93583941fdcac3a0444228d77d9e4066ad27bf09df5c4171",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1161,7 +1161,7 @@
       "owner_role": "Builder",
       "status": "wave-4",
       "path": "skills/launch-enhance-debloat/SKILL.md",
-      "sha256": "71b603e0d486fd39d27483b2daa270a7299d1f30c593434a0a13a410ec8dcd70",
+      "sha256": "b461ee987dddb9f817e946bd1a32602bb473a239896bd2958f9e39c4afdbeadc",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1180,7 +1180,7 @@
       "owner_role": "Curator",
       "status": "wave-4",
       "path": "skills/launch-project-audit/SKILL.md",
-      "sha256": "791c12be7f8eaddff755e61baccd1efa615f5bafb6b90bfdfa12c7a1926931e8",
+      "sha256": "967d5090bead3e832bb0e642280ea9cff705d6b4e78b22e665ddfeb45c775326",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1195,11 +1195,11 @@
     },
     {
       "id": "launch-review",
-      "description": "Aggregate the repo's existing audit skills into ONE prioritized launch-readiness report through four lenses \u2014 PM journey, growth/SEO, engineering, design \u2014 adding only the two lenses nothing else covers (end-to-end PM journey + growth/SEO conversion) and fanning out to security-audit, design-audit, agentic-review, and leverage-audit for the rest. Review only; never fixes. Use on \"is this ready to launch\" or as the review step of /ship-it.",
+      "description": "Aggregate the repo's existing audit skills into ONE prioritized launch-readiness report through four lenses \u2014 PM journey, growth/SEO, engineering, design \u2014 adding only the two lenses nothing else covers (end-to-end PM journey + growth/SEO conversion) and fanning out to security-audit, impeccable, agentic-review, and leverage-audit for the rest. Review only; never fixes. Use on \"is this ready to launch\" or as the review step of /ship-it.",
       "owner_role": "Guardian",
       "status": "wave-4",
       "path": "skills/launch-review/SKILL.md",
-      "sha256": "c39e62f4c75f94116def9caee0eb0ddb8ff192acee91b4901435272860d847c0",
+      "sha256": "244810fb47934e78973108fcd28ac2ab4d6caee887a21fb595d43b88c3d0a5f9",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2709,7 +2709,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/ui-ux-pro-max/SKILL.md",
-      "sha256": "200489cd31fb9f24f28bfd487df777b9eaa567097e1c9be5ab09532f985c8562",
+      "sha256": "601aecc80d33d377f66cc650eb65731752de1cecf5ed5923e5e7d2fcc39153c9",
       "dependencies": {
         "tools": [],
         "skills": []

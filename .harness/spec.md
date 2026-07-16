@@ -378,7 +378,7 @@ Skill definitions are stored as YAML-frontmatted Markdown files under `skills/*/
 | `design-system` | Entry point routing UI work to 4-layer stack | manual |
 | `design-intelligence` | DESIGN.md master (9-section standard); 66 brand archetypes | Design.md must exist before component build |
 | `ui-component-builder` | 3-dial: DESIGN_VARIANCE / MOTION_INTENSITY / VISUAL_DENSITY; 8 mandatory states | All 8 states required: default, hover, active, loading, empty, error, disabled, focus |
-| `design-audit` | 24 anti-pattern detection + 6 quality dimensions | manual |
+| `impeccable` | installed skill (~/.claude/skills/impeccable, pbakaus v3.9.1); audit/critique/polish; supersedes deprecated `design-audit` (RA-7057) | manual |
 | `ui-ux-pro-max` | Full production workflow: context → brief → build → audit → visual-qa → ship checklist | manual |
 | `visual-qa` | Playwright regression; breakpoints: 375/768/1280/1920px; baseline management | Playwright must be installed |
 
@@ -495,7 +495,7 @@ Budget tracking is per-tier and per-session. The `autonomy_budget` in `config.ya
 - Parses all `skills/*/SKILL.md` YAML frontmatter on first access, caches in `_SKILLS_CACHE`
 - `skills_manifest()` returns `{auto: [...], manual: [...]}` partition
 - Intent routing: 12 intents map to lists of skill names; matched skills are auto-prepended to generator prompts
-- Skills with `automation: manual` require explicit caller invocation (e.g., `design-audit`, `leverage-audit`)
+- Skills with `automation: manual` require explicit caller invocation (e.g., `leverage-audit`; design audits go to the installed `impeccable` skill)
 
 #### Agent Dispatcher (`agents/__init__.py`)
 
@@ -663,6 +663,6 @@ These gaps mean that generator prompts for design/frontend tasks receive no type
 
 2. **Skill injection is one-shot.** Auto-injected skills are prepended to the generator prompt once. There is no mechanism for the generator to request additional skills mid-session. The `closed-loop-prompt` correction loop re-uses the same skill set on retry. If the correction requires a skill not in the original injection (e.g., a bug correction needing `security` which wasn't injected for a `feature` intent), the generator has no path to get it without re-triggering the full phase.
 
-3. **Manual skills are undiscoverable at runtime.** Skills with `automation: manual` only appear if the caller explicitly names them in the brief. There is no mechanism for the orchestrator to surface "you might want to invoke `design-audit` given your brief mentions UI components." A lightweight keyword match (similar to PITER classification) could surface relevant manual skills as suggestions in the SSE stream.
+3. **Manual skills are undiscoverable at runtime.** Skills with `automation: manual` only appear if the caller explicitly names them in the brief. There is no mechanism for the orchestrator to surface "you might want to invoke `impeccable` given your brief mentions UI components." A lightweight keyword match (similar to PITER classification) could surface relevant manual skills as suggestions in the SSE stream.
 
 4. **Budget tracker is instantiated but not wired.** `BudgetTracker` in `src/tao/budget/tracker.py` is a correct implementation, but `session_sdk.py` does not instantiate it. SDK metric rows capture `output_len` but not `tokens_used` (which requires a structured SDK response field). The tracker is effectively unused in production today.
