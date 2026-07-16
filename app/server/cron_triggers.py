@@ -218,6 +218,15 @@ async def _fire_intel_refresh_trigger(trigger: dict, log) -> None:
     errors = result.get("errors", [])
     if errors:
         log.warning("intel_refresh: %d fetch errors: %s", len(errors), errors)
+    # RA-7027 — a run that fetched NOTHING wrote no snapshot and must not
+    # count as a fire: raising keeps `last_fired_at` stale (the cron loop's
+    # skip contract), so the docs-staleness watchdog's trigger-truth overlay
+    # stays honest when docs fetches fail persistently.
+    if not fetched:
+        raise RuntimeError(
+            f"intel_refresh id={trigger['id']}: all {len(errors)} doc fetches failed — "
+            "no snapshot written"
+        )
     log.info(
         "intel_refresh id=%s complete: fetched=%d brief=%s",
         trigger["id"], fetched, brief or "none (no delta)",

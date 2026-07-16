@@ -131,6 +131,15 @@ def _board_meetings_dir():
     return Path(__file__).parent.parent.parent / ".harness" / "board-meetings"
 
 
+def _anthropic_docs_dir():
+    """Return the on-disk directory holding dated Anthropic docs snapshots.
+
+    Pulled out for the same monkeypatch reason as `_board_meetings_dir()`.
+    """
+    from pathlib import Path
+    return Path(__file__).parent.parent.parent / ".harness" / "anthropic-docs"
+
+
 async def _watchdog_check(triggers: list[dict], log) -> None:
     """
     12-hour watchdog. If no scan/monitor trigger has fired in the last 12h,
@@ -282,7 +291,7 @@ async def _watchdog_escalations(log) -> None:
             log.warning("Escalation Telegram send failed for %s: %s", alert_key, exc)
 
 
-async def _watchdog_docs_staleness(log) -> None:
+async def _watchdog_docs_staleness(log, triggers: list[dict] | None = None) -> None:
     """
     RA-635 — Anthropic docs staleness watchdog.
 
@@ -298,13 +307,20 @@ async def _watchdog_docs_staleness(log) -> None:
     (`intel-refresh-daily-0200`); the 192h (8-day) grace window is retained so
     a short outage or a few consecutive missed daily runs don't alert
     prematurely.
+
+    RA-7027 — staleness is now the MINIMUM of two ages, mirroring the RA-7030
+    board-meeting pattern: the newest dated snapshot dir (artefact truth) AND
+    the enabled `intel_refresh` trigger's `last_fired_at` (in-process truth,
+    durable across redeploys via Supabase `cron_state`). On Railway the
+    container filesystem resets `.harness/anthropic-docs/` to the committed
+    repo state on every deploy, so artefact age alone false-alarms whenever a
+    deploy lands between two daily 02:00 UTC fires even though the trigger is
+    running fine.
     """
     global _docs_stale_last_raised
     from . import config
-    from pathlib import Path
 
-    _HARNESS = Path(__file__).parent.parent.parent / ".harness"
-    _DOCS_ROOT = _HARNESS / "anthropic-docs"
+    _DOCS_ROOT = _anthropic_docs_dir()
     _STALE_THRESHOLD_H = 192.0  # was 48 — see RA-1981/RA-1983 docstring above.
 
     # Cooldown: don't raise again within 24 hours
@@ -326,6 +342,15 @@ async def _watchdog_docs_staleness(log) -> None:
             newest = dated_dirs[0]
             dir_mtime = newest.stat().st_mtime
             stale_h = (time.time() - dir_mtime) / 3600
+
+    # RA-7027 — the trigger's own fire timestamp is equally valid proof of life.
+    for trigger in triggers or []:
+        if trigger.get("type") != "intel_refresh" or not trigger.get("enabled", True):
+            continue
+        last_fired = trigger.get("last_fired_at") or 0
+        if last_fired:
+            trigger_age_h = (time.time() - last_fired) / 3600
+            stale_h = trigger_age_h if stale_h is None else min(stale_h, trigger_age_h)
 
     if stale_h is None or stale_h < _STALE_THRESHOLD_H:
         return
