@@ -1,8 +1,12 @@
 # tests — Wiki
 
-_Last updated: 2026-07-15T02:17:19Z (commits 50afbd8..d062fb3)_
+_Last updated: 2026-07-16T17:38:20Z (commits 89a2102..ecf3a6a)_
 
 ## Recent changes
-- d062fb3 — chore(salvage): rescue unmerged work from feature/remotion-local-progress-workspace (#579)
+- ecf3a6a — chore(skills): consolidate design-audit into impeccable in design-system routing (RA-7057) (#592)
 
+## Architecture (current)
+Auto-stub: `tests/` had 1 recent commits. SDK unavailable for synthesis.
 
+## Files of interest
+- tests/test_agentskills_manifest_unicode.py — touched in recent commits

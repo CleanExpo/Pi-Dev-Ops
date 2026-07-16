@@ -1,8 +1,12 @@
 # swarm — Wiki
 
-_Last updated: 2026-07-15T06:02:52Z (commits f2c8109..b6b5dc3)_
+_Last updated: 2026-07-16T17:38:20Z (commits 89a2102..ecf3a6a)_
 
 ## Recent changes
-- b6b5dc3 — fix(config): resolve Brain-1 wiki path instead of hardcoding a checkout (#582)
+- ecf3a6a — chore(skills): consolidate design-audit into impeccable in design-system routing (RA-7057) (#592)
 
+## Architecture (current)
+Auto-stub: `swarm/` had 1 recent commits. SDK unavailable for synthesis.
 
+## Files of interest
+- swarm/agentskills_manifest.py — touched in recent commits
