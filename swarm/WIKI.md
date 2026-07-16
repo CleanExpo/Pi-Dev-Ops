@@ -1,12 +1,13 @@
 # swarm — Wiki
 
-_Last updated: 2026-07-16T17:38:20Z (commits 89a2102..ecf3a6a)_
+_Last updated: 2026-07-16T17:43:12Z (commits 0f3fbcf..f071c87)_
 
 ## Recent changes
-- ecf3a6a — chore(skills): consolidate design-audit into impeccable in design-system routing (RA-7057) (#592)
+- f071c87 — feat(swarm): goal-stall circuit-breaker with Jaccard verdict-similarity detection (#590)
 
 ## Architecture (current)
 Auto-stub: `swarm/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- swarm/agentskills_manifest.py — touched in recent commits
+- swarm/audit_emit.py — touched in recent commits
+- swarm/persistent_goals.py — touched in recent commits
