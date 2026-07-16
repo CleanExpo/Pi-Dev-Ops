@@ -434,10 +434,11 @@ def _verdict_signature(text: str) -> frozenset[str]:
 
 
 def _jaccard(a: frozenset[str], b: frozenset[str]) -> float:
-    if not a and not b:
-        return 1.0
-    union = a | b
-    return (len(a & b) / len(union)) if union else 1.0
+    # An empty signature carries no evidence of a repeated residual — treat it
+    # as dissimilar so low-content verdicts never trip a false-positive stall.
+    if not a or not b:
+        return 0.0
+    return len(a & b) / len(a | b)
 
 
 @dataclass
