@@ -341,3 +341,73 @@ def test_debate_runner_no_goal_id_does_not_advance(tmp_path, monkeypatch):
     result = asyncio.run(DR.run_debate(inp))
     assert result.both_succeeded()
     assert called[0] is False
+
+
+# ── Stall / unreachable-condition circuit-breaker (goal-hook loop fix) ───────
+
+_STALL_VERDICT = (
+    "Condition demands the entire ecosystem without flaws. Instagram connection "
+    "unimplemented (credential entry barred); follower-snapshot behavioural proof "
+    "pending scheduled fire; apps/empire live health unverified off-machine. "
+    "Assistant awaits founder Mini session. Condition unsatisfied."
+)
+
+
+def test_detect_stall_flags_repeated_residual(tmp_path):
+    g = PG.create_goal(role="CoS", business_id="portfolio",
+                        topic="make all systems work", repo_root=tmp_path)
+    for _ in range(3):
+        PG.advance_goal(g.goal_id, drafter_text="same state again",
+                        redteam_text=_STALL_VERDICT,
+                        auto_abort_on_stall=False, repo_root=tmp_path)
+    rep = PG.detect_stall(g.goal_id, repo_root=tmp_path)
+    assert rep.stalled is True
+    assert rep.mean_similarity >= PG.DEFAULT_STALL_SIMILARITY
+
+
+def test_detect_stall_progressing_not_flagged(tmp_path):
+    g = PG.create_goal(role="CoS", business_id="portfolio",
+                        topic="make all systems work", repo_root=tmp_path)
+    progressing = [
+        "Found the sentinel enumeration bug; fixed team_members resolution.",
+        "Descheduled the analyze-patterns no-op cron; audited follower snapshot.",
+        "Cloned unite-group; probed twenty-eight nexus crons; all healthy live.",
+    ]
+    for v in progressing:
+        PG.advance_goal(g.goal_id, drafter_text="progress",
+                        redteam_text=v, auto_abort_on_stall=False,
+                        repo_root=tmp_path)
+    rep = PG.detect_stall(g.goal_id, repo_root=tmp_path)
+    assert rep.stalled is False
+
+
+def test_advance_goal_auto_aborts_freeform_on_stall(tmp_path):
+    g = PG.create_goal(role="CoS", business_id="portfolio",
+                        topic="make all systems work", repo_root=tmp_path)
+    # Third identical turn trips the window and auto-aborts (default behaviour).
+    for _ in range(3):
+        PG.advance_goal(g.goal_id, drafter_text="same",
+                        redteam_text=_STALL_VERDICT, repo_root=tmp_path)
+    reloaded = PG.get_goal(g.goal_id, repo_root=tmp_path)
+    assert reloaded.status == "aborted"
+    assert "unreachable-condition" in reloaded.metadata.get("abort_reason", "")
+
+
+def test_predicate_goal_exempt_from_stall_abort(tmp_path):
+    g = PG.create_goal(role="CFO", business_id="portfolio",
+                        topic="runway", resolution_predicate="cfo.runway_at_least_18",
+                        repo_root=tmp_path)
+    for _ in range(4):
+        PG.advance_goal(g.goal_id, drafter_text="same",
+                        redteam_text=_STALL_VERDICT, repo_root=tmp_path)
+    reloaded = PG.get_goal(g.goal_id, repo_root=tmp_path)
+    # Predicate-backed goals resolve on real state, never on judge prose.
+    assert reloaded.status == "active"
+
+
+def test_auto_abort_idempotent_on_nonactive(tmp_path):
+    g = PG.create_goal(role="CoS", business_id="portfolio", topic="x",
+                        repo_root=tmp_path)
+    PG.abort_goal(g.goal_id, "already done", repo_root=tmp_path)
+    rep = PG.auto_abort_if_stalled(g.goal_id, repo_root=tmp_path)
+    assert rep.stalled is False
