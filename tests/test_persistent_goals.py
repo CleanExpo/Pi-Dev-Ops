@@ -474,3 +474,55 @@ def test_auto_abort_idempotent_on_nonactive(tmp_path):
     PG.abort_goal(g.goal_id, "already done", repo_root=tmp_path)
     rep = PG.auto_abort_if_stalled(g.goal_id, repo_root=tmp_path)
     assert rep.stalled is False
+
+
+def test_detect_stall_same_blocker_plus_noise_token_escapes(tmp_path):
+    """Documented trade-off (review round 3): the SAME blocker re-fired with
+    one varying noise token per turn is NOT flagged — token sets cannot
+    distinguish it from a template with one new resolved item per turn, and
+    the breaker's policy is fail-safe (prefer a missed stall over killing a
+    healthy goal). Exact repetition is the only trip signal."""
+    g = PG.create_goal(role="CoS", business_id="portfolio",
+                        topic="ambiguous", repo_root=tmp_path)
+    for noise in ("alpha", "beta", "gamma"):
+        PG.advance_goal(g.goal_id, drafter_text="same state",
+                        redteam_text=_STALL_VERDICT + " " + noise,
+                        auto_abort_on_stall=False, repo_root=tmp_path)
+    rep = PG.detect_stall(g.goal_id, repo_root=tmp_path)
+    assert rep.stalled is False
+
+
+def test_detect_stall_rejects_degenerate_window(tmp_path):
+    g = PG.create_goal(role="CoS", business_id="portfolio",
+                        topic="window", repo_root=tmp_path)
+    import pytest as _pytest
+    with _pytest.raises(ValueError):
+        PG.detect_stall(g.goal_id, window=1, repo_root=tmp_path)
+    with _pytest.raises(ValueError):
+        PG.detect_stall(g.goal_id, window=0, repo_root=tmp_path)
+
+
+def test_detect_stall_whitespace_redteam_falls_back_to_drafter(tmp_path):
+    """Whitespace-only red-team output must not mask an identical drafter
+    loop: the signature falls back to drafter text."""
+    g = PG.create_goal(role="CoS", business_id="portfolio",
+                        topic="whitespace", repo_root=tmp_path)
+    for _ in range(3):
+        PG.advance_goal(g.goal_id, drafter_text=_STALL_VERDICT,
+                        redteam_text="   ",
+                        auto_abort_on_stall=False, repo_root=tmp_path)
+    rep = PG.detect_stall(g.goal_id, repo_root=tmp_path)
+    assert rep.stalled is True
+
+
+def test_detect_stall_identical_stalls_regardless_of_threshold(tmp_path):
+    """Exact repetition trips the breaker even with an unreachable threshold —
+    `threshold` is reporting-only by contract."""
+    g = PG.create_goal(role="CoS", business_id="portfolio",
+                        topic="threshold", repo_root=tmp_path)
+    for _ in range(3):
+        PG.advance_goal(g.goal_id, drafter_text="same",
+                        redteam_text=_STALL_VERDICT,
+                        auto_abort_on_stall=False, repo_root=tmp_path)
+    rep = PG.detect_stall(g.goal_id, threshold=1.1, repo_root=tmp_path)
+    assert rep.stalled is True
