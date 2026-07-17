@@ -355,10 +355,10 @@ function harnessStalenessBanner() {
   if (!stale.length) return "";
   return (
     "\n\n---\n" +
-    "⚠️  **HARNESS DOCS STALE (>48h)** — regenerate before trusting this data.\n" +
+    "⚠️  **CHECKED-IN ANALYSIS SNAPSHOT STALE (>48h)** — do not treat this as live evidence.\n" +
     "Stale files:\n" +
     stale.join("\n") +
-    "\n\nRun `mcp__pi-ceo__get_last_analysis` after a full board meeting or sprint close to refresh."
+    "\n\nThis tool is read-only. Regenerate the checked-in analysis snapshot with `scripts/analyze.sh`, then review and commit the resulting harness files."
   );
 }
 
