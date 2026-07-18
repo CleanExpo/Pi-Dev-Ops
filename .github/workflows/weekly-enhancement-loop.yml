@@ -34,12 +34,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 300
     env:
-      # OpenRouter credit funds the Claude model ladder (direct Anthropic org has
-      # no API credit; Max OAuth is gone post-2026-07-08).
-      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-      # PAT with repo scope across the CleanExpo org so the loop can clone the
-      # other 10 private repos and open PRs. GITHUB_TOKEN cannot reach them.
-      GH_ENHANCE_PAT: ${{ secrets.GH_ENHANCE_PAT }}
       # Cost-optimised open-weight ladder (founder directive 2026-07-05): cheap
       # open-weight grunt tiers + one stronger open-weight reasoner reserved for
       # the planner handoff. ~$0.4/repo vs ~$8/repo on Opus/Sonnet/Haiku.
@@ -60,10 +54,22 @@ jobs:
           python-version: "3.11"
 
       - name: Run weekly enhancement loop
+        env:
+          # Step-scoped only. The runner scrubs these from all model/tool subprocess
+          # environments and uses them solely in trusted provider/forge adapters.
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GH_ENHANCE_PAT: ${{ secrets.GH_ENHANCE_PAT }}
+          TARGET_REPO: ${{ inputs.repo }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          python scripts/weekly_enhancement_loop.py \
-            ${{ github.event.inputs.repo && format('--repo {0}', github.event.inputs.repo) || '' }} \
-            ${{ github.event.inputs.dry_run == 'true' && '--dry-run' || '' }}
+          args=()
+          if [ -n "$TARGET_REPO" ]; then
+            args+=(--repo "$TARGET_REPO")
+          fi
+          if [ "$DRY_RUN" = "true" ]; then
+            args+=(--dry-run)
+          fi
+          python scripts/weekly_enhancement_loop.py "${args[@]}"
 
       - name: Upload run log
         if: always()
