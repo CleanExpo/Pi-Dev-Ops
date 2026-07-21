@@ -57,29 +57,66 @@ HARD_STOP_CLEAR_ACKNOWLEDGEMENT = (
     "state separately."
 )
 
-_CLEAR_HARD_STOP_RE = re.compile(
-    r"\b(?:clear|remove|unset|release)\s+"
-    r"(?:(?:the|global|local|active|current|existing)\s+)*hard\s+stop\b"
-    r"|\bresume(?:\s+(?:from|the))?\s+"
-    r"(?:(?:global|local|active|current|existing)\s+)*hard\s+stop\b"
-)
-_STOP_HARD_STOP_PATTERNS = (
-    re.compile(r"/panic(?:\s|$)"),
-    re.compile(
-        r"\b(?:set|engage|activate|create|raise|arm)\s+"
-        r"(?:(?:the|global|local)\s+)*hard\s+stop\b"
-    ),
-    re.compile(
-        r"\b(?:stop|halt)\s+(?:all|everything|it|mesh\s+remediation|"
-        r"the\s+(?:mesh|swarm|agents?|work|task|job|process|pipeline|"
-        r"production\s+line)|swarm|agents?)\b"
-    ),
-    re.compile(r"\bkill\s+(?:it|all|everything|the\s+(?:job|process|swarm))\b"),
-    re.compile(r"\bstand\s+down\b"),
+_CONTROL_CLAUSE_SPLIT_RE = re.compile(
+    r"\s*(?:[;,]|\b(?:and\s+then|then|but|and)\b)\s*",
 )
 _CONTROL_NEGATION_RE = re.compile(
-    r"(?:\bdo\s+not|\bnot|\bnever|\bavoid|\bwithout|"
-    r"\bstop(?:\s+trying)?\s+to)\s*$"
+    r"\b(?:do\s+not|not|never|avoid|without)\b|"
+    r"\bstop(?:\s+trying)?\s+to\b",
+)
+_CLEAR_CONTROL_CLAUSE_RE = re.compile(
+    r"(?:please\s+)?(?:"
+    r"(?:clear|remove|unset|release)\s+"
+    r"(?:(?:the|global|local|active|current|existing)\s+)*hard\s+stop"
+    r"|resume(?:\s+(?:from|the))?\s+"
+    r"(?:(?:global|local|active|current|existing)\s+)*hard\s+stop"
+    r")(?:\s+now)?(?:\s+for\s+mesh\s+remediation)?",
+)
+_STOP_CONTROL_CLAUSE_PATTERNS = (
+    re.compile(r"/panic"),
+    re.compile(
+        r"(?:please\s+)?(?:set|engage|activate|create|raise|arm)\s+"
+        r"(?:(?:the|global|local)\s+)*hard\s+stop(?:\s+now)?",
+    ),
+    re.compile(
+        r"(?:please\s+)?(?:stop|halt)\s+(?:"
+        r"all(?:\s+(?:work|tracks?|tasks?|jobs?|processes?|pipelines?|agents?|"
+        r"swarm(?:\s+tracks?)?|mesh\s+remediation|production\s+line))?"
+        r"|everything|it|mesh\s+remediation|"
+        r"the\s+(?:mesh|swarm|agents?|work|task|job|process|pipeline|"
+        r"production\s+line)|swarm|agents?)",
+    ),
+    re.compile(
+        r"(?:please\s+)?kill\s+"
+        r"(?:it|all|everything|swarm|the\s+(?:job|process|swarm))",
+    ),
+    re.compile(
+        r"(?:please\s+)?stand\s+down(?:\s+(?:all\s+)?(?:the\s+)?"
+        r"(?:mesh\s+remediation|swarm(?:\s+tracks?)?|agents?|work|"
+        r"production\s+line))?",
+    ),
+)
+_STOP_TRIGGER_SIGNAL_PATTERNS = (
+    re.compile(r"/panic"),
+    re.compile(r"panic"),
+    re.compile(
+        r"hard\s+stop\s+(?:activation|(?:was\s+)?activated|active|engagement|engaged|"
+        r"enabled|armed|raised|confirmed)(?:\s+.*)?",
+    ),
+    re.compile(
+        r"(?:set|engage|activate|create|raise|arm)\s+"
+        r"(?:(?:the|global|local)\s+)*hard\s+stop(?:\s+now)?",
+    ),
+    re.compile(
+        r"(?:stop|halt)\s+(?:all(?:\s+\w+)*|everything|it|"
+        r"mesh\s+remediation|the\s+\w+(?:\s+\w+)*|swarm|agents?)",
+    ),
+    re.compile(
+        r"kill\s+(?:it|all|everything|swarm|the\s+(?:job|process|swarm))",
+    ),
+    re.compile(
+        r"(?:hard\s+stop\s+)?stand\s+down(?:\s+.*)?",
+    ),
 )
 
 
@@ -120,31 +157,53 @@ def _normalise_control_text(text: str) -> str:
     return re.sub(r"\s+", " ", normalised).strip()
 
 
-def _control_match_is_negated(text: str, start: int) -> bool:
-    return bool(_CONTROL_NEGATION_RE.search(text[:start].rstrip()))
+def _classify_control_clause(clause: str) -> str | None:
+    """Classify one complete command clause; prose fragments stay neutral."""
+    text = _normalise_control_text(clause)
+    if not text or _CONTROL_NEGATION_RE.search(text):
+        return None
+    if _CLEAR_CONTROL_CLAUSE_RE.fullmatch(text):
+        return "clear"
+    if any(pattern.fullmatch(text) for pattern in _STOP_CONTROL_CLAUSE_PATTERNS):
+        return "stop"
+    return None
 
 
-def _has_non_negated_match(text: str, patterns: tuple[re.Pattern[str], ...]) -> bool:
-    return any(
-        not _control_match_is_negated(text, match.start())
-        for pattern in patterns
-        for match in pattern.finditer(text)
-    )
+def _classify_hard_stop_control_intent(user_text: str) -> str | None:
+    """Return one direct command; extra clauses and reported prose stay neutral."""
+    raw = (user_text or "").strip()
+    quote_marks = ('"', "'", "“", "”", "‘", "’")
+    if not raw or "?" in raw or any(mark in raw for mark in quote_marks):
+        return None
+    clauses = [
+        clause for clause in _CONTROL_CLAUSE_SPLIT_RE.split(raw.lower())
+        if clause.strip()
+    ]
+    if len(clauses) != 1:
+        return None
+    return _classify_control_clause(clauses[0])
 
 
 def is_hard_stop_clear_intent(user_text: str) -> bool:
     """Return True only for an explicit, non-negated HARD_STOP clearance."""
-    text = _normalise_control_text(user_text)
-    clear = _has_non_negated_match(text, (_CLEAR_HARD_STOP_RE,))
-    stop = _has_non_negated_match(text, _STOP_HARD_STOP_PATTERNS)
-    return clear and not stop
+    return _classify_hard_stop_control_intent(user_text) == "clear"
 
 
 def is_hard_stop_stop_intent(user_text: str) -> bool:
     """Distinguish genuine stop/panic/kill/stand-down from clearance wording."""
-    return _has_non_negated_match(
-        _normalise_control_text(user_text),
-        _STOP_HARD_STOP_PATTERNS,
+    return _classify_hard_stop_control_intent(user_text) == "stop"
+
+
+def _board_trigger_is_stop_like(trigger: BoardTrigger) -> bool:
+    """Match direct stop signals in either field without broad substring checks."""
+    fields = (
+        _normalise_control_text(trigger.topic),
+        _normalise_control_text(trigger.insight),
+    )
+    return any(
+        pattern.fullmatch(field)
+        for field in fields
+        for pattern in _STOP_TRIGGER_SIGNAL_PATTERNS
     )
 
 
@@ -176,13 +235,9 @@ def filter_board_triggers_for_user_message(
     """Suppress only stop-like Board triggers that contradict clear intent."""
     if not is_hard_stop_clear_intent(user_text):
         return list(triggers)
-    blocked_terms = ("hard stop", "stand down", "/panic")
     return [
         trigger for trigger in triggers
-        if not any(
-            term in _normalise_control_text(trigger.topic)
-            for term in blocked_terms
-        )
+        if not _board_trigger_is_stop_like(trigger)
     ]
 
 
