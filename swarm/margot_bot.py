@@ -50,6 +50,37 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 CONVERSATIONS_DIR_REL = ".harness/margot/conversations"
 DEFAULT_HISTORY_TURNS = 10
 DEFAULT_BOARD_TRIGGER_THRESHOLD = 7  # 1-10 scale; ≥7 fires from_margot
+HARD_STOP_CLEAR_ACKNOWLEDGEMENT = (
+    "Clear intent recognised: resume the requested work; do not stand it down. "
+    "This message will not emit a HARD_STOP Board trigger. The local marker has "
+    "not been claimed as removed; the authorised control path must confirm that "
+    "state separately."
+)
+
+_CLEAR_HARD_STOP_RE = re.compile(
+    r"\b(?:clear|remove|unset|release)\s+"
+    r"(?:(?:the|global|local|active|current|existing)\s+)*hard\s+stop\b"
+    r"|\bresume(?:\s+(?:from|the))?\s+"
+    r"(?:(?:global|local|active|current|existing)\s+)*hard\s+stop\b"
+)
+_STOP_HARD_STOP_PATTERNS = (
+    re.compile(r"/panic(?:\s|$)"),
+    re.compile(
+        r"\b(?:set|engage|activate|create|raise|arm)\s+"
+        r"(?:(?:the|global|local)\s+)*hard\s+stop\b"
+    ),
+    re.compile(
+        r"\b(?:stop|halt)\s+(?:all|everything|it|mesh\s+remediation|"
+        r"the\s+(?:mesh|swarm|agents?|work|task|job|process|pipeline|"
+        r"production\s+line)|swarm|agents?)\b"
+    ),
+    re.compile(r"\bkill\s+(?:it|all|everything|the\s+(?:job|process|swarm))\b"),
+    re.compile(r"\bstand\s+down\b"),
+)
+_CONTROL_NEGATION_RE = re.compile(
+    r"(?:\bdo\s+not|\bnot|\bnever|\bavoid|\bwithout|"
+    r"\bstop(?:\s+trying)?\s+to)\s*$"
+)
 
 
 # ── Data shapes ──────────────────────────────────────────────────────────────
@@ -78,6 +109,81 @@ class BoardTrigger:
     topic: str
     insight: str
     score: int  # 1-10
+
+
+def _normalise_control_text(text: str) -> str:
+    """Normalise punctuation/case without erasing the ``/panic`` command."""
+    normalised = (text or "").lower().replace("’", "'")
+    normalised = normalised.replace("don't", "do not").replace("dont", "do not")
+    normalised = re.sub(r"[_-]+", " ", normalised)
+    normalised = re.sub(r"[^a-z0-9/\s]+", " ", normalised)
+    return re.sub(r"\s+", " ", normalised).strip()
+
+
+def _control_match_is_negated(text: str, start: int) -> bool:
+    return bool(_CONTROL_NEGATION_RE.search(text[:start].rstrip()))
+
+
+def _has_non_negated_match(text: str, patterns: tuple[re.Pattern[str], ...]) -> bool:
+    return any(
+        not _control_match_is_negated(text, match.start())
+        for pattern in patterns
+        for match in pattern.finditer(text)
+    )
+
+
+def is_hard_stop_clear_intent(user_text: str) -> bool:
+    """Return True only for an explicit, non-negated HARD_STOP clearance."""
+    text = _normalise_control_text(user_text)
+    clear = _has_non_negated_match(text, (_CLEAR_HARD_STOP_RE,))
+    stop = _has_non_negated_match(text, _STOP_HARD_STOP_PATTERNS)
+    return clear and not stop
+
+
+def is_hard_stop_stop_intent(user_text: str) -> bool:
+    """Distinguish genuine stop/panic/kill/stand-down from clearance wording."""
+    return _has_non_negated_match(
+        _normalise_control_text(user_text),
+        _STOP_HARD_STOP_PATTERNS,
+    )
+
+
+def _hard_stop_control_prompt(user_text: str) -> str:
+    if is_hard_stop_clear_intent(user_text):
+        return (
+            "Control fact (higher priority than model interpretation)\n"
+            "=======================================================\n"
+            "CONTROL INTENT (IMMUTABLE): CLEAR_HARD_STOP\n"
+            "Phill is directing clearance/resumption. This must not be interpreted "
+            "as stop, panic, kill, or stand-down. Do not emit a hard_stop or "
+            "stand-down Board trigger, and do not claim a local marker was removed "
+            "unless a separate control-path receipt proves it.\n\n"
+        )
+    if is_hard_stop_stop_intent(user_text):
+        return (
+            "Control fact (higher priority than model interpretation)\n"
+            "=======================================================\n"
+            "CONTROL INTENT (IMMUTABLE): STOP_HARD_STOP\n"
+            "Phill issued an explicit stop/panic/kill/stand-down instruction. "
+            "Preserve genuine emergency-stop semantics.\n\n"
+        )
+    return ""
+
+
+def filter_board_triggers_for_user_message(
+    triggers: list[BoardTrigger], user_text: str,
+) -> list[BoardTrigger]:
+    """Suppress only stop-like Board triggers that contradict clear intent."""
+    if not is_hard_stop_clear_intent(user_text):
+        return list(triggers)
+    blocked_terms = ("hard stop", "stand down", "/panic")
+    return [
+        trigger for trigger in triggers
+        if not any(
+            term in _normalise_control_text(trigger.topic)
+            for term in blocked_terms
+        )
+    ]
 
 
 # ── Persistence ─────────────────────────────────────────────────────────────
@@ -609,9 +715,12 @@ def build_prompt(*, user_text: str, history: list[MargotTurn],
             f"{scope_lock}\n\n"
         )
 
+    control_block = _hard_stop_control_prompt(user_text)
+
     prompt = (
         f"{_MARGOT_SYSTEM_PROMPT}\n\n"
         f"{scope_block}"
+        f"{control_block}"
         f"{ctx_block}\n"
         f"{extra_block}"
         f"Conversation so far\n"
@@ -1303,6 +1412,7 @@ async def handle_turn(*, chat_id: str, user_text: str,
                            context=context, extra_context=extra_context,
                            tenant_id=turn.tenant_id)
 
+    hard_stop_clear = is_hard_stop_clear_intent(user_text)
     direct_sentinel = any(
         marker in user_text
         for marker in ("[RESEARCH", "[TRUTH-CHECK", "[REALTIME")
@@ -1315,7 +1425,11 @@ async def handle_turn(*, chat_id: str, user_text: str,
     # Operator/API callers sometimes pass an explicit sentinel command. In
     # that case, treat the caller-provided sentinel as the Phase 1 draft so
     # copy-paste Brain commands do not spend the route budget on planning.
-    if direct_sentinel:
+    if hard_stop_clear:
+        rc, response_text, cost, error = (
+            0, HARD_STOP_CLEAR_ACKNOWLEDGEMENT, 0.0, None,
+        )
+    elif direct_sentinel:
         rc, response_text, cost, error = 0, user_text, 0.0, None
     else:
         rc, response_text, cost, error = await _call_llm(
@@ -1473,6 +1587,7 @@ async def handle_turn(*, chat_id: str, user_text: str,
             )
 
     triggers, cleaned = parse_board_triggers(response_text)
+    triggers = filter_board_triggers_for_user_message(triggers, user_text)
     if idea_filed_lines:
         # Append confirmation footer so the user sees their idea was captured.
         cleaned = (cleaned + "\n\n" + "\n".join(idea_filed_lines)).strip()
@@ -1567,5 +1682,8 @@ __all__ = [
     "parse_board_triggers", "parse_research_requests",
     "parse_truth_check_requests", "parse_realtime_requests",
     "parse_idea_requests",
+    "is_hard_stop_clear_intent", "is_hard_stop_stop_intent",
+    "filter_board_triggers_for_user_message",
+    "HARD_STOP_CLEAR_ACKNOWLEDGEMENT",
     "DEFAULT_HISTORY_TURNS", "DEFAULT_BOARD_TRIGGER_THRESHOLD",
 ]

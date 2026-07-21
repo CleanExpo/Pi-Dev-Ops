@@ -204,6 +204,68 @@ def test_build_prompt_includes_history():
     assert "follow up" in out
 
 
+@pytest.mark.parametrize("message", [
+    "clear HARD_STOP for mesh remediation",
+    "CLEAR hard-stop.",
+    "Please remove the HARD STOP!",
+    "resume from HARD_STOP",
+    "Unset the global hard_stop",
+    "release HARD STOP",
+])
+def test_hard_stop_clear_intent_variants(message):
+    assert margot_bot.is_hard_stop_clear_intent(message) is True
+    assert margot_bot.is_hard_stop_stop_intent(message) is False
+
+
+@pytest.mark.parametrize("message", [
+    "do not clear HARD_STOP",
+    "don't remove the HARD_STOP",
+    "never resume from HARD STOP",
+    "avoid unsetting HARD_STOP",
+    "continue without releasing HARD_STOP",
+    "stop trying to clear HARD_STOP",
+])
+def test_hard_stop_clear_intent_rejects_negation(message):
+    assert margot_bot.is_hard_stop_clear_intent(message) is False
+
+
+@pytest.mark.parametrize("message", [
+    "/panic",
+    "engage HARD_STOP now",
+    "stop mesh remediation",
+    "kill it",
+    "stand down all swarm tracks",
+])
+def test_hard_stop_stop_intent_variants(message):
+    assert margot_bot.is_hard_stop_stop_intent(message) is True
+
+
+@pytest.mark.parametrize("message", [
+    "do not stop mesh remediation",
+    "don't kill it",
+    "never stand down the swarm",
+])
+def test_hard_stop_stop_intent_rejects_negation(message):
+    assert margot_bot.is_hard_stop_stop_intent(message) is False
+
+
+def test_explicit_stop_wins_over_mixed_clear_and_stop_message():
+    message = "clear HARD_STOP, then stand down all swarm tracks"
+    assert margot_bot.is_hard_stop_clear_intent(message) is False
+    assert margot_bot.is_hard_stop_stop_intent(message) is True
+
+
+def test_build_prompt_includes_immutable_hard_stop_clear_fact():
+    out = margot_bot.build_prompt(
+        user_text="clear HARD_STOP for mesh remediation",
+        history=[],
+        context={"cfo": [], "cmo": [], "cto": [], "cs": [],
+                 "board_recent": [], "ccw": None},
+    )
+    assert "CONTROL INTENT (IMMUTABLE): CLEAR_HARD_STOP" in out
+    assert "must not be interpreted as stop, panic, kill, or stand-down" in out
+
+
 # ── Board trigger parsing ──────────────────────────────────────────────────
 
 
@@ -360,6 +422,94 @@ Not worth escalating.
     assert called[0] is False
     assert turn.board_session_ids == []
     assert "[BOARD-TRIGGER" not in turn.margot_text
+
+
+def test_handle_turn_clear_intent_bypasses_llm_and_never_queues_hard_stop(
+    tmp_path, monkeypatch,
+):
+    llm_called = [False]
+    board_topics: list[str] = []
+
+    async def contradictory_llm(**kwargs):
+        llm_called[0] = True
+        return (
+            0,
+            "HARD_STOP confirmed.\n"
+            "[BOARD-TRIGGER score=8 topic=\"hard_stop: stand down mesh\"]"
+            "Stop all tracks.[/BOARD-TRIGGER]",
+            0.05,
+            None,
+        )
+
+    def fake_from_margot(*, topic, **kwargs):
+        board_topics.append(topic)
+        return "brd-bad"
+
+    monkeypatch.setattr(margot_bot, "_call_llm", contradictory_llm)
+    from swarm.bots import board as board_bot
+    monkeypatch.setattr(board_bot, "from_margot", fake_from_margot)
+
+    turn = asyncio.run(margot_bot.handle_turn(
+        chat_id="789",
+        user_text="clear HARD_STOP for mesh remediation",
+        repo_root=tmp_path,
+        _send=False,
+    ))
+
+    assert llm_called[0] is False
+    assert board_topics == []
+    assert turn.board_session_ids == []
+    assert turn.margot_text == margot_bot.HARD_STOP_CLEAR_ACKNOWLEDGEMENT
+    assert "not been claimed as removed" in turn.margot_text
+
+
+def test_clear_intent_filters_contradictory_hard_stop_board_trigger():
+    triggers = [
+        margot_bot.BoardTrigger(
+            score=8,
+            topic="hard_stop: stand down all mesh remediation swarm tracks",
+            insight="Stop everything.",
+        ),
+        margot_bot.BoardTrigger(
+            score=8,
+            topic="Material competitor event",
+            insight="Review pricing.",
+        ),
+    ]
+
+    filtered = margot_bot.filter_board_triggers_for_user_message(
+        triggers,
+        "clear HARD_STOP for mesh remediation",
+    )
+
+    assert [trigger.topic for trigger in filtered] == ["Material competitor event"]
+
+
+def test_explicit_stop_intent_preserves_hard_stop_board_trigger(tmp_path, monkeypatch):
+    response = (
+        "Standing down.\n"
+        "[BOARD-TRIGGER score=8 topic=\"hard_stop: stand down mesh remediation\"]"
+        "Stop all tracks.[/BOARD-TRIGGER]"
+    )
+    _stub_llm(monkeypatch, response_text=response)
+    board_topics: list[str] = []
+
+    def fake_from_margot(*, topic, **kwargs):
+        board_topics.append(topic)
+        return "brd-stop"
+
+    from swarm.bots import board as board_bot
+    monkeypatch.setattr(board_bot, "from_margot", fake_from_margot)
+
+    turn = asyncio.run(margot_bot.handle_turn(
+        chat_id="789",
+        user_text="stand down all mesh remediation",
+        repo_root=tmp_path,
+        _send=False,
+    ))
+
+    assert board_topics == ["hard_stop: stand down mesh remediation"]
+    assert turn.board_session_ids == ["brd-stop"]
 
 
 # ── Bot wrapper ─────────────────────────────────────────────────────────────
