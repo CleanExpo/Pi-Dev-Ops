@@ -8,7 +8,11 @@ exclusively in Python.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
+import os
+import sqlite3
+import subprocess
 import sys
 from pathlib import Path
 
@@ -138,6 +142,69 @@ def test_happy_path_both_sides_succeed(monkeypatch, tmp_path):
     assert "CRITIQUE" in result.redteam.artifact
     assert result.both_succeeded()
     assert result.total_cost_usd == 0.002
+
+
+def test_successful_debate_writes_only_to_test_kanban(
+    monkeypatch, tmp_path, kanban_test_root,
+):
+    """A real adapter subprocess must not change a separate sentinel Board."""
+    from swarm import kanban_adapter
+
+    binary = kanban_adapter._hermes_bin()
+    if binary is None:
+        import pytest
+        pytest.skip("Hermes CLI is not installed")
+
+    sentinel = kanban_test_root / "sentinel.db"
+    sentinel_env = os.environ.copy()
+    sentinel_env["HERMES_KANBAN_DB"] = str(sentinel)
+    completed = subprocess.run(
+        [binary, "kanban", "create", "--json", "sentinel"],
+        capture_output=True,
+        check=False,
+        env=sentinel_env,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    sentinel_hash = hashlib.sha256(sentinel.read_bytes()).hexdigest()
+    with sqlite3.connect(f"file:{sentinel}?immutable=1", uri=True) as connection:
+        sentinel_counts = (
+            connection.execute("SELECT COUNT(*) FROM tasks").fetchone()[0],
+            connection.execute("SELECT COUNT(*) FROM task_events").fetchone()[0],
+        )
+
+    monkeypatch.setattr(DR, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(DR, "DEBATE_STATE_FILE_REL", "debates.jsonl")
+    _install_fake_kill(monkeypatch, _FakeKillSwitch(on=False))
+    _install_fake_sdk(
+        monkeypatch,
+        drafter_text="isolated draft",
+        redteam_text="isolated critique",
+    )
+    inp = DR.DebateInput(
+        topic="prove isolated emission", role="CFO", business_id="isolation-test",
+    )
+
+    result = asyncio.run(DR.run_debate(inp))
+
+    assert result.both_succeeded()
+    local_database = Path(os.environ["HERMES_KANBAN_DB"])
+    assert local_database.is_relative_to(kanban_test_root)
+    with sqlite3.connect(f"file:{local_database}?immutable=1", uri=True) as connection:
+        emitted = connection.execute(
+            "SELECT title FROM tasks WHERE idempotency_key = ?", (inp.debate_id,),
+        ).fetchone()
+    assert emitted == (
+        "[CFO@isolation-test] debate — prove isolated emission",
+    )
+
+    assert hashlib.sha256(sentinel.read_bytes()).hexdigest() == sentinel_hash
+    with sqlite3.connect(f"file:{sentinel}?immutable=1", uri=True) as connection:
+        after_counts = (
+            connection.execute("SELECT COUNT(*) FROM tasks").fetchone()[0],
+            connection.execute("SELECT COUNT(*) FROM task_events").fetchone()[0],
+        )
+    assert after_counts == sentinel_counts
 
 
 def test_parallelism_under_50pct_of_sequential(monkeypatch, tmp_path):

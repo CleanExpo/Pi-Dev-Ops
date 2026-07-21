@@ -5,6 +5,7 @@ installation. We assert the constructed argv shapes + parse logic.
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -14,6 +15,50 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from swarm import kanban_adapter as KA  # noqa: E402
+from conftest import assert_kanban_environment_isolated  # noqa: E402
+
+
+def test_pytest_process_uses_isolated_kanban_environment():
+    """Hostile worker env must be replaced before any test can emit a card."""
+    root = Path(os.environ["PI_DEV_TEST_KANBAN_ROOT"]).resolve()
+    database = Path(os.environ["HERMES_KANBAN_DB"]).resolve()
+
+    assert database.is_relative_to(root)
+    assert os.environ["HERMES_KANBAN_BOARD"] == "pi-dev-ops-pytest"
+    assert os.environ["HERMES_TENANT"] == "pi-dev-ops-pytest"
+    assert "HERMES_KANBAN_TASK" not in os.environ
+    assert "HERMES_KANBAN_RUN_ID" not in os.environ
+
+
+def test_kanban_guard_rejects_database_outside_test_root(monkeypatch, tmp_path):
+    escaped_database = tmp_path.parent / "escaped-kanban.db"
+    with monkeypatch.context() as env:
+        env.setenv("HERMES_KANBAN_DB", str(escaped_database))
+        with pytest.raises(AssertionError, match="escaped private root"):
+            assert_kanban_environment_isolated()
+
+
+def test_kanban_guard_rejects_changed_test_root(monkeypatch):
+    private_root = Path(os.environ["PI_DEV_TEST_KANBAN_ROOT"]).resolve()
+    with monkeypatch.context() as env:
+        env.setenv("PI_DEV_TEST_KANBAN_ROOT", str(private_root.parent))
+        with pytest.raises(AssertionError, match="test root pin was changed"):
+            assert_kanban_environment_isolated()
+
+
+@pytest.mark.parametrize(
+    ("key", "message"),
+    [
+        ("HERMES_KANBAN_HOME", "Kanban test home pin was changed"),
+        ("HERMES_KANBAN_WORKSPACES_ROOT", "Kanban test workspaces pin was changed"),
+    ],
+)
+def test_kanban_guard_rejects_changed_support_path(monkeypatch, key, message):
+    private_root = Path(os.environ["PI_DEV_TEST_KANBAN_ROOT"]).resolve()
+    with monkeypatch.context() as env:
+        env.setenv(key, str(private_root.parent))
+        with pytest.raises(AssertionError, match=message):
+            assert_kanban_environment_isolated()
 
 
 def _patch_run(monkeypatch, *, rc: int = 0, stdout: str = "",
