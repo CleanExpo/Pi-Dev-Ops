@@ -1,12 +1,12 @@
 # .github — Wiki
 
-_Last updated: 2026-07-15T13:12:46Z (commits e536924..476e9fb)_
+_Last updated: 2026-07-21T06:11:13Z (commits 5090911..95ac0ae)_
 
 ## Recent changes
-- 476e9fb — fix(canary): make the Fable adversary canary actually run, and fail when it can't (#587)
+- 95ac0ae — fix: harden weekly enhancement loop controls (#597)
 
 ## Architecture (current)
 Auto-stub: `.github/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- .github/workflows/fable_canary_check.yml — touched in recent commits
+- .github/workflows/weekly-enhancement-loop.yml — touched in recent commits
