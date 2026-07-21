@@ -1,12 +1,12 @@
 # tests — Wiki
 
-_Last updated: 2026-07-21T06:11:13Z (commits 5090911..95ac0ae)_
+_Last updated: 2026-07-21T20:48:51Z (commits 818f21f..ef87343)_
 
 ## Recent changes
-- 95ac0ae — fix: harden weekly enhancement loop controls (#597)
+- ef87343 — fix(margot): prevent HARD_STOP clear-intent inversion (#598)
 
 ## Architecture (current)
 Auto-stub: `tests/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- tests/test_weekly_enhancement_loop.py — touched in recent commits
+- tests/test_margot.py — touched in recent commits
