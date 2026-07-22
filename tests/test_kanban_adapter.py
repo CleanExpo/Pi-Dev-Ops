@@ -5,10 +5,10 @@ installation. We assert the constructed argv shapes + parse logic.
 """
 from __future__ import annotations
 
+import os
 import sys
+from types import SimpleNamespace
 from pathlib import Path
-
-import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
@@ -36,6 +36,35 @@ def test_hermes_bin_none_returns_127(monkeypatch):
     assert rc == 127
     assert out == ""
     assert "not on PATH" in err
+
+
+def test_run_passes_minimal_env_without_parent_task_identity(monkeypatch):
+    """Nested Hermes calls may select a board, but never inherit worker identity."""
+    monkeypatch.setattr(KA, "_hermes_bin", lambda: "/usr/bin/hermes")
+    monkeypatch.setenv("HERMES_KANBAN_DB", "/tmp/isolated-kanban.db")
+    monkeypatch.setenv("HERMES_KANBAN_BOARD", "isolated-board")
+    monkeypatch.setenv("HERMES_KANBAN_TASK", "live-parent-task")
+    monkeypatch.setenv("HERMES_KANBAN_RUN_ID", "1234")
+    monkeypatch.setenv("STRIPE_API_KEY", "must-not-reach-child")
+    captured: dict = {}
+
+    def fake_run(command, **kwargs):
+        captured["command"] = command
+        captured.update(kwargs)
+        return SimpleNamespace(returncode=0, stdout="[]", stderr="")
+
+    monkeypatch.setattr(KA.subprocess, "run", fake_run)
+
+    rc, _out, _err = KA._run(["kanban", "list", "--json"])
+
+    assert rc == 0
+    child_env = captured["env"]
+    assert child_env["HERMES_KANBAN_DB"] == "/tmp/isolated-kanban.db"
+    assert child_env["HERMES_KANBAN_BOARD"] == "isolated-board"
+    assert "HERMES_KANBAN_TASK" not in child_env
+    assert "HERMES_KANBAN_RUN_ID" not in child_env
+    assert "STRIPE_API_KEY" not in child_env
+    assert child_env["PATH"] == os.environ["PATH"]
 
 
 # ── create_card ──────────────────────────────────────────────────────────────
