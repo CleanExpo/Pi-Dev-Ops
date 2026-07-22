@@ -22,6 +22,7 @@ ALLOWED_COLUMNS = (
 ALLOWED = set(ALLOWED_COLUMNS)
 NOW = datetime(2026, 7, 22, 1, 0, tzinfo=timezone.utc)
 CHECKPOINT_COLUMNS = (
+    "tenant_id",
     "consumer_id",
     "source_run_id",
     "checked_at",
@@ -41,11 +42,25 @@ def _provider():
         ) from exc
 
 
+def _valid_aggregate_row():
+    return {
+        "state": "BACKLOG",
+        "reason_code": "FIRST_RESPONSE_OVER_30M",
+        "latest_run_id": "run-1",
+        "heartbeat_at": NOW.isoformat(),
+        "source_query_ok": True,
+        "pending_count": 0,
+        "open_over_30m_count": 1,
+        "unresolved_escalation_count": 0,
+        "consumer_checkpoint_at": NOW.isoformat(),
+    }
+
+
 def test_provider_selects_exact_aggregate_columns_and_maps_state():
     calls = []
     row = {
         "state": "BACKLOG",
-        "reason_code": "first_response_over_30m",
+        "reason_code": "FIRST_RESPONSE_OVER_30M",
         "latest_run_id": "run-1",
         "heartbeat_at": "2026-07-22T01:00:00+00:00",
         "source_query_ok": True,
@@ -111,7 +126,7 @@ def test_ccw_provider_failure_never_collapses_to_empty_data(monkeypatch):
 def test_provider_rejects_semantically_invalid_aggregate_values(field, value):
     row = {
         "state": "BACKLOG",
-        "reason_code": "first_response_over_30m",
+        "reason_code": "FIRST_RESPONSE_OVER_30M",
         "latest_run_id": "run-1",
         "heartbeat_at": "2026-07-22T01:00:00+00:00",
         "source_query_ok": True,
@@ -128,6 +143,7 @@ def test_provider_rejects_semantically_invalid_aggregate_values(field, value):
 
 def _checkpoint_row(consumer_id, *, run_id="run-1", completed_at=NOW):
     return {
+        "tenant_id": "ccw",
         "consumer_id": consumer_id,
         "source_run_id": run_id,
         "checked_at": completed_at.isoformat(),
@@ -207,6 +223,7 @@ def test_checkpoint_loader_preserves_stale_evidence_for_fail_closed_derivation()
 def test_alert_intent_checkpoint_writer_is_explicit_and_run_bound():
     calls = []
     payload = {
+        "tenant_id": "ccw",
         "consumer_id": "alert_intent",
         "source_run_id": "run-1",
         "checked_at": NOW,
@@ -253,6 +270,7 @@ def test_checkpoint_writer_serializes_datetimes_and_uses_schema_primary_key(
     monkeypatch.setattr(provider.urllib.request, "urlopen", urlopen)
     provider.record_consumer_checkpoint(
         {
+            "tenant_id": "ccw",
             "consumer_id": "cs_metrics",
             "source_run_id": "run-1",
             "checked_at": NOW,
@@ -264,9 +282,10 @@ def test_checkpoint_writer_serializes_datetimes_and_uses_schema_primary_key(
     )
 
     request = captured["request"]
-    assert "on_conflict=consumer_id" in request.full_url
-    assert request.headers["Prefer"] == "resolution=merge-duplicates,return=minimal"
+    assert "on_conflict=tenant_id%2Csource_run_id%2Cconsumer_id" in request.full_url
+    assert request.headers["Prefer"] == "resolution=ignore-duplicates,return=minimal"
     assert json.loads(request.data) == {
+        "tenant_id": "ccw",
         "consumer_id": "cs_metrics",
         "source_run_id": "run-1",
         "checked_at": NOW.isoformat(),
@@ -275,3 +294,99 @@ def test_checkpoint_writer_serializes_datetimes_and_uses_schema_primary_key(
         "derived_state": "QUIET_HEALTHY",
         "error_code": None,
     }
+
+
+def test_default_aggregate_read_is_tenant_scoped_and_duplicate_visible(monkeypatch):
+    provider = _provider()
+    calls = []
+    monkeypatch.setattr(
+        provider,
+        "_request",
+        lambda method, resource, **kwargs: calls.append((method, resource, kwargs))
+        or [_valid_aggregate_row()],
+    )
+
+    snapshot = provider.fetch_ccw_state()
+
+    assert snapshot.tenant_id == "ccw"
+    assert calls[0][2]["query"] == {
+        "select": ",".join(ALLOWED_COLUMNS),
+        "tenant_id": "eq.ccw",
+        "limit": "2",
+    }
+    with pytest.raises(ValueError, match="aggregate contract"):
+        provider.fetch_ccw_state(lambda _view, _columns: [_valid_aggregate_row()] * 2)
+
+
+def test_checkpoint_write_is_tenant_run_consumer_create_only(monkeypatch):
+    provider = _provider()
+    calls = []
+    monkeypatch.setattr(
+        provider,
+        "_request",
+        lambda method, resource, **kwargs: calls.append((method, resource, kwargs)) or [],
+    )
+    payload = {
+        "tenant_id": "ccw",
+        "consumer_id": "cs_metrics",
+        "source_run_id": "run-1",
+        "checked_at": NOW,
+        "completed_at": NOW,
+        "outcome": "success",
+        "derived_state": "INGEST_STALE",
+        "error_code": None,
+    }
+
+    provider.record_consumer_checkpoint(payload)
+
+    assert calls == [(
+        "POST",
+        "ccw_support_consumer_checkpoints",
+        {
+            "query": {"on_conflict": "tenant_id,source_run_id,consumer_id"},
+            "payload": payload,
+            "prefer": "resolution=ignore-duplicates,return=minimal",
+        },
+    )]
+
+
+def test_alert_replay_advances_only_newer_nonterminal_sighting(monkeypatch):
+    provider = _provider()
+    calls = []
+    monkeypatch.setattr(
+        provider,
+        "_request",
+        lambda method, resource, **kwargs: calls.append((method, resource, kwargs)) or [],
+    )
+    last_seen = NOW + timedelta(minutes=1)
+    payload = {
+        "tenant_id": "ccw",
+        "dedup_key": "a" * 64,
+        "state": "ESCALATION",
+        "source_run_id": "run-1",
+        "opened_at": NOW,
+        "last_seen_at": last_seen,
+        "status": "pending",
+    }
+
+    provider.create_alert_intent(payload)
+
+    assert calls[0][2]["query"] == {"on_conflict": "tenant_id,dedup_key"}
+    assert calls[0][2]["prefer"] == "resolution=ignore-duplicates,return=minimal"
+    assert calls[1][0] == "PATCH"
+    assert calls[1][2]["query"] == {
+        "tenant_id": "eq.ccw",
+        "dedup_key": "eq." + "a" * 64,
+        "status": "in.(pending,drafted)",
+        "last_seen_at": "lt." + last_seen.isoformat(),
+        "opened_at": "lte." + last_seen.isoformat(),
+    }
+
+
+def test_checkpoint_loader_rejects_cross_tenant_before_fetch():
+    with pytest.raises(ValueError, match="tenant identity"):
+        _provider().load_consumer_checkpoints(
+            "run-1",
+            tenant_id="another-client",
+            fetch=lambda _run, _columns: pytest.fail("cross-tenant fetch executed"),
+        )

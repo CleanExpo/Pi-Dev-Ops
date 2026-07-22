@@ -35,6 +35,33 @@ VOICE_OUT_DIR_REL = ".harness/swarm/voice"
 STATE_KEY = "six_pager_last_daily_fire"
 
 
+def materialise_ccw_checkpoint(
+    snapshot: SupportSnapshot,
+    *,
+    checked_at: datetime,
+    record_checkpoint: Callable[[dict], None],
+) -> str:
+    """Render and certify one CCW run without posting an outward draft."""
+    if not snapshot.latest_run_id:
+        raise ValueError("CCW state lacks source run identity")
+    from .six_pager_client import render_ccw_client_health
+
+    rendered = render_ccw_client_health(snapshot)
+    record_checkpoint(
+        {
+            "tenant_id": snapshot.tenant_id,
+            "consumer_id": "six_pager",
+            "source_run_id": snapshot.latest_run_id,
+            "checked_at": checked_at,
+            "completed_at": checked_at,
+            "outcome": "success",
+            "derived_state": snapshot.state.value,
+            "error_code": None,
+        }
+    )
+    return rendered
+
+
 def _is_daily_fire_window(state: dict, now: datetime) -> bool:
     """06:00 UTC by default; once-per-23-hours debounce."""
     target_hour = int(
@@ -80,7 +107,7 @@ def maybe_fire_daily(
 
     effective_ccw = ccw_snapshot or SupportSnapshot(
         SupportState.INGEST_STALE,
-        "missing_health",
+        "MISSING_HEARTBEAT",
         None,
         None,
         None,
@@ -166,19 +193,6 @@ def maybe_fire_daily(
             log.warning("6-pager: draft_review post failed: %s", exc)
         return False
 
-    if record_checkpoint and effective_ccw.latest_run_id:
-        record_checkpoint(
-            {
-                "consumer_id": "six_pager",
-                "source_run_id": effective_ccw.latest_run_id,
-                "checked_at": now,
-                "completed_at": now,
-                "outcome": "success",
-                "derived_state": effective_ccw.state.value,
-                "error_code": None,
-            }
-        )
-
     state[STATE_KEY] = now.isoformat()
 
     # Audit emit (best-effort)
@@ -198,4 +212,4 @@ def maybe_fire_daily(
     return True
 
 
-__all__ = ["maybe_fire_daily"]
+__all__ = ["materialise_ccw_checkpoint", "maybe_fire_daily"]

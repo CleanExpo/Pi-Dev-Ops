@@ -9,7 +9,12 @@ from pathlib import Path
 from typing import Callable
 
 from .. import cs as _cs
-from ..ccw_support_contract import SupportSnapshot, SupportState
+from ..ccw_support_contract import (
+    SupportSnapshot,
+    SupportState,
+    validate_state_reason,
+    validate_tenant_id,
+)
 
 log = logging.getLogger("swarm.bots.cs")
 
@@ -56,31 +61,35 @@ def process_ccw_support_state(
     record_alert_checkpoint: Callable[[dict], None] | None = None,
 ) -> dict:
     """Consume aggregate CCW truth without converting it to synthetic metrics."""
+    tenant_id = validate_tenant_id(snapshot.tenant_id)
+    reason_code = validate_state_reason(snapshot.state, snapshot.reason_code)
     if not snapshot.latest_run_id:
         raise ValueError("CCW state lacks source run identity")
     if snapshot.state is not SupportState.QUIET_HEALTHY:
         dedup = hashlib.sha256(
-            f"ccw:{snapshot.state.value}:{snapshot.reason_code}".encode()
+            f"ccw-alert:{tenant_id}:{snapshot.state.value}:{reason_code}".encode()
         ).hexdigest()
         create_intent({
-            "dedup_key": dedup, "state": snapshot.state.value,
+            "tenant_id": tenant_id, "dedup_key": dedup, "state": snapshot.state.value,
             "source_run_id": snapshot.latest_run_id, "opened_at": checked_at,
             "last_seen_at": checked_at, "status": "pending",
         })
     (record_alert_checkpoint or record_checkpoint)({
-        "consumer_id": "alert_intent", "source_run_id": snapshot.latest_run_id,
+        "tenant_id": tenant_id, "consumer_id": "alert_intent",
+        "source_run_id": snapshot.latest_run_id,
         "checked_at": checked_at, "completed_at": checked_at, "outcome": "success",
         "derived_state": snapshot.state.value, "error_code": None,
     })
     record_checkpoint({
-        "consumer_id": "cs_metrics", "source_run_id": snapshot.latest_run_id,
+        "tenant_id": tenant_id, "consumer_id": "cs_metrics",
+        "source_run_id": snapshot.latest_run_id,
         "checked_at": checked_at, "completed_at": checked_at,
         "outcome": "success", "derived_state": snapshot.state.value,
         "error_code": None,
     })
     return {
         "status": "healthy" if snapshot.state is SupportState.QUIET_HEALTHY
-        else "non_healthy", "ccw_state": snapshot.state.value,
+        else "non_healthy", "ccw_state": snapshot.state.value, "snapshot": snapshot,
     }
 
 

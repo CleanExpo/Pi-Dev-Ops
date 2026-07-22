@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Callable
 
 from swarm.ccw_support_contract import (
+    TENANT_ID,
     ConsumerCheckpoint,
     HealthEvidence,
     SupportSnapshot,
@@ -83,6 +84,7 @@ def _snapshot_for_run(
             open_over_30m_count=run.open_over_30m_count,
             unresolved_escalation_count=run.unresolved_escalation_count,
             checkpoints=checkpoints,
+            tenant_id=run.tenant_id,
         )
     )
 
@@ -92,14 +94,14 @@ def re_evaluate_run(
     source_run_id: str,
     *,
     now: datetime,
-    load_checkpoints: Callable[[str], tuple[ConsumerCheckpoint, ...]],
+    load_checkpoints: Callable[[str, str], tuple[ConsumerCheckpoint, ...]],
 ) -> SupportSnapshot:
     """Re-evaluate one completed source run without fetching or emitting again."""
     run = ledger.runs.get(source_run_id)
-    if run is None or run.completed_at is None:
+    if run is None or run.completed_at is None or run.tenant_id != TENANT_ID:
         raise ValueError("source_run_id must identify a completed run")
     try:
-        checkpoints = load_checkpoints(source_run_id)
+        checkpoints = load_checkpoints(run.tenant_id, source_run_id)
     except Exception:
         checkpoints = ()
     return _snapshot_for_run(run, _utc(now), checkpoints)
@@ -110,11 +112,11 @@ def run_watch(
     ledger: InMemoryLedger,
     *,
     now: datetime,
-    load_checkpoints: Callable[[str], tuple[ConsumerCheckpoint, ...]] | None = None,
+    load_checkpoints: Callable[[str, str], tuple[ConsumerCheckpoint, ...]] | None = None,
 ) -> WatchResult:
     """Run one bounded fixture cycle; no network or external delivery is owned here."""
     now = _utc(now)
-    run = ledger.start_run(now)
+    run = ledger.start_run(now, tenant_id=TENANT_ID)
     try:
         source = parse_source_response(fetch())
     except Exception:  # The boundary persists only an allow-listed error code.
@@ -182,7 +184,7 @@ def run_watch(
         source_oldest_unpersisted_at=oldest_pending,
     )
     try:
-        checkpoints = load_checkpoints(run.run_id) if load_checkpoints else ()
+        checkpoints = load_checkpoints(run.tenant_id, run.run_id) if load_checkpoints else ()
     except Exception:
         checkpoints = ()
     snapshot = _snapshot_for_run(ledger.runs[run.run_id], now, checkpoints)
@@ -195,7 +197,14 @@ def run_watch_persisted(
     """Production storage wiring; consumers still execute after this returns."""
     from swarm.providers.ccw_supabase import load_consumer_checkpoints
 
-    return run_watch(fetch, ledger, now=now, load_checkpoints=load_consumer_checkpoints)
+    return run_watch(
+        fetch,
+        ledger,
+        now=now,
+        load_checkpoints=lambda tenant_id, run_id: load_consumer_checkpoints(
+            run_id, tenant_id=tenant_id
+        ),
+    )
 
 
 def re_evaluate_persisted_run(
@@ -205,5 +214,10 @@ def re_evaluate_persisted_run(
     from swarm.providers.ccw_supabase import load_consumer_checkpoints
 
     return re_evaluate_run(
-        ledger, source_run_id, now=now, load_checkpoints=load_consumer_checkpoints
+        ledger,
+        source_run_id,
+        now=now,
+        load_checkpoints=lambda tenant_id, run_id: load_consumer_checkpoints(
+            run_id, tenant_id=tenant_id
+        ),
     )
