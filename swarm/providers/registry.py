@@ -56,10 +56,12 @@ def select_cs_provider():
         from .zendesk import intercom_provider
         log.debug("provider: intercom selected")
         return intercom_provider
+    if name == "ccw_supabase":
+        from .ccw_supabase import ccw_supabase_provider
+        log.debug("provider: ccw_supabase selected")
+        return ccw_supabase_provider
     if name not in ("synthetic", ""):
-        log.warning(
-            "provider: unknown TAO_CS_PROVIDER=%r — using synthetic_cs", name,
-        )
+        raise ValueError(f"unknown TAO_CS_PROVIDER: {name}")
     from .synthetic_cs import synthetic_cs_provider
     return synthetic_cs_provider
 
