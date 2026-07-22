@@ -30,7 +30,9 @@ def test_red_06_replay_is_idempotent_for_ticket_and_intent():
     ledger = _module("ledger").InMemoryLedger()
     runner = _module("runner")
     item = {"provider_id": "same-id", "received_at": NOW.isoformat(), "priority": "urgent"}
-    fetch = lambda: {"authenticated": True, "ok": True, "items": [item]}
+    def fetch():
+        return {"authenticated": True, "ok": True, "items": [item]}
+
     runner.run_watch(fetch, ledger, now=NOW)
     runner.run_watch(fetch, ledger, now=NOW + timedelta(minutes=1))
     assert ledger.ticket_count == 1

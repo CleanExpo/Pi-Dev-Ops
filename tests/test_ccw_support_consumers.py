@@ -52,6 +52,22 @@ def test_cs_consumer_records_checkpoint_and_intent_without_external_send():
     assert "delivery" not in intents[0]
 
 
+def test_cs_escalation_intent_dedup_is_stable_across_source_runs():
+    from swarm.bots import cs
+
+    intents = []
+    for run_id in ("run-1", "run-2"):
+        snapshot = SupportSnapshot(
+            SupportState.ESCALATION, "unresolved_escalation", run_id,
+            NOW, True, 0, 0, 1, NOW,
+        )
+        cs.process_ccw_support_state(
+            snapshot, checked_at=NOW, record_checkpoint=lambda _row: None,
+            create_intent=intents.append,
+        )
+    assert intents[0]["dedup_key"] == intents[1]["dedup_key"]
+
+
 def test_six_pager_checkpoint_is_recorded_only_after_all_drafts_succeed(monkeypatch, tmp_path):
     from swarm import six_pager_dispatcher as dispatcher
 

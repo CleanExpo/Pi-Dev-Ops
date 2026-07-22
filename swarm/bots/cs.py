@@ -63,7 +63,7 @@ def process_ccw_support_state(
         raise ValueError("CCW state lacks source run identity")
     if snapshot.state is not SupportState.QUIET_HEALTHY:
         dedup = hashlib.sha256(
-            f"{snapshot.state.value}:{snapshot.reason_code}:{snapshot.latest_run_id}".encode()
+            f"ccw:{snapshot.state.value}:{snapshot.reason_code}".encode()
         ).hexdigest()
         create_intent({
             "dedup_key": dedup, "state": snapshot.state.value,

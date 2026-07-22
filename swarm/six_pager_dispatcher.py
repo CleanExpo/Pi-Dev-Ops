@@ -21,6 +21,9 @@ import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Callable
+
+from .ccw_support_contract import SupportSnapshot, SupportState
 
 log = logging.getLogger("swarm.six_pager_dispatcher")
 
@@ -54,7 +57,9 @@ def _is_test_mode() -> bool:
 
 def maybe_fire_daily(state: dict, *,
                       repo_root: Path | None = None,
-                      now: datetime | None = None) -> bool:
+                      now: datetime | None = None,
+                      ccw_snapshot: SupportSnapshot | None = None,
+                      record_checkpoint: Callable[[dict], None] | None = None) -> bool:
     """Fire the 6-pager if today's window is open and not yet fired.
 
     Returns True if a brief was emitted, False otherwise.
@@ -65,11 +70,17 @@ def maybe_fire_daily(state: dict, *,
     if not _is_daily_fire_window(state, now):
         return False
 
+    effective_ccw = ccw_snapshot or SupportSnapshot(
+        SupportState.INGEST_STALE, "missing_health", None, None, None,
+        0, 0, 0, None,
+    )
+
     # Compose the brief
     try:
         from . import six_pager  # noqa: PLC0415
         brief = six_pager.assemble_six_pager(
             repo_root=rr, date_str=now.strftime("%Y-%m-%d"),
+            ccw_snapshot=effective_ccw,
         )
     except Exception as exc:  # noqa: BLE001
         log.warning("6-pager: assemble failed: %s", exc)
@@ -129,6 +140,14 @@ def maybe_fire_daily(state: dict, *,
         if not _is_test_mode():
             log.warning("6-pager: draft_review post failed: %s", exc)
         return False
+
+    if record_checkpoint and effective_ccw.latest_run_id:
+        record_checkpoint({
+            "consumer_id": "six_pager",
+            "source_run_id": effective_ccw.latest_run_id,
+            "checked_at": now, "completed_at": now, "outcome": "success",
+            "derived_state": effective_ccw.state.value, "error_code": None,
+        })
 
     state[STATE_KEY] = now.isoformat()
 

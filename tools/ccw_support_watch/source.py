@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Mapping
+from typing import Mapping
 
 PROHIBITED_FIELDS = frozenset({
     "address", "from", "from_email", "to", "to_email", "subject", "snippet",
