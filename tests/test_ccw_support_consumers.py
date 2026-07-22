@@ -63,9 +63,31 @@ def test_cs_consumer_records_checkpoint_and_intent_without_external_send():
         create_intent=intents.append,
     )
     assert result["status"] == "non_healthy"
-    assert checkpoints[0]["consumer_id"] == "cs_metrics"
+    assert [row["consumer_id"] for row in checkpoints] == [
+        "alert_intent",
+        "cs_metrics",
+    ]
     assert intents[0]["state"] == "ESCALATION"
     assert "delivery" not in intents[0]
+
+
+def test_quiet_cs_consumer_records_noop_alert_intent_checkpoint_without_creating_intent():
+    from swarm.bots import cs
+
+    checkpoints, intents = [], []
+    result = cs.process_ccw_support_state(
+        _snapshot(SupportState.QUIET_HEALTHY, "fresh_zero_backlog"),
+        checked_at=NOW,
+        record_checkpoint=checkpoints.append,
+        create_intent=intents.append,
+    )
+
+    assert result["status"] == "healthy"
+    assert intents == []
+    assert [row["consumer_id"] for row in checkpoints] == [
+        "alert_intent",
+        "cs_metrics",
+    ]
 
 
 def test_cs_escalation_intent_dedup_is_stable_across_source_runs():
@@ -163,3 +185,89 @@ def test_six_pager_success_records_checkpoint_after_draft(monkeypatch, tmp_path)
             "error_code": None,
         }
     ]
+
+
+def test_real_consumer_writers_close_same_run_without_replaying_alerts(
+    monkeypatch, tmp_path
+):
+    import swarm
+    from swarm.bots import cs
+    from swarm.providers import ccw_supabase
+    from swarm import six_pager_dispatcher as dispatcher
+    from tools.ccw_support_watch.ledger import InMemoryLedger
+    from tools.ccw_support_watch.runner import re_evaluate_run, run_watch
+
+    checkpoint_rows, intents = {}, {}
+
+    def fake_request(method, resource, *, query=None, payload=None, prefer=None):
+        assert method == "POST"
+        assert prefer == "resolution=merge-duplicates,return=minimal"
+        assert payload is not None
+        row = {
+            key: value.isoformat() if isinstance(value, datetime) else value
+            for key, value in payload.items()
+        }
+        if resource == "ccw_support_consumer_checkpoints":
+            assert query == {"on_conflict": "consumer_id"}
+            checkpoint_rows[row["consumer_id"]] = row
+        elif resource == "ccw_support_alert_intents":
+            assert query == {"on_conflict": "dedup_key"}
+            intents[row["dedup_key"]] = row
+        else:
+            raise AssertionError(resource)
+        return []
+
+    monkeypatch.setattr(ccw_supabase, "_request", fake_request)
+    ledger = InMemoryLedger()
+    first = run_watch(
+        lambda: {"authenticated": True, "ok": True, "items": []},
+        ledger,
+        now=NOW,
+    )
+    cs.process_ccw_support_state(
+        first.snapshot,
+        checked_at=NOW,
+        record_checkpoint=ccw_supabase.record_consumer_checkpoint,
+        create_intent=ccw_supabase.create_alert_intent,
+        record_alert_checkpoint=ccw_supabase.record_alert_intent_checkpoint,
+    )
+
+    monkeypatch.setenv("TAO_SIX_PAGER_HOUR_UTC", "1")
+    fake_redactor = types.SimpleNamespace(redact=lambda text: text)
+    fake_draft_review = types.SimpleNamespace(
+        post_draft=lambda **_kwargs: {"draft_id": "draft-ok"},
+    )
+    monkeypatch.setitem(sys.modules, "swarm.pii_redactor", fake_redactor)
+    monkeypatch.setattr(swarm, "pii_redactor", fake_redactor, raising=False)
+    monkeypatch.setitem(sys.modules, "swarm.draft_review", fake_draft_review)
+    monkeypatch.setattr(swarm, "draft_review", fake_draft_review, raising=False)
+    assert dispatcher.maybe_fire_daily(
+        {},
+        repo_root=tmp_path,
+        now=NOW,
+        ccw_snapshot=first.snapshot,
+        record_checkpoint=ccw_supabase.record_consumer_checkpoint,
+    )
+
+    result = re_evaluate_run(
+        ledger,
+        first.run_id,
+        now=NOW,
+        load_checkpoints=lambda run_id: ccw_supabase.load_consumer_checkpoints(
+            run_id,
+            fetch=lambda source_run_id, _columns: [
+                row
+                for row in checkpoint_rows.values()
+                if row["source_run_id"] == source_run_id
+            ],
+        ),
+    )
+    assert result.state is SupportState.QUIET_HEALTHY
+    assert set(checkpoint_rows) == {
+        "cs_metrics",
+        "six_pager",
+        "alert_intent",
+    }
+    assert len(ledger.runs) == 1
+    assert len(intents) == 1
+    assert all(intent["status"] == "pending" for intent in intents.values())

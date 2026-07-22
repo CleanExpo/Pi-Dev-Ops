@@ -196,3 +196,105 @@ def test_unanswered_item_one_microsecond_over_thirty_minutes_is_backlog():
     assert result.snapshot.state.value == "BACKLOG"
     assert result.snapshot.reason_code == "first_response_over_30m"
     assert result.snapshot.open_over_30m_count == 1
+
+
+def test_completed_run_is_re_evaluated_after_real_consumers_persist_evidence(
+    monkeypatch,
+):
+    ledger = _module("ledger").InMemoryLedger()
+    runner = _module("runner")
+    from swarm.providers import ccw_supabase
+
+    rows = []
+    load_rows = ccw_supabase.load_consumer_checkpoints
+    monkeypatch.setattr(
+        ccw_supabase,
+        "load_consumer_checkpoints",
+        lambda run_id: load_rows(run_id, fetch=lambda _run, _columns: rows),
+    )
+    first = runner.run_watch_persisted(
+        lambda: {"authenticated": True, "ok": True, "items": []},
+        ledger,
+        now=NOW,
+    )
+    assert first.snapshot.state.value == "INGEST_STALE"
+    for consumer_id in ("cs_metrics", "six_pager", "alert_intent"):
+        rows.append(
+            {
+                "consumer_id": consumer_id,
+                "source_run_id": first.run_id,
+                "checked_at": NOW.isoformat(),
+                "completed_at": NOW.isoformat(),
+                "outcome": "success",
+                "derived_state": "INGEST_STALE",
+                "error_code": None,
+            }
+        )
+    result = runner.re_evaluate_persisted_run(ledger, first.run_id, now=NOW)
+    assert result.state.value == "QUIET_HEALTHY"
+    assert result.latest_run_id == first.run_id
+    assert len(ledger.runs) == 1
+    assert ledger.intent_count == 0
+
+
+def test_re_evaluation_fails_closed_for_missing_malformed_stale_and_cross_run_evidence():
+    ledger = _module("ledger").InMemoryLedger()
+    runner = _module("runner")
+    first = runner.run_watch(
+        lambda: {"authenticated": True, "ok": True, "items": []},
+        ledger,
+        now=NOW,
+    )
+
+    missing = runner.re_evaluate_run(
+        ledger, first.run_id, now=NOW, load_checkpoints=lambda _run: ()
+    )
+    assert missing.reason_code == "missing_consumer:cs_metrics"
+
+    stale = runner.re_evaluate_run(
+        ledger,
+        first.run_id,
+        now=NOW,
+        load_checkpoints=lambda run_id: tuple(
+            importlib.import_module("swarm.ccw_support_contract").ConsumerCheckpoint(
+                name,
+                run_id,
+                NOW - timedelta(hours=26, microseconds=1),
+                NOW - timedelta(hours=26, microseconds=1),
+            )
+            for name in ("cs_metrics", "six_pager", "alert_intent")
+        ),
+    )
+    assert stale.reason_code == "stale_consumer:cs_metrics"
+
+    cross_run = runner.re_evaluate_run(
+        ledger,
+        first.run_id,
+        now=NOW,
+        load_checkpoints=lambda _run: _observed_checkpoints("another-run"),
+    )
+    assert cross_run.reason_code == "checkpoint_run_mismatch:cs_metrics"
+
+    malformed = runner.re_evaluate_run(
+        ledger,
+        first.run_id,
+        now=NOW,
+        load_checkpoints=lambda _run: (_ for _ in ()).throw(ValueError("private row")),
+    )
+    assert malformed.reason_code == "missing_consumer:cs_metrics"
+    assert "private row" not in repr(malformed)
+
+
+def test_re_evaluation_rejects_unknown_or_incomplete_runs_without_allocating_new_run():
+    ledger = _module("ledger").InMemoryLedger()
+    runner = _module("runner")
+    with __import__("pytest").raises(ValueError, match="completed run"):
+        runner.re_evaluate_run(
+            ledger, "missing", now=NOW, load_checkpoints=lambda _run: ()
+        )
+    active = ledger.start_run(NOW)
+    with __import__("pytest").raises(ValueError, match="completed run"):
+        runner.re_evaluate_run(
+            ledger, active.run_id, now=NOW, load_checkpoints=lambda _run: ()
+        )
+    assert len(ledger.runs) == 1

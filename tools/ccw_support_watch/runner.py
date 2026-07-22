@@ -66,6 +66,45 @@ def _error_snapshot(
     )
 
 
+def _snapshot_for_run(
+    run, now: datetime, checkpoints: tuple[ConsumerCheckpoint, ...]
+) -> SupportSnapshot:
+    return derive_state(
+        HealthEvidence(
+            now=now,
+            latest_run_id=run.run_id,
+            outcome=run.outcome,
+            heartbeat_at=run.heartbeat_at,
+            source_auth_ok=run.source_auth_ok,
+            source_query_ok=run.source_query_ok,
+            error_code=run.error_code,
+            pending_count=run.pending_count,
+            source_oldest_unpersisted_at=run.source_oldest_unpersisted_at,
+            open_over_30m_count=run.open_over_30m_count,
+            unresolved_escalation_count=run.unresolved_escalation_count,
+            checkpoints=checkpoints,
+        )
+    )
+
+
+def re_evaluate_run(
+    ledger: InMemoryLedger,
+    source_run_id: str,
+    *,
+    now: datetime,
+    load_checkpoints: Callable[[str], tuple[ConsumerCheckpoint, ...]],
+) -> SupportSnapshot:
+    """Re-evaluate one completed source run without fetching or emitting again."""
+    run = ledger.runs.get(source_run_id)
+    if run is None or run.completed_at is None:
+        raise ValueError("source_run_id must identify a completed run")
+    try:
+        checkpoints = load_checkpoints(source_run_id)
+    except Exception:
+        checkpoints = ()
+    return _snapshot_for_run(run, _utc(now), checkpoints)
+
+
 def run_watch(
     fetch: Callable[[], object],
     ledger: InMemoryLedger,
@@ -139,22 +178,32 @@ def run_watch(
         response_matched_count=matched,
         cursor_hash=cursor_hash,
         open_over_30m_count=open_over_30m,
+        unresolved_escalation_count=escalation_count,
+        source_oldest_unpersisted_at=oldest_pending,
     )
     try:
         checkpoints = load_checkpoints(run.run_id) if load_checkpoints else ()
     except Exception:
         checkpoints = ()
-    evidence = HealthEvidence(
-        now=now,
-        latest_run_id=run.run_id,
-        outcome="success",
-        heartbeat_at=heartbeat,
-        source_auth_ok=True,
-        source_query_ok=True,
-        pending_count=pending,
-        source_oldest_unpersisted_at=oldest_pending,
-        open_over_30m_count=open_over_30m,
-        unresolved_escalation_count=escalation_count,
-        checkpoints=checkpoints,
+    snapshot = _snapshot_for_run(ledger.runs[run.run_id], now, checkpoints)
+    return WatchResult(run.run_id, source, snapshot)
+
+
+def run_watch_persisted(
+    fetch: Callable[[], object], ledger: InMemoryLedger, *, now: datetime
+) -> WatchResult:
+    """Production storage wiring; consumers still execute after this returns."""
+    from swarm.providers.ccw_supabase import load_consumer_checkpoints
+
+    return run_watch(fetch, ledger, now=now, load_checkpoints=load_consumer_checkpoints)
+
+
+def re_evaluate_persisted_run(
+    ledger: InMemoryLedger, source_run_id: str, *, now: datetime
+) -> SupportSnapshot:
+    """Reload persisted consumer evidence for the same completed run."""
+    from swarm.providers.ccw_supabase import load_consumer_checkpoints
+
+    return re_evaluate_run(
+        ledger, source_run_id, now=now, load_checkpoints=load_consumer_checkpoints
     )
-    return WatchResult(run.run_id, source, derive_state(evidence))

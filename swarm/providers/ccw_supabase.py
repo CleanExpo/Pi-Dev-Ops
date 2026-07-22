@@ -9,7 +9,13 @@ import urllib.request
 from datetime import datetime, timezone
 from typing import Callable
 
-from ..ccw_support_contract import SupportSnapshot, SupportState
+from ..ccw_support_contract import (
+    ERROR_CODES,
+    REQUIRED_CONSUMERS,
+    ConsumerCheckpoint,
+    SupportSnapshot,
+    SupportState,
+)
 
 STATE_VIEW = "ccw_support_state"
 AGGREGATE_COLUMNS = (
@@ -24,6 +30,16 @@ AGGREGATE_COLUMNS = (
     "consumer_checkpoint_at",
 )
 FetchFn = Callable[[str, tuple[str, ...]], list[dict]]
+CheckpointFetchFn = Callable[[str, tuple[str, ...]], list[dict]]
+CHECKPOINT_COLUMNS = (
+    "consumer_id",
+    "source_run_id",
+    "checked_at",
+    "completed_at",
+    "outcome",
+    "derived_state",
+    "error_code",
+)
 
 
 def _timestamp(value: object) -> datetime | None:
@@ -51,6 +67,7 @@ def _request(
     *,
     query: dict | None = None,
     payload: dict | None = None,
+    prefer: str = "return=minimal",
 ) -> list[dict]:
     url, key = _credentials()
     endpoint = f"{url}/rest/v1/{resource}"
@@ -69,7 +86,7 @@ def _request(
             "apikey": key,
             "Authorization": f"Bearer {key}",
             "Content-Type": "application/json",
-            "Prefer": "return=minimal",
+            "Prefer": prefer,
         },
     )
     with urllib.request.urlopen(request, timeout=8) as response:  # noqa: S310
@@ -127,6 +144,64 @@ def ccw_supabase_provider() -> list[SupportSnapshot]:
     return [fetch_ccw_state()]
 
 
+def _default_checkpoint_fetch(
+    source_run_id: str, columns: tuple[str, ...]
+) -> list[dict]:
+    return _request(
+        "GET",
+        "ccw_support_consumer_checkpoints",
+        query={
+            "select": ",".join(columns),
+            "source_run_id": f"eq.{source_run_id}",
+        },
+    )
+
+
+def load_consumer_checkpoints(
+    source_run_id: str,
+    *,
+    fetch: CheckpointFetchFn = _default_checkpoint_fetch,
+) -> tuple[ConsumerCheckpoint, ...]:
+    """Load one run's bounded consumer evidence in deterministic order."""
+    if not isinstance(source_run_id, str) or not source_run_id:
+        raise ValueError("checkpoint source run is invalid")
+    rows = fetch(source_run_id, CHECKPOINT_COLUMNS)
+    if not isinstance(rows, list):
+        raise ValueError("checkpoint response is invalid")
+    parsed: dict[str, ConsumerCheckpoint] = {}
+    try:
+        for row in rows:
+            if not isinstance(row, dict) or set(row) != set(CHECKPOINT_COLUMNS):
+                raise ValueError("checkpoint row fields are invalid")
+            consumer_id = row["consumer_id"]
+            if consumer_id not in REQUIRED_CONSUMERS or consumer_id in parsed:
+                raise ValueError("checkpoint consumer is invalid or duplicated")
+            if row["source_run_id"] != source_run_id:
+                raise ValueError("checkpoint source run mismatch")
+            if row["outcome"] not in {"success", "error"}:
+                raise ValueError("checkpoint outcome is invalid")
+            if row["derived_state"] not in {state.value for state in SupportState}:
+                raise ValueError("checkpoint derived state is invalid")
+            error_code = row["error_code"]
+            if error_code is not None and error_code not in ERROR_CODES:
+                raise ValueError("checkpoint error code is invalid")
+            checked_at = _timestamp(row["checked_at"])
+            completed_at = _timestamp(row["completed_at"])
+            if checked_at is None or completed_at is None or completed_at < checked_at:
+                raise ValueError("checkpoint chronology is invalid")
+            parsed[consumer_id] = ConsumerCheckpoint(
+                consumer_id=consumer_id,
+                source_run_id=source_run_id,
+                checked_at=checked_at,
+                completed_at=completed_at,
+                outcome=row["outcome"],
+                error_code=error_code,
+            )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("checkpoint contract contains invalid values") from exc
+    return tuple(parsed[name] for name in REQUIRED_CONSUMERS if name in parsed)
+
+
 def record_consumer_checkpoint(payload: dict) -> None:
     allowed = {
         "consumer_id",
@@ -139,7 +214,29 @@ def record_consumer_checkpoint(payload: dict) -> None:
     }
     if set(payload) != allowed:
         raise ValueError("consumer checkpoint violates bounded contract")
-    _request("POST", "ccw_support_consumer_checkpoints", payload=payload)
+    source_run_id = payload.get("source_run_id")
+    consumer_id = payload.get("consumer_id")
+    if not isinstance(source_run_id, str) or not source_run_id:
+        raise ValueError("consumer checkpoint source run is invalid")
+    if consumer_id not in REQUIRED_CONSUMERS:
+        raise ValueError("consumer checkpoint id is invalid")
+    _request(
+        "POST",
+        "ccw_support_consumer_checkpoints",
+        query={"on_conflict": "consumer_id"},
+        payload=payload,
+        prefer="resolution=merge-duplicates,return=minimal",
+    )
+
+
+def record_alert_intent_checkpoint(
+    payload: dict,
+    *,
+    write_checkpoint: Callable[[dict], None] = record_consumer_checkpoint,
+) -> None:
+    if payload.get("consumer_id") != "alert_intent":
+        raise ValueError("alert_intent checkpoint writer received another consumer")
+    write_checkpoint(payload)
 
 
 def create_alert_intent(payload: dict) -> None:
@@ -153,4 +250,10 @@ def create_alert_intent(payload: dict) -> None:
     }
     if set(payload) != allowed:
         raise ValueError("alert intent violates bounded contract")
-    _request("POST", "ccw_support_alert_intents", payload=payload)
+    _request(
+        "POST",
+        "ccw_support_alert_intents",
+        query={"on_conflict": "dedup_key"},
+        payload=payload,
+        prefer="resolution=merge-duplicates,return=minimal",
+    )

@@ -31,6 +31,8 @@ class HealthRun:
     pending_count: int = 0
     response_matched_count: int = 0
     open_over_30m_count: int = 0
+    unresolved_escalation_count: int = 0
+    source_oldest_unpersisted_at: datetime | None = None
     cursor_hash: str | None = None
     error_code: str | None = None
 
