@@ -9,6 +9,7 @@ PROHIBITED_FIELDS = frozenset({
     "address", "from", "from_email", "to", "to_email", "subject", "snippet",
     "body", "token", "secret", "raw_error", "error_detail", "payload",
     "raw_metadata", "provider_response",
+    "tenant_id", "customer_org",
 })
 ALLOWED_ITEM_FIELDS = frozenset({"provider_id", "received_at", "priority", "outbound_at"})
 

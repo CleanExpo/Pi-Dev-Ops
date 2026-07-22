@@ -12,7 +12,7 @@ from swarm.ccw_support_contract import SupportSnapshot, SupportState
 NOW = datetime(2026, 7, 22, 1, 0, tzinfo=timezone.utc)
 
 
-def _snapshot(state=SupportState.INGEST_STALE, reason="missing_heartbeat"):
+def _snapshot(state=SupportState.INGEST_STALE, reason="MISSING_HEARTBEAT"):
     return SupportSnapshot(state, reason, "run-1", NOW, True, 0, 0, 0, NOW)
 
 
@@ -29,13 +29,13 @@ def test_nonhealthy_ccw_section_is_mandatory_and_cannot_be_suppressed():
     text = _client().render_ccw_client_health(_snapshot())
     assert "CCW CLIENT HEALTH" in text
     assert "INGEST_STALE" in text
-    assert "missing_heartbeat" in text
+    assert "MISSING_HEARTBEAT" in text
     assert "all clear" not in text.lower()
 
 
 def test_quiet_requires_ids_and_renders_certified_not_synthetic():
     text = _client().render_ccw_client_health(
-        _snapshot(SupportState.QUIET_HEALTHY, "fresh_zero_backlog")
+        _snapshot(SupportState.QUIET_HEALTHY, "FRESH_SUCCESS")
     )
     assert "QUIET_HEALTHY" in text
     assert "run-1" in text
@@ -49,7 +49,7 @@ def test_six_pager_always_renders_missing_ccw_health_as_stale(tmp_path):
 
     assert "CCW CLIENT HEALTH" in text
     assert "INGEST_STALE" in text
-    assert "missing_health" in text
+    assert "MISSING_HEARTBEAT" in text
 
 
 def test_cs_consumer_records_checkpoint_and_intent_without_external_send():
@@ -57,7 +57,7 @@ def test_cs_consumer_records_checkpoint_and_intent_without_external_send():
 
     checkpoints, intents = [], []
     result = cs.process_ccw_support_state(
-        _snapshot(SupportState.ESCALATION, "unresolved_escalation"),
+        _snapshot(SupportState.ESCALATION, "UNRESOLVED_ESCALATION"),
         checked_at=NOW,
         record_checkpoint=checkpoints.append,
         create_intent=intents.append,
@@ -76,7 +76,7 @@ def test_quiet_cs_consumer_records_noop_alert_intent_checkpoint_without_creating
 
     checkpoints, intents = [], []
     result = cs.process_ccw_support_state(
-        _snapshot(SupportState.QUIET_HEALTHY, "fresh_zero_backlog"),
+        _snapshot(SupportState.QUIET_HEALTHY, "FRESH_SUCCESS"),
         checked_at=NOW,
         record_checkpoint=checkpoints.append,
         create_intent=intents.append,
@@ -97,7 +97,7 @@ def test_cs_escalation_intent_dedup_is_stable_across_source_runs():
     for run_id in ("run-1", "run-2"):
         snapshot = SupportSnapshot(
             SupportState.ESCALATION,
-            "unresolved_escalation",
+            "UNRESOLVED_ESCALATION",
             run_id,
             NOW,
             True,
@@ -152,7 +152,7 @@ def test_six_pager_checkpoint_is_recorded_only_after_all_drafts_succeed(
     assert checkpoints == []
 
 
-def test_six_pager_success_records_checkpoint_after_draft(monkeypatch, tmp_path):
+def test_daily_six_pager_does_not_own_checkpoint_certification(monkeypatch, tmp_path):
     import swarm
     from swarm import six_pager_dispatcher as dispatcher
 
@@ -174,17 +174,7 @@ def test_six_pager_success_records_checkpoint_after_draft(monkeypatch, tmp_path)
         record_checkpoint=checkpoints.append,
     )
     assert fired is True
-    assert checkpoints == [
-        {
-            "consumer_id": "six_pager",
-            "source_run_id": "run-1",
-            "checked_at": NOW,
-            "completed_at": NOW,
-            "outcome": "success",
-            "derived_state": "INGEST_STALE",
-            "error_code": None,
-        }
-    ]
+    assert checkpoints == []
 
 
 def test_real_consumer_writers_close_same_run_without_replaying_alerts(
@@ -200,19 +190,25 @@ def test_real_consumer_writers_close_same_run_without_replaying_alerts(
     checkpoint_rows, intents = {}, {}
 
     def fake_request(method, resource, *, query=None, payload=None, prefer=None):
-        assert method == "POST"
-        assert prefer == "resolution=merge-duplicates,return=minimal"
         assert payload is not None
         row = {
             key: value.isoformat() if isinstance(value, datetime) else value
             for key, value in payload.items()
         }
         if resource == "ccw_support_consumer_checkpoints":
-            assert query == {"on_conflict": "consumer_id"}
-            checkpoint_rows[row["consumer_id"]] = row
+            assert method == "POST"
+            assert prefer == "resolution=ignore-duplicates,return=minimal"
+            assert query == {"on_conflict": "tenant_id,source_run_id,consumer_id"}
+            identity = (row["tenant_id"], row["source_run_id"], row["consumer_id"])
+            checkpoint_rows.setdefault(identity, row)
         elif resource == "ccw_support_alert_intents":
-            assert query == {"on_conflict": "dedup_key"}
-            intents[row["dedup_key"]] = row
+            if method == "POST":
+                assert prefer == "resolution=ignore-duplicates,return=minimal"
+                assert query == {"on_conflict": "tenant_id,dedup_key"}
+                intents.setdefault((row["tenant_id"], row["dedup_key"]), row)
+            else:
+                assert method == "PATCH"
+                assert prefer == "return=minimal"
         else:
             raise AssertionError(resource)
         return []
@@ -232,20 +228,9 @@ def test_real_consumer_writers_close_same_run_without_replaying_alerts(
         record_alert_checkpoint=ccw_supabase.record_alert_intent_checkpoint,
     )
 
-    monkeypatch.setenv("TAO_SIX_PAGER_HOUR_UTC", "1")
-    fake_redactor = types.SimpleNamespace(redact=lambda text: text)
-    fake_draft_review = types.SimpleNamespace(
-        post_draft=lambda **_kwargs: {"draft_id": "draft-ok"},
-    )
-    monkeypatch.setitem(sys.modules, "swarm.pii_redactor", fake_redactor)
-    monkeypatch.setattr(swarm, "pii_redactor", fake_redactor, raising=False)
-    monkeypatch.setitem(sys.modules, "swarm.draft_review", fake_draft_review)
-    monkeypatch.setattr(swarm, "draft_review", fake_draft_review, raising=False)
-    assert dispatcher.maybe_fire_daily(
-        {},
-        repo_root=tmp_path,
-        now=NOW,
-        ccw_snapshot=first.snapshot,
+    dispatcher.materialise_ccw_checkpoint(
+        first.snapshot,
+        checked_at=NOW,
         record_checkpoint=ccw_supabase.record_consumer_checkpoint,
     )
 
@@ -253,20 +238,20 @@ def test_real_consumer_writers_close_same_run_without_replaying_alerts(
         ledger,
         first.run_id,
         now=NOW,
-        load_checkpoints=lambda run_id: ccw_supabase.load_consumer_checkpoints(
+        load_checkpoints=lambda tenant_id, run_id: ccw_supabase.load_consumer_checkpoints(
             run_id,
+            tenant_id=tenant_id,
             fetch=lambda source_run_id, _columns: [
                 row
                 for row in checkpoint_rows.values()
                 if row["source_run_id"] == source_run_id
+                and row["tenant_id"] == tenant_id
             ],
         ),
     )
     assert result.state is SupportState.QUIET_HEALTHY
-    assert set(checkpoint_rows) == {
-        "cs_metrics",
-        "six_pager",
-        "alert_intent",
+    assert {identity[2] for identity in checkpoint_rows} == {
+        "cs_metrics", "six_pager", "alert_intent",
     }
     assert len(ledger.runs) == 1
     assert len(intents) == 1

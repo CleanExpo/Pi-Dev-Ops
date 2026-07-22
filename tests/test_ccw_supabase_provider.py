@@ -22,6 +22,7 @@ ALLOWED_COLUMNS = (
 ALLOWED = set(ALLOWED_COLUMNS)
 NOW = datetime(2026, 7, 22, 1, 0, tzinfo=timezone.utc)
 CHECKPOINT_COLUMNS = (
+    "tenant_id",
     "consumer_id",
     "source_run_id",
     "checked_at",
@@ -45,7 +46,7 @@ def test_provider_selects_exact_aggregate_columns_and_maps_state():
     calls = []
     row = {
         "state": "BACKLOG",
-        "reason_code": "first_response_over_30m",
+        "reason_code": "FIRST_RESPONSE_OVER_30M",
         "latest_run_id": "run-1",
         "heartbeat_at": "2026-07-22T01:00:00+00:00",
         "source_query_ok": True,
@@ -111,7 +112,7 @@ def test_ccw_provider_failure_never_collapses_to_empty_data(monkeypatch):
 def test_provider_rejects_semantically_invalid_aggregate_values(field, value):
     row = {
         "state": "BACKLOG",
-        "reason_code": "first_response_over_30m",
+        "reason_code": "FIRST_RESPONSE_OVER_30M",
         "latest_run_id": "run-1",
         "heartbeat_at": "2026-07-22T01:00:00+00:00",
         "source_query_ok": True,
@@ -128,6 +129,7 @@ def test_provider_rejects_semantically_invalid_aggregate_values(field, value):
 
 def _checkpoint_row(consumer_id, *, run_id="run-1", completed_at=NOW):
     return {
+        "tenant_id": "ccw",
         "consumer_id": consumer_id,
         "source_run_id": run_id,
         "checked_at": completed_at.isoformat(),
@@ -207,6 +209,7 @@ def test_checkpoint_loader_preserves_stale_evidence_for_fail_closed_derivation()
 def test_alert_intent_checkpoint_writer_is_explicit_and_run_bound():
     calls = []
     payload = {
+        "tenant_id": "ccw",
         "consumer_id": "alert_intent",
         "source_run_id": "run-1",
         "checked_at": NOW,
@@ -253,6 +256,7 @@ def test_checkpoint_writer_serializes_datetimes_and_uses_schema_primary_key(
     monkeypatch.setattr(provider.urllib.request, "urlopen", urlopen)
     provider.record_consumer_checkpoint(
         {
+            "tenant_id": "ccw",
             "consumer_id": "cs_metrics",
             "source_run_id": "run-1",
             "checked_at": NOW,
@@ -264,9 +268,10 @@ def test_checkpoint_writer_serializes_datetimes_and_uses_schema_primary_key(
     )
 
     request = captured["request"]
-    assert "on_conflict=consumer_id" in request.full_url
-    assert request.headers["Prefer"] == "resolution=merge-duplicates,return=minimal"
+    assert "on_conflict=tenant_id%2Csource_run_id%2Cconsumer_id" in request.full_url
+    assert request.headers["Prefer"] == "resolution=ignore-duplicates,return=minimal"
     assert json.loads(request.data) == {
+        "tenant_id": "ccw",
         "consumer_id": "cs_metrics",
         "source_run_id": "run-1",
         "checked_at": NOW.isoformat(),

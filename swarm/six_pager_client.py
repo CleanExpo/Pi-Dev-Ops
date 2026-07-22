@@ -4,12 +4,19 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Callable
 
-from .ccw_support_contract import SupportSnapshot, SupportState
+from .ccw_support_contract import (
+    SupportSnapshot,
+    SupportState,
+    validate_state_reason,
+    validate_tenant_id,
+)
 
 RowsLoader = Callable[[str], list[dict]]
 
 
 def render_ccw_client_health(snapshot: SupportSnapshot) -> str:
+    validate_tenant_id(snapshot.tenant_id)
+    reason_code = validate_state_reason(snapshot.state, snapshot.reason_code)
     identity = snapshot.latest_run_id or "missing-run"
     if snapshot.state is SupportState.QUIET_HEALTHY:
         status = "certified quiet from fresh source and consumer evidence"
@@ -17,7 +24,7 @@ def render_ccw_client_health(snapshot: SupportSnapshot) -> str:
         status = "FAIL-CLOSED — action required; healthy suppression prohibited"
     return (
         "🚨 CCW CLIENT HEALTH — " + snapshot.state.value + "\n"
-        f"Reason: {snapshot.reason_code} · source run: {identity}\n"
+        f"Reason: {reason_code} · source run: {identity}\n"
         f"{status} · pending {snapshot.pending_count} · "
         f"over-30m {snapshot.open_over_30m_count} · "
         f"escalations {snapshot.unresolved_escalation_count}"

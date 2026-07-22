@@ -15,10 +15,10 @@ def _module(name: str):
         raise AssertionError(f"RED watcher {name} behaviour is missing") from exc
 
 
-def _observed_checkpoints(run_id):
+def _observed_checkpoints(tenant_id, run_id):
     contract = importlib.import_module("swarm.ccw_support_contract")
     return tuple(
-        contract.ConsumerCheckpoint(name, run_id, NOW, NOW)
+        contract.ConsumerCheckpoint(name, run_id, NOW, NOW, tenant_id=tenant_id)
         for name in ("cs_metrics", "six_pager", "alert_intent")
     )
 
@@ -137,7 +137,7 @@ def test_watch_cannot_self_certify_consumer_health():
     )
 
     assert result.snapshot.state.value == "INGEST_STALE"
-    assert result.snapshot.reason_code == "missing_consumer:cs_metrics"
+    assert result.snapshot.reason_code == "STALE_CONSUMER"
     assert result.snapshot.consumer_checkpoint_at is None
 
 
@@ -149,13 +149,13 @@ def test_consumer_checkpoint_read_failure_fails_stale_without_escaping():
         lambda: {"authenticated": True, "ok": True, "items": []},
         ledger,
         now=NOW,
-        load_checkpoints=lambda _run_id: (_ for _ in ()).throw(
+        load_checkpoints=lambda _tenant_id, _run_id: (_ for _ in ()).throw(
             RuntimeError("private checkpoint detail")
         ),
     )
 
     assert result.snapshot.state.value == "INGEST_STALE"
-    assert result.snapshot.reason_code == "missing_consumer:cs_metrics"
+    assert result.snapshot.reason_code == "STALE_CONSUMER"
     assert "private checkpoint detail" not in repr(result)
 
 
@@ -194,7 +194,7 @@ def test_unanswered_item_one_microsecond_over_thirty_minutes_is_backlog():
     )
 
     assert result.snapshot.state.value == "BACKLOG"
-    assert result.snapshot.reason_code == "first_response_over_30m"
+    assert result.snapshot.reason_code == "FIRST_RESPONSE_OVER_30M"
     assert result.snapshot.open_over_30m_count == 1
 
 
@@ -210,7 +210,9 @@ def test_completed_run_is_re_evaluated_after_real_consumers_persist_evidence(
     monkeypatch.setattr(
         ccw_supabase,
         "load_consumer_checkpoints",
-        lambda run_id: load_rows(run_id, fetch=lambda _run, _columns: rows),
+        lambda run_id, *, tenant_id="ccw": load_rows(
+            run_id, tenant_id=tenant_id, fetch=lambda _run, _columns: rows
+        ),
     )
     first = runner.run_watch_persisted(
         lambda: {"authenticated": True, "ok": True, "items": []},
@@ -221,6 +223,7 @@ def test_completed_run_is_re_evaluated_after_real_consumers_persist_evidence(
     for consumer_id in ("cs_metrics", "six_pager", "alert_intent"):
         rows.append(
             {
+                "tenant_id": "ccw",
                 "consumer_id": consumer_id,
                 "source_run_id": first.run_id,
                 "checked_at": NOW.isoformat(),
@@ -247,41 +250,47 @@ def test_re_evaluation_fails_closed_for_missing_malformed_stale_and_cross_run_ev
     )
 
     missing = runner.re_evaluate_run(
-        ledger, first.run_id, now=NOW, load_checkpoints=lambda _run: ()
+        ledger, first.run_id, now=NOW,
+        load_checkpoints=lambda _tenant, _run: ()
     )
-    assert missing.reason_code == "missing_consumer:cs_metrics"
+    assert missing.reason_code == "STALE_CONSUMER"
 
     stale = runner.re_evaluate_run(
         ledger,
         first.run_id,
         now=NOW,
-        load_checkpoints=lambda run_id: tuple(
+        load_checkpoints=lambda tenant_id, run_id: tuple(
             importlib.import_module("swarm.ccw_support_contract").ConsumerCheckpoint(
                 name,
                 run_id,
                 NOW - timedelta(hours=26, microseconds=1),
                 NOW - timedelta(hours=26, microseconds=1),
+                tenant_id=tenant_id,
             )
             for name in ("cs_metrics", "six_pager", "alert_intent")
         ),
     )
-    assert stale.reason_code == "stale_consumer:cs_metrics"
+    assert stale.reason_code == "STALE_CONSUMER"
 
     cross_run = runner.re_evaluate_run(
         ledger,
         first.run_id,
         now=NOW,
-        load_checkpoints=lambda _run: _observed_checkpoints("another-run"),
+        load_checkpoints=lambda tenant_id, _run: _observed_checkpoints(
+            tenant_id, "another-run"
+        ),
     )
-    assert cross_run.reason_code == "checkpoint_run_mismatch:cs_metrics"
+    assert cross_run.reason_code == "STALE_CONSUMER"
 
     malformed = runner.re_evaluate_run(
         ledger,
         first.run_id,
         now=NOW,
-        load_checkpoints=lambda _run: (_ for _ in ()).throw(ValueError("private row")),
+        load_checkpoints=lambda _tenant, _run: (_ for _ in ()).throw(
+            ValueError("private row")
+        ),
     )
-    assert malformed.reason_code == "missing_consumer:cs_metrics"
+    assert malformed.reason_code == "STALE_CONSUMER"
     assert "private row" not in repr(malformed)
 
 
@@ -290,11 +299,13 @@ def test_re_evaluation_rejects_unknown_or_incomplete_runs_without_allocating_new
     runner = _module("runner")
     with __import__("pytest").raises(ValueError, match="completed run"):
         runner.re_evaluate_run(
-            ledger, "missing", now=NOW, load_checkpoints=lambda _run: ()
+            ledger, "missing", now=NOW,
+            load_checkpoints=lambda _tenant, _run: ()
         )
     active = ledger.start_run(NOW)
     with __import__("pytest").raises(ValueError, match="completed run"):
         runner.re_evaluate_run(
-            ledger, active.run_id, now=NOW, load_checkpoints=lambda _run: ()
+            ledger, active.run_id, now=NOW,
+            load_checkpoints=lambda _tenant, _run: ()
         )
     assert len(ledger.runs) == 1

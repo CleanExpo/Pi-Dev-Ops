@@ -47,7 +47,10 @@ def test_red_07_missing_provider_id_is_rejected_before_persistence():
 
 
 def test_red_12_prohibited_source_fields_are_rejected_not_snapshotted():
-    for field in ("address", "subject", "snippet", "body", "token", "raw_error", "payload"):
+    for field in (
+        "address", "subject", "snippet", "body", "token", "raw_error", "payload",
+        "tenant_id", "customer_org",
+    ):
         result = _source().parse_source_response({
             "authenticated": True, "ok": True,
             "items": [{

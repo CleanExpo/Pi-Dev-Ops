@@ -55,6 +55,54 @@ logging.basicConfig(
 log = logging.getLogger("swarm.orchestrator")
 
 
+def _materialise_ccw_cycle(
+    snapshot,
+    *,
+    checked_at: datetime,
+    process_support_state=None,
+    materialise_six_pager=None,
+    fetch_state=None,
+    record_checkpoint=None,
+    create_intent=None,
+    record_alert_checkpoint=None,
+):
+    """Persist all CCW consumers and return the re-read same-run aggregate."""
+    from .bots.cs import process_ccw_support_state as default_process
+    from .providers import ccw_supabase
+    from .six_pager_dispatcher import (
+        materialise_ccw_checkpoint as default_materialise,
+    )
+
+    process = process_support_state or default_process
+    materialise = materialise_six_pager or default_materialise
+    fetch = fetch_state or ccw_supabase.fetch_ccw_state
+    checkpoint_writer = record_checkpoint or ccw_supabase.record_consumer_checkpoint
+    intent_writer = create_intent or ccw_supabase.create_alert_intent
+    alert_checkpoint_writer = (
+        record_alert_checkpoint or ccw_supabase.record_alert_intent_checkpoint
+    )
+
+    process(
+        snapshot,
+        checked_at=checked_at,
+        record_checkpoint=checkpoint_writer,
+        create_intent=intent_writer,
+        record_alert_checkpoint=alert_checkpoint_writer,
+    )
+    materialise(
+        snapshot,
+        checked_at=checked_at,
+        record_checkpoint=checkpoint_writer,
+    )
+    refreshed = fetch()
+    if (
+        refreshed.tenant_id != snapshot.tenant_id
+        or refreshed.latest_run_id != snapshot.latest_run_id
+    ):
+        raise ValueError("CCW materialisation crossed tenant or source run")
+    return refreshed
+
+
 def _check_kill_switch() -> bool:
     """Re-read TAO_SWARM_ENABLED + .harness/swarm/kill_switch.flag every cycle.
 
@@ -541,9 +589,24 @@ def run() -> None:
         # recent Board directives. Cron-fired at user-local 06:00 UTC
         # (configurable). Routes through pii_redactor + draft_review HITL
         # gate. Voice variant attached when ELEVENLABS_API_KEY is in env.
+        ccw_snapshot = None
+        try:
+            from .providers.ccw_supabase import fetch_ccw_state  # noqa: PLC0415
+            ccw_snapshot = fetch_ccw_state()
+            if ccw_snapshot.latest_run_id:
+                ccw_snapshot = _materialise_ccw_cycle(
+                    ccw_snapshot,
+                    checked_at=datetime.now(timezone.utc),
+                )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("CCW cycle failed closed (continuing): %s", exc)
         try:
             from . import six_pager_dispatcher  # noqa: PLC0415
-            six_pager_dispatcher.maybe_fire_daily(state)
+
+            six_pager_dispatcher.maybe_fire_daily(
+                state,
+                ccw_snapshot=ccw_snapshot,
+            )
         except Exception as exc:  # noqa: BLE001
             log.warning("6-pager fire failed (continuing): %s", exc)
 

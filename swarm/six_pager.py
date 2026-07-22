@@ -236,7 +236,7 @@ def assemble_six_pager(
 
     effective_ccw = ccw_snapshot or SupportSnapshot(
         SupportState.INGEST_STALE,
-        "missing_health",
+        "MISSING_HEARTBEAT",
         None,
         None,
         None,

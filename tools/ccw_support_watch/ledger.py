@@ -7,7 +7,7 @@ import uuid
 from dataclasses import dataclass, replace
 from datetime import datetime
 
-from swarm.ccw_support_contract import ERROR_CODES
+from swarm.ccw_support_contract import ERROR_CODES, TENANT_ID, validate_tenant_id
 from .source import SourceItem
 
 
@@ -35,6 +35,7 @@ class HealthRun:
     source_oldest_unpersisted_at: datetime | None = None
     cursor_hash: str | None = None
     error_code: str | None = None
+    tenant_id: str = TENANT_ID
 
 
 @dataclass(frozen=True)
@@ -43,6 +44,7 @@ class Ticket:
     received_at: datetime
     priority: str
     first_response_at: datetime | None = None
+    tenant_id: str = TENANT_ID
 
 
 @dataclass(frozen=True)
@@ -54,6 +56,7 @@ class AlertIntent:
     opened_at: datetime
     last_seen_at: datetime
     status: str = "pending"
+    tenant_id: str = TENANT_ID
 
 
 class InMemoryLedger:
@@ -63,7 +66,7 @@ class InMemoryLedger:
         self.accept_persistence = accept_persistence
         self.runs: dict[str, HealthRun] = {}
         self.tickets: dict[str, Ticket] = {}
-        self.intents: dict[str, AlertIntent] = {}
+        self.intents: dict[tuple[str, str], AlertIntent] = {}
 
     @property
     def ticket_count(self) -> int:
@@ -77,8 +80,10 @@ class InMemoryLedger:
     def sent_count(self) -> int:
         return sum(item.status == "sent" for item in self.intents.values())
 
-    def start_run(self, now: datetime) -> HealthRun:
-        run = HealthRun(str(uuid.uuid4()), now, now)
+    def start_run(self, now: datetime, *, tenant_id: str = TENANT_ID) -> HealthRun:
+        run = HealthRun(
+            str(uuid.uuid4()), now, now, tenant_id=validate_tenant_id(tenant_id)
+        )
         self.runs[run.run_id] = run
         return run
 
@@ -108,18 +113,25 @@ class InMemoryLedger:
         state: str,
         source_run_id: str,
         now: datetime,
+        *,
+        tenant_id: str = TENANT_ID,
     ) -> AlertIntent:
         if len(dedup_key) != 64 or any(
             ch not in "0123456789abcdef" for ch in dedup_key
         ):
             raise ValueError("dedup key must be 64 lowercase hexadecimal characters")
-        existing = self.intents.get(dedup_key)
+        tenant_id = validate_tenant_id(tenant_id)
+        identity = (tenant_id, dedup_key)
+        existing = self.intents.get(identity)
         if existing:
-            updated = replace(existing, last_seen_at=now, source_run_id=source_run_id)
-            self.intents[dedup_key] = updated
+            if existing.status not in {"pending", "drafted"} or now <= existing.last_seen_at:
+                return existing
+            updated = replace(existing, last_seen_at=now)
+            self.intents[identity] = updated
             return updated
         intent = AlertIntent(
-            str(uuid.uuid4()), dedup_key, state, source_run_id, now, now
+            str(uuid.uuid4()), dedup_key, state, source_run_id, now, now,
+            tenant_id=tenant_id,
         )
-        self.intents[dedup_key] = intent
+        self.intents[identity] = intent
         return intent

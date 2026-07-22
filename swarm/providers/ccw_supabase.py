@@ -10,11 +10,14 @@ from datetime import datetime, timezone
 from typing import Callable
 
 from ..ccw_support_contract import (
-    ERROR_CODES,
+    CHECKPOINT_ERROR_CODES,
     REQUIRED_CONSUMERS,
+    TENANT_ID,
     ConsumerCheckpoint,
     SupportSnapshot,
     SupportState,
+    validate_state_reason,
+    validate_tenant_id,
 )
 
 STATE_VIEW = "ccw_support_state"
@@ -32,6 +35,7 @@ AGGREGATE_COLUMNS = (
 FetchFn = Callable[[str, tuple[str, ...]], list[dict]]
 CheckpointFetchFn = Callable[[str, tuple[str, ...]], list[dict]]
 CHECKPOINT_COLUMNS = (
+    "tenant_id",
     "consumer_id",
     "source_run_id",
     "checked_at",
@@ -51,6 +55,12 @@ def _timestamp(value: object) -> datetime | None:
     if parsed.tzinfo is None:
         raise ValueError("aggregate contract timestamp lacks timezone")
     return parsed.astimezone(timezone.utc)
+
+
+def _payload_timestamp(value: object, field: str) -> datetime:
+    if not isinstance(value, datetime) or value.utcoffset() is None:
+        raise ValueError(f"{field} timestamp is invalid")
+    return value
 
 
 def _credentials() -> tuple[str, str]:
@@ -100,7 +110,15 @@ def _request(
 
 
 def _default_fetch(view: str, columns: tuple[str, ...]) -> list[dict]:
-    return _request("GET", view, query={"select": ",".join(columns), "limit": "1"})
+    return _request(
+        "GET",
+        view,
+        query={
+            "select": ",".join(columns),
+            "tenant_id": f"eq.{TENANT_ID}",
+            "limit": "2",
+        },
+    )
 
 
 def _nonnegative_int(value: object) -> int:
@@ -116,7 +134,7 @@ def fetch_ccw_state(fetch: FetchFn = _default_fetch) -> SupportSnapshot:
     row = rows[0]
     try:
         state = SupportState(row["state"])
-        reason_code = row["reason_code"]
+        reason_code = validate_state_reason(state, row["reason_code"])
         query_ok = row["source_query_ok"]
         if not isinstance(reason_code, str) or not reason_code:
             raise ValueError("aggregate reason is invalid")
@@ -134,6 +152,7 @@ def fetch_ccw_state(fetch: FetchFn = _default_fetch) -> SupportSnapshot:
                 row["unresolved_escalation_count"]
             ),
             consumer_checkpoint_at=_timestamp(row["consumer_checkpoint_at"]),
+            tenant_id=TENANT_ID,
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise ValueError("CCW aggregate contract contains invalid values") from exc
@@ -152,7 +171,10 @@ def _default_checkpoint_fetch(
         "ccw_support_consumer_checkpoints",
         query={
             "select": ",".join(columns),
+            "tenant_id": f"eq.{TENANT_ID}",
             "source_run_id": f"eq.{source_run_id}",
+            "order": "consumer_id.asc",
+            "limit": "4",
         },
     )
 
@@ -160,13 +182,15 @@ def _default_checkpoint_fetch(
 def load_consumer_checkpoints(
     source_run_id: str,
     *,
+    tenant_id: str = TENANT_ID,
     fetch: CheckpointFetchFn = _default_checkpoint_fetch,
 ) -> tuple[ConsumerCheckpoint, ...]:
     """Load one run's bounded consumer evidence in deterministic order."""
+    validate_tenant_id(tenant_id)
     if not isinstance(source_run_id, str) or not source_run_id:
         raise ValueError("checkpoint source run is invalid")
     rows = fetch(source_run_id, CHECKPOINT_COLUMNS)
-    if not isinstance(rows, list):
+    if not isinstance(rows, list) or len(rows) > len(REQUIRED_CONSUMERS):
         raise ValueError("checkpoint response is invalid")
     parsed: dict[str, ConsumerCheckpoint] = {}
     try:
@@ -176,15 +200,17 @@ def load_consumer_checkpoints(
             consumer_id = row["consumer_id"]
             if consumer_id not in REQUIRED_CONSUMERS or consumer_id in parsed:
                 raise ValueError("checkpoint consumer is invalid or duplicated")
-            if row["source_run_id"] != source_run_id:
+            if row["tenant_id"] != TENANT_ID or row["source_run_id"] != source_run_id:
                 raise ValueError("checkpoint source run mismatch")
             if row["outcome"] not in {"success", "error"}:
                 raise ValueError("checkpoint outcome is invalid")
             if row["derived_state"] not in {state.value for state in SupportState}:
                 raise ValueError("checkpoint derived state is invalid")
             error_code = row["error_code"]
-            if error_code is not None and error_code not in ERROR_CODES:
+            if error_code is not None and error_code not in CHECKPOINT_ERROR_CODES:
                 raise ValueError("checkpoint error code is invalid")
+            if (row["outcome"] == "success") != (error_code is None):
+                raise ValueError("checkpoint outcome/error pairing is invalid")
             checked_at = _timestamp(row["checked_at"])
             completed_at = _timestamp(row["completed_at"])
             if checked_at is None or completed_at is None or completed_at < checked_at:
@@ -196,6 +222,7 @@ def load_consumer_checkpoints(
                 completed_at=completed_at,
                 outcome=row["outcome"],
                 error_code=error_code,
+                tenant_id=TENANT_ID,
             )
     except (KeyError, TypeError, ValueError) as exc:
         raise ValueError("checkpoint contract contains invalid values") from exc
@@ -204,6 +231,7 @@ def load_consumer_checkpoints(
 
 def record_consumer_checkpoint(payload: dict) -> None:
     allowed = {
+        "tenant_id",
         "consumer_id",
         "source_run_id",
         "checked_at",
@@ -216,16 +244,35 @@ def record_consumer_checkpoint(payload: dict) -> None:
         raise ValueError("consumer checkpoint violates bounded contract")
     source_run_id = payload.get("source_run_id")
     consumer_id = payload.get("consumer_id")
+    validate_tenant_id(payload.get("tenant_id"))
     if not isinstance(source_run_id, str) or not source_run_id:
         raise ValueError("consumer checkpoint source run is invalid")
     if consumer_id not in REQUIRED_CONSUMERS:
         raise ValueError("consumer checkpoint id is invalid")
+    checked_at = _payload_timestamp(payload.get("checked_at"), "checkpoint checked_at")
+    completed_at = _payload_timestamp(
+        payload.get("completed_at"), "checkpoint completed_at"
+    )
+    if completed_at < checked_at:
+        raise ValueError("consumer checkpoint chronology is invalid")
+    outcome = payload.get("outcome")
+    error_code = payload.get("error_code")
+    if outcome not in {"success", "error"}:
+        raise ValueError("consumer checkpoint outcome is invalid")
+    if error_code is not None and error_code not in CHECKPOINT_ERROR_CODES:
+        raise ValueError("consumer checkpoint error code is invalid")
+    if (outcome == "success") != (error_code is None):
+        raise ValueError("consumer checkpoint outcome/error pairing is invalid")
+    try:
+        SupportState(payload.get("derived_state"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("consumer checkpoint state is invalid") from exc
     _request(
         "POST",
         "ccw_support_consumer_checkpoints",
-        query={"on_conflict": "consumer_id"},
+        query={"on_conflict": "tenant_id,source_run_id,consumer_id"},
         payload=payload,
-        prefer="resolution=merge-duplicates,return=minimal",
+        prefer="resolution=ignore-duplicates,return=minimal",
     )
 
 
@@ -241,6 +288,7 @@ def record_alert_intent_checkpoint(
 
 def create_alert_intent(payload: dict) -> None:
     allowed = {
+        "tenant_id",
         "dedup_key",
         "state",
         "source_run_id",
@@ -250,10 +298,45 @@ def create_alert_intent(payload: dict) -> None:
     }
     if set(payload) != allowed:
         raise ValueError("alert intent violates bounded contract")
+    validate_tenant_id(payload.get("tenant_id"))
+    dedup_key = payload.get("dedup_key")
+    if (
+        not isinstance(dedup_key, str)
+        or len(dedup_key) != 64
+        or any(char not in "0123456789abcdef" for char in dedup_key)
+    ):
+        raise ValueError("alert intent dedup key is invalid")
+    source_run_id = payload.get("source_run_id")
+    if not isinstance(source_run_id, str) or not source_run_id:
+        raise ValueError("alert intent source run is invalid")
+    try:
+        SupportState(payload.get("state"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("alert intent state is invalid") from exc
+    opened_at = _payload_timestamp(payload.get("opened_at"), "alert opened_at")
+    last_seen_at = _payload_timestamp(payload.get("last_seen_at"), "alert last_seen_at")
+    if last_seen_at < opened_at:
+        raise ValueError("alert intent chronology is invalid")
+    if payload.get("status") != "pending":
+        raise ValueError("alert intent initial status is invalid")
     _request(
         "POST",
         "ccw_support_alert_intents",
-        query={"on_conflict": "dedup_key"},
+        query={"on_conflict": "tenant_id,dedup_key"},
         payload=payload,
-        prefer="resolution=merge-duplicates,return=minimal",
+        prefer="resolution=ignore-duplicates,return=minimal",
+    )
+    encoded_seen_at = last_seen_at.isoformat()
+    _request(
+        "PATCH",
+        "ccw_support_alert_intents",
+        query={
+            "tenant_id": f"eq.{TENANT_ID}",
+            "dedup_key": f"eq.{dedup_key}",
+            "status": "in.(pending,drafted)",
+            "last_seen_at": f"lt.{encoded_seen_at}",
+            "opened_at": f"lte.{encoded_seen_at}",
+        },
+        payload={"last_seen_at": last_seen_at},
+        prefer="return=minimal",
     )
