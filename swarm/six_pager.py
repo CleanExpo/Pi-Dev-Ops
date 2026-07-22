@@ -21,6 +21,7 @@ Composes (does not call the SDK or any external API by itself):
 
 Pure-ish: no network. Reads files only. Returns a string.
 """
+
 from __future__ import annotations
 
 import json
@@ -33,9 +34,11 @@ from . import cfo as _cfo
 from . import cmo as _cmo
 from . import cs as _cs
 from . import cto as _cto
-from .ccw_support_contract import SupportSnapshot
+from .ccw_support_contract import SupportSnapshot, SupportState
 from .six_pager_chunking import (
-    TELEGRAM_CHUNK_BUDGET, TELEGRAM_MESSAGE_LIMIT, chunk_for_telegram,
+    TELEGRAM_CHUNK_BUDGET,
+    TELEGRAM_MESSAGE_LIMIT,
+    chunk_for_telegram,
 )
 
 log = logging.getLogger("swarm.six_pager")
@@ -53,9 +56,7 @@ def _now_utc_date() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
-def _load_last_per_business(jsonl_rel: str,
-                             *,
-                             repo_root: Path) -> list[dict[str, Any]]:
+def _load_last_per_business(jsonl_rel: str, *, repo_root: Path) -> list[dict[str, Any]]:
     """Read the per-business last row of a snapshot jsonl ledger."""
     p = repo_root / jsonl_rel
     if not p.exists():
@@ -175,47 +176,48 @@ def _margot_section(repo_root: Path) -> str:
     summary = insight.get("summary") or insight.get("body") or "(no summary)"
     ts = insight.get("ts") or "n/a"
     topic = insight.get("topic") or "(no topic)"
-    return (
-        f"🧠 Margot insight — {topic}\n"
-        f"({ts})\n"
-        f"\n{summary[:1200]}"
-        + ("…" if len(summary) > 1200 else "")
+    return f"🧠 Margot insight — {topic}\n({ts})\n\n{summary[:1200]}" + (
+        "…" if len(summary) > 1200 else ""
     )
 
 
 def _board_section(repo_root: Path) -> str:
     from .six_pager_board import render_board_section
+
     return render_board_section(repo_root)
 
 
 def _ra_1842_section(repo_root: Path) -> str:
     status = _load_ra_1842_status(repo_root)
     if not status:
-        return "📱 RA-1842 (iOS release) — no status file; check Linear ticket directly."
+        return (
+            "📱 RA-1842 (iOS release) — no status file; check Linear ticket directly."
+        )
     state = status.get("state") or "unknown"
     note = status.get("note") or ""
     last_update = status.get("last_update") or "n/a"
-    return (
-        f"📱 RA-1842 (iOS release) — {state}\n"
-        f"Last update: {last_update}\n"
-        f"{note}"
-    )
+    return f"📱 RA-1842 (iOS release) — {state}\nLast update: {last_update}\n{note}"
 
 
 def _first_client_section(repo_root: Path) -> str | None:
     from .six_pager_client import render_first_client_section
+
     return render_first_client_section(
-        repo_root, lambda path: _load_last_per_business(path, repo_root=repo_root),
+        repo_root,
+        lambda path: _load_last_per_business(path, repo_root=repo_root),
     )
 
 
 # ── Public API ──────────────────────────────────────────────────────────────
 
 
-def assemble_six_pager(*, repo_root: Path | None = None,
-                        date_str: str | None = None,
-                        bra_reports: list | None = None,
-                        ccw_snapshot: SupportSnapshot | None = None) -> str:
+def assemble_six_pager(
+    *,
+    repo_root: Path | None = None,
+    date_str: str | None = None,
+    bra_reports: list | None = None,
+    ccw_snapshot: SupportSnapshot | None = None,
+) -> str:
     """Compose the daily 6-pager.
 
     Reads from the existing senior-agent jsonl ledgers; does not invoke
@@ -232,44 +234,60 @@ def assemble_six_pager(*, repo_root: Path | None = None,
 
     sections: list[str] = [f"📋 Pi-CEO daily 6-pager — {date_str}", ""]
 
-    if ccw_snapshot is not None:
-        from .six_pager_client import render_ccw_client_health
-        sections.extend([render_ccw_client_health(ccw_snapshot), ""])
+    effective_ccw = ccw_snapshot or SupportSnapshot(
+        SupportState.INGEST_STALE,
+        "missing_health",
+        None,
+        None,
+        None,
+        0,
+        0,
+        0,
+        None,
+    )
+    from .six_pager_client import render_ccw_client_health
+
+    sections.extend([render_ccw_client_health(effective_ccw), ""])
 
     first_client = _first_client_section(rr)
     if first_client:
         sections.extend([first_client, ""])
 
-    sections.extend([
-        "1. " + _cfo_section(rr),
-        "",
-        "2. " + _cmo_section(rr),
-        "",
-        "3. " + _cto_section(rr),
-        "",
-        "4. " + _cs_section(rr),
-        "",
-        "5. " + _margot_section(rr),
-        "",
-        "6. " + _ra_1842_section(rr),
-        "",
-        "7. " + _board_section(rr),
-        "",
-    ])
+    sections.extend(
+        [
+            "1. " + _cfo_section(rr),
+            "",
+            "2. " + _cmo_section(rr),
+            "",
+            "3. " + _cto_section(rr),
+            "",
+            "4. " + _cs_section(rr),
+            "",
+            "5. " + _margot_section(rr),
+            "",
+            "6. " + _ra_1842_section(rr),
+            "",
+            "7. " + _board_section(rr),
+            "",
+        ]
+    )
 
     if bra_reports:
         try:
             from swarm.nexus.six_pager_bra import render_bra_block  # noqa: PLC0415
+
             block = render_bra_block(bra_reports)
             if block:
                 sections.extend([block, ""])
         except Exception:  # pragma: no cover — defensive
             pass
 
-    sections.extend([
-        "—",
-        "React 👍 to ack · ❌ to flag · ⏳ to defer per section.",
-    ])
+    sections.extend(
+        [
+            "—",
+            "React 👍 to ack · ❌ to flag · ⏳ to defer per section.",
+        ]
+    )
     return "\n".join(sections)
 
 

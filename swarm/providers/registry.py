@@ -4,6 +4,7 @@
 callable. Default ``synthetic`` keeps tests stable and the orchestrator's
 first cycle non-empty even without real credentials.
 """
+
 from __future__ import annotations
 
 import logging
@@ -27,11 +28,13 @@ def select_provider() -> ProviderFn:
     name = (os.environ.get("TAO_CFO_PROVIDER") or "synthetic").strip().lower()
     if name == "stripe_xero":
         from .stripe_xero import stripe_xero_provider
+
         log.debug("provider: stripe_xero selected")
         return stripe_xero_provider
     if name not in ("synthetic", ""):
         log.warning("provider: unknown TAO_CFO_PROVIDER=%r — using synthetic", name)
     from .synthetic import synthetic_provider
+
     log.debug("provider: synthetic selected")
     return synthetic_provider
 
@@ -50,19 +53,25 @@ def select_cs_provider():
     name = (os.environ.get("TAO_CS_PROVIDER") or "synthetic").strip().lower()
     if name == "zendesk":
         from .zendesk import zendesk_provider
+
         log.debug("provider: zendesk selected")
         return zendesk_provider
     if name == "intercom":
         from .zendesk import intercom_provider
+
         log.debug("provider: intercom selected")
         return intercom_provider
     if name == "ccw_supabase":
         from .ccw_supabase import ccw_supabase_provider
+
         log.debug("provider: ccw_supabase selected")
         return ccw_supabase_provider
-    if name not in ("synthetic", ""):
+    if name.startswith("ccw_"):
         raise ValueError(f"unknown TAO_CS_PROVIDER: {name}")
+    if name not in ("synthetic", ""):
+        log.warning("provider: unknown TAO_CS_PROVIDER=%r — using synthetic_cs", name)
     from .synthetic_cs import synthetic_cs_provider
+
     return synthetic_cs_provider
 
 
@@ -80,6 +89,7 @@ def select_platform_provider():
     name = (os.environ.get("TAO_CTO_PROVIDER") or "synthetic").strip().lower()
     if name == "github_actions":
         from .github_actions import github_actions_provider
+
         log.debug("provider: github_actions selected")
         return github_actions_provider
     if name not in ("synthetic", ""):
@@ -88,6 +98,7 @@ def select_platform_provider():
             name,
         )
     from .synthetic_platform import synthetic_platform_provider
+
     log.debug("provider: synthetic_platform selected")
     return synthetic_platform_provider
 
@@ -108,6 +119,7 @@ def select_marketing_provider():
     name = (os.environ.get("TAO_CMO_PROVIDER") or "synthetic").strip().lower()
     if name in ("google_ads", "ad_platforms"):
         from .google_ads import google_ads_provider
+
         log.debug("provider: google_ads selected")
         return google_ads_provider
     if name not in ("synthetic", ""):
@@ -116,12 +128,15 @@ def select_marketing_provider():
             name,
         )
     from .synthetic_marketing import synthetic_marketing_provider
+
     log.debug("provider: synthetic_marketing selected")
     return synthetic_marketing_provider
 
 
 __all__ = [
-    "select_provider", "select_marketing_provider",
-    "select_platform_provider", "select_cs_provider",
+    "select_provider",
+    "select_marketing_provider",
+    "select_platform_provider",
+    "select_cs_provider",
     "ProviderFn",
 ]

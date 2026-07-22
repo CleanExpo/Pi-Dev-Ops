@@ -1,4 +1,5 @@
 """RED controls for fail-closed CS, six-pager and checkpoint consumers."""
+
 from __future__ import annotations
 
 import importlib
@@ -19,7 +20,9 @@ def _client():
     try:
         return importlib.import_module("swarm.six_pager_client")
     except ModuleNotFoundError as exc:
-        raise AssertionError("RED-10 fail-closed six-pager client section is missing") from exc
+        raise AssertionError(
+            "RED-10 fail-closed six-pager client section is missing"
+        ) from exc
 
 
 def test_nonhealthy_ccw_section_is_mandatory_and_cannot_be_suppressed():
@@ -31,10 +34,22 @@ def test_nonhealthy_ccw_section_is_mandatory_and_cannot_be_suppressed():
 
 
 def test_quiet_requires_ids_and_renders_certified_not_synthetic():
-    text = _client().render_ccw_client_health(_snapshot(SupportState.QUIET_HEALTHY, "fresh_zero_backlog"))
+    text = _client().render_ccw_client_health(
+        _snapshot(SupportState.QUIET_HEALTHY, "fresh_zero_backlog")
+    )
     assert "QUIET_HEALTHY" in text
     assert "run-1" in text
     assert "certified" in text.lower()
+
+
+def test_six_pager_always_renders_missing_ccw_health_as_stale(tmp_path):
+    from swarm.six_pager import assemble_six_pager
+
+    text = assemble_six_pager(repo_root=tmp_path, date_str="2026-07-22")
+
+    assert "CCW CLIENT HEALTH" in text
+    assert "INGEST_STALE" in text
+    assert "missing_health" in text
 
 
 def test_cs_consumer_records_checkpoint_and_intent_without_external_send():
@@ -43,7 +58,8 @@ def test_cs_consumer_records_checkpoint_and_intent_without_external_send():
     checkpoints, intents = [], []
     result = cs.process_ccw_support_state(
         _snapshot(SupportState.ESCALATION, "unresolved_escalation"),
-        checked_at=NOW, record_checkpoint=checkpoints.append,
+        checked_at=NOW,
+        record_checkpoint=checkpoints.append,
         create_intent=intents.append,
     )
     assert result["status"] == "non_healthy"
@@ -58,23 +74,36 @@ def test_cs_escalation_intent_dedup_is_stable_across_source_runs():
     intents = []
     for run_id in ("run-1", "run-2"):
         snapshot = SupportSnapshot(
-            SupportState.ESCALATION, "unresolved_escalation", run_id,
-            NOW, True, 0, 0, 1, NOW,
+            SupportState.ESCALATION,
+            "unresolved_escalation",
+            run_id,
+            NOW,
+            True,
+            0,
+            0,
+            1,
+            NOW,
         )
         cs.process_ccw_support_state(
-            snapshot, checked_at=NOW, record_checkpoint=lambda _row: None,
+            snapshot,
+            checked_at=NOW,
+            record_checkpoint=lambda _row: None,
             create_intent=intents.append,
         )
     assert intents[0]["dedup_key"] == intents[1]["dedup_key"]
 
 
-def test_six_pager_checkpoint_is_recorded_only_after_all_drafts_succeed(monkeypatch, tmp_path):
+def test_six_pager_checkpoint_is_recorded_only_after_all_drafts_succeed(
+    monkeypatch, tmp_path
+):
+    import swarm
     from swarm import six_pager_dispatcher as dispatcher
 
     monkeypatch.setenv("TAO_SIX_PAGER_HOUR_UTC", "1")
     monkeypatch.setenv("TAO_DRAFT_REVIEW_TEST", "1")
     fake_redactor = types.SimpleNamespace(redact=lambda text: text)
     monkeypatch.setitem(sys.modules, "swarm.pii_redactor", fake_redactor)
+    monkeypatch.setattr(swarm, "pii_redactor", fake_redactor, raising=False)
     checkpoints = []
     calls = {"count": 0}
 
@@ -84,32 +113,53 @@ def test_six_pager_checkpoint_is_recorded_only_after_all_drafts_succeed(monkeypa
             raise RuntimeError("partial draft")
         return {"draft_id": "draft-1"}
 
-    monkeypatch.setitem(sys.modules, "swarm.draft_review", types.SimpleNamespace(post_draft=fail_second))
-    monkeypatch.setattr("swarm.six_pager.chunk_for_telegram", lambda _text: ["one", "two"])
+    fake_draft_review = types.SimpleNamespace(post_draft=fail_second)
+    monkeypatch.setitem(sys.modules, "swarm.draft_review", fake_draft_review)
+    monkeypatch.setattr(swarm, "draft_review", fake_draft_review, raising=False)
+    monkeypatch.setattr(
+        "swarm.six_pager.chunk_for_telegram", lambda _text: ["one", "two"]
+    )
     fired = dispatcher.maybe_fire_daily(
-        {}, repo_root=tmp_path, now=NOW,
-        ccw_snapshot=_snapshot(), record_checkpoint=checkpoints.append,
+        {},
+        repo_root=tmp_path,
+        now=NOW,
+        ccw_snapshot=_snapshot(),
+        record_checkpoint=checkpoints.append,
     )
     assert fired is False
     assert checkpoints == []
 
 
 def test_six_pager_success_records_checkpoint_after_draft(monkeypatch, tmp_path):
+    import swarm
     from swarm import six_pager_dispatcher as dispatcher
 
     monkeypatch.setenv("TAO_SIX_PAGER_HOUR_UTC", "1")
-    monkeypatch.setitem(sys.modules, "swarm.pii_redactor", types.SimpleNamespace(redact=lambda text: text))
-    monkeypatch.setitem(sys.modules, "swarm.draft_review", types.SimpleNamespace(
+    fake_redactor = types.SimpleNamespace(redact=lambda text: text)
+    fake_draft_review = types.SimpleNamespace(
         post_draft=lambda **_kwargs: {"draft_id": "draft-ok"},
-    ))
+    )
+    monkeypatch.setitem(sys.modules, "swarm.pii_redactor", fake_redactor)
+    monkeypatch.setattr(swarm, "pii_redactor", fake_redactor, raising=False)
+    monkeypatch.setitem(sys.modules, "swarm.draft_review", fake_draft_review)
+    monkeypatch.setattr(swarm, "draft_review", fake_draft_review, raising=False)
     checkpoints = []
     fired = dispatcher.maybe_fire_daily(
-        {}, repo_root=tmp_path, now=NOW,
-        ccw_snapshot=_snapshot(), record_checkpoint=checkpoints.append,
+        {},
+        repo_root=tmp_path,
+        now=NOW,
+        ccw_snapshot=_snapshot(),
+        record_checkpoint=checkpoints.append,
     )
     assert fired is True
-    assert checkpoints == [{
-        "consumer_id": "six_pager", "source_run_id": "run-1",
-        "checked_at": NOW, "completed_at": NOW, "outcome": "success",
-        "derived_state": "INGEST_STALE", "error_code": None,
-    }]
+    assert checkpoints == [
+        {
+            "consumer_id": "six_pager",
+            "source_run_id": "run-1",
+            "checked_at": NOW,
+            "completed_at": NOW,
+            "outcome": "success",
+            "derived_state": "INGEST_STALE",
+            "error_code": None,
+        }
+    ]

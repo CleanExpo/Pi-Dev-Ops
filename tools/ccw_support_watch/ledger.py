@@ -1,4 +1,5 @@
 """Bounded in-memory ledger seam used by deterministic watcher fixtures."""
+
 from __future__ import annotations
 
 import hashlib
@@ -29,6 +30,7 @@ class HealthRun:
     persisted_count: int = 0
     pending_count: int = 0
     response_matched_count: int = 0
+    open_over_30m_count: int = 0
     cursor_hash: str | None = None
     error_code: str | None = None
 
@@ -99,15 +101,23 @@ class InMemoryLedger:
         return True
 
     def create_alert_intent(
-        self, dedup_key: str, state: str, source_run_id: str, now: datetime,
+        self,
+        dedup_key: str,
+        state: str,
+        source_run_id: str,
+        now: datetime,
     ) -> AlertIntent:
-        if len(dedup_key) != 64 or any(ch not in "0123456789abcdef" for ch in dedup_key):
+        if len(dedup_key) != 64 or any(
+            ch not in "0123456789abcdef" for ch in dedup_key
+        ):
             raise ValueError("dedup key must be 64 lowercase hexadecimal characters")
         existing = self.intents.get(dedup_key)
         if existing:
             updated = replace(existing, last_seen_at=now, source_run_id=source_run_id)
             self.intents[dedup_key] = updated
             return updated
-        intent = AlertIntent(str(uuid.uuid4()), dedup_key, state, source_run_id, now, now)
+        intent = AlertIntent(
+            str(uuid.uuid4()), dedup_key, state, source_run_id, now, now
+        )
         self.intents[dedup_key] = intent
         return intent

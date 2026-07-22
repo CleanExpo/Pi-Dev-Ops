@@ -1,4 +1,5 @@
 """Pure CCW support-ingest health contract shared by fixture-only consumers."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -24,11 +25,17 @@ CONSUMER_STALE_AFTER = timedelta(hours=26)
 ESCALATION_INTENT_AFTER = timedelta(minutes=5)
 FUTURE_HEARTBEAT_TOLERANCE = timedelta(minutes=5)
 
-ERROR_CODES = frozenset({
-    "AUTH_FAILED", "QUERY_FAILED", "MALFORMED_RESPONSE",
-    "MISSING_SOURCE_ID", "PERSIST_FAILED", "RECONCILE_FAILED",
-    "INTERNAL_ERROR",
-})
+ERROR_CODES = frozenset(
+    {
+        "AUTH_FAILED",
+        "QUERY_FAILED",
+        "MALFORMED_RESPONSE",
+        "MISSING_SOURCE_ID",
+        "PERSIST_FAILED",
+        "RECONCILE_FAILED",
+        "INTERNAL_ERROR",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -82,6 +89,8 @@ def _stale_consumer(evidence: HealthEvidence) -> str | None:
         checkpoint = by_id.get(consumer_id)
         if checkpoint is None:
             return f"missing_consumer:{consumer_id}"
+        if checkpoint.source_run_id != evidence.latest_run_id:
+            return f"checkpoint_run_mismatch:{consumer_id}"
         if checkpoint.outcome != "success":
             return f"consumer_error:{consumer_id}"
         if _utc(evidence.now) - _utc(checkpoint.completed_at) > CONSUMER_STALE_AFTER:
@@ -93,14 +102,19 @@ def derive_state(evidence: HealthEvidence) -> SupportSnapshot:
     """Derive fail-closed state using the frozen precedence and boundaries."""
     now = _utc(evidence.now)
     checkpoint_at = max(
-        (item.completed_at for item in evidence.checkpoints), default=None,
+        (item.completed_at for item in evidence.checkpoints),
+        default=None,
     )
     state = SupportState.QUIET_HEALTHY
     reason = "fresh_zero_backlog"
     if evidence.unresolved_escalation_count > 0:
         state, reason = SupportState.ESCALATION, "unresolved_escalation"
-    elif (evidence.outcome == "error" or evidence.source_auth_ok is False
-          or evidence.source_query_ok is False or evidence.error_code):
+    elif (
+        evidence.outcome == "error"
+        or evidence.source_auth_ok is False
+        or evidence.source_query_ok is False
+        or evidence.error_code
+    ):
         state = SupportState.INGEST_ERROR
         reason = evidence.error_code or "source_failed"
     elif evidence.latest_run_id is None or evidence.heartbeat_at is None:
@@ -124,7 +138,8 @@ def derive_state(evidence: HealthEvidence) -> SupportSnapshot:
         if state is SupportState.QUIET_HEALTHY and evidence.open_over_30m_count:
             state, reason = SupportState.BACKLOG, "first_response_over_30m"
     return SupportSnapshot(
-        state=state, reason_code=reason,
+        state=state,
+        reason_code=reason,
         latest_run_id=evidence.latest_run_id,
         heartbeat_at=evidence.heartbeat_at,
         source_query_ok=evidence.source_query_ok,
