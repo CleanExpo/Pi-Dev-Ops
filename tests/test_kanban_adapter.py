@@ -45,6 +45,8 @@ def test_run_passes_minimal_env_without_parent_task_identity(monkeypatch):
     monkeypatch.setenv("HERMES_KANBAN_BOARD", "isolated-board")
     monkeypatch.setenv("HERMES_KANBAN_TASK", "live-parent-task")
     monkeypatch.setenv("HERMES_KANBAN_RUN_ID", "1234")
+    monkeypatch.setenv("PYTHONPATH", "must-not-reach-child")
+    monkeypatch.setenv("VIRTUAL_ENV", "/must/not/reach/child")
     monkeypatch.setenv("STRIPE_API_KEY", "must-not-reach-child")
     captured: dict = {}
 
@@ -63,6 +65,8 @@ def test_run_passes_minimal_env_without_parent_task_identity(monkeypatch):
     assert child_env["HERMES_KANBAN_BOARD"] == "isolated-board"
     assert "HERMES_KANBAN_TASK" not in child_env
     assert "HERMES_KANBAN_RUN_ID" not in child_env
+    assert "PYTHONPATH" not in child_env
+    assert "VIRTUAL_ENV" not in child_env
     assert "STRIPE_API_KEY" not in child_env
     assert child_env["PATH"] == os.environ["PATH"]
 
