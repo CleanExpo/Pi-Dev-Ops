@@ -125,9 +125,20 @@ class PipelineAssertions:
     pr_url: str | None = None
     last_status: str | None = None
     errors: list[str] = field(default_factory=list)
+    diagnostics: list[str] = field(default_factory=list)
 
     def fail(self, msg: str) -> None:
         self.errors.append(msg)
+
+    def observe_event(self, event: dict, elapsed_s: float) -> str | None:
+        """Retain human-readable phase/error evidence from the session stream."""
+        etype = event.get("type", "")
+        text = str(event.get("text", "")).strip()
+        if etype not in {"phase", "error"} or not text:
+            return None
+        line = f"  [t+{elapsed_s:.0f}s] {etype}: {text}"
+        self.diagnostics.append(line)
+        return line
 
     def summary(self) -> str:
         lines = [
@@ -138,6 +149,8 @@ class PipelineAssertions:
             f"A5 files_modified > 0:        {'✓' if self.files_modified > 0 else '✗'} ({self.files_modified})",
             f"A6 PR URL emitted:            {'✓' if self.pr_url else '✗'} {self.pr_url or ''}",
         ]
+        if self.diagnostics:
+            lines.extend(["", "Session diagnostics:", *self.diagnostics[-20:]])
         return "\n".join(lines)
 
     def _a3_ok(self) -> bool:
@@ -200,19 +213,20 @@ def run_pipeline_smoke() -> int:
     stream_path = f"/api/sessions/{sid}/logs"
     print(f"[stream] {stream_path}")
 
-    gen_started_t: float | None = None
     try:
         for event in s.stream(stream_path, timeout_s=MAX_WAIT_S):
             now = time.time() - start
             etype = event.get("type", "")
             text = event.get("text", "")
+            diagnostic = pa.observe_event(event, now)
+            if diagnostic:
+                print(diagnostic)
 
             # Track phase transitions
             if etype == "phase":
                 if "[4/5]" in text or "Running Claude Code" in text:
                     pa.entered_generate = True
                     pa.entered_generate_at = now
-                    gen_started_t = now
                     print(f"  [t+{now:.0f}s] ENTERED generate phase")
                 elif "[5/5]" in text:
                     print(f"  [t+{now:.0f}s] {text}")
