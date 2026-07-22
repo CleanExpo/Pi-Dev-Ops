@@ -15,9 +15,12 @@ def _module(name: str):
 
 
 def test_red_05_source_to_ledger_one_microsecond_over_five_minutes_is_backlog():
-    ledger = _module("ledger").InMemoryLedger()
+    ledger = _module("ledger").InMemoryLedger(accept_persistence=False)
     runner = _module("runner")
-    item = {"provider_id": "m-1", "received_at": NOW - timedelta(minutes=5, microseconds=1)}
+    item = {
+        "provider_id": "m-1",
+        "received_at": (NOW - timedelta(minutes=5, microseconds=1)).isoformat(),
+    }
     result = runner.run_watch(lambda: {"authenticated": True, "ok": True, "items": [item]}, ledger, now=NOW)
     assert result.snapshot.state.value == "BACKLOG"
     assert result.snapshot.pending_count == 1
@@ -65,7 +68,10 @@ def test_red_09_escalation_creates_intent_only_within_five_minutes():
 def test_red_13_future_or_retrograde_timestamps_never_certify_quiet():
     runner = _module("runner")
     ledger = _module("ledger").InMemoryLedger()
-    future = {"provider_id": "future", "received_at": NOW + timedelta(minutes=6)}
+    future = {
+        "provider_id": "future",
+        "received_at": (NOW + timedelta(minutes=6)).isoformat(),
+    }
     result = runner.run_watch(
         lambda: {"authenticated": True, "ok": True, "items": [future]}, ledger, now=NOW,
     )
