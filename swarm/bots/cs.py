@@ -1,10 +1,7 @@
-"""swarm/bots/cs.py — RA-1862 (Wave 4 A4): CS-tier1 senior-agent bot.
-
-Same shape as cfo / cmo / cto. Refund > $100 routes through draft_review;
-NPS / FCR / GRR breaches surface in daily brief + alerts.
-"""
+"""CS-tier1 bot: metrics, fail-closed CCW health, alerts and refund gates."""
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 from datetime import datetime, timezone
@@ -12,6 +9,12 @@ from pathlib import Path
 from typing import Callable
 
 from .. import cs as _cs
+from ..ccw_support_contract import (
+    SupportSnapshot,
+    SupportState,
+    validate_state_reason,
+    validate_tenant_id,
+)
 
 log = logging.getLogger("swarm.bots.cs")
 
@@ -37,6 +40,8 @@ def _default_cs_provider() -> list[_cs.RawCsMetrics]:
     try:
         return select_cs_provider()()
     except Exception as exc:  # noqa: BLE001
+        if (os.environ.get("TAO_CS_PROVIDER") or "").strip().lower() == "ccw_supabase":
+            raise RuntimeError("CCW provider unavailable") from None
         log.warning("cs: provider call failed (%s) — empty list", exc)
         return []
 
@@ -47,6 +52,45 @@ _provider: CsProvider = _default_cs_provider
 def set_cs_provider(provider: CsProvider) -> None:
     global _provider
     _provider = provider
+
+
+def process_ccw_support_state(
+    snapshot: SupportSnapshot, *, checked_at: datetime,
+    record_checkpoint: Callable[[dict], None],
+    create_intent: Callable[[dict], None],
+    record_alert_checkpoint: Callable[[dict], None] | None = None,
+) -> dict:
+    """Consume aggregate CCW truth without converting it to synthetic metrics."""
+    tenant_id = validate_tenant_id(snapshot.tenant_id)
+    reason_code = validate_state_reason(snapshot.state, snapshot.reason_code)
+    if not snapshot.latest_run_id:
+        raise ValueError("CCW state lacks source run identity")
+    if snapshot.state is not SupportState.QUIET_HEALTHY:
+        dedup = hashlib.sha256(
+            f"ccw-alert:{tenant_id}:{snapshot.state.value}:{reason_code}".encode()
+        ).hexdigest()
+        create_intent({
+            "tenant_id": tenant_id, "dedup_key": dedup, "state": snapshot.state.value,
+            "source_run_id": snapshot.latest_run_id, "opened_at": checked_at,
+            "last_seen_at": checked_at, "status": "pending",
+        })
+    (record_alert_checkpoint or record_checkpoint)({
+        "tenant_id": tenant_id, "consumer_id": "alert_intent",
+        "source_run_id": snapshot.latest_run_id,
+        "checked_at": checked_at, "completed_at": checked_at, "outcome": "success",
+        "derived_state": snapshot.state.value, "error_code": None,
+    })
+    record_checkpoint({
+        "tenant_id": tenant_id, "consumer_id": "cs_metrics",
+        "source_run_id": snapshot.latest_run_id,
+        "checked_at": checked_at, "completed_at": checked_at,
+        "outcome": "success", "derived_state": snapshot.state.value,
+        "error_code": None,
+    })
+    return {
+        "status": "healthy" if snapshot.state is SupportState.QUIET_HEALTHY
+        else "non_healthy", "ccw_state": snapshot.state.value, "snapshot": snapshot,
+    }
 
 
 def _is_daily_fire_window(state: dict, now: datetime) -> bool:
@@ -114,6 +158,17 @@ def run_cycle(unacked_count: int, *, state: dict | None = None) -> dict:
     raw_list = _provider()
     if not raw_list:
         return {"status": "skipped", "reason": "no_data"}
+    if isinstance(raw_list[0], SupportSnapshot):
+        from ..providers.ccw_supabase import (
+            create_alert_intent, record_alert_intent_checkpoint,
+            record_consumer_checkpoint,
+        )
+        return process_ccw_support_state(
+            raw_list[0], checked_at=datetime.now(timezone.utc),
+            record_checkpoint=record_consumer_checkpoint,
+            create_intent=create_alert_intent,
+            record_alert_checkpoint=record_alert_intent_checkpoint,
+        )
 
     snapshots: list[_cs.CsMetrics] = []
     all_breaches: list[_cs.CsBreach] = []
@@ -227,10 +282,3 @@ def request_refund_approval(
         log.debug("cs: audit_emit (refund) suppressed: %s", exc)
 
     return decision
-
-
-__all__ = [
-    "run_cycle",
-    "request_refund_approval",
-    "set_cs_provider",
-]
