@@ -184,6 +184,27 @@ def test_record_with_unconvertible_ts_returns_false_not_raises():
     assert jsr.read_record("job-a") is None
 
 
+@pytest.mark.parametrize("bad_status", ["[]", "{}"])
+def test_unhashable_status_reads_none_not_raises(isolated_dir, bad_status):
+    # A JSON array/object `status` is unhashable; the set-membership test must
+    # not raise TypeError out of read_record (Codex round-3 P1).
+    isolated_dir.mkdir(parents=True, exist_ok=True)
+    (isolated_dir / "job-a.json").write_text(
+        '{"job_id": "job-a", "status": ' + bad_status + ', "ts": 0}',
+        encoding="utf-8",
+    )
+    assert jsr.read_record("job-a") is None  # no exception
+    assert jsr.job_health("job-a", threshold_h=30.0).state == jsr.MISSING
+
+
+@pytest.mark.parametrize("bad_status", [[], {}, 3, None])
+def test_record_unhashable_status_raises_valueerror_not_typeerror(bad_status):
+    # An invalid non-string status is a programming error -> ValueError,
+    # never a TypeError from set membership.
+    with pytest.raises(ValueError):
+        jsr.record("job-a", bad_status)
+
+
 def test_mismatched_job_id_reads_none(isolated_dir):
     # A record whose job_id names a DIFFERENT job (e.g. file copied under this
     # job's name) must not count as proof for the requested job.

@@ -106,7 +106,10 @@ def record(job_id: str, status: str = STATUS_OK, *, detail: str | None = None,
     """
     if not job_id:
         return False
-    if status not in _VALID_STATUSES:
+    # isinstance(status, str) first: an unhashable status (e.g. a list) must
+    # raise the intentional ValueError (a programming error), not a TypeError
+    # from the set-membership test.
+    if not isinstance(status, str) or status not in _VALID_STATUSES:
         raise ValueError(
             f"job_success_record.record: status must be one of {sorted(_VALID_STATUSES)}, "
             f"got {status!r}"
@@ -162,41 +165,44 @@ def read_record(job_id: str) -> dict | None:
     if not job_id:
         return None
     path = _record_path(job_id)
+    # ONE outer try makes this function provably TOTAL / fail-closed: no
+    # syntactically valid JSON value, nor any unexpected type or I/O error, can
+    # raise out of read_record. A reader that raised would crash the watchdog,
+    # leave its cooldown unset and skip the alert plus every later watchdog that
+    # cycle (Codex review rounds 2-3: over-large int in float(), unhashable
+    # status in the set-membership test). Any surprise is treated as a corrupt
+    # record -> unproven -> the caller fails closed.
     try:
         if not path.exists():
             return None
         data = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            return None
+        # Identity: the record must claim EXACTLY the job we asked about. A
+        # record missing job_id, or carrying a different job_id (e.g. a file
+        # copied or renamed under another job's name), is not proof for it.
+        rec_job_id = data.get("job_id")
+        if not isinstance(rec_job_id, str) or rec_job_id != job_id:
+            return None
+        # status must be a string BEFORE set membership — an unhashable value
+        # such as [] or {} would otherwise raise TypeError.
+        status = data.get("status")
+        if not isinstance(status, str) or status not in _VALID_STATUSES:
+            return None
+        # ts must be a real (non-bool), finite, not-implausibly-future number.
+        ts = data.get("ts")
+        if isinstance(ts, bool) or not isinstance(ts, (int, float)):
+            return None
+        value = float(ts)  # OverflowError on a huge int is caught by the outer try.
+        if not math.isfinite(value):
+            return None
+        # Reject a ts implausibly far in the future — it must not clamp to age 0
+        # and mask silence. A small skew is tolerated for clock drift.
+        if value - time.time() > _FUTURE_SKEW_S:
+            return None
+        return data
     except Exception:
         return None
-    if not isinstance(data, dict):
-        return None
-    # Identity: the record must claim EXACTLY the job we asked about. A record
-    # missing job_id, or carrying a different job_id (e.g. a file copied or
-    # renamed under another job's name), is not proof for this job.
-    rec_job_id = data.get("job_id")
-    if not isinstance(rec_job_id, str) or rec_job_id != job_id:
-        return None
-    status = data.get("status")
-    if status not in _VALID_STATUSES:
-        return None
-    ts = data.get("ts")
-    # Reject bool (a subclass of int) and non-numeric / non-finite timestamps.
-    if isinstance(ts, bool) or not isinstance(ts, (int, float)):
-        return None
-    try:
-        value = float(ts)
-    except (OverflowError, ValueError):
-        # e.g. a JSON integer too large for float (10**400) — float() raises
-        # OverflowError. Fail closed instead of letting it crash the watchdog
-        # (mirrors cron_watchdogs._validated_trigger_age_h).
-        return None
-    if not math.isfinite(value):
-        return None
-    # Reject a ts implausibly far in the future — it must not clamp to age 0
-    # and mask silence (Codex P1). A small skew is tolerated for clock drift.
-    if value - time.time() > _FUTURE_SKEW_S:
-        return None
-    return data
 
 
 @dataclass(frozen=True)
