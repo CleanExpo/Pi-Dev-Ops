@@ -151,6 +151,20 @@ async def test_missing_record_alerts(
 
 
 @pytest.mark.asyncio
+async def test_far_future_record_does_not_suppress(
+    isolated_success_dir, isolated_meetings_dir, _hush_network, caplog
+):
+    """Codex P1 regression — a bogus far-future `ok` record must NOT clamp to
+    age 0 and suppress the alert. The watchdog must still fire (record rejected
+    as not-credible, so silence stays unproven)."""
+    _write_record(jsr.STATUS_OK, age_hours=-24 * 365)  # one year in the FUTURE
+    with caplog.at_level(logging.WARNING, logger="pi-ceo"):
+        await cw._watchdog_board_meeting_silence(logging.getLogger("pi-ceo"))
+    assert _alerted(caplog), "a far-future record must not mask silence"
+    assert cw._board_meeting_silent_last_raised > 0
+
+
+@pytest.mark.asyncio
 async def test_failed_record_alerts(
     isolated_success_dir, isolated_meetings_dir, _hush_network, caplog
 ):

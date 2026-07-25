@@ -136,3 +136,43 @@ def test_malformed_ts_reads_none(isolated_dir, bad_ts):
     rec = jsr.read_record("job-a")
     assert rec is None
     assert jsr.job_health("job-a", threshold_h=30.0).state == jsr.MISSING
+
+
+# ── Codex P1: a far-future ts must not clamp to age 0 and mask silence ────────
+
+def test_far_future_ts_reads_none_and_is_missing():
+    # A bogus ok record one year in the future must NOT read as healthy.
+    jsr.record_success("job-a", ts=time.time() + 365 * 24 * 3600)
+    assert jsr.read_record("job-a") is None
+    assert jsr.success_age_h("job-a") is None
+    assert jsr.job_health("job-a", threshold_h=30.0).state == jsr.MISSING
+
+
+def test_small_future_skew_tolerated():
+    # Minor clock drift (< skew) is accepted and reads healthy (age ~0).
+    jsr.record_success("job-a", ts=time.time() + 60)
+    v = jsr.job_health("job-a", threshold_h=30.0)
+    assert v.state == jsr.HEALTHY
+
+
+# ── Codex P2: the record must claim exactly the requested job_id ─────────────
+
+def test_missing_job_id_reads_none(isolated_dir):
+    isolated_dir.mkdir(parents=True, exist_ok=True)
+    (isolated_dir / "job-a.json").write_text(
+        json.dumps({"status": "ok", "ts": time.time()}),  # no job_id
+        encoding="utf-8",
+    )
+    assert jsr.read_record("job-a") is None
+
+
+def test_mismatched_job_id_reads_none(isolated_dir):
+    # A record whose job_id names a DIFFERENT job (e.g. file copied under this
+    # job's name) must not count as proof for the requested job.
+    isolated_dir.mkdir(parents=True, exist_ok=True)
+    (isolated_dir / "job-a.json").write_text(
+        json.dumps({"job_id": "some-other-job", "status": "ok", "ts": time.time()}),
+        encoding="utf-8",
+    )
+    assert jsr.read_record("job-a") is None
+    assert jsr.job_health("job-a", threshold_h=30.0).state == jsr.MISSING

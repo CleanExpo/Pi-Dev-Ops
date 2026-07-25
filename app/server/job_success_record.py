@@ -70,6 +70,14 @@ MISSING = "missing"
 FAILED = "failed"
 SKIPPED = "skipped"
 
+# Clock-skew allowance: a record ts up to this many seconds in the future is
+# tolerated (container vs Supabase clock drift). Anything further ahead cannot
+# be a credible success timestamp and is REJECTED — otherwise a bogus far-future
+# `ok` record would clamp to age 0.0 and mask silence until wall time caught up
+# (the residual masking path the RA-7030 `_validated_trigger_age_h` guard closes
+# for the trigger overlay; mirrored here for the job-authored record).
+_FUTURE_SKEW_S = 300.0
+
 
 def _job_success_dir() -> Path:
     """Return the on-disk directory holding job-authored success records.
@@ -160,6 +168,12 @@ def read_record(job_id: str) -> dict | None:
         return None
     if not isinstance(data, dict):
         return None
+    # Identity: the record must claim EXACTLY the job we asked about. A record
+    # missing job_id, or carrying a different job_id (e.g. a file copied or
+    # renamed under another job's name), is not proof for this job.
+    rec_job_id = data.get("job_id")
+    if not isinstance(rec_job_id, str) or rec_job_id != job_id:
+        return None
     status = data.get("status")
     if status not in _VALID_STATUSES:
         return None
@@ -167,7 +181,12 @@ def read_record(job_id: str) -> dict | None:
     # Reject bool (a subclass of int) and non-numeric / non-finite timestamps.
     if isinstance(ts, bool) or not isinstance(ts, (int, float)):
         return None
-    if not math.isfinite(float(ts)):
+    value = float(ts)
+    if not math.isfinite(value):
+        return None
+    # Reject a ts implausibly far in the future — it must not clamp to age 0
+    # and mask silence (Codex P1). A small skew is tolerated for clock drift.
+    if value - time.time() > _FUTURE_SKEW_S:
         return None
     return data
 
