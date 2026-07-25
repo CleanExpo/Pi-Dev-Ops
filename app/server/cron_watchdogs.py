@@ -586,41 +586,45 @@ async def _watchdog_notebooklm_health(log) -> None:
 
 async def _watchdog_board_meeting_silence(log, triggers: list[dict] | None = None) -> None:
     """
-    RA-1472 / RA-7030 — Board-meeting silence watchdog.
+    RA-1472 / RA-7030 / RA-7085 — Board-meeting silence watchdog.
 
     Cycles 28–51 (2026-04-14 → 2026-04-20, ~6 days, 24 missed 6-hour windows)
     went silent without alerting because the pi-dev-ops-board-meeting Cowork
     task lost its workspace mount and the failure was never surfaced.
 
-    This watchdog runs alongside the others on the 30-minute tick. Silence is
-    the MINIMUM of two ages, so either signal proves liveness:
-      - newest .harness/board-meetings/*.md mtime (artefact truth), and
-      - the enabled board_meeting trigger's last_fired_at (in-process truth —
-        RA-7030: on the always-on Railway host the git checkout resets file
-        mtimes on every deploy and Mac-written artefacts never reach the
-        container, so file age alone false-alarms there).
-    If both are older than the threshold (or absent), it raises a Telegram
-    alert + Linear ticket. Cooldown prevents storming during a real outage.
+    RA-7085 fleet-reliability hardening — the health signal is no longer the
+    mtime of the newest ``.harness/board-meetings/*.md`` file. A file's
+    existence/mtime is not proof the job ran and succeeded: a leftover or
+    deploy-restored artefact read as "recent" masked missed runs (the same root
+    cause as RA-6902's 74-day-stale read-as-healthy and RA-1469's 161h silent
+    skip). Liveness is now the MINIMUM of two job-authored / durable signals,
+    so either proves a GENUINE success and neither trusts a file:
+      - the board_meeting job's own last-success record
+        (``job_success_record``, authored ONLY on a successful
+        ``run_full_board_meeting()``); and
+      - the enabled board_meeting trigger's durable ``last_fired_at``
+        (RA-7030 — survives Railway redeploys via Supabase ``cron_state``,
+        so the filesystem reset on deploy cannot cause a false alarm).
+    A missed run authors nothing and advances no timestamp, so silence stays
+    ``inf`` and the alert fires. If both signals are older than the threshold
+    (or absent), it raises a Telegram alert + Linear ticket. Cooldown prevents
+    storming during a real outage.
     """
     global _board_meeting_silent_last_raised
     from . import config
+    from . import job_success_record
+    from .cron_fire_agents import _BOARD_MEETING_JOB_ID
 
     if _board_meeting_silent_last_raised and (
         time.time() - _board_meeting_silent_last_raised
     ) < _BOARD_MEETING_SILENT_COOLDOWN_H * 3600:
         return
 
-    meetings_dir = _board_meetings_dir()
-    silence_h: float | None = None
-    if not meetings_dir.exists():
-        silence_h = float("inf")
-    else:
-        md_files = [p for p in meetings_dir.iterdir() if p.is_file() and p.suffix == ".md"]
-        if not md_files:
-            silence_h = float("inf")
-        else:
-            newest = max(md_files, key=lambda p: p.stat().st_mtime)
-            silence_h = (time.time() - newest.stat().st_mtime) / 3600
+    # RA-7085 — job-authored genuine-success record, never a file's mtime. Only
+    # a fresh `ok` record counts as proof of life; a missing / failed / skipped
+    # / stale record contributes no proof (None) and leaves silence unmasked.
+    success_age_h = job_success_record.success_age_h(_BOARD_MEETING_JOB_ID)
+    silence_h: float | None = success_age_h if success_age_h is not None else float("inf")
 
     # RA-7030 — the trigger's own fire timestamp is equally valid proof of life
     # (validated: malformed or future values are ignored, never trusted).
@@ -634,10 +638,11 @@ async def _watchdog_board_meeting_silence(log, triggers: list[dict] | None = Non
     if silence_h is None or silence_h < _BOARD_MEETING_SILENT_THRESHOLD_H:
         return
 
-    age_desc = "never written" if silence_h == float("inf") else f"{silence_h:.0f}h old"
+    age_desc = "never recorded" if silence_h == float("inf") else f"{silence_h:.0f}h old"
     log.warning(
-        "Board-meeting watchdog: newest .harness/board-meetings/*.md is %s "
-        "(threshold %.0fh) — pi-dev-ops-board-meeting Cowork task may be silent",
+        "Board-meeting watchdog: last GENUINE board-meeting success is %s "
+        "(threshold %.0fh) — pi-dev-ops-board-meeting task may be silent "
+        "(job-authored success record + trigger last_fired_at both stale/absent)",
         age_desc, _BOARD_MEETING_SILENT_THRESHOLD_H,
     )
 
@@ -649,11 +654,13 @@ async def _watchdog_board_meeting_silence(log, triggers: list[dict] | None = Non
             "chat_id": config.TELEGRAM_ALERT_CHAT_ID,
             "text": (
                 "🚨 *Board-meeting automation silent*\n\n"
-                f"Newest `.harness/board-meetings/*.md` is *{age_desc}* "
+                f"Last GENUINE board-meeting success is *{age_desc}* "
                 f"(threshold: {_BOARD_MEETING_SILENT_THRESHOLD_H:.0f}h).\n\n"
-                "Likely cause: pi-dev-ops-board-meeting Cowork task lost its "
-                "workspace mount or was disabled.\n\n"
-                "_RA-1472_"
+                "Signal: job-authored last-success record (never a file's mtime) "
+                "plus the durable trigger `last_fired_at` are both stale/absent.\n"
+                "Likely cause: pi-dev-ops-board-meeting task lost its "
+                "workspace mount, was disabled, or ran but failed.\n\n"
+                "_RA-1472 / RA-7085_"
             ),
             "parse_mode": "Markdown",
             "disable_web_page_preview": True,
@@ -693,8 +700,11 @@ async def _watchdog_board_meeting_silence(log, triggers: list[dict] | None = Non
                         "pi-dev-ops-board-meeting task not running?"
                     ),
                     "description": (
-                        f"`.harness/board-meetings/` newest file is **{age_desc}** "
+                        f"Last GENUINE board-meeting success is **{age_desc}** "
                         f"(threshold: {_BOARD_MEETING_SILENT_THRESHOLD_H:.0f}h).\n\n"
+                        "Health is read from the board_meeting job's own "
+                        "last-success record (RA-7085 — never a file's mtime) and "
+                        "the durable trigger `last_fired_at`; both are stale/absent.\n\n"
                         "**Likely causes** (per RA-1472 RCA):\n"
                         "1. Cowork scheduled task `pi-dev-ops-board-meeting` paused "
                         "or disabled.\n"
