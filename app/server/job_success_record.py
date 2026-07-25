@@ -111,13 +111,15 @@ def record(job_id: str, status: str = STATUS_OK, *, detail: str | None = None,
             f"job_success_record.record: status must be one of {sorted(_VALID_STATUSES)}, "
             f"got {status!r}"
         )
-    payload = {
-        "job_id": job_id,
-        "status": status,
-        "ts": float(ts) if ts is not None else time.time(),
-        "detail": detail,
-    }
     try:
+        # float(ts) is inside the try: a non-numeric or over-large ts must make
+        # record() return False (best-effort contract), never raise into the job.
+        payload = {
+            "job_id": job_id,
+            "status": status,
+            "ts": float(ts) if ts is not None else time.time(),
+            "detail": detail,
+        }
         directory = _job_success_dir()
         directory.mkdir(parents=True, exist_ok=True)
         path = _record_path(job_id)
@@ -181,7 +183,13 @@ def read_record(job_id: str) -> dict | None:
     # Reject bool (a subclass of int) and non-numeric / non-finite timestamps.
     if isinstance(ts, bool) or not isinstance(ts, (int, float)):
         return None
-    value = float(ts)
+    try:
+        value = float(ts)
+    except (OverflowError, ValueError):
+        # e.g. a JSON integer too large for float (10**400) — float() raises
+        # OverflowError. Fail closed instead of letting it crash the watchdog
+        # (mirrors cron_watchdogs._validated_trigger_age_h).
+        return None
     if not math.isfinite(value):
         return None
     # Reject a ts implausibly far in the future — it must not clamp to age 0

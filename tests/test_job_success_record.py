@@ -166,6 +166,24 @@ def test_missing_job_id_reads_none(isolated_dir):
     assert jsr.read_record("job-a") is None
 
 
+def test_huge_int_ts_reads_none_not_raises(isolated_dir):
+    # A JSON integer too large for float() (10**400) must fail closed, not
+    # raise OverflowError up through the watchdog (Codex re-review P1).
+    isolated_dir.mkdir(parents=True, exist_ok=True)
+    (isolated_dir / "job-a.json").write_text(
+        '{"job_id": "job-a", "status": "ok", "ts": ' + "1" + "0" * 400 + "}",
+        encoding="utf-8",
+    )
+    assert jsr.read_record("job-a") is None  # no exception
+    assert jsr.job_health("job-a", threshold_h=30.0).state == jsr.MISSING
+
+
+def test_record_with_unconvertible_ts_returns_false_not_raises():
+    # record()'s best-effort contract: a bad ts returns False, never raises.
+    assert jsr.record("job-a", jsr.STATUS_OK, ts="not-a-number") is False
+    assert jsr.read_record("job-a") is None
+
+
 def test_mismatched_job_id_reads_none(isolated_dir):
     # A record whose job_id names a DIFFERENT job (e.g. file copied under this
     # job's name) must not count as proof for the requested job.

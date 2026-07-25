@@ -165,6 +165,25 @@ async def test_far_future_record_does_not_suppress(
 
 
 @pytest.mark.asyncio
+async def test_huge_int_ts_record_does_not_crash_watchdog(
+    isolated_success_dir, isolated_meetings_dir, _hush_network, caplog
+):
+    """Codex re-review P1 regression — a record with a ts too large for float()
+    (10**400) must not raise out of the watchdog (which would skip the alert AND
+    every later watchdog that cycle). The record is rejected → watchdog alerts."""
+    (isolated_success_dir / f"{_BOARD_MEETING_JOB_ID}.json").write_text(
+        '{"job_id": "' + _BOARD_MEETING_JOB_ID + '", "status": "ok", "ts": '
+        + "1" + "0" * 400 + "}",
+        encoding="utf-8",
+    )
+    with caplog.at_level(logging.WARNING, logger="pi-ceo"):
+        # Must not raise.
+        await cw._watchdog_board_meeting_silence(logging.getLogger("pi-ceo"))
+    assert _alerted(caplog), "an uninterpretable ts must not mask silence"
+    assert cw._board_meeting_silent_last_raised > 0
+
+
+@pytest.mark.asyncio
 async def test_failed_record_alerts(
     isolated_success_dir, isolated_meetings_dir, _hush_network, caplog
 ):
