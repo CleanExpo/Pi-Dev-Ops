@@ -150,12 +150,12 @@ def _agent_from_raw(
             path, "agent-purpose", "purpose must be a non-empty string", agent_id
         )
     model_role = raw["model_policy_role"]
-    if model_role not in model_roles:
+    if not isinstance(model_role, str) or model_role not in model_roles:
         raise RegistryValidationError(
             path, "model-policy-role", f"unknown role {model_role!r}", agent_id
         )
     tier = raw["risk_tier_ceiling"]
-    if isinstance(tier, bool) or tier not in VALID_TIERS:
+    if type(tier) is not int or tier not in VALID_TIERS:
         raise RegistryValidationError(
             path, "risk-tier", "must be an integer autonomy tier 0..3", agent_id
         )
@@ -251,7 +251,7 @@ def load_registry(
         raise RegistryValidationError(
             registry_path, "registry-fields", "registry fields are missing or unknown"
         )
-    if data["version"] != 1 or isinstance(data["version"], bool):
+    if type(data["version"]) is not int or data["version"] != 1:
         raise RegistryValidationError(
             registry_path, "registry-version", "version must be integer 1"
         )

@@ -89,6 +89,25 @@ def test_malformed_projection_has_structured_read_error(tmp_path: Path) -> None:
         )
 
 
+def test_non_mapping_projection_frontmatter_has_structured_read_error(
+    tmp_path: Path,
+) -> None:
+    root = _projection_pair(
+        tmp_path,
+        "---\n- not\n- a-mapping\n---\n# shared\n",
+        "---\nname: shared\n---\n# shared\n",
+    )
+
+    with pytest.raises(RegistryValidationError, match="rule=projection-readable"):
+        validate_projection_drift(
+            root,
+            replace(
+                load_registry(REGISTRY, MANIFEST, CONFIG),
+                accepted_projection_drift=(),
+            ),
+        )
+
+
 def test_only_leading_command_heading_is_vendor_normalised(tmp_path: Path) -> None:
     root = _projection_pair(
         tmp_path,

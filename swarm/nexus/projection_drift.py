@@ -28,7 +28,7 @@ def _normalise_projection(path: Path) -> str:
         return _HEADING_RE.sub(r"\1", content, count=1)
     frontmatter = yaml.safe_load(match.group(1))
     if not isinstance(frontmatter, dict):
-        frontmatter = {}
+        raise ValueError("projection frontmatter must be a mapping")
     for key in _VENDOR_FRONTMATTER:
         frontmatter.pop(key, None)
     canonical_frontmatter = yaml.safe_dump(

@@ -28,7 +28,24 @@ def _paths(root: Path) -> dict[str, Path]:
     }
 
 
-def _write_if_changed(path: Path, content: str) -> bool:
+def _write_if_changed(path: Path, content: str, repo_root: Path) -> bool:
+    try:
+        relative = path.relative_to(repo_root)
+    except ValueError as exc:
+        raise RegistryValidationError(
+            path, "catalogue-write-path", "catalogue path must stay inside repository"
+        ) from exc
+    current = repo_root
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            raise RegistryValidationError(
+                path, "catalogue-write-path", "catalogue path must not contain symlinks"
+            )
+    if not path.resolve(strict=False).is_relative_to(repo_root):
+        raise RegistryValidationError(
+            path, "catalogue-write-path", "catalogue path resolves outside repository"
+        )
     if path.exists() and path.read_text(encoding="utf-8") == content:
         return False
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -59,7 +76,7 @@ def main(argv: list[str] | None = None) -> int:
         catalogue = render_catalogue(registry)
         changed = False
         if args.write_catalogue:
-            changed = _write_if_changed(paths["catalogue"], catalogue)
+            changed = _write_if_changed(paths["catalogue"], catalogue, root)
         validate_catalogue(paths["catalogue"], catalogue)
     except RegistryValidationError as exc:
         print(f"ERROR {exc}", file=sys.stderr)

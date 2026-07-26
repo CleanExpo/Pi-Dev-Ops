@@ -51,6 +51,22 @@ def test_cli_writes_byte_stable_catalogue_and_then_passes(tmp_path: Path) -> Non
     assert _run(root).returncode == 0
 
 
+def test_cli_refuses_symlinked_catalogue_without_touching_external_target(
+    tmp_path: Path,
+) -> None:
+    root = _copy_registry_surface(tmp_path)
+    catalogue = root / "docs/agents/README.md"
+    external = tmp_path / "external-catalogue.md"
+    external.write_text("sentinel", encoding="utf-8")
+    catalogue.symlink_to(external)
+
+    result = _run(root, "--write-catalogue")
+
+    assert result.returncode == 1
+    assert "rule=catalogue-write-path" in result.stderr
+    assert external.read_text(encoding="utf-8") == "sentinel"
+
+
 def test_cli_reports_file_id_rule_and_reproduction_on_failure(tmp_path: Path) -> None:
     root = _copy_registry_surface(tmp_path)
     registry_path = root / ".harness/agents/registry.yaml"
