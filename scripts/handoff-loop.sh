@@ -89,6 +89,11 @@ if [ -f swarm/agentskills_manifest.py ]; then
       git diff --quiet -- agentskills.json agentskills.yaml'
   else skip "generated-agentskills" "python deps absent"; fi
 fi
+if [ -f scripts/check_agent_registry.py ]; then
+  if [ "$PY_OK" = 1 ]; then
+    gate "generated-agent-registry" "$PY" scripts/check_agent_registry.py
+  else skip "generated-agent-registry" "python deps absent"; fi
+fi
 
 # 4. Type checks.
 if [ -f app/server/main.py ]; then

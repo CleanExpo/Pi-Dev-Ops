@@ -88,7 +88,7 @@ cd dashboard && npx tsc --noEmit && npm run build
 python scripts/smoke_test.py --url http://127.0.0.1:7777 --password $TAO_PASSWORD
 ```
 
-Expected: 3 pre-existing failures in `test_sdk_phase2.py` (claude_agent_sdk not installed locally); all others pass.
+Expected: zero failures with declared dependencies installed. The 2026-07-26 baseline completed with zero failures; intentional skips and xfails remain, and exact counts grow as tests are added.
 
 ## Code Conventions
 
