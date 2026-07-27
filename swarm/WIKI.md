@@ -1,12 +1,14 @@
 # swarm — Wiki
 
-_Last updated: 2026-07-21T20:48:51Z (commits 818f21f..ef87343)_
+_Last updated: 2026-07-27T04:44:30Z (commits 0866310..6ae9701)_
 
 ## Recent changes
-- ef87343 — fix(margot): prevent HARD_STOP clear-intent inversion (#598)
+- 6ae9701 — feat(nexus): add governed shadow agent registry (#602)
 
 ## Architecture (current)
 Auto-stub: `swarm/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- swarm/margot_bot.py — touched in recent commits
+- swarm/nexus/agent_catalogue.py — touched in recent commits
+- swarm/nexus/agent_registry.py — touched in recent commits
+- swarm/nexus/projection_drift.py — touched in recent commits

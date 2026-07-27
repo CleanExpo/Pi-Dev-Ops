@@ -1,12 +1,13 @@
 # scripts — Wiki
 
-_Last updated: 2026-07-21T06:11:13Z (commits 5090911..95ac0ae)_
+_Last updated: 2026-07-27T04:44:30Z (commits 0866310..6ae9701)_
 
 ## Recent changes
-- 95ac0ae — fix: harden weekly enhancement loop controls (#597)
+- 6ae9701 — feat(nexus): add governed shadow agent registry (#602)
 
 ## Architecture (current)
 Auto-stub: `scripts/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- scripts/weekly_enhancement_loop.py — touched in recent commits
+- scripts/check_agent_registry.py — touched in recent commits
+- scripts/handoff-loop.sh — touched in recent commits

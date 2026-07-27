@@ -1,8 +1,12 @@
 # docs — Wiki
 
-_Last updated: 2026-07-15T02:17:19Z (commits 50afbd8..d062fb3)_
+_Last updated: 2026-07-27T04:44:30Z (commits 0866310..6ae9701)_
 
 ## Recent changes
-- d062fb3 — chore(salvage): rescue unmerged work from feature/remotion-local-progress-workspace (#579)
+- 6ae9701 — feat(nexus): add governed shadow agent registry (#602)
 
+## Architecture (current)
+Auto-stub: `docs/` had 1 recent commits. SDK unavailable for synthesis.
 
+## Files of interest
+- docs/agents/README.md — touched in recent commits

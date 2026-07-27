@@ -1,12 +1,14 @@
 # tests — Wiki
 
-_Last updated: 2026-07-21T20:48:51Z (commits 818f21f..ef87343)_
+_Last updated: 2026-07-27T04:44:30Z (commits 0866310..6ae9701)_
 
 ## Recent changes
-- ef87343 — fix(margot): prevent HARD_STOP clear-intent inversion (#598)
+- 6ae9701 — feat(nexus): add governed shadow agent registry (#602)
 
 ## Architecture (current)
 Auto-stub: `tests/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- tests/test_margot.py — touched in recent commits
+- tests/test_agent_registry.py — touched in recent commits
+- tests/test_agent_registry_red_team.py — touched in recent commits
+- tests/test_check_agent_registry.py — touched in recent commits
