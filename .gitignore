@@ -128,6 +128,8 @@ mcp/node_modules/
 .harness/scout-seen.json
 .harness/zte-v2-score.json
 .harness/session-outcomes.jsonl
+# RA-7085 job-authored last-success records (runtime state)
+.harness/job-success/
 
 # ── Docker / deployment ───────────────────────────────────────────────
 *.pid

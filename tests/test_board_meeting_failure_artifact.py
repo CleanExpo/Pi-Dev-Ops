@@ -77,6 +77,10 @@ async def test_fire_board_meeting_trigger_persists_artifact_then_reraises(tmp_pa
     fake_module_file.parent.mkdir(parents=True, exist_ok=True)
     fake_module_file.write_text("# fake", encoding="utf-8")
     monkeypatch.setattr(cfa, "__file__", str(fake_module_file))
+    # RA-7085 — the failure path now authors a job-owned `failed` record;
+    # keep it out of the real repo .harness/job-success/ store.
+    from app.server import job_success_record as jsr
+    monkeypatch.setattr(jsr, "_job_success_dir", lambda: tmp_path / "job-success")
 
     def _raises():
         raise RuntimeError("simulated SDK 401 from phase 3")

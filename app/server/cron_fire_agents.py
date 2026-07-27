@@ -23,6 +23,12 @@ _PREBRIEF_TIMEOUT_S = 120  # Larger context (24h of lessons + sessions + tickets
 _HARNESS_ROOT = Path(__file__).parent.parent.parent / ".harness"
 _AUTONOMY_LOG = _HARNESS_ROOT / "autonomy.jsonl"
 _LESSONS_FILE = _HARNESS_ROOT / "lessons.jsonl"
+
+# RA-7085 — canonical job_id the board_meeting producer authors its
+# last-success record under (job_success_record). Single source of truth:
+# cron_watchdogs._watchdog_board_meeting_silence imports THIS constant so the
+# reader and writer can never drift.
+_BOARD_MEETING_JOB_ID = "board-meeting-daily"
 _SESSION_OUTCOMES_FILE = _HARNESS_ROOT / "session-outcomes.jsonl"
 _PREBRIEF_OUTPUT_DIR = _HARNESS_ROOT / "board-meetings"
 
@@ -312,14 +318,27 @@ async def _fire_board_meeting_trigger(trigger: dict, log) -> None:
         _persist_prebrief(prebrief, log)
 
     from .agents.board_meeting import run_full_board_meeting
+    from . import job_success_record
     try:
         result: dict = await loop.run_in_executor(None, run_full_board_meeting)
     except Exception as exc:  # noqa: BLE001 — RA-1984 capture-and-rethrow
         _persist_board_meeting_failure(trigger.get("id", "board-meeting-daily"), exc, log)
+        # RA-7085 — author a job-owned FAILED record so the silence watchdog
+        # reads an explicit non-success (never masked by a leftover artefact
+        # file's mtime). Best-effort; never crash the cron path.
+        job_success_record.record_failed(
+            _BOARD_MEETING_JOB_ID, detail=f"{type(exc).__name__}: {exc}"[:200]
+        )
         # Re-raise so the cron-loop's catch-all logs the traceback AND keeps
         # `last_fired_at` stale (RA-1484/1493/1497 contract — operators rely on
         # the stale timestamp as the watchdog signal).
         raise
+
+    # RA-7085 — GENUINE success: the board meeting ran to completion and
+    # returned a result. Author the job-owned last-success record the silence
+    # watchdog trusts INSTEAD of `.harness/board-meetings/*.md` file mtime. A
+    # missed run never reaches here, so it authors nothing and reads as silent.
+    job_success_record.record_success(_BOARD_MEETING_JOB_ID)
 
     swot     = result.get("swot") or {}
     recs     = result.get("sprint_recommendations") or {}
