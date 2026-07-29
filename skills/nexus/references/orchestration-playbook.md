@@ -3,8 +3,19 @@
 Read this before opening any gate past G1. It carries the appetite classifier, the specialist
 routing menu, the research integrity bar, the tier ladder, and the Executive-Read template with
 a worked example. The governing rule for everything here: **the baseline you must beat is a bare
-Fable-5 answer with the FABLE_PLAYBOOK already in context.** If opening a gate wouldn't change
-the answer, don't open it.
+Opus-5 answer with the proof-discipline section of `~/.claude/CLAUDE.md` in context.** If opening
+a gate wouldn't change the answer, don't open it.
+
+That baseline moved on 2026-07-29, and it moved UP. It used to read "a bare Fable-5 answer with
+the FABLE_PLAYBOOK already in context" — but the playbook was written to make gpt-5.5 imitate
+Fable 5, its always-load import is gone, and Opus 5 natively does the things it instructed
+(reading before editing, verifying its own work, self-correcting). So the bar a gate has to clear
+is higher than it was, and gates that only added verification scaffolding now cost tokens without
+adding signal. Anthropic's Opus 5 guidance is explicit: remove carried-over verification
+instructions, and do not use subagents to double-check your own work.
+
+What this does NOT relax: G6's adversarial pass is cross-VENDOR (see `opus-adversary`), and that
+is a different thing from a model re-checking itself. Keep it.
 
 ## Gate skills — check out on demand, never preload
 
