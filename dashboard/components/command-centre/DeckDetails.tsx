@@ -61,6 +61,7 @@ export function DeckMoreLine({ total, shown }: { total: number; shown: number })
 export const DECK_LIST_CAP = 8
 
 /** Row cap for full founder pages (summary-first cleanup, founder 14/07/2026). */
+export const PAGE_LIST_CAP = 10
 
 /**
  * The deck-details CSS falls back to dark-deck inks (#f0f3f7 text) when the
@@ -70,3 +71,10 @@ export const DECK_LIST_CAP = 8
  * (DeckDetails lives under components/command-centre/; imported here rather
  * than duplicated — a later refactor can relocate it.)
  */
+export const LIGHT_THEME_DECK_TOKENS = {
+  '--deck-line': 'var(--color-border)',
+  '--deck-line-soft': 'var(--color-border)',
+  '--deck-text': 'var(--color-text-primary)',
+  '--deck-muted': 'var(--color-text-muted)',
+  '--deck-cyan-text': 'var(--color-accent-text)',
+} as React.CSSProperties
