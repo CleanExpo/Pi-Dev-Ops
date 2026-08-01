@@ -39,6 +39,13 @@
  *   - External links are skipped by design; this asks whether OUR routes exist. Same-origin
  *     is decided by resolving each href against the page URL, so relative and absolute forms
  *     are handled by one rule rather than by a list of spellings.
+ *   - HTTP METHOD AND FORM SEMANTICS. Every target is requested with GET. A form whose POST
+ *     handler is broken while GET succeeds passes here. Exercising real POSTs would mean
+ *     submitting to handlers with side effects, which a read-only verifier must not do.
+ *   - NON-RENDERED API CALLS. A `fetch()` a component makes at runtime is not in the HTML,
+ *     so an API route that only client code calls is not exercised.
+ *   - REDIRECT TARGETS are followed to a final status (added round 3), but an EXTERNAL
+ *     redirect ends the walk — where it lands is not ours to assert.
  *
  * Usage: node scripts/route-exercise.mjs [--plant-broken-link] [--plant-relative-link]
  *   --plant-broken-link    control: assert this script FAILS on a known-bad absolute route.
@@ -137,6 +144,36 @@ function extractPaths(html, pageUrl) {
   return [...out];
 }
 
+/**
+ * Request a path and follow same-origin redirects to their FINAL status.
+ *
+ * Round-3 review: with `redirect: "manual"` and a failure rule of 404-or-5xx, a link to a
+ * route that 307s to a MISSING destination passed green — the hop itself is a 307, which is
+ * neither. The link was "resolvable" only in the sense that something answered it.
+ *
+ * So follow the chain. An external hop ends the walk (not ours to assert). A loop or an
+ * over-long chain is itself a finding, not a pass — an unterminated redirect is a broken
+ * control surface even when no single hop 404s.
+ */
+async function finalStatus(path, cookie, maxHops = 5, base = BASE) {
+  const chain = [];
+  let url = base + path;
+  for (let hop = 0; hop <= maxHops; hop++) {
+    const res = await get(url, { headers: { cookie } });
+    if (res.status < 300 || res.status >= 400) return { status: res.status, chain };
+    const loc = res.headers.get("location");
+    if (!loc) return { status: res.status, chain };            // 3xx with no target
+    let next;
+    try { next = new URL(loc, url); } catch { return { status: res.status, chain }; }
+    if (next.origin !== new URL(base).origin) {
+      return { status: "external-redirect", chain: [...chain, next.href] };
+    }
+    chain.push(next.pathname + next.search);
+    url = next.href;
+  }
+  return { status: "redirect-loop", chain };
+}
+
 /** True if something is already listening on the port. */
 async function portInUse() {
   try {
@@ -145,7 +182,46 @@ async function portInUse() {
   } catch { return false; }
 }
 
+/**
+ * CONTROL for the redirect walker. Round 3 found that a link 307ing to a MISSING page passed
+ * green, because the hop is neither 404 nor 5xx. Proving the fix needs a redirect chain, and
+ * the app does not happen to have one — so stand up a throwaway server that does. Synthetic,
+ * but it exercises the real `finalStatus` code path rather than asserting it in prose.
+ */
+async function selfTestRedirects() {
+  const { createServer } = await import("node:http");
+  const routes = {
+    "/hop-to-missing": [307, "/missing-target"],
+    "/missing-target": [404, null],
+    "/hop-to-ok": [307, "/ok-target"],
+    "/ok-target": [200, null],
+    "/loop": [307, "/loop"],
+  };
+  const srv = createServer((req, res) => {
+    const [code, loc] = routes[req.url] || [404, null];
+    if (loc) res.writeHead(code, { location: loc });
+    else res.writeHead(code);
+    res.end();
+  });
+  await new Promise((r) => srv.listen(0, "127.0.0.1", r));
+  const base = `http://127.0.0.1:${srv.address().port}`;
+  let pass = 0, fail = 0;
+  const check = (name, cond) => {
+    if (cond) { console.log(`    PASS  ${name}`); pass++; }
+    else { console.log(`    FAIL  ${name}`); fail++; }
+  };
+  const missing = await finalStatus("/hop-to-missing", "", 5, base);
+  check("redirect to a MISSING target reports 404, not the 307", missing.status === 404);
+  const ok = await finalStatus("/hop-to-ok", "", 5, base);
+  check("redirect to a live target reports 200", ok.status === 200);
+  const loop = await finalStatus("/loop", "", 5, base);
+  check("redirect loop is reported, not passed", loop.status === "redirect-loop");
+  srv.close();
+  return fail === 0 ? 0 : 1;
+}
+
 async function main() {
+  if (process.argv.includes("--self-test-redirects")) return selfTestRedirects();
   const buildId = join(APP, ".next", "BUILD_ID");
   if (!existsSync(buildId)) {
     console.error("FAIL: no build found at dashboard/.next — run `npm run build` first.");
@@ -161,7 +237,14 @@ async function main() {
   // wrong artifact is indistinguishable from success.
   const buildTime = fsStat(buildId).mtimeMs;
   let newestSrc = 0, newestPath = "";
-  for (const dir of ["app", "components", "lib", "proxy.ts"]) {
+  // Round-3 review: this walked app/components/lib/proxy.ts only, so a route-affecting
+  // next.config change or a dependency bump after a build left STANDALONE C12 measuring an
+  // old artifact. The gate's build-before-C12 hid it; the check must not depend on being
+  // called politely.
+  const FRESH_INPUTS = ["app", "components", "lib", "proxy.ts", "next.config.ts",
+                        "next.config.js", "next.config.mjs", "package.json",
+                        "package-lock.json", "pnpm-lock.yaml", "tsconfig.json"];
+  for (const dir of FRESH_INPUTS) {
     (function walk(d) {
       if (!existsSync(d)) return;
       const st = fsStat(d);
@@ -285,11 +368,20 @@ async function main() {
     log(`rendered ${ENTRY_PAGES.length} pages, discovered ${discovered.size} distinct internal paths`);
 
     for (const [path, sources] of [...discovered].sort()) {
-      const res = await get(BASE + path, { headers: { cookie } });
-      if (res.status === 404) {
-        failures.push(`404  ${path}   (linked from: ${[...sources].join(", ")})`);
-      } else if (res.status >= 500) {
-        failures.push(`${res.status}  ${path}   (linked from: ${[...sources].join(", ")})`);
+      const from = `(linked from: ${[...sources].join(", ")})`;
+      let r;
+      try {
+        r = await finalStatus(path, cookie);
+      } catch (e) {
+        // Round-3: a thrown fetch used to lose which path caused it. Name the path.
+        failures.push(`ERR  ${path}   ${from}  — ${e?.name || e}`);
+        continue;
+      }
+      const via = r.chain.length ? `  [via ${r.chain.join(" -> ")}]` : "";
+      if (r.status === 404 || (typeof r.status === "number" && r.status >= 500)) {
+        failures.push(`${r.status}  ${path}   ${from}${via}`);
+      } else if (r.status === "redirect-loop") {
+        failures.push(`LOOP ${path}   ${from}${via}`);
       }
     }
 

@@ -20,7 +20,7 @@
 | C9 | **Literal navigation tripwire** | `command-centre-readonly.test.ts` | a **literal** `href="/x"`, `fetch("/x")` or `router.push("/x…")` naming a route that does not exist here. **Tripwire, not proof.** Kept after C12 closed G1 because it is the only cover for `router.push` inside a client event handler, which never reaches rendered HTML. |
 | C10 | **Import map vs reality** | same | a provenance entry for an import no file makes; an import with no entry; a `resolves_in_target: file:` that is absent from disk |
 | C11 | **Auth coverage** | `command-centre-auth-coverage.test.ts` | any command-centre page or API served to a request with no session, proven against `proxy()` directly with positive controls |
-| C12 | **Runtime route exercising** | `scripts/route-exercise.mjs`, gated in `handoff-loop.sh` | any internal link in **rendered** output that 404s or 500s. Starts the built app, authenticates, fetches every command-centre page, requests every link they emitted. **The authority on G1** — C9 is only a tripwire. |
+| C12 | **Runtime route exercising** | `scripts/route-exercise.mjs`, gated in `handoff-loop.sh` | any internal link in **rendered** output whose FINAL status (redirects followed) is 404/5xx, or that redirect-loops. Starts the built app, authenticates, fetches every command-centre page, requests every link they emitted. **The authority on G1 for server-rendered navigation** — C9 is only a tripwire, and G1 is mitigated rather than closed. |
 
 **C4 tracks:** `fetch(`, http clients (axios/got/node-fetch/undici), `WebSocket`/`EventSource`/`XMLHttpRequest`/`sendBeacon`, dynamic `import(`, `require(`, remote-host literals, `.insert/.update/.upsert/.delete(`, `createClient`/`createServerClient`, MCP client names, `"use server"`, and three literal API-key names.
 
@@ -32,7 +32,7 @@ These are not tuning gaps. They are outside the shape of a count-based static co
 
 | # | Gap | Why the harness cannot see it | Already bitten us? |
 |---|---|---|---|
-| G1 | **Route existence** — **CLOSED by C12** (2026-08-01) | C4 compares counts. A `fetch('/api/x')` that exists in both source and port passes even when `/api/x` was never ported. C9 catches the *literal* forms only. **C12 closes it at runtime**: the app is started and every link the pages actually rendered is requested, so computed navigation (`<Link href={expr}>`) is covered by what the surface emitted rather than by what forms a regex looked for. | **YES — capability 2, four times.** Codex found links to `/founder/command-centre` and fetches to two unported API routes; then `router.push(`/founder/wiki/${slug}`)` 404ing on every node click; then `<Link href={d.href}>` invisible to the check. |
+| G1 | **Route existence** — **SUBSTANTIALLY MITIGATED by C12, not closed** (2026-08-02) | C4 compares counts. A `fetch('/api/x')` that exists in both source and port passes even when `/api/x` was never ported. C9 catches the *literal* forms only. **C12 mitigates it at runtime for SERVER-RENDERED navigation**: the app is started and every link the pages actually rendered is requested (redirects followed to a final status), so computed navigation (`<Link href={expr}>`) is covered by what the surface emitted rather than by what forms a regex looked for. Client-hydrated links, imperative handlers, form POST semantics and non-rendered API calls remain outside it. | **YES — capability 2, four times.** Codex found links to `/founder/command-centre` and fetches to two unported API routes; then `router.push(`/founder/wiki/${slug}`)` 404ing on every node click; then `<Link href={d.href}>` invisible to the check. |
 | G2 | **Semantic equivalence** | Same count, different endpoint or payload. Swap a URL and the count is unchanged. | Latent |
 | G3 | **Runtime behaviour** — **partially mitigated by C12** | C12 now renders every command-centre page and exercises its links, so "does this page render and do its links resolve" IS asked. Still unasked: network interception, and whether a control that renders actually does nothing when clicked. | Latent for the remainder |
 | G4 | **Indirect / computed constructs** | `const m = 'fet'+'ch'`, `globalThis[k]()`, string-built URLs, computed property access. | Latent |
@@ -83,9 +83,23 @@ That is the finding this map exists to surface.
 
 ---
 
-## G1 — CLOSED by runtime route exercising (2026-08-01)
+## G1 — substantially mitigated by runtime route exercising (2026-08-02)
 
-**Status: CLOSED by C12.** C9 remains, downgraded to a cheap tripwire. The ruling that produced this is kept below because the reasoning is the reusable part.
+**Status: MITIGATED, NOT CLOSED.** Downgraded from "CLOSED" after review round 3.
+
+**Why the word changed, since that is the point.** Three rounds of review each found the same
+thing — the *claim* was wider than the *check*. Rounds 1 and 2 found the mechanism incomplete
+and it was fixed both times. Round 3 found the mechanism sound ("a real design improvement")
+and the **documentation** overclaiming. Continuing to extend C12 until "closed" became true
+would have been the same mistake as adding the fourth navigation pattern: chasing a word.
+
+So the word moved instead. **C12 covers server-rendered navigation.** What it does not cover is
+named below and is not a to-do list — most of it is deliberately out of reach for a read-only
+verifier. A gap that is named and bounded is in a different condition from one nobody has
+noticed, and only the second kind is dangerous.
+
+C9 remains as a cheap tripwire. The ruling that produced C12 is kept below because the
+reasoning is the reusable part.
 
 Four review rounds each found the same class — *coverage reading wider than it is* — and three
 of the four were G1 specifically. The response after the fourth is deliberately **not** another
@@ -142,7 +156,8 @@ npm run build && cd .. && node scripts/route-exercise.mjs                  # FAI
 git checkout -- 'dashboard/app/(main)/command-centre/page.tsx'
 ```
 
-**What C12 does NOT cover, stated now rather than found in a later round:**
+**What C12 does NOT cover.** Three rounds have added to this list; that is the list doing its
+job, not failing at it. It is the honest boundary of the claim:
 - Navigation that only fires in a client event handler (`router.push` in `onClick`) is not in
   server-rendered HTML. C9's literal scan is the only cover for that, which is why C9 stays.
 - **CLIENT-HYDRATED navigation** — added after round-1 review named it as the largest remaining
@@ -161,6 +176,14 @@ git checkout -- 'dashboard/app/(main)/command-centre/page.tsx'
   fixed by resolving rather than by adding a pattern, since URL resolution is decidable in a way
   form-enumeration never was.
 - `/_next/*` build assets are excluded — not navigation, and `npm run build` owns them.
+- **HTTP method and form semantics** (round 3). Every target is requested with GET. A form
+  whose POST handler is broken while GET succeeds passes. Exercising real POSTs would mean
+  submitting to handlers with side effects, which a read-only verifier must not do.
+- **Non-rendered API calls** (round 3). A `fetch()` made by a component at runtime is not in
+  the HTML, so an API route only client code calls is never exercised.
+- **External redirect destinations** (round 3). Redirect chains ARE now followed to a final
+  status — a link 307ing to a missing page used to pass green, since the hop is neither 404 nor
+  5xx — but a hop that leaves our origin ends the walk. Where it lands is not ours to assert.
 
 **Two controls it carries, both of which caught real false-greens in its own first hour:**
 1. *Session accepted* — if the minted cookie were rejected, every page would redirect to login

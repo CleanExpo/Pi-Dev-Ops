@@ -122,7 +122,11 @@ hdr "C12 — runtime route exercising (needs a build; ~90s)"
 if [ -f dashboard/.next/BUILD_ID ]; then
   node scripts/route-exercise.mjs --plant-broken-link >/dev/null 2>&1
   [ $? -ne 0 ] && ok "fails on a planted unresolvable link" || bad "passed with a broken link"
-  # Round-2 finding: the extractor only matched slash-prefixed hrefs, so a rendered RELATIVE
+  # Round-3 finding: a link 307ing to a MISSING page passed green, since the hop is neither
+  # 404 nor 5xx. Synthetic server, because the app has no redirect chain to borrow.
+  node scripts/route-exercise.mjs --self-test-redirects >/dev/null 2>&1
+  [ $? -eq 0 ] && ok "redirect walker: 307->404 reports 404, loop reported, 307->200 passes"                || bad "redirect walker did not discriminate"
+  # Round-2 finding: the extractor matched slash-prefixed hrefs only, so a rendered RELATIVE
   # link was unmeasured. If this stops failing, that regression is back.
   node scripts/route-exercise.mjs --plant-relative-link >/dev/null 2>&1
   [ $? -ne 0 ] && ok "fails on a planted RELATIVE link (no leading slash)" \
