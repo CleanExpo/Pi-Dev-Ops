@@ -1,22 +1,35 @@
-# Review brief — navigation-layer re-spec (C12) — ROUND 3
+# Review brief — navigation-layer re-spec (C12) — ROUND 4
 
 You are reviewing a change to a **verifier**. Flag findings. Do not fix anything. Do not write
 code. Do not edit, create or delete any file in the repository.
 
-**Round 3.** Round 2 returned `FAIL — C12 misses rendered relative internal links because the
-extractor only captures slash-prefixed URLs`. Accepted and fixed, and the fix is deliberately
-NOT another pattern:
+**Round 4.** Round 3 returned `FAIL — C12 catches rendered computed links, but the G1
+closure/non-coverage claim is still too broad`. Two real defects fixed; on the third finding
+**the claim moved rather than the check**:
 
-- Every `href`/`action`/`formaction` value is now **resolved** against the page it was found on
-  with `new URL(raw, pageUrl)`. Relative, absolute and protocol-relative forms fall out of one
-  rule; same-origin decides ours-vs-external; `pathname + search` is what gets requested.
-  Non-http schemes (`mailto:`, `tel:`, `javascript:`, `data:`) are skipped as non-requestable.
-- New control `--plant-relative-link` injects a no-leading-slash href, so this specific
-  regression fails loudly instead of being trusted. `scripts/prove-controls.sh` is now 15/15.
+- **Redirect chains.** A link 307ing to a MISSING destination passed green, because the hop is
+  neither 404 nor 5xx. `finalStatus()` now follows same-origin redirects to a final status; an
+  external hop ends the walk; a loop is itself a finding. Per-path fetch errors now name the
+  path. Control: `--self-test-redirects` stands up a throwaway server (the app has no redirect
+  chain to borrow) and asserts 307→404 reports **404**, 307→200 reports 200, and /loop reports
+  `redirect-loop`.
+- **Build freshness** walked `app/components/lib/proxy.ts` only, so a `next.config` or
+  dependency change after a build left *standalone* C12 measuring an old artifact. Now also
+  covers `next.config.*`, `package.json`, lockfiles, `tsconfig.json`. Control: touch
+  `next.config.ts` → exit 2 naming it.
+- **G1 downgraded from CLOSED to SUBSTANTIALLY MITIGATED.** Three rounds each found the claim
+  wider than the check. Rounds 1–2 found the mechanism incomplete and it was fixed; round 3
+  found the mechanism sound and the *documentation* overclaiming. Extending C12 until "closed"
+  became true would be the same mistake as adding the fourth navigation pattern — chasing a
+  word. Newly named as out of scope: HTTP method/form semantics (all GET), non-rendered API
+  calls, external redirect destinations.
 
-Round 1's findings (timeouts, build freshness, query strings, POSIX cleanup, scope list, the
-overbroad proof claim) were fixed before round 2 and round 2 confirmed the side-by-side
-reproduces exactly.
+`scripts/prove-controls.sh` is now 16/16 and is the runnable proof for every control named here.
+
+**The question this round is whether the claim and the check now MATCH** — not whether the
+check covers everything. If they match, that is a PASS even with named residue; a bounded,
+declared gap is a different condition from an undiscovered one. If they still do not match, say
+precisely which sentence overclaims and what it should say instead.
 
 **Do not assume those fixes are adequate — judging that is this round's job.**
 
@@ -97,7 +110,8 @@ know from reading the script, or only by running it?
 ## The loop
 
 ```
-bash scripts/prove-controls.sh --fast            -> expect 11/11, exit 0
+bash scripts/prove-controls.sh                   -> expect 16/16, exit 0
+node scripts/route-exercise.mjs --self-test-redirects -> expect 3 PASS, exit 0
 bash scripts/handoff-loop.sh                    -> expect pass=8 fail=0 READY
 node scripts/route-exercise.mjs                 -> expect exit 0
 node scripts/route-exercise.mjs --plant-broken-link  -> expect exit 1 (control)
