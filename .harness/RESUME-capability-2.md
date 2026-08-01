@@ -49,7 +49,8 @@ under the standing rules it is not done until it passes.**
 | 2 | FAIL | Extractor matched slash-prefixed hrefs only, so rendered RELATIVE links were unmeasured | Fixed by RESOLVING hrefs, not by adding a pattern |
 | 3 | FAIL | Redirect to a missing target passed green; freshness walk too narrow; **G1 closure claim still too broad** | Two defects fixed; **claim downgraded** |
 | — | **COUNTER RESET** | **requirement changed** | see below |
-| 4 | running | — | — |
+| 4 | **VOID** | not the reviewer's fault — I committed mid-review, so it judged a moving repo | findings verified by hand and fixed |
+| 4b | **PASS** | "the declared gaps are accurate"; controls sufficient for the false-greens they target | **navigation layer accepted** |
 
 **THE BOUND WAS SPENT AT ROUND 3. Round 4 is legitimate only because the requirement
 changed, and that reset is named here rather than assumed.**
@@ -76,7 +77,10 @@ it is moving the goalposts, and the counter does not reset.
 
 ## STATUS OF CAPABILITY 2/3 — read this before touching anything
 
-**Unmerged. Unshipped. It has never earned a PASS.**
+**Unmerged. Unshipped. Capability 2/3 itself has never earned a PASS** — what passed on
+2026-08-02 was the navigation-layer re-spec (C12), not capability 2/3. Keep those apart: the
+harness that measures the capability is now accepted; the capability has not been re-reviewed
+against it.
 
 Hold these two claims apart, because collapsing them is how a green suite starts meaning nothing:
 
@@ -113,7 +117,9 @@ at whichever one finally breaks in production.
    7 passed (7).
 3. **Replace the navigation detector with runtime route exercising.** Not AST extraction. Gating
    work before operations, alongside per-capability tokens.
-4. Capability 4 (providers) — **blocked on 3.**
+4. Capability 4 (providers) — **UNBLOCKED 2026-08-02** by the round-4b PASS. All three wrapper
+   controls held: HEAD identical either side (`148b5057`), codex config hash unchanged,
+   execution proof found. The reviewer ran the loop itself.
 
 ## The Codex round on capability 2/3 — CLOSED AT ATTEMPT 4. Do not open a fifth.
 
