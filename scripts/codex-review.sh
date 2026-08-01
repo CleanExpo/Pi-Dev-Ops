@@ -66,7 +66,18 @@ echo "  precondition: plan auth OK"
 #   silently MISSED, which is how the scope limit above was found.
 pre_head="$(git rev-parse HEAD)"
 pre_tree="$(git status --porcelain | sort | sha256sum | cut -d' ' -f1)"
-echo "  pre:  HEAD=${pre_head:0:8} tree=${pre_tree:0:12}"
+
+# ---- Control 1b (pre): the one machine-level path with teeth --------------------
+# `-s danger-full-access` is MACHINE-wide; controls 1 and 2 are REPO-scoped. That asymmetry
+# is real, so it gets a control rather than a caveat.
+#
+# ~/.codex/config.toml is the escalation path that matters: editing it is how a reviewer
+# would permanently widen its OWN permissions for every future run — self-escalation, the
+# shape R3 exists for, and the same family as a reviewer holding commit rights. Everything
+# else outside the repo is either covered by `deploy_skills.py --check` or has no leverage.
+CODEX_CFG="$HOME/.codex/config.toml"
+pre_cfg="$( [ -f "$CODEX_CFG" ] && sha256sum "$CODEX_CFG" | cut -d' ' -f1 || echo MISSING )"
+echo "  pre:  HEAD=${pre_head:0:8} tree=${pre_tree:0:12} codex-cfg=${pre_cfg:0:12}"
 
 # ---- Run ------------------------------------------------------------------------
 # -s danger-full-access: the sandbox cannot run the suite (see header). Deliberate,
@@ -88,7 +99,8 @@ echo "  reviewer exited rc=$rc, transcript: $OUT"
 # ---- Control 1 (post): tree integrity -------------------------------------------
 post_head="$(git rev-parse HEAD)"
 post_tree="$(git status --porcelain | sort | sha256sum | cut -d' ' -f1)"
-echo "  post: HEAD=${post_head:0:8} tree=${post_tree:0:12}"
+post_cfg="$( [ -f "$CODEX_CFG" ] && sha256sum "$CODEX_CFG" | cut -d' ' -f1 || echo MISSING )"
+echo "  post: HEAD=${post_head:0:8} tree=${post_tree:0:12} codex-cfg=${post_cfg:0:12}"
 
 VOID=0
 if [ "$pre_head" != "$post_head" ] || [ "$pre_tree" != "$post_tree" ]; then
@@ -96,6 +108,16 @@ if [ "$pre_head" != "$post_head" ] || [ "$pre_tree" != "$post_tree" ]; then
   echo "  ════ REVIEW VOID — the reviewer mutated the repository."
   echo "       A review that changed the thing it reviewed is not evidence about it."
   git status --porcelain | head -20
+  VOID=1
+fi
+
+if [ "$pre_cfg" != "$post_cfg" ]; then
+  echo ""
+  echo "  ════ REVIEW VOID — ~/.codex/config.toml CHANGED DURING THE REVIEW."
+  echo "       This is the self-escalation path: a reviewer widening its own permissions"
+  echo "       for every future run. Treat as an incident, not a failed review."
+  echo "       pre=$pre_cfg"
+  echo "       post=$post_cfg"
   VOID=1
 fi
 

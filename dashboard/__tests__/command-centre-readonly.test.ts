@@ -125,7 +125,21 @@ function resolveSpec(spec: string, from: string): string | null {
   return null;
 }
 
-/** Everything reachable from the capability entry pages, following imports. */
+/**
+ * Everything reachable from the capability entry pages, following imports.
+ *
+ * SCOPE vs .gitignore — recorded because every git-grounded check in this repo had to be
+ * audited for it (see ".gitignore is a silent scope reducer" in .harness/lesson-patterns.md).
+ *
+ * This walk is FILESYSTEM-grounded, not git-grounded, so .gitignore cannot silently shrink
+ * it — an ignored file in the import graph is still walked and still needs provenance.
+ *
+ * The exposure here is the INVERSE: a capability file that is gitignored would satisfy
+ * provenance while never entering the repo. It would run on this machine and exist nowhere
+ * else. Same family as "wired is not synced". Nothing in this suite would catch that; the
+ * check that would is fail_open_check.py Class B, which asks git whether declared evidence
+ * is actually tracked.
+ */
 function importGraph(): string[] {
   const entries: string[] = [];
   (function walk(d: string) {

@@ -48,6 +48,28 @@ args = parser.parse_args()
 REPO_ROOT = os.path.abspath(args.repo_root)
 DRY_RUN = args.dry_run
 
+# ── SCOPE LIMIT — READ BEFORE TRUSTING A [PASS] ───────────────────────────────
+# This scanner sources its file list from
+#   git ls-files --cached --others --exclude-standard
+# `--exclude-standard` applies .gitignore, so **secrets in gitignored files are NEVER
+# SCANNED**. Proven 2026-08-01 with the same fake AWS-shaped key in the same directory,
+# gitignore as the only variable: docs/secret-control.ts -> DETECTED CRITICAL;
+# docs/secret-control.tmp (matched by *.tmp) -> not listed, not scanned, MISSED.
+#
+# That matters here more than anywhere: .env.local, .env and credential files are exactly
+# what .gitignore covers. A [PASS] means "no secrets in files git will show you", NOT
+# "no secrets in this repo".
+#
+# Worse, the auto-patch below REMOVES FILES FROM THIS SCANNER'S OWN SCOPE: on finding a
+# violation it appends the offending path to .gitignore, after which that file is never
+# listed again and so never scanned again. Protective for committing; blinding for
+# scanning. Use --dry-run when testing this script so it does not rewrite .gitignore.
+#
+# See ".gitignore is a silent scope reducer" in .harness/lesson-patterns.md. The fix
+# pattern is fence/fail_open_check.py Class B: enumerate from an independent source, then
+# ASK git about each item, so an ignored file fails loudly instead of vanishing.
+# ──────────────────────────────────────────────────────────────────────────────
+
 # ── Secret patterns (mirrors app/server/scanner.py _SECRET_PATTERNS) ─────────
 _SECRET_PATTERNS: list[tuple[str, str, str]] = [
     (r"sk-ant-api[0-9A-Za-z\-_]{30,}", "Anthropic API key", "CRITICAL"),

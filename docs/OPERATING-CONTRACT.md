@@ -167,12 +167,21 @@ Review runs therefore step **outside** that sandbox, via `scripts/codex-review.s
 is **per-invocation, never written into `~/.codex/config.toml`**, so every other Codex run on the
 machine keeps its sandbox.
 
-The isolation that removes is replaced by three controls, because *"the brief says don't write
-code"* is an instruction, not a control:
+**What the controls below do and do not cover, stated precisely.** `-s danger-full-access` is
+**machine-wide**; the tree and execution controls are **repo-scoped**. They do not "replace the
+removed isolation" — they cover the reviewed artifact, plus the one machine-level path with
+teeth. That path is `~/.codex/config.toml`, because editing it is how a reviewer would
+permanently widen its **own** permissions for every future run: self-escalation, the shape R3
+exists for, and the same family as a reviewer holding commit rights. Everything else outside the
+repo is either covered by `deploy_skills.py --check` or has no leverage. Beyond that the control
+is the model's compliance with the brief, which is not a control at all — say so rather than let
+the count imply otherwise.
 
 1. **Tree integrity** — HEAD plus working-tree state hashed before and after; any change to the
    source of record **voids** the review. Scope stated, not implied: blind to gitignored paths,
    because the reviewer must write `.next/` to run the suite at all.
+1b. **Codex config integrity** — `~/.codex/config.toml` hashed before and after. A change voids
+   the review and is an **incident**, not a failed round: it is the self-escalation path.
 2. **Execution proof** — the run **fails** if the transcript contains no evidence the suite ran.
    Silent non-execution becomes loud instead of a footnote. This is the control that would have
    caught rounds 2, 3 and 4 as unusable at the time rather than in hindsight.

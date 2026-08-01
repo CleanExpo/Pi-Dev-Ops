@@ -99,6 +99,23 @@ def class_a() -> list[str]:
 
 
 def class_b() -> tuple[list[str], str | None]:
+    """Declared evidence must be durably recorded, not just present on disk.
+
+    SCOPE, stated because every sibling check that sources its list FROM git silently
+    loses gitignored paths (see ".gitignore is a silent scope reducer" in
+    .harness/lesson-patterns.md):
+
+    This check does NOT have that defect, and the difference is deliberate. It does not
+    enumerate through git. It walks a declared EVIDENCE list and asks git about each entry
+    via `git ls-files --error-unmatch`. A gitignored evidence file makes that call FAIL, so
+    it is reported loudly as "EXISTS BUT IS NOT TRACKED" instead of being dropped from the
+    scope in silence. That is the fix pattern for the whole class: enumerate from an
+    independent source, then ask git about each item.
+
+    Its real limit is different and should not be conflated with the ignore problem: it can
+    only check evidence that someone remembered to add to EVIDENCE. Undeclared evidence is
+    invisible to it.
+    """
     code, _ = sh(["git", "rev-parse", "--is-inside-work-tree"])
     if code != 0:
         return [], "not a git repo — CLASS B could not run"

@@ -278,3 +278,81 @@ CCW-CRM had `main` (pre-monorepo, no `apps/web/`) and `ai-updates` (monorepo tru
 | Persistence       | RA-1083       | 2       |
 | Rate Limit        | RA-1084       | 2       |
 | Scheduled Tasks   | RA-1085       | 3       |
+
+---
+
+## MECHANISM — `.gitignore` is a silent scope reducer on every git-grounded check
+
+**Named 2026-08-01 after the third instance.** Not an anecdote: a repeating structural failure
+with one cause and one fix pattern.
+
+**The mechanism.** Any check that sources its evidence from `git status`, `git ls-files
+--exclude-standard`, or `git diff` inherits `.gitignore` as an invisible filter on its scope.
+The check does not error, warn, or report a reduced scope — it returns a clean result over a
+smaller set than its name implies. **A clean report from a narrowed scope is byte-identical to a
+clean report from a clean repo.** That is the same shape as every finding in the command-centre
+review: coverage reading wider than it is.
+
+It is especially treacherous because `.gitignore` is exactly where *sensitive* and *generated*
+things live — `.env*`, credentials, caches, build output. The paths most worth checking are the
+paths most likely to be excluded.
+
+### Verified instances
+
+**1. Review tree-integrity control** (`scripts/codex-review.sh`, `git status --porcelain`).
+Planted files were MISSED twice. Both attempts used a `*.tmp` path, which `.gitignore` covers
+repo-wide. Re-run in a non-ignored path: new file DETECTED, tracked edit DETECTED.
+*Disposition:* scope limit stated in the script — it claims "the reviewed artifact was not
+modified", NOT "the reviewer wrote nothing anywhere". Cannot be widened: the reviewer must write
+`.next/` to run the suite at all.
+
+**2. `scripts/secrets_check.py`** (`git ls-files --cached --others --exclude-standard`).
+**Security-relevant, and the sharpest instance.** Controlled with the same fake AWS-shaped key,
+same directory, gitignore as the only variable:
+
+| file | listed by git | scanned | result |
+|---|---|---|---|
+| `docs/secret-control.ts` | yes | yes | **DETECTED — CRITICAL** |
+| `docs/secret-control.tmp` | no | no | **MISSED** |
+
+So a secret in any gitignored file is invisible to the secrets check — and `.env.local`, `.env`,
+and credential dumps are precisely what `.gitignore` covers.
+
+**The tail-eating part:** on finding a violation the script *auto-patches `.gitignore`* to cover
+the offending file (`--dry-run` suppresses this; I should have used it and did not — it wrote
+three lines, since reverted). Its remediation therefore **moves the file out of its own scanning
+scope**. Once patched, that file is never scanned again. The scanner responds to a secret by
+making the secret invisible to itself.
+
+**3. `.harness/incidents.jsonl`** — the original instance, already recorded: it was gitignored,
+so the evidence file "existed" while being invisible to the repo and would have died with this
+machine. Force-tracked now.
+
+### The resistant case — and why it is the fix pattern
+
+**`fence/fail_open_check.py` Class B does NOT have this defect**, and the contrast is the lesson.
+It does not *enumerate* files through git; it takes a hardcoded `EVIDENCE` list and asks git
+about each one via `git ls-files --error-unmatch`. An ignored evidence file makes that call fail,
+so it is reported **loudly** as "EXISTS BUT IS NOT TRACKED" rather than silently dropped. It also
+carries a positive control proving it can detect an untracked file.
+
+**The pattern:** enumerate from an independent source (a declared list, or the filesystem), then
+*ask* git about each item. Never let git's own listing define the scope of what gets checked —
+that hands `.gitignore` silent veto power over your coverage.
+
+Class B's real limit is different and should not be conflated: it can only check evidence someone
+remembered to declare.
+
+### Note on the provenance checks
+
+`command-centre-readonly.test.ts` is **filesystem-grounded** (`readdirSync` walk), not
+git-grounded, so it is immune to this hiding. It carries the *inverse* exposure instead: a file
+in the import graph that is gitignored would satisfy provenance while never entering the repo —
+code that runs here and exists nowhere else. Same family as "wired is not synced".
+
+### Standing requirement
+
+Any new check grounded in git must **state what `.gitignore` removes from its scope**, in the
+check itself, the way C9 and control 1 now do. And test it with a planted item **inside an
+ignored path** — the two misses above happened because the control was planted in an ignored
+path by accident, which is also the only reason the mechanism was found.
