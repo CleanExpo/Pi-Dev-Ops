@@ -104,8 +104,11 @@ communication layer:
 ## Integration
 - **Orchestrators:** add a `wave 0: consult` entry to the wave-plan/production-brief
   before production waves, invoking this skill on the brief.
-- **/spm:** the specialist-board's cross-domain pass calls this to get real
-  specialist input into the spec, not just persona role-play.
+- **/spm:** the MOA bench (`spm/references/moa-board.md`, board_version 1.0+) embeds this
+  skill's consult contract and cooperation gate **in-memory** rather than invoking the skill
+  — spm's read-only constraint forbids the `council/{job_id}/` writes. The contract is
+  adopted verbatim there (plus `slug`/`escalate` fields); this skill remains the SSOT for
+  the contract's semantics.
 - **dispatcher-core:** expose as a `skill.specialist-council` step type.
 
 ## Anti-duplication

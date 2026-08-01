@@ -1,0 +1,108 @@
+workflow,verdict,rule,command
+dns_takeover_scan.yml,ALLOW,,set +e
+dns_takeover_scan.yml,ALLOW,,python3 scripts/dns_takeover_scan.py | tee scan_output.jsonl
+dns_takeover_scan.yml,ALLOW,,"echo ""exit_code=${PIPESTATUS[0]}"" >> ""$GITHUB_OUTPUT"""
+dns_takeover_scan.yml,ALLOW,,{
+dns_takeover_scan.yml,ALLOW,,"echo ""# DNS Takeover Scan"""
+dns_takeover_scan.yml,ALLOW,,"echo """""
+dns_takeover_scan.yml,ALLOW,,if [ ! -s scan_output.jsonl ]; then
+dns_takeover_scan.yml,ALLOW,,"echo ""✅ No findings."""
+dns_takeover_scan.yml,ALLOW,,else
+dns_takeover_scan.yml,ALLOW,,"echo ""🚨 Findings:"""
+dns_takeover_scan.yml,ALLOW,,"echo """""
+dns_takeover_scan.yml,ALLOW,,echo '```json'
+dns_takeover_scan.yml,ALLOW,,cat scan_output.jsonl
+dns_takeover_scan.yml,ALLOW,,echo '```'
+dns_takeover_scan.yml,ALLOW,,fi
+dns_takeover_scan.yml,ALLOW,,"} >> ""$GITHUB_STEP_SUMMARY"""
+dns_takeover_scan.yml,ALLOW,,"echo ""::error::DNS takeover scan found at least one warn/critical finding — see summary."""
+dns_takeover_scan.yml,ALLOW,,exit 1
+dr-nrpg-stripe-watch.yml,ALLOW,,set +e
+dr-nrpg-stripe-watch.yml,ALLOW,,python3 scripts/probe_dr_nrpg_stripe_keys.py --json | tee /tmp/probe.json
+dr-nrpg-stripe-watch.yml,ALLOW,,code=$?
+dr-nrpg-stripe-watch.yml,ALLOW,,"exit_code=$(python3 -c ""import json; print(json.load(open('/tmp/probe.json'))['exit_code'])"")"
+dr-nrpg-stripe-watch.yml,ALLOW,,"if [ ""$exit_code"" = ""1"" ]; then"
+dr-nrpg-stripe-watch.yml,ALLOW,,"echo ""::error::Probe could not reach dr-nrpg-platform.vercel.app"""
+dr-nrpg-stripe-watch.yml,ALLOW,,exit 1
+dr-nrpg-stripe-watch.yml,ALLOW,,fi
+dr-nrpg-stripe-watch.yml,ALLOW,,"echo ""Probe finished with exit_code=$exit_code (0=all green, 2=secret key missing, 3=webhook missing)"""
+dr-nrpg-stripe-watch.yml,ALLOW,,exit 0
+fable_canary_check.yml,ALLOW,,python3 scripts/fable_canary_check.py
+fence-drift-check.yml,ALLOW,,npm i -g vercel@latest
+fence-drift-check.yml,ALLOW,,"mkdir -p ""$HOME/.claude/fence"""
+fence-drift-check.yml,BLOCK,self-modification,"cp fence/fence.json ""$HOME/.claude/fence/fence.json"""
+fence-drift-check.yml,ALLOW,,set +e
+fence-drift-check.yml,ALLOW,,python fence/drift_check.py
+fence-drift-check.yml,ALLOW,,"echo ""code=$?"" >> ""$GITHUB_OUTPUT"""
+fence-drift-check.yml,ALLOW,,"echo ""::error::Fence drift check returned ${{ steps.drift.outputs.code }} (1=drift, 2=a source could not be checked)."""
+fence-drift-check.yml,ALLOW,,exit 1
+ideas_inbox_drain.yml,ALLOW,,python3 scripts/process_ideas_inbox.py
+ideas_inbox_drain.yml,ALLOW,,set -e
+ideas_inbox_drain.yml,ALLOW,,if [[ -n $(git status --porcelain .harness/ideas-from-phone/) ]]; then
+ideas_inbox_drain.yml,ALLOW,,"git config user.name ""Pi CEO Ideas Drain"""
+ideas_inbox_drain.yml,ALLOW,,"git config user.email ""pi-ceo@pi-dev-ops.internal"""
+ideas_inbox_drain.yml,ALLOW,,git add .harness/ideas-from-phone/
+ideas_inbox_drain.yml,ALLOW,,"git commit -m ""chore(ideas): mark processed entries (RA-1102 drain)"""
+ideas_inbox_drain.yml,BLOCK,prod-branch-unresolved,git push
+ideas_inbox_drain.yml,ALLOW,,else
+ideas_inbox_drain.yml,ALLOW,,"echo ""No changes to commit."""
+ideas_inbox_drain.yml,ALLOW,,fi
+linear_evidence_audit.yml,ALLOW,,"FLAGS=""--hours ${{ github.event.inputs.hours || '26' }}"""
+linear_evidence_audit.yml,ALLOW,,"if [ ""${{ github.event.inputs.dry_run }}"" = ""true"" ]; then FLAGS=""$FLAGS --dry-run""; fi"
+linear_evidence_audit.yml,ALLOW,,python3 scripts/linear_evidence_audit.py $FLAGS
+live_nexus_smoke.yml,ALLOW,,working-directory: live-nexus
+live_nexus_smoke.yml,ALLOW,,pnpm install --frozen-lockfile
+live_nexus_smoke.yml,ALLOW,,pnpm smoke:prod | tee live-nexus-smoke.txt
+live_nexus_smoke.yml,ALLOW,,{
+live_nexus_smoke.yml,ALLOW,,"echo ""# Live Nexus Production Smoke"""
+live_nexus_smoke.yml,ALLOW,,"echo """""
+live_nexus_smoke.yml,ALLOW,,if [ -f live-nexus-smoke.txt ]; then
+live_nexus_smoke.yml,ALLOW,,echo '```'
+live_nexus_smoke.yml,ALLOW,,cat live-nexus-smoke.txt
+live_nexus_smoke.yml,ALLOW,,echo '```'
+live_nexus_smoke.yml,ALLOW,,else
+live_nexus_smoke.yml,ALLOW,,"echo ""No smoke output captured."""
+live_nexus_smoke.yml,ALLOW,,fi
+live_nexus_smoke.yml,ALLOW,,"} >> ""$GITHUB_STEP_SUMMARY"""
+morning_briefing.yml,ALLOW,,"if [ ""${{ github.event.inputs.dry_run }}"" = ""true"" ]; then"
+morning_briefing.yml,ALLOW,,"python3 -c """
+morning_briefing.yml,ALLOW,,import sys
+morning_briefing.yml,ALLOW,,"sys.path.insert(0, '.')"
+morning_briefing.yml,ALLOW,,from scripts.morning_briefing import build_brief
+morning_briefing.yml,ALLOW,,print(build_brief())
+morning_briefing.yml,ALLOW,,""""
+morning_briefing.yml,ALLOW,,else
+morning_briefing.yml,ALLOW,,python3 scripts/morning_briefing.py
+morning_briefing.yml,ALLOW,,fi
+sandbox-framework-drift.yml,ALLOW,,set +e
+sandbox-framework-drift.yml,ALLOW,,python3 scripts/audit_sandboxes.py | tee audit_output.jsonl
+sandbox-framework-drift.yml,ALLOW,,"echo ""exit_code=${PIPESTATUS[0]}"" >> ""$GITHUB_OUTPUT"""
+sandbox-framework-drift.yml,ALLOW,,{
+sandbox-framework-drift.yml,ALLOW,,"echo ""# Sandbox Framework Drift"""
+sandbox-framework-drift.yml,ALLOW,,"echo """""
+sandbox-framework-drift.yml,ALLOW,,"if [ ""${{ steps.audit.outputs.exit_code }}"" = ""2"" ]; then"
+sandbox-framework-drift.yml,ALLOW,,"echo ""⚠️ Auditor failed to run (missing VERCEL_TOKEN or Vercel API error) — see logs."""
+sandbox-framework-drift.yml,ALLOW,,elif [ ! -s audit_output.jsonl ]; then
+sandbox-framework-drift.yml,ALLOW,,"echo ""✅ No drift — every *-sandbox project has a framework preset and a recent READY deployment."""
+sandbox-framework-drift.yml,ALLOW,,else
+sandbox-framework-drift.yml,ALLOW,,"echo ""🚨 Drift detected:"""
+sandbox-framework-drift.yml,ALLOW,,"echo """""
+sandbox-framework-drift.yml,ALLOW,,echo '```json'
+sandbox-framework-drift.yml,ALLOW,,cat audit_output.jsonl
+sandbox-framework-drift.yml,ALLOW,,echo '```'
+sandbox-framework-drift.yml,ALLOW,,fi
+sandbox-framework-drift.yml,ALLOW,,"} >> ""$GITHUB_STEP_SUMMARY"""
+sandbox-framework-drift.yml,ALLOW,,"echo ""::error::Sandbox framework audit found drift or failed to run (exit ${{ steps.audit.outputs.exit_code }}) — see summary."""
+sandbox-framework-drift.yml,ALLOW,,exit 1
+smoke_pipeline.yml,ALLOW,,python3 scripts/smoke_test_pipeline.py | tee smoke_output.txt
+smoke_pipeline.yml,ALLOW,,{
+smoke_pipeline.yml,ALLOW,,"echo ""🚨 Pi-CEO pipeline smoke FAILED"""
+smoke_pipeline.yml,ALLOW,,"echo """""
+smoke_pipeline.yml,ALLOW,,"echo ""Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"""
+smoke_pipeline.yml,ALLOW,,"echo """""
+smoke_pipeline.yml,ALLOW,,tail -40 smoke_output.txt
+smoke_pipeline.yml,ALLOW,,} | python3 scripts/send_telegram.py
+smoke_pipeline.yml,ALLOW,,exit 1
+weekly-enhancement-loop.yml,ALLOW,,python scripts/weekly_enhancement_loop.py \
+weekly-enhancement-loop.yml,ALLOW,,"${{ github.event.inputs.repo && format('--repo {0}', github.event.inputs.repo) || '' }} \"
+weekly-enhancement-loop.yml,ALLOW,,${{ github.event.inputs.dry_run == 'true' && '--dry-run' || '' }}

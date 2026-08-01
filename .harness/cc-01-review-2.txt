@@ -1,0 +1,2105 @@
+Reading additional input from stdin...
+2026-08-01T05:53:34.513590Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.agents\skills\seo-content\SKILL.md: missing YAML frontmatter delimited by ---
+2026-08-01T05:53:34.513656Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.agents\skills\seo-images\SKILL.md: missing YAML frontmatter delimited by ---
+2026-08-01T05:53:34.513667Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.agents\skills\seo-programmatic\SKILL.md: missing YAML frontmatter delimited by ---
+2026-08-01T05:53:34.513674Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.agents\skills\seo-schema\SKILL.md: missing YAML frontmatter delimited by ---
+2026-08-01T05:53:34.997847Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.agents\skills\seo-technical\SKILL.md: missing YAML frontmatter delimited by ---
+2026-08-01T05:53:34.997870Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\accessibility-and-inclusive-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T05:53:34.997877Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\dashboards-and-real-time-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T05:53:34.997881Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\geospatial-and-cartographic-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T05:53:34.997885Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\grammar-of-graphics-and-declarative-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T05:53:34.997888Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\scrollytelling-and-parallax-data-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T05:53:34.997892Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\statistical-and-uncertainty-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T05:53:34.997896Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\typescript-data-visualization-engineering\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T05:53:34.997900Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\uml-and-software-architecture-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T05:53:34.997903Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\heygen\11c74d6b\skills\heygen-avatar\SKILL.md: invalid description: exceeds maximum length of 1024 characters
+2026-08-01T05:53:34.997907Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\heygen\11c74d6b\skills\heygen-video\SKILL.md: invalid description: exceeds maximum length of 1024 characters
+2026-08-01T05:53:36.742874Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when AuthRequired(AuthRequiredError { www_authenticate_header: "Bearer realm=\"OAuth\", resource_metadata=\"https://mcp.linear.app/.well-known/oauth-protected-resource/mcp\", error=\"invalid_token\", error_description=\"Missing or invalid access token\"" })
+OpenAI Codex v0.134.0
+--------
+workdir: D:\Pi-Dev-Ops
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: high
+reasoning summaries: none
+session id: 019fbbe2-8215-7203-ad60-67c0d56356c8
+--------
+user
+Read D:\Pi-Dev-Ops\.harness\cc-01-review-brief.md and follow it exactly. Read the diff file it names. Output ONLY '## Standards', '## Spec', then the VERDICT line.
+hook: SessionStart
+hook: SessionStart Failed
+hook: UserPromptSubmit
+hook: UserPromptSubmit Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -LiteralPath 'D:\\Pi-Dev-Ops\\.harness\\cc-01-review-brief.md'" in D:\Pi-Dev-Ops
+ succeeded in 341ms:
+# Review brief â€” capability 1 of 6, hermes-control-panel port
+
+You are reviewing a code change. **Flag findings. Do not fix anything. Do not write code.**
+
+## Inputs (these four only)
+
+1. **This spec** (below)
+2. **The loop** (below)
+3. **The diff**: `D:\Pi-Dev-Ops\.harness\cc-01.diff` â€” read it
+4. **The test**: see "Test" below
+
+## Spec
+
+A capability is being ported from one Next.js app into another.
+
+**Source:** `Authority-Site/apps/web/src/app/(founder)/founder/command-centre/hermes-control-panel/`
+**Target:** `Pi-Dev-Ops/dashboard/app/(main)/command-centre/hermes/`
+
+The source file's own header states the capability's contract verbatim:
+
+> Hermes v0.16 "Surface Release" â€” Control Panel (READ-ONLY foundation).
+> Mirrors the Hermes web admin module list inside the Unite-Group founder command-centre.
+> No external connections, no MCP, no remote gateway, no messaging-channel activation.
+
+**Port requirements:**
+- R1. Behaviour must be unchanged: read-only, display-only.
+- R2. No external connections, no MCP client, no remote gateway calls, no messaging activation.
+- R3. No new npm dependencies.
+- R4. Must typecheck and build.
+- R5. Import paths rewritten for the target's `@/*` â†’ dashboard-root alias.
+- R6. Must not write to any database, call any paid API, or reach any production host.
+
+## Loop
+
+```
+cd dashboard && npx tsc --noEmit                                      -> exit 0
+cd dashboard && npm run build                                         -> exit 0, route present
+cd dashboard && npx vitest run __tests__/command-centre-readonly.test.ts -> 9 passed
+```
+
+All three were run and all passed.
+
+## Test
+
+`dashboard/__tests__/command-centre-readonly.test.ts` â€” included in the diff. It statically scans every file under `app/(main)/command-centre/` and `lib/command-centre/` and fails on: `fetch(`, `axios`, remote URLs, `.insert/.update/.upsert/.delete(`, supabase client construction, MCP client, and paid API key names. Comments are stripped before matching. It carries two positive controls: one asserting the scan found files at all, one asserting a planted `fetch('https://example.com')` **is** detected.
+
+Assess whether this test is now sufficient evidence for R1/R2/R6, or whether it can still pass while the contract is violated. Be specific about what it would miss.
+
+## Prior review
+
+This is **attempt 2**. Attempt 1 was reviewed and returned FAIL for: (i) build evidence not proving R1/R2/R6, (ii) an unasked-for global nav change, (iii) unused shared primitives in the diff. All three were addressed. Judge attempt 2 on its own merits â€” do not pass it because a prior round was corrected.
+
+## What to report â€” two axes, kept separate
+
+### Axis 1 â€” Standards
+Conformance to normal TypeScript/React/Next.js App Router practice in the diff. Cite the hunk for each finding. Distinguish hard violations from judgement calls. Skip anything a linter or the compiler already enforces. Under 400 words.
+
+### Axis 2 â€” Spec
+Against R1â€“R6 specifically:
+- (a) requirements not met or only partly met
+- (b) behaviour introduced that was not asked for
+- (c) requirements implemented incorrectly
+- (d) **whether the build loop would actually catch a violation of R1, R2 or R6, or merely passes alongside them**
+
+Quote the diff for each finding. Under 400 words.
+
+Item (d) is the important one. A build passing does not prove a page is read-only.
+
+## Verdict
+
+End with exactly one line:
+
+`VERDICT: PASS` or `VERDICT: FAIL â€” <one-line reason>`
+
+FAIL if any hard standards violation, any unmet or incorrectly implemented requirement, any unasked-for behaviour, or if the evidence does not support the claim.
+
+hook: PostToolUse
+hook: PostToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -LiteralPath 'D:\\Pi-Dev-Ops\\.harness\\cc-01.diff'" in D:\Pi-Dev-Ops
+ succeeded in 393ms:
+diff --git a/dashboard/__tests__/command-centre-readonly.test.ts b/dashboard/__tests__/command-centre-readonly.test.ts
+new file mode 100644
+index 00000000..c5d48350
+--- /dev/null
++++ b/dashboard/__tests__/command-centre-readonly.test.ts
+@@ -0,0 +1,84 @@
++/**
++ * command-centre-readonly.test.ts â€” enforces R1/R2/R6 for ported capabilities.
++ *
++ * WHY THIS EXISTS: `npm run build` passes *alongside* a fetch, a DB write, or a
++ * paid API call â€” it does not prove a page is read-only. Cross-vendor review of
++ * capability 1 flagged exactly that: build evidence is not spec evidence. This
++ * test is the missing evidence. It fails on the constructs the contract forbids,
++ * rather than hoping the compiler notices.
++ *
++ * Scope: every file under app/(main)/command-centre/ and lib/command-centre/.
++ * Capabilities that legitimately need a data source (wiki-graph reads wiki_pages)
++ * must be added to ALLOWED_DATA_READERS with a justification, so the exemption is
++ * a visible decision rather than a silent hole.
++ */
++import { describe, expect, it } from "vitest";
++import { readFileSync, readdirSync, statSync } from "node:fs";
++import { join } from "node:path";
++
++const ROOTS = ["app/(main)/command-centre", "lib/command-centre"];
++
++/** Capabilities permitted a server-side read, with the reason. Read-only still. */
++const ALLOWED_DATA_READERS: Record<string, string> = {
++  // "app/(main)/command-centre/wiki-graph": "reads wiki_pages server-side (capability 3)",
++};
++
++/** Constructs that would break the read-only contract. */
++const FORBIDDEN: Array<{ re: RegExp; rule: string }> = [
++  { re: /\bfetch\s*\(/, rule: "R2 no external connections" },
++  { re: /\baxios\b/, rule: "R2 no external connections" },
++  { re: /https?:\/\/(?!.*(?:schema|w3\.org|localhost))/, rule: "R2/R6 no remote host" },
++  { re: /\.(insert|update|upsert|delete)\s*\(/, rule: "R6 no database writes" },
++  { re: /createServerClient|createClient\s*\(/, rule: "R6 no database client" },
++  { re: /\bMcpClient\b|modelcontextprotocol/, rule: "R2 no MCP client" },
++  { re: /ANTHROPIC_API_KEY|OPENAI_API_KEY|STRIPE_SECRET/, rule: "R6 no paid API keys" },
++];
++
++function walk(dir: string): string[] {
++  let out: string[] = [];
++  let entries: string[];
++  try {
++    entries = readdirSync(dir);
++  } catch {
++    return out;
++  }
++  for (const e of entries) {
++    const p = join(dir, e);
++    if (statSync(p).isDirectory()) out = out.concat(walk(p));
++    else if (/\.(ts|tsx)$/.test(e)) out.push(p);
++  }
++  return out;
++}
++
++/** Strip comments so a comment mentioning "fetch" is not a violation. */
++function code(src: string): string {
++  return src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
++}
++
++describe("command-centre capabilities are read-only", () => {
++  const files = ROOTS.flatMap((r) => walk(r));
++
++  it("finds the ported capability files (positive control)", () => {
++    // A passing suite that scanned zero files would be indistinguishable from a
++    // clean one. Fail loudly if the scan target vanished.
++    expect(files.length).toBeGreaterThan(0);
++  });
++
++  it("detects a violation when one exists (positive control)", () => {
++    const planted = code("const x = fetch('https://example.com')");
++    expect(FORBIDDEN.some((f) => f.re.test(planted))).toBe(true);
++  });
++
++  for (const rule of FORBIDDEN) {
++    it(`has no violation of: ${rule.rule}`, () => {
++      const hits = files.filter((f) => {
++        const exempt = Object.keys(ALLOWED_DATA_READERS).some((a) =>
++          f.replace(/\\/g, "/").includes(a)
++        );
++        if (exempt) return false;
++        return rule.re.test(code(readFileSync(f, "utf8")));
++      });
++      expect(hits, `${rule.rule} violated in:\n${hits.join("\n")}`).toEqual([]);
++    });
++  }
++});
+diff --git a/dashboard/app/(main)/command-centre/hermes/page.tsx b/dashboard/app/(main)/command-centre/hermes/page.tsx
+new file mode 100644
+index 00000000..81123085
+--- /dev/null
++++ b/dashboard/app/(main)/command-centre/hermes/page.tsx
+@@ -0,0 +1,226 @@
++// src/app/(founder)/founder/command-centre/hermes-control-panel/page.tsx
++//
++// Hermes v0.16 "Surface Release" â€” Control Panel (READ-ONLY foundation).
++// Mirrors the Hermes web admin module list inside the Unite-Group founder command-centre.
++// No external connections, no MCP, no remote gateway, no messaging-channel activation,
++// no secret values. Every external surface renders as inert (not connected / none enabled).
++// Auth enforced by the (founder) layout.
++//
++// Presentation: command-deck standard (summary-first, founder feedback 14/07/2026) â€”
++// OLED ground + tokens via the shared command-deck.module.css register, mono accents,
++// rounded-sm (2px). The inert/placeholder mirror sections collapse behind the shared
++// DeckDetails disclosure with honest one-line summaries. Data logic unchanged.
++
++
++import { Chakra_Petch } from 'next/font/google'
++import { getControlPanelView } from '@/lib/command-centre/control-panel'
++import { DeckDetails, DeckMoreLine, DECK_LIST_CAP } from '@/components/command-centre/DeckDetails'
++import deckStyles from '@/components/command-centre/command-deck.module.css'
++
++// Deck typeface â€” same face + variable the command-centre deck loads, so the
++// command-deck.module.css `--font-chakra` stack resolves on this sub-route too.
++const chakra = Chakra_Petch({
++  weight: ['400', '500', '600', '700'],
++  subsets: ['latin'],
++  variable: '--font-chakra',
++  display: 'swap',
++})
++
++// Deck token values (command-deck.module.css) for the inline-styled bits.
++const mono = 'ui-monospace, SFMono-Regular, monospace'
++const muted = '#a6afbc' // --deck-muted
++const okText = '#34d399' // --deck-cyan-text
++
++const wrap: React.CSSProperties = {
++  maxWidth: 1040,
++  margin: '0 auto',
++}
++// Banner fill is an alpha wash of the deck go LED (--deck-go).
++const banner: React.CSSProperties = {
++  background: 'rgba(45, 187, 87, 0.08)',
++  border: '1px solid rgba(45, 187, 87, 0.35)',
++  borderRadius: 2,
++  padding: '0.75rem 1rem',
++  marginBottom: '1.5rem',
++  fontSize: 14,
++}
++const th: React.CSSProperties = {
++  textAlign: 'left',
++  fontSize: 12,
++  textTransform: 'uppercase',
++  letterSpacing: '0.04em',
++  fontFamily: mono,
++  color: muted,
++  padding: '0.4rem 0.6rem',
++  borderBottom: '1px solid rgba(255, 255, 255, 0.10)', // --deck-line
++}
++const td: React.CSSProperties = {
++  padding: '0.5rem 0.6rem',
++  borderBottom: '1px solid rgba(255, 255, 255, 0.05)', // --deck-line-soft
++  fontSize: 14,
++  verticalAlign: 'top',
++}
++
++function riskStyle(risk: string): React.CSSProperties {
++  // Alpha washes of the deck LED fills; text = the AA --deck-*-text variants.
++  const map: Record<string, [string, string, string]> = {
++    none: ['rgba(45, 187, 87, 0.12)', '#34d399', 'rgba(45, 187, 87, 0.35)'],
++    low: ['rgba(244, 130, 15, 0.12)', '#f0a94c', 'rgba(244, 130, 15, 0.4)'],
++    high: ['rgba(229, 72, 77, 0.12)', '#f87171', 'rgba(229, 72, 77, 0.4)'],
++  }
++  const [bg, fg, bd] = map[risk] ?? map.none
++  return {
++    display: 'inline-block',
++    padding: '0.1rem 0.5rem',
++    borderRadius: 2, // deck standard: rounded-sm
++    fontSize: 12,
++    fontWeight: 600,
++    fontFamily: mono,
++    background: bg,
++    color: fg,
++    border: `1px solid ${bd}`,
++  }
++}
++
++export default function HermesControlPanelPage() {
++  const view = getControlPanelView()
++  const v = view.version
++  const posture = v.securityPosture
++
++  // Presentation-only summary counts for the disclosure headlines (honest,
++  // derived from the same read-only view â€” no data logic change).
++  const hardeningsOn = [
++    posture.secretRedaction,
++    posture.subprocessCredentialStripping,
++    posture.ssrfHardening,
++    posture.cveSecurityPinning,
++  ].filter((s) => s === 'on').length
++  const connectedSurfaces = [
++    view.liveConnections,
++    view.externalChannelsEnabled,
++    view.mcpConnected,
++    view.remoteGatewayConnected,
++  ].filter(Boolean).length
++  const shownModules = view.modules.slice(0, DECK_LIST_CAP)
++
++  return (
++    <div className={`${chakra.variable} ${deckStyles.deck}`}>
++      <div style={wrap}>
++        <h1 style={{ fontSize: 24, marginBottom: '0.25rem' }}>Hermes Control Panel</h1>
++        <p style={{ color: muted, marginTop: 0, fontFamily: mono, fontSize: 13 }}>
++          Hermes Agent v{v.version} Â· {v.releaseName} ({v.release}) Â· config format {v.configFormat}
++        </p>
++
++        <div style={banner}>
++          <strong>Read-only foundation.</strong> {view.note}
++        </div>
++
++        <div style={{ display: 'grid', gap: '1rem' }}>
++          {/* â”€â”€ Security / version posture â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
++          <DeckDetails
++            title="Security & version posture"
++            stats={`design target (not live) Â· ${hardeningsOn}/4 hardenings on Â· leaner skill set ${posture.leanerSkillSet} Â· NVIDIA tap ${posture.nvidiaTap}`}
++            testId="hermes-security-posture"
++          >
++            {/* UNI-2394 â€” these posture values come from the static registry
++                (control-panel.ts, source 'static_registry'), not a live Hermes
++                probe. Label them honestly instead of presenting them as live. */}
++            <p style={{ color: muted, fontFamily: mono, fontSize: 12, marginTop: 0 }}>
++              Design target (not live) â€” values are the v{v.version} release posture from the static registry, not a live probe of a running Hermes instance.
++            </p>
++            <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: 14 }}>
++              <span>Secret redaction: <b style={{ color: okText }}>{posture.secretRedaction}</b></span>
++              <span>Subprocess cred stripping: <b style={{ color: okText }}>{posture.subprocessCredentialStripping}</b></span>
++              <span>SSRF hardening: <b style={{ color: okText }}>{posture.ssrfHardening}</b></span>
++              <span>CVE pinning: <b style={{ color: okText }}>{posture.cveSecurityPinning}</b></span>
++              <span>Leaner skill set: <b>{posture.leanerSkillSet}</b></span>
++              <span>NVIDIA tap: <b>{posture.nvidiaTap}</b></span>
++            </div>
++          </DeckDetails>
++
++          {/* â”€â”€ Connection invariants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
++          <DeckDetails
++            title="Connection state"
++            stats={
++              connectedSurfaces === 0
++                ? 'not connected â€” all external surfaces inert (by design)'
++                : `${connectedSurfaces}/4 external surfaces connected`
++            }
++            testId="hermes-connection-state"
++          >
++            <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', fontSize: 14 }}>
++              <span>Live connections: <b style={{ color: okText }}>{view.liveConnections ? 'yes' : 'no'}</b></span>
++              <span>External channels enabled: <b style={{ color: okText }}>{view.externalChannelsEnabled ? 'yes' : 'no'}</b></span>
++              <span>MCP connected: <b style={{ color: okText }}>{view.mcpConnected ? 'yes' : 'no'}</b></span>
++              <span>Remote gateway connected: <b style={{ color: okText }}>{view.remoteGatewayConnected ? 'yes' : 'no'}</b></span>
++              <span>Credentials exposed: <b style={{ color: okText }}>{view.credentialsExposed ? 'yes' : 'no'}</b></span>
++            </div>
++          </DeckDetails>
++
++          {/* â”€â”€ Modules â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
++          <DeckDetails
++            title={`Surface-Release modules (${view.moduleCount})`}
++            stats={`${view.modulesImplementableNow} now Â· ${view.modulesRequiringLaterApproval} need later approval Â· ${view.highRiskGatedCount} high-risk gated`}
++            testId="hermes-modules"
++          >
++            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
++              <thead>
++                <tr>
++                  <th style={th}>Module</th>
++                  <th style={th}>Hermes feature</th>
++                  <th style={th}>State</th>
++                  <th style={th}>Ext. risk</th>
++                  <th style={th}>Later approval</th>
++                </tr>
++              </thead>
++              <tbody>
++                {shownModules.map((m) => (
++                  <tr key={m.moduleId}>
++                    <td style={td}>
++                      <div style={{ fontWeight: 600 }}>{m.title}</div>
++                      <div style={{ color: muted, fontSize: 12 }}>{m.note}</div>
++                    </td>
++                    <td style={td}>{m.hermesFeature}</td>
++                    <td style={td}>{m.state}</td>
++                    <td style={td}>
++                      <span style={riskStyle(m.externalActionRisk)}>{m.externalActionRisk}</span>
++                    </td>
++                    <td style={td}>{m.requiresLaterApproval ? 'yes' : 'no'}</td>
++                  </tr>
++                ))}
++              </tbody>
++            </table>
++            <DeckMoreLine total={view.modules.length} shown={shownModules.length} />
++          </DeckDetails>
++
++          {/* â”€â”€ Credential boundary (status only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
++          <DeckDetails
++            title="Credential boundary"
++            stats={`${view.credentialBoundaries.length} boundaries Â· status only â€” no secret values`}
++            testId="hermes-credential-boundary"
++          >
++            <p style={{ color: muted, fontSize: 13, marginTop: 0 }}>
++              Boundary names and status only â€” no secret values are ever displayed.
++            </p>
++            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
++              <thead>
++                <tr>
++                  <th style={th}>Boundary</th>
++                  <th style={th}>Status</th>
++                </tr>
++              </thead>
++              <tbody>
++                {view.credentialBoundaries.map((c) => (
++                  <tr key={c.boundary}>
++                    <td style={td}>{c.boundary}</td>
++                    <td style={td}>{c.status}</td>
++                  </tr>
++                ))}
++              </tbody>
++            </table>
++          </DeckDetails>
++        </div>
++      </div>
++    </div>
++  )
++}
+diff --git a/dashboard/components/command-centre/DeckDetails.tsx b/dashboard/components/command-centre/DeckDetails.tsx
+new file mode 100644
+index 00000000..b2891895
+--- /dev/null
++++ b/dashboard/components/command-centre/DeckDetails.tsx
+@@ -0,0 +1,80 @@
++// src/components/command-centre/DeckDetails.tsx
++//
++// Shared progressive-disclosure primitive for the command deck (founder
++// feedback 14/07/2026: "a lot of exposed data that can be cleaned up").
++// Summary row stays visible â€” title, one to three headline numbers, and a
++// status badge slot â€” while the dense detail (identifier lists, rosters,
++// forms) collapses behind a native <details> chevron. Pure presentation:
++// no data fetching, no new dependencies, deck tokens only (OLED ground,
++// mono accents, rounded-sm). Works in both server and client tiles.
++//
++// Note on identifiers: this page is founder-only behind the (founder)
++// layout auth, so moving emails/ids/hostnames into the collapsed layer is
++// visual de-clutter, not a security boundary â€” the expanded detail keeps
++// them in full.
++
++import styles from './deck-details.module.css'
++
++export function DeckDetails({
++  title,
++  stats,
++  badge,
++  defaultOpen = false,
++  testId,
++  children,
++}: {
++  /** Always-visible tile title. */
++  title: string
++  /** 1â€“3 headline numbers / status words, e.g. "3 connected Â· 1 needs reauth". */
++  stats?: React.ReactNode
++  /** Status badge slot (usually a SourceBadge). Sits at the right edge. */
++  badge?: React.ReactNode
++  /** Render expanded on first paint (uncontrolled after that). */
++  defaultOpen?: boolean
++  testId?: string
++  children: React.ReactNode
++}) {
++  return (
++    <details className={styles.deckDetails} open={defaultOpen || undefined} data-testid={testId}>
++      <summary className={styles.deckSummary}>
++        <span aria-hidden className={styles.chev} />
++        <span className={styles.title}>{title}</span>
++        {stats != null && <span className={styles.stats}>{stats}</span>}
++        {badge != null && <span className={styles.badge}>{badge}</span>}
++      </summary>
++      <div className={styles.body}>{children}</div>
++    </details>
++  )
++}
++
++/**
++ * Honest "+N more" line for lists capped inside a disclosure. Renders
++ * nothing when the list is fully shown, so callers can emit it
++ * unconditionally after a `.slice(0, cap)`.
++ */
++export function DeckMoreLine({ total, shown }: { total: number; shown: number }) {
++  if (total <= shown) return null
++  return <p className={styles.moreLine}>+{total - shown} more not shown</p>
++}
++
++/** Default row cap for lists rendered inside a DeckDetails disclosure. */
++export const DECK_LIST_CAP = 8
++
++/** Row cap for full founder pages (summary-first cleanup, founder 14/07/2026). */
++export const PAGE_LIST_CAP = 10
++
++/**
++ * The deck-details CSS falls back to dark-deck inks (#f0f3f7 text) when the
++ * --deck-* / --cc-* tokens are absent â€” illegible on the founder app's light
++ * (paper) theme. Founder pages outside the command deck spread this onto a
++ * wrapping element so the primitive maps onto the app's light token set.
++ * (DeckDetails lives under components/command-centre/; imported here rather
++ * than duplicated â€” a later refactor can relocate it.)
++ */
++export const LIGHT_THEME_DECK_TOKENS = {
++  '--deck-line': 'var(--color-border)',
++  '--deck-line-soft': 'var(--color-border)',
++  '--deck-text': 'var(--color-text-primary)',
++  '--deck-muted': 'var(--color-text-muted)',
++  '--deck-cyan-text': 'var(--color-accent-text)',
++} as React.CSSProperties
+diff --git a/dashboard/components/command-centre/command-deck.module.css b/dashboard/components/command-centre/command-deck.module.css
+new file mode 100644
+index 00000000..d7021480
+--- /dev/null
++++ b/dashboard/components/command-centre/command-deck.module.css
+@@ -0,0 +1,618 @@
++/* Command Deck â€” flight-deck console aesthetic for the Nexus Command Centre.
++   Scoped CSS module (no runtime style injection â€” CSP/nonce safe).
++   Signal palette: cyan (primary) / go-green / caution-amber / abort-red. */
++
++.deck {
++  /* UNI-2339 slice 2 â€” the deck ground migrates onto the ratified Gun Metal
++     canvas (shell.module.css register). Every tile consumes colour via these
++     tokens (tiles imported unchanged), so the flip happens here. All TEXT
++     tokens computed against the darkest panel they land on (--deck-panel
++     #1c2230) and the bare canvas (#0e1014) â€” ratios noted per token. */
++  --deck-cyan: #2dbb57;     /* primary accent â€” fills, LEDs, glows only */
++  --deck-go: #2dbb57;       /* go â€” fills/LEDs only */
++  --deck-amber: #f4820f;    /* caution â€” fills/LEDs only */
++  --deck-abort: #e5484d;    /* abort â€” fills/LEDs only */
++  --deck-glow: 45, 187, 87; /* RGB triplet for LED/glow shadows â€” candy green on the dark deck */
++  --deck-line: rgba(255, 255, 255, 0.10);
++  --deck-line-soft: rgba(255, 255, 255, 0.05);
++  --deck-panel: #1c2230;    /* canvas --surface-2 */
++  --deck-panel-hi: #232b3a; /* canvas --surface-3 */
++  --deck-text: #f0f3f7;     /* canvas --ink â†’ 14.28:1 on panel, 17.11:1 on canvas */
++  --deck-muted: #a6afbc;    /* canvas --ink-dim â†’ 7.18:1 on panel, 8.60:1 on canvas */
++  /* WCAG-AA text variants: the bright candy green/amber/red are kept for
++     fills/LEDs; TEXT consumers get light-on-dark variants that clear 4.5:1
++     on --deck-panel (#1c2230). */
++  --deck-cyan-text: #34d399;  /* 8.27:1 on panel, 9.90:1 on canvas */
++  --deck-amber-text: #f0a94c; /* 7.94:1 on panel, 9.51:1 on canvas */
++  --deck-abort-text: #f87171; /* 5.75:1 on panel, 6.88:1 on canvas */
++
++  /* Aliases so panels consolidated from the retired command-center page (which
++     use the --cc-* namespace) resolve their colours on this deck. */
++  --cc-bg: var(--deck-panel);
++  --cc-bg-soft: #141820;    /* canvas --surface-1 */
++  --cc-grid: var(--deck-line);
++  --cc-ink: var(--deck-text);
++  --cc-ink-dim: var(--deck-muted);
++  --cc-ink-hush: #8b96a5;   /* hushed but AA: 5.30:1 on panel, 5.93:1 on bg-soft */
++  /* --cc-signal stays the bright candy green: consolidated cc-* panels use it
++     for fills/dots/LEDs/borders (ActivityRow, HermesControlPanel backgrounds,
++     WorkPacketLane borders, ActivityLog dot, DegradedDataBanner borderLeft).
++     TEXT consumers use --cc-signal-text (AA-passing on the dark grounds). */
++  --cc-signal: var(--deck-cyan);
++  --cc-signal-text: var(--deck-cyan-text);
++  --cc-pulse-duration: 2.4s;
++
++  /* Tile inline-style tokens â€” the five queue/health/evidence tiles style via
++     inline `style={{}}` (class overrides can't reach them), so they consume
++     these vars with their old literals as fallbacks. Deck values = those
++     literals exactly; the daylight block re-inks them for paper. */
++  --tile-ink: #e6f7ff;
++  --tile-ink-dim: #9bb0c1;
++  --tile-ink-hush: #6f879b;
++  --tile-card-bg: rgba(0, 0, 0, 0.25);
++  --tile-card-line: rgba(255, 255, 255, 0.08);
++  --tile-amber-txt: #fb923c;
++  --tile-green-txt: #34d399;
++  --tile-red-txt: #d02f35;
++
++  position: relative;
++  min-height: 100%;
++  padding: 1.75rem 1.75rem 3rem;
++  color: var(--deck-text);
++  font-family: var(--font-chakra), var(--font-geist-sans), system-ui, sans-serif;
++  background-color: #0e1014;
++  background-image:
++    radial-gradient(120% 80% at 50% -10%, rgba(179, 0, 0, 0.07), transparent 60%),
++    radial-gradient(100% 70% at 100% 0%, rgba(255, 255, 255, 0.03), transparent 55%);
++  overflow: hidden;
++}
++
++/* Top ambient light (was the candy gloss sheen â€” canvas = matte, faint) */
++.deck::after {
++  content: "";
++  position: absolute;
++  inset: 0;
++  pointer-events: none;
++  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 28%);
++  z-index: 0;
++}
++
++.deck > * { position: relative; z-index: 1; }
++
++/* â”€â”€ Status strip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
++.statusStrip {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 1.5rem;
++  flex-wrap: wrap;
++  padding: 0.9rem 1.1rem;
++  border: 1px solid var(--deck-line);
++  border-radius: 12px;
++  background: linear-gradient(180deg, var(--deck-panel-hi), var(--deck-panel));
++  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 8px 30px rgba(0, 0, 0, 0.45);
++}
++
++.brand { display: flex; align-items: center; gap: 0.75rem; }
++
++.brandMark {
++  width: 34px; height: 34px;
++  display: grid; place-items: center;
++  border: 1px solid var(--deck-cyan);
++  border-radius: 10px;
++  color: var(--deck-cyan-text);
++  font-weight: 700;
++  letter-spacing: 0.05em;
++  box-shadow: 0 0 18px rgba(var(--deck-glow), 0.35), inset 0 0 10px rgba(var(--deck-glow), 0.12);
++}
++
++.brandText { display: flex; flex-direction: column; line-height: 1.05; }
++.brandTitle {
++  font-weight: 600;
++  font-size: 0.95rem;
++  letter-spacing: 0.22em;
++  text-transform: uppercase;
++  color: var(--deck-text);
++}
++.brandSub {
++  font-family: var(--font-geist-mono), monospace;
++  font-size: 0.62rem;
++  letter-spacing: 0.28em;
++  text-transform: uppercase;
++  color: var(--deck-muted);
++}
++
++.clock {
++  font-family: var(--font-geist-mono), monospace;
++  font-size: 1.35rem;
++  font-weight: 500;
++  letter-spacing: 0.08em;
++  color: var(--deck-cyan-text);
++  text-shadow: 0 0 14px rgba(var(--deck-glow), 0.45);
++  font-variant-numeric: tabular-nums;
++}
++.clockLabel {
++  font-family: var(--font-geist-mono), monospace;
++  font-size: 0.55rem;
++  letter-spacing: 0.3em;
++  color: var(--deck-muted);
++  text-transform: uppercase;
++}
++
++.metrics { display: flex; align-items: stretch; gap: 1.4rem; }
++.metric { display: flex; flex-direction: column; gap: 0.15rem; min-width: 56px; }
++.metricValue {
++  font-family: var(--font-geist-mono), monospace;
++  font-size: 1.5rem;
++  font-weight: 600;
++  line-height: 1;
++  font-variant-numeric: tabular-nums;
++  color: var(--deck-text);
++}
++.metricValue[data-tone="go"] { color: var(--deck-cyan-text); }
++.metricValue[data-tone="amber"] { color: var(--deck-amber-text); }
++.metricLabel {
++  font-family: var(--font-geist-mono), monospace;
++  font-size: 0.55rem;
++  letter-spacing: 0.24em;
++  text-transform: uppercase;
++  color: var(--deck-muted);
++}
++
++.sys { display: flex; align-items: center; gap: 0.5rem; }
++.sysText {
++  font-family: var(--font-geist-mono), monospace;
++  font-size: 0.68rem;
++  letter-spacing: 0.18em;
++  text-transform: uppercase;
++  color: var(--deck-cyan-text);
++}
++
++.kbd {
++  font-family: var(--font-geist-mono), monospace;
++  font-size: 0.62rem;
++  letter-spacing: 0.1em;
++  color: var(--deck-muted);
++  border: 1px solid var(--deck-line);
++  border-radius: 10px;
++  padding: 0.28rem 0.5rem;
++  background: rgba(var(--deck-glow), 0.05);
++  white-space: nowrap;
++}
++.kbd b { color: var(--deck-text); font-weight: 600; }
++
++/* Section labels (HUD) removed â€” UNI-2339 slice 2 migrated every section
++   head to the canvas register (shell.module.css .glassSectionHead). */
++
++/* â”€â”€ Panel grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
++.panelGrid {
++  display: grid;
++  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
++  gap: 0.9rem;
++}
++
++.panel {
++  position: relative;
++  display: flex; flex-direction: column; gap: 0.75rem;
++  padding: 0.95rem 1rem 1rem;
++  border: 1px solid var(--deck-line);
++  border-left: 3px solid var(--swatch, var(--deck-cyan));
++  border-radius: 14px;
++  background: linear-gradient(165deg, var(--deck-panel-hi) 0%, var(--deck-panel) 100%);
++  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 6px 18px rgba(0, 0, 0, 0.35);
++  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
++}
++/* Instrument bezel corner ticks */
++.panel::before, .panel::after {
++  content: "";
++  position: absolute;
++  width: 9px; height: 9px;
++  border: 1px solid var(--deck-line);
++  pointer-events: none;
++}
++.panel::before { top: 6px; right: 6px; border-left: 0; border-bottom: 0; }
++.panel::after { bottom: 6px; left: 6px; border-right: 0; border-top: 0; }
++.panel:hover {
++  transform: translateY(-2px);
++  border-color: rgba(var(--deck-glow), 0.4);
++  box-shadow: 0 10px 30px rgba(45, 120, 70, 0.16), 0 0 0 1px rgba(var(--deck-glow), 0.12);
++}
++
++.panelHead { display: flex; align-items: center; gap: 0.55rem; }
++.pname {
++  font-size: 0.92rem;
++  font-weight: 600;
++  letter-spacing: 0.04em;
++  color: var(--deck-text);
++  flex: 1; min-width: 0;
++  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
++}
++.ppurpose {
++  font-family: var(--font-geist-sans), system-ui, sans-serif;
++  font-size: 0.74rem;
++  line-height: 1.5;
++  color: var(--deck-muted);
++  min-height: 2.2em;
++}
++
++.led {
++  width: 8px; height: 8px; border-radius: 50%;
++  flex-shrink: 0;
++  background: var(--deck-muted);
++  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
++}
++.led[data-state="active"] {
++  background: var(--deck-go);
++  box-shadow: 0 0 10px var(--deck-go), 0 0 0 2px rgba(255, 255, 255, 0.12);
++  animation: pulse 2.4s ease-in-out infinite;
++}
++.led[data-state="stub"] { background: var(--deck-amber); box-shadow: 0 0 8px var(--deck-amber); }
++
++.statusTag {
++  font-family: var(--font-geist-mono), monospace;
++  font-size: 0.55rem;
++  letter-spacing: 0.18em;
++  text-transform: uppercase;
++  color: var(--deck-muted);
++}
++
++.readouts {
++  display: flex; flex-direction: column; gap: 0.4rem;
++  padding-top: 0.6rem;
++  border-top: 1px solid var(--deck-line-soft);
++}
++.readout {
++  display: flex; align-items: center; gap: 0.5rem;
++  font-family: var(--font-geist-mono), monospace;
++  font-size: 0.66rem;
++  letter-spacing: 0.04em;
++  color: var(--deck-muted);
++}
++.readoutKey { color: var(--deck-muted); min-width: 58px; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.56rem; }
++.readoutVal { color: var(--deck-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
++
++.plink {
++  display: inline-flex; align-items: center; gap: 0.4rem;
++  font-family: var(--font-geist-mono), monospace;
++  font-size: 0.66rem;
++  letter-spacing: 0.04em;
++  color: var(--deck-cyan-text);
++  text-decoration: none;
++  width: fit-content;
++  transition: text-shadow 0.15s ease;
++}
++.plink:hover { text-shadow: 0 0 10px rgba(var(--deck-glow), 0.5); text-decoration: underline; }
++
++/* â”€â”€ Project integration manifests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
++.integrationGrid {
++  display: grid;
++  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
++  gap: 0.9rem;
++}
++
++.integrationSummary {
++  display: grid;
++  grid-template-columns: repeat(4, minmax(0, 1fr));
++  gap: 0.35rem;
++  padding: 0.55rem;
++  border: 1px solid var(--deck-line-soft);
++  border-radius: 10px;
++  background: rgba(var(--deck-glow), 0.05);
++}
++
++.integrationSummary span {
++  display: flex;
++  flex-direction: column;
++  gap: 0.1rem;
++  min-width: 0;
++  font-family: var(--font-geist-mono), monospace;
++  font-size: 0.54rem;
++  letter-spacing: 0.12em;
++  text-transform: uppercase;
++  color: var(--deck-muted);
++}
++
++.integrationSummary b {
++  color: var(--deck-text);
++  font-size: 0.9rem;
++  font-weight: 600;
++  line-height: 1;
++}
++
++.connectionList {
++  display: flex;
++  flex-direction: column;
++  gap: 0.38rem;
++  max-height: 260px;
++  overflow: auto;
++  padding-right: 0.1rem;
++}
++
++.connectionRow {
++  display: grid;
++  grid-template-columns: 8px minmax(0, 1fr) auto;
++  align-items: center;
++  gap: 0.45rem;
++  padding: 0.45rem 0.5rem;
++  border: 1px solid var(--deck-line-soft);
++  border-radius: 10px;
++  background: rgba(var(--deck-glow), 0.05);
++}
++
++.connectionName {
++  min-width: 0;
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++  font-size: 0.68rem;
++  color: var(--deck-text);
++}
++
++.connectionState {
++  font-family: var(--font-geist-mono), monospace;
++  font-size: 0.52rem;
++  letter-spacing: 0.12em;
++  text-transform: uppercase;
++  color: var(--deck-muted);
++}
++
++.connectionAction {
++  grid-column: 2 / 4;
++  min-width: 0;
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++  font-size: 0.62rem;
++  color: var(--deck-amber-text);
++}
++
++.integrationActions {
++  display: flex;
++  align-items: center;
++  justify-content: flex-end;
++  gap: 0.4rem;
++  min-width: min(100%, 320px);
++  flex-wrap: wrap;
++}
++
++.iconCommand,
++.queueCommand {
++  appearance: none;
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  gap: 0.42rem;
++  min-height: 32px;
++  border: 1px solid var(--deck-line);
++  border-radius: 10px;
++  color: #eaf3ec;
++  background: rgba(8, 15, 24, 0.82);
++  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
++  cursor: pointer;
++  transition: border-color 0.14s ease, color 0.14s ease, background 0.14s ease;
++}
++
++.iconCommand {
++  width: 34px;
++  padding: 0;
++}
++
++.queueCommand {
++  padding: 0 0.68rem;
++  font-family: var(--font-geist-mono), monospace;
++  font-size: 0.58rem;
++  letter-spacing: 0.1em;
++  text-transform: uppercase;
++  white-space: nowrap;
++}
++
++.iconCommand:hover,
++.queueCommand:hover {
++  border-color: rgba(var(--deck-glow), 0.5);
++  color: var(--deck-cyan);
++  background: rgba(13, 25, 38, 0.94);
++}
++
++.iconCommand:disabled,
++.queueCommand:disabled {
++  cursor: wait;
++  opacity: 0.58;
++}
++
++.integrationActionStatus {
++  min-width: 110px;
++  max-width: min(46vw, 220px);
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++  font-family: var(--font-geist-mono), monospace;
++  font-size: 0.56rem;
++  letter-spacing: 0.1em;
++  text-transform: uppercase;
++  color: var(--deck-muted);
++  text-align: right;
++}
++
++/* â”€â”€ Capability bus (tools) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
++.bus {
++  border: 1px solid var(--deck-line);
++  border-radius: 10px;
++  background: linear-gradient(180deg, var(--deck-panel-hi), var(--deck-panel));
++  padding: 1rem 1.1rem 1.1rem;
++}
++.busTop {
++  display: flex; align-items: center; justify-content: space-between;
++  gap: 1rem; flex-wrap: wrap;
++  padding-bottom: 0.85rem; margin-bottom: 0.9rem;
++  border-bottom: 1px solid var(--deck-line-soft);
++}
++.sources { display: flex; flex-wrap: wrap; gap: 0.4rem; }
++.sourceChip {
++  font-family: var(--font-geist-mono), monospace;
++  font-size: 0.6rem; letter-spacing: 0.06em;
++  color: var(--deck-muted);
++  border: 1px solid var(--deck-line);
++  border-radius: 10px;
++  padding: 0.22rem 0.5rem;
++  background: rgba(var(--deck-glow), 0.05);
++}
++.sourceChip b { color: var(--deck-cyan-text); font-weight: 600; }
++.stamp {
++  display: inline-flex; align-items: center; gap: 0.45rem;
++  font-family: var(--font-geist-mono), monospace;
++  font-size: 0.58rem; letter-spacing: 0.22em; text-transform: uppercase;
++  color: var(--deck-cyan-text);
++  border: 1px dashed rgba(52, 211, 153, 0.4);
++  border-radius: 10px; padding: 0.3rem 0.6rem;
++}
++
++.toolGrid {
++  display: grid;
++  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
++  gap: 0.5rem;
++}
++.toolRow {
++  display: flex; align-items: flex-start; justify-content: space-between; gap: 0.6rem;
++  padding: 0.55rem 0.7rem;
++  border: 1px solid var(--deck-line-soft);
++  border-left: 2px solid var(--rail, var(--deck-line));
++  border-radius: 10px;
++  background: rgba(var(--deck-glow), 0.05);
++  transition: background 0.15s ease, border-color 0.15s ease;
++}
++.toolRow:hover { background: rgba(var(--deck-glow), 0.04); border-color: var(--deck-line); }
++.toolKey {
++  font-family: var(--font-geist-mono), monospace;
++  font-size: 0.7rem; color: var(--deck-text); font-weight: 500;
++  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
++}
++.toolDesc { font-size: 0.66rem; color: var(--deck-muted); line-height: 1.4; margin-top: 0.1rem; }
++.riskTag {
++  font-family: var(--font-geist-mono), monospace;
++  font-size: 0.52rem; letter-spacing: 0.12em; text-transform: uppercase;
++  color: var(--rail, var(--deck-muted));
++  white-space: nowrap;
++}
++.approval {
++  font-family: var(--font-geist-mono), monospace;
++  font-size: 0.5rem; letter-spacing: 0.1em; text-transform: uppercase;
++  color: var(--deck-amber-text); margin-top: 0.2rem; display: block; text-align: right;
++}
++
++/* â”€â”€ System detail expander (keeps the dense console out of the clean front) â”€â”€ */
++.systemDetail {
++  margin-top: 1.75rem;
++  border-top: 1px solid var(--deck-line);
++  padding-top: 0.75rem;
++}
++.systemSummary {
++  cursor: pointer;
++  list-style: none;
++  display: inline-flex;
++  align-items: center;
++  gap: 0.5rem;
++  font-size: 0.78rem;
++  font-weight: 600;
++  letter-spacing: 0.08em;
++  text-transform: uppercase;
++  color: var(--deck-muted);
++  padding: 0.5rem 0.25rem;
++  user-select: none;
++}
++.systemSummary::-webkit-details-marker { display: none; }
++.systemSummary::before {
++  content: "â–¸";
++  color: #2f9e44;
++}
++.systemDetail[open] .systemSummary::before { content: "â–¾"; }
++.systemSummary:hover { color: var(--deck-text); }
++
++/* â”€â”€ Reveal + pulse â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
++.reveal { opacity: 0; transform: translateY(8px); animation: rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
++
++@keyframes rise { to { opacity: 1; transform: translateY(0); } }
++@keyframes pulse {
++  0%, 100% { opacity: 1; }
++  50% { opacity: 0.35; }
++}
++
++@media (prefers-reduced-motion: reduce) {
++  .reveal { animation: none; opacity: 1; transform: none; }
++  .led[data-state="active"] { animation: none; }
++  .deck::after { display: none; }
++}
++
++@media (max-width: 640px) {
++  .deck { padding: 1rem 1rem 2rem; }
++  .statusStrip { gap: 0.9rem; }
++  .metrics { gap: 1rem; }
++  .clock { font-size: 1.1rem; }
++}
++
++/* â”€â”€ Daylight register â€” Affirm-inspired fintech-trust feel: warm paper
++   ground, near-black ink, one indigo accent, soft shadows. Pattern source:
++   Mobbin â€” Affirm iOS (docs/design/mobbin-ui-library.md); the reference
++   informs hierarchy and tone, never pixels. Applied WITH .deck by
++   DeckThemeShell when the founder flips the Feel toggle; default stays the
++   dark deck. Contrast ratios noted per token against white (--deck-panel). */
++.deck.daylight {
++  --deck-cyan: #4a4af4;       /* indigo accent â€” fills, LEDs, glows only */
++  --deck-go: #0f9d58;
++  --deck-amber: #d97706;
++  --deck-abort: #dc2626;
++  --deck-glow: 74, 74, 244; /* RGB triplet for LED/glow shadows â€” indigo, matches --deck-cyan */
++  --deck-line: rgba(22, 24, 29, 0.12);
++  --deck-line-soft: rgba(22, 24, 29, 0.06);
++  --deck-panel: #ffffff;
++  --deck-panel-hi: #f4f1eb;
++  --deck-text: #16181d;       /* 16.6:1 on white */
++  --deck-muted: #5c6470;      /* 5.9:1 on white */
++  --deck-cyan-text: #3d3ddb;  /* 6.9:1 on white */
++  --deck-amber-text: #92510a; /* 6.1:1 on white */
++  --deck-abort-text: #b91c1c; /* 6.3:1 on white */
++
++  --cc-bg-soft: #f7f5f1;
++  --cc-ink-hush: #6b7280;     /* 4.8:1 on white */
++
++  --tile-ink: #16181d;
++  --tile-ink-dim: #5c6470;        /* 5.9:1 on white */
++  --tile-ink-hush: #6b7280;       /* 4.8:1 on white */
++  --tile-card-bg: rgba(22, 24, 29, 0.03);
++  --tile-card-line: rgba(22, 24, 29, 0.12);
++  --tile-amber-txt: #92510a;      /* 6.1:1 on white */
++  --tile-green-txt: #0b7a44;
++  --tile-red-txt: #b91c1c;        /* 6.3:1 on white */
++
++  color: var(--deck-text);
++  font-family: var(--font-geist-sans), system-ui, sans-serif;
++  background-color: #faf9f7;
++  background-image: none;
++}
++.deck.daylight::after { background: none; }
++.deck.daylight .statusStrip {
++  box-shadow: 0 1px 2px rgba(22, 24, 29, 0.05), 0 8px 24px -18px rgba(22, 24, 29, 0.18);
++}
++.deck.daylight .brandMark { box-shadow: none; }
++
++/* Feel toggle â€” the only chrome DeckThemeShell adds. Fixed so it never
++   collides with deck content; pill shape per the daylight reference. */
++.feelToggle {
++  position: fixed;
++  right: 1.1rem;
++  bottom: 1.1rem;
++  z-index: 40;
++  padding: 0.4rem 1rem;
++  border: 1px solid var(--deck-line);
++  border-radius: 999px;
++  background: var(--deck-panel);
++  color: var(--deck-muted);
++  font: inherit;
++  font-size: 0.72rem;
++  letter-spacing: 0.08em;
++  text-transform: uppercase;
++  cursor: pointer;
++}
++.feelToggle:hover {
++  color: var(--deck-text);
++  border-color: var(--deck-cyan);
++}
+diff --git a/dashboard/components/command-centre/deck-details.module.css b/dashboard/components/command-centre/deck-details.module.css
+new file mode 100644
+index 00000000..c37799f1
+--- /dev/null
++++ b/dashboard/components/command-centre/deck-details.module.css
+@@ -0,0 +1,80 @@
++/* deck-details.module.css â€” styling for the DeckDetails disclosure primitive.
++   Matches the command-deck aesthetic: OLED-adjacent ground handled by the
++   parent tile, mono accents, rounded-sm (2px), --deck-* token vocabulary
++   (falls back to the --cc-* aliases the deck already maps onto them). */
++
++.deckDetails {
++  border: 1px solid var(--deck-line, var(--cc-grid, rgba(255, 255, 255, 0.1)));
++  border-radius: 2px;
++  background: transparent;
++}
++
++.deckSummary {
++  cursor: pointer;
++  list-style: none;
++  display: flex;
++  align-items: center;
++  gap: 0.6rem;
++  padding: 0.55rem 0.7rem;
++  user-select: none;
++  min-width: 0;
++}
++.deckSummary::-webkit-details-marker {
++  display: none;
++}
++.deckSummary:hover .title {
++  color: var(--deck-text, var(--cc-ink, #f0f3f7));
++}
++
++.chev {
++  flex: 0 0 auto;
++  font-family: ui-monospace, SFMono-Regular, monospace;
++  font-size: 0.7rem;
++  color: var(--deck-cyan-text, var(--cc-signal-text, #34d399));
++}
++.chev::before {
++  content: 'â–¸';
++}
++.deckDetails[open] > .deckSummary .chev::before {
++  content: 'â–¾';
++}
++
++.title {
++  color: var(--deck-text, var(--cc-ink, #f0f3f7));
++  font-size: 0.82rem;
++  font-weight: 700;
++  white-space: nowrap;
++  overflow: hidden;
++  text-overflow: ellipsis;
++}
++
++.stats {
++  color: var(--deck-muted, var(--cc-ink-dim, #a6afbc));
++  font-family: ui-monospace, SFMono-Regular, monospace;
++  font-size: 0.7rem;
++  letter-spacing: 0.03em;
++  white-space: nowrap;
++  overflow: hidden;
++  text-overflow: ellipsis;
++  min-width: 0;
++}
++
++.badge {
++  margin-left: auto;
++  flex: 0 0 auto;
++  display: inline-flex;
++  align-items: center;
++}
++
++.body {
++  border-top: 1px solid var(--deck-line-soft, rgba(255, 255, 255, 0.05));
++  padding: 0.6rem 0.7rem;
++}
++
++.moreLine {
++  margin: 0.4rem 0 0;
++  color: var(--deck-muted, var(--cc-ink-dim, #a6afbc));
++  font-family: ui-monospace, SFMono-Regular, monospace;
++  font-size: 0.7rem;
++  letter-spacing: 0.03em;
++}
+diff --git a/dashboard/lib/command-centre/control-panel.ts b/dashboard/lib/command-centre/control-panel.ts
+new file mode 100644
+index 00000000..0b698979
+--- /dev/null
++++ b/dashboard/lib/command-centre/control-panel.ts
+@@ -0,0 +1,264 @@
++/**
++ * Hermes v0.16 "Surface Release" â€” Control Panel capability registry (static, read-only).
++ *
++ * Maps the Hermes Agent v0.16.0 Surface-Release feature areas to Unite-Group Control
++ * Panel modules as a READ-ONLY status surface. This file performs NO external calls, opens
++ * NO connections, reads NO secrets, and activates NOTHING. Every high-risk surface (remote
++ * gateway, MCP catalog, messaging channels, hooks/webhooks) is represented as inert:
++ * connected = false / enabled = false / status 'design_only'. Live wiring of any module is
++ * a separate, explicitly-gated Board decision.
++ *
++ * Safety invariants enforced at the type/data level:
++ *  - no module is 'active' for an external surface (externalActionRisk modules stay gated);
++ *  - the credential boundary carries STATUS STRINGS ONLY â€” never a secret value;
++ *  - externalChannelsEnabled / mcpConnected / remoteGatewayConnected are literal false.
++ */
++
++export type ModuleState =
++  | 'read_only' // surfaced, no action possible
++  | 'planned' // designed, not built live
++  | 'design_only' // stubbed; live wiring is a later gate
++  | 'available_not_installed' // capability exists but not installed/connected (operator action)
++  | 'not_connected' // external surface deliberately not connected
++  | 'none_enabled' // external surface deliberately has nothing enabled
++
++export type ExternalActionRisk = 'none' | 'low' | 'high'
++
++export interface HermesControlPanelModule {
++  moduleId: string
++  title: string
++  hermesFeature: string
++  state: ModuleState
++  externalActionRisk: ExternalActionRisk
++  implementableNow: boolean
++  requiresLaterApproval: boolean
++  note: string
++}
++
++export const HERMES_VERSION = '0.16.0'
++export const HERMES_RELEASE = '2026.6.5'
++export const HERMES_RELEASE_NAME = 'The Surface Release'
++export const HERMES_CONFIG_FORMAT = 27
++
++export interface HermesVersionStatus {
++  source: 'static_registry'
++  version: string
++  release: string
++  releaseName: string
++  configFormat: number
++  securityPosture: {
++    secretRedaction: 'on'
++    subprocessCredentialStripping: 'on'
++    ssrfHardening: 'on'
++    cveSecurityPinning: 'on'
++    leanerSkillSet: 'adopted'
++    nvidiaTap: 'available_not_installed'
++  }
++}
++
++export function getHermesVersionStatus(): HermesVersionStatus {
++  return {
++    source: 'static_registry',
++    version: HERMES_VERSION,
++    release: HERMES_RELEASE,
++    releaseName: HERMES_RELEASE_NAME,
++    configFormat: HERMES_CONFIG_FORMAT,
++    securityPosture: {
++      secretRedaction: 'on',
++      subprocessCredentialStripping: 'on',
++      ssrfHardening: 'on',
++      cveSecurityPinning: 'on',
++      leanerSkillSet: 'adopted',
++      nvidiaTap: 'available_not_installed',
++    },
++  }
++}
++
++export const HERMES_CONTROL_PANEL_MODULES: readonly HermesControlPanelModule[] = [
++  {
++    moduleId: 'desktop_session_status',
++    title: 'Desktop session status',
++    hermesFeature: 'Hermes Desktop app',
++    state: 'read_only',
++    externalActionRisk: 'none',
++    implementableNow: true,
++    requiresLaterApproval: false,
++    note: 'Derived from the hermes_local lane (active, local_runtime). No live presence control.',
++  },
++  {
++    moduleId: 'remote_gateway_registry',
++    title: 'Remote gateway registry',
++    hermesFeature: 'Remote Hermes gateway + gateway list',
++    state: 'design_only',
++    externalActionRisk: 'high',
++    implementableNow: true,
++    requiresLaterApproval: true,
++    note: '0 registered workers, not connected. Connecting a remote gateway is a later named-grant gate.',
++  },
++  {
++    moduleId: 'web_admin_console',
++    title: 'Web admin console',
++    hermesFeature: 'Web dashboard admin panel',
++    state: 'read_only',
++    externalActionRisk: 'none',
++    implementableNow: true,
++    requiresLaterApproval: false,
++    note: 'This founder Control Panel page mirrors the Hermes web admin module list.',
++  },
++  {
++    moduleId: 'mcp_catalog_manager',
++    title: 'MCP catalog manager',
++    hermesFeature: 'MCP catalog admin',
++    state: 'design_only',
++    externalActionRisk: 'high',
++    implementableNow: true,
++    requiresLaterApproval: true,
++    note: 'Catalogue stub, 0 servers, not connected. Connecting an MCP server is a later gate.',
++  },
++  {
++    moduleId: 'messaging_channels_manager',
++    title: 'Messaging channels manager',
++    hermesFeature: 'Channels page',
++    state: 'none_enabled',
++    externalActionRisk: 'high',
++    implementableNow: true,
++    requiresLaterApproval: true,
++    note: 'No external channels enabled. Enabling any channel is a later gate.',
++  },
++  {
++    moduleId: 'credential_boundary_dashboard',
++    title: 'Credential boundary dashboard',
++    hermesFeature: 'Credentials management + subprocess credential stripping',
++    state: 'read_only',
++    externalActionRisk: 'none',
++    implementableNow: true,
++    requiresLaterApproval: false,
++    note: 'Boundary names + status strings only; NEVER secret values. Reflects BLOCKED-OP sandbox state textually.',
++  },
++  {
++    moduleId: 'hooks_webhooks_manager',
++    title: 'Hooks / webhooks manager',
++    hermesFeature: 'Webhooks / hooks',
++    state: 'none_enabled',
++    externalActionRisk: 'high',
++    implementableNow: true,
++    requiresLaterApproval: true,
++    note: '0 webhooks, 0 hooks. Creating/enabling a live hook is a later gate.',
++  },
++  {
++    moduleId: 'memory_second_brain_sync',
++    title: 'Memory / 2nd-Brain sync panel',
++    hermesFeature: 'Memory configuration',
++    state: 'read_only',
++    externalActionRisk: 'none',
++    implementableNow: true,
++    requiresLaterApproval: false,
++    note: 'Built-in memory; 2nd-Brain (.agentic_nexus) sync is local_only. External memory provider = new-vendor gate.',
++  },
++  {
++    moduleId: 'model_lane_picker',
++    title: 'Model / lane picker',
++    hermesFeature: 'Fuzzy model picker',
++    state: 'read_only',
++    externalActionRisk: 'none',
++    implementableNow: true,
++    requiresLaterApproval: false,
++    note: 'Reuses the operator lane registry. Switching a live operator model is a later gate.',
++  },
++  {
++    moduleId: 'skill_hygiene_panel',
++    title: 'Skill hygiene panel',
++    hermesFeature: 'Leaner skill set + curator',
++    state: 'read_only',
++    externalActionRisk: 'none',
++    implementableNow: true,
++    requiresLaterApproval: false,
++    note: 'Leaner skill set adopted; curator governs agent-created skills. Read-only posture.',
++  },
++  {
++    moduleId: 'trusted_skills_tap_registry',
++    title: 'Trusted skills tap registry',
++    hermesFeature: 'Trusted NVIDIA skills tap',
++    state: 'available_not_installed',
++    externalActionRisk: 'low',
++    implementableNow: true,
++    requiresLaterApproval: true,
++    note: 'Default taps only; NVIDIA trusted tap available but NOT installed (no auto-install).',
++  },
++  {
++    moduleId: 'undo_recovery_panel',
++    title: 'Undo / recovery panel',
++    hermesFeature: '/undo [N] + checkpoints',
++    state: 'read_only',
++    externalActionRisk: 'none',
++    implementableNow: true,
++    requiresLaterApproval: false,
++    note: 'Surfaces undo + checkpoint availability. Invoking recovery from the panel is a later gate.',
++  },
++  {
++    moduleId: 'security_version_compliance',
++    title: 'Security / version compliance panel',
++    hermesFeature: 'Security hardening, SSRF, CVE pinning, Debug Share',
++    state: 'read_only',
++    externalActionRisk: 'none',
++    implementableNow: true,
++    requiresLaterApproval: false,
++    note: 'Shows version 0.16.0, config format 27, and security posture flags. Display only.',
++  },
++] as const
++
++export function getControlPanelModules(): readonly HermesControlPanelModule[] {
++  return HERMES_CONTROL_PANEL_MODULES
++}
++
++/** Credential boundary â€” STATUS STRINGS ONLY. Never carries a secret value. */
++export interface CredentialBoundary {
++  boundary: string
++  status: string
++}
++
++export const CREDENTIAL_BOUNDARIES: readonly CredentialBoundary[] = [
++  { boundary: 'op_sandbox', status: 'BLOCKED-OP (1Password CLI auth not green)' },
++  { boundary: 'prod_secrets', status: 'not_read' },
++  { boundary: 'api_keys', status: 'none (no-API-key operator gateway principle)' },
++] as const
++
++export interface HermesControlPanelView {
++  source: 'static_registry'
++  liveConnections: false
++  externalChannelsEnabled: false
++  mcpConnected: false
++  remoteGatewayConnected: false
++  credentialsExposed: false
++  version: HermesVersionStatus
++  moduleCount: number
++  modulesImplementableNow: number
++  modulesRequiringLaterApproval: number
++  highRiskGatedCount: number
++  modules: HermesControlPanelModule[]
++  credentialBoundaries: CredentialBoundary[]
++  note: string
++}
++
++/**
++ * Read-only Control Panel view. No external connections, no secret values, nothing active.
++ */
++export function getControlPanelView(): HermesControlPanelView {
++  const modules = getControlPanelModules()
++  return {
++    source: 'static_registry',
++    liveConnections: false,
++    externalChannelsEnabled: false,
++    mcpConnected: false,
++    remoteGatewayConnected: false,
++    credentialsExposed: false,
++    version: getHermesVersionStatus(),
++    moduleCount: modules.length,
++    modulesImplementableNow: modules.filter((m) => m.implementableNow).length,
++    modulesRequiringLaterApproval: modules.filter((m) => m.requiresLaterApproval).length,
++    highRiskGatedCount: modules.filter((m) => m.externalActionRisk === 'high').length,
++    modules: [...modules],
++    credentialBoundaries: [...CREDENTIAL_BOUNDARIES],
++    note: 'Hermes v0.16 Surface-Release Control Panel â€” read-only foundation. No live connections, no external channels, no MCP, no remote gateway, no secret values.',
++  }
++}
+
+hook: PostToolUse
+hook: PostToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Select-String -LiteralPath 'D:\\Pi-Dev-Ops\\.harness\\cc-01.diff' -Pattern '"'^diff --git|''^@@|''^'"\\+' | Select-Object -First 220" in D:\Pi-Dev-Ops
+ succeeded in 425ms:
+
+.harness\cc-01.diff:1:diff --git a/dashboard/__tests__/command-centre-readonly.test.ts 
+b/dashboard/__tests__/command-centre-readonly.test.ts
+.harness\cc-01.diff:5:+++ b/dashboard/__tests__/command-centre-readonly.test.ts
+.harness\cc-01.diff:6:@@ -0,0 +1,84 @@
+.harness\cc-01.diff:7:+/**
+.harness\cc-01.diff:8:+ * command-centre-readonly.test.ts — enforces R1/R2/R6 for ported capabilities.
+.harness\cc-01.diff:9:+ *
+.harness\cc-01.diff:10:+ * WHY THIS EXISTS: `npm run build` passes *alongside* a fetch, a DB write, or a
+.harness\cc-01.diff:11:+ * paid API call — it does not prove a page is read-only. Cross-vendor review of
+.harness\cc-01.diff:12:+ * capability 1 flagged exactly that: build evidence is not spec evidence. This
+.harness\cc-01.diff:13:+ * test is the missing evidence. It fails on the constructs the contract forbids,
+.harness\cc-01.diff:14:+ * rather than hoping the compiler notices.
+.harness\cc-01.diff:15:+ *
+.harness\cc-01.diff:16:+ * Scope: every file under app/(main)/command-centre/ and lib/command-centre/.
+.harness\cc-01.diff:17:+ * Capabilities that legitimately need a data source (wiki-graph reads wiki_pages)
+.harness\cc-01.diff:18:+ * must be added to ALLOWED_DATA_READERS with a justification, so the exemption is
+.harness\cc-01.diff:19:+ * a visible decision rather than a silent hole.
+.harness\cc-01.diff:20:+ */
+.harness\cc-01.diff:21:+import { describe, expect, it } from "vitest";
+.harness\cc-01.diff:22:+import { readFileSync, readdirSync, statSync } from "node:fs";
+.harness\cc-01.diff:23:+import { join } from "node:path";
+.harness\cc-01.diff:24:+
+.harness\cc-01.diff:25:+const ROOTS = ["app/(main)/command-centre", "lib/command-centre"];
+.harness\cc-01.diff:26:+
+.harness\cc-01.diff:27:+/** Capabilities permitted a server-side read, with the reason. Read-only still. */
+.harness\cc-01.diff:28:+const ALLOWED_DATA_READERS: Record<string, string> = {
+.harness\cc-01.diff:29:+  // "app/(main)/command-centre/wiki-graph": "reads wiki_pages server-side (capability 3)",
+.harness\cc-01.diff:30:+};
+.harness\cc-01.diff:31:+
+.harness\cc-01.diff:32:+/** Constructs that would break the read-only contract. */
+.harness\cc-01.diff:33:+const FORBIDDEN: Array<{ re: RegExp; rule: string }> = [
+.harness\cc-01.diff:34:+  { re: /\bfetch\s*\(/, rule: "R2 no external connections" },
+.harness\cc-01.diff:35:+  { re: /\baxios\b/, rule: "R2 no external connections" },
+.harness\cc-01.diff:36:+  { re: /https?:\/\/(?!.*(?:schema|w3\.org|localhost))/, rule: "R2/R6 no remote host" },
+.harness\cc-01.diff:37:+  { re: /\.(insert|update|upsert|delete)\s*\(/, rule: "R6 no database writes" },
+.harness\cc-01.diff:38:+  { re: /createServerClient|createClient\s*\(/, rule: "R6 no database client" },
+.harness\cc-01.diff:39:+  { re: /\bMcpClient\b|modelcontextprotocol/, rule: "R2 no MCP client" },
+.harness\cc-01.diff:40:+  { re: /ANTHROPIC_API_KEY|OPENAI_API_KEY|STRIPE_SECRET/, rule: "R6 no paid API keys" },
+.harness\cc-01.diff:41:+];
+.harness\cc-01.diff:42:+
+.harness\cc-01.diff:43:+function walk(dir: string): string[] {
+.harness\cc-01.diff:44:+  let out: string[] = [];
+.harness\cc-01.diff:45:+  let entries: string[];
+.harness\cc-01.diff:46:+  try {
+.harness\cc-01.diff:47:+    entries = readdirSync(dir);
+.harness\cc-01.diff:48:+  } catch {
+.harness\cc-01.diff:49:+    return out;
+.harness\cc-01.diff:50:+  }
+.harness\cc-01.diff:51:+  for (const e of entries) {
+.harness\cc-01.diff:52:+    const p = join(dir, e);
+.harness\cc-01.diff:53:+    if (statSync(p).isDirectory()) out = out.concat(walk(p));
+.harness\cc-01.diff:54:+    else if (/\.(ts|tsx)$/.test(e)) out.push(p);
+.harness\cc-01.diff:55:+  }
+.harness\cc-01.diff:56:+  return out;
+.harness\cc-01.diff:57:+}
+.harness\cc-01.diff:58:+
+.harness\cc-01.diff:59:+/** Strip comments so a comment mentioning "fetch" is not a violation. */
+.harness\cc-01.diff:60:+function code(src: string): string {
+.harness\cc-01.diff:61:+  return src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+.harness\cc-01.diff:62:+}
+.harness\cc-01.diff:63:+
+.harness\cc-01.diff:64:+describe("command-centre capabilities are read-only", () => {
+.harness\cc-01.diff:65:+  const files = ROOTS.flatMap((r) => walk(r));
+.harness\cc-01.diff:66:+
+.harness\cc-01.diff:67:+  it("finds the ported capability files (positive control)", () => {
+.harness\cc-01.diff:68:+    // A passing suite that scanned zero files would be indistinguishable from a
+.harness\cc-01.diff:69:+    // clean one. Fail loudly if the scan target vanished.
+.harness\cc-01.diff:70:+    expect(files.length).toBeGreaterThan(0);
+.harness\cc-01.diff:71:+  });
+.harness\cc-01.diff:72:+
+.harness\cc-01.diff:73:+  it("detects a violation when one exists (positive control)", () => {
+.harness\cc-01.diff:74:+    const planted = code("const x = fetch('https://example.com')");
+.harness\cc-01.diff:75:+    expect(FORBIDDEN.some((f) => f.re.test(planted))).toBe(true);
+.harness\cc-01.diff:76:+  });
+.harness\cc-01.diff:77:+
+.harness\cc-01.diff:78:+  for (const rule of FORBIDDEN) {
+.harness\cc-01.diff:79:+    it(`has no violation of: ${rule.rule}`, () => {
+.harness\cc-01.diff:80:+      const hits = files.filter((f) => {
+.harness\cc-01.diff:81:+        const exempt = Object.keys(ALLOWED_DATA_READERS).some((a) =>
+.harness\cc-01.diff:82:+          f.replace(/\\/g, "/").includes(a)
+.harness\cc-01.diff:83:+        );
+.harness\cc-01.diff:84:+        if (exempt) return false;
+.harness\cc-01.diff:85:+        return rule.re.test(code(readFileSync(f, "utf8")));
+.harness\cc-01.diff:86:+      });
+.harness\cc-01.diff:87:+      expect(hits, `${rule.rule} violated in:\n${hits.join("\n")}`).toEqual([]);
+.harness\cc-01.diff:88:+    });
+.harness\cc-01.diff:89:+  }
+.harness\cc-01.diff:90:+});
+.harness\cc-01.diff:91:diff --git a/dashboard/app/(main)/command-centre/hermes/page.tsx 
+b/dashboard/app/(main)/command-centre/hermes/page.tsx
+.harness\cc-01.diff:95:+++ b/dashboard/app/(main)/command-centre/hermes/page.tsx
+.harness\cc-01.diff:96:@@ -0,0 +1,226 @@
+.harness\cc-01.diff:97:+// src/app/(founder)/founder/command-centre/hermes-control-panel/page.tsx
+.harness\cc-01.diff:98:+//
+.harness\cc-01.diff:99:+// Hermes v0.16 "Surface Release" — Control Panel (READ-ONLY foundation).
+.harness\cc-01.diff:100:+// Mirrors the Hermes web admin module list inside the Unite-Group founder command-centre.
+.harness\cc-01.diff:101:+// No external connections, no MCP, no remote gateway, no messaging-channel activation,
+.harness\cc-01.diff:102:+// no secret values. Every external surface renders as inert (not connected / none enabled).
+.harness\cc-01.diff:103:+// Auth enforced by the (founder) layout.
+.harness\cc-01.diff:104:+//
+.harness\cc-01.diff:105:+// Presentation: command-deck standard (summary-first, founder feedback 14/07/2026) —
+.harness\cc-01.diff:106:+// OLED ground + tokens via the shared command-deck.module.css register, mono accents,
+.harness\cc-01.diff:107:+// rounded-sm (2px). The inert/placeholder mirror sections collapse behind the shared
+.harness\cc-01.diff:108:+// DeckDetails disclosure with honest one-line summaries. Data logic unchanged.
+.harness\cc-01.diff:109:+
+.harness\cc-01.diff:110:+
+.harness\cc-01.diff:111:+import { Chakra_Petch } from 'next/font/google'
+.harness\cc-01.diff:112:+import { getControlPanelView } from '@/lib/command-centre/control-panel'
+.harness\cc-01.diff:113:+import { DeckDetails, DeckMoreLine, DECK_LIST_CAP } from 
+'@/components/command-centre/DeckDetails'
+.harness\cc-01.diff:114:+import deckStyles from '@/components/command-centre/command-deck.module.css'
+.harness\cc-01.diff:115:+
+.harness\cc-01.diff:116:+// Deck typeface — same face + variable the command-centre deck loads, so the
+.harness\cc-01.diff:117:+// command-deck.module.css `--font-chakra` stack resolves on this sub-route too.
+.harness\cc-01.diff:118:+const chakra = Chakra_Petch({
+.harness\cc-01.diff:119:+  weight: ['400', '500', '600', '700'],
+.harness\cc-01.diff:120:+  subsets: ['latin'],
+.harness\cc-01.diff:121:+  variable: '--font-chakra',
+.harness\cc-01.diff:122:+  display: 'swap',
+.harness\cc-01.diff:123:+})
+.harness\cc-01.diff:124:+
+.harness\cc-01.diff:125:+// Deck token values (command-deck.module.css) for the inline-styled bits.
+.harness\cc-01.diff:126:+const mono = 'ui-monospace, SFMono-Regular, monospace'
+.harness\cc-01.diff:127:+const muted = '#a6afbc' // --deck-muted
+.harness\cc-01.diff:128:+const okText = '#34d399' // --deck-cyan-text
+.harness\cc-01.diff:129:+
+.harness\cc-01.diff:130:+const wrap: React.CSSProperties = {
+.harness\cc-01.diff:131:+  maxWidth: 1040,
+.harness\cc-01.diff:132:+  margin: '0 auto',
+.harness\cc-01.diff:133:+}
+.harness\cc-01.diff:134:+// Banner fill is an alpha wash of the deck go LED (--deck-go).
+.harness\cc-01.diff:135:+const banner: React.CSSProperties = {
+.harness\cc-01.diff:136:+  background: 'rgba(45, 187, 87, 0.08)',
+.harness\cc-01.diff:137:+  border: '1px solid rgba(45, 187, 87, 0.35)',
+.harness\cc-01.diff:138:+  borderRadius: 2,
+.harness\cc-01.diff:139:+  padding: '0.75rem 1rem',
+.harness\cc-01.diff:140:+  marginBottom: '1.5rem',
+.harness\cc-01.diff:141:+  fontSize: 14,
+.harness\cc-01.diff:142:+}
+.harness\cc-01.diff:143:+const th: React.CSSProperties = {
+.harness\cc-01.diff:144:+  textAlign: 'left',
+.harness\cc-01.diff:145:+  fontSize: 12,
+.harness\cc-01.diff:146:+  textTransform: 'uppercase',
+.harness\cc-01.diff:147:+  letterSpacing: '0.04em',
+.harness\cc-01.diff:148:+  fontFamily: mono,
+.harness\cc-01.diff:149:+  color: muted,
+.harness\cc-01.diff:150:+  padding: '0.4rem 0.6rem',
+.harness\cc-01.diff:151:+  borderBottom: '1px solid rgba(255, 255, 255, 0.10)', // --deck-line
+.harness\cc-01.diff:152:+}
+.harness\cc-01.diff:153:+const td: React.CSSProperties = {
+.harness\cc-01.diff:154:+  padding: '0.5rem 0.6rem',
+.harness\cc-01.diff:155:+  borderBottom: '1px solid rgba(255, 255, 255, 0.05)', // --deck-line-soft
+.harness\cc-01.diff:156:+  fontSize: 14,
+.harness\cc-01.diff:157:+  verticalAlign: 'top',
+.harness\cc-01.diff:158:+}
+.harness\cc-01.diff:159:+
+.harness\cc-01.diff:160:+function riskStyle(risk: string): React.CSSProperties {
+.harness\cc-01.diff:161:+  // Alpha washes of the deck LED fills; text = the AA --deck-*-text variants.
+.harness\cc-01.diff:162:+  const map: Record<string, [string, string, string]> = {
+.harness\cc-01.diff:163:+    none: ['rgba(45, 187, 87, 0.12)', '#34d399', 'rgba(45, 187, 87, 0.35)'],
+.harness\cc-01.diff:164:+    low: ['rgba(244, 130, 15, 0.12)', '#f0a94c', 'rgba(244, 130, 15, 0.4)'],
+.harness\cc-01.diff:165:+    high: ['rgba(229, 72, 77, 0.12)', '#f87171', 'rgba(229, 72, 77, 0.4)'],
+.harness\cc-01.diff:166:+  }
+.harness\cc-01.diff:167:+  const [bg, fg, bd] = map[risk] ?? map.none
+.harness\cc-01.diff:168:+  return {
+.harness\cc-01.diff:169:+    display: 'inline-block',
+.harness\cc-01.diff:170:+    padding: '0.1rem 0.5rem',
+.harness\cc-01.diff:171:+    borderRadius: 2, // deck standard: rounded-sm
+.harness\cc-01.diff:172:+    fontSize: 12,
+.harness\cc-01.diff:173:+    fontWeight: 600,
+.harness\cc-01.diff:174:+    fontFamily: mono,
+.harness\cc-01.diff:175:+    background: bg,
+.harness\cc-01.diff:176:+    color: fg,
+.harness\cc-01.diff:177:+    border: `1px solid ${bd}`,
+.harness\cc-01.diff:178:+  }
+.harness\cc-01.diff:179:+}
+.harness\cc-01.diff:180:+
+.harness\cc-01.diff:181:+export default function HermesControlPanelPage() {
+.harness\cc-01.diff:182:+  const view = getControlPanelView()
+.harness\cc-01.diff:183:+  const v = view.version
+.harness\cc-01.diff:184:+  const posture = v.securityPosture
+.harness\cc-01.diff:185:+
+.harness\cc-01.diff:186:+  // Presentation-only summary counts for the disclosure headlines (honest,
+.harness\cc-01.diff:187:+  // derived from the same read-only view — no data logic change).
+.harness\cc-01.diff:188:+  const hardeningsOn = [
+.harness\cc-01.diff:189:+    posture.secretRedaction,
+.harness\cc-01.diff:190:+    posture.subprocessCredentialStripping,
+.harness\cc-01.diff:191:+    posture.ssrfHardening,
+.harness\cc-01.diff:192:+    posture.cveSecurityPinning,
+.harness\cc-01.diff:193:+  ].filter((s) => s === 'on').length
+.harness\cc-01.diff:194:+  const connectedSurfaces = [
+.harness\cc-01.diff:195:+    view.liveConnections,
+.harness\cc-01.diff:196:+    view.externalChannelsEnabled,
+.harness\cc-01.diff:197:+    view.mcpConnected,
+.harness\cc-01.diff:198:+    view.remoteGatewayConnected,
+.harness\cc-01.diff:199:+  ].filter(Boolean).length
+.harness\cc-01.diff:200:+  const shownModules = view.modules.slice(0, DECK_LIST_CAP)
+.harness\cc-01.diff:201:+
+.harness\cc-01.diff:202:+  return (
+.harness\cc-01.diff:203:+    <div className={`${chakra.variable} ${deckStyles.deck}`}>
+.harness\cc-01.diff:204:+      <div style={wrap}>
+.harness\cc-01.diff:205:+        <h1 style={{ fontSize: 24, marginBottom: '0.25rem' }}>Hermes Control Panel</h1>
+.harness\cc-01.diff:206:+        <p style={{ color: muted, marginTop: 0, fontFamily: mono, fontSize: 13 }}>
+.harness\cc-01.diff:207:+          Hermes Agent v{v.version} · {v.releaseName} ({v.release}) · config format 
+{v.configFormat}
+.harness\cc-01.diff:208:+        </p>
+.harness\cc-01.diff:209:+
+.harness\cc-01.diff:210:+        <div style={banner}>
+.harness\cc-01.diff:211:+          <strong>Read-only foundation.</strong> {view.note}
+.harness\cc-01.diff:212:+        </div>
+.harness\cc-01.diff:213:+
+.harness\cc-01.diff:214:+        <div style={{ display: 'grid', gap: '1rem' }}>
+.harness\cc-01.diff:215:+          {/* ── Security / version posture ─────────────────────────────── */}
+.harness\cc-01.diff:216:+          <DeckDetails
+.harness\cc-01.diff:217:+            title="Security & version posture"
+.harness\cc-01.diff:218:+            stats={`design target (not live) · ${hardeningsOn}/4 hardenings on · leaner skill 
+set ${posture.leanerSkillSet} · NVIDIA tap ${posture.nvidiaTap}`}
+.harness\cc-01.diff:219:+            testId="hermes-security-posture"
+.harness\cc-01.diff:220:+          >
+.harness\cc-01.diff:221:+            {/* UNI-2394 — these posture values come from the static registry
+.harness\cc-01.diff:222:+                (control-panel.ts, source 'static_registry'), not a live Hermes
+.harness\cc-01.diff:223:+                probe. Label them honestly instead of presenting them as live. */}
+.harness\cc-01.diff:224:+            <p style={{ color: muted, fontFamily: mono, fontSize: 12, marginTop: 0 }}>
+.harness\cc-01.diff:225:+              Design target (not live) — values are the v{v.version} release posture from the 
+static registry, not a live probe of a running Hermes instance.
+.harness\cc-01.diff:226:+            </p>
+
+
+
+hook: PostToolUse
+hook: PostToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Select-String -LiteralPath 'D:\\Pi-Dev-Ops\\.harness\\cc-01.diff' -Pattern '"'^diff --git|''^@@|''^'"\\+' | Select-Object -Skip 220 -First 240" in D:\Pi-Dev-Ops
+ succeeded in 420ms:
+
+.harness\cc-01.diff:227:+            <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: 14 }}>
+.harness\cc-01.diff:228:+              <span>Secret redaction: <b style={{ color: okText 
+}}>{posture.secretRedaction}</b></span>
+.harness\cc-01.diff:229:+              <span>Subprocess cred stripping: <b style={{ color: okText 
+}}>{posture.subprocessCredentialStripping}</b></span>
+.harness\cc-01.diff:230:+              <span>SSRF hardening: <b style={{ color: okText 
+}}>{posture.ssrfHardening}</b></span>
+.harness\cc-01.diff:231:+              <span>CVE pinning: <b style={{ color: okText 
+}}>{posture.cveSecurityPinning}</b></span>
+.harness\cc-01.diff:232:+              <span>Leaner skill set: <b>{posture.leanerSkillSet}</b></span>
+.harness\cc-01.diff:233:+              <span>NVIDIA tap: <b>{posture.nvidiaTap}</b></span>
+.harness\cc-01.diff:234:+            </div>
+.harness\cc-01.diff:235:+          </DeckDetails>
+.harness\cc-01.diff:236:+
+.harness\cc-01.diff:237:+          {/* ── Connection invariants ──────────────────────────────────── */}
+.harness\cc-01.diff:238:+          <DeckDetails
+.harness\cc-01.diff:239:+            title="Connection state"
+.harness\cc-01.diff:240:+            stats={
+.harness\cc-01.diff:241:+              connectedSurfaces === 0
+.harness\cc-01.diff:242:+                ? 'not connected — all external surfaces inert (by design)'
+.harness\cc-01.diff:243:+                : `${connectedSurfaces}/4 external surfaces connected`
+.harness\cc-01.diff:244:+            }
+.harness\cc-01.diff:245:+            testId="hermes-connection-state"
+.harness\cc-01.diff:246:+          >
+.harness\cc-01.diff:247:+            <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', fontSize: 14 }}>
+.harness\cc-01.diff:248:+              <span>Live connections: <b style={{ color: okText }}>{view.liveConnections ? 
+'yes' : 'no'}</b></span>
+.harness\cc-01.diff:249:+              <span>External channels enabled: <b style={{ color: okText 
+}}>{view.externalChannelsEnabled ? 'yes' : 'no'}</b></span>
+.harness\cc-01.diff:250:+              <span>MCP connected: <b style={{ color: okText }}>{view.mcpConnected ? 'yes' : 
+'no'}</b></span>
+.harness\cc-01.diff:251:+              <span>Remote gateway connected: <b style={{ color: okText 
+}}>{view.remoteGatewayConnected ? 'yes' : 'no'}</b></span>
+.harness\cc-01.diff:252:+              <span>Credentials exposed: <b style={{ color: okText 
+}}>{view.credentialsExposed ? 'yes' : 'no'}</b></span>
+.harness\cc-01.diff:253:+            </div>
+.harness\cc-01.diff:254:+          </DeckDetails>
+.harness\cc-01.diff:255:+
+.harness\cc-01.diff:256:+          {/* ── Modules ────────────────────────────────────────────────── */}
+.harness\cc-01.diff:257:+          <DeckDetails
+.harness\cc-01.diff:258:+            title={`Surface-Release modules (${view.moduleCount})`}
+.harness\cc-01.diff:259:+            stats={`${view.modulesImplementableNow} now · 
+${view.modulesRequiringLaterApproval} need later approval · ${view.highRiskGatedCount} high-risk gated`}
+.harness\cc-01.diff:260:+            testId="hermes-modules"
+.harness\cc-01.diff:261:+          >
+.harness\cc-01.diff:262:+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+.harness\cc-01.diff:263:+              <thead>
+.harness\cc-01.diff:264:+                <tr>
+.harness\cc-01.diff:265:+                  <th style={th}>Module</th>
+.harness\cc-01.diff:266:+                  <th style={th}>Hermes feature</th>
+.harness\cc-01.diff:267:+                  <th style={th}>State</th>
+.harness\cc-01.diff:268:+                  <th style={th}>Ext. risk</th>
+.harness\cc-01.diff:269:+                  <th style={th}>Later approval</th>
+.harness\cc-01.diff:270:+                </tr>
+.harness\cc-01.diff:271:+              </thead>
+.harness\cc-01.diff:272:+              <tbody>
+.harness\cc-01.diff:273:+                {shownModules.map((m) => (
+.harness\cc-01.diff:274:+                  <tr key={m.moduleId}>
+.harness\cc-01.diff:275:+                    <td style={td}>
+.harness\cc-01.diff:276:+                      <div style={{ fontWeight: 600 }}>{m.title}</div>
+.harness\cc-01.diff:277:+                      <div style={{ color: muted, fontSize: 12 }}>{m.note}</div>
+.harness\cc-01.diff:278:+                    </td>
+.harness\cc-01.diff:279:+                    <td style={td}>{m.hermesFeature}</td>
+.harness\cc-01.diff:280:+                    <td style={td}>{m.state}</td>
+.harness\cc-01.diff:281:+                    <td style={td}>
+.harness\cc-01.diff:282:+                      <span 
+style={riskStyle(m.externalActionRisk)}>{m.externalActionRisk}</span>
+.harness\cc-01.diff:283:+                    </td>
+.harness\cc-01.diff:284:+                    <td style={td}>{m.requiresLaterApproval ? 'yes' : 'no'}</td>
+.harness\cc-01.diff:285:+                  </tr>
+.harness\cc-01.diff:286:+                ))}
+.harness\cc-01.diff:287:+              </tbody>
+.harness\cc-01.diff:288:+            </table>
+.harness\cc-01.diff:289:+            <DeckMoreLine total={view.modules.length} shown={shownModules.length} />
+.harness\cc-01.diff:290:+          </DeckDetails>
+.harness\cc-01.diff:291:+
+.harness\cc-01.diff:292:+          {/* ── Credential boundary (status only) ──────────────────────── */}
+.harness\cc-01.diff:293:+          <DeckDetails
+.harness\cc-01.diff:294:+            title="Credential boundary"
+.harness\cc-01.diff:295:+            stats={`${view.credentialBoundaries.length} boundaries · status only — no secret 
+values`}
+.harness\cc-01.diff:296:+            testId="hermes-credential-boundary"
+.harness\cc-01.diff:297:+          >
+.harness\cc-01.diff:298:+            <p style={{ color: muted, fontSize: 13, marginTop: 0 }}>
+.harness\cc-01.diff:299:+              Boundary names and status only — no secret values are ever displayed.
+.harness\cc-01.diff:300:+            </p>
+.harness\cc-01.diff:301:+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+.harness\cc-01.diff:302:+              <thead>
+.harness\cc-01.diff:303:+                <tr>
+.harness\cc-01.diff:304:+                  <th style={th}>Boundary</th>
+.harness\cc-01.diff:305:+                  <th style={th}>Status</th>
+.harness\cc-01.diff:306:+                </tr>
+.harness\cc-01.diff:307:+              </thead>
+.harness\cc-01.diff:308:+              <tbody>
+.harness\cc-01.diff:309:+                {view.credentialBoundaries.map((c) => (
+.harness\cc-01.diff:310:+                  <tr key={c.boundary}>
+.harness\cc-01.diff:311:+                    <td style={td}>{c.boundary}</td>
+.harness\cc-01.diff:312:+                    <td style={td}>{c.status}</td>
+.harness\cc-01.diff:313:+                  </tr>
+.harness\cc-01.diff:314:+                ))}
+.harness\cc-01.diff:315:+              </tbody>
+.harness\cc-01.diff:316:+            </table>
+.harness\cc-01.diff:317:+          </DeckDetails>
+.harness\cc-01.diff:318:+        </div>
+.harness\cc-01.diff:319:+      </div>
+.harness\cc-01.diff:320:+    </div>
+.harness\cc-01.diff:321:+  )
+.harness\cc-01.diff:322:+}
+.harness\cc-01.diff:323:diff --git a/dashboard/components/command-centre/DeckDetails.tsx 
+b/dashboard/components/command-centre/DeckDetails.tsx
+.harness\cc-01.diff:327:+++ b/dashboard/components/command-centre/DeckDetails.tsx
+.harness\cc-01.diff:328:@@ -0,0 +1,80 @@
+.harness\cc-01.diff:329:+// src/components/command-centre/DeckDetails.tsx
+.harness\cc-01.diff:330:+//
+.harness\cc-01.diff:331:+// Shared progressive-disclosure primitive for the command deck (founder
+.harness\cc-01.diff:332:+// feedback 14/07/2026: "a lot of exposed data that can be cleaned up").
+.harness\cc-01.diff:333:+// Summary row stays visible — title, one to three headline numbers, and a
+.harness\cc-01.diff:334:+// status badge slot — while the dense detail (identifier lists, rosters,
+.harness\cc-01.diff:335:+// forms) collapses behind a native <details> chevron. Pure presentation:
+.harness\cc-01.diff:336:+// no data fetching, no new dependencies, deck tokens only (OLED ground,
+.harness\cc-01.diff:337:+// mono accents, rounded-sm). Works in both server and client tiles.
+.harness\cc-01.diff:338:+//
+.harness\cc-01.diff:339:+// Note on identifiers: this page is founder-only behind the (founder)
+.harness\cc-01.diff:340:+// layout auth, so moving emails/ids/hostnames into the collapsed layer is
+.harness\cc-01.diff:341:+// visual de-clutter, not a security boundary — the expanded detail keeps
+.harness\cc-01.diff:342:+// them in full.
+.harness\cc-01.diff:343:+
+.harness\cc-01.diff:344:+import styles from './deck-details.module.css'
+.harness\cc-01.diff:345:+
+.harness\cc-01.diff:346:+export function DeckDetails({
+.harness\cc-01.diff:347:+  title,
+.harness\cc-01.diff:348:+  stats,
+.harness\cc-01.diff:349:+  badge,
+.harness\cc-01.diff:350:+  defaultOpen = false,
+.harness\cc-01.diff:351:+  testId,
+.harness\cc-01.diff:352:+  children,
+.harness\cc-01.diff:353:+}: {
+.harness\cc-01.diff:354:+  /** Always-visible tile title. */
+.harness\cc-01.diff:355:+  title: string
+.harness\cc-01.diff:356:+  /** 1–3 headline numbers / status words, e.g. "3 connected · 1 needs reauth". */
+.harness\cc-01.diff:357:+  stats?: React.ReactNode
+.harness\cc-01.diff:358:+  /** Status badge slot (usually a SourceBadge). Sits at the right edge. */
+.harness\cc-01.diff:359:+  badge?: React.ReactNode
+.harness\cc-01.diff:360:+  /** Render expanded on first paint (uncontrolled after that). */
+.harness\cc-01.diff:361:+  defaultOpen?: boolean
+.harness\cc-01.diff:362:+  testId?: string
+.harness\cc-01.diff:363:+  children: React.ReactNode
+.harness\cc-01.diff:364:+}) {
+.harness\cc-01.diff:365:+  return (
+.harness\cc-01.diff:366:+    <details className={styles.deckDetails} open={defaultOpen || undefined} 
+data-testid={testId}>
+.harness\cc-01.diff:367:+      <summary className={styles.deckSummary}>
+.harness\cc-01.diff:368:+        <span aria-hidden className={styles.chev} />
+.harness\cc-01.diff:369:+        <span className={styles.title}>{title}</span>
+.harness\cc-01.diff:370:+        {stats != null && <span className={styles.stats}>{stats}</span>}
+.harness\cc-01.diff:371:+        {badge != null && <span className={styles.badge}>{badge}</span>}
+.harness\cc-01.diff:372:+      </summary>
+.harness\cc-01.diff:373:+      <div className={styles.body}>{children}</div>
+.harness\cc-01.diff:374:+    </details>
+.harness\cc-01.diff:375:+  )
+.harness\cc-01.diff:376:+}
+.harness\cc-01.diff:377:+
+.harness\cc-01.diff:378:+/**
+.harness\cc-01.diff:379:+ * Honest "+N more" line for lists capped inside a disclosure. Renders
+.harness\cc-01.diff:380:+ * nothing when the list is fully shown, so callers can emit it
+.harness\cc-01.diff:381:+ * unconditionally after a `.slice(0, cap)`.
+.harness\cc-01.diff:382:+ */
+.harness\cc-01.diff:383:+export function DeckMoreLine({ total, shown }: { total: number; shown: number }) {
+.harness\cc-01.diff:384:+  if (total <= shown) return null
+.harness\cc-01.diff:385:+  return <p className={styles.moreLine}>+{total - shown} more not shown</p>
+.harness\cc-01.diff:386:+}
+.harness\cc-01.diff:387:+
+.harness\cc-01.diff:388:+/** Default row cap for lists rendered inside a DeckDetails disclosure. */
+.harness\cc-01.diff:389:+export const DECK_LIST_CAP = 8
+.harness\cc-01.diff:390:+
+.harness\cc-01.diff:391:+/** Row cap for full founder pages (summary-first cleanup, founder 14/07/2026). */
+.harness\cc-01.diff:392:+export const PAGE_LIST_CAP = 10
+.harness\cc-01.diff:393:+
+.harness\cc-01.diff:394:+/**
+.harness\cc-01.diff:395:+ * The deck-details CSS falls back to dark-deck inks (#f0f3f7 text) when the
+.harness\cc-01.diff:396:+ * --deck-* / --cc-* tokens are absent — illegible on the founder app's light
+.harness\cc-01.diff:397:+ * (paper) theme. Founder pages outside the command deck spread this onto a
+.harness\cc-01.diff:398:+ * wrapping element so the primitive maps onto the app's light token set.
+.harness\cc-01.diff:399:+ * (DeckDetails lives under components/command-centre/; imported here rather
+.harness\cc-01.diff:400:+ * than duplicated — a later refactor can relocate it.)
+.harness\cc-01.diff:401:+ */
+.harness\cc-01.diff:402:+export const LIGHT_THEME_DECK_TOKENS = {
+.harness\cc-01.diff:403:+  '--deck-line': 'var(--color-border)',
+.harness\cc-01.diff:404:+  '--deck-line-soft': 'var(--color-border)',
+.harness\cc-01.diff:405:+  '--deck-text': 'var(--color-text-primary)',
+.harness\cc-01.diff:406:+  '--deck-muted': 'var(--color-text-muted)',
+.harness\cc-01.diff:407:+  '--deck-cyan-text': 'var(--color-accent-text)',
+.harness\cc-01.diff:408:+} as React.CSSProperties
+.harness\cc-01.diff:409:diff --git a/dashboard/components/command-centre/command-deck.module.css 
+b/dashboard/components/command-centre/command-deck.module.css
+.harness\cc-01.diff:413:+++ b/dashboard/components/command-centre/command-deck.module.css
+.harness\cc-01.diff:414:@@ -0,0 +1,618 @@
+.harness\cc-01.diff:415:+/* Command Deck — flight-deck console aesthetic for the Nexus Command Centre.
+.harness\cc-01.diff:416:+   Scoped CSS module (no runtime style injection — CSP/nonce safe).
+.harness\cc-01.diff:417:+   Signal palette: cyan (primary) / go-green / caution-amber / abort-red. */
+.harness\cc-01.diff:418:+
+.harness\cc-01.diff:419:+.deck {
+.harness\cc-01.diff:420:+  /* UNI-2339 slice 2 — the deck ground migrates onto the ratified Gun Metal
+.harness\cc-01.diff:421:+     canvas (shell.module.css register). Every tile consumes colour via these
+.harness\cc-01.diff:422:+     tokens (tiles imported unchanged), so the flip happens here. All TEXT
+.harness\cc-01.diff:423:+     tokens computed against the darkest panel they land on (--deck-panel
+.harness\cc-01.diff:424:+     #1c2230) and the bare canvas (#0e1014) — ratios noted per token. */
+.harness\cc-01.diff:425:+  --deck-cyan: #2dbb57;     /* primary accent — fills, LEDs, glows only */
+.harness\cc-01.diff:426:+  --deck-go: #2dbb57;       /* go — fills/LEDs only */
+.harness\cc-01.diff:427:+  --deck-amber: #f4820f;    /* caution — fills/LEDs only */
+.harness\cc-01.diff:428:+  --deck-abort: #e5484d;    /* abort — fills/LEDs only */
+.harness\cc-01.diff:429:+  --deck-glow: 45, 187, 87; /* RGB triplet for LED/glow shadows — candy green on the dark 
+deck */
+.harness\cc-01.diff:430:+  --deck-line: rgba(255, 255, 255, 0.10);
+.harness\cc-01.diff:431:+  --deck-line-soft: rgba(255, 255, 255, 0.05);
+.harness\cc-01.diff:432:+  --deck-panel: #1c2230;    /* canvas --surface-2 */
+.harness\cc-01.diff:433:+  --deck-panel-hi: #232b3a; /* canvas --surface-3 */
+.harness\cc-01.diff:434:+  --deck-text: #f0f3f7;     /* canvas --ink → 14.28:1 on panel, 17.11:1 on canvas */
+.harness\cc-01.diff:435:+  --deck-muted: #a6afbc;    /* canvas --ink-dim → 7.18:1 on panel, 8.60:1 on canvas */
+.harness\cc-01.diff:436:+  /* WCAG-AA text variants: the bright candy green/amber/red are kept for
+.harness\cc-01.diff:437:+     fills/LEDs; TEXT consumers get light-on-dark variants that clear 4.5:1
+.harness\cc-01.diff:438:+     on --deck-panel (#1c2230). */
+.harness\cc-01.diff:439:+  --deck-cyan-text: #34d399;  /* 8.27:1 on panel, 9.90:1 on canvas */
+.harness\cc-01.diff:440:+  --deck-amber-text: #f0a94c; /* 7.94:1 on panel, 9.51:1 on canvas */
+.harness\cc-01.diff:441:+  --deck-abort-text: #f87171; /* 5.75:1 on panel, 6.88:1 on canvas */
+.harness\cc-01.diff:442:+
+.harness\cc-01.diff:443:+  /* Aliases so panels consolidated from the retired command-center page (which
+.harness\cc-01.diff:444:+     use the --cc-* namespace) resolve their colours on this deck. */
+.harness\cc-01.diff:445:+  --cc-bg: var(--deck-panel);
+.harness\cc-01.diff:446:+  --cc-bg-soft: #141820;    /* canvas --surface-1 */
+.harness\cc-01.diff:447:+  --cc-grid: var(--deck-line);
+.harness\cc-01.diff:448:+  --cc-ink: var(--deck-text);
+.harness\cc-01.diff:449:+  --cc-ink-dim: var(--deck-muted);
+.harness\cc-01.diff:450:+  --cc-ink-hush: #8b96a5;   /* hushed but AA: 5.30:1 on panel, 5.93:1 on bg-soft */
+.harness\cc-01.diff:451:+  /* --cc-signal stays the bright candy green: consolidated cc-* panels use it
+.harness\cc-01.diff:452:+     for fills/dots/LEDs/borders (ActivityRow, HermesControlPanel backgrounds,
+.harness\cc-01.diff:453:+     WorkPacketLane borders, ActivityLog dot, DegradedDataBanner borderLeft).
+.harness\cc-01.diff:454:+     TEXT consumers use --cc-signal-text (AA-passing on the dark grounds). */
+.harness\cc-01.diff:455:+  --cc-signal: var(--deck-cyan);
+.harness\cc-01.diff:456:+  --cc-signal-text: var(--deck-cyan-text);
+.harness\cc-01.diff:457:+  --cc-pulse-duration: 2.4s;
+.harness\cc-01.diff:458:+
+.harness\cc-01.diff:459:+  /* Tile inline-style tokens — the five queue/health/evidence tiles style via
+.harness\cc-01.diff:460:+     inline `style={{}}` (class overrides can't reach them), so they consume
+.harness\cc-01.diff:461:+     these vars with their old literals as fallbacks. Deck values = those
+.harness\cc-01.diff:462:+     literals exactly; the daylight block re-inks them for paper. */
+.harness\cc-01.diff:463:+  --tile-ink: #e6f7ff;
+.harness\cc-01.diff:464:+  --tile-ink-dim: #9bb0c1;
+.harness\cc-01.diff:465:+  --tile-ink-hush: #6f879b;
+.harness\cc-01.diff:466:+  --tile-card-bg: rgba(0, 0, 0, 0.25);
+.harness\cc-01.diff:467:+  --tile-card-line: rgba(255, 255, 255, 0.08);
+.harness\cc-01.diff:468:+  --tile-amber-txt: #fb923c;
+.harness\cc-01.diff:469:+  --tile-green-txt: #34d399;
+.harness\cc-01.diff:470:+  --tile-red-txt: #d02f35;
+.harness\cc-01.diff:471:+
+.harness\cc-01.diff:472:+  position: relative;
+
+
+
+hook: PostToolUse
+hook: PostToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Select-String -LiteralPath 'D:\\Pi-Dev-Ops\\.harness\\cc-01.diff' -Pattern '"'^diff --git'"'" in D:\Pi-Dev-Ops
+ succeeded in 356ms:
+
+.harness\cc-01.diff:1:diff --git a/dashboard/__tests__/command-centre-readonly.test.ts 
+b/dashboard/__tests__/command-centre-readonly.test.ts
+.harness\cc-01.diff:91:diff --git a/dashboard/app/(main)/command-centre/hermes/page.tsx 
+b/dashboard/app/(main)/command-centre/hermes/page.tsx
+.harness\cc-01.diff:323:diff --git a/dashboard/components/command-centre/DeckDetails.tsx 
+b/dashboard/components/command-centre/DeckDetails.tsx
+.harness\cc-01.diff:409:diff --git a/dashboard/components/command-centre/command-deck.module.css 
+b/dashboard/components/command-centre/command-deck.module.css
+.harness\cc-01.diff:1033:diff --git a/dashboard/components/command-centre/deck-details.module.css 
+b/dashboard/components/command-centre/deck-details.module.css
+.harness\cc-01.diff:1119:diff --git a/dashboard/lib/command-centre/control-panel.ts 
+b/dashboard/lib/command-centre/control-panel.ts
+
+
+
+hook: PostToolUse
+hook: PostToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Select-String -LiteralPath 'D:\\Pi-Dev-Ops\\.harness\\cc-01.diff' -Pattern 'fetch|axios|https|insert|update|upsert|delete|createClient|createServerClient|Mcp|modelcontextprotocol|OPENAI|ANTHROPIC|STRIPE|process\\.env|href=|action='" in D:\Pi-Dev-Ops
+ succeeded in 379ms:
+
+.harness\cc-01.diff:10:+ * WHY THIS EXISTS: `npm run build` passes *alongside* a fetch, a DB write, or a
+.harness\cc-01.diff:34:+  { re: /\bfetch\s*\(/, rule: "R2 no external connections" },
+.harness\cc-01.diff:35:+  { re: /\baxios\b/, rule: "R2 no external connections" },
+.harness\cc-01.diff:36:+  { re: /https?:\/\/(?!.*(?:schema|w3\.org|localhost))/, rule: "R2/R6 no remote host" },
+.harness\cc-01.diff:37:+  { re: /\.(insert|update|upsert|delete)\s*\(/, rule: "R6 no database writes" },
+.harness\cc-01.diff:38:+  { re: /createServerClient|createClient\s*\(/, rule: "R6 no database client" },
+.harness\cc-01.diff:39:+  { re: /\bMcpClient\b|modelcontextprotocol/, rule: "R2 no MCP client" },
+.harness\cc-01.diff:40:+  { re: /ANTHROPIC_API_KEY|OPENAI_API_KEY|STRIPE_SECRET/, rule: "R6 no paid API keys" },
+.harness\cc-01.diff:59:+/** Strip comments so a comment mentioning "fetch" is not a violation. */
+.harness\cc-01.diff:74:+    const planted = code("const x = fetch('https://example.com')");
+.harness\cc-01.diff:101:+// No external connections, no MCP, no remote gateway, no messaging-channel activation,
+.harness\cc-01.diff:197:+    view.mcpConnected,
+.harness\cc-01.diff:250:+              <span>MCP connected: <b style={{ color: okText }}>{view.mcpConnected ? 'yes' : 
+'no'}</b></span>
+.harness\cc-01.diff:336:+// no data fetching, no new dependencies, deck tokens only (OLED ground,
+.harness\cc-01.diff:1131:+ * gateway, MCP catalog, messaging channels, hooks/webhooks) is represented as inert:
+.harness\cc-01.diff:1138:+ *  - externalChannelsEnabled / mcpConnected / remoteGatewayConnected are literal false.
+.harness\cc-01.diff:1233:+    moduleId: 'mcp_catalog_manager',
+.harness\cc-01.diff:1234:+    title: 'MCP catalog manager',
+.harness\cc-01.diff:1235:+    hermesFeature: 'MCP catalog admin',
+.harness\cc-01.diff:1240:+    note: 'Catalogue stub, 0 servers, not connected. Connecting an MCP server is a later 
+gate.',
+.harness\cc-01.diff:1354:+  mcpConnected: false
+.harness\cc-01.diff:1376:+    mcpConnected: false,
+.harness\cc-01.diff:1386:+    note: 'Hermes v0.16 Surface-Release Control Panel — read-only foundation. No live 
+connections, no external channels, no MCP, no remote gateway, no secret values.',
+
+
+
+hook: PostToolUse
+hook: PostToolUse Completed
+codex
+## Standards
+No hard TypeScript/React/Next App Router violation in the shown diff.
+
+Judgement call: `DeckDetails.tsx` still exports primitives unrelated to this Hermes route: `+export const PAGE_LIST_CAP = 10` and `+export const LIGHT_THEME_DECK_TOKENS = { ... } as React.CSSProperties`. They are not used by `page.tsx`, so this keeps some shared-component scope creep in the port, though it is not a compiler-level defect.
+
+Judgement call: the ported page retains a stale source-specific header: `+// Auth enforced by the (founder) layout.` while the target is `dashboard/app/(main)/command-centre/hermes/page.tsx`. That is misleading documentation for the target route, not a demonstrated runtime bug in the diff.
+
+## Spec
+FAIL on evidence for R1/R2/R6. The readonly test can still pass while the contract is violated outside its scan roots. It scans only `+const ROOTS = ["app/(main)/command-centre", "lib/command-centre"];`, but the route imports code from outside those roots: `+import { DeckDetails, DeckMoreLine, DECK_LIST_CAP } from '@/components/command-centre/DeckDetails'`. A fetch, DB write, MCP client, or production-host call introduced through `components/command-centre` or another imported helper would not be checked.
+
+The positive control only proves a literal scanned snippet is caught: `+const planted = code("const x = fetch('https://example.com')");`. The forbidden list is token-based: `+\bfetch\s*\(`, `+\baxios\b`, `+https?:\/\/`, `+\.(insert|update|upsert|delete)\s*\(`, `+createServerClient|createClient\s*\(`, `+\bMcpClient\b|modelcontextprotocol`. It would miss indirect/dynamic call forms and transitive imported side effects.
+
+There is also a direct external font surface in the page: `+import { Chakra_Petch } from 'next/font/google'`. If R2/R6 are read literally as no external connections / no production host reach, the test does not detect this pattern.
+
+The implementation data shown is static and inert (`+liveConnections: false`, `+mcpConnected: false`, `+remoteGatewayConnected: false`), but the build loop plus current static scan is not sufficient proof of R1/R2/R6.
+
+VERDICT: FAIL — readonly evidence excludes imported component surfaces and misses external-production-host patterns like `next/font/google`.
+hook: Stop
+hook: Stop Failed
+tokens used
+33,768
+## Standards
+No hard TypeScript/React/Next App Router violation in the shown diff.
+
+Judgement call: `DeckDetails.tsx` still exports primitives unrelated to this Hermes route: `+export const PAGE_LIST_CAP = 10` and `+export const LIGHT_THEME_DECK_TOKENS = { ... } as React.CSSProperties`. They are not used by `page.tsx`, so this keeps some shared-component scope creep in the port, though it is not a compiler-level defect.
+
+Judgement call: the ported page retains a stale source-specific header: `+// Auth enforced by the (founder) layout.` while the target is `dashboard/app/(main)/command-centre/hermes/page.tsx`. That is misleading documentation for the target route, not a demonstrated runtime bug in the diff.
+
+## Spec
+FAIL on evidence for R1/R2/R6. The readonly test can still pass while the contract is violated outside its scan roots. It scans only `+const ROOTS = ["app/(main)/command-centre", "lib/command-centre"];`, but the route imports code from outside those roots: `+import { DeckDetails, DeckMoreLine, DECK_LIST_CAP } from '@/components/command-centre/DeckDetails'`. A fetch, DB write, MCP client, or production-host call introduced through `components/command-centre` or another imported helper would not be checked.
+
+The positive control only proves a literal scanned snippet is caught: `+const planted = code("const x = fetch('https://example.com')");`. The forbidden list is token-based: `+\bfetch\s*\(`, `+\baxios\b`, `+https?:\/\/`, `+\.(insert|update|upsert|delete)\s*\(`, `+createServerClient|createClient\s*\(`, `+\bMcpClient\b|modelcontextprotocol`. It would miss indirect/dynamic call forms and transitive imported side effects.
+
+There is also a direct external font surface in the page: `+import { Chakra_Petch } from 'next/font/google'`. If R2/R6 are read literally as no external connections / no production host reach, the test does not detect this pattern.
+
+The implementation data shown is static and inert (`+liveConnections: false`, `+mcpConnected: false`, `+remoteGatewayConnected: false`), but the build loop plus current static scan is not sufficient proof of R1/R2/R6.
+
+VERDICT: FAIL — readonly evidence excludes imported component surfaces and misses external-production-host patterns like `next/font/google`.
+2026-08-01T05:55:04.146570Z ERROR rmcp::transport::streamable_http_client: fail to delete session: unexpected server response: DELETE returned HTTP 400 session_id="0f595e15-e050-41d9-89ed-bbb48bbb22a9"
