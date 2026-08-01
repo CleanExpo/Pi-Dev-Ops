@@ -71,8 +71,13 @@ at whichever one finally breaks in production.
 
 1. ~~Rename and re-scope the route-existence check; record G1 as an open gap.~~ **DONE
    2026-08-01** — C9 in the coverage map, gap held open, `docs/HARNESS-COVERAGE-MAP-2026-08-01.md`.
-2. **Reviewer sandbox execution** — now a **prerequisite for the re-spec review**, no longer a
-   step-4 item. A reviewer that cannot execute cannot validate a verifier.
+2. ~~**Reviewer sandbox execution** — prerequisite for the re-spec review.~~ **DONE 2026-08-01.**
+   Root cause was Codex's Windows *restricted-token* sandbox: spawn denied, write allowed,
+   unlink denied. Vitest died on Vite's `exec("net use")`; `next build` died on `unlink`. Use
+   **`scripts/codex-review.sh <brief> <out>`** for every review from now on — it runs outside
+   that sandbox and replaces the isolation with tree-integrity, execution-proof and plan-auth
+   controls, all three proven able to fail. Verified: the reviewer ran the auth suite itself,
+   7 passed (7).
 3. **Replace the navigation detector with runtime route exercising.** Not AST extraction. Gating
    work before operations, alongside per-capability tokens.
 4. Capability 4 (providers) — **blocked on 3.**

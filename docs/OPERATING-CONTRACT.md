@@ -155,6 +155,33 @@ by running them. **Re-speccing the harness and grading it by assertion reproduce
 defect being fixed** — a check described by what it was meant to do rather than what it was
 observed to do. Fix the sandbox first.
 
+**RESOLVED 2026-08-01.** Root cause: Codex's Windows sandbox is a *restricted-token* sandbox —
+its own binary strings say `windows unelevated restricted-token sandbox`. Measured with a probe
+rather than inferred: **spawn denied EPERM, write permitted, unlink denied EPERM.** That explains
+both observed failures precisely — vitest died because Vite's `optimizeSafeRealPathSync()` runs
+`exec("net use")` on Windows on first realpath and the throw lands *outside* Vite's `try/catch`;
+`next build` died on `unlink` specifically, having been allowed to write. No tuning fixes it:
+tests must spawn, builds must delete, and `[windows] sandbox` only selects elevated/unelevated.
+
+Review runs therefore step **outside** that sandbox, via `scripts/codex-review.sh` — and the flag
+is **per-invocation, never written into `~/.codex/config.toml`**, so every other Codex run on the
+machine keeps its sandbox.
+
+The isolation that removes is replaced by three controls, because *"the brief says don't write
+code"* is an instruction, not a control:
+
+1. **Tree integrity** — HEAD plus working-tree state hashed before and after; any change to the
+   source of record **voids** the review. Scope stated, not implied: blind to gitignored paths,
+   because the reviewer must write `.next/` to run the suite at all.
+2. **Execution proof** — the run **fails** if the transcript contains no evidence the suite ran.
+   Silent non-execution becomes loud instead of a footnote. This is the control that would have
+   caught rounds 2, 3 and 4 as unusable at the time rather than in hindsight.
+3. **Plan auth** — unchanged; refuses to fall back to a paid per-call key.
+
+Verified end-to-end: probe 5/5, `command-centre-auth-coverage` **7 passed (7)** run *by the
+reviewer*, verdict extracted, tree unchanged. All three controls were tested for their ability to
+**fail**, not only to pass — and that testing found a real hole in control 1 before it shipped.
+
 ## The builder does not grade its own exemptions
 
 Stated plainly, because capability 2/3 produced the strongest evidence for it yet.
