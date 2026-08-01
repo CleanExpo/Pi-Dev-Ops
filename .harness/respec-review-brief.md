@@ -1,25 +1,22 @@
-# Review brief — navigation-layer re-spec (C12) — ROUND 2
+# Review brief — navigation-layer re-spec (C12) — ROUND 3
 
 You are reviewing a change to a **verifier**. Flag findings. Do not fix anything. Do not write
 code. Do not edit, create or delete any file in the repository.
 
-**Round 2.** Round 1 returned `FAIL — C12 improves G1 coverage, but its closure claim and
-side-by-side proof are overbroad`. Every finding was accepted and fixed:
+**Round 3.** Round 2 returned `FAIL — C12 misses rendered relative internal links because the
+extractor only captures slash-prefixed URLs`. Accepted and fixed, and the fix is deliberately
+NOT another pattern:
 
-- **timeouts** — `waitForServer` and all page/link fetches now carry a 15s signal. A wedged
-  listener used to turn the verifier into silence, which is the worst failure mode for a checker.
-- **build freshness** — C12 now compares `.next/BUILD_ID` mtime against the newest source under
-  `app/`, `components/`, `lib/`, `proxy.ts` and refuses to run on a stale build, rather than
-  relying on the handoff loop's build gate running first.
-- **query strings** — the extractor no longer stops at `?`, so `/route?bad=state` is exercised as
-  itself instead of as `/route`.
-- **POSIX cleanup** — spawns detached and kills the process group; the Windows tree-kill had left
-  the other half unfixed.
-- **scope list** — client-hydrated navigation added and named as the largest remaining hole.
-- **the overbroad proof claim** — accepted in full. The side-by-side *was* run, but it left no
-  reproducible artifact and what ships (`--plant-broken-link`) injects into already-fetched HTML
-  and never touches C9. The coverage map now carries a four-command reproduction, and
-  `scripts/prove-controls.sh` plants a defect per control and asserts each goes red.
+- Every `href`/`action`/`formaction` value is now **resolved** against the page it was found on
+  with `new URL(raw, pageUrl)`. Relative, absolute and protocol-relative forms fall out of one
+  rule; same-origin decides ours-vs-external; `pathname + search` is what gets requested.
+  Non-http schemes (`mailto:`, `tel:`, `javascript:`, `data:`) are skipped as non-requestable.
+- New control `--plant-relative-link` injects a no-leading-slash href, so this specific
+  regression fails loudly instead of being trusted. `scripts/prove-controls.sh` is now 15/15.
+
+Round 1's findings (timeouts, build freshness, query strings, POSIX cleanup, scope list, the
+overbroad proof claim) were fixed before round 2 and round 2 confirmed the side-by-side
+reproduces exactly.
 
 **Do not assume those fixes are adequate — judging that is this round's job.**
 
