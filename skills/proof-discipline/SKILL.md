@@ -86,6 +86,48 @@ failed 2 tests, which is what the exemption's narrowness actually rests on.*
 - **observed** — saw the right result once, but on a forced plan, sub-scale, friendly geometry, or bypassed auth. Must be stated as such.
 - **assumed** — reasoned, not run. **Zero `assumed` items allowed in the load-bearing set before declaring done.**
 
+## When the Claim Is Wider Than the Check, Decide WHICH One Is Wrong
+
+A review that says *"this covers less than you say it does"* has found a mismatch, not a
+verdict. **Two different defects produce that same sentence, and telling them apart is the
+skill.** Get it wrong and you either ship an overclaim or grind forever.
+
+- **Mechanism defect** — the check genuinely misses something it should catch. **Fix the check.**
+- **Documentation defect** — the check does the right thing; the words around it promise more.
+  **Fix the claim.**
+
+The failure mode is treating every mismatch as the first kind. That is how you end up extending
+a check to make a *word* come true — the same error as adding the next pattern to a detector,
+aimed at prose instead of at a regex.
+
+**Worked example, 2026-08-01/02, navigation coverage (G1).** Four review rounds all reported the
+claim being wider than the check. They were not the same finding:
+
+| Round | What was wrong | Right fix |
+|---|---|---|
+| 1 | no timeouts; stale build passed; query strings dropped | **check** — real misses |
+| 2 | only slash-prefixed hrefs matched, so relative links unmeasured | **check** — real miss, fixed by RESOLVING urls rather than adding a pattern |
+| 3 | redirect-to-missing passed green; freshness walk too narrow | **check** — real misses |
+| 3 | *"G1 is CLOSED"* over a mechanism the reviewer called sound | **claim** — downgraded to *substantially mitigated, with named residue* |
+
+Round 3 carried both kinds at once, which is why it needs reading carefully rather than
+actioning in one direction.
+
+**The test for which one you have:** ask what a *complete* version of the check would look like.
+If you can describe it and build it, the check is at fault. If completing it would require
+something the tool structurally cannot do — running a browser, submitting live POSTs, predicting
+unrendered branches — then the check is finished and **the claim is what is wrong.**
+
+**"Substantially mitigated, with named residue" is a better outcome than a false "closed."** A
+bounded, declared gap is in a different condition from an undiscovered one; only the second is
+dangerous. Honest descriptions are the product a verifier exists to produce — a verifier that
+overstates itself has failed at its only job, whatever its exit code says.
+
+**Guard against the abuse.** Downgrading a claim to escape a failing check is moving the
+goalposts. The test is whether the new claim is *more honest*, not whether it is *easier to
+satisfy*. Legitimate downgrades usually arrive alongside the check getting stronger, not instead
+of it.
+
 ## The First Run of a New Control Is the FAILING One
 
 **Rule: a new check is not trusted until it has been observed to FAIL — and to fail for the

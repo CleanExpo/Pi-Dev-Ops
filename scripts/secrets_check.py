@@ -86,7 +86,24 @@ _SECRET_PATTERNS: list[tuple[str, str, str]] = [
     (r"(?i)bearer\s+[0-9a-zA-Z\-._~+/]{20,}", "Bearer token in source", "HIGH"),
     (r"(?i)(?:db|database)_?(?:url|uri|connection)\s*=\s*['\"]postgresql://[^'\"]+['\"]",
      "DB connection string", "HIGH"),
+    # ── Added 2026-08-02. The previous ten shapes omitted the three with the most reach in
+    # this estate, so an all-clear could only ever have meant "clean for ten shapes":
+    #   - a Supabase service-role JWT bypasses RLS on every fenced production database; it is
+    #     the one key that makes row-level security irrelevant
+    #   - a live Stripe key is billing
+    #   - a Telegram bot token is the notification bus, which is also the approval channel
+    (r"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{20,}",
+     "JWT (Supabase service-role/anon key or similar)", "CRITICAL"),
+    (r"\b(sk|rk)_live_[0-9A-Za-z]{16,}", "Stripe LIVE secret key", "CRITICAL"),
+    (r"\b(sk|rk)_test_[0-9A-Za-z]{16,}", "Stripe test secret key", "HIGH"),
+    (r"\b\d{8,10}:AA[0-9A-Za-z_-]{32,}", "Telegram bot token", "CRITICAL"),
 ]
+
+# NOTE ON THE JWT PATTERN. It matches Supabase ANON keys too, which are public by design and
+# legitimately appear in NEXT_PUBLIC_* vars. That is deliberate: a regex cannot tell an anon
+# key from a service-role key without decoding the payload, and the two failure directions are
+# not symmetric. A false positive on an anon key costs one triage; a miss on a service-role key
+# costs RLS across the estate. Triage the hits; do not narrow the pattern.
 
 # Compiled with line-boundary awareness
 _COMPILED = [(re.compile(p), title, sev) for p, title, sev in _SECRET_PATTERNS]

@@ -41,6 +41,39 @@ narrower number reads as the broader claim.
 **The code for capability 2/3 is BUILT. The outstanding item is the Codex round —
 under the standing rules it is not done until it passes.**
 
+## RE-SPEC REVIEW LEDGER (navigation layer) — and the counter reset, stated
+
+| # | Verdict | Finding | Disposition |
+|---|---------|---------|-------------|
+| 1 | FAIL | No timeouts; stale build passes standalone; query strings dropped; POSIX cleanup unfixed; scope list incomplete; the side-by-side proof claim overbroad | Fixed |
+| 2 | FAIL | Extractor matched slash-prefixed hrefs only, so rendered RELATIVE links were unmeasured | Fixed by RESOLVING hrefs, not by adding a pattern |
+| 3 | FAIL | Redirect to a missing target passed green; freshness walk too narrow; **G1 closure claim still too broad** | Two defects fixed; **claim downgraded** |
+| — | **COUNTER RESET** | **requirement changed** | see below |
+| 4 | running | — | — |
+
+**THE BOUND WAS SPENT AT ROUND 3. Round 4 is legitimate only because the requirement
+changed, and that reset is named here rather than assumed.**
+
+Three attempts against a fixed spec is the standing rule; rounds 1–3 were three FAILs and
+exhausted it. The standing rule also resets the counter when the **requirement** changes, and it
+did: round 3's finding was that the G1 **closure claim** was too broad, and the response was to
+**downgrade the claim from CLOSED to SUBSTANTIALLY MITIGATED**. Rounds 1–3 reviewed C12 against
+"G1 is closed". Round 4 reviews it against "G1 is substantially mitigated for server-rendered
+navigation, with named residue". That is a different requirement, so round 4 is round 1 of the
+new spec — not attempt 4 of the old one.
+
+**Why this is written down instead of just done.** A fourth attempt that runs without the reset
+being named is the bound going decorative *by accident*, which is the exact failure the bound
+exists to prevent. The counter is only a control if the thing that moves it is stated. If the
+next reader cannot see which spec each round was judged against, the ledger is decoration too.
+
+**What this does NOT license.** The reset is not available for a requirement that was narrowed
+merely to make a failing check pass. The test is whether the new claim is *more honest*, not
+whether it is *easier to satisfy* — and here the claim got strictly weaker and more precise
+while the check also got strictly stronger (redirects followed, freshness widened). If a future
+downgrade weakens the claim without strengthening anything, that is not a changed requirement,
+it is moving the goalposts, and the counter does not reset.
+
 ## STATUS OF CAPABILITY 2/3 — read this before touching anything
 
 **Unmerged. Unshipped. It has never earned a PASS.**
