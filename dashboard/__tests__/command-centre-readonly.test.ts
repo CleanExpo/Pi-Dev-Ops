@@ -81,7 +81,9 @@ function importGraph(): string[] {
     const f = queue.pop()!;
     if (seen.has(f) || !existsSync(f)) continue;
     seen.add(f);
-    for (const m of readFileSync(f, "utf8").matchAll(/from\s+['"]([^'"]+)['"]/g)) {
+    // Both `import x from 'y'` and the side-effect form `import 'y'`. Matching only
+    // `from '...'` let a side-effect import enter the surface unprovenanced.
+    for (const m of readFileSync(f, "utf8").matchAll(/(?:from|import)\s+['"]([^'"]+)['"]/g)) {
       const r = resolveSpec(m[1], f);
       if (r && !seen.has(r)) queue.push(r);
     }
@@ -106,17 +108,20 @@ describe("command-centre: no new surface vs source baseline", () => {
     expect(undeclared, `no provenance entry for:\n${undeclared.join("\n")}`).toEqual([]);
   });
 
-  it("reports plainly when the baseline is unreachable", () => {
-    // In CI the Authority-Site checkout is absent. That must read as "not verified
-    // here", never as "verified clean" — a skipped comparison is not a passing one.
-    if (!baselineAvailable) {
-      console.warn(
-        `[BASELINE UNAVAILABLE] ${BASELINE} not present. ` +
-          `Diff-relative comparison did NOT run in this environment. ` +
-          `It is authoritative only where the baseline checkout exists.`
-      );
-    }
-    expect(typeof baselineAvailable).toBe("boolean");
+  it("the baseline is reachable, or the run is explicitly acknowledged as unverified", () => {
+    // A skipped comparison is not a passing one. Previously this only warned while
+    // the suite still went green — so an environment without the baseline reported
+    // success having checked nothing. It now FAILS closed. Setting
+    // CC_ALLOW_NO_BASELINE=1 is the only way past, and it makes the gap a recorded
+    // choice rather than a silent one.
+    const acknowledged = process.env.CC_ALLOW_NO_BASELINE === "1";
+    expect(
+      baselineAvailable || acknowledged,
+      `[BASELINE UNAVAILABLE] ${BASELINE} not present, so the diff-relative claim ` +
+        `was NOT verified. This suite refuses to report success without checking. ` +
+        `Provide the baseline checkout, or set CC_ALLOW_NO_BASELINE=1 to record ` +
+        `deliberately that this run proves nothing about R2/R6.`
+    ).toBe(true);
   });
 
   it("detects an increase when one exists (positive control)", () => {
