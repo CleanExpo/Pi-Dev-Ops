@@ -105,6 +105,32 @@ at a time**. If a granted attempt returns another instance of the same class, **
 the signal to re-spec the harness, not to grant another attempt. A fourth round that finds the
 same class of hole is evidence the design is wrong, not that the patches are nearly done.
 
+## Believed good is not verified good
+
+A capability may be **believed good** — gate green, findings fixed, no known defect — while its
+**evidence apparatus has not earned the right to say so**. These are different claims and they
+must be recorded separately.
+
+Capability 2/3 is the worked example: green gate, 34 passing tests, four rounds of review
+findings all fixed, and it has **never earned a PASS**. G1 is open, the navigation detector
+misreports its own coverage, and three of four review rounds could not execute the suite.
+
+**Collapsing the two is how a green suite starts meaning nothing.** A reader who sees a green
+gate and infers verification is making exactly the error the harness exists to prevent. When
+they diverge, say both, in those words.
+
+## Do not stack capabilities on a verifier known to misreport
+
+**Ruled 2026-08-01: capability 4 does not start until the navigation layer is re-specced.**
+
+Every capability inherits the harness. Building more on a verifier with a known
+coverage-overclaim does not add risk linearly — it multiplies *false confidence*, because the
+defect is precisely the kind that makes each new capability look verified. The bill arrives at
+whichever one finally breaks in production, by which point four are carrying it.
+
+The general form: **when a verifier is known to misreport its own coverage, fix the verifier
+before adding anything that will be measured by it.**
+
 ## Reviewer capability is part of the evidence, not a detail
 
 On capability 2/3 attempts 2 and 3 the reviewer **could not execute the test suites** — `spawn
@@ -118,6 +144,16 @@ same shape of assertion the auth exemption made and lost on.
 
 **Getting the reviewer's sandbox able to run the suites is now gating work before operations**,
 alongside per-capability tokens.
+
+**Escalated 2026-08-01 — it is also a PREREQUISITE for the harness re-spec review, not a
+step-4 item.** By attempt 4 the reviewer had failed to execute the suites on three of four
+rounds and its build failed on the fourth; only `tsc --noEmit` was ever independently confirmed.
+
+Tolerable for structural claims about code. **Not tolerable for reviewing a verifier.** The
+re-spec's entire claim is *these checks fail red when they should*, and that is only confirmable
+by running them. **Re-speccing the harness and grading it by assertion reproduces the exact
+defect being fixed** — a check described by what it was meant to do rather than what it was
+observed to do. Fix the sandbox first.
 
 ## The builder does not grade its own exemptions
 

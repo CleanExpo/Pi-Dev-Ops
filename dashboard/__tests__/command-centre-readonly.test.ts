@@ -208,11 +208,31 @@ describe("command-centre: no new surface vs source baseline", () => {
     expect(after).toBeGreaterThan(before);
   });
 
-  // ---- G1: every internal link/fetch must resolve to a route that EXISTS here ----
+  // ---- G1 (PARTIAL): literal internal navigation must resolve to a route here ----
   // Construct counts are identical when a ported fetch points at an API route that was
   // never ported, so the surface passes while the control 404s. Found in capability 2
   // by the reviewer, not by the harness.
-  it("every internal href/fetch resolves to a route in the target app", () => {
+  //
+  // THIS IS A TRIPWIRE, NOT A PROOF, AND THE NAME NOW SAYS SO.
+  //
+  // It scans three literal forms: href="/x", fetch("/x"), and router.push/replace("/x…").
+  // It cannot see navigation through an expression — `<Link href={d.href}>` over a local
+  // array is in this very capability and invisible to it. Nor object hrefs, wrapper
+  // components, window.location, callbacks passed as props, server redirects, or form
+  // actions.
+  //
+  // It was previously called "every internal href/fetch resolves to a route in the
+  // target app". That name claimed the general property while checking three syntactic
+  // forms, and a reviewer found the gap for the fourth round running — the same class
+  // every round found: coverage reading wider than it is. Founder ruled 2026-08-01:
+  // rename to what it verifies, keep the gap OPEN on the coverage map (G1 stays open,
+  // partially mitigated), and replace the detector with runtime route exercising rather
+  // than extending the pattern list. Enumerating navigation forms is not a design that
+  // can be completed; AST extraction was considered and rejected as the same
+  // uncompletable enumeration in better clothes.
+  //
+  // Do NOT close this by adding another regex. That is the patch the ruling forbids.
+  it("literal href/fetch/router paths resolve to a route in the target app (tripwire — does not cover computed navigation, see G1)", () => {
     const APP = join(ROOT, "app");
     const routeExists = (p: string): boolean => {
       const clean = p.split("?")[0].split("#")[0].replace(/\/$/, "");
@@ -252,7 +272,12 @@ describe("command-centre: no new surface vs source baseline", () => {
     }
     expect(
       broken,
-      `internal paths with no matching route in the target app (these would 404):\n${broken.join("\n")}`
+      `literal internal paths with no matching route in the target app (these would 404):\n` +
+        `${broken.join("\n")}\n\n` +
+        `NOTE: an empty result here does NOT mean every internal navigation resolves. This ` +
+        `check sees three literal forms only. Computed navigation — <Link href={expr}>, ` +
+        `object hrefs, wrapper components, window.location, server redirects — is not ` +
+        `covered. G1 is OPEN on the coverage map.`
     ).toEqual([]);
   });
 

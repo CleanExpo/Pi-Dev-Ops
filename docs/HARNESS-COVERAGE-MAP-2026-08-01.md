@@ -17,6 +17,9 @@
 | C6 | **Build** | `next build` | compile failure, missing route |
 | C7 | **Fail-open scan** | `fence/fail_open_check.py` | verification code that swallows a signal; evidence files not git-tracked |
 | C8 | **Cross-vendor review** | Codex gpt-5.5, fresh session | anything a competent reader spots in spec or standards |
+| C9 | **Literal navigation tripwire** | `command-centre-readonly.test.ts` | a **literal** `href="/x"`, `fetch("/x")` or `router.push("/x…")` naming a route that does not exist here. **Tripwire, not proof — G1 stays open.** |
+| C10 | **Import map vs reality** | same | a provenance entry for an import no file makes; an import with no entry; a `resolves_in_target: file:` that is absent from disk |
+| C11 | **Auth coverage** | `command-centre-auth-coverage.test.ts` | any command-centre page or API served to a request with no session, proven against `proxy()` directly with positive controls |
 
 **C4 tracks:** `fetch(`, http clients (axios/got/node-fetch/undici), `WebSocket`/`EventSource`/`XMLHttpRequest`/`sendBeacon`, dynamic `import(`, `require(`, remote-host literals, `.insert/.update/.upsert/.delete(`, `createClient`/`createServerClient`, MCP client names, `"use server"`, and three literal API-key names.
 
@@ -28,7 +31,7 @@ These are not tuning gaps. They are outside the shape of a count-based static co
 
 | # | Gap | Why the harness cannot see it | Already bitten us? |
 |---|---|---|---|
-| G1 | **Route existence** | C4 compares counts. A `fetch('/api/x')` that exists in both source and port passes even when `/api/x` was never ported. | **YES — capability 2.** Codex found links to `/founder/command-centre` and fetches to two unported API routes. Controls would 404. |
+| G1 | **Route existence** — **OPEN, partially mitigated** | C4 compares counts. A `fetch('/api/x')` that exists in both source and port passes even when `/api/x` was never ported. C9 now catches the *literal* forms; **computed navigation remains uncovered** — see below. | **YES — capability 2, four times.** Codex found links to `/founder/command-centre` and fetches to two unported API routes; then `router.push(`/founder/wiki/${slug}`)` 404ing on every node click; then `<Link href={d.href}>` invisible to the check. |
 | G2 | **Semantic equivalence** | Same count, different endpoint or payload. Swap a URL and the count is unchanged. | Latent |
 | G3 | **Runtime behaviour** | Nothing renders the page or intercepts network. "Does this control actually do nothing?" is never asked. | Latent |
 | G4 | **Indirect / computed constructs** | `const m = 'fet'+'ch'`, `globalThis[k]()`, string-built URLs, computed property access. | Latent |
@@ -70,11 +73,56 @@ That is the finding this map exists to surface.
 ## What follows from this
 
 1. **Capability 6 must not be ported against the current harness.** The founder ruling already requires a hand-established baseline for it. This map shows the automated layer would add close to nothing on the five constraints.
-2. **G1 (route existence) is buildable now** and is the live defect in capability 2. Bounded and decidable: every internal `href`/`fetch` path in a ported capability must resolve to a route that exists in the target.
+2. ~~**G1 (route existence) is buildable now.** Bounded and decidable: every internal `href`/`fetch` path in a ported capability must resolve to a route that exists in the target.~~ **This was wrong, and the record keeps it visible rather than editing it away.** G1 is *not* bounded and decidable as stated. Three rounds of "add the next form" — literal `href`, then `router.push` template literals, then `<Link href={expr}>` — established that enumerating navigation forms cannot be completed: object hrefs, wrapper components, `window.location`, callbacks passed as props, server redirects and form actions all remain, and the list has no end. **See "G1 — the standing ruling" below.**
 3. **OG2 (external execution) is buildable now** — add `child_process`/`exec`/`spawn`/`execSync` to C4's tracked set. Cheap, and it closes total-zero coverage on one named constraint.
 4. **G10 (guard deletion) needs a second direction** — a *decrease* check on a named safety-construct subset, not on everything.
 5. **OG3 and OG5 are not static problems.** They need either a render test with network interception, or an architectural boundary that makes execution structurally unreachable from the page.
 
 ---
 
-*Compiled 2026-08-01 after capability 2 attempt 1 failed on G1 — a class the harness could not see, found by the reviewer rather than the harness.*
+---
+
+## G1 — the standing ruling (2026-08-01, founder)
+
+**Status: OPEN. Partially mitigated by C9. Do not mark closed.**
+
+Four review rounds each found the same class — *coverage reading wider than it is* — and three
+of the four were G1 specifically. The response after the fourth is deliberately **not** another
+detector.
+
+**What was done today (item 1 of 4, and only this):**
+- The check was **renamed to what it verifies**: literal `href`/`fetch`/`router` paths, described
+  in its own name and failure message as a **tripwire**, not a proof. A share of the fourth
+  finding was simply the test's name overclaiming, and that half was free to fix.
+- **The gap stays open on this map.** Renaming is necessary and not sufficient. G1 closes when
+  something actually closes it.
+
+**What will close it: runtime route exercising. Not AST extraction.**
+
+AST with dataflow was the reviewer's proposal and was **rejected**. It is the same uncompletable
+enumeration in better clothes — you still have to decide which patterns count, and wrapper
+components and computed values defeat it identically. Runtime changes the evidence from *what
+forms we looked for* to *what the surface actually does*.
+
+That is the same fact-versus-claim distinction that made operator-gateway a rebuild rather than
+a port, and it is the distinction this whole harness keeps failing on in one direction: a static
+check can only ever report what it was told to look for, and then gets described as though it
+reported on the surface.
+
+**The runtime rig is gating work before operations**, alongside per-capability tokens.
+
+**Scope discipline, explicitly.** Re-spec the navigation detector and **nothing else**. The
+diagnosis was narrow: the design is sound, import provenance is closed, the positive controls
+are load-bearing. A narrow finding is not licence to rebuild the apparatus.
+
+**Prerequisite — the reviewer must be able to execute.** The cross-vendor reviewer could not run
+the suites on three of four rounds and its build failed on the fourth; only `tsc --noEmit` was
+ever independently confirmed. That is tolerable for structural claims about code. It is **not**
+tolerable for reviewing a verifier: the re-spec's entire claim is *these checks fail red when
+they should*, which can only be confirmed by running them. Re-speccing the harness and grading
+it by assertion reproduces the exact defect being fixed. **Fix the sandbox before the re-spec
+review, not after.**
+
+---
+
+*Compiled 2026-08-01 after capability 2 attempt 1 failed on G1 — a class the harness could not see, found by the reviewer rather than the harness. Amended after attempt 4 found G1 a third time, which is what turned it from a gap to be patched into a design to be replaced.*

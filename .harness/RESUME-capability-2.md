@@ -41,6 +41,42 @@ narrower number reads as the broader claim.
 **The code for capability 2/3 is BUILT. The outstanding item is the Codex round —
 under the standing rules it is not done until it passes.**
 
+## STATUS OF CAPABILITY 2/3 — read this before touching anything
+
+**Unmerged. Unshipped. It has never earned a PASS.**
+
+Hold these two claims apart, because collapsing them is how a green suite starts meaning nothing:
+
+- **The capability is believed good.** Gate green, 34 tests passing, four review rounds' findings
+  all fixed, the auth hole closed and proven.
+- **The evidence apparatus has not earned the right to say so.** G1 is open. The navigation
+  detector misreports its own coverage. Three of four review rounds could not execute the suite,
+  so every green loop in that review is the builder's claim alone.
+
+"Believed good" and "verified good" are different claims. This capability has the first and not
+the second. Do not merge it, do not ship it, and do not let a future reader see a green gate and
+infer the second.
+
+## SCHEDULING RULING (founder, 2026-08-01) — DO NOT START CAPABILITY 4
+
+**Providers waits for the navigation layer.**
+
+Every capability inherits this harness. Building three more on a verifier that is known to
+misreport its own coverage stacks the same defect four deep — and the defect is specifically the
+kind that makes each one *look* verified. Four capabilities each carrying an unmeasured
+navigation surface is not four times the risk; it is four times the false confidence, discovered
+at whichever one finally breaks in production.
+
+**Order of work, as ruled:**
+
+1. ~~Rename and re-scope the route-existence check; record G1 as an open gap.~~ **DONE
+   2026-08-01** — C9 in the coverage map, gap held open, `docs/HARNESS-COVERAGE-MAP-2026-08-01.md`.
+2. **Reviewer sandbox execution** — now a **prerequisite for the re-spec review**, no longer a
+   step-4 item. A reviewer that cannot execute cannot validate a verifier.
+3. **Replace the navigation detector with runtime route exercising.** Not AST extraction. Gating
+   work before operations, alongside per-capability tokens.
+4. Capability 4 (providers) — **blocked on 3.**
+
 ## The Codex round on capability 2/3 — CLOSED AT ATTEMPT 4. Do not open a fifth.
 
 **Ledger — keep this current, it is the thing the last handoff claimed to have written and did not.**
