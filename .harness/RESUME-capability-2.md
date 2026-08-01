@@ -13,30 +13,44 @@ cd D:\Pi-Dev-Ops\dashboard
 npx vitest run __tests__/command-centre-readonly.test.ts
 ```
 
-**Expected right now: 1 failed | 21 passed (22).** The single failure is the work:
+**Expected right now: 22 passed (22). Route-existence: 0 broken paths.**
 
-```
-internal paths with no matching route in the target app (these would 404):
-  app/(main)/command-centre/knowledge/page.tsx        -> /founder/command-centre
-  components/command-centre/WikiEnhanceControl.tsx    -> /api/command-centre/lanes/wiki/enhance
-  components/command-centre/wiki-graph/WikiGraphTile.tsx -> /founder/command-centre/wiki-graph
-  components/command-centre/wiki-graph/WikiGraphTile.tsx -> /api/command-centre/wiki-graph
-```
+If you see anything other than 22/22, stop and find out why before building.
 
-If you see anything other than 1 failed / 21 passed, stop and find out why before building.
+**The code for capability 2/3 is BUILT. The outstanding item is the Codex round —
+it has not been reviewed, and under the standing rules it is not done until it passes.**
 
-## The job, already approved by the founder
+## FIRST THING: the Codex round on capability 2/3
 
-Capabilities **2 (knowledge) and 3 (wiki-graph) ship as one unit** — knowledge links to wiki-graph, so knowledge cannot pass route-existence without it.
+Everything else below is done. This is the only outstanding item.
 
-1. **Port the UI** for knowledge + wiki-graph — faithful port, source verbatim, then only the `@/*` alias rewrites.
-2. **Rebuild the two API routes**, do not port them:
-   - `/api/command-centre/lanes/wiki/enhance` (source: 40 lines)
-   - `/api/command-centre/wiki-graph` (source: 58 lines)
-   Write them against the target's `createServerClient` from `@/lib/supabase/server`. **Do not port the source versions** — they import a `@/lib/supabase/server` that resolves to an anon-key RLS-enforced client, while the target's is service-role and bypasses RLS. Same specifier, compatible shapes, clean typecheck, silent privilege change. That is why these two are a rebuild.
-3. **Retarget the two `/founder/...` links** to their target paths under `/command-centre/...`.
-4. Add provenance entries for every new file **and** every new import (`node __tests__/build-import-provenance.mjs` generates the skeleton; each needs a judgment: `same` | `different-but-checked` | `must-change`).
-5. Run the harness, then the Codex review.
+Use `.harness/cc-01-review-brief.md` as the template. Bounded at three attempts against a
+fixed spec, each materially different.
+
+**Make the declared deltas a NAMED review item.** Give the reviewer the list explicitly —
+file, rule, stated reason — from `_declared_deltas` in
+`__tests__/command-centre-provenance.json`, and ask directly whether any of them is wrong.
+
+Currently two, both on `app/(main)/command-centre/wiki-graph/page.tsx`:
+- **auth gate** — `getUser()`+`redirect('/auth/login')` removed; auth enforced upstream by `proxy.ts`
+- **database client** — `await createClient()` (anon-key, RLS) → `createServerClient()`
+
+**These are exemptions the builder wrote to its own checks.** The builder must not be the one
+grading them. Ask the reviewer to judge each on its merits, not to accept the stated reason.
+
+## What was built (done, for context)
+
+Capabilities **2 (knowledge) and 3 (wiki-graph) shipped as one unit**.
+
+- UI ported faithfully; `/founder/*` links retargeted
+- `/api/command-centre/wiki-graph` **rebuilt** against `createServerClient` — the source's
+  `@/lib/supabase/server` is anon-key/RLS/per-user, the same specifier here is service-role
+  with no identity. A verbatim port would have typechecked while swapping RLS-enforced for
+  RLS-bypassing.
+- wiki-graph **page** data access rebuilt the same way
+- `/command-centre` index written fresh; links only to routes that exist
+- `WikiEnhanceControl` and its route **omitted — KI-002**, founder-ruled. Absent, not stubbed.
+- `d3-force`/`d3-selection`/`d3-zoom` added at baseline versions
 
 ## The harness
 
@@ -50,7 +64,12 @@ NEXT_PUBLIC_SUPABASE_URL=https://lksfwktwtmyznckodsau.supabase.co \
 NEXT_PUBLIC_SUPABASE_ANON_KEY=x SUPABASE_SERVICE_ROLE_KEY=x npm run build
 ```
 
-What the suite enforces: file provenance · import provenance · baseline reachable (fails closed) · construct-count non-increase · **route existence** · **guard non-decrease** · external execution.
+What the suite enforces: file provenance · import provenance · baseline reachable (fails closed) ·
+construct-count non-increase · route existence · guard non-decrease · external execution.
+
+Files are categorised: **ported** (compared against baseline) · **rebuilt** · **target-native** ·
+**declared-delta** (per-file per-rule exemption with a stated reason — only the NAMED rule is
+exempt for the NAMED file, so any other divergence in the same file still fails).
 
 ## The review
 
@@ -83,8 +102,18 @@ Stop for exactly two things: **spending real money**, and **touching production*
 - Auto-commit hook **dead** and proven — nothing commits or pushes unless you do
 - 7 incident records in `.harness/incidents.jsonl` (tracked; it was gitignored once, force-tracked now)
 
-## Open, not blocking capability 2
+## Scheduled work — founder-confirmed, with positions
 
-`/api/kill-switch` POST · `/api/telegram` POST · three webhook routes calling `.update(` — enumerated, unscoped.
+**HTTP hardening — BEFORE step 4.** `/api/kill-switch` POST · `/api/telegram` POST · three
+webhook routes calling `.update(`. Operations ships approvals and would add to this surface,
+so it lands first.
 
-**The design question that outlives this migration:** the fence intercepts tool calls and cannot see HTTP. In a single shared-password system "authenticated" includes our own automation. Per-capability tokens instead of one shared `DASHBOARD_PASSWORD` is the real fix. Everything done so far narrows the agent-curl path and does nothing about the app calling itself.
+**Per-capability tokens replacing `DASHBOARD_PASSWORD` — AT step 4, as gating work.**
+
+The reason is sharper than "it closes the class". **Operations ships approvals, and an approval
+endpoint reachable by anything holding the shared password — including the agents whose work is
+being approved — is not an approval gate.** It is a button. Tokens land *before* operations, not
+alongside it.
+
+This is also a prerequisite for the enhance route (KI-002) ever existing here: that route needs
+a per-user identity, which is exactly what tokens would supply.
