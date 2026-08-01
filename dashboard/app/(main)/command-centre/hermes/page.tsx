@@ -11,7 +11,6 @@
 // rounded-sm (2px). The inert/placeholder mirror sections collapse behind the shared
 // DeckDetails disclosure with honest one-line summaries. Data logic unchanged.
 
-export const dynamic = 'force-dynamic'
 
 import { Chakra_Petch } from 'next/font/google'
 import { getControlPanelView } from '@/lib/command-centre/control-panel'

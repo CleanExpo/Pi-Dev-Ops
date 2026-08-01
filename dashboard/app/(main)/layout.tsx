@@ -18,7 +18,6 @@ const NAV = [
   { href: "/projects",  label: "Portfolio", icon: "◫", key: "projects"  },
   { href: "/chat",      label: "Chat",      icon: "◉", key: "chat"     },
   { href: "/history",   label: "History",   icon: "☰", key: "history"  },
-  { href: "/command-centre/hermes", label: "Hermes", icon: "⌘", key: "hermes" },
   { href: "/settings",  label: "Settings",  icon: "⊙", key: "settings" },
 ];
 
