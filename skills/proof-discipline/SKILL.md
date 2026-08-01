@@ -1,0 +1,113 @@
+---
+name: proof-discipline
+description: Use whenever about to mark a test, gate, verification, or task as passing / GREEN / complete. Catches vacuous verification — tests that pass without exercising the real production path, claims asserted but not proven against the live system, silent caps that truncate results, deployed-vs-source drift, and security claims proven only in friendly geometry. Triggers on "tests pass", "it's green", "verified", "done", "complete", especially for query plans, indexes (HNSW/btree), RLS/tenant isolation, scale/load, and EXPLAIN.
+---
+
+# Proof Discipline
+
+## Overview
+
+**GREEN is a claim about the live production path at real scale — not a statement that an assertion returned true.** A passing test proves nothing until you have shown it exercised the path production actually runs. The root failure this skill prevents: *passing a test without proving the claim.*
+
+This came from a real incident. A pgvector + RLS suite was GREEN, yet the 142-row fixture was below the scale where the HNSW index engages, so the test never touched the production path. Forcing the index (drop btree + `seqscan=off`) produced a plan production never runs. Two load-bearing bugs hid under that false-green, and a subagent's recommended fix value was wrong — both caught only by checking the live system.
+
+**Violating the letter of this checklist is violating the spirit. "It passed" is not evidence. "I reasoned it through" is not evidence. Live output is evidence.**
+
+## The Pre-GREEN Checklist
+
+Before marking ANYTHING passing/GREEN/complete, answer every item **with pasted live output, not assertion.** No item may be skipped.
+
+1. **Real path, not forced.** Run live `EXPLAIN (ANALYZE, BUFFERS)` (or the equivalent: actual plan / dispatched code path / chosen branch). Confirm the plan matches production. If the path under test engages ONLY after forcing — dropping an index, `enable_seqscan=off`, stubbing a guard, monkeypatching — the run is a **mechanism demo, not proof.** Label it as such; it does **not** count toward GREEN.
+
+2. **Scale that self-engages.** The fixture must be large enough that the planner/runtime picks the production path **on its own.** If a different plan is chosen at fixture size than at production size, the test is vacuous. **State the size at which engagement flips** (binary-search it with EXPLAIN if unknown).
+
+3. **Sweep every silent ceiling.** Enumerate every cap that truncates *without erroring*: `max_scan_tuples`, `scan_mem_multiplier × work_mem`, `LIMIT`/`least(count, N)`, `ef_search`, threshold cutoffs, pagination defaults, `maxResults`, batch sizes. Each is a landmine until tested **at and above** it. A result set that silently shrinks is the most dangerous bug class because nothing fails.
+
+4. **Diff deployed vs template/source.** Compare the actually-deployed object (`pg_get_functiondef`, deployed config, running binary) against its source/template. **Drift is a bug until proven benign** — do not assume cosmetic. (In the incident, plpgsql `set_config` vs sql `SET`-clause drift WAS the fix.)
+
+5. **Classify every claim: proven / observed / assumed.** A claim is **proven** only if exercised on the real path, at real scale, against the live system. Security/isolation claims additionally require BOTH the adversarial case (geometry where a leak would be conspicuous — e.g. interleaved tenants, not "other tenant entirely far away") AND the real auth path (signed JWT, real RLS role — not a `set_config('request.jwt.claims')` bypass). Without both, isolation is **observed at best, not proven** — and the test must say so.
+
+6. **Verify recommendations against the live system before adopting.** Any suggested value or fix — from a subagent, a critic, docs, or your own reasoning — is **unverified** until reproduced live. (The `-1` recommendation was out of range; only a live run caught it.) Record the verification command and its output.
+
+## Failure-Mode Catalogue (pattern-match fast)
+
+| # | Failure mode | Smell | Detection command |
+|---|---|---|---|
+| 1 | **Sub-scale fixture** | "tiny fixture, all green" | `EXPLAIN (ANALYZE)` at fixture size vs a 50k+ row copy — does the plan node change? |
+| 2 | **Forced-plan artifact** | test drops an index / sets `seqscan=off` / stubs a guard to make the path fire | grep the test for `drop index`, `enable_seqscan`, `set_config(... iterative ...)`, mocks; if the path needs forcing, it's a demo |
+| 3 | **Silent cap** | result set "looks complete" but never tested past a limit | load `cap+1` matching rows; assert count == `cap+1`, not `cap`. Sweep `max_scan_tuples`, `least(count,N)`, `ef_search` |
+| 4 | **Deployed/template drift** | "the migration says X" but the live object differs | `pg_get_functiondef('schema.fn'::regproc)` diff against the `.sql` source |
+| 5 | **Observed-not-proven security** | "0 leak" seen once, in geometry where a leak couldn't show | rebuild fixture with tenants interleaved in the ranked output; run via signed JWT + real role; assert exact id-set, 0 cross-tenant |
+| 6 | **Vacuous control** | "I broke it and the check still passed / caught it" — but the thing you broke was never there | assert the PRECONDITION before trusting the control: the anchor string must exist, the file must be non-empty, the planted token must actually land. `grep -c` it after planting, and fail loudly at zero |
+
+### 6 in full — verify a control's precondition before trusting the control
+
+A negative control only proves something if the thing you removed **was present to remove**.
+Delete a token that was never there and you have planted nothing: the suite passes, and the
+pass says nothing at all about whether the check can fail.
+
+This is the same class as a query suite going green because 19 DB-gated files silently
+skipped, or a `grep` whose alternation never matched — **a clean result from a check that
+never ran looks identical to a clean result from a clean system.**
+
+It bites hardest on *exemptions*. When you write a rule and then exempt yourself from it, the
+control proving the exemption is still narrow is the only thing standing between "declared" and
+"disabled" — so a vacuous control there is worse than none, because it manufactures confidence.
+
+```bash
+# WRONG — proves nothing if the token was absent
+sed -i 's/disabled/_removed/' target.ts && run_suite     # suite passes… of what?
+
+# RIGHT — the precondition is asserted first, and a no-op is fatal
+grep -q 'disabled' target.ts || { echo "anchor absent — control would be vacuous"; exit 1; }
+sed -i 's/disabled/_removed/' target.ts
+grep -c '_removed' target.ts        # must be >= 1
+run_suite                            # NOW a pass/fail means something
+```
+
+**If the anchor is absent, do not substitute a different control silently — say the control
+could not be run, and find one whose precondition holds.**
+
+**This file was itself failure mode 4.** It lived only at `~/.claude/skills/`, which is
+gitignored and does not travel, so the lesson about verification proving nothing existed on
+one machine and nowhere else. Deployed-versus-template drift, biting the document that
+catalogues it. Ruling 2026-08-01: **the repo is canonical, the machine copy is a deploy
+artifact, one-way repo → machine, never the reverse.** Editing `~/.claude/skills/` in place is
+editing files on a production server. `skills-drift-check` fails the build if the two diverge.
+
+*Earned 2026-08-01: a per-file per-rule exemption was reported as "controlled" after an attempt
+to remove a `disabled` token from a file that contained none. Nothing was planted; the 22/22
+pass was meaningless. The real control — planting an **undeclared** construct in the same file —
+failed 2 tests, which is what the exemption's narrowness actually rests on.*
+
+## Claim Classification (put this in the report)
+
+- **proven** — exercised on the real path, at real scale, live. The only label allowed in the load-bearing set at "done".
+- **observed** — saw the right result once, but on a forced plan, sub-scale, friendly geometry, or bypassed auth. Must be stated as such.
+- **assumed** — reasoned, not run. **Zero `assumed` items allowed in the load-bearing set before declaring done.**
+
+## Red Flags — STOP, you are about to ship a false-green
+
+- "The test passes, so it's green." (Passing ≠ proving.)
+- "EXPLAIN would show HNSW." (Then run it. Don't predict the planner.)
+- "It works the same at scale." (Prove the plan self-engages at scale.)
+- "The filter is the default `{}` / count is small — close enough." (Untested cap = landmine.)
+- "The migration sets it, so the deployed fn does too." (Diff the live object.)
+- "No leak appeared." (In what geometry? Via what auth path?)
+- "The subagent/doc says use value V." (Unverified until reproduced live.)
+- "I'll mark it done and note the residual." (A residual in the load-bearing set means NOT done.)
+
+## Rationalization Table
+
+| Excuse | Reality |
+|---|---|
+| "Forcing the index is basically the same as production" | Production never forces it. A plan that requires forcing is a mechanism demo, not proof. |
+| "142 rows is enough to show the logic" | At 142 rows the planner picks a *different, complete* path; the bug lives only on the path that engages at scale. |
+| "Nothing failed, so the result is complete" | Silent caps shrink results with zero errors. Absence of failure is not presence of completeness. |
+| "The deployed object matches the migration" | Verify with `pg_get_functiondef`. Drift hides in the gap between source and live. |
+| "Isolation held in the test" | Held against far-apart tenants via a JWT bypass ≠ held against interleaved tenants via signed auth. |
+| "The recommended value is obviously right" | Reproduce it live. `-1` was out of range. |
+
+## The Bottom Line
+
+Run it live. Diff the deployed object. Sweep every cap. Make the planner choose the path itself. Then — and only then — classify each claim as **proven**, and write the word "GREEN".
