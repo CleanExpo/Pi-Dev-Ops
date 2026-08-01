@@ -72,6 +72,71 @@ python fence/deploy_skills.py --check    # report drift, exit 1 if any
 
 This is **failure mode 4 — deployed-versus-template drift** — and it bit `proof-discipline`, the file that catalogues it: it lived only in a gitignored machine directory, so the lesson inherited nowhere.
 
+## Review bounds, and the per-instance release valve
+
+A cross-vendor review round is **bounded at three attempts against a fixed spec**. The bound is a
+standing rule, not a judgement call. An agent may not extend it.
+
+**The founder may grant a fourth attempt per instance.** Granted twice so far — hermes, and
+capability 2/3 on 2026-08-01. **Neither is precedent, and a grant does not create a rule.**
+
+**What was declined, and stays declined:** *"the bound may extend while a reviewer is
+converging."* Refused because it is a builder self-assessment against an undefined qualifier —
+the builder decides what "converging" means, about its own work, to buy itself another round.
+That is the same defect as an exemption the builder writes to its own check. Do not reintroduce
+it in new wording.
+
+**Why capability 2/3's grant was given** — and note the reason is *not* convergence:
+
+All three findings were holes in the **evidence apparatus**, not code failing a spec. Exemptions
+blanket one level down; a map validated only against itself; a graph seeded from too few roots;
+a route check blind to template literals. The code did what it should; the machinery claiming to
+verify it was reading wider than it was.
+
+This is the **inverse of hermes**, where the code was fine and the spec could not be met. A bound
+exists to stop a fruitless grind. Applied to a round that is finding a real defect in the
+verifier every time, it misfires — it would end the review precisely because the review is
+working.
+
+**The condition attached to the grant, which is the part worth generalising:** every finding was
+the same class — *coverage that reads wider than it is*. So the primary question to the reviewer
+became whether the apparatus is **architecturally sound or being patched reactively, one finding
+at a time**. If a granted attempt returns another instance of the same class, **stop**. That is
+the signal to re-spec the harness, not to grant another attempt. A fourth round that finds the
+same class of hole is evidence the design is wrong, not that the patches are nearly done.
+
+## Reviewer capability is part of the evidence, not a detail
+
+On capability 2/3 attempts 2 and 3 the reviewer **could not execute the test suites** — `spawn
+EPERM` loading the Vite config in its sandbox — and reviewed statically. Acceptable there: the
+claims were about code structure and provenance, which read fine statically.
+
+**Not acceptable for operator-gateway.** Its entire claim is that *nothing executes*. A
+static-only review of an execution-absence claim is materially weaker than one that can run the
+suite and observe the absence — it verifies that the code appears not to execute, which is the
+same shape of assertion the auth exemption made and lost on.
+
+**Getting the reviewer's sandbox able to run the suites is now gating work before operations**,
+alongside per-capability tokens.
+
+## The builder does not grade its own exemptions
+
+Stated plainly, because capability 2/3 produced the strongest evidence for it yet.
+
+The auth exemption **was written by the builder, for the builder's own conformance check, and it
+was the live hole.** Four command-centre pages and an API route served anonymous requests while
+reading through a service-role client that bypasses RLS — and the exemption's stated reason,
+"auth is enforced upstream by proxy.ts", was the thing making it invisible. Every local check
+passed. The suite was green.
+
+It was found because a cross-vendor reviewer **refused to accept the stated reason as evidence**
+and asked for it to be proven. Proving it is what showed it was false. Not a better reviewer, not
+a smarter check — a reviewer with no stake in the exemption being correct.
+
+The rule is therefore not "review exemptions carefully". It is that **the party who writes an
+exemption cannot be the party who grades it**, and any process where those are the same party is
+producing green results that mean nothing.
+
 ## Recording a decision
 
 Every non-trivial call taken under this contract gets an incident record with `outcome` and the reasoning. The bar is not "was this important" but "would a reviewer need to know why". Cheap to write now, expensive to reconstruct later.

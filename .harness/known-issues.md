@@ -69,8 +69,8 @@ path into a production job queue. Both are design decisions, not porting work.
 this entry was written — `diff` returned empty — and that is how the two defects below were
 established as inherited rather than introduced.
 
-**It is no longer byte-identical.** KI-005 retargeted the node-click destination, and these
-entries added comments. The inherited-not-introduced finding still stands: it was verified
+**It is no longer byte-identical.** KI-005 removed the node-click path, and these entries added
+comments. The inherited-not-introduced finding still stands: it was verified
 against the baseline at the time and both defects remain at their original lines. But do not
 re-derive it by diffing today and expecting an empty result — the claim is a record of a check
 that was run, not a property you can re-observe now.
@@ -79,7 +79,7 @@ It carries two real defects, both present at the same lines in the source:
 
 - **KI-003 — listener leak.** `canvas.addEventListener('pointerleave', () => {…})` is
   anonymous and the effect's cleanup removes only pointerdown/move/up. The effect reruns on
-  `[nodes, edges, nodeAtScreen, router]`, so pointerleave handlers accumulate on the same
+  `[nodes, edges, nodeAtScreen]` (was `[…, router]` before KI-005), so pointerleave handlers accumulate on the same
   canvas. Flagged by cross-vendor review as a hard standards violation. It is one.
 - **KI-004 — ref read during render.** `sizeRef.current.w` is read inside the tooltip's
   `style` prop. `react-hooks/refs` errors on it, and that error is what turned the repo's
@@ -99,26 +99,35 @@ moves. Both are client-side only — no data exposure, no write path.
 is suppressed, not because it was fixed. That is the deliberate trade. It is recorded here
 so nobody later reads a green gate as "this component is clean".
 
-## KI-005 — wiki-graph node clicks retargeted; the destination is not equivalent
+## KI-005 — wiki-graph node clicks REMOVED (not retargeted)
 
-`WikiGraphCanvas` called `router.push(`/founder/wiki/${slug}`)`. That route does not exist in
+`WikiGraphCanvas` called ``router.push(`/founder/wiki/${slug}`)``. That route does not exist in
 this app, so **every node click 404'd**. Found by cross-vendor review on attempt 3, not by the
 harness: the route-existence check scanned `href=` and `fetch(` string literals, and this is a
-template literal inside `router.push()`. The check now covers that form and fails on the static
+template literal inside `router.push()`. The check now covers that form and tests the static
 prefix before the first `${`.
 
-**Not a declare-not-fix case.** KI-003/004 are defects inherited verbatim from a baseline where
-they work. This is a link whose destination does not exist *here*, and retargeting `/founder/*`
-links was already this port's recorded intent — it was missed inside the interpolation.
+**First fix retargeted every click to `/command-centre/knowledge`. The founder overruled it,
+and was right.** A click that appears to navigate somewhere specific and always lands somewhere
+unrelated is a lie about interactivity. Offering nothing beats offering a control that
+misrepresents what it does. The click path is removed: handlers, listeners, and the orphaned
+`useRouter` import.
 
-**Retargeted to `/command-centre/knowledge`, and that is not equivalent.** The source opens the
-specific wiki page for the clicked node. This app has no per-page wiki route, so the click now
-lands on the knowledge deck regardless of which node was clicked. It is a working destination,
-not the right one.
+**This is the same rule as KI-002, and the two should be read as one.** `WikiEnhanceControl` was
+made *absent* rather than stubbed because a control that renders while doing nothing
+misrepresents what the surface can do. A control that renders and navigates *somewhere wrong*
+fails the identical test. The principle is not "prefer absence" — it is that **a surface must
+not claim a capability it does not have**, and both a no-op stub and a wrong destination make
+that claim. Absence is honest and cannot be silently filled in.
 
-**The alternative, deliberately not taken:** drop the click-through entirely. Rejected on the
-KI-002 precedent — a control that renders while doing nothing misrepresents what the surface
-can do — but it is a defensible call and this is cheap to overrule.
+**Not a declare-not-fix case** like KI-003/004. Those are defects inherited verbatim from a
+baseline where they work correctly. This was a link whose destination does not exist *here*.
 
-**Fix properly when** a per-page wiki route exists here, or the knowledge deck accepts a slug
-to deep-link into.
+**Restore the click when** a per-node destination exists — a per-page wiki route, or a knowledge
+deck that accepts a slug to deep-link into. Until then the graph is hover-and-explore only, and
+the caption says so.
+
+**Footnote worth keeping:** removing `useRouter` made its provenance entry phantom, and the
+map-vs-reality check built in the previous commit failed on it within seconds. The apparatus
+caught its own author. That is the first evidence any of these checks has bitten someone other
+than the reviewer who demanded it.

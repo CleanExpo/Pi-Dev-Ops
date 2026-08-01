@@ -285,13 +285,6 @@
       "judgment": "same",
       "note": "same npm package, version matched to the baseline"
     },
-    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx :: next/navigation": {
-      "specifier": "next/navigation",
-      "resolves_in_source": "package: next/navigation",
-      "resolves_in_target": "package: next/navigation",
-      "judgment": "same",
-      "note": "same npm package, version matched to the baseline"
-    },
     "components/command-centre/wiki-graph/WikiGraphCanvas.tsx :: d3-force": {
       "specifier": "d3-force",
       "resolves_in_source": "package: d3-force",

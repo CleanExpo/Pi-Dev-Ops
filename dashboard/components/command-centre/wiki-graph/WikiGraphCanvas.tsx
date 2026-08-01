@@ -10,7 +10,6 @@
 // pointer-downs that land on a node to the manual drag handler).
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import {
   forceSimulation,
   forceManyBody,
@@ -74,7 +73,6 @@ interface Tooltip {
 }
 
 export function WikiGraphCanvas({ nodes, edges }: Props) {
-  const router = useRouter()
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [tooltip, setTooltip] = useState<Tooltip | null>(null)
@@ -307,39 +305,27 @@ export function WikiGraphCanvas({ nodes, edges }: Props) {
       drag.fy = null
     }
 
-    // Click-to-navigate: a clean tap on a node (no meaningful drag).
-    let downPt: { x: number; y: number } | null = null
-    function onClickDown(e: PointerEvent) {
-      downPt = pointerToScreen(e)
-    }
-    function onClickUp(e: PointerEvent) {
-      if (!downPt) return
-      const up = pointerToScreen(e)
-      const moved = Math.hypot(up.x - downPt.x, up.y - downPt.y)
-      downPt = null
-      if (moved > 4) return
-      const hit = nodeAtScreen(up.x, up.y)
-      // Retargeted from the source's `/founder/wiki/${slug}`. That route does not
-      // exist in this app, so every node click 404'd — a broken control, found by
-      // cross-vendor review and missed by the route-existence check because a
-      // template literal inside router.push() is neither an href= nor a string
-      // literal. The check now covers this form.
-      //
-      // This is NOT a declare-not-fix case like KI-003/004. Those are defects
-      // inherited verbatim from a baseline that works. This is a link whose
-      // destination does not exist HERE, and retargeting `/founder/*` links was
-      // already the recorded intent of this port — it was simply missed inside the
-      // interpolation. Nearest existing destination is the knowledge deck; there is
-      // no per-page wiki route in this app to point at. Recorded as KI-005 with the
-      // alternative (drop the click entirely) so it is cheap to overrule.
-      if (hit) router.push('/command-centre/knowledge')
-    }
+    // KI-005: click-to-navigate REMOVED, not retargeted.
+    //
+    // The source opened the clicked node's own wiki page at `/founder/wiki/${slug}`.
+    // That route does not exist in this app, so every node click 404'd. The first fix
+    // pointed all clicks at the knowledge deck; the founder overruled it, and was
+    // right: a click that appears to navigate somewhere specific and always lands
+    // somewhere unrelated is a lie about interactivity. Better to offer nothing than
+    // to offer a control that misrepresents what it does.
+    //
+    // This is the SAME rule that made WikiEnhanceControl absent rather than stubbed
+    // (KI-002) — a control that renders while doing something other than what it
+    // appears to do misrepresents the surface. Absence is honest and cannot be
+    // silently filled in; a working-looking wrong destination is neither. Read the
+    // two rulings as one rule, not two judgement calls that happened to agree.
+    //
+    // Restore this when a per-node destination exists here — a per-page wiki route,
+    // or a knowledge deck that accepts a slug to deep-link into.
 
     canvas.addEventListener('pointerdown', onPointerDown)
-    canvas.addEventListener('pointerdown', onClickDown)
     canvas.addEventListener('pointermove', onPointerMove)
     canvas.addEventListener('pointerup', onPointerUp)
-    canvas.addEventListener('pointerup', onClickUp)
     // KI-003 (inherited, NOT introduced): this listener is anonymous and the
     // cleanup below never removes it, so it accumulates each time the effect
     // reruns on [nodes, edges, ...]. Cross-vendor review flagged it as a hard
@@ -366,12 +352,10 @@ export function WikiGraphCanvas({ nodes, edges }: Props) {
       ro.disconnect()
       selection.on('.zoom', null)
       canvas.removeEventListener('pointerdown', onPointerDown)
-      canvas.removeEventListener('pointerdown', onClickDown)
       canvas.removeEventListener('pointermove', onPointerMove)
       canvas.removeEventListener('pointerup', onPointerUp)
-      canvas.removeEventListener('pointerup', onClickUp)
     }
-  }, [nodes, edges, nodeAtScreen, router])
+  }, [nodes, edges, nodeAtScreen])
 
   return (
     <div

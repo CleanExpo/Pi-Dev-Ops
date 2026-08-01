@@ -100,7 +100,11 @@ export default async function WikiGraphPage() {
         <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
           <WikiGraphCanvas nodes={graph.nodes} edges={graph.edges} />
           <p style={{ margin: '0.5rem 0 0', fontSize: 11, color: '#5a6b62' }}>
-            Drag to pan · scroll to zoom · drag a node to move it · hover to highlight neighbours · click to open the page
+            {/* "· click to open the page" removed with the click handler — KI-005. A
+                caption is part of the surface's claim about itself; leaving it would
+                advertise an interaction that no longer exists, which is the same
+                misrepresentation the click was removed to avoid. */}
+            Drag to pan · scroll to zoom · drag a node to move it · hover to highlight neighbours
           </p>
         </div>
       )}
