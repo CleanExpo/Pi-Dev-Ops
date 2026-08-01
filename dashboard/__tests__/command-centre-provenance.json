@@ -7,7 +7,17 @@
     "components/command-centre/DeckDetails.tsx": "components/command-centre/DeckDetails.tsx",
     "lib/command-centre/control-panel.ts": "lib/operator-gateway/control-panel.ts",
     "components/command-centre/command-deck.module.css": "app/(founder)/founder/command-centre/command-deck.module.css",
-    "components/command-centre/deck-details.module.css": "components/command-centre/deck-details.module.css"
+    "components/command-centre/deck-details.module.css": "components/command-centre/deck-details.module.css",
+    "app/(main)/command-centre/knowledge/page.tsx": "app/(founder)/founder/command-centre/knowledge/page.tsx",
+    "components/command-centre/DeckThemeShell.tsx": "app/(founder)/founder/command-centre/DeckThemeShell.tsx",
+    "components/command-centre/WikiEnhanceControl.tsx": "app/(founder)/founder/command-centre/WikiEnhanceControl.tsx",
+    "components/command-centre/deck-visual-helpers.ts": "app/(founder)/founder/command-centre/deck-visual-helpers.ts",
+    "components/command-centre/shell.module.css": "app/(founder)/founder/command-centre/shell.module.css",
+    "components/command-centre/SourceBadge.tsx": "components/command-centre/SourceBadge.tsx",
+    "components/command-centre/DegradedDataBanner.tsx": "components/command-centre/DegradedDataBanner.tsx",
+    "components/command-centre/wiki-graph/WikiGraphTile.tsx": "components/command-centre/wiki-graph/WikiGraphTile.tsx",
+    "lib/command-centre/tools/catalogue.ts": "lib/command-centre/tools/catalogue.ts",
+    "store/ui.ts": "store/ui.ts"
   },
   "_baseline_verified_by_hand": {
     "_note": "Capabilities whose baseline safety properties are load-bearing require a hand-established baseline BEFORE porting, recorded here. Capability 6 (operator-gateway) is the one that needs it \u2014 its whole safety story is 'no live runner, no real execute button'. 'No new surface' is worthless against an unexamined baseline.",
