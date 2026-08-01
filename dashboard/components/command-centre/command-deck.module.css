@@ -1,0 +1,618 @@
+/* Command Deck — flight-deck console aesthetic for the Nexus Command Centre.
+   Scoped CSS module (no runtime style injection — CSP/nonce safe).
+   Signal palette: cyan (primary) / go-green / caution-amber / abort-red. */
+
+.deck {
+  /* UNI-2339 slice 2 — the deck ground migrates onto the ratified Gun Metal
+     canvas (shell.module.css register). Every tile consumes colour via these
+     tokens (tiles imported unchanged), so the flip happens here. All TEXT
+     tokens computed against the darkest panel they land on (--deck-panel
+     #1c2230) and the bare canvas (#0e1014) — ratios noted per token. */
+  --deck-cyan: #2dbb57;     /* primary accent — fills, LEDs, glows only */
+  --deck-go: #2dbb57;       /* go — fills/LEDs only */
+  --deck-amber: #f4820f;    /* caution — fills/LEDs only */
+  --deck-abort: #e5484d;    /* abort — fills/LEDs only */
+  --deck-glow: 45, 187, 87; /* RGB triplet for LED/glow shadows — candy green on the dark deck */
+  --deck-line: rgba(255, 255, 255, 0.10);
+  --deck-line-soft: rgba(255, 255, 255, 0.05);
+  --deck-panel: #1c2230;    /* canvas --surface-2 */
+  --deck-panel-hi: #232b3a; /* canvas --surface-3 */
+  --deck-text: #f0f3f7;     /* canvas --ink → 14.28:1 on panel, 17.11:1 on canvas */
+  --deck-muted: #a6afbc;    /* canvas --ink-dim → 7.18:1 on panel, 8.60:1 on canvas */
+  /* WCAG-AA text variants: the bright candy green/amber/red are kept for
+     fills/LEDs; TEXT consumers get light-on-dark variants that clear 4.5:1
+     on --deck-panel (#1c2230). */
+  --deck-cyan-text: #34d399;  /* 8.27:1 on panel, 9.90:1 on canvas */
+  --deck-amber-text: #f0a94c; /* 7.94:1 on panel, 9.51:1 on canvas */
+  --deck-abort-text: #f87171; /* 5.75:1 on panel, 6.88:1 on canvas */
+
+  /* Aliases so panels consolidated from the retired command-center page (which
+     use the --cc-* namespace) resolve their colours on this deck. */
+  --cc-bg: var(--deck-panel);
+  --cc-bg-soft: #141820;    /* canvas --surface-1 */
+  --cc-grid: var(--deck-line);
+  --cc-ink: var(--deck-text);
+  --cc-ink-dim: var(--deck-muted);
+  --cc-ink-hush: #8b96a5;   /* hushed but AA: 5.30:1 on panel, 5.93:1 on bg-soft */
+  /* --cc-signal stays the bright candy green: consolidated cc-* panels use it
+     for fills/dots/LEDs/borders (ActivityRow, HermesControlPanel backgrounds,
+     WorkPacketLane borders, ActivityLog dot, DegradedDataBanner borderLeft).
+     TEXT consumers use --cc-signal-text (AA-passing on the dark grounds). */
+  --cc-signal: var(--deck-cyan);
+  --cc-signal-text: var(--deck-cyan-text);
+  --cc-pulse-duration: 2.4s;
+
+  /* Tile inline-style tokens — the five queue/health/evidence tiles style via
+     inline `style={{}}` (class overrides can't reach them), so they consume
+     these vars with their old literals as fallbacks. Deck values = those
+     literals exactly; the daylight block re-inks them for paper. */
+  --tile-ink: #e6f7ff;
+  --tile-ink-dim: #9bb0c1;
+  --tile-ink-hush: #6f879b;
+  --tile-card-bg: rgba(0, 0, 0, 0.25);
+  --tile-card-line: rgba(255, 255, 255, 0.08);
+  --tile-amber-txt: #fb923c;
+  --tile-green-txt: #34d399;
+  --tile-red-txt: #d02f35;
+
+  position: relative;
+  min-height: 100%;
+  padding: 1.75rem 1.75rem 3rem;
+  color: var(--deck-text);
+  font-family: var(--font-chakra), var(--font-geist-sans), system-ui, sans-serif;
+  background-color: #0e1014;
+  background-image:
+    radial-gradient(120% 80% at 50% -10%, rgba(179, 0, 0, 0.07), transparent 60%),
+    radial-gradient(100% 70% at 100% 0%, rgba(255, 255, 255, 0.03), transparent 55%);
+  overflow: hidden;
+}
+
+/* Top ambient light (was the candy gloss sheen — canvas = matte, faint) */
+.deck::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 28%);
+  z-index: 0;
+}
+
+.deck > * { position: relative; z-index: 1; }
+
+/* ── Status strip ─────────────────────────────────────────────────────── */
+.statusStrip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid var(--deck-line);
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--deck-panel-hi), var(--deck-panel));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+.brand { display: flex; align-items: center; gap: 0.75rem; }
+
+.brandMark {
+  width: 34px; height: 34px;
+  display: grid; place-items: center;
+  border: 1px solid var(--deck-cyan);
+  border-radius: 10px;
+  color: var(--deck-cyan-text);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  box-shadow: 0 0 18px rgba(var(--deck-glow), 0.35), inset 0 0 10px rgba(var(--deck-glow), 0.12);
+}
+
+.brandText { display: flex; flex-direction: column; line-height: 1.05; }
+.brandTitle {
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--deck-text);
+}
+.brandSub {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--deck-muted);
+}
+
+.clock {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 1.35rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--deck-cyan-text);
+  text-shadow: 0 0 14px rgba(var(--deck-glow), 0.45);
+  font-variant-numeric: tabular-nums;
+}
+.clockLabel {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.3em;
+  color: var(--deck-muted);
+  text-transform: uppercase;
+}
+
+.metrics { display: flex; align-items: stretch; gap: 1.4rem; }
+.metric { display: flex; flex-direction: column; gap: 0.15rem; min-width: 56px; }
+.metricValue {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--deck-text);
+}
+.metricValue[data-tone="go"] { color: var(--deck-cyan-text); }
+.metricValue[data-tone="amber"] { color: var(--deck-amber-text); }
+.metricLabel {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--deck-muted);
+}
+
+.sys { display: flex; align-items: center; gap: 0.5rem; }
+.sysText {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--deck-cyan-text);
+}
+
+.kbd {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  color: var(--deck-muted);
+  border: 1px solid var(--deck-line);
+  border-radius: 10px;
+  padding: 0.28rem 0.5rem;
+  background: rgba(var(--deck-glow), 0.05);
+  white-space: nowrap;
+}
+.kbd b { color: var(--deck-text); font-weight: 600; }
+
+/* Section labels (HUD) removed — UNI-2339 slice 2 migrated every section
+   head to the canvas register (shell.module.css .glassSectionHead). */
+
+/* ── Panel grid ───────────────────────────────────────────────────────── */
+.panelGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 0.9rem;
+}
+
+.panel {
+  position: relative;
+  display: flex; flex-direction: column; gap: 0.75rem;
+  padding: 0.95rem 1rem 1rem;
+  border: 1px solid var(--deck-line);
+  border-left: 3px solid var(--swatch, var(--deck-cyan));
+  border-radius: 14px;
+  background: linear-gradient(165deg, var(--deck-panel-hi) 0%, var(--deck-panel) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 6px 18px rgba(0, 0, 0, 0.35);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+/* Instrument bezel corner ticks */
+.panel::before, .panel::after {
+  content: "";
+  position: absolute;
+  width: 9px; height: 9px;
+  border: 1px solid var(--deck-line);
+  pointer-events: none;
+}
+.panel::before { top: 6px; right: 6px; border-left: 0; border-bottom: 0; }
+.panel::after { bottom: 6px; left: 6px; border-right: 0; border-top: 0; }
+.panel:hover {
+  transform: translateY(-2px);
+  border-color: rgba(var(--deck-glow), 0.4);
+  box-shadow: 0 10px 30px rgba(45, 120, 70, 0.16), 0 0 0 1px rgba(var(--deck-glow), 0.12);
+}
+
+.panelHead { display: flex; align-items: center; gap: 0.55rem; }
+.pname {
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--deck-text);
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ppurpose {
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 0.74rem;
+  line-height: 1.5;
+  color: var(--deck-muted);
+  min-height: 2.2em;
+}
+
+.led {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--deck-muted);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+}
+.led[data-state="active"] {
+  background: var(--deck-go);
+  box-shadow: 0 0 10px var(--deck-go), 0 0 0 2px rgba(255, 255, 255, 0.12);
+  animation: pulse 2.4s ease-in-out infinite;
+}
+.led[data-state="stub"] { background: var(--deck-amber); box-shadow: 0 0 8px var(--deck-amber); }
+
+.statusTag {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--deck-muted);
+}
+
+.readouts {
+  display: flex; flex-direction: column; gap: 0.4rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--deck-line-soft);
+}
+.readout {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  color: var(--deck-muted);
+}
+.readoutKey { color: var(--deck-muted); min-width: 58px; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.56rem; }
+.readoutVal { color: var(--deck-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.plink {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  color: var(--deck-cyan-text);
+  text-decoration: none;
+  width: fit-content;
+  transition: text-shadow 0.15s ease;
+}
+.plink:hover { text-shadow: 0 0 10px rgba(var(--deck-glow), 0.5); text-decoration: underline; }
+
+/* ── Project integration manifests ───────────────────────────────────── */
+.integrationGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: 0.9rem;
+}
+
+.integrationSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.35rem;
+  padding: 0.55rem;
+  border: 1px solid var(--deck-line-soft);
+  border-radius: 10px;
+  background: rgba(var(--deck-glow), 0.05);
+}
+
+.integrationSummary span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.54rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--deck-muted);
+}
+
+.integrationSummary b {
+  color: var(--deck-text);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.connectionList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.38rem;
+  max-height: 260px;
+  overflow: auto;
+  padding-right: 0.1rem;
+}
+
+.connectionRow {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid var(--deck-line-soft);
+  border-radius: 10px;
+  background: rgba(var(--deck-glow), 0.05);
+}
+
+.connectionName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.68rem;
+  color: var(--deck-text);
+}
+
+.connectionState {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.52rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--deck-muted);
+}
+
+.connectionAction {
+  grid-column: 2 / 4;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.62rem;
+  color: var(--deck-amber-text);
+}
+
+.integrationActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  min-width: min(100%, 320px);
+  flex-wrap: wrap;
+}
+
+.iconCommand,
+.queueCommand {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  min-height: 32px;
+  border: 1px solid var(--deck-line);
+  border-radius: 10px;
+  color: #eaf3ec;
+  background: rgba(8, 15, 24, 0.82);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: border-color 0.14s ease, color 0.14s ease, background 0.14s ease;
+}
+
+.iconCommand {
+  width: 34px;
+  padding: 0;
+}
+
+.queueCommand {
+  padding: 0 0.68rem;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.iconCommand:hover,
+.queueCommand:hover {
+  border-color: rgba(var(--deck-glow), 0.5);
+  color: var(--deck-cyan);
+  background: rgba(13, 25, 38, 0.94);
+}
+
+.iconCommand:disabled,
+.queueCommand:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.integrationActionStatus {
+  min-width: 110px;
+  max-width: min(46vw, 220px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.56rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--deck-muted);
+  text-align: right;
+}
+
+/* ── Capability bus (tools) ───────────────────────────────────────────── */
+.bus {
+  border: 1px solid var(--deck-line);
+  border-radius: 10px;
+  background: linear-gradient(180deg, var(--deck-panel-hi), var(--deck-panel));
+  padding: 1rem 1.1rem 1.1rem;
+}
+.busTop {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+  padding-bottom: 0.85rem; margin-bottom: 0.9rem;
+  border-bottom: 1px solid var(--deck-line-soft);
+}
+.sources { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.sourceChip {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.6rem; letter-spacing: 0.06em;
+  color: var(--deck-muted);
+  border: 1px solid var(--deck-line);
+  border-radius: 10px;
+  padding: 0.22rem 0.5rem;
+  background: rgba(var(--deck-glow), 0.05);
+}
+.sourceChip b { color: var(--deck-cyan-text); font-weight: 600; }
+.stamp {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.58rem; letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--deck-cyan-text);
+  border: 1px dashed rgba(52, 211, 153, 0.4);
+  border-radius: 10px; padding: 0.3rem 0.6rem;
+}
+
+.toolGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.5rem;
+}
+.toolRow {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--deck-line-soft);
+  border-left: 2px solid var(--rail, var(--deck-line));
+  border-radius: 10px;
+  background: rgba(var(--deck-glow), 0.05);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.toolRow:hover { background: rgba(var(--deck-glow), 0.04); border-color: var(--deck-line); }
+.toolKey {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.7rem; color: var(--deck-text); font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.toolDesc { font-size: 0.66rem; color: var(--deck-muted); line-height: 1.4; margin-top: 0.1rem; }
+.riskTag {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.52rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--rail, var(--deck-muted));
+  white-space: nowrap;
+}
+.approval {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.5rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--deck-amber-text); margin-top: 0.2rem; display: block; text-align: right;
+}
+
+/* ── System detail expander (keeps the dense console out of the clean front) ── */
+.systemDetail {
+  margin-top: 1.75rem;
+  border-top: 1px solid var(--deck-line);
+  padding-top: 0.75rem;
+}
+.systemSummary {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--deck-muted);
+  padding: 0.5rem 0.25rem;
+  user-select: none;
+}
+.systemSummary::-webkit-details-marker { display: none; }
+.systemSummary::before {
+  content: "▸";
+  color: #2f9e44;
+}
+.systemDetail[open] .systemSummary::before { content: "▾"; }
+.systemSummary:hover { color: var(--deck-text); }
+
+/* ── Reveal + pulse ───────────────────────────────────────────────────── */
+.reveal { opacity: 0; transform: translateY(8px); animation: rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
+@keyframes rise { to { opacity: 1; transform: translateY(0); } }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { animation: none; opacity: 1; transform: none; }
+  .led[data-state="active"] { animation: none; }
+  .deck::after { display: none; }
+}
+
+@media (max-width: 640px) {
+  .deck { padding: 1rem 1rem 2rem; }
+  .statusStrip { gap: 0.9rem; }
+  .metrics { gap: 1rem; }
+  .clock { font-size: 1.1rem; }
+}
+
+/* ── Daylight register — Affirm-inspired fintech-trust feel: warm paper
+   ground, near-black ink, one indigo accent, soft shadows. Pattern source:
+   Mobbin — Affirm iOS (docs/design/mobbin-ui-library.md); the reference
+   informs hierarchy and tone, never pixels. Applied WITH .deck by
+   DeckThemeShell when the founder flips the Feel toggle; default stays the
+   dark deck. Contrast ratios noted per token against white (--deck-panel). */
+.deck.daylight {
+  --deck-cyan: #4a4af4;       /* indigo accent — fills, LEDs, glows only */
+  --deck-go: #0f9d58;
+  --deck-amber: #d97706;
+  --deck-abort: #dc2626;
+  --deck-glow: 74, 74, 244; /* RGB triplet for LED/glow shadows — indigo, matches --deck-cyan */
+  --deck-line: rgba(22, 24, 29, 0.12);
+  --deck-line-soft: rgba(22, 24, 29, 0.06);
+  --deck-panel: #ffffff;
+  --deck-panel-hi: #f4f1eb;
+  --deck-text: #16181d;       /* 16.6:1 on white */
+  --deck-muted: #5c6470;      /* 5.9:1 on white */
+  --deck-cyan-text: #3d3ddb;  /* 6.9:1 on white */
+  --deck-amber-text: #92510a; /* 6.1:1 on white */
+  --deck-abort-text: #b91c1c; /* 6.3:1 on white */
+
+  --cc-bg-soft: #f7f5f1;
+  --cc-ink-hush: #6b7280;     /* 4.8:1 on white */
+
+  --tile-ink: #16181d;
+  --tile-ink-dim: #5c6470;        /* 5.9:1 on white */
+  --tile-ink-hush: #6b7280;       /* 4.8:1 on white */
+  --tile-card-bg: rgba(22, 24, 29, 0.03);
+  --tile-card-line: rgba(22, 24, 29, 0.12);
+  --tile-amber-txt: #92510a;      /* 6.1:1 on white */
+  --tile-green-txt: #0b7a44;
+  --tile-red-txt: #b91c1c;        /* 6.3:1 on white */
+
+  color: var(--deck-text);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  background-color: #faf9f7;
+  background-image: none;
+}
+.deck.daylight::after { background: none; }
+.deck.daylight .statusStrip {
+  box-shadow: 0 1px 2px rgba(22, 24, 29, 0.05), 0 8px 24px -18px rgba(22, 24, 29, 0.18);
+}
+.deck.daylight .brandMark { box-shadow: none; }
+
+/* Feel toggle — the only chrome DeckThemeShell adds. Fixed so it never
+   collides with deck content; pill shape per the daylight reference. */
+.feelToggle {
+  position: fixed;
+  right: 1.1rem;
+  bottom: 1.1rem;
+  z-index: 40;
+  padding: 0.4rem 1rem;
+  border: 1px solid var(--deck-line);
+  border-radius: 999px;
+  background: var(--deck-panel);
+  color: var(--deck-muted);
+  font: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.feelToggle:hover {
+  color: var(--deck-text);
+  border-color: var(--deck-cyan);
+}
