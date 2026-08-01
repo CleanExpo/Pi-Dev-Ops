@@ -1,61 +1,98 @@
-# Review brief — capabilities 2 & 3, knowledge + wiki-graph — ATTEMPT 3 (FINAL)
+# Review brief — capabilities 2 & 3, knowledge + wiki-graph — ATTEMPT 4
 
 You are reviewing a code change. **Flag findings. Do not fix anything. Do not write code.**
 
-This is the **third and last** attempt against a fixed spec. Two prior rounds, both FAIL, both
-accepted and fixed:
+Three prior rounds, all FAIL, all findings accepted and fixed:
 
 1. `FAIL — named exemptions are too broad and an unrelated Supabase export is removed.`
-2. `FAIL — provenance import map contains a false/dangling WikiEnhanceControl entry and the
-   test does not catch stale import judgments.`
+2. `FAIL — provenance import map contains a false/dangling WikiEnhanceControl entry and the test
+   does not catch stale import judgments.`
+3. `FAIL — the import-map reality check omits the fetched API route, so route imports can enter
+   the capability surface without any provenance judgment.`
 
-**Being the last attempt is not a reason to pass it.** If it still fails, say so and say why —
-a FAIL that names a real defect is a better outcome than a PASS that ends the round. Do not
-grade on effort or on the fact that prior findings were addressed.
+The standing bound is three attempts. This fourth was granted by the founder as a **per-instance
+release valve, explicitly not precedent** — and not because the reviewer is "converging". It was
+granted because all three findings were holes in the **evidence apparatus** rather than code
+failing a spec, which is the inverse of the case the bound was written for.
 
-**Judge what is in the diff now, not the history.** Prior findings are summarised only so you
-do not spend the round re-deriving them.
+**This is the last attempt under any circumstances.** A fifth will not be granted; if the
+apparatus is still wrong, the ruling is to re-spec it rather than patch again.
 
-## Inputs (these only)
+---
 
-1. This spec
-2. The loop (below)
-3. The diff: `D:\Pi-Dev-Ops\.harness\cc-02.diff` — read it
-4. The tests, both in the diff: `dashboard/__tests__/command-centre-readonly.test.ts`,
-   `dashboard/__tests__/command-centre-auth-coverage.test.ts`, and
-   `command-centre-provenance.json`
+## THE PRIMARY QUESTION — answer this first and at length
 
-### What changed about the diff itself — read this before judging scope
+Every finding across three rounds has been the **same class: coverage that reads wider than it
+actually is.**
 
-Attempt 1 correctly flagged that `lib/supabase/server.ts` deletes `createCookieServerClient()`
-and that this is unrelated to the capability. It was: that deletion is a separate security
-commit that the previous diff range swept in. **The diff is now path-scoped to the capability
-surface, and `lib/supabase/server.ts` is deliberately excluded.**
+- an exemption keyed on file+rule, so it excused any magnitude of loss forever
+- a provenance map validated only against itself, so a phantom entry read as coverage
+- an import graph seeded only from `page.tsx`, so an entire API route's imports were outside it
+- a route-existence check scanning only string literals, blind to a template literal in
+  `router.push()` — every graph node click 404'd
 
-This is disclosed, not hidden. If you think excluding it is itself wrong — that the removal
-changes something the capability depends on — say so. `lib/supabase/server.ts` is still
-declared `_target_native` in the provenance map and is still in the capability's import graph.
+Each was fixed. **The question is whether fixing them amounts to a design.**
 
-## Spec
+**Is this apparatus architecturally sound, or is it being patched reactively, one reviewer
+finding at a time?**
 
-Two capabilities ported from `Authority-Site/apps/web` into `Pi-Dev-Ops/dashboard`, shipped as
-one unit because knowledge links to wiki-graph.
+Be concrete. Consider at minimum:
 
-**Governing instruction: port faithfully, including existing behaviour.** A difference from the
-source is a defect whether or not the source's behaviour is ideal.
+- Is there a coherent principle behind what it checks, or is the check-set simply the union of
+  four rounds of reviewer findings? If there is a principle, state it back — and say whether the
+  implementation actually follows it.
+- **What class of divergence can still pass?** Not "what did I miss" — what does the *design*
+  structurally fail to see. Regex-based construct counting, filesystem-reachability graphs, and
+  count-non-increase comparisons each have inherent blind spots. Name them.
+- Every one of these holes was found by a reviewer, never by the harness itself. Is there
+  anything in the design that would surface the *next* one without a reviewer?
+- The suite asserts things about its own honesty (positive controls, fail-closed on a missing
+  baseline). Are those load-bearing or decorative?
 
-- **R1. Behaviour matches the source**, except where explicitly declared below.
-- **R2. No new network surface** — introduces no network/DB/execution construct the source file
-  did not already contain.
-- **R3. No npm dependency beyond what the source's closure requires.**
-- **R4. Typechecks and builds.**
-- **R5. Import paths rewritten for the target's `@/*` → dashboard-root alias.**
-- **R6. No new write path, paid-API call, or production-host reach relative to the source.**
+**If your answer is that this is still reactive patching, say so and say what a sound design
+would look like instead.** That verdict is more useful than a PASS, and it is the answer the
+founder has pre-committed to acting on: another finding of this same class ends the round and
+sends the harness back to be re-specified rather than patched again. Do not soften it to be
+agreeable, and do not manufacture a structural objection to seem rigorous — if the apparatus is
+sound, say that plainly too.
 
-**KI-002 — `WikiEnhanceControl` and its route are OMITTED**, founder-ruled, absent not stubbed.
-Do not report the omission as a defect. **Do** report a dangling reference or broken control.
+---
 
-## THE NAMED REVIEW ITEM — judge the response to attempt 2 FIRST
+## THE RESPONSE TO ATTEMPT 3 — judge this second
+
+Attempt 3 found two things. Both accepted, both verified by hand, both fixed.
+
+**(i) `importGraph()` seeded only from `app/(main)/command-centre/**/page.tsx`**, so
+`app/api/command-centre/**/route.ts` was never in the graph. Its imports — `next/server`,
+`@/lib/command-centre/wiki-graph`, and `@/lib/supabase/server`, **the service-role client that
+bypasses RLS** — had no provenance entries, so "no real import without an entry" was false for
+the most privilege-sensitive file in the capability. The route was checked for *existence* and
+never for what it *pulls in*. Now seeded from the API directory as well; the three imports are
+declared `no-source-baseline` (the route is `_rebuilt_not_ported`).
+
+**(ii) `router.push(`/founder/wiki/${slug}`)` — a route that does not exist here**, so every
+node click 404'd. The route-existence check missed it because it scanned `href=` and `fetch(`
+string literals. It now also scans `router.push`/`router.replace`, truncating at the first `${`
+and testing the static prefix.
+
+The **fix** for (ii) changed between rounds and the founder overruled my first attempt at it. I
+retargeted every click to `/command-centre/knowledge`; the ruling is that a click which appears
+to navigate somewhere specific and always lands somewhere unrelated is a lie about
+interactivity, so **the click path is removed entirely** — handlers, listeners, the orphaned
+`useRouter`, and the page caption that still advertised "click to open the page". Same rule that
+made `WikiEnhanceControl` absent rather than stubbed: a surface must not claim a capability it
+does not have.
+
+**Judge:**
+- Are `page.tsx` and `route.ts` the right roots, or is the graph still under-seeded? What else
+  is capability surface — `layout.tsx`, `middleware`/`proxy.ts`, `not-found.tsx`, server actions?
+- The route-existence check now handles one more syntactic form. **That is the reactive-patch
+  concern in miniature** — is scanning for navigation *forms* a design that can be completed, or
+  will there always be another form? Say which.
+- Was removing the click the right call, or does the graph now under-deliver against what a
+  wiki-graph should do?
+
+## THE NAMED REVIEW ITEM — judge the response to attempt 2
 
 Attempt 2's finding was accepted in full and verified by hand: the map declared an import for
 `WikiEnhanceControl` that the page does not make, resolving to a file that does not exist.
@@ -126,9 +163,12 @@ count transition. Declared: `auth gate` 3 → 0, `database client` 1 → 2.
 
 ### (c) The declare-not-fix ruling — KI-003 / KI-004
 
-`WikiGraphCanvas.tsx` is a **byte-identical** port. Attempt 1 flagged its leaked `pointerleave`
-listener as a hard standards violation. It is one — **and it is present verbatim in the
-baseline**, as is a `react-hooks/refs` error on the tooltip's `sizeRef` read.
+`WikiGraphCanvas.tsx` **was** byte-identical to its baseline when this was established — that is
+how the two defects were shown to be inherited rather than introduced. It is **no longer
+byte-identical**: KI-005 removed the click path and the KI annotations added comments. Do not
+re-derive inheritance by diffing today and expecting empty. Attempt 1 flagged its leaked
+`pointerleave` listener as a hard standards violation. It is one — **and it is present verbatim
+in the baseline**, as is a `react-hooks/refs` error on the tooltip's `sizeRef` read.
 
 Founder ruled: **declare, do not fix.** Fixing here forks the port from its source and makes
 the conformance comparison lie. Both are annotated in place, `react-hooks/refs` is suppressed
@@ -144,7 +184,7 @@ disclosed so you can disagree with it, not so you accept it.
 ```
 npx tsc --noEmit                                              -> exit 0
 npm run build                                                 -> exit 0
-npx vitest run __tests__/command-centre-readonly.test.ts      -> 26 passed (26)
+npx vitest run __tests__/command-centre-readonly.test.ts      -> 27 passed (27)
 npx vitest run __tests__/command-centre-auth-coverage.test.ts -> 7 passed (7)
 scripts/handoff-loop.sh                                       -> pass=7 fail=0 READY
 ```

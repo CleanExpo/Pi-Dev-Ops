@@ -1,6 +1,6 @@
 # RESUME — command-centre migration, capability 2
 
-**Written:** 2026-08-01 · **Branch:** `feat/command-centre-migration` (23 commits) · **`main` untouched at `9f3be6ec`**
+**Written:** 2026-08-01 · **Branch:** `feat/command-centre-migration` (25 commits) · **`main` untouched at `9f3be6ec`**
 
 Read this, run the session-open ritual below, and start. Everything here is verifiable on disk — do not take it on trust.
 
@@ -21,7 +21,7 @@ bash scripts/handoff-loop.sh                            # expect: pass=7 fail=0 
 
 # 3. The capability suites.
 cd D:\Pi-Dev-Ops\dashboard
-npx vitest run __tests__/command-centre-readonly.test.ts       # expect 22 passed (22)
+npx vitest run __tests__/command-centre-readonly.test.ts       # expect 27 passed (27)
 npx vitest run __tests__/command-centre-auth-coverage.test.ts  # expect 7 passed (7)
 ```
 
@@ -41,7 +41,7 @@ narrower number reads as the broader claim.
 **The code for capability 2/3 is BUILT. The outstanding item is the Codex round —
 under the standing rules it is not done until it passes.**
 
-## FIRST THING: the Codex round on capability 2/3 — ATTEMPT 3 OF 3 IS THE LAST ONE
+## The Codex round on capability 2/3 — CLOSED AT ATTEMPT 4. Do not open a fifth.
 
 **Ledger — keep this current, it is the thing the last handoff claimed to have written and did not.**
 
@@ -51,26 +51,56 @@ under the standing rules it is not done until it passes.**
 | 2 | FAIL | Provenance import map has a dangling `WikiEnhanceControl` entry; the import test cannot catch a stale map | **Fixed** in `c8685f92` |
 | 3 | FAIL | `importGraph()` seeds only from `page.tsx`, so the API route's own imports — including the service-role client — could change with no provenance entry. Plus a broken control: node clicks went to `/founder/wiki/…`, which 404s here | **Fixed** (uncommitted at time of writing → see git log) |
 
-**THE BOUND IS EXHAUSTED. Three attempts, three FAILs, all three findings real and all three
-fixed. There is no attempt 4 without a founder ruling** — the three-attempt bound against a
-fixed spec is a standing rule, not a judgement call, and quietly running a fourth would make
-the bound decorative.
+| 4 | FAIL | Route-existence coverage still overclaims — blind to `<Link href={d.href}>` on the index page | **NOT FIXED. Deliberately.** |
 
-**This is the one genuinely open decision.** Options, with the basis for each:
-- **Raise the bound** (e.g. to five). Each round has found a real defect and the findings are
-  getting narrower, which is what convergence looks like — not what a stuck loop looks like.
-  Cheapest, and the evidence supports it.
-- **Re-spec and restart the count.** Defensible if you think three rounds of fixes have moved
-  the artifact far enough that the original spec no longer describes it.
-- **Accept as-is with findings recorded.** The capability works, the gate is green, and every
-  finding is fixed — but it never earned a PASS, and "not done until it passes" is the standing
-  rule. This one needs you to say it explicitly.
+**STOP. THE CONDITION TRIGGERED — the harness goes back for re-spec, not a fifth attempt.**
 
-My read: **raise the bound.** Three rounds, three real defects, each smaller than the last, and
-the last round's findings were both fixed in under an hour. That is a review working, not a
-review failing. But the bound is yours.
+The founder granted attempt 4 as a per-instance release valve with one condition: *if it returns
+another instance of "coverage that reads wider than it is", stop and re-spec the harness rather
+than patch again.* It did exactly that. So attempt 4's finding is **recorded and left unfixed** —
+adding another regex form is the reactive patch the ruling forbids.
 
-Raw output: `.harness/cc-02-review-1.txt`, `.harness/cc-02-review-2.txt`. Brief: `.harness/cc-02-review-brief.md`.
+**Note what the finding is and is not.** All three current `DECKS` hrefs resolve. There is no
+live 404. The defect is that the test is named "every internal href/fetch resolves" while being
+structurally unable to see `href={expr}`, so a future bad entry passes silently.
+
+### The diagnosis is narrower than "the harness is wrong" — read it carefully
+
+The reviewer did **not** say the apparatus is incoherent. It said there is a real design:
+*define the capability surface, require provenance for every reachable file and import, fail
+closed when the baseline is absent, compare ported files by bounded construct counts, prove
+declared exemptions separately.* Its words: "a real design, not just random test accumulation."
+
+It also found two halves in different health:
+
+- **Import provenance — sound, and its class is closed.** Seeding from pages plus API routes,
+  bidirectional map checks, and the missing-target assertion close the phantom-entry class for
+  statically-discoverable imports. Remaining misses are *known and namable*: dynamic imports,
+  computed requires, package side effects, route handlers outside the seeded subtree, and the
+  semantic case where a count holds steady while the target changes.
+- **Boundary/navigation detection — not sound.** Regex form-scanning "is not a design that can be
+  completed". Next navigation appears as `<Link href={expr}>`, object hrefs, local arrays, helper
+  components, `window.location`, callbacks passed as props, server redirects, form actions, and
+  `router` wrappers. There is always another form.
+
+- **Positive controls and fail-closed checks — load-bearing, not decorative.** Explicitly. They
+  prevent vacuous green. What they cannot do is surface the *next* blind spot; they only prove
+  the current detectors are alive.
+
+### What the re-spec should target
+
+**Not the whole harness. The navigation/route-coverage layer.** The reviewer's proposed sound
+version: AST-based extraction with limited dataflow for local constants and wrapper components,
+or runtime route exercising from rendered output. And the honesty fix that costs nothing —
+**regex is a cheap tripwire and must not be described as proving every internal navigation
+resolves.** Half of this finding is a naming problem: the test claims more than it checks.
+
+### Attempt 4's other note, reinforcing scheduled work
+
+The reviewer again could not execute the suites (`spawn EPERM` on the Vite config) and this time
+`npm run build` also failed in its sandbox (EPERM unlinking `.next/app-path-routes-manifest.json`).
+It confirmed `tsc --noEmit` only. The green loop remains **my** claim, not an independent one —
+which is already recorded as gating work before operator-gateway.
 
 ### What attempt 2 cleared (do not re-litigate, do not rebuild)
 
@@ -80,7 +110,7 @@ page-redirect / API-401 split is the right response for a data route; the `datab
 magnitude-scoped delta is narrower in practice; declare-not-fix on KI-003/004 is defensible and
 the lint suppression is scoped tightly enough that a new violation still fails.
 
-### What attempt 3 must fix first
+### What attempt 3 found (historical — fixed in c8685f92/b1f5ad99)
 
 `command-centre-provenance.json` declares
 `app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/WikiEnhanceControl`
