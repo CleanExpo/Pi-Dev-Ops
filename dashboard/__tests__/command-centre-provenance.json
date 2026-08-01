@@ -103,13 +103,6 @@
       "judgment": "must-change",
       "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
     },
-    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/WikiEnhanceControl": {
-      "specifier": "@/components/command-centre/WikiEnhanceControl",
-      "resolves_in_source": "unresolved: @/components/command-centre/WikiEnhanceControl",
-      "resolves_in_target": "file: components/command-centre/WikiEnhanceControl.tsx",
-      "judgment": "must-change",
-      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
-    },
     "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/deck-visual-helpers": {
       "specifier": "@/components/command-centre/deck-visual-helpers",
       "resolves_in_source": "unresolved: @/components/command-centre/deck-visual-helpers",
@@ -159,26 +152,26 @@
       "judgment": "same",
       "note": "relocated but byte-identical (sha f72f5a4e9bc5)"
     },
-    "components/command-centre/WikiEnhanceControl.tsx :: react": {
-      "specifier": "react",
-      "resolves_in_source": "package: react",
-      "resolves_in_target": "package: react",
-      "judgment": "same",
-      "note": "same npm package in both apps"
+    "app/(main)/command-centre/page.tsx :: next/link": {
+      "specifier": "next/link",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: next/link",
+      "judgment": "no-source-baseline",
+      "note": "The command-centre index is NEW in the target, so there is no source import to compare this against. Surfaced by the map-vs-reality check: it was reachable in the capability graph and carried no judgment at all."
     },
-    "components/command-centre/WikiEnhanceControl.tsx :: lucide-react": {
-      "specifier": "lucide-react",
-      "resolves_in_source": "package: lucide-react",
-      "resolves_in_target": "package: lucide-react",
-      "judgment": "same",
-      "note": "same npm package in both apps"
+    "lib/supabase/server.ts :: @supabase/ssr": {
+      "specifier": "@supabase/ssr",
+      "resolves_in_source": "n/a: this file has no source baseline (_target_native)",
+      "resolves_in_target": "package: @supabase/ssr",
+      "judgment": "no-source-baseline",
+      "note": "Pre-existing file of this app. No source equivalent, so no cross-app import judgment is possible. Worth stating plainly: this is the module behind the SERVICE-ROLE client that bypasses RLS, and until the map-vs-reality check existed its imports carried no declared judgment despite being the most privilege-sensitive file in the graph."
     },
-    "components/command-centre/WikiEnhanceControl.tsx :: ./command-deck.module.css": {
-      "specifier": "./command-deck.module.css",
-      "resolves_in_source": "file: app/(founder)/founder/command-centre/command-deck.module.css",
-      "resolves_in_target": "file: components/command-centre/command-deck.module.css",
-      "judgment": "same",
-      "note": "relocated but byte-identical (sha 5403d34cde1a)"
+    "lib/supabase/server.ts :: @supabase/supabase-js": {
+      "specifier": "@supabase/supabase-js",
+      "resolves_in_source": "n/a: this file has no source baseline (_target_native)",
+      "resolves_in_target": "package: @supabase/supabase-js",
+      "judgment": "no-source-baseline",
+      "note": "Same as @supabase/ssr above — target-native, no source counterpart to compare."
     },
     "components/command-centre/wiki-graph/WikiGraphTile.tsx :: react": {
       "specifier": "react",

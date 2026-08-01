@@ -307,12 +307,40 @@ describe("command-centre: every import has a declared judgment", () => {
     ).toEqual([]);
   });
 
-  it("every judgment is one of the three permitted values", () => {
-    const ok = new Set(["same", "different-but-checked", "must-change"]);
+  it("every judgment is one of the permitted values", () => {
+    const ok = new Set(["same", "different-but-checked", "must-change", "no-source-baseline"]);
     const bad = Object.entries(IMPORTS)
       .filter(([, v]) => !ok.has(v.judgment))
       .map(([k, v]) => `${k}: '${v.judgment}'`);
     expect(bad, `invalid judgment values:\n${bad.join("\n")}`).toEqual([]);
+  });
+
+  /**
+   * `no-source-baseline` is the honest judgment for an import in a file that has no
+   * source counterpart — a rebuilt or target-native file. Comparing its imports across
+   * apps is not a check that can be run, and labelling it `must-change` would assert a
+   * comparison that never happened.
+   *
+   * It is also, obviously, an escape hatch: any import could be waved through by
+   * claiming its file has no baseline. So it is CONSTRAINED to files actually declared
+   * as baseline-free. This is the third time on this capability that a mechanism built
+   * to narrow an exclusion had to be narrowed itself — the pattern is that an exemption
+   * is only as tight as the thing that decides who may claim it.
+   */
+  it("'no-source-baseline' is only claimable by a file declared as having none", () => {
+    const baselineFree = new Set([
+      ...Object.keys((PROV_RAW as { _rebuilt_not_ported?: Record<string, string> })._rebuilt_not_ported ?? {}),
+      ...Object.keys((PROV_RAW as { _target_native?: Record<string, string> })._target_native ?? {}),
+    ]);
+    const bad = Object.entries(IMPORTS)
+      .filter(([, v]) => v.judgment === "no-source-baseline")
+      .map(([k]) => k)
+      .filter((k) => !baselineFree.has(k.split(" :: ")[0]));
+    expect(
+      bad,
+      "these claim 'no-source-baseline' but their file IS declared with a source baseline,\n" +
+        "so a real import comparison was owed and skipped:\n" + bad.join("\n")
+    ).toEqual([]);
   });
 
   it("a 'different-but-checked' judgment carries a stated reason", () => {
@@ -320,5 +348,68 @@ describe("command-centre: every import has a declared judgment", () => {
       .filter(([, v]) => v.judgment !== "same" && !v.note.trim())
       .map(([k]) => k);
     expect(unexplained, `divergent imports with no note:\n${unexplained.join("\n")}`).toEqual([]);
+  });
+
+  /**
+   * ---- The map must match reality, in BOTH directions ----
+   *
+   * Everything above validates the map against itself. Cross-vendor review found what
+   * that permits: an entry for `knowledge/page.tsx :: @/components/command-centre/
+   * WikiEnhanceControl`, judged `must-change`, resolving to a target file that does
+   * not exist — for a component KI-002 deliberately omitted and the page never
+   * imports. Four assertions passed over it. A phantom entry does not merely sit
+   * there being wrong; it INFLATES the map, and the map is the thing we point at to
+   * say the import surface was reviewed. It reads as coverage.
+   *
+   * Deleting that one entry fixes one entry. These two tests fix the class: the map
+   * cannot claim an import that no file makes, and no file can make an import the map
+   * does not claim. Either direction failing is a real finding — the first means the
+   * map overstates what was checked, the second means something entered the surface
+   * unreviewed.
+   */
+  const ACTUAL = new Set<string>(
+    importGraph().flatMap((f) =>
+      [...readFileSync(f, "utf8").matchAll(/(?:from|import)\s+['"]([^'"]+)['"]/g)]
+        .map((m) => `${rel(f)} :: ${m[1]}`)
+    )
+  );
+
+  it("the actual-import set is populated (positive control)", () => {
+    // Both directional tests below compare against ACTUAL. If the graph walk or the
+    // specifier regex breaks, ACTUAL empties, and "no phantom entries" would still
+    // pass while checking nothing. This is the check that stops that being silent.
+    expect(ACTUAL.size).toBeGreaterThan(0);
+  });
+
+  it("no map entry describes an import that is not actually made", () => {
+    const phantom = Object.keys(IMPORTS).filter((k) => !ACTUAL.has(k));
+    expect(
+      phantom,
+      "provenance map entries with no corresponding import in the file named by the key.\n" +
+        "The map overstates what was reviewed — these were 'checked' and do not exist:\n" +
+        phantom.join("\n")
+    ).toEqual([]);
+  });
+
+  it("every actual import in the capability graph has a map entry", () => {
+    const unmapped = [...ACTUAL].filter((k) => !(k in IMPORTS));
+    expect(
+      unmapped,
+      "imports present in the capability graph with no provenance entry — these entered\n" +
+        "the surface without a declared judgment:\n" + unmapped.join("\n")
+    ).toEqual([]);
+  });
+
+  it("a map entry resolving to a target file names a file that exists", () => {
+    const missing = Object.entries(IMPORTS)
+      .map(([k, v]) => [k, /^file:\s*(.+)$/.exec(
+        (v as unknown as { resolves_in_target?: string }).resolves_in_target ?? ""
+      )] as const)
+      .filter(([, m]) => m && !existsSync(join(ROOT, m[1].trim())))
+      .map(([k, m]) => `${k} -> ${m![1].trim()}`);
+    expect(
+      missing,
+      `map entries resolving to a target file that is absent from disk:\n${missing.join("\n")}`
+    ).toEqual([]);
   });
 });

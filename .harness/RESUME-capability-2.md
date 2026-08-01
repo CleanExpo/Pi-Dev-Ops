@@ -1,28 +1,88 @@
 # RESUME — command-centre migration, capability 2
 
-**Written:** 2026-08-01 · **Branch:** `feat/command-centre-migration` (16 commits) · **`main` untouched at `9f3be6ec`**
+**Written:** 2026-08-01 · **Branch:** `feat/command-centre-migration` (23 commits) · **`main` untouched at `9f3be6ec`**
 
-Read this, run the one command below, and start. Everything here is verifiable on disk — do not take it on trust.
+Read this, run the session-open ritual below, and start. Everything here is verifiable on disk — do not take it on trust.
 
 ---
 
-## The one command
+## Session-open ritual — run ALL of it, in order, before touching anything
 
 ```bash
+# 1. Skills drift. FIRST, before any work.
+python D:\Pi-Dev-Ops\fence\deploy_skills.py --check    # exit 1 = machine has drifted from repo
+
+# 2. The definition-of-done gate for the whole repo.
+cd D:\Pi-Dev-Ops
+PI_CEO_URL=https://x.invalid PI_CEO_PASSWORD=x \
+NEXT_PUBLIC_SUPABASE_URL=https://lksfwktwtmyznckodsau.supabase.co \
+NEXT_PUBLIC_SUPABASE_ANON_KEY=x SUPABASE_SERVICE_ROLE_KEY=x \
+bash scripts/handoff-loop.sh                            # expect: pass=7 fail=0 READY
+
+# 3. The capability suites.
 cd D:\Pi-Dev-Ops\dashboard
-npx vitest run __tests__/command-centre-readonly.test.ts
+npx vitest run __tests__/command-centre-readonly.test.ts       # expect 22 passed (22)
+npx vitest run __tests__/command-centre-auth-coverage.test.ts  # expect 7 passed (7)
 ```
 
-**Expected right now: 22 passed (22). Route-existence: 0 broken paths.**
+**Anything other than those numbers: stop and find out why before building.**
 
-If you see anything other than 22/22, stop and find out why before building.
+**Why `deploy_skills.py --check` is step 1 and not advice.** CI cannot see this machine —
+`~/.claude/skills/` is a deploy artifact and gitignored, so `skills-drift-check.yml` can only
+police what is committed. A drift check that depends on someone remembering to run it has
+already failed open by our own ruling (failure mode 4, the one that bit `proof-discipline`
+itself). It runs at session open, every session, or it does not run.
+
+**Why the whole gate and not just the vitest suite.** The previous handoff recorded "22/22
+local green" and it was true — of that one suite. The repo gate was `BLOCKED` on lint at the
+same moment. One suite passing is not the tree being green, and a handoff that reports the
+narrower number reads as the broader claim.
 
 **The code for capability 2/3 is BUILT. The outstanding item is the Codex round —
-it has not been reviewed, and under the standing rules it is not done until it passes.**
+under the standing rules it is not done until it passes.**
 
-## FIRST THING: the Codex round on capability 2/3
+## FIRST THING: the Codex round on capability 2/3 — ATTEMPT 3 OF 3 IS THE LAST ONE
 
-Everything else below is done. This is the only outstanding item.
+**Ledger — keep this current, it is the thing the last handoff claimed to have written and did not.**
+
+| # | Verdict | Finding | Disposition |
+|---|---------|---------|-------------|
+| 1 | FAIL | Named exemptions too broad; unrelated Supabase export in the diff | **Fixed** in `b9080e1a` |
+| 2 | FAIL | Provenance import map has a dangling `WikiEnhanceControl` entry; the import test cannot catch a stale map | **Open — this is attempt 3's work** |
+| 3 | — | not yet run | **LAST ATTEMPT** |
+
+Raw output: `.harness/cc-02-review-1.txt`, `.harness/cc-02-review-2.txt`. Brief: `.harness/cc-02-review-brief.md`.
+
+### What attempt 2 cleared (do not re-litigate, do not rebuild)
+
+Codex independently confirmed: the auth fix closes the gap with no bypass it could find; the
+page-redirect / API-401 split is the right response for a data route; the `database client`
+`1 -> 2` declaration is genuinely one client counted twice, not a hidden second client; the
+magnitude-scoped delta is narrower in practice; declare-not-fix on KI-003/004 is defensible and
+the lint suppression is scoped tightly enough that a new violation still fails.
+
+### What attempt 3 must fix first
+
+`command-centre-provenance.json` declares
+`app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/WikiEnhanceControl`
+resolving to `components/command-centre/WikiEnhanceControl.tsx`. **That file does not exist and
+the page does not import it** — KI-002 omitted it. The import test iterates map entries, so it
+validates the map against itself: a phantom entry reads as coverage. Verified by hand, the
+finding is correct.
+
+Two halves, and the second is the real one:
+1. Delete the dangling entry.
+2. **Make a stale map fail.** The map must be checked against the actual imports in both
+   directions — no entry without a real import, no real import without an entry, and no
+   `resolves_in_target: file: X` where X is absent from disk. Without (2), (1) is a one-off
+   patch on a hole that reopens the next time a file is dropped.
+
+### Caveat on attempt 2's evidence
+
+Codex could not execute the suites — `spawn EPERM` loading the Vite config in its sandbox — so
+it reviewed statically against the supplied loop. Its reasoning about the code stands; treat
+"tests pass" in that report as **my** claim, not an independent one. The local runs are the
+evidence for that half.
 
 Use `.harness/cc-01-review-brief.md` as the template. Bounded at three attempts against a
 fixed spec, each materially different.
