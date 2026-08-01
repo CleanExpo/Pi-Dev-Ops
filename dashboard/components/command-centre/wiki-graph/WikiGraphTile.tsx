@@ -64,7 +64,7 @@ export function WikiGraphTile() {
       )}
 
       <Link
-        href="/founder/command-centre/wiki-graph"
+        href="/command-centre/wiki-graph"
         style={{
           alignSelf: 'flex-start',
           fontSize: 12,

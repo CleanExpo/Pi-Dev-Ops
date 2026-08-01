@@ -31,3 +31,33 @@ clearer wording. Then change the header to match whatever is chosen, so the cont
 code agree.
 
 ---
+
+## KI-002 · WikiEnhanceControl omitted from the knowledge port
+
+**Status:** open (deliberate deviation) · **Raised:** 2026-08-01 · **Ruled by:** founder
+**Capability:** 2 — knowledge
+
+`WikiEnhanceControl` and its route `/api/command-centre/lanes/wiki/enhance` are **not**
+ported. This is a knowing deviation from port-faithfully, recorded rather than silent.
+
+**Why the route could not be rebuilt as-is.** It `.insert(`s into `operator_jobs` on
+`lksfwktwtmyznckodsau` — a production database on the fence list — and it calls
+`enqueueWikiEnhance(user.id)`. There is no `user.id` here: this app is single-operator
+behind one shared password with no per-user identity. Building it would have required
+inventing an identity to satisfy a signature **and** creating a production write path.
+Refused on both grounds independently.
+
+**Why absent rather than stubbed.** A 501 stub is one line-change from live; an absent
+route cannot be silently filled in. That is the same absence-versus-guard distinction
+that made operator-gateway a rebuild — a guard can be deleted or inverted, an absence
+cannot. A control that renders while doing nothing also misrepresents what the surface
+can do.
+
+**Consequence:** the knowledge deck is read-only here. The enhance action exists only in
+the source app.
+
+**Fix later:** if the action is wanted in this dashboard, it needs an identity decision
+first (what replaces `user.id`) and an explicit ruling on the dashboard holding a write
+path into a production job queue. Both are design decisions, not porting work.
+
+---

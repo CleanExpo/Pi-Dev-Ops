@@ -23,12 +23,33 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 const ROOT = resolve(__dirname, "..");
-const PROV = JSON.parse(
+const PROV_RAW = JSON.parse(
   readFileSync(join(__dirname, "command-centre-provenance.json"), "utf8")
-) as {
+) as Record<string, unknown>;
+const PROV = PROV_RAW as unknown as {
   _baseline_root: string;
   files: Record<string, string>;
+  /** Written fresh for this app. No source baseline exists, so diff-relative
+   *  comparison is meaningless for these — they are declared, not compared. */
+  _rebuilt_not_ported?: Record<string, string>;
+  /** Pre-existing files of THIS app, pulled into the graph by an import. */
+  _target_native?: Record<string, string>;
+  /** file -> rule -> reason. Only the named rule is exempt for the named file. */
+  _declared_deltas?: Record<string, Record<string, string>>;
 };
+
+/** True when this exact file+rule divergence is declared with a reason. */
+const deltaDeclared = (file: string, rule: string): boolean =>
+  Boolean((PROV_RAW as {
+    _declared_deltas?: Record<string, Record<string, string>>;
+  })._declared_deltas?.[file]?.[rule]);
+
+/** Files with a declared origin OR a declared reason for having none. */
+const DECLARED = new Set<string>([
+  ...Object.keys((PROV_RAW as { files: Record<string, string> }).files),
+  ...Object.keys((PROV_RAW as { _rebuilt_not_ported?: Record<string, string> })._rebuilt_not_ported ?? {}),
+  ...Object.keys((PROV_RAW as { _target_native?: Record<string, string> })._target_native ?? {}),
+]);
 const BASELINE = PROV._baseline_root;
 const baselineAvailable = existsSync(BASELINE);
 
@@ -123,7 +144,7 @@ describe("command-centre: no new surface vs source baseline", () => {
   it("every file in the capability surface has a declared origin", () => {
     // A file with no provenance has no baseline, so "no new surface" is unprovable
     // for it. Unlisted means fail, not skip.
-    const undeclared = files.filter((f) => !(f in PROV.files));
+    const undeclared = files.filter((f) => !DECLARED.has(f));
     expect(undeclared, `no provenance entry for:\n${undeclared.join("\n")}`).toEqual([]);
   });
 
@@ -202,7 +223,7 @@ describe("command-centre: no new surface vs source baseline", () => {
         if (!existsSync(pPath) || !existsSync(sPath)) continue; // covered by the unresolved check
         const p = count(readFileSync(pPath, "utf8"), g.re);
         const s = count(readFileSync(sPath, "utf8"), g.re);
-        if (p < s) lost.push(`${g.rule} in ${ported}: ${s} -> ${p}`);
+        if (p < s && !deltaDeclared(ported, g.rule)) lost.push(`${g.rule} in ${ported}: ${s} -> ${p}`);
       }
     }
     expect(lost, `safety guards removed vs baseline:\n${lost.join("\n")}`).toEqual([]);
@@ -226,7 +247,7 @@ describe("command-centre: no new surface vs source baseline", () => {
         if (!existsSync(sPath)) { unresolved.push(`baseline missing: ${source} (for ${ported})`); continue; }
         const p = count(readFileSync(pPath, "utf8"), t.re);
         const s = count(readFileSync(sPath, "utf8"), t.re);
-        if (p > s) grew.push(`${ported}: ${s} -> ${p}`);
+        if (p > s && !deltaDeclared(ported, t.rule)) grew.push(`${ported}: ${s} -> ${p}`);
       }
       expect(
         unresolved,

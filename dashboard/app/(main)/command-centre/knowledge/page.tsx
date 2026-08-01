@@ -14,7 +14,6 @@ import { getToolCatalogue } from '@/lib/command-centre/tools/catalogue'
 import { WikiGraphTile } from '@/components/command-centre/wiki-graph/WikiGraphTile'
 import { DeckDetails, DeckMoreLine, DECK_LIST_CAP } from '@/components/command-centre/DeckDetails'
 import { DeckThemeShell } from '@/components/command-centre/DeckThemeShell'
-import { WikiEnhanceControl } from '@/components/command-centre/WikiEnhanceControl'
 import { railFor } from '@/components/command-centre/deck-visual-helpers'
 import shell from '@/components/command-centre/shell.module.css'
 import styles from '@/components/command-centre/command-deck.module.css'
@@ -47,7 +46,7 @@ export default async function KnowledgeDeckPage() {
 
   return (
     <DeckThemeShell className={`${chakra.variable} ${syne.variable} ${jbMono.variable} ${styles.deck}`}>
-      <Link href="/founder/command-centre" className={styles.plink}>
+      <Link href="/command-centre" className={styles.plink}>
         &larr; Command deck
       </Link>
 
@@ -56,7 +55,12 @@ export default async function KnowledgeDeckPage() {
         <h2>Wiki Knowledge Base</h2>
         <span className={shell.glassSub}>button → queue → Mac runner → wiki-growth report</span>
         <div className={shell.glassHeadTools}>
-          <WikiEnhanceControl />
+          {/* WikiEnhanceControl deliberately omitted - KI-002. It POSTs to
+              /api/command-centre/lanes/wiki/enhance, which enqueues a job into
+              operator_jobs on a production database and requires a per-user
+              identity this app does not have. The route is ABSENT rather than
+              stubbed: an absent route cannot be silently filled in, a 501 stub is
+              one line from live. */}
         </div>
       </div>
 

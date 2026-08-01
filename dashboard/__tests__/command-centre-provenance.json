@@ -10,7 +10,6 @@
     "components/command-centre/deck-details.module.css": "components/command-centre/deck-details.module.css",
     "app/(main)/command-centre/knowledge/page.tsx": "app/(founder)/founder/command-centre/knowledge/page.tsx",
     "components/command-centre/DeckThemeShell.tsx": "app/(founder)/founder/command-centre/DeckThemeShell.tsx",
-    "components/command-centre/WikiEnhanceControl.tsx": "app/(founder)/founder/command-centre/WikiEnhanceControl.tsx",
     "components/command-centre/deck-visual-helpers.ts": "app/(founder)/founder/command-centre/deck-visual-helpers.ts",
     "components/command-centre/shell.module.css": "app/(founder)/founder/command-centre/shell.module.css",
     "components/command-centre/SourceBadge.tsx": "components/command-centre/SourceBadge.tsx",
@@ -18,7 +17,9 @@
     "components/command-centre/wiki-graph/WikiGraphTile.tsx": "components/command-centre/wiki-graph/WikiGraphTile.tsx",
     "lib/command-centre/tools/catalogue.ts": "lib/command-centre/tools/catalogue.ts",
     "store/ui.ts": "store/ui.ts",
-    "lib/command-centre/wiki-graph.ts": "lib/command-centre/wiki-graph.ts"
+    "lib/command-centre/wiki-graph.ts": "lib/command-centre/wiki-graph.ts",
+    "app/(main)/command-centre/wiki-graph/page.tsx": "app/(founder)/founder/command-centre/wiki-graph/page.tsx",
+    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx": "components/command-centre/wiki-graph/WikiGraphCanvas.tsx"
   },
   "_baseline_verified_by_hand": {
     "_note": "Capabilities whose baseline safety properties are load-bearing require a hand-established baseline BEFORE porting, recorded here. Capability 6 (operator-gateway) is the one that needs it \u2014 its whole safety story is 'no live runner, no real execute button'. 'No new surface' is worthless against an unexamined baseline.",
@@ -234,10 +235,87 @@
       "resolves_in_target": "package: zustand/middleware",
       "judgment": "same",
       "note": "same npm package in both apps"
+    },
+    "app/(main)/command-centre/wiki-graph/page.tsx :: next/link": {
+      "specifier": "next/link",
+      "resolves_in_source": "package: next/link",
+      "resolves_in_target": "package: next/link",
+      "judgment": "same",
+      "note": "same npm package, version matched to the baseline"
+    },
+    "app/(main)/command-centre/wiki-graph/page.tsx :: @/lib/supabase/server": {
+      "specifier": "@/lib/supabase/server",
+      "resolves_in_source": "file: lib/supabase/server.ts",
+      "resolves_in_target": "file: lib/supabase/server.ts",
+      "judgment": "different-but-checked",
+      "note": "THE drift case. Source: anon-key, RLS-enforced, per-user (getUser + createClient). Target: service-role, no per-user identity. Handled by REBUILDING the page data access against createServerClient and removing the getUser/redirect gate, since auth is enforced upstream by proxy.ts. Not a silent substitution - the divergence is the reason for the rebuild."
+    },
+    "app/(main)/command-centre/wiki-graph/page.tsx :: @/lib/command-centre/wiki-graph": {
+      "specifier": "@/lib/command-centre/wiki-graph",
+      "resolves_in_source": "file: lib/command-centre/wiki-graph.ts",
+      "resolves_in_target": "file: lib/command-centre/wiki-graph.ts",
+      "judgment": "same",
+      "note": "relocated, byte-identical (sha 3b1b6c75eefe)"
+    },
+    "app/(main)/command-centre/wiki-graph/page.tsx :: @/components/command-centre/wiki-graph/WikiGraphCanvas": {
+      "specifier": "@/components/command-centre/wiki-graph/WikiGraphCanvas",
+      "resolves_in_source": "file: components/command-centre/wiki-graph/WikiGraphCanvas.tsx",
+      "resolves_in_target": "file: components/command-centre/wiki-graph/WikiGraphCanvas.tsx",
+      "judgment": "same",
+      "note": "relocated, byte-identical (sha ef4fb55ae5fd)"
+    },
+    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx :: react": {
+      "specifier": "react",
+      "resolves_in_source": "package: react",
+      "resolves_in_target": "package: react",
+      "judgment": "same",
+      "note": "same npm package, version matched to the baseline"
+    },
+    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx :: next/navigation": {
+      "specifier": "next/navigation",
+      "resolves_in_source": "package: next/navigation",
+      "resolves_in_target": "package: next/navigation",
+      "judgment": "same",
+      "note": "same npm package, version matched to the baseline"
+    },
+    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx :: d3-force": {
+      "specifier": "d3-force",
+      "resolves_in_source": "package: d3-force",
+      "resolves_in_target": "package: d3-force",
+      "judgment": "same",
+      "note": "same npm package, version matched to the baseline"
+    },
+    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx :: d3-selection": {
+      "specifier": "d3-selection",
+      "resolves_in_source": "package: d3-selection",
+      "resolves_in_target": "package: d3-selection",
+      "judgment": "same",
+      "note": "same npm package, version matched to the baseline"
+    },
+    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx :: d3-zoom": {
+      "specifier": "d3-zoom",
+      "resolves_in_source": "package: d3-zoom",
+      "resolves_in_target": "package: d3-zoom",
+      "judgment": "same",
+      "note": "same npm package, version matched to the baseline"
     }
   },
   "_imports_note": "Import-level provenance. judgment must be one of: same | different-but-checked | must-change. UNDECLARED fails the suite exactly as an undeclared FILE does. File provenance proves origin; this proves the imports still mean what they meant.",
   "_rebuilt_not_ported": {
-    "app/api/command-centre/wiki-graph/route.ts": "REBUILT against this app's createServerClient. The source imports getUser+createClient from its own @/lib/supabase/server (anon-key, RLS-enforced, per-user). The same specifier resolves here to a service-role client with no per-user identity. A verbatim port would have typechecked while silently swapping an RLS-enforced read for an RLS-bypassing one. No source baseline applies, so it is excluded from diff-relative comparison by design."
-  }
+    "app/api/command-centre/wiki-graph/route.ts": "REBUILT against this app's createServerClient. The source imports getUser+createClient from its own @/lib/supabase/server (anon-key, RLS-enforced, per-user). The same specifier resolves here to a service-role client with no per-user identity. A verbatim port would have typechecked while silently swapping an RLS-enforced read for an RLS-bypassing one. No source baseline applies, so it is excluded from diff-relative comparison by design.",
+    "app/(main)/command-centre/page.tsx": "NEW in the target. The source index carries the founder shell and nine deck tiles; porting it would drag in six unmigrated capabilities. Small index over what exists; grows as capabilities land. No source baseline applies."
+  },
+  "_omitted_deliberately": {
+    "components/command-centre/WikiEnhanceControl.tsx": "KI-002. Dropped from the knowledge port. It POSTs to a route that enqueues into operator_jobs on a production database and needs a per-user identity this app lacks. The route is ABSENT rather than stubbed."
+  },
+  "_target_native": {
+    "lib/supabase/server.ts": "Pre-existing file of THIS app, not ported and not rebuilt for the migration. It is in the capability graph because the rebuilt wiki-graph page imports it. No source baseline applies; diff-relative comparison is meaningless for it."
+  },
+  "_declared_deltas": {
+    "app/(main)/command-centre/wiki-graph/page.tsx": {
+      "auth gate": "EXPECTED. getUser()+redirect('/auth/login') removed. The source's per-user auth has no equivalent here - single operator, no identity - and auth is enforced upstream by proxy.ts, whose matcher covers all non-static routes and 401s without a session. The gate moved layer; it was not deleted.",
+      "database client": "EXPECTED. `await createClient()` (anon-key, RLS-enforced) replaced by `createServerClient()` (this app's client). The count rises because the rebuilt call is named differently, not because a second client appeared."
+    }
+  },
+  "_declared_deltas_note": "Per-file, per-rule expected divergences with a stated reason. Only the NAMED rule is exempt for the NAMED file - any other guard loss or construct increase in the same file still fails. A blanket exclusion for rebuilt files would have surrendered the coverage that caught these two in the first place."
 }
