@@ -3502,3 +3502,100 @@ hook: PostToolUse Completed
 hook: PostToolUse Completed
 exec
 "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'npx vitest run __tests__/command-centre-readonly.test.ts' in D:\Pi-Dev-Ops\dashboard
+ exited 1 in 15530ms:
+[31mfailed to load config from D:\Pi-Dev-Ops\dashboard\vitest.config.ts[39m
+
+⎯⎯⎯⎯⎯⎯⎯ Startup Error ⎯⎯⎯⎯⎯⎯⎯⎯
+Error: Build failed with 1 error:
+
+[plugin externalize-deps]
+Error: spawn EPERM
+    at ChildProcess.spawn (node:internal/child_process:420:11)
+    at spawn (node:child_process:762:9)
+    at Object.execFile (node:child_process:351:17)
+    at exec (node:child_process:234:25)
+    at optimizeSafeRealPathSync (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:1954:2)
+    at windowsSafeRealPathSync (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:1940:3)
+    at getRealPath (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:32413:36)
+    at tryResolveRealFileOrType (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:32407:9)
+    at tryCleanFsResolve (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:32151:21)
+    at tryFsResolve (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:32144:14)
+    at aggregateBindingErrorsIntoJsError (file:///D:/Pi-Dev-Ops/dashboard/node_modules/rolldown/dist/shared/error-w0u7biK-.mjs:48:18)
+    at unwrapBindingResult (file:///D:/Pi-Dev-Ops/dashboard/node_modules/rolldown/dist/shared/error-w0u7biK-.mjs:18:128)
+    at #build (file:///D:/Pi-Dev-Ops/dashboard/node_modules/rolldown/dist/shared/rolldown-build-DtGk-m96.mjs:3313:34)
+    at async bundleConfigFile (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:34633:17)
+    at async bundleAndLoadConfigFile (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:34541:18)
+    at async loadConfigFromFile (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:34510:42)
+    at async resolveConfig (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:34134:22)
+    at async _createServer (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:26002:65)
+    at async createViteServer (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vitest/dist/chunks/cli-api.lDy4N9kC.js:8818:17)
+    at async createVitest (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vitest/dist/chunks/cli-api.lDy4N9kC.js:14188:18) {
+  errors: [Getter/Setter]
+}
+
+
+
+
+2026-08-01T06:32:45.017609Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 15.5 seconds
+Output:
+[31mfailed to load config from D:\Pi-Dev-Ops\dashboard\vitest.config.ts[39m
+
+⎯⎯⎯⎯⎯⎯⎯ Startup Error ⎯⎯⎯⎯⎯⎯⎯⎯
+Error: Build failed with 1 error:
+
+[plugin externalize-deps]
+Error: spawn EPERM
+    at ChildProcess.spawn (node:internal/child_process:420:11)
+    at spawn (node:child_process:762:9)
+    at Object.execFile (node:child_process:351:17)
+    at exec (node:child_process:234:25)
+    at optimizeSafeRealPathSync (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:1954:2)
+    at windowsSafeRealPathSync (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:1940:3)
+    at getRealPath (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:32413:36)
+    at tryResolveRealFileOrType (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:32407:9)
+    at tryCleanFsResolve (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:32151:21)
+    at tryFsResolve (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:32144:14)
+    at aggregateBindingErrorsIntoJsError (file:///D:/Pi-Dev-Ops/dashboard/node_modules/rolldown/dist/shared/error-w0u7biK-.mjs:48:18)
+    at unwrapBindingResult (file:///D:/Pi-Dev-Ops/dashboard/node_modules/rolldown/dist/shared/error-w0u7biK-.mjs:18:128)
+    at #build (file:///D:/Pi-Dev-Ops/dashboard/node_modules/rolldown/dist/shared/rolldown-build-DtGk-m96.mjs:3313:34)
+    at async bundleConfigFile (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:34633:17)
+    at async bundleAndLoadConfigFile (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:34541:18)
+    at async loadConfigFromFile (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:34510:42)
+    at async resolveConfig (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:34134:22)
+    at async _createServer (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vite/dist/node/chunks/node.js:26002:65)
+    at async createViteServer (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vitest/dist/chunks/cli-api.lDy4N9kC.js:8818:17)
+    at async createVitest (file:///D:/Pi-Dev-Ops/dashboard/node_modules/vitest/dist/chunks/cli-api.lDy4N9kC.js:14188:18) {
+  errors: [Getter/Setter]
+}
+
+
+
+
+codex
+## Standards
+No hard TypeScript/React/Next.js standards findings in the diff. The added page remains a server component, uses target-root aliases, and does not add dependencies.
+
+## Spec
+R2/R6 test support is incomplete. The conformance loop can pass while skipping a declared port/source pair entirely:
+
+`+        if (!existsSync(pPath) || !existsSync(sPath)) continue;`
+
+That means a bad provenance path can make a ported file avoid all tracked construct comparisons even though it has a declared origin. The current claim can be false while the test reports green under that condition, so the diff-relative network/write-surface proof is not fail-closed per the spec’s evidence requirement.
+
+VERDICT: FAIL — provenance entries with missing port/source paths are silently skipped, leaving R2/R6 unverified while tests can pass
+hook: Stop
+hook: Stop Completed
+tokens used
+45,430
+## Standards
+No hard TypeScript/React/Next.js standards findings in the diff. The added page remains a server component, uses target-root aliases, and does not add dependencies.
+
+## Spec
+R2/R6 test support is incomplete. The conformance loop can pass while skipping a declared port/source pair entirely:
+
+`+        if (!existsSync(pPath) || !existsSync(sPath)) continue;`
+
+That means a bad provenance path can make a ported file avoid all tracked construct comparisons even though it has a declared origin. The current claim can be false while the test reports green under that condition, so the diff-relative network/write-surface proof is not fail-closed per the spec’s evidence requirement.
+
+VERDICT: FAIL — provenance entries with missing port/source paths are silently skipped, leaving R2/R6 unverified while tests can pass
