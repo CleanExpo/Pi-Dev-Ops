@@ -75,8 +75,22 @@ pre_tree="$(git status --porcelain | sort | sha256sum | cut -d' ' -f1)"
 # would permanently widen its OWN permissions for every future run — self-escalation, the
 # shape R3 exists for, and the same family as a reviewer holding commit rights. Everything
 # else outside the repo is either covered by `deploy_skills.py --check` or has no leverage.
+#
+# Hash the file MINUS codex's own bookkeeping. `last_updated` / `last_revision` under
+# [marketplaces.*] are rewritten by codex on startup, so hashing the raw file fires on every
+# run. It did, on this control's first real use — a false positive that took ten minutes to
+# clear and would have taught the next person to ignore the alarm. A control that cries wolf
+# is worse than no control: it gets disabled by whoever hits it twice.
+#
+# EXCLUDE known churn rather than allowlist the keys with teeth — this stays fail-closed on
+# anything unrecognised, so a new sandbox key, a new trusted project, or a new MCP server
+# (all escalation paths) still trips it.
 CODEX_CFG="$HOME/.codex/config.toml"
-pre_cfg="$( [ -f "$CODEX_CFG" ] && sha256sum "$CODEX_CFG" | cut -d' ' -f1 || echo MISSING )"
+cfg_hash() {
+  [ -f "$CODEX_CFG" ] || { echo MISSING; return; }
+  grep -vE '^\s*(last_updated|last_revision)\s*=' "$CODEX_CFG" | sha256sum | cut -d' ' -f1
+}
+pre_cfg="$(cfg_hash)"
 echo "  pre:  HEAD=${pre_head:0:8} tree=${pre_tree:0:12} codex-cfg=${pre_cfg:0:12}"
 
 # ---- Run ------------------------------------------------------------------------
@@ -99,7 +113,7 @@ echo "  reviewer exited rc=$rc, transcript: $OUT"
 # ---- Control 1 (post): tree integrity -------------------------------------------
 post_head="$(git rev-parse HEAD)"
 post_tree="$(git status --porcelain | sort | sha256sum | cut -d' ' -f1)"
-post_cfg="$( [ -f "$CODEX_CFG" ] && sha256sum "$CODEX_CFG" | cut -d' ' -f1 || echo MISSING )"
+post_cfg="$(cfg_hash)"
 echo "  post: HEAD=${post_head:0:8} tree=${post_tree:0:12} codex-cfg=${post_cfg:0:12}"
 
 VOID=0

@@ -31,6 +31,11 @@
  *     populated-data branch) are not exercised. Coverage is what rendered, not what could.
  *     Every page fetched is asserted 200 so a page that fails to render cannot pass by
  *     emitting nothing — but a BRANCH that did not render is genuinely unmeasured.
+ *   - CLIENT-HYDRATED navigation. This fetches server-rendered HTML; it does not run a
+ *     browser or hydrate components. A <Link> that only appears after useEffect, from
+ *     localStorage, at a viewport size, or after client data arrives is NOT exercised.
+ *     Named by round-1 review as the largest remaining hole and it is a real one: closing it
+ *     needs a real browser, which is a different tool with a different cost.
  *   - External links are skipped by design; this asks whether OUR routes exist.
  *
  * Usage: node scripts/route-exercise.mjs [--plant-broken-link]
@@ -38,7 +43,7 @@
  */
 import { spawn, spawnSync } from "node:child_process";
 import { createHmac } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, statSync as fsStat, readdirSync as fsRead } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -59,6 +64,18 @@ const ENTRY_PAGES = [
 
 const log = (...a) => console.log("   ", ...a);
 
+/**
+ * Every request this verifier makes carries a timeout.
+ *
+ * Review finding, round 1: `waitForServer` and all page/link fetches had no signal, so a
+ * wedged listener or a hanging route turned the verifier into SILENCE rather than a loud
+ * diagnostic. For a checker that is the worst failure mode — an unbounded hang reads as
+ * "still working", and whoever is waiting eventually kills it and moves on with no verdict.
+ */
+const REQ_TIMEOUT_MS = 15_000;
+const get = (url, opts = {}) =>
+  fetch(url, { redirect: "manual", signal: AbortSignal.timeout(REQ_TIMEOUT_MS), ...opts });
+
 /** Mint a pi_session cookie the same way app/api/auth/login/route.ts does. */
 function mintSession() {
   const issuedAt = String(Math.floor(Date.now() / 1000));
@@ -70,7 +87,7 @@ async function waitForServer(timeoutMs = 90_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
-      const r = await fetch(BASE + "/", { redirect: "manual" });
+      const r = await get(BASE + "/");
       if (r.status > 0) return true;
     } catch { /* not up yet */ }
     await new Promise((r) => setTimeout(r, 400));
@@ -81,7 +98,10 @@ async function waitForServer(timeoutMs = 90_000) {
 /** Internal paths in rendered HTML: href/action/formaction. Skips external + anchors. */
 function extractPaths(html) {
   const out = new Set();
-  for (const m of html.matchAll(/(?:href|action|formaction)=["'](\/[^"'#?]*)/gi)) {
+  // Keep the query string. Round-1 review: stopping at `?` exercised /route?bad=state as
+  // /route, so a link whose PARAMS are wrong tested clean. Fragments are still dropped —
+  // they never reach the server.
+  for (const m of html.matchAll(/(?:href|action|formaction)=["'](\/[^"'#]*)/gi)) {
     const p = m[1].replace(/\/$/, "") || "/";
     if (p.startsWith("//")) continue;
     // Framework build assets are not app routes. This check asks "does the navigation
@@ -103,10 +123,44 @@ async function portInUse() {
 }
 
 async function main() {
-  if (!existsSync(join(APP, ".next", "BUILD_ID"))) {
+  const buildId = join(APP, ".next", "BUILD_ID");
+  if (!existsSync(buildId)) {
     console.error("FAIL: no build found at dashboard/.next — run `npm run build` first.");
     return 2;
   }
+
+  // CONTROL — the build must be newer than the source it claims to represent.
+  //
+  // Round-1 review: "a stale or wrong build still passes standalone C12 if .next/BUILD_ID
+  // exists; only the handoff loop's preceding build gate makes that safe in context." Correct,
+  // and relying on call-site ordering is exactly how the stale-SERVER bug happened. A verifier
+  // must not be safe only when invoked politely. Same class as the port control: measuring the
+  // wrong artifact is indistinguishable from success.
+  const buildTime = fsStat(buildId).mtimeMs;
+  let newestSrc = 0, newestPath = "";
+  for (const dir of ["app", "components", "lib", "proxy.ts"]) {
+    (function walk(d) {
+      if (!existsSync(d)) return;
+      const st = fsStat(d);
+      if (st.isFile()) {
+        if (st.mtimeMs > newestSrc) { newestSrc = st.mtimeMs; newestPath = d; }
+        return;
+      }
+      for (const e of fsRead(d)) walk(join(d, e));
+    })(join(APP, dir));
+  }
+  if (newestSrc > buildTime) {
+    console.error(
+      `FAIL: the build is older than the source.
+` +
+      `      newest source: ${newestPath.slice(APP.length + 1)}
+` +
+      `      Serving a stale build means exercising routes that are not the ones on disk —
+` +
+      `      a green run would describe a different app. Rebuild, then re-run.`);
+    return 2;
+  }
+  log("control: build is newer than source — exercising the code that is actually on disk");
 
   const env = {
     ...process.env,
@@ -139,6 +193,7 @@ async function main() {
   log(`starting the built app on :${PORT} ...`);
   const server = spawn("npx", ["next", "start", "-p", PORT], {
     cwd: APP, env, shell: true, stdio: ["ignore", "pipe", "pipe"],
+    detached: process.platform !== "win32", // own process group, so the group kill works
   });
   let serverLog = "";
   server.stdout.on("data", (d) => { serverLog += d; });
@@ -153,7 +208,10 @@ async function main() {
       if (process.platform === "win32") {
         spawnSync("taskkill", ["/PID", String(server.pid), "/T", "/F"], { stdio: "ignore" });
       } else {
-        server.kill();
+        // shell:true means `server.pid` is the shell on POSIX too. Kill the process GROUP.
+        // Round-1 review flagged that the Windows fix left this half unfixed — the stale
+        // server bug was Windows-observed but the defect is not Windows-specific.
+        try { process.kill(-server.pid, "SIGKILL"); } catch { server.kill("SIGKILL"); }
       }
     } catch { /* best effort */ }
   };
@@ -168,7 +226,7 @@ async function main() {
     // Control: the session must actually be accepted. If auth silently rejects it, every
     // page below redirects to login, we extract the login page's links, and the run goes
     // green having exercised nothing. That failure would look exactly like success.
-    const probe = await fetch(BASE + ENTRY_PAGES[0], { headers: { cookie }, redirect: "manual" });
+    const probe = await get(BASE + ENTRY_PAGES[0], { headers: { cookie } });
     if (probe.status !== 200) {
       console.error(
         `FAIL: control — ${ENTRY_PAGES[0]} returned ${probe.status} with a minted session, ` +
@@ -182,7 +240,7 @@ async function main() {
     const failures = [];
 
     for (const page of ENTRY_PAGES) {
-      const res = await fetch(BASE + page, { headers: { cookie }, redirect: "manual" });
+      const res = await get(BASE + page, { headers: { cookie } });
       if (res.status !== 200) {
         failures.push(`ENTRY ${page} -> ${res.status} (page did not render; its links are unmeasured)`);
         continue;
@@ -200,7 +258,7 @@ async function main() {
     log(`rendered ${ENTRY_PAGES.length} pages, discovered ${discovered.size} distinct internal paths`);
 
     for (const [path, sources] of [...discovered].sort()) {
-      const res = await fetch(BASE + path, { headers: { cookie }, redirect: "manual" });
+      const res = await get(BASE + path, { headers: { cookie } });
       if (res.status === 404) {
         failures.push(`404  ${path}   (linked from: ${[...sources].join(", ")})`);
       } else if (res.status >= 500) {

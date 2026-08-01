@@ -121,9 +121,35 @@ found:
 | C9 regex tripwire | **27 passed — missed it** |
 | C12 runtime exercising | **FAIL — named `/command-centre/hermes-DOES-NOT-EXIST`** |
 
+**Correction (round-1 review).** That side-by-side was really run — `DECKS` was edited to
+`/command-centre/hermes-DOES-NOT-EXIST`, the app rebuilt, C9 passed 27, C12 failed naming the
+route — but **it left no reproducible artifact**, and the reviewer was right to call the claim
+overbroad. What ships in the repo is `--plant-broken-link`, which injects an `<a>` into
+already-fetched HTML *inside* C12. That is a weaker control: it proves the fetch-and-assert half
+and never touches C9, so nobody can reproduce the comparison from the repo alone.
+
+For a verifier that gap matters more than usual — the whole point is that claims be checkable.
+**Reproduce it like this:**
+
+```bash
+# 1. plant a computed-navigation defect in source
+perl -pi -e 's{href: "/command-centre/hermes"}{href: "/command-centre/hermes-NOPE"}'   'dashboard/app/(main)/command-centre/page.tsx'
+# 2. C9 — the static tripwire — passes, missing it
+cd dashboard && npx vitest run __tests__/command-centre-readonly.test.ts   # 27 passed
+# 3. rebuild, then C12 catches it
+npm run build && cd .. && node scripts/route-exercise.mjs                  # FAIL, names the route
+# 4. revert and rebuild
+git checkout -- 'dashboard/app/(main)/command-centre/page.tsx'
+```
+
 **What C12 does NOT cover, stated now rather than found in a later round:**
 - Navigation that only fires in a client event handler (`router.push` in `onClick`) is not in
   server-rendered HTML. C9's literal scan is the only cover for that, which is why C9 stays.
+- **CLIENT-HYDRATED navigation** — added after round-1 review named it as the largest remaining
+  hole. C12 reads server-rendered HTML; it does not run a browser or hydrate components. A
+  `<Link>` that appears only after `useEffect`, from localStorage, at a viewport size, or once
+  client data arrives is **not exercised**. Closing this needs a real browser, which is a
+  different tool at a different cost — it is a bounded, statable limit, not an open enumeration.
 - Links behind a branch this run does not render (an error state, a populated-data state) are
   not exercised. Coverage is what rendered, not what could render. Every entry page is asserted
   200 so a page that fails to render cannot pass by emitting nothing — but an unrendered
