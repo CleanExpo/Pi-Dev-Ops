@@ -64,9 +64,18 @@ path into a production job queue. Both are design decisions, not porting work.
 
 ## KI-003 / KI-004 — two defects inherited verbatim from the baseline
 
-`components/command-centre/wiki-graph/WikiGraphCanvas.tsx` is a **byte-identical** port
-(`diff` against `D:/Authority-Site/apps/web/src/components/command-centre/wiki-graph/WikiGraphCanvas.tsx`
-returns empty). It carries two real defects, both present at the same lines in the source:
+`components/command-centre/wiki-graph/WikiGraphCanvas.tsx` **was** byte-identical to
+`D:/Authority-Site/apps/web/src/components/command-centre/wiki-graph/WikiGraphCanvas.tsx` when
+this entry was written — `diff` returned empty — and that is how the two defects below were
+established as inherited rather than introduced.
+
+**It is no longer byte-identical.** KI-005 retargeted the node-click destination, and these
+entries added comments. The inherited-not-introduced finding still stands: it was verified
+against the baseline at the time and both defects remain at their original lines. But do not
+re-derive it by diffing today and expecting an empty result — the claim is a record of a check
+that was run, not a property you can re-observe now.
+
+It carries two real defects, both present at the same lines in the source:
 
 - **KI-003 — listener leak.** `canvas.addEventListener('pointerleave', () => {…})` is
   anonymous and the effect's cleanup removes only pointerdown/move/up. The effect reruns on
@@ -89,3 +98,27 @@ moves. Both are client-side only — no data exposure, no write path.
 **Note on the cost of this ruling:** the repo's lint gate is now green because a real error
 is suppressed, not because it was fixed. That is the deliberate trade. It is recorded here
 so nobody later reads a green gate as "this component is clean".
+
+## KI-005 — wiki-graph node clicks retargeted; the destination is not equivalent
+
+`WikiGraphCanvas` called `router.push(`/founder/wiki/${slug}`)`. That route does not exist in
+this app, so **every node click 404'd**. Found by cross-vendor review on attempt 3, not by the
+harness: the route-existence check scanned `href=` and `fetch(` string literals, and this is a
+template literal inside `router.push()`. The check now covers that form and fails on the static
+prefix before the first `${`.
+
+**Not a declare-not-fix case.** KI-003/004 are defects inherited verbatim from a baseline where
+they work. This is a link whose destination does not exist *here*, and retargeting `/founder/*`
+links was already this port's recorded intent — it was missed inside the interpolation.
+
+**Retargeted to `/command-centre/knowledge`, and that is not equivalent.** The source opens the
+specific wiki page for the clicked node. This app has no per-page wiki route, so the click now
+lands on the knowledge deck regardless of which node was clicked. It is a working destination,
+not the right one.
+
+**The alternative, deliberately not taken:** drop the click-through entirely. Rejected on the
+KI-002 precedent — a control that renders while doing nothing misrepresents what the surface
+can do — but it is a defensible call and this is cheap to overrule.
+
+**Fix properly when** a per-page wiki route exists here, or the knowledge deck accepts a slug
+to deep-link into.

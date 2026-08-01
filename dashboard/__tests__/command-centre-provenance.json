@@ -152,6 +152,27 @@
       "judgment": "same",
       "note": "relocated but byte-identical (sha f72f5a4e9bc5)"
     },
+    "app/api/command-centre/wiki-graph/route.ts :: next/server": {
+      "specifier": "next/server",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: next/server",
+      "judgment": "no-source-baseline",
+      "note": "The route is REBUILT, not ported, so there is no source import to compare. Surfaced only after importGraph() was seeded from app/api/command-centre as well as the pages — before that the route's imports were outside the graph entirely."
+    },
+    "app/api/command-centre/wiki-graph/route.ts :: @/lib/supabase/server": {
+      "specifier": "@/lib/supabase/server",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: lib/supabase/server.ts",
+      "judgment": "no-source-baseline",
+      "note": "The privilege-sensitive one, and the reason this gap mattered rather than being bookkeeping. The source route imports getUser+createClient from ITS @/lib/supabase/server: anon-key, RLS-enforced, per-user. The identical specifier resolves here to a service-role client that bypasses RLS. That divergence is the whole reason the route was rebuilt instead of ported - and until the graph was seeded from the API directory, this import could have been changed with nothing to declare and nothing to fail."
+    },
+    "app/api/command-centre/wiki-graph/route.ts :: @/lib/command-centre/wiki-graph": {
+      "specifier": "@/lib/command-centre/wiki-graph",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: lib/command-centre/wiki-graph.ts",
+      "judgment": "no-source-baseline",
+      "note": "The shared pure graph builder, itself a ported file with its own provenance entry. Pure: no network, no DB, no execution."
+    },
     "app/(main)/command-centre/page.tsx :: next/link": {
       "specifier": "next/link",
       "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",

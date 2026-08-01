@@ -319,7 +319,20 @@ export function WikiGraphCanvas({ nodes, edges }: Props) {
       downPt = null
       if (moved > 4) return
       const hit = nodeAtScreen(up.x, up.y)
-      if (hit) router.push(`/founder/wiki/${encodeURIComponent(hit.slug)}`)
+      // Retargeted from the source's `/founder/wiki/${slug}`. That route does not
+      // exist in this app, so every node click 404'd — a broken control, found by
+      // cross-vendor review and missed by the route-existence check because a
+      // template literal inside router.push() is neither an href= nor a string
+      // literal. The check now covers this form.
+      //
+      // This is NOT a declare-not-fix case like KI-003/004. Those are defects
+      // inherited verbatim from a baseline that works. This is a link whose
+      // destination does not exist HERE, and retargeting `/founder/*` links was
+      // already the recorded intent of this port — it was simply missed inside the
+      // interpolation. Nearest existing destination is the knowledge deck; there is
+      // no per-page wiki route in this app to point at. Recorded as KI-005 with the
+      // alternative (drop the click entirely) so it is cheap to overrule.
+      if (hit) router.push('/command-centre/knowledge')
     }
 
     canvas.addEventListener('pointerdown', onPointerDown)

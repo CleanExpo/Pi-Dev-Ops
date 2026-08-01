@@ -48,8 +48,27 @@ under the standing rules it is not done until it passes.**
 | # | Verdict | Finding | Disposition |
 |---|---------|---------|-------------|
 | 1 | FAIL | Named exemptions too broad; unrelated Supabase export in the diff | **Fixed** in `b9080e1a` |
-| 2 | FAIL | Provenance import map has a dangling `WikiEnhanceControl` entry; the import test cannot catch a stale map | **Open — this is attempt 3's work** |
-| 3 | — | not yet run | **LAST ATTEMPT** |
+| 2 | FAIL | Provenance import map has a dangling `WikiEnhanceControl` entry; the import test cannot catch a stale map | **Fixed** in `c8685f92` |
+| 3 | FAIL | `importGraph()` seeds only from `page.tsx`, so the API route's own imports — including the service-role client — could change with no provenance entry. Plus a broken control: node clicks went to `/founder/wiki/…`, which 404s here | **Fixed** (uncommitted at time of writing → see git log) |
+
+**THE BOUND IS EXHAUSTED. Three attempts, three FAILs, all three findings real and all three
+fixed. There is no attempt 4 without a founder ruling** — the three-attempt bound against a
+fixed spec is a standing rule, not a judgement call, and quietly running a fourth would make
+the bound decorative.
+
+**This is the one genuinely open decision.** Options, with the basis for each:
+- **Raise the bound** (e.g. to five). Each round has found a real defect and the findings are
+  getting narrower, which is what convergence looks like — not what a stuck loop looks like.
+  Cheapest, and the evidence supports it.
+- **Re-spec and restart the count.** Defensible if you think three rounds of fixes have moved
+  the artifact far enough that the original spec no longer describes it.
+- **Accept as-is with findings recorded.** The capability works, the gate is green, and every
+  finding is fixed — but it never earned a PASS, and "not done until it passes" is the standing
+  rule. This one needs you to say it explicitly.
+
+My read: **raise the bound.** Three rounds, three real defects, each smaller than the last, and
+the last round's findings were both fixed in under an hour. That is a review working, not a
+review failing. But the bound is yours.
 
 Raw output: `.harness/cc-02-review-1.txt`, `.harness/cc-02-review-2.txt`. Brief: `.harness/cc-02-review-brief.md`.
 

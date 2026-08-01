@@ -1,11 +1,20 @@
-# Review brief — capabilities 2 & 3, knowledge + wiki-graph — ATTEMPT 2
+# Review brief — capabilities 2 & 3, knowledge + wiki-graph — ATTEMPT 3 (FINAL)
 
 You are reviewing a code change. **Flag findings. Do not fix anything. Do not write code.**
 
-Attempt 1 returned `FAIL — named exemptions are too broad and an unrelated Supabase export is
-removed.` Both findings were accepted. This attempt is the response to them. **Do not assume
-the response is adequate** — the point of this round is to judge whether it is, and whether it
-introduced anything new.
+This is the **third and last** attempt against a fixed spec. Two prior rounds, both FAIL, both
+accepted and fixed:
+
+1. `FAIL — named exemptions are too broad and an unrelated Supabase export is removed.`
+2. `FAIL — provenance import map contains a false/dangling WikiEnhanceControl entry and the
+   test does not catch stale import judgments.`
+
+**Being the last attempt is not a reason to pass it.** If it still fails, say so and say why —
+a FAIL that names a real defect is a better outcome than a PASS that ends the round. Do not
+grade on effort or on the fact that prior findings were addressed.
+
+**Judge what is in the diff now, not the history.** Prior findings are summarised only so you
+do not spend the round re-deriving them.
 
 ## Inputs (these only)
 
@@ -46,7 +55,40 @@ source is a defect whether or not the source's behaviour is ideal.
 **KI-002 — `WikiEnhanceControl` and its route are OMITTED**, founder-ruled, absent not stubbed.
 Do not report the omission as a defect. **Do** report a dangling reference or broken control.
 
-## THE NAMED REVIEW ITEM — judge the response to attempt 1
+## THE NAMED REVIEW ITEM — judge the response to attempt 2 FIRST
+
+Attempt 2's finding was accepted in full and verified by hand: the map declared an import for
+`WikiEnhanceControl` that the page does not make, resolving to a file that does not exist.
+
+The response has two halves. **The second is the one to judge hardest.**
+
+1. The dangling entry was deleted. Checking the reverse direction found this was worse than
+   reported: **four** phantom entries, not one — the map also carried the entire import closure
+   of the non-existent `WikiEnhanceControl.tsx`.
+2. Four new assertions make the map checkable against reality: no entry without a real import;
+   no real import without an entry; no `resolves_in_target: file: X` where X is absent from
+   disk; plus a positive control on the actual-import set so a broken graph walk cannot make
+   the first check vacuously green.
+
+The reverse direction also surfaced **three real imports with no map entry at all**, including
+`lib/supabase/server.ts :: @supabase/ssr` and `:: @supabase/supabase-js` — the module behind
+the service-role client, the most privilege-sensitive file in the graph, previously carrying no
+declared judgment. Those files have no source counterpart, so a new judgment value
+`no-source-baseline` was added, constrained by a test to files actually declared baseline-free.
+
+**Judge:**
+- Do the two directional checks actually close the class, or only the instance? Construct a
+  stale-map case that still passes if you can find one.
+- `ACTUAL` is built by regex over the import graph. Where does that under-count — dynamic
+  imports, re-exports, type-only imports, conditional requires? An under-counting `ACTUAL`
+  weakens "no phantom entries" specifically.
+- Is `no-source-baseline` a legitimate judgment or a new escape hatch wearing a constraint?
+  The constraint is that the importing file must be declared `_rebuilt_not_ported` or
+  `_target_native` — **but the same provenance file declares that.** Is that circular?
+- Is the positive control on `ACTUAL.size` sufficient, or would a partially-broken graph walk
+  still pass it?
+
+## THE PRIOR REVIEW ITEM — attempt 1's findings, for completeness
 
 ### (a) The auth exemption, and what proving it uncovered
 
@@ -102,15 +144,22 @@ disclosed so you can disagree with it, not so you accept it.
 ```
 npx tsc --noEmit                                              -> exit 0
 npm run build                                                 -> exit 0
-npx vitest run __tests__/command-centre-readonly.test.ts      -> 22 passed (22)
+npx vitest run __tests__/command-centre-readonly.test.ts      -> 26 passed (26)
 npx vitest run __tests__/command-centre-auth-coverage.test.ts -> 7 passed (7)
 scripts/handoff-loop.sh                                       -> pass=7 fail=0 READY
 ```
 
-**Controls run, both non-vacuous:**
+**Controls run, all non-vacuous:**
 - auth: the suite went **5 failed / 2 controls passing** before the prefix fix, 7/7 after.
 - delta magnitude: declaring `3 -> 1` against an actual `3 -> 0` **fails**. It passed under the
   old file+rule keying.
+- map-vs-reality: the new checks went **3 failed** on the existing map before the phantom
+  entries were removed — they were written red and observed red, not written green.
+
+**On attempt 2's evidence:** the reviewer could not execute the suites (`spawn EPERM` loading
+the Vite config in its sandbox) and reviewed statically. If the same happens to you, say so
+explicitly in your report rather than implying the loop was independently confirmed. Treat the
+numbers above as the author's claim unless you have run them yourself.
 
 ## What is deliberately NOT claimed
 

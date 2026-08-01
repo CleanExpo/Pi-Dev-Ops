@@ -137,6 +137,22 @@ function importGraph(): string[] {
     }
   })(join(ROOT, "app/(main)/command-centre"));
 
+  // The API routes are capability surface too, and seeding only from page.tsx left
+  // them out of the graph entirely. Cross-vendor review named the exact consequence:
+  // the route's own imports — including `@/lib/supabase/server`, the service-role
+  // client — could change with no provenance entry, while "no real import without an
+  // entry" still passed. The route was checked for EXISTENCE and never for what it
+  // pulls in. A reachability check that starts from the wrong roots is not narrower,
+  // it is blind in a specific direction.
+  (function walk(d: string) {
+    if (!existsSync(d)) return;
+    for (const e of readdirSync(d)) {
+      const p = join(d, e);
+      if (statSync(p).isDirectory()) walk(p);
+      else if (e === "route.ts" || e === "route.tsx") entries.push(p);
+    }
+  })(join(ROOT, "app/api/command-centre"));
+
   const seen = new Set<string>();
   const queue = [...entries];
   while (queue.length) {
@@ -220,6 +236,15 @@ describe("command-centre: no new surface vs source baseline", () => {
       const paths = [
         ...[...src.matchAll(/href=["'`](\/[^"'`]*)["'`]/g)].map((m) => m[1]),
         ...[...src.matchAll(/fetch\(\s*["'`](\/[^"'`]*)["'`]/g)].map((m) => m[1]),
+        // Programmatic navigation, and the TEMPLATE-LITERAL form especially. This check
+        // was written to catch a ported control pointing at an unported route, and it
+        // missed exactly that: WikiGraphCanvas does
+        // `router.push(`/founder/wiki/${slug}`)`, which is not an href= and not a
+        // string literal, so every node click 404'd while this test passed. Truncate at
+        // the first `${` and check the static prefix — a prefix that does not exist
+        // cannot be rescued by whatever the interpolation produces.
+        ...[...src.matchAll(/router\.(?:push|replace)\(\s*["'`](\/[^"'`]*)["'`]/g)]
+          .map((m) => m[1].split("${")[0]),
       ];
       for (const p of new Set(paths)) {
         if (!routeExists(p)) broken.push(`${f} -> ${p}`);
