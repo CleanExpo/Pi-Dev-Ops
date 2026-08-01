@@ -42,7 +42,7 @@
  *   --plant-broken-link  positive control: assert this script FAILS on a known-bad route.
  */
 import { spawn, spawnSync } from "node:child_process";
-import { createHmac } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
 import { existsSync, statSync as fsStat, readdirSync as fsRead } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -51,7 +51,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const APP = join(ROOT, "dashboard");
 const PORT = process.env.ROUTE_EXERCISE_PORT || "3187";
 const BASE = `http://127.0.0.1:${PORT}`;
-const PASSWORD = "route-exercise-probe-secret";
+// Generated per run, never stored. It only has to match what we start the server with, so
+// a literal bought nothing and tripped the secrets scanner as a hardcoded password — fairly,
+// since a scanner cannot tell a throwaway probe secret from a real one by reading it.
+const PASSWORD = randomBytes(24).toString("hex");
 const PLANT = process.argv.includes("--plant-broken-link");
 
 /** Pages whose rendered output defines the navigation surface under test. */

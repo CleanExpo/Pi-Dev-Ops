@@ -86,6 +86,48 @@ failed 2 tests, which is what the exemption's narrowness actually rests on.*
 - **observed** — saw the right result once, but on a forced plan, sub-scale, friendly geometry, or bypassed auth. Must be stated as such.
 - **assumed** — reasoned, not run. **Zero `assumed` items allowed in the load-bearing set before declaring done.**
 
+## The First Run of a New Control Is the FAILING One
+
+**Rule: a new check is not trusted until it has been observed to FAIL — and to fail for the
+reason you think.** Write it, aim it at a defect you have planted, and watch it go red. Only
+then aim it at the real system. A control whose first observed state is green has been tested
+for its ability to agree with you.
+
+**Verify the failure, not just the exit code.** "It failed" is not enough — read the message and
+confirm it names the planted defect. Four of the misfires below "failed" or "passed" for a
+reason entirely unrelated to what was being tested.
+
+**Controls fail toward green, and the bias is directional, not random.** On 2026-08-01/02, four
+control mis-designs in one session, **all four green**:
+
+| # | Control | What went wrong | Read as |
+|---|---|---|---|
+| 1 | review tree-integrity | planted file at `*.tmp`, covered by `.gitignore` repo-wide | "no mutation" |
+| 2 | secrets-scan coverage | planted secret in `.md`, which is in `_SKIP_EXTS` | "no secrets" |
+| 3 | build-freshness | exit code measured through `\| head`, so it reported head's 0 | "control passed" |
+| 4 | route-exercise | attached to an orphaned server serving the **previous** build | "no broken route" |
+
+Plus a fifth in the tool built to check for exactly this: a history scanner whose input paths all
+carried a stray `\r`, so it read **0 blobs** and printed "no secrets found" over 6160 paths.
+
+Five of five landed on green. That is not chance — you write a test expecting it to pass, so
+every accident lands on the side you expected. **Assume your control is green because it is
+broken until you have seen it red.**
+
+**The one that went the other way, and why it does not soften the rule.** A sixth misfire
+reported FAIL against a *working* scanner: the check ran `scanner | grep -q`, and the scanner
+exits 1 when it finds a violation — the success case — so under `set -o pipefail` the pipeline
+was non-zero even though grep matched. A false RED. It cost ten minutes and was self-correcting,
+because a red result gets investigated. **The asymmetry is the point: a false green is never
+investigated, because nobody audits good news.** Both are bugs; only one is dangerous.
+
+Three habits that catch all five:
+- **Plant the defect where the check must look**, not merely nearby. Check the ignore rules, the
+  extension filters and the path prefixes of the thing you are testing *first*.
+- **Never measure an exit code through a pipe.** `cmd > file; echo $?`, never `cmd | head`.
+- **Assert the scan did work**: blobs read > 0, files scanned > 0, paths exercised > 0. A checker
+  that examined nothing must fail, not pass.
+
 ## Red Flags — STOP, you are about to ship a false-green
 
 - "The test passes, so it's green." (Passing ≠ proving.)

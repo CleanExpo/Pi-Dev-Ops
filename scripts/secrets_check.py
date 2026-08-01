@@ -51,7 +51,10 @@ DRY_RUN = args.dry_run
 # ── SCOPE LIMIT — READ BEFORE TRUSTING A [PASS] ───────────────────────────────
 # This scanner sources its file list from
 #   git ls-files --cached --others --exclude-standard
-# `--exclude-standard` applies .gitignore, so **secrets in gitignored files are NEVER
+# FIXED 2026-08-02 — `--exclude-standard` was REMOVED, so gitignored files ARE now
+# scanned. The history below is kept because the failure is instructive.
+#
+# It previously applied .gitignore, so **secrets in gitignored files were NEVER
 # SCANNED**. Proven 2026-08-01 with the same fake AWS-shaped key in the same directory,
 # gitignore as the only variable: docs/secret-control.ts -> DETECTED CRITICAL;
 # docs/secret-control.tmp (matched by *.tmp) -> not listed, not scanned, MISSED.
@@ -154,8 +157,13 @@ def _make_finding(path: str, line: int, title: str, severity: str, snippet: str)
 def _list_tracked_files() -> list[str]:
     """Return all git-tracked files relative to REPO_ROOT."""
     try:
+        # NOTE the ABSENT --exclude-standard. Including it meant gitignored files were
+        # never scanned, and .env.local / *.pem / credential dumps are exactly what
+        # .gitignore covers — the paths most worth scanning were the ones skipped.
+        # Heavy generated trees are dropped below instead, by path, so the exclusion is
+        # explicit and reviewable rather than inherited silently from .gitignore.
         result = subprocess.run(
-            ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+            ["git", "ls-files", "--cached", "--others"],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
@@ -164,7 +172,19 @@ def _list_tracked_files() -> list[str]:
         if result.returncode != 0:
             print(f"  [WARN] git ls-files failed: {result.stderr.strip()}", flush=True)
             return []
-        return [ln.strip() for ln in result.stdout.splitlines() if ln.strip()]
+        # Dropping --exclude-standard pulls in node_modules/.next/etc. Filter by path.
+        _HEAVY = ("node_modules/", ".next/", ".git/", "dist/", "build/", ".venv/",
+                  "venv/", "__pycache__/", ".turbo/", "coverage/", ".omx/")
+        out = []
+        for ln in result.stdout.splitlines():
+            f = ln.strip()
+            if not f:
+                continue
+            n = f.replace("\\", "/")
+            if any(h in n for h in _HEAVY):
+                continue
+            out.append(f)
+        return out
     except FileNotFoundError:
         print("  [WARN] git not found — scanning all files via os.walk()", flush=True)
         return []
