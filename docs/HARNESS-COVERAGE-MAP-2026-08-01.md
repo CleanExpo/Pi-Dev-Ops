@@ -17,9 +17,10 @@
 | C6 | **Build** | `next build` | compile failure, missing route |
 | C7 | **Fail-open scan** | `fence/fail_open_check.py` | verification code that swallows a signal; evidence files not git-tracked |
 | C8 | **Cross-vendor review** | Codex gpt-5.5, fresh session | anything a competent reader spots in spec or standards |
-| C9 | **Literal navigation tripwire** | `command-centre-readonly.test.ts` | a **literal** `href="/x"`, `fetch("/x")` or `router.push("/x…")` naming a route that does not exist here. **Tripwire, not proof — G1 stays open.** |
+| C9 | **Literal navigation tripwire** | `command-centre-readonly.test.ts` | a **literal** `href="/x"`, `fetch("/x")` or `router.push("/x…")` naming a route that does not exist here. **Tripwire, not proof.** Kept after C12 closed G1 because it is the only cover for `router.push` inside a client event handler, which never reaches rendered HTML. |
 | C10 | **Import map vs reality** | same | a provenance entry for an import no file makes; an import with no entry; a `resolves_in_target: file:` that is absent from disk |
 | C11 | **Auth coverage** | `command-centre-auth-coverage.test.ts` | any command-centre page or API served to a request with no session, proven against `proxy()` directly with positive controls |
+| C12 | **Runtime route exercising** | `scripts/route-exercise.mjs`, gated in `handoff-loop.sh` | any internal link in **rendered** output that 404s or 500s. Starts the built app, authenticates, fetches every command-centre page, requests every link they emitted. **The authority on G1** — C9 is only a tripwire. |
 
 **C4 tracks:** `fetch(`, http clients (axios/got/node-fetch/undici), `WebSocket`/`EventSource`/`XMLHttpRequest`/`sendBeacon`, dynamic `import(`, `require(`, remote-host literals, `.insert/.update/.upsert/.delete(`, `createClient`/`createServerClient`, MCP client names, `"use server"`, and three literal API-key names.
 
@@ -31,9 +32,9 @@ These are not tuning gaps. They are outside the shape of a count-based static co
 
 | # | Gap | Why the harness cannot see it | Already bitten us? |
 |---|---|---|---|
-| G1 | **Route existence** — **OPEN, partially mitigated** | C4 compares counts. A `fetch('/api/x')` that exists in both source and port passes even when `/api/x` was never ported. C9 now catches the *literal* forms; **computed navigation remains uncovered** — see below. | **YES — capability 2, four times.** Codex found links to `/founder/command-centre` and fetches to two unported API routes; then `router.push(`/founder/wiki/${slug}`)` 404ing on every node click; then `<Link href={d.href}>` invisible to the check. |
+| G1 | **Route existence** — **CLOSED by C12** (2026-08-01) | C4 compares counts. A `fetch('/api/x')` that exists in both source and port passes even when `/api/x` was never ported. C9 catches the *literal* forms only. **C12 closes it at runtime**: the app is started and every link the pages actually rendered is requested, so computed navigation (`<Link href={expr}>`) is covered by what the surface emitted rather than by what forms a regex looked for. | **YES — capability 2, four times.** Codex found links to `/founder/command-centre` and fetches to two unported API routes; then `router.push(`/founder/wiki/${slug}`)` 404ing on every node click; then `<Link href={d.href}>` invisible to the check. |
 | G2 | **Semantic equivalence** | Same count, different endpoint or payload. Swap a URL and the count is unchanged. | Latent |
-| G3 | **Runtime behaviour** | Nothing renders the page or intercepts network. "Does this control actually do nothing?" is never asked. | Latent |
+| G3 | **Runtime behaviour** — **partially mitigated by C12** | C12 now renders every command-centre page and exercises its links, so "does this page render and do its links resolve" IS asked. Still unasked: network interception, and whether a control that renders actually does nothing when clicked. | Latent for the remainder |
 | G4 | **Indirect / computed constructs** | `const m = 'fet'+'ch'`, `globalThis[k]()`, string-built URLs, computed property access. | Latent |
 | G5 | **Node built-in side effects** | `child_process`, `fs` writes, `process.exit`, `os` — **not tracked at all** | Latent |
 | G6 | **Transitive npm behaviour** | The graph stops at `node_modules`. A dependency that fetches is invisible. | Latent |
@@ -82,9 +83,9 @@ That is the finding this map exists to surface.
 
 ---
 
-## G1 — the standing ruling (2026-08-01, founder)
+## G1 — CLOSED by runtime route exercising (2026-08-01)
 
-**Status: OPEN. Partially mitigated by C9. Do not mark closed.**
+**Status: CLOSED by C12.** C9 remains, downgraded to a cheap tripwire. The ruling that produced this is kept below because the reasoning is the reusable part.
 
 Four review rounds each found the same class — *coverage reading wider than it is* — and three
 of the four were G1 specifically. The response after the fourth is deliberately **not** another
@@ -97,7 +98,7 @@ detector.
 - **The gap stays open on this map.** Renaming is necessary and not sufficient. G1 closes when
   something actually closes it.
 
-**What will close it: runtime route exercising. Not AST extraction.**
+**What closed it: runtime route exercising. Not AST extraction.**
 
 AST with dataflow was the reviewer's proposal and was **rejected**. It is the same uncompletable
 enumeration in better clothes — you still have to decide which patterns count, and wrapper
@@ -109,7 +110,37 @@ a port, and it is the distinction this whole harness keeps failing on in one dir
 check can only ever report what it was told to look for, and then gets described as though it
 reported on the surface.
 
-**The runtime rig is gating work before operations**, alongside per-capability tokens.
+**Built and proven.** `scripts/route-exercise.mjs`, wired as a `handoff-loop.sh` gate.
+
+The proof is a side-by-side on one planted defect — a `DECKS` entry pointing at a route that
+does not exist, reached through `<Link href={d.href}>`, which is exactly the form attempt 4
+found:
+
+| detector | verdict on the identical defect |
+|---|---|
+| C9 regex tripwire | **27 passed — missed it** |
+| C12 runtime exercising | **FAIL — named `/command-centre/hermes-DOES-NOT-EXIST`** |
+
+**What C12 does NOT cover, stated now rather than found in a later round:**
+- Navigation that only fires in a client event handler (`router.push` in `onClick`) is not in
+  server-rendered HTML. C9's literal scan is the only cover for that, which is why C9 stays.
+- Links behind a branch this run does not render (an error state, a populated-data state) are
+  not exercised. Coverage is what rendered, not what could render. Every entry page is asserted
+  200 so a page that fails to render cannot pass by emitting nothing — but an unrendered
+  *branch* is genuinely unmeasured.
+- External links are skipped by design; the question is whether OUR routes exist.
+- `/_next/*` build assets are excluded — not navigation, and `npm run build` owns them.
+
+**Two controls it carries, both of which caught real false-greens in its own first hour:**
+1. *Session accepted* — if the minted cookie were rejected, every page would redirect to login
+   and the run would happily exercise the login page and report success. A non-200 entry page
+   is a hard stop.
+2. *Port not already in use* — the first version orphaned its `next start` on Windows
+   (`shell: true` + `server.kill()` kills the shell, not the grandchild). A later run attached
+   to that stale server, measured the **previous build**, and reported the planted defect
+   absent. It was caught only because a positive control expected failure and got a pass.
+   A live port is now a hard stop, and the process tree is killed with a synchronous
+   `taskkill /T /F` — an async kill registered on `exit` never runs, which was the second bug.
 
 **Scope discipline, explicitly.** Re-spec the navigation detector and **nothing else**. The
 diagnosis was narrow: the design is sound, import provenance is closed, the positive controls
