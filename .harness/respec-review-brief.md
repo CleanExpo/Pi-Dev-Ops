@@ -1,11 +1,27 @@
-# Review brief — navigation-layer re-spec (C12, runtime route exercising)
+# Review brief — navigation-layer re-spec (C12) — ROUND 2
 
 You are reviewing a change to a **verifier**. Flag findings. Do not fix anything. Do not write
 code. Do not edit, create or delete any file in the repository.
 
-**Round 1.** The previous review series is closed and is not being re-run: its findings were
-verified by hand and fixed, and only its pass-claims were unevidenced. This is the first round in
-which you can execute, so the count starts here.
+**Round 2.** Round 1 returned `FAIL — C12 improves G1 coverage, but its closure claim and
+side-by-side proof are overbroad`. Every finding was accepted and fixed:
+
+- **timeouts** — `waitForServer` and all page/link fetches now carry a 15s signal. A wedged
+  listener used to turn the verifier into silence, which is the worst failure mode for a checker.
+- **build freshness** — C12 now compares `.next/BUILD_ID` mtime against the newest source under
+  `app/`, `components/`, `lib/`, `proxy.ts` and refuses to run on a stale build, rather than
+  relying on the handoff loop's build gate running first.
+- **query strings** — the extractor no longer stops at `?`, so `/route?bad=state` is exercised as
+  itself instead of as `/route`.
+- **POSIX cleanup** — spawns detached and kills the process group; the Windows tree-kill had left
+  the other half unfixed.
+- **scope list** — client-hydrated navigation added and named as the largest remaining hole.
+- **the overbroad proof claim** — accepted in full. The side-by-side *was* run, but it left no
+  reproducible artifact and what ships (`--plant-broken-link`) injects into already-fetched HTML
+  and never touches C9. The coverage map now carries a four-command reproduction, and
+  `scripts/prove-controls.sh` plants a defect per control and asserts each goes red.
+
+**Do not assume those fixes are adequate — judging that is this round's job.**
 
 **You CAN run commands now.** The sandbox restriction that blocked earlier rounds is lifted —
 its root cause was Codex's Windows restricted-token sandbox (spawn denied, unlink denied, write
@@ -84,6 +100,7 @@ know from reading the script, or only by running it?
 ## The loop
 
 ```
+bash scripts/prove-controls.sh --fast            -> expect 11/11, exit 0
 bash scripts/handoff-loop.sh                    -> expect pass=8 fail=0 READY
 node scripts/route-exercise.mjs                 -> expect exit 0
 node scripts/route-exercise.mjs --plant-broken-link  -> expect exit 1 (control)
