@@ -1,0 +1,125 @@
+// src/lib/command-centre/wiki-graph.ts
+//
+// Pure graph-construction for the Wiki Graph View (UNI-2304).
+// Parses [[wikilink]] references out of wiki_pages content and resolves them,
+// case-insensitively, against the set of known pages (by slug/id OR title).
+// Unresolved links are dropped — never fabricated. Self-links are dropped.
+// No I/O here: the route supplies the rows, this module builds the graph so it
+// can be unit-tested offline.
+
+/** A wiki page row as needed for graph construction (subset of wiki_pages). */
+export interface WikiPageRow {
+  id: string
+  title: string
+  tags: string[] | null
+  content: string
+  updated_at: string | null
+}
+
+export interface GraphNode {
+  id: string
+  title: string
+  slug: string
+  tags: string[]
+  degree: number
+}
+
+export interface GraphEdge {
+  source: string
+  target: string
+}
+
+export interface WikiGraph {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  pageCount: number
+  lastSync: string | null
+}
+
+const WIKILINK_RE = /\[\[([^\]]+)\]\]/g
+
+/**
+ * Extract the resolvable target of every [[wikilink]] in `content`.
+ * Handles Obsidian syntax: strips a `|alias` display label and a `#section`
+ * or `#^block` anchor, then trims. Empty targets are skipped.
+ */
+export function parseWikiLinks(content: string): string[] {
+  if (!content) return []
+  const out: string[] = []
+  for (const match of content.matchAll(WIKILINK_RE)) {
+    const raw = match[1]
+    // `[[target|alias]]` → target ; `[[target#section]]` → target
+    const target = raw.split('|')[0].split('#')[0].trim()
+    if (target.length > 0) out.push(target)
+  }
+  return out
+}
+
+/** Candidate lookup keys for a link target, most→least specific, lowercased. */
+function targetKeys(target: string): string[] {
+  const lower = target.toLowerCase()
+  const keys = [lower]
+  // Path-style links like `Sources/Some Page` also match on their basename.
+  const slash = lower.lastIndexOf('/')
+  if (slash !== -1 && slash < lower.length - 1) keys.push(lower.slice(slash + 1))
+  return keys
+}
+
+/**
+ * Build the wiki knowledge graph from page rows.
+ *
+ * - Nodes: one per page (orphans included), with undirected `degree`.
+ * - Edges: one per resolved, non-self [[wikilink]], de-duplicated per
+ *   directed (source, target) pair. Links that resolve to no known page are
+ *   dropped.
+ * - Resolution is case-insensitive against each page's id (slug) and title.
+ */
+export function buildWikiGraph(pages: WikiPageRow[]): WikiGraph {
+  // Resolve map: lowercased slug/title → canonical node id.
+  // Slug (id) wins over title on collision — the id is the routing key.
+  const resolve = new Map<string, string>()
+  for (const p of pages) {
+    const titleKey = p.title?.toLowerCase().trim()
+    if (titleKey && !resolve.has(titleKey)) resolve.set(titleKey, p.id)
+  }
+  for (const p of pages) {
+    resolve.set(p.id.toLowerCase().trim(), p.id) // slug/id is authoritative
+  }
+
+  const degree = new Map<string, number>()
+  for (const p of pages) degree.set(p.id, 0)
+
+  const seen = new Set<string>()
+  const edges: GraphEdge[] = []
+  for (const p of pages) {
+    for (const target of parseWikiLinks(p.content)) {
+      let resolvedId: string | undefined
+      for (const key of targetKeys(target)) {
+        resolvedId = resolve.get(key)
+        if (resolvedId) break
+      }
+      if (!resolvedId || resolvedId === p.id) continue // unresolved or self-link
+      const dedupeKey = `${p.id}\u0000${resolvedId}`
+      if (seen.has(dedupeKey)) continue
+      seen.add(dedupeKey)
+      edges.push({ source: p.id, target: resolvedId })
+      degree.set(p.id, (degree.get(p.id) ?? 0) + 1)
+      degree.set(resolvedId, (degree.get(resolvedId) ?? 0) + 1)
+    }
+  }
+
+  const nodes: GraphNode[] = pages.map((p) => ({
+    id: p.id,
+    title: p.title,
+    slug: p.id,
+    tags: p.tags ?? [],
+    degree: degree.get(p.id) ?? 0,
+  }))
+
+  const lastSync = pages.reduce<string | null>((acc, p) => {
+    if (!p.updated_at) return acc
+    return acc === null || p.updated_at > acc ? p.updated_at : acc
+  }, null)
+
+  return { nodes, edges, pageCount: pages.length, lastSync }
+}

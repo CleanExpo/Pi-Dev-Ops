@@ -17,7 +17,8 @@
     "components/command-centre/DegradedDataBanner.tsx": "components/command-centre/DegradedDataBanner.tsx",
     "components/command-centre/wiki-graph/WikiGraphTile.tsx": "components/command-centre/wiki-graph/WikiGraphTile.tsx",
     "lib/command-centre/tools/catalogue.ts": "lib/command-centre/tools/catalogue.ts",
-    "store/ui.ts": "store/ui.ts"
+    "store/ui.ts": "store/ui.ts",
+    "lib/command-centre/wiki-graph.ts": "lib/command-centre/wiki-graph.ts"
   },
   "_baseline_verified_by_hand": {
     "_note": "Capabilities whose baseline safety properties are load-bearing require a hand-established baseline BEFORE porting, recorded here. Capability 6 (operator-gateway) is the one that needs it \u2014 its whole safety story is 'no live runner, no real execute button'. 'No new surface' is worthless against an unexamined baseline.",
@@ -235,5 +236,8 @@
       "note": "same npm package in both apps"
     }
   },
-  "_imports_note": "Import-level provenance. judgment must be one of: same | different-but-checked | must-change. UNDECLARED fails the suite exactly as an undeclared FILE does. File provenance proves origin; this proves the imports still mean what they meant."
+  "_imports_note": "Import-level provenance. judgment must be one of: same | different-but-checked | must-change. UNDECLARED fails the suite exactly as an undeclared FILE does. File provenance proves origin; this proves the imports still mean what they meant.",
+  "_rebuilt_not_ported": {
+    "app/api/command-centre/wiki-graph/route.ts": "REBUILT against this app's createServerClient. The source imports getUser+createClient from its own @/lib/supabase/server (anon-key, RLS-enforced, per-user). The same specifier resolves here to a service-role client with no per-user identity. A verbatim port would have typechecked while silently swapping an RLS-enforced read for an RLS-bypassing one. No source baseline applies, so it is excluded from diff-relative comparison by design."
+  }
 }
