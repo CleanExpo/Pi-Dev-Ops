@@ -189,6 +189,10 @@ describe("command-centre: no new surface vs source baseline", () => {
   });
 
   // ---- G10 / Q3: a port may not DELETE a guard ----
+  // fail-open-ok: same reasoning as the tracked-construct tests — the separate
+  // "baseline is reachable" test FAILS when the baseline is absent, so the suite
+  // cannot go green unverified. This skip avoids a second misleading failure; it
+  // does not hide the first.
   it.skipIf(!baselineAvailable)("no safety guard was removed relative to the baseline", () => {
     const lost: string[] = [];
     for (const g of GUARDS) {
