@@ -22,5 +22,218 @@
   "_baseline_verified_by_hand": {
     "_note": "Capabilities whose baseline safety properties are load-bearing require a hand-established baseline BEFORE porting, recorded here. Capability 6 (operator-gateway) is the one that needs it \u2014 its whole safety story is 'no live runner, no real execute button'. 'No new surface' is worthless against an unexamined baseline.",
     "operator-gateway": "NOT YET ESTABLISHED \u2014 blocks capability 6"
-  }
+  },
+  "imports": {
+    "app/(main)/command-centre/hermes/page.tsx :: next/font/google": {
+      "specifier": "next/font/google",
+      "resolves_in_source": "package: next/font/google",
+      "resolves_in_target": "package: next/font/google",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "app/(main)/command-centre/hermes/page.tsx :: @/lib/command-centre/control-panel": {
+      "specifier": "@/lib/command-centre/control-panel",
+      "resolves_in_source": "unresolved: @/lib/command-centre/control-panel",
+      "resolves_in_target": "file: lib/command-centre/control-panel.ts",
+      "judgment": "must-change",
+      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
+    },
+    "app/(main)/command-centre/hermes/page.tsx :: @/components/command-centre/DeckDetails": {
+      "specifier": "@/components/command-centre/DeckDetails",
+      "resolves_in_source": "file: components/command-centre/DeckDetails.tsx",
+      "resolves_in_target": "file: components/command-centre/DeckDetails.tsx",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha 197331e86848)"
+    },
+    "app/(main)/command-centre/hermes/page.tsx :: @/components/command-centre/command-deck.module.css": {
+      "specifier": "@/components/command-centre/command-deck.module.css",
+      "resolves_in_source": "unresolved: @/components/command-centre/command-deck.module.css",
+      "resolves_in_target": "file: components/command-centre/command-deck.module.css",
+      "judgment": "must-change",
+      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
+    },
+    "components/command-centre/DeckDetails.tsx :: ./deck-details.module.css": {
+      "specifier": "./deck-details.module.css",
+      "resolves_in_source": "file: components/command-centre/deck-details.module.css",
+      "resolves_in_target": "file: components/command-centre/deck-details.module.css",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha c055143f13d5)"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: next/link": {
+      "specifier": "next/link",
+      "resolves_in_source": "package: next/link",
+      "resolves_in_target": "package: next/link",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: next/font/google": {
+      "specifier": "next/font/google",
+      "resolves_in_source": "package: next/font/google",
+      "resolves_in_target": "package: next/font/google",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/lib/command-centre/tools/catalogue": {
+      "specifier": "@/lib/command-centre/tools/catalogue",
+      "resolves_in_source": "file: lib/command-centre/tools/catalogue.ts",
+      "resolves_in_target": "file: lib/command-centre/tools/catalogue.ts",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha 2876efa1753c)"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/wiki-graph/WikiGraphTile": {
+      "specifier": "@/components/command-centre/wiki-graph/WikiGraphTile",
+      "resolves_in_source": "file: components/command-centre/wiki-graph/WikiGraphTile.tsx",
+      "resolves_in_target": "file: components/command-centre/wiki-graph/WikiGraphTile.tsx",
+      "judgment": "different-but-checked",
+      "note": "content diff is exactly one line: '../SourceBadge' -> '@/components/command-centre/SourceBadge' (R5 alias rewrite). Verified by diff with line endings normalised; no behavioural change."
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/DeckDetails": {
+      "specifier": "@/components/command-centre/DeckDetails",
+      "resolves_in_source": "file: components/command-centre/DeckDetails.tsx",
+      "resolves_in_target": "file: components/command-centre/DeckDetails.tsx",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha 197331e86848)"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/DeckThemeShell": {
+      "specifier": "@/components/command-centre/DeckThemeShell",
+      "resolves_in_source": "unresolved: @/components/command-centre/DeckThemeShell",
+      "resolves_in_target": "file: components/command-centre/DeckThemeShell.tsx",
+      "judgment": "must-change",
+      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/WikiEnhanceControl": {
+      "specifier": "@/components/command-centre/WikiEnhanceControl",
+      "resolves_in_source": "unresolved: @/components/command-centre/WikiEnhanceControl",
+      "resolves_in_target": "file: components/command-centre/WikiEnhanceControl.tsx",
+      "judgment": "must-change",
+      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/deck-visual-helpers": {
+      "specifier": "@/components/command-centre/deck-visual-helpers",
+      "resolves_in_source": "unresolved: @/components/command-centre/deck-visual-helpers",
+      "resolves_in_target": "file: components/command-centre/deck-visual-helpers.ts",
+      "judgment": "must-change",
+      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/shell.module.css": {
+      "specifier": "@/components/command-centre/shell.module.css",
+      "resolves_in_source": "unresolved: @/components/command-centre/shell.module.css",
+      "resolves_in_target": "file: components/command-centre/shell.module.css",
+      "judgment": "must-change",
+      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/command-deck.module.css": {
+      "specifier": "@/components/command-centre/command-deck.module.css",
+      "resolves_in_source": "unresolved: @/components/command-centre/command-deck.module.css",
+      "resolves_in_target": "file: components/command-centre/command-deck.module.css",
+      "judgment": "must-change",
+      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
+    },
+    "components/command-centre/DeckThemeShell.tsx :: react": {
+      "specifier": "react",
+      "resolves_in_source": "package: react",
+      "resolves_in_target": "package: react",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "components/command-centre/DeckThemeShell.tsx :: @/store/ui": {
+      "specifier": "@/store/ui",
+      "resolves_in_source": "file: store/ui.ts",
+      "resolves_in_target": "file: store/ui.ts",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha 70a6b14e237d)"
+    },
+    "components/command-centre/DeckThemeShell.tsx :: ./command-deck.module.css": {
+      "specifier": "./command-deck.module.css",
+      "resolves_in_source": "file: app/(founder)/founder/command-centre/command-deck.module.css",
+      "resolves_in_target": "file: components/command-centre/command-deck.module.css",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha 5403d34cde1a)"
+    },
+    "components/command-centre/DeckThemeShell.tsx :: ./shell.module.css": {
+      "specifier": "./shell.module.css",
+      "resolves_in_source": "file: app/(founder)/founder/command-centre/shell.module.css",
+      "resolves_in_target": "file: components/command-centre/shell.module.css",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha f72f5a4e9bc5)"
+    },
+    "components/command-centre/WikiEnhanceControl.tsx :: react": {
+      "specifier": "react",
+      "resolves_in_source": "package: react",
+      "resolves_in_target": "package: react",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "components/command-centre/WikiEnhanceControl.tsx :: lucide-react": {
+      "specifier": "lucide-react",
+      "resolves_in_source": "package: lucide-react",
+      "resolves_in_target": "package: lucide-react",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "components/command-centre/WikiEnhanceControl.tsx :: ./command-deck.module.css": {
+      "specifier": "./command-deck.module.css",
+      "resolves_in_source": "file: app/(founder)/founder/command-centre/command-deck.module.css",
+      "resolves_in_target": "file: components/command-centre/command-deck.module.css",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha 5403d34cde1a)"
+    },
+    "components/command-centre/wiki-graph/WikiGraphTile.tsx :: react": {
+      "specifier": "react",
+      "resolves_in_source": "package: react",
+      "resolves_in_target": "package: react",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "components/command-centre/wiki-graph/WikiGraphTile.tsx :: next/link": {
+      "specifier": "next/link",
+      "resolves_in_source": "package: next/link",
+      "resolves_in_target": "package: next/link",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "components/command-centre/wiki-graph/WikiGraphTile.tsx :: @/components/command-centre/SourceBadge": {
+      "specifier": "@/components/command-centre/SourceBadge",
+      "resolves_in_source": "file: components/command-centre/SourceBadge.tsx",
+      "resolves_in_target": "file: components/command-centre/SourceBadge.tsx",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha 344f6941b31e)"
+    },
+    "lib/command-centre/tools/catalogue.ts :: node:fs/promises": {
+      "specifier": "node:fs/promises",
+      "resolves_in_source": "package: node:fs/promises",
+      "resolves_in_target": "package: node:fs/promises",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "lib/command-centre/tools/catalogue.ts :: node:path": {
+      "specifier": "node:path",
+      "resolves_in_source": "package: node:path",
+      "resolves_in_target": "package: node:path",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "lib/command-centre/tools/catalogue.ts :: node:os": {
+      "specifier": "node:os",
+      "resolves_in_source": "package: node:os",
+      "resolves_in_target": "package: node:os",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "store/ui.ts :: zustand": {
+      "specifier": "zustand",
+      "resolves_in_source": "package: zustand",
+      "resolves_in_target": "package: zustand",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "store/ui.ts :: zustand/middleware": {
+      "specifier": "zustand/middleware",
+      "resolves_in_source": "package: zustand/middleware",
+      "resolves_in_target": "package: zustand/middleware",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    }
+  },
+  "_imports_note": "Import-level provenance. judgment must be one of: same | different-but-checked | must-change. UNDECLARED fails the suite exactly as an undeclared FILE does. File provenance proves origin; this proves the imports still mean what they meant."
 }

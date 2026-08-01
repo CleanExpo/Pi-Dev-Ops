@@ -45,6 +45,25 @@ const TRACKED: Array<{ re: RegExp; rule: string }> = [
   { re: /\bMcpClient\b|modelcontextprotocol/g, rule: "MCP client" },
   { re: /"use server"|'use server'/g, rule: "server action" },
   { re: /ANTHROPIC_API_KEY|OPENAI_API_KEY|STRIPE_SECRET/g, rule: "paid API key" },
+  // OG2 had zero coverage until this line. External execution was tracked by nothing.
+  { re: /\b(child_process|execSync|spawnSync|\bexec\s*\(|\bspawn\s*\(|\bfork\s*\()/g,
+    rule: "external execution" },
+];
+
+/**
+ * Guards whose count must NOT DECREASE. The tracked list above is one-directional —
+ * it fails on an increase — so a port that DELETES a safety check passes every one of
+ * them. Cross-vendor audit named this as the single most valuable missing check:
+ * "a port that does not add new scary constructs, but removes the exact guards that
+ * made the scary surface inert."
+ */
+const GUARDS: Array<{ re: RegExp; rule: string }> = [
+  { re: /\b(dryRun|dry_run|DRY_RUN|isDryRun)\b/g, rule: "dry-run predicate" },
+  { re: /\bdisabled\b/g, rule: "disabled control" },
+  { re: /\b(readOnly|read_only|READONLY)\b/g, rule: "read-only flag" },
+  { re: /\b(requireAuth|isAuthed|getUser|getSession|redirect\s*\(\s*['"]\/auth)/g, rule: "auth gate" },
+  { re: /\b(sandbox|SANDBOX|isSandbox)\b/g, rule: "sandbox boundary" },
+  { re: /\bconfirm\s*\(|\bconfirmed\b/g, rule: "confirmation gate" },
 ];
 
 const strip = (s: string) =>
@@ -130,6 +149,61 @@ describe("command-centre: no new surface vs source baseline", () => {
     expect(after).toBeGreaterThan(before);
   });
 
+  // ---- G1: every internal link/fetch must resolve to a route that EXISTS here ----
+  // Construct counts are identical when a ported fetch points at an API route that was
+  // never ported, so the surface passes while the control 404s. Found in capability 2
+  // by the reviewer, not by the harness.
+  it("every internal href/fetch resolves to a route in the target app", () => {
+    const APP = join(ROOT, "app");
+    const routeExists = (p: string): boolean => {
+      const clean = p.split("?")[0].split("#")[0].replace(/\/$/, "");
+      if (!clean || clean === "/") return true;
+      const segs = clean.split("/").filter(Boolean);
+      // Next.js route groups "(main)" are transparent in the URL, so try every
+      // group-prefixed location as well as the bare one.
+      const groups = existsSync(APP)
+        ? readdirSync(APP).filter((d) => d.startsWith("(") && statSync(join(APP, d)).isDirectory())
+        : [];
+      const bases = [APP, ...groups.map((g) => join(APP, g))];
+      return bases.some((b) => {
+        const dir = join(b, ...segs);
+        return existsSync(join(dir, "page.tsx")) || existsSync(join(dir, "route.ts"));
+      });
+    };
+
+    const broken: string[] = [];
+    for (const f of files) {
+      const src = strip(readFileSync(join(ROOT, f), "utf8"));
+      const paths = [
+        ...[...src.matchAll(/href=["'`](\/[^"'`]*)["'`]/g)].map((m) => m[1]),
+        ...[...src.matchAll(/fetch\(\s*["'`](\/[^"'`]*)["'`]/g)].map((m) => m[1]),
+      ];
+      for (const p of new Set(paths)) {
+        if (!routeExists(p)) broken.push(`${f} -> ${p}`);
+      }
+    }
+    expect(
+      broken,
+      `internal paths with no matching route in the target app (these would 404):\n${broken.join("\n")}`
+    ).toEqual([]);
+  });
+
+  // ---- G10 / Q3: a port may not DELETE a guard ----
+  it.skipIf(!baselineAvailable)("no safety guard was removed relative to the baseline", () => {
+    const lost: string[] = [];
+    for (const g of GUARDS) {
+      for (const [ported, source] of Object.entries(PROV.files)) {
+        const pPath = join(ROOT, ported);
+        const sPath = join(BASELINE, source);
+        if (!existsSync(pPath) || !existsSync(sPath)) continue; // covered by the unresolved check
+        const p = count(readFileSync(pPath, "utf8"), g.re);
+        const s = count(readFileSync(sPath, "utf8"), g.re);
+        if (p < s) lost.push(`${g.rule} in ${ported}: ${s} -> ${p}`);
+      }
+    }
+    expect(lost, `safety guards removed vs baseline:\n${lost.join("\n")}`).toEqual([]);
+  });
+
   for (const t of TRACKED) {
     // fail-open-ok: skipping here is safe because the separate "baseline is
     // reachable" test FAILS when the baseline is absent, so the suite cannot go
@@ -157,4 +231,47 @@ describe("command-centre: no new surface vs source baseline", () => {
       expect(grew, `${t.rule} increased vs baseline:\n${grew.join("\n")}`).toEqual([]);
     });
   }
+});
+
+/**
+ * Import-level provenance. File provenance proves a file has a declared origin; it
+ * does NOT prove that what its imports RESOLVE TO behaves the same in both apps.
+ * `@/lib/supabase/server` resolves in the source to an anon-key RLS-enforced client
+ * and in the target to a service-role client that bypasses RLS — same specifier,
+ * compatible shapes, clean typecheck, silent privilege change.
+ */
+describe("command-centre: every import has a declared judgment", () => {
+  const IMPORTS = (PROV as unknown as {
+    imports?: Record<string, { specifier: string; judgment: string; note: string }>;
+  }).imports ?? {};
+
+  it("the import map is populated (positive control)", () => {
+    // An empty map would make every assertion below vacuously true.
+    expect(Object.keys(IMPORTS).length).toBeGreaterThan(0);
+  });
+
+  it("no import is UNDECLARED", () => {
+    const undeclared = Object.entries(IMPORTS)
+      .filter(([, v]) => v.judgment === "UNDECLARED")
+      .map(([k, v]) => `${k}\n      ${v.note}`);
+    expect(
+      undeclared,
+      `imports with no declared judgment (same | different-but-checked | must-change):\n${undeclared.join("\n")}`
+    ).toEqual([]);
+  });
+
+  it("every judgment is one of the three permitted values", () => {
+    const ok = new Set(["same", "different-but-checked", "must-change"]);
+    const bad = Object.entries(IMPORTS)
+      .filter(([, v]) => !ok.has(v.judgment))
+      .map(([k, v]) => `${k}: '${v.judgment}'`);
+    expect(bad, `invalid judgment values:\n${bad.join("\n")}`).toEqual([]);
+  });
+
+  it("a 'different-but-checked' judgment carries a stated reason", () => {
+    const unexplained = Object.entries(IMPORTS)
+      .filter(([, v]) => v.judgment !== "same" && !v.note.trim())
+      .map(([k]) => k);
+    expect(unexplained, `divergent imports with no note:\n${unexplained.join("\n")}`).toEqual([]);
+  });
 });
