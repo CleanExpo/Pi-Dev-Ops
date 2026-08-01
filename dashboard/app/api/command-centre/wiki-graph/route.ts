@@ -15,9 +15,17 @@
 // password. Porting the source verbatim would have typechecked cleanly while
 // silently swapping an RLS-enforced read for an RLS-bypassing one.
 //
-// Auth: enforced upstream by proxy.ts, whose matcher covers all non-static routes
-// and returns 401 without a valid session. There is no getUser() equivalent here
-// to call, and inventing one would be a fabricated identity rather than a port.
+// Auth: enforced upstream by proxy.ts, which returns 401 for this path without a
+// valid session. There is no getUser() equivalent here to call, and inventing one
+// would be a fabricated identity rather than a port.
+//
+// That sentence was WRONG when first written — it said the proxy's matcher "covers
+// all non-static routes", which is true and irrelevant: proxy() only checks a
+// session for paths listed in its PROTECTED_* prefixes, and /api/command-centre was
+// in neither. This route served anonymous requests while reading through a
+// service-role client that bypasses RLS. Proven and closed in
+// __tests__/command-centre-auth-coverage.test.ts — which now fails if the prefix is
+// ever removed, so this comment cannot rot back into a false claim silently.
 
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
@@ -67,9 +75,12 @@ export async function GET(): Promise<Response> {
         : {}),
     });
   } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Failed to build wiki graph" },
-      { status: 500 }
-    );
+    // Do NOT pass e.message through. The adjacent handler above is deliberately
+    // message-only for a *known* PostgREST error shape; this catch-all sees
+    // anything at all — client construction, env resolution, a thrown driver
+    // error — and those messages carry connection strings and query text. Log
+    // server-side, return a fixed string.
+    console.error("[wiki-graph] unhandled failure building graph:", e);
+    return NextResponse.json({ error: "Failed to build wiki graph" }, { status: 500 });
   }
 }

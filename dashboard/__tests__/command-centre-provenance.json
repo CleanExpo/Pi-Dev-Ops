@@ -313,9 +313,18 @@
   },
   "_declared_deltas": {
     "app/(main)/command-centre/wiki-graph/page.tsx": {
-      "auth gate": "EXPECTED. getUser()+redirect('/auth/login') removed. The source's per-user auth has no equivalent here - single operator, no identity - and auth is enforced upstream by proxy.ts, whose matcher covers all non-static routes and 401s without a session. The gate moved layer; it was not deleted.",
-      "database client": "EXPECTED. `await createClient()` (anon-key, RLS-enforced) replaced by `createServerClient()` (this app's client). The count rises because the rebuilt call is named differently, not because a second client appeared."
+      "auth gate": {
+        "from": 3,
+        "to": 0,
+        "reason": "EXPECTED, and now PROVEN rather than asserted. The source's getUser()/redirect('/auth/login') gate is removed: per-user auth has no equivalent here (single operator, no identity). The gate moved layer - it is now proxy.ts. The FIRST version of this reason said 'auth is enforced upstream by proxy.ts, whose matcher covers all non-static routes and 401s without a session', and that was FALSE. The matcher does cover every non-static route, but proxy() only checks a session for paths listed in PROTECTED_PAGE_PREFIXES / PROTECTED_API_PREFIXES, and /command-centre was in neither - so all four command-centre pages and the wiki-graph API served anonymous requests while reading wiki_pages through a service-role client that bypasses RLS. __tests__/command-centre-auth-coverage.test.ts calls proxy() directly with no cookie and proved it: 5 failed against 2 passing positive controls, so the red was not vacuous. /command-centre and /api/command-centre were then added to the protected prefixes and it went 7/7. This exemption's reason is now the tested behaviour of a named file rather than a sentence.",
+        "evidence": "__tests__/command-centre-auth-coverage.test.ts"
+      },
+      "database client": {
+        "from": 1,
+        "to": 2,
+        "reason": "EXPECTED. `await createClient()` (anon-key, RLS-enforced) replaced by `createServerClient()` (this app's client). The count reaches 2 rather than 1 because the tracked regex matches both the import specifier and the call site of the renamed function - one client counted twice, not a second client appearing. Bounded to exactly 1 -> 2: a genuine additional client in this file reads 1 -> 3 and still fails. What this exemption explicitly does NOT excuse is the privilege change - the target client is service-role and bypasses RLS, which is precisely why the auth gate above had to be re-established at the proxy layer instead of declared away."
+      }
     }
   },
-  "_declared_deltas_note": "Per-file, per-rule expected divergences with a stated reason. Only the NAMED rule is exempt for the NAMED file - any other guard loss or construct increase in the same file still fails. A blanket exclusion for rebuilt files would have surrendered the coverage that caught these two in the first place."
+  "_declared_deltas_note": "Per-file, per-rule expected divergences, each naming the EXACT count transition it excuses (from -> to) plus a reason. Only that one measured transition is exempt: any other magnitude, in the same file under the same rule, still fails. Keying on file+rule alone - the first design - was a blanket exclusion wearing a narrower label, and cross-vendor review caught it: declaring 'auth gate' on a file excused every future auth-gate loss in that file, forever. Second lesson from the same review: a reason must be checkable against something. 'Enforced upstream by proxy.ts' read as evidence, was not, and was wrong - until a test made it both."
 }

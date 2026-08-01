@@ -46,6 +46,14 @@ const PROTECTED_PAGE_PREFIXES = [
   "/settings",
   "/history",
   "/projects",
+  // The command-centre pages read wiki_pages through a SERVICE-ROLE client that
+  // bypasses RLS, and the ported wiki-graph page declares a delta against the
+  // `auth gate` rule on the grounds that "auth is enforced upstream by proxy.ts".
+  // That was true of the matcher and false of the enforcement: the matcher covers
+  // every non-static route, but proxy() only checks a session for a path listed
+  // here. Until this line existed, the whole knowledge base was readable without
+  // one. See __tests__/command-centre-auth-coverage.test.ts.
+  "/command-centre",
 ];
 
 const PROTECTED_API_PREFIXES = [
@@ -56,6 +64,9 @@ const PROTECTED_API_PREFIXES = [
   "/api/capabilities",
   "/api/chat",
   "/api/settings",
+  // Same reason as "/command-centre" above — this route serves the graph built
+  // from an RLS-bypassing read.
+  "/api/command-centre",
 ];
 
 // Public API routes — never require session

@@ -34,15 +34,37 @@ const PROV = PROV_RAW as unknown as {
   _rebuilt_not_ported?: Record<string, string>;
   /** Pre-existing files of THIS app, pulled into the graph by an import. */
   _target_native?: Record<string, string>;
-  /** file -> rule -> reason. Only the named rule is exempt for the named file. */
-  _declared_deltas?: Record<string, Record<string, string>>;
+  /** file -> rule -> the ONE expected count change, with its reason. */
+  _declared_deltas?: Record<string, Record<string, DeclaredDelta>>;
 };
 
-/** True when this exact file+rule divergence is declared with a reason. */
-const deltaDeclared = (file: string, rule: string): boolean =>
-  Boolean((PROV_RAW as {
-    _declared_deltas?: Record<string, Record<string, string>>;
-  })._declared_deltas?.[file]?.[rule]);
+/** An exemption names the exact magnitude it excuses, not just the direction. */
+interface DeclaredDelta {
+  /** Count in the baseline. */
+  from: number;
+  /** Count the port is allowed to have — this value and no other. */
+  to: number;
+  reason: string;
+}
+
+/**
+ * True only for the EXACT declared count change.
+ *
+ * This used to key on file+rule alone, which made it a blanket exclusion wearing
+ * a narrower label: declaring "auth gate 3 -> 0" also excused 3 -> 1, 3 -> 2, and
+ * every future auth-gate loss in that file. Cross-vendor review caught it —
+ * "exempts any auth gate decrease in wiki-graph/page.tsx, not just the expected
+ * removal". The mechanism existed to avoid a blanket exclusion and was blanket one
+ * level down. An exemption now excuses one measured transition; anything else in
+ * the same file, same rule, still fails.
+ */
+const deltaDeclared = (file: string, rule: string, from: number, to: number): boolean => {
+  const d = (PROV_RAW as {
+    _declared_deltas?: Record<string, Record<string, DeclaredDelta>>;
+  })._declared_deltas?.[file]?.[rule];
+  if (!d) return false;
+  return d.from === from && d.to === to && Boolean(d.reason);
+};
 
 /** Files with a declared origin OR a declared reason for having none. */
 const DECLARED = new Set<string>([
@@ -223,7 +245,7 @@ describe("command-centre: no new surface vs source baseline", () => {
         if (!existsSync(pPath) || !existsSync(sPath)) continue; // covered by the unresolved check
         const p = count(readFileSync(pPath, "utf8"), g.re);
         const s = count(readFileSync(sPath, "utf8"), g.re);
-        if (p < s && !deltaDeclared(ported, g.rule)) lost.push(`${g.rule} in ${ported}: ${s} -> ${p}`);
+        if (p < s && !deltaDeclared(ported, g.rule, s, p)) lost.push(`${g.rule} in ${ported}: ${s} -> ${p}`);
       }
     }
     expect(lost, `safety guards removed vs baseline:\n${lost.join("\n")}`).toEqual([]);
@@ -247,7 +269,7 @@ describe("command-centre: no new surface vs source baseline", () => {
         if (!existsSync(sPath)) { unresolved.push(`baseline missing: ${source} (for ${ported})`); continue; }
         const p = count(readFileSync(pPath, "utf8"), t.re);
         const s = count(readFileSync(sPath, "utf8"), t.re);
-        if (p > s && !deltaDeclared(ported, t.rule)) grew.push(`${ported}: ${s} -> ${p}`);
+        if (p > s && !deltaDeclared(ported, t.rule, s, p)) grew.push(`${ported}: ${s} -> ${p}`);
       }
       expect(
         unresolved,

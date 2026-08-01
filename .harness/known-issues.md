@@ -61,3 +61,31 @@ first (what replaces `user.id`) and an explicit ruling on the dashboard holding 
 path into a production job queue. Both are design decisions, not porting work.
 
 ---
+
+## KI-003 / KI-004 — two defects inherited verbatim from the baseline
+
+`components/command-centre/wiki-graph/WikiGraphCanvas.tsx` is a **byte-identical** port
+(`diff` against `D:/Authority-Site/apps/web/src/components/command-centre/wiki-graph/WikiGraphCanvas.tsx`
+returns empty). It carries two real defects, both present at the same lines in the source:
+
+- **KI-003 — listener leak.** `canvas.addEventListener('pointerleave', () => {…})` is
+  anonymous and the effect's cleanup removes only pointerdown/move/up. The effect reruns on
+  `[nodes, edges, nodeAtScreen, router]`, so pointerleave handlers accumulate on the same
+  canvas. Flagged by cross-vendor review as a hard standards violation. It is one.
+- **KI-004 — ref read during render.** `sizeRef.current.w` is read inside the tooltip's
+  `style` prop. `react-hooks/refs` errors on it, and that error is what turned the repo's
+  `lint-dashboard` gate red.
+
+**Ruling (founder, 2026-08-01): declare, do not fix.** The governing instruction for this
+migration is *port faithfully, including existing behaviour* — a difference from the source
+is a defect whether or not the source's behaviour is ideal. Fixing either one here forks the
+port from its baseline and makes the conformance comparison lie about what was carried over.
+KI-004 is suppressed with a **single-line** scoped `eslint-disable`, so a *new*
+ref-in-render anywhere in this file still fails lint; KI-003 is annotated in place.
+
+**Fix later:** upstream, in Authority-Site. This port inherits the fix when the baseline
+moves. Both are client-side only — no data exposure, no write path.
+
+**Note on the cost of this ruling:** the repo's lint gate is now green because a real error
+is suppressed, not because it was fixed. That is the deliberate trade. It is recorded here
+so nobody later reads a green gate as "this component is clean".

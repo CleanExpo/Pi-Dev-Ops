@@ -327,6 +327,14 @@ export function WikiGraphCanvas({ nodes, edges }: Props) {
     canvas.addEventListener('pointermove', onPointerMove)
     canvas.addEventListener('pointerup', onPointerUp)
     canvas.addEventListener('pointerup', onClickUp)
+    // KI-003 (inherited, NOT introduced): this listener is anonymous and the
+    // cleanup below never removes it, so it accumulates each time the effect
+    // reruns on [nodes, edges, ...]. Cross-vendor review flagged it as a hard
+    // violation and it is one — in the BASELINE. This file is a byte-identical
+    // port and the governing instruction is "port faithfully, including existing
+    // behaviour"; fixing it here would fork the port from its source. Founder
+    // ruled 2026-08-01: declare, do not fix. The fix belongs upstream in
+    // Authority-Site, and this port inherits it when the baseline moves.
     canvas.addEventListener('pointerleave', () => {
       hoverRef.current = null
       setTooltip(null)
@@ -371,6 +379,13 @@ export function WikiGraphCanvas({ nodes, edges }: Props) {
         <div
           style={{
             position: 'absolute',
+            // KI-004 (inherited): reading sizeRef during render is a real
+            // react-hooks/refs violation, present verbatim at this same line in the
+            // baseline. Suppressed rather than fixed for the same reason as KI-003
+            // above: this is a faithful port and the fix belongs upstream. The
+            // suppression is scoped to the single line below, so any NEW
+            // ref-in-render in this file still fails lint.
+            // eslint-disable-next-line react-hooks/refs
             left: Math.min(tooltip.x + 14, (sizeRef.current.w || 0) - 220),
             top: tooltip.y + 14,
             pointerEvents: 'none',
