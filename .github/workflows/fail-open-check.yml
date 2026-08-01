@@ -1,0 +1,53 @@
+name: Fail-Open Check
+
+# Finds verification steps whose failure mode is silence:
+#   CLASS A — code that swallows a failure signal (skips, empty catches, `|| true`,
+#             discarded stderr, warn-without-fail)
+#   CLASS B — declared evidence that is not durably recorded (exists on disk but is
+#             not git-tracked, so it dies with the machine)
+#
+# It runs in CI rather than on demand for the reason it exists: a checker you have to
+# remember to run has already failed open. Five instances shipped in one day, each
+# looking green — including the incident log itself being gitignored.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  schedule:
+    - cron: "11 21 * * *"   # 21:11 UTC = 07:11 AEST, off-minute to avoid cron clustering
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fail-open:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # CLASS B needs the real index to test tracking
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run fail-open check
+        id: check
+        run: |
+          set +e
+          python fence/fail_open_check.py "$GITHUB_WORKSPACE"
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+
+      # Exit 1 = findings. Exit 2 = the checker could not run, or its own positive
+      # controls failed — in which case the report proves nothing and must not pass.
+      - name: Fail on findings or an unusable report
+        if: steps.check.outputs.code != '0'
+        run: |
+          case "${{ steps.check.outputs.code }}" in
+            1) echo "::error::Fail-open findings. A verification step can silently pass without checking. Fix it, or annotate the line with '# fail-open-ok: <reason>' if it is genuinely safe." ;;
+            2) echo "::error::Fail-open check could not run, or its positive controls failed. The report proves nothing." ;;
+            *) echo "::error::Fail-open check returned ${{ steps.check.outputs.code }}." ;;
+          esac
+          exit 1

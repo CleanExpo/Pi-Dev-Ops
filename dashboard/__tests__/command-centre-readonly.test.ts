@@ -131,6 +131,10 @@ describe("command-centre: no new surface vs source baseline", () => {
   });
 
   for (const t of TRACKED) {
+    // fail-open-ok: skipping here is safe because the separate "baseline is
+    // reachable" test FAILS when the baseline is absent, so the suite cannot go
+    // green unverified. The skip avoids a misleading second failure, it does not
+    // hide the first.
     it.skipIf(!baselineAvailable)(`introduces no new — ${t.rule}`, () => {
       const grew: string[] = [];
       const unresolved: string[] = [];

@@ -31,7 +31,7 @@ echo "  workflow: bare 'git push' + default-branch checkout -> targets '$BRANCH'
 
 # 2. Does that branch require review?
 REVIEWS=$(gh api "repos/$REPO/branches/$BRANCH/protection" \
-  --jq '.required_pull_request_reviews.required_approving_review_count // 0' 2>/dev/null)
+  --jq '.required_pull_request_reviews.required_approving_review_count // 0' 2>/dev/null)  # fail-open-ok: the captured value is validated as numeric on the next lines and exits 2 if not
 # An unreadable protection state must never read as "no protection". Fail loud,
 # not green — a broken query looks identical to a clean result otherwise.
 if ! [[ "$REVIEWS" =~ ^[0-9]+$ ]]; then

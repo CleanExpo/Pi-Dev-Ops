@@ -31,6 +31,22 @@ A diff-relative claim is decidable: compare the change against a named baseline 
 
 *Earned 2026-08-01: three bounded attempts at capability 1 of the command-centre migration were all correctly failed by cross-vendor review, because the spec asked for absolute read-only proof. The code was fine every time. The spec was the defect.*
 
+## A review is never coverage
+
+**A person-shaped or model-shaped check is never a control. This review does not appear in any coverage map, threat model, or assurance argument as a line item.**
+
+Reviews are judgement applied once, by an agent that may be tired, rushed, differently briefed, or simply not looking at the right file that day. A control is a mechanism that fires every time, the same way, whether or not anyone remembers it. Those are different kinds of thing and must never be summed into the same table.
+
+The failure this prevents is specific and seductive: you enumerate ten gaps, note that "cross-vendor review would probably catch most of these", and the gaps stop feeling urgent. Nothing was built. Coverage went down while the document said it went up.
+
+**Rules:**
+- Never list a review — human or model — as a row in a coverage map.
+- Never justify not building a check on the grounds that review would catch it.
+- When a review finds something a control could have found, that is evidence the control is **missing**, not evidence the review is sufficient.
+- A gap found by review and left unbuilt is still an open gap. Record it as one.
+
+*Source: Codex (gpt-5.5), auditing this estate's own harness coverage map, 2026-08-01. The map listed cross-vendor review as check "C8" alongside eight mechanical checks. The correction was one line — **"C8 should not be treated as coverage"** — and it invalidated the map's own arithmetic. It was right. Counting the reviewer as a control is how a gap gets closed on paper and left open in fact.*
+
 ## Phase 1 — Assemble the input set
 
 The reviewer receives **exactly these four things** and nothing else:
