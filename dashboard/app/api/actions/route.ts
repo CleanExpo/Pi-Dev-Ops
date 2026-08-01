@@ -143,8 +143,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       // CLI fallback: run claude -p
       const { spawn } = await import("child_process");
       return new Promise((resolve) => {
+        // Scoped env. This previously passed { ...process.env }, so the spawned CLI
+        // inherited every credential the dashboard holds — SUPABASE_SERVICE_ROLE_KEY,
+        // GITHUB_TOKEN, VERCEL_TOKEN, TELEGRAM_BOT_TOKEN, DASHBOARD_PASSWORD and more —
+        // into a process driven by a caller-supplied prompt. The CLI needs its own auth
+        // and a working shell environment. It needs none of the rest.
+        const CHILD_ENV_ALLOWLIST = [
+          "PATH", "HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA",
+          "SystemRoot", "TEMP", "TMP", "LANG", "NODE_ENV", "ANTHROPIC_API_KEY",
+        ];
+        const childEnv = { NODE_ENV: process.env.NODE_ENV } as NodeJS.ProcessEnv;
+        for (const k of CHILD_ENV_ALLOWLIST) {
+          if (process.env[k] !== undefined) childEnv[k] = process.env[k];
+        }
         const child = spawn("claude", ["-p", prompt, "--model", MODELS.DEFAULT, "--output-format", "text"], {
-          env: { ...process.env },
+          env: childEnv,
         });
         let output = "";
         child.stdout.on("data", (d: Buffer) => { output += d.toString(); });

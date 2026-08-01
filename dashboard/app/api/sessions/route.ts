@@ -48,11 +48,44 @@ export async function GET(): Promise<NextResponse<{ sessions: Session[] }>> {
   }
 }
 
-export async function DELETE(): Promise<NextResponse> {
+/**
+ * DELETE /api/sessions
+ *
+ * Previously an unconditional delete-all via `.neq("id","")` — the delete-everything
+ * idiom — reachable by anything holding the single shared dashboard password. In a
+ * shared-password system "authenticated" includes automation, and the fence intercepts
+ * tool calls rather than HTTP, so this endpoint sat outside every gate we have built.
+ *
+ * Now: delete ONE session by id, or pass an explicit confirmation token to clear all.
+ * There is no longer a request shape that wipes the table by accident.
+ */
+export async function DELETE(req: Request): Promise<NextResponse> {
   try {
+    const url = new URL(req.url);
+    const id = url.searchParams.get("id");
+    const confirm = url.searchParams.get("confirm");
     const supabase = createServerClient();
-    await supabase.from("sessions").delete().neq("id", ""); // delete all rows
-    return NextResponse.json({ cleared: true });
+
+    if (id) {
+      await supabase.from("sessions").delete().eq("id", id);
+      return NextResponse.json({ cleared: 1, id });
+    }
+
+    if (confirm !== "DELETE_ALL_SESSIONS") {
+      return NextResponse.json(
+        {
+          error:
+            "Refusing to delete every session. Pass ?id=<sessionId> to remove one, " +
+            "or ?confirm=DELETE_ALL_SESSIONS to clear the table deliberately.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Explicit, confirmed clear-all. Scoped by created_at rather than the
+    // `.neq("id","")` match-everything idiom.
+    await supabase.from("sessions").delete().gte("created_at", "1970-01-01");
+    return NextResponse.json({ cleared: "all", confirmed: true });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Failed" }, { status: 500 });
   }
