@@ -154,7 +154,12 @@ git checkout -- 'dashboard/app/(main)/command-centre/page.tsx'
   not exercised. Coverage is what rendered, not what could render. Every entry page is asserted
   200 so a page that fails to render cannot pass by emitting nothing — but an unrendered
   *branch* is genuinely unmeasured.
-- External links are skipped by design; the question is whether OUR routes exist.
+- External links are skipped by design; the question is whether OUR routes exist. Same-origin is
+  decided by RESOLVING each href against the page URL (`new URL(raw, pageUrl)`), so relative,
+  absolute and protocol-relative forms are handled by one rule. Round-2 review found the earlier
+  version matched only slash-prefixed hrefs, leaving rendered **relative** links unmeasured —
+  fixed by resolving rather than by adding a pattern, since URL resolution is decidable in a way
+  form-enumeration never was.
 - `/_next/*` build assets are excluded — not navigation, and `npm run build` owns them.
 
 **Two controls it carries, both of which caught real false-greens in its own first hour:**

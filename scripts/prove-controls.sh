@@ -122,6 +122,11 @@ hdr "C12 — runtime route exercising (needs a build; ~90s)"
 if [ -f dashboard/.next/BUILD_ID ]; then
   node scripts/route-exercise.mjs --plant-broken-link >/dev/null 2>&1
   [ $? -ne 0 ] && ok "fails on a planted unresolvable link" || bad "passed with a broken link"
+  # Round-2 finding: the extractor only matched slash-prefixed hrefs, so a rendered RELATIVE
+  # link was unmeasured. If this stops failing, that regression is back.
+  node scripts/route-exercise.mjs --plant-relative-link >/dev/null 2>&1
+  [ $? -ne 0 ] && ok "fails on a planted RELATIVE link (no leading slash)" \
+               || bad "MISSED a relative internal link — slash-only extraction has regressed"
   node scripts/route-exercise.mjs >/dev/null 2>&1
   [ $? -eq 0 ] && ok "passes on the clean surface" || bad "red on a clean surface"
   touch "dashboard/app/(main)/command-centre/page.tsx"

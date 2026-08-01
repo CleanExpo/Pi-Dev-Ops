@@ -36,10 +36,13 @@
  *     localStorage, at a viewport size, or after client data arrives is NOT exercised.
  *     Named by round-1 review as the largest remaining hole and it is a real one: closing it
  *     needs a real browser, which is a different tool with a different cost.
- *   - External links are skipped by design; this asks whether OUR routes exist.
+ *   - External links are skipped by design; this asks whether OUR routes exist. Same-origin
+ *     is decided by resolving each href against the page URL, so relative and absolute forms
+ *     are handled by one rule rather than by a list of spellings.
  *
- * Usage: node scripts/route-exercise.mjs [--plant-broken-link]
- *   --plant-broken-link  positive control: assert this script FAILS on a known-bad route.
+ * Usage: node scripts/route-exercise.mjs [--plant-broken-link] [--plant-relative-link]
+ *   --plant-broken-link    control: assert this script FAILS on a known-bad absolute route.
+ *   --plant-relative-link  control: same, for a RELATIVE href with no leading slash.
  */
 import { spawn, spawnSync } from "node:child_process";
 import { createHmac, randomBytes } from "node:crypto";
@@ -56,6 +59,9 @@ const BASE = `http://127.0.0.1:${PORT}`;
 // since a scanner cannot tell a throwaway probe secret from a real one by reading it.
 const PASSWORD = randomBytes(24).toString("hex");
 const PLANT = process.argv.includes("--plant-broken-link");
+// Separate control for the round-2 finding: a RELATIVE internal link. If the extractor ever
+// regresses to slash-prefixed-only matching, this stops failing and the regression is loud.
+const PLANT_REL = process.argv.includes("--plant-relative-link");
 
 /** Pages whose rendered output defines the navigation surface under test. */
 const ENTRY_PAGES = [
@@ -98,19 +104,33 @@ async function waitForServer(timeoutMs = 90_000) {
   return false;
 }
 
-/** Internal paths in rendered HTML: href/action/formaction. Skips external + anchors. */
-function extractPaths(html) {
+/**
+ * Internal paths in rendered HTML, RESOLVED rather than pattern-matched.
+ *
+ * Round-2 review: the previous version matched only `href="/..."`, so a rendered relative
+ * link — `href="hermes"`, `href="./hermes"`, `href="../knowledge"` — was internal
+ * navigation that went unexercised. Adding "also match non-slash hrefs" would have been
+ * another pattern on the pile, which is the thing this whole check exists to stop doing.
+ *
+ * So: take every href/action/formaction value and RESOLVE it against the page it was found
+ * on, using the URL parser. Relative, absolute, protocol-relative and external all fall out
+ * of one rule — same origin means ours, and `pathname + search` is what to request. URL
+ * resolution is decidable and complete in a way form-enumeration never was.
+ */
+function extractPaths(html, pageUrl) {
   const out = new Set();
-  // Keep the query string. Round-1 review: stopping at `?` exercised /route?bad=state as
-  // /route, so a link whose PARAMS are wrong tested clean. Fragments are still dropped —
-  // they never reach the server.
-  for (const m of html.matchAll(/(?:href|action|formaction)=["'](\/[^"'#]*)/gi)) {
-    const p = m[1].replace(/\/$/, "") || "/";
-    if (p.startsWith("//")) continue;
-    // Framework build assets are not app routes. This check asks "does the navigation
-    // target exist"; a hashed chunk URL is neither navigation nor ours to assert.
-    // (Their absence IS a real signal — it is how the stale-server bug below was first
-    // visible — but it belongs to build integrity, which `npm run build` already owns.)
+  for (const m of html.matchAll(/(?:href|action|formaction)=["']([^"']*)["']/gi)) {
+    const raw = m[1].trim();
+    if (!raw || raw.startsWith("#")) continue;
+    // Non-http schemes are not navigation we can request: mailto:, tel:, javascript:, data:
+    if (/^[a-z][a-z0-9+.-]*:/i.test(raw) && !/^https?:/i.test(raw)) continue;
+    let u;
+    try { u = new URL(raw, pageUrl); } catch { continue; }
+    if (u.origin !== new URL(BASE).origin) continue;   // external — not ours to assert
+    const p = (u.pathname.replace(/\/$/, "") || "/") + u.search;
+    // Framework build assets are not app routes. Their absence IS a real signal — it is how
+    // the stale-server bug first showed — but it belongs to build integrity, which
+    // `npm run build` already owns.
     if (p.startsWith("/_next/")) continue;
     out.add(p);
   }
@@ -252,7 +272,11 @@ async function main() {
       if (PLANT && page === "/command-centre") {
         html += '<a href="/command-centre/this-route-does-not-exist">planted</a>';
       }
-      for (const p of extractPaths(html)) {
+      if (PLANT_REL && page === "/command-centre") {
+        // No leading slash. Resolves against /command-centre -> /this-relative-route-404s.
+        html += '<a href="this-relative-route-404s">planted-relative</a>';
+      }
+      for (const p of extractPaths(html, BASE + page)) {
         if (!discovered.has(p)) discovered.set(p, new Set());
         discovered.get(p).add(page);
       }
