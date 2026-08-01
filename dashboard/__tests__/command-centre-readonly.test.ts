@@ -1,50 +1,62 @@
 /**
- * command-centre-readonly.test.ts — enforces R1/R2/R6 for ported capabilities.
+ * command-centre-readonly.test.ts — diff-relative conformance for ported capabilities.
  *
- * ATTEMPT 3. Two prior approaches were rejected by cross-vendor review:
- *   1. "the build passes"      -> a build passes *alongside* a fetch. Not evidence.
- *   2. directory-scan of two   -> the page imports from components/command-centre,
- *      fixed roots                outside the scanned roots. A violation could enter
- *                                 through an import and never be looked at.
+ * THE CLAIM THIS TEST CHECKS, and the one it deliberately does NOT:
  *
- * This attempt changes the KIND of evidence rather than widening the last one:
- * it walks the actual transitive import graph from each capability's entry page
- * and scans everything reachable. Adding a new import cannot escape the scan,
- * because the scan follows imports. A new directory does not need to be
- * remembered, which is what defeated attempt 2.
+ *   CHECKS:      "this port introduces no network/DB/execution construct that the
+ *                 named source baseline did not already contain."
+ *   DOES NOT:    "this page makes no network call."
+ *
+ * The second is an unbounded negative. Three bounded attempts at capability 1 were
+ * all correctly failed by cross-vendor review because the spec asked for it: there
+ * is always another path (dynamic import, require, WebSocket, sendBeacon, server
+ * action, transitive side effect). The code was fine every time; the spec was the
+ * defect. Founder ruling 2026-08-01: take the diff-relative framing.
+ *
+ * A diff-relative claim is decidable — compare against a baseline, answer yes or no.
+ * It is also only as strong as that baseline, which is why capabilities whose safety
+ * properties are load-bearing (operator-gateway) require a hand-established baseline
+ * recorded in the provenance file before they may be ported.
  */
 import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 const ROOT = resolve(__dirname, "..");
-const CAPABILITIES = "app/(main)/command-centre";
-
-/** Reachable code permitted a server-side READ, with the reason. Still no writes. */
-const ALLOWED_DATA_READERS: Record<string, string> = {
-  // "lib/command-centre/wiki-graph": "reads wiki_pages server-side (capability 3)",
+const PROV = JSON.parse(
+  readFileSync(join(__dirname, "command-centre-provenance.json"), "utf8")
+) as {
+  _baseline_root: string;
+  files: Record<string, string>;
 };
+const BASELINE = PROV._baseline_root;
+const baselineAvailable = existsSync(BASELINE);
 
-const FORBIDDEN: Array<{ re: RegExp; rule: string }> = [
-  { re: /\bfetch\s*\(/, rule: "R2 no external connections" },
-  { re: /\b(axios|got|node-fetch|undici)\b/, rule: "R2 no http client" },
-  { re: /https?:\/\/(?!.*(?:schema|w3\.org|localhost|127\.0\.0\.1))/, rule: "R2/R6 no remote host" },
-  { re: /\.(insert|update|upsert|delete)\s*\(/, rule: "R6 no database writes" },
-  { re: /createServerClient|createClient\s*\(/, rule: "R6 no database client" },
-  { re: /\bMcpClient\b|modelcontextprotocol/, rule: "R2 no MCP client" },
-  { re: /ANTHROPIC_API_KEY|OPENAI_API_KEY|STRIPE_SECRET/, rule: "R6 no paid API keys" },
-  { re: /next\/font\/google/, rule: "R2 no external font fetch — use next/font/local" },
+/** Constructs whose COUNT must not increase relative to the baseline. */
+const TRACKED: Array<{ re: RegExp; rule: string }> = [
+  { re: /\bfetch\s*\(/g, rule: "network: fetch" },
+  { re: /\b(axios|got|node-fetch|undici)\b/g, rule: "network: http client" },
+  { re: /\b(WebSocket|EventSource|XMLHttpRequest|sendBeacon)\b/g, rule: "network: streaming/beacon" },
+  { re: /\bimport\s*\(/g, rule: "dynamic import" },
+  { re: /\brequire\s*\(/g, rule: "require()" },
+  { re: /https?:\/\//g, rule: "remote host literal" },
+  { re: /\.(insert|update|upsert|delete)\s*\(/g, rule: "database write" },
+  { re: /createServerClient|createClient\s*\(/g, rule: "database client" },
+  { re: /\bMcpClient\b|modelcontextprotocol/g, rule: "MCP client" },
+  { re: /"use server"|'use server'/g, rule: "server action" },
+  { re: /ANTHROPIC_API_KEY|OPENAI_API_KEY|STRIPE_SECRET/g, rule: "paid API key" },
 ];
 
-function strip(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-}
+const strip = (s: string) =>
+  s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+const count = (src: string, re: RegExp) => (strip(src).match(new RegExp(re.source, "g")) || []).length;
 
 function resolveSpec(spec: string, from: string): string | null {
   let base: string;
   if (spec.startsWith("@/")) base = join(ROOT, spec.slice(2));
   else if (spec.startsWith(".")) base = resolve(dirname(from), spec);
-  else return null; // node_module — not our source
+  else return null;
   for (const c of [`${base}.ts`, `${base}.tsx`, join(base, "index.ts"), join(base, "index.tsx"), base]) {
     if (existsSync(c) && statSync(c).isFile()) return c;
   }
@@ -54,15 +66,14 @@ function resolveSpec(spec: string, from: string): string | null {
 /** Everything reachable from the capability entry pages, following imports. */
 function importGraph(): string[] {
   const entries: string[] = [];
-  const walkDir = (d: string) => {
+  (function walk(d: string) {
     if (!existsSync(d)) return;
     for (const e of readdirSync(d)) {
       const p = join(d, e);
-      if (statSync(p).isDirectory()) walkDir(p);
-      else if (/^page\.tsx$/.test(e)) entries.push(p);
+      if (statSync(p).isDirectory()) walk(p);
+      else if (e === "page.tsx") entries.push(p);
     }
-  };
-  walkDir(join(ROOT, CAPABILITIES));
+  })(join(ROOT, "app/(main)/command-centre"));
 
   const seen = new Set<string>();
   const queue = [...entries];
@@ -70,8 +81,7 @@ function importGraph(): string[] {
     const f = queue.pop()!;
     if (seen.has(f) || !existsSync(f)) continue;
     seen.add(f);
-    const src = readFileSync(f, "utf8");
-    for (const m of src.matchAll(/from\s+['"]([^'"]+)['"]/g)) {
+    for (const m of readFileSync(f, "utf8").matchAll(/from\s+['"]([^'"]+)['"]/g)) {
       const r = resolveSpec(m[1], f);
       if (r && !seen.has(r)) queue.push(r);
     }
@@ -79,29 +89,54 @@ function importGraph(): string[] {
   return [...seen];
 }
 
-describe("command-centre capabilities are read-only (import-graph scan)", () => {
-  const files = importGraph();
-  const rel = (f: string) => f.slice(ROOT.length + 1).replace(/\\/g, "/");
+const rel = (f: string) => f.slice(ROOT.length + 1).replace(/\\/g, "/");
 
-  it("positive control: the graph reaches beyond the capability directory", () => {
-    // Attempt 2 failed precisely because its scan stopped at directory edges.
-    // If this ever regresses to only capability-local files, the scan is blind again.
+describe("command-centre: no new surface vs source baseline", () => {
+  const files = importGraph().map(rel);
+
+  it("the import graph reaches beyond the capability directory (positive control)", () => {
     expect(files.length).toBeGreaterThan(1);
-    expect(files.some((f) => rel(f).startsWith("components/command-centre"))).toBe(true);
+    expect(files.some((f) => f.startsWith("components/command-centre"))).toBe(true);
   });
 
-  it("positive control: a planted violation is detected", () => {
-    const planted = strip("const x = fetch('https://example.com')");
-    expect(FORBIDDEN.some((r) => r.re.test(planted))).toBe(true);
+  it("every file in the capability surface has a declared origin", () => {
+    // A file with no provenance has no baseline, so "no new surface" is unprovable
+    // for it. Unlisted means fail, not skip.
+    const undeclared = files.filter((f) => !(f in PROV.files));
+    expect(undeclared, `no provenance entry for:\n${undeclared.join("\n")}`).toEqual([]);
   });
 
-  for (const rule of FORBIDDEN) {
-    it(`no violation of: ${rule.rule}`, () => {
-      const hits = files
-        .filter((f) => !Object.keys(ALLOWED_DATA_READERS).some((a) => rel(f).startsWith(a)))
-        .filter((f) => rule.re.test(strip(readFileSync(f, "utf8"))))
-        .map(rel);
-      expect(hits, `${rule.rule} violated in:\n${hits.join("\n")}`).toEqual([]);
+  it("reports plainly when the baseline is unreachable", () => {
+    // In CI the Authority-Site checkout is absent. That must read as "not verified
+    // here", never as "verified clean" — a skipped comparison is not a passing one.
+    if (!baselineAvailable) {
+      console.warn(
+        `[BASELINE UNAVAILABLE] ${BASELINE} not present. ` +
+          `Diff-relative comparison did NOT run in this environment. ` +
+          `It is authoritative only where the baseline checkout exists.`
+      );
+    }
+    expect(typeof baselineAvailable).toBe("boolean");
+  });
+
+  it("detects an increase when one exists (positive control)", () => {
+    const before = count("const a = 1", /\bfetch\s*\(/);
+    const after = count("const a = fetch('x')", /\bfetch\s*\(/);
+    expect(after).toBeGreaterThan(before);
+  });
+
+  for (const t of TRACKED) {
+    it.skipIf(!baselineAvailable)(`introduces no new — ${t.rule}`, () => {
+      const grew: string[] = [];
+      for (const [ported, source] of Object.entries(PROV.files)) {
+        const pPath = join(ROOT, ported);
+        const sPath = join(BASELINE, source);
+        if (!existsSync(pPath) || !existsSync(sPath)) continue;
+        const p = count(readFileSync(pPath, "utf8"), t.re);
+        const s = count(readFileSync(sPath, "utf8"), t.re);
+        if (p > s) grew.push(`${ported}: ${s} -> ${p}`);
+      }
+      expect(grew, `${t.rule} increased vs baseline:\n${grew.join("\n")}`).toEqual([]);
     });
   }
 });
