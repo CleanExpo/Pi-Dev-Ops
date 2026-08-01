@@ -133,14 +133,23 @@ describe("command-centre: no new surface vs source baseline", () => {
   for (const t of TRACKED) {
     it.skipIf(!baselineAvailable)(`introduces no new — ${t.rule}`, () => {
       const grew: string[] = [];
+      const unresolved: string[] = [];
       for (const [ported, source] of Object.entries(PROV.files)) {
         const pPath = join(ROOT, ported);
         const sPath = join(BASELINE, source);
-        if (!existsSync(pPath) || !existsSync(sPath)) continue;
+        // A pair that cannot be resolved must NOT be skipped. Skipping it left the
+        // file uncompared while the suite still went green — a mistyped baseline
+        // path would read as "verified clean" having checked nothing.
+        if (!existsSync(pPath)) { unresolved.push(`ported missing: ${ported}`); continue; }
+        if (!existsSync(sPath)) { unresolved.push(`baseline missing: ${source} (for ${ported})`); continue; }
         const p = count(readFileSync(pPath, "utf8"), t.re);
         const s = count(readFileSync(sPath, "utf8"), t.re);
         if (p > s) grew.push(`${ported}: ${s} -> ${p}`);
       }
+      expect(
+        unresolved,
+        `provenance pairs could not be resolved, so these files were NOT compared:\n${unresolved.join("\n")}`
+      ).toEqual([]);
       expect(grew, `${t.rule} increased vs baseline:\n${grew.join("\n")}`).toEqual([]);
     });
   }
