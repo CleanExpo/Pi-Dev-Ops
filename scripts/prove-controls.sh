@@ -120,8 +120,15 @@ rm -f docs/.control-secret.tmp
 if [ "$FAST" = 0 ]; then
 hdr "C12 — runtime route exercising (needs a build; ~90s)"
 if [ -f dashboard/.next/BUILD_ID ]; then
+  # Round-4 review, two defects in THIS script:
+  #   · it left page.tsx touched after the stale-build test, so a SECOND run failed at the
+  #     clean-surface step — the proof script was not idempotent, and the reviewer hit it.
+  #   · planted controls asserted "nonzero", which would accept a crash as a pass. Assert 1.
+  PAGE='dashboard/app/(main)/command-centre/page.tsx'
+  MTREF="$(mktemp)"; touch -r "$PAGE" "$MTREF"; CLEANUP+=("rm -f '$MTREF'")
+
   node scripts/route-exercise.mjs --plant-broken-link >/dev/null 2>&1
-  [ $? -ne 0 ] && ok "fails on a planted unresolvable link" || bad "passed with a broken link"
+  [ $? -eq 1 ] && ok "fails (exit 1) on a planted unresolvable link"                || bad "planted broken link did not produce exit 1"
   # Round-3 finding: a link 307ing to a MISSING page passed green, since the hop is neither
   # 404 nor 5xx. Synthetic server, because the app has no redirect chain to borrow.
   node scripts/route-exercise.mjs --self-test-redirects >/dev/null 2>&1
@@ -129,14 +136,22 @@ if [ -f dashboard/.next/BUILD_ID ]; then
   # Round-2 finding: the extractor matched slash-prefixed hrefs only, so a rendered RELATIVE
   # link was unmeasured. If this stops failing, that regression is back.
   node scripts/route-exercise.mjs --plant-relative-link >/dev/null 2>&1
-  [ $? -ne 0 ] && ok "fails on a planted RELATIVE link (no leading slash)" \
-               || bad "MISSED a relative internal link — slash-only extraction has regressed"
+  [ $? -eq 1 ] && ok "fails (exit 1) on a planted RELATIVE link (no leading slash)"                || bad "planted relative link did not produce exit 1"
+
+  # Round-4: page discovery must track the route tree, not a hard-coded list.
+  ON_DISK=$(find 'dashboard/app/(main)/command-centre' -name 'page.tsx' 2>/dev/null | wc -l | tr -d ' ')
+  RENDERED=$(node scripts/route-exercise.mjs 2>&1 | grep -oE 'rendered [0-9]+ pages' | grep -oE '[0-9]+')
+  [ -n "$RENDERED" ] && [ "$RENDERED" = "$ON_DISK" ]     && ok "renders every page.tsx on disk ($RENDERED = $ON_DISK) — discovery is not a stale list"     || bad "rendered '$RENDERED' pages but $ON_DISK page.tsx exist — discovery has drifted"
+
   node scripts/route-exercise.mjs >/dev/null 2>&1
   [ $? -eq 0 ] && ok "passes on the clean surface" || bad "red on a clean surface"
-  touch "dashboard/app/(main)/command-centre/page.tsx"
+
+  touch "$PAGE"
   node scripts/route-exercise.mjs >/dev/null 2>&1
   [ $? -eq 2 ] && ok "refuses to run against a stale build" || bad "ran against a stale build"
-  echo "  NOTE  source touched — rebuild before relying on C12 again"
+  touch -r "$MTREF" "$PAGE"   # restore mtime — this script must be re-runnable
+  node scripts/route-exercise.mjs >/dev/null 2>&1
+  [ $? -eq 0 ] && ok "idempotent: clean again after the stale-build test"                || bad "left the tree dirty — a second run of this script would fail"
 else
   echo "  SKIP  no dashboard build present"
 fi

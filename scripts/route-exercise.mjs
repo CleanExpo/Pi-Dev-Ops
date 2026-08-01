@@ -65,18 +65,40 @@ const BASE = `http://127.0.0.1:${PORT}`;
 // a literal bought nothing and tripped the secrets scanner as a hardcoded password — fairly,
 // since a scanner cannot tell a throwaway probe secret from a real one by reading it.
 const PASSWORD = randomBytes(24).toString("hex");
+const ENTRY_PAGES = discoverEntryPages(APP);
 const PLANT = process.argv.includes("--plant-broken-link");
 // Separate control for the round-2 finding: a RELATIVE internal link. If the extractor ever
 // regresses to slash-prefixed-only matching, this stops failing and the regression is loud.
 const PLANT_REL = process.argv.includes("--plant-relative-link");
 
-/** Pages whose rendered output defines the navigation surface under test. */
-const ENTRY_PAGES = [
-  "/command-centre",
-  "/command-centre/hermes",
-  "/command-centre/knowledge",
-  "/command-centre/wiki-graph",
-];
+/**
+ * Entry pages, DISCOVERED from the route tree rather than listed.
+ *
+ * Round-4 review: "C12 covers the four listed entry pages, not intrinsically every
+ * command-centre page." Correct, and it was a mechanism defect rather than a wording one —
+ * a complete version is describable and buildable, so the check gets fixed instead of the
+ * claim. A page added tomorrow is now covered without anyone remembering to edit this file;
+ * a hard-coded list silently narrows the moment the surface grows.
+ */
+function discoverEntryPages(appDir) {
+  const base = join(appDir, "app", "(main)", "command-centre");
+  const found = [];
+  (function walk(dir, urlPath) {
+    if (!existsSync(dir)) return;
+    for (const e of fsRead(dir)) {
+      const p = join(dir, e);
+      if (fsStat(p).isDirectory()) {
+        // Route groups "(x)" are transparent in the URL; dynamic segments are skipped —
+        // there is no safe value to substitute for [id] without inventing data.
+        if (e.startsWith("[")) continue;
+        walk(p, e.startsWith("(") ? urlPath : `${urlPath}/${e}`);
+      } else if (e === "page.tsx" || e === "page.ts") {
+        found.push(urlPath || "/command-centre");
+      }
+    }
+  })(base, "/command-centre");
+  return [...new Set(found)].sort();
+}
 
 const log = (...a) => console.log("   ", ...a);
 
@@ -210,14 +232,17 @@ async function selfTestRedirects() {
     if (cond) { console.log(`    PASS  ${name}`); pass++; }
     else { console.log(`    FAIL  ${name}`); fail++; }
   };
+  try {
   const missing = await finalStatus("/hop-to-missing", "", 5, base);
   check("redirect to a MISSING target reports 404, not the 307", missing.status === 404);
   const ok = await finalStatus("/hop-to-ok", "", 5, base);
   check("redirect to a live target reports 200", ok.status === 200);
   const loop = await finalStatus("/loop", "", 5, base);
   check("redirect loop is reported, not passed", loop.status === "redirect-loop");
-  srv.close();
   return fail === 0 ? 0 : 1;
+  } finally {
+    srv.close();   // round-4: previously closed only on the happy path
+  }
 }
 
 async function main() {
@@ -333,19 +358,36 @@ async function main() {
     // page below redirects to login, we extract the login page's links, and the run goes
     // green having exercised nothing. That failure would look exactly like success.
     const probe = await get(BASE + ENTRY_PAGES[0], { headers: { cookie } });
-    if (probe.status !== 200) {
+    const probeBody = probe.status === 200 ? await probe.text() : "";
+    // Round-4 review: a status-only probe would pass if a rejected cookie rendered a
+    // same-URL 200 login or empty shell — the run would then exercise the login page and
+    // report success. Assert we got the actual command-centre surface, not just a 200.
+    const looksLikeTheSurface = /Command Centre|command-centre/i.test(probeBody) &&
+                                !/type=["']password["']|Sign in|Log in/i.test(probeBody);
+    if (probe.status !== 200 || !looksLikeTheSurface) {
       console.error(
-        `FAIL: control — ${ENTRY_PAGES[0]} returned ${probe.status} with a minted session, ` +
-        `expected 200. Without an accepted session this run would exercise the login page ` +
-        `and report success. Refusing to report anything.`);
+        `FAIL: control — ${ENTRY_PAGES[0]} returned ${probe.status}` +
+        (probe.status === 200 ? " but the body does not look like the command-centre surface" : "") +
+        ` with a minted session. Without a genuinely accepted session this run would exercise
+` +
+        `      a login or shell page and report success. Refusing to report anything.`);
       return 2;
     }
-    log("control: minted session accepted (entry page 200) — the run is measuring the real surface");
+    log("control: session accepted AND the body is the real surface — not a login shell");
 
     const discovered = new Map(); // path -> Set(pages that linked to it)
     const failures = [];
 
-    for (const page of ENTRY_PAGES) {
+    // Round-4 review: extraction was non-recursive, so a link found on an entry page was
+    // requested but never itself rendered-and-extracted. Crawl to closure over same-origin
+    // command-centre pages instead, bounded by a visited set and a hard cap.
+    const MAX_PAGES = 50;
+    const queue = [...ENTRY_PAGES];
+    const rendered = new Set();
+    while (queue.length && rendered.size < MAX_PAGES) {
+      const page = queue.shift();
+      if (rendered.has(page)) continue;
+      rendered.add(page);
       const res = await get(BASE + page, { headers: { cookie } });
       if (res.status !== 200) {
         failures.push(`ENTRY ${page} -> ${res.status} (page did not render; its links are unmeasured)`);
@@ -362,10 +404,22 @@ async function main() {
       for (const p of extractPaths(html, BASE + page)) {
         if (!discovered.has(p)) discovered.set(p, new Set());
         discovered.get(p).add(page);
+        // Follow command-centre pages so their links are extracted too, not just requested.
+        const bare = p.split("?")[0];
+        if (bare.startsWith("/command-centre") && !rendered.has(bare) && !queue.includes(bare)) {
+          queue.push(bare);
+        }
       }
     }
+    if (queue.length) {
+      console.error(`FAIL: page cap of ${MAX_PAGES} reached with ${queue.length} still queued.`);
+      console.error(`      A truncated crawl that reports success would describe a surface it`);
+      console.error(`      did not finish reading. Raise MAX_PAGES deliberately.`);
+      return 2;
+    }
 
-    log(`rendered ${ENTRY_PAGES.length} pages, discovered ${discovered.size} distinct internal paths`);
+    log(`rendered ${rendered.size} pages (discovered from the route tree, crawled to closure), ` +
+        `${discovered.size} distinct internal paths`);
 
     for (const [path, sources] of [...discovered].sort()) {
       const from = `(linked from: ${[...sources].join(", ")})`;

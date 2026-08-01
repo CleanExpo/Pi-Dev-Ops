@@ -126,6 +126,16 @@ reported on the surface.
 
 **Built and proven.** `scripts/route-exercise.mjs`, wired as a `handoff-loop.sh` gate.
 
+**Round-4 changes — both mechanism fixes, by the claim-vs-check test in `proof-discipline`.**
+The reviewer found C12 covered "the four listed entry pages, not intrinsically every
+command-centre page", and that extraction was non-recursive. Both were *describable and
+buildable*, so the check changed rather than the wording: entry pages are now **discovered from
+the route tree** (a page added tomorrow is covered without anyone editing a list), and the
+crawler **follows command-centre pages to closure** so a discovered page's own links are
+extracted rather than merely requested. A page cap that is hit is a hard failure, not a
+truncated pass. The session control also now asserts the body *is* the command-centre surface,
+because a rejected cookie rendering a same-URL 200 shell would have passed a status-only probe.
+
 The proof is a side-by-side on one planted defect — a `DECKS` entry pointing at a route that
 does not exist, reached through `<Link href={d.href}>`, which is exactly the form attempt 4
 found:
@@ -181,6 +191,8 @@ job, not failing at it. It is the honest boundary of the claim:
   submitting to handlers with side effects, which a read-only verifier must not do.
 - **Non-rendered API calls** (round 3). A `fetch()` made by a component at runtime is not in
   the HTML, so an API route only client code calls is never exercised.
+- **Dynamic route segments.** Page discovery walks the route tree, but `[id]`-style segments
+  are skipped — there is no safe value to substitute without inventing data.
 - **External redirect destinations** (round 3). Redirect chains ARE now followed to a final
   status — a link 307ing to a missing page used to pass green, since the hop is neither 404 nor
   5xx — but a hop that leaves our origin ends the walk. Where it lands is not ours to assert.
