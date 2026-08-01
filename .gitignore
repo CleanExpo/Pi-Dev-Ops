@@ -197,3 +197,11 @@ remotion-studio/public/ra-wave-1-screencaps/
 # Session-handoff runtime artifacts (dirs + READMEs tracked; generated files local-only)
 docs/session-handoffs/handoff-*.md
 .handoff-logs/*.log
+
+# Auto-commit fallout (2026-08-01). An `autogit busy` hook wired into Claude Code's
+# UserPromptSubmit/PostToolUse was sweeping these into commits authored as the
+# founder and pushing them unreviewed. The hook is dead; these stay ignored so a
+# future one cannot re-pollute the branch.
+.omx/
+.harness/*.txt
+.harness/*.diff
