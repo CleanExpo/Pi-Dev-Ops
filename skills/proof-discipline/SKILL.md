@@ -86,6 +86,16 @@ failed 2 tests, which is what the exemption's narrowness actually rests on.*
 - **observed** — saw the right result once, but on a forced plan, sub-scale, friendly geometry, or bypassed auth. Must be stated as such.
 - **assumed** — reasoned, not run. **Zero `assumed` items allowed in the load-bearing set before declaring done.**
 
+> **SPLIT PENDING (founder, 2026-08-02) — after the per-capability tokens work, not mid-hardening.**
+> This file now carries two skills. The test is NOT line count: it is whether each half fires on
+> its own moment.
+> · **control-design discipline** — needed while BUILDING a check: the first run is the failing
+>   one, a fixed set goes stale silently, claim-vs-check.
+> · **proof discipline** — needed while CLAIMING DONE: green is not proven, null results need a
+>   positive control, shipped is not observed.
+> Name each for the moment it serves, because the failure mode is that the less
+> obviously-named half never loads when it is the one needed.
+
 ## A Check That Knows a Fixed Set Is a Check That Goes Stale Silently
 
 **Any check that enumerates the surface it guards will, at some point, guard less than its name
