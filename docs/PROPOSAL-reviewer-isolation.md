@@ -439,8 +439,60 @@ Two ways out, both Phill's to choose:
   than a mounted file. It opens **only model inference** — the property §9.4 asks for. **Requires
   amending Control 3**, which currently forbids exactly this, and introduces per-call spend.
 
-I am not choosing. (a) is specifiable today and changes no control; (b) is stronger isolation bought
-with money and a control amendment.
+### 9.4.1 RULING — option (a), recorded as ACCEPTED EXPOSURE PENDING REMEDIATION
+
+**Ruled by Phill, 2026-08-03. Status: `accepted-exposure-pending-remediation`.**
+
+| field | value |
+|---|---|
+| **Exposure accepted** | The reviewer can read `~/.codex/auth.json` (4558 B), a full ChatGPT account credential, mounted read-only. Per §9.1 anything readable inside is effectively disclosed. |
+| **Rationale** | Blast radius moves from *the estate plus a production deploy path* — 58 repos, `~/.ssh/id_ed25519`, Railway and Vercel tokens, push-capable remotes — down to **one SaaS account**. Zero spend, no governance change. |
+| **Residual risk** | Account compromise. **Not** estate compromise: no key material, no cloud tokens, no other repository, no deploy path. |
+| **Remediation** | **§9.4.2 credential broker.** Specified below, not an intention. Build work, sequenced after the container proves out per §9.5. |
+| **Review trigger** | Container passes §9.5; or any change to what `auth.json` grants; or the credential's scope widens. |
+| **Expiry** | Not open-ended. Revisit at the §9.5 gate. |
+
+**This acceptance is NOT an endorsement of amending Control 3.** Control 3 (`codex-review.sh:42-49`)
+is a **spend-posture** control — it refuses paid per-call keys. Whether the estate takes on per-call
+model spend is a financial decision on its own merits and its own timeline. **It must not ride along
+as a side effect of an isolation decision.** Option (b) remains available and un-chosen; nobody should
+later read "Phill accepted (a)" as "Phill declined (b)" or as "Phill approved amending Control 3".
+Those are three different decisions and only the first has been made.
+
+### 9.4.2 REMEDIATION — credential broker on the host
+
+Satisfies the original §9.4 constraint — *a credential that opens nothing else* — **without amending
+Control 3 and without introducing spend.** Written now so option (b) does not become the default
+merely by being the only alternative on paper.
+
+**Shape.** The host keeps `auth.json`. The container never receives it.
+
+```
+container  ──HTTP──▶  broker (host, loopback-scoped)  ──HTTPS──▶  model endpoint
+   no credential          holds auth.json, injects it        authenticated
+```
+
+**Properties required of the broker.** Each is a design constraint, not a nicety:
+
+1. **It is a proxy, not a vending machine.** It injects the credential into a forwarded request. It
+   never returns the credential, on any path, under any error condition. A broker that hands the
+   token to the container on request is the mounted file with extra steps.
+2. **Destination-locked.** It forwards only to the model endpoint, only the paths the reviewer needs,
+   and refuses everything else. An unconstrained forwarder is an open proxy that grants *more* than
+   the mounted credential did — a remediation that increases blast radius is a regression.
+3. **Reachable only by the container.** Bound to the container gateway interface, never `0.0.0.0`.
+4. **Auditable.** Every forwarded request is logged host-side, so the reviewer's model traffic becomes
+   observable — which the current arrangement does not provide.
+
+**Then `auth.json` leaves the mount list entirely**, and §9.3's disclosure list drops to: the repo,
+the brief, and the transcript.
+
+**Feasibility unknown, stated rather than assumed.** This requires the Codex CLI to accept a
+non-default base URL or an HTTP proxy for model traffic. **I have not verified that it does**, and I
+am not going to describe its configuration surface from documentation — that is the §2 mistake. If
+the CLI cannot be pointed at a broker, this remediation does not work and the ruling's remediation
+field is unsatisfiable; that finding should reopen §9.4 rather than quietly persist. **Verify before
+scheduling the build.**
 
 ## 9.5 Proving the mount boundary — red first, two arms
 
@@ -485,14 +537,65 @@ lacks its paired success, the container is not accepted.
 | **1 — tree integrity** (`:52-68`, `:113-150`) | **Retained, and partly superseded.** Read-only source makes a source write *impossible* rather than *detected*; the hash still covers the writable overlays and still catches the builder committing mid-review, which is operator error and unrelated to isolation. Keep it. Its documented blindness to gitignored paths (`:57-61`) is unchanged and still correct. |
 | **1b — codex config hash** (`:70-94`, `:152-160`) | **Becomes unnecessary in its current form, and is REPLACED, not simply deleted.** `~/.codex/config.toml` is not mounted, so self-escalation through it is structurally impossible rather than detected. **Successor control: a mount-manifest assertion** — before each run, compare the container's actual mount table against the declared manifest in §9.3 and **fail closed on any extra, any missing, or any read-only mount that is writable.** That is the same fail-closed-on-the-unrecognised property `:85-87` was built for, aimed at the thing that now carries the boundary. **Do not retire 1b until §9.5 passes.** Retiring a control on the assumption of a boundary, before the boundary is proven, is the exact error this document exists to prevent. |
 | **2 — execution proof** (`:162-175`) | **UNAFFECTED. Confirmed.** Isolation and execution are orthogonal axes. The container changes where the suite runs, not whether the transcript shows it ran. The grep for `Tests N passed` / `Test Files N` is unchanged, and §3 keeps it non-negotiable: a reviewer that cannot execute cannot validate a verifier. If anything it gains weight — a fresh container is *more* likely to fail to execute for environmental reasons, and this is the control that makes that loud rather than silent. |
-| **3 — plan auth** (`:42-49`) | **Unchanged under §9.4(a); requires amendment under §9.4(b).** Orthogonal to isolation, and the source of the tension in §9.4. |
+| **3 — plan auth** (`:42-49`) | **Unchanged.** §9.4.1 ruled option (a), so Control 3 stands as written. It is a spend-posture control and is explicitly out of scope for this isolation work (§9.4.1). |
+| **4 — image identity** (NEW) | **See §9.6.1.** Covers image drift, which none of 1, 1b, 2 or 3 covers. |
+
+### 9.6.1 Control 4 — image identity, pinned by digest
+
+**The gap.** The container's image pins a toolchain that can diverge from the repo's. A rebuilt or
+retagged image changes what the suite runs on while every existing control stays green: Control 1
+hashes the tree, 1b/its successor covers mounts, Control 2 only asks whether a suite ran. **A review
+can be fully evidenced and still have run on the wrong toolchain.** Nothing currently detects it.
+
+**The control.** Same shape as the config hash it is modelled on (`codex-review.sh:88-93`):
+
+1. **Pin by digest, never by tag.** `image@sha256:<digest>` recorded in a committed manifest.
+   A tag is a mutable pointer; pinning to one is pinning to nothing.
+2. **Assert before every run.** Resolve the digest of the image actually about to be used and compare
+   it to the manifest. **Fail closed on any digest not in the manifest** — unrecognised is a failure,
+   not a warning. This inherits 1b's deliberate posture (`:85-87`): exclude known churn, fail closed
+   on everything unrecognised, so a new or unexpected image trips it rather than sliding through.
+3. **Bind the digest to the evidence.** Record it in the transcript alongside HEAD, so a report is
+   bound to *the image that produced it* the way it is already bound to the commit. A finding whose
+   toolchain is unknown is not reproducible.
+4. **Rotation is an explicit, reviewed act.** Updating the pin is a commit to the manifest with a
+   reason. That is the whole point — drift becomes a diff instead of an accident.
+
+**Red-first proof.** The control must be shown to fail before it is trusted: point the runner at a
+rebuilt or otherwise different image and confirm the run **refuses**. A pin that has never rejected
+anything is a string in a file. Pair it with the positive arm — the manifest digest runs clean — so a
+refusal is attributable to the digest and not to a broken runner.
+
+**Known limit, stated.** This binds the image, not its contents' provenance. It proves *the same
+image as last time*, not *an image built from trusted inputs*. Supply-chain assurance for the image
+build is a separate problem and is not claimed here.
 
 ## 9.7 Open items before build
 
-1. **Container runtime.** Docker Desktop / WSL2 presence on this host is **not verified**. Check
-   before anything else.
+1. **Container runtime — MEASURED 2026-08-03. Installed, not running.** This is materially different
+   from absent: nothing needs procuring, something needs starting.
+
+   | component | state |
+   |---|---|
+   | Docker CLI | **present** — `C:\Program Files\Docker\Docker\resources\bin\docker` |
+   | Docker daemon | **unreachable** — `npipe:////./pipe/dockerDesktopLinuxEngine` does not exist |
+   | Docker Desktop process | **not running** |
+   | WSL | **present**, default version 2, default distro `Ubuntu` |
+   | WSL distros | `Ubuntu` (Stopped), `docker-desktop` (Stopped) |
+   | podman / nerdctl / containerd | absent |
+
+   The `docker-desktop` WSL distro exists, which is Docker Desktop's Linux engine backing — so the
+   engine is provisioned, just stopped. **Not started here**: launching a desktop application is a
+   host-level action outside the scope of a specification task. Expect to start Docker Desktop and
+   re-check `docker info` before any build. Until that succeeds, the runtime is **assumed available,
+   not proven** — and §9.5 is the thing that proves it, since a container that will not start cannot
+   pass the mount proof.
+
 2. **The writable set** (§9.3) — measure the `EACCES` paths, do not predict them.
 3. **Supabase egress** (§9.2) — resolves on first containerised run with a clean DNS cache.
-4. **§9.4 ruling** — (a) mounted plan credential, or (b) scoped key plus a Control 3 amendment.
-5. **Image drift.** The image pins a toolchain that can diverge from the repo's. That is a new
-   failure mode introduced by this option and needs its own check; it is not covered by 1, 1b, 2 or 3.
+4. ~~§9.4 ruling~~ — **RULED 2026-08-03: option (a)**, recorded as accepted exposure with the
+   credential broker (§9.4.2) as populated remediation. See §9.4.1.
+5. ~~Image drift~~ — **SPECIFIED: Control 4** (§9.6.1), pinned by digest, fail-closed on unrecognised.
+6. **Broker feasibility** (§9.4.2) — verify the Codex CLI accepts a non-default base URL or HTTP
+   proxy for model traffic. **Unverified.** If it does not, the ruling's remediation is unsatisfiable
+   and §9.4 reopens.
