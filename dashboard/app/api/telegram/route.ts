@@ -370,7 +370,18 @@ Slash commands:
 
 function isAuthorized(chatId: number): boolean {
   const allowed = process.env.TELEGRAM_CHAT_ID?.trim();
-  if (!allowed) return true; // not configured — open (dev mode)
+  // FAIL-CLOSED. This previously returned true when unconfigured ("open (dev mode)"), which
+  // stacked a second fail-open behind the webhook secret's. With both open, an anonymous POST
+  // could supply ITS OWN chat id, run commands, and have `send()` deliver the output back to
+  // the attacker — /status reaches upstream with credentials, so that is exfiltration, not
+  // just spoofing. With only this one open, a forged inbound could still push messages into
+  // the channel the fence writes incident notes to.
+  //
+  // An unconfigured allowlist now means nobody, not everybody. The bot is inert until
+  // TELEGRAM_CHAT_ID is set, which is the same trade taken for KILL_SWITCH_SECRET: an
+  // unavailable channel is strictly better than a forgeable one, and the standing decision
+  // against the inbound Telegram plugin means nothing inbound becomes an instruction anyway.
+  if (!allowed) return false;
   return String(chatId) === allowed;
 }
 

@@ -31,3 +31,31 @@ Set these before the `swarm.pilot.scheduler` cron is enabled. The scheduler runs
 - `PILOT_BOT_CHAT_ID` — chat ID to send suggestion cards into
 - `PILOT_TENANT_SLUG=phill` — tenant identifier; keys `pilot_suggestions.tenant_slug` + feeds the RLS policy (`current_setting('app.current_tenant_slug')`)
 - `PILOT_DISABLED=0` — kill switch. Set to `1` to halt the scheduler without a redeploy (verified by `scheduler.run_cycle()` returning `"disabled"`)
+
+---
+
+## Dashboard (Vercel) — security-relevant vars
+
+The dashboard is a separate deployment (`dashboard/vercel.json`); these are its vars, not
+Railway's.
+
+- `DASHBOARD_PASSWORD` (or `PI_CEO_PASSWORD`) — signs and verifies the `pi_session` cookie.
+  Resolved in one place, `lib/auth-secret.ts`, because two callers once resolved it
+  differently and login succeeded while every protected page bounced.
+- `KILL_SWITCH_SECRET` — **required for the headless kill path.** `/api/kill-switch` POST
+  (`?op=kill|resume`) accepts a valid `pi_session` cookie OR `X-Kill-Switch-Secret` matching
+  this value, compared in constant time. It is **fail-closed**: while this is unset, the only
+  way to kill or resume is a browser session. Set it so the scripted path exists.
+  Generate and set without the value passing through a terminal transcript:
+
+  ```bash
+  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))" \
+    | vercel env add KILL_SWITCH_SECRET production
+  ```
+
+  Callers then send `X-Kill-Switch-Secret: <value>`. Rotate by repeating the command.
+- `TELEGRAM_WEBHOOK_SECRET` — **required for the Telegram webhook to accept anything.**
+  Fail-closed since 2026-08-02: unset means every inbound POST is refused. Must match the
+  `secret_token` given to Telegram's `setWebhook`.
+- `TELEGRAM_CHAT_ID` — **required for the bot to answer anyone.** Fail-closed since
+  2026-08-02: unset means nobody is authorised, where it previously meant everybody.
