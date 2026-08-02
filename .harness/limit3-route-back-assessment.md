@@ -56,9 +56,35 @@ not have.
    (no drift possible, but the contract stops being readable in one place).
    **Recommend the first** — a drift check is the same shape as `generated-agentskills`, which
    this repo already understands.
-3. **Reconcile the existing hand-written entries.** Expect conflicts, and treat each as a finding:
-   a hand-written expectation that disagrees with the classification is either a mis-declared
-   route or another `telegram -> 200`.
+3. **Reconcile the existing hand-written entries — under the constraint below.** Expect
+   conflicts, and treat each as a finding: a hand-written expectation that disagrees with the
+   classification is either a mis-declared route or another `telegram -> 200`.
+
+   ### THE RECONCILIATION CONSTRAINT — written now, while the reason is fresh
+
+   **Every conflict is adjudicated individually. None is resolved by editing the generated side
+   to match observed behaviour.**
+
+   When a generated expectation disagrees with what a route actually does, exactly two
+   resolutions are legitimate:
+
+   - **The requirement wins** — the route is wrong and gets fixed. This is the `telegram -> 200`
+     case: the classification said refuse, the route served anyone, and the route was the defect.
+   - **The classification is corrected** — the declared classification was wrong, and it is
+     changed *deliberately, with a reason recorded*, the same way a declared delta is.
+
+   **Forbidden: changing the generated expectation to match what the route does.** That is the
+   fast path, it makes the whole suite green in one pass, and it recreates the exact defect this
+   work exists to remove — a contract that describes behaviour instead of requiring it. Doing it
+   at scale would be worse than never generating anything, because it would launder observed
+   behaviour into something that *looks* requirement-derived.
+
+   **Why this warning is here and not left to judgement.** In three weeks this reconciliation
+   will look like an ordinary refactor with a large diff and a lot of red. Under that pressure,
+   "just make the generated file match reality" is the obvious move and will feel like
+   housekeeping. It is not. **A conflict is a finding, and a batch of conflicts is a batch of
+   findings, not a formatting problem.** If the volume makes one-at-a-time adjudication
+   impractical, that is a signal to stop and escalate — not to switch strategies.
 4. **Controls, mandatory per the standard.** A planted mis-declared route must produce a failing
    surface, and an empty generator output must fail loudly rather than assert nothing.
 
