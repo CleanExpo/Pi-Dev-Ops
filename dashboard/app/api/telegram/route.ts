@@ -2,6 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
+import { createHash, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse, after } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { MODELS, refusalFallback } from "@/lib/models";
@@ -376,9 +377,31 @@ function isAuthorized(chatId: number): boolean {
 // ── POST handler ──────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  const incomingSecret = req.headers.get("x-telegram-bot-api-secret-token");
-  if (webhookSecret && incomingSecret && incomingSecret !== webhookSecret) {
+  // FAIL-CLOSED. The previous form was:
+  //
+  //   if (webhookSecret && incomingSecret && incomingSecret !== webhookSecret) return 403
+  //
+  // which rejected only when the server secret was configured AND the caller presented one
+  // AND they differed. Both other paths fell through to the handler:
+  //   · secret unset          -> no check at all
+  //   · header simply OMITTED -> no check at all
+  // The second is the one that matters: the guard was bypassable by NOT presenting a
+  // credential, which is the opposite of what a credential check is for. This is the public
+  // inbound edge of the notification channel, so it is reachable by anyone who can reach the
+  // host.
+  //
+  // Now: a secret must be configured, it must be presented, and it must match — compared in
+  // constant time over digests so the comparison neither leaks length nor throws on one.
+  const webhookSecret = (process.env.TELEGRAM_WEBHOOK_SECRET ?? "").trim();
+  const incomingSecret = (req.headers.get("x-telegram-bot-api-secret-token") ?? "").trim();
+  if (!webhookSecret || !incomingSecret) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const secretOk = timingSafeEqual(
+    createHash("sha256").update(webhookSecret).digest(),
+    createHash("sha256").update(incomingSecret).digest(),
+  );
+  if (!secretOk) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
