@@ -174,9 +174,77 @@ judgement call that the risk seems small.
 `provider_quota_events` only, and `vault_entry_id` is carried as an id and never dereferenced.
 **The claim is true.**
 
+**Sharpened by cross-vendor review (2026-08-02, PASS).** My statement was that the vault is not
+reached from the repository. The reviewer located where it IS reached: `credentials_vault` is
+touched **only by the POST registration path** (`provider-accounts/route.ts:69`), never by GET.
+That is a more useful form of the same finding — "not reached from here" is weaker evidence than
+"reached from exactly there, and nowhere else".
+
 **It still does not port on the same terms as the usage cockpit**, and the reason matters: the
 same module carries `.insert()` into `provider_quota_events` — a production write path — and
 probes `process.env` provider keys through `hasEnvKey`. Porting it wholesale imports a write path
 into this app. If the metadata half is wanted, it needs a **rebuilt read-only repository**, the
 way `/api/command-centre/wiki-graph` was rebuilt, not a port. That is a separate piece of work
 with its own review.
+
+---
+
+## KI-008 — `CostAllocationTile` and `/api/command-centre/cost-allocation` DEFERRED
+
+**Status:** open (deferred, two named conditions) · **Raised:** 2026-08-02 · **Ruled by:** founder
+**Capability:** 4 — providers
+
+Not ported with the read-only half. **Deferred on conditions, not refused** — and the distinction
+matters, because unlike KI-006 and KI-007 there is no safety finding here.
+
+**What was traced, so this is a decision on facts rather than on the name.**
+
+- The tile is thin: `react`, `SourceBadge`, and one `fetch('/api/command-centre/cost-allocation')`.
+  Nothing in it to assess.
+- **The route is genuinely read-only.** Zero write verbs in the entire file — no `insert`,
+  `update`, `upsert`, `delete` or `rpc`. Three SELECTs: `cost_source`, `cost_record`,
+  `revenue_record`. That is a better position than `provider-accounts` (KI-007), which carried a
+  production write path.
+- Tile and route **move together or not at all**. Porting the tile without the route gives a
+  control that renders and always fails, which is the KI-005 rule.
+
+**Why it is not a straight port.** The source uses `createServiceClient` — service-role, RLS
+bypassed **by design** — and does its authorization in the handler with `getUser()`. Those two
+halves are a deliberate pair. Ported here the `getUser()` half evaporates, because this app has
+no per-user identity, while the RLS-bypassing half remains. That is structurally the same swap
+that made `/api/command-centre/wiki-graph` a rebuild rather than a port. The difference is what
+it reads: **cost and revenue**.
+
+### Condition 1 — an access-policy ruling, which is the founder's and not the agent's
+
+Porting this means **anyone holding the shared dashboard password can read estate cost and
+revenue figures.** No credentials are involved, so this is not KI-007's problem; it is a question
+about data sensitivity and who the single shared secret is effectively granting access to.
+
+It is a policy call, not a technical one, and it does not become smaller by being implemented
+carefully. **Unblocks when the founder rules that shared-password access legitimately includes
+financial figures** — or when per-capability tokens land and the question becomes "which
+capability may read the cost tables", which is answerable rather than assumed.
+
+### Condition 2 — do the tables exist in the database this app points at?
+
+Both apps resolve the **same env vars** (`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`),
+so whichever project this dashboard is configured for is what the route would query. Whether
+`cost_source`, `cost_record` and `revenue_record` exist there is **unknown and was deliberately
+not checked**: answering it means querying a fenced production database, which is a stop under
+the operating contract. It is one authorized read-only query away from being answered — it is
+simply not the agent's to run unasked.
+
+If the tables are absent, the tile renders a permanently degraded state, which fails the same
+"must not claim a capability it does not have" test that removed the wiki-graph node click.
+
+### If both conditions clear
+
+It ports **on the same terms as the wiki-graph rebuild**: a rebuilt route with no `getUser`, auth
+enforced by `proxy.ts` — which is now genuinely enforced and asserted by
+`command-centre-auth-coverage.test.ts`, not merely claimed — plus provenance entries and a
+declared delta for the client swap. The tile itself ports verbatim modulo the alias rewrite.
+
+**Recorded distinction:** KI-006 is refused (its function is to spend). KI-007 is deferred on a
+missing mechanism (identity). **KI-008 is deferred on a decision plus a fact** — neither of which
+is a defect in the code, and both of which are cheap to resolve.
