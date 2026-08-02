@@ -54,6 +54,21 @@ function _quietStatus(error: string, detail?: string): Response {
 }
 
 export async function GET(request: Request): Promise<Response> {
+  // 2026-08-02: this was unauthenticated. /api/kill-switch is in neither proxy prefix list, so
+  // proxy() never looks at it, and the hotfix that closed POST left GET exactly as it found it.
+  // Observed live returning HTTP 200 to an anonymous caller with a body proving it had reached
+  // upstream — it only looked harmless because upstream happened to reject the credentials
+  // this route attaches on the caller's behalf. Correct that misconfiguration and the same
+  // anonymous GET begins returning internal swarm state.
+  //
+  // The previous justification was that "a CI smoke surface calls it unauthenticated by
+  // design" — the smoke test's observed behaviour cited as the requirement. The question is
+  // whether an anonymous caller SHOULD read swarm state through a credential it does not
+  // hold. It should not, so the smoke surface was changed to assert 401, not this handler.
+  if (!(await isAuthorised(request))) {
+    return Response.json({ error: "Unauthorised" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const op = searchParams.get("op") ?? "status";
   if (op !== "status") {
@@ -82,7 +97,7 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 /**
- * Authenticate a MUTATING kill-switch call.
+ * Authenticate ANY kill-switch call — read or mutate.
  *
  * /api/kill-switch is in NEITHER PROTECTED_API_PREFIXES nor PUBLIC_API_PREFIXES in proxy.ts,
  * so proxy() never examined it — and this route attaches Authorization: Bearer
@@ -93,10 +108,11 @@ export async function GET(request: Request): Promise<Response> {
  * KILL_SWITCH_SECRET (scripted/remote), compared in constant time over digests.
  * FAIL-CLOSED: no session and no configured secret is 401.
  *
- * GET ?op=status stays public: read-only, rejects any other op with 400, and a CI smoke
- * surface calls it unauthenticated by design.
+ * Named ...Mutation until 2026-08-02, which encoded the assumption that reads needed no
+ * credential. Both methods reach upstream with the same borrowed credential, so both are
+ * gated and the name no longer draws a distinction the route does not make.
  */
-async function isAuthorisedMutation(request: Request): Promise<boolean> {
+async function isAuthorised(request: Request): Promise<boolean> {
   const cookie = request.headers.get("cookie") ?? "";
   const m = /(?:^|;\s*)pi_session=([^;]+)/.exec(cookie);
   if (m) {
@@ -117,7 +133,7 @@ async function isAuthorisedMutation(request: Request): Promise<boolean> {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  if (!(await isAuthorisedMutation(request))) {
+  if (!(await isAuthorised(request))) {
     // No detail about which credential was missing or wrong — that is a probing oracle.
     return Response.json({ error: "Unauthorised" }, { status: 401 });
   }

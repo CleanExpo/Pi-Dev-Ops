@@ -1,0 +1,139 @@
+{
+  "_comment": "Every API METHOD must be classified. A path matched by PROTECTED_API_PREFIXES in proxy.ts has all of its methods gated and needs no entry. Everything else — including paths in PUBLIC_API_PREFIXES, which gate NOTHING — needs one entry per method, keyed 'METHOD /api/path'.",
+  "_classifications": {
+    "route-self-protected": "The proxy does not gate it; the handler authenticates the caller itself. unauth_status must be 401/403.",
+    "deliberately-public": "Reachable anonymously on purpose, and that exposure was chosen. unauth_status is a success code.",
+    "accepted-exposure-pending-remediation": "Anonymously reachable, adjudicated, and judged WRONG — but the fix is scheduled rather than immediate. unauth_status records the current (undesired) status and `remediation` names the change that closes it. This exists so that 'we looked and it should change' is expressible without either lying that it is fine or blocking on it."
+  },
+  "_provenance": {
+    "decision": "Someone chose this posture for this method and signed for it. decided_by names them.",
+    "discovery": "Records what the code was found doing. NOT a requirement. Fails the control until adjudicated."
+  },
+  "_reconciliation_rule": "Never resolve a red by writing down what the route currently does. If declared posture and observed posture disagree, the route changes, not the declaration. Where the route cannot change yet, say so with accepted-exposure-pending-remediation — do not relabel it deliberately-public.",
+  "_readjudication_2026_08_02": "The previous route-level file was re-adjudicated entry by entry, not merely widened to methods. Three entries were found to be DISCOVERIES presented as requirements: /api/zte, /api/swarm-status and /api/curator-proposals were never decided public — they fell through proxy.ts's default-open fallthrough and were documented afterwards as 'deliberately-public', each citing the next as precedent. All three are now adjudicated as exposures that should close, pending the proxy default-deny inversion. GET /api/kill-switch previously carried unauth_status 401 in a single per-route entry while actually answering 200, which no assertion could catch because the unit was a route and the two methods disagreed.",
+  "surfaces": {
+    "GET /api/kill-switch": {
+      "classification": "route-self-protected",
+      "unauth_status": 401,
+      "reason": "Reads swarm state from upstream with a borrowed PI_CEO_PASSWORD. Was unauthenticated and observed live returning 200 to an anonymous caller on 2026-08-02; the prior per-route entry declared 401 because POST refuses, which a route-level unit could not distinguish. Now gated by the same isAuthorised() as POST.",
+      "provenance": "decision",
+      "decided_by": "claude-opus-5 session 1312b3c1 — PENDING FOUNDER RATIFICATION",
+      "decided_on": "2026-08-02"
+    },
+    "POST /api/kill-switch": {
+      "classification": "route-self-protected",
+      "unauth_status": 401,
+      "reason": "kill|resume requires a pi_session cookie or X-Kill-Switch-Secret, constant-time compared, fail-closed. Closed by the #603 hotfix after an anonymous POST could kill or resume the swarm.",
+      "provenance": "decision",
+      "decided_by": "PR #603 (founder-merged 2026-08-02)",
+      "decided_on": "2026-08-02"
+    },
+    "POST /api/telegram": {
+      "classification": "route-self-protected",
+      "unauth_status": 403,
+      "reason": "Telegram webhook. /api/telegram is in PUBLIC_API_PREFIXES because Telegram must POST without a session, so the proxy gates nothing and the handler must: TELEGRAM_WEBHOOK_SECRET is required, must be presented, and must match. Chat-ID allowlist fail-closed behind it.",
+      "provenance": "decision",
+      "decided_by": "PR #603 (founder-merged 2026-08-02)",
+      "decided_on": "2026-08-02"
+    },
+    "POST /api/auth/login": {
+      "classification": "route-self-protected",
+      "unauth_status": 401,
+      "reason": "The login endpoint itself. Necessarily reachable anonymously — it is where a caller stops being anonymous — and it authenticates the caller by validating DASHBOARD_PASSWORD before issuing the pi_session cookie.",
+      "provenance": "decision",
+      "decided_by": "original dashboard auth design",
+      "decided_on": "2026-08-02"
+    },
+    "GET /api/cron/analyze": {
+      "classification": "route-self-protected",
+      "unauth_status": 401,
+      "reason": "RA-1504: requires Authorization: Bearer CRON_SECRET. Called by the Vercel cron declared in vercel.json. A genuine prior decision — the credential requirement was specified, not observed after the fact.",
+      "provenance": "decision",
+      "decided_by": "RA-1504",
+      "decided_on": "2026-08-02"
+    },
+    "POST /api/margot/bubble": {
+      "classification": "route-self-protected",
+      "unauth_status": 401,
+      "reason": "Requires TAO_WEBHOOK_SECRET before proxying to Railway; returns 401 without it.",
+      "provenance": "decision",
+      "decided_by": "margot bridge design",
+      "decided_on": "2026-08-02"
+    },
+    "GET /api/phone/gate": {
+      "classification": "route-self-protected",
+      "unauth_status": 401,
+      "reason": "Shared handler checks the pi_session cookie before proxying to Railway. GET and POST are the same function (`export const GET = handle`), so the two methods cannot drift apart — the structural property the rest of this surface lacks.",
+      "provenance": "decision",
+      "decided_by": "phone gate design",
+      "decided_on": "2026-08-02"
+    },
+    "POST /api/phone/gate": {
+      "classification": "route-self-protected",
+      "unauth_status": 401,
+      "reason": "Same shared handler as GET /api/phone/gate.",
+      "provenance": "decision",
+      "decided_by": "phone gate design",
+      "decided_on": "2026-08-02"
+    },
+    "POST /api/phone/progress": {
+      "classification": "route-self-protected",
+      "unauth_status": 401,
+      "reason": "Checks the pi_session cookie before proxying to Railway.",
+      "provenance": "decision",
+      "decided_by": "phone gate design",
+      "decided_on": "2026-08-02"
+    },
+    "POST /api/webhook/github": {
+      "classification": "route-self-protected",
+      "unauth_status": 401,
+      "reason": "HMAC-SHA256 signature over the raw body, constant-time compared. Unconfigured secret is 401, not a bypass.",
+      "provenance": "decision",
+      "decided_by": "github webhook design",
+      "decided_on": "2026-08-02"
+    },
+    "POST /api/webhook/intake": {
+      "classification": "route-self-protected",
+      "unauth_status": 401,
+      "reason": "X-Intake-Secret validated against INTAKE_WEBHOOK_SECRET, constant-time over digests. Config-independent 401 so an unauthenticated probe cannot distinguish unset from wrong.",
+      "provenance": "decision",
+      "decided_by": "intake webhook design",
+      "decided_on": "2026-08-02"
+    },
+    "POST /api/webhook/morning-intel": {
+      "classification": "route-self-protected",
+      "unauth_status": 401,
+      "reason": "X-Pi-CEO-Secret validated against WEBHOOK_SECRET. RA-6904: an unconfigured deploy answers 503 rather than 401, matching Railway's fail-closed behaviour.",
+      "provenance": "decision",
+      "decided_by": "RA-6904",
+      "decided_on": "2026-08-02"
+    },
+    "GET /api/zte": {
+      "classification": "accepted-exposure-pending-remediation",
+      "unauth_status": 200,
+      "reason": "READJUDICATED. Was 'deliberately-public'. It was never decided public: /api/zte is in neither proxy prefix list, so it fell through the default-open fallthrough, and the exposure was documented afterwards. The prior entry even recorded the objection to itself — it proxies upstream using PI_CEO_PASSWORD, so an anonymous caller reads internal scoring through a credential it does not hold — and then accepted it anyway. Decision: that is not an acceptable public read. It stays open only until the proxy inversion lands, because closing it individually duplicates work the inversion does for every route at once.",
+      "remediation": "proxy default-deny inversion (separate PR, own review round)",
+      "provenance": "decision",
+      "decided_by": "claude-opus-5 session 1312b3c1 — PENDING FOUNDER RATIFICATION",
+      "decided_on": "2026-08-02"
+    },
+    "GET /api/swarm-status": {
+      "classification": "accepted-exposure-pending-remediation",
+      "unauth_status": 200,
+      "reason": "READJUDICATED. Was 'deliberately-public' citing /api/zte as precedent, which was itself a discovery — the justification was circular. Observed live returning autonomy state to an anonymous caller: swarm state, autonomous PR count and daily limit, green-merge progress. That is an operational-posture disclosure telling an observer when automation is unattended and how much budget remains. Decision: should be gated.",
+      "remediation": "proxy default-deny inversion (separate PR, own review round)",
+      "provenance": "decision",
+      "decided_by": "claude-opus-5 session 1312b3c1 — PENDING FOUNDER RATIFICATION",
+      "decided_on": "2026-08-02"
+    },
+    "GET /api/curator-proposals": {
+      "classification": "accepted-exposure-pending-remediation",
+      "unauth_status": 200,
+      "reason": "READJUDICATED. Was 'deliberately-public' citing /api/zte, the third link in the same circular chain. Read-only Skill Curator proposals, quiet on error. Not probed live in this pass — the classification is from source and the proxy prefix lists, and that gap is recorded rather than papered over. Decision: internal proposal data should not be an anonymous read.",
+      "remediation": "proxy default-deny inversion (separate PR, own review round); confirm live status during that change",
+      "provenance": "decision",
+      "decided_by": "claude-opus-5 session 1312b3c1 — PENDING FOUNDER RATIFICATION",
+      "decided_on": "2026-08-02"
+    }
+  }
+}
