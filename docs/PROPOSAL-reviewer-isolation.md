@@ -626,11 +626,41 @@ Exactly three mounts, two read-only. This is the declared set the pre-run assert
 
 | control | under the container |
 |---|---|
-| **1 — tree integrity** (`:52-68`, `:113-150`) | **Retained, and partly superseded.** Read-only source makes a source write *impossible* rather than *detected*; the hash still covers the writable overlays and still catches the builder committing mid-review, which is operator error and unrelated to isolation. Keep it. Its documented blindness to gitignored paths (`:57-61`) is unchanged and still correct. |
+| **1 — tree integrity** (`:52-68`, `:113-150`) | **SPLITS under option (ii). Its two halves have different fates — see §9.6.2.** |
 | **1b — codex config hash** (`:70-94`, `:152-160`) | **Becomes unnecessary in its current form, and is REPLACED, not simply deleted.** `~/.codex/config.toml` is not mounted, so self-escalation through it is structurally impossible rather than detected. **Successor control: a mount-manifest assertion** — before each run, compare the container's actual mount table against the declared manifest in §9.3 and **fail closed on any extra, any missing, or any read-only mount that is writable.** That is the same fail-closed-on-the-unrecognised property `:85-87` was built for, aimed at the thing that now carries the boundary. **Do not retire 1b until §9.5 passes.** Retiring a control on the assumption of a boundary, before the boundary is proven, is the exact error this document exists to prevent. |
 | **2 — execution proof** (`:162-175`) | **UNAFFECTED. Confirmed.** Isolation and execution are orthogonal axes. The container changes where the suite runs, not whether the transcript shows it ran. The grep for `Tests N passed` / `Test Files N` is unchanged, and §3 keeps it non-negotiable: a reviewer that cannot execute cannot validate a verifier. If anything it gains weight — a fresh container is *more* likely to fail to execute for environmental reasons, and this is the control that makes that loud rather than silent. |
 | **3 — plan auth** (`:42-49`) | **Unchanged.** §9.4.1 ruled option (a), so Control 3 stands as written. It is a spend-posture control and is explicitly out of scope for this isolation work (§9.4.1). |
 | **4 — image identity** (NEW) | **See §9.6.1.** Covers image drift, which none of 1, 1b, 2 or 3 covers. |
+
+### 9.6.2 Control 1 splits under option (ii)
+
+Control 1 has always done two jobs in one hash comparison. Option (ii) affects them differently, and
+conflating them would retire the wrong half.
+
+**The tree-hash half — `pre_tree` vs `post_tree` (`:68`, `:115`, `:131-138`).**
+**Becomes structurally unnecessary.** Its claim is *"the reviewed artifact was not modified"*. Under
+(ii) the host tree is never writable, so that claim holds by construction and the hash is confirming
+something that cannot be otherwise. Also note the mount-vs-hash asymmetry disappears: the documented
+blindness to gitignored paths (`:57-61`) existed because the reviewer *had* to write into `.next` and
+`node_modules`; when those writes land in a discarded copy, the exclusion has nothing left to excuse.
+
+**It retires on the same discipline as 1b, and for the same reason: NOT until the copy boundary is
+proven red-first.** The proof owed is the §9.5 shape applied to the copy — inside the container,
+mutate the copy and confirm the host tree is byte-identical afterwards, with a paired positive
+showing the mutation genuinely landed in the copy. A denial without its paired success is not
+evidence. **Retiring a control on an assumed boundary is the error this document exists to prevent**,
+and it would be a worse error here than at 1b, because this is the control that would notice if (ii)
+had silently degraded to (i).
+
+**The HEAD-moved half — `pre_head` vs `post_head` (`:67`, `:114`, `:139-150`).**
+**Stays, unchanged, permanently.** It catches the *builder* committing mid-review — which happened on
+2026-08-02 and voided respec round 4. That is operator error on the host side, entirely outside the
+container, and **isolation does not touch it**. A review that judged a repo which moved under it
+cannot bind its findings to one commit, no matter how perfectly the reviewer was contained.
+
+The distinction the script already draws at `:120-130` — HEAD moved with tree identical is operator
+error, tree changed is a security finding — becomes cleaner under (ii), not obsolete: the second case
+becomes impossible, leaving the first as the sole reason this control fires.
 
 ### 9.6.1 Control 4 — image identity, pinned by digest
 
@@ -704,7 +734,47 @@ results stand; they are about different things. Options, none chosen:
 - **(iii)** Rework the loop to plant into a designated writable area. Largest change, touches the
   thing being reviewed, and would need its own review.
 
-**(ii) looks strongest on this evidence but is Phill's call, not mine.**
+### RULED 2026-08-03 — option (ii), the disposable copy
+
+**The host tree is never mounted writable. The container mutates a copy, which is discarded.**
+
+**The reason, because it dictates the build.** Under (ii), *"the reviewer did not modify the repo"*
+stops being a **hash comparison** and becomes a **structural fact**. Control 1 compares a
+before-and-after digest and infers non-mutation; (ii) makes mutation impossible, so there is nothing
+to infer. That is the same upgrade §9.3 achieved for tracked source with `EROFS` — detection
+replaced by prevention — extended to the whole tree.
+
+**The property to preserve, stated as an acceptance test:** *if the design ends up with **any**
+writable path that reaches the host tree, it has failed.* Not "is discouraged" — has failed. A
+single read-write bind back to `D:\Pi-Dev-Ops` collapses (ii) into (i) while still looking like (ii),
+and the only thing that would catch it is the mount-manifest assertion (§9.6). Concretely:
+
+- the host repo is mounted **read-only or not at all**;
+- the copy is made **into container-local storage** (image layer, named volume or tmpfs), never onto
+  a host bind;
+- **no** `:rw` bind whose source is under `D:\Pi-Dev-Ops` — the mount manifest must reject one;
+- the transcript is the single exception and is written to its own path, not into the tree.
+
+**Sequencing consequence.** The copy must happen *before* the loop and be verifiably container-local.
+Copy-then-verify, not copy-and-assume: the mount-manifest assertion is the control that keeps (ii)
+honest, and it is the same fail-closed shape as 1b.
+
+### Image contents — ruled 2026-08-03
+
+**Bake `node_modules` and the toolchain into the image**, pinned by digest per Control 4 (§9.6.1).
+
+Measured justification, not preference:
+
+- The stock image is missing `git`, `python3`, `python` and `curl`; installing them cost **38s on
+  every run**. Baked in, that is zero.
+- With `node_modules` in the image, **the per-round copy is source-only** — no `412`-package tree
+  crossing 9p per round, which is the dominant cost in an option-(ii) copy.
+- It removes the package registry from the runtime path entirely (§9.2), so a review no longer
+  depends on `registry.npmjs.org` being reachable or honest.
+
+The tradeoff this creates is exactly what Control 4 exists for: a baked toolchain can drift from the
+repo's pinned versions. Digest pinning makes that drift a diff rather than an accident, and the
+"same image, not trusted-provenance" limit in §9.6.1 still applies.
 
 ### Other measured results
 
@@ -713,7 +783,7 @@ results stand; they are about different things. Options, none chosen:
 | **`x.invalid` fixture** | **INTACT** — `ENOTFOUND` inside the container. The fail-closed test is not vacuous. |
 | **Stock-image tooling** | `git`, `python3`, `python`, `curl` **all MISSING** from `node:22-slim`. `apt-get install` cost **38s**, every run. Justifies Control 4's pinned image on cost alone. |
 | **`git` on a read-only `.git`** | **WORKS.** `rev-parse` OK; `git status --porcelain` OK. I expected this to fail and it did not — recorded because the expectation was wrong, not because it was confirmed. |
-| **CRLF** | `scripts/prove-controls.sh` is **committed with CRLF** (232 CR in the blob at HEAD). Linux bash rejects it (`set: pipefail: invalid option name`, `cd: $'/work\r\r'`); Windows bash tolerates it, which is why the host run passed. Five tracked executables are CRLF-committed; only the `.sh` breaks, since Node and Python tolerate it. **Worked around** by shadowing `scripts/` with a tmpfs and normalising — **a widening forced by a repo defect, not by a need of the loop.** The real fix is `.gitattributes` with `*.sh text eol=lf` plus renormalisation. |
+| **CRLF** | `scripts/prove-controls.sh` was **committed with CRLF** (232 CR in the blob). Linux bash rejects it (`set: pipefail: invalid option name`, `cd: $'/work\r\r'`); Windows bash tolerates it, which is why the host run passed. **FIXED 2026-08-03** — see §9.7ter. The tmpfs shadow workaround is retired with it. |
 
 ### Two items this run did NOT settle
 
@@ -729,6 +799,48 @@ Stated plainly rather than reported as thin answers:
   not a 9p penalty measurement and must not be quoted as one. The only honest statement today is
   that **toolchain install adds a fixed ~38s per run** unless baked into the image. A real comparison
   needs option (i)/(ii)/(iii) resolved so the container can run the same 23 controls.
+
+## 9.7ter CRLF — fixed at source, and a hypothesis tested and rejected
+
+**Fixed 2026-08-03.** `.gitattributes` pins `*.sh`, `*.py`, `*.mjs`, `*.cjs` to `eol=lf` — kept
+narrow rather than `* text=auto`, which would rewrite files this change has no reason to touch. All
+five CRLF-committed executables renormalised; **CR bytes in the committed blob, before → after:**
+
+| file | before | after |
+|---|---|---|
+| `app/server/routes/webhooks.py` | 1098 | **0** |
+| `fence/fail_open_check.py` | 165 | **0** |
+| `scripts/prove-controls.sh` | 232 | **0** |
+| `scripts/route-exercise.mjs` | 468 | **0** |
+| `scripts/secrets_check.py` | 492 | **0** |
+
+Verified non-breaking: `bash -n`, `py_compile` ×3, `node --check`, and a full host loop at
+**23/23 pass, fail=0, 69s** against 68s before. Line endings only.
+
+### The CI hypothesis — TESTED AND FALSE
+
+Hypothesis: main's red *Prove-It Evals* is explained by CRLF, since Actions runners are Linux and
+Linux bash rejects these scripts. **It is not.** Two independent lines:
+
+1. **`main` carries no CRLF shell script at all.** Sweeping every tracked `.sh`/`.py`/`.mjs`/`.cjs`
+   blob on `origin/main`, the only CRLF file was `app/server/routes/webhooks.py` — and Python
+   tolerates CR. `scripts/prove-controls.sh` does not exist on `main`; it is branch-only.
+2. **The actual failure is a Python assertion**, from run `30763690080`:
+
+```
+FAILED evals/test_model_policy_golden.py::test_role_resolves_to_expected_model_and_effort[orchestrator]
+  AssertionError: orchestrator: model 'sonnet' != 'opus'
+FAILED ...[monitor] - AssertionError: monitor: model 'sonnet' != 'haiku'
+3 failed, 121 passed, 1 skipped
+```
+
+**The real cause is model-policy drift**: roles that should resolve to `opus` and `haiku` are
+resolving to `sonnet`. 121 tests pass; three golden-dataset expectations disagree with current
+policy. Nothing to do with line endings, bash, or the container.
+
+Recorded as a rejected hypothesis rather than deleted, because the reasoning was sound and the
+negative result is what makes the next person look at model policy instead of line endings.
+Smoke Test's failure is **not** covered by this and remains unexamined.
 
 ## 9.7 Open items before build
 
