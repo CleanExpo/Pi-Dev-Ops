@@ -11,6 +11,7 @@
 
 import { createHash, timingSafeEqual } from "crypto";
 import { verifySessionToken } from "@/lib/auth-secret";
+import { piCeoFetch, isLockedOut } from "@/lib/pi-ceo-session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -29,13 +30,11 @@ function _baseUrl(): string | null {
   return raw ? raw.replace(/\/$/, "") : null;
 }
 
-function _authHeaders(): Record<string, string> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (process.env.PI_CEO_PASSWORD) {
-    headers.Authorization = `Bearer ${process.env.PI_CEO_PASSWORD}`;
-  }
-  return headers;
-}
+// _authHeaders() was here until 2026-08-02. It attached `Authorization: Bearer
+// ${PI_CEO_PASSWORD}` — a raw password where upstream requires a signed session token, so it
+// authenticated nothing for 92 days while this route reported HTTP 200. Replaced by
+// piCeoFetch(), which performs the login exchange upstream actually implements. See
+// lib/pi-ceo-session.ts for why that helper is single-flight and lockout-aware.
 
 function _quietStatus(error: string, detail?: string): Response {
   return Response.json(
@@ -81,11 +80,16 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   try {
-    const upstream = await fetch(`${base}/api/swarm/status`, {
-      headers: _authHeaders(),
-      signal: AbortSignal.timeout(5_000),
-      cache: "no-store",
-    });
+    const upstream = await piCeoFetch("/api/swarm/status", {}, 5_000);
+    if (!upstream) {
+      // Could not obtain a session at all. Distinguish lockout from a bad credential — they
+      // are different faults and were conflated for 92 days. A 429 lockout on shared Vercel
+      // egress reads as an outage; reporting it as "wrong password" sends the next person
+      // to rotate a credential that was never the problem.
+      return _quietStatus(
+        isLockedOut() ? "upstream login locked out (429)" : "could not authenticate upstream",
+      );
+    }
     const body = await upstream.json().catch(() => ({}));
     return Response.json(
       upstream.ok ? body : { error: `HTTP ${upstream.status}`, ...body },
@@ -162,12 +166,24 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const upstream = await fetch(`${base}/api/swarm/${op}`, {
-      method: "POST",
-      headers: _authHeaders(),
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(10_000),
-    });
+    const upstream = await piCeoFetch(
+      `/api/swarm/${op}`,
+      { method: "POST", body: JSON.stringify(body) },
+      10_000,
+    );
+    if (!upstream) {
+      // Mutations must NOT be quiet. A kill or resume that could not authenticate has to
+      // surface loudly — the whole failure being fixed here is a safety control that
+      // reported success-shaped output while doing nothing.
+      return Response.json(
+        {
+          error: isLockedOut()
+            ? "upstream login locked out (429) — this is an availability fault, not a bad credential"
+            : "could not authenticate upstream — kill/resume did NOT take effect",
+        },
+        { status: 502 },
+      );
+    }
     const data = await upstream.json().catch(() => ({}));
     return Response.json(data, { status: upstream.status });
   } catch (exc) {
