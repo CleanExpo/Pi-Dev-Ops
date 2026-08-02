@@ -489,25 +489,30 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   return NextResponse.json({ ok: true });
 }
 
-// ── GET: register webhook ──────────────────────────────────────────────────────
-
-export async function GET(req: NextRequest): Promise<NextResponse> {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  if (!token) return NextResponse.json({ error: "TELEGRAM_BOT_TOKEN not set" }, { status: 500 });
-
-  const appUrl = req.nextUrl.origin;
-  const webhookUrl = `${appUrl}/api/telegram`;
-
-  const params: Record<string, string> = { url: webhookUrl };
-  if (webhookSecret) params.secret_token = webhookSecret;
-
-  const res = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(params),
-  });
-
-  const data = await res.json();
-  return NextResponse.json({ webhook_url: webhookUrl, telegram_response: data });
-}
+// ── GET: REMOVED 2026-08-02 ────────────────────────────────────────────────────
+//
+// There was a GET handler here that called Telegram `setWebhook` with the live
+// TELEGRAM_BOT_TOKEN. It had no credential check of any kind.
+//
+// /api/telegram is in PUBLIC_API_PREFIXES — necessarily, because Telegram itself must be able
+// to POST here without a session — so proxy() gates NOTHING on this path. The POST handler
+// defends itself with TELEGRAM_WEBHOOK_SECRET. The GET inherited that public exposure and
+// defended nothing, which made webhook registration an anonymous operation.
+//
+// Worse than a nuisance re-registration: the target was `req.nextUrl.origin`, derived from the
+// INBOUND request, so the caller influenced where the bot's webhook was pointed. That is a
+// channel-hijack primitive, not just an unauthenticated write. It also echoed Telegram's raw
+// API response back to the caller.
+//
+// It is deleted rather than gated. Registration is a one-time administrative action performed
+// by someone who already holds the bot token; a permanently reachable public endpoint that
+// performs it is a standing liability with no corresponding benefit. Use:
+//
+//     scripts/register-telegram-webhook.sh
+//
+// which does the same call from a shell that already has the credentials, and sets the URL
+// explicitly instead of reading it off an attacker-influenced request.
+//
+// Deliberately NOT replaced with an authenticated GET: this path cannot use the session proxy,
+// so it would need its own second credential surface to protect an action performed roughly
+// once per deployment.

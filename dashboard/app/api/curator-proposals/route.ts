@@ -3,6 +3,8 @@
 //
 // Forwards `status` + `limit` query params straight through.
 
+import { piCeoFetch, isLockedOut } from "@/lib/pi-ceo-session";
+
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
@@ -11,13 +13,6 @@ function _baseUrl(): string | null {
   return raw ? raw.replace(/\/$/, "") : null;
 }
 
-function _authHeaders(): Record<string, string> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (process.env.PI_CEO_PASSWORD) {
-    headers.Authorization = `Bearer ${process.env.PI_CEO_PASSWORD}`;
-  }
-  return headers;
-}
 
 function _quietError(error: string, detail?: string): Response {
   return Response.json(
@@ -46,14 +41,17 @@ export async function GET(request: Request): Promise<Response> {
   if (status) out.set("status", status);
   if (limit) out.set("limit", limit);
   const qs = out.toString();
-  const upstreamUrl = `${base}/api/swarm/curator/proposals${qs ? `?${qs}` : ""}`;
+  const upstreamPath = `/api/swarm/curator/proposals${qs ? `?${qs}` : ""}`;
 
   try {
-    const upstream = await fetch(upstreamUrl, {
-      headers: _authHeaders(),
-      signal: AbortSignal.timeout(5_000),
-      cache: "no-store",
-    });
+    // _authHeaders() attached `Bearer ${PI_CEO_PASSWORD}` — a password where upstream requires
+    // a signed session token, so this never authenticated. See lib/pi-ceo-session.ts.
+    const upstream = await piCeoFetch(upstreamPath, {}, 5_000);
+    if (!upstream) {
+      return _quietError(
+        isLockedOut() ? "upstream login locked out (429)" : "could not authenticate upstream",
+      );
+    }
     const body = await upstream.json().catch(() => ({}));
     return Response.json(
       upstream.ok ? body : { error: `HTTP ${upstream.status}`, ...body },

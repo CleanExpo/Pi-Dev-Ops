@@ -1,6 +1,8 @@
 // app/api/swarm-status/route.ts — proxy Railway /api/autonomy/status (RA-1092)
 // Surfaces swarm state, autonomous PR counts and green-merge progress for /control.
 
+import { piCeoFetch } from "@/lib/pi-ceo-session";
+
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
@@ -30,15 +32,14 @@ async function fetchUpstream(): Promise<SwarmStatus | null> {
   const base = process.env.RAILWAY_URL ?? process.env.PI_CEO_URL;
   if (!base) return null;
 
-  const url = `${base.replace(/\/$/, "")}/api/autonomy/status`;
   try {
-    const res = await fetch(url, {
-      signal: AbortSignal.timeout(5_000),
-      headers: process.env.PI_CEO_PASSWORD
-        ? { Authorization: `Bearer ${process.env.PI_CEO_PASSWORD}` }
-        : {},
-    });
-    if (!res.ok) return null;
+    // Was `Authorization: Bearer ${PI_CEO_PASSWORD}` — a raw password where upstream requires
+    // a signed session token. It never authenticated, so fetchUpstream() always returned null
+    // and the route served fallback(), i.e. `state: "OFF"`. The dashboard has been reporting
+    // the swarm as OFF because it could not ask, not because it looked. See
+    // lib/pi-ceo-session.ts.
+    const res = await piCeoFetch("/api/autonomy/status", {}, 5_000);
+    if (!res || !res.ok) return null;
     const raw = (await res.json()) as Record<string, unknown>;
 
     // Normalise — accept a few field-name variants the backend might return.
