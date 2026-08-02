@@ -121,3 +121,64 @@ jobs:
             exit 1
           fi
           echo "PASS: not readable outside the kill-switch-proof environment."
+
+  # ── The STANDING half of the branch-policy control ──────────────────────────
+  # Enforcement was proven once by hand: dispatching from a non-main ref blocks the job before
+  # any step runs, which is the only way to observe enforcement and is why it cannot self-assert.
+  #
+  # But a once-and-record control is exactly the shape that goes stale silently (Structural
+  # Limit 2). The day someone flips the environment back to "All branches", the hand-run proof
+  # is still sitting in a log looking like assurance, and nothing notices. Enforcement is proven
+  # once; the CONFIGURATION is watched continuously, here.
+  branch-policy-still-restricts-to-main:
+    name: kill-switch-proof environment still permits only main
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Deliberately does NOT declare `environment:` — this job reads configuration, and declaring
+    # the environment would subject it to the very policy it is checking.
+    steps:
+      - name: Assert the deployment branch policy has not widened
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+
+          ENV_JSON=$(gh api "repos/$REPO/environments/kill-switch-proof" 2>&1) || {
+            echo "FAIL: could not read the environment configuration."
+            echo "      This is a PERMISSIONS or MISSING-ENVIRONMENT failure, not a policy"
+            echo "      failure — do not read it as the policy being wrong. Response:"
+            echo "$ENV_JSON" | head -5
+            exit 1
+          }
+
+          POLICY=$(echo "$ENV_JSON" | jq -c '.deployment_branch_policy')
+          echo "deployment_branch_policy: $POLICY"
+
+          if [ "$POLICY" = "null" ]; then
+            echo "FAIL: the environment allows ALL BRANCHES."
+            echo "      Any pushed branch can declare this environment and read the live"
+            echo "      kill-switch secret. Set: Deployment branches and tags ->"
+            echo "      Selected branches and tags -> main"
+            exit 1
+          fi
+
+          CUSTOM=$(echo "$POLICY" | jq -r '.custom_branch_policies')
+          if [ "$CUSTOM" != "true" ]; then
+            echo "FAIL: custom_branch_policies is not enabled (got: $CUSTOM)."
+            echo "      'Protected branches only' is NOT accepted here: it is equivalent today"
+            echo "      because main is the only protected branch, and it silently widens the"
+            echo "      moment another branch is protected. Name the branch."
+            exit 1
+          fi
+
+          BRANCHES=$(gh api "repos/$REPO/environments/kill-switch-proof/deployment-branch-policies"             --jq '[.branch_policies[].name] | sort | join(",")')
+          echo "permitted refs: $BRANCHES"
+
+          if [ "$BRANCHES" != "main" ]; then
+            echo "FAIL: permitted refs are '$BRANCHES', expected exactly 'main'."
+            echo "      Every additional entry is another ref that can read the live kill switch."
+            exit 1
+          fi
+
+          echo "PASS: kill-switch-proof permits exactly main."
