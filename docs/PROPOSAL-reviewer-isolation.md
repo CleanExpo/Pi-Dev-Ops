@@ -585,11 +585,34 @@ build is a separate problem and is not claimed here.
    | podman / nerdctl / containerd | absent |
 
    The `docker-desktop` WSL distro exists, which is Docker Desktop's Linux engine backing — so the
-   engine is provisioned, just stopped. **Not started here**: launching a desktop application is a
-   host-level action outside the scope of a specification task. Expect to start Docker Desktop and
-   re-check `docker info` before any build. Until that succeeds, the runtime is **assumed available,
-   not proven** — and §9.5 is the thing that proves it, since a container that will not start cannot
-   pass the mount proof.
+   engine was provisioned, just stopped.
+
+   **RESOLVED 2026-08-03 — started on instruction, daemon proven up in ~8s:**
+
+   | field | value |
+   |---|---|
+   | Client / Server | **29.6.2 / 29.6.2** |
+   | OSType / Arch | **linux/x86_64** |
+   | Storage driver | `overlayfs` |
+   | Cgroup | `cgroupfs` **v2** |
+   | Kernel | `6.6.87.2-microsoft-standard-WSL2` |
+   | CPUs / Memory | 8 / ~7.8 GB |
+   | Runtime / security | `runc`; `seccomp=builtin`, `cgroupns` |
+
+   **A Linux engine is what §9.3 assumed** — read-only bind mounts, mount namespaces and per-mount
+   modes all behave as specified, rather than the Windows-container semantics that would have
+   required a different design. cgroup v2 and a stock seccomp profile are present.
+
+   Three things this does **not** yet prove, kept explicit:
+
+   - **Not that the mounts behave as specified.** Runtime up ≠ boundary real. §9.5 is still the only
+     thing that establishes that, and it has not been run.
+   - **Not persistence.** This was a manual start of a desktop application. Whether the daemon
+     survives a reboot depends on Docker Desktop's auto-start setting, which is **unchecked**. A
+     review runner that assumes a running daemon needs to fail loudly when it is absent, not hang.
+   - **Not performance.** The repo lives on `D:` (NTFS) and will be bind-mounted into a WSL2 Linux
+     VM, so every build crosses the 9p/virtiofs translation layer. §5 flagged this as materially
+     slower; it remains **unmeasured**, and it is the tradeoff most likely to be felt per round.
 
 2. **The writable set** (§9.3) — measure the `EACCES` paths, do not predict them.
 3. **Supabase egress** (§9.2) — resolves on first containerised run with a clean DNS cache.
