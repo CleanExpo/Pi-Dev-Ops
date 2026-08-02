@@ -1,0 +1,49 @@
+{
+  "_comment": "Every API route must be classified. Routes matched by PROTECTED_API_PREFIXES or PUBLIC_API_PREFIXES in proxy.ts are classified there and need no entry here. Everything else needs an entry below, with a reason and the status an ANONYMOUS caller should get. A route with neither is the omission class that left /api/kill-switch POST able to kill or resume the swarm with no credential — it was in neither list, so proxy() never looked at it.",
+  "_classifications": {
+    "route-self-protected": "The proxy does not gate it; the route authenticates the caller itself. unauth_status must be 401/403.",
+    "deliberately-public": "Reachable anonymously on purpose. unauth_status is a success code. Every one of these is a considered exposure, not an oversight."
+  },
+  "routes": {
+    "/api/kill-switch": {
+      "classification": "route-self-protected",
+      "unauth_status": 401,
+      "reason": "GET ?op=status is read-only, rejects any other op with 400, and the CI smoke surface calls it unauthenticated by design. POST (kill|resume) requires a pi_session cookie or X-Kill-Switch-Secret, fail-closed — added 2026-08-02 after it was found reachable with no credential at all while supplying PI_CEO_PASSWORD upstream itself. Covered by __tests__/kill-switch-auth.test.ts."
+    },
+    "/api/phone/gate": {
+      "classification": "route-self-protected",
+      "unauth_status": 401,
+      "reason": "Smoke surface phone-gate-unauth asserts 401 for an anonymous POST."
+    },
+    "/api/phone/progress": {
+      "classification": "route-self-protected",
+      "unauth_status": 401,
+      "reason": "Smoke surface phone-progress-unauth asserts 401 for an anonymous POST."
+    },
+    "/api/cron/analyze": {
+      "classification": "route-self-protected",
+      "unauth_status": 401,
+      "reason": "RA-1504: requires Bearer CRON_SECRET. Smoke surface cron-analyze-unauth asserts 401."
+    },
+    "/api/margot/bubble": {
+      "classification": "route-self-protected",
+      "unauth_status": 401,
+      "reason": "Smoke surface margot-bubble-unauth asserts 401 for an anonymous POST."
+    },
+    "/api/zte": {
+      "classification": "deliberately-public",
+      "unauth_status": 200,
+      "reason": "Read-only ZTE score. Smoke surface api-zte asserts 200 with score+model in the body. NOTE the exposure being accepted: it proxies upstream using PI_CEO_PASSWORD, so an anonymous caller reads internal scoring through a credential it does not hold. Accepted as a status surface; revisit if the payload ever widens."
+    },
+    "/api/swarm-status": {
+      "classification": "deliberately-public",
+      "unauth_status": 200,
+      "reason": "Read-only swarm state. Smoke surface api-swarm-status asserts 200 with state in the body. Same accepted exposure as /api/zte — upstream credential supplied by the route."
+    },
+    "/api/curator-proposals": {
+      "classification": "deliberately-public",
+      "unauth_status": 200,
+      "reason": "PR #303: read-only Skill Curator proposals, quiet on error. Smoke surface curator-proposals-quiet asserts 200. Same accepted exposure as /api/zte."
+    }
+  }
+}

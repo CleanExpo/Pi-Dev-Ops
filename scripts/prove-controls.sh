@@ -126,6 +126,20 @@ hdr "C-DISCOVERY — a NEW surface is covered without editing any list"
 count_auth_tests() {
   ( cd dashboard && npx vitest run __tests__/command-centre-auth-coverage.test.ts 2>&1 )     | grep -oE 'Tests +[0-9]+ passed' | grep -oE '[0-9]+' | head -1
 }
+# An UNCLASSIFIED api route must fail the classification check. This is the control for the
+# omission that left /api/kill-switch POST reachable with no credential: it was in neither
+# proxy prefix list, so nothing decided anything about it.
+UNCL='dashboard/app/api/__control-unclassified'
+CLEANUP+=("rm -rf '$ROOT/$UNCL'")
+CMREF="$(mktemp)"; CLEANUP+=("rm -f '$CMREF'"); touch -r dashboard/app/api "$CMREF"
+mkdir -p "$UNCL"
+echo 'export async function POST() { return new Response("{}") }' > "$UNCL/route.ts"
+( cd dashboard && npx vitest run __tests__/api-auth-classification.test.ts >/dev/null 2>&1 )
+[ $? -ne 0 ] && ok "an unclassified API route fails the classification check"              || bad "a NEW unclassified API route passed — the omission class is open again"
+rm -rf "$UNCL"; touch -r "$CMREF" dashboard/app/api
+( cd dashboard && npx vitest run __tests__/api-auth-classification.test.ts >/dev/null 2>&1 )
+[ $? -eq 0 ] && ok "classification green once the route is classified/removed"              || bad "still red after removing the planted route"
+
 BASE_N="$(count_auth_tests)"
 NEWPAGE='dashboard/app/(main)/command-centre/__control-surface'
 NEWAPI='dashboard/app/api/command-centre/__control-route'
