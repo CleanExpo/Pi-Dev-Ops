@@ -96,6 +96,30 @@ failed 2 tests, which is what the exemption's narrowness actually rests on.*
 > Name each for the moment it serves, because the failure mode is that the less
 > obviously-named half never loads when it is the one needed.
 
+## Test Fixtures Generate Secret-Shaped Values; They Never Write Them as Literals
+
+A secrets scanner **cannot tell a fixture from a credential by reading it.** That is not a
+limitation to work around — it is the correct behaviour, and the reason the estate's JWT
+pattern was deliberately left broad enough to match public anon keys.
+
+**Rule:** a test needing a password, token, secret or key generates it at runtime
+(`randomBytes(24).toString("hex")`). Never a literal, however obviously fake it looks.
+
+**Why the obvious alternative is the trap.** When a fixture trips the scanner, adding a skip
+prefix or widening the placeholder regex looks like the reasonable fix. It is not: it narrows
+the scanner's scope permanently to accommodate one file, and **that is the path by which a real
+secret eventually walks through.** Same shape as `.gitignore` as a silent scope reducer — the
+fix that makes today's alarm stop is the one that disables tomorrow's.
+
+**Two instances, both mine, both caught by the scanner rather than by review:**
+- `scripts/route-exercise.mjs` — a hardcoded probe password (2026-08-02)
+- `dashboard/__tests__/kill-switch-auth.test.ts` — `const KS_SECRET = "kill-switch-shared-secret"`,
+  which failed CI on PR #603. Its sibling on the line above escaped only by accident:
+  `"kill-switch-test-secret"` contains `test-secret`, which the placeholder regex excludes.
+
+Both were fixed by generating the value, not by teaching the scanner to look away. The third
+instance will arrive on a day when a skip prefix looks reasonable; this entry exists for that day.
+
 ## Naming the Risk Is Not the Same as Covering It
 
 Sits alongside **"a review is never coverage"** and fails the same way: both mistake an
