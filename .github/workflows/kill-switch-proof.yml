@@ -23,6 +23,23 @@
 # Environment, which only this job declares, and the negative is PROVEN below rather than
 # assumed.
 
+# BRANCH SCOPING — the stronger of the two scopes, and the one that must be configured.
+#
+# Job-declaration scoping is proven below (a job without `environment:` cannot read the secret).
+# That is NOT sufficient on its own: a GitHub Environment allows ALL BRANCHES by default, and in
+# this estate agents can push branches. Without a deployment branch policy, anyone who can push a
+# branch can write a workflow of their own that declares this environment and reads the secret.
+# Job-declaration scoping only controls WHICH JOB may read it, never WHICH REF.
+#
+# Required configuration: Settings -> Environments -> kill-switch-proof ->
+#   "Deployment branches and tags" -> **Selected branches and tags** -> add rule: `main`
+#
+# CONTROL, run once and recorded rather than assumed: dispatch this workflow from a NON-main ref.
+# Expected outcome is that `accepts-valid-credential` never starts, and GitHub reports
+# "Branch is not allowed to deploy to kill-switch-proof due to environment protection rules".
+# The job being BLOCKED is the pass. If it instead runs and resolves the secret, the branch
+# policy is missing or wrong, and every pushable branch can read the live kill switch.
+
 name: Kill-switch proof
 
 on:
