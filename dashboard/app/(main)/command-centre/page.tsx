@@ -28,6 +28,11 @@ const DECKS = [
     blurb: "Wiki knowledge base and capability bus.",
   },
   {
+    href: "/command-centre/providers",
+    name: "Providers",
+    blurb: "Provider usage and quota signals. Read-only — no accounts, no testing.",
+  },
+  {
     href: "/command-centre/wiki-graph",
     name: "Wiki Graph",
     blurb: "The knowledge base as an interactive force-directed graph.",
@@ -64,7 +69,7 @@ export default function CommandCentreIndex() {
       </ul>
 
       <p className="text-xs mt-6" style={{ color: "var(--text-dim)" }}>
-        Not yet migrated: operations, providers, portfolio, operator gateway, studio.
+        Not yet migrated: operations, portfolio, operator gateway, studio.
       </p>
     </div>
   );

@@ -22,6 +22,8 @@
  */
 import { describe, it, expect } from "vitest";
 import { NextRequest } from "next/server";
+import { existsSync, readdirSync, statSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { proxy } from "../proxy";
 
 const BASE = "https://pi.invalid";
@@ -59,12 +61,36 @@ describe("proxy auth coverage", () => {
 
   // ---- THE CLAIM UNDER TEST ----
   // Every command-centre surface, including the two the delta exempts.
-  const PAGES = [
-    "/command-centre",
-    "/command-centre/hermes",
-    "/command-centre/knowledge",
-    "/command-centre/wiki-graph",
-  ];
+  // DISCOVERED from the route tree, not listed.
+  //
+  // This was a hard-coded list of four. A page added later would then be unprotected AND
+  // unnoticed — the auth suite would stay green while covering less than its name says. That
+  // is the same stale-list defect review round 4 found in C12's entry pages, and it matters
+  // more here: this is the check that stands between the command-centre and an anonymous
+  // request. Discovery means a new page is covered the moment it exists.
+  const PAGES = (() => {
+    const base = resolve(__dirname, "..", "app", "(main)", "command-centre");
+    const found: string[] = [];
+    (function walk(dir: string, urlPath: string) {
+      if (!existsSync(dir)) return;
+      for (const e of readdirSync(dir)) {
+        const p = join(dir, e);
+        if (statSync(p).isDirectory()) {
+          if (e.startsWith("[")) continue;   // dynamic segments: no safe value to probe
+          walk(p, e.startsWith("(") ? urlPath : `${urlPath}/${e}`);
+        } else if (e === "page.tsx" || e === "page.ts") {
+          found.push(urlPath || "/command-centre");
+        }
+      }
+    })(base, "/command-centre");
+    return [...new Set(found)].sort();
+  })();
+
+  it("page discovery found the command-centre pages (positive control)", () => {
+    // An empty list would make every per-page assertion below vacuously absent.
+    expect(PAGES.length).toBeGreaterThan(1);
+    expect(PAGES).toContain("/command-centre");
+  });
 
   for (const path of PAGES) {
     it(`${path} is not reachable without a session`, async () => {

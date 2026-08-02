@@ -1,7 +1,7 @@
 {
   "_comment": "Provenance map for the command-centre migration. Every ported source file must appear here with the Authority-Site file it came from. The diff-relative conformance test compares each port against its named baseline: the port may not introduce a network/DB/execution construct the baseline did not already contain. An unlisted file fails the test, so a new file cannot enter the capability surface without a declared origin.",
   "_baseline_root": "D:/Authority-Site/apps/web/src",
-  "_ruling": "2026-08-01 founder: port faithfully including existing behaviour. The claim under review is 'introduces no network surface the source did not have' \u2014 NOT absolute read-only proof. See adversarial-review spec-writing standard.",
+  "_ruling": "2026-08-01 founder: port faithfully including existing behaviour. The claim under review is 'introduces no network surface the source did not have' — NOT absolute read-only proof. See adversarial-review spec-writing standard.",
   "files": {
     "app/(main)/command-centre/hermes/page.tsx": "app/(founder)/founder/command-centre/hermes-control-panel/page.tsx",
     "components/command-centre/DeckDetails.tsx": "components/command-centre/DeckDetails.tsx",
@@ -19,11 +19,13 @@
     "store/ui.ts": "store/ui.ts",
     "lib/command-centre/wiki-graph.ts": "lib/command-centre/wiki-graph.ts",
     "app/(main)/command-centre/wiki-graph/page.tsx": "app/(founder)/founder/command-centre/wiki-graph/page.tsx",
-    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx": "components/command-centre/wiki-graph/WikiGraphCanvas.tsx"
+    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx": "components/command-centre/wiki-graph/WikiGraphCanvas.tsx",
+    "lib/command-centre/provider-usage.ts": "lib/command-centre/provider-usage.ts",
+    "components/command-centre/provider-usage/ProviderUsageCockpit.tsx": "components/command-centre/provider-usage/ProviderUsageCockpit.tsx"
   },
   "_baseline_verified_by_hand": {
-    "_note": "Capabilities whose baseline safety properties are load-bearing require a hand-established baseline BEFORE porting, recorded here. Capability 6 (operator-gateway) is the one that needs it \u2014 its whole safety story is 'no live runner, no real execute button'. 'No new surface' is worthless against an unexamined baseline.",
-    "operator-gateway": "NOT YET ESTABLISHED \u2014 blocks capability 6"
+    "_note": "Capabilities whose baseline safety properties are load-bearing require a hand-established baseline BEFORE porting, recorded here. Capability 6 (operator-gateway) is the one that needs it — its whole safety story is 'no live runner, no real execute button'. 'No new surface' is worthless against an unexamined baseline.",
+    "operator-gateway": "NOT YET ESTABLISHED — blocks capability 6"
   },
   "imports": {
     "app/(main)/command-centre/hermes/page.tsx :: next/font/google": {
@@ -305,15 +307,77 @@
       "resolves_in_target": "package: d3-zoom",
       "judgment": "same",
       "note": "same npm package, version matched to the baseline"
+    },
+    "app/api/command-centre/provider-usage/route.ts :: next/server": {
+      "specifier": "next/server",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: next/server",
+      "judgment": "no-source-baseline",
+      "note": "Rebuilt route; no source import to compare."
+    },
+    "app/api/command-centre/provider-usage/route.ts :: @/lib/command-centre/provider-usage": {
+      "specifier": "@/lib/command-centre/provider-usage",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: lib/command-centre/provider-usage.ts",
+      "judgment": "no-source-baseline",
+      "note": "The pure signals/cockpit builder, itself a ported file with its own entry. No network, no DB, no execution."
+    },
+    "app/(main)/command-centre/providers/page.tsx :: next/link": {
+      "specifier": "next/link",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: next/link",
+      "judgment": "no-source-baseline",
+      "note": "Rebuilt page; the source page is a different composition."
+    },
+    "app/(main)/command-centre/providers/page.tsx :: @/components/command-centre/provider-usage/ProviderUsageCockpit": {
+      "specifier": "@/components/command-centre/provider-usage/ProviderUsageCockpit",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: components/command-centre/provider-usage/ProviderUsageCockpit.tsx",
+      "judgment": "no-source-baseline",
+      "note": "The one tile carried over from the source page's three."
+    },
+    "components/command-centre/provider-usage/ProviderUsageCockpit.tsx :: react": {
+      "specifier": "react",
+      "resolves_in_source": "package: react",
+      "resolves_in_target": "package: react",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "components/command-centre/provider-usage/ProviderUsageCockpit.tsx :: @/lib/command-centre/provider-usage": {
+      "specifier": "@/lib/command-centre/provider-usage",
+      "resolves_in_source": "file: lib/command-centre/provider-usage.ts",
+      "resolves_in_target": "file: lib/command-centre/provider-usage.ts",
+      "judgment": "same",
+      "note": "relocated but byte-identical; type-only import of the pure builder's types"
+    },
+    "components/command-centre/provider-usage/ProviderUsageCockpit.tsx :: @/components/command-centre/SourceBadge": {
+      "specifier": "@/components/command-centre/SourceBadge",
+      "resolves_in_source": "file: components/command-centre/SourceBadge.tsx",
+      "resolves_in_target": "file: components/command-centre/SourceBadge.tsx",
+      "judgment": "must-change",
+      "note": "specifier rewritten from '../SourceBadge' for the target alias (R5); resolves to the same already-ported component"
+    },
+    "components/command-centre/provider-usage/ProviderUsageCockpit.tsx :: @/components/command-centre/DegradedDataBanner": {
+      "specifier": "@/components/command-centre/DegradedDataBanner",
+      "resolves_in_source": "file: components/command-centre/DegradedDataBanner.tsx",
+      "resolves_in_target": "file: components/command-centre/DegradedDataBanner.tsx",
+      "judgment": "must-change",
+      "note": "specifier rewritten from '../DegradedDataBanner' for the target alias (R5); same already-ported component"
     }
   },
   "_imports_note": "Import-level provenance. judgment must be one of: same | different-but-checked | must-change. UNDECLARED fails the suite exactly as an undeclared FILE does. File provenance proves origin; this proves the imports still mean what they meant.",
   "_rebuilt_not_ported": {
     "app/api/command-centre/wiki-graph/route.ts": "REBUILT against this app's createServerClient. The source imports getUser+createClient from its own @/lib/supabase/server (anon-key, RLS-enforced, per-user). The same specifier resolves here to a service-role client with no per-user identity. A verbatim port would have typechecked while silently swapping an RLS-enforced read for an RLS-bypassing one. No source baseline applies, so it is excluded from diff-relative comparison by design.",
-    "app/(main)/command-centre/page.tsx": "NEW in the target. The source index carries the founder shell and nine deck tiles; porting it would drag in six unmigrated capabilities. Small index over what exists; grows as capabilities land. No source baseline applies."
+    "app/(main)/command-centre/page.tsx": "NEW in the target. The source index carries the founder shell and nine deck tiles; porting it would drag in six unmigrated capabilities. Small index over what exists; grows as capabilities land. No source baseline applies.",
+    "app/api/command-centre/provider-usage/route.ts": "REBUILT. The source imports getUser from its @/lib/supabase/server (anon-key, RLS-enforced, per-user); the identical specifier resolves here to a service-role client with no per-user identity, so a verbatim port would have typechecked while swapping a per-user auth check for nothing. Auth is enforced by proxy.ts and asserted in command-centre-auth-coverage.test.ts. Read-only, metadata-only: never reads a key value, never reaches credentials_vault, holds no write path. No source baseline applies.",
+    "app/(main)/command-centre/providers/page.tsx": "REBUILT. The source page composes ProviderAccountsTile + ProviderUsageCockpit + CostAllocationTile; only the usage cockpit is ported (KI-006 provider-test omitted as a spend path, KI-007 credential custody deferred to per-capability tokens). A verbatim port would import two components this app deliberately does not have. Written fresh over what exists. No source baseline applies."
   },
   "_omitted_deliberately": {
-    "components/command-centre/WikiEnhanceControl.tsx": "KI-002. Dropped from the knowledge port. It POSTs to a route that enqueues into operator_jobs on a production database and needs a per-user identity this app lacks. The route is ABSENT rather than stubbed."
+    "components/command-centre/WikiEnhanceControl.tsx": "KI-002. Dropped from the knowledge port. It POSTs to a route that enqueues into operator_jobs on a production database and needs a per-user identity this app lacks. The route is ABSENT rather than stubbed.",
+    "app/api/command-centre/provider-test/route.ts": "KI-006. Its whole function is to spend: executeChat posts to api.openai.com / api.minimax.io / openrouter.ai / generativelanguage.googleapis.com with a resolved key. Ported here it is a spend path reachable over HTTP by anything holding the shared dashboard password, on a surface the fence cannot observe. ABSENT, not stubbed. Route back: 'is this credential valid' is answerable against a non-billable models-list or account-status endpoint, so the button gets BUILT against one of those rather than by gating a completion call.",
+    "app/api/command-centre/provider-accounts/route.ts": "KI-007. Credential custody deferred and bound to per-capability tokens: this app is single-operator behind one shared password, so there is no per-capability scoping, no audit of which capability read which key, and no identity to attribute a read to. PROVEN, not assumed: credentials_vault appears nowhere in lib/provider-pool/repository.ts and the GET path selects only provider_accounts + provider_quota_events, so the header's metadata-only claim is true. It still does not port on the same terms — the same module carries .insert() into provider_quota_events and probes process.env provider keys via hasEnvKey, so porting it imports a production write path. The metadata half needs a REBUILT read-only repository, as separate work.",
+    "components/command-centre/provider-accounts/ProviderAccountsTile.tsx": "KI-007. Renders and mutates the account surface omitted above. Absent rather than shown-disabled.",
+    "components/command-centre/cost-allocation/CostAllocationTile.tsx": "Not assessed for capability 4's read-only half. Out of scope until its data sources are traced the way provider-usage's were; not omitted on a safety finding, omitted because it is unexamined."
   },
   "_target_native": {
     "lib/supabase/server.ts": "Pre-existing file of THIS app, not ported and not rebuilt for the migration. It is in the capability graph because the rebuilt wiki-graph page imports it. No source baseline applies; diff-relative comparison is meaningless for it."
