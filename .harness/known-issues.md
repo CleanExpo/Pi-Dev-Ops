@@ -131,3 +131,52 @@ the caption says so.
 map-vs-reality check built in the previous commit failed on it within seconds. The apparatus
 caught its own author. That is the first evidence any of these checks has bitten someone other
 than the reviewer who demanded it.
+
+## KI-006 — `provider-test` OMITTED, absent not stubbed (capability 4)
+
+`/api/command-centre/provider-test` is **not** ported and has no stub.
+
+**Why there is no gated version.** Its whole function is to spend. `provider-test/route.ts`
+imports `executeChat` from `lib/provider-pool/execute.ts`, which posts to `api.openai.com`,
+`api.minimax.io`, `openrouter.ai` and `generativelanguage.googleapis.com` with a resolved API
+key. A "test" button here is a live billable completion.
+
+Founder ruling 2026-08-02: **there is no version that is a button with a gate.** Ported into
+this app it becomes a spend path reachable over HTTP by anything holding the shared dashboard
+password — including our own agents — on a surface the fence cannot see. The fence gates what it
+can observe; an HTTP route inside the dashboard is not that. Same rule as KI-002.
+
+**The route back, stated so this is a deferral and not a dead end.** The real question a test
+button answers is *"is this credential valid"*, and that is answerable against a **non-billable**
+endpoint — a models-list or account-status call. If the button is wanted later it gets **built
+against one of those**, not by porting the completion call and putting a gate in front of it.
+Different construction, not the same code with a guard.
+
+---
+
+## KI-007 — provider credential custody DEFERRED, bound to per-capability tokens
+
+`credentials_vault` access and the `provider_accounts` write paths are **not** ported.
+
+**Why not today.** This app is single-operator behind one shared password. Holding provider keys
+here would mean: no per-capability scoping, no audit of which capability read which key, and no
+identity to attribute a read to. That is the same identity gap that blocked KI-002's enhance
+route — the missing thing is not a table, it is a subject.
+
+**Bound to a specific unblock.** Per-capability tokens are what make *"which capability may read
+the vault"* an answerable question. Revisited **after tokens land**, not before, and not on a
+judgement call that the risk seems small.
+
+**What WAS proven, since the header alone would not have been accepted.** The route header claims
+"metadata only — never the key … no secrets cross this boundary". Traced rather than believed:
+`credentials_vault` appears nowhere in `lib/provider-pool/repository.ts`; the GET path runs
+`listAccounts` + `loadAccounts`, which select from `provider_accounts` and
+`provider_quota_events` only, and `vault_entry_id` is carried as an id and never dereferenced.
+**The claim is true.**
+
+**It still does not port on the same terms as the usage cockpit**, and the reason matters: the
+same module carries `.insert()` into `provider_quota_events` — a production write path — and
+probes `process.env` provider keys through `hasEnvKey`. Porting it wholesale imports a write path
+into this app. If the metadata half is wanted, it needs a **rebuilt read-only repository**, the
+way `/api/command-centre/wiki-graph` was rebuilt, not a port. That is a separate piece of work
+with its own review.

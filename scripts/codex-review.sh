@@ -117,11 +117,35 @@ post_cfg="$(cfg_hash)"
 echo "  post: HEAD=${post_head:0:8} tree=${post_tree:0:12} codex-cfg=${post_cfg:0:12}"
 
 VOID=0
-if [ "$pre_head" != "$post_head" ] || [ "$pre_tree" != "$post_tree" ]; then
+# TWO DIFFERENT INCIDENTS, and conflating them sends the investigation the wrong way.
+# The first version said "the reviewer mutated the repository" for both, and on 2026-08-02
+# it said exactly that when the truth was that I had committed mid-review. Right conclusion,
+# wrong attribution — in a security control that is its own defect.
+#
+#   HEAD moved, tree identical  -> the BUILDER committed while the review was reading.
+#                                  Operator error. The review is still void, because the
+#                                  reviewer judged a moving target, but nothing hostile
+#                                  happened and the fix is procedural.
+#   tree changed                -> the REVIEWER wrote to the working tree. It was told not
+#                                  to. That is a security finding, not a process slip.
+if [ "$pre_tree" != "$post_tree" ]; then
   echo ""
-  echo "  ════ REVIEW VOID — the reviewer mutated the repository."
-  echo "       A review that changed the thing it reviewed is not evidence about it."
+  echo "  ════ REVIEW VOID — THE REVIEWER WROTE TO THE WORKING TREE."
+  echo "       It was instructed not to modify any file. Treat as a SECURITY incident:"
+  echo "       a reviewer that edits the thing it reviews can make its own verdict true."
   git status --porcelain | head -20
+  VOID=1
+fi
+if [ "$pre_head" != "$post_head" ]; then
+  echo ""
+  if [ "$pre_tree" = "$post_tree" ]; then
+    echo "  ════ REVIEW VOID — the BUILDER committed during the review (operator error)."
+    echo "       HEAD $pre_head -> $post_head with the working tree unchanged, so the"
+    echo "       reviewer wrote nothing. Still void: it judged a repo that moved under it,"
+    echo "       so its findings cannot be bound to one commit. Re-run against a fixed HEAD."
+  else
+    echo "  ════ ...and HEAD also moved: $pre_head -> $post_head"
+  fi
   VOID=1
 fi
 
