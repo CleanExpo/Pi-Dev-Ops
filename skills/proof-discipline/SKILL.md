@@ -96,6 +96,30 @@ failed 2 tests, which is what the exemption's narrowness actually rests on.*
 > Name each for the moment it serves, because the failure mode is that the less
 > obviously-named half never loads when it is the one needed.
 
+## Naming the Risk Is Not the Same as Covering It
+
+Sits alongside **"a review is never coverage"** and fails the same way: both mistake an
+*artefact about* the work for the work.
+
+A gap you wrote down is still open. Writing it down changes who is surprised, not whether it
+is exploitable.
+
+**Earned 2026-08-02, and the shape is almost comic.** The hardening review brief I authored
+told the reviewer to check *"nested objects, arrays of objects"* — and I then shipped a guard
+that checked only top-level keys. The reviewer found precisely the thing I had written down.
+`proposals` is an array of objects; the entire interesting payload sat one level below where I
+was looking. Naming it bought nothing.
+
+**The tell:** a sentence in a brief, a "revisit if…", a TODO, or a known-issues entry, standing
+where a check should be. Each is *evidence of awareness* — and awareness is not a control.
+`.harness/known-issues.md` is legitimate for a gap that is DEFERRED WITH A RULING; it is not a
+place to park a gap you simply have not built.
+
+**The test:** could this gap be exploited tomorrow by someone who has read the note? If yes, the
+note is not a mitigation. Either build the check, or record it as a deferral with a named
+blocker and an unblock condition — the KI-006/007/008 form — so the next reader can tell a
+decision from an intention.
+
 ## A Check That Knows a Fixed Set Is a Check That Goes Stale Silently
 
 **Any check that enumerates the surface it guards will, at some point, guard less than its name

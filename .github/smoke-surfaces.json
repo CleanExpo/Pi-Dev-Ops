@@ -423,7 +423,7 @@
       "auth": false,
       "expected_status": 403,
       "body_contains": [
-        "ok"
+        "Forbidden"
       ],
       "_comment": "2026-08-02: was 200. The webhook secret check used to fire only when a secret was PRESENTED, so an anonymous POST with no header skipped it entirely and reached the handler. Now fail-closed: no secret configured, or none presented, or a mismatch, all return 403 before the body is parsed. This expectation was updated deliberately with the fix — a smoke contract that still asserted 200 would have reasserted the vulnerability as the requirement."
     },
