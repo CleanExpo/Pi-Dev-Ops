@@ -56,6 +56,17 @@ const PROTECTED_API_PREFIXES = [
   "/api/capabilities",
   "/api/chat",
   "/api/settings",
+  // Ratified by Phill McGurk 2026-08-02. These three were never DECIDED public — they fell
+  // through this file's default-open fallthrough and were documented afterwards as
+  // "deliberately-public", each citing the next as precedent, so the justification was
+  // circular and rested on nothing. zte and curator-proposals reach upstream with a borrowed
+  // credential the caller does not hold; swarm-status discloses automation posture (state,
+  // autonomous PR count and daily limit) — i.e. when automation is unattended and how much
+  // budget remains. Their only real callers are panels mounted on /control, which is already
+  // a protected page, so gating them costs nothing.
+  "/api/zte",
+  "/api/swarm-status",
+  "/api/curator-proposals",
 ];
 
 // Public API routes — never require session

@@ -3,7 +3,8 @@
   "_classifications": {
     "route-self-protected": "The proxy does not gate it; the handler authenticates the caller itself. unauth_status must be 401/403.",
     "deliberately-public": "Reachable anonymously on purpose, and that exposure was chosen. unauth_status is a success code.",
-    "accepted-exposure-pending-remediation": "Anonymously reachable, adjudicated, and judged WRONG — but the fix is scheduled rather than immediate. unauth_status records the current (undesired) status and `remediation` names the change that closes it. This exists so that 'we looked and it should change' is expressible without either lying that it is fine or blocking on it."
+    "accepted-exposure-pending-remediation": "Anonymously reachable, adjudicated, and judged WRONG — but the fix is scheduled rather than immediate. unauth_status records the current (undesired) status and `remediation` names the change that closes it. This exists so that 'we looked and it should change' is expressible without either lying that it is fine or blocking on it.",
+    "proxy-protected": "Gated by PROTECTED_API_PREFIXES in proxy.ts — every method on the path requires a session. unauth_status must be 401. An entry is not required for these (the proxy classifies them), but one is kept where the decision to gate is itself worth recording."
   },
   "_provenance": {
     "decision": "Someone chose this posture for this method and signed for it. decided_by names them.",
@@ -37,11 +38,11 @@
       "decided_on": "2026-08-02"
     },
     "POST /api/auth/login": {
-      "classification": "route-self-protected",
-      "unauth_status": 401,
-      "reason": "The login endpoint itself. Necessarily reachable anonymously — it is where a caller stops being anonymous — and it authenticates the caller by validating DASHBOARD_PASSWORD before issuing the pi_session cookie.",
+      "classification": "deliberately-public",
+      "unauth_status": 200,
+      "reason": "CORRECTED 2026-08-02. Previously declared unauth_status 401, which was FALSE: auth/login/route.ts:66 returns HTTP 200 with {ok:false} for a wrong password, and 400 for unparseable JSON. The old control only checked that a declared number was >=400, so a false declaration passed green — the exact defect this file exists to catch, reproduced inside the fix for it. Corrected the DECLARATION, not the route: 200-with-{ok:false} is deliberate and issues no cookie on failure, so the route is right and the record was wrong. This is not the forbidden move of writing down current behaviour to silence a red — that rule applies when the ROUTE is the defect; here it was not.",
       "provenance": "decision",
-      "decided_by": "original dashboard auth design",
+      "decided_by": "claude-opus-5 session 1312b3c1 — correction of a false record",
       "decided_on": "2026-08-02"
     },
     "GET /api/cron/analyze": {
@@ -109,30 +110,27 @@
       "decided_on": "2026-08-02"
     },
     "GET /api/zte": {
-      "classification": "accepted-exposure-pending-remediation",
-      "unauth_status": 200,
-      "reason": "READJUDICATED. Was 'deliberately-public'. It was never decided public: /api/zte is in neither proxy prefix list, so it fell through the default-open fallthrough, and the exposure was documented afterwards. The prior entry even recorded the objection to itself — it proxies upstream using PI_CEO_PASSWORD, so an anonymous caller reads internal scoring through a credential it does not hold — and then accepted it anyway. Decision: that is not an acceptable public read. It stays open only until the proxy inversion lands, because closing it individually duplicates work the inversion does for every route at once.",
-      "remediation": "proxy default-deny inversion (separate PR, own review round)",
+      "classification": "proxy-protected",
+      "unauth_status": 401,
+      "reason": "GATED 2026-08-02. Reaches upstream with a borrowed PI_CEO_PASSWORD, so an anonymous caller read internal scoring through a credential it did not hold. Previously recorded 'deliberately-public', which was a DISCOVERY presented as a requirement: it fell through proxy.ts's default-open fallthrough and was documented afterwards, citing /api/zte as precedent — and zte cited nothing. Now in PROTECTED_API_PREFIXES. Its only real callers are panels mounted on /control, itself already a protected page, so gating costs nothing.",
       "provenance": "decision",
-      "decided_by": "claude-opus-5 session 1312b3c1 — PENDING FOUNDER RATIFICATION",
+      "decided_by": "Phill McGurk (founder), ratified 2026-08-02",
       "decided_on": "2026-08-02"
     },
     "GET /api/swarm-status": {
-      "classification": "accepted-exposure-pending-remediation",
-      "unauth_status": 200,
-      "reason": "READJUDICATED. Was 'deliberately-public' citing /api/zte as precedent, which was itself a discovery — the justification was circular. Observed live returning autonomy state to an anonymous caller: swarm state, autonomous PR count and daily limit, green-merge progress. That is an operational-posture disclosure telling an observer when automation is unattended and how much budget remains. Decision: should be gated.",
-      "remediation": "proxy default-deny inversion (separate PR, own review round)",
+      "classification": "proxy-protected",
+      "unauth_status": 401,
+      "reason": "GATED 2026-08-02. Disclosed automation posture — swarm state, autonomous PR count and daily limit — i.e. when automation runs unattended and how much budget remains. Previously recorded 'deliberately-public', which was a DISCOVERY presented as a requirement: it fell through proxy.ts's default-open fallthrough and was documented afterwards, citing /api/zte as precedent — and zte cited nothing. Now in PROTECTED_API_PREFIXES. Its only real callers are panels mounted on /control, itself already a protected page, so gating costs nothing.",
       "provenance": "decision",
-      "decided_by": "claude-opus-5 session 1312b3c1 — PENDING FOUNDER RATIFICATION",
+      "decided_by": "Phill McGurk (founder), ratified 2026-08-02",
       "decided_on": "2026-08-02"
     },
     "GET /api/curator-proposals": {
-      "classification": "accepted-exposure-pending-remediation",
-      "unauth_status": 200,
-      "reason": "READJUDICATED. Was 'deliberately-public' citing /api/zte, the third link in the same circular chain. Read-only Skill Curator proposals, quiet on error. Not probed live in this pass — the classification is from source and the proxy prefix lists, and that gap is recorded rather than papered over. Decision: internal proposal data should not be an anonymous read.",
-      "remediation": "proxy default-deny inversion (separate PR, own review round); confirm live status during that change",
+      "classification": "proxy-protected",
+      "unauth_status": 401,
+      "reason": "GATED 2026-08-02. Internal Skill Curator proposal data, reached upstream with a borrowed credential. Previously recorded 'deliberately-public', which was a DISCOVERY presented as a requirement: it fell through proxy.ts's default-open fallthrough and was documented afterwards, citing /api/zte as precedent — and zte cited nothing. Now in PROTECTED_API_PREFIXES. Its only real callers are panels mounted on /control, itself already a protected page, so gating costs nothing.",
       "provenance": "decision",
-      "decided_by": "claude-opus-5 session 1312b3c1 — PENDING FOUNDER RATIFICATION",
+      "decided_by": "Phill McGurk (founder), ratified 2026-08-02",
       "decided_on": "2026-08-02"
     }
   }
