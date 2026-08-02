@@ -1,6 +1,10 @@
 # Proposal — reviewer isolation
 
-**Status: PROPOSAL. Not a decision, not built.** Phill rules; implementation follows the ruling.
+**Status: §1–8 PROPOSAL. §9 SPECIFICATION, ruled 2026-08-03 — Option A (container). Not built.**
+
+**Option B is CLOSED on measurement**, not on reasoning — see §9.0. Option C remains a regression
+against §3 while branch protection is unavailable (§5 C). Phill ruled A; §9 specifies it. Nothing in
+§9 has been implemented.
 
 ## Which branch this is on, and why
 
@@ -312,3 +316,183 @@ Not a ruling — three things that would make a ruling well-founded, in order:
 arrangement for every evidenced round to date — `cap4-1`, `hardening-1/2/3`, `respec-3/4/4b`. Nothing
 has gone wrong, and nothing in the current setup would have shown it if it had, beyond the two
 repo-scoped hashes and one machine-scoped config hash.
+
+---
+
+# 9. Container specification
+
+Ruled 2026-08-03. **Specification only — not built.**
+
+## 9.0 The measurement that closed Option B
+
+Two arms, same probe (`.harness/sandbox-probe/probe-boundary.cjs`). Arm A direct; Arm B inside
+`codex exec --skip-git-repo-check -s danger-full-access -m gpt-5.5` — the exact invocation at
+`codex-review.sh:101`. Arm A passing everything is what makes an Arm B refusal meaningful.
+
+| check | Arm A | Arm B (inside reviewer) |
+|---|---|---|
+| `SPAWN_NET_USE` / `SPAWN_CMD` | OK / OK | **OK / OK** |
+| `WRITE_IN_TREE` / `UNLINK_IN_TREE` | OK / OK | **OK / OK** |
+| `READ_OUTSIDE_TREE` (`~/.gitconfig`) | OK 636 B | **OK 636 B** |
+| `READ_CREDENTIAL[.railway/config.json]` | READABLE 747 B | **READABLE 747 B** |
+| `READ_CREDENTIAL[.codex/auth.json]` | READABLE 4558 B | **READABLE 4558 B** |
+| `READ_CREDENTIAL[.ssh/id_ed25519]` | READABLE 387 B | **READABLE 387 B** |
+| `WRITE_OUTSIDE_TREE` | OK, landed | **OK, landed** |
+| `SIBLING_REPOS_VISIBLE` | 58 | **58** |
+| `NETWORK` | HTTP 200 | DNS OK · TCP 443 OK · HTTP 200 |
+
+**`danger-full-access` applies no filesystem, credential or network boundary.** Both §6 canaries
+fail: the read outside reach succeeds and the write outside the tree succeeds. There is no partial
+confinement to tune toward, so B is closed.
+
+*One near-miss recorded because it is the point of this document.* Arm B first returned
+`NETWORK_OUTBOUND: FAIL UNABLE_TO_VERIFY_LEAF_SIGNATURE`, which reads like a block. It is not — my
+shell carries `NODE_EXTRA_CA_CERTS` and codex's environment does not. A separate discriminator
+(`net-discriminator.cjs`) settled it: DNS resolves, TCP/443 connects, plain HTTP returns 200. Egress
+is open. Reporting the first result would have invented a boundary that does not exist.
+
+## 9.1 The constraint that shapes the design
+
+**Egress cannot be closed. The reviewer talks to a hosted model by construction** — a reviewer with
+no network is not a reviewer. Network is therefore *not* the boundary and must not be relied on as
+one. **The mount is the boundary, and it carries all of the weight.**
+
+Two consequences, stated so no one later mistakes the design for defence-in-depth it does not have:
+
+1. An egress *allowlist* is a mitigation, not a boundary. If the runtime supports per-host egress
+   control it should be used (§9.3), but the design must remain sound if it is bypassed.
+2. Because exfiltration is always available to a process that can reach the model endpoint,
+   **anything readable inside the container is effectively disclosed.** The mount list is therefore
+   a disclosure list. That is the correct way to review it.
+
+## 9.2 External network the loop actually needs — measured
+
+Beyond the model endpoint:
+
+| need | verdict | how established |
+|---|---|---|
+| **Google Fonts (`fonts.gstatic.com`)** | **REQUIRED on a cold cache** | Three independent lines: `next/font/google` imported in `app/layout.tsx:4` and two `command-centre` pages; `fonts.gstatic.com` resolved during a measured run; **38 `.woff2` files emitted into `.next/static/media/`**. |
+| **Package registry** | **NOT required by the default loop** | `npm ci` sits behind `--full` (`handoff-loop.sh:61`); `dashboard/node_modules` is pre-populated (412 entries). **But a fresh container has no `node_modules`** — see §9.3. |
+| **`git fetch` / remote git** | **NOT required** | No `git fetch/pull/clone/ls-remote` in `prove-controls.sh`, `route-exercise.mjs` or `handoff-loop.sh`. |
+| **Supabase (`lksfwktwtmyznckodsau.supabase.co`)** | **OBSERVED, NOT ATTRIBUTED** | Resolved during the run and passed as a build env var (`prove-controls.sh:186`), but the DNS cache is polluted by ambient traffic (Tailscale, AVG, Windows, this session). I cannot separate loop traffic from machine traffic with this instrument. **Treat as required until measured properly** — inside a container the cache is clean and this resolves itself on first run. |
+| **`x.invalid`** | must FAIL to resolve | Deliberate fail-closed fixture (`prove-controls.sh:186`). It must keep failing; an egress allowlist that somehow resolved it would break the control. |
+
+Measurement limit, stated: DNS-cache diffing on a shared host cannot attribute a resolution to a
+process. The container makes this trivially measurable and the first run should re-establish it.
+
+## 9.3 What is mounted
+
+**Principle: the source of record is read-only; only generated paths are writable.** This converts
+Control 1 from detective to *preventive* for tracked source — a reviewer write to source fails at the
+syscall rather than being caught afterwards.
+
+| path | mode | why |
+|---|---|---|
+| repo tree → `/work` | **read-only** | §4.1 read access. Tracked source must not be writable. |
+| `/work/.git` | **read-only** | §4.6 `rev-parse`, `status`, `log`, `diff`. Read-only removes commit/push capability structurally. |
+| `/work/dashboard/.next` | **read-write volume** | §4.1/4.3 build must write and unlink here. |
+| `/work/dashboard/node_modules` | **read-write volume**, pre-populated in the image | §4.4 toolchain. Baking it in removes the registry from the runtime path entirely. |
+| `/work/.harness/<transcript>` | **read-write**, single file | §4.7 the reviewer's own output. |
+| brief file | **read-only** | §4.7. |
+| model credential | **read-only, single file** | §9.4. |
+
+**Not mounted — the disclosure list, inverted:**
+
+`~/.ssh/` (any key) · `~/.railway/config.json` · `~/.vercel/` · `~/.gitconfig` ·
+`~/.git-credentials` · `~/.claude/` · `~/.codex/config.toml` · the host `$HOME` generally ·
+**any path on `D:\` other than this repo** (58 repos are currently reachable; the correct number is
+1) · the container runtime socket · the host process namespace.
+
+**Environment: explicit allowlist, nothing inherited.** `PATH`, `HOME`, `CI`, `NODE_ENV`, plus the
+build vars `prove-controls.sh:186` sets for itself. Arm B already showed the reviewer's env differs
+from the shell's (`VERCEL_TOKEN` absent) — that is incidental, not a control, and must become one.
+
+**Writable-set caveat requiring measurement, not assumption.** A read-only source tree may break the
+build if Next writes into it (`next-env.d.ts`, `*.tsbuildinfo`). **Do not guess the list.** First run:
+mount source read-only, run the loop, collect every `EACCES`/`EROFS` path, and promote exactly those
+to named writable volumes. Any path promoted this way is a documented exception with a reason.
+
+**Egress:** allow the model endpoint and `fonts.gstatic.com`; add Supabase if §9.2 confirms it.
+If the runtime cannot do per-host egress control, that is a finding to record — not a blocker,
+because per §9.1 egress is not the boundary.
+
+## 9.4 Model authentication — and a tension that needs a ruling
+
+The reviewer must authenticate to the model **without holding a credential that opens anything else.**
+
+**Specified:** mount `~/.codex/auth.json` **read-only, as a single file**, at its expected path.
+Nothing else from `~/.codex/` — notably **not** `config.toml`, which is the self-escalation path
+Control 1b exists for (§9.6).
+
+**The tension, surfaced rather than resolved because it is a spend decision.** Control 3
+(`codex-review.sh:42-49`) *requires* plan auth (`auth_mode=chatgpt`) and refuses to run on a paid
+per-call key. So the only credential the design may use is a **full ChatGPT account credential**
+(4558 bytes) — which is precisely a credential that opens something else. Per §9.1, mounting it means
+disclosing it.
+
+Two ways out, both Phill's to choose:
+
+- **(a) Accept it.** Keep plan auth; the reviewer can read the account credential. Cost stays zero.
+  Residual risk: account compromise, not estate compromise — no SSH key, no cloud tokens, no other
+  repos. This is a large reduction from today even though it is not zero.
+- **(b) Scoped API key.** A dedicated key, one project, hard spend cap, injected as an env var rather
+  than a mounted file. It opens **only model inference** — the property §9.4 asks for. **Requires
+  amending Control 3**, which currently forbids exactly this, and introduces per-call spend.
+
+I am not choosing. (a) is specifiable today and changes no control; (b) is stronger isolation bought
+with money and a control amendment.
+
+## 9.5 Proving the mount boundary — red first, two arms
+
+Same shape as §9.0: **the same probe, inside and outside.** The outside arm is what makes an inside
+refusal evidence rather than a broken probe.
+
+**Expected INSIDE the container:**
+
+| check | required result | boundary being proven |
+|---|---|---|
+| `READ_CREDENTIAL[.railway/config.json]` | **FAIL ENOENT** | host `~` not in namespace |
+| `READ_CREDENTIAL[.ssh/id_ed25519]` | **FAIL ENOENT** | no key material |
+| `READ_OUTSIDE_TREE` (`~/.gitconfig`) | **FAIL ENOENT** | host home absent |
+| `WRITE_OUTSIDE_TREE` | **FAIL EROFS/EACCES/ENOENT** | nothing writable outside the tree |
+| `SIBLING_REPOS_VISIBLE` | **FAIL or 0** | one repo, not 58 |
+| write to tracked source under `/work` | **FAIL EROFS** | read-only source (new check) |
+| `SPAWN_NET_USE` / `SPAWN_CMD` | **OK** | §3 execution preserved |
+| `WRITE_IN_TREE` / `UNLINK_IN_TREE` (`.next`) | **OK** | build can run |
+| `NETWORK` to model + fonts | **OK** | §9.1 |
+
+**The rule you set — a check that cannot fail inside is not evidence — needs its own arm.** A
+`FAIL ENOENT` is ambiguous between *the mount excluded it* and *the probe looked in the wrong place*.
+So each denial gets a paired positive inside the container:
+
+- **Read:** a decoy file is mounted read-only at a known in-container path with a unique token. The
+  probe must **read the decoy successfully** and **fail on the host paths in the same run.** Same
+  mechanism, same process, only the path differs — the §6 two-arm shape applied within one arm.
+- **Write:** the probe must **write successfully to `/work/dashboard/.next`** and **fail outside the
+  tree in the same run.**
+
+Both denials without their paired success are **not evidence** and the run must be treated as
+unproven. A probe that reports six `ENOENT`s and never demonstrated a successful read has measured
+nothing.
+
+**Gate:** this proof runs **before the first real review**, and its result is recorded. If any denial
+lacks its paired success, the container is not accepted.
+
+## 9.6 What happens to the controls
+
+| control | under the container |
+|---|---|
+| **1 — tree integrity** (`:52-68`, `:113-150`) | **Retained, and partly superseded.** Read-only source makes a source write *impossible* rather than *detected*; the hash still covers the writable overlays and still catches the builder committing mid-review, which is operator error and unrelated to isolation. Keep it. Its documented blindness to gitignored paths (`:57-61`) is unchanged and still correct. |
+| **1b — codex config hash** (`:70-94`, `:152-160`) | **Becomes unnecessary in its current form, and is REPLACED, not simply deleted.** `~/.codex/config.toml` is not mounted, so self-escalation through it is structurally impossible rather than detected. **Successor control: a mount-manifest assertion** — before each run, compare the container's actual mount table against the declared manifest in §9.3 and **fail closed on any extra, any missing, or any read-only mount that is writable.** That is the same fail-closed-on-the-unrecognised property `:85-87` was built for, aimed at the thing that now carries the boundary. **Do not retire 1b until §9.5 passes.** Retiring a control on the assumption of a boundary, before the boundary is proven, is the exact error this document exists to prevent. |
+| **2 — execution proof** (`:162-175`) | **UNAFFECTED. Confirmed.** Isolation and execution are orthogonal axes. The container changes where the suite runs, not whether the transcript shows it ran. The grep for `Tests N passed` / `Test Files N` is unchanged, and §3 keeps it non-negotiable: a reviewer that cannot execute cannot validate a verifier. If anything it gains weight — a fresh container is *more* likely to fail to execute for environmental reasons, and this is the control that makes that loud rather than silent. |
+| **3 — plan auth** (`:42-49`) | **Unchanged under §9.4(a); requires amendment under §9.4(b).** Orthogonal to isolation, and the source of the tension in §9.4. |
+
+## 9.7 Open items before build
+
+1. **Container runtime.** Docker Desktop / WSL2 presence on this host is **not verified**. Check
+   before anything else.
+2. **The writable set** (§9.3) — measure the `EACCES` paths, do not predict them.
+3. **Supabase egress** (§9.2) — resolves on first containerised run with a clean DNS cache.
+4. **§9.4 ruling** — (a) mounted plan credential, or (b) scoped key plus a Control 3 amendment.
+5. **Image drift.** The image pins a toolchain that can diverge from the repo's. That is a new
+   failure mode introduced by this option and needs its own check; it is not covered by 1, 1b, 2 or 3.
