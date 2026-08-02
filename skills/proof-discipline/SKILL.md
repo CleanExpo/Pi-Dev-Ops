@@ -39,6 +39,7 @@ Before marking ANYTHING passing/GREEN/complete, answer every item **with pasted 
 | 4 | **Deployed/template drift** | "the migration says X" but the live object differs | `pg_get_functiondef('schema.fn'::regproc)` diff against the `.sql` source |
 | 5 | **Observed-not-proven security** | "0 leak" seen once, in geometry where a leak couldn't show | rebuild fixture with tenants interleaved in the ranked output; run via signed JWT + real role; assert exact id-set, 0 cross-tenant |
 | 6 | **Vacuous control** | "I broke it and the check still passed / caught it" — but the thing you broke was never there | assert the PRECONDITION before trusting the control: the anchor string must exist, the file must be non-empty, the planted token must actually land. `grep -c` it after planting, and fail loudly at zero |
+| 7 | **Misaimed instrument** | "I searched and found nothing — and I proved my search works" | a positive control validates the INSTRUMENT, not the AIM. Confirm the target exists under the name/path/shape you searched for, in the version you are on, before reading absence as evidence. Cheapest disproof: probe the live system, which answers about reality rather than about your query |
 
 ### 6 in full — verify a control's precondition before trusting the control
 
@@ -79,6 +80,53 @@ editing files on a production server. `skills-drift-check` fails the build if th
 to remove a `disabled` token from a file that contained none. Nothing was planted; the 22/22
 pass was meaningless. The real control — planting an **undeclared** construct in the same file —
 failed 2 tests, which is what the exemption's narrowness actually rests on.*
+
+### 7 in full — a positive control validates the instrument, not the aim
+
+A positive control proves your search *mechanism* works. It says nothing about whether you
+pointed it at the right target. Both failures emit the identical output — an empty result from
+a correctly-functioning search — and only one of them means "absent".
+
+Mode 6 is *the control could not have failed*. Mode 7 is *the control worked perfectly and was
+aimed at the wrong thing*. Running 6 does not protect you from 7; in the incident below, the
+positive control **passed**, which is precisely what made the wrong conclusion feel earned.
+
+*Earned 2026-08-02, Pi-Dev-Ops.* Auditing which API routes enforce auth, I searched for
+`middleware.ts`, found none, and ran a positive control: the same glob shape returned 26
+`route.ts` files, so the search plainly worked. I concluded there was no central auth layer and
+began assembling ~13 "unauthenticated" handlers with exploit chains — unauthenticated settings
+writes that could rewrite the GitHub webhook secret, arbitrary repo commits, a session-table
+wipe. Serious, specific, and wrong.
+
+**Next.js 16 renamed `middleware.ts` to `proxy.ts`.** The file was there the whole time, under a
+name I never searched for. `proxy.ts` gates seven path prefixes; all thirteen of my findings
+collapsed. My positive control had confirmed the glob functioned. It could not confirm the
+filename was current, because it never tested that — and nothing in an empty result says which
+of the two failed.
+
+What caught it was **not more source reading**. More reading would have re-derived the same
+wrong answer from the same wrong premise, with rising confidence. It was a live probe: `curl`
+against production returned 401 on two routes my analysis said were wide open. Reality
+disagreed with the model, which is the only signal that can escape a self-consistent misreading.
+
+```bash
+# WRONG — the control proves the glob runs, not that the name is right
+ls **/middleware.ts || echo "no central auth"     # the NAME is an untested assumption
+
+# RIGHT — search for the behaviour, then ask reality
+grep -rlE "PROTECTED_API|PUBLIC_API|verifySession" --include="*.ts" . | head
+curl -s -o /dev/null -w "%{http_code}" https://prod.example/api/thing   # 401 ≠ your model
+```
+
+Rules that follow:
+- Framework-defined filenames are **version-dependent**. Check the convention for the version in
+  `package.json` before treating absence of a file as absence of a mechanism.
+- Prefer searching for **behaviour** (a distinctive identifier, constant, or call) over a
+  **filename**. Behaviour survives renames; filenames do not.
+- When a source-only reading concludes something is exposed, **probe it before reporting**. Use
+  a read-only endpoint, and never let the probe be the exploit.
+- Report the aim, not just the result. "No file named X" is not "no such mechanism", and the
+  gap between those two sentences is where this failure lives.
 
 ## Claim Classification (put this in the report)
 
