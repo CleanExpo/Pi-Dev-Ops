@@ -361,6 +361,98 @@ Three habits that catch all five:
 - **Assert the scan did work**: blobs read > 0, files scanned > 0, paths exercised > 0. A checker
   that examined nothing must fail, not pass.
 
+## THE THESIS — a control's health tells you about the control's AIM, not about the world
+
+Every structural limit above is an instance of one statement:
+
+> **A green control reports that the control found nothing where it looked. It says nothing
+> about whether it looked at the right thing.**
+
+Health and correctness are different claims, and a control can only ever make the first. The
+second requires knowing the aim was right, which no control checks about itself.
+
+**Four instances, all found on 2026-08-02, in unrelated systems:**
+
+1. **The kill switch displayed `state: "OFF"`.** That value came from `fallback()` after the
+   upstream call failed. The dashboard reported the swarm as stopped because it could not ask,
+   and "OFF" is the reassuring answer. A failure rendered as a reading.
+2. **Control 1b hashed the wrong file.** It existed to detect a reviewer widening its own
+   permissions, and it watched `~/.codex/config.toml`. The permissions lived in
+   `~/.codex/hooks.json`. It reported "unchanged" truthfully, all day, about a file that did
+   not hold the capability.
+3. **The smoke contract certified the hole.** `kill-switch-status-nosig` asserted
+   `expected_status: 200` for an unauthenticated GET, and the route's own comment cited that
+   surface as the reason the GET could stay public. The test justified the code and the code
+   justified the test. Neither referenced a requirement.
+4. **A positive control passed on a wrong target.** Searching for `middleware.ts`, finding
+   none, and confirming the glob worked — while Next.js 16 had renamed it `proxy.ts`. The
+   instrument was verified; the aim never was. See failure mode 7.
+
+**What follows.** Ask of any green check: *what would this look like if it were pointed at
+nothing?* If the answer is "the same", you have measured the instrument, not the world. The
+escape is always the same shape — go around the check and ask reality directly. Every one of
+these four was broken open by an external observation, never by more careful reading of the
+same source.
+
+## A SERVICE THAT INVENTS ITS OWN CREDENTIAL HAS NO FAILURE MODE — IT HAS A SILENT RECONFIGURATION MODE
+
+```python
+if not _raw_password:  _raw_password = secrets.token_urlsafe(24)   # app/server/config.py
+...
+else: SESSION_SECRET = secrets.token_hex(32); _SECRET_FILE.write_text(SESSION_SECRET)
+```
+
+When `TAO_PASSWORD` is unset the server generates a random password, logs it once, and
+persists a bcrypt hash. Same for `TAO_SESSION_SECRET`. This is usually written as convenience —
+"so it still boots" — and it is the most dangerous shape a missing-config branch can take.
+
+**A missing credential is a loud, diagnosable fault. An invented one is not a fault at all.**
+The service starts, reports healthy, and rejects every legitimate client. Nothing anywhere logs
+an error, because from the service's point of view nothing went wrong. The symptom appears at
+the *caller*, as an authentication failure, which routes the investigation to the caller's
+credential — the one thing that is not broken.
+
+Worse with ephemeral storage: persistence is to a container filesystem, so **a redeploy can
+rotate the credential to a value nobody holds**, at a moment unrelated to any change anyone
+made. It presents identically to a stale password, and it is unfalsifiable from the client side.
+
+**The correct behaviour is refuse-to-start.** A service that cannot authenticate anyone should
+not accept connections; an unavailable service is diagnosable in seconds and an inaccessible one
+is not. Auto-generation is defensible only for a genuinely single-user local dev default, and
+even then it must be impossible in a deployed environment.
+
+*Recorded 2026-08-02 as a proposal, not a change.* Whether the Pi CEO upstream actually had
+`TAO_PASSWORD` unset was never established — Railway was not reachable from the diagnosing
+machine. The finding stands on its own regardless of whether it fired here: the branch exists,
+and while it exists this fault is always available.
+
+## AN UNCLASSIFIED THING IS NOT MERELY UNGUARDED — SUSPECT IT IS ALSO BROKEN
+
+The most useful correlation of 2026-08-02, and it was visible only once two separate
+investigations were laid side by side.
+
+- The routes with **no auth classification** — outside both proxy prefix lists, absent from
+  `api-auth-classification.json` — were `kill-switch`, `zte`, `swarm-status`,
+  `curator-proposals`.
+- The routes sending the **wrong credential type upstream**, and therefore never working at
+  all, were `kill-switch`, `zte`, `swarm-status`, `curator-proposals`.
+
+The same four. Not a coincidence, and not two bugs: **routes nobody classified are routes
+nobody thought about, and unexamined code is broken at whatever rate code is born broken.** The
+missing guard and the missing wiring have one cause, which is that no one ever looked.
+
+**So a classification file is not a security artefact. It is a map of what has been thought
+about.** Read it that way and it says more than it was built to say:
+
+- An entry means someone reasoned about this surface. The reasoning may be wrong, but it exists.
+- **A gap means nobody has.** Treat the gap as evidence of *general* neglect, not merely of a
+  missing guard — check whether the thing works at all, not just whether it is protected.
+
+The practical rule: when a coverage map shows a hole, do not only close the hole. **Go and test
+whether the uncovered thing functions.** In this instance every unclassified route was also
+non-functional, and the non-functionality had been invisible for 92 days because the routes
+returned quiet 200s. Finding the gap was cheap; only looking through it found the real defect.
+
 ## Red Flags — STOP, you are about to ship a false-green
 
 - "The test passes, so it's green." (Passing ≠ proving.)
