@@ -1,10 +1,45 @@
-# Review brief — HTTP hardening — ROUND 1
+# Review brief — HTTP hardening — ROUND 2
 
 You are reviewing a security change. **Flag findings. Do not fix anything. Do not write code.
 Do not edit, create or delete any file in the repository.**
 
-Round 1 of 3. You can execute commands — run the loop and report what you observed. Do not
+Round 2 of 3. You can execute commands — run the loop and report what you observed. Do not
 report results you did not run.
+
+**Round 1 returned** `FAIL — public curator-proposals still leaks widened nested proposal
+fields`, with five findings. All five accepted and fixed:
+
+1. **Nested widening (the verdict).** The `curator-proposals` guard checked only TOP-LEVEL keys
+   and `proposals` is an array of objects, so upstream could widen the objects inside it and
+   every new field reached anonymous callers. Now compares full key PATHS collected recursively,
+   arrays collapsed to `[]`.
+2. **The shared-verifier claim was FALSE.** `proxy.ts` kept its own local verifier while the
+   brief claimed it was shared. It now imports `verifySessionToken` from `lib/auth-secret.ts`;
+   the orphaned `DASHBOARD_PASSWORD` const is removed.
+3. **The smoke contract asserted pre-fix behaviour** and needed two corrections, not one:
+   `expected_status` 200→403 and `body_contains` `"ok"`→`"Forbidden"`.
+4. `decodeURIComponent` on the session cookie could throw on malformed input, turning a bad
+   cookie into a handler error instead of a clean 401. Now caught.
+5. Route discovery matched only `route.ts`/`.tsx`, so a JS route shape would have been invisible
+   to the classification check. Now `.ts/.tsx/.js/.jsx/.mjs`.
+
+**Since round 1, three new checks exist and are also in scope:**
+- `session-verifier-single-source.test.ts` — asserts every session-verification caller resolves
+  to `lib/auth-secret.ts`, recognising a local implementation by what it DOES (HMAC primitive +
+  session tokens + digest comparison) rather than by name.
+- `security-fix-contracts.test.ts` + registry — fails any smoke surface still asserting a
+  pre-fix status or body token, and fails a surface that exists without asserting the post-fix
+  status, so deleting the surface cannot satisfy it.
+- `public-read-shape.test.ts` — stubs a wider upstream body and asserts no public read publishes
+  the additions, including a case widened ONLY inside `proposals[]`.
+
+**LIVE CONTEXT you should know:** the telegram and kill-switch guards from this work were
+cherry-picked to `main` as PR #603 and are now **verified closed on production** — observed, not
+inferred: `POST /api/telegram` without a secret returns 403, `POST /api/kill-switch?op=probe`
+without a credential returns 401. The exposure ran **117 days** and log retention cannot
+establish whether it was abused. Judge accordingly: this is not hypothetical hardening.
+
+**Do not assume the fixes are adequate — judging that is this round's job.**
 
 ## What changed
 
@@ -76,6 +111,8 @@ whether any fix breaks a path that was legitimate — in particular the CI smoke
 
 ```
 bash scripts/prove-controls.sh                                                  -> 22/22, exit 0
+cd dashboard && npx vitest run __tests__/session-verifier-single-source.test.ts  -> 4 passed
+cd dashboard && npx vitest run __tests__/security-fix-contracts.test.ts         -> 7 passed
 PI_CEO_URL=https://x.invalid PI_CEO_PASSWORD=x \
 NEXT_PUBLIC_SUPABASE_URL=https://lksfwktwtmyznckodsau.supabase.co \
 NEXT_PUBLIC_SUPABASE_ANON_KEY=x SUPABASE_SERVICE_ROLE_KEY=x \
