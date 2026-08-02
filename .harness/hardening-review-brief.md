@@ -1,45 +1,44 @@
-# Review brief — HTTP hardening — ROUND 2
+# Review brief — HTTP hardening — ROUND 3 (FINAL)
 
 You are reviewing a security change. **Flag findings. Do not fix anything. Do not write code.
 Do not edit, create or delete any file in the repository.**
 
-Round 2 of 3. You can execute commands — run the loop and report what you observed. Do not
-report results you did not run.
+**Round 3 of 3 — the last attempt under the standing bound.** You can execute commands. Run the
+loop and report what you observed; do not report results you did not run.
 
-**Round 1 returned** `FAIL — public curator-proposals still leaks widened nested proposal
-fields`, with five findings. All five accepted and fixed:
+**Being last is not a reason to pass.** A FAIL naming a real defect is a better outcome than a
+PASS that ends the round. Do not grade on effort, and do not manufacture an objection to appear
+rigorous — if it is sound, say so plainly.
 
-1. **Nested widening (the verdict).** The `curator-proposals` guard checked only TOP-LEVEL keys
-   and `proposals` is an array of objects, so upstream could widen the objects inside it and
-   every new field reached anonymous callers. Now compares full key PATHS collected recursively,
-   arrays collapsed to `[]`.
-2. **The shared-verifier claim was FALSE.** `proxy.ts` kept its own local verifier while the
-   brief claimed it was shared. It now imports `verifySessionToken` from `lib/auth-secret.ts`;
-   the orphaned `DASHBOARD_PASSWORD` const is removed.
-3. **The smoke contract asserted pre-fix behaviour** and needed two corrections, not one:
-   `expected_status` 200→403 and `body_contains` `"ok"`→`"Forbidden"`.
-4. `decodeURIComponent` on the session cookie could throw on malformed input, turning a bad
-   cookie into a handler error instead of a clean 401. Now caught.
-5. Route discovery matched only `route.ts`/`.tsx`, so a JS route shape would have been invisible
-   to the classification check. Now `.ts/.tsx/.js/.jsx/.mjs`.
+**Round 2 returned** `FAIL — required scripts/prove-controls.sh failed 17/22 and the shared
+session verifier still uses non-constant-time HMAC comparison.` Both accepted and fixed:
 
-**Since round 1, three new checks exist and are also in scope:**
+1. **Non-constant-time comparison.** `auth-secret.ts` compared `expectedHex === sig`, and
+   consolidation had just made that the *single* comparison guarding both `proxy.ts` and
+   `/api/kill-switch`. Replaced with a constant-time compare, pure JS so it works from either
+   runtime. **Judge whether the replacement is actually constant-time**, including the
+   length-inequality early return.
+2. **`prove-controls.sh` depended on build state it never established.** You got 17/22 from the
+   same tree that gave me 22/22 — five C12 controls were reporting a stale build rather than the
+   thing under test. It now detects a stale build and builds. **Expect 23/23.**
+
+**New since round 2, and in scope:**
 - `session-verifier-single-source.test.ts` — asserts every session-verification caller resolves
-  to `lib/auth-secret.ts`, recognising a local implementation by what it DOES (HMAC primitive +
-  session tokens + digest comparison) rather than by name.
-- `security-fix-contracts.test.ts` + registry — fails any smoke surface still asserting a
-  pre-fix status or body token, and fails a surface that exists without asserting the post-fix
-  status, so deleting the surface cannot satisfy it.
-- `public-read-shape.test.ts` — stubs a wider upstream body and asserts no public read publishes
-  the additions, including a case widened ONLY inside `proposals[]`.
+  to one module, recognising a local implementation by what it *does* rather than by name.
+- `.github/workflows/kill-switch-proof.yml` — proves the kill switch *accepts* a valid
+  credential (400-with / 401-without), with the secret bound to a GitHub Environment, a
+  negative-control job that fails if the secret is readable without declaring it, and a standing
+  job asserting the deployment branch policy still permits only `main`.
 
-**LIVE CONTEXT you should know:** the telegram and kill-switch guards from this work were
-cherry-picked to `main` as PR #603 and are now **verified closed on production** — observed, not
-inferred: `POST /api/telegram` without a secret returns 403, `POST /api/kill-switch?op=probe`
-without a credential returns 401. The exposure ran **117 days** and log retention cannot
-establish whether it was abused. Judge accordingly: this is not hypothetical hardening.
+**Judge the kill-switch proof design specifically.** Its claim is that `400` proves acceptance
+because auth runs before op validation, which runs before any upstream call. **Verify that
+ordering in the deployed handler.** If a correct secret with `op=probe` could reach upstream, the
+workflow is unsafe and that is a blocking finding.
 
-**Do not assume the fixes are adequate — judging that is this round's job.**
+**LIVE CONTEXT:** the telegram and kill-switch guards are deployed and verified closed on
+production — `POST /api/telegram` without a secret returns 403, `POST /api/kill-switch?op=probe`
+without a credential returns 401, and with a *wrong* credential also 401. The exposure ran 117
+days and log retention cannot establish whether it was abused. This is not hypothetical.
 
 ## What changed
 
@@ -110,7 +109,7 @@ whether any fix breaks a path that was legitimate — in particular the CI smoke
 ## The loop
 
 ```
-bash scripts/prove-controls.sh                                                  -> 22/22, exit 0
+bash scripts/prove-controls.sh                                                  -> 23/23, exit 0
 cd dashboard && npx vitest run __tests__/session-verifier-single-source.test.ts  -> 4 passed
 cd dashboard && npx vitest run __tests__/security-fix-contracts.test.ts         -> 7 passed
 PI_CEO_URL=https://x.invalid PI_CEO_PASSWORD=x \
