@@ -144,6 +144,45 @@ note is not a mitigation. Either build the check, or record it as a deferral wit
 blocker and an unblock condition — the KI-006/007/008 form — so the next reader can tell a
 decision from an intention.
 
+## A Verification That Requires Handling the Thing It Protects Is a Design Failure
+
+**No matter how careful the handling instructions are.**
+
+If a procedure says *retrieve the secret, paste it here, and be careful* — the design is already
+wrong. Careful handling is not a control; it is a request that every future operator be careful
+every time, and it fails on the day someone is tired, or pastes into the wrong window, or into a
+chat with an agent whose transcript is retained.
+
+**The test:** can the verification run without any human ever seeing the value? If not, redesign
+the verification, do not improve the instructions.
+
+**Worked example, 2026-08-02.** `KILL_SWITCH_SECRET` was generated straight into Vercel through a
+pipe and deliberately never read back — the value existed only in the platform, held by nobody.
+That property was the whole point.
+
+The verification then designed to prove it worked asked the founder to **retrieve it from the
+dashboard and paste it into a `curl`**. It was pasted into the agent conversation, and the
+transcript is exactly the place the design existed to avoid. The secret had to be rotated.
+
+Then the *remediation* repeated the shape: "add the new value to the GitHub Environment" would
+have required retrieving and pasting a second time. Caught by the founder, not by me. **A design
+failure of this kind recurs in its own fix**, because the instinct that produced it is still
+operating.
+
+The correct design was available from the start and costs nothing: **generate once and dual-write**
+— one freshly generated value piped into both stores in a single command, so it never surfaces
+in either direction and nobody ever holds it.
+
+**The honest part, because the trade-off was real.** The manual probe was recommended *before*
+the CI proof for a genuine reason: it is debuggable. One command, immediate answer, no workflow
+plumbing, and a clear result you can iterate against. That benefit is real and it is why the
+choice felt reasonable.
+
+**It was outweighed, and should have been.** Debuggability is worth a lot, but not a live
+credential passing through a human's clipboard and an agent's context. When the convenient path
+requires handling the protected thing, the convenience is being purchased with the protection.
+Build the plumbing.
+
 ## STRUCTURAL LIMIT 2 — a check that knows a fixed set goes stale silently
 
 > One of three numbered structural limits of the evidence apparatus. Index and peers —
