@@ -65,15 +65,33 @@ export async function GET(request: Request): Promise<Response> {
     // Fail CLOSED on an unexpected key rather than dropping it silently: a silent drop hides a
     // real upstream change just as effectively, and this way the widening is impossible to miss
     // and cheap to accept deliberately by adding the key here.
-    const ALLOWED = new Set([
-      "proposals", "count", "status", "limit", "total", "error", "detail",
+    // Allowed key PATHS, not just top-level keys. Round-1 review: the first version checked
+    // only the top level, so upstream could widen the objects INSIDE `proposals` and every new
+    // field reached anonymous callers. `proposals` is an array of objects — the interesting
+    // payload was entirely below the level being checked.
+    const ALLOWED_PATHS = new Set([
+      "count", "status", "limit", "total", "error", "detail",
+      "proposals",
+      "proposals[].id", "proposals[].skill", "proposals[].status",
+      "proposals[].created_at", "proposals[].summary", "proposals[].rationale",
     ]);
+
+    /** Every key path in the payload, arrays collapsed to `[]` so shape not length matters. */
+    const keyPaths = (v: unknown, prefix = ""): string[] => {
+      if (Array.isArray(v)) return v.flatMap((x) => keyPaths(x, `${prefix}[]`));
+      if (v && typeof v === "object") {
+        return Object.entries(v as Record<string, unknown>).flatMap(([k, val]) => {
+          const path = prefix ? `${prefix}.${k}` : k;
+          return [path, ...keyPaths(val, path)];
+        });
+      }
+      return [];
+    };
+
     const payload = upstream.ok ? body : { error: `HTTP ${upstream.status}`, ...body };
-    const unexpected = Object.keys(payload as Record<string, unknown>).filter(
-      (k) => !ALLOWED.has(k),
-    );
+    const unexpected = [...new Set(keyPaths(payload))].filter((k) => !ALLOWED_PATHS.has(k));
     if (unexpected.length > 0) {
-      console.error("[curator-proposals] upstream returned unexpected keys:", unexpected);
+      console.error("[curator-proposals] upstream returned unexpected key paths:", unexpected);
       return _quietError(
         "upstream payload shape changed",
         "response withheld: this surface is public, so an unreviewed key is not published",

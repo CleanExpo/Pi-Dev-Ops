@@ -16,7 +16,7 @@ import { NextRequest, NextResponse } from "next/server";
 // Secret resolution lives in lib/auth-secret.ts so this verifier and the
 // cookie signer (app/api/auth/login/route.ts) stay in sync. Edit there to
 // change behaviour.
-import { resolvePassword } from "./lib/auth-secret";
+import { verifySessionToken } from "./lib/auth-secret";
 
 export const config = {
   matcher: [
@@ -25,8 +25,6 @@ export const config = {
   ],
 };
 
-// Must match the key used to sign the session token in app/api/auth/login/route.ts
-const DASHBOARD_PASSWORD = resolvePassword().value;
 const SESSION_TTL_SECONDS = 86_400; // 24h — must match login/route.ts
 const COOKIE_NAME = "pi_session";
 const LOGIN_PATH = "/";
@@ -76,34 +74,13 @@ const PUBLIC_API_PREFIXES = [
   "/api/webhook/",
 ];
 
-async function verifySession(token: string): Promise<boolean> {
-  if (!DASHBOARD_PASSWORD || !token) return false;
-  const dot = token.indexOf(".");
-  if (dot === -1) return false;
-
-  const issuedAtStr = token.slice(0, dot);
-  const sig = token.slice(dot + 1);
-  const issuedAt = parseInt(issuedAtStr, 10);
-  if (isNaN(issuedAt)) return false;
-
-  const age = Math.floor(Date.now() / 1000) - issuedAt;
-  if (age < 0 || age > SESSION_TTL_SECONDS) return false;
-
-  const enc = new TextEncoder();
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(DASHBOARD_PASSWORD),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const expected = await crypto.subtle.sign("HMAC", cryptoKey, enc.encode(issuedAtStr));
-  const expectedHex = Array.from(new Uint8Array(expected))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-
-  return expectedHex === sig;
-}
+// Verification lives in lib/auth-secret.ts and is imported, NOT reimplemented here.
+//
+// Round-1 review caught this: the brief claimed the verifier was "shared with proxy.ts" while
+// proxy kept its own local copy — two implementations of the check that decides whether a
+// request is authenticated, in the one module written because two callers once diverged on
+// exactly this. The local copy also lacked the shared function's try/catch, so a crypto
+// failure threw instead of returning false.
 
 function buildCsp(nonce: string): string {
   const isDev = process.env.NODE_ENV === "development";
@@ -129,7 +106,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse | Response> 
 
   if (isProtectedPage || isProtectedApi) {
     const token = req.cookies.get(COOKIE_NAME)?.value ?? "";
-    const valid = await verifySession(token);
+    const valid = await verifySessionToken(token, SESSION_TTL_SECONDS);
 
     if (!valid) {
       if (isProtectedApi) {

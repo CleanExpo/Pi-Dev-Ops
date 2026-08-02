@@ -38,7 +38,10 @@ function discoverApiRoutes(): string[] {
       const p = join(dir, e);
       if (statSync(p).isDirectory()) {
         walk(p, e.startsWith("(") ? urlPath : `${urlPath}/${e}`);
-      } else if (e === "route.ts" || e === "route.tsx") {
+      } else if (/^route\.(ts|tsx|js|jsx|mjs)$/.test(e)) {
+        // Round-1 review: this matched only .ts/.tsx, so a future JS route shape would have
+        // been invisible to the classification check — an unclassified route that the check
+        // built to catch unclassified routes could not see.
         found.push(urlPath);
       }
     }

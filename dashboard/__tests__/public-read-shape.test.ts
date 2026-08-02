@@ -22,11 +22,18 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 const LEAK = "internal_secret_note";
 
 /** A wider-than-expected upstream body, including something that must never surface. */
+const NESTED_LEAK = "internal_reviewer_note";
+
 const WIDE = {
   score: 96,
   model: "opus",
   state: "ACTIVE",
-  proposals: [],
+  // NESTED widening — round-1 review found the first guard checked only top-level keys, so
+  // upstream could widen the objects INSIDE `proposals` and every new field reached anonymous
+  // callers. The interesting payload was entirely below the level being checked.
+  proposals: [
+    { id: 1, skill: "x", status: "pending", [NESTED_LEAK]: "must not be published" },
+  ],
   count: 0,
   [LEAK]: "should never reach an anonymous caller",
   operator_email: "founder@example.invalid",
@@ -96,6 +103,39 @@ describe("deliberately-public reads cannot widen silently", () => {
     expect(keys).not.toContain("operator_email");
     // And it must say so, rather than quietly returning a thinner body.
     expect(json).toHaveProperty("error");
+    // The nested case explicitly: a leak one level down is the one that got through.
+    expect(JSON.stringify(json)).not.toContain(NESTED_LEAK);
+  });
+
+  it("/api/curator-proposals withholds a body widened ONLY inside proposals[]", async () => {
+    // ISOLATION MATTERS. The WIDE payload above also carries unexpected TOP-LEVEL keys, so a
+    // shallow top-level-only guard withholds it anyway and the nested assertion passes for the
+    // wrong reason — which is exactly what happened when this control was first written. Here
+    // every top-level key is expected and the ONLY widening is one level down, so this test
+    // can only pass if the check actually descends.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            count: 1,
+            proposals: [{ id: 1, skill: "x", status: "pending", [NESTED_LEAK]: "leaked" }],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      ),
+    );
+    vi.resetModules();
+    const { json } = await bodyOf(
+      "../app/api/curator-proposals/route",
+      "/api/curator-proposals",
+    );
+    expect(
+      JSON.stringify(json),
+      "a field added INSIDE proposals[] reached an anonymous caller. Every top-level key here " +
+        "is expected, so only a guard that descends into nested objects can catch this.",
+    ).not.toContain(NESTED_LEAK);
+    expect(json).toHaveProperty("error");
   });
 
   it("CONTROL: curator-proposals still serves a body whose keys are all expected", async () => {
@@ -104,7 +144,10 @@ describe("deliberately-public reads cannot widen silently", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
-        new Response(JSON.stringify({ proposals: [], count: 0 }), {
+        new Response(JSON.stringify({
+          proposals: [{ id: 1, skill: "x", status: "pending" }],
+          count: 1,
+        }), {
           status: 200,
           headers: { "content-type": "application/json" },
         }),

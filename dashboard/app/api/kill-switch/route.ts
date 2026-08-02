@@ -109,7 +109,14 @@ export async function GET(request: Request): Promise<Response> {
 async function isAuthorisedMutation(request: Request): Promise<boolean> {
   const cookie = request.headers.get("cookie") ?? "";
   const m = /(?:^|;\s*)pi_session=([^;]+)/.exec(cookie);
-  if (m && (await verifySessionToken(decodeURIComponent(m[1])))) return true;
+  if (m) {
+    // decodeURIComponent throws on malformed percent-encoding. Round-1 review: an attacker
+    // could turn a bad cookie into a handler error instead of a clean 401 — noise that hides
+    // real signal, and an error page is a worse answer than a refusal.
+    let token = m[1];
+    try { token = decodeURIComponent(token); } catch { /* use the raw value; it will not verify */ }
+    if (await verifySessionToken(token)) return true;
+  }
 
   const configured = (process.env.KILL_SWITCH_SECRET ?? "").trim();
   const presented = (request.headers.get("x-kill-switch-secret") ?? "").trim();
