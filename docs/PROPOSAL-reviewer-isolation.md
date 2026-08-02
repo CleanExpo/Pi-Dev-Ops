@@ -547,19 +547,39 @@ Nothing else.
 | `~/.gitconfig` | REACHABLE 636 B | **ENOENT** | deny | ✅ |
 | `/host_mnt/c`, `/mnt/c`, `/c`, `/run/desktop` | `/c` REACHABLE | **all ENOENT** | deny | ✅ |
 | sibling repos | **58** | **0** | deny | ✅ |
-| write tracked source | WRITABLE | **EROFS** | deny | ✅ |
+| write tracked source (`.gitignore`, 6398 B) | WRITABLE | **EROFS** | deny | ✅ |
+| probe left target unmutated | size+mtime unchanged | **size+mtime unchanged** | no-op | ✅ |
 | **READ_POSITIVE (decoy)** | OK | **OK, 33 B** | succeed | ✅ |
 | **WRITE_POSITIVE (`.next`)** | OK | **OK, write+unlink verified** | succeed | ✅ |
-| read `/work` | OK 79 entries | **OK 80 entries** | succeed | ✅ |
+| read `/work` | OK 79 entries | **OK 79 entries** | succeed | ✅ |
 | `SPAWN` (§3) | OK | **OK** | succeed | ✅ |
 | `NETWORK_EGRESS` (§9.1) | OK | **OK** | succeed | ✅ |
 
 **Both paired positives passed, so every denial is evidence rather than an ambiguous `ENOENT`.**
 
-**The strongest single result is `EROFS`, not `ENOENT`, on the source write.** The file is present and
-readable (`READ_TREE` OK, 80 entries) and the write was refused *by the mount mode*. That denial is
-attributable to read-only-ness itself — it cannot be explained by the probe looking in the wrong
-place, which is the failure §9.5 was designed to exclude.
+**The strongest single result is `EROFS`, not `ENOENT`, on the source write.** The target is
+`.gitignore` — **the same file at the same 6398 bytes in both arms**, reported by the probe as
+`exists+readable` before the write was attempted. The write was refused *by the mount mode*, with
+the mount mode as the only variable between arms. That denial cannot be explained by the probe
+looking in the wrong place, which is the failure §9.5 exists to exclude.
+
+**Probe defect found and fixed mid-proof, recorded because it changes what the first run proved.**
+The original check targeted a root `package.json` that does not exist in this repo and used
+`appendFileSync`, which **creates**. Consequences, both real:
+
+- It wrote an empty untracked `package.json` into the repo it was measuring — precisely the
+  behaviour Control 1 exists to catch, performed by the probe. Removed; never committed; verified
+  absent at HEAD and untracked.
+- The host arm's `WRITABLE` verdict meant *"the directory accepts a new file"*, **not** *"tracked
+  source is writable"*. Weaker than it read, and the container's `ENOENT`-vs-`EROFS` distinction was
+  unavailable.
+
+Fixed by targeting a known-tracked file (`.gitignore`) and opening with `r+`, which **cannot
+create**: a missing target now fails loudly as `VOID — precondition failed, this check proves
+NOTHING` instead of silently manufacturing one. A `WRITE_TRACKED_SOURCE_NOOP` assertion was added
+and passes in both arms (size and mtime unchanged), so the probe is now proven non-mutating rather
+than assumed to be. The `/work` entry count also reconciles at **79 in both arms** — the earlier
+80 was the stray file.
 
 **Measured mount table — the manifest baseline for the Control 1b successor (§9.6):**
 
