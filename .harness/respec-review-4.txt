@@ -1,0 +1,2287 @@
+Reading additional input from stdin...
+2026-08-01T22:03:29.171514Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.agents\skills\seo-content\SKILL.md: missing YAML frontmatter delimited by ---
+2026-08-01T22:03:29.171597Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.agents\skills\seo-images\SKILL.md: missing YAML frontmatter delimited by ---
+2026-08-01T22:03:29.171614Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.agents\skills\seo-programmatic\SKILL.md: missing YAML frontmatter delimited by ---
+2026-08-01T22:03:29.171624Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.agents\skills\seo-schema\SKILL.md: missing YAML frontmatter delimited by ---
+2026-08-01T22:03:29.190618Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.agents\skills\seo-technical\SKILL.md: missing YAML frontmatter delimited by ---
+2026-08-01T22:03:29.190642Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\accessibility-and-inclusive-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T22:03:29.190650Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\dashboards-and-real-time-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T22:03:29.190655Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\geospatial-and-cartographic-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T22:03:29.190658Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\grammar-of-graphics-and-declarative-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T22:03:29.190662Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\scrollytelling-and-parallax-data-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T22:03:29.190666Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\statistical-and-uncertainty-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T22:03:29.190669Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\typescript-data-visualization-engineering\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T22:03:29.190673Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\uml-and-software-architecture-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T22:03:29.190677Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\heygen\11c74d6b\skills\heygen-avatar\SKILL.md: invalid description: exceeds maximum length of 1024 characters
+2026-08-01T22:03:29.190681Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\heygen\11c74d6b\skills\heygen-video\SKILL.md: invalid description: exceeds maximum length of 1024 characters
+2026-08-01T22:03:29.190684Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated-remote\heygen\3.0.0\skills\heygen-avatar\SKILL.md: invalid description: exceeds maximum length of 1024 characters
+2026-08-01T22:03:29.190718Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated-remote\heygen\3.0.0\skills\heygen-video\SKILL.md: invalid description: exceeds maximum length of 1024 characters
+OpenAI Codex v0.134.0
+--------
+workdir: D:\Pi-Dev-Ops
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019fbf5a-7cda-7620-a2db-53b8fc6a482a
+--------
+user
+Read .harness\respec-review-brief.md and follow it exactly. It is the complete spec for this review.
+
+You CAN execute commands in this environment — the sandbox restriction that blocked previous
+rounds is lifted. RUN the loop the brief names and report what you actually observed. Do not
+report test results you did not run. If a command fails, say so and paste the failure.
+
+You are reviewing, not fixing. Do not edit, create or delete any file in the repository.
+2026-08-01T22:03:30.082337Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when AuthRequired(AuthRequiredError { www_authenticate_header: "Bearer realm=\"OAuth\", resource_metadata=\"https://mcp.linear.app/.well-known/oauth-protected-resource/mcp\", error=\"invalid_token\", error_description=\"Missing or invalid access token\"" })
+hook: SessionStart
+hook: SessionStart Failed
+hook: UserPromptSubmit
+hook: UserPromptSubmit Completed
+codex
+I’m using the `code-review` skill because this is explicitly a review task. I’ll keep the repo read-only, run the loop named in the brief, and report only commands I actually execute.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -LiteralPath 'C:\\Users\\Disaster Recovery 4\\.codex\\skills\\code-review\\SKILL.md'" in D:\Pi-Dev-Ops
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -LiteralPath '.harness\\respec-review-brief.md'" in D:\Pi-Dev-Ops
+ succeeded in 271ms:
+---
+name: code-review
+description: Run a comprehensive code review
+---
+
+# Code Review Skill
+
+Conduct a thorough code review for quality, security, and maintainability with severity-rated feedback.
+
+## When to Use
+
+This skill activates when:
+- User requests "review this code", "code review"
+- Before merging a pull request
+- After implementing a major feature
+- User wants quality assessment
+
+## What It Does
+
+## GPT-5.4 Guidance Alignment
+
+- Default to concise, evidence-dense progress and completion reporting unless the user or risk level requires more detail.
+- Treat newer user task updates as local overrides for the active workflow branch while preserving earlier non-conflicting constraints.
+- If correctness depends on additional inspection, retrieval, execution, or verification, keep using the relevant tools until the review is grounded.
+- Continue through clear, low-risk, reversible next steps automatically; ask only when the next step is materially branching, destructive, or preference-dependent.
+
+Delegates to the `code-reviewer` agent (THOROUGH tier) for deep analysis:
+
+1. **Identify Changes**
+   - Run `git diff` to find changed files
+   - Determine scope of review (specific files or entire PR)
+
+2. **Review Categories**
+   - **Security** - Hardcoded secrets, injection risks, XSS, CSRF
+   - **Code Quality** - Function size, complexity, nesting depth
+   - **Performance** - Algorithm efficiency, N+1 queries, caching
+   - **Best Practices** - Naming, documentation, error handling
+   - **Maintainability** - Duplication, coupling, testability
+
+3. **Severity Rating**
+   - **CRITICAL** - Security vulnerability (must fix before merge)
+   - **HIGH** - Bug or major code smell (should fix before merge)
+   - **MEDIUM** - Minor issue (fix when possible)
+   - **LOW** - Style/suggestion (consider fixing)
+
+4. **Specific Recommendations**
+   - File:line locations for each issue
+   - Concrete fix suggestions
+   - Code examples where applicable
+
+## Agent Delegation
+
+```
+delegate(
+  role="code-reviewer",
+  tier="THOROUGH",
+  prompt="CODE REVIEW TASK
+
+Review code changes for quality, security, and maintainability.
+
+Scope: [git diff or specific files]
+
+Review Checklist:
+- Security vulnerabilities (OWASP Top 10)
+- Code quality (complexity, duplication)
+- Performance issues (N+1, inefficient algorithms)
+- Best practices (naming, documentation, error handling)
+- Maintainability (coupling, testability)
+
+Output: Code review report with:
+- Files reviewed count
+- Issues by severity (CRITICAL, HIGH, MEDIUM, LOW)
+- Specific file:line locations
+- Fix recommendations
+- Approval recommendation (APPROVE / REQUEST CHANGES / COMMENT)"
+)
+```
+
+## External Model Consultation (Preferred)
+
+The code-reviewer agent SHOULD consult Codex for cross-validation.
+
+### Protocol
+1. **Form your OWN review FIRST** - Complete the review independently
+2. **Consult for validation** - Cross-check findings with Codex
+3. **Critically evaluate** - Never blindly adopt external findings
+4. **Graceful fallback** - Never block if tools unavailable
+
+### When to Consult
+- Security-sensitive code changes
+- Complex architectural patterns
+- Unfamiliar codebases or languages
+- High-stakes production code
+
+### When to Skip
+- Simple refactoring
+- Well-understood patterns
+- Time-critical reviews
+- Small, isolated changes
+
+### Tool Usage
+Before first MCP tool use, call `ToolSearch("mcp")` to discover deferred MCP tools.
+Use `mcp__x__ask_codex` with `agent_role: "code-reviewer"`.
+If ToolSearch finds no MCP tools, fall back to the `code-reviewer` agent.
+
+**Note:** Codex calls can take up to 1 hour. Consider the review timeline before consulting.
+
+## Output Format
+
+```
+CODE REVIEW REPORT
+==================
+
+Files Reviewed: 8
+Total Issues: 15
+
+CRITICAL (0)
+-----------
+(none)
+
+HIGH (3)
+--------
+1. src/api/auth.ts:42
+   Issue: User input not sanitized before SQL query
+   Risk: SQL injection vulnerability
+   Fix: Use parameterized queries or ORM
+
+2. src/components/UserProfile.tsx:89
+   Issue: Password displayed in plain text in logs
+   Risk: Credential exposure
+   Fix: Remove password from log statements
+
+3. src/utils/validation.ts:15
+   Issue: Email regex allows invalid formats
+   Risk: Accepts malformed emails
+   Fix: Use proven email validation library
+
+MEDIUM (7)
+----------
+...
+
+LOW (5)
+-------
+...
+
+RECOMMENDATION: REQUEST CHANGES
+
+Critical security issues must be addressed before merge.
+```
+
+## Review Checklist
+
+The code-reviewer agent checks:
+
+### Security
+- [ ] No hardcoded secrets (API keys, passwords, tokens)
+- [ ] All user inputs sanitized
+- [ ] SQL/NoSQL injection prevention
+- [ ] XSS prevention (escaped outputs)
+- [ ] CSRF protection on state-changing operations
+- [ ] Authentication/authorization properly enforced
+
+### Code Quality
+- [ ] Functions < 50 lines (guideline)
+- [ ] Cyclomatic complexity < 10
+- [ ] No deeply nested code (> 4 levels)
+- [ ] No duplicate logic (DRY principle)
+- [ ] Clear, descriptive naming
+
+### Performance
+- [ ] No N+1 query patterns
+- [ ] Appropriate caching where applicable
+- [ ] Efficient algorithms (avoid O(nÂ²) when O(n) possible)
+- [ ] No unnecessary re-renders (React/Vue)
+
+### Best Practices
+- [ ] Error handling present and appropriate
+- [ ] Logging at appropriate levels
+- [ ] Documentation for public APIs
+- [ ] Tests for critical paths
+- [ ] No commented-out code
+
+## Approval Criteria
+
+**APPROVE** - No CRITICAL or HIGH issues, minor improvements only
+**REQUEST CHANGES** - CRITICAL or HIGH issues present
+**COMMENT** - Only LOW/MEDIUM issues, no blocking concerns
+
+
+## Scenario Examples
+
+**Good:** The user says `continue` after the workflow already has a clear next step. Continue the current branch of work instead of restarting or re-asking the same question.
+
+**Good:** The user changes only the output shape or downstream delivery step (for example `make a PR`). Preserve earlier non-conflicting workflow constraints and apply the update locally.
+
+**Bad:** The user says `continue`, and the workflow restarts discovery or stops before the missing verification/evidence is gathered.
+
+## Use with Other Skills
+
+**With Team:**
+```
+/team "review recent auth changes and report findings"
+```
+Includes coordinated review execution across specialized agents.
+
+**With Ralph:**
+```
+/ralph code-review then fix all issues
+```
+Review code, get feedback, fix until approved.
+
+**With Ultrawork:**
+```
+/ultrawork review all files in src/
+```
+Parallel code review across multiple files.
+
+## Best Practices
+
+- **Review early** - Catch issues before they compound
+- **Review often** - Small, frequent reviews better than huge ones
+- **Address CRITICAL/HIGH first** - Fix security and bugs immediately
+- **Consider context** - Some "issues" may be intentional trade-offs
+- **Learn from reviews** - Use feedback to improve coding practices
+
+hook: PostToolUse
+ succeeded in 284ms:
+# Review brief â€” navigation-layer re-spec (C12) â€” ROUND 4
+
+You are reviewing a change to a **verifier**. Flag findings. Do not fix anything. Do not write
+code. Do not edit, create or delete any file in the repository.
+
+**Round 4.** Round 3 returned `FAIL â€” C12 catches rendered computed links, but the G1
+closure/non-coverage claim is still too broad`. Two real defects fixed; on the third finding
+**the claim moved rather than the check**:
+
+- **Redirect chains.** A link 307ing to a MISSING destination passed green, because the hop is
+  neither 404 nor 5xx. `finalStatus()` now follows same-origin redirects to a final status; an
+  external hop ends the walk; a loop is itself a finding. Per-path fetch errors now name the
+  path. Control: `--self-test-redirects` stands up a throwaway server (the app has no redirect
+  chain to borrow) and asserts 307â†’404 reports **404**, 307â†’200 reports 200, and /loop reports
+  `redirect-loop`.
+- **Build freshness** walked `app/components/lib/proxy.ts` only, so a `next.config` or
+  dependency change after a build left *standalone* C12 measuring an old artifact. Now also
+  covers `next.config.*`, `package.json`, lockfiles, `tsconfig.json`. Control: touch
+  `next.config.ts` â†’ exit 2 naming it.
+- **G1 downgraded from CLOSED to SUBSTANTIALLY MITIGATED.** Three rounds each found the claim
+  wider than the check. Rounds 1â€“2 found the mechanism incomplete and it was fixed; round 3
+  found the mechanism sound and the *documentation* overclaiming. Extending C12 until "closed"
+  became true would be the same mistake as adding the fourth navigation pattern â€” chasing a
+  word. Newly named as out of scope: HTTP method/form semantics (all GET), non-rendered API
+  calls, external redirect destinations.
+
+`scripts/prove-controls.sh` is now 16/16 and is the runnable proof for every control named here.
+
+**The question this round is whether the claim and the check now MATCH** â€” not whether the
+check covers everything. If they match, that is a PASS even with named residue; a bounded,
+declared gap is a different condition from an undiscovered one. If they still do not match, say
+precisely which sentence overclaims and what it should say instead.
+
+**Do not assume those fixes are adequate â€” judging that is this round's job.**
+
+**You CAN run commands now.** The sandbox restriction that blocked earlier rounds is lifted â€”
+its root cause was Codex's Windows restricted-token sandbox (spawn denied, unlink denied, write
+allowed). **Run the loop. Report what you observed. Do not report results you did not run.**
+
+## What changed and why
+
+Four consecutive review rounds each found the same class of defect: **coverage that reads wider
+than it is.** Three of the four were the same gap (G1, route existence). The old detector scanned
+source for navigation *forms* â€” `href="/x"`, then `fetch("/x")`, then `router.push("/xâ€¦")` â€” and
+each round found the next form it could not see. The fourth found `<Link href={d.href}>`.
+
+The ruling was: **do not add another pattern.** Enumerating navigation forms is not a design that
+can be completed. AST extraction with dataflow was explicitly **rejected** as the same
+uncompletable enumeration in better clothes â€” you still choose which patterns count, and wrapper
+components and computed values defeat it identically.
+
+**The replacement is `scripts/route-exercise.mjs` (C12): start the built app, authenticate, fetch
+every command-centre page, and request every internal link the pages actually rendered.** The
+question moves from *what forms did we scan for* to *what did the surface emit*.
+
+The old static check is kept, renamed, and demoted to a tripwire (C9) because it is the only
+cover for `router.push` inside a client event handler, which never reaches rendered HTML.
+
+## Scope of this review
+
+**The navigation layer only.** The ruling was explicit that a narrow finding is not licence to
+rebuild a sound apparatus. Import provenance, the delta mechanism, auth coverage and the positive
+controls were all judged sound and are **not** in scope unless C12 broke them.
+
+Read:
+- `scripts/route-exercise.mjs` â€” the new check
+- `scripts/handoff-loop.sh` â€” how it is gated (section 7b)
+- `dashboard/__tests__/command-centre-readonly.test.ts` â€” the demoted C9 tripwire
+- `docs/HARNESS-COVERAGE-MAP-2026-08-01.md` â€” C12, G1 closure, stated non-coverage
+
+## THE PRIMARY QUESTION
+
+**Is C12 a design, or is it the same reactive patching in a new medium?**
+
+The previous round's diagnosis was that regex form-scanning "is not a design that can be
+completed". Runtime exercising is supposed to be different in kind, not just in mechanism.
+**Test that claim rather than accepting it.**
+
+- What class of broken navigation still passes C12? Name it concretely.
+- C12 measures *what rendered on this run*. Links behind an unrendered branch â€” an error state, a
+  populated-data state, a role the probe session does not have â€” are not exercised. Is that a
+  bounded, statable limit, or is it the same open-ended enumeration wearing new clothes?
+- The declared non-coverage is: client-handler navigation, unrendered branches, external links,
+  `/_next` assets. **Is that list complete?** What is missing from it?
+- C12 depends on a minted session cookie and a built app. What happens to its verdict if either
+  is subtly wrong â€” and does it fail loud or fail green?
+
+## Verify the claimed proof yourself
+
+The commit claims a side-by-side on one planted defect: a `DECKS` entry pointing at a
+non-existent route, reached via `<Link href={d.href}>`, where C9 passed 27 tests and C12 failed
+naming the route.
+
+**Reproduce it.** Plant the defect, run both, then revert it. If it does not reproduce, that is
+the finding.
+
+## Judge the two controls
+
+C12 carries two, both added after they caught real false-greens in its first hour:
+
+1. **Session accepted** â€” a rejected cookie would redirect every page to login; the run would
+   exercise the login page and report success. Entry page must be 200 or it is a hard stop.
+2. **Port not already in use** â€” the first version orphaned its `next start` on Windows, and a
+   later run attached to that stale server and measured the *previous build*, reporting a planted
+   defect absent.
+
+**Judge:** are these sufficient? Is there a third false-green shape neither covers â€” and would you
+know from reading the script, or only by running it?
+
+## The loop
+
+```
+bash scripts/prove-controls.sh                   -> expect 16/16, exit 0
+node scripts/route-exercise.mjs --self-test-redirects -> expect 3 PASS, exit 0
+bash scripts/handoff-loop.sh                    -> expect pass=8 fail=0 READY
+node scripts/route-exercise.mjs                 -> expect exit 0
+node scripts/route-exercise.mjs --plant-broken-link  -> expect exit 1 (control)
+cd dashboard && npx vitest run __tests__/command-centre-readonly.test.ts   -> 27 passed
+cd dashboard && npx vitest run __tests__/command-centre-auth-coverage.test.ts -> 7 passed
+```
+
+`handoff-loop.sh` needs env in the shell only â€” never write `.env.local`, it is a fenced path:
+
+```
+PI_CEO_URL=https://x.invalid PI_CEO_PASSWORD=x \
+NEXT_PUBLIC_SUPABASE_URL=https://lksfwktwtmyznckodsau.supabase.co \
+NEXT_PUBLIC_SUPABASE_ANON_KEY=x SUPABASE_SERVICE_ROLE_KEY=x \
+bash scripts/handoff-loop.sh
+```
+
+If a command fails, paste the failure. **Silence, timeout or an unrun command is not a pass.**
+
+## Report â€” two axes, kept separate
+
+### Axis 1 â€” Standards
+JS/Node practice in `route-exercise.mjs`: process handling, error handling, async correctness,
+resource cleanup. Cite lines. Hard violations vs judgement calls. Under 400 words.
+
+### Axis 2 â€” Spec
+Does C12 close G1? Is its declared non-coverage accurate and complete? Are the controls
+sufficient? Did closing G1 weaken anything else? Under 400 words.
+
+## Verdict
+
+End with exactly one line: `VERDICT: PASS` or `VERDICT: FAIL â€” <one-line reason>`
+
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+codex
+I have the brief. Next I’m mapping the exact review surface and line numbers, then I’ll run the commands from the loop in order with shell-only environment variables for `handoff-loop.sh`.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=0; Get-Content -LiteralPath '"'scripts\\route-exercise.mjs' | ForEach-Object { "'$i++; '"'{0,4}: {1}' -f "'$i, $_ }' in D:\Pi-Dev-Ops
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=0; Get-Content -LiteralPath '"'scripts\\handoff-loop.sh' | ForEach-Object { "'$i++; '"'{0,4}: {1}' -f "'$i, $_ }' in D:\Pi-Dev-Ops
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=0; Get-Content -LiteralPath '"'docs\\HARNESS-COVERAGE-MAP-2026-08-01.md' | ForEach-Object { "'$i++; '"'{0,4}: {1}' -f "'$i, $_ }' in D:\Pi-Dev-Ops
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=0; Get-Content -LiteralPath '"'dashboard\\__tests__\\command-centre-readonly.test.ts' | ForEach-Object { "'$i++; '"'{0,4}: {1}' -f "'$i, $_ }' in D:\Pi-Dev-Ops
+ succeeded in 321ms:
+   1: #!/usr/bin/env node
+   2: /**
+   3:  * route-exercise.mjs â€” C12. Runtime route exercising for the command-centre surface.
+   4:  *
+   5:  * WHY THIS REPLACES THE REGEX DETECTOR
+   6:  *
+   7:  * The old check scanned source for navigation FORMS: href="...", fetch("..."), then
+   8:  * router.push("..."), then it would have been <Link href={expr}>, then object hrefs,
+   9:  * wrapper components, window.location, server redirects, form actions. Four review rounds
+  10:  * each found the next form. Enumerating forms is not a design that can be completed.
+  11:  *
+  12:  * AST extraction with dataflow was considered and REJECTED for the same reason: you still
+  13:  * decide which patterns count, and wrapper components and computed values defeat it
+  14:  * identically. It is the same uncompletable enumeration in better clothes.
+  15:  *
+  16:  * This asks a different question. Not "what forms did we look for" but "what did the
+  17:  * surface actually emit". The app is built, started, and its pages are fetched; every
+  18:  * internal link in the RENDERED output is then requested and must not 404. `<Link
+  19:  * href={d.href}>` over a local array resolves at render time, so it appears in the HTML
+  20:  * like any other link â€” the form it was written in stops mattering.
+  21:  *
+  22:  * That is the same fact-versus-claim distinction that made operator-gateway a rebuild.
+  23:  *
+  24:  * SCOPE â€” what this does NOT cover, stated here rather than discovered in round five:
+  25:  *
+  26:  *   - Client-side navigation that only happens in an event handler (router.push inside
+  27:  *     onClick) does not appear in server-rendered HTML. The cheap literal tripwire in
+  28:  *     command-centre-readonly.test.ts still covers the literal spelling of that, and it
+  29:  *     is labelled a tripwire precisely because it cannot cover the rest.
+  30:  *   - Links that only render behind state this run does not reach (an error branch, a
+  31:  *     populated-data branch) are not exercised. Coverage is what rendered, not what could.
+  32:  *     Every page fetched is asserted 200 so a page that fails to render cannot pass by
+  33:  *     emitting nothing â€” but a BRANCH that did not render is genuinely unmeasured.
+  34:  *   - CLIENT-HYDRATED navigation. This fetches server-rendered HTML; it does not run a
+  35:  *     browser or hydrate components. A <Link> that only appears after useEffect, from
+  36:  *     localStorage, at a viewport size, or after client data arrives is NOT exercised.
+  37:  *     Named by round-1 review as the largest remaining hole and it is a real one: closing it
+  38:  *     needs a real browser, which is a different tool with a different cost.
+  39:  *   - External links are skipped by design; this asks whether OUR routes exist. Same-origin
+  40:  *     is decided by resolving each href against the page URL, so relative and absolute forms
+  41:  *     are handled by one rule rather than by a list of spellings.
+  42:  *   - HTTP METHOD AND FORM SEMANTICS. Every target is requested with GET. A form whose POST
+  43:  *     handler is broken while GET succeeds passes here. Exercising real POSTs would mean
+  44:  *     submitting to handlers with side effects, which a read-only verifier must not do.
+  45:  *   - NON-RENDERED API CALLS. A `fetch()` a component makes at runtime is not in the HTML,
+  46:  *     so an API route that only client code calls is not exercised.
+  47:  *   - REDIRECT TARGETS are followed to a final status (added round 3), but an EXTERNAL
+  48:  *     redirect ends the walk â€” where it lands is not ours to assert.
+  49:  *
+  50:  * Usage: node scripts/route-exercise.mjs [--plant-broken-link] [--plant-relative-link]
+  51:  *   --plant-broken-link    control: assert this script FAILS on a known-bad absolute route.
+  52:  *   --plant-relative-link  control: same, for a RELATIVE href with no leading slash.
+  53:  */
+  54: import { spawn, spawnSync } from "node:child_process";
+  55: import { createHmac, randomBytes } from "node:crypto";
+  56: import { existsSync, statSync as fsStat, readdirSync as fsRead } from "node:fs";
+  57: import { join, dirname } from "node:path";
+  58: import { fileURLToPath } from "node:url";
+  59: 
+  60: const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+  61: const APP = join(ROOT, "dashboard");
+  62: const PORT = process.env.ROUTE_EXERCISE_PORT || "3187";
+  63: const BASE = `http://127.0.0.1:${PORT}`;
+  64: // Generated per run, never stored. It only has to match what we start the server with, so
+  65: // a literal bought nothing and tripped the secrets scanner as a hardcoded password â€” fairly,
+  66: // since a scanner cannot tell a throwaway probe secret from a real one by reading it.
+  67: const PASSWORD = randomBytes(24).toString("hex");
+  68: const PLANT = process.argv.includes("--plant-broken-link");
+  69: // Separate control for the round-2 finding: a RELATIVE internal link. If the extractor ever
+  70: // regresses to slash-prefixed-only matching, this stops failing and the regression is loud.
+  71: const PLANT_REL = process.argv.includes("--plant-relative-link");
+  72: 
+  73: /** Pages whose rendered output defines the navigation surface under test. */
+  74: const ENTRY_PAGES = [
+  75:   "/command-centre",
+  76:   "/command-centre/hermes",
+  77:   "/command-centre/knowledge",
+  78:   "/command-centre/wiki-graph",
+  79: ];
+  80: 
+  81: const log = (...a) => console.log("   ", ...a);
+  82: 
+  83: /**
+  84:  * Every request this verifier makes carries a timeout.
+  85:  *
+  86:  * Review finding, round 1: `waitForServer` and all page/link fetches had no signal, so a
+  87:  * wedged listener or a hanging route turned the verifier into SILENCE rather than a loud
+  88:  * diagnostic. For a checker that is the worst failure mode â€” an unbounded hang reads as
+  89:  * "still working", and whoever is waiting eventually kills it and moves on with no verdict.
+  90:  */
+  91: const REQ_TIMEOUT_MS = 15_000;
+  92: const get = (url, opts = {}) =>
+  93:   fetch(url, { redirect: "manual", signal: AbortSignal.timeout(REQ_TIMEOUT_MS), ...opts });
+  94: 
+  95: /** Mint a pi_session cookie the same way app/api/auth/login/route.ts does. */
+  96: function mintSession() {
+  97:   const issuedAt = String(Math.floor(Date.now() / 1000));
+  98:   const sig = createHmac("sha256", PASSWORD).update(issuedAt).digest("hex");
+  99:   return `pi_session=${issuedAt}.${sig}`;
+ 100: }
+ 101: 
+ 102: async function waitForServer(timeoutMs = 90_000) {
+ 103:   const deadline = Date.now() + timeoutMs;
+ 104:   while (Date.now() < deadline) {
+ 105:     try {
+ 106:       const r = await get(BASE + "/");
+ 107:       if (r.status > 0) return true;
+ 108:     } catch { /* not up yet */ }
+ 109:     await new Promise((r) => setTimeout(r, 400));
+ 110:   }
+ 111:   return false;
+ 112: }
+ 113: 
+ 114: /**
+ 115:  * Internal paths in rendered HTML, RESOLVED rather than pattern-matched.
+ 116:  *
+ 117:  * Round-2 review: the previous version matched only `href="/..."`, so a rendered relative
+ 118:  * link â€” `href="hermes"`, `href="./hermes"`, `href="../knowledge"` â€” was internal
+ 119:  * navigation that went unexercised. Adding "also match non-slash hrefs" would have been
+ 120:  * another pattern on the pile, which is the thing this whole check exists to stop doing.
+ 121:  *
+ 122:  * So: take every href/action/formaction value and RESOLVE it against the page it was found
+ 123:  * on, using the URL parser. Relative, absolute, protocol-relative and external all fall out
+ 124:  * of one rule â€” same origin means ours, and `pathname + search` is what to request. URL
+ 125:  * resolution is decidable and complete in a way form-enumeration never was.
+ 126:  */
+ 127: function extractPaths(html, pageUrl) {
+ 128:   const out = new Set();
+ 129:   for (const m of html.matchAll(/(?:href|action|formaction)=["']([^"']*)["']/gi)) {
+ 130:     const raw = m[1].trim();
+ 131:     if (!raw || raw.startsWith("#")) continue;
+ 132:     // Non-http schemes are not navigation we can request: mailto:, tel:, javascript:, data:
+ 133:     if (/^[a-z][a-z0-9+.-]*:/i.test(raw) && !/^https?:/i.test(raw)) continue;
+ 134:     let u;
+ 135:     try { u = new URL(raw, pageUrl); } catch { continue; }
+ 136:     if (u.origin !== new URL(BASE).origin) continue;   // external â€” not ours to assert
+ 137:     const p = (u.pathname.replace(/\/$/, "") || "/") + u.search;
+ 138:     // Framework build assets are not app routes. Their absence IS a real signal â€” it is how
+ 139:     // the stale-server bug first showed â€” but it belongs to build integrity, which
+ 140:     // `npm run build` already owns.
+ 141:     if (p.startsWith("/_next/")) continue;
+ 142:     out.add(p);
+ 143:   }
+ 144:   return [...out];
+ 145: }
+ 146: 
+ 147: /**
+ 148:  * Request a path and follow same-origin redirects to their FINAL status.
+ 149:  *
+ 150:  * Round-3 review: with `redirect: "manual"` and a failure rule of 404-or-5xx, a link to a
+ 151:  * route that 307s to a MISSING destination passed green â€” the hop itself is a 307, which is
+ 152:  * neither. The link was "resolvable" only in the sense that something answered it.
+ 153:  *
+ 154:  * So follow the chain. An external hop ends the walk (not ours to assert). A loop or an
+ 155:  * over-long chain is itself a finding, not a pass â€” an unterminated redirect is a broken
+ 156:  * control surface even when no single hop 404s.
+ 157:  */
+ 158: async function finalStatus(path, cookie, maxHops = 5, base = BASE) {
+ 159:   const chain = [];
+ 160:   let url = base + path;
+ 161:   for (let hop = 0; hop <= maxHops; hop++) {
+ 162:     const res = await get(url, { headers: { cookie } });
+ 163:     if (res.status < 300 || res.status >= 400) return { status: res.status, chain };
+ 164:     const loc = res.headers.get("location");
+ 165:     if (!loc) return { status: res.status, chain };            // 3xx with no target
+ 166:     let next;
+ 167:     try { next = new URL(loc, url); } catch { return { status: res.status, chain }; }
+ 168:     if (next.origin !== new URL(base).origin) {
+ 169:       return { status: "external-redirect", chain: [...chain, next.href] };
+ 170:     }
+ 171:     chain.push(next.pathname + next.search);
+ 172:     url = next.href;
+ 173:   }
+ 174:   return { status: "redirect-loop", chain };
+ 175: }
+ 176: 
+ 177: /** True if something is already listening on the port. */
+ 178: async function portInUse() {
+ 179:   try {
+ 180:     const r = await fetch(BASE + "/", { redirect: "manual", signal: AbortSignal.timeout(2000) });
+ 181:     return r.status > 0;
+ 182:   } catch { return false; }
+ 183: }
+ 184: 
+ 185: /**
+ 186:  * CONTROL for the redirect walker. Round 3 found that a link 307ing to a MISSING page passed
+ 187:  * green, because the hop is neither 404 nor 5xx. Proving the fix needs a redirect chain, and
+ 188:  * the app does not happen to have one â€” so stand up a throwaway server that does. Synthetic,
+ 189:  * but it exercises the real `finalStatus` code path rather than asserting it in prose.
+ 190:  */
+ 191: async function selfTestRedirects() {
+ 192:   const { createServer } = await import("node:http");
+ 193:   const routes = {
+ 194:     "/hop-to-missing": [307, "/missing-target"],
+ 195:     "/missing-target": [404, null],
+ 196:     "/hop-to-ok": [307, "/ok-target"],
+ 197:     "/ok-target": [200, null],
+ 198:     "/loop": [307, "/loop"],
+ 199:   };
+ 200:   const srv = createServer((req, res) => {
+ 201:     const [code, loc] = routes[req.url] || [404, null];
+ 202:     if (loc) res.writeHead(code, { location: loc });
+ 203:     else res.writeHead(code);
+ 204:     res.end();
+ 205:   });
+ 206:   await new Promise((r) => srv.listen(0, "127.0.0.1", r));
+ 207:   const base = `http://127.0.0.1:${srv.address().port}`;
+ 208:   let pass = 0, fail = 0;
+ 209:   const check = (name, cond) => {
+ 210:     if (cond) { console.log(`    PASS  ${name}`); pass++; }
+ 211:     else { console.log(`    FAIL  ${name}`); fail++; }
+ 212:   };
+ 213:   const missing = await finalStatus("/hop-to-missing", "", 5, base);
+ 214:   check("redirect to a MISSING target reports 404, not the 307", missing.status === 404);
+ 215:   const ok = await finalStatus("/hop-to-ok", "", 5, base);
+ 216:   check("redirect to a live target reports 200", ok.status === 200);
+ 217:   const loop = await finalStatus("/loop", "", 5, base);
+ 218:   check("redirect loop is reported, not passed", loop.status === "redirect-loop");
+ 219:   srv.close();
+ 220:   return fail === 0 ? 0 : 1;
+ 221: }
+ 222: 
+ 223: async function main() {
+ 224:   if (process.argv.includes("--self-test-redirects")) return selfTestRedirects();
+ 225:   const buildId = join(APP, ".next", "BUILD_ID");
+ 226:   if (!existsSync(buildId)) {
+ 227:     console.error("FAIL: no build found at dashboard/.next â€” run `npm run build` first.");
+ 228:     return 2;
+ 229:   }
+ 230: 
+ 231:   // CONTROL â€” the build must be newer than the source it claims to represent.
+ 232:   //
+ 233:   // Round-1 review: "a stale or wrong build still passes standalone C12 if .next/BUILD_ID
+ 234:   // exists; only the handoff loop's preceding build gate makes that safe in context." Correct,
+ 235:   // and relying on call-site ordering is exactly how the stale-SERVER bug happened. A verifier
+ 236:   // must not be safe only when invoked politely. Same class as the port control: measuring the
+ 237:   // wrong artifact is indistinguishable from success.
+ 238:   const buildTime = fsStat(buildId).mtimeMs;
+ 239:   let newestSrc = 0, newestPath = "";
+ 240:   // Round-3 review: this walked app/components/lib/proxy.ts only, so a route-affecting
+ 241:   // next.config change or a dependency bump after a build left STANDALONE C12 measuring an
+ 242:   // old artifact. The gate's build-before-C12 hid it; the check must not depend on being
+ 243:   // called politely.
+ 244:   const FRESH_INPUTS = ["app", "components", "lib", "proxy.ts", "next.config.ts",
+ 245:                         "next.config.js", "next.config.mjs", "package.json",
+ 246:                         "package-lock.json", "pnpm-lock.yaml", "tsconfig.json"];
+ 247:   for (const dir of FRESH_INPUTS) {
+ 248:     (function walk(d) {
+ 249:       if (!existsSync(d)) return;
+ 250:       const st = fsStat(d);
+ 251:       if (st.isFile()) {
+ 252:         if (st.mtimeMs > newestSrc) { newestSrc = st.mtimeMs; newestPath = d; }
+ 253:         return;
+ 254:       }
+ 255:       for (const e of fsRead(d)) walk(join(d, e));
+ 256:     })(join(APP, dir));
+ 257:   }
+ 258:   if (newestSrc > buildTime) {
+ 259:     console.error(
+ 260:       `FAIL: the build is older than the source.
+ 261: ` +
+ 262:       `      newest source: ${newestPath.slice(APP.length + 1)}
+ 263: ` +
+ 264:       `      Serving a stale build means exercising routes that are not the ones on disk â€”
+ 265: ` +
+ 266:       `      a green run would describe a different app. Rebuild, then re-run.`);
+ 267:     return 2;
+ 268:   }
+ 269:   log("control: build is newer than source â€” exercising the code that is actually on disk");
+ 270: 
+ 271:   const env = {
+ 272:     ...process.env,
+ 273:     NODE_ENV: "production",
+ 274:     DASHBOARD_PASSWORD: PASSWORD,
+ 275:     PI_CEO_URL: "https://x.invalid",
+ 276:     PI_CEO_PASSWORD: "x",
+ 277:     NEXT_PUBLIC_SUPABASE_URL: "https://lksfwktwtmyznckodsau.supabase.co",
+ 278:     NEXT_PUBLIC_SUPABASE_ANON_KEY: "x",
+ 279:     SUPABASE_SERVICE_ROLE_KEY: "x",
+ 280:   };
+ 281: 
+ 282:   // CONTROL â€” refuse to attach to a server we did not start.
+ 283:   //
+ 284:   // This is not defensive tidiness; it is the control for a false-green this script
+ 285:   // actually produced. The first version used `shell: true` and `server.kill()`, which on
+ 286:   // Windows kills the shell and orphans the `next start` grandchild. A later run then found
+ 287:   // :3187 already answering, attached to a server still serving the PREVIOUS build, and
+ 288:   // reported that a planted broken route did not exist â€” measuring one build while claiming
+ 289:   // to measure another. Caught only because the positive control expected a failure and got
+ 290:   // a pass. Now: a live port is a hard stop, and the tree is killed properly.
+ 291:   if (await portInUse()) {
+ 292:     console.error(
+ 293:       `FAIL: something is already listening on :${PORT}. Refusing to run â€” attaching to a\n` +
+ 294:       `      server this script did not start means measuring an unknown build, which is\n` +
+ 295:       `      indistinguishable from success. Kill it, or set ROUTE_EXERCISE_PORT.`);
+ 296:     return 2;
+ 297:   }
+ 298: 
+ 299:   log(`starting the built app on :${PORT} ...`);
+ 300:   const server = spawn("npx", ["next", "start", "-p", PORT], {
+ 301:     cwd: APP, env, shell: true, stdio: ["ignore", "pipe", "pipe"],
+ 302:     detached: process.platform !== "win32", // own process group, so the group kill works
+ 303:   });
+ 304:   let serverLog = "";
+ 305:   server.stdout.on("data", (d) => { serverLog += d; });
+ 306:   server.stderr.on("data", (d) => { serverLog += d; });
+ 307: 
+ 308:   // Kill the TREE, SYNCHRONOUSLY. Two bugs were needed to get here and both are worth
+ 309:   // naming: `server.kill()` alone kills the shell and orphans `next start` on Windows;
+ 310:   // and an async `spawn("taskkill")` registered on process 'exit' never runs, because
+ 311:   // Node exits before it starts. spawnSync in `finally` is the only version that works.
+ 312:   const shutdown = () => {
+ 313:     try {
+ 314:       if (process.platform === "win32") {
+ 315:         spawnSync("taskkill", ["/PID", String(server.pid), "/T", "/F"], { stdio: "ignore" });
+ 316:       } else {
+ 317:         // shell:true means `server.pid` is the shell on POSIX too. Kill the process GROUP.
+ 318:         // Round-1 review flagged that the Windows fix left this half unfixed â€” the stale
+ 319:         // server bug was Windows-observed but the defect is not Windows-specific.
+ 320:         try { process.kill(-server.pid, "SIGKILL"); } catch { server.kill("SIGKILL"); }
+ 321:       }
+ 322:     } catch { /* best effort */ }
+ 323:   };
+ 324: 
+ 325:   try {
+ 326:     if (!await waitForServer()) {
+ 327:       console.error("FAIL: server did not become reachable.\n" + serverLog.slice(-1500));
+ 328:       return 2;
+ 329:     }
+ 330:     const cookie = mintSession();
+ 331: 
+ 332:     // Control: the session must actually be accepted. If auth silently rejects it, every
+ 333:     // page below redirects to login, we extract the login page's links, and the run goes
+ 334:     // green having exercised nothing. That failure would look exactly like success.
+ 335:     const probe = await get(BASE + ENTRY_PAGES[0], { headers: { cookie } });
+ 336:     if (probe.status !== 200) {
+ 337:       console.error(
+ 338:         `FAIL: control â€” ${ENTRY_PAGES[0]} returned ${probe.status} with a minted session, ` +
+ 339:         `expected 200. Without an accepted session this run would exercise the login page ` +
+ 340:         `and report success. Refusing to report anything.`);
+ 341:       return 2;
+ 342:     }
+ 343:     log("control: minted session accepted (entry page 200) â€” the run is measuring the real surface");
+ 344: 
+ 345:     const discovered = new Map(); // path -> Set(pages that linked to it)
+ 346:     const failures = [];
+ 347: 
+ 348:     for (const page of ENTRY_PAGES) {
+ 349:       const res = await get(BASE + page, { headers: { cookie } });
+ 350:       if (res.status !== 200) {
+ 351:         failures.push(`ENTRY ${page} -> ${res.status} (page did not render; its links are unmeasured)`);
+ 352:         continue;
+ 353:       }
+ 354:       let html = await res.text();
+ 355:       if (PLANT && page === "/command-centre") {
+ 356:         html += '<a href="/command-centre/this-route-does-not-exist">planted</a>';
+ 357:       }
+ 358:       if (PLANT_REL && page === "/command-centre") {
+ 359:         // No leading slash. Resolves against /command-centre -> /this-relative-route-404s.
+ 360:         html += '<a href="this-relative-route-404s">planted-relative</a>';
+ 361:       }
+ 362:       for (const p of extractPaths(html, BASE + page)) {
+ 363:         if (!discovered.has(p)) discovered.set(p, new Set());
+ 364:         discovered.get(p).add(page);
+ 365:       }
+ 366:     }
+ 367: 
+ 368:     log(`rendered ${ENTRY_PAGES.length} pages, discovered ${discovered.size} distinct internal paths`);
+ 369: 
+ 370:     for (const [path, sources] of [...discovered].sort()) {
+ 371:       const from = `(linked from: ${[...sources].join(", ")})`;
+ 372:       let r;
+ 373:       try {
+ 374:         r = await finalStatus(path, cookie);
+ 375:       } catch (e) {
+ 376:         // Round-3: a thrown fetch used to lose which path caused it. Name the path.
+ 377:         failures.push(`ERR  ${path}   ${from}  â€” ${e?.name || e}`);
+ 378:         continue;
+ 379:       }
+ 380:       const via = r.chain.length ? `  [via ${r.chain.join(" -> ")}]` : "";
+ 381:       if (r.status === 404 || (typeof r.status === "number" && r.status >= 500)) {
+ 382:         failures.push(`${r.status}  ${path}   ${from}${via}`);
+ 383:       } else if (r.status === "redirect-loop") {
+ 384:         failures.push(`LOOP ${path}   ${from}${via}`);
+ 385:       }
+ 386:     }
+ 387: 
+ 388:     if (failures.length) {
+ 389:       console.error("\nFAIL â€” internal navigation that does not resolve:\n");
+ 390:       for (const f of failures) console.error("  " + f);
+ 391:       return 1;
+ 392:     }
+ 393:     log(`OK â€” every rendered internal link resolves (${discovered.size} paths exercised)`);
+ 394:     return 0;
+ 395:   } finally {
+ 396:     shutdown();
+ 397:   }
+ 398: }
+ 399: 
+ 400: main().then((c) => process.exit(c)).catch((e) => {
+ 401:   console.error("FAIL: route-exercise crashed:", e);
+ 402:   process.exit(2);
+ 403: });
+
+hook: PostToolUse
+ succeeded in 322ms:
+   1: #!/usr/bin/env bash
+   2: # handoff-loop.sh â€” the definition-of-done gate runner for /session-handoff.
+   3: #
+   4: # Runs the readiness gates for THIS repo, writes a timestamped healthcheck log to
+   5: # .handoff-logs/, and exits 0 only when every gate is green (or SKIPPED for a stated
+   6: # reason). /session-handoff runs this in Phase 0 and refuses to declare the tree ready
+   7: # until it exits 0; /resume-from-handoff re-runs it as its verification gate. Repo-
+   8: # adaptive: a gate is SKIPPED (not failed) when its stack is absent.
+   9: #
+  10: # Usage: scripts/handoff-loop.sh [--full] [--quick]
+  11: #   --full   real dependency install (npm ci / pip install) instead of presence-verify
+  12: #   --quick  skip the expensive build + test gates (fast interim handoff)
+  13: set -uo pipefail
+  14: 
+  15: ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  16: cd "$ROOT"
+  17: TS="$(date +%Y%m%d-%H%M%S)"
+  18: LOG_DIR="$ROOT/.handoff-logs"
+  19: mkdir -p "$LOG_DIR"
+  20: LOG="$LOG_DIR/handoff-$TS.log"
+  21: MODE_FULL=0; MODE_QUICK=0
+  22: for a in "$@"; do
+  23:   [ "$a" = "--full" ] && MODE_FULL=1
+  24:   [ "$a" = "--quick" ] && MODE_QUICK=1
+  25: done
+  26: 
+  27: PASS=0; FAIL=0; SKIP=0
+  28: declare -a FAILED_GATES=()
+  29: 
+  30: log() { echo "$@" | tee -a "$LOG"; }
+  31: 
+  32: # gate <name> <command...> â€” run a gate, record PASS/FAIL, keep going.
+  33: gate() {
+  34:   local name="$1"; shift
+  35:   log ""; log "â”€â”€ GATE: $name"
+  36:   if "$@" >>"$LOG" 2>&1; then
+  37:     log "   PASS: $name"; PASS=$((PASS+1))
+  38:   else
+  39:     log "   FAIL: $name (rc=$?)"; FAIL=$((FAIL+1)); FAILED_GATES+=("$name")
+  40:   fi
+  41: }
+  42: skip() { log ""; log "â”€â”€ GATE: $1"; log "   SKIP: $1 â€” ${2:-not applicable to this repo}"; SKIP=$((SKIP+1)); }
+  43: 
+  44: log "handoff-loop $TS  root=$ROOT  full=$MODE_FULL quick=$MODE_QUICK"
+  45: log "branch=$(git branch --show-current 2>/dev/null)  head=$(git rev-parse --short HEAD 2>/dev/null)"
+  46: 
+  47: # 1. Cache / build bloat â€” light, source-safe clean.
+  48: gate "clean-bloat" bash -c '
+  49:   find . -type d \( -name __pycache__ -o -name .pytest_cache -o -name .ruff_cache \) \
+  50:     -not -path "*/node_modules/*" -prune -exec rm -rf {} + 2>/dev/null
+  51:   rm -rf dashboard/.next/cache 2>/dev/null; true'
+  52: 
+  53: # 2. Dependencies. Absent toolchain â†’ SKIP (env not provisioned here), never FAIL.
+  54: PY_OK=0; NODE_OK=0
+  55: if [ -f app/requirements.txt ]; then
+  56:   [ "$MODE_FULL" = 1 ] && python3 -m pip install -q -r app/requirements.txt >>"$LOG" 2>&1
+  57:   if python3 -c "import fastapi, pydantic" >>"$LOG" 2>&1; then PY_OK=1; gate "deps-python" true
+  58:   else skip "deps-python" "app venv not active / deps not importable â€” run --full or activate the venv"; fi
+  59: fi
+  60: if [ -f dashboard/package.json ]; then
+  61:   [ "$MODE_FULL" = 1 ] && ( cd dashboard && npm ci >>"$LOG" 2>&1 )
+  62:   if [ -d dashboard/node_modules ]; then NODE_OK=1; gate "deps-node" true
+  63:   else skip "deps-node" "dashboard/node_modules absent â€” run with --full to install"; fi
+  64: fi
+  65: 
+  66: # 3. Generated files current â€” agentskills manifest must be a no-op re-run (needs PY).
+  67: if [ -f swarm/agentskills_manifest.py ]; then
+  68:   if [ "$PY_OK" = 1 ]; then
+  69:     gate "generated-agentskills" bash -c '
+  70:       python3 -m swarm.agentskills_manifest >/dev/null 2>&1
+  71:       git diff --quiet -- agentskills.json agentskills.yaml'
+  72:   else skip "generated-agentskills" "python deps absent"; fi
+  73: fi
+  74: 
+  75: # 4. Type checks.
+  76: if [ -f app/server/main.py ]; then
+  77:   [ "$PY_OK" = 1 ] && gate "type-python-import" python3 -c "from app.server.main import app" \
+  78:     || { [ "$PY_OK" = 1 ] || skip "type-python-import" "python deps absent"; }
+  79: fi
+  80: if [ -f dashboard/package.json ]; then
+  81:   [ "$NODE_OK" = 1 ] && gate "type-dashboard" bash -c 'cd dashboard && npx --no-install tsc --noEmit' \
+  82:     || { [ "$NODE_OK" = 1 ] || skip "type-dashboard" "node_modules absent"; }
+  83: fi
+  84: 
+  85: # 5. Lint.
+  86: if command -v ruff >/dev/null 2>&1 && [ -d app ]; then gate "lint-ruff" ruff check app
+  87: else skip "lint-ruff" "ruff not installed"; fi
+  88: if [ -f dashboard/package.json ]; then
+  89:   [ "$NODE_OK" = 1 ] && gate "lint-dashboard" bash -c 'cd dashboard && npm run --silent lint' \
+  90:     || { [ "$NODE_OK" = 1 ] || skip "lint-dashboard" "node_modules absent"; }
+  91: fi
+  92: 
+  93: # 6. Tests (skipped by --quick). test_sdk_phase2 needs claude_agent_sdk (CI-only) â€” excluded.
+  94: if [ "$MODE_QUICK" = 1 ]; then skip "tests" "--quick"
+  95: else
+  96:   if [ -d tests ]; then
+  97:     [ "$PY_OK" = 1 ] && gate "tests-python" python3 -m pytest tests/ -q --ignore=tests/test_sdk_phase2.py \
+  98:       || { [ "$PY_OK" = 1 ] || skip "tests-python" "python deps absent"; }
+  99:   fi
+ 100:   if [ -f dashboard/package.json ]; then
+ 101:     [ "$NODE_OK" = 1 ] && gate "tests-dashboard" bash -c 'cd dashboard && CI=1 npm run --silent test' \
+ 102:       || { [ "$NODE_OK" = 1 ] || skip "tests-dashboard" "node_modules absent"; }
+ 103:   fi
+ 104: fi
+ 105: 
+ 106: # 7. Production build (skipped by --quick).
+ 107: if [ "$MODE_QUICK" = 1 ]; then skip "build" "--quick"
+ 108: elif [ -f dashboard/package.json ]; then
+ 109:   [ "$NODE_OK" = 1 ] && gate "build-dashboard" bash -c 'cd dashboard && npm run build' \
+ 110:     || { [ "$NODE_OK" = 1 ] || skip "build-dashboard" "node_modules absent â€” run --full"; }
+ 111: fi
+ 112: 
+ 113: # 7b. Runtime route exercising (C12) â€” the authority on G1.
+ 114: # Must follow build-dashboard: it serves the built output. The static check in the vitest
+ 115: # suite is a TRIPWIRE over three literal spellings; this one starts the app and requests
+ 116: # every internal link the pages actually rendered, so the form a link was written in stops
+ 117: # mattering. Skipped under --quick and when there is no build to serve.
+ 118: if [ "$MODE_QUICK" = 1 ]; then skip "route-exercise" "--quick"
+ 119: elif [ -f dashboard/.next/BUILD_ID ]; then
+ 120:   gate "route-exercise" node scripts/route-exercise.mjs
+ 121: else skip "route-exercise" "no dashboard build to serve"; fi
+ 122: 
+ 123: # 8. Audits.
+ 124: if command -v detect-secrets >/dev/null 2>&1; then
+ 125:   gate "audit-secrets" bash -c 'detect-secrets scan --all-files > /tmp/.ds-$$ 2>/dev/null; \
+ 126:     ! grep -q "\"is_secret\": true" /tmp/.ds-$$; rm -f /tmp/.ds-$$'
+ 127: else skip "audit-secrets" "detect-secrets not installed"; fi
+ 128: if [ "$PY_OK" = 1 ] && curl -sf -o /dev/null "http://127.0.0.1:7777/health" 2>/dev/null; then
+ 129:   gate "audit-smoke" python3 scripts/smoke_test.py --url http://127.0.0.1:7777 --password "${TAO_PASSWORD:-dev}"
+ 130: else skip "audit-smoke" "python deps absent or local server not reachable on :7777"; fi
+ 131: 
+ 132: # Verdict.
+ 133: log ""; log "â•â•â•â• SUMMARY  pass=$PASS fail=$FAIL skip=$SKIP"
+ 134: if [ "$FAIL" -gt 0 ]; then
+ 135:   log "â•â•â•â• VERDICT: BLOCKED â€” failing gates: ${FAILED_GATES[*]}"
+ 136:   log "â•â•â•â• log: $LOG"; echo "$LOG"; exit 1
+ 137: fi
+ 138: if [ "$SKIP" -gt 0 ]; then
+ 139:   log "â•â•â•â• VERDICT: READY (with $SKIP skipped â€” env not provisioned here; treat CI as source of truth for skipped gates)"
+ 140: else
+ 141:   log "â•â•â•â• VERDICT: READY â€” all $PASS gates green"
+ 142: fi
+ 143: log "â•â•â•â• log: $LOG"; echo "$LOG"; exit 0
+
+hook: PostToolUse
+ succeeded in 345ms:
+   1: # Harness coverage map â€” what it catches, what it structurally cannot
+   2: 
+   3: **Date:** 2026-08-01 Â· **Scope:** the command-centre migration harness
+   4: **Purpose:** enumerate the gaps now, not at capability 6, where the failure mode is a dry-run surface silently becoming a live one.
+   5: 
+   6: ---
+   7: 
+   8: ## The checks that exist
+   9: 
+  10: | # | Check | Where | Fails on |
+  11: |---|---|---|---|
+  12: | C1 | **Provenance** | `command-centre-readonly.test.ts` | any file in the capability import graph with no declared source origin |
+  13: | C2 | **Baseline resolvable** | same | a provenance pair whose port or source path does not resolve |
+  14: | C3 | **Baseline reachable** | same | the Authority-Site checkout being absent, unless `CC_ALLOW_NO_BASELINE=1` |
+  15: | C4 | **Construct-count non-increase** | same | a tracked construct appearing *more times* than in the named baseline |
+  16: | C5 | **Typecheck** | `tsc --noEmit` | type errors |
+  17: | C6 | **Build** | `next build` | compile failure, missing route |
+  18: | C7 | **Fail-open scan** | `fence/fail_open_check.py` | verification code that swallows a signal; evidence files not git-tracked |
+  19: | C8 | **Cross-vendor review** | Codex gpt-5.5, fresh session | anything a competent reader spots in spec or standards |
+  20: | C9 | **Literal navigation tripwire** | `command-centre-readonly.test.ts` | a **literal** `href="/x"`, `fetch("/x")` or `router.push("/xâ€¦")` naming a route that does not exist here. **Tripwire, not proof.** Kept after C12 closed G1 because it is the only cover for `router.push` inside a client event handler, which never reaches rendered HTML. |
+  21: | C10 | **Import map vs reality** | same | a provenance entry for an import no file makes; an import with no entry; a `resolves_in_target: file:` that is absent from disk |
+  22: | C11 | **Auth coverage** | `command-centre-auth-coverage.test.ts` | any command-centre page or API served to a request with no session, proven against `proxy()` directly with positive controls |
+  23: | C12 | **Runtime route exercising** | `scripts/route-exercise.mjs`, gated in `handoff-loop.sh` | any internal link in **rendered** output whose FINAL status (redirects followed) is 404/5xx, or that redirect-loops. Starts the built app, authenticates, fetches every command-centre page, requests every link they emitted. **The authority on G1 for server-rendered navigation** â€” C9 is only a tripwire, and G1 is mitigated rather than closed. |
+  24: 
+  25: **C4 tracks:** `fetch(`, http clients (axios/got/node-fetch/undici), `WebSocket`/`EventSource`/`XMLHttpRequest`/`sendBeacon`, dynamic `import(`, `require(`, remote-host literals, `.insert/.update/.upsert/.delete(`, `createClient`/`createServerClient`, MCP client names, `"use server"`, and three literal API-key names.
+  26: 
+  27: ---
+  28: 
+  29: ## What it structurally cannot catch
+  30: 
+  31: These are not tuning gaps. They are outside the shape of a count-based static comparison.
+  32: 
+  33: | # | Gap | Why the harness cannot see it | Already bitten us? |
+  34: |---|---|---|---|
+  35: | G1 | **Route existence** â€” **SUBSTANTIALLY MITIGATED by C12, not closed** (2026-08-02) | C4 compares counts. A `fetch('/api/x')` that exists in both source and port passes even when `/api/x` was never ported. C9 catches the *literal* forms only. **C12 mitigates it at runtime for SERVER-RENDERED navigation**: the app is started and every link the pages actually rendered is requested (redirects followed to a final status), so computed navigation (`<Link href={expr}>`) is covered by what the surface emitted rather than by what forms a regex looked for. Client-hydrated links, imperative handlers, form POST semantics and non-rendered API calls remain outside it. | **YES â€” capability 2, four times.** Codex found links to `/founder/command-centre` and fetches to two unported API routes; then `router.push(`/founder/wiki/${slug}`)` 404ing on every node click; then `<Link href={d.href}>` invisible to the check. |
+  36: | G2 | **Semantic equivalence** | Same count, different endpoint or payload. Swap a URL and the count is unchanged. | Latent |
+  37: | G3 | **Runtime behaviour** â€” **partially mitigated by C12** | C12 now renders every command-centre page and exercises its links, so "does this page render and do its links resolve" IS asked. Still unasked: network interception, and whether a control that renders actually does nothing when clicked. | Latent for the remainder |
+  38: | G4 | **Indirect / computed constructs** | `const m = 'fet'+'ch'`, `globalThis[k]()`, string-built URLs, computed property access. | Latent |
+  39: | G5 | **Node built-in side effects** | `child_process`, `fs` writes, `process.exit`, `os` â€” **not tracked at all** | Latent |
+  40: | G6 | **Transitive npm behaviour** | The graph stops at `node_modules`. A dependency that fetches is invisible. | Latent |
+  41: | G7 | **Server actions defined elsewhere** | `"use server"` is counted only in scanned files; an action imported from outside the graph is not. | Latent |
+  42: | G8 | **Env-driven divergence** | Behaviour that differs by env var is identical in source text. | Latent |
+  43: | G9 | **CSS-delivered behaviour** | `url()` fetches, `@import` from a remote host. CSS is provenance-checked but not construct-scanned. | Latent |
+  44: | G10 | **Deletion of a safety check** | C4 fails on an *increase*. Removing a guard **lowers** counts and passes. | Latent â€” **directly relevant to capability 6** |
+  45: 
+  46: **G10 deserves emphasis.** The comparison is one-directional by design: "no new surface". A port that *deletes* an existing safety check passes every check in the harness, because deleting a guard reduces the tracked-construct count.
+  47: 
+  48: ---
+  49: 
+  50: ## Operator-gateway's five constraints, assessed honestly
+  51: 
+  52: Its own header states the contract:
+  53: 
+  54: > *"SANDBOX DRY-RUN + CONTROLLED REAL-LOCAL FOUNDATION MODE â€¦ no production DB writes, no external execution, no live runner, no API keys, no web-session scraping. No real execute button."*
+  55: 
+  56: **Would any current check catch the loss of each?**
+  57: 
+  58: | # | Constraint | Caught? | Reasoning |
+  59: |---|---|---|---|
+  60: | **OG1** | **No production DB writes** | **PARTIAL** | C4 catches an *added* `.insert/.update/.upsert/.delete(`. It does **not** catch: a write via `.rpc(`, a write through an existing call whose target changed to a prod ref, a write through a helper outside the graph, or a write where the count stays level because another call was removed. The fence's `prod-db` predicate catches a prod ref *at runtime*, but the fence is in **shadow** and does not gate CI. |
+  61: | **OG2** | **No external execution** | **NO** | `child_process`, `exec`, `execSync`, `spawn`, `fork` are **not tracked by any check**. Zero coverage. A ported file could shell out and every check would pass. |
+  62: | **OG3** | **No live runner** | **NO** | "A runner is wired" is a *system property*, not a construct. Nothing models it. Not expressible as a count. |
+  63: | **OG4** | **No API keys** | **PARTIAL** | C4 matches three literal names only (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `STRIPE_SECRET`). Misses every other key name, `process.env[dynamic]`, and keys read from a config object or a secrets helper. |
+  64: | **OG5** | **No real execute button** | **NO** | Requires inspecting rendered output and handler wiring. Nothing renders anything. A button whose `onClick` posts to a live endpoint is invisible to a static count. |
+  65: 
+  66: **Three of five have zero coverage. Two are partial. None is fully covered.**
+  67: 
+  68: Combined with **G10** â€” deleting a guard passes â€” the position for capability 6 is: *the harness that will review the operator gateway cannot detect the loss of the properties that make the operator gateway safe.*
+  69: 
+  70: That is the finding this map exists to surface.
+  71: 
+  72: ---
+  73: 
+  74: ## What follows from this
+  75: 
+  76: 1. **Capability 6 must not be ported against the current harness.** The founder ruling already requires a hand-established baseline for it. This map shows the automated layer would add close to nothing on the five constraints.
+  77: 2. ~~**G1 (route existence) is buildable now.** Bounded and decidable: every internal `href`/`fetch` path in a ported capability must resolve to a route that exists in the target.~~ **This was wrong, and the record keeps it visible rather than editing it away.** G1 is *not* bounded and decidable as stated. Three rounds of "add the next form" â€” literal `href`, then `router.push` template literals, then `<Link href={expr}>` â€” established that enumerating navigation forms cannot be completed: object hrefs, wrapper components, `window.location`, callbacks passed as props, server redirects and form actions all remain, and the list has no end. **See "G1 â€” the standing ruling" below.**
+  78: 3. **OG2 (external execution) is buildable now** â€” add `child_process`/`exec`/`spawn`/`execSync` to C4's tracked set. Cheap, and it closes total-zero coverage on one named constraint.
+  79: 4. **G10 (guard deletion) needs a second direction** â€” a *decrease* check on a named safety-construct subset, not on everything.
+  80: 5. **OG3 and OG5 are not static problems.** They need either a render test with network interception, or an architectural boundary that makes execution structurally unreachable from the page.
+  81: 
+  82: ---
+  83: 
+  84: ---
+  85: 
+  86: ## G1 â€” substantially mitigated by runtime route exercising (2026-08-02)
+  87: 
+  88: **Status: MITIGATED, NOT CLOSED.** Downgraded from "CLOSED" after review round 3.
+  89: 
+  90: **Why the word changed, since that is the point.** Three rounds of review each found the same
+  91: thing â€” the *claim* was wider than the *check*. Rounds 1 and 2 found the mechanism incomplete
+  92: and it was fixed both times. Round 3 found the mechanism sound ("a real design improvement")
+  93: and the **documentation** overclaiming. Continuing to extend C12 until "closed" became true
+  94: would have been the same mistake as adding the fourth navigation pattern: chasing a word.
+  95: 
+  96: So the word moved instead. **C12 covers server-rendered navigation.** What it does not cover is
+  97: named below and is not a to-do list â€” most of it is deliberately out of reach for a read-only
+  98: verifier. A gap that is named and bounded is in a different condition from one nobody has
+  99: noticed, and only the second kind is dangerous.
+ 100: 
+ 101: C9 remains as a cheap tripwire. The ruling that produced C12 is kept below because the
+ 102: reasoning is the reusable part.
+ 103: 
+ 104: Four review rounds each found the same class â€” *coverage reading wider than it is* â€” and three
+ 105: of the four were G1 specifically. The response after the fourth is deliberately **not** another
+ 106: detector.
+ 107: 
+ 108: **What was done today (item 1 of 4, and only this):**
+ 109: - The check was **renamed to what it verifies**: literal `href`/`fetch`/`router` paths, described
+ 110:   in its own name and failure message as a **tripwire**, not a proof. A share of the fourth
+ 111:   finding was simply the test's name overclaiming, and that half was free to fix.
+ 112: - **The gap stays open on this map.** Renaming is necessary and not sufficient. G1 closes when
+ 113:   something actually closes it.
+ 114: 
+ 115: **What closed it: runtime route exercising. Not AST extraction.**
+ 116: 
+ 117: AST with dataflow was the reviewer's proposal and was **rejected**. It is the same uncompletable
+ 118: enumeration in better clothes â€” you still have to decide which patterns count, and wrapper
+ 119: components and computed values defeat it identically. Runtime changes the evidence from *what
+ 120: forms we looked for* to *what the surface actually does*.
+ 121: 
+ 122: That is the same fact-versus-claim distinction that made operator-gateway a rebuild rather than
+ 123: a port, and it is the distinction this whole harness keeps failing on in one direction: a static
+ 124: check can only ever report what it was told to look for, and then gets described as though it
+ 125: reported on the surface.
+ 126: 
+ 127: **Built and proven.** `scripts/route-exercise.mjs`, wired as a `handoff-loop.sh` gate.
+ 128: 
+ 129: The proof is a side-by-side on one planted defect â€” a `DECKS` entry pointing at a route that
+ 130: does not exist, reached through `<Link href={d.href}>`, which is exactly the form attempt 4
+ 131: found:
+ 132: 
+ 133: | detector | verdict on the identical defect |
+ 134: |---|---|
+ 135: | C9 regex tripwire | **27 passed â€” missed it** |
+ 136: | C12 runtime exercising | **FAIL â€” named `/command-centre/hermes-DOES-NOT-EXIST`** |
+ 137: 
+ 138: **Correction (round-1 review).** That side-by-side was really run â€” `DECKS` was edited to
+ 139: `/command-centre/hermes-DOES-NOT-EXIST`, the app rebuilt, C9 passed 27, C12 failed naming the
+ 140: route â€” but **it left no reproducible artifact**, and the reviewer was right to call the claim
+ 141: overbroad. What ships in the repo is `--plant-broken-link`, which injects an `<a>` into
+ 142: already-fetched HTML *inside* C12. That is a weaker control: it proves the fetch-and-assert half
+ 143: and never touches C9, so nobody can reproduce the comparison from the repo alone.
+ 144: 
+ 145: For a verifier that gap matters more than usual â€” the whole point is that claims be checkable.
+ 146: **Reproduce it like this:**
+ 147: 
+ 148: ```bash
+ 149: # 1. plant a computed-navigation defect in source
+ 150: perl -pi -e 's{href: "/command-centre/hermes"}{href: "/command-centre/hermes-NOPE"}'   'dashboard/app/(main)/command-centre/page.tsx'
+ 151: # 2. C9 â€” the static tripwire â€” passes, missing it
+ 152: cd dashboard && npx vitest run __tests__/command-centre-readonly.test.ts   # 27 passed
+ 153: # 3. rebuild, then C12 catches it
+ 154: npm run build && cd .. && node scripts/route-exercise.mjs                  # FAIL, names the route
+ 155: # 4. revert and rebuild
+ 156: git checkout -- 'dashboard/app/(main)/command-centre/page.tsx'
+ 157: ```
+ 158: 
+ 159: **What C12 does NOT cover.** Three rounds have added to this list; that is the list doing its
+ 160: job, not failing at it. It is the honest boundary of the claim:
+ 161: - Navigation that only fires in a client event handler (`router.push` in `onClick`) is not in
+ 162:   server-rendered HTML. C9's literal scan is the only cover for that, which is why C9 stays.
+ 163: - **CLIENT-HYDRATED navigation** â€” added after round-1 review named it as the largest remaining
+ 164:   hole. C12 reads server-rendered HTML; it does not run a browser or hydrate components. A
+ 165:   `<Link>` that appears only after `useEffect`, from localStorage, at a viewport size, or once
+ 166:   client data arrives is **not exercised**. Closing this needs a real browser, which is a
+ 167:   different tool at a different cost â€” it is a bounded, statable limit, not an open enumeration.
+ 168: - Links behind a branch this run does not render (an error state, a populated-data state) are
+ 169:   not exercised. Coverage is what rendered, not what could render. Every entry page is asserted
+ 170:   200 so a page that fails to render cannot pass by emitting nothing â€” but an unrendered
+ 171:   *branch* is genuinely unmeasured.
+ 172: - External links are skipped by design; the question is whether OUR routes exist. Same-origin is
+ 173:   decided by RESOLVING each href against the page URL (`new URL(raw, pageUrl)`), so relative,
+ 174:   absolute and protocol-relative forms are handled by one rule. Round-2 review found the earlier
+ 175:   version matched only slash-prefixed hrefs, leaving rendered **relative** links unmeasured â€”
+ 176:   fixed by resolving rather than by adding a pattern, since URL resolution is decidable in a way
+ 177:   form-enumeration never was.
+ 178: - `/_next/*` build assets are excluded â€” not navigation, and `npm run build` owns them.
+ 179: - **HTTP method and form semantics** (round 3). Every target is requested with GET. A form
+ 180:   whose POST handler is broken while GET succeeds passes. Exercising real POSTs would mean
+ 181:   submitting to handlers with side effects, which a read-only verifier must not do.
+ 182: - **Non-rendered API calls** (round 3). A `fetch()` made by a component at runtime is not in
+ 183:   the HTML, so an API route only client code calls is never exercised.
+ 184: - **External redirect destinations** (round 3). Redirect chains ARE now followed to a final
+ 185:   status â€” a link 307ing to a missing page used to pass green, since the hop is neither 404 nor
+ 186:   5xx â€” but a hop that leaves our origin ends the walk. Where it lands is not ours to assert.
+ 187: 
+ 188: **Two controls it carries, both of which caught real false-greens in its own first hour:**
+ 189: 1. *Session accepted* â€” if the minted cookie were rejected, every page would redirect to login
+ 190:    and the run would happily exercise the login page and report success. A non-200 entry page
+ 191:    is a hard stop.
+ 192: 2. *Port not already in use* â€” the first version orphaned its `next start` on Windows
+ 193:    (`shell: true` + `server.kill()` kills the shell, not the grandchild). A later run attached
+ 194:    to that stale server, measured the **previous build**, and reported the planted defect
+ 195:    absent. It was caught only because a positive control expected failure and got a pass.
+ 196:    A live port is now a hard stop, and the process tree is killed with a synchronous
+ 197:    `taskkill /T /F` â€” an async kill registered on `exit` never runs, which was the second bug.
+ 198: 
+ 199: **Scope discipline, explicitly.** Re-spec the navigation detector and **nothing else**. The
+ 200: diagnosis was narrow: the design is sound, import provenance is closed, the positive controls
+ 201: are load-bearing. A narrow finding is not licence to rebuild the apparatus.
+ 202: 
+ 203: **Prerequisite â€” the reviewer must be able to execute.** The cross-vendor reviewer could not run
+ 204: the suites on three of four rounds and its build failed on the fourth; only `tsc --noEmit` was
+ 205: ever independently confirmed. That is tolerable for structural claims about code. It is **not**
+ 206: tolerable for reviewing a verifier: the re-spec's entire claim is *these checks fail red when
+ 207: they should*, which can only be confirmed by running them. Re-speccing the harness and grading
+ 208: it by assertion reproduces the exact defect being fixed. **Fix the sandbox before the re-spec
+ 209: review, not after.**
+ 210: 
+ 211: ---
+ 212: 
+ 213: *Compiled 2026-08-01 after capability 2 attempt 1 failed on G1 â€” a class the harness could not see, found by the reviewer rather than the harness. Amended after attempt 4 found G1 a third time, which is what turned it from a gap to be patched into a design to be replaced.*
+
+hook: PostToolUse
+ succeeded in 349ms:
+   1: /**
+   2:  * command-centre-readonly.test.ts â€” diff-relative conformance for ported capabilities.
+   3:  *
+   4:  * THE CLAIM THIS TEST CHECKS, and the one it deliberately does NOT:
+   5:  *
+   6:  *   CHECKS:      "this port introduces no network/DB/execution construct that the
+   7:  *                 named source baseline did not already contain."
+   8:  *   DOES NOT:    "this page makes no network call."
+   9:  *
+  10:  * The second is an unbounded negative. Three bounded attempts at capability 1 were
+  11:  * all correctly failed by cross-vendor review because the spec asked for it: there
+  12:  * is always another path (dynamic import, require, WebSocket, sendBeacon, server
+  13:  * action, transitive side effect). The code was fine every time; the spec was the
+  14:  * defect. Founder ruling 2026-08-01: take the diff-relative framing.
+  15:  *
+  16:  * A diff-relative claim is decidable â€” compare against a baseline, answer yes or no.
+  17:  * It is also only as strong as that baseline, which is why capabilities whose safety
+  18:  * properties are load-bearing (operator-gateway) require a hand-established baseline
+  19:  * recorded in the provenance file before they may be ported.
+  20:  */
+  21: import { describe, expect, it } from "vitest";
+  22: import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+  23: import { dirname, join, resolve } from "node:path";
+  24: 
+  25: const ROOT = resolve(__dirname, "..");
+  26: const PROV_RAW = JSON.parse(
+  27:   readFileSync(join(__dirname, "command-centre-provenance.json"), "utf8")
+  28: ) as Record<string, unknown>;
+  29: const PROV = PROV_RAW as unknown as {
+  30:   _baseline_root: string;
+  31:   files: Record<string, string>;
+  32:   /** Written fresh for this app. No source baseline exists, so diff-relative
+  33:    *  comparison is meaningless for these â€” they are declared, not compared. */
+  34:   _rebuilt_not_ported?: Record<string, string>;
+  35:   /** Pre-existing files of THIS app, pulled into the graph by an import. */
+  36:   _target_native?: Record<string, string>;
+  37:   /** file -> rule -> the ONE expected count change, with its reason. */
+  38:   _declared_deltas?: Record<string, Record<string, DeclaredDelta>>;
+  39: };
+  40: 
+  41: /** An exemption names the exact magnitude it excuses, not just the direction. */
+  42: interface DeclaredDelta {
+  43:   /** Count in the baseline. */
+  44:   from: number;
+  45:   /** Count the port is allowed to have â€” this value and no other. */
+  46:   to: number;
+  47:   reason: string;
+  48: }
+  49: 
+  50: /**
+  51:  * True only for the EXACT declared count change.
+  52:  *
+  53:  * This used to key on file+rule alone, which made it a blanket exclusion wearing
+  54:  * a narrower label: declaring "auth gate 3 -> 0" also excused 3 -> 1, 3 -> 2, and
+  55:  * every future auth-gate loss in that file. Cross-vendor review caught it â€”
+  56:  * "exempts any auth gate decrease in wiki-graph/page.tsx, not just the expected
+  57:  * removal". The mechanism existed to avoid a blanket exclusion and was blanket one
+  58:  * level down. An exemption now excuses one measured transition; anything else in
+  59:  * the same file, same rule, still fails.
+  60:  */
+  61: const deltaDeclared = (file: string, rule: string, from: number, to: number): boolean => {
+  62:   const d = (PROV_RAW as {
+  63:     _declared_deltas?: Record<string, Record<string, DeclaredDelta>>;
+  64:   })._declared_deltas?.[file]?.[rule];
+  65:   if (!d) return false;
+  66:   return d.from === from && d.to === to && Boolean(d.reason);
+  67: };
+  68: 
+  69: /** Files with a declared origin OR a declared reason for having none. */
+  70: const DECLARED = new Set<string>([
+  71:   ...Object.keys((PROV_RAW as { files: Record<string, string> }).files),
+  72:   ...Object.keys((PROV_RAW as { _rebuilt_not_ported?: Record<string, string> })._rebuilt_not_ported ?? {}),
+  73:   ...Object.keys((PROV_RAW as { _target_native?: Record<string, string> })._target_native ?? {}),
+  74: ]);
+  75: const BASELINE = PROV._baseline_root;
+  76: const baselineAvailable = existsSync(BASELINE);
+  77: 
+  78: /** Constructs whose COUNT must not increase relative to the baseline. */
+  79: const TRACKED: Array<{ re: RegExp; rule: string }> = [
+  80:   { re: /\bfetch\s*\(/g, rule: "network: fetch" },
+  81:   { re: /\b(axios|got|node-fetch|undici)\b/g, rule: "network: http client" },
+  82:   { re: /\b(WebSocket|EventSource|XMLHttpRequest|sendBeacon)\b/g, rule: "network: streaming/beacon" },
+  83:   { re: /\bimport\s*\(/g, rule: "dynamic import" },
+  84:   { re: /\brequire\s*\(/g, rule: "require()" },
+  85:   { re: /https?:\/\//g, rule: "remote host literal" },
+  86:   { re: /\.(insert|update|upsert|delete)\s*\(/g, rule: "database write" },
+  87:   { re: /createServerClient|createClient\s*\(/g, rule: "database client" },
+  88:   { re: /\bMcpClient\b|modelcontextprotocol/g, rule: "MCP client" },
+  89:   { re: /"use server"|'use server'/g, rule: "server action" },
+  90:   { re: /ANTHROPIC_API_KEY|OPENAI_API_KEY|STRIPE_SECRET/g, rule: "paid API key" },
+  91:   // OG2 had zero coverage until this line. External execution was tracked by nothing.
+  92:   { re: /\b(child_process|execSync|spawnSync|\bexec\s*\(|\bspawn\s*\(|\bfork\s*\()/g,
+  93:     rule: "external execution" },
+  94: ];
+  95: 
+  96: /**
+  97:  * Guards whose count must NOT DECREASE. The tracked list above is one-directional â€”
+  98:  * it fails on an increase â€” so a port that DELETES a safety check passes every one of
+  99:  * them. Cross-vendor audit named this as the single most valuable missing check:
+ 100:  * "a port that does not add new scary constructs, but removes the exact guards that
+ 101:  * made the scary surface inert."
+ 102:  */
+ 103: const GUARDS: Array<{ re: RegExp; rule: string }> = [
+ 104:   { re: /\b(dryRun|dry_run|DRY_RUN|isDryRun)\b/g, rule: "dry-run predicate" },
+ 105:   { re: /\bdisabled\b/g, rule: "disabled control" },
+ 106:   { re: /\b(readOnly|read_only|READONLY)\b/g, rule: "read-only flag" },
+ 107:   { re: /\b(requireAuth|isAuthed|getUser|getSession|redirect\s*\(\s*['"]\/auth)/g, rule: "auth gate" },
+ 108:   { re: /\b(sandbox|SANDBOX|isSandbox)\b/g, rule: "sandbox boundary" },
+ 109:   { re: /\bconfirm\s*\(|\bconfirmed\b/g, rule: "confirmation gate" },
+ 110: ];
+ 111: 
+ 112: const strip = (s: string) =>
+ 113:   s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+ 114: 
+ 115: const count = (src: string, re: RegExp) => (strip(src).match(new RegExp(re.source, "g")) || []).length;
+ 116: 
+ 117: function resolveSpec(spec: string, from: string): string | null {
+ 118:   let base: string;
+ 119:   if (spec.startsWith("@/")) base = join(ROOT, spec.slice(2));
+ 120:   else if (spec.startsWith(".")) base = resolve(dirname(from), spec);
+ 121:   else return null;
+ 122:   for (const c of [`${base}.ts`, `${base}.tsx`, join(base, "index.ts"), join(base, "index.tsx"), base]) {
+ 123:     if (existsSync(c) && statSync(c).isFile()) return c;
+ 124:   }
+ 125:   return null;
+ 126: }
+ 127: 
+ 128: /**
+ 129:  * Everything reachable from the capability entry pages, following imports.
+ 130:  *
+ 131:  * SCOPE vs .gitignore â€” recorded because every git-grounded check in this repo had to be
+ 132:  * audited for it (see ".gitignore is a silent scope reducer" in .harness/lesson-patterns.md).
+ 133:  *
+ 134:  * This walk is FILESYSTEM-grounded, not git-grounded, so .gitignore cannot silently shrink
+ 135:  * it â€” an ignored file in the import graph is still walked and still needs provenance.
+ 136:  *
+ 137:  * The exposure here is the INVERSE: a capability file that is gitignored would satisfy
+ 138:  * provenance while never entering the repo. It would run on this machine and exist nowhere
+ 139:  * else. Same family as "wired is not synced". Nothing in this suite would catch that; the
+ 140:  * check that would is fail_open_check.py Class B, which asks git whether declared evidence
+ 141:  * is actually tracked.
+ 142:  */
+ 143: function importGraph(): string[] {
+ 144:   const entries: string[] = [];
+ 145:   (function walk(d: string) {
+ 146:     if (!existsSync(d)) return;
+ 147:     for (const e of readdirSync(d)) {
+ 148:       const p = join(d, e);
+ 149:       if (statSync(p).isDirectory()) walk(p);
+ 150:       else if (e === "page.tsx") entries.push(p);
+ 151:     }
+ 152:   })(join(ROOT, "app/(main)/command-centre"));
+ 153: 
+ 154:   // The API routes are capability surface too, and seeding only from page.tsx left
+ 155:   // them out of the graph entirely. Cross-vendor review named the exact consequence:
+ 156:   // the route's own imports â€” including `@/lib/supabase/server`, the service-role
+ 157:   // client â€” could change with no provenance entry, while "no real import without an
+ 158:   // entry" still passed. The route was checked for EXISTENCE and never for what it
+ 159:   // pulls in. A reachability check that starts from the wrong roots is not narrower,
+ 160:   // it is blind in a specific direction.
+ 161:   (function walk(d: string) {
+ 162:     if (!existsSync(d)) return;
+ 163:     for (const e of readdirSync(d)) {
+ 164:       const p = join(d, e);
+ 165:       if (statSync(p).isDirectory()) walk(p);
+ 166:       else if (e === "route.ts" || e === "route.tsx") entries.push(p);
+ 167:     }
+ 168:   })(join(ROOT, "app/api/command-centre"));
+ 169: 
+ 170:   const seen = new Set<string>();
+ 171:   const queue = [...entries];
+ 172:   while (queue.length) {
+ 173:     const f = queue.pop()!;
+ 174:     if (seen.has(f) || !existsSync(f)) continue;
+ 175:     seen.add(f);
+ 176:     // Both `import x from 'y'` and the side-effect form `import 'y'`. Matching only
+ 177:     // `from '...'` let a side-effect import enter the surface unprovenanced.
+ 178:     for (const m of readFileSync(f, "utf8").matchAll(/(?:from|import)\s+['"]([^'"]+)['"]/g)) {
+ 179:       const r = resolveSpec(m[1], f);
+ 180:       if (r && !seen.has(r)) queue.push(r);
+ 181:     }
+ 182:   }
+ 183:   return [...seen];
+ 184: }
+ 185: 
+ 186: const rel = (f: string) => f.slice(ROOT.length + 1).replace(/\\/g, "/");
+ 187: 
+ 188: describe("command-centre: no new surface vs source baseline", () => {
+ 189:   const files = importGraph().map(rel);
+ 190: 
+ 191:   it("the import graph reaches beyond the capability directory (positive control)", () => {
+ 192:     expect(files.length).toBeGreaterThan(1);
+ 193:     expect(files.some((f) => f.startsWith("components/command-centre"))).toBe(true);
+ 194:   });
+ 195: 
+ 196:   it("every file in the capability surface has a declared origin", () => {
+ 197:     // A file with no provenance has no baseline, so "no new surface" is unprovable
+ 198:     // for it. Unlisted means fail, not skip.
+ 199:     const undeclared = files.filter((f) => !DECLARED.has(f));
+ 200:     expect(undeclared, `no provenance entry for:\n${undeclared.join("\n")}`).toEqual([]);
+ 201:   });
+ 202: 
+ 203:   it("the baseline is reachable, or the run is explicitly acknowledged as unverified", () => {
+ 204:     // A skipped comparison is not a passing one. Previously this only warned while
+ 205:     // the suite still went green â€” so an environment without the baseline reported
+ 206:     // success having checked nothing. It now FAILS closed. Setting
+ 207:     // CC_ALLOW_NO_BASELINE=1 is the only way past, and it makes the gap a recorded
+ 208:     // choice rather than a silent one.
+ 209:     const acknowledged = process.env.CC_ALLOW_NO_BASELINE === "1";
+ 210:     expect(
+ 211:       baselineAvailable || acknowledged,
+ 212:       `[BASELINE UNAVAILABLE] ${BASELINE} not present, so the diff-relative claim ` +
+ 213:         `was NOT verified. This suite refuses to report success without checking. ` +
+ 214:         `Provide the baseline checkout, or set CC_ALLOW_NO_BASELINE=1 to record ` +
+ 215:         `deliberately that this run proves nothing about R2/R6.`
+ 216:     ).toBe(true);
+ 217:   });
+ 218: 
+ 219:   it("detects an increase when one exists (positive control)", () => {
+ 220:     const before = count("const a = 1", /\bfetch\s*\(/);
+ 221:     const after = count("const a = fetch('x')", /\bfetch\s*\(/);
+ 222:     expect(after).toBeGreaterThan(before);
+ 223:   });
+ 224: 
+ 225:   // ---- G1 (PARTIAL): literal internal navigation must resolve to a route here ----
+ 226:   // Construct counts are identical when a ported fetch points at an API route that was
+ 227:   // never ported, so the surface passes while the control 404s. Found in capability 2
+ 228:   // by the reviewer, not by the harness.
+ 229:   //
+ 230:   // THIS IS A TRIPWIRE, NOT A PROOF, AND THE NAME NOW SAYS SO.
+ 231:   //
+ 232:   // It scans three literal forms: href="/x", fetch("/x"), and router.push/replace("/xâ€¦").
+ 233:   // It cannot see navigation through an expression â€” `<Link href={d.href}>` over a local
+ 234:   // array is in this very capability and invisible to it. Nor object hrefs, wrapper
+ 235:   // components, window.location, callbacks passed as props, server redirects, or form
+ 236:   // actions.
+ 237:   //
+ 238:   // It was previously called "every internal href/fetch resolves to a route in the
+ 239:   // target app". That name claimed the general property while checking three syntactic
+ 240:   // forms, and a reviewer found the gap for the fourth round running â€” the same class
+ 241:   // every round found: coverage reading wider than it is. Founder ruled 2026-08-01:
+ 242:   // rename to what it verifies, keep the gap OPEN on the coverage map (G1 stays open,
+ 243:   // partially mitigated), and replace the detector with runtime route exercising rather
+ 244:   // than extending the pattern list. Enumerating navigation forms is not a design that
+ 245:   // can be completed; AST extraction was considered and rejected as the same
+ 246:   // uncompletable enumeration in better clothes.
+ 247:   //
+ 248:   // Do NOT close this by adding another regex. That is the patch the ruling forbids.
+ 249:   it("literal href/fetch/router paths resolve to a route in the target app (tripwire â€” does not cover computed navigation, see G1)", () => {
+ 250:     const APP = join(ROOT, "app");
+ 251:     const routeExists = (p: string): boolean => {
+ 252:       const clean = p.split("?")[0].split("#")[0].replace(/\/$/, "");
+ 253:       if (!clean || clean === "/") return true;
+ 254:       const segs = clean.split("/").filter(Boolean);
+ 255:       // Next.js route groups "(main)" are transparent in the URL, so try every
+ 256:       // group-prefixed location as well as the bare one.
+ 257:       const groups = existsSync(APP)
+ 258:         ? readdirSync(APP).filter((d) => d.startsWith("(") && statSync(join(APP, d)).isDirectory())
+ 259:         : [];
+ 260:       const bases = [APP, ...groups.map((g) => join(APP, g))];
+ 261:       return bases.some((b) => {
+ 262:         const dir = join(b, ...segs);
+ 263:         return existsSync(join(dir, "page.tsx")) || existsSync(join(dir, "route.ts"));
+ 264:       });
+ 265:     };
+ 266: 
+ 267:     const broken: string[] = [];
+ 268:     for (const f of files) {
+ 269:       const src = strip(readFileSync(join(ROOT, f), "utf8"));
+ 270:       const paths = [
+ 271:         ...[...src.matchAll(/href=["'`](\/[^"'`]*)["'`]/g)].map((m) => m[1]),
+ 272:         ...[...src.matchAll(/fetch\(\s*["'`](\/[^"'`]*)["'`]/g)].map((m) => m[1]),
+ 273:         // Programmatic navigation, and the TEMPLATE-LITERAL form especially. This check
+ 274:         // was written to catch a ported control pointing at an unported route, and it
+ 275:         // missed exactly that: WikiGraphCanvas does
+ 276:         // `router.push(`/founder/wiki/${slug}`)`, which is not an href= and not a
+ 277:         // string literal, so every node click 404'd while this test passed. Truncate at
+ 278:         // the first `${` and check the static prefix â€” a prefix that does not exist
+ 279:         // cannot be rescued by whatever the interpolation produces.
+ 280:         ...[...src.matchAll(/router\.(?:push|replace)\(\s*["'`](\/[^"'`]*)["'`]/g)]
+ 281:           .map((m) => m[1].split("${")[0]),
+ 282:       ];
+ 283:       for (const p of new Set(paths)) {
+ 284:         if (!routeExists(p)) broken.push(`${f} -> ${p}`);
+ 285:       }
+ 286:     }
+ 287:     expect(
+ 288:       broken,
+ 289:       `literal internal paths with no matching route in the target app (these would 404):\n` +
+ 290:         `${broken.join("\n")}\n\n` +
+ 291:         `NOTE: an empty result here does NOT mean every internal navigation resolves. This ` +
+ 292:         `check sees three literal forms only. Computed navigation â€” <Link href={expr}>, ` +
+ 293:         `object hrefs, wrapper components, window.location, server redirects â€” is not ` +
+ 294:         `covered. G1 is OPEN on the coverage map.`
+ 295:     ).toEqual([]);
+ 296:   });
+ 297: 
+ 298:   // ---- G10 / Q3: a port may not DELETE a guard ----
+ 299:   // fail-open-ok: same reasoning as the tracked-construct tests â€” the separate
+ 300:   // "baseline is reachable" test FAILS when the baseline is absent, so the suite
+ 301:   // cannot go green unverified. This skip avoids a second misleading failure; it
+ 302:   // does not hide the first.
+ 303:   it.skipIf(!baselineAvailable)("no safety guard was removed relative to the baseline", () => {
+ 304:     const lost: string[] = [];
+ 305:     for (const g of GUARDS) {
+ 306:       for (const [ported, source] of Object.entries(PROV.files)) {
+ 307:         const pPath = join(ROOT, ported);
+ 308:         const sPath = join(BASELINE, source);
+ 309:         if (!existsSync(pPath) || !existsSync(sPath)) continue; // covered by the unresolved check
+ 310:         const p = count(readFileSync(pPath, "utf8"), g.re);
+ 311:         const s = count(readFileSync(sPath, "utf8"), g.re);
+ 312:         if (p < s && !deltaDeclared(ported, g.rule, s, p)) lost.push(`${g.rule} in ${ported}: ${s} -> ${p}`);
+ 313:       }
+ 314:     }
+ 315:     expect(lost, `safety guards removed vs baseline:\n${lost.join("\n")}`).toEqual([]);
+ 316:   });
+ 317: 
+ 318:   for (const t of TRACKED) {
+ 319:     // fail-open-ok: skipping here is safe because the separate "baseline is
+ 320:     // reachable" test FAILS when the baseline is absent, so the suite cannot go
+ 321:     // green unverified. The skip avoids a misleading second failure, it does not
+ 322:     // hide the first.
+ 323:     it.skipIf(!baselineAvailable)(`introduces no new â€” ${t.rule}`, () => {
+ 324:       const grew: string[] = [];
+ 325:       const unresolved: string[] = [];
+ 326:       for (const [ported, source] of Object.entries(PROV.files)) {
+ 327:         const pPath = join(ROOT, ported);
+ 328:         const sPath = join(BASELINE, source);
+ 329:         // A pair that cannot be resolved must NOT be skipped. Skipping it left the
+ 330:         // file uncompared while the suite still went green â€” a mistyped baseline
+ 331:         // path would read as "verified clean" having checked nothing.
+ 332:         if (!existsSync(pPath)) { unresolved.push(`ported missing: ${ported}`); continue; }
+ 333:         if (!existsSync(sPath)) { unresolved.push(`baseline missing: ${source} (for ${ported})`); continue; }
+ 334:         const p = count(readFileSync(pPath, "utf8"), t.re);
+ 335:         const s = count(readFileSync(sPath, "utf8"), t.re);
+ 336:         if (p > s && !deltaDeclared(ported, t.rule, s, p)) grew.push(`${ported}: ${s} -> ${p}`);
+ 337:       }
+ 338:       expect(
+ 339:         unresolved,
+ 340:         `provenance pairs could not be resolved, so these files were NOT compared:\n${unresolved.join("\n")}`
+ 341:       ).toEqual([]);
+ 342:       expect(grew, `${t.rule} increased vs baseline:\n${grew.join("\n")}`).toEqual([]);
+ 343:     });
+ 344:   }
+ 345: });
+ 346: 
+ 347: /**
+ 348:  * Import-level provenance. File provenance proves a file has a declared origin; it
+ 349:  * does NOT prove that what its imports RESOLVE TO behaves the same in both apps.
+ 350:  * `@/lib/supabase/server` resolves in the source to an anon-key RLS-enforced client
+ 351:  * and in the target to a service-role client that bypasses RLS â€” same specifier,
+ 352:  * compatible shapes, clean typecheck, silent privilege change.
+ 353:  */
+ 354: describe("command-centre: every import has a declared judgment", () => {
+ 355:   const IMPORTS = (PROV as unknown as {
+ 356:     imports?: Record<string, { specifier: string; judgment: string; note: string }>;
+ 357:   }).imports ?? {};
+ 358: 
+ 359:   it("the import map is populated (positive control)", () => {
+ 360:     // An empty map would make every assertion below vacuously true.
+ 361:     expect(Object.keys(IMPORTS).length).toBeGreaterThan(0);
+ 362:   });
+ 363: 
+ 364:   it("no import is UNDECLARED", () => {
+ 365:     const undeclared = Object.entries(IMPORTS)
+ 366:       .filter(([, v]) => v.judgment === "UNDECLARED")
+ 367:       .map(([k, v]) => `${k}\n      ${v.note}`);
+ 368:     expect(
+ 369:       undeclared,
+ 370:       `imports with no declared judgment (same | different-but-checked | must-change):\n${undeclared.join("\n")}`
+ 371:     ).toEqual([]);
+ 372:   });
+ 373: 
+ 374:   it("every judgment is one of the permitted values", () => {
+ 375:     const ok = new Set(["same", "different-but-checked", "must-change", "no-source-baseline"]);
+ 376:     const bad = Object.entries(IMPORTS)
+ 377:       .filter(([, v]) => !ok.has(v.judgment))
+ 378:       .map(([k, v]) => `${k}: '${v.judgment}'`);
+ 379:     expect(bad, `invalid judgment values:\n${bad.join("\n")}`).toEqual([]);
+ 380:   });
+ 381: 
+ 382:   /**
+ 383:    * `no-source-baseline` is the honest judgment for an import in a file that has no
+ 384:    * source counterpart â€” a rebuilt or target-native file. Comparing its imports across
+ 385:    * apps is not a check that can be run, and labelling it `must-change` would assert a
+ 386:    * comparison that never happened.
+ 387:    *
+ 388:    * It is also, obviously, an escape hatch: any import could be waved through by
+ 389:    * claiming its file has no baseline. So it is CONSTRAINED to files actually declared
+ 390:    * as baseline-free. This is the third time on this capability that a mechanism built
+ 391:    * to narrow an exclusion had to be narrowed itself â€” the pattern is that an exemption
+ 392:    * is only as tight as the thing that decides who may claim it.
+ 393:    */
+ 394:   it("'no-source-baseline' is only claimable by a file declared as having none", () => {
+ 395:     const baselineFree = new Set([
+ 396:       ...Object.keys((PROV_RAW as { _rebuilt_not_ported?: Record<string, string> })._rebuilt_not_ported ?? {}),
+ 397:       ...Object.keys((PROV_RAW as { _target_native?: Record<string, string> })._target_native ?? {}),
+ 398:     ]);
+ 399:     const bad = Object.entries(IMPORTS)
+ 400:       .filter(([, v]) => v.judgment === "no-source-baseline")
+ 401:       .map(([k]) => k)
+ 402:       .filter((k) => !baselineFree.has(k.split(" :: ")[0]));
+ 403:     expect(
+ 404:       bad,
+ 405:       "these claim 'no-source-baseline' but their file IS declared with a source baseline,\n" +
+ 406:         "so a real import comparison was owed and skipped:\n" + bad.join("\n")
+ 407:     ).toEqual([]);
+ 408:   });
+ 409: 
+ 410:   it("a 'different-but-checked' judgment carries a stated reason", () => {
+ 411:     const unexplained = Object.entries(IMPORTS)
+ 412:       .filter(([, v]) => v.judgment !== "same" && !v.note.trim())
+ 413:       .map(([k]) => k);
+ 414:     expect(unexplained, `divergent imports with no note:\n${unexplained.join("\n")}`).toEqual([]);
+ 415:   });
+ 416: 
+ 417:   /**
+ 418:    * ---- The map must match reality, in BOTH directions ----
+ 419:    *
+ 420:    * Everything above validates the map against itself. Cross-vendor review found what
+ 421:    * that permits: an entry for `knowledge/page.tsx :: @/components/command-centre/
+ 422:    * WikiEnhanceControl`, judged `must-change`, resolving to a target file that does
+ 423:    * not exist â€” for a component KI-002 deliberately omitted and the page never
+ 424:    * imports. Four assertions passed over it. A phantom entry does not merely sit
+ 425:    * there being wrong; it INFLATES the map, and the map is the thing we point at to
+ 426:    * say the import surface was reviewed. It reads as coverage.
+ 427:    *
+ 428:    * Deleting that one entry fixes one entry. These two tests fix the class: the map
+ 429:    * cannot claim an import that no file makes, and no file can make an import the map
+ 430:    * does not claim. Either direction failing is a real finding â€” the first means the
+ 431:    * map overstates what was checked, the second means something entered the surface
+ 432:    * unreviewed.
+ 433:    */
+ 434:   const ACTUAL = new Set<string>(
+ 435:     importGraph().flatMap((f) =>
+ 436:       [...readFileSync(f, "utf8").matchAll(/(?:from|import)\s+['"]([^'"]+)['"]/g)]
+ 437:         .map((m) => `${rel(f)} :: ${m[1]}`)
+ 438:     )
+ 439:   );
+ 440: 
+ 441:   it("the actual-import set is populated (positive control)", () => {
+ 442:     // Both directional tests below compare against ACTUAL. If the graph walk or the
+ 443:     // specifier regex breaks, ACTUAL empties, and "no phantom entries" would still
+ 444:     // pass while checking nothing. This is the check that stops that being silent.
+ 445:     expect(ACTUAL.size).toBeGreaterThan(0);
+ 446:   });
+ 447: 
+ 448:   it("no map entry describes an import that is not actually made", () => {
+ 449:     const phantom = Object.keys(IMPORTS).filter((k) => !ACTUAL.has(k));
+ 450:     expect(
+ 451:       phantom,
+ 452:       "provenance map entries with no corresponding import in the file named by the key.\n" +
+ 453:         "The map overstates what was reviewed â€” these were 'checked' and do not exist:\n" +
+ 454:         phantom.join("\n")
+ 455:     ).toEqual([]);
+ 456:   });
+ 457: 
+ 458:   it("every actual import in the capability graph has a map entry", () => {
+ 459:     const unmapped = [...ACTUAL].filter((k) => !(k in IMPORTS));
+ 460:     expect(
+ 461:       unmapped,
+ 462:       "imports present in the capability graph with no provenance entry â€” these entered\n" +
+ 463:         "the surface without a declared judgment:\n" + unmapped.join("\n")
+ 464:     ).toEqual([]);
+ 465:   });
+ 466: 
+ 467:   it("a map entry resolving to a target file names a file that exists", () => {
+ 468:     const missing = Object.entries(IMPORTS)
+ 469:       .map(([k, v]) => [k, /^file:\s*(.+)$/.exec(
+ 470:         (v as unknown as { resolves_in_target?: string }).resolves_in_target ?? ""
+ 471:       )] as const)
+ 472:       .filter(([, m]) => m && !existsSync(join(ROOT, m[1].trim())))
+ 473:       .map(([k, m]) => `${k} -> ${m![1].trim()}`);
+ 474:     expect(
+ 475:       missing,
+ 476:       `map entries resolving to a target file that is absent from disk:\n${missing.join("\n")}`
+ 477:     ).toEqual([]);
+ 478:   });
+ 479: });
+
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+codex
+The relevant docs now say C12 is “authority on G1 for server-rendered navigation” and “mitigated, not closed,” with explicit gaps for hydration, handlers, unrendered branches, GET-only forms, non-rendered API calls, external redirects, and `/_next`. I’m running the proof loop now; I’ll treat failures as evidence, not paper over them.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'bash scripts/prove-controls.sh' in D:\Pi-Dev-Ops
+ exited 124 in 124034ms:
+2026-08-01T22:06:07.346030Z ERROR codex_core::tools::router: error=Exit code: 124
+Wall time: 124 seconds
+Output:
+command timed out after 124034 milliseconds
+
+codex
+`bash scripts/prove-controls.sh` exceeded the 120s tool timeout with no output captured, so I’m not counting it as a pass. I’m rerunning it with a longer timeout before judging whether it is genuinely hanging or just slow.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'bash scripts/prove-controls.sh' in D:\Pi-Dev-Ops
+ exited 1 in 10642ms:
+
+── C-TREE — review tree-integrity detects a repo mutation
+  PASS  detects a new non-ignored file
+  PASS  restores exactly (no false positive)
+  PASS  blind to gitignored paths (documented limit, confirmed)
+
+── C-CFG — codex config detector ignores churn, catches escalation
+  PASS  ignores marketplace timestamp churn
+  PASS  detects a widened sandbox_mode
+  PASS  detects a new trusted project
+
+── C-EXEC — execution-proof grep distinguishes a run from a non-run
+  PASS  reports ABSENT when the suite did not run
+  PASS  reports FOUND when the suite did run
+
+── C10/C4 — a declared delta only excuses its EXACT magnitude
+  PASS  rejects a declared 3->1 against an actual 3->0
+  PASS  green again once the declaration matches
+
+── C-SECRETS — the scanner sees gitignored files (fixed 2026-08-02)
+  PASS  detects a secret inside a gitignored path
+
+── C12 — runtime route exercising (needs a build; ~90s)
+  PASS  fails on a planted unresolvable link
+  PASS  redirect walker: 307->404 reports 404, loop reported, 307->200 passes
+  PASS  fails on a planted RELATIVE link (no leading slash)
+  FAIL  red on a clean surface
+  PASS  refuses to run against a stale build
+  NOTE  source touched — rebuild before relying on C12 again
+
+════ CONTROLS PROVEN: pass=15 fail=1
+════ A CONTROL DID NOT DISCRIMINATE — the checks it guards prove nothing.
+
+2026-08-01T22:06:22.278717Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 10.6 seconds
+Output:
+
+── C-TREE — review tree-integrity detects a repo mutation
+  PASS  detects a new non-ignored file
+  PASS  restores exactly (no false positive)
+  PASS  blind to gitignored paths (documented limit, confirmed)
+
+── C-CFG — codex config detector ignores churn, catches escalation
+  PASS  ignores marketplace timestamp churn
+  PASS  detects a widened sandbox_mode
+  PASS  detects a new trusted project
+
+── C-EXEC — execution-proof grep distinguishes a run from a non-run
+  PASS  reports ABSENT when the suite did not run
+  PASS  reports FOUND when the suite did run
+
+── C10/C4 — a declared delta only excuses its EXACT magnitude
+  PASS  rejects a declared 3->1 against an actual 3->0
+  PASS  green again once the declaration matches
+
+── C-SECRETS — the scanner sees gitignored files (fixed 2026-08-02)
+  PASS  detects a secret inside a gitignored path
+
+── C12 — runtime route exercising (needs a build; ~90s)
+  PASS  fails on a planted unresolvable link
+  PASS  redirect walker: 307->404 reports 404, loop reported, 307->200 passes
+  PASS  fails on a planted RELATIVE link (no leading slash)
+  FAIL  red on a clean surface
+  PASS  refuses to run against a stale build
+  NOTE  source touched — rebuild before relying on C12 again
+
+════ CONTROLS PROVEN: pass=15 fail=1
+════ A CONTROL DID NOT DISCRIMINATE — the checks it guards prove nothing.
+
+codex
+The control proof did not meet the brief’s expected `16/16`: it ended `pass=15 fail=1`, specifically `FAIL red on a clean surface`, and noted source was touched so C12 needs a rebuild before relying on it again. I’m continuing through the named loop and will include this failure verbatim in the review.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'node scripts/route-exercise.mjs --self-test-redirects' in D:\Pi-Dev-Ops
+ succeeded in 688ms:
+    PASS  redirect to a MISSING target reports 404, not the 307
+    PASS  redirect to a live target reports 200
+    PASS  redirect loop is reported, not passed
+
+hook: PostToolUse
+hook: PostToolUse Completed
+codex
+The redirect self-test passed all three cases. I’m running `handoff-loop.sh` next with the environment injected only for that shell invocation, as the brief requires.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "bash -c 'PI_CEO_URL=https://x.invalid PI_CEO_PASSWORD=x NEXT_PUBLIC_SUPABASE_URL=https://lksfwktwtmyznckodsau.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=x SUPABASE_SERVICE_ROLE_KEY=x bash scripts/handoff-loop.sh'" in D:\Pi-Dev-Ops
+ succeeded in 80838ms:
+handoff-loop 20260802-080634  root=/d/Pi-Dev-Ops  full=0 quick=0
+branch=feat/command-centre-migration  head=5e102f38
+
+── GATE: clean-bloat
+   PASS: clean-bloat
+
+── GATE: deps-python
+   SKIP: deps-python — app venv not active / deps not importable — run --full or activate the venv
+
+── GATE: deps-node
+   PASS: deps-node
+
+── GATE: generated-agentskills
+   SKIP: generated-agentskills — python deps absent
+
+── GATE: type-python-import
+   SKIP: type-python-import — python deps absent
+
+── GATE: type-dashboard
+   PASS: type-dashboard
+
+── GATE: lint-ruff
+   PASS: lint-ruff
+
+── GATE: lint-dashboard
+   PASS: lint-dashboard
+
+── GATE: tests-python
+   SKIP: tests-python — python deps absent
+
+── GATE: tests-dashboard
+   PASS: tests-dashboard
+
+── GATE: build-dashboard
+   PASS: build-dashboard
+
+── GATE: route-exercise
+   PASS: route-exercise
+
+── GATE: audit-secrets
+   SKIP: audit-secrets — detect-secrets not installed
+
+── GATE: audit-smoke
+   SKIP: audit-smoke — python deps absent or local server not reachable on :7777
+
+════ SUMMARY  pass=8 fail=0 skip=6
+════ VERDICT: READY (with 6 skipped — env not provisioned here; treat CI as source of truth for skipped gates)
+════ log: /d/Pi-Dev-Ops/.handoff-logs/handoff-20260802-080634.log
+/d/Pi-Dev-Ops/.handoff-logs/handoff-20260802-080634.log
+
+hook: PostToolUse
+hook: PostToolUse Completed
+codex
+`handoff-loop.sh` matched the expected `pass=8 fail=0 READY` shape, with 6 environment skips. Because that build gate ran before C12, I’m now running standalone C12 against the fresh build.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'node scripts/route-exercise.mjs' in D:\Pi-Dev-Ops
+ succeeded in 38301ms:
+    control: build is newer than source — exercising the code that is actually on disk
+    starting the built app on :3187 ...
+    control: minted session accepted (entry page 200) — the run is measuring the real surface
+    rendered 4 pages, discovered 15 distinct internal paths
+    OK — every rendered internal link resolves (15 paths exercised)
+
+hook: PostToolUse
+hook: PostToolUse Completed
+codex
+Standalone C12 passed on the fresh build and exercised 15 rendered internal paths. I’m running the planted-link control next; expected behavior is an exit 1 that names the broken route.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'node scripts/route-exercise.mjs --plant-broken-link' in D:\Pi-Dev-Ops
+ exited 1 in 38334ms:
+    control: build is newer than source — exercising the code that is actually on disk
+    starting the built app on :3187 ...
+    control: minted session accepted (entry page 200) — the run is measuring the real surface
+    rendered 4 pages, discovered 16 distinct internal paths
+
+FAIL — internal navigation that does not resolve:
+
+  404  /command-centre/this-route-does-not-exist   (linked from: /command-centre)
+
+2026-08-01T22:09:18.576558Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 38.3 seconds
+Output:
+    control: build is newer than source — exercising the code that is actually on disk
+    starting the built app on :3187 ...
+    control: minted session accepted (entry page 200) — the run is measuring the real surface
+    rendered 4 pages, discovered 16 distinct internal paths
+
+FAIL — internal navigation that does not resolve:
+
+  404  /command-centre/this-route-does-not-exist   (linked from: /command-centre)
+
+codex
+The planted-link control failed as intended, naming `/command-centre/this-route-does-not-exist`. I’m running the two vitest files from the loop now.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'npx vitest run __tests__/command-centre-readonly.test.ts' in D:\Pi-Dev-Ops\dashboard
+ succeeded in 3344ms:
+
+ RUN  v4.1.4 D:/Pi-Dev-Ops/dashboard
+
+
+ Test Files  1 passed (1)
+      Tests  27 passed (27)
+   Start at  08:09:24
+   Duration  1.26s (transform 50ms, setup 85ms, import 44ms, tests 61ms, environment 685ms)
+
+
+hook: PostToolUse
+hook: PostToolUse Completed
+codex
+The C9 tripwire suite matched the expected 27 passed. I’m running the auth coverage suite now.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'npx vitest run __tests__/command-centre-auth-coverage.test.ts' in D:\Pi-Dev-Ops\dashboard
+ succeeded in 3331ms:
+
+ RUN  v4.1.4 D:/Pi-Dev-Ops/dashboard
+
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  08:09:35
+   Duration  1.18s (transform 41ms, setup 75ms, import 59ms, tests 9ms, environment 664ms)
+
+
+hook: PostToolUse
+hook: PostToolUse Completed
+codex
+The required loop is complete. I’m doing a final read of the control script and repo state so the verdict separates “C12/spec quality” from “the proof loop currently fails.”
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"G1|C12|C9|SUBSTANTIALLY|CLOSED|closed|mitigated|not closed|authority\" docs\\HARNESS-COVERAGE-MAP-2026-08-01.md scripts\\route-exercise.mjs dashboard\\__tests__\\command-centre-readonly.test.ts scripts\\handoff-loop.sh" in D:\Pi-Dev-Ops
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=0; Get-Content -LiteralPath '"'scripts\\prove-controls.sh' | ForEach-Object { "'$i++; '"'{0,4}: {1}' -f "'$i, $_ }' in D:\Pi-Dev-Ops
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git status --short' in D:\Pi-Dev-Ops
+ succeeded in 289ms:
+dashboard\__tests__\command-centre-readonly.test.ts:206:    // success having checked nothing. It now FAILS closed. Setting
+dashboard\__tests__\command-centre-readonly.test.ts:225:  // ---- G1 (PARTIAL): literal internal navigation must resolve to a route here ----
+dashboard\__tests__\command-centre-readonly.test.ts:242:  // rename to what it verifies, keep the gap OPEN on the coverage map (G1 stays open,
+dashboard\__tests__\command-centre-readonly.test.ts:243:  // partially mitigated), and replace the detector with runtime route exercising rather
+dashboard\__tests__\command-centre-readonly.test.ts:249:  it("literal href/fetch/router paths resolve to a route in the target app (tripwire — does not cover computed navigation, see G1)", () => {
+dashboard\__tests__\command-centre-readonly.test.ts:294:        `covered. G1 is OPEN on the coverage map.`
+dashboard\__tests__\command-centre-readonly.test.ts:298:  // ---- G10 / Q3: a port may not DELETE a guard ----
+scripts\route-exercise.mjs:3: * route-exercise.mjs — C12. Runtime route exercising for the command-centre surface.
+scripts\route-exercise.mjs:233:  // Round-1 review: "a stale or wrong build still passes standalone C12 if .next/BUILD_ID
+scripts\route-exercise.mjs:241:  // next.config change or a dependency bump after a build left STANDALONE C12 measuring an
+scripts\route-exercise.mjs:242:  // old artifact. The gate's build-before-C12 hid it; the check must not depend on being
+scripts\handoff-loop.sh:113:# 7b. Runtime route exercising (C12) — the authority on G1.
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:20:| C9 | **Literal navigation tripwire** | `command-centre-readonly.test.ts` | a **literal** `href="/x"`, `fetch("/x")` or `router.push("/x…")` naming a route that does not exist here. **Tripwire, not proof.** Kept after C12 closed G1 because it is the only cover for `router.push` inside a client event handler, which never reaches rendered HTML. |
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:23:| C12 | **Runtime route exercising** | `scripts/route-exercise.mjs`, gated in `handoff-loop.sh` | any internal link in **rendered** output whose FINAL status (redirects followed) is 404/5xx, or that redirect-loops. Starts the built app, authenticates, fetches every command-centre page, requests every link they emitted. **The authority on G1 for server-rendered navigation** — C9 is only a tripwire, and G1 is mitigated rather than closed. |
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:35:| G1 | **Route existence** — **SUBSTANTIALLY MITIGATED by C12, not closed** (2026-08-02) | C4 compares counts. A `fetch('/api/x')` that exists in both source and port passes even when `/api/x` was never ported. C9 catches the *literal* forms only. **C12 mitigates it at runtime for SERVER-RENDERED navigation**: the app is started and every link the pages actually rendered is requested (redirects followed to a final status), so computed navigation (`<Link href={expr}>`) is covered by what the surface emitted rather than by what forms a regex looked for. Client-hydrated links, imperative handlers, form POST semantics and non-rendered API calls remain outside it. | **YES — capability 2, four times.** Codex found links to `/founder/command-centre` and fetches to two unported API routes; then `router.push(`/founder/wiki/${slug}`)` 404ing on every node click; then `<Link href={d.href}>` invisible to the check. |
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:37:| G3 | **Runtime behaviour** — **partially mitigated by C12** | C12 now renders every command-centre page and exercises its links, so "does this page render and do its links resolve" IS asked. Still unasked: network interception, and whether a control that renders actually does nothing when clicked. | Latent for the remainder |
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:44:| G10 | **Deletion of a safety check** | C4 fails on an *increase*. Removing a guard **lowers** counts and passes. | Latent — **directly relevant to capability 6** |
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:46:**G10 deserves emphasis.** The comparison is one-directional by design: "no new surface". A port that *deletes* an existing safety check passes every check in the harness, because deleting a guard reduces the tracked-construct count.
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:60:| **OG1** | **No production DB writes** | **PARTIAL** | C4 catches an *added* `.insert/.update/.upsert/.delete(`. It does **not** catch: a write via `.rpc(`, a write through an existing call whose target changed to a prod ref, a write through a helper outside the graph, or a write where the count stays level because another call was removed. The fence's `prod-db` predicate catches a prod ref *at runtime*, but the fence is in **shadow** and does not gate CI. |
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:68:Combined with **G10** — deleting a guard passes — the position for capability 6 is: *the harness that will review the operator gateway cannot detect the loss of the properties that make the operator gateway safe.*
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:77:2. ~~**G1 (route existence) is buildable now.** Bounded and decidable: every internal `href`/`fetch` path in a ported capability must resolve to a route that exists in the target.~~ **This was wrong, and the record keeps it visible rather than editing it away.** G1 is *not* bounded and decidable as stated. Three rounds of "add the next form" — literal `href`, then `router.push` template literals, then `<Link href={expr}>` — established that enumerating navigation forms cannot be completed: object hrefs, wrapper components, `window.location`, callbacks passed as props, server redirects and form actions all remain, and the list has no end. **See "G1 — the standing ruling" below.**
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:79:4. **G10 (guard deletion) needs a second direction** — a *decrease* check on a named safety-construct subset, not on everything.
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:86:## G1 — substantially mitigated by runtime route exercising (2026-08-02)
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:88:**Status: MITIGATED, NOT CLOSED.** Downgraded from "CLOSED" after review round 3.
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:93:and the **documentation** overclaiming. Continuing to extend C12 until "closed" became true
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:96:So the word moved instead. **C12 covers server-rendered navigation.** What it does not cover is
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:101:C9 remains as a cheap tripwire. The ruling that produced C12 is kept below because the
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:105:of the four were G1 specifically. The response after the fourth is deliberately **not** another
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:112:- **The gap stays open on this map.** Renaming is necessary and not sufficient. G1 closes when
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:115:**What closed it: runtime route exercising. Not AST extraction.**
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:135:| C9 regex tripwire | **27 passed — missed it** |
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:136:| C12 runtime exercising | **FAIL — named `/command-centre/hermes-DOES-NOT-EXIST`** |
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:139:`/command-centre/hermes-DOES-NOT-EXIST`, the app rebuilt, C9 passed 27, C12 failed naming the
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:142:already-fetched HTML *inside* C12. That is a weaker control: it proves the fetch-and-assert half
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:143:and never touches C9, so nobody can reproduce the comparison from the repo alone.
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:151:# 2. C9 — the static tripwire — passes, missing it
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:153:# 3. rebuild, then C12 catches it
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:159:**What C12 does NOT cover.** Three rounds have added to this list; that is the list doing its
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:162:  server-rendered HTML. C9's literal scan is the only cover for that, which is why C9 stays.
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:164:  hole. C12 reads server-rendered HTML; it does not run a browser or hydrate components. A
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:200:diagnosis was narrow: the design is sound, import provenance is closed, the positive controls
+docs\HARNESS-COVERAGE-MAP-2026-08-01.md:213:*Compiled 2026-08-01 after capability 2 attempt 1 failed on G1 — a class the harness could not see, found by the reviewer rather than the harness. Amended after attempt 4 found G1 a third time, which is what turned it from a gap to be patched into a design to be replaced.*
+
+hook: PostToolUse
+ succeeded in 306ms:
+   1: #!/usr/bin/env bash
+   2: # prove-controls.sh â€” run each control against a PLANTED DEFECT and prove it goes red.
+   3: #
+   4: # WHY THIS IS IN THE REPO
+   5: #
+   6: # Every control built on 2026-08-01/02 was proven by watching a terminal. Those transcripts
+   7: # live in `.harness/*.txt`, which is gitignored â€” so the proof that the harness works was
+   8: # not in the harness. Third instance of that shape after `incidents.jsonl` (evidence that
+   9: # existed only on one machine) and `proof-discipline` (a lesson that lived only in a
+  10: # gitignored skills dir). A verifier's proof must be reproducible from the repo, not
+  11: # asserted from a transcript nobody else can read.
+  12: #
+  13: # Each check below plants a defect the control MUST catch, asserts it goes red, removes the
+  14: # defect, and asserts it goes green again. A control that cannot be shown to fail is not a
+  15: # control. See "The First Run of a New Control Is the FAILING One" in
+  16: # skills/proof-discipline/SKILL.md for why every accident here landed on green.
+  17: #
+  18: # Usage: bash scripts/prove-controls.sh [--fast]
+  19: #   --fast   skip the two controls that need a running Next server (~90s)
+  20: set -uo pipefail
+  21: ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  22: cd "$ROOT"
+  23: FAST=0; [ "${1:-}" = "--fast" ] && FAST=1
+  24: 
+  25: PASS=0; FAIL=0
+  26: ok()   { echo "  PASS  $1"; PASS=$((PASS+1)); }
+  27: bad()  { echo "  FAIL  $1"; FAIL=$((FAIL+1)); }
+  28: hdr()  { echo; echo "â”€â”€ $1"; }
+  29: 
+  30: # Every planted artefact is registered here so an early exit still cleans up.
+  31: CLEANUP=()
+  32: cleanup() { for c in "${CLEANUP[@]:-}"; do eval "$c" >/dev/null 2>&1; done; }
+  33: trap cleanup EXIT
+  34: 
+  35: # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  36: hdr "C-TREE â€” review tree-integrity detects a repo mutation"
+  37: # Blind to gitignored paths BY DESIGN (the reviewer must write .next/ to run the suite),
+  38: # so the planted file must be somewhere git will actually report. Getting this wrong is
+  39: # how the control silently passed twice: both plants used *.tmp, ignored repo-wide.
+  40: tree_hash() { git status --porcelain | sort | sha256sum | cut -d' ' -f1; }
+  41: before="$(tree_hash)"
+  42: CLEANUP+=("rm -f '$ROOT/docs/.control-plant.md'")
+  43: echo "planted" > docs/.control-plant.md
+  44: after="$(tree_hash)"
+  45: rm -f docs/.control-plant.md
+  46: restored="$(tree_hash)"
+  47: [ "$before" != "$after" ] && ok "detects a new non-ignored file" || bad "MISSED a new non-ignored file"
+  48: [ "$before" = "$restored" ] && ok "restores exactly (no false positive)" || bad "false positive after cleanup"
+  49: # And prove the documented blind spot really is one, so the scope claim is evidenced too.
+  50: CLEANUP+=("rm -f '$ROOT/docs/.control-plant.tmp'")
+  51: echo x > docs/.control-plant.tmp
+  52: [ "$(tree_hash)" = "$before" ] && ok "blind to gitignored paths (documented limit, confirmed)" \
+  53:                                || bad "unexpectedly saw an ignored path"
+  54: rm -f docs/.control-plant.tmp
+  55: 
+  56: # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  57: hdr "C-CFG â€” codex config detector ignores churn, catches escalation"
+  58: CFG="$HOME/.codex/config.toml"
+  59: if [ -f "$CFG" ]; then
+  60:   cfg_hash() { grep -vE '^\s*(last_updated|last_revision)\s*=' "$1" | sha256sum | cut -d' ' -f1; }
+  61:   real="$(cfg_hash "$CFG")"
+  62:   T="$(mktemp -d)"; CLEANUP+=("rm -rf '$T'")
+  63:   sed 's/^last_updated = .*/last_updated = "2099-01-01T00:00:00Z"/' "$CFG" > "$T/churn.toml"
+  64:   sed 's/^sandbox_mode = .*/sandbox_mode = "danger-full-access"/' "$CFG" > "$T/widen.toml"
+  65:   printf '\n[projects.%s]\ntrust_level = "trusted"\n' "'d:\\attacker'" >> "$T/trust.toml.base" 2>/dev/null
+  66:   cat "$CFG" "$T/trust.toml.base" > "$T/trust.toml" 2>/dev/null
+  67:   [ "$(cfg_hash "$T/churn.toml")" = "$real" ] && ok "ignores marketplace timestamp churn" \
+  68:                                               || bad "false positive on benign churn"
+  69:   [ "$(cfg_hash "$T/widen.toml")" != "$real" ] && ok "detects a widened sandbox_mode" \
+  70:                                                || bad "MISSED a widened sandbox_mode"
+  71:   [ "$(cfg_hash "$T/trust.toml")" != "$real" ] && ok "detects a new trusted project" \
+  72:                                                || bad "MISSED a new trusted project"
+  73: else
+  74:   echo "  SKIP  ~/.codex/config.toml not present"
+  75: fi
+  76: 
+  77: # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  78: hdr "C-EXEC â€” execution-proof grep distinguishes a run from a non-run"
+  79: EXEC_RE="Tests +[0-9]+ (passed|failed)|Test Files +[0-9]+"
+  80: T2="$(mktemp -d)"; CLEANUP+=("rm -rf '$T2'")
+  81: printf 'reviewer said it all looks fine\nVERDICT: PASS\n' > "$T2/no-run.txt"
+  82: printf ' Test Files  1 passed (1)\n      Tests  7 passed (7)\n' > "$T2/ran.txt"
+  83: grep -qE "$EXEC_RE" "$T2/no-run.txt" && bad "claimed execution on a transcript with none" \
+  84:                                      || ok "reports ABSENT when the suite did not run"
+  85: grep -qE "$EXEC_RE" "$T2/ran.txt" && ok "reports FOUND when the suite did run" \
+  86:                                   || bad "MISSED a real suite run"
+  87: 
+  88: # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  89: hdr "C10/C4 â€” a declared delta only excuses its EXACT magnitude"
+  90: # The original bug: keying on file+rule alone excused any magnitude, forever.
+  91: PROV="dashboard/__tests__/command-centre-provenance.json"
+  92: cp "$PROV" "$PROV.bak"; CLEANUP+=("mv -f '$ROOT/$PROV.bak' '$ROOT/$PROV' 2>/dev/null")
+  93: perl -0pi -e 's/("auth gate": \{\s*"from": 3,\s*)"to": 0,/$1"to": 1,/s' "$PROV"
+  94: ( cd dashboard && npx vitest run __tests__/command-centre-readonly.test.ts >/dev/null 2>&1 )
+  95: [ $? -ne 0 ] && ok "rejects a declared 3->1 against an actual 3->0" \
+  96:              || bad "accepted an off-magnitude exemption"
+  97: mv -f "$PROV.bak" "$PROV"
+  98: ( cd dashboard && npx vitest run __tests__/command-centre-readonly.test.ts >/dev/null 2>&1 )
+  99: [ $? -eq 0 ] && ok "green again once the declaration matches" || bad "still red after restore"
+ 100: 
+ 101: # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+ 102: hdr "C-SECRETS â€” the scanner sees gitignored files (fixed 2026-08-02)"
+ 103: # Before the fix this planted secret was invisible: --exclude-standard dropped it.
+ 104: # --dry-run matters: without it the scanner appends the offending path to .gitignore.
+ 105: FAKE="AKIA""ZZZZQQQQ1111WWWW"
+ 106: CLEANUP+=("rm -f '$ROOT/docs/.control-secret.tmp'")
+ 107: printf "const k = '%s'\n" "$FAKE" > docs/.control-secret.tmp
+ 108: # Capture FIRST, then grep. secrets_check.py exits 1 when it finds a violation â€” which is
+ 109: # the success case here â€” and under `pipefail` that made the whole pipeline non-zero even
+ 110: # though grep matched, so this reported FAIL against a working scanner. Same family as
+ 111: # measuring an exit code through `| head`. Never let a pipeline's exit stand in for a match.
+ 112: SEC_OUT="$(python scripts/secrets_check.py --dry-run 2>&1 || true)"
+ 113: case "$SEC_OUT" in
+ 114:   *control-secret*) ok "detects a secret inside a gitignored path" ;;
+ 115:   *) bad "MISSED a secret in a gitignored path â€” the --exclude-standard defect is back" ;;
+ 116: esac
+ 117: rm -f docs/.control-secret.tmp
+ 118: 
+ 119: # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+ 120: if [ "$FAST" = 0 ]; then
+ 121: hdr "C12 â€” runtime route exercising (needs a build; ~90s)"
+ 122: if [ -f dashboard/.next/BUILD_ID ]; then
+ 123:   node scripts/route-exercise.mjs --plant-broken-link >/dev/null 2>&1
+ 124:   [ $? -ne 0 ] && ok "fails on a planted unresolvable link" || bad "passed with a broken link"
+ 125:   # Round-3 finding: a link 307ing to a MISSING page passed green, since the hop is neither
+ 126:   # 404 nor 5xx. Synthetic server, because the app has no redirect chain to borrow.
+ 127:   node scripts/route-exercise.mjs --self-test-redirects >/dev/null 2>&1
+ 128:   [ $? -eq 0 ] && ok "redirect walker: 307->404 reports 404, loop reported, 307->200 passes"                || bad "redirect walker did not discriminate"
+ 129:   # Round-2 finding: the extractor matched slash-prefixed hrefs only, so a rendered RELATIVE
+ 130:   # link was unmeasured. If this stops failing, that regression is back.
+ 131:   node scripts/route-exercise.mjs --plant-relative-link >/dev/null 2>&1
+ 132:   [ $? -ne 0 ] && ok "fails on a planted RELATIVE link (no leading slash)" \
+ 133:                || bad "MISSED a relative internal link â€” slash-only extraction has regressed"
+ 134:   node scripts/route-exercise.mjs >/dev/null 2>&1
+ 135:   [ $? -eq 0 ] && ok "passes on the clean surface" || bad "red on a clean surface"
+ 136:   touch "dashboard/app/(main)/command-centre/page.tsx"
+ 137:   node scripts/route-exercise.mjs >/dev/null 2>&1
+ 138:   [ $? -eq 2 ] && ok "refuses to run against a stale build" || bad "ran against a stale build"
+ 139:   echo "  NOTE  source touched â€” rebuild before relying on C12 again"
+ 140: else
+ 141:   echo "  SKIP  no dashboard build present"
+ 142: fi
+ 143: fi
+ 144: 
+ 145: echo
+ 146: echo "â•â•â•â• CONTROLS PROVEN: pass=$PASS fail=$FAIL"
+ 147: [ "$FAIL" -eq 0 ] || { echo "â•â•â•â• A CONTROL DID NOT DISCRIMINATE â€” the checks it guards prove nothing."; exit 1; }
+ 148: echo "â•â•â•â• every control above was observed RED on a planted defect and GREEN without it"
+
+hook: PostToolUse
+ succeeded in 310ms:
+ M .autogit.json
+
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg --files dashboard\\app | rg \"command-centre.*(page|route)\\.(ts|tsx)"'$"' in D:\Pi-Dev-Ops
+ exited 1 in 389ms:
+2026-08-01T22:10:10.554181Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 0.4 seconds
+Output:
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg --files dashboard | rg \"command-centre.*(page|route)\\.(ts|tsx)"'$"' in D:\Pi-Dev-Ops
+ exited 1 in 350ms:
+2026-08-01T22:10:14.320389Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 0.4 seconds
+Output:
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem -LiteralPath 'dashboard\\app' -Recurse -File | Where-Object { "'$_.FullName -like '"'*command-centre*' -and ("'$_.Name -eq '"'page.tsx' -or "'$_.Name -like '"'route.ts*') } | ForEach-Object { "'$_.FullName.Substring((Resolve-Path '"'.').Path.Length + 1) }" in D:\Pi-Dev-Ops
+ succeeded in 279ms:
+dashboard\app\(main)\command-centre\page.tsx
+dashboard\app\(main)\command-centre\hermes\page.tsx
+dashboard\app\(main)\command-centre\knowledge\page.tsx
+dashboard\app\(main)\command-centre\wiki-graph\page.tsx
+dashboard\app\api\command-centre\wiki-graph\route.ts
+
+hook: PostToolUse
+hook: PostToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Test-Path -LiteralPath 'dashboard\\middleware.ts'; if ("'$?) { Get-Item -LiteralPath '"'dashboard\\middleware.ts' | Select-Object -ExpandProperty FullName }" in D:\Pi-Dev-Ops
+ exited 1 in 353ms:
+False
+Get-Item : Cannot find path 'dashboard\middleware.ts' because it does not exist.
+At line:2 char:61
++ ... s'; if ($?) { Get-Item -LiteralPath 'dashboard\middleware.ts' | Selec ...
++                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (dashboard\middleware.ts:String) [Get-Item], ItemNotFoundException
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.GetItemCommand
+ 
+
+2026-08-01T22:10:32.674500Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 0.4 seconds
+Output:
+False
+Get-Item : Cannot find path 'dashboard\middleware.ts' because it does not exist.
+At line:2 char:61
++ ... s'; if ($?) { Get-Item -LiteralPath 'dashboard\middleware.ts' | Selec ...
++                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (dashboard\middleware.ts:String) [Get-Item], ItemNotFoundException
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.GetItemCommand
+ 
+
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem -LiteralPath 'dashboard' -File | Select-Object -ExpandProperty Name" in D:\Pi-Dev-Ops
+ succeeded in 304ms:
+.env.example
+.env.local.example
+.gitignore
+components.json
+eslint.config.mjs
+index.html
+next-env.d.ts
+next.config.ts
+package-lock.json
+package.json
+postcss.config.mjs
+proxy.ts
+README.md
+tsconfig.json
+tsconfig.tsbuildinfo
+vercel.json
+vitest.config.ts
+vitest.setup.ts
+WIKI.md
+
+hook: PostToolUse
+hook: PostToolUse Completed
+codex
+I found one structural issue in the proof script itself: its planted C12 checks accept any nonzero exit, so a stale-build exit can be counted as a successful red control. I’m doing one last cleanup check for an orphaned `:3187` listener before I write the review.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "node -e \"fetch('http://127.0.0.1:3187/', {signal: AbortSignal.timeout(1500)}).then(r=>{console.log('LISTENING '+r.status); process.exit(1)}).catch(e=>{console.log('NO LISTENER'); process.exit(0)})\"" in D:\Pi-Dev-Ops
+ succeeded in 621ms:
+NO LISTENER
+
+hook: PostToolUse
+hook: PostToolUse Completed
+codex
+**Findings**
+HIGH: [scripts/prove-controls.sh](D:/Pi-Dev-Ops/scripts/prove-controls.sh:123) does not prove C12’s planted-link controls discriminate. Lines 123-135 treat any nonzero exit as success for planted defects, so a stale-build exit `2` can be counted as “PASS fails on planted link.” I observed that shape: the planted checks passed, then the clean run failed.
+
+MEDIUM: [docs/HARNESS-COVERAGE-MAP-2026-08-01.md](D:/Pi-Dev-Ops/docs/HARNESS-COVERAGE-MAP-2026-08-01.md:23) overclaims “fetches every command-centre page.” [scripts/route-exercise.mjs](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:73) hard-codes four `ENTRY_PAGES`, and [line 348](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:348) extracts links only from those pages. It should say: “fetches the hard-coded command-centre entry pages listed in `ENTRY_PAGES` and requests every internal link those pages render; it does not discover future/unlisted pages or recursively parse linked pages.”
+
+**Failed Command**
+```text
+bash scripts/prove-controls.sh
+
+── C12 — runtime route exercising (needs a build; ~90s)
+  PASS  fails on a planted unresolvable link
+  PASS  redirect walker: 307->404 reports 404, loop reported, 307->200 passes
+  PASS  fails on a planted RELATIVE link (no leading slash)
+  FAIL  red on a clean surface
+  PASS  refuses to run against a stale build
+  NOTE  source touched — rebuild before relying on C12 again
+
+════ CONTROLS PROVEN: pass=15 fail=1
+════ A CONTROL DID NOT DISCRIMINATE — the checks it guards prove nothing.
+```
+
+**Other Observations**
+`node scripts/route-exercise.mjs --self-test-redirects`: exit 0, 3 PASS.  
+`handoff-loop.sh` with shell env: exit 0, `pass=8 fail=0 skip=6`, READY.  
+`node scripts/route-exercise.mjs`: exit 0, 15 paths exercised.  
+`node scripts/route-exercise.mjs --plant-broken-link`: exit 1, named `/command-centre/this-route-does-not-exist`.  
+Readonly vitest: 27 passed. Auth coverage vitest: 7 passed. No orphan listener remained on `:3187`.
+
+**Axis 1 — Standards**
+`route-exercise.mjs` is mostly sound Node practice: bounded fetches via `AbortSignal.timeout` at [line 92](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:92), per-path fetch error attribution at [line 375](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:375), and `finally` cleanup at [line 395](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:395). The Windows tree-kill is deliberate and synchronous at [line 315](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:315). Judgement call: `selfTestRedirects()` closes the server only on the happy path at [line 219](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:219); a thrown assertion/fetch would leak the temporary server. Bigger operational risk is not in JS but in the proof shell: planted controls should assert exit `1`, not merely nonzero.
+
+**Axis 2 — Spec**
+C12 is a real design improvement over regex form enumeration for rendered server HTML: computed `<Link href={d.href}>` becomes ordinary emitted HTML and was caught by the planted-link run. It does not close G1 globally, and the docs mostly say that. The remaining mismatch is page discovery: C12 covers the four listed entry pages, not intrinsically “every command-centre page.” Declared non-coverage is close but should add unlisted/new command-centre pages and non-recursive linked-page extraction. The session and port controls are useful but not complete: a rejected cookie that renders a same-URL 200 login/empty shell would pass the status-only probe at [line 335](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:335).
+
+Changed files: none intentionally edited by me; I ran the requested commands only.
+
+VERDICT: FAIL — required proof loop failed and the C12 documentation still overclaims hard-coded page coverage.
+hook: Stop
+hook: Stop Completed
+tokens used
+92,202
+**Findings**
+HIGH: [scripts/prove-controls.sh](D:/Pi-Dev-Ops/scripts/prove-controls.sh:123) does not prove C12’s planted-link controls discriminate. Lines 123-135 treat any nonzero exit as success for planted defects, so a stale-build exit `2` can be counted as “PASS fails on planted link.” I observed that shape: the planted checks passed, then the clean run failed.
+
+MEDIUM: [docs/HARNESS-COVERAGE-MAP-2026-08-01.md](D:/Pi-Dev-Ops/docs/HARNESS-COVERAGE-MAP-2026-08-01.md:23) overclaims “fetches every command-centre page.” [scripts/route-exercise.mjs](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:73) hard-codes four `ENTRY_PAGES`, and [line 348](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:348) extracts links only from those pages. It should say: “fetches the hard-coded command-centre entry pages listed in `ENTRY_PAGES` and requests every internal link those pages render; it does not discover future/unlisted pages or recursively parse linked pages.”
+
+**Failed Command**
+```text
+bash scripts/prove-controls.sh
+
+── C12 — runtime route exercising (needs a build; ~90s)
+  PASS  fails on a planted unresolvable link
+  PASS  redirect walker: 307->404 reports 404, loop reported, 307->200 passes
+  PASS  fails on a planted RELATIVE link (no leading slash)
+  FAIL  red on a clean surface
+  PASS  refuses to run against a stale build
+  NOTE  source touched — rebuild before relying on C12 again
+
+════ CONTROLS PROVEN: pass=15 fail=1
+════ A CONTROL DID NOT DISCRIMINATE — the checks it guards prove nothing.
+```
+
+**Other Observations**
+`node scripts/route-exercise.mjs --self-test-redirects`: exit 0, 3 PASS.  
+`handoff-loop.sh` with shell env: exit 0, `pass=8 fail=0 skip=6`, READY.  
+`node scripts/route-exercise.mjs`: exit 0, 15 paths exercised.  
+`node scripts/route-exercise.mjs --plant-broken-link`: exit 1, named `/command-centre/this-route-does-not-exist`.  
+Readonly vitest: 27 passed. Auth coverage vitest: 7 passed. No orphan listener remained on `:3187`.
+
+**Axis 1 — Standards**
+`route-exercise.mjs` is mostly sound Node practice: bounded fetches via `AbortSignal.timeout` at [line 92](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:92), per-path fetch error attribution at [line 375](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:375), and `finally` cleanup at [line 395](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:395). The Windows tree-kill is deliberate and synchronous at [line 315](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:315). Judgement call: `selfTestRedirects()` closes the server only on the happy path at [line 219](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:219); a thrown assertion/fetch would leak the temporary server. Bigger operational risk is not in JS but in the proof shell: planted controls should assert exit `1`, not merely nonzero.
+
+**Axis 2 — Spec**
+C12 is a real design improvement over regex form enumeration for rendered server HTML: computed `<Link href={d.href}>` becomes ordinary emitted HTML and was caught by the planted-link run. It does not close G1 globally, and the docs mostly say that. The remaining mismatch is page discovery: C12 covers the four listed entry pages, not intrinsically “every command-centre page.” Declared non-coverage is close but should add unlisted/new command-centre pages and non-recursive linked-page extraction. The session and port controls are useful but not complete: a rejected cookie that renders a same-URL 200 login/empty shell would pass the status-only probe at [line 335](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:335).
+
+Changed files: none intentionally edited by me; I ran the requested commands only.
+
+VERDICT: FAIL — required proof loop failed and the C12 documentation still overclaims hard-coded page coverage.

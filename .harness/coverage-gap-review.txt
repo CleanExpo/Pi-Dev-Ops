@@ -1,0 +1,246 @@
+Reading additional input from stdin...
+2026-08-01T07:54:27.554755Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.agents\skills\seo-content\SKILL.md: missing YAML frontmatter delimited by ---
+2026-08-01T07:54:27.554816Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.agents\skills\seo-images\SKILL.md: missing YAML frontmatter delimited by ---
+2026-08-01T07:54:27.554825Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.agents\skills\seo-programmatic\SKILL.md: missing YAML frontmatter delimited by ---
+2026-08-01T07:54:27.554832Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.agents\skills\seo-schema\SKILL.md: missing YAML frontmatter delimited by ---
+2026-08-01T07:54:27.555057Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.agents\skills\seo-technical\SKILL.md: missing YAML frontmatter delimited by ---
+2026-08-01T07:54:27.555069Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\accessibility-and-inclusive-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T07:54:27.555074Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\dashboards-and-real-time-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T07:54:27.555078Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\geospatial-and-cartographic-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T07:54:27.555081Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\grammar-of-graphics-and-declarative-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T07:54:27.555085Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\scrollytelling-and-parallax-data-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T07:54:27.555089Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\statistical-and-uncertainty-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T07:54:27.555092Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\typescript-data-visualization-engineering\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T07:54:27.555096Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\uml-and-software-architecture-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T07:54:27.555099Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\heygen\11c74d6b\skills\heygen-avatar\SKILL.md: invalid description: exceeds maximum length of 1024 characters
+2026-08-01T07:54:27.555103Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\heygen\11c74d6b\skills\heygen-video\SKILL.md: invalid description: exceeds maximum length of 1024 characters
+2026-08-01T07:54:27.555106Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated-remote\heygen\3.0.0\skills\heygen-avatar\SKILL.md: invalid description: exceeds maximum length of 1024 characters
+2026-08-01T07:54:27.555130Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated-remote\heygen\3.0.0\skills\heygen-video\SKILL.md: invalid description: exceeds maximum length of 1024 characters
+OpenAI Codex v0.134.0
+--------
+workdir: D:\Pi-Dev-Ops
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: high
+reasoning summaries: none
+session id: 019fbc51-2e2f-7282-a7df-9ac947b4d223
+--------
+user
+Read D:\Pi-Dev-Ops\.harness\coverage-gap-brief.md and follow it exactly. Read the coverage map it names. Enumerate missing defect classes, then answer Q1, Q2, Q3.
+2026-08-01T07:54:28.497944Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when AuthRequired(AuthRequiredError { www_authenticate_header: "Bearer realm=\"OAuth\", resource_metadata=\"https://mcp.linear.app/.well-known/oauth-protected-resource/mcp\", error=\"invalid_token\", error_description=\"Missing or invalid access token\"" })
+hook: SessionStart
+hook: SessionStart Failed
+hook: UserPromptSubmit
+hook: UserPromptSubmit Completed
+codex
+I’ll inspect the brief first, then the referenced coverage map, and keep this read-only since the request is analysis only.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -LiteralPath 'D:\\Pi-Dev-Ops\\.harness\\coverage-gap-brief.md'" in D:\Pi-Dev-Ops
+ succeeded in 316ms:
+# Gap enumeration request â€” migration harness coverage map
+
+You are NOT reviewing a diff. You are auditing a **coverage map** for completeness.
+
+Read: `D:\Pi-Dev-Ops\docs\HARNESS-COVERAGE-MAP-2026-08-01.md`
+
+It lists 8 checks (C1-C8), 10 structural gaps (G1-G10), and assesses 5 named safety
+constraints of a capability called operator-gateway (OG1-OG5).
+
+## Context you need
+
+The harness guards a port of code between two Next.js apps. The claim it checks is
+deliberately bounded and diff-relative: **"this port introduces no network/DB/execution
+construct the named source baseline did not already contain."** It explicitly does NOT
+claim absolute read-only proof â€” that was tried and correctly rejected as an unbounded
+negative.
+
+The last capability to be ported, operator-gateway, is an execution surface whose entire
+safety story is: no production DB writes, no external execution, no live runner, no API
+keys, no real execute button.
+
+## What I want from you
+
+**Enumerate the classes of defect that are MISSING from this map.** Not a re-listing of
+G1-G10 â€” what is absent from them.
+
+For each missing class:
+1. Name it and describe the concrete failure it permits.
+2. Say which of C1-C8 you would expect to catch it, and why none does.
+3. State whether it is bounded/decidable (buildable as a check) or requires runtime or
+   architectural evidence.
+4. Say whether it specifically threatens OG1-OG5.
+
+Then answer three questions directly:
+
+- **Q1.** Is the OG1-OG5 assessment honest, or is any "PARTIAL" actually "NO"?
+- **Q2.** G10 says a port that *deletes* a safety check passes because counts only fail
+  on increase. Are there other one-directional blind spots of that shape?
+- **Q3.** If you could add exactly ONE check before operator-gateway is ported, which,
+  and what would it catch that nothing else does?
+
+Be adversarial. Assume the map's author is motivated to believe coverage is better than
+it is. Do not soften. Under 700 words.
+
+hook: PostToolUse
+hook: PostToolUse Completed
+codex
+The brief is asking for an adversarial completeness audit, not implementation. I’m reading the named coverage map now and will answer against its C/G/OG framing.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -LiteralPath 'D:\\Pi-Dev-Ops\\docs\\HARNESS-COVERAGE-MAP-2026-08-01.md'" in D:\Pi-Dev-Ops
+ succeeded in 329ms:
+# Harness coverage map â€” what it catches, what it structurally cannot
+
+**Date:** 2026-08-01 Â· **Scope:** the command-centre migration harness
+**Purpose:** enumerate the gaps now, not at capability 6, where the failure mode is a dry-run surface silently becoming a live one.
+
+---
+
+## The checks that exist
+
+| # | Check | Where | Fails on |
+|---|---|---|---|
+| C1 | **Provenance** | `command-centre-readonly.test.ts` | any file in the capability import graph with no declared source origin |
+| C2 | **Baseline resolvable** | same | a provenance pair whose port or source path does not resolve |
+| C3 | **Baseline reachable** | same | the Authority-Site checkout being absent, unless `CC_ALLOW_NO_BASELINE=1` |
+| C4 | **Construct-count non-increase** | same | a tracked construct appearing *more times* than in the named baseline |
+| C5 | **Typecheck** | `tsc --noEmit` | type errors |
+| C6 | **Build** | `next build` | compile failure, missing route |
+| C7 | **Fail-open scan** | `fence/fail_open_check.py` | verification code that swallows a signal; evidence files not git-tracked |
+| C8 | **Cross-vendor review** | Codex gpt-5.5, fresh session | anything a competent reader spots in spec or standards |
+
+**C4 tracks:** `fetch(`, http clients (axios/got/node-fetch/undici), `WebSocket`/`EventSource`/`XMLHttpRequest`/`sendBeacon`, dynamic `import(`, `require(`, remote-host literals, `.insert/.update/.upsert/.delete(`, `createClient`/`createServerClient`, MCP client names, `"use server"`, and three literal API-key names.
+
+---
+
+## What it structurally cannot catch
+
+These are not tuning gaps. They are outside the shape of a count-based static comparison.
+
+| # | Gap | Why the harness cannot see it | Already bitten us? |
+|---|---|---|---|
+| G1 | **Route existence** | C4 compares counts. A `fetch('/api/x')` that exists in both source and port passes even when `/api/x` was never ported. | **YES â€” capability 2.** Codex found links to `/founder/command-centre` and fetches to two unported API routes. Controls would 404. |
+| G2 | **Semantic equivalence** | Same count, different endpoint or payload. Swap a URL and the count is unchanged. | Latent |
+| G3 | **Runtime behaviour** | Nothing renders the page or intercepts network. "Does this control actually do nothing?" is never asked. | Latent |
+| G4 | **Indirect / computed constructs** | `const m = 'fet'+'ch'`, `globalThis[k]()`, string-built URLs, computed property access. | Latent |
+| G5 | **Node built-in side effects** | `child_process`, `fs` writes, `process.exit`, `os` â€” **not tracked at all** | Latent |
+| G6 | **Transitive npm behaviour** | The graph stops at `node_modules`. A dependency that fetches is invisible. | Latent |
+| G7 | **Server actions defined elsewhere** | `"use server"` is counted only in scanned files; an action imported from outside the graph is not. | Latent |
+| G8 | **Env-driven divergence** | Behaviour that differs by env var is identical in source text. | Latent |
+| G9 | **CSS-delivered behaviour** | `url()` fetches, `@import` from a remote host. CSS is provenance-checked but not construct-scanned. | Latent |
+| G10 | **Deletion of a safety check** | C4 fails on an *increase*. Removing a guard **lowers** counts and passes. | Latent â€” **directly relevant to capability 6** |
+
+**G10 deserves emphasis.** The comparison is one-directional by design: "no new surface". A port that *deletes* an existing safety check passes every check in the harness, because deleting a guard reduces the tracked-construct count.
+
+---
+
+## Operator-gateway's five constraints, assessed honestly
+
+Its own header states the contract:
+
+> *"SANDBOX DRY-RUN + CONTROLLED REAL-LOCAL FOUNDATION MODE â€¦ no production DB writes, no external execution, no live runner, no API keys, no web-session scraping. No real execute button."*
+
+**Would any current check catch the loss of each?**
+
+| # | Constraint | Caught? | Reasoning |
+|---|---|---|---|
+| **OG1** | **No production DB writes** | **PARTIAL** | C4 catches an *added* `.insert/.update/.upsert/.delete(`. It does **not** catch: a write via `.rpc(`, a write through an existing call whose target changed to a prod ref, a write through a helper outside the graph, or a write where the count stays level because another call was removed. The fence's `prod-db` predicate catches a prod ref *at runtime*, but the fence is in **shadow** and does not gate CI. |
+| **OG2** | **No external execution** | **NO** | `child_process`, `exec`, `execSync`, `spawn`, `fork` are **not tracked by any check**. Zero coverage. A ported file could shell out and every check would pass. |
+| **OG3** | **No live runner** | **NO** | "A runner is wired" is a *system property*, not a construct. Nothing models it. Not expressible as a count. |
+| **OG4** | **No API keys** | **PARTIAL** | C4 matches three literal names only (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `STRIPE_SECRET`). Misses every other key name, `process.env[dynamic]`, and keys read from a config object or a secrets helper. |
+| **OG5** | **No real execute button** | **NO** | Requires inspecting rendered output and handler wiring. Nothing renders anything. A button whose `onClick` posts to a live endpoint is invisible to a static count. |
+
+**Three of five have zero coverage. Two are partial. None is fully covered.**
+
+Combined with **G10** â€” deleting a guard passes â€” the position for capability 6 is: *the harness that will review the operator gateway cannot detect the loss of the properties that make the operator gateway safe.*
+
+That is the finding this map exists to surface.
+
+---
+
+## What follows from this
+
+1. **Capability 6 must not be ported against the current harness.** The founder ruling already requires a hand-established baseline for it. This map shows the automated layer would add close to nothing on the five constraints.
+2. **G1 (route existence) is buildable now** and is the live defect in capability 2. Bounded and decidable: every internal `href`/`fetch` path in a ported capability must resolve to a route that exists in the target.
+3. **OG2 (external execution) is buildable now** â€” add `child_process`/`exec`/`spawn`/`execSync` to C4's tracked set. Cheap, and it closes total-zero coverage on one named constraint.
+4. **G10 (guard deletion) needs a second direction** â€” a *decrease* check on a named safety-construct subset, not on everything.
+5. **OG3 and OG5 are not static problems.** They need either a render test with network interception, or an architectural boundary that makes execution structurally unreachable from the page.
+
+---
+
+*Compiled 2026-08-01 after capability 2 attempt 1 failed on G1 â€” a class the harness could not see, found by the reviewer rather than the harness.*
+
+hook: PostToolUse
+hook: PostToolUse Completed
+codex
+Missing defect classes absent from G1-G10:
+
+1. **Auth/permission boundary drift**  
+A port can expose an operator page/API to the wrong role or unauthenticated users while construct counts stay flat. C1-C8 do not model route protection, middleware reachability, session checks, or role predicates. Bounded if encoded as route-to-policy assertions; otherwise architectural evidence. Threatens OG5 and indirectly OG1-OG3.
+
+2. **Target/environment misbinding**  
+Same DB/API call count, but the Supabase project, URL, branch, tenant, or runtime mode points at production. C4 sees constructs, not destinations or trust zones. C8 might spot it manually, but that is not a check. Requires config/runtime evidence unless all bindings are statically declared. Directly threatens OG1 and OG3.
+
+3. **Import alias / path resolution drift**  
+A port can import a similarly named helper from the target app instead of the source-equivalent helper, silently changing behavior. C1 proves declared provenance exists, not that module resolution preserves behavior. Bounded with import-resolution comparison plus allowlist. Threatens OG1-OG5 depending on helper.
+
+4. **UI-to-handler wiring drift**  
+A visually identical disabled/dry-run control can be wired to a real handler, or a no-op handler can be replaced while JSX shape/counts remain stable. G3 says runtime behavior generally, but the map does not name event binding as its own defect class. Needs render/interaction tests or static handler provenance. Directly threatens OG5, OG2, OG3.
+
+5. **Policy inversion / predicate weakening**  
+`if (dryRun) return` becomes `if (!dryRun) return`, or an allowlist becomes a denylist. Counts do not change; type/build pass. Bounded only with semantic tests or invariant-specific static assertions. Directly threatens all OG constraints.
+
+6. **Secret exfiltration without named API keys**  
+Code can forward existing cookies, bearer tokens, local storage, headers, or session data to an internal route or remote dependency without adding literal API key names. C4 key matching is too narrow; fetch count may stay level. Partly bounded with taint-style scans, better with runtime network interception. Threatens OG4 and can enable OG1-OG3.
+
+7. **Persistence outside DB writes**  
+Writes via cookies, localStorage, IndexedDB, filesystem-backed cache, queues, logs, analytics, or webhook side effects are not covered by `.insert/.update/.upsert/.delete(`. Bounded for known browser/server APIs; runtime needed for external services. Threatens OG1 if “no production writes” means more than Supabase row writes.
+
+8. **Generated/build-time code drift**  
+A safe source file can generate unsafe target code through build plugins, codegen, route handlers, or config transforms. C4 scans source graph, not generated artifacts. Requires build artifact inspection or architecture constraints. Threatens OG2-OG5.
+
+**Q1.** The OG1-OG5 assessment is mostly honest. OG1 and OG4 are genuinely **PARTIAL**, not **NO**, but only in the weakest syntactic sense. They catch obvious added `.insert/.update/.upsert/.delete(` calls and three literal key names. They do not establish the actual safety properties. C8 should not be treated as coverage.
+
+**Q2.** Yes. Other one-directional blind spots: decreasing auth checks, decreasing dry-run guards, decreasing disabled-state checks, decreasing validation/sanitization, decreasing allowlist entries, decreasing confirmation gates, decreasing provenance-relevant imports while replacing them with target-native helpers, and decreasing safe mock code while preserving one existing live call. Any “must not remove safety” invariant is invisible to an increase-only counter.
+
+**Q3.** Add one check: **operator-gateway safety-construct preservation**. Compare source vs port for named guard constructs: dry-run predicates, disabled execute controls, auth/role gates, mock runner boundaries, and absence/presence of live execution handlers. Fail on deletion, inversion candidates, or handler retargeting.
+
+That catches the most dangerous class nothing else does: a port that does not add new scary constructs, but removes the exact guards that made the scary surface inert.
+hook: Stop
+hook: Stop Completed
+tokens used
+5,451
+Missing defect classes absent from G1-G10:
+
+1. **Auth/permission boundary drift**  
+A port can expose an operator page/API to the wrong role or unauthenticated users while construct counts stay flat. C1-C8 do not model route protection, middleware reachability, session checks, or role predicates. Bounded if encoded as route-to-policy assertions; otherwise architectural evidence. Threatens OG5 and indirectly OG1-OG3.
+
+2. **Target/environment misbinding**  
+Same DB/API call count, but the Supabase project, URL, branch, tenant, or runtime mode points at production. C4 sees constructs, not destinations or trust zones. C8 might spot it manually, but that is not a check. Requires config/runtime evidence unless all bindings are statically declared. Directly threatens OG1 and OG3.
+
+3. **Import alias / path resolution drift**  
+A port can import a similarly named helper from the target app instead of the source-equivalent helper, silently changing behavior. C1 proves declared provenance exists, not that module resolution preserves behavior. Bounded with import-resolution comparison plus allowlist. Threatens OG1-OG5 depending on helper.
+
+4. **UI-to-handler wiring drift**  
+A visually identical disabled/dry-run control can be wired to a real handler, or a no-op handler can be replaced while JSX shape/counts remain stable. G3 says runtime behavior generally, but the map does not name event binding as its own defect class. Needs render/interaction tests or static handler provenance. Directly threatens OG5, OG2, OG3.
+
+5. **Policy inversion / predicate weakening**  
+`if (dryRun) return` becomes `if (!dryRun) return`, or an allowlist becomes a denylist. Counts do not change; type/build pass. Bounded only with semantic tests or invariant-specific static assertions. Directly threatens all OG constraints.
+
+6. **Secret exfiltration without named API keys**  
+Code can forward existing cookies, bearer tokens, local storage, headers, or session data to an internal route or remote dependency without adding literal API key names. C4 key matching is too narrow; fetch count may stay level. Partly bounded with taint-style scans, better with runtime network interception. Threatens OG4 and can enable OG1-OG3.
+
+7. **Persistence outside DB writes**  
+Writes via cookies, localStorage, IndexedDB, filesystem-backed cache, queues, logs, analytics, or webhook side effects are not covered by `.insert/.update/.upsert/.delete(`. Bounded for known browser/server APIs; runtime needed for external services. Threatens OG1 if “no production writes” means more than Supabase row writes.
+
+8. **Generated/build-time code drift**  
+A safe source file can generate unsafe target code through build plugins, codegen, route handlers, or config transforms. C4 scans source graph, not generated artifacts. Requires build artifact inspection or architecture constraints. Threatens OG2-OG5.
+
+**Q1.** The OG1-OG5 assessment is mostly honest. OG1 and OG4 are genuinely **PARTIAL**, not **NO**, but only in the weakest syntactic sense. They catch obvious added `.insert/.update/.upsert/.delete(` calls and three literal key names. They do not establish the actual safety properties. C8 should not be treated as coverage.
+
+**Q2.** Yes. Other one-directional blind spots: decreasing auth checks, decreasing dry-run guards, decreasing disabled-state checks, decreasing validation/sanitization, decreasing allowlist entries, decreasing confirmation gates, decreasing provenance-relevant imports while replacing them with target-native helpers, and decreasing safe mock code while preserving one existing live call. Any “must not remove safety” invariant is invisible to an increase-only counter.
+
+**Q3.** Add one check: **operator-gateway safety-construct preservation**. Compare source vs port for named guard constructs: dry-run predicates, disabled execute controls, auth/role gates, mock runner boundaries, and absence/presence of live execution handlers. Fail on deletion, inversion candidates, or handler retargeting.
+
+That catches the most dangerous class nothing else does: a port that does not add new scary constructs, but removes the exact guards that made the scary surface inert.

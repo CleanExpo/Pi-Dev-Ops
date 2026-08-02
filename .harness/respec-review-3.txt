@@ -1,0 +1,3145 @@
+Reading additional input from stdin...
+2026-08-01T21:48:27.758040Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.agents\skills\seo-content\SKILL.md: missing YAML frontmatter delimited by ---
+2026-08-01T21:48:27.758089Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.agents\skills\seo-images\SKILL.md: missing YAML frontmatter delimited by ---
+2026-08-01T21:48:27.758098Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.agents\skills\seo-programmatic\SKILL.md: missing YAML frontmatter delimited by ---
+2026-08-01T21:48:27.758106Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.agents\skills\seo-schema\SKILL.md: missing YAML frontmatter delimited by ---
+2026-08-01T21:48:27.758316Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.agents\skills\seo-technical\SKILL.md: missing YAML frontmatter delimited by ---
+2026-08-01T21:48:27.758331Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\accessibility-and-inclusive-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T21:48:27.758336Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\dashboards-and-real-time-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T21:48:27.758340Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\geospatial-and-cartographic-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T21:48:27.758344Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\grammar-of-graphics-and-declarative-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T21:48:27.758347Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\scrollytelling-and-parallax-data-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T21:48:27.758351Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\statistical-and-uncertainty-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T21:48:27.758355Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\typescript-data-visualization-engineering\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T21:48:27.758358Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\build-web-data-visualization\11c74d6b\skills\uml-and-software-architecture-visualization\SKILL.md: invalid name: exceeds maximum length of 64 characters
+2026-08-01T21:48:27.758362Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\heygen\11c74d6b\skills\heygen-avatar\SKILL.md: invalid description: exceeds maximum length of 1024 characters
+2026-08-01T21:48:27.758366Z ERROR codex_core::session::session: failed to load skill C:\Users\Disaster Recovery 4\.codex\plugins\cache\openai-curated\heygen\11c74d6b\skills\heygen-video\SKILL.md: invalid description: exceeds maximum length of 1024 characters
+2026-08-01T21:48:29.579177Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when AuthRequired(AuthRequiredError { www_authenticate_header: "Bearer realm=\"OAuth\", resource_metadata=\"https://mcp.linear.app/.well-known/oauth-protected-resource/mcp\", error=\"invalid_token\", error_description=\"Missing or invalid access token\"" })
+OpenAI Codex v0.134.0
+--------
+workdir: D:\Pi-Dev-Ops
+model: gpt-5.5
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 019fbf4c-bcc6-7401-ab8e-480a12817992
+--------
+user
+Read .harness\respec-review-brief.md and follow it exactly. It is the complete spec for this review.
+
+You CAN execute commands in this environment — the sandbox restriction that blocked previous
+rounds is lifted. RUN the loop the brief names and report what you actually observed. Do not
+report test results you did not run. If a command fails, say so and paste the failure.
+
+You are reviewing, not fixing. Do not edit, create or delete any file in the repository.
+hook: SessionStart
+hook: SessionStart Failed
+hook: UserPromptSubmit
+hook: UserPromptSubmit Completed
+codex
+I’ll treat this as a read-only review. I’m loading the repo’s code-review workflow and the brief first, then I’ll run the exact loop the brief specifies and report only observed results.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw \"C:\\Users\\Disaster Recovery 4\\.codex\\skills\\code-review\\SKILL.md\"" in D:\Pi-Dev-Ops
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw \".harness\\respec-review-brief.md\"" in D:\Pi-Dev-Ops
+ succeeded in 275ms:
+# Review brief â€” navigation-layer re-spec (C12) â€” ROUND 3
+
+You are reviewing a change to a **verifier**. Flag findings. Do not fix anything. Do not write
+code. Do not edit, create or delete any file in the repository.
+
+**Round 3.** Round 2 returned `FAIL â€” C12 misses rendered relative internal links because the
+extractor only captures slash-prefixed URLs`. Accepted and fixed, and the fix is deliberately
+NOT another pattern:
+
+- Every `href`/`action`/`formaction` value is now **resolved** against the page it was found on
+  with `new URL(raw, pageUrl)`. Relative, absolute and protocol-relative forms fall out of one
+  rule; same-origin decides ours-vs-external; `pathname + search` is what gets requested.
+  Non-http schemes (`mailto:`, `tel:`, `javascript:`, `data:`) are skipped as non-requestable.
+- New control `--plant-relative-link` injects a no-leading-slash href, so this specific
+  regression fails loudly instead of being trusted. `scripts/prove-controls.sh` is now 15/15.
+
+Round 1's findings (timeouts, build freshness, query strings, POSIX cleanup, scope list, the
+overbroad proof claim) were fixed before round 2 and round 2 confirmed the side-by-side
+reproduces exactly.
+
+**Do not assume those fixes are adequate â€” judging that is this round's job.**
+
+**You CAN run commands now.** The sandbox restriction that blocked earlier rounds is lifted â€”
+its root cause was Codex's Windows restricted-token sandbox (spawn denied, unlink denied, write
+allowed). **Run the loop. Report what you observed. Do not report results you did not run.**
+
+## What changed and why
+
+Four consecutive review rounds each found the same class of defect: **coverage that reads wider
+than it is.** Three of the four were the same gap (G1, route existence). The old detector scanned
+source for navigation *forms* â€” `href="/x"`, then `fetch("/x")`, then `router.push("/xâ€¦")` â€” and
+each round found the next form it could not see. The fourth found `<Link href={d.href}>`.
+
+The ruling was: **do not add another pattern.** Enumerating navigation forms is not a design that
+can be completed. AST extraction with dataflow was explicitly **rejected** as the same
+uncompletable enumeration in better clothes â€” you still choose which patterns count, and wrapper
+components and computed values defeat it identically.
+
+**The replacement is `scripts/route-exercise.mjs` (C12): start the built app, authenticate, fetch
+every command-centre page, and request every internal link the pages actually rendered.** The
+question moves from *what forms did we scan for* to *what did the surface emit*.
+
+The old static check is kept, renamed, and demoted to a tripwire (C9) because it is the only
+cover for `router.push` inside a client event handler, which never reaches rendered HTML.
+
+## Scope of this review
+
+**The navigation layer only.** The ruling was explicit that a narrow finding is not licence to
+rebuild a sound apparatus. Import provenance, the delta mechanism, auth coverage and the positive
+controls were all judged sound and are **not** in scope unless C12 broke them.
+
+Read:
+- `scripts/route-exercise.mjs` â€” the new check
+- `scripts/handoff-loop.sh` â€” how it is gated (section 7b)
+- `dashboard/__tests__/command-centre-readonly.test.ts` â€” the demoted C9 tripwire
+- `docs/HARNESS-COVERAGE-MAP-2026-08-01.md` â€” C12, G1 closure, stated non-coverage
+
+## THE PRIMARY QUESTION
+
+**Is C12 a design, or is it the same reactive patching in a new medium?**
+
+The previous round's diagnosis was that regex form-scanning "is not a design that can be
+completed". Runtime exercising is supposed to be different in kind, not just in mechanism.
+**Test that claim rather than accepting it.**
+
+- What class of broken navigation still passes C12? Name it concretely.
+- C12 measures *what rendered on this run*. Links behind an unrendered branch â€” an error state, a
+  populated-data state, a role the probe session does not have â€” are not exercised. Is that a
+  bounded, statable limit, or is it the same open-ended enumeration wearing new clothes?
+- The declared non-coverage is: client-handler navigation, unrendered branches, external links,
+  `/_next` assets. **Is that list complete?** What is missing from it?
+- C12 depends on a minted session cookie and a built app. What happens to its verdict if either
+  is subtly wrong â€” and does it fail loud or fail green?
+
+## Verify the claimed proof yourself
+
+The commit claims a side-by-side on one planted defect: a `DECKS` entry pointing at a
+non-existent route, reached via `<Link href={d.href}>`, where C9 passed 27 tests and C12 failed
+naming the route.
+
+**Reproduce it.** Plant the defect, run both, then revert it. If it does not reproduce, that is
+the finding.
+
+## Judge the two controls
+
+C12 carries two, both added after they caught real false-greens in its first hour:
+
+1. **Session accepted** â€” a rejected cookie would redirect every page to login; the run would
+   exercise the login page and report success. Entry page must be 200 or it is a hard stop.
+2. **Port not already in use** â€” the first version orphaned its `next start` on Windows, and a
+   later run attached to that stale server and measured the *previous build*, reporting a planted
+   defect absent.
+
+**Judge:** are these sufficient? Is there a third false-green shape neither covers â€” and would you
+know from reading the script, or only by running it?
+
+## The loop
+
+```
+bash scripts/prove-controls.sh --fast            -> expect 11/11, exit 0
+bash scripts/handoff-loop.sh                    -> expect pass=8 fail=0 READY
+node scripts/route-exercise.mjs                 -> expect exit 0
+node scripts/route-exercise.mjs --plant-broken-link  -> expect exit 1 (control)
+cd dashboard && npx vitest run __tests__/command-centre-readonly.test.ts   -> 27 passed
+cd dashboard && npx vitest run __tests__/command-centre-auth-coverage.test.ts -> 7 passed
+```
+
+`handoff-loop.sh` needs env in the shell only â€” never write `.env.local`, it is a fenced path:
+
+```
+PI_CEO_URL=https://x.invalid PI_CEO_PASSWORD=x \
+NEXT_PUBLIC_SUPABASE_URL=https://lksfwktwtmyznckodsau.supabase.co \
+NEXT_PUBLIC_SUPABASE_ANON_KEY=x SUPABASE_SERVICE_ROLE_KEY=x \
+bash scripts/handoff-loop.sh
+```
+
+If a command fails, paste the failure. **Silence, timeout or an unrun command is not a pass.**
+
+## Report â€” two axes, kept separate
+
+### Axis 1 â€” Standards
+JS/Node practice in `route-exercise.mjs`: process handling, error handling, async correctness,
+resource cleanup. Cite lines. Hard violations vs judgement calls. Under 400 words.
+
+### Axis 2 â€” Spec
+Does C12 close G1? Is its declared non-coverage accurate and complete? Are the controls
+sufficient? Did closing G1 weaken anything else? Under 400 words.
+
+## Verdict
+
+End with exactly one line: `VERDICT: PASS` or `VERDICT: FAIL â€” <one-line reason>`
+
+
+ succeeded in 275ms:
+---
+name: code-review
+description: Run a comprehensive code review
+---
+
+# Code Review Skill
+
+Conduct a thorough code review for quality, security, and maintainability with severity-rated feedback.
+
+## When to Use
+
+This skill activates when:
+- User requests "review this code", "code review"
+- Before merging a pull request
+- After implementing a major feature
+- User wants quality assessment
+
+## What It Does
+
+## GPT-5.4 Guidance Alignment
+
+- Default to concise, evidence-dense progress and completion reporting unless the user or risk level requires more detail.
+- Treat newer user task updates as local overrides for the active workflow branch while preserving earlier non-conflicting constraints.
+- If correctness depends on additional inspection, retrieval, execution, or verification, keep using the relevant tools until the review is grounded.
+- Continue through clear, low-risk, reversible next steps automatically; ask only when the next step is materially branching, destructive, or preference-dependent.
+
+Delegates to the `code-reviewer` agent (THOROUGH tier) for deep analysis:
+
+1. **Identify Changes**
+   - Run `git diff` to find changed files
+   - Determine scope of review (specific files or entire PR)
+
+2. **Review Categories**
+   - **Security** - Hardcoded secrets, injection risks, XSS, CSRF
+   - **Code Quality** - Function size, complexity, nesting depth
+   - **Performance** - Algorithm efficiency, N+1 queries, caching
+   - **Best Practices** - Naming, documentation, error handling
+   - **Maintainability** - Duplication, coupling, testability
+
+3. **Severity Rating**
+   - **CRITICAL** - Security vulnerability (must fix before merge)
+   - **HIGH** - Bug or major code smell (should fix before merge)
+   - **MEDIUM** - Minor issue (fix when possible)
+   - **LOW** - Style/suggestion (consider fixing)
+
+4. **Specific Recommendations**
+   - File:line locations for each issue
+   - Concrete fix suggestions
+   - Code examples where applicable
+
+## Agent Delegation
+
+```
+delegate(
+  role="code-reviewer",
+  tier="THOROUGH",
+  prompt="CODE REVIEW TASK
+
+Review code changes for quality, security, and maintainability.
+
+Scope: [git diff or specific files]
+
+Review Checklist:
+- Security vulnerabilities (OWASP Top 10)
+- Code quality (complexity, duplication)
+- Performance issues (N+1, inefficient algorithms)
+- Best practices (naming, documentation, error handling)
+- Maintainability (coupling, testability)
+
+Output: Code review report with:
+- Files reviewed count
+- Issues by severity (CRITICAL, HIGH, MEDIUM, LOW)
+- Specific file:line locations
+- Fix recommendations
+- Approval recommendation (APPROVE / REQUEST CHANGES / COMMENT)"
+)
+```
+
+## External Model Consultation (Preferred)
+
+The code-reviewer agent SHOULD consult Codex for cross-validation.
+
+### Protocol
+1. **Form your OWN review FIRST** - Complete the review independently
+2. **Consult for validation** - Cross-check findings with Codex
+3. **Critically evaluate** - Never blindly adopt external findings
+4. **Graceful fallback** - Never block if tools unavailable
+
+### When to Consult
+- Security-sensitive code changes
+- Complex architectural patterns
+- Unfamiliar codebases or languages
+- High-stakes production code
+
+### When to Skip
+- Simple refactoring
+- Well-understood patterns
+- Time-critical reviews
+- Small, isolated changes
+
+### Tool Usage
+Before first MCP tool use, call `ToolSearch("mcp")` to discover deferred MCP tools.
+Use `mcp__x__ask_codex` with `agent_role: "code-reviewer"`.
+If ToolSearch finds no MCP tools, fall back to the `code-reviewer` agent.
+
+**Note:** Codex calls can take up to 1 hour. Consider the review timeline before consulting.
+
+## Output Format
+
+```
+CODE REVIEW REPORT
+==================
+
+Files Reviewed: 8
+Total Issues: 15
+
+CRITICAL (0)
+-----------
+(none)
+
+HIGH (3)
+--------
+1. src/api/auth.ts:42
+   Issue: User input not sanitized before SQL query
+   Risk: SQL injection vulnerability
+   Fix: Use parameterized queries or ORM
+
+2. src/components/UserProfile.tsx:89
+   Issue: Password displayed in plain text in logs
+   Risk: Credential exposure
+   Fix: Remove password from log statements
+
+3. src/utils/validation.ts:15
+   Issue: Email regex allows invalid formats
+   Risk: Accepts malformed emails
+   Fix: Use proven email validation library
+
+MEDIUM (7)
+----------
+...
+
+LOW (5)
+-------
+...
+
+RECOMMENDATION: REQUEST CHANGES
+
+Critical security issues must be addressed before merge.
+```
+
+## Review Checklist
+
+The code-reviewer agent checks:
+
+### Security
+- [ ] No hardcoded secrets (API keys, passwords, tokens)
+- [ ] All user inputs sanitized
+- [ ] SQL/NoSQL injection prevention
+- [ ] XSS prevention (escaped outputs)
+- [ ] CSRF protection on state-changing operations
+- [ ] Authentication/authorization properly enforced
+
+### Code Quality
+- [ ] Functions < 50 lines (guideline)
+- [ ] Cyclomatic complexity < 10
+- [ ] No deeply nested code (> 4 levels)
+- [ ] No duplicate logic (DRY principle)
+- [ ] Clear, descriptive naming
+
+### Performance
+- [ ] No N+1 query patterns
+- [ ] Appropriate caching where applicable
+- [ ] Efficient algorithms (avoid O(nÂ²) when O(n) possible)
+- [ ] No unnecessary re-renders (React/Vue)
+
+### Best Practices
+- [ ] Error handling present and appropriate
+- [ ] Logging at appropriate levels
+- [ ] Documentation for public APIs
+- [ ] Tests for critical paths
+- [ ] No commented-out code
+
+## Approval Criteria
+
+**APPROVE** - No CRITICAL or HIGH issues, minor improvements only
+**REQUEST CHANGES** - CRITICAL or HIGH issues present
+**COMMENT** - Only LOW/MEDIUM issues, no blocking concerns
+
+
+## Scenario Examples
+
+**Good:** The user says `continue` after the workflow already has a clear next step. Continue the current branch of work instead of restarting or re-asking the same question.
+
+**Good:** The user changes only the output shape or downstream delivery step (for example `make a PR`). Preserve earlier non-conflicting workflow constraints and apply the update locally.
+
+**Bad:** The user says `continue`, and the workflow restarts discovery or stops before the missing verification/evidence is gathered.
+
+## Use with Other Skills
+
+**With Team:**
+```
+/team "review recent auth changes and report findings"
+```
+Includes coordinated review execution across specialized agents.
+
+**With Ralph:**
+```
+/ralph code-review then fix all issues
+```
+Review code, get feedback, fix until approved.
+
+**With Ultrawork:**
+```
+/ultrawork review all files in src/
+```
+Parallel code review across multiple files.
+
+## Best Practices
+
+- **Review early** - Catch issues before they compound
+- **Review often** - Small, frequent reviews better than huge ones
+- **Address CRITICAL/HIGH first** - Fix security and bugs immediately
+- **Consider context** - Some "issues" may be intentional trade-offs
+- **Learn from reviews** - Use feedback to improve coding practices
+
+
+hook: PostToolUse
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+codex
+I have the brief. The main tension is that it asks for a planted-defect reproduction while also forbidding repository edits; I’ll use the existing control path where the repo provides one, and I won’t mutate files unless a command itself does so as part of its documented test flow. Next I’m reading the navigation verifier, gate, tests, and coverage map with line numbers.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=0; Get-Content "scripts'"\\route-exercise.mjs\" | ForEach-Object { "'$i++; "{0,4}: {1}" -f $i, $_ }' in D:\Pi-Dev-Ops
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=0; Get-Content "scripts'"\\handoff-loop.sh\" | ForEach-Object { "'$i++; "{0,4}: {1}" -f $i, $_ }' in D:\Pi-Dev-Ops
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=0; Get-Content "dashboard'"\\__tests__\\command-centre-readonly.test.ts\" | ForEach-Object { "'$i++; "{0,4}: {1}" -f $i, $_ }' in D:\Pi-Dev-Ops
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=0; Get-Content "docs'"\\HARNESS-COVERAGE-MAP-2026-08-01.md\" | ForEach-Object { "'$i++; "{0,4}: {1}" -f $i, $_ }' in D:\Pi-Dev-Ops
+ succeeded in 317ms:
+   1: #!/usr/bin/env bash
+   2: # handoff-loop.sh â€” the definition-of-done gate runner for /session-handoff.
+   3: #
+   4: # Runs the readiness gates for THIS repo, writes a timestamped healthcheck log to
+   5: # .handoff-logs/, and exits 0 only when every gate is green (or SKIPPED for a stated
+   6: # reason). /session-handoff runs this in Phase 0 and refuses to declare the tree ready
+   7: # until it exits 0; /resume-from-handoff re-runs it as its verification gate. Repo-
+   8: # adaptive: a gate is SKIPPED (not failed) when its stack is absent.
+   9: #
+  10: # Usage: scripts/handoff-loop.sh [--full] [--quick]
+  11: #   --full   real dependency install (npm ci / pip install) instead of presence-verify
+  12: #   --quick  skip the expensive build + test gates (fast interim handoff)
+  13: set -uo pipefail
+  14: 
+  15: ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  16: cd "$ROOT"
+  17: TS="$(date +%Y%m%d-%H%M%S)"
+  18: LOG_DIR="$ROOT/.handoff-logs"
+  19: mkdir -p "$LOG_DIR"
+  20: LOG="$LOG_DIR/handoff-$TS.log"
+  21: MODE_FULL=0; MODE_QUICK=0
+  22: for a in "$@"; do
+  23:   [ "$a" = "--full" ] && MODE_FULL=1
+  24:   [ "$a" = "--quick" ] && MODE_QUICK=1
+  25: done
+  26: 
+  27: PASS=0; FAIL=0; SKIP=0
+  28: declare -a FAILED_GATES=()
+  29: 
+  30: log() { echo "$@" | tee -a "$LOG"; }
+  31: 
+  32: # gate <name> <command...> â€” run a gate, record PASS/FAIL, keep going.
+  33: gate() {
+  34:   local name="$1"; shift
+  35:   log ""; log "â”€â”€ GATE: $name"
+  36:   if "$@" >>"$LOG" 2>&1; then
+  37:     log "   PASS: $name"; PASS=$((PASS+1))
+  38:   else
+  39:     log "   FAIL: $name (rc=$?)"; FAIL=$((FAIL+1)); FAILED_GATES+=("$name")
+  40:   fi
+  41: }
+  42: skip() { log ""; log "â”€â”€ GATE: $1"; log "   SKIP: $1 â€” ${2:-not applicable to this repo}"; SKIP=$((SKIP+1)); }
+  43: 
+  44: log "handoff-loop $TS  root=$ROOT  full=$MODE_FULL quick=$MODE_QUICK"
+  45: log "branch=$(git branch --show-current 2>/dev/null)  head=$(git rev-parse --short HEAD 2>/dev/null)"
+  46: 
+  47: # 1. Cache / build bloat â€” light, source-safe clean.
+  48: gate "clean-bloat" bash -c '
+  49:   find . -type d \( -name __pycache__ -o -name .pytest_cache -o -name .ruff_cache \) \
+  50:     -not -path "*/node_modules/*" -prune -exec rm -rf {} + 2>/dev/null
+  51:   rm -rf dashboard/.next/cache 2>/dev/null; true'
+  52: 
+  53: # 2. Dependencies. Absent toolchain â†’ SKIP (env not provisioned here), never FAIL.
+  54: PY_OK=0; NODE_OK=0
+  55: if [ -f app/requirements.txt ]; then
+  56:   [ "$MODE_FULL" = 1 ] && python3 -m pip install -q -r app/requirements.txt >>"$LOG" 2>&1
+  57:   if python3 -c "import fastapi, pydantic" >>"$LOG" 2>&1; then PY_OK=1; gate "deps-python" true
+  58:   else skip "deps-python" "app venv not active / deps not importable â€” run --full or activate the venv"; fi
+  59: fi
+  60: if [ -f dashboard/package.json ]; then
+  61:   [ "$MODE_FULL" = 1 ] && ( cd dashboard && npm ci >>"$LOG" 2>&1 )
+  62:   if [ -d dashboard/node_modules ]; then NODE_OK=1; gate "deps-node" true
+  63:   else skip "deps-node" "dashboard/node_modules absent â€” run with --full to install"; fi
+  64: fi
+  65: 
+  66: # 3. Generated files current â€” agentskills manifest must be a no-op re-run (needs PY).
+  67: if [ -f swarm/agentskills_manifest.py ]; then
+  68:   if [ "$PY_OK" = 1 ]; then
+  69:     gate "generated-agentskills" bash -c '
+  70:       python3 -m swarm.agentskills_manifest >/dev/null 2>&1
+  71:       git diff --quiet -- agentskills.json agentskills.yaml'
+  72:   else skip "generated-agentskills" "python deps absent"; fi
+  73: fi
+  74: 
+  75: # 4. Type checks.
+  76: if [ -f app/server/main.py ]; then
+  77:   [ "$PY_OK" = 1 ] && gate "type-python-import" python3 -c "from app.server.main import app" \
+  78:     || { [ "$PY_OK" = 1 ] || skip "type-python-import" "python deps absent"; }
+  79: fi
+  80: if [ -f dashboard/package.json ]; then
+  81:   [ "$NODE_OK" = 1 ] && gate "type-dashboard" bash -c 'cd dashboard && npx --no-install tsc --noEmit' \
+  82:     || { [ "$NODE_OK" = 1 ] || skip "type-dashboard" "node_modules absent"; }
+  83: fi
+  84: 
+  85: # 5. Lint.
+  86: if command -v ruff >/dev/null 2>&1 && [ -d app ]; then gate "lint-ruff" ruff check app
+  87: else skip "lint-ruff" "ruff not installed"; fi
+  88: if [ -f dashboard/package.json ]; then
+  89:   [ "$NODE_OK" = 1 ] && gate "lint-dashboard" bash -c 'cd dashboard && npm run --silent lint' \
+  90:     || { [ "$NODE_OK" = 1 ] || skip "lint-dashboard" "node_modules absent"; }
+  91: fi
+  92: 
+  93: # 6. Tests (skipped by --quick). test_sdk_phase2 needs claude_agent_sdk (CI-only) â€” excluded.
+  94: if [ "$MODE_QUICK" = 1 ]; then skip "tests" "--quick"
+  95: else
+  96:   if [ -d tests ]; then
+  97:     [ "$PY_OK" = 1 ] && gate "tests-python" python3 -m pytest tests/ -q --ignore=tests/test_sdk_phase2.py \
+  98:       || { [ "$PY_OK" = 1 ] || skip "tests-python" "python deps absent"; }
+  99:   fi
+ 100:   if [ -f dashboard/package.json ]; then
+ 101:     [ "$NODE_OK" = 1 ] && gate "tests-dashboard" bash -c 'cd dashboard && CI=1 npm run --silent test' \
+ 102:       || { [ "$NODE_OK" = 1 ] || skip "tests-dashboard" "node_modules absent"; }
+ 103:   fi
+ 104: fi
+ 105: 
+ 106: # 7. Production build (skipped by --quick).
+ 107: if [ "$MODE_QUICK" = 1 ]; then skip "build" "--quick"
+ 108: elif [ -f dashboard/package.json ]; then
+ 109:   [ "$NODE_OK" = 1 ] && gate "build-dashboard" bash -c 'cd dashboard && npm run build' \
+ 110:     || { [ "$NODE_OK" = 1 ] || skip "build-dashboard" "node_modules absent â€” run --full"; }
+ 111: fi
+ 112: 
+ 113: # 7b. Runtime route exercising (C12) â€” the authority on G1.
+ 114: # Must follow build-dashboard: it serves the built output. The static check in the vitest
+ 115: # suite is a TRIPWIRE over three literal spellings; this one starts the app and requests
+ 116: # every internal link the pages actually rendered, so the form a link was written in stops
+ 117: # mattering. Skipped under --quick and when there is no build to serve.
+ 118: if [ "$MODE_QUICK" = 1 ]; then skip "route-exercise" "--quick"
+ 119: elif [ -f dashboard/.next/BUILD_ID ]; then
+ 120:   gate "route-exercise" node scripts/route-exercise.mjs
+ 121: else skip "route-exercise" "no dashboard build to serve"; fi
+ 122: 
+ 123: # 8. Audits.
+ 124: if command -v detect-secrets >/dev/null 2>&1; then
+ 125:   gate "audit-secrets" bash -c 'detect-secrets scan --all-files > /tmp/.ds-$$ 2>/dev/null; \
+ 126:     ! grep -q "\"is_secret\": true" /tmp/.ds-$$; rm -f /tmp/.ds-$$'
+ 127: else skip "audit-secrets" "detect-secrets not installed"; fi
+ 128: if [ "$PY_OK" = 1 ] && curl -sf -o /dev/null "http://127.0.0.1:7777/health" 2>/dev/null; then
+ 129:   gate "audit-smoke" python3 scripts/smoke_test.py --url http://127.0.0.1:7777 --password "${TAO_PASSWORD:-dev}"
+ 130: else skip "audit-smoke" "python deps absent or local server not reachable on :7777"; fi
+ 131: 
+ 132: # Verdict.
+ 133: log ""; log "â•â•â•â• SUMMARY  pass=$PASS fail=$FAIL skip=$SKIP"
+ 134: if [ "$FAIL" -gt 0 ]; then
+ 135:   log "â•â•â•â• VERDICT: BLOCKED â€” failing gates: ${FAILED_GATES[*]}"
+ 136:   log "â•â•â•â• log: $LOG"; echo "$LOG"; exit 1
+ 137: fi
+ 138: if [ "$SKIP" -gt 0 ]; then
+ 139:   log "â•â•â•â• VERDICT: READY (with $SKIP skipped â€” env not provisioned here; treat CI as source of truth for skipped gates)"
+ 140: else
+ 141:   log "â•â•â•â• VERDICT: READY â€” all $PASS gates green"
+ 142: fi
+ 143: log "â•â•â•â• log: $LOG"; echo "$LOG"; exit 0
+
+hook: PostToolUse
+ succeeded in 331ms:
+   1: #!/usr/bin/env node
+   2: /**
+   3:  * route-exercise.mjs â€” C12. Runtime route exercising for the command-centre surface.
+   4:  *
+   5:  * WHY THIS REPLACES THE REGEX DETECTOR
+   6:  *
+   7:  * The old check scanned source for navigation FORMS: href="...", fetch("..."), then
+   8:  * router.push("..."), then it would have been <Link href={expr}>, then object hrefs,
+   9:  * wrapper components, window.location, server redirects, form actions. Four review rounds
+  10:  * each found the next form. Enumerating forms is not a design that can be completed.
+  11:  *
+  12:  * AST extraction with dataflow was considered and REJECTED for the same reason: you still
+  13:  * decide which patterns count, and wrapper components and computed values defeat it
+  14:  * identically. It is the same uncompletable enumeration in better clothes.
+  15:  *
+  16:  * This asks a different question. Not "what forms did we look for" but "what did the
+  17:  * surface actually emit". The app is built, started, and its pages are fetched; every
+  18:  * internal link in the RENDERED output is then requested and must not 404. `<Link
+  19:  * href={d.href}>` over a local array resolves at render time, so it appears in the HTML
+  20:  * like any other link â€” the form it was written in stops mattering.
+  21:  *
+  22:  * That is the same fact-versus-claim distinction that made operator-gateway a rebuild.
+  23:  *
+  24:  * SCOPE â€” what this does NOT cover, stated here rather than discovered in round five:
+  25:  *
+  26:  *   - Client-side navigation that only happens in an event handler (router.push inside
+  27:  *     onClick) does not appear in server-rendered HTML. The cheap literal tripwire in
+  28:  *     command-centre-readonly.test.ts still covers the literal spelling of that, and it
+  29:  *     is labelled a tripwire precisely because it cannot cover the rest.
+  30:  *   - Links that only render behind state this run does not reach (an error branch, a
+  31:  *     populated-data branch) are not exercised. Coverage is what rendered, not what could.
+  32:  *     Every page fetched is asserted 200 so a page that fails to render cannot pass by
+  33:  *     emitting nothing â€” but a BRANCH that did not render is genuinely unmeasured.
+  34:  *   - CLIENT-HYDRATED navigation. This fetches server-rendered HTML; it does not run a
+  35:  *     browser or hydrate components. A <Link> that only appears after useEffect, from
+  36:  *     localStorage, at a viewport size, or after client data arrives is NOT exercised.
+  37:  *     Named by round-1 review as the largest remaining hole and it is a real one: closing it
+  38:  *     needs a real browser, which is a different tool with a different cost.
+  39:  *   - External links are skipped by design; this asks whether OUR routes exist. Same-origin
+  40:  *     is decided by resolving each href against the page URL, so relative and absolute forms
+  41:  *     are handled by one rule rather than by a list of spellings.
+  42:  *
+  43:  * Usage: node scripts/route-exercise.mjs [--plant-broken-link] [--plant-relative-link]
+  44:  *   --plant-broken-link    control: assert this script FAILS on a known-bad absolute route.
+  45:  *   --plant-relative-link  control: same, for a RELATIVE href with no leading slash.
+  46:  */
+  47: import { spawn, spawnSync } from "node:child_process";
+  48: import { createHmac, randomBytes } from "node:crypto";
+  49: import { existsSync, statSync as fsStat, readdirSync as fsRead } from "node:fs";
+  50: import { join, dirname } from "node:path";
+  51: import { fileURLToPath } from "node:url";
+  52: 
+  53: const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+  54: const APP = join(ROOT, "dashboard");
+  55: const PORT = process.env.ROUTE_EXERCISE_PORT || "3187";
+  56: const BASE = `http://127.0.0.1:${PORT}`;
+  57: // Generated per run, never stored. It only has to match what we start the server with, so
+  58: // a literal bought nothing and tripped the secrets scanner as a hardcoded password â€” fairly,
+  59: // since a scanner cannot tell a throwaway probe secret from a real one by reading it.
+  60: const PASSWORD = randomBytes(24).toString("hex");
+  61: const PLANT = process.argv.includes("--plant-broken-link");
+  62: // Separate control for the round-2 finding: a RELATIVE internal link. If the extractor ever
+  63: // regresses to slash-prefixed-only matching, this stops failing and the regression is loud.
+  64: const PLANT_REL = process.argv.includes("--plant-relative-link");
+  65: 
+  66: /** Pages whose rendered output defines the navigation surface under test. */
+  67: const ENTRY_PAGES = [
+  68:   "/command-centre",
+  69:   "/command-centre/hermes",
+  70:   "/command-centre/knowledge",
+  71:   "/command-centre/wiki-graph",
+  72: ];
+  73: 
+  74: const log = (...a) => console.log("   ", ...a);
+  75: 
+  76: /**
+  77:  * Every request this verifier makes carries a timeout.
+  78:  *
+  79:  * Review finding, round 1: `waitForServer` and all page/link fetches had no signal, so a
+  80:  * wedged listener or a hanging route turned the verifier into SILENCE rather than a loud
+  81:  * diagnostic. For a checker that is the worst failure mode â€” an unbounded hang reads as
+  82:  * "still working", and whoever is waiting eventually kills it and moves on with no verdict.
+  83:  */
+  84: const REQ_TIMEOUT_MS = 15_000;
+  85: const get = (url, opts = {}) =>
+  86:   fetch(url, { redirect: "manual", signal: AbortSignal.timeout(REQ_TIMEOUT_MS), ...opts });
+  87: 
+  88: /** Mint a pi_session cookie the same way app/api/auth/login/route.ts does. */
+  89: function mintSession() {
+  90:   const issuedAt = String(Math.floor(Date.now() / 1000));
+  91:   const sig = createHmac("sha256", PASSWORD).update(issuedAt).digest("hex");
+  92:   return `pi_session=${issuedAt}.${sig}`;
+  93: }
+  94: 
+  95: async function waitForServer(timeoutMs = 90_000) {
+  96:   const deadline = Date.now() + timeoutMs;
+  97:   while (Date.now() < deadline) {
+  98:     try {
+  99:       const r = await get(BASE + "/");
+ 100:       if (r.status > 0) return true;
+ 101:     } catch { /* not up yet */ }
+ 102:     await new Promise((r) => setTimeout(r, 400));
+ 103:   }
+ 104:   return false;
+ 105: }
+ 106: 
+ 107: /**
+ 108:  * Internal paths in rendered HTML, RESOLVED rather than pattern-matched.
+ 109:  *
+ 110:  * Round-2 review: the previous version matched only `href="/..."`, so a rendered relative
+ 111:  * link â€” `href="hermes"`, `href="./hermes"`, `href="../knowledge"` â€” was internal
+ 112:  * navigation that went unexercised. Adding "also match non-slash hrefs" would have been
+ 113:  * another pattern on the pile, which is the thing this whole check exists to stop doing.
+ 114:  *
+ 115:  * So: take every href/action/formaction value and RESOLVE it against the page it was found
+ 116:  * on, using the URL parser. Relative, absolute, protocol-relative and external all fall out
+ 117:  * of one rule â€” same origin means ours, and `pathname + search` is what to request. URL
+ 118:  * resolution is decidable and complete in a way form-enumeration never was.
+ 119:  */
+ 120: function extractPaths(html, pageUrl) {
+ 121:   const out = new Set();
+ 122:   for (const m of html.matchAll(/(?:href|action|formaction)=["']([^"']*)["']/gi)) {
+ 123:     const raw = m[1].trim();
+ 124:     if (!raw || raw.startsWith("#")) continue;
+ 125:     // Non-http schemes are not navigation we can request: mailto:, tel:, javascript:, data:
+ 126:     if (/^[a-z][a-z0-9+.-]*:/i.test(raw) && !/^https?:/i.test(raw)) continue;
+ 127:     let u;
+ 128:     try { u = new URL(raw, pageUrl); } catch { continue; }
+ 129:     if (u.origin !== new URL(BASE).origin) continue;   // external â€” not ours to assert
+ 130:     const p = (u.pathname.replace(/\/$/, "") || "/") + u.search;
+ 131:     // Framework build assets are not app routes. Their absence IS a real signal â€” it is how
+ 132:     // the stale-server bug first showed â€” but it belongs to build integrity, which
+ 133:     // `npm run build` already owns.
+ 134:     if (p.startsWith("/_next/")) continue;
+ 135:     out.add(p);
+ 136:   }
+ 137:   return [...out];
+ 138: }
+ 139: 
+ 140: /** True if something is already listening on the port. */
+ 141: async function portInUse() {
+ 142:   try {
+ 143:     const r = await fetch(BASE + "/", { redirect: "manual", signal: AbortSignal.timeout(2000) });
+ 144:     return r.status > 0;
+ 145:   } catch { return false; }
+ 146: }
+ 147: 
+ 148: async function main() {
+ 149:   const buildId = join(APP, ".next", "BUILD_ID");
+ 150:   if (!existsSync(buildId)) {
+ 151:     console.error("FAIL: no build found at dashboard/.next â€” run `npm run build` first.");
+ 152:     return 2;
+ 153:   }
+ 154: 
+ 155:   // CONTROL â€” the build must be newer than the source it claims to represent.
+ 156:   //
+ 157:   // Round-1 review: "a stale or wrong build still passes standalone C12 if .next/BUILD_ID
+ 158:   // exists; only the handoff loop's preceding build gate makes that safe in context." Correct,
+ 159:   // and relying on call-site ordering is exactly how the stale-SERVER bug happened. A verifier
+ 160:   // must not be safe only when invoked politely. Same class as the port control: measuring the
+ 161:   // wrong artifact is indistinguishable from success.
+ 162:   const buildTime = fsStat(buildId).mtimeMs;
+ 163:   let newestSrc = 0, newestPath = "";
+ 164:   for (const dir of ["app", "components", "lib", "proxy.ts"]) {
+ 165:     (function walk(d) {
+ 166:       if (!existsSync(d)) return;
+ 167:       const st = fsStat(d);
+ 168:       if (st.isFile()) {
+ 169:         if (st.mtimeMs > newestSrc) { newestSrc = st.mtimeMs; newestPath = d; }
+ 170:         return;
+ 171:       }
+ 172:       for (const e of fsRead(d)) walk(join(d, e));
+ 173:     })(join(APP, dir));
+ 174:   }
+ 175:   if (newestSrc > buildTime) {
+ 176:     console.error(
+ 177:       `FAIL: the build is older than the source.
+ 178: ` +
+ 179:       `      newest source: ${newestPath.slice(APP.length + 1)}
+ 180: ` +
+ 181:       `      Serving a stale build means exercising routes that are not the ones on disk â€”
+ 182: ` +
+ 183:       `      a green run would describe a different app. Rebuild, then re-run.`);
+ 184:     return 2;
+ 185:   }
+ 186:   log("control: build is newer than source â€” exercising the code that is actually on disk");
+ 187: 
+ 188:   const env = {
+ 189:     ...process.env,
+ 190:     NODE_ENV: "production",
+ 191:     DASHBOARD_PASSWORD: PASSWORD,
+ 192:     PI_CEO_URL: "https://x.invalid",
+ 193:     PI_CEO_PASSWORD: "x",
+ 194:     NEXT_PUBLIC_SUPABASE_URL: "https://lksfwktwtmyznckodsau.supabase.co",
+ 195:     NEXT_PUBLIC_SUPABASE_ANON_KEY: "x",
+ 196:     SUPABASE_SERVICE_ROLE_KEY: "x",
+ 197:   };
+ 198: 
+ 199:   // CONTROL â€” refuse to attach to a server we did not start.
+ 200:   //
+ 201:   // This is not defensive tidiness; it is the control for a false-green this script
+ 202:   // actually produced. The first version used `shell: true` and `server.kill()`, which on
+ 203:   // Windows kills the shell and orphans the `next start` grandchild. A later run then found
+ 204:   // :3187 already answering, attached to a server still serving the PREVIOUS build, and
+ 205:   // reported that a planted broken route did not exist â€” measuring one build while claiming
+ 206:   // to measure another. Caught only because the positive control expected a failure and got
+ 207:   // a pass. Now: a live port is a hard stop, and the tree is killed properly.
+ 208:   if (await portInUse()) {
+ 209:     console.error(
+ 210:       `FAIL: something is already listening on :${PORT}. Refusing to run â€” attaching to a\n` +
+ 211:       `      server this script did not start means measuring an unknown build, which is\n` +
+ 212:       `      indistinguishable from success. Kill it, or set ROUTE_EXERCISE_PORT.`);
+ 213:     return 2;
+ 214:   }
+ 215: 
+ 216:   log(`starting the built app on :${PORT} ...`);
+ 217:   const server = spawn("npx", ["next", "start", "-p", PORT], {
+ 218:     cwd: APP, env, shell: true, stdio: ["ignore", "pipe", "pipe"],
+ 219:     detached: process.platform !== "win32", // own process group, so the group kill works
+ 220:   });
+ 221:   let serverLog = "";
+ 222:   server.stdout.on("data", (d) => { serverLog += d; });
+ 223:   server.stderr.on("data", (d) => { serverLog += d; });
+ 224: 
+ 225:   // Kill the TREE, SYNCHRONOUSLY. Two bugs were needed to get here and both are worth
+ 226:   // naming: `server.kill()` alone kills the shell and orphans `next start` on Windows;
+ 227:   // and an async `spawn("taskkill")` registered on process 'exit' never runs, because
+ 228:   // Node exits before it starts. spawnSync in `finally` is the only version that works.
+ 229:   const shutdown = () => {
+ 230:     try {
+ 231:       if (process.platform === "win32") {
+ 232:         spawnSync("taskkill", ["/PID", String(server.pid), "/T", "/F"], { stdio: "ignore" });
+ 233:       } else {
+ 234:         // shell:true means `server.pid` is the shell on POSIX too. Kill the process GROUP.
+ 235:         // Round-1 review flagged that the Windows fix left this half unfixed â€” the stale
+ 236:         // server bug was Windows-observed but the defect is not Windows-specific.
+ 237:         try { process.kill(-server.pid, "SIGKILL"); } catch { server.kill("SIGKILL"); }
+ 238:       }
+ 239:     } catch { /* best effort */ }
+ 240:   };
+ 241: 
+ 242:   try {
+ 243:     if (!await waitForServer()) {
+ 244:       console.error("FAIL: server did not become reachable.\n" + serverLog.slice(-1500));
+ 245:       return 2;
+ 246:     }
+ 247:     const cookie = mintSession();
+ 248: 
+ 249:     // Control: the session must actually be accepted. If auth silently rejects it, every
+ 250:     // page below redirects to login, we extract the login page's links, and the run goes
+ 251:     // green having exercised nothing. That failure would look exactly like success.
+ 252:     const probe = await get(BASE + ENTRY_PAGES[0], { headers: { cookie } });
+ 253:     if (probe.status !== 200) {
+ 254:       console.error(
+ 255:         `FAIL: control â€” ${ENTRY_PAGES[0]} returned ${probe.status} with a minted session, ` +
+ 256:         `expected 200. Without an accepted session this run would exercise the login page ` +
+ 257:         `and report success. Refusing to report anything.`);
+ 258:       return 2;
+ 259:     }
+ 260:     log("control: minted session accepted (entry page 200) â€” the run is measuring the real surface");
+ 261: 
+ 262:     const discovered = new Map(); // path -> Set(pages that linked to it)
+ 263:     const failures = [];
+ 264: 
+ 265:     for (const page of ENTRY_PAGES) {
+ 266:       const res = await get(BASE + page, { headers: { cookie } });
+ 267:       if (res.status !== 200) {
+ 268:         failures.push(`ENTRY ${page} -> ${res.status} (page did not render; its links are unmeasured)`);
+ 269:         continue;
+ 270:       }
+ 271:       let html = await res.text();
+ 272:       if (PLANT && page === "/command-centre") {
+ 273:         html += '<a href="/command-centre/this-route-does-not-exist">planted</a>';
+ 274:       }
+ 275:       if (PLANT_REL && page === "/command-centre") {
+ 276:         // No leading slash. Resolves against /command-centre -> /this-relative-route-404s.
+ 277:         html += '<a href="this-relative-route-404s">planted-relative</a>';
+ 278:       }
+ 279:       for (const p of extractPaths(html, BASE + page)) {
+ 280:         if (!discovered.has(p)) discovered.set(p, new Set());
+ 281:         discovered.get(p).add(page);
+ 282:       }
+ 283:     }
+ 284: 
+ 285:     log(`rendered ${ENTRY_PAGES.length} pages, discovered ${discovered.size} distinct internal paths`);
+ 286: 
+ 287:     for (const [path, sources] of [...discovered].sort()) {
+ 288:       const res = await get(BASE + path, { headers: { cookie } });
+ 289:       if (res.status === 404) {
+ 290:         failures.push(`404  ${path}   (linked from: ${[...sources].join(", ")})`);
+ 291:       } else if (res.status >= 500) {
+ 292:         failures.push(`${res.status}  ${path}   (linked from: ${[...sources].join(", ")})`);
+ 293:       }
+ 294:     }
+ 295: 
+ 296:     if (failures.length) {
+ 297:       console.error("\nFAIL â€” internal navigation that does not resolve:\n");
+ 298:       for (const f of failures) console.error("  " + f);
+ 299:       return 1;
+ 300:     }
+ 301:     log(`OK â€” every rendered internal link resolves (${discovered.size} paths exercised)`);
+ 302:     return 0;
+ 303:   } finally {
+ 304:     shutdown();
+ 305:   }
+ 306: }
+ 307: 
+ 308: main().then((c) => process.exit(c)).catch((e) => {
+ 309:   console.error("FAIL: route-exercise crashed:", e);
+ 310:   process.exit(2);
+ 311: });
+
+hook: PostToolUse
+ succeeded in 322ms:
+   1: # Harness coverage map â€” what it catches, what it structurally cannot
+   2: 
+   3: **Date:** 2026-08-01 Â· **Scope:** the command-centre migration harness
+   4: **Purpose:** enumerate the gaps now, not at capability 6, where the failure mode is a dry-run surface silently becoming a live one.
+   5: 
+   6: ---
+   7: 
+   8: ## The checks that exist
+   9: 
+  10: | # | Check | Where | Fails on |
+  11: |---|---|---|---|
+  12: | C1 | **Provenance** | `command-centre-readonly.test.ts` | any file in the capability import graph with no declared source origin |
+  13: | C2 | **Baseline resolvable** | same | a provenance pair whose port or source path does not resolve |
+  14: | C3 | **Baseline reachable** | same | the Authority-Site checkout being absent, unless `CC_ALLOW_NO_BASELINE=1` |
+  15: | C4 | **Construct-count non-increase** | same | a tracked construct appearing *more times* than in the named baseline |
+  16: | C5 | **Typecheck** | `tsc --noEmit` | type errors |
+  17: | C6 | **Build** | `next build` | compile failure, missing route |
+  18: | C7 | **Fail-open scan** | `fence/fail_open_check.py` | verification code that swallows a signal; evidence files not git-tracked |
+  19: | C8 | **Cross-vendor review** | Codex gpt-5.5, fresh session | anything a competent reader spots in spec or standards |
+  20: | C9 | **Literal navigation tripwire** | `command-centre-readonly.test.ts` | a **literal** `href="/x"`, `fetch("/x")` or `router.push("/xâ€¦")` naming a route that does not exist here. **Tripwire, not proof.** Kept after C12 closed G1 because it is the only cover for `router.push` inside a client event handler, which never reaches rendered HTML. |
+  21: | C10 | **Import map vs reality** | same | a provenance entry for an import no file makes; an import with no entry; a `resolves_in_target: file:` that is absent from disk |
+  22: | C11 | **Auth coverage** | `command-centre-auth-coverage.test.ts` | any command-centre page or API served to a request with no session, proven against `proxy()` directly with positive controls |
+  23: | C12 | **Runtime route exercising** | `scripts/route-exercise.mjs`, gated in `handoff-loop.sh` | any internal link in **rendered** output that 404s or 500s. Starts the built app, authenticates, fetches every command-centre page, requests every link they emitted. **The authority on G1** â€” C9 is only a tripwire. |
+  24: 
+  25: **C4 tracks:** `fetch(`, http clients (axios/got/node-fetch/undici), `WebSocket`/`EventSource`/`XMLHttpRequest`/`sendBeacon`, dynamic `import(`, `require(`, remote-host literals, `.insert/.update/.upsert/.delete(`, `createClient`/`createServerClient`, MCP client names, `"use server"`, and three literal API-key names.
+  26: 
+  27: ---
+  28: 
+  29: ## What it structurally cannot catch
+  30: 
+  31: These are not tuning gaps. They are outside the shape of a count-based static comparison.
+  32: 
+  33: | # | Gap | Why the harness cannot see it | Already bitten us? |
+  34: |---|---|---|---|
+  35: | G1 | **Route existence** â€” **CLOSED by C12** (2026-08-01) | C4 compares counts. A `fetch('/api/x')` that exists in both source and port passes even when `/api/x` was never ported. C9 catches the *literal* forms only. **C12 closes it at runtime**: the app is started and every link the pages actually rendered is requested, so computed navigation (`<Link href={expr}>`) is covered by what the surface emitted rather than by what forms a regex looked for. | **YES â€” capability 2, four times.** Codex found links to `/founder/command-centre` and fetches to two unported API routes; then `router.push(`/founder/wiki/${slug}`)` 404ing on every node click; then `<Link href={d.href}>` invisible to the check. |
+  36: | G2 | **Semantic equivalence** | Same count, different endpoint or payload. Swap a URL and the count is unchanged. | Latent |
+  37: | G3 | **Runtime behaviour** â€” **partially mitigated by C12** | C12 now renders every command-centre page and exercises its links, so "does this page render and do its links resolve" IS asked. Still unasked: network interception, and whether a control that renders actually does nothing when clicked. | Latent for the remainder |
+  38: | G4 | **Indirect / computed constructs** | `const m = 'fet'+'ch'`, `globalThis[k]()`, string-built URLs, computed property access. | Latent |
+  39: | G5 | **Node built-in side effects** | `child_process`, `fs` writes, `process.exit`, `os` â€” **not tracked at all** | Latent |
+  40: | G6 | **Transitive npm behaviour** | The graph stops at `node_modules`. A dependency that fetches is invisible. | Latent |
+  41: | G7 | **Server actions defined elsewhere** | `"use server"` is counted only in scanned files; an action imported from outside the graph is not. | Latent |
+  42: | G8 | **Env-driven divergence** | Behaviour that differs by env var is identical in source text. | Latent |
+  43: | G9 | **CSS-delivered behaviour** | `url()` fetches, `@import` from a remote host. CSS is provenance-checked but not construct-scanned. | Latent |
+  44: | G10 | **Deletion of a safety check** | C4 fails on an *increase*. Removing a guard **lowers** counts and passes. | Latent â€” **directly relevant to capability 6** |
+  45: 
+  46: **G10 deserves emphasis.** The comparison is one-directional by design: "no new surface". A port that *deletes* an existing safety check passes every check in the harness, because deleting a guard reduces the tracked-construct count.
+  47: 
+  48: ---
+  49: 
+  50: ## Operator-gateway's five constraints, assessed honestly
+  51: 
+  52: Its own header states the contract:
+  53: 
+  54: > *"SANDBOX DRY-RUN + CONTROLLED REAL-LOCAL FOUNDATION MODE â€¦ no production DB writes, no external execution, no live runner, no API keys, no web-session scraping. No real execute button."*
+  55: 
+  56: **Would any current check catch the loss of each?**
+  57: 
+  58: | # | Constraint | Caught? | Reasoning |
+  59: |---|---|---|---|
+  60: | **OG1** | **No production DB writes** | **PARTIAL** | C4 catches an *added* `.insert/.update/.upsert/.delete(`. It does **not** catch: a write via `.rpc(`, a write through an existing call whose target changed to a prod ref, a write through a helper outside the graph, or a write where the count stays level because another call was removed. The fence's `prod-db` predicate catches a prod ref *at runtime*, but the fence is in **shadow** and does not gate CI. |
+  61: | **OG2** | **No external execution** | **NO** | `child_process`, `exec`, `execSync`, `spawn`, `fork` are **not tracked by any check**. Zero coverage. A ported file could shell out and every check would pass. |
+  62: | **OG3** | **No live runner** | **NO** | "A runner is wired" is a *system property*, not a construct. Nothing models it. Not expressible as a count. |
+  63: | **OG4** | **No API keys** | **PARTIAL** | C4 matches three literal names only (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `STRIPE_SECRET`). Misses every other key name, `process.env[dynamic]`, and keys read from a config object or a secrets helper. |
+  64: | **OG5** | **No real execute button** | **NO** | Requires inspecting rendered output and handler wiring. Nothing renders anything. A button whose `onClick` posts to a live endpoint is invisible to a static count. |
+  65: 
+  66: **Three of five have zero coverage. Two are partial. None is fully covered.**
+  67: 
+  68: Combined with **G10** â€” deleting a guard passes â€” the position for capability 6 is: *the harness that will review the operator gateway cannot detect the loss of the properties that make the operator gateway safe.*
+  69: 
+  70: That is the finding this map exists to surface.
+  71: 
+  72: ---
+  73: 
+  74: ## What follows from this
+  75: 
+  76: 1. **Capability 6 must not be ported against the current harness.** The founder ruling already requires a hand-established baseline for it. This map shows the automated layer would add close to nothing on the five constraints.
+  77: 2. ~~**G1 (route existence) is buildable now.** Bounded and decidable: every internal `href`/`fetch` path in a ported capability must resolve to a route that exists in the target.~~ **This was wrong, and the record keeps it visible rather than editing it away.** G1 is *not* bounded and decidable as stated. Three rounds of "add the next form" â€” literal `href`, then `router.push` template literals, then `<Link href={expr}>` â€” established that enumerating navigation forms cannot be completed: object hrefs, wrapper components, `window.location`, callbacks passed as props, server redirects and form actions all remain, and the list has no end. **See "G1 â€” the standing ruling" below.**
+  78: 3. **OG2 (external execution) is buildable now** â€” add `child_process`/`exec`/`spawn`/`execSync` to C4's tracked set. Cheap, and it closes total-zero coverage on one named constraint.
+  79: 4. **G10 (guard deletion) needs a second direction** â€” a *decrease* check on a named safety-construct subset, not on everything.
+  80: 5. **OG3 and OG5 are not static problems.** They need either a render test with network interception, or an architectural boundary that makes execution structurally unreachable from the page.
+  81: 
+  82: ---
+  83: 
+  84: ---
+  85: 
+  86: ## G1 â€” CLOSED by runtime route exercising (2026-08-01)
+  87: 
+  88: **Status: CLOSED by C12.** C9 remains, downgraded to a cheap tripwire. The ruling that produced this is kept below because the reasoning is the reusable part.
+  89: 
+  90: Four review rounds each found the same class â€” *coverage reading wider than it is* â€” and three
+  91: of the four were G1 specifically. The response after the fourth is deliberately **not** another
+  92: detector.
+  93: 
+  94: **What was done today (item 1 of 4, and only this):**
+  95: - The check was **renamed to what it verifies**: literal `href`/`fetch`/`router` paths, described
+  96:   in its own name and failure message as a **tripwire**, not a proof. A share of the fourth
+  97:   finding was simply the test's name overclaiming, and that half was free to fix.
+  98: - **The gap stays open on this map.** Renaming is necessary and not sufficient. G1 closes when
+  99:   something actually closes it.
+ 100: 
+ 101: **What closed it: runtime route exercising. Not AST extraction.**
+ 102: 
+ 103: AST with dataflow was the reviewer's proposal and was **rejected**. It is the same uncompletable
+ 104: enumeration in better clothes â€” you still have to decide which patterns count, and wrapper
+ 105: components and computed values defeat it identically. Runtime changes the evidence from *what
+ 106: forms we looked for* to *what the surface actually does*.
+ 107: 
+ 108: That is the same fact-versus-claim distinction that made operator-gateway a rebuild rather than
+ 109: a port, and it is the distinction this whole harness keeps failing on in one direction: a static
+ 110: check can only ever report what it was told to look for, and then gets described as though it
+ 111: reported on the surface.
+ 112: 
+ 113: **Built and proven.** `scripts/route-exercise.mjs`, wired as a `handoff-loop.sh` gate.
+ 114: 
+ 115: The proof is a side-by-side on one planted defect â€” a `DECKS` entry pointing at a route that
+ 116: does not exist, reached through `<Link href={d.href}>`, which is exactly the form attempt 4
+ 117: found:
+ 118: 
+ 119: | detector | verdict on the identical defect |
+ 120: |---|---|
+ 121: | C9 regex tripwire | **27 passed â€” missed it** |
+ 122: | C12 runtime exercising | **FAIL â€” named `/command-centre/hermes-DOES-NOT-EXIST`** |
+ 123: 
+ 124: **Correction (round-1 review).** That side-by-side was really run â€” `DECKS` was edited to
+ 125: `/command-centre/hermes-DOES-NOT-EXIST`, the app rebuilt, C9 passed 27, C12 failed naming the
+ 126: route â€” but **it left no reproducible artifact**, and the reviewer was right to call the claim
+ 127: overbroad. What ships in the repo is `--plant-broken-link`, which injects an `<a>` into
+ 128: already-fetched HTML *inside* C12. That is a weaker control: it proves the fetch-and-assert half
+ 129: and never touches C9, so nobody can reproduce the comparison from the repo alone.
+ 130: 
+ 131: For a verifier that gap matters more than usual â€” the whole point is that claims be checkable.
+ 132: **Reproduce it like this:**
+ 133: 
+ 134: ```bash
+ 135: # 1. plant a computed-navigation defect in source
+ 136: perl -pi -e 's{href: "/command-centre/hermes"}{href: "/command-centre/hermes-NOPE"}'   'dashboard/app/(main)/command-centre/page.tsx'
+ 137: # 2. C9 â€” the static tripwire â€” passes, missing it
+ 138: cd dashboard && npx vitest run __tests__/command-centre-readonly.test.ts   # 27 passed
+ 139: # 3. rebuild, then C12 catches it
+ 140: npm run build && cd .. && node scripts/route-exercise.mjs                  # FAIL, names the route
+ 141: # 4. revert and rebuild
+ 142: git checkout -- 'dashboard/app/(main)/command-centre/page.tsx'
+ 143: ```
+ 144: 
+ 145: **What C12 does NOT cover, stated now rather than found in a later round:**
+ 146: - Navigation that only fires in a client event handler (`router.push` in `onClick`) is not in
+ 147:   server-rendered HTML. C9's literal scan is the only cover for that, which is why C9 stays.
+ 148: - **CLIENT-HYDRATED navigation** â€” added after round-1 review named it as the largest remaining
+ 149:   hole. C12 reads server-rendered HTML; it does not run a browser or hydrate components. A
+ 150:   `<Link>` that appears only after `useEffect`, from localStorage, at a viewport size, or once
+ 151:   client data arrives is **not exercised**. Closing this needs a real browser, which is a
+ 152:   different tool at a different cost â€” it is a bounded, statable limit, not an open enumeration.
+ 153: - Links behind a branch this run does not render (an error state, a populated-data state) are
+ 154:   not exercised. Coverage is what rendered, not what could render. Every entry page is asserted
+ 155:   200 so a page that fails to render cannot pass by emitting nothing â€” but an unrendered
+ 156:   *branch* is genuinely unmeasured.
+ 157: - External links are skipped by design; the question is whether OUR routes exist. Same-origin is
+ 158:   decided by RESOLVING each href against the page URL (`new URL(raw, pageUrl)`), so relative,
+ 159:   absolute and protocol-relative forms are handled by one rule. Round-2 review found the earlier
+ 160:   version matched only slash-prefixed hrefs, leaving rendered **relative** links unmeasured â€”
+ 161:   fixed by resolving rather than by adding a pattern, since URL resolution is decidable in a way
+ 162:   form-enumeration never was.
+ 163: - `/_next/*` build assets are excluded â€” not navigation, and `npm run build` owns them.
+ 164: 
+ 165: **Two controls it carries, both of which caught real false-greens in its own first hour:**
+ 166: 1. *Session accepted* â€” if the minted cookie were rejected, every page would redirect to login
+ 167:    and the run would happily exercise the login page and report success. A non-200 entry page
+ 168:    is a hard stop.
+ 169: 2. *Port not already in use* â€” the first version orphaned its `next start` on Windows
+ 170:    (`shell: true` + `server.kill()` kills the shell, not the grandchild). A later run attached
+ 171:    to that stale server, measured the **previous build**, and reported the planted defect
+ 172:    absent. It was caught only because a positive control expected failure and got a pass.
+ 173:    A live port is now a hard stop, and the process tree is killed with a synchronous
+ 174:    `taskkill /T /F` â€” an async kill registered on `exit` never runs, which was the second bug.
+ 175: 
+ 176: **Scope discipline, explicitly.** Re-spec the navigation detector and **nothing else**. The
+ 177: diagnosis was narrow: the design is sound, import provenance is closed, the positive controls
+ 178: are load-bearing. A narrow finding is not licence to rebuild the apparatus.
+ 179: 
+ 180: **Prerequisite â€” the reviewer must be able to execute.** The cross-vendor reviewer could not run
+ 181: the suites on three of four rounds and its build failed on the fourth; only `tsc --noEmit` was
+ 182: ever independently confirmed. That is tolerable for structural claims about code. It is **not**
+ 183: tolerable for reviewing a verifier: the re-spec's entire claim is *these checks fail red when
+ 184: they should*, which can only be confirmed by running them. Re-speccing the harness and grading
+ 185: it by assertion reproduces the exact defect being fixed. **Fix the sandbox before the re-spec
+ 186: review, not after.**
+ 187: 
+ 188: ---
+ 189: 
+ 190: *Compiled 2026-08-01 after capability 2 attempt 1 failed on G1 â€” a class the harness could not see, found by the reviewer rather than the harness. Amended after attempt 4 found G1 a third time, which is what turned it from a gap to be patched into a design to be replaced.*
+
+hook: PostToolUse
+ succeeded in 372ms:
+   1: /**
+   2:  * command-centre-readonly.test.ts â€” diff-relative conformance for ported capabilities.
+   3:  *
+   4:  * THE CLAIM THIS TEST CHECKS, and the one it deliberately does NOT:
+   5:  *
+   6:  *   CHECKS:      "this port introduces no network/DB/execution construct that the
+   7:  *                 named source baseline did not already contain."
+   8:  *   DOES NOT:    "this page makes no network call."
+   9:  *
+  10:  * The second is an unbounded negative. Three bounded attempts at capability 1 were
+  11:  * all correctly failed by cross-vendor review because the spec asked for it: there
+  12:  * is always another path (dynamic import, require, WebSocket, sendBeacon, server
+  13:  * action, transitive side effect). The code was fine every time; the spec was the
+  14:  * defect. Founder ruling 2026-08-01: take the diff-relative framing.
+  15:  *
+  16:  * A diff-relative claim is decidable â€” compare against a baseline, answer yes or no.
+  17:  * It is also only as strong as that baseline, which is why capabilities whose safety
+  18:  * properties are load-bearing (operator-gateway) require a hand-established baseline
+  19:  * recorded in the provenance file before they may be ported.
+  20:  */
+  21: import { describe, expect, it } from "vitest";
+  22: import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+  23: import { dirname, join, resolve } from "node:path";
+  24: 
+  25: const ROOT = resolve(__dirname, "..");
+  26: const PROV_RAW = JSON.parse(
+  27:   readFileSync(join(__dirname, "command-centre-provenance.json"), "utf8")
+  28: ) as Record<string, unknown>;
+  29: const PROV = PROV_RAW as unknown as {
+  30:   _baseline_root: string;
+  31:   files: Record<string, string>;
+  32:   /** Written fresh for this app. No source baseline exists, so diff-relative
+  33:    *  comparison is meaningless for these â€” they are declared, not compared. */
+  34:   _rebuilt_not_ported?: Record<string, string>;
+  35:   /** Pre-existing files of THIS app, pulled into the graph by an import. */
+  36:   _target_native?: Record<string, string>;
+  37:   /** file -> rule -> the ONE expected count change, with its reason. */
+  38:   _declared_deltas?: Record<string, Record<string, DeclaredDelta>>;
+  39: };
+  40: 
+  41: /** An exemption names the exact magnitude it excuses, not just the direction. */
+  42: interface DeclaredDelta {
+  43:   /** Count in the baseline. */
+  44:   from: number;
+  45:   /** Count the port is allowed to have â€” this value and no other. */
+  46:   to: number;
+  47:   reason: string;
+  48: }
+  49: 
+  50: /**
+  51:  * True only for the EXACT declared count change.
+  52:  *
+  53:  * This used to key on file+rule alone, which made it a blanket exclusion wearing
+  54:  * a narrower label: declaring "auth gate 3 -> 0" also excused 3 -> 1, 3 -> 2, and
+  55:  * every future auth-gate loss in that file. Cross-vendor review caught it â€”
+  56:  * "exempts any auth gate decrease in wiki-graph/page.tsx, not just the expected
+  57:  * removal". The mechanism existed to avoid a blanket exclusion and was blanket one
+  58:  * level down. An exemption now excuses one measured transition; anything else in
+  59:  * the same file, same rule, still fails.
+  60:  */
+  61: const deltaDeclared = (file: string, rule: string, from: number, to: number): boolean => {
+  62:   const d = (PROV_RAW as {
+  63:     _declared_deltas?: Record<string, Record<string, DeclaredDelta>>;
+  64:   })._declared_deltas?.[file]?.[rule];
+  65:   if (!d) return false;
+  66:   return d.from === from && d.to === to && Boolean(d.reason);
+  67: };
+  68: 
+  69: /** Files with a declared origin OR a declared reason for having none. */
+  70: const DECLARED = new Set<string>([
+  71:   ...Object.keys((PROV_RAW as { files: Record<string, string> }).files),
+  72:   ...Object.keys((PROV_RAW as { _rebuilt_not_ported?: Record<string, string> })._rebuilt_not_ported ?? {}),
+  73:   ...Object.keys((PROV_RAW as { _target_native?: Record<string, string> })._target_native ?? {}),
+  74: ]);
+  75: const BASELINE = PROV._baseline_root;
+  76: const baselineAvailable = existsSync(BASELINE);
+  77: 
+  78: /** Constructs whose COUNT must not increase relative to the baseline. */
+  79: const TRACKED: Array<{ re: RegExp; rule: string }> = [
+  80:   { re: /\bfetch\s*\(/g, rule: "network: fetch" },
+  81:   { re: /\b(axios|got|node-fetch|undici)\b/g, rule: "network: http client" },
+  82:   { re: /\b(WebSocket|EventSource|XMLHttpRequest|sendBeacon)\b/g, rule: "network: streaming/beacon" },
+  83:   { re: /\bimport\s*\(/g, rule: "dynamic import" },
+  84:   { re: /\brequire\s*\(/g, rule: "require()" },
+  85:   { re: /https?:\/\//g, rule: "remote host literal" },
+  86:   { re: /\.(insert|update|upsert|delete)\s*\(/g, rule: "database write" },
+  87:   { re: /createServerClient|createClient\s*\(/g, rule: "database client" },
+  88:   { re: /\bMcpClient\b|modelcontextprotocol/g, rule: "MCP client" },
+  89:   { re: /"use server"|'use server'/g, rule: "server action" },
+  90:   { re: /ANTHROPIC_API_KEY|OPENAI_API_KEY|STRIPE_SECRET/g, rule: "paid API key" },
+  91:   // OG2 had zero coverage until this line. External execution was tracked by nothing.
+  92:   { re: /\b(child_process|execSync|spawnSync|\bexec\s*\(|\bspawn\s*\(|\bfork\s*\()/g,
+  93:     rule: "external execution" },
+  94: ];
+  95: 
+  96: /**
+  97:  * Guards whose count must NOT DECREASE. The tracked list above is one-directional â€”
+  98:  * it fails on an increase â€” so a port that DELETES a safety check passes every one of
+  99:  * them. Cross-vendor audit named this as the single most valuable missing check:
+ 100:  * "a port that does not add new scary constructs, but removes the exact guards that
+ 101:  * made the scary surface inert."
+ 102:  */
+ 103: const GUARDS: Array<{ re: RegExp; rule: string }> = [
+ 104:   { re: /\b(dryRun|dry_run|DRY_RUN|isDryRun)\b/g, rule: "dry-run predicate" },
+ 105:   { re: /\bdisabled\b/g, rule: "disabled control" },
+ 106:   { re: /\b(readOnly|read_only|READONLY)\b/g, rule: "read-only flag" },
+ 107:   { re: /\b(requireAuth|isAuthed|getUser|getSession|redirect\s*\(\s*['"]\/auth)/g, rule: "auth gate" },
+ 108:   { re: /\b(sandbox|SANDBOX|isSandbox)\b/g, rule: "sandbox boundary" },
+ 109:   { re: /\bconfirm\s*\(|\bconfirmed\b/g, rule: "confirmation gate" },
+ 110: ];
+ 111: 
+ 112: const strip = (s: string) =>
+ 113:   s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+ 114: 
+ 115: const count = (src: string, re: RegExp) => (strip(src).match(new RegExp(re.source, "g")) || []).length;
+ 116: 
+ 117: function resolveSpec(spec: string, from: string): string | null {
+ 118:   let base: string;
+ 119:   if (spec.startsWith("@/")) base = join(ROOT, spec.slice(2));
+ 120:   else if (spec.startsWith(".")) base = resolve(dirname(from), spec);
+ 121:   else return null;
+ 122:   for (const c of [`${base}.ts`, `${base}.tsx`, join(base, "index.ts"), join(base, "index.tsx"), base]) {
+ 123:     if (existsSync(c) && statSync(c).isFile()) return c;
+ 124:   }
+ 125:   return null;
+ 126: }
+ 127: 
+ 128: /**
+ 129:  * Everything reachable from the capability entry pages, following imports.
+ 130:  *
+ 131:  * SCOPE vs .gitignore â€” recorded because every git-grounded check in this repo had to be
+ 132:  * audited for it (see ".gitignore is a silent scope reducer" in .harness/lesson-patterns.md).
+ 133:  *
+ 134:  * This walk is FILESYSTEM-grounded, not git-grounded, so .gitignore cannot silently shrink
+ 135:  * it â€” an ignored file in the import graph is still walked and still needs provenance.
+ 136:  *
+ 137:  * The exposure here is the INVERSE: a capability file that is gitignored would satisfy
+ 138:  * provenance while never entering the repo. It would run on this machine and exist nowhere
+ 139:  * else. Same family as "wired is not synced". Nothing in this suite would catch that; the
+ 140:  * check that would is fail_open_check.py Class B, which asks git whether declared evidence
+ 141:  * is actually tracked.
+ 142:  */
+ 143: function importGraph(): string[] {
+ 144:   const entries: string[] = [];
+ 145:   (function walk(d: string) {
+ 146:     if (!existsSync(d)) return;
+ 147:     for (const e of readdirSync(d)) {
+ 148:       const p = join(d, e);
+ 149:       if (statSync(p).isDirectory()) walk(p);
+ 150:       else if (e === "page.tsx") entries.push(p);
+ 151:     }
+ 152:   })(join(ROOT, "app/(main)/command-centre"));
+ 153: 
+ 154:   // The API routes are capability surface too, and seeding only from page.tsx left
+ 155:   // them out of the graph entirely. Cross-vendor review named the exact consequence:
+ 156:   // the route's own imports â€” including `@/lib/supabase/server`, the service-role
+ 157:   // client â€” could change with no provenance entry, while "no real import without an
+ 158:   // entry" still passed. The route was checked for EXISTENCE and never for what it
+ 159:   // pulls in. A reachability check that starts from the wrong roots is not narrower,
+ 160:   // it is blind in a specific direction.
+ 161:   (function walk(d: string) {
+ 162:     if (!existsSync(d)) return;
+ 163:     for (const e of readdirSync(d)) {
+ 164:       const p = join(d, e);
+ 165:       if (statSync(p).isDirectory()) walk(p);
+ 166:       else if (e === "route.ts" || e === "route.tsx") entries.push(p);
+ 167:     }
+ 168:   })(join(ROOT, "app/api/command-centre"));
+ 169: 
+ 170:   const seen = new Set<string>();
+ 171:   const queue = [...entries];
+ 172:   while (queue.length) {
+ 173:     const f = queue.pop()!;
+ 174:     if (seen.has(f) || !existsSync(f)) continue;
+ 175:     seen.add(f);
+ 176:     // Both `import x from 'y'` and the side-effect form `import 'y'`. Matching only
+ 177:     // `from '...'` let a side-effect import enter the surface unprovenanced.
+ 178:     for (const m of readFileSync(f, "utf8").matchAll(/(?:from|import)\s+['"]([^'"]+)['"]/g)) {
+ 179:       const r = resolveSpec(m[1], f);
+ 180:       if (r && !seen.has(r)) queue.push(r);
+ 181:     }
+ 182:   }
+ 183:   return [...seen];
+ 184: }
+ 185: 
+ 186: const rel = (f: string) => f.slice(ROOT.length + 1).replace(/\\/g, "/");
+ 187: 
+ 188: describe("command-centre: no new surface vs source baseline", () => {
+ 189:   const files = importGraph().map(rel);
+ 190: 
+ 191:   it("the import graph reaches beyond the capability directory (positive control)", () => {
+ 192:     expect(files.length).toBeGreaterThan(1);
+ 193:     expect(files.some((f) => f.startsWith("components/command-centre"))).toBe(true);
+ 194:   });
+ 195: 
+ 196:   it("every file in the capability surface has a declared origin", () => {
+ 197:     // A file with no provenance has no baseline, so "no new surface" is unprovable
+ 198:     // for it. Unlisted means fail, not skip.
+ 199:     const undeclared = files.filter((f) => !DECLARED.has(f));
+ 200:     expect(undeclared, `no provenance entry for:\n${undeclared.join("\n")}`).toEqual([]);
+ 201:   });
+ 202: 
+ 203:   it("the baseline is reachable, or the run is explicitly acknowledged as unverified", () => {
+ 204:     // A skipped comparison is not a passing one. Previously this only warned while
+ 205:     // the suite still went green â€” so an environment without the baseline reported
+ 206:     // success having checked nothing. It now FAILS closed. Setting
+ 207:     // CC_ALLOW_NO_BASELINE=1 is the only way past, and it makes the gap a recorded
+ 208:     // choice rather than a silent one.
+ 209:     const acknowledged = process.env.CC_ALLOW_NO_BASELINE === "1";
+ 210:     expect(
+ 211:       baselineAvailable || acknowledged,
+ 212:       `[BASELINE UNAVAILABLE] ${BASELINE} not present, so the diff-relative claim ` +
+ 213:         `was NOT verified. This suite refuses to report success without checking. ` +
+ 214:         `Provide the baseline checkout, or set CC_ALLOW_NO_BASELINE=1 to record ` +
+ 215:         `deliberately that this run proves nothing about R2/R6.`
+ 216:     ).toBe(true);
+ 217:   });
+ 218: 
+ 219:   it("detects an increase when one exists (positive control)", () => {
+ 220:     const before = count("const a = 1", /\bfetch\s*\(/);
+ 221:     const after = count("const a = fetch('x')", /\bfetch\s*\(/);
+ 222:     expect(after).toBeGreaterThan(before);
+ 223:   });
+ 224: 
+ 225:   // ---- G1 (PARTIAL): literal internal navigation must resolve to a route here ----
+ 226:   // Construct counts are identical when a ported fetch points at an API route that was
+ 227:   // never ported, so the surface passes while the control 404s. Found in capability 2
+ 228:   // by the reviewer, not by the harness.
+ 229:   //
+ 230:   // THIS IS A TRIPWIRE, NOT A PROOF, AND THE NAME NOW SAYS SO.
+ 231:   //
+ 232:   // It scans three literal forms: href="/x", fetch("/x"), and router.push/replace("/xâ€¦").
+ 233:   // It cannot see navigation through an expression â€” `<Link href={d.href}>` over a local
+ 234:   // array is in this very capability and invisible to it. Nor object hrefs, wrapper
+ 235:   // components, window.location, callbacks passed as props, server redirects, or form
+ 236:   // actions.
+ 237:   //
+ 238:   // It was previously called "every internal href/fetch resolves to a route in the
+ 239:   // target app". That name claimed the general property while checking three syntactic
+ 240:   // forms, and a reviewer found the gap for the fourth round running â€” the same class
+ 241:   // every round found: coverage reading wider than it is. Founder ruled 2026-08-01:
+ 242:   // rename to what it verifies, keep the gap OPEN on the coverage map (G1 stays open,
+ 243:   // partially mitigated), and replace the detector with runtime route exercising rather
+ 244:   // than extending the pattern list. Enumerating navigation forms is not a design that
+ 245:   // can be completed; AST extraction was considered and rejected as the same
+ 246:   // uncompletable enumeration in better clothes.
+ 247:   //
+ 248:   // Do NOT close this by adding another regex. That is the patch the ruling forbids.
+ 249:   it("literal href/fetch/router paths resolve to a route in the target app (tripwire â€” does not cover computed navigation, see G1)", () => {
+ 250:     const APP = join(ROOT, "app");
+ 251:     const routeExists = (p: string): boolean => {
+ 252:       const clean = p.split("?")[0].split("#")[0].replace(/\/$/, "");
+ 253:       if (!clean || clean === "/") return true;
+ 254:       const segs = clean.split("/").filter(Boolean);
+ 255:       // Next.js route groups "(main)" are transparent in the URL, so try every
+ 256:       // group-prefixed location as well as the bare one.
+ 257:       const groups = existsSync(APP)
+ 258:         ? readdirSync(APP).filter((d) => d.startsWith("(") && statSync(join(APP, d)).isDirectory())
+ 259:         : [];
+ 260:       const bases = [APP, ...groups.map((g) => join(APP, g))];
+ 261:       return bases.some((b) => {
+ 262:         const dir = join(b, ...segs);
+ 263:         return existsSync(join(dir, "page.tsx")) || existsSync(join(dir, "route.ts"));
+ 264:       });
+ 265:     };
+ 266: 
+ 267:     const broken: string[] = [];
+ 268:     for (const f of files) {
+ 269:       const src = strip(readFileSync(join(ROOT, f), "utf8"));
+ 270:       const paths = [
+ 271:         ...[...src.matchAll(/href=["'`](\/[^"'`]*)["'`]/g)].map((m) => m[1]),
+ 272:         ...[...src.matchAll(/fetch\(\s*["'`](\/[^"'`]*)["'`]/g)].map((m) => m[1]),
+ 273:         // Programmatic navigation, and the TEMPLATE-LITERAL form especially. This check
+ 274:         // was written to catch a ported control pointing at an unported route, and it
+ 275:         // missed exactly that: WikiGraphCanvas does
+ 276:         // `router.push(`/founder/wiki/${slug}`)`, which is not an href= and not a
+ 277:         // string literal, so every node click 404'd while this test passed. Truncate at
+ 278:         // the first `${` and check the static prefix â€” a prefix that does not exist
+ 279:         // cannot be rescued by whatever the interpolation produces.
+ 280:         ...[...src.matchAll(/router\.(?:push|replace)\(\s*["'`](\/[^"'`]*)["'`]/g)]
+ 281:           .map((m) => m[1].split("${")[0]),
+ 282:       ];
+ 283:       for (const p of new Set(paths)) {
+ 284:         if (!routeExists(p)) broken.push(`${f} -> ${p}`);
+ 285:       }
+ 286:     }
+ 287:     expect(
+ 288:       broken,
+ 289:       `literal internal paths with no matching route in the target app (these would 404):\n` +
+ 290:         `${broken.join("\n")}\n\n` +
+ 291:         `NOTE: an empty result here does NOT mean every internal navigation resolves. This ` +
+ 292:         `check sees three literal forms only. Computed navigation â€” <Link href={expr}>, ` +
+ 293:         `object hrefs, wrapper components, window.location, server redirects â€” is not ` +
+ 294:         `covered. G1 is OPEN on the coverage map.`
+ 295:     ).toEqual([]);
+ 296:   });
+ 297: 
+ 298:   // ---- G10 / Q3: a port may not DELETE a guard ----
+ 299:   // fail-open-ok: same reasoning as the tracked-construct tests â€” the separate
+ 300:   // "baseline is reachable" test FAILS when the baseline is absent, so the suite
+ 301:   // cannot go green unverified. This skip avoids a second misleading failure; it
+ 302:   // does not hide the first.
+ 303:   it.skipIf(!baselineAvailable)("no safety guard was removed relative to the baseline", () => {
+ 304:     const lost: string[] = [];
+ 305:     for (const g of GUARDS) {
+ 306:       for (const [ported, source] of Object.entries(PROV.files)) {
+ 307:         const pPath = join(ROOT, ported);
+ 308:         const sPath = join(BASELINE, source);
+ 309:         if (!existsSync(pPath) || !existsSync(sPath)) continue; // covered by the unresolved check
+ 310:         const p = count(readFileSync(pPath, "utf8"), g.re);
+ 311:         const s = count(readFileSync(sPath, "utf8"), g.re);
+ 312:         if (p < s && !deltaDeclared(ported, g.rule, s, p)) lost.push(`${g.rule} in ${ported}: ${s} -> ${p}`);
+ 313:       }
+ 314:     }
+ 315:     expect(lost, `safety guards removed vs baseline:\n${lost.join("\n")}`).toEqual([]);
+ 316:   });
+ 317: 
+ 318:   for (const t of TRACKED) {
+ 319:     // fail-open-ok: skipping here is safe because the separate "baseline is
+ 320:     // reachable" test FAILS when the baseline is absent, so the suite cannot go
+ 321:     // green unverified. The skip avoids a misleading second failure, it does not
+ 322:     // hide the first.
+ 323:     it.skipIf(!baselineAvailable)(`introduces no new â€” ${t.rule}`, () => {
+ 324:       const grew: string[] = [];
+ 325:       const unresolved: string[] = [];
+ 326:       for (const [ported, source] of Object.entries(PROV.files)) {
+ 327:         const pPath = join(ROOT, ported);
+ 328:         const sPath = join(BASELINE, source);
+ 329:         // A pair that cannot be resolved must NOT be skipped. Skipping it left the
+ 330:         // file uncompared while the suite still went green â€” a mistyped baseline
+ 331:         // path would read as "verified clean" having checked nothing.
+ 332:         if (!existsSync(pPath)) { unresolved.push(`ported missing: ${ported}`); continue; }
+ 333:         if (!existsSync(sPath)) { unresolved.push(`baseline missing: ${source} (for ${ported})`); continue; }
+ 334:         const p = count(readFileSync(pPath, "utf8"), t.re);
+ 335:         const s = count(readFileSync(sPath, "utf8"), t.re);
+ 336:         if (p > s && !deltaDeclared(ported, t.rule, s, p)) grew.push(`${ported}: ${s} -> ${p}`);
+ 337:       }
+ 338:       expect(
+ 339:         unresolved,
+ 340:         `provenance pairs could not be resolved, so these files were NOT compared:\n${unresolved.join("\n")}`
+ 341:       ).toEqual([]);
+ 342:       expect(grew, `${t.rule} increased vs baseline:\n${grew.join("\n")}`).toEqual([]);
+ 343:     });
+ 344:   }
+ 345: });
+ 346: 
+ 347: /**
+ 348:  * Import-level provenance. File provenance proves a file has a declared origin; it
+ 349:  * does NOT prove that what its imports RESOLVE TO behaves the same in both apps.
+ 350:  * `@/lib/supabase/server` resolves in the source to an anon-key RLS-enforced client
+ 351:  * and in the target to a service-role client that bypasses RLS â€” same specifier,
+ 352:  * compatible shapes, clean typecheck, silent privilege change.
+ 353:  */
+ 354: describe("command-centre: every import has a declared judgment", () => {
+ 355:   const IMPORTS = (PROV as unknown as {
+ 356:     imports?: Record<string, { specifier: string; judgment: string; note: string }>;
+ 357:   }).imports ?? {};
+ 358: 
+ 359:   it("the import map is populated (positive control)", () => {
+ 360:     // An empty map would make every assertion below vacuously true.
+ 361:     expect(Object.keys(IMPORTS).length).toBeGreaterThan(0);
+ 362:   });
+ 363: 
+ 364:   it("no import is UNDECLARED", () => {
+ 365:     const undeclared = Object.entries(IMPORTS)
+ 366:       .filter(([, v]) => v.judgment === "UNDECLARED")
+ 367:       .map(([k, v]) => `${k}\n      ${v.note}`);
+ 368:     expect(
+ 369:       undeclared,
+ 370:       `imports with no declared judgment (same | different-but-checked | must-change):\n${undeclared.join("\n")}`
+ 371:     ).toEqual([]);
+ 372:   });
+ 373: 
+ 374:   it("every judgment is one of the permitted values", () => {
+ 375:     const ok = new Set(["same", "different-but-checked", "must-change", "no-source-baseline"]);
+ 376:     const bad = Object.entries(IMPORTS)
+ 377:       .filter(([, v]) => !ok.has(v.judgment))
+ 378:       .map(([k, v]) => `${k}: '${v.judgment}'`);
+ 379:     expect(bad, `invalid judgment values:\n${bad.join("\n")}`).toEqual([]);
+ 380:   });
+ 381: 
+ 382:   /**
+ 383:    * `no-source-baseline` is the honest judgment for an import in a file that has no
+ 384:    * source counterpart â€” a rebuilt or target-native file. Comparing its imports across
+ 385:    * apps is not a check that can be run, and labelling it `must-change` would assert a
+ 386:    * comparison that never happened.
+ 387:    *
+ 388:    * It is also, obviously, an escape hatch: any import could be waved through by
+ 389:    * claiming its file has no baseline. So it is CONSTRAINED to files actually declared
+ 390:    * as baseline-free. This is the third time on this capability that a mechanism built
+ 391:    * to narrow an exclusion had to be narrowed itself â€” the pattern is that an exemption
+ 392:    * is only as tight as the thing that decides who may claim it.
+ 393:    */
+ 394:   it("'no-source-baseline' is only claimable by a file declared as having none", () => {
+ 395:     const baselineFree = new Set([
+ 396:       ...Object.keys((PROV_RAW as { _rebuilt_not_ported?: Record<string, string> })._rebuilt_not_ported ?? {}),
+ 397:       ...Object.keys((PROV_RAW as { _target_native?: Record<string, string> })._target_native ?? {}),
+ 398:     ]);
+ 399:     const bad = Object.entries(IMPORTS)
+ 400:       .filter(([, v]) => v.judgment === "no-source-baseline")
+ 401:       .map(([k]) => k)
+ 402:       .filter((k) => !baselineFree.has(k.split(" :: ")[0]));
+ 403:     expect(
+ 404:       bad,
+ 405:       "these claim 'no-source-baseline' but their file IS declared with a source baseline,\n" +
+ 406:         "so a real import comparison was owed and skipped:\n" + bad.join("\n")
+ 407:     ).toEqual([]);
+ 408:   });
+ 409: 
+ 410:   it("a 'different-but-checked' judgment carries a stated reason", () => {
+ 411:     const unexplained = Object.entries(IMPORTS)
+ 412:       .filter(([, v]) => v.judgment !== "same" && !v.note.trim())
+ 413:       .map(([k]) => k);
+ 414:     expect(unexplained, `divergent imports with no note:\n${unexplained.join("\n")}`).toEqual([]);
+ 415:   });
+ 416: 
+ 417:   /**
+ 418:    * ---- The map must match reality, in BOTH directions ----
+ 419:    *
+ 420:    * Everything above validates the map against itself. Cross-vendor review found what
+ 421:    * that permits: an entry for `knowledge/page.tsx :: @/components/command-centre/
+ 422:    * WikiEnhanceControl`, judged `must-change`, resolving to a target file that does
+ 423:    * not exist â€” for a component KI-002 deliberately omitted and the page never
+ 424:    * imports. Four assertions passed over it. A phantom entry does not merely sit
+ 425:    * there being wrong; it INFLATES the map, and the map is the thing we point at to
+ 426:    * say the import surface was reviewed. It reads as coverage.
+ 427:    *
+ 428:    * Deleting that one entry fixes one entry. These two tests fix the class: the map
+ 429:    * cannot claim an import that no file makes, and no file can make an import the map
+ 430:    * does not claim. Either direction failing is a real finding â€” the first means the
+ 431:    * map overstates what was checked, the second means something entered the surface
+ 432:    * unreviewed.
+ 433:    */
+ 434:   const ACTUAL = new Set<string>(
+ 435:     importGraph().flatMap((f) =>
+ 436:       [...readFileSync(f, "utf8").matchAll(/(?:from|import)\s+['"]([^'"]+)['"]/g)]
+ 437:         .map((m) => `${rel(f)} :: ${m[1]}`)
+ 438:     )
+ 439:   );
+ 440: 
+ 441:   it("the actual-import set is populated (positive control)", () => {
+ 442:     // Both directional tests below compare against ACTUAL. If the graph walk or the
+ 443:     // specifier regex breaks, ACTUAL empties, and "no phantom entries" would still
+ 444:     // pass while checking nothing. This is the check that stops that being silent.
+ 445:     expect(ACTUAL.size).toBeGreaterThan(0);
+ 446:   });
+ 447: 
+ 448:   it("no map entry describes an import that is not actually made", () => {
+ 449:     const phantom = Object.keys(IMPORTS).filter((k) => !ACTUAL.has(k));
+ 450:     expect(
+ 451:       phantom,
+ 452:       "provenance map entries with no corresponding import in the file named by the key.\n" +
+ 453:         "The map overstates what was reviewed â€” these were 'checked' and do not exist:\n" +
+ 454:         phantom.join("\n")
+ 455:     ).toEqual([]);
+ 456:   });
+ 457: 
+ 458:   it("every actual import in the capability graph has a map entry", () => {
+ 459:     const unmapped = [...ACTUAL].filter((k) => !(k in IMPORTS));
+ 460:     expect(
+ 461:       unmapped,
+ 462:       "imports present in the capability graph with no provenance entry â€” these entered\n" +
+ 463:         "the surface without a declared judgment:\n" + unmapped.join("\n")
+ 464:     ).toEqual([]);
+ 465:   });
+ 466: 
+ 467:   it("a map entry resolving to a target file names a file that exists", () => {
+ 468:     const missing = Object.entries(IMPORTS)
+ 469:       .map(([k, v]) => [k, /^file:\s*(.+)$/.exec(
+ 470:         (v as unknown as { resolves_in_target?: string }).resolves_in_target ?? ""
+ 471:       )] as const)
+ 472:       .filter(([, m]) => m && !existsSync(join(ROOT, m[1].trim())))
+ 473:       .map(([k, m]) => `${k} -> ${m![1].trim()}`);
+ 474:     expect(
+ 475:       missing,
+ 476:       `map entries resolving to a target file that is absent from disk:\n${missing.join("\n")}`
+ 477:     ).toEqual([]);
+ 478:   });
+ 479: });
+
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+codex
+The brief’s loop includes `handoff-loop.sh`, which writes a healthcheck log and performs its own cleanup gate. I’m running the requested commands as specified, but I won’t make any manual repository edits or fixes.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git status --short' in D:\Pi-Dev-Ops
+ succeeded in 303ms:
+ M .autogit.json
+
+hook: PostToolUse
+hook: PostToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'bash scripts/prove-controls.sh --fast' in D:\Pi-Dev-Ops
+ succeeded in 9075ms:
+
+── C-TREE — review tree-integrity detects a repo mutation
+  PASS  detects a new non-ignored file
+  PASS  restores exactly (no false positive)
+  PASS  blind to gitignored paths (documented limit, confirmed)
+
+── C-CFG — codex config detector ignores churn, catches escalation
+  PASS  ignores marketplace timestamp churn
+  PASS  detects a widened sandbox_mode
+  PASS  detects a new trusted project
+
+── C-EXEC — execution-proof grep distinguishes a run from a non-run
+  PASS  reports ABSENT when the suite did not run
+  PASS  reports FOUND when the suite did run
+
+── C10/C4 — a declared delta only excuses its EXACT magnitude
+  PASS  rejects a declared 3->1 against an actual 3->0
+  PASS  green again once the declaration matches
+
+── C-SECRETS — the scanner sees gitignored files (fixed 2026-08-02)
+  PASS  detects a secret inside a gitignored path
+
+════ CONTROLS PROVEN: pass=11 fail=0
+════ every control above was observed RED on a planted defect and GREEN without it
+
+hook: PostToolUse
+hook: PostToolUse Completed
+codex
+First loop command completed: `prove-controls.sh --fast` reported `pass=11 fail=0`. I’m moving to the full handoff gate now, with the environment variables supplied only for that shell invocation as required.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$env:PI_CEO_URL='"'https://x.invalid'; "'$env:PI_CEO_PASSWORD='"'x'; "'$env:NEXT_PUBLIC_SUPABASE_URL='"'https://lksfwktwtmyznckodsau.supabase.co'; "'$env:NEXT_PUBLIC_SUPABASE_ANON_KEY='"'x'; "'$env:SUPABASE_SERVICE_ROLE_KEY='"'x'; bash scripts/handoff-loop.sh" in D:\Pi-Dev-Ops
+ succeeded in 80400ms:
+handoff-loop 20260802-074923  root=/d/Pi-Dev-Ops  full=0 quick=0
+branch=feat/command-centre-migration  head=d9390e4d
+
+── GATE: clean-bloat
+   PASS: clean-bloat
+
+── GATE: deps-python
+   SKIP: deps-python — app venv not active / deps not importable — run --full or activate the venv
+
+── GATE: deps-node
+   PASS: deps-node
+
+── GATE: generated-agentskills
+   SKIP: generated-agentskills — python deps absent
+
+── GATE: type-python-import
+   SKIP: type-python-import — python deps absent
+
+── GATE: type-dashboard
+   PASS: type-dashboard
+
+── GATE: lint-ruff
+   PASS: lint-ruff
+
+── GATE: lint-dashboard
+   PASS: lint-dashboard
+
+── GATE: tests-python
+   SKIP: tests-python — python deps absent
+
+── GATE: tests-dashboard
+   PASS: tests-dashboard
+
+── GATE: build-dashboard
+   PASS: build-dashboard
+
+── GATE: route-exercise
+   PASS: route-exercise
+
+── GATE: audit-secrets
+   SKIP: audit-secrets — detect-secrets not installed
+
+── GATE: audit-smoke
+   SKIP: audit-smoke — python deps absent or local server not reachable on :7777
+
+════ SUMMARY  pass=8 fail=0 skip=6
+════ VERDICT: READY (with 6 skipped — env not provisioned here; treat CI as source of truth for skipped gates)
+════ log: /d/Pi-Dev-Ops/.handoff-logs/handoff-20260802-074923.log
+/d/Pi-Dev-Ops/.handoff-logs/handoff-20260802-074923.log
+
+hook: PostToolUse
+hook: PostToolUse Completed
+codex
+The handoff gate matched the expected pass/fail shape: `pass=8 fail=0 READY`, with six environment skips. Now I’m running C12 directly and then its planted-link control.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'node scripts/route-exercise.mjs' in D:\Pi-Dev-Ops
+ succeeded in 38314ms:
+    control: build is newer than source — exercising the code that is actually on disk
+    starting the built app on :3187 ...
+    control: minted session accepted (entry page 200) — the run is measuring the real surface
+    rendered 4 pages, discovered 15 distinct internal paths
+    OK — every rendered internal link resolves (15 paths exercised)
+
+hook: PostToolUse
+hook: PostToolUse Completed
+codex
+Standalone C12 exited 0 and exercised 15 rendered internal paths. I’m checking the positive control next; it should fail red and name the planted route.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'node scripts/route-exercise.mjs --plant-broken-link' in D:\Pi-Dev-Ops
+ exited 1 in 38343ms:
+    control: build is newer than source — exercising the code that is actually on disk
+    starting the built app on :3187 ...
+    control: minted session accepted (entry page 200) — the run is measuring the real surface
+    rendered 4 pages, discovered 16 distinct internal paths
+
+FAIL — internal navigation that does not resolve:
+
+  404  /command-centre/this-route-does-not-exist   (linked from: /command-centre)
+
+2026-08-01T21:52:09.616342Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 38.3 seconds
+Output:
+    control: build is newer than source — exercising the code that is actually on disk
+    starting the built app on :3187 ...
+    control: minted session accepted (entry page 200) — the run is measuring the real surface
+    rendered 4 pages, discovered 16 distinct internal paths
+
+FAIL — internal navigation that does not resolve:
+
+  404  /command-centre/this-route-does-not-exist   (linked from: /command-centre)
+
+codex
+The planted absolute-link control failed as intended with `404 /command-centre/this-route-does-not-exist`. I’m running the two targeted Vitest suites now.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'npx vitest run __tests__/command-centre-readonly.test.ts' in D:\Pi-Dev-Ops\dashboard
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'npx vitest run __tests__/command-centre-auth-coverage.test.ts' in D:\Pi-Dev-Ops\dashboard
+ succeeded in 3315ms:
+
+ RUN  v4.1.4 D:/Pi-Dev-Ops/dashboard
+
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  07:52:17
+   Duration  1.22s (transform 41ms, setup 79ms, import 64ms, tests 9ms, environment 670ms)
+
+
+hook: PostToolUse
+ succeeded in 3341ms:
+
+ RUN  v4.1.4 D:/Pi-Dev-Ops/dashboard
+
+
+ Test Files  1 passed (1)
+      Tests  27 passed (27)
+   Start at  07:52:17
+   Duration  1.29s (transform 44ms, setup 84ms, import 44ms, tests 72ms, environment 683ms)
+
+
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+codex
+The required Vitest suites passed with the expected counts. Because this round specifically concerns the relative-link fix, I’m also running the repo’s relative-link control even though the brief’s loop only lists the absolute planted-link control.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'node scripts/route-exercise.mjs --plant-relative-link' in D:\Pi-Dev-Ops
+ exited 1 in 38266ms:
+    control: build is newer than source — exercising the code that is actually on disk
+    starting the built app on :3187 ...
+    control: minted session accepted (entry page 200) — the run is measuring the real surface
+    rendered 4 pages, discovered 16 distinct internal paths
+
+FAIL — internal navigation that does not resolve:
+
+  404  /this-relative-route-404s   (linked from: /command-centre)
+
+2026-08-01T21:53:02.692382Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 38.3 seconds
+Output:
+    control: build is newer than source — exercising the code that is actually on disk
+    starting the built app on :3187 ...
+    control: minted session accepted (entry page 200) — the run is measuring the real surface
+    rendered 4 pages, discovered 16 distinct internal paths
+
+FAIL — internal navigation that does not resolve:
+
+  404  /this-relative-route-404s   (linked from: /command-centre)
+
+codex
+The relative-link control also failed red as intended, naming `/this-relative-route-404s`. I’m doing a focused source pass now for the design questions: what C12 actually extracts, what it skips, and whether its controls can still go green on the wrong surface.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg -n "command-centre|pi_session|DASHBOARD_PASSWORD|middleware|proxy" dashboard/app dashboard/middleware.ts dashboard/proxy.ts dashboard/lib' in D:\Pi-Dev-Ops
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "rg -n \"DECKS|href:|<Link|router\\.|window\\.location|useEffect|localStorage|formaction|action=|href=|redirect\\(\" dashboard/app dashboard/components dashboard/lib" in D:\Pi-Dev-Ops
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git status --short' in D:\Pi-Dev-Ops
+ exited 1 in 289ms:
+dashboard/proxy.ts:2: * proxy.ts — Next.js 16 network-boundary proxy.
+dashboard/proxy.ts:5: * 1. Auth: verifies pi_session HMAC cookie — no Railway dependency.
+dashboard/proxy.ts:29:const DASHBOARD_PASSWORD = resolvePassword().value;
+dashboard/proxy.ts:31:const COOKIE_NAME = "pi_session";
+dashboard/proxy.ts:49:  // The command-centre pages read wiki_pages through a SERVICE-ROLE client that
+dashboard/proxy.ts:51:  // `auth gate` rule on the grounds that "auth is enforced upstream by proxy.ts".
+dashboard/proxy.ts:53:  // every non-static route, but proxy() only checks a session for a path listed
+dashboard/proxy.ts:55:  // one. See __tests__/command-centre-auth-coverage.test.ts.
+dashboard/proxy.ts:56:  "/command-centre",
+dashboard/proxy.ts:67:  // Same reason as "/command-centre" above — this route serves the graph built
+dashboard/proxy.ts:69:  "/api/command-centre",
+dashboard/proxy.ts:80:  if (!DASHBOARD_PASSWORD || !token) return false;
+dashboard/proxy.ts:95:    enc.encode(DASHBOARD_PASSWORD),
+dashboard/proxy.ts:122:export async function proxy(req: NextRequest): Promise<NextResponse | Response> {
+dashboard/lib\auth-secret.ts:3:// Both app/api/auth/login/route.ts (which signs cookies) and proxy.ts (which
+dashboard/lib\auth-secret.ts:7:// "dev" in non-production while proxy returned an empty string, causing a
+dashboard/lib\auth-secret.ts:26: *   1. DASHBOARD_PASSWORD (preferred — human-facing login secret)
+dashboard/lib\auth-secret.ts:37:  const raw = (process.env.DASHBOARD_PASSWORD || process.env.PI_CEO_PASSWORD || "").trim();
+dashboard/lib\command-centre\wiki-graph.ts:1:// src/lib/command-centre/wiki-graph.ts
+dashboard/lib\command-centre\tools\catalogue.ts:1:// src/lib/command-centre/tools/catalogue.ts
+dashboard/app\api\curator-proposals\route.ts:1:// app/api/curator-proposals/route.ts — RA-1839: read-only proxy for
+dashboard/app\(main)\command-centre\knowledge\page.tsx:1:// src/app/(founder)/founder/command-centre/knowledge/page.tsx
+dashboard/app\(main)\command-centre\knowledge\page.tsx:13:import { getToolCatalogue } from '@/lib/command-centre/tools/catalogue'
+dashboard/app\(main)\command-centre\knowledge\page.tsx:14:import { WikiGraphTile } from '@/components/command-centre/wiki-graph/WikiGraphTile'
+dashboard/app\(main)\command-centre\knowledge\page.tsx:15:import { DeckDetails, DeckMoreLine, DECK_LIST_CAP } from '@/components/command-centre/DeckDetails'
+dashboard/app\(main)\command-centre\knowledge\page.tsx:16:import { DeckThemeShell } from '@/components/command-centre/DeckThemeShell'
+dashboard/app\(main)\command-centre\knowledge\page.tsx:17:import { railFor } from '@/components/command-centre/deck-visual-helpers'
+dashboard/app\(main)\command-centre\knowledge\page.tsx:18:import shell from '@/components/command-centre/shell.module.css'
+dashboard/app\(main)\command-centre\knowledge\page.tsx:19:import styles from '@/components/command-centre/command-deck.module.css'
+dashboard/app\(main)\command-centre\knowledge\page.tsx:49:      <Link href="/command-centre" className={styles.plink}>
+dashboard/app\(main)\command-centre\knowledge\page.tsx:59:              /api/command-centre/lanes/wiki/enhance, which enqueues a job into
+dashboard/app\(main)\loop\page.tsx:4:// existing endpoints via the /api/pi-ceo/* proxy — no new backend, no write actions
+dashboard/app\(main)\loop\page.tsx:5:// (kill-switch / gate-approval buttons are Phase 2, gated on proxy-auth review).
+dashboard/app\(main)\command-centre\wiki-graph\page.tsx:1:// src/app/(founder)/founder/command-centre/wiki-graph/page.tsx
+dashboard/app\(main)\command-centre\wiki-graph\page.tsx:6:// the shared pure builder (same logic the /api/command-centre/wiki-graph route
+dashboard/app\(main)\command-centre\wiki-graph\page.tsx:15:// identity. Auth is enforced upstream by proxy.ts, so there is no getUser() to call.
+dashboard/app\(main)\command-centre\wiki-graph\page.tsx:17:import { buildWikiGraph, type WikiPageRow } from '@/lib/command-centre/wiki-graph'
+dashboard/app\(main)\command-centre\wiki-graph\page.tsx:18:import { WikiGraphCanvas } from '@/components/command-centre/wiki-graph/WikiGraphCanvas'
+dashboard/app\(main)\command-centre\wiki-graph\page.tsx:64:          <Link href="/command-centre" style={{ fontSize: 11, color: 'rgba(21,128,61,0.7)', textDecoration: 'none' }}>
+dashboard/app\api\command-centre\wiki-graph\route.ts:1:// app/api/command-centre/wiki-graph/route.ts
+dashboard/app\api\command-centre\wiki-graph\route.ts:3:// GET /api/command-centre/wiki-graph — the wiki knowledge base as an interactive
+dashboard/app\api\command-centre\wiki-graph\route.ts:18:// Auth: enforced upstream by proxy.ts, which returns 401 for this path without a
+dashboard/app\api\command-centre\wiki-graph\route.ts:22:// That sentence was WRONG when first written — it said the proxy's matcher "covers
+dashboard/app\api\command-centre\wiki-graph\route.ts:23:// all non-static routes", which is true and irrelevant: proxy() only checks a
+dashboard/app\api\command-centre\wiki-graph\route.ts:24:// session for paths listed in its PROTECTED_* prefixes, and /api/command-centre was
+dashboard/app\api\command-centre\wiki-graph\route.ts:27:// __tests__/command-centre-auth-coverage.test.ts — which now fails if the prefix is
+dashboard/app\api\command-centre\wiki-graph\route.ts:32:import { buildWikiGraph, type WikiPageRow } from "@/lib/command-centre/wiki-graph";
+dashboard/app\(main)\command-centre\hermes\page.tsx:1:// src/app/(founder)/founder/command-centre/hermes-control-panel/page.tsx
+dashboard/app\(main)\command-centre\hermes\page.tsx:4:// Mirrors the Hermes web admin module list inside the Unite-Group founder command-centre.
+dashboard/app\(main)\command-centre\hermes\page.tsx:17:import { getControlPanelView } from '@/lib/command-centre/control-panel'
+dashboard/app\(main)\command-centre\hermes\page.tsx:18:import { DeckDetails, DeckMoreLine, DECK_LIST_CAP } from '@/components/command-centre/DeckDetails'
+dashboard/app\(main)\command-centre\hermes\page.tsx:19:import deckStyles from '@/components/command-centre/command-deck.module.css'
+dashboard/app\(main)\command-centre\hermes\page.tsx:21:// Deck typeface — same face + variable the command-centre deck loads, so the
+dashboard/app\(main)\command-centre\page.tsx:1:// app/(main)/command-centre/page.tsx — command-centre index.
+dashboard/app\(main)\command-centre\page.tsx:4:// /founder/command-centre and carries the full calm-cockpit shell plus tiles for
+dashboard/app\(main)\command-centre\page.tsx:10:// the route-existence check in __tests__/command-centre-readonly.test.ts fails
+dashboard/app\(main)\command-centre\page.tsx:21:    href: "/command-centre/hermes",
+dashboard/app\(main)\command-centre\page.tsx:26:    href: "/command-centre/knowledge",
+dashboard/app\(main)\command-centre\page.tsx:31:    href: "/command-centre/wiki-graph",
+dashboard/app\api\auth\login\route.ts:3:// Password is checked against DASHBOARD_PASSWORD env var directly.
+dashboard/app\api\auth\login\route.ts:4:// Session token = HMAC-SHA256(key=DASHBOARD_PASSWORD, data=issuedAt) stored as
+dashboard/app\api\auth\login\route.ts:7:// DASHBOARD_PASSWORD = human-facing login (what you type on the landing page).
+dashboard/app\api\auth\login\route.ts:8:// PI_CEO_PASSWORD    = machine-to-machine secret (Vercel proxy → Railway backend).
+dashboard/app\api\auth\login\route.ts:10:// should be expected to type. Set DASHBOARD_PASSWORD in Vercel env to whatever
+dashboard/app\api\auth\login\route.ts:13:// Secret resolution lives in lib/auth-secret.ts so proxy.ts (cookie verifier)
+dashboard/app\api\auth\login\route.ts:16:// the proxy validated with a different one. Edit there to change behaviour.
+dashboard/app\api\auth\login\route.ts:19:const { value: DASHBOARD_PASSWORD, dev: isDevMode, reason: secretReason } = resolvePassword();
+dashboard/app\api\auth\login\route.ts:22:    `[auth] DASHBOARD_PASSWORD ${secretReason === "unresolved-1password" ? "is an unresolved 1Password ref" : "is unset"}. Falling back to dev password "dev". Set DASHBOARD_PASSWORD=<plaintext> in .env.local to override.`,
+dashboard/app\api\auth\login\route.ts:26:const COOKIE_NAME = "pi_session";
+dashboard/app\api\auth\login\route.ts:44:  if (!DASHBOARD_PASSWORD) {
+dashboard/app\api\auth\login\route.ts:48:          "Auth not configured: DASHBOARD_PASSWORD env var is missing or contains an unresolved 1Password reference. Set DASHBOARD_PASSWORD=<plaintext> in Vercel env.",
+dashboard/app\api\auth\login\route.ts:63:  const expectedHmac = await hmac(DASHBOARD_PASSWORD, "auth-check");
+dashboard/app\api\auth\login\route.ts:71:  const sig = await hmac(DASHBOARD_PASSWORD, issuedAt);
+dashboard/app\api\analyze\route.ts:92:      // ── Keepalive: comment ping every 15s to prevent proxy buffering ───────
+dashboard/app\api\webhook\intake\route.ts:2:// Validates X-Intake-Secret against INTAKE_WEBHOOK_SECRET before proxying to the
+dashboard/app\api\webhook\intake\route.ts:5:// same proxy pattern the morning-intel webhook uses (RA-1686).
+dashboard/app\api\webhook\morning-intel\route.ts:2:// Validates X-Pi-CEO-Secret against WEBHOOK_SECRET before proxying to Railway.
+dashboard/app\api\swarm-status\route.ts:1:// app/api/swarm-status/route.ts — proxy Railway /api/autonomy/status (RA-1092)
+dashboard/app\api\kill-switch\route.ts:1:// app/api/kill-switch/route.ts — RA-1839: proxy /api/swarm/{status,kill,resume}
+dashboard/app\api\kill-switch\route.ts:9:// shape; a single proxy keeps the dashboard surface tight. The frontend
+dashboard/app\api\actions\route.ts:148:        // GITHUB_TOKEN, VERCEL_TOKEN, TELEGRAM_BOT_TOKEN, DASHBOARD_PASSWORD and more —
+dashboard/app\api\phone\gate\route.ts:2:// Checks session cookie before proxying to Railway; returns 401 if missing.
+dashboard/app\api\pi-ceo\[...path]\route.ts:55:          source: "proxy_fallback",
+dashboard/app\api\pi-ceo\[...path]\route.ts:69:              evidence_required: ["proxy route returns backend mission-control payload"],
+dashboard/app\api\pi-ceo\[...path]\route.ts:105:async function proxyRequest(method: string, path: string, body?: string): Promise<Response> {
+dashboard/app\api\pi-ceo\[...path]\route.ts:164:async function proxySse(path: string, clientSignal: AbortSignal): Promise<Response> {
+dashboard/app\api\pi-ceo\[...path]\route.ts:233:      hint: "This proxy forwards an explicit allowlist. Add the route to ALLOWED_UPSTREAM if it is legitimate.",
+dashboard/app\api\pi-ceo\[...path]\route.ts:247:    return proxySse(pathStr, request.signal);
+dashboard/app\api\pi-ceo\[...path]\route.ts:249:  return proxyRequest("GET", pathStr);
+dashboard/app\api\pi-ceo\[...path]\route.ts:260:  return proxyRequest("POST", pathStr, body);
+dashboard/app\api\phone\progress\route.ts:2:// Checks session cookie before proxying to Railway; returns 401 if missing.
+rg: dashboard/middleware.ts: The system cannot find the file specified. (os error 2)
+
+2026-08-01T21:53:08.046343Z ERROR codex_core::tools::router: error=Exit code: 1
+Wall time: 0.3 seconds
+Output:
+dashboard/proxy.ts:2: * proxy.ts — Next.js 16 network-boundary proxy.
+dashboard/proxy.ts:5: * 1. Auth: verifies pi_session HMAC cookie — no Railway dependency.
+dashboard/proxy.ts:29:const DASHBOARD_PASSWORD = resolvePassword().value;
+dashboard/proxy.ts:31:const COOKIE_NAME = "pi_session";
+dashboard/proxy.ts:49:  // The command-centre pages read wiki_pages through a SERVICE-ROLE client that
+dashboard/proxy.ts:51:  // `auth gate` rule on the grounds that "auth is enforced upstream by proxy.ts".
+dashboard/proxy.ts:53:  // every non-static route, but proxy() only checks a session for a path listed
+dashboard/proxy.ts:55:  // one. See __tests__/command-centre-auth-coverage.test.ts.
+dashboard/proxy.ts:56:  "/command-centre",
+dashboard/proxy.ts:67:  // Same reason as "/command-centre" above — this route serves the graph built
+dashboard/proxy.ts:69:  "/api/command-centre",
+dashboard/proxy.ts:80:  if (!DASHBOARD_PASSWORD || !token) return false;
+dashboard/proxy.ts:95:    enc.encode(DASHBOARD_PASSWORD),
+dashboard/proxy.ts:122:export async function proxy(req: NextRequest): Promise<NextResponse | Response> {
+dashboard/lib\auth-secret.ts:3:// Both app/api/auth/login/route.ts (which signs cookies) and proxy.ts (which
+dashboard/lib\auth-secret.ts:7:// "dev" in non-production while proxy returned an empty string, causing a
+dashboard/lib\auth-secret.ts:26: *   1. DASHBOARD_PASSWORD (preferred — human-facing login secret)
+dashboard/lib\auth-secret.ts:37:  const raw = (process.env.DASHBOARD_PASSWORD || process.env.PI_CEO_PASSWORD || "").trim();
+dashboard/lib\command-centre\wiki-graph.ts:1:// src/lib/command-centre/wiki-graph.ts
+dashboard/lib\command-centre\tools\catalogue.ts:1:// src/lib/command-centre/tools/catalogue.ts
+dashboard/app\api\curator-proposals\route.ts:1:// app/api/curator-proposals/route.ts — RA-1839: read-only proxy for
+dashboard/app\(main)\command-centre\knowledge\page.tsx:1:// src/app/(founder)/founder/command-centre/knowledge/page.tsx
+dashboard/app\(main)\command-centre\knowledge\page.tsx:13:import { getToolCatalogue } from '@/lib/command-centre/tools/catalogue'
+dashboard/app\(main)\command-centre\knowledge\page.tsx:14:import { WikiGraphTile } from '@/components/command-centre/wiki-graph/WikiGraphTile'
+dashboard/app\(main)\command-centre\knowledge\page.tsx:15:import { DeckDetails, DeckMoreLine, DECK_LIST_CAP } from '@/components/command-centre/DeckDetails'
+dashboard/app\(main)\command-centre\knowledge\page.tsx:16:import { DeckThemeShell } from '@/components/command-centre/DeckThemeShell'
+dashboard/app\(main)\command-centre\knowledge\page.tsx:17:import { railFor } from '@/components/command-centre/deck-visual-helpers'
+dashboard/app\(main)\command-centre\knowledge\page.tsx:18:import shell from '@/components/command-centre/shell.module.css'
+dashboard/app\(main)\command-centre\knowledge\page.tsx:19:import styles from '@/components/command-centre/command-deck.module.css'
+dashboard/app\(main)\command-centre\knowledge\page.tsx:49:      <Link href="/command-centre" className={styles.plink}>
+dashboard/app\(main)\command-centre\knowledge\page.tsx:59:              /api/command-centre/lanes/wiki/enhance, which enqueues a job into
+dashboard/app\(main)\loop\page.tsx:4:// existing endpoints via the /api/pi-ceo/* proxy — no new backend, no write actions
+dashboard/app\(main)\loop\page.tsx:5:// (kill-switch / gate-approval buttons are Phase 2, gated on proxy-auth review).
+dashboard/app\(main)\command-centre\wiki-graph\page.tsx:1:// src/app/(founder)/founder/command-centre/wiki-graph/page.tsx
+dashboard/app\(main)\command-centre\wiki-graph\page.tsx:6:// the shared pure builder (same logic the /api/command-centre/wiki-graph route
+dashboard/app\(main)\command-centre\wiki-graph\page.tsx:15:// identity. Auth is enforced upstream by proxy.ts, so there is no getUser() to call.
+dashboard/app\(main)\command-centre\wiki-graph\page.tsx:17:import { buildWikiGraph, type WikiPageRow } from '@/lib/command-centre/wiki-graph'
+dashboard/app\(main)\command-centre\wiki-graph\page.tsx:18:import { WikiGraphCanvas } from '@/components/command-centre/wiki-graph/WikiGraphCanvas'
+dashboard/app\(main)\command-centre\wiki-graph\page.tsx:64:          <Link href="/command-centre" style={{ fontSize: 11, color: 'rgba(21,128,61,0.7)', textDecoration: 'none' }}>
+dashboard/app\api\command-centre\wiki-graph\route.ts:1:// app/api/command-centre/wiki-graph/route.ts
+dashboard/app\api\command-centre\wiki-graph\route.ts:3:// GET /api/command-centre/wiki-graph — the wiki knowledge base as an interactive
+dashboard/app\api\command-centre\wiki-graph\route.ts:18:// Auth: enforced upstream by proxy.ts, which returns 401 for this path without a
+dashboard/app\api\command-centre\wiki-graph\route.ts:22:// That sentence was WRONG when first written — it said the proxy's matcher "covers
+dashboard/app\api\command-centre\wiki-graph\route.ts:23:// all non-static routes", which is true and irrelevant: proxy() only checks a
+dashboard/app\api\command-centre\wiki-graph\route.ts:24:// session for paths listed in its PROTECTED_* prefixes, and /api/command-centre was
+dashboard/app\api\command-centre\wiki-graph\route.ts:27:// __tests__/command-centre-auth-coverage.test.ts — which now fails if the prefix is
+dashboard/app\api\command-centre\wiki-graph\route.ts:32:import { buildWikiGraph, type WikiPageRow } from "@/lib/command-centre/wiki-graph";
+dashboard/app\(main)\command-centre\hermes\page.tsx:1:// src/app/(founder)/founder/command-centre/hermes-control-panel/page.tsx
+dashboard/app\(main)\command-centre\hermes\page.tsx:4:// Mirrors the Hermes web admin module list inside the Unite-Group founder command-centre.
+dashboard/app\(main)\command-centre\hermes\page.tsx:17:import { getControlPanelView } from '@/lib/command-centre/control-panel'
+dashboard/app\(main)\command-centre\hermes\page.tsx:18:import { DeckDetails, DeckMoreLine, DECK_LIST_CAP } from '@/components/command-centre/DeckDetails'
+dashboard/app\(main)\command-centre\hermes\page.tsx:19:import deckStyles from '@/components/command-centre/command-deck.module.css'
+dashboard/app\(main)\command-centre\hermes\page.tsx:21:// Deck typeface — same face + variable the command-centre deck loads, so the
+dashboard/app\(main)\command-centre\page.tsx:1:// app/(main)/command-centre/page.tsx — command-centre index.
+dashboard/app\(main)\command-centre\page.tsx:4:// /founder/command-centre and carries the full calm-cockpit shell plus tiles for
+dashboard/app\(main)\command-centre\page.tsx:10:// the route-existence check in __tests__/command-centre-readonly.test.ts fails
+dashboard/app\(main)\command-centre\page.tsx:21:    href: "/command-centre/hermes",
+dashboard/app\(main)\command-centre\page.tsx:26:    href: "/command-centre/knowledge",
+dashboard/app\(main)\command-centre\page.tsx:31:    href: "/command-centre/wiki-graph",
+dashboard/app\api\auth\login\route.ts:3:// Password is checked against DASHBOARD_PASSWORD env var directly.
+dashboard/app\api\auth\login\route.ts:4:// Session token = HMAC-SHA256(key=DASHBOARD_PASSWORD, data=issuedAt) stored as
+dashboard/app\api\auth\login\route.ts:7:// DASHBOARD_PASSWORD = human-facing login (what you type on the landing page).
+dashboard/app\api\auth\login\route.ts:8:// PI_CEO_PASSWORD    = machine-to-machine secret (Vercel proxy → Railway backend).
+dashboard/app\api\auth\login\route.ts:10:// should be expected to type. Set DASHBOARD_PASSWORD in Vercel env to whatever
+dashboard/app\api\auth\login\route.ts:13:// Secret resolution lives in lib/auth-secret.ts so proxy.ts (cookie verifier)
+dashboard/app\api\auth\login\route.ts:16:// the proxy validated with a different one. Edit there to change behaviour.
+dashboard/app\api\auth\login\route.ts:19:const { value: DASHBOARD_PASSWORD, dev: isDevMode, reason: secretReason } = resolvePassword();
+dashboard/app\api\auth\login\route.ts:22:    `[auth] DASHBOARD_PASSWORD ${secretReason === "unresolved-1password" ? "is an unresolved 1Password ref" : "is unset"}. Falling back to dev password "dev". Set DASHBOARD_PASSWORD=<plaintext> in .env.local to override.`,
+dashboard/app\api\auth\login\route.ts:26:const COOKIE_NAME = "pi_session";
+dashboard/app\api\auth\login\route.ts:44:  if (!DASHBOARD_PASSWORD) {
+dashboard/app\api\auth\login\route.ts:48:          "Auth not configured: DASHBOARD_PASSWORD env var is missing or contains an unresolved 1Password reference. Set DASHBOARD_PASSWORD=<plaintext> in Vercel env.",
+dashboard/app\api\auth\login\route.ts:63:  const expectedHmac = await hmac(DASHBOARD_PASSWORD, "auth-check");
+dashboard/app\api\auth\login\route.ts:71:  const sig = await hmac(DASHBOARD_PASSWORD, issuedAt);
+dashboard/app\api\analyze\route.ts:92:      // ── Keepalive: comment ping every 15s to prevent proxy buffering ───────
+dashboard/app\api\webhook\intake\route.ts:2:// Validates X-Intake-Secret against INTAKE_WEBHOOK_SECRET before proxying to the
+dashboard/app\api\webhook\intake\route.ts:5:// same proxy pattern the morning-intel webhook uses (RA-1686).
+dashboard/app\api\webhook\morning-intel\route.ts:2:// Validates X-Pi-CEO-Secret against WEBHOOK_SECRET before proxying to Railway.
+dashboard/app\api\swarm-status\route.ts:1:// app/api/swarm-status/route.ts — proxy Railway /api/autonomy/status (RA-1092)
+dashboard/app\api\kill-switch\route.ts:1:// app/api/kill-switch/route.ts — RA-1839: proxy /api/swarm/{status,kill,resume}
+dashboard/app\api\kill-switch\route.ts:9:// shape; a single proxy keeps the dashboard surface tight. The frontend
+dashboard/app\api\actions\route.ts:148:        // GITHUB_TOKEN, VERCEL_TOKEN, TELEGRAM_BOT_TOKEN, DASHBOARD_PASSWORD and more —
+dashboard/app\api\phone\gate\route.ts:2:// Checks session cookie before proxying to Railway; returns 401 if missing.
+dashboard/app\api\pi-ceo\[...path]\route.ts:55:          source: "proxy_fallback",
+dashboard/app\api\pi-ceo\[...path]\route.ts:69:              evidence_required: ["proxy route returns backend mission-control payload"],
+dashboard/app\api\pi-ceo\[...path]\route.ts:105:async function proxyRequest(method: string, path: string, body?: string): Promise<Response> {
+dashboard/app\api\pi-ceo\[...path]\route.ts:164:async function proxySse(path: string, clientSignal: AbortSignal): Promise<Response> {
+dashboard/app\api\pi-ceo\[...path]\route.ts:233:      hint: "This proxy forwards an explicit allowlist. Add the route to ALLOWED_UPSTREAM if it is legitimate.",
+dashboard/app\api\pi-ceo\[...path]\route.ts:247:    return proxySse(pathStr, request.signal);
+dashboard/app\api\pi-ceo\[...path]\route.ts:249:  return proxyRequest("GET", pathStr);
+dashboard/app\api\pi-ceo\[...path]\route.ts:260:  return proxyRequest("POST", pathStr, body);
+dashboard/app\api\phone\progress\route.ts:2:// Checks session cookie before proxying to Railway; returns 401 if missing.
+rg: dashboard/middleware.ts: The system cannot find the file specified. (os error 2)
+
+ succeeded in 287ms:
+dashboard/app\page.tsx:33:        router.push(redirect);
+dashboard/app\not-found.tsx:21:        <Link
+dashboard/app\not-found.tsx:22:          href="/control"
+dashboard/app\layout.tsx:24:  const themeInit = `(function(){try{var t=localStorage.getItem('pi-theme');document.documentElement.className=(t==='light'?'light':'dark')+' ${sans.variable} ${mono.variable}';}catch(e){}})();`;
+dashboard/app\layout.tsx:27:    // mutates <html>.className from localStorage before React hydrates. Without this
+dashboard/app\layout.tsx:29:    // localStorage-driven themes (next-themes uses the same technique).
+dashboard/components\BriefBuilder.tsx:4:import { useState, useEffect, useRef, useCallback } from "react";
+dashboard/components\BriefBuilder.tsx:65:  useEffect(() => {
+dashboard/components\BriefBuilder.tsx:70:  useEffect(() => {
+dashboard/components\Terminal.tsx:4:import { useEffect, useRef } from "react";
+dashboard/components\Terminal.tsx:69:  useEffect(() => {
+dashboard/components\Terminal.tsx:125:  useEffect(() => {
+dashboard/app\error.tsx:4:import { useEffect } from "react";
+dashboard/app\error.tsx:14:  useEffect(() => {
+dashboard/app\error.tsx:55:            href="/control"
+dashboard/components\ThemeToggle.tsx:2:// components/ThemeToggle.tsx — sun/moon toggle persisted to localStorage
+dashboard/components\ThemeToggle.tsx:4:import { useEffect, useState } from "react";
+dashboard/components\ThemeToggle.tsx:12:  useEffect(() => {
+dashboard/components\ThemeToggle.tsx:14:    // localStorage + the dark-first default), not a fresh re-read.
+dashboard/components\ThemeToggle.tsx:22:    localStorage.setItem("pi-theme", next);
+dashboard/components\control\BuildForm.tsx:4:import { useEffect, useRef, useState } from "react";
+dashboard/components\control\BuildForm.tsx:32:  useEffect(() => {
+dashboard/components\control\BuildForm.tsx:40:  useEffect(() => {
+dashboard/components\control\BuildForm.tsx:44:  useEffect(() => {
+dashboard/components\control\BuildForm.tsx:48:  useEffect(() => {
+dashboard/components\control\BuildForm.tsx:222:            href={prUrl}
+dashboard/components\margot\MargotBubble.tsx:5:import { useEffect, useRef, useState } from "react";
+dashboard/components\margot\MargotBubble.tsx:45:  useEffect(() => {
+dashboard/components\control\CuratorProposalsPanel.tsx:9:import { useEffect, useState, useCallback } from "react";
+dashboard/components\control\CuratorProposalsPanel.tsx:60:  useEffect(() => {
+dashboard/components\CeoHealthPanel.tsx:4:import { useEffect, useState } from "react";
+dashboard/components\CeoHealthPanel.tsx:81:  useEffect(() => {
+dashboard/components\control\ActiveBuildStrip.tsx:12:import { useEffect, useRef, useState } from "react";
+dashboard/components\control\ActiveBuildStrip.tsx:76:  useEffect(() => {
+dashboard/components\control\ActiveBuildStrip.tsx:81:  useEffect(() => {
+dashboard/components\control\ActiveBuildStrip.tsx:183:  useEffect(() => {
+dashboard/components\control\KillSwitchPanel.tsx:12:import { useEffect, useState, useCallback } from "react";
+dashboard/components\control\KillSwitchPanel.tsx:44:  useEffect(() => {
+dashboard/components\control\LiveActivityFeed.tsx:11:import { useEffect, useState } from "react";
+dashboard/components\control\LiveActivityFeed.tsx:179:  useEffect(() => {
+dashboard/components\control\LiveActivityFeed.tsx:214:  useEffect(() => {
+dashboard/components\control\LiveActivityFeed.tsx:451:                        href={c.pr_url}
+dashboard/components\control\HealthGrid.tsx:5:import { useCallback, useEffect, useRef, useState } from "react";
+dashboard/components\control\HealthGrid.tsx:107:  useEffect(() => {
+dashboard/components\control\HealthGrid.tsx:242:  useEffect(() => {
+dashboard/components\control\HealthGrid.tsx:522:  useEffect(() => {
+dashboard/components\control\HealthGrid.tsx:559:  useEffect(() => {
+dashboard/components\control\HealthGrid.tsx:589:  useEffect(() => {
+dashboard/components\control\MargotAssetsPanel.tsx:4:import { useCallback, useEffect, useState } from "react";
+dashboard/components\control\MargotAssetsPanel.tsx:83:  useEffect(() => {
+dashboard/components\control\MargotAssetsPanel.tsx:87:  useEffect(() => {
+dashboard/components\ClearHistoryButton.tsx:25:      router.refresh();
+dashboard/components\control\ModelBadge.tsx:4:import { useEffect, useState } from "react";
+dashboard/components\control\ModelBadge.tsx:34:  useEffect(() => {
+dashboard/components\brain\BrainStatusPanel.tsx:3:import { useCallback, useEffect, useState } from "react";
+dashboard/components\brain\BrainStatusPanel.tsx:165:  useEffect(() => {
+dashboard/components\brain\BrainStatusPanel.tsx:277:            href={s.prUrl}
+dashboard/components\control\ProjectSelector.tsx:5:// to localStorage, and emits a CustomEvent('pi-active-project-changed') so
+dashboard/components\control\ProjectSelector.tsx:8:// Why localStorage + CustomEvent instead of a context:
+dashboard/components\control\ProjectSelector.tsx:16:import { useEffect, useState } from "react";
+dashboard/components\control\ProjectSelector.tsx:29:    const raw = window.localStorage.getItem(STORAGE_KEY);
+dashboard/components\control\ProjectSelector.tsx:40:    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
+dashboard/components\control\ProjectSelector.tsx:42:    window.localStorage.removeItem(STORAGE_KEY);
+dashboard/components\control\ProjectSelector.tsx:52:  useEffect(() => {
+dashboard/components\control\ProjectSelector.tsx:71:  useEffect(() => {
+dashboard/components\control\ProjectSelector.tsx:86:  useEffect(() => {
+dashboard/components\command-centre\DeckThemeShell.tsx:7:import { useEffect, useState, type ReactNode } from 'react'
+dashboard/components\command-centre\DeckThemeShell.tsx:15:  // The persisted store rehydrates from localStorage before the first client
+dashboard/components\command-centre\DeckThemeShell.tsx:21:  useEffect(() => setHydrated(true), [])
+dashboard/components\control\RoutineTable.tsx:4:import { useCallback, useEffect, useState } from "react";
+dashboard/components\control\RoutineTable.tsx:87:  useEffect(() => {
+dashboard/components\control\SwarmPanel.tsx:5:import { useEffect, useState } from "react";
+dashboard/components\control\SwarmPanel.tsx:45:  useEffect(() => {
+dashboard/components\control\SwarmPanel.tsx:192:                  href={data.last_pr_url}
+dashboard/components\control\SpecPipelinePanel.tsx:3:import { useCallback, useEffect, useRef, useState } from "react";
+dashboard/components\control\SpecPipelinePanel.tsx:127:  useEffect(() => {
+dashboard/components\control\SpecPipelinePanel.tsx:131:  useEffect(() => {
+dashboard/components\control\SpecPipelinePanel.tsx:265:                  — <a href={live.meta.pr_url}>PR</a>
+dashboard/components\control\TopBar.tsx:4:import { useEffect, useState } from "react";
+dashboard/components\control\TopBar.tsx:17:  useEffect(() => {
+dashboard/components\control\TopBar.tsx:28:  useEffect(() => {
+dashboard/app\(main)\dashboard\page.tsx:5:  redirect("/control");
+dashboard/components\control\TerminalPanel.tsx:7:import { useCallback, useEffect, useState } from "react";
+dashboard/components\control\TerminalPanel.tsx:58:  useEffect(() => {
+dashboard/components\control\TerminalPanel.tsx:79:  useEffect(() => {
+dashboard/components\command-centre\wiki-graph\WikiGraphTile.tsx:10:import { useEffect, useState } from 'react'
+dashboard/components\command-centre\wiki-graph\WikiGraphTile.tsx:25:  useEffect(() => {
+dashboard/components\command-centre\wiki-graph\WikiGraphTile.tsx:66:      <Link
+dashboard/components\command-centre\wiki-graph\WikiGraphTile.tsx:67:        href="/command-centre/wiki-graph"
+dashboard/components\command-centre\wiki-graph\WikiGraphCanvas.tsx:12:import { useEffect, useRef, useState, useCallback } from 'react'
+dashboard/components\command-centre\wiki-graph\WikiGraphCanvas.tsx:111:  useEffect(() => {
+dashboard/app\(main)\command-centre\wiki-graph\page.tsx:64:          <Link href="/command-centre" style={{ fontSize: 11, color: 'rgba(21,128,61,0.7)', textDecoration: 'none' }}>
+dashboard/app\(main)\loop\page.tsx:8:import { useCallback, useEffect, useState } from "react";
+dashboard/app\(main)\loop\page.tsx:114:  useEffect(() => {
+dashboard/app\(main)\command-centre\page.tsx:19:const DECKS = [
+dashboard/app\(main)\command-centre\page.tsx:21:    href: "/command-centre/hermes",
+dashboard/app\(main)\command-centre\page.tsx:26:    href: "/command-centre/knowledge",
+dashboard/app\(main)\command-centre\page.tsx:31:    href: "/command-centre/wiki-graph",
+dashboard/app\(main)\command-centre\page.tsx:48:        {DECKS.map((d) => (
+dashboard/app\(main)\command-centre\page.tsx:50:            <Link
+dashboard/app\(main)\command-centre\page.tsx:51:              href={d.href}
+dashboard/app\(main)\layout.tsx:9:import { useEffect, useState } from "react";
+dashboard/app\(main)\layout.tsx:12:  { href: "/overview",  label: "Overview",  icon: "◈", key: "overview"  },
+dashboard/app\(main)\layout.tsx:13:  { href: "/brain",     label: "Brain",     icon: "◎", key: "brain"     },
+dashboard/app\(main)\layout.tsx:14:  { href: "/control",   label: "Control",   icon: "⊞", key: "control"   },
+dashboard/app\(main)\layout.tsx:15:  { href: "/loop",      label: "Loop",      icon: "∞", key: "loop"      },
+dashboard/app\(main)\layout.tsx:16:  { href: "/builds",    label: "Builds",    icon: "⚙", key: "builds"   },
+dashboard/app\(main)\layout.tsx:17:  { href: "/routines",  label: "Routines",  icon: "↻", key: "routines"  },
+dashboard/app\(main)\layout.tsx:18:  { href: "/projects",  label: "Portfolio", icon: "◫", key: "projects"  },
+dashboard/app\(main)\layout.tsx:19:  { href: "/chat",      label: "Chat",      icon: "◉", key: "chat"     },
+dashboard/app\(main)\layout.tsx:20:  { href: "/history",   label: "History",   icon: "☰", key: "history"  },
+dashboard/app\(main)\layout.tsx:21:  { href: "/settings",  label: "Settings",  icon: "⊙", key: "settings" },
+dashboard/app\(main)\layout.tsx:33:  useEffect(() => {
+dashboard/app\(main)\layout.tsx:107:        <Link
+dashboard/app\(main)\layout.tsx:108:          href="/"
+dashboard/app\(main)\layout.tsx:136:              <Link
+dashboard/app\(main)\layout.tsx:138:                href={href}
+dashboard/app\(main)\layout.tsx:185:        <Link href="/" className="flex items-center gap-2">
+dashboard/app\(main)\layout.tsx:213:            <Link
+dashboard/app\(main)\layout.tsx:215:              href={href}
+dashboard/app\(main)\projects\page.tsx:5:import { useEffect, useState, useCallback } from "react";
+dashboard/app\(main)\projects\page.tsx:72:  useEffect(() => {
+dashboard/app\(main)\history\page.tsx:86:                  <a href={s.repo_url} target="_blank" rel="noopener noreferrer"
+dashboard/app\(main)\history\page.tsx:122:                    ? <a href={s.pr_url} target="_blank" rel="noopener noreferrer"
+dashboard/app\(main)\history\page.tsx:142:                href={s.repo_url}
+dashboard/app\(main)\history\page.tsx:152:                  href={s.pr_url}
+dashboard/app\(main)\command-centre\knowledge\page.tsx:49:      <Link href="/command-centre" className={styles.plink}>
+dashboard/app\(main)\overview\page.tsx:4:import { useEffect, useState } from "react";
+dashboard/app\(main)\overview\page.tsx:199:  useEffect(() => {
+dashboard/app\(main)\overview\page.tsx:242:        <Link
+dashboard/app\(main)\overview\page.tsx:243:          href="/control"
+dashboard/app\(main)\overview\page.tsx:349:                  <Link
+dashboard/app\(main)\overview\page.tsx:350:                    href="/control"
+dashboard/app\(main)\overview\page.tsx:497:                    { label: "Run Analysis", href: "/dashboard" },
+dashboard/app\(main)\overview\page.tsx:498:                    { label: "Build History", href: "/history" },
+dashboard/app\(main)\overview\page.tsx:499:                    { label: "Active Builds", href: "/builds" },
+dashboard/app\(main)\overview\page.tsx:500:                    { label: "Settings", href: "/settings" },
+dashboard/app\(main)\overview\page.tsx:502:                    <Link
+dashboard/app\(main)\overview\page.tsx:504:                      href={href}
+dashboard/app\(main)\routines\page.tsx:4:import { useEffect, useState, useCallback } from "react";
+dashboard/app\(main)\routines\page.tsx:205:                href={run.run_url}
+dashboard/app\(main)\routines\page.tsx:249:  useEffect(() => {
+dashboard/app\(main)\health\page.tsx:5:  redirect("/control");
+dashboard/app\(main)\builds\page.tsx:4:import { useEffect, useState, useCallback, useRef } from "react";
+dashboard/app\(main)\builds\page.tsx:160:  useEffect(() => { onPhaseMetricRef.current = onPhaseMetric; });
+dashboard/app\(main)\builds\page.tsx:162:  useEffect(() => {
+dashboard/app\(main)\builds\page.tsx:206:  useEffect(() => {
+dashboard/app\(main)\builds\page.tsx:387:  useEffect(() => {
+dashboard/app\(main)\chat\page.tsx:4:import { useState, useEffect, useRef } from "react";
+dashboard/app\(main)\chat\page.tsx:16:  useEffect(() => {
+dashboard/app\(main)\chat\page.tsx:18:      const stored = localStorage.getItem(SESSION_KEY);
+dashboard/app\(main)\chat\page.tsx:23:  useEffect(() => {
+dashboard/app\(main)\chat\page.tsx:52:      localStorage.setItem(SESSION_KEY, JSON.stringify(final.slice(-50)));
+dashboard/app\(main)\chat\page.tsx:62:    localStorage.removeItem(SESSION_KEY);
+
+hook: PostToolUse
+ succeeded in 298ms:
+ M .autogit.json
+
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$i=0; Get-Content "scripts'"\\prove-controls.sh\" | ForEach-Object { "'$i++; "{0,4}: {1}" -f $i, $_ }' in D:\Pi-Dev-Ops
+ succeeded in 331ms:
+   1: #!/usr/bin/env bash
+   2: # prove-controls.sh â€” run each control against a PLANTED DEFECT and prove it goes red.
+   3: #
+   4: # WHY THIS IS IN THE REPO
+   5: #
+   6: # Every control built on 2026-08-01/02 was proven by watching a terminal. Those transcripts
+   7: # live in `.harness/*.txt`, which is gitignored â€” so the proof that the harness works was
+   8: # not in the harness. Third instance of that shape after `incidents.jsonl` (evidence that
+   9: # existed only on one machine) and `proof-discipline` (a lesson that lived only in a
+  10: # gitignored skills dir). A verifier's proof must be reproducible from the repo, not
+  11: # asserted from a transcript nobody else can read.
+  12: #
+  13: # Each check below plants a defect the control MUST catch, asserts it goes red, removes the
+  14: # defect, and asserts it goes green again. A control that cannot be shown to fail is not a
+  15: # control. See "The First Run of a New Control Is the FAILING One" in
+  16: # skills/proof-discipline/SKILL.md for why every accident here landed on green.
+  17: #
+  18: # Usage: bash scripts/prove-controls.sh [--fast]
+  19: #   --fast   skip the two controls that need a running Next server (~90s)
+  20: set -uo pipefail
+  21: ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  22: cd "$ROOT"
+  23: FAST=0; [ "${1:-}" = "--fast" ] && FAST=1
+  24: 
+  25: PASS=0; FAIL=0
+  26: ok()   { echo "  PASS  $1"; PASS=$((PASS+1)); }
+  27: bad()  { echo "  FAIL  $1"; FAIL=$((FAIL+1)); }
+  28: hdr()  { echo; echo "â”€â”€ $1"; }
+  29: 
+  30: # Every planted artefact is registered here so an early exit still cleans up.
+  31: CLEANUP=()
+  32: cleanup() { for c in "${CLEANUP[@]:-}"; do eval "$c" >/dev/null 2>&1; done; }
+  33: trap cleanup EXIT
+  34: 
+  35: # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  36: hdr "C-TREE â€” review tree-integrity detects a repo mutation"
+  37: # Blind to gitignored paths BY DESIGN (the reviewer must write .next/ to run the suite),
+  38: # so the planted file must be somewhere git will actually report. Getting this wrong is
+  39: # how the control silently passed twice: both plants used *.tmp, ignored repo-wide.
+  40: tree_hash() { git status --porcelain | sort | sha256sum | cut -d' ' -f1; }
+  41: before="$(tree_hash)"
+  42: CLEANUP+=("rm -f '$ROOT/docs/.control-plant.md'")
+  43: echo "planted" > docs/.control-plant.md
+  44: after="$(tree_hash)"
+  45: rm -f docs/.control-plant.md
+  46: restored="$(tree_hash)"
+  47: [ "$before" != "$after" ] && ok "detects a new non-ignored file" || bad "MISSED a new non-ignored file"
+  48: [ "$before" = "$restored" ] && ok "restores exactly (no false positive)" || bad "false positive after cleanup"
+  49: # And prove the documented blind spot really is one, so the scope claim is evidenced too.
+  50: CLEANUP+=("rm -f '$ROOT/docs/.control-plant.tmp'")
+  51: echo x > docs/.control-plant.tmp
+  52: [ "$(tree_hash)" = "$before" ] && ok "blind to gitignored paths (documented limit, confirmed)" \
+  53:                                || bad "unexpectedly saw an ignored path"
+  54: rm -f docs/.control-plant.tmp
+  55: 
+  56: # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  57: hdr "C-CFG â€” codex config detector ignores churn, catches escalation"
+  58: CFG="$HOME/.codex/config.toml"
+  59: if [ -f "$CFG" ]; then
+  60:   cfg_hash() { grep -vE '^\s*(last_updated|last_revision)\s*=' "$1" | sha256sum | cut -d' ' -f1; }
+  61:   real="$(cfg_hash "$CFG")"
+  62:   T="$(mktemp -d)"; CLEANUP+=("rm -rf '$T'")
+  63:   sed 's/^last_updated = .*/last_updated = "2099-01-01T00:00:00Z"/' "$CFG" > "$T/churn.toml"
+  64:   sed 's/^sandbox_mode = .*/sandbox_mode = "danger-full-access"/' "$CFG" > "$T/widen.toml"
+  65:   printf '\n[projects.%s]\ntrust_level = "trusted"\n' "'d:\\attacker'" >> "$T/trust.toml.base" 2>/dev/null
+  66:   cat "$CFG" "$T/trust.toml.base" > "$T/trust.toml" 2>/dev/null
+  67:   [ "$(cfg_hash "$T/churn.toml")" = "$real" ] && ok "ignores marketplace timestamp churn" \
+  68:                                               || bad "false positive on benign churn"
+  69:   [ "$(cfg_hash "$T/widen.toml")" != "$real" ] && ok "detects a widened sandbox_mode" \
+  70:                                                || bad "MISSED a widened sandbox_mode"
+  71:   [ "$(cfg_hash "$T/trust.toml")" != "$real" ] && ok "detects a new trusted project" \
+  72:                                                || bad "MISSED a new trusted project"
+  73: else
+  74:   echo "  SKIP  ~/.codex/config.toml not present"
+  75: fi
+  76: 
+  77: # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  78: hdr "C-EXEC â€” execution-proof grep distinguishes a run from a non-run"
+  79: EXEC_RE="Tests +[0-9]+ (passed|failed)|Test Files +[0-9]+"
+  80: T2="$(mktemp -d)"; CLEANUP+=("rm -rf '$T2'")
+  81: printf 'reviewer said it all looks fine\nVERDICT: PASS\n' > "$T2/no-run.txt"
+  82: printf ' Test Files  1 passed (1)\n      Tests  7 passed (7)\n' > "$T2/ran.txt"
+  83: grep -qE "$EXEC_RE" "$T2/no-run.txt" && bad "claimed execution on a transcript with none" \
+  84:                                      || ok "reports ABSENT when the suite did not run"
+  85: grep -qE "$EXEC_RE" "$T2/ran.txt" && ok "reports FOUND when the suite did run" \
+  86:                                   || bad "MISSED a real suite run"
+  87: 
+  88: # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  89: hdr "C10/C4 â€” a declared delta only excuses its EXACT magnitude"
+  90: # The original bug: keying on file+rule alone excused any magnitude, forever.
+  91: PROV="dashboard/__tests__/command-centre-provenance.json"
+  92: cp "$PROV" "$PROV.bak"; CLEANUP+=("mv -f '$ROOT/$PROV.bak' '$ROOT/$PROV' 2>/dev/null")
+  93: perl -0pi -e 's/("auth gate": \{\s*"from": 3,\s*)"to": 0,/$1"to": 1,/s' "$PROV"
+  94: ( cd dashboard && npx vitest run __tests__/command-centre-readonly.test.ts >/dev/null 2>&1 )
+  95: [ $? -ne 0 ] && ok "rejects a declared 3->1 against an actual 3->0" \
+  96:              || bad "accepted an off-magnitude exemption"
+  97: mv -f "$PROV.bak" "$PROV"
+  98: ( cd dashboard && npx vitest run __tests__/command-centre-readonly.test.ts >/dev/null 2>&1 )
+  99: [ $? -eq 0 ] && ok "green again once the declaration matches" || bad "still red after restore"
+ 100: 
+ 101: # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+ 102: hdr "C-SECRETS â€” the scanner sees gitignored files (fixed 2026-08-02)"
+ 103: # Before the fix this planted secret was invisible: --exclude-standard dropped it.
+ 104: # --dry-run matters: without it the scanner appends the offending path to .gitignore.
+ 105: FAKE="AKIA""ZZZZQQQQ1111WWWW"
+ 106: CLEANUP+=("rm -f '$ROOT/docs/.control-secret.tmp'")
+ 107: printf "const k = '%s'\n" "$FAKE" > docs/.control-secret.tmp
+ 108: # Capture FIRST, then grep. secrets_check.py exits 1 when it finds a violation â€” which is
+ 109: # the success case here â€” and under `pipefail` that made the whole pipeline non-zero even
+ 110: # though grep matched, so this reported FAIL against a working scanner. Same family as
+ 111: # measuring an exit code through `| head`. Never let a pipeline's exit stand in for a match.
+ 112: SEC_OUT="$(python scripts/secrets_check.py --dry-run 2>&1 || true)"
+ 113: case "$SEC_OUT" in
+ 114:   *control-secret*) ok "detects a secret inside a gitignored path" ;;
+ 115:   *) bad "MISSED a secret in a gitignored path â€” the --exclude-standard defect is back" ;;
+ 116: esac
+ 117: rm -f docs/.control-secret.tmp
+ 118: 
+ 119: # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+ 120: if [ "$FAST" = 0 ]; then
+ 121: hdr "C12 â€” runtime route exercising (needs a build; ~90s)"
+ 122: if [ -f dashboard/.next/BUILD_ID ]; then
+ 123:   node scripts/route-exercise.mjs --plant-broken-link >/dev/null 2>&1
+ 124:   [ $? -ne 0 ] && ok "fails on a planted unresolvable link" || bad "passed with a broken link"
+ 125:   # Round-2 finding: the extractor only matched slash-prefixed hrefs, so a rendered RELATIVE
+ 126:   # link was unmeasured. If this stops failing, that regression is back.
+ 127:   node scripts/route-exercise.mjs --plant-relative-link >/dev/null 2>&1
+ 128:   [ $? -ne 0 ] && ok "fails on a planted RELATIVE link (no leading slash)" \
+ 129:                || bad "MISSED a relative internal link â€” slash-only extraction has regressed"
+ 130:   node scripts/route-exercise.mjs >/dev/null 2>&1
+ 131:   [ $? -eq 0 ] && ok "passes on the clean surface" || bad "red on a clean surface"
+ 132:   touch "dashboard/app/(main)/command-centre/page.tsx"
+ 133:   node scripts/route-exercise.mjs >/dev/null 2>&1
+ 134:   [ $? -eq 2 ] && ok "refuses to run against a stale build" || bad "ran against a stale build"
+ 135:   echo "  NOTE  source touched â€” rebuild before relying on C12 again"
+ 136: else
+ 137:   echo "  SKIP  no dashboard build present"
+ 138: fi
+ 139: fi
+ 140: 
+ 141: echo
+ 142: echo "â•â•â•â• CONTROLS PROVEN: pass=$PASS fail=$FAIL"
+ 143: [ "$FAIL" -eq 0 ] || { echo "â•â•â•â• A CONTROL DID NOT DISCRIMINATE â€” the checks it guards prove nothing."; exit 1; }
+ 144: echo "â•â•â•â• every control above was observed RED on a planted defect and GREEN without it"
+
+hook: PostToolUse
+hook: PostToolUse Completed
+codex
+One brief requirement asks for a source-level planted `DECKS` defect, but the same brief and user instruction forbid editing the repository. I’m checking whether I can reproduce that side-by-side in a temporary copy outside the repo, so the review still tests the claim without mutating this working tree.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw \"dashboard\\package.json\"" in D:\Pi-Dev-Ops
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw \"dashboard\\__tests__\\command-centre-provenance.json\"" in D:\Pi-Dev-Ops
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw \"dashboard\\tsconfig.json\"" in D:\Pi-Dev-Ops
+ succeeded in 278ms:
+{
+  "name": "pi-ceo-dashboard",
+  "version": "2.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "bash scripts/dev-env.sh",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "create-snapshot": "tsx scripts/create-sandbox-snapshot.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.36.3",
+    "@octokit/rest": "^21.0.2",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@supabase/ssr": "^0.10.2",
+    "@supabase/supabase-js": "^2.101.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "d3-force": "^3.0.0",
+    "d3-selection": "^3.0.0",
+    "d3-zoom": "^3.0.0",
+    "lucide-react": "^1.8.0",
+    "next": "^16.2.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^3.5.0",
+    "xterm": "^5.3.0",
+    "xterm-addon-fit": "^0.8.0",
+    "xterm-addon-web-links": "^0.9.0",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.1.9",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/d3-force": "^3.0.10",
+    "@types/d3-selection": "^3.0.11",
+    "@types/d3-zoom": "^3.0.8",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.0.1",
+    "eslint": "^9",
+    "eslint-config-next": "^16.2.2",
+    "jsdom": "^29.0.2",
+    "pg": "^8.20.0",
+    "postcss": "^8.5",
+    "tailwindcss": "4.1.9",
+    "tsx": "^4.19.2",
+    "typescript": "^5",
+    "vitest": "^4.1.4"
+  }
+}
+
+
+hook: PostToolUse
+ succeeded in 293ms:
+{
+  "_comment": "Provenance map for the command-centre migration. Every ported source file must appear here with the Authority-Site file it came from. The diff-relative conformance test compares each port against its named baseline: the port may not introduce a network/DB/execution construct the baseline did not already contain. An unlisted file fails the test, so a new file cannot enter the capability surface without a declared origin.",
+  "_baseline_root": "D:/Authority-Site/apps/web/src",
+  "_ruling": "2026-08-01 founder: port faithfully including existing behaviour. The claim under review is 'introduces no network surface the source did not have' \u2014 NOT absolute read-only proof. See adversarial-review spec-writing standard.",
+  "files": {
+    "app/(main)/command-centre/hermes/page.tsx": "app/(founder)/founder/command-centre/hermes-control-panel/page.tsx",
+    "components/command-centre/DeckDetails.tsx": "components/command-centre/DeckDetails.tsx",
+    "lib/command-centre/control-panel.ts": "lib/operator-gateway/control-panel.ts",
+    "components/command-centre/command-deck.module.css": "app/(founder)/founder/command-centre/command-deck.module.css",
+    "components/command-centre/deck-details.module.css": "components/command-centre/deck-details.module.css",
+    "app/(main)/command-centre/knowledge/page.tsx": "app/(founder)/founder/command-centre/knowledge/page.tsx",
+    "components/command-centre/DeckThemeShell.tsx": "app/(founder)/founder/command-centre/DeckThemeShell.tsx",
+    "components/command-centre/deck-visual-helpers.ts": "app/(founder)/founder/command-centre/deck-visual-helpers.ts",
+    "components/command-centre/shell.module.css": "app/(founder)/founder/command-centre/shell.module.css",
+    "components/command-centre/SourceBadge.tsx": "components/command-centre/SourceBadge.tsx",
+    "components/command-centre/DegradedDataBanner.tsx": "components/command-centre/DegradedDataBanner.tsx",
+    "components/command-centre/wiki-graph/WikiGraphTile.tsx": "components/command-centre/wiki-graph/WikiGraphTile.tsx",
+    "lib/command-centre/tools/catalogue.ts": "lib/command-centre/tools/catalogue.ts",
+    "store/ui.ts": "store/ui.ts",
+    "lib/command-centre/wiki-graph.ts": "lib/command-centre/wiki-graph.ts",
+    "app/(main)/command-centre/wiki-graph/page.tsx": "app/(founder)/founder/command-centre/wiki-graph/page.tsx",
+    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx": "components/command-centre/wiki-graph/WikiGraphCanvas.tsx"
+  },
+  "_baseline_verified_by_hand": {
+    "_note": "Capabilities whose baseline safety properties are load-bearing require a hand-established baseline BEFORE porting, recorded here. Capability 6 (operator-gateway) is the one that needs it \u2014 its whole safety story is 'no live runner, no real execute button'. 'No new surface' is worthless against an unexamined baseline.",
+    "operator-gateway": "NOT YET ESTABLISHED \u2014 blocks capability 6"
+  },
+  "imports": {
+    "app/(main)/command-centre/hermes/page.tsx :: next/font/google": {
+      "specifier": "next/font/google",
+      "resolves_in_source": "package: next/font/google",
+      "resolves_in_target": "package: next/font/google",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "app/(main)/command-centre/hermes/page.tsx :: @/lib/command-centre/control-panel": {
+      "specifier": "@/lib/command-centre/control-panel",
+      "resolves_in_source": "unresolved: @/lib/command-centre/control-panel",
+      "resolves_in_target": "file: lib/command-centre/control-panel.ts",
+      "judgment": "must-change",
+      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
+    },
+    "app/(main)/command-centre/hermes/page.tsx :: @/components/command-centre/DeckDetails": {
+      "specifier": "@/components/command-centre/DeckDetails",
+      "resolves_in_source": "file: components/command-centre/DeckDetails.tsx",
+      "resolves_in_target": "file: components/command-centre/DeckDetails.tsx",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha 197331e86848)"
+    },
+    "app/(main)/command-centre/hermes/page.tsx :: @/components/command-centre/command-deck.module.css": {
+      "specifier": "@/components/command-centre/command-deck.module.css",
+      "resolves_in_source": "unresolved: @/components/command-centre/command-deck.module.css",
+      "resolves_in_target": "file: components/command-centre/command-deck.module.css",
+      "judgment": "must-change",
+      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
+    },
+    "components/command-centre/DeckDetails.tsx :: ./deck-details.module.css": {
+      "specifier": "./deck-details.module.css",
+      "resolves_in_source": "file: components/command-centre/deck-details.module.css",
+      "resolves_in_target": "file: components/command-centre/deck-details.module.css",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha c055143f13d5)"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: next/link": {
+      "specifier": "next/link",
+      "resolves_in_source": "package: next/link",
+      "resolves_in_target": "package: next/link",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: next/font/google": {
+      "specifier": "next/font/google",
+      "resolves_in_source": "package: next/font/google",
+      "resolves_in_target": "package: next/font/google",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/lib/command-centre/tools/catalogue": {
+      "specifier": "@/lib/command-centre/tools/catalogue",
+      "resolves_in_source": "file: lib/command-centre/tools/catalogue.ts",
+      "resolves_in_target": "file: lib/command-centre/tools/catalogue.ts",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha 2876efa1753c)"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/wiki-graph/WikiGraphTile": {
+      "specifier": "@/components/command-centre/wiki-graph/WikiGraphTile",
+      "resolves_in_source": "file: components/command-centre/wiki-graph/WikiGraphTile.tsx",
+      "resolves_in_target": "file: components/command-centre/wiki-graph/WikiGraphTile.tsx",
+      "judgment": "different-but-checked",
+      "note": "content diff is exactly one line: '../SourceBadge' -> '@/components/command-centre/SourceBadge' (R5 alias rewrite). Verified by diff with line endings normalised; no behavioural change."
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/DeckDetails": {
+      "specifier": "@/components/command-centre/DeckDetails",
+      "resolves_in_source": "file: components/command-centre/DeckDetails.tsx",
+      "resolves_in_target": "file: components/command-centre/DeckDetails.tsx",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha 197331e86848)"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/DeckThemeShell": {
+      "specifier": "@/components/command-centre/DeckThemeShell",
+      "resolves_in_source": "unresolved: @/components/command-centre/DeckThemeShell",
+      "resolves_in_target": "file: components/command-centre/DeckThemeShell.tsx",
+      "judgment": "must-change",
+      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/deck-visual-helpers": {
+      "specifier": "@/components/command-centre/deck-visual-helpers",
+      "resolves_in_source": "unresolved: @/components/command-centre/deck-visual-helpers",
+      "resolves_in_target": "file: components/command-centre/deck-visual-helpers.ts",
+      "judgment": "must-change",
+      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/shell.module.css": {
+      "specifier": "@/components/command-centre/shell.module.css",
+      "resolves_in_source": "unresolved: @/components/command-centre/shell.module.css",
+      "resolves_in_target": "file: components/command-centre/shell.module.css",
+      "judgment": "must-change",
+      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/command-deck.module.css": {
+      "specifier": "@/components/command-centre/command-deck.module.css",
+      "resolves_in_source": "unresolved: @/components/command-centre/command-deck.module.css",
+      "resolves_in_target": "file: components/command-centre/command-deck.module.css",
+      "judgment": "must-change",
+      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
+    },
+    "components/command-centre/DeckThemeShell.tsx :: react": {
+      "specifier": "react",
+      "resolves_in_source": "package: react",
+      "resolves_in_target": "package: react",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "components/command-centre/DeckThemeShell.tsx :: @/store/ui": {
+      "specifier": "@/store/ui",
+      "resolves_in_source": "file: store/ui.ts",
+      "resolves_in_target": "file: store/ui.ts",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha 70a6b14e237d)"
+    },
+    "components/command-centre/DeckThemeShell.tsx :: ./command-deck.module.css": {
+      "specifier": "./command-deck.module.css",
+      "resolves_in_source": "file: app/(founder)/founder/command-centre/command-deck.module.css",
+      "resolves_in_target": "file: components/command-centre/command-deck.module.css",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha 5403d34cde1a)"
+    },
+    "components/command-centre/DeckThemeShell.tsx :: ./shell.module.css": {
+      "specifier": "./shell.module.css",
+      "resolves_in_source": "file: app/(founder)/founder/command-centre/shell.module.css",
+      "resolves_in_target": "file: components/command-centre/shell.module.css",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha f72f5a4e9bc5)"
+    },
+    "app/api/command-centre/wiki-graph/route.ts :: next/server": {
+      "specifier": "next/server",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: next/server",
+      "judgment": "no-source-baseline",
+      "note": "The route is REBUILT, not ported, so there is no source import to compare. Surfaced only after importGraph() was seeded from app/api/command-centre as well as the pages â€” before that the route's imports were outside the graph entirely."
+    },
+    "app/api/command-centre/wiki-graph/route.ts :: @/lib/supabase/server": {
+      "specifier": "@/lib/supabase/server",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: lib/supabase/server.ts",
+      "judgment": "no-source-baseline",
+      "note": "The privilege-sensitive one, and the reason this gap mattered rather than being bookkeeping. The source route imports getUser+createClient from ITS @/lib/supabase/server: anon-key, RLS-enforced, per-user. The identical specifier resolves here to a service-role client that bypasses RLS. That divergence is the whole reason the route was rebuilt instead of ported - and until the graph was seeded from the API directory, this import could have been changed with nothing to declare and nothing to fail."
+    },
+    "app/api/command-centre/wiki-graph/route.ts :: @/lib/command-centre/wiki-graph": {
+      "specifier": "@/lib/command-centre/wiki-graph",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: lib/command-centre/wiki-graph.ts",
+      "judgment": "no-source-baseline",
+      "note": "The shared pure graph builder, itself a ported file with its own provenance entry. Pure: no network, no DB, no execution."
+    },
+    "app/(main)/command-centre/page.tsx :: next/link": {
+      "specifier": "next/link",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: next/link",
+      "judgment": "no-source-baseline",
+      "note": "The command-centre index is NEW in the target, so there is no source import to compare this against. Surfaced by the map-vs-reality check: it was reachable in the capability graph and carried no judgment at all."
+    },
+    "lib/supabase/server.ts :: @supabase/ssr": {
+      "specifier": "@supabase/ssr",
+      "resolves_in_source": "n/a: this file has no source baseline (_target_native)",
+      "resolves_in_target": "package: @supabase/ssr",
+      "judgment": "no-source-baseline",
+      "note": "Pre-existing file of this app. No source equivalent, so no cross-app import judgment is possible. Worth stating plainly: this is the module behind the SERVICE-ROLE client that bypasses RLS, and until the map-vs-reality check existed its imports carried no declared judgment despite being the most privilege-sensitive file in the graph."
+    },
+    "lib/supabase/server.ts :: @supabase/supabase-js": {
+      "specifier": "@supabase/supabase-js",
+      "resolves_in_source": "n/a: this file has no source baseline (_target_native)",
+      "resolves_in_target": "package: @supabase/supabase-js",
+      "judgment": "no-source-baseline",
+      "note": "Same as @supabase/ssr above â€” target-native, no source counterpart to compare."
+    },
+    "components/command-centre/wiki-graph/WikiGraphTile.tsx :: react": {
+      "specifier": "react",
+      "resolves_in_source": "package: react",
+      "resolves_in_target": "package: react",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "components/command-centre/wiki-graph/WikiGraphTile.tsx :: next/link": {
+      "specifier": "next/link",
+      "resolves_in_source": "package: next/link",
+      "resolves_in_target": "package: next/link",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "components/command-centre/wiki-graph/WikiGraphTile.tsx :: @/components/command-centre/SourceBadge": {
+      "specifier": "@/components/command-centre/SourceBadge",
+      "resolves_in_source": "file: components/command-centre/SourceBadge.tsx",
+      "resolves_in_target": "file: components/command-centre/SourceBadge.tsx",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha 344f6941b31e)"
+    },
+    "lib/command-centre/tools/catalogue.ts :: node:fs/promises": {
+      "specifier": "node:fs/promises",
+      "resolves_in_source": "package: node:fs/promises",
+      "resolves_in_target": "package: node:fs/promises",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "lib/command-centre/tools/catalogue.ts :: node:path": {
+      "specifier": "node:path",
+      "resolves_in_source": "package: node:path",
+      "resolves_in_target": "package: node:path",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "lib/command-centre/tools/catalogue.ts :: node:os": {
+      "specifier": "node:os",
+      "resolves_in_source": "package: node:os",
+      "resolves_in_target": "package: node:os",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "store/ui.ts :: zustand": {
+      "specifier": "zustand",
+      "resolves_in_source": "package: zustand",
+      "resolves_in_target": "package: zustand",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "store/ui.ts :: zustand/middleware": {
+      "specifier": "zustand/middleware",
+      "resolves_in_source": "package: zustand/middleware",
+      "resolves_in_target": "package: zustand/middleware",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "app/(main)/command-centre/wiki-graph/page.tsx :: next/link": {
+      "specifier": "next/link",
+      "resolves_in_source": "package: next/link",
+      "resolves_in_target": "package: next/link",
+      "judgment": "same",
+      "note": "same npm package, version matched to the baseline"
+    },
+    "app/(main)/command-centre/wiki-graph/page.tsx :: @/lib/supabase/server": {
+      "specifier": "@/lib/supabase/server",
+      "resolves_in_source": "file: lib/supabase/server.ts",
+      "resolves_in_target": "file: lib/supabase/server.ts",
+      "judgment": "different-but-checked",
+      "note": "THE drift case. Source: anon-key, RLS-enforced, per-user (getUser + createClient). Target: service-role, no per-user identity. Handled by REBUILDING the page data access against createServerClient and removing the getUser/redirect gate, since auth is enforced upstream by proxy.ts. Not a silent substitution - the divergence is the reason for the rebuild."
+    },
+    "app/(main)/command-centre/wiki-graph/page.tsx :: @/lib/command-centre/wiki-graph": {
+      "specifier": "@/lib/command-centre/wiki-graph",
+      "resolves_in_source": "file: lib/command-centre/wiki-graph.ts",
+      "resolves_in_target": "file: lib/command-centre/wiki-graph.ts",
+      "judgment": "same",
+      "note": "relocated, byte-identical (sha 3b1b6c75eefe)"
+    },
+    "app/(main)/command-centre/wiki-graph/page.tsx :: @/components/command-centre/wiki-graph/WikiGraphCanvas": {
+      "specifier": "@/components/command-centre/wiki-graph/WikiGraphCanvas",
+      "resolves_in_source": "file: components/command-centre/wiki-graph/WikiGraphCanvas.tsx",
+      "resolves_in_target": "file: components/command-centre/wiki-graph/WikiGraphCanvas.tsx",
+      "judgment": "same",
+      "note": "relocated, byte-identical (sha ef4fb55ae5fd)"
+    },
+    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx :: react": {
+      "specifier": "react",
+      "resolves_in_source": "package: react",
+      "resolves_in_target": "package: react",
+      "judgment": "same",
+      "note": "same npm package, version matched to the baseline"
+    },
+    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx :: d3-force": {
+      "specifier": "d3-force",
+      "resolves_in_source": "package: d3-force",
+      "resolves_in_target": "package: d3-force",
+      "judgment": "same",
+      "note": "same npm package, version matched to the baseline"
+    },
+    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx :: d3-selection": {
+      "specifier": "d3-selection",
+      "resolves_in_source": "package: d3-selection",
+      "resolves_in_target": "package: d3-selection",
+      "judgment": "same",
+      "note": "same npm package, version matched to the baseline"
+    },
+    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx :: d3-zoom": {
+      "specifier": "d3-zoom",
+      "resolves_in_source": "package: d3-zoom",
+      "resolves_in_target": "package: d3-zoom",
+      "judgment": "same",
+      "note": "same npm package, version matched to the baseline"
+    }
+  },
+  "_imports_note": "Import-level provenance. judgment must be one of: same | different-but-checked | must-change. UNDECLARED fails the suite exactly as an undeclared FILE does. File provenance proves origin; this proves the imports still mean what they meant.",
+  "_rebuilt_not_ported": {
+    "app/api/command-centre/wiki-graph/route.ts": "REBUILT against this app's createServerClient. The source imports getUser+createClient from its own @/lib/supabase/server (anon-key, RLS-enforced, per-user). The same specifier resolves here to a service-role client with no per-user identity. A verbatim port would have typechecked while silently swapping an RLS-enforced read for an RLS-bypassing one. No source baseline applies, so it is excluded from diff-relative comparison by design.",
+    "app/(main)/command-centre/page.tsx": "NEW in the target. The source index carries the founder shell and nine deck tiles; porting it would drag in six unmigrated capabilities. Small index over what exists; grows as capabilities land. No source baseline applies."
+  },
+  "_omitted_deliberately": {
+    "components/command-centre/WikiEnhanceControl.tsx": "KI-002. Dropped from the knowledge port. It POSTs to a route that enqueues into operator_jobs on a production database and needs a per-user identity this app lacks. The route is ABSENT rather than stubbed."
+  },
+  "_target_native": {
+    "lib/supabase/server.ts": "Pre-existing file of THIS app, not ported and not rebuilt for the migration. It is in the capability graph because the rebuilt wiki-graph page imports it. No source baseline applies; diff-relative comparison is meaningless for it."
+  },
+  "_declared_deltas": {
+    "app/(main)/command-centre/wiki-graph/page.tsx": {
+      "auth gate": {
+        "from": 3,
+        "to": 0,
+        "reason": "EXPECTED, and now PROVEN rather than asserted. The source's getUser()/redirect('/auth/login') gate is removed: per-user auth has no equivalent here (single operator, no identity). The gate moved layer - it is now proxy.ts. The FIRST version of this reason said 'auth is enforced upstream by proxy.ts, whose matcher covers all non-static routes and 401s without a session', and that was FALSE. The matcher does cover every non-static route, but proxy() only checks a session for paths listed in PROTECTED_PAGE_PREFIXES / PROTECTED_API_PREFIXES, and /command-centre was in neither - so all four command-centre pages and the wiki-graph API served anonymous requests while reading wiki_pages through a service-role client that bypasses RLS. __tests__/command-centre-auth-coverage.test.ts calls proxy() directly with no cookie and proved it: 5 failed against 2 passing positive controls, so the red was not vacuous. /command-centre and /api/command-centre were then added to the protected prefixes and it went 7/7. This exemption's reason is now the tested behaviour of a named file rather than a sentence.",
+        "evidence": "__tests__/command-centre-auth-coverage.test.ts"
+      },
+      "database client": {
+        "from": 1,
+        "to": 2,
+        "reason": "EXPECTED. `await createClient()` (anon-key, RLS-enforced) replaced by `createServerClient()` (this app's client). The count reaches 2 rather than 1 because the tracked regex matches both the import specifier and the call site of the renamed function - one client counted twice, not a second client appearing. Bounded to exactly 1 -> 2: a genuine additional client in this file reads 1 -> 3 and still fails. What this exemption explicitly does NOT excuse is the privilege change - the target client is service-role and bypasses RLS, which is precisely why the auth gate above had to be re-established at the proxy layer instead of declared away."
+      }
+    }
+  },
+  "_declared_deltas_note": "Per-file, per-rule expected divergences, each naming the EXACT count transition it excuses (from -> to) plus a reason. Only that one measured transition is exempt: any other magnitude, in the same file under the same rule, still fails. Keying on file+rule alone - the first design - was a blanket exclusion wearing a narrower label, and cross-vendor review caught it: declaring 'auth gate' on a file excused every future auth-gate loss in that file, forever. Second lesson from the same review: a reason must be checkable against something. 'Enforced upstream by proxy.ts' read as evidence, was not, and was wrong - until a test made it both."
+}
+
+hook: PostToolUse
+ succeeded in 286ms:
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "scripts"
+  ]
+}
+
+
+hook: PostToolUse
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+hook: PostToolUse Completed
+codex
+I found a way to run the side-by-side without touching the repository: create a temporary copy outside `D:\Pi-Dev-Ops`, link it to the existing `dashboard/node_modules`, plant the defect there, run C9 and C12 there, then remove the temp copy. This keeps the actual repo read-only while testing the claim.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$ErrorActionPreference='"'Stop'
+"'$src = (Resolve-Path '"'.').Path
+"'$tmp = Join-Path $env:TEMP ('"'Pi-Dev-Ops-c12-review-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path "'$tmp | Out-Null
+robocopy (Join-Path $src '"'dashboard') (Join-Path "'$tmp '"'dashboard') /E /XD node_modules .next | Out-Null
+if ("'$LASTEXITCODE -gt 7) { throw "robocopy dashboard failed rc=$LASTEXITCODE" }
+New-Item -ItemType Directory -Path (Join-Path $tmp '"'scripts') | Out-Null
+Copy-Item (Join-Path "'$src '"'scripts\\route-exercise.mjs') (Join-Path "'$tmp '"'scripts\\route-exercise.mjs')
+New-Item -ItemType Junction -Path (Join-Path "'$tmp '"'dashboard\\node_modules') -Target (Join-Path "'$src '"'dashboard\\node_modules') | Out-Null
+"'$target = Join-Path $tmp '"'dashboard\\app\\(main)\\command-centre\\page.tsx'
+"'$text = Get-Content -Raw $target
+$text = $text.Replace('"'href: \"/command-centre/hermes\"', 'href: \"/command-centre/hermes-NOPE\"')
+Set-Content -NoNewline -Path "'$target -Value $text
+Write-Output "TEMP_ROOT=$tmp"
+Push-Location (Join-Path $tmp '"'dashboard')
+try {
+  npx vitest run __tests__/command-centre-readonly.test.ts
+  "'$c9 = $LASTEXITCODE
+  npm run build
+  $build = $LASTEXITCODE
+} finally { Pop-Location }
+if ($build -eq 0) {
+  Push-Location $tmp
+  try {
+    node scripts/route-exercise.mjs
+    $c12 = $LASTEXITCODE
+  } finally { Pop-Location }
+} else { $c12 = 999 }
+Write-Output "RESULT_C9=$c9 RESULT_BUILD=$build RESULT_C12=$c12"
+Remove-Item -LiteralPath $tmp -Recurse -Force' in D:\Pi-Dev-Ops
+ succeeded in 6684ms:
+TEMP_ROOT=C:\Users\DISAST~1\AppData\Local\Temp\Pi-Dev-Ops-c12-review-ca413bb305004aa0939a79c5209e58f5
+
+ RUN  v4.1.4 C:/Users/Disaster Recovery 4/AppData/Local/Temp/Pi-Dev-Ops-c12-review-ca413bb305004aa0939a79c5209e58f5/dashboard
+
+
+ Test Files  1 passed (1)
+      Tests  27 passed (27)
+   Start at  07:53:52
+   Duration  1.30s (transform 47ms, setup 80ms, import 50ms, tests 76ms, environment 703ms)
+
+
+> pi-ceo-dashboard@2.0.0 build
+> next build
+
+RESULT_C9=0 RESULT_BUILD=1 RESULT_C12=999
+⨯ Failed to load next.config.ts, see more info here https://nextjs.org/docs/messages/next-config-error
+
+> Build error occurred
+Error: Missing required environment variables: PI_CEO_URL, PI_CEO_PASSWORD
+Set these in Vercel project settings or dashboard/.env.local
+    at Object.<anonymous> (C:\Users\Disaster Recovery 4\AppData\Local\Temp\Pi-Dev-Ops-c12-review-ca413bb305004aa0939a79c5209e58f5\dashboard\next.config.compiled.js:27:15)
+
+hook: PostToolUse
+hook: PostToolUse Completed
+codex
+The temporary-copy side-by-side got C9 to pass 27/27 on the planted computed-link defect, but the temp build failed before C12 because `next.config.ts` required `PI_CEO_URL` and `PI_CEO_PASSWORD`. I’m rerunning that same temp-copy reproduction with the required env in the shell only.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$ErrorActionPreference='"'Stop'
+"'$src = (Resolve-Path '"'.').Path
+"'$tmp = Join-Path $env:TEMP ('"'Pi-Dev-Ops-c12-review-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path "'$tmp | Out-Null
+robocopy (Join-Path $src '"'dashboard') (Join-Path "'$tmp '"'dashboard') /E /XD node_modules .next | Out-Null
+if ("'$LASTEXITCODE -gt 7) { throw "robocopy dashboard failed rc=$LASTEXITCODE" }
+New-Item -ItemType Directory -Path (Join-Path $tmp '"'scripts') | Out-Null
+Copy-Item (Join-Path "'$src '"'scripts\\route-exercise.mjs') (Join-Path "'$tmp '"'scripts\\route-exercise.mjs')
+New-Item -ItemType Junction -Path (Join-Path "'$tmp '"'dashboard\\node_modules') -Target (Join-Path "'$src '"'dashboard\\node_modules') | Out-Null
+"'$target = Join-Path $tmp '"'dashboard\\app\\(main)\\command-centre\\page.tsx'
+"'$text = Get-Content -Raw $target
+$text = $text.Replace('"'href: \"/command-centre/hermes\"', 'href: \"/command-centre/hermes-NOPE\"')
+Set-Content -NoNewline -Path "'$target -Value $text
+$env:PI_CEO_URL='"'https://x.invalid'
+"'$env:PI_CEO_PASSWORD='"'x'
+"'$env:NEXT_PUBLIC_SUPABASE_URL='"'https://lksfwktwtmyznckodsau.supabase.co'
+"'$env:NEXT_PUBLIC_SUPABASE_ANON_KEY='"'x'
+"'$env:SUPABASE_SERVICE_ROLE_KEY='"'x'
+Write-Output \"TEMP_ROOT="'$tmp"
+Push-Location (Join-Path $tmp '"'dashboard')
+try {
+  npx vitest run __tests__/command-centre-readonly.test.ts
+  "'$c9 = $LASTEXITCODE
+  npm run build
+  $build = $LASTEXITCODE
+} finally { Pop-Location }
+if ($build -eq 0) {
+  Push-Location $tmp
+  try {
+    node scripts/route-exercise.mjs
+    $c12 = $LASTEXITCODE
+  } finally { Pop-Location }
+} else { $c12 = 999 }
+Write-Output "RESULT_C9=$c9 RESULT_BUILD=$build RESULT_C12=$c12"
+Remove-Item -LiteralPath $tmp -Recurse -Force' in D:\Pi-Dev-Ops
+ succeeded in 5743ms:
+TEMP_ROOT=C:\Users\DISAST~1\AppData\Local\Temp\Pi-Dev-Ops-c12-review-358676b9a74840faa47bcabc29ab7e05
+
+ RUN  v4.1.4 C:/Users/Disaster Recovery 4/AppData/Local/Temp/Pi-Dev-Ops-c12-review-358676b9a74840faa47bcabc29ab7e05/dashboard
+
+
+ Test Files  1 passed (1)
+      Tests  27 passed (27)
+   Start at  07:54:09
+   Duration  1.36s (transform 46ms, setup 83ms, import 49ms, tests 78ms, environment 750ms)
+
+
+> pi-ceo-dashboard@2.0.0 build
+> next build
+
+▲ Next.js 16.2.3 (Turbopack)
+
+  Creating an optimized production build ...
+RESULT_C9=0 RESULT_BUILD=1 RESULT_C12=999
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\Disaster Recovery 4\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\Disaster Recovery 4\AppData\Local\Temp\Pi-Dev-Ops-c12-review-358676b9a74840faa47bcabc29ab7e05\dashboard\package-lock.json
+
+
+-----
+[1m[31mFATAL[39m[0m: An unexpected Turbopack error occurred. A panic log has been written to C:\Users\DISAST~1\AppData\Local\Temp\next-panic-41821b32ad7f33d009190a6a8bea4439.log.
+
+To help make Turbopack better, report this error by clicking here: https://bugs.nextjs.org/search?category=turbopack-error-report&title=Turbopack%20Error%3A%20Symlink%20%5Bproject%5D%2FAppData%2FLocal%2FTemp%2FPi-Dev-Ops-c12-review-358676b9a74840faa47bcabc29ab7e05%2Fdashboard%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root&body=Turbopack%20version%3A%20%60c573e8c4%60%0ANext.js%20version%3A%20%600.0.0%60%0A%0AError%20message%3A%0A%60%60%60%0ASymlink%20%5Bproject%5D%2FAppData%2FLocal%2FTemp%2FPi-Dev-Ops-c12-review-358676b9a74840faa47bcabc29ab7e05%2Fdashboard%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root%0A%0ADebug%20info%3A%0A-%20Execution%20of%20get_all_written_entrypoints_with_issues_operation%20failed%0A-%20Execution%20of%20EntrypointsOperation%3A%3Anew%20failed%0A-%20Execution%20of%20all_entrypoints_write_to_disk_operation%20failed%0A-%20Execution%20of%20output_assets_operation%20failed%0A-%20Execution%20of%20Project%3A%3Aget_all_endpoint_groups_with_app_route_filter%20failed%0A-%20Execution%20of%20Project%3A%3Aentrypoints_with_app_route_filter%20failed%0A-%20Execution%20of%20AppProject%3A%3Aroutes_with_filter%20failed%0A-%20Execution%20of%20directory_tree_to_entrypoints_internal%20failed%0A-%20Execution%20of%20directory_tree_to_loader_tree%20failed%0A-%20Execution%20of%20try_get_next_package%20failed%0A-%20Execution%20of%20%2AResolveResult%3A%3Afirst_source%20failed%0A-%20Execution%20of%20resolve%20failed%0A-%20Execution%20of%20resolve_internal%20failed%0A-%20Execution%20of%20find_package%20failed%0A-%20Symlink%20%5Bproject%5D%2FAppData%2FLocal%2FTemp%2FPi-Dev-Ops-c12-review-358676b9a74840faa47bcabc29ab7e05%2Fdashboard%2Fnode_modules%20is%20invalid%2C%20it%20points%20out%20of%20the%20filesystem%20root%0A%60%60%60&labels=Turbopack,Turbopack%20Panic%20Backtrace
+-----
+
+
+> Build error occurred
+Error [TurbopackInternalError]: Symlink [project]/AppData/Local/Temp/Pi-Dev-Ops-c12-review-358676b9a74840faa47bcabc29ab7e05/dashboard/node_modules is invalid, it points out of the filesystem root
+
+Debug info:
+- Execution of get_all_written_entrypoints_with_issues_operation failed
+- Execution of EntrypointsOperation::new failed
+- Execution of all_entrypoints_write_to_disk_operation failed
+- Execution of output_assets_operation failed
+- Execution of Project::get_all_endpoint_groups_with_app_route_filter failed
+- Execution of Project::entrypoints_with_app_route_filter failed
+- Execution of AppProject::routes_with_filter failed
+- Execution of directory_tree_to_entrypoints_internal failed
+- Execution of directory_tree_to_loader_tree failed
+- Execution of try_get_next_package failed
+- Execution of *ResolveResult::first_source failed
+- Execution of resolve failed
+- Execution of resolve_internal failed
+- Execution of find_package failed
+- Symlink [project]/AppData/Local/Temp/Pi-Dev-Ops-c12-review-358676b9a74840faa47bcabc29ab7e05/dashboard/node_modules is invalid, it points out of the filesystem root
+    at ignore-listed frames {
+  type: 'TurbopackInternalError',
+  location: undefined
+}
+
+hook: PostToolUse
+hook: PostToolUse Completed
+codex
+The temp-copy C9 half reproduced, but the temp build failed again because Turbopack rejects a `node_modules` symlink outside its inferred root. I’m checking the Next config to see if there is a non-repo-mutating way to set the build root for the temp copy.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content -Raw \"dashboard\\next.config.ts\"" in D:\Pi-Dev-Ops
+ succeeded in 261ms:
+// next.config.ts â€” Next.js configuration
+// CSP is generated per-request with a nonce in middleware.ts (RA-518).
+// Static security headers are set here; Content-Security-Policy is omitted.
+import type { NextConfig } from "next";
+
+// RA-526 â€” Fail fast at build/startup if critical env vars are missing in production.
+// Gate on VERCEL_ENV rather than NODE_ENV: Vercel preview builds also run with
+// NODE_ENV=production, but PI_CEO_PASSWORD is only set on the Production env.
+// Without this gate every preview deploy errors out and PR status checks go red.
+const isVercelProduction = process.env.VERCEL_ENV === "production";
+const isLocalProductionBuild =
+  !process.env.VERCEL_ENV && process.env.NODE_ENV === "production";
+if (isVercelProduction || isLocalProductionBuild) {
+  const required = ["PI_CEO_URL", "PI_CEO_PASSWORD"] as const;
+  const missing = required.filter((k) => !process.env[k]);
+  if (missing.length) {
+    throw new Error(
+      `Missing required environment variables: ${missing.join(", ")}\n` +
+      `Set these in Vercel project settings or dashboard/.env.local`
+    );
+  }
+}
+
+const nextConfig: NextConfig = {
+  images: {
+    qualities: [75, 85],
+  },
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          // HSTS â€” Vercel serves over HTTPS only; safe to set unconditionally.
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+        ],
+      },
+    ];
+  },
+};
+
+export default nextConfig;
+
+
+hook: PostToolUse
+hook: PostToolUse Completed
+codex
+I’m trying one more temp-copy path: put the temp app on the same drive as the repo and set Turbopack’s root in the temp copy only. That should let the linked `node_modules` resolve without altering the real repository.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command '$ErrorActionPreference='"'Stop'
+"'$src = (Resolve-Path '"'.').Path
+"'$tmp = '"'D:\\Pi-Dev-Ops-c12-review-' + [guid]::NewGuid().ToString('N')
+New-Item -ItemType Directory -Path "'$tmp | Out-Null
+try {
+  robocopy (Join-Path $src '"'dashboard') (Join-Path "'$tmp '"'dashboard') /E /XD node_modules .next | Out-Null
+  if ("'$LASTEXITCODE -gt 7) { throw "robocopy dashboard failed rc=$LASTEXITCODE" }
+  New-Item -ItemType Directory -Path (Join-Path $tmp '"'scripts') | Out-Null
+  Copy-Item (Join-Path "'$src '"'scripts\\route-exercise.mjs') (Join-Path "'$tmp '"'scripts\\route-exercise.mjs')
+  New-Item -ItemType Junction -Path (Join-Path "'$tmp '"'dashboard\\node_modules') -Target (Join-Path "'$src '"'dashboard\\node_modules') | Out-Null
+  "'$config = Join-Path $tmp '"'dashboard\\next.config.ts'
+  "'$cfg = Get-Content -Raw $config
+  $cfg = $cfg.Replace('"'const nextConfig: NextConfig = {', 'const nextConfig: NextConfig = {' + \""'`n" + '"'  turbopack: { root: \"D:/\" },')
+  Set-Content -NoNewline -Path "'$config -Value $cfg
+  $target = Join-Path $tmp '"'dashboard\\app\\(main)\\command-centre\\page.tsx'
+  "'$text = Get-Content -Raw $target
+  $text = $text.Replace('"'href: \"/command-centre/hermes\"', 'href: \"/command-centre/hermes-NOPE\"')
+  Set-Content -NoNewline -Path "'$target -Value $text
+  $env:PI_CEO_URL='"'https://x.invalid'
+  "'$env:PI_CEO_PASSWORD='"'x'
+  "'$env:NEXT_PUBLIC_SUPABASE_URL='"'https://lksfwktwtmyznckodsau.supabase.co'
+  "'$env:NEXT_PUBLIC_SUPABASE_ANON_KEY='"'x'
+  "'$env:SUPABASE_SERVICE_ROLE_KEY='"'x'
+  Write-Output \"TEMP_ROOT="'$tmp"
+  Push-Location (Join-Path $tmp '"'dashboard')
+  try {
+    npx vitest run __tests__/command-centre-readonly.test.ts
+    "'$c9 = $LASTEXITCODE
+    npm run build
+    $build = $LASTEXITCODE
+  } finally { Pop-Location }
+  if ($build -eq 0) {
+    Push-Location $tmp
+    try {
+      node scripts/route-exercise.mjs
+      $c12 = $LASTEXITCODE
+    } finally { Pop-Location }
+  } else { $c12 = 999 }
+  Write-Output "RESULT_C9=$c9 RESULT_BUILD=$build RESULT_C12=$c12"
+} finally {
+  if (Test-Path $tmp) { Remove-Item -LiteralPath $tmp -Recurse -Force }
+}' in D:\Pi-Dev-Ops
+ succeeded in 69709ms:
+TEMP_ROOT=D:\Pi-Dev-Ops-c12-review-abea128b09c84c8b960466abe942d9ef
+
+ RUN  v4.1.4 D:/Pi-Dev-Ops-c12-review-abea128b09c84c8b960466abe942d9ef/dashboard
+
+
+ Test Files  1 passed (1)
+      Tests  27 passed (27)
+   Start at  07:54:42
+   Duration  1.28s (transform 43ms, setup 80ms, import 43ms, tests 66ms, environment 697ms)
+
+
+> pi-ceo-dashboard@2.0.0 build
+> next build
+
+▲ Next.js 16.2.3 (Turbopack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 4.2s
+  Running TypeScript ...
+  Finished TypeScript in 5.8s ...
+  Collecting page data using 19 workers ...
+  Generating static pages using 19 workers (0/19) ...
+  Generating static pages using 19 workers (4/19) 
+  Generating static pages using 19 workers (9/19) 
+  Generating static pages using 19 workers (14/19) 
+✓ Generating static pages using 19 workers (19/19) in 9.4s
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ƒ /_not-found
+├ ƒ /api/actions
+├ ƒ /api/actions/commit
+├ ƒ /api/analyze
+├ ƒ /api/auth/login
+├ ƒ /api/capabilities
+├ ƒ /api/chat
+├ ƒ /api/command-centre/wiki-graph
+├ ƒ /api/cron/analyze
+├ ƒ /api/curator-proposals
+├ ƒ /api/kill-switch
+├ ƒ /api/margot/bubble
+├ ƒ /api/phone/gate
+├ ƒ /api/phone/progress
+├ ƒ /api/pi-ceo/[...path]
+├ ƒ /api/sessions
+├ ƒ /api/settings
+├ ƒ /api/swarm-status
+├ ƒ /api/telegram
+├ ƒ /api/webhook/github
+├ ƒ /api/webhook/intake
+├ ƒ /api/webhook/morning-intel
+├ ƒ /api/zte
+├ ƒ /brain
+├ ƒ /builds
+├ ƒ /chat
+├ ƒ /command-centre
+├ ƒ /command-centre/hermes
+├ ƒ /command-centre/knowledge
+├ ƒ /command-centre/wiki-graph
+├ ƒ /control
+├ ƒ /dashboard
+├ ƒ /health
+├ ƒ /history
+├ ƒ /loop
+├ ƒ /overview
+├ ƒ /projects
+├ ƒ /routines
+├ ƒ /settings
+└ ƒ /sw.js
+
+
+ƒ Proxy (Middleware)
+
+ƒ  (Dynamic)  server-rendered on demand
+
+    control: build is newer than source — exercising the code that is actually on disk
+    starting the built app on :3187 ...
+    control: minted session accepted (entry page 200) — the run is measuring the real surface
+    rendered 4 pages, discovered 15 distinct internal paths
+RESULT_C9=0 RESULT_BUILD=0 RESULT_C12=1
+
+FAIL — internal navigation that does not resolve:
+
+  404  /command-centre/hermes-NOPE   (linked from: /command-centre)
+
+hook: PostToolUse
+hook: PostToolUse Completed
+codex
+The temp-copy side-by-side reproduced the claimed behavior after setting Turbopack’s root in the temp config: C9 passed 27/27, build succeeded, and C12 failed with `404 /command-centre/hermes-NOPE`. I’m doing one final status check before writing the review.
+exec
+"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git status --short' in D:\Pi-Dev-Ops
+ succeeded in 299ms:
+ M .autogit.json
+
+hook: PostToolUse
+hook: PostToolUse Completed
+codex
+Repository edits: none. Final tracked status still shows only pre-existing `M .autogit.json`.
+
+**Observed Loop**
+- `bash scripts/prove-controls.sh --fast`: exit 0, `pass=11 fail=0`.
+- Env-scoped `bash scripts/handoff-loop.sh`: exit 0, `pass=8 fail=0 skip=6`, `READY`.
+- `node scripts/route-exercise.mjs`: exit 0, 4 pages, 15 internal paths exercised.
+- `node scripts/route-exercise.mjs --plant-broken-link`: exit 1, failed on `404 /command-centre/this-route-does-not-exist`.
+- Extra Round 3 control, `--plant-relative-link`: exit 1, failed on `404 /this-relative-route-404s`.
+- `command-centre-readonly.test.ts`: 27 passed.
+- `command-centre-auth-coverage.test.ts`: 7 passed.
+- Side-by-side reproduction in temp copy: C9 passed 27/27; temp build passed; C12 exited 1 naming `404 /command-centre/hermes-NOPE`.
+
+Failed temp-copy attempts before successful reproduction:
+```text
+Error: Missing required environment variables: PI_CEO_URL, PI_CEO_PASSWORD
+```
+```text
+TurbopackInternalError: Symlink .../dashboard/node_modules is invalid, it points out of the filesystem root
+```
+
+**Axis 1 — Standards**
+No hard JS/Node practice violation found. Process cleanup is deliberate: `finally` always calls `shutdown()` and Windows uses synchronous `taskkill /T /F` at [scripts/route-exercise.mjs](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:229). Timeouts are consistently applied through `get()` at [scripts/route-exercise.mjs](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:84).
+
+Judgement calls: `serverLog` grows unbounded while the child runs at [scripts/route-exercise.mjs](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:221), acceptable for this short verifier but not ideal. Link extraction uses regex over rendered HTML at [scripts/route-exercise.mjs](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:122); acceptable for Next’s quoted output, but still less robust than a parser. Timeout/crash failures fail loud, but link fetch exceptions lose path/source context because the loop does not catch per-path errors at [scripts/route-exercise.mjs](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:287).
+
+**Axis 2 — Spec**
+C12 is a real design improvement for server-rendered links: the temp side-by-side reproduced the claim, C9 missed computed `<Link href={d.href}>`, and C12 caught the built broken route. Relative links are also covered by URL resolution.
+
+But C12 does not fully close G1 as stated. It exercises rendered `href/action/formaction` values only, at [scripts/route-exercise.mjs](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:122). Broken client fetches, imperative handlers, hydrated-only links, and unrendered branches remain outside it. The declared non-coverage is incomplete: it should also name redirect targets, HTTP method/form semantics, and non-rendered API calls. Because requests use `redirect: "manual"` at [scripts/route-exercise.mjs](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:85) and only fail `404` or `>=500` at [scripts/route-exercise.mjs](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:289), a link to a route that redirects to a missing destination, or a form whose real method is broken while GET succeeds, can pass green.
+
+The session and port controls are good, and I observed both positive controls fail red. A third false-green shape remains: standalone C12’s freshness walk covers `app`, `components`, `lib`, and `proxy.ts` only at [scripts/route-exercise.mjs](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:164), so route-affecting `next.config.ts` or dependency/config changes after build can still leave it measuring an old artifact. Handoff-loop’s build-before-C12 mitigates this in the gate; standalone C12 still overclaims.
+
+VERDICT: FAIL — C12 catches rendered computed links, but the G1 closure/non-coverage claim is still too broad.
+hook: Stop
+hook: Stop Completed
+tokens used
+97,136
+Repository edits: none. Final tracked status still shows only pre-existing `M .autogit.json`.
+
+**Observed Loop**
+- `bash scripts/prove-controls.sh --fast`: exit 0, `pass=11 fail=0`.
+- Env-scoped `bash scripts/handoff-loop.sh`: exit 0, `pass=8 fail=0 skip=6`, `READY`.
+- `node scripts/route-exercise.mjs`: exit 0, 4 pages, 15 internal paths exercised.
+- `node scripts/route-exercise.mjs --plant-broken-link`: exit 1, failed on `404 /command-centre/this-route-does-not-exist`.
+- Extra Round 3 control, `--plant-relative-link`: exit 1, failed on `404 /this-relative-route-404s`.
+- `command-centre-readonly.test.ts`: 27 passed.
+- `command-centre-auth-coverage.test.ts`: 7 passed.
+- Side-by-side reproduction in temp copy: C9 passed 27/27; temp build passed; C12 exited 1 naming `404 /command-centre/hermes-NOPE`.
+
+Failed temp-copy attempts before successful reproduction:
+```text
+Error: Missing required environment variables: PI_CEO_URL, PI_CEO_PASSWORD
+```
+```text
+TurbopackInternalError: Symlink .../dashboard/node_modules is invalid, it points out of the filesystem root
+```
+
+**Axis 1 — Standards**
+No hard JS/Node practice violation found. Process cleanup is deliberate: `finally` always calls `shutdown()` and Windows uses synchronous `taskkill /T /F` at [scripts/route-exercise.mjs](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:229). Timeouts are consistently applied through `get()` at [scripts/route-exercise.mjs](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:84).
+
+Judgement calls: `serverLog` grows unbounded while the child runs at [scripts/route-exercise.mjs](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:221), acceptable for this short verifier but not ideal. Link extraction uses regex over rendered HTML at [scripts/route-exercise.mjs](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:122); acceptable for Next’s quoted output, but still less robust than a parser. Timeout/crash failures fail loud, but link fetch exceptions lose path/source context because the loop does not catch per-path errors at [scripts/route-exercise.mjs](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:287).
+
+**Axis 2 — Spec**
+C12 is a real design improvement for server-rendered links: the temp side-by-side reproduced the claim, C9 missed computed `<Link href={d.href}>`, and C12 caught the built broken route. Relative links are also covered by URL resolution.
+
+But C12 does not fully close G1 as stated. It exercises rendered `href/action/formaction` values only, at [scripts/route-exercise.mjs](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:122). Broken client fetches, imperative handlers, hydrated-only links, and unrendered branches remain outside it. The declared non-coverage is incomplete: it should also name redirect targets, HTTP method/form semantics, and non-rendered API calls. Because requests use `redirect: "manual"` at [scripts/route-exercise.mjs](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:85) and only fail `404` or `>=500` at [scripts/route-exercise.mjs](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:289), a link to a route that redirects to a missing destination, or a form whose real method is broken while GET succeeds, can pass green.
+
+The session and port controls are good, and I observed both positive controls fail red. A third false-green shape remains: standalone C12’s freshness walk covers `app`, `components`, `lib`, and `proxy.ts` only at [scripts/route-exercise.mjs](D:/Pi-Dev-Ops/scripts/route-exercise.mjs:164), so route-affecting `next.config.ts` or dependency/config changes after build can still leave it measuring an old artifact. Handoff-loop’s build-before-C12 mitigates this in the gate; standalone C12 still overclaims.
+
+VERDICT: FAIL — C12 catches rendered computed links, but the G1 closure/non-coverage claim is still too broad.

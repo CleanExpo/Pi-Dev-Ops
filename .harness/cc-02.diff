@@ -1,0 +1,2929 @@
+diff --git a/dashboard/__tests__/command-centre-auth-coverage.test.ts b/dashboard/__tests__/command-centre-auth-coverage.test.ts
+new file mode 100644
+index 00000000..0b1a2a80
+--- /dev/null
++++ b/dashboard/__tests__/command-centre-auth-coverage.test.ts
+@@ -0,0 +1,87 @@
++/**
++ * Does the proxy actually protect the command-centre?
++ *
++ * The wiki-graph port declares a delta against the `auth gate` rule. Its stated
++ * reason is: "auth is enforced upstream by proxy.ts, whose matcher covers all
++ * non-static routes and 401s without a session."
++ *
++ * That reason was asserted, never proven. It is the load-bearing claim under an
++ * exemption the builder wrote to its own check, and the pages it exempts read
++ * `wiki_pages` through a SERVICE-ROLE client that bypasses RLS. If the claim is
++ * false, capability 2/3 ships an unauthenticated, RLS-bypassing read of the
++ * knowledge base.
++ *
++ * The matcher does cover these paths — but matching is not enforcing. proxy()
++ * only checks a session when the path hits PROTECTED_PAGE_PREFIXES or
++ * PROTECTED_API_PREFIXES. This test exercises proxy() directly, with no cookie.
++ *
++ * POSITIVE CONTROL is mandatory here. "No redirect" is what a correctly-guarded
++ * route and a completely broken test look like from the outside. `/control` is a
++ * known-protected path: if the control does not redirect, this file proves
++ * nothing and the assertions below are vacuous.
++ */
++import { describe, it, expect } from "vitest";
++import { NextRequest } from "next/server";
++import { proxy } from "../proxy";
++
++const BASE = "https://pi.invalid";
++
++/** A page/API request carrying NO session cookie. */
++const anonymous = (path: string) => new NextRequest(new URL(path, BASE));
++
++/** What did the proxy do — send them to login, refuse, or let them through? */
++async function outcome(path: string): Promise<"redirect" | "401" | "through"> {
++  const res = await proxy(anonymous(path));
++  if (res.status === 401) return "401";
++  // NextResponse.redirect() is a 307/308 with a location header.
++  if (res.status >= 300 && res.status < 400 && res.headers.get("location")) return "redirect";
++  return "through";
++}
++
++describe("proxy auth coverage", () => {
++  // ---- POSITIVE CONTROL ----
++  // Runs first and is asserted hardest. Every claim below is worthless if this
++  // does not hold: it proves `outcome()` can actually observe enforcement.
++  it("CONTROL: a known-protected page redirects an anonymous request", async () => {
++    expect(
++      await outcome("/control"),
++      "positive control failed — /control is in PROTECTED_PAGE_PREFIXES and must redirect. " +
++        "Until this passes, every other assertion in this file is vacuous.",
++    ).toBe("redirect");
++  });
++
++  it("CONTROL: a known-protected API returns 401 to an anonymous request", async () => {
++    expect(
++      await outcome("/api/pi-ceo/api/health"),
++      "positive control failed — /api/pi-ceo is in PROTECTED_API_PREFIXES and must 401.",
++    ).toBe("401");
++  });
++
++  // ---- THE CLAIM UNDER TEST ----
++  // Every command-centre surface, including the two the delta exempts.
++  const PAGES = [
++    "/command-centre",
++    "/command-centre/hermes",
++    "/command-centre/knowledge",
++    "/command-centre/wiki-graph",
++  ];
++
++  for (const path of PAGES) {
++    it(`${path} is not reachable without a session`, async () => {
++      expect(
++        await outcome(path),
++        `${path} rendered for an anonymous request. The wiki-graph 'auth gate' delta ` +
++          `states auth is enforced upstream by proxy.ts — this is that claim, checked.`,
++      ).toBe("redirect");
++    });
++  }
++
++  it("/api/command-centre/wiki-graph 401s without a session", async () => {
++    expect(
++      await outcome("/api/command-centre/wiki-graph"),
++      "the wiki-graph API served an anonymous request. It reads wiki_pages through a " +
++        "service-role client that bypasses RLS, so this is an unauthenticated read of the " +
++        "whole knowledge base.",
++    ).toBe("401");
++  });
++});
+diff --git a/dashboard/__tests__/command-centre-provenance.json b/dashboard/__tests__/command-centre-provenance.json
+index 1666d77e..1fcbbc27 100644
+--- a/dashboard/__tests__/command-centre-provenance.json
++++ b/dashboard/__tests__/command-centre-provenance.json
+@@ -1,16 +1,337 @@
+-{
+-  "_comment": "Provenance map for the command-centre migration. Every ported source file must appear here with the Authority-Site file it came from. The diff-relative conformance test compares each port against its named baseline: the port may not introduce a network/DB/execution construct the baseline did not already contain. An unlisted file fails the test, so a new file cannot enter the capability surface without a declared origin.",
+-  "_baseline_root": "D:/Authority-Site/apps/web/src",
+-  "_ruling": "2026-08-01 founder: port faithfully including existing behaviour. The claim under review is 'introduces no network surface the source did not have' \u2014 NOT absolute read-only proof. See adversarial-review spec-writing standard.",
+-  "files": {
+-    "app/(main)/command-centre/hermes/page.tsx": "app/(founder)/founder/command-centre/hermes-control-panel/page.tsx",
+-    "components/command-centre/DeckDetails.tsx": "components/command-centre/DeckDetails.tsx",
+-    "lib/command-centre/control-panel.ts": "lib/operator-gateway/control-panel.ts",
+-    "components/command-centre/command-deck.module.css": "app/(founder)/founder/command-centre/command-deck.module.css",
+-    "components/command-centre/deck-details.module.css": "components/command-centre/deck-details.module.css"
+-  },
+-  "_baseline_verified_by_hand": {
+-    "_note": "Capabilities whose baseline safety properties are load-bearing require a hand-established baseline BEFORE porting, recorded here. Capability 6 (operator-gateway) is the one that needs it \u2014 its whole safety story is 'no live runner, no real execute button'. 'No new surface' is worthless against an unexamined baseline.",
+-    "operator-gateway": "NOT YET ESTABLISHED \u2014 blocks capability 6"
+-  }
++{
++  "_comment": "Provenance map for the command-centre migration. Every ported source file must appear here with the Authority-Site file it came from. The diff-relative conformance test compares each port against its named baseline: the port may not introduce a network/DB/execution construct the baseline did not already contain. An unlisted file fails the test, so a new file cannot enter the capability surface without a declared origin.",
++  "_baseline_root": "D:/Authority-Site/apps/web/src",
++  "_ruling": "2026-08-01 founder: port faithfully including existing behaviour. The claim under review is 'introduces no network surface the source did not have' \u2014 NOT absolute read-only proof. See adversarial-review spec-writing standard.",
++  "files": {
++    "app/(main)/command-centre/hermes/page.tsx": "app/(founder)/founder/command-centre/hermes-control-panel/page.tsx",
++    "components/command-centre/DeckDetails.tsx": "components/command-centre/DeckDetails.tsx",
++    "lib/command-centre/control-panel.ts": "lib/operator-gateway/control-panel.ts",
++    "components/command-centre/command-deck.module.css": "app/(founder)/founder/command-centre/command-deck.module.css",
++    "components/command-centre/deck-details.module.css": "components/command-centre/deck-details.module.css",
++    "app/(main)/command-centre/knowledge/page.tsx": "app/(founder)/founder/command-centre/knowledge/page.tsx",
++    "components/command-centre/DeckThemeShell.tsx": "app/(founder)/founder/command-centre/DeckThemeShell.tsx",
++    "components/command-centre/deck-visual-helpers.ts": "app/(founder)/founder/command-centre/deck-visual-helpers.ts",
++    "components/command-centre/shell.module.css": "app/(founder)/founder/command-centre/shell.module.css",
++    "components/command-centre/SourceBadge.tsx": "components/command-centre/SourceBadge.tsx",
++    "components/command-centre/DegradedDataBanner.tsx": "components/command-centre/DegradedDataBanner.tsx",
++    "components/command-centre/wiki-graph/WikiGraphTile.tsx": "components/command-centre/wiki-graph/WikiGraphTile.tsx",
++    "lib/command-centre/tools/catalogue.ts": "lib/command-centre/tools/catalogue.ts",
++    "store/ui.ts": "store/ui.ts",
++    "lib/command-centre/wiki-graph.ts": "lib/command-centre/wiki-graph.ts",
++    "app/(main)/command-centre/wiki-graph/page.tsx": "app/(founder)/founder/command-centre/wiki-graph/page.tsx",
++    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx": "components/command-centre/wiki-graph/WikiGraphCanvas.tsx"
++  },
++  "_baseline_verified_by_hand": {
++    "_note": "Capabilities whose baseline safety properties are load-bearing require a hand-established baseline BEFORE porting, recorded here. Capability 6 (operator-gateway) is the one that needs it \u2014 its whole safety story is 'no live runner, no real execute button'. 'No new surface' is worthless against an unexamined baseline.",
++    "operator-gateway": "NOT YET ESTABLISHED \u2014 blocks capability 6"
++  },
++  "imports": {
++    "app/(main)/command-centre/hermes/page.tsx :: next/font/google": {
++      "specifier": "next/font/google",
++      "resolves_in_source": "package: next/font/google",
++      "resolves_in_target": "package: next/font/google",
++      "judgment": "same",
++      "note": "same npm package in both apps"
++    },
++    "app/(main)/command-centre/hermes/page.tsx :: @/lib/command-centre/control-panel": {
++      "specifier": "@/lib/command-centre/control-panel",
++      "resolves_in_source": "unresolved: @/lib/command-centre/control-panel",
++      "resolves_in_target": "file: lib/command-centre/control-panel.ts",
++      "judgment": "must-change",
++      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
++    },
++    "app/(main)/command-centre/hermes/page.tsx :: @/components/command-centre/DeckDetails": {
++      "specifier": "@/components/command-centre/DeckDetails",
++      "resolves_in_source": "file: components/command-centre/DeckDetails.tsx",
++      "resolves_in_target": "file: components/command-centre/DeckDetails.tsx",
++      "judgment": "same",
++      "note": "relocated but byte-identical (sha 197331e86848)"
++    },
++    "app/(main)/command-centre/hermes/page.tsx :: @/components/command-centre/command-deck.module.css": {
++      "specifier": "@/components/command-centre/command-deck.module.css",
++      "resolves_in_source": "unresolved: @/components/command-centre/command-deck.module.css",
++      "resolves_in_target": "file: components/command-centre/command-deck.module.css",
++      "judgment": "must-change",
++      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
++    },
++    "components/command-centre/DeckDetails.tsx :: ./deck-details.module.css": {
++      "specifier": "./deck-details.module.css",
++      "resolves_in_source": "file: components/command-centre/deck-details.module.css",
++      "resolves_in_target": "file: components/command-centre/deck-details.module.css",
++      "judgment": "same",
++      "note": "relocated but byte-identical (sha c055143f13d5)"
++    },
++    "app/(main)/command-centre/knowledge/page.tsx :: next/link": {
++      "specifier": "next/link",
++      "resolves_in_source": "package: next/link",
++      "resolves_in_target": "package: next/link",
++      "judgment": "same",
++      "note": "same npm package in both apps"
++    },
++    "app/(main)/command-centre/knowledge/page.tsx :: next/font/google": {
++      "specifier": "next/font/google",
++      "resolves_in_source": "package: next/font/google",
++      "resolves_in_target": "package: next/font/google",
++      "judgment": "same",
++      "note": "same npm package in both apps"
++    },
++    "app/(main)/command-centre/knowledge/page.tsx :: @/lib/command-centre/tools/catalogue": {
++      "specifier": "@/lib/command-centre/tools/catalogue",
++      "resolves_in_source": "file: lib/command-centre/tools/catalogue.ts",
++      "resolves_in_target": "file: lib/command-centre/tools/catalogue.ts",
++      "judgment": "same",
++      "note": "relocated but byte-identical (sha 2876efa1753c)"
++    },
++    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/wiki-graph/WikiGraphTile": {
++      "specifier": "@/components/command-centre/wiki-graph/WikiGraphTile",
++      "resolves_in_source": "file: components/command-centre/wiki-graph/WikiGraphTile.tsx",
++      "resolves_in_target": "file: components/command-centre/wiki-graph/WikiGraphTile.tsx",
++      "judgment": "different-but-checked",
++      "note": "content diff is exactly one line: '../SourceBadge' -> '@/components/command-centre/SourceBadge' (R5 alias rewrite). Verified by diff with line endings normalised; no behavioural change."
++    },
++    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/DeckDetails": {
++      "specifier": "@/components/command-centre/DeckDetails",
++      "resolves_in_source": "file: components/command-centre/DeckDetails.tsx",
++      "resolves_in_target": "file: components/command-centre/DeckDetails.tsx",
++      "judgment": "same",
++      "note": "relocated but byte-identical (sha 197331e86848)"
++    },
++    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/DeckThemeShell": {
++      "specifier": "@/components/command-centre/DeckThemeShell",
++      "resolves_in_source": "unresolved: @/components/command-centre/DeckThemeShell",
++      "resolves_in_target": "file: components/command-centre/DeckThemeShell.tsx",
++      "judgment": "must-change",
++      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
++    },
++    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/deck-visual-helpers": {
++      "specifier": "@/components/command-centre/deck-visual-helpers",
++      "resolves_in_source": "unresolved: @/components/command-centre/deck-visual-helpers",
++      "resolves_in_target": "file: components/command-centre/deck-visual-helpers.ts",
++      "judgment": "must-change",
++      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
++    },
++    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/shell.module.css": {
++      "specifier": "@/components/command-centre/shell.module.css",
++      "resolves_in_source": "unresolved: @/components/command-centre/shell.module.css",
++      "resolves_in_target": "file: components/command-centre/shell.module.css",
++      "judgment": "must-change",
++      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
++    },
++    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/command-deck.module.css": {
++      "specifier": "@/components/command-centre/command-deck.module.css",
++      "resolves_in_source": "unresolved: @/components/command-centre/command-deck.module.css",
++      "resolves_in_target": "file: components/command-centre/command-deck.module.css",
++      "judgment": "must-change",
++      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
++    },
++    "components/command-centre/DeckThemeShell.tsx :: react": {
++      "specifier": "react",
++      "resolves_in_source": "package: react",
++      "resolves_in_target": "package: react",
++      "judgment": "same",
++      "note": "same npm package in both apps"
++    },
++    "components/command-centre/DeckThemeShell.tsx :: @/store/ui": {
++      "specifier": "@/store/ui",
++      "resolves_in_source": "file: store/ui.ts",
++      "resolves_in_target": "file: store/ui.ts",
++      "judgment": "same",
++      "note": "relocated but byte-identical (sha 70a6b14e237d)"
++    },
++    "components/command-centre/DeckThemeShell.tsx :: ./command-deck.module.css": {
++      "specifier": "./command-deck.module.css",
++      "resolves_in_source": "file: app/(founder)/founder/command-centre/command-deck.module.css",
++      "resolves_in_target": "file: components/command-centre/command-deck.module.css",
++      "judgment": "same",
++      "note": "relocated but byte-identical (sha 5403d34cde1a)"
++    },
++    "components/command-centre/DeckThemeShell.tsx :: ./shell.module.css": {
++      "specifier": "./shell.module.css",
++      "resolves_in_source": "file: app/(founder)/founder/command-centre/shell.module.css",
++      "resolves_in_target": "file: components/command-centre/shell.module.css",
++      "judgment": "same",
++      "note": "relocated but byte-identical (sha f72f5a4e9bc5)"
++    },
++    "app/api/command-centre/wiki-graph/route.ts :: next/server": {
++      "specifier": "next/server",
++      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
++      "resolves_in_target": "package: next/server",
++      "judgment": "no-source-baseline",
++      "note": "The route is REBUILT, not ported, so there is no source import to compare. Surfaced only after importGraph() was seeded from app/api/command-centre as well as the pages — before that the route's imports were outside the graph entirely."
++    },
++    "app/api/command-centre/wiki-graph/route.ts :: @/lib/supabase/server": {
++      "specifier": "@/lib/supabase/server",
++      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
++      "resolves_in_target": "file: lib/supabase/server.ts",
++      "judgment": "no-source-baseline",
++      "note": "The privilege-sensitive one, and the reason this gap mattered rather than being bookkeeping. The source route imports getUser+createClient from ITS @/lib/supabase/server: anon-key, RLS-enforced, per-user. The identical specifier resolves here to a service-role client that bypasses RLS. That divergence is the whole reason the route was rebuilt instead of ported - and until the graph was seeded from the API directory, this import could have been changed with nothing to declare and nothing to fail."
++    },
++    "app/api/command-centre/wiki-graph/route.ts :: @/lib/command-centre/wiki-graph": {
++      "specifier": "@/lib/command-centre/wiki-graph",
++      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
++      "resolves_in_target": "file: lib/command-centre/wiki-graph.ts",
++      "judgment": "no-source-baseline",
++      "note": "The shared pure graph builder, itself a ported file with its own provenance entry. Pure: no network, no DB, no execution."
++    },
++    "app/(main)/command-centre/page.tsx :: next/link": {
++      "specifier": "next/link",
++      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
++      "resolves_in_target": "package: next/link",
++      "judgment": "no-source-baseline",
++      "note": "The command-centre index is NEW in the target, so there is no source import to compare this against. Surfaced by the map-vs-reality check: it was reachable in the capability graph and carried no judgment at all."
++    },
++    "lib/supabase/server.ts :: @supabase/ssr": {
++      "specifier": "@supabase/ssr",
++      "resolves_in_source": "n/a: this file has no source baseline (_target_native)",
++      "resolves_in_target": "package: @supabase/ssr",
++      "judgment": "no-source-baseline",
++      "note": "Pre-existing file of this app. No source equivalent, so no cross-app import judgment is possible. Worth stating plainly: this is the module behind the SERVICE-ROLE client that bypasses RLS, and until the map-vs-reality check existed its imports carried no declared judgment despite being the most privilege-sensitive file in the graph."
++    },
++    "lib/supabase/server.ts :: @supabase/supabase-js": {
++      "specifier": "@supabase/supabase-js",
++      "resolves_in_source": "n/a: this file has no source baseline (_target_native)",
++      "resolves_in_target": "package: @supabase/supabase-js",
++      "judgment": "no-source-baseline",
++      "note": "Same as @supabase/ssr above — target-native, no source counterpart to compare."
++    },
++    "components/command-centre/wiki-graph/WikiGraphTile.tsx :: react": {
++      "specifier": "react",
++      "resolves_in_source": "package: react",
++      "resolves_in_target": "package: react",
++      "judgment": "same",
++      "note": "same npm package in both apps"
++    },
++    "components/command-centre/wiki-graph/WikiGraphTile.tsx :: next/link": {
++      "specifier": "next/link",
++      "resolves_in_source": "package: next/link",
++      "resolves_in_target": "package: next/link",
++      "judgment": "same",
++      "note": "same npm package in both apps"
++    },
++    "components/command-centre/wiki-graph/WikiGraphTile.tsx :: @/components/command-centre/SourceBadge": {
++      "specifier": "@/components/command-centre/SourceBadge",
++      "resolves_in_source": "file: components/command-centre/SourceBadge.tsx",
++      "resolves_in_target": "file: components/command-centre/SourceBadge.tsx",
++      "judgment": "same",
++      "note": "relocated but byte-identical (sha 344f6941b31e)"
++    },
++    "lib/command-centre/tools/catalogue.ts :: node:fs/promises": {
++      "specifier": "node:fs/promises",
++      "resolves_in_source": "package: node:fs/promises",
++      "resolves_in_target": "package: node:fs/promises",
++      "judgment": "same",
++      "note": "same npm package in both apps"
++    },
++    "lib/command-centre/tools/catalogue.ts :: node:path": {
++      "specifier": "node:path",
++      "resolves_in_source": "package: node:path",
++      "resolves_in_target": "package: node:path",
++      "judgment": "same",
++      "note": "same npm package in both apps"
++    },
++    "lib/command-centre/tools/catalogue.ts :: node:os": {
++      "specifier": "node:os",
++      "resolves_in_source": "package: node:os",
++      "resolves_in_target": "package: node:os",
++      "judgment": "same",
++      "note": "same npm package in both apps"
++    },
++    "store/ui.ts :: zustand": {
++      "specifier": "zustand",
++      "resolves_in_source": "package: zustand",
++      "resolves_in_target": "package: zustand",
++      "judgment": "same",
++      "note": "same npm package in both apps"
++    },
++    "store/ui.ts :: zustand/middleware": {
++      "specifier": "zustand/middleware",
++      "resolves_in_source": "package: zustand/middleware",
++      "resolves_in_target": "package: zustand/middleware",
++      "judgment": "same",
++      "note": "same npm package in both apps"
++    },
++    "app/(main)/command-centre/wiki-graph/page.tsx :: next/link": {
++      "specifier": "next/link",
++      "resolves_in_source": "package: next/link",
++      "resolves_in_target": "package: next/link",
++      "judgment": "same",
++      "note": "same npm package, version matched to the baseline"
++    },
++    "app/(main)/command-centre/wiki-graph/page.tsx :: @/lib/supabase/server": {
++      "specifier": "@/lib/supabase/server",
++      "resolves_in_source": "file: lib/supabase/server.ts",
++      "resolves_in_target": "file: lib/supabase/server.ts",
++      "judgment": "different-but-checked",
++      "note": "THE drift case. Source: anon-key, RLS-enforced, per-user (getUser + createClient). Target: service-role, no per-user identity. Handled by REBUILDING the page data access against createServerClient and removing the getUser/redirect gate, since auth is enforced upstream by proxy.ts. Not a silent substitution - the divergence is the reason for the rebuild."
++    },
++    "app/(main)/command-centre/wiki-graph/page.tsx :: @/lib/command-centre/wiki-graph": {
++      "specifier": "@/lib/command-centre/wiki-graph",
++      "resolves_in_source": "file: lib/command-centre/wiki-graph.ts",
++      "resolves_in_target": "file: lib/command-centre/wiki-graph.ts",
++      "judgment": "same",
++      "note": "relocated, byte-identical (sha 3b1b6c75eefe)"
++    },
++    "app/(main)/command-centre/wiki-graph/page.tsx :: @/components/command-centre/wiki-graph/WikiGraphCanvas": {
++      "specifier": "@/components/command-centre/wiki-graph/WikiGraphCanvas",
++      "resolves_in_source": "file: components/command-centre/wiki-graph/WikiGraphCanvas.tsx",
++      "resolves_in_target": "file: components/command-centre/wiki-graph/WikiGraphCanvas.tsx",
++      "judgment": "same",
++      "note": "relocated, byte-identical (sha ef4fb55ae5fd)"
++    },
++    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx :: react": {
++      "specifier": "react",
++      "resolves_in_source": "package: react",
++      "resolves_in_target": "package: react",
++      "judgment": "same",
++      "note": "same npm package, version matched to the baseline"
++    },
++    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx :: d3-force": {
++      "specifier": "d3-force",
++      "resolves_in_source": "package: d3-force",
++      "resolves_in_target": "package: d3-force",
++      "judgment": "same",
++      "note": "same npm package, version matched to the baseline"
++    },
++    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx :: d3-selection": {
++      "specifier": "d3-selection",
++      "resolves_in_source": "package: d3-selection",
++      "resolves_in_target": "package: d3-selection",
++      "judgment": "same",
++      "note": "same npm package, version matched to the baseline"
++    },
++    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx :: d3-zoom": {
++      "specifier": "d3-zoom",
++      "resolves_in_source": "package: d3-zoom",
++      "resolves_in_target": "package: d3-zoom",
++      "judgment": "same",
++      "note": "same npm package, version matched to the baseline"
++    }
++  },
++  "_imports_note": "Import-level provenance. judgment must be one of: same | different-but-checked | must-change. UNDECLARED fails the suite exactly as an undeclared FILE does. File provenance proves origin; this proves the imports still mean what they meant.",
++  "_rebuilt_not_ported": {
++    "app/api/command-centre/wiki-graph/route.ts": "REBUILT against this app's createServerClient. The source imports getUser+createClient from its own @/lib/supabase/server (anon-key, RLS-enforced, per-user). The same specifier resolves here to a service-role client with no per-user identity. A verbatim port would have typechecked while silently swapping an RLS-enforced read for an RLS-bypassing one. No source baseline applies, so it is excluded from diff-relative comparison by design.",
++    "app/(main)/command-centre/page.tsx": "NEW in the target. The source index carries the founder shell and nine deck tiles; porting it would drag in six unmigrated capabilities. Small index over what exists; grows as capabilities land. No source baseline applies."
++  },
++  "_omitted_deliberately": {
++    "components/command-centre/WikiEnhanceControl.tsx": "KI-002. Dropped from the knowledge port. It POSTs to a route that enqueues into operator_jobs on a production database and needs a per-user identity this app lacks. The route is ABSENT rather than stubbed."
++  },
++  "_target_native": {
++    "lib/supabase/server.ts": "Pre-existing file of THIS app, not ported and not rebuilt for the migration. It is in the capability graph because the rebuilt wiki-graph page imports it. No source baseline applies; diff-relative comparison is meaningless for it."
++  },
++  "_declared_deltas": {
++    "app/(main)/command-centre/wiki-graph/page.tsx": {
++      "auth gate": {
++        "from": 3,
++        "to": 0,
++        "reason": "EXPECTED, and now PROVEN rather than asserted. The source's getUser()/redirect('/auth/login') gate is removed: per-user auth has no equivalent here (single operator, no identity). The gate moved layer - it is now proxy.ts. The FIRST version of this reason said 'auth is enforced upstream by proxy.ts, whose matcher covers all non-static routes and 401s without a session', and that was FALSE. The matcher does cover every non-static route, but proxy() only checks a session for paths listed in PROTECTED_PAGE_PREFIXES / PROTECTED_API_PREFIXES, and /command-centre was in neither - so all four command-centre pages and the wiki-graph API served anonymous requests while reading wiki_pages through a service-role client that bypasses RLS. __tests__/command-centre-auth-coverage.test.ts calls proxy() directly with no cookie and proved it: 5 failed against 2 passing positive controls, so the red was not vacuous. /command-centre and /api/command-centre were then added to the protected prefixes and it went 7/7. This exemption's reason is now the tested behaviour of a named file rather than a sentence.",
++        "evidence": "__tests__/command-centre-auth-coverage.test.ts"
++      },
++      "database client": {
++        "from": 1,
++        "to": 2,
++        "reason": "EXPECTED. `await createClient()` (anon-key, RLS-enforced) replaced by `createServerClient()` (this app's client). The count reaches 2 rather than 1 because the tracked regex matches both the import specifier and the call site of the renamed function - one client counted twice, not a second client appearing. Bounded to exactly 1 -> 2: a genuine additional client in this file reads 1 -> 3 and still fails. What this exemption explicitly does NOT excuse is the privilege change - the target client is service-role and bypasses RLS, which is precisely why the auth gate above had to be re-established at the proxy layer instead of declared away."
++      }
++    }
++  },
++  "_declared_deltas_note": "Per-file, per-rule expected divergences, each naming the EXACT count transition it excuses (from -> to) plus a reason. Only that one measured transition is exempt: any other magnitude, in the same file under the same rule, still fails. Keying on file+rule alone - the first design - was a blanket exclusion wearing a narrower label, and cross-vendor review caught it: declaring 'auth gate' on a file excused every future auth-gate loss in that file, forever. Second lesson from the same review: a reason must be checkable against something. 'Enforced upstream by proxy.ts' read as evidence, was not, and was wrong - until a test made it both."
+ }
+\ No newline at end of file
+diff --git a/dashboard/__tests__/command-centre-readonly.test.ts b/dashboard/__tests__/command-centre-readonly.test.ts
+index c63f9573..0716f08f 100644
+--- a/dashboard/__tests__/command-centre-readonly.test.ts
++++ b/dashboard/__tests__/command-centre-readonly.test.ts
+@@ -1,156 +1,440 @@
+-/**
+- * command-centre-readonly.test.ts — diff-relative conformance for ported capabilities.
+- *
+- * THE CLAIM THIS TEST CHECKS, and the one it deliberately does NOT:
+- *
+- *   CHECKS:      "this port introduces no network/DB/execution construct that the
+- *                 named source baseline did not already contain."
+- *   DOES NOT:    "this page makes no network call."
+- *
+- * The second is an unbounded negative. Three bounded attempts at capability 1 were
+- * all correctly failed by cross-vendor review because the spec asked for it: there
+- * is always another path (dynamic import, require, WebSocket, sendBeacon, server
+- * action, transitive side effect). The code was fine every time; the spec was the
+- * defect. Founder ruling 2026-08-01: take the diff-relative framing.
+- *
+- * A diff-relative claim is decidable — compare against a baseline, answer yes or no.
+- * It is also only as strong as that baseline, which is why capabilities whose safety
+- * properties are load-bearing (operator-gateway) require a hand-established baseline
+- * recorded in the provenance file before they may be ported.
+- */
+-import { describe, expect, it } from "vitest";
+-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+-import { dirname, join, resolve } from "node:path";
+-
+-const ROOT = resolve(__dirname, "..");
+-const PROV = JSON.parse(
+-  readFileSync(join(__dirname, "command-centre-provenance.json"), "utf8")
+-) as {
+-  _baseline_root: string;
+-  files: Record<string, string>;
+-};
+-const BASELINE = PROV._baseline_root;
+-const baselineAvailable = existsSync(BASELINE);
+-
+-/** Constructs whose COUNT must not increase relative to the baseline. */
+-const TRACKED: Array<{ re: RegExp; rule: string }> = [
+-  { re: /\bfetch\s*\(/g, rule: "network: fetch" },
+-  { re: /\b(axios|got|node-fetch|undici)\b/g, rule: "network: http client" },
+-  { re: /\b(WebSocket|EventSource|XMLHttpRequest|sendBeacon)\b/g, rule: "network: streaming/beacon" },
+-  { re: /\bimport\s*\(/g, rule: "dynamic import" },
+-  { re: /\brequire\s*\(/g, rule: "require()" },
+-  { re: /https?:\/\//g, rule: "remote host literal" },
+-  { re: /\.(insert|update|upsert|delete)\s*\(/g, rule: "database write" },
+-  { re: /createServerClient|createClient\s*\(/g, rule: "database client" },
+-  { re: /\bMcpClient\b|modelcontextprotocol/g, rule: "MCP client" },
+-  { re: /"use server"|'use server'/g, rule: "server action" },
+-  { re: /ANTHROPIC_API_KEY|OPENAI_API_KEY|STRIPE_SECRET/g, rule: "paid API key" },
+-];
+-
+-const strip = (s: string) =>
+-  s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+-
+-const count = (src: string, re: RegExp) => (strip(src).match(new RegExp(re.source, "g")) || []).length;
+-
+-function resolveSpec(spec: string, from: string): string | null {
+-  let base: string;
+-  if (spec.startsWith("@/")) base = join(ROOT, spec.slice(2));
+-  else if (spec.startsWith(".")) base = resolve(dirname(from), spec);
+-  else return null;
+-  for (const c of [`${base}.ts`, `${base}.tsx`, join(base, "index.ts"), join(base, "index.tsx"), base]) {
+-    if (existsSync(c) && statSync(c).isFile()) return c;
+-  }
+-  return null;
+-}
+-
+-/** Everything reachable from the capability entry pages, following imports. */
+-function importGraph(): string[] {
+-  const entries: string[] = [];
+-  (function walk(d: string) {
+-    if (!existsSync(d)) return;
+-    for (const e of readdirSync(d)) {
+-      const p = join(d, e);
+-      if (statSync(p).isDirectory()) walk(p);
+-      else if (e === "page.tsx") entries.push(p);
+-    }
+-  })(join(ROOT, "app/(main)/command-centre"));
+-
+-  const seen = new Set<string>();
+-  const queue = [...entries];
+-  while (queue.length) {
+-    const f = queue.pop()!;
+-    if (seen.has(f) || !existsSync(f)) continue;
+-    seen.add(f);
+-    // Both `import x from 'y'` and the side-effect form `import 'y'`. Matching only
+-    // `from '...'` let a side-effect import enter the surface unprovenanced.
+-    for (const m of readFileSync(f, "utf8").matchAll(/(?:from|import)\s+['"]([^'"]+)['"]/g)) {
+-      const r = resolveSpec(m[1], f);
+-      if (r && !seen.has(r)) queue.push(r);
+-    }
+-  }
+-  return [...seen];
+-}
+-
+-const rel = (f: string) => f.slice(ROOT.length + 1).replace(/\\/g, "/");
+-
+-describe("command-centre: no new surface vs source baseline", () => {
+-  const files = importGraph().map(rel);
+-
+-  it("the import graph reaches beyond the capability directory (positive control)", () => {
+-    expect(files.length).toBeGreaterThan(1);
+-    expect(files.some((f) => f.startsWith("components/command-centre"))).toBe(true);
+-  });
+-
+-  it("every file in the capability surface has a declared origin", () => {
+-    // A file with no provenance has no baseline, so "no new surface" is unprovable
+-    // for it. Unlisted means fail, not skip.
+-    const undeclared = files.filter((f) => !(f in PROV.files));
+-    expect(undeclared, `no provenance entry for:\n${undeclared.join("\n")}`).toEqual([]);
+-  });
+-
+-  it("the baseline is reachable, or the run is explicitly acknowledged as unverified", () => {
+-    // A skipped comparison is not a passing one. Previously this only warned while
+-    // the suite still went green — so an environment without the baseline reported
+-    // success having checked nothing. It now FAILS closed. Setting
+-    // CC_ALLOW_NO_BASELINE=1 is the only way past, and it makes the gap a recorded
+-    // choice rather than a silent one.
+-    const acknowledged = process.env.CC_ALLOW_NO_BASELINE === "1";
+-    expect(
+-      baselineAvailable || acknowledged,
+-      `[BASELINE UNAVAILABLE] ${BASELINE} not present, so the diff-relative claim ` +
+-        `was NOT verified. This suite refuses to report success without checking. ` +
+-        `Provide the baseline checkout, or set CC_ALLOW_NO_BASELINE=1 to record ` +
+-        `deliberately that this run proves nothing about R2/R6.`
+-    ).toBe(true);
+-  });
+-
+-  it("detects an increase when one exists (positive control)", () => {
+-    const before = count("const a = 1", /\bfetch\s*\(/);
+-    const after = count("const a = fetch('x')", /\bfetch\s*\(/);
+-    expect(after).toBeGreaterThan(before);
+-  });
+-
+-  for (const t of TRACKED) {
+-    it.skipIf(!baselineAvailable)(`introduces no new — ${t.rule}`, () => {
+-      const grew: string[] = [];
+-      const unresolved: string[] = [];
+-      for (const [ported, source] of Object.entries(PROV.files)) {
+-        const pPath = join(ROOT, ported);
+-        const sPath = join(BASELINE, source);
+-        // A pair that cannot be resolved must NOT be skipped. Skipping it left the
+-        // file uncompared while the suite still went green — a mistyped baseline
+-        // path would read as "verified clean" having checked nothing.
+-        if (!existsSync(pPath)) { unresolved.push(`ported missing: ${ported}`); continue; }
+-        if (!existsSync(sPath)) { unresolved.push(`baseline missing: ${source} (for ${ported})`); continue; }
+-        const p = count(readFileSync(pPath, "utf8"), t.re);
+-        const s = count(readFileSync(sPath, "utf8"), t.re);
+-        if (p > s) grew.push(`${ported}: ${s} -> ${p}`);
+-      }
+-      expect(
+-        unresolved,
+-        `provenance pairs could not be resolved, so these files were NOT compared:\n${unresolved.join("\n")}`
+-      ).toEqual([]);
+-      expect(grew, `${t.rule} increased vs baseline:\n${grew.join("\n")}`).toEqual([]);
+-    });
+-  }
+-});
++/**
++ * command-centre-readonly.test.ts — diff-relative conformance for ported capabilities.
++ *
++ * THE CLAIM THIS TEST CHECKS, and the one it deliberately does NOT:
++ *
++ *   CHECKS:      "this port introduces no network/DB/execution construct that the
++ *                 named source baseline did not already contain."
++ *   DOES NOT:    "this page makes no network call."
++ *
++ * The second is an unbounded negative. Three bounded attempts at capability 1 were
++ * all correctly failed by cross-vendor review because the spec asked for it: there
++ * is always another path (dynamic import, require, WebSocket, sendBeacon, server
++ * action, transitive side effect). The code was fine every time; the spec was the
++ * defect. Founder ruling 2026-08-01: take the diff-relative framing.
++ *
++ * A diff-relative claim is decidable — compare against a baseline, answer yes or no.
++ * It is also only as strong as that baseline, which is why capabilities whose safety
++ * properties are load-bearing (operator-gateway) require a hand-established baseline
++ * recorded in the provenance file before they may be ported.
++ */
++import { describe, expect, it } from "vitest";
++import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
++import { dirname, join, resolve } from "node:path";
++
++const ROOT = resolve(__dirname, "..");
++const PROV_RAW = JSON.parse(
++  readFileSync(join(__dirname, "command-centre-provenance.json"), "utf8")
++) as Record<string, unknown>;
++const PROV = PROV_RAW as unknown as {
++  _baseline_root: string;
++  files: Record<string, string>;
++  /** Written fresh for this app. No source baseline exists, so diff-relative
++   *  comparison is meaningless for these — they are declared, not compared. */
++  _rebuilt_not_ported?: Record<string, string>;
++  /** Pre-existing files of THIS app, pulled into the graph by an import. */
++  _target_native?: Record<string, string>;
++  /** file -> rule -> the ONE expected count change, with its reason. */
++  _declared_deltas?: Record<string, Record<string, DeclaredDelta>>;
++};
++
++/** An exemption names the exact magnitude it excuses, not just the direction. */
++interface DeclaredDelta {
++  /** Count in the baseline. */
++  from: number;
++  /** Count the port is allowed to have — this value and no other. */
++  to: number;
++  reason: string;
++}
++
++/**
++ * True only for the EXACT declared count change.
++ *
++ * This used to key on file+rule alone, which made it a blanket exclusion wearing
++ * a narrower label: declaring "auth gate 3 -> 0" also excused 3 -> 1, 3 -> 2, and
++ * every future auth-gate loss in that file. Cross-vendor review caught it —
++ * "exempts any auth gate decrease in wiki-graph/page.tsx, not just the expected
++ * removal". The mechanism existed to avoid a blanket exclusion and was blanket one
++ * level down. An exemption now excuses one measured transition; anything else in
++ * the same file, same rule, still fails.
++ */
++const deltaDeclared = (file: string, rule: string, from: number, to: number): boolean => {
++  const d = (PROV_RAW as {
++    _declared_deltas?: Record<string, Record<string, DeclaredDelta>>;
++  })._declared_deltas?.[file]?.[rule];
++  if (!d) return false;
++  return d.from === from && d.to === to && Boolean(d.reason);
++};
++
++/** Files with a declared origin OR a declared reason for having none. */
++const DECLARED = new Set<string>([
++  ...Object.keys((PROV_RAW as { files: Record<string, string> }).files),
++  ...Object.keys((PROV_RAW as { _rebuilt_not_ported?: Record<string, string> })._rebuilt_not_ported ?? {}),
++  ...Object.keys((PROV_RAW as { _target_native?: Record<string, string> })._target_native ?? {}),
++]);
++const BASELINE = PROV._baseline_root;
++const baselineAvailable = existsSync(BASELINE);
++
++/** Constructs whose COUNT must not increase relative to the baseline. */
++const TRACKED: Array<{ re: RegExp; rule: string }> = [
++  { re: /\bfetch\s*\(/g, rule: "network: fetch" },
++  { re: /\b(axios|got|node-fetch|undici)\b/g, rule: "network: http client" },
++  { re: /\b(WebSocket|EventSource|XMLHttpRequest|sendBeacon)\b/g, rule: "network: streaming/beacon" },
++  { re: /\bimport\s*\(/g, rule: "dynamic import" },
++  { re: /\brequire\s*\(/g, rule: "require()" },
++  { re: /https?:\/\//g, rule: "remote host literal" },
++  { re: /\.(insert|update|upsert|delete)\s*\(/g, rule: "database write" },
++  { re: /createServerClient|createClient\s*\(/g, rule: "database client" },
++  { re: /\bMcpClient\b|modelcontextprotocol/g, rule: "MCP client" },
++  { re: /"use server"|'use server'/g, rule: "server action" },
++  { re: /ANTHROPIC_API_KEY|OPENAI_API_KEY|STRIPE_SECRET/g, rule: "paid API key" },
++  // OG2 had zero coverage until this line. External execution was tracked by nothing.
++  { re: /\b(child_process|execSync|spawnSync|\bexec\s*\(|\bspawn\s*\(|\bfork\s*\()/g,
++    rule: "external execution" },
++];
++
++/**
++ * Guards whose count must NOT DECREASE. The tracked list above is one-directional —
++ * it fails on an increase — so a port that DELETES a safety check passes every one of
++ * them. Cross-vendor audit named this as the single most valuable missing check:
++ * "a port that does not add new scary constructs, but removes the exact guards that
++ * made the scary surface inert."
++ */
++const GUARDS: Array<{ re: RegExp; rule: string }> = [
++  { re: /\b(dryRun|dry_run|DRY_RUN|isDryRun)\b/g, rule: "dry-run predicate" },
++  { re: /\bdisabled\b/g, rule: "disabled control" },
++  { re: /\b(readOnly|read_only|READONLY)\b/g, rule: "read-only flag" },
++  { re: /\b(requireAuth|isAuthed|getUser|getSession|redirect\s*\(\s*['"]\/auth)/g, rule: "auth gate" },
++  { re: /\b(sandbox|SANDBOX|isSandbox)\b/g, rule: "sandbox boundary" },
++  { re: /\bconfirm\s*\(|\bconfirmed\b/g, rule: "confirmation gate" },
++];
++
++const strip = (s: string) =>
++  s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
++
++const count = (src: string, re: RegExp) => (strip(src).match(new RegExp(re.source, "g")) || []).length;
++
++function resolveSpec(spec: string, from: string): string | null {
++  let base: string;
++  if (spec.startsWith("@/")) base = join(ROOT, spec.slice(2));
++  else if (spec.startsWith(".")) base = resolve(dirname(from), spec);
++  else return null;
++  for (const c of [`${base}.ts`, `${base}.tsx`, join(base, "index.ts"), join(base, "index.tsx"), base]) {
++    if (existsSync(c) && statSync(c).isFile()) return c;
++  }
++  return null;
++}
++
++/** Everything reachable from the capability entry pages, following imports. */
++function importGraph(): string[] {
++  const entries: string[] = [];
++  (function walk(d: string) {
++    if (!existsSync(d)) return;
++    for (const e of readdirSync(d)) {
++      const p = join(d, e);
++      if (statSync(p).isDirectory()) walk(p);
++      else if (e === "page.tsx") entries.push(p);
++    }
++  })(join(ROOT, "app/(main)/command-centre"));
++
++  // The API routes are capability surface too, and seeding only from page.tsx left
++  // them out of the graph entirely. Cross-vendor review named the exact consequence:
++  // the route's own imports — including `@/lib/supabase/server`, the service-role
++  // client — could change with no provenance entry, while "no real import without an
++  // entry" still passed. The route was checked for EXISTENCE and never for what it
++  // pulls in. A reachability check that starts from the wrong roots is not narrower,
++  // it is blind in a specific direction.
++  (function walk(d: string) {
++    if (!existsSync(d)) return;
++    for (const e of readdirSync(d)) {
++      const p = join(d, e);
++      if (statSync(p).isDirectory()) walk(p);
++      else if (e === "route.ts" || e === "route.tsx") entries.push(p);
++    }
++  })(join(ROOT, "app/api/command-centre"));
++
++  const seen = new Set<string>();
++  const queue = [...entries];
++  while (queue.length) {
++    const f = queue.pop()!;
++    if (seen.has(f) || !existsSync(f)) continue;
++    seen.add(f);
++    // Both `import x from 'y'` and the side-effect form `import 'y'`. Matching only
++    // `from '...'` let a side-effect import enter the surface unprovenanced.
++    for (const m of readFileSync(f, "utf8").matchAll(/(?:from|import)\s+['"]([^'"]+)['"]/g)) {
++      const r = resolveSpec(m[1], f);
++      if (r && !seen.has(r)) queue.push(r);
++    }
++  }
++  return [...seen];
++}
++
++const rel = (f: string) => f.slice(ROOT.length + 1).replace(/\\/g, "/");
++
++describe("command-centre: no new surface vs source baseline", () => {
++  const files = importGraph().map(rel);
++
++  it("the import graph reaches beyond the capability directory (positive control)", () => {
++    expect(files.length).toBeGreaterThan(1);
++    expect(files.some((f) => f.startsWith("components/command-centre"))).toBe(true);
++  });
++
++  it("every file in the capability surface has a declared origin", () => {
++    // A file with no provenance has no baseline, so "no new surface" is unprovable
++    // for it. Unlisted means fail, not skip.
++    const undeclared = files.filter((f) => !DECLARED.has(f));
++    expect(undeclared, `no provenance entry for:\n${undeclared.join("\n")}`).toEqual([]);
++  });
++
++  it("the baseline is reachable, or the run is explicitly acknowledged as unverified", () => {
++    // A skipped comparison is not a passing one. Previously this only warned while
++    // the suite still went green — so an environment without the baseline reported
++    // success having checked nothing. It now FAILS closed. Setting
++    // CC_ALLOW_NO_BASELINE=1 is the only way past, and it makes the gap a recorded
++    // choice rather than a silent one.
++    const acknowledged = process.env.CC_ALLOW_NO_BASELINE === "1";
++    expect(
++      baselineAvailable || acknowledged,
++      `[BASELINE UNAVAILABLE] ${BASELINE} not present, so the diff-relative claim ` +
++        `was NOT verified. This suite refuses to report success without checking. ` +
++        `Provide the baseline checkout, or set CC_ALLOW_NO_BASELINE=1 to record ` +
++        `deliberately that this run proves nothing about R2/R6.`
++    ).toBe(true);
++  });
++
++  it("detects an increase when one exists (positive control)", () => {
++    const before = count("const a = 1", /\bfetch\s*\(/);
++    const after = count("const a = fetch('x')", /\bfetch\s*\(/);
++    expect(after).toBeGreaterThan(before);
++  });
++
++  // ---- G1: every internal link/fetch must resolve to a route that EXISTS here ----
++  // Construct counts are identical when a ported fetch points at an API route that was
++  // never ported, so the surface passes while the control 404s. Found in capability 2
++  // by the reviewer, not by the harness.
++  it("every internal href/fetch resolves to a route in the target app", () => {
++    const APP = join(ROOT, "app");
++    const routeExists = (p: string): boolean => {
++      const clean = p.split("?")[0].split("#")[0].replace(/\/$/, "");
++      if (!clean || clean === "/") return true;
++      const segs = clean.split("/").filter(Boolean);
++      // Next.js route groups "(main)" are transparent in the URL, so try every
++      // group-prefixed location as well as the bare one.
++      const groups = existsSync(APP)
++        ? readdirSync(APP).filter((d) => d.startsWith("(") && statSync(join(APP, d)).isDirectory())
++        : [];
++      const bases = [APP, ...groups.map((g) => join(APP, g))];
++      return bases.some((b) => {
++        const dir = join(b, ...segs);
++        return existsSync(join(dir, "page.tsx")) || existsSync(join(dir, "route.ts"));
++      });
++    };
++
++    const broken: string[] = [];
++    for (const f of files) {
++      const src = strip(readFileSync(join(ROOT, f), "utf8"));
++      const paths = [
++        ...[...src.matchAll(/href=["'`](\/[^"'`]*)["'`]/g)].map((m) => m[1]),
++        ...[...src.matchAll(/fetch\(\s*["'`](\/[^"'`]*)["'`]/g)].map((m) => m[1]),
++        // Programmatic navigation, and the TEMPLATE-LITERAL form especially. This check
++        // was written to catch a ported control pointing at an unported route, and it
++        // missed exactly that: WikiGraphCanvas does
++        // `router.push(`/founder/wiki/${slug}`)`, which is not an href= and not a
++        // string literal, so every node click 404'd while this test passed. Truncate at
++        // the first `${` and check the static prefix — a prefix that does not exist
++        // cannot be rescued by whatever the interpolation produces.
++        ...[...src.matchAll(/router\.(?:push|replace)\(\s*["'`](\/[^"'`]*)["'`]/g)]
++          .map((m) => m[1].split("${")[0]),
++      ];
++      for (const p of new Set(paths)) {
++        if (!routeExists(p)) broken.push(`${f} -> ${p}`);
++      }
++    }
++    expect(
++      broken,
++      `internal paths with no matching route in the target app (these would 404):\n${broken.join("\n")}`
++    ).toEqual([]);
++  });
++
++  // ---- G10 / Q3: a port may not DELETE a guard ----
++  // fail-open-ok: same reasoning as the tracked-construct tests — the separate
++  // "baseline is reachable" test FAILS when the baseline is absent, so the suite
++  // cannot go green unverified. This skip avoids a second misleading failure; it
++  // does not hide the first.
++  it.skipIf(!baselineAvailable)("no safety guard was removed relative to the baseline", () => {
++    const lost: string[] = [];
++    for (const g of GUARDS) {
++      for (const [ported, source] of Object.entries(PROV.files)) {
++        const pPath = join(ROOT, ported);
++        const sPath = join(BASELINE, source);
++        if (!existsSync(pPath) || !existsSync(sPath)) continue; // covered by the unresolved check
++        const p = count(readFileSync(pPath, "utf8"), g.re);
++        const s = count(readFileSync(sPath, "utf8"), g.re);
++        if (p < s && !deltaDeclared(ported, g.rule, s, p)) lost.push(`${g.rule} in ${ported}: ${s} -> ${p}`);
++      }
++    }
++    expect(lost, `safety guards removed vs baseline:\n${lost.join("\n")}`).toEqual([]);
++  });
++
++  for (const t of TRACKED) {
++    // fail-open-ok: skipping here is safe because the separate "baseline is
++    // reachable" test FAILS when the baseline is absent, so the suite cannot go
++    // green unverified. The skip avoids a misleading second failure, it does not
++    // hide the first.
++    it.skipIf(!baselineAvailable)(`introduces no new — ${t.rule}`, () => {
++      const grew: string[] = [];
++      const unresolved: string[] = [];
++      for (const [ported, source] of Object.entries(PROV.files)) {
++        const pPath = join(ROOT, ported);
++        const sPath = join(BASELINE, source);
++        // A pair that cannot be resolved must NOT be skipped. Skipping it left the
++        // file uncompared while the suite still went green — a mistyped baseline
++        // path would read as "verified clean" having checked nothing.
++        if (!existsSync(pPath)) { unresolved.push(`ported missing: ${ported}`); continue; }
++        if (!existsSync(sPath)) { unresolved.push(`baseline missing: ${source} (for ${ported})`); continue; }
++        const p = count(readFileSync(pPath, "utf8"), t.re);
++        const s = count(readFileSync(sPath, "utf8"), t.re);
++        if (p > s && !deltaDeclared(ported, t.rule, s, p)) grew.push(`${ported}: ${s} -> ${p}`);
++      }
++      expect(
++        unresolved,
++        `provenance pairs could not be resolved, so these files were NOT compared:\n${unresolved.join("\n")}`
++      ).toEqual([]);
++      expect(grew, `${t.rule} increased vs baseline:\n${grew.join("\n")}`).toEqual([]);
++    });
++  }
++});
++
++/**
++ * Import-level provenance. File provenance proves a file has a declared origin; it
++ * does NOT prove that what its imports RESOLVE TO behaves the same in both apps.
++ * `@/lib/supabase/server` resolves in the source to an anon-key RLS-enforced client
++ * and in the target to a service-role client that bypasses RLS — same specifier,
++ * compatible shapes, clean typecheck, silent privilege change.
++ */
++describe("command-centre: every import has a declared judgment", () => {
++  const IMPORTS = (PROV as unknown as {
++    imports?: Record<string, { specifier: string; judgment: string; note: string }>;
++  }).imports ?? {};
++
++  it("the import map is populated (positive control)", () => {
++    // An empty map would make every assertion below vacuously true.
++    expect(Object.keys(IMPORTS).length).toBeGreaterThan(0);
++  });
++
++  it("no import is UNDECLARED", () => {
++    const undeclared = Object.entries(IMPORTS)
++      .filter(([, v]) => v.judgment === "UNDECLARED")
++      .map(([k, v]) => `${k}\n      ${v.note}`);
++    expect(
++      undeclared,
++      `imports with no declared judgment (same | different-but-checked | must-change):\n${undeclared.join("\n")}`
++    ).toEqual([]);
++  });
++
++  it("every judgment is one of the permitted values", () => {
++    const ok = new Set(["same", "different-but-checked", "must-change", "no-source-baseline"]);
++    const bad = Object.entries(IMPORTS)
++      .filter(([, v]) => !ok.has(v.judgment))
++      .map(([k, v]) => `${k}: '${v.judgment}'`);
++    expect(bad, `invalid judgment values:\n${bad.join("\n")}`).toEqual([]);
++  });
++
++  /**
++   * `no-source-baseline` is the honest judgment for an import in a file that has no
++   * source counterpart — a rebuilt or target-native file. Comparing its imports across
++   * apps is not a check that can be run, and labelling it `must-change` would assert a
++   * comparison that never happened.
++   *
++   * It is also, obviously, an escape hatch: any import could be waved through by
++   * claiming its file has no baseline. So it is CONSTRAINED to files actually declared
++   * as baseline-free. This is the third time on this capability that a mechanism built
++   * to narrow an exclusion had to be narrowed itself — the pattern is that an exemption
++   * is only as tight as the thing that decides who may claim it.
++   */
++  it("'no-source-baseline' is only claimable by a file declared as having none", () => {
++    const baselineFree = new Set([
++      ...Object.keys((PROV_RAW as { _rebuilt_not_ported?: Record<string, string> })._rebuilt_not_ported ?? {}),
++      ...Object.keys((PROV_RAW as { _target_native?: Record<string, string> })._target_native ?? {}),
++    ]);
++    const bad = Object.entries(IMPORTS)
++      .filter(([, v]) => v.judgment === "no-source-baseline")
++      .map(([k]) => k)
++      .filter((k) => !baselineFree.has(k.split(" :: ")[0]));
++    expect(
++      bad,
++      "these claim 'no-source-baseline' but their file IS declared with a source baseline,\n" +
++        "so a real import comparison was owed and skipped:\n" + bad.join("\n")
++    ).toEqual([]);
++  });
++
++  it("a 'different-but-checked' judgment carries a stated reason", () => {
++    const unexplained = Object.entries(IMPORTS)
++      .filter(([, v]) => v.judgment !== "same" && !v.note.trim())
++      .map(([k]) => k);
++    expect(unexplained, `divergent imports with no note:\n${unexplained.join("\n")}`).toEqual([]);
++  });
++
++  /**
++   * ---- The map must match reality, in BOTH directions ----
++   *
++   * Everything above validates the map against itself. Cross-vendor review found what
++   * that permits: an entry for `knowledge/page.tsx :: @/components/command-centre/
++   * WikiEnhanceControl`, judged `must-change`, resolving to a target file that does
++   * not exist — for a component KI-002 deliberately omitted and the page never
++   * imports. Four assertions passed over it. A phantom entry does not merely sit
++   * there being wrong; it INFLATES the map, and the map is the thing we point at to
++   * say the import surface was reviewed. It reads as coverage.
++   *
++   * Deleting that one entry fixes one entry. These two tests fix the class: the map
++   * cannot claim an import that no file makes, and no file can make an import the map
++   * does not claim. Either direction failing is a real finding — the first means the
++   * map overstates what was checked, the second means something entered the surface
++   * unreviewed.
++   */
++  const ACTUAL = new Set<string>(
++    importGraph().flatMap((f) =>
++      [...readFileSync(f, "utf8").matchAll(/(?:from|import)\s+['"]([^'"]+)['"]/g)]
++        .map((m) => `${rel(f)} :: ${m[1]}`)
++    )
++  );
++
++  it("the actual-import set is populated (positive control)", () => {
++    // Both directional tests below compare against ACTUAL. If the graph walk or the
++    // specifier regex breaks, ACTUAL empties, and "no phantom entries" would still
++    // pass while checking nothing. This is the check that stops that being silent.
++    expect(ACTUAL.size).toBeGreaterThan(0);
++  });
++
++  it("no map entry describes an import that is not actually made", () => {
++    const phantom = Object.keys(IMPORTS).filter((k) => !ACTUAL.has(k));
++    expect(
++      phantom,
++      "provenance map entries with no corresponding import in the file named by the key.\n" +
++        "The map overstates what was reviewed — these were 'checked' and do not exist:\n" +
++        phantom.join("\n")
++    ).toEqual([]);
++  });
++
++  it("every actual import in the capability graph has a map entry", () => {
++    const unmapped = [...ACTUAL].filter((k) => !(k in IMPORTS));
++    expect(
++      unmapped,
++      "imports present in the capability graph with no provenance entry — these entered\n" +
++        "the surface without a declared judgment:\n" + unmapped.join("\n")
++    ).toEqual([]);
++  });
++
++  it("a map entry resolving to a target file names a file that exists", () => {
++    const missing = Object.entries(IMPORTS)
++      .map(([k, v]) => [k, /^file:\s*(.+)$/.exec(
++        (v as unknown as { resolves_in_target?: string }).resolves_in_target ?? ""
++      )] as const)
++      .filter(([, m]) => m && !existsSync(join(ROOT, m[1].trim())))
++      .map(([k, m]) => `${k} -> ${m![1].trim()}`);
++    expect(
++      missing,
++      `map entries resolving to a target file that is absent from disk:\n${missing.join("\n")}`
++    ).toEqual([]);
++  });
++});
+diff --git a/dashboard/app/(main)/command-centre/knowledge/page.tsx b/dashboard/app/(main)/command-centre/knowledge/page.tsx
+new file mode 100644
+index 00000000..2c62acce
+--- /dev/null
++++ b/dashboard/app/(main)/command-centre/knowledge/page.tsx
+@@ -0,0 +1,124 @@
++// src/app/(founder)/founder/command-centre/knowledge/page.tsx
++//
++// Knowledge deck (UNI-2378 wave 1) — the wiki knowledge base and capability
++// bus sections RELOCATED wholesale from the main command deck when it went
++// calm-cockpit. Every tile renders exactly as it did on page.tsx; only the
++// route moved. Deck register mirrors hermes-control-panel/page.tsx (fonts +
++// styles.deck + shell tokens). Auth enforced by the (founder) layout.
++
++export const dynamic = 'force-dynamic'
++
++import Link from 'next/link'
++import { Chakra_Petch, Syne, JetBrains_Mono } from 'next/font/google'
++import { getToolCatalogue } from '@/lib/command-centre/tools/catalogue'
++import { WikiGraphTile } from '@/components/command-centre/wiki-graph/WikiGraphTile'
++import { DeckDetails, DeckMoreLine, DECK_LIST_CAP } from '@/components/command-centre/DeckDetails'
++import { DeckThemeShell } from '@/components/command-centre/DeckThemeShell'
++import { railFor } from '@/components/command-centre/deck-visual-helpers'
++import shell from '@/components/command-centre/shell.module.css'
++import styles from '@/components/command-centre/command-deck.module.css'
++
++const chakra = Chakra_Petch({
++  weight: ['400', '500', '600', '700'],
++  subsets: ['latin'],
++  variable: '--font-chakra',
++  display: 'swap',
++})
++const syne = Syne({
++  weight: ['400', '500', '600', '700', '800'],
++  subsets: ['latin'],
++  variable: '--font-syne',
++  display: 'swap',
++})
++const jbMono = JetBrains_Mono({
++  weight: ['400', '500', '600'],
++  subsets: ['latin'],
++  variable: '--font-jbmono',
++  display: 'swap',
++})
++
++export default async function KnowledgeDeckPage() {
++  const tools = await getToolCatalogue()
++  const sources = tools.reduce<Record<string, number>>((acc, t) => {
++    acc[t.source] = (acc[t.source] ?? 0) + 1
++    return acc
++  }, {})
++
++  return (
++    <DeckThemeShell className={`${chakra.variable} ${syne.variable} ${jbMono.variable} ${styles.deck}`}>
++      <Link href="/command-centre" className={styles.plink}>
++        &larr; Command deck
++      </Link>
++
++      {/* ── Wiki knowledge base — canvas register (UNI-2339 slice 2) ── */}
++      <div className={`${shell.canvasScope} ${shell.glassSectionHead}`} id="wiki-knowledge-base">
++        <h2>Wiki Knowledge Base</h2>
++        <span className={shell.glassSub}>button → queue → Mac runner → wiki-growth report</span>
++        <div className={shell.glassHeadTools}>
++          {/* WikiEnhanceControl deliberately omitted - KI-002. It POSTs to
++              /api/command-centre/lanes/wiki/enhance, which enqueues a job into
++              operator_jobs on a production database and requires a per-user
++              identity this app does not have. The route is ABSENT rather than
++              stubbed: an absent route cannot be silently filled in, a 501 stub is
++              one line from live. */}
++        </div>
++      </div>
++
++      {/* Wiki Graph (UNI-2304) — knowledge-base graph summary + link to full view. */}
++      <section className={`${styles.reveal}`} style={{ animationDelay: '0.02s' }}>
++        <WikiGraphTile />
++      </section>
++
++      {/* ── Capability bus — canvas register (UNI-2339 slice 2) ──────── */}
++      <div className={`${shell.canvasScope} ${shell.glassSectionHead}`} id="capability-bus">
++        <h2>Capability Bus</h2>
++        <span className={shell.glassSub}>{tools.length} tools · {Object.keys(sources).length} sources</span>
++      </div>
++
++      <section className={`${styles.bus} ${styles.reveal}`} style={{ animationDelay: '0.04s' }}>
++        <div className={styles.busTop}>
++          <div className={styles.sources}>
++            {Object.entries(sources).map(([source, count]) => (
++              <span key={source} className={styles.sourceChip}>
++                {source} <b>{count}</b>
++              </span>
++            ))}
++          </div>
++          <span className={styles.stamp}>
++            <span className={styles.led} data-state="active" />
++            List-only · no execution
++          </span>
++        </div>
++
++        {/* Founder feedback 14/07/2026 — the raw tool_key dump collapses behind
++            the shared DeckDetails disclosure (summary = counts already shown in
++            the section head), capped with an honest "+N more". */}
++        <DeckDetails
++          title="Tool catalogue"
++          stats={`${tools.length} tools · list-only`}
++          testId="capability-bus-disclosure"
++        >
++          <div className={styles.toolGrid}>
++            {tools.slice(0, DECK_LIST_CAP).map((tool) => (
++              <div
++                key={tool.tool_key}
++                className={styles.toolRow}
++                style={{ '--rail': railFor(tool.risk_class) } as React.CSSProperties}
++              >
++                <div style={{ minWidth: 0 }}>
++                  <div className={styles.toolKey}>{tool.tool_key}</div>
++                  <div className={styles.toolDesc}>{tool.description}</div>
++                </div>
++                <div style={{ flexShrink: 0, textAlign: 'right' }}>
++                  <span className={styles.riskTag}>{tool.risk_class}</span>
++                  {tool.approval_required && <span className={styles.approval}>approval</span>}
++                </div>
++              </div>
++            ))}
++          </div>
++          <DeckMoreLine total={tools.length} shown={Math.min(tools.length, DECK_LIST_CAP)} />
++        </DeckDetails>
++      </section>
++    </DeckThemeShell>
++  )
++}
+diff --git a/dashboard/app/(main)/command-centre/page.tsx b/dashboard/app/(main)/command-centre/page.tsx
+new file mode 100644
+index 00000000..f09217f7
+--- /dev/null
++++ b/dashboard/app/(main)/command-centre/page.tsx
+@@ -0,0 +1,71 @@
++// app/(main)/command-centre/page.tsx — command-centre index.
++//
++// NEW IN THE TARGET, not ported. The source's deck index lives at
++// /founder/command-centre and carries the full calm-cockpit shell plus tiles for
++// nine decks. Porting it would drag in the founder layout and six capabilities
++// that have not been migrated yet, so this is a deliberately small index over the
++// capabilities that actually exist here.
++//
++// It grows as capabilities land. A link is added only when its route exists —
++// the route-existence check in __tests__/command-centre-readonly.test.ts fails
++// the suite otherwise, so a link to an unbuilt deck cannot ship.
++//
++// READ-ONLY. No data access, no writes.
++
++import Link from "next/link";
++
++export const dynamic = "force-dynamic";
++
++const DECKS = [
++  {
++    href: "/command-centre/hermes",
++    name: "Hermes",
++    blurb: "Hermes v0.16 surface release — module list, read-only.",
++  },
++  {
++    href: "/command-centre/knowledge",
++    name: "Knowledge",
++    blurb: "Wiki knowledge base and capability bus.",
++  },
++  {
++    href: "/command-centre/wiki-graph",
++    name: "Wiki Graph",
++    blurb: "The knowledge base as an interactive force-directed graph.",
++  },
++];
++
++export default function CommandCentreIndex() {
++  return (
++    <div className="p-6 max-w-3xl">
++      <h1 className="text-xl font-semibold mb-1" style={{ color: "var(--text)" }}>
++        Command Centre
++      </h1>
++      <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
++        Capabilities migrated into this dashboard. Decks appear here as they land.
++      </p>
++
++      <ul className="flex flex-col gap-2">
++        {DECKS.map((d) => (
++          <li key={d.href}>
++            <Link
++              href={d.href}
++              className="block rounded-md px-4 py-3 transition-colors"
++              style={{ background: "var(--panel)", border: "1px solid var(--border)" }}
++            >
++              <span className="text-sm font-medium" style={{ color: "var(--text)" }}>
++                {d.name}
++              </span>
++              <span className="block text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
++                {d.blurb}
++              </span>
++            </Link>
++          </li>
++        ))}
++      </ul>
++
++      <p className="text-xs mt-6" style={{ color: "var(--text-dim)" }}>
++        Not yet migrated: operations, providers, portfolio, operator gateway, studio.
++      </p>
++    </div>
++  );
++}
+diff --git a/dashboard/app/(main)/command-centre/wiki-graph/page.tsx b/dashboard/app/(main)/command-centre/wiki-graph/page.tsx
+new file mode 100644
+index 00000000..02fdc398
+--- /dev/null
++++ b/dashboard/app/(main)/command-centre/wiki-graph/page.tsx
+@@ -0,0 +1,136 @@
++// src/app/(founder)/founder/command-centre/wiki-graph/page.tsx
++//
++// Wiki Graph View (UNI-2304) — an Obsidian-style interactive force-directed
++// graph of the founder wiki knowledge base, inside the command centre.
++// Auth-gated; queries wiki_pages directly server-side and builds the graph via
++// the shared pure builder (same logic the /api/command-centre/wiki-graph route
++// exposes for the deck tile). Honest empty state when the wiki is unsynced.
++
++export const dynamic = 'force-dynamic'
++
++import Link from 'next/link'
++// Data access REBUILT for this app, not ported. The source's
++// `@/lib/supabase/server` is an anon-key, RLS-enforced, per-user client; the same
++// specifier resolves here to a service-role client and this app has no per-user
++// identity. Auth is enforced upstream by proxy.ts, so there is no getUser() to call.
++import { createServerClient } from '@/lib/supabase/server'
++import { buildWikiGraph, type WikiPageRow } from '@/lib/command-centre/wiki-graph'
++import { WikiGraphCanvas } from '@/components/command-centre/wiki-graph/WikiGraphCanvas'
++
++// PostgREST's default row cap — made explicit so truncation can be surfaced
++// honestly instead of silently rendering a partial graph as complete.
++const WIKI_PAGES_LIMIT = 1000
++
++function formatSync(iso: string | null): string {
++  if (!iso) return 'never'
++  const d = new Date(iso)
++  if (Number.isNaN(d.getTime())) return 'unknown'
++  return d.toLocaleString('en-AU', {
++    timeZone: 'Australia/Brisbane',
++    day: '2-digit',
++    month: '2-digit',
++    year: 'numeric',
++    hour: '2-digit',
++    minute: '2-digit',
++  })
++}
++
++export default async function WikiGraphPage() {
++  const supabase = createServerClient()
++  const { data, error } = await supabase
++    .from('wiki_pages')
++    .select('id, title, tags, content, updated_at')
++    .limit(WIKI_PAGES_LIMIT)
++
++  const rows = (data ?? []) as WikiPageRow[]
++  const graph = error ? null : buildWikiGraph(rows)
++  const truncated = !error && rows.length === WIKI_PAGES_LIMIT
++
++  return (
++    <div
++      style={{
++        display: 'flex',
++        flexDirection: 'column',
++        height: '100vh',
++        background: '#fffdf7',
++        color: '#14241b',
++        padding: '1.25rem 1.5rem',
++        gap: '1rem',
++        fontFamily: 'var(--font-chakra), var(--font-geist-sans), system-ui, sans-serif',
++      }}
++    >
++      <header style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.75rem' }}>
++        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
++          <Link href="/command-centre" style={{ fontSize: 11, color: 'rgba(21,128,61,0.7)', textDecoration: 'none' }}>
++            &larr; Command Deck
++          </Link>
++          <h1 style={{ fontSize: '1.4rem', fontWeight: 600, letterSpacing: '-0.01em', color: '#15803d', margin: 0 }}>
++            Wiki Graph
++          </h1>
++          {truncated && (
++            <span style={{ fontSize: 11, color: '#b45309' }}>
++              showing first {WIKI_PAGES_LIMIT} pages
++            </span>
++          )}
++        </div>
++        <div style={{ display: 'flex', gap: '1.25rem', fontSize: 12, color: '#5a6b62' }}>
++          <span>
++            <b style={{ color: '#14241b' }}>{graph?.pageCount ?? 0}</b> pages
++          </span>
++          <span>
++            <b style={{ color: '#14241b' }}>{graph?.edges.length ?? 0}</b> links
++          </span>
++          <span>
++            synced <b style={{ color: '#14241b' }}>{formatSync(graph?.lastSync ?? null)}</b>
++          </span>
++        </div>
++      </header>
++
++      {error ? (
++        <EmptyState
++          title="Wiki graph unavailable"
++          detail="Could not read the wiki knowledge base. The wiki_pages source did not respond."
++        />
++      ) : !graph || graph.pageCount === 0 ? (
++        <EmptyState
++          title="Wiki not synced"
++          detail="0 pages found in the knowledge base. Once the Obsidian 2nd Brain sync populates wiki_pages, the graph will render here."
++        />
++      ) : (
++        <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
++          <WikiGraphCanvas nodes={graph.nodes} edges={graph.edges} />
++          <p style={{ margin: '0.5rem 0 0', fontSize: 11, color: '#5a6b62' }}>
++            {/* "· click to open the page" removed with the click handler — KI-005. A
++                caption is part of the surface's claim about itself; leaving it would
++                advertise an interaction that no longer exists, which is the same
++                misrepresentation the click was removed to avoid. */}
++            Drag to pan · scroll to zoom · drag a node to move it · hover to highlight neighbours
++          </p>
++        </div>
++      )}
++    </div>
++  )
++}
++
++function EmptyState({ title, detail }: { title: string; detail: string }) {
++  return (
++    <div
++      style={{
++        flex: 1,
++        minHeight: 0,
++        display: 'flex',
++        flexDirection: 'column',
++        alignItems: 'center',
++        justifyContent: 'center',
++        textAlign: 'center',
++        gap: 8,
++        borderRadius: 2,
++        border: '1px solid rgba(45,187,87,0.20)',
++        background: '#ffffff',
++      }}
++    >
++      <span style={{ fontSize: 14, fontWeight: 600, color: '#15803d' }}>{title}</span>
++      <span style={{ fontSize: 12, color: '#5a6b62', maxWidth: 420 }}>{detail}</span>
++    </div>
++  )
++}
+diff --git a/dashboard/app/api/command-centre/wiki-graph/route.ts b/dashboard/app/api/command-centre/wiki-graph/route.ts
+new file mode 100644
+index 00000000..fd949791
+--- /dev/null
++++ b/dashboard/app/api/command-centre/wiki-graph/route.ts
+@@ -0,0 +1,86 @@
++// app/api/command-centre/wiki-graph/route.ts
++//
++// GET /api/command-centre/wiki-graph — the wiki knowledge base as an interactive
++// graph. Reads wiki_pages, parses [[wikilink]] references server-side via the
++// ported pure builder, and returns the resolved node/edge graph. Unresolved links
++// are dropped, never fabricated; orphan pages are included as isolated nodes.
++//
++// READ-ONLY. Nothing executes. No write path exists in this file.
++//
++// REBUILT, NOT PORTED — deliberately. The source route imports `getUser` and
++// `createClient` from its own `@/lib/supabase/server`, which is an anon-key,
++// RLS-enforced, cookie-scoped client with per-user identity. The same specifier
++// in this app resolves to a service-role client that bypasses RLS, and this app
++// has no per-user identity at all — it is single-operator behind one shared
++// password. Porting the source verbatim would have typechecked cleanly while
++// silently swapping an RLS-enforced read for an RLS-bypassing one.
++//
++// Auth: enforced upstream by proxy.ts, which returns 401 for this path without a
++// valid session. There is no getUser() equivalent here to call, and inventing one
++// would be a fabricated identity rather than a port.
++//
++// That sentence was WRONG when first written — it said the proxy's matcher "covers
++// all non-static routes", which is true and irrelevant: proxy() only checks a
++// session for paths listed in its PROTECTED_* prefixes, and /api/command-centre was
++// in neither. This route served anonymous requests while reading through a
++// service-role client that bypasses RLS. Proven and closed in
++// __tests__/command-centre-auth-coverage.test.ts — which now fails if the prefix is
++// ever removed, so this comment cannot rot back into a false claim silently.
++
++import { NextResponse } from "next/server";
++import { createServerClient } from "@/lib/supabase/server";
++import { buildWikiGraph, type WikiPageRow } from "@/lib/command-centre/wiki-graph";
++
++export const dynamic = "force-dynamic";
++
++// PostgREST's default row cap. Made explicit so truncation can be DETECTED and
++// surfaced honestly, instead of silently rendering a partial graph as complete.
++const WIKI_PAGES_LIMIT = 1000;
++
++export async function GET(): Promise<Response> {
++  try {
++    const supabase = createServerClient();
++
++    const { data, error } = await supabase
++      .from("wiki_pages")
++      .select("id,title,tags,content,updated_at")
++      .limit(WIKI_PAGES_LIMIT);
++
++    if (error) {
++      // Message only — never the full error object, which can carry connection
++      // details and query text.
++      return NextResponse.json(
++        { error: "Failed to read wiki pages", detail: error.message },
++        { status: 500 }
++      );
++    }
++
++    const pages = (data ?? []) as WikiPageRow[];
++    const graph = buildWikiGraph(pages);
++
++    // If we hit the cap, the graph is a partial view. Say so rather than letting
++    // a truncated graph read as the whole knowledge base.
++    const truncated = pages.length >= WIKI_PAGES_LIMIT;
++
++    return NextResponse.json({
++      ...graph,
++      pageCount: pages.length,
++      truncated,
++      ...(truncated
++        ? {
++            warning:
++              `Only the first ${WIKI_PAGES_LIMIT} pages were read, so this graph is ` +
++              `incomplete. Nodes and edges beyond the cap are missing, not absent.`,
++          }
++        : {}),
++    });
++  } catch (e) {
++    // Do NOT pass e.message through. The adjacent handler above is deliberately
++    // message-only for a *known* PostgREST error shape; this catch-all sees
++    // anything at all — client construction, env resolution, a thrown driver
++    // error — and those messages carry connection strings and query text. Log
++    // server-side, return a fixed string.
++    console.error("[wiki-graph] unhandled failure building graph:", e);
++    return NextResponse.json({ error: "Failed to build wiki graph" }, { status: 500 });
++  }
++}
+diff --git a/dashboard/components/command-centre/DeckThemeShell.tsx b/dashboard/components/command-centre/DeckThemeShell.tsx
+new file mode 100644
+index 00000000..123416dc
+--- /dev/null
++++ b/dashboard/components/command-centre/DeckThemeShell.tsx
+@@ -0,0 +1,40 @@
++'use client'
++
++// DeckThemeShell — client wrapper for the command deck's visual register.
++// The deck page stays a Server Component; only the Feel flip (deck ↔
++// daylight) is client state, persisted in the ui store. Daylight is the
++// Affirm-inspired paper/indigo register (docs/design/mobbin-ui-library.md).
++import { useEffect, useState, type ReactNode } from 'react'
++import { useUIStore } from '@/store/ui'
++import styles from './command-deck.module.css'
++import shell from './shell.module.css'
++
++export function DeckThemeShell({ className, children }: { className: string; children: ReactNode }) {
++  const deckTheme = useUIStore((s) => s.deckTheme)
++  const setDeckTheme = useUIStore((s) => s.setDeckTheme)
++  // The persisted store rehydrates from localStorage before the first client
++  // render, while the server rendered the default ('daylight') — a persisted
++  // 'deck' preference therefore text-mismatches the SSR HTML (React #418 on
++  // /operations, UNI-2378 E2E finding 6). Render the server default until
++  // mounted; the persisted preference applies one frame later.
++  const [hydrated, setHydrated] = useState(false)
++  useEffect(() => setHydrated(true), [])
++  const daylight = hydrated ? deckTheme === 'daylight' : true
++  // cc-daylight is a global (unhashed) marker so nested CSS modules that keep
++  // their own token scopes (command-centre .scope, pipeline .board) can
++  // bridge into the daylight register.
++  return (
++    <div className={daylight ? `${className} ${styles.daylight} ${shell.daylight} cc-daylight` : className}>
++      {children}
++      <button
++        type="button"
++        className={styles.feelToggle}
++        onClick={() => setDeckTheme(daylight ? 'deck' : 'daylight')}
++        aria-pressed={daylight}
++        data-testid="deck-feel-toggle"
++      >
++        Feel: {daylight ? 'Daylight' : 'Deck'}
++      </button>
++    </div>
++  )
++}
+diff --git a/dashboard/components/command-centre/DegradedDataBanner.tsx b/dashboard/components/command-centre/DegradedDataBanner.tsx
+new file mode 100644
+index 00000000..141d5f2b
+--- /dev/null
++++ b/dashboard/components/command-centre/DegradedDataBanner.tsx
+@@ -0,0 +1,34 @@
++// DegradedDataBanner — explicit warning rendered when a panel attempted a
++// live data fetch and fell back to seed values. Distinct from SourceBadge
++// (the always-present source pip): this is the loud banner shown only on
++// failure, so the operator is never quietly handed illustrative numbers.
++
++export interface DegradedDataBannerProps {
++  /** Which subsystem failed to respond. */
++  source: string
++  /** Optional machine-readable reason, e.g. 'control_panel_fetch_failed'. */
++  reason?: string
++}
++
++export function DegradedDataBanner({ source, reason }: DegradedDataBannerProps) {
++  return (
++    <div
++      role="alert"
++      data-degraded-source={source}
++      className="flex flex-col gap-1 px-5 py-3 font-mono text-[11px] leading-relaxed"
++      style={{
++        background: 'var(--cc-bg)',
++        borderBottom: '1px solid var(--cc-grid)',
++        borderLeft: '2px solid var(--cc-signal)',
++      }}
++    >
++      <span className="uppercase tracking-[0.18em]" style={{ color: 'var(--cc-signal-text)' }}>
++        Degraded data · {source}
++      </span>
++      <span style={{ color: 'var(--cc-ink-dim)' }}>
++        Live request to {source} failed{reason ? ` (${reason})` : ''}. The panel is showing
++        the static seed; treat numbers as illustrative.
++      </span>
++    </div>
++  )
++}
+diff --git a/dashboard/components/command-centre/SourceBadge.tsx b/dashboard/components/command-centre/SourceBadge.tsx
+new file mode 100644
+index 00000000..87990be6
+--- /dev/null
++++ b/dashboard/components/command-centre/SourceBadge.tsx
+@@ -0,0 +1,89 @@
++// SourceBadge — universal data-source metadata pip for Command Center panels.
++//
++// Tells the operator whether a value is fresh from a system of record, a
++// static seed, mid-fetch, or a stale fallback. Single rendering primitive
++// every panel embeds — a SourceMode union keeps panels from inventing rogue
++// values, so seed numbers can never be silently dressed as live.
++//
++//   - 'live'      — values come from an API request that succeeded this session.
++//   - 'seed'      — values come from a hand-curated TS seed in this repo.
++//   - 'loading'   — request in flight; no value to trust yet.
++//   - 'degraded'  — request attempted, fetch failed; rendering a fallback seed.
++
++export type SourceMode = 'live' | 'seed' | 'loading' | 'degraded'
++
++export interface SourceBadgeProps {
++  /** Classification of the underlying data. */
++  mode: SourceMode
++  /** Short human label, e.g. "CC · 7 tasks" or "seed v1". */
++  label: string
++  /** ISO timestamp of the last data refresh. Only rendered for 'live'. */
++  lastUpdatedAt?: string
++}
++
++const MODE_LABEL: Record<SourceMode, string> = {
++  live: 'live',
++  seed: 'seed',
++  loading: 'loading',
++  degraded: 'degraded',
++}
++
++// 'degraded' is a warning, not an alert — amber family (matches the deck's
++// own --deck-amber tokens), not the cc-signal green/red. Dot uses the bright
++// fill; text uses the AA-passing darkened variant.
++function dotColorFor(mode: SourceMode): string {
++  if (mode === 'live') return 'var(--cc-ink, #cfe0ec)'
++  if (mode === 'degraded') return 'var(--deck-amber, #f4820f)'
++  return 'var(--cc-ink-hush, rgba(207,224,236,0.45))'
++}
++
++function textColorFor(mode: SourceMode): string {
++  if (mode === 'live') return 'var(--cc-ink, #cfe0ec)'
++  if (mode === 'degraded') return 'var(--deck-amber-text, #b45309)'
++  return 'var(--cc-ink-hush, rgba(207,224,236,0.45))'
++}
++
++function formatTimestamp(iso: string): string | null {
++  const parsed = Date.parse(iso)
++  if (Number.isNaN(parsed)) return null
++  const now = Date.now()
++  const deltaSec = Math.max(0, Math.round((now - parsed) / 1000))
++  if (deltaSec < 60) return `${deltaSec}s ago`
++  if (deltaSec < 3600) return `${Math.round(deltaSec / 60)}m ago`
++  if (deltaSec < 86400) return `${Math.round(deltaSec / 3600)}h ago`
++  return `${Math.round(deltaSec / 86400)}d ago`
++}
++
++export function SourceBadge({ mode, label, lastUpdatedAt }: SourceBadgeProps) {
++  const dotColor = dotColorFor(mode)
++  const textColor = textColorFor(mode)
++  const stamp = mode === 'live' && lastUpdatedAt ? formatTimestamp(lastUpdatedAt) : null
++  return (
++    <span
++      data-source-mode={mode}
++      className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em]"
++      style={{ color: 'var(--cc-ink-hush, rgba(207,224,236,0.45))' }}
++      aria-label={`Source: ${MODE_LABEL[mode]}. ${label}${stamp ? `. Updated ${stamp}.` : ''}`}
++    >
++      <span
++        aria-hidden
++        style={{
++          display: 'inline-block',
++          width: 6,
++          height: 6,
++          borderRadius: '50%',
++          background: dotColor,
++        }}
++      />
++      <span style={{ color: textColor }}>{MODE_LABEL[mode]}</span>
++      <span>·</span>
++      <span style={{ color: 'var(--cc-ink-dim, #6f879b)' }}>{label}</span>
++      {stamp && (
++        <>
++          <span>·</span>
++          <span style={{ color: 'var(--cc-ink-hush, rgba(207,224,236,0.45))' }}>{stamp}</span>
++        </>
++      )}
++    </span>
++  )
++}
+diff --git a/dashboard/components/command-centre/deck-visual-helpers.ts b/dashboard/components/command-centre/deck-visual-helpers.ts
+new file mode 100644
+index 00000000..914fd9e3
+--- /dev/null
++++ b/dashboard/components/command-centre/deck-visual-helpers.ts
+@@ -0,0 +1,55 @@
++// src/app/(founder)/founder/command-centre/deck-visual-helpers.ts
++//
++// Deck visual helpers — cut-pasted verbatim from page.tsx when the calm
++// cockpit relocated the dense tiles onto sub-routes (UNI-2378), so the
++// portfolio and knowledge pages share the same swatch / LED / rail logic
++// the deck has always used. Purely presentational; no data access.
++
++// Stable per-project accent (instrument swatch) — purely visual brand separation.
++const BRAND_SWATCH: Record<string, string> = {
++  'Unite-Hub': '#16a34a',
++  RestoreAssist: '#34d399',
++  Synthex: '#f97316',
++  'Disaster-Recovery': '#fb7185',
++  'DR-NRPG': '#f97316',
++  'ATO-APP': '#facc15',
++  'Dimitri-ITR': '#6366f1',
++  'CCW-CRM': '#16a34a',
++  'Authority-Site': '#16a34a',
++  'Nexus-Hub': '#16a34a',
++  'Pi-CEO-Dev': '#4ade80',
++  CARSI: '#f97316',
++}
++export function swatchFor(name: string): string {
++  if (BRAND_SWATCH[name]) return BRAND_SWATCH[name]
++  let h = 0
++  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360
++  return `hsl(${h} 80% 62%)`
++}
++
++const RISK_RAIL: Record<string, string> = {
++  read: '#16a34a',
++  'write-local': '#34d399',
++  'write-shared': '#fbbf24',
++  external: '#fb923c',
++  destructive: '#f87171',
++}
++export function railFor(risk: string): string {
++  return RISK_RAIL[risk] ?? '#6f879b'
++}
++
++export function ledState(status: string): 'active' | 'stub' | 'idle' {
++  if (status === 'active') return 'active'
++  if (status === 'stub') return 'stub'
++  return 'idle'
++}
++
++export function connectionLedState(state: string): 'active' | 'stub' | 'idle' {
++  if (state === 'connected' || state === 'ready') return 'active'
++  if (state === 'mock' || state === 'unknown') return 'stub'
++  return 'idle'
++}
++
++export function hostOf(url?: string): string {
++  return url ? url.replace(/^https?:\/\//, '').replace(/\/$/, '') : ''
++}
+diff --git a/dashboard/components/command-centre/shell.module.css b/dashboard/components/command-centre/shell.module.css
+new file mode 100644
+index 00000000..a25c2ccc
+--- /dev/null
++++ b/dashboard/components/command-centre/shell.module.css
+@@ -0,0 +1,294 @@
++/* shell.module.css — UNI-2339 canvas register (slice 1 + slice 2).
++   Tokens translated verbatim from the ratified design canvas
++   (apps/web/docs/design/crm-control-panel.html) — Gun Metal ground +
++   Candy Red signal, glassmorphic frosted surfaces, Syne + JetBrains Mono.
++   Scoped to a CSS module so it composes with the existing command-deck
++   register without touching it. Slice 2 migrates the deck ground itself
++   (command-deck.module.css goes dark) and adds the Operate launch-pad +
++   Pipeline sections. */
++
++.canvasScope {
++  --canvas: #0e1014;
++  --surface-1: #141820;
++  --surface-2: #1c2230;
++  --surface-3: #232b3a;
++  --line: #262c36;
++  --line-soft: #1b2027;
++
++  --glass-1: rgba(20, 24, 32, 0.55);
++  --glass-2: rgba(28, 34, 48, 0.6);
++  --glass-hi: rgba(255, 255, 255, 0.06);
++  --glass-brd: rgba(255, 255, 255, 0.08);
++  --blur: blur(26px) saturate(145%);
++  --blur-lite: blur(14px) saturate(135%);
++
++  --ink: #f0f3f7;
++  --ink-dim: #a6afbc;
++  --ink-hush: #6d7887;
++
++  --red-500: #b30000;
++  --red-400: #cf1616;
++  --red-300: #e03333;
++  --green: #00a854;
++  --green-txt: #34d399;
++  --amber-txt: #f0a94c;
++
++  --r-sm: 2px;
++  --r-md: 4px;
++  --r-lg: 6px;
++
++  --sh-1: 0 1px 0 var(--glass-hi) inset, 0 10px 28px -14px rgba(0, 0, 0, 0.72), 0 1px 2px rgba(0, 0, 0, 0.45);
++  --sh-2: 0 1px 0 var(--glass-hi) inset, 0 22px 56px -22px rgba(0, 0, 0, 0.9), 0 3px 8px rgba(0, 0, 0, 0.55);
++
++  color: var(--ink);
++  font-family: var(--font-syne), system-ui, -apple-system, sans-serif;
++
++  /* Slice 2 — tiles are imported UNCHANGED, so tokens they consume are
++     re-pointed here instead of editing them. --color-text-muted is the
++     app-global light-theme muted ink (#5f5f66, ~2.4:1 on --surface-2 —
++     fails); inside canvas glass it resolves to --ink-dim (7.18:1). */
++  --color-text-muted: var(--ink-dim);
++}
++
++.mono {
++  font-family: var(--font-jbmono), ui-monospace, SFMono-Regular, monospace;
++  font-variant-numeric: tabular-nums;
++}
++
++/* ── Glass panel primitive — solid --surface-2 fallback, frosted when
++   backdrop-filter is supported. Perf gate: Lighthouse before/after runs on
++   the preview deploy (coordinator handles); auto-degrade criterion is this
++   @supports boundary. ── */
++.glassPanel {
++  position: relative;
++  border-radius: var(--r-md);
++  background: var(--surface-2);
++  border: 1px solid var(--glass-brd);
++  box-shadow: var(--sh-1);
++}
++@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
++  .glassPanel {
++    background: var(--glass-1);
++    backdrop-filter: var(--blur);
++    -webkit-backdrop-filter: var(--blur);
++  }
++}
++
++/* ── Hero / cockpit band ── */
++.hero {
++  position: relative;
++  overflow: hidden;
++  padding: 22px 24px;
++  border-radius: var(--r-lg);
++  background: var(--surface-2);
++  border: 1px solid var(--glass-brd);
++  box-shadow: var(--sh-2);
++  margin-bottom: 1.5rem;
++}
++@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
++  .hero {
++    background: linear-gradient(135deg, rgba(28, 34, 48, 0.66), rgba(15, 18, 23, 0.6));
++    backdrop-filter: var(--blur);
++    -webkit-backdrop-filter: var(--blur);
++  }
++}
++.heroGreet { min-width: 0; }
++.eyebrow {
++  font-family: var(--font-jbmono), ui-monospace, monospace;
++  font-size: 10.5px;
++  text-transform: uppercase;
++  letter-spacing: 0.16em;
++  color: var(--ink-hush);
++}
++.heroTitle {
++  font-size: 25px;
++  font-weight: 800;
++  letter-spacing: -0.02em;
++  margin: 6px 0 0;
++  color: var(--ink);
++}
++.heroEm {
++  font-style: normal;
++  color: var(--red-300);
++}
++.heroSub {
++  color: var(--ink-dim);
++  font-size: 13px;
++  margin: 6px 0 0;
++  line-height: 1.5;
++  max-width: 640px;
++}
++
++/* ── Glass section head (canvas .sec-h) ──
++   Slice 2 flipped the deck ground dark (command-deck.module.css), so the
++   head's opaque --surface-2 ground now reads as a quiet card on the canvas
++   (--ink 14.28:1 on it) rather than the slice-1 island on the light deck. */
++.glassSectionHead {
++  display: flex;
++  align-items: baseline;
++  gap: 10px;
++  /* Slice 2: the deck's .sectionHead (which carried the 2rem section rhythm)
++     is gone — the glass head now owns the inter-section spacing. */
++  margin: 20px 0 8px;
++  flex-wrap: wrap;
++  padding: 10px 14px;
++  border-radius: var(--r-md);
++  background: var(--surface-2);
++  border: 1px solid var(--glass-brd);
++  box-shadow: var(--sh-1);
++}
++.glassSectionHead h2 {
++  font-size: 16px;
++  font-weight: 700;
++  color: var(--ink);
++  margin: 0;
++}
++/* --ink-dim (not --ink-hush): 12px/10px mono on --surface-2 needs >= 4.5:1;
++   --ink-dim measures ~7.2:1, --ink-hush only ~3.6:1. */
++.glassSub {
++  color: var(--ink-dim);
++  font-family: var(--font-jbmono), ui-monospace, monospace;
++  font-size: 12px;
++}
++.glassSrc {
++  display: inline-flex;
++  align-items: center;
++  gap: 5px;
++  font-family: var(--font-jbmono), ui-monospace, monospace;
++  font-size: 10px;
++  text-transform: uppercase;
++  letter-spacing: 0.06em;
++  color: var(--ink-dim);
++  border: 1px solid var(--glass-brd);
++  border-radius: 3px;
++  padding: 2px 6px;
++  background: rgba(255, 255, 255, 0.02);
++}
++
++/* ── Glass section body wrapper (canvas .panel) ── */
++.glassSection {
++  padding: 16px 18px;
++}
++
++/* ── Slice 2 — glass section-head extras ── */
++/* Full-width honesty caption inside a glass head (migrated from the deck's
++   .sectionCaption). 12px body copy on --surface-2 → --ink-dim (7.18:1). */
++.glassCaption {
++  flex-basis: 100%;
++  font-size: 12px;
++  line-height: 1.45;
++  letter-spacing: 0.02em;
++  color: var(--ink-dim);
++}
++/* Right-aligned control cluster inside a glass head (WikiEnhanceControl,
++   ProjectIntegrationWorkPacketControl migrate in unchanged). */
++.glassHeadTools {
++  margin-left: auto;
++  display: flex;
++  align-items: center;
++  gap: 8px;
++  flex-wrap: wrap;
++}
++
++/* ── Slice 2 — Operate launch-pad (canvas §Operate, BUSINESSES registry) ──
++   Compact opaque tiles inside a glass panel: no backdrop-filter here, so the
++   @supports guard/decl parity is untouched. Text grounds are the solid
++   --surface-3 (#232b3a): --ink 12.77:1, --ink-dim 6.41:1, --green-txt
++   7.39:1 — all AA for their sizes (computed, not eyeballed). */
++.launchGrid {
++  display: grid;
++  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
++  gap: 10px;
++}
++.launchTile {
++  display: flex;
++  flex-direction: column;
++  gap: 6px;
++  min-width: 0;
++  padding: 12px 14px;
++  border-radius: var(--r-md);
++  background: var(--surface-3);
++  border: 1px solid var(--glass-brd);
++  border-left: 3px solid var(--swatch, var(--red-500));
++  box-shadow: var(--sh-1);
++}
++.launchName {
++  font-size: 13.5px;
++  font-weight: 700;
++  letter-spacing: -0.01em;
++  color: var(--ink);
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++}
++.launchMeta {
++  font-family: var(--font-jbmono), ui-monospace, monospace;
++  font-size: 10.5px;
++  text-transform: uppercase;
++  letter-spacing: 0.08em;
++  color: var(--ink-dim);
++}
++.launchLink {
++  font-family: var(--font-jbmono), ui-monospace, monospace;
++  font-size: 11px;
++  color: var(--green-txt);
++  text-decoration: none;
++  width: fit-content;
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++  max-width: 100%;
++}
++.launchLink:hover {
++  text-decoration: underline;
++}
++
++@media (max-width: 640px) {
++  .hero { padding: 16px 18px; }
++  .heroTitle { font-size: 20px; }
++}
++
++/* ── Daylight register override (Affirm-inspired; pairs with
++   command-deck.module.css .daylight). .daylight lands on the deck root, so
++   every nested canvasScope section flips with it: paper ground, white
++   cards, soft radii, calm shadows, indigo-adjacent signal ramp. */
++.daylight .canvasScope {
++  --canvas: #faf9f7;
++  --surface-1: #ffffff;
++  --surface-2: #ffffff;
++  --surface-3: #f4f1eb;
++  --line: #e5e1d8;
++  --line-soft: #eeeae2;
++
++  --glass-1: rgba(255, 255, 255, 0.72);
++  --glass-2: rgba(250, 249, 247, 0.78);
++  --glass-hi: rgba(22, 24, 29, 0.03);
++  --glass-brd: rgba(22, 24, 29, 0.1);
++
++  --ink: #16181d;
++  --ink-dim: #5c6470;
++  --ink-hush: #79808c;
++
++  --red-500: #c62a30;
++  --red-400: #dc2626;
++  --red-300: #b91c1c;
++  --green: #0f9d58;
++  --green-txt: #0b7a44;
++  --amber-txt: #92510a;
++
++  --r-sm: 8px;
++  --r-md: 12px;
++  --r-lg: 16px;
++
++  --sh-1: 0 1px 2px rgba(22, 24, 29, 0.05), 0 8px 24px -18px rgba(22, 24, 29, 0.18);
++  --sh-2: 0 2px 6px rgba(22, 24, 29, 0.06), 0 18px 44px -24px rgba(22, 24, 29, 0.22);
++
++  color: var(--ink);
++  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
++}
++
++/* Hero's @supports glass gradient hardcodes the dark ground — repaint it
++   paper in daylight (three-class specificity beats the @supports rule). */
++.daylight .canvasScope.hero {
++  background: linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(250, 249, 247, 0.66));
++}
+diff --git a/dashboard/components/command-centre/wiki-graph/WikiGraphCanvas.tsx b/dashboard/components/command-centre/wiki-graph/WikiGraphCanvas.tsx
+new file mode 100644
+index 00000000..490a3f40
+--- /dev/null
++++ b/dashboard/components/command-centre/wiki-graph/WikiGraphCanvas.tsx
+@@ -0,0 +1,427 @@
++'use client'
++
++// src/components/command-centre/wiki-graph/WikiGraphCanvas.tsx
++//
++// Obsidian-style interactive force-directed graph of the wiki knowledge base
++// (UNI-2304). Canvas renderer (chosen over SVG for the ~460-node / thousands-
++// of-edge real wiki). d3-force drives the layout and stays warm so the graph
++// gently drifts; d3-zoom owns pan/zoom; node drag + hover + click are handled
++// on the same canvas with a single owner per event type (zoom's filter yields
++// pointer-downs that land on a node to the manual drag handler).
++
++import { useEffect, useRef, useState, useCallback } from 'react'
++import {
++  forceSimulation,
++  forceManyBody,
++  forceLink,
++  forceCenter,
++  forceCollide,
++  type Simulation,
++  type SimulationNodeDatum,
++  type SimulationLinkDatum,
++} from 'd3-force'
++import { select } from 'd3-selection'
++import { zoom as d3zoom, zoomIdentity, type ZoomTransform, type D3ZoomEvent } from 'd3-zoom'
++
++export interface WikiGraphNode {
++  id: string
++  title: string
++  slug: string
++  tags: string[]
++  degree: number
++}
++export interface WikiGraphEdge {
++  source: string
++  target: string
++}
++
++type SimNode = WikiGraphNode & SimulationNodeDatum
++type SimLink = SimulationLinkDatum<SimNode>
++
++// Candy-deck palette (matches command-deck.module.css tokens).
++const COL = {
++  node: '#2dbb57',
++  nodeDim: 'rgba(45,187,87,0.18)',
++  link: 'rgba(90,107,98,0.28)',
++  linkDim: 'rgba(90,107,98,0.06)',
++  linkHi: '#f4820f',
++  focus: '#15803d',
++  label: '#14241b',
++  labelDim: 'rgba(20,36,27,0.28)',
++}
++
++/** Keep the simulation perpetually warm for gentle, living motion. */
++const KEEP_ALIVE = 0.012
++/** Screen-pixels of slop added to a node's hit radius. */
++const HIT_PADDING = 6
++
++function nodeRadius(degree: number): number {
++  return 3 + Math.sqrt(degree) * 1.6
++}
++
++interface Props {
++  nodes: WikiGraphNode[]
++  edges: WikiGraphEdge[]
++}
++
++interface Tooltip {
++  x: number
++  y: number
++  title: string
++  tags: string[]
++  degree: number
++}
++
++export function WikiGraphCanvas({ nodes, edges }: Props) {
++  const wrapRef = useRef<HTMLDivElement>(null)
++  const canvasRef = useRef<HTMLCanvasElement>(null)
++  const [tooltip, setTooltip] = useState<Tooltip | null>(null)
++
++  // Mutable refs shared across the render loop and event handlers.
++  const simNodesRef = useRef<SimNode[]>([])
++  const simLinksRef = useRef<SimLink[]>([])
++  const adjacencyRef = useRef<Map<string, Set<string>>>(new Map())
++  const transformRef = useRef<ZoomTransform>(zoomIdentity)
++  const hoverRef = useRef<SimNode | null>(null)
++  const draggingRef = useRef<SimNode | null>(null)
++  const sizeRef = useRef({ w: 0, h: 0 })
++  const simRef = useRef<Simulation<SimNode, SimLink> | null>(null)
++
++  /** World-space node under a screen pointer (canvas-relative px), or null. */
++  const nodeAtScreen = useCallback((px: number, py: number): SimNode | null => {
++    const t = transformRef.current
++    const wx = t.invertX(px)
++    const wy = t.invertY(py)
++    let best: SimNode | null = null
++    let bestD = Infinity
++    for (const n of simNodesRef.current) {
++      if (n.x === undefined || n.y === undefined) continue
++      const r = nodeRadius(n.degree) + HIT_PADDING / t.k
++      const dx = n.x - wx
++      const dy = n.y - wy
++      const d = dx * dx + dy * dy
++      if (d < r * r && d < bestD) {
++        bestD = d
++        best = n
++      }
++    }
++    return best
++  }, [])
++
++  useEffect(() => {
++    const canvas = canvasRef.current
++    const wrap = wrapRef.current
++    if (!canvas || !wrap) return
++
++    const ctx = canvas.getContext('2d')
++    if (!ctx) return
++
++    // Build simulation datasets (clone so d3 can mutate freely).
++    const simNodes: SimNode[] = nodes.map((n) => ({ ...n }))
++    const byId = new Map(simNodes.map((n) => [n.id, n]))
++    const simLinks: SimLink[] = edges
++      .filter((e) => byId.has(e.source) && byId.has(e.target))
++      .map((e) => ({ source: e.source, target: e.target }))
++    simNodesRef.current = simNodes
++    simLinksRef.current = simLinks
++
++    // Adjacency for hover-neighbour highlighting.
++    const adjacency = new Map<string, Set<string>>()
++    for (const n of simNodes) adjacency.set(n.id, new Set())
++    for (const e of edges) {
++      adjacency.get(e.source)?.add(e.target)
++      adjacency.get(e.target)?.add(e.source)
++    }
++    adjacencyRef.current = adjacency
++
++    // Size + HiDPI backing store.
++    function resize() {
++      const rect = wrap!.getBoundingClientRect()
++      const dpr = Math.min(window.devicePixelRatio || 1, 2)
++      sizeRef.current = { w: rect.width, h: rect.height }
++      canvas!.width = Math.floor(rect.width * dpr)
++      canvas!.height = Math.floor(rect.height * dpr)
++      canvas!.style.width = `${rect.width}px`
++      canvas!.style.height = `${rect.height}px`
++      ctx!.setTransform(dpr, 0, 0, dpr, 0, 0)
++      // World-space centroid stays at the origin — the initial zoom transform
++      // below already translates that origin to the screen centre. Centring
++      // the force here too would double-translate and start the cluster
++      // off-centre.
++      sim.force('center', forceCenter(0, 0))
++    }
++
++    const sim = forceSimulation(simNodes)
++      .force('charge', forceManyBody().strength(-42).distanceMax(320))
++      .force('link', forceLink<SimNode, SimLink>(simLinks).id((d) => d.id).distance(46).strength(0.35))
++      .force('collide', forceCollide<SimNode>().radius((d) => nodeRadius(d.degree) + 2))
++      .force('center', forceCenter(0, 0))
++      .alphaTarget(KEEP_ALIVE)
++    simRef.current = sim
++    resize()
++
++    function draw() {
++      const { w, h } = sizeRef.current
++      const t = transformRef.current
++      ctx!.save()
++      ctx!.clearRect(0, 0, w, h)
++      ctx!.translate(t.x, t.y)
++      ctx!.scale(t.k, t.k)
++
++      const hover = hoverRef.current
++      const neighbours = hover ? adjacencyRef.current.get(hover.id) : null
++
++      // Links.
++      ctx!.lineWidth = 1 / t.k
++      for (const l of simLinksRef.current) {
++        const s = l.source as SimNode
++        const tg = l.target as SimNode
++        if (s.x === undefined || tg.x === undefined) continue
++        const touchesHover = hover && (s.id === hover.id || tg.id === hover.id)
++        ctx!.strokeStyle = hover ? (touchesHover ? COL.linkHi : COL.linkDim) : COL.link
++        ctx!.beginPath()
++        ctx!.moveTo(s.x, s.y!)
++        ctx!.lineTo(tg.x, tg.y!)
++        ctx!.stroke()
++      }
++
++      // Nodes.
++      for (const n of simNodesRef.current) {
++        if (n.x === undefined || n.y === undefined) continue
++        const isHover = hover?.id === n.id
++        const isNeighbour = neighbours?.has(n.id) ?? false
++        const active = !hover || isHover || isNeighbour
++        ctx!.beginPath()
++        ctx!.arc(n.x, n.y, nodeRadius(n.degree), 0, Math.PI * 2)
++        ctx!.fillStyle = active ? (isHover ? COL.focus : COL.node) : COL.nodeDim
++        ctx!.fill()
++        if (isHover) {
++          ctx!.lineWidth = 2 / t.k
++          ctx!.strokeStyle = COL.focus
++          ctx!.stroke()
++        }
++      }
++
++      // Labels — only when zoomed in enough, or for the hovered subgraph.
++      const showAllLabels = t.k > 1.6
++      if (showAllLabels || hover) {
++        ctx!.font = `${11 / t.k}px var(--font-chakra), system-ui, sans-serif`
++        ctx!.textAlign = 'center'
++        ctx!.textBaseline = 'top'
++        for (const n of simNodesRef.current) {
++          if (n.x === undefined || n.y === undefined) continue
++          const isHover = hover?.id === n.id
++          const isNeighbour = neighbours?.has(n.id) ?? false
++          if (hover && !isHover && !isNeighbour) continue
++          if (!hover && !showAllLabels) continue
++          ctx!.fillStyle = hover && !isHover && !isNeighbour ? COL.labelDim : COL.label
++          ctx!.fillText(n.title, n.x, n.y + nodeRadius(n.degree) + 1)
++        }
++      }
++
++      ctx!.restore()
++    }
++
++    sim.on('tick', draw)
++
++    // ── Pan / zoom (d3-zoom). Filter yields node-hits to the drag handler. ──
++    const zoomBehavior = d3zoom<HTMLCanvasElement, unknown>()
++      .scaleExtent([0.15, 6])
++      .filter((event: Event) => {
++        // Block the browser context menu / right-click; allow wheel + dblclick.
++        if (event.type === 'wheel' || event.type === 'dblclick') return true
++        const me = event as MouseEvent
++        if (me.button != null && me.button !== 0) return false
++        // Pointer/mouse down: only pan when NOT starting on a node.
++        const rect = canvas!.getBoundingClientRect()
++        return nodeAtScreen(me.clientX - rect.left, me.clientY - rect.top) === null
++      })
++      .on('zoom', (event: D3ZoomEvent<HTMLCanvasElement, unknown>) => {
++        transformRef.current = event.transform
++        draw()
++      })
++
++    const selection = select(canvas)
++    selection.call(zoomBehavior)
++    // Start centred with a gentle initial zoom.
++    const rect0 = wrap.getBoundingClientRect()
++    selection.call(zoomBehavior.transform, zoomIdentity.translate(rect0.width / 2, rect0.height / 2).scale(0.85))
++
++    // ── Node drag (manual, pointer-captured). ──
++    function pointerToScreen(e: PointerEvent): { x: number; y: number } {
++      const rect = canvas!.getBoundingClientRect()
++      return { x: e.clientX - rect.left, y: e.clientY - rect.top }
++    }
++
++    function onPointerDown(e: PointerEvent) {
++      if (e.button !== 0) return
++      const { x, y } = pointerToScreen(e)
++      const hit = nodeAtScreen(x, y)
++      if (!hit) return // empty space → zoom handles panning
++      e.preventDefault()
++      canvas!.setPointerCapture(e.pointerId)
++      draggingRef.current = hit
++      sim.alphaTarget(0.3).restart()
++      const t = transformRef.current
++      hit.fx = t.invertX(x)
++      hit.fy = t.invertY(y)
++    }
++
++    function onPointerMove(e: PointerEvent) {
++      const { x, y } = pointerToScreen(e)
++      const drag = draggingRef.current
++      if (drag) {
++        const t = transformRef.current
++        drag.fx = t.invertX(x)
++        drag.fy = t.invertY(y)
++        return
++      }
++      // Hover.
++      const hit = nodeAtScreen(x, y)
++      if (hit !== hoverRef.current) {
++        hoverRef.current = hit
++        canvas!.style.cursor = hit ? 'pointer' : 'grab'
++        draw()
++      }
++      if (hit) {
++        setTooltip({ x, y, title: hit.title, tags: hit.tags, degree: hit.degree })
++      } else {
++        setTooltip(null)
++      }
++    }
++
++    function onPointerUp(e: PointerEvent) {
++      const drag = draggingRef.current
++      if (!drag) return
++      draggingRef.current = null
++      try {
++        canvas!.releasePointerCapture(e.pointerId)
++      } catch {
++        /* pointer already released */
++      }
++      sim.alphaTarget(KEEP_ALIVE)
++      // Release the pin so the node rejoins the living simulation.
++      drag.fx = null
++      drag.fy = null
++    }
++
++    // KI-005: click-to-navigate REMOVED, not retargeted.
++    //
++    // The source opened the clicked node's own wiki page at `/founder/wiki/${slug}`.
++    // That route does not exist in this app, so every node click 404'd. The first fix
++    // pointed all clicks at the knowledge deck; the founder overruled it, and was
++    // right: a click that appears to navigate somewhere specific and always lands
++    // somewhere unrelated is a lie about interactivity. Better to offer nothing than
++    // to offer a control that misrepresents what it does.
++    //
++    // This is the SAME rule that made WikiEnhanceControl absent rather than stubbed
++    // (KI-002) — a control that renders while doing something other than what it
++    // appears to do misrepresents the surface. Absence is honest and cannot be
++    // silently filled in; a working-looking wrong destination is neither. Read the
++    // two rulings as one rule, not two judgement calls that happened to agree.
++    //
++    // Restore this when a per-node destination exists here — a per-page wiki route,
++    // or a knowledge deck that accepts a slug to deep-link into.
++
++    canvas.addEventListener('pointerdown', onPointerDown)
++    canvas.addEventListener('pointermove', onPointerMove)
++    canvas.addEventListener('pointerup', onPointerUp)
++    // KI-003 (inherited, NOT introduced): this listener is anonymous and the
++    // cleanup below never removes it, so it accumulates each time the effect
++    // reruns on [nodes, edges, ...]. Cross-vendor review flagged it as a hard
++    // violation and it is one — in the BASELINE. This file is a byte-identical
++    // port and the governing instruction is "port faithfully, including existing
++    // behaviour"; fixing it here would fork the port from its source. Founder
++    // ruled 2026-08-01: declare, do not fix. The fix belongs upstream in
++    // Authority-Site, and this port inherits it when the baseline moves.
++    canvas.addEventListener('pointerleave', () => {
++      hoverRef.current = null
++      setTooltip(null)
++      draw()
++    })
++    canvas.style.cursor = 'grab'
++
++    const ro = new ResizeObserver(() => {
++      resize()
++      draw()
++    })
++    ro.observe(wrap)
++
++    return () => {
++      sim.stop()
++      ro.disconnect()
++      selection.on('.zoom', null)
++      canvas.removeEventListener('pointerdown', onPointerDown)
++      canvas.removeEventListener('pointermove', onPointerMove)
++      canvas.removeEventListener('pointerup', onPointerUp)
++    }
++  }, [nodes, edges, nodeAtScreen])
++
++  return (
++    <div
++      ref={wrapRef}
++      style={{
++        position: 'relative',
++        width: '100%',
++        height: '100%',
++        minHeight: 0,
++        overflow: 'hidden',
++        borderRadius: 2,
++        border: '1px solid rgba(45,187,87,0.20)',
++        background: '#fffdf7',
++      }}
++    >
++      <canvas ref={canvasRef} style={{ display: 'block', touchAction: 'none' }} />
++      {tooltip && (
++        <div
++          style={{
++            position: 'absolute',
++            // KI-004 (inherited): reading sizeRef during render is a real
++            // react-hooks/refs violation, present verbatim at this same line in the
++            // baseline. Suppressed rather than fixed for the same reason as KI-003
++            // above: this is a faithful port and the fix belongs upstream. The
++            // suppression is scoped to the single line below, so any NEW
++            // ref-in-render in this file still fails lint.
++            // eslint-disable-next-line react-hooks/refs
++            left: Math.min(tooltip.x + 14, (sizeRef.current.w || 0) - 220),
++            top: tooltip.y + 14,
++            pointerEvents: 'none',
++            maxWidth: 220,
++            padding: '8px 10px',
++            borderRadius: 2,
++            border: '1px solid rgba(45,187,87,0.25)',
++            background: '#ffffff',
++            boxShadow: '0 6px 18px rgba(20,36,27,0.12)',
++            fontSize: 12,
++            color: '#14241b',
++            zIndex: 5,
++          }}
++        >
++          <div style={{ fontWeight: 600, marginBottom: 2 }}>{tooltip.title}</div>
++          <div style={{ color: '#5a6b62', fontSize: 11 }}>
++            {tooltip.degree} {tooltip.degree === 1 ? 'link' : 'links'}
++          </div>
++          {tooltip.tags.length > 0 && (
++            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 4 }}>
++              {tooltip.tags.slice(0, 6).map((tag) => (
++                <span
++                  key={tag}
++                  style={{
++                    fontSize: 10,
++                    padding: '1px 5px',
++                    borderRadius: 2,
++                    background: 'rgba(45,187,87,0.10)',
++                    color: '#15803d',
++                    border: '1px solid rgba(45,187,87,0.18)',
++                  }}
++                >
++                  {tag}
++                </span>
++              ))}
++            </div>
++          )}
++        </div>
++      )}
++    </div>
++  )
++}
+diff --git a/dashboard/components/command-centre/wiki-graph/WikiGraphTile.tsx b/dashboard/components/command-centre/wiki-graph/WikiGraphTile.tsx
+new file mode 100644
+index 00000000..2847c1e8
+--- /dev/null
++++ b/dashboard/components/command-centre/wiki-graph/WikiGraphTile.tsx
+@@ -0,0 +1,82 @@
++'use client'
++
++// src/components/command-centre/wiki-graph/WikiGraphTile.tsx
++//
++// Command-deck tile for the Wiki Graph View (UNI-2304). Client-fetches the
++// founder-scoped graph summary and links to the full interactive page.
++// Error-contained: a failed fetch degrades to an honest message, never a fake
++// count.
++
++import { useEffect, useState } from 'react'
++import Link from 'next/link'
++import { SourceBadge, type SourceMode } from '@/components/command-centre/SourceBadge'
++
++interface GraphSummary {
++  pageCount: number
++  edgeCount: number
++  lastSync: string | null
++}
++
++export function WikiGraphTile() {
++  const [summary, setSummary] = useState<GraphSummary | null>(null)
++  const [loading, setLoading] = useState(true)
++  const [error, setError] = useState<string | null>(null)
++
++  useEffect(() => {
++    let alive = true
++    async function load() {
++      try {
++        const res = await fetch('/api/command-centre/wiki-graph')
++        if (!res.ok) throw new Error(`HTTP ${res.status}`)
++        const data = (await res.json()) as GraphSummary
++        if (alive) {
++          setSummary({ pageCount: data.pageCount, edgeCount: data.edgeCount, lastSync: data.lastSync })
++          setError(null)
++        }
++      } catch (e) {
++        if (alive) setError(e instanceof Error ? e.message : 'load failed')
++      } finally {
++        if (alive) setLoading(false)
++      }
++    }
++    load()
++    return () => {
++      alive = false
++    }
++  }, [])
++
++  const mode: SourceMode = loading ? 'loading' : error || !summary ? 'degraded' : 'live'
++
++  return (
++    <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
++      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
++        <h3 style={{ color: 'var(--deck-text)', fontSize: 14, fontWeight: 700, margin: 0 }}>Wiki Graph</h3>
++        <SourceBadge mode={mode} label="Wiki" lastUpdatedAt={summary?.lastSync ?? undefined} />
++      </div>
++
++      {error ? (
++        <p style={{ color: 'var(--deck-abort-text)', fontSize: 12, margin: 0 }}>Could not load wiki graph: {error}</p>
++      ) : (
++        <p style={{ color: 'var(--deck-muted)', fontSize: 12, margin: 0 }}>
++          <b style={{ color: 'var(--deck-text)' }}>{summary?.pageCount ?? 0}</b> pages ·{' '}
++          <b style={{ color: 'var(--deck-text)' }}>{summary?.edgeCount ?? 0}</b> links in the knowledge base
++        </p>
++      )}
++
++      <Link
++        href="/command-centre/wiki-graph"
++        style={{
++          alignSelf: 'flex-start',
++          fontSize: 12,
++          padding: '5px 12px',
++          borderRadius: 2,
++          border: '1px solid var(--deck-line)',
++          color: 'var(--deck-cyan-text)',
++          textDecoration: 'none',
++        }}
++      >
++        Open interactive graph →
++      </Link>
++    </section>
++  )
++}
+diff --git a/dashboard/lib/command-centre/tools/catalogue.ts b/dashboard/lib/command-centre/tools/catalogue.ts
+new file mode 100644
+index 00000000..fdc798e5
+--- /dev/null
++++ b/dashboard/lib/command-centre/tools/catalogue.ts
+@@ -0,0 +1,171 @@
++// src/lib/command-centre/tools/catalogue.ts
++//
++// READ-ONLY tool-catalogue discovery for the Nexus Command Centre.
++//
++// This module LISTS the tool sources the command centre is aware of. It NEVER
++// invokes, executes, spawns, or connects to any tool — discovery only. It proves
++// "access to all tools" with zero execution risk.
++//
++// Sources:
++//   (a) A static, known set of MCP servers + Hermes toolsets + code-execution
++//       surfaces from the Nexus spec.
++//   (b) Optional read-only enrichment: if a Hermes config file is present we read
++//       *server names only* (never values/secrets) and append any not already known.
++//
++// risk_class / source enums mirror cc_tools in the master spec.
++
++import { readFile } from 'node:fs/promises'
++import path from 'node:path'
++import os from 'node:os'
++
++export type ToolSource = 'hermes' | 'mcp' | 'project' | 'codex' | 'claude-code' | 'local'
++
++export type ToolRiskClass =
++  | 'read'
++  | 'write-local'
++  | 'write-shared'
++  | 'external'
++  | 'destructive'
++
++export interface CommandCentreTool {
++  /** Stable key for the tool / toolset / surface. */
++  tool_key: string
++  /** Where the capability comes from. */
++  source: ToolSource
++  /** Human-readable description. */
++  description: string
++  /** Risk classification (conservative default). */
++  risk_class: ToolRiskClass
++  /** Whether a human approval is required before any (future) invocation. */
++  approval_required: boolean
++  /**
++   * Discovery is list-only. This flag is ALWAYS false in the starter slice —
++   * the catalogue never marks anything as invocable.
++   */
++  invocable: false
++}
++
++/**
++ * The static, authoritative known set. MCP servers, Hermes toolsets, and
++ * code-execution surfaces named in the Nexus spec (Section "access to all tools").
++ */
++export const KNOWN_TOOLS: readonly CommandCentreTool[] = [
++  // --- MCP servers --------------------------------------------------------
++  { tool_key: 'linear', source: 'mcp', description: 'Linear MCP — issues, projects, cycles (read/write).', risk_class: 'write-shared', approval_required: true, invocable: false },
++  { tool_key: 'supabase', source: 'mcp', description: 'Supabase MCP — database, migrations, advisors.', risk_class: 'write-shared', approval_required: true, invocable: false },
++  { tool_key: 'github', source: 'mcp', description: 'GitHub MCP — repos, PRs, issues, code search.', risk_class: 'write-shared', approval_required: true, invocable: false },
++  { tool_key: 'google', source: 'mcp', description: 'Google MCP — Gmail / Drive / Calendar surfaces.', risk_class: 'external', approval_required: true, invocable: false },
++  { tool_key: 'slack', source: 'mcp', description: 'Slack MCP — channels, messages, canvases.', risk_class: 'external', approval_required: true, invocable: false },
++  { tool_key: 'chrome', source: 'mcp', description: 'Chrome MCP — browser automation / page reading.', risk_class: 'external', approval_required: true, invocable: false },
++  { tool_key: 'playwright', source: 'mcp', description: 'Playwright MCP — headless browser control.', risk_class: 'external', approval_required: true, invocable: false },
++  { tool_key: 'context7', source: 'mcp', description: 'Context7 MCP — up-to-date library documentation (read).', risk_class: 'read', approval_required: false, invocable: false },
++  { tool_key: 'ref', source: 'mcp', description: 'Ref MCP — documentation search / URL reading (read).', risk_class: 'read', approval_required: false, invocable: false },
++  { tool_key: 'exa', source: 'mcp', description: 'Exa MCP — web/code/company research search (read).', risk_class: 'read', approval_required: false, invocable: false },
++
++  // --- Hermes ------------------------------------------------------------
++  { tool_key: 'hermes:tools', source: 'hermes', description: 'Hermes tool registry (70+ tools) via the Hermes API / mcp-serve.', risk_class: 'external', approval_required: true, invocable: false },
++  { tool_key: 'hermes:toolsets', source: 'hermes', description: 'Hermes toolsets (28 toolsets) — grouped capabilities.', risk_class: 'external', approval_required: true, invocable: false },
++
++  // --- Code-execution surfaces -------------------------------------------
++  { tool_key: 'codex', source: 'codex', description: 'Codex — senior-engineering code execution surface.', risk_class: 'write-local', approval_required: true, invocable: false },
++  { tool_key: 'claude-code', source: 'claude-code', description: 'Claude Code — agentic code execution surface.', risk_class: 'write-local', approval_required: true, invocable: false },
++] as const
++
++/** Candidate Hermes config locations (read-only). First existing wins. */
++function hermesConfigCandidates(): string[] {
++  const localAppData = process.env.LOCALAPPDATA ?? path.join(os.homedir(), 'AppData', 'Local')
++  return [
++    process.env.HERMES_CONFIG?.trim() || '',
++    path.join(localAppData, 'hermes', 'config.yaml'),
++    path.join(os.homedir(), '.hermes', 'config.yaml'),
++  ].filter(Boolean)
++}
++
++/**
++ * Read-only enrichment: extract MCP *server names only* from a Hermes config.
++ * Never reads values — only the keys directly under an `mcpServers:` / `mcp:`
++ * mapping — so no secret can leak. Returns [] on any error (best-effort).
++ */
++async function discoverHermesMcpServerNames(): Promise<string[]> {
++  for (const candidate of hermesConfigCandidates()) {
++    try {
++      const raw = await readFile(candidate, 'utf-8')
++      const names = parseMcpServerNames(raw)
++      if (names.length) return names
++    } catch {
++      // ignore — try the next candidate / fall back to the static set
++    }
++  }
++  return []
++}
++
++/**
++ * Minimal, dependency-free YAML scan for keys under an `mcpServers:` or `mcp:`
++ * block. Captures only the child key names (server identifiers), not values.
++ */
++export function parseMcpServerNames(yaml: string): string[] {
++  const lines = yaml.split(/\r?\n/)
++  const names: string[] = []
++  let inBlock = false
++  let blockIndent = -1
++
++  for (const line of lines) {
++    if (/^\s*#/.test(line) || line.trim() === '') continue
++    const indent = line.length - line.trimStart().length
++
++    if (!inBlock) {
++      if (/^\s*(mcpServers|mcp_servers|mcp)\s*:/.test(line)) {
++        inBlock = true
++        blockIndent = indent
++      }
++      continue
++    }
++
++    // A line at or below the block's own indent ends the block.
++    if (indent <= blockIndent) {
++      inBlock = false
++      blockIndent = -1
++      continue
++    }
++
++    // Direct children of the block (first nesting level) are server names.
++    const childMatch = line.match(/^\s+([A-Za-z0-9_.-]+)\s*:/)
++    if (childMatch && indent === blockIndent + 2) {
++      names.push(childMatch[1])
++    }
++  }
++
++  return Array.from(new Set(names))
++}
++
++/**
++ * Return the full read-only tool catalogue: the known static set plus any extra
++ * MCP server names discovered from the Hermes config. Nothing is ever invoked,
++ * and every entry has `invocable: false`.
++ */
++export async function getToolCatalogue(): Promise<CommandCentreTool[]> {
++  const known = [...KNOWN_TOOLS]
++  const knownKeys = new Set(known.map((t) => t.tool_key.toLowerCase()))
++
++  const discovered = await discoverHermesMcpServerNames()
++  for (const name of discovered) {
++    const key = name.toLowerCase()
++    if (knownKeys.has(key)) continue
++    knownKeys.add(key)
++    known.push({
++      tool_key: name,
++      source: 'mcp',
++      description: `MCP server discovered from Hermes config (read-only listing).`,
++      risk_class: 'external',
++      approval_required: true,
++      invocable: false,
++    })
++  }
++
++  return known
++}
++
++/** Synchronous accessor for the static known set (no filesystem access). */
++export function getKnownTools(): CommandCentreTool[] {
++  return [...KNOWN_TOOLS]
++}
+diff --git a/dashboard/lib/command-centre/wiki-graph.ts b/dashboard/lib/command-centre/wiki-graph.ts
+new file mode 100644
+index 00000000..5fa5b4ef
+--- /dev/null
++++ b/dashboard/lib/command-centre/wiki-graph.ts
+@@ -0,0 +1,125 @@
++// src/lib/command-centre/wiki-graph.ts
++//
++// Pure graph-construction for the Wiki Graph View (UNI-2304).
++// Parses [[wikilink]] references out of wiki_pages content and resolves them,
++// case-insensitively, against the set of known pages (by slug/id OR title).
++// Unresolved links are dropped — never fabricated. Self-links are dropped.
++// No I/O here: the route supplies the rows, this module builds the graph so it
++// can be unit-tested offline.
++
++/** A wiki page row as needed for graph construction (subset of wiki_pages). */
++export interface WikiPageRow {
++  id: string
++  title: string
++  tags: string[] | null
++  content: string
++  updated_at: string | null
++}
++
++export interface GraphNode {
++  id: string
++  title: string
++  slug: string
++  tags: string[]
++  degree: number
++}
++
++export interface GraphEdge {
++  source: string
++  target: string
++}
++
++export interface WikiGraph {
++  nodes: GraphNode[]
++  edges: GraphEdge[]
++  pageCount: number
++  lastSync: string | null
++}
++
++const WIKILINK_RE = /\[\[([^\]]+)\]\]/g
++
++/**
++ * Extract the resolvable target of every [[wikilink]] in `content`.
++ * Handles Obsidian syntax: strips a `|alias` display label and a `#section`
++ * or `#^block` anchor, then trims. Empty targets are skipped.
++ */
++export function parseWikiLinks(content: string): string[] {
++  if (!content) return []
++  const out: string[] = []
++  for (const match of content.matchAll(WIKILINK_RE)) {
++    const raw = match[1]
++    // `[[target|alias]]` → target ; `[[target#section]]` → target
++    const target = raw.split('|')[0].split('#')[0].trim()
++    if (target.length > 0) out.push(target)
++  }
++  return out
++}
++
++/** Candidate lookup keys for a link target, most→least specific, lowercased. */
++function targetKeys(target: string): string[] {
++  const lower = target.toLowerCase()
++  const keys = [lower]
++  // Path-style links like `Sources/Some Page` also match on their basename.
++  const slash = lower.lastIndexOf('/')
++  if (slash !== -1 && slash < lower.length - 1) keys.push(lower.slice(slash + 1))
++  return keys
++}
++
++/**
++ * Build the wiki knowledge graph from page rows.
++ *
++ * - Nodes: one per page (orphans included), with undirected `degree`.
++ * - Edges: one per resolved, non-self [[wikilink]], de-duplicated per
++ *   directed (source, target) pair. Links that resolve to no known page are
++ *   dropped.
++ * - Resolution is case-insensitive against each page's id (slug) and title.
++ */
++export function buildWikiGraph(pages: WikiPageRow[]): WikiGraph {
++  // Resolve map: lowercased slug/title → canonical node id.
++  // Slug (id) wins over title on collision — the id is the routing key.
++  const resolve = new Map<string, string>()
++  for (const p of pages) {
++    const titleKey = p.title?.toLowerCase().trim()
++    if (titleKey && !resolve.has(titleKey)) resolve.set(titleKey, p.id)
++  }
++  for (const p of pages) {
++    resolve.set(p.id.toLowerCase().trim(), p.id) // slug/id is authoritative
++  }
++
++  const degree = new Map<string, number>()
++  for (const p of pages) degree.set(p.id, 0)
++
++  const seen = new Set<string>()
++  const edges: GraphEdge[] = []
++  for (const p of pages) {
++    for (const target of parseWikiLinks(p.content)) {
++      let resolvedId: string | undefined
++      for (const key of targetKeys(target)) {
++        resolvedId = resolve.get(key)
++        if (resolvedId) break
++      }
++      if (!resolvedId || resolvedId === p.id) continue // unresolved or self-link
++      const dedupeKey = `${p.id}\u0000${resolvedId}`
++      if (seen.has(dedupeKey)) continue
++      seen.add(dedupeKey)
++      edges.push({ source: p.id, target: resolvedId })
++      degree.set(p.id, (degree.get(p.id) ?? 0) + 1)
++      degree.set(resolvedId, (degree.get(resolvedId) ?? 0) + 1)
++    }
++  }
++
++  const nodes: GraphNode[] = pages.map((p) => ({
++    id: p.id,
++    title: p.title,
++    slug: p.id,
++    tags: p.tags ?? [],
++    degree: degree.get(p.id) ?? 0,
++  }))
++
++  const lastSync = pages.reduce<string | null>((acc, p) => {
++    if (!p.updated_at) return acc
++    return acc === null || p.updated_at > acc ? p.updated_at : acc
++  }, null)
++
++  return { nodes, edges, pageCount: pages.length, lastSync }
++}
+diff --git a/dashboard/package.json b/dashboard/package.json
+index f0cce2d2..3def3de0 100644
+--- a/dashboard/package.json
++++ b/dashboard/package.json
+@@ -19,6 +19,9 @@
+     "@supabase/supabase-js": "^2.101.1",
+     "class-variance-authority": "^0.7.1",
+     "clsx": "^2.1.1",
++    "d3-force": "^3.0.0",
++    "d3-selection": "^3.0.0",
++    "d3-zoom": "^3.0.0",
+     "lucide-react": "^1.8.0",
+     "next": "^16.2.3",
+     "react": "^19.0.0",
+@@ -26,15 +29,19 @@
+     "tailwind-merge": "^3.5.0",
+     "xterm": "^5.3.0",
+     "xterm-addon-fit": "^0.8.0",
+-    "xterm-addon-web-links": "^0.9.0"
++    "xterm-addon-web-links": "^0.9.0",
++    "zustand": "^5.0.14"
+   },
+   "devDependencies": {
++    "@tailwindcss/postcss": "4.1.9",
+     "@testing-library/jest-dom": "^6.9.1",
+     "@testing-library/react": "^16.3.2",
++    "@types/d3-force": "^3.0.10",
++    "@types/d3-selection": "^3.0.11",
++    "@types/d3-zoom": "^3.0.8",
+     "@types/node": "^22",
+     "@types/react": "^19",
+     "@types/react-dom": "^19",
+-    "@tailwindcss/postcss": "4.1.9",
+     "@vitejs/plugin-react": "^6.0.1",
+     "eslint": "^9",
+     "eslint-config-next": "^16.2.2",
+diff --git a/dashboard/proxy.ts b/dashboard/proxy.ts
+index 76e3e7dc..1b12e8d7 100644
+--- a/dashboard/proxy.ts
++++ b/dashboard/proxy.ts
+@@ -46,6 +46,14 @@ const PROTECTED_PAGE_PREFIXES = [
+   "/settings",
+   "/history",
+   "/projects",
++  // The command-centre pages read wiki_pages through a SERVICE-ROLE client that
++  // bypasses RLS, and the ported wiki-graph page declares a delta against the
++  // `auth gate` rule on the grounds that "auth is enforced upstream by proxy.ts".
++  // That was true of the matcher and false of the enforcement: the matcher covers
++  // every non-static route, but proxy() only checks a session for a path listed
++  // here. Until this line existed, the whole knowledge base was readable without
++  // one. See __tests__/command-centre-auth-coverage.test.ts.
++  "/command-centre",
+ ];
+ 
+ const PROTECTED_API_PREFIXES = [
+@@ -56,6 +64,9 @@ const PROTECTED_API_PREFIXES = [
+   "/api/capabilities",
+   "/api/chat",
+   "/api/settings",
++  // Same reason as "/command-centre" above — this route serves the graph built
++  // from an RLS-bypassing read.
++  "/api/command-centre",
+ ];
+ 
+ // Public API routes — never require session
