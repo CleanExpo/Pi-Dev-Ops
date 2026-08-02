@@ -421,9 +421,9 @@
       "path": "/api/telegram",
       "method": "POST",
       "auth": false,
-      "expected_status": 200,
+      "expected_status": 403,
       "body_contains": [
-        "ok"
+        "Forbidden"
       ],
       "_comment": "RA-5690 PR: Telegram webhook (Fable 5 refusal-fallback added in ceoAgentCall). Unparseable/absent body returns {ok:true} by design so Telegram doesn't retry-flood. The secret-mismatch 403 path needs a custom x-telegram-bot-api-secret-token header, which smoke_test_e2e.py doesn't support \u2014 this probe surfaces the route only."
     },

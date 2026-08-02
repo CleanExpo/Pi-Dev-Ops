@@ -58,3 +58,51 @@ export function resolvePassword(): ResolvedSecret {
 export function authSecret(): string {
   return resolvePassword().value;
 }
+
+/**
+ * Verify a `pi_session` token: `<issuedAtSeconds>.<hexHmacSha256(issuedAt)>`.
+ *
+ * This lives here, next to `resolvePassword`, for the reason this module exists at all:
+ * two callers once resolved the secret differently and login succeeded while every
+ * protected page bounced. Verification is now about to have two callers too — `proxy.ts`
+ * and `/api/kill-switch` — so it is defined once rather than copied and left to drift.
+ *
+ * Returns false for anything malformed, expired, or signed with a different secret. It
+ * never throws, so a caller cannot accidentally treat a thrown error as "authenticated".
+ */
+export async function verifySessionToken(
+  token: string,
+  ttlSeconds = 86_400,
+): Promise<boolean> {
+  const secret = resolvePassword().value;
+  if (!secret || !token) return false;
+
+  const dot = token.indexOf(".");
+  if (dot === -1) return false;
+
+  const issuedAtStr = token.slice(0, dot);
+  const sig = token.slice(dot + 1);
+  const issuedAt = parseInt(issuedAtStr, 10);
+  if (Number.isNaN(issuedAt)) return false;
+
+  const age = Math.floor(Date.now() / 1000) - issuedAt;
+  if (age < 0 || age > ttlSeconds) return false;
+
+  try {
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      enc.encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    const expected = await crypto.subtle.sign("HMAC", key, enc.encode(issuedAtStr));
+    const expectedHex = Array.from(new Uint8Array(expected))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    return expectedHex === sig;
+  } catch {
+    return false;
+  }
+}

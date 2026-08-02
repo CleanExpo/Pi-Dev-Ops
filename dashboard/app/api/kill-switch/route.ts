@@ -9,6 +9,9 @@
 // shape; a single proxy keeps the dashboard surface tight. The frontend
 // component decides which op to call based on user action.
 
+import { createHash, timingSafeEqual } from "crypto";
+import { verifySessionToken } from "@/lib/auth-secret";
+
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
@@ -78,7 +81,46 @@ export async function GET(request: Request): Promise<Response> {
   }
 }
 
+/**
+ * Authenticate a MUTATING kill-switch call.
+ *
+ * /api/kill-switch is in NEITHER PROTECTED_API_PREFIXES nor PUBLIC_API_PREFIXES in proxy.ts,
+ * so proxy() never examined it — and this route attaches Authorization: Bearer
+ * PI_CEO_PASSWORD to its own upstream call. An anonymous POST could therefore kill the swarm,
+ * or RESUME automation deliberately stopped, with no credential of any kind.
+ *
+ * Accepts a pi_session cookie (dashboard UI) or X-Kill-Switch-Secret matching
+ * KILL_SWITCH_SECRET (scripted/remote), compared in constant time over digests.
+ * FAIL-CLOSED: no session and no configured secret is 401.
+ *
+ * GET ?op=status stays public: read-only, rejects any other op with 400, and a CI smoke
+ * surface calls it unauthenticated by design.
+ */
+async function isAuthorisedMutation(request: Request): Promise<boolean> {
+  const cookie = request.headers.get("cookie") ?? "";
+  const m = /(?:^|;\s*)pi_session=([^;]+)/.exec(cookie);
+  if (m) {
+    // decodeURIComponent throws on malformed percent-encoding; a bad cookie must yield a
+    // clean 401, not a handler error.
+    let token = m[1];
+    try { token = decodeURIComponent(token); } catch { /* raw value will simply not verify */ }
+    if (await verifySessionToken(token)) return true;
+  }
+
+  const configured = (process.env.KILL_SWITCH_SECRET ?? "").trim();
+  const presented = (request.headers.get("x-kill-switch-secret") ?? "").trim();
+  if (!configured || !presented) return false;
+  return timingSafeEqual(
+    createHash("sha256").update(configured).digest(),
+    createHash("sha256").update(presented).digest(),
+  );
+}
+
 export async function POST(request: Request): Promise<Response> {
+  if (!(await isAuthorisedMutation(request))) {
+    // No detail about which credential was missing or wrong — that is a probing oracle.
+    return Response.json({ error: "Unauthorised" }, { status: 401 });
+  }
   const { searchParams } = new URL(request.url);
   const op = searchParams.get("op") ?? "";
   if (op !== "kill" && op !== "resume") {

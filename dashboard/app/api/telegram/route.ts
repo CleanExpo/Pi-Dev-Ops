@@ -2,6 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
+import { createHash, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse, after } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { MODELS, refusalFallback } from "@/lib/models";
@@ -369,16 +370,29 @@ Slash commands:
 
 function isAuthorized(chatId: number): boolean {
   const allowed = process.env.TELEGRAM_CHAT_ID?.trim();
-  if (!allowed) return true; // not configured — open (dev mode)
+  // FAIL-CLOSED: unconfigured means nobody, not everybody. With this open AND the webhook
+  // secret open, an anonymous POST could supply its own chat id and have send() deliver
+  // output back to the attacker.
+  if (!allowed) return false;
   return String(chatId) === allowed;
 }
 
 // ── POST handler ──────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  const incomingSecret = req.headers.get("x-telegram-bot-api-secret-token");
-  if (webhookSecret && incomingSecret && incomingSecret !== webhookSecret) {
+  // FAIL-CLOSED. The previous check fired only when a secret was configured AND presented
+  // AND mismatched, so an anonymous POST that simply OMITTED the header skipped it entirely.
+  // /api/telegram is in PUBLIC_API_PREFIXES, so this secret is the only thing in front of the
+  // notification channel. Now: configured, presented, and matching — constant-time.
+  const webhookSecret = (process.env.TELEGRAM_WEBHOOK_SECRET ?? "").trim();
+  const incomingSecret = (req.headers.get("x-telegram-bot-api-secret-token") ?? "").trim();
+  if (!webhookSecret || !incomingSecret) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (!timingSafeEqual(
+    createHash("sha256").update(webhookSecret).digest(),
+    createHash("sha256").update(incomingSecret).digest(),
+  )) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
