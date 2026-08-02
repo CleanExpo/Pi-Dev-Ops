@@ -29,6 +29,39 @@ A diff-relative claim is decidable: compare the change against a named baseline 
 
 **A diff-relative claim is only as strong as its baseline.** Where the baseline's own safety properties are load-bearing — an execution surface, a payment path, an approval gate — establish the baseline **by hand, once, before the port**, and cite that record in the spec. Otherwise "no new surface" inherits whatever the source already had, unexamined.
 
+### Consolidation amplifies whatever it consolidates — review the survivor as new code
+
+**Merging two implementations into one does not average their quality. It promotes the
+survivor's weaknesses to every caller.**
+
+Before a merge, a flaw in one of two implementations is scoped to that implementation's callers.
+After it, the surviving implementation is load-bearing for all of them. Nothing about the flaw
+changed; its blast radius multiplied.
+
+**The step that is almost always skipped:** the survivor gets treated as already-reviewed,
+because both inputs were reviewed. That inference is wrong. Both were reviewed *in their original
+scope*, and consolidation changes the scope. **The surviving implementation must be reviewed as
+if it were new code** — because for most of its new callers, it is.
+
+**Worked example, 2026-08-02.** A cross-vendor review found `proxy.ts` kept a local session
+verifier while `lib/auth-secret.ts` held a shared one — a real divergence risk, correctly
+flagged. Consolidating onto the shared verifier was the right fix and was made.
+
+The next round then found that the shared verifier compared HMAC digests with `expectedHex ===
+sig` — a string comparison that short-circuits at the first differing character, leaking how many
+leading hex digits an attacker guessed. That weakness pre-existed the merge. **Consolidation
+promoted it from one of two comparisons to the only comparison guarding both dashboard auth and
+the kill-switch.** Two rounds were spent: one to merge, one to find what the merge had amplified.
+
+**This is not an argument against consolidating.** The consolidation was correct and should have
+happened — two verifiers is the divergence that `auth-secret.ts` exists to prevent, and the
+duplication was a live obligation. The rule is about **what follows a merge**, not whether to
+merge.
+
+**Applies to:** auth and crypto paths, shared clients, any module that becomes a single point of
+trust. The tell is a diff that *deletes* an implementation. When you see one, the question is not
+"is the deletion safe" but **"has the survivor been reviewed for its new blast radius?"**
+
 ### The same rule applies to claims ABOUT EXISTING CODE, not only to specs
 
 **Write a reachability claim as a LOCATION, never as an ABSENCE.**

@@ -1,0 +1,106 @@
+# Proves the production kill switch ACCEPTS a valid credential — not merely that it refuses.
+#
+# WHY. After the 2026-08-02 hotfix, KILL_SWITCH_SECRET was recorded as "inferred bound, not
+# observed": a correctly-guarded route returns 401 whether the secret is bound-and-wrong or
+# absent, so unauthenticated probing can never separate those states. A kill switch that has
+# only ever been observed REFUSING is not a proven kill switch, and one proof covers one
+# deployment.
+#
+# HOW. The deployed handler runs auth (401 on failure) -> op validation (400 for anything but
+# kill|resume) -> upstream, in that order. So a CORRECT secret with an INVALID op authenticates,
+# dies on op validation, and returns 400 WITHOUT EVER REACHING UPSTREAM.
+#   401 = rejected (unbound or wrong)      400 = ACCEPTED. That is the proof.
+# Nothing can be killed or resumed by this workflow.
+#
+# THIS IS STRUCTURAL LIMIT 3's OPEN HALF, first instance: the expectation is derived from a
+# REQUIREMENT ("the kill switch must accept a valid credential") rather than from an observed
+# probe result.
+#
+# SECRET SCOPE — deliberately NOT a repository secret.
+# A repo-wide secret would hand the live kill switch to ~22 scheduled workflows that run
+# unattended with write tokens, inside Structural Limit 1 (the fence cannot see CI). Fixing one
+# limit by opening a hole in another is not a fix. It is bound to the `kill-switch-proof`
+# Environment, which only this job declares, and the negative is PROVEN below rather than
+# assumed.
+
+name: Kill-switch proof
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "dashboard/app/api/kill-switch/**"
+      - "dashboard/lib/auth-secret.ts"
+      - "dashboard/proxy.ts"
+      - ".github/workflows/kill-switch-proof.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  # ── The proof ───────────────────────────────────────────────────────────────
+  accepts-valid-credential:
+    name: Kill switch accepts a valid credential (expects 400)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: kill-switch-proof     # <-- the ONLY job that may read the secret
+    steps:
+      - name: Wait for the production deploy to settle
+        run: sleep 90
+
+      - name: Probe with the correct secret and an INVALID op
+        env:
+          KS: ${{ secrets.KILL_SWITCH_SECRET }}
+          URL: https://pi-dev-ops.vercel.app/api/kill-switch?op=probe
+        run: |
+          set -euo pipefail
+          if [ -z "${KS:-}" ]; then
+            echo "FAIL: KILL_SWITCH_SECRET is not readable in this job."
+            echo "      The environment binding is wrong, or the secret is unset."
+            exit 1
+          fi
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$URL" \
+            -H "content-type: application/json" \
+            -H "x-kill-switch-secret: $KS" -d '{}')
+          echo "with correct secret -> HTTP $CODE  (400 = ACCEPTED, 401 = rejected)"
+          if [ "$CODE" != "400" ]; then
+            echo "FAIL: expected 400. The deployment is not accepting the secret."
+            echo "      401 means unbound or wrong — remember env binds PER DEPLOYMENT,"
+            echo "      so a changed value needs a redeploy before it takes effect."
+            exit 1
+          fi
+
+      - name: NEGATIVE CONTROL — no secret must still be refused
+        env:
+          URL: https://pi-dev-ops.vercel.app/api/kill-switch?op=probe
+        run: |
+          set -euo pipefail
+          # Without this, a route that returned 400 to EVERYONE would pass the step above.
+          CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$URL" \
+            -H "content-type: application/json" -d '{}')
+          echo "with NO secret -> HTTP $CODE  (401 expected)"
+          [ "$CODE" = "401" ] || { echo "FAIL: unauthenticated request was not refused."; exit 1; }
+
+  # ── The negative that must be PROVEN, not assumed ───────────────────────────
+  secret-is-not-repo-wide:
+    name: Other workflows cannot read the kill-switch secret
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # NOTE the absence of `environment:`. That absence IS the test.
+    steps:
+      - name: A job without the environment must see nothing
+        env:
+          KS: ${{ secrets.KILL_SWITCH_SECRET }}
+        run: |
+          set -euo pipefail
+          # If this resolves, the secret was added at repository scope and every scheduled
+          # workflow — including unattended ones holding write tokens — can read it. That
+          # would trade Structural Limit 3 for a much worse hole in Limit 1.
+          if [ -n "${KS:-}" ]; then
+            echo "FAIL: KILL_SWITCH_SECRET is readable WITHOUT declaring the environment."
+            echo "      It has been added as a repository or organisation secret."
+            echo "      Move it to the 'kill-switch-proof' Environment and delete the wider copy."
+            exit 1
+          fi
+          echo "PASS: not readable outside the kill-switch-proof environment."
