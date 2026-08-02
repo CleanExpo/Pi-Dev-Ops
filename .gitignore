@@ -205,3 +205,11 @@ docs/session-handoffs/handoff-*.md
 .omx/
 .harness/*.txt
 .harness/*.diff
+
+# 2026-08-03: .harness/ is generated analysis output and MUST NOT be tracked.
+# secrets_check.py skips this path on the stated ground that it is not committed. main made
+# that premise true again in #607; this branch still tracked 608 files under it, so the
+# exclusion was false HERE and merging would have carried the blind spot back onto main.
+# Same fix, same form as #607. The piecemeal .harness/* patterns above are subsumed by this
+# and left in place deliberately — removing them is a separate change.
+.harness/
