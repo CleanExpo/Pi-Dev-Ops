@@ -26,6 +26,25 @@
 
 ---
 
+## The three structural limits (index)
+
+Above the individual gaps sit three limits of the apparatus itself — ways the machinery is
+*systematically* unable to see a class of thing, so a green result over that class means nothing.
+Full text in `.harness/lesson-patterns.md` (1 and 3) and `skills/proof-discipline/SKILL.md` (2).
+
+| # | Limit | Bit us |
+|---|---|---|
+| 1 | `.gitignore` is a silent scope reducer on every git-grounded check | secrets scan blind to ignored files; review tree-integrity blind to ignored paths |
+| 2 | A check that knows a fixed set goes stale silently | navigation forms; C12 entry pages; auth-suite pages; **auth-suite API routes — a live route entered with no coverage** |
+| 3 | A production check is only worth its contract | **117 days of unauthenticated access, behind a green production check asserting `POST /api/telegram → 200`** |
+
+**Limit 3 is the one with an open half.** `security-fix-contracts.test.ts` prevents a contract
+sliding *back* to describing a defect already fixed. Nothing yet derives a production expectation
+from a security *requirement*, so a new route with a permissive contract written from observation
+repeats it exactly. Recorded as an open gap, not an intention.
+
+---
+
 ## What it structurally cannot catch
 
 These are not tuning gaps. They are outside the shape of a count-based static comparison.

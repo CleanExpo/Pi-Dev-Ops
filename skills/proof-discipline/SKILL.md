@@ -144,7 +144,12 @@ note is not a mitigation. Either build the check, or record it as a deferral wit
 blocker and an unblock condition — the KI-006/007/008 form — so the next reader can tell a
 decision from an intention.
 
-## A Check That Knows a Fixed Set Is a Check That Goes Stale Silently
+## STRUCTURAL LIMIT 2 — a check that knows a fixed set goes stale silently
+
+> One of three numbered structural limits of the evidence apparatus. Index and peers —
+> **Limit 1** (`.gitignore` as a silent scope reducer) and **Limit 3** (a production check is
+> only worth its contract) — are in `.harness/lesson-patterns.md`. Shared shape: each produces a
+> clean result from a check that was not looking at the thing you believed it was looking at.
 
 **Any check that enumerates the surface it guards will, at some point, guard less than its name
 says — and it will not tell you.** The list is right the day it is written and wrong from the

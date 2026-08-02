@@ -281,7 +281,25 @@ CCW-CRM had `main` (pre-monorepo, no `apps/web/`) and `ai-updates` (monorepo tru
 
 ---
 
-## MECHANISM — `.gitignore` is a silent scope reducer on every git-grounded check
+## STRUCTURAL LIMITS OF THE EVIDENCE APPARATUS — index
+
+Not bugs. Each is a way the estate's checking machinery is *systematically* unable to see a
+class of thing, so a green result over that class means nothing. They are peers, numbered so a
+fourth has an obvious home, and they live in two files only because of where each was earned:
+
+| # | Limit | Lives in |
+|---|---|---|
+| **1** | `.gitignore` is a silent scope reducer on every git-grounded check | this file, below |
+| **2** | A check that knows a fixed set goes stale silently | `skills/proof-discipline/SKILL.md` |
+| **3** | A production check is only worth its contract | this file, below |
+
+The shared shape: **each produces a clean result from a check that was not looking at the thing
+you believed it was looking at.** A clean report from a narrowed scope, a stale enumeration, or
+a contract written from observed behaviour is indistinguishable from a clean system.
+
+---
+
+## STRUCTURAL LIMIT 1 — `.gitignore` is a silent scope reducer on every git-grounded check
 
 **Named 2026-08-01 after the third instance.** Not an anecdote: a repeating structural failure
 with one cause and one fix pattern.
@@ -356,3 +374,71 @@ Any new check grounded in git must **state what `.gitignore` removes from its sc
 check itself, the way C9 and control 1 now do. And test it with a planted item **inside an
 ignored path** — the two misses above happened because the control was planted in an ignored
 path by accident, which is also the only reason the mechanism was found.
+
+
+---
+
+## STRUCTURAL LIMIT 3 — a production check is only worth its contract
+
+**Named 2026-08-02, after an unauthenticated inbound path ran for 117 days behind a green
+production check that was actively certifying it.**
+
+**The limit.** Pointing a prober at production does not make production verified. The prober
+answers exactly one question — *does the surface still do what this contract says?* — and if the
+contract was written from **observed** behaviour rather than **required** behaviour, then it
+encodes whatever the system was already doing, including the defect. It will go green on the
+vulnerability, forever, and it will do so while answering the question "is production okay?"
+with **yes**.
+
+**A production check with a descriptive contract is worse than no production check**, because a
+missing check is a known gap while a green one is a positive assertion of health.
+
+### What actually happened, since the obvious reading is wrong twice over
+
+The first reading was "we have no production check." False.
+The second was "the production check was disabled." Also false, and this is the important part.
+
+- **`Smoke test (prod)`** (`ci.yml`) could never have caught it: it targets
+  `pi-dev-ops-production.up.railway.app` — the Railway API — and does not read
+  `smoke-surfaces.json`. Its SKIP on the hotfix PR is by design (push-to-main only). **Wrong
+  host.** A check being skipped is a red herring when it was pointed elsewhere entirely.
+- **`smoke_test_e2e.yml`** is the check that watches production: it targets
+  `https://pi-dev-ops.vercel.app`, consumes `smoke-surfaces.json`, and fires on push to `main`.
+  **It was never disabled. It ran, and passed, for 117 days** — because its surface entry
+  asserted `POST /api/telegram → 200` with `body_contains: ["ok"]`.
+
+An anonymous POST returning 200 *was the vulnerability*. The check asserted it as the
+requirement. The one instrument watching production was **certifying the hole**.
+
+### Why the contract was wrong, and it was not carelessness
+
+Surface entries get written by observing what a route does and recording it, because that is the
+fastest way to build a contract and it makes the check pass immediately. **That is exactly the
+failure mode**: a contract derived from behaviour can only ever assert that behaviour has not
+changed. It cannot assert that behaviour is *correct*, and it will defend the defect against a
+fix — which is precisely what happened here. When the hardening landed, that entry failed **while
+pointing at the fix**, arriving dressed as a regression and arguing to put the hole back.
+
+### The consequence that makes this a limit and not an anecdote
+
+Every other control in the estate measures **the branch**. This is the only class that measures
+what is **served** — and it inherits its authority entirely from a contract nobody re-derives.
+So the estate's total production assurance is bounded not by whether it probes production, but by
+whether someone wrote each expectation from a requirement.
+
+### The route back — partial, and honest about which half is missing
+
+- **Built:** `dashboard/__tests__/security-fix-contracts.test.ts` + registry. Any surface still
+  asserting a pre-fix status or body token fails, and a surface that exists without asserting the
+  post-fix status fails too, so deleting it cannot satisfy the check. This closes the
+  *regression* direction: a contract cannot slide back to describing a defect we have already
+  fixed.
+- **NOT built, and this is the open half:** nothing derives a production expectation from a
+  security *requirement* in the first place. The registry only knows about defects already found.
+  A new route with a permissive contract written from observation would repeat this exactly.
+
+**Recorded as an open gap rather than left as an intention** — see "naming the risk is not the
+same as covering it". The shape of the fix, when it is built: security-relevant surfaces
+(anything unauthenticated, anything holding a credential the caller does not) must have their
+expected status derived from a declared auth classification — which
+`__tests__/api-auth-classification.json` already holds — rather than from a probe result.
