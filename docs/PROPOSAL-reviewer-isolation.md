@@ -530,6 +530,65 @@ nothing.
 **Gate:** this proof runs **before the first real review**, and its result is recorded. If any denial
 lacks its paired success, the container is not accepted.
 
+### 9.5.1 RESULT — executed 2026-08-03: **PASS**
+
+Probe: `.harness/sandbox-probe/mount-proof.cjs`. Two arms, same probe, same run shape.
+Container: stock `node:22-slim` (`sha256:f32b8106…`) — **no custom image built**; the mount boundary
+is a property of the mount configuration, not of image contents.
+
+Mounts under test: `D:\Pi-Dev-Ops → /work:ro`, decoy dir `→ /decoy:ro`, `tmpfs → /work/dashboard/.next`.
+Nothing else.
+
+| check | ARM OUTSIDE (host) | ARM INSIDE (container) | required | verdict |
+|---|---|---|---|---|
+| `~/.ssh/id_ed25519` | REACHABLE 387 B | **ENOENT** | deny | ✅ |
+| `~/.railway/config.json` | REACHABLE 747 B | **ENOENT** | deny | ✅ |
+| `~/.codex/auth.json` | REACHABLE 4558 B | **ENOENT** | deny | ✅ |
+| `~/.gitconfig` | REACHABLE 636 B | **ENOENT** | deny | ✅ |
+| `/host_mnt/c`, `/mnt/c`, `/c`, `/run/desktop` | `/c` REACHABLE | **all ENOENT** | deny | ✅ |
+| sibling repos | **58** | **0** | deny | ✅ |
+| write tracked source | WRITABLE | **EROFS** | deny | ✅ |
+| **READ_POSITIVE (decoy)** | OK | **OK, 33 B** | succeed | ✅ |
+| **WRITE_POSITIVE (`.next`)** | OK | **OK, write+unlink verified** | succeed | ✅ |
+| read `/work` | OK 79 entries | **OK 80 entries** | succeed | ✅ |
+| `SPAWN` (§3) | OK | **OK** | succeed | ✅ |
+| `NETWORK_EGRESS` (§9.1) | OK | **OK** | succeed | ✅ |
+
+**Both paired positives passed, so every denial is evidence rather than an ambiguous `ENOENT`.**
+
+**The strongest single result is `EROFS`, not `ENOENT`, on the source write.** The file is present and
+readable (`READ_TREE` OK, 80 entries) and the write was refused *by the mount mode*. That denial is
+attributable to read-only-ness itself — it cannot be explained by the probe looking in the wrong
+place, which is the failure §9.5 was designed to exclude.
+
+**Measured mount table — the manifest baseline for the Control 1b successor (§9.6):**
+
+```
+/work                     9p     ro   (path=D:\)
+/decoy                    9p     ro   (path=C:\)
+/work/dashboard/.next     tmpfs  rw   nosuid,nodev,noexec,mode=777
+```
+
+Exactly three mounts, two read-only. This is the declared set the pre-run assertion compares against.
+
+### 9.5.2 What this does NOT prove — residuals
+
+1. **The loop has not been run in the container.** This proves the **boundary**, not that the review
+   loop executes inside it. `node_modules` was not mounted and no build ran. §9.2's writable-set
+   measurement and the Supabase question are still open and are the natural next step.
+2. **Symlink traversal is UNTESTED.** The 9p mount options include `symlinkroot=/mnt/host/`, which is
+   a plausible escape route. Partial evidence only: `/mnt` is empty, `/mnt/host` **does not exist**,
+   and `/work/..` resolves to the *container* root (`bin boot dev etc home`), not `D:\`. But I did
+   **not** test an actual symlink — creating one on this host requires Administrator privilege and
+   the attempt was refused. **A repo containing a symlink pointing outside the tree remains an
+   untested vector.** Test it before the first real review, from an elevated shell.
+3. **Stock image, not the review image.** `node:22-slim` has no toolchain pinning, so this says
+   nothing about Control 4 (§9.6.1), which is unimplemented.
+4. **`.next` was tmpfs, not the specified volume.** Adequate for proving writability; the real
+   configuration may differ in persistence semantics between rounds.
+5. **Not a privilege-escalation audit.** Default `runc` + builtin seccomp; container-escape classes
+   (kernel exploits, misconfigured caps) were not assessed and are out of scope here.
+
 ## 9.6 What happens to the controls
 
 | control | under the container |
