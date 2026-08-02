@@ -596,12 +596,25 @@ Exactly three mounts, two read-only. This is the declared set the pre-run assert
 1. **The loop has not been run in the container.** This proves the **boundary**, not that the review
    loop executes inside it. `node_modules` was not mounted and no build ran. §9.2's writable-set
    measurement and the Supabase question are still open and are the natural next step.
-2. **Symlink traversal is UNTESTED.** The 9p mount options include `symlinkroot=/mnt/host/`, which is
-   a plausible escape route. Partial evidence only: `/mnt` is empty, `/mnt/host` **does not exist**,
-   and `/work/..` resolves to the *container* root (`bin boot dev etc home`), not `D:\`. But I did
-   **not** test an actual symlink — creating one on this host requires Administrator privilege and
-   the attempt was refused. **A repo containing a symlink pointing outside the tree remains an
-   untested vector.** Test it before the first real review, from an elevated shell.
+2. **Symlink traversal — INPUT now checked, VECTOR still untested.** The 9p options include
+   `symlinkroot=/mnt/host/`, a plausible escape route. Partial evidence: `/mnt` is empty,
+   `/mnt/host` **does not exist**, and `/work/..` resolves to the *container* root, not `D:\`.
+
+   **Added: `scripts/symlink_precondition.py`.** Enumerates tracked symlinks by git mode `120000`,
+   resolves each target relative to its own directory, and **fails closed** on any that is absolute
+   or normalises outside the tree. Red-first self-test (`--self-test`) covers five cases —
+   `../../../etc/passwd`, `/etc/passwd`, a Windows absolute path, and two in-tree targets — and
+   passes 5/5, so the check is proven able to reject before it is trusted. Current state: **1
+   tracked symlink, `.claude/skills/skybridge -> ../../.agents/skills/skybridge`, resolves in-tree.
+   PRECONDITION HOLDS.**
+
+   **This is not closure and must not be read as closure.** It removes the *input* the vector needs;
+   it does not demonstrate that a symlink pointing outside the tree would fail to traverse the mount.
+   **The live traversal test remains a gate before the first real review** and needs an elevated
+   shell (creating a symlink on Windows requires Administrator; the attempt here was refused).
+   Two further limits: the check covers **tracked** symlinks only, while the mount carries the whole
+   working tree including untracked files; and it is a point-in-time check, so it belongs in the
+   runner's pre-flight beside the mount-manifest assertion, not in a one-off.
 3. **Stock image, not the review image.** `node:22-slim` has no toolchain pinning, so this says
    nothing about Control 4 (§9.6.1), which is unimplemented.
 4. **`.next` was tmpfs, not the specified volume.** Adequate for proving writability; the real
@@ -648,6 +661,74 @@ refusal is attributable to the digest and not to a broken runner.
 **Known limit, stated.** This binds the image, not its contents' provenance. It proves *the same
 image as last time*, not *an image built from trusted inputs*. Supply-chain assurance for the image
 build is a separate problem and is not claimed here.
+
+## 9.7bis Loop run inside the container — executed 2026-08-03
+
+Run: `node:22-slim`, `/work:ro`, `--tmpfs /work/dashboard/.next`, `--tmpfs /work/scripts`.
+Log: `.harness/loop-container-run2.txt`.
+
+### The finding that matters: read-only source is INCOMPATIBLE with this loop
+
+`scripts/prove-controls.sh` proves its controls **red-first by planting defects into the source
+tree** — that is the whole point of it. Under a read-only mount those plants fail, so the controls
+cannot demonstrate discrimination and the loop correctly reports itself broken:
+
+```
+==== CONTROLS PROVEN: pass=7 fail=5
+==== A CONTROL DID NOT DISCRIMINATE - the checks it guards prove nothing.
+```
+
+**Measured writable set — every path that raised `Read-only file system`:**
+
+| path | what needed it |
+|---|---|
+| `docs/.control-plant.md`, `docs/.control-plant.tmp`, `docs/.control-secret.tmp` | C-TREE and C-SECRETS plant files |
+| `dashboard/__tests__/command-centre-provenance.json` (+ `.bak`) | C10/C4 in-place edit and restore |
+| `dashboard/app/api/__control-unclassified/` | C-DISCOVERY plants an unclassified route |
+| `dashboard/app/(main)/command-centre/__control-surface/` | C-DISCOVERY plants a page |
+| `dashboard/app/api/command-centre/__control-route/` | C-DISCOVERY plants a route |
+| `dashboard/app/api`, `dashboard/app/(main)/command-centre`, `dashboard/app/api/command-centre` | `touch` — **mtime** writes, not content |
+
+That is not a narrow set of generated paths. It is `docs/`, `dashboard/__tests__/` and most of
+`dashboard/app/` — **the source of record itself.**
+
+**This contradicts §9.3's central design choice** ("source read-only; only generated paths
+writable"), which §9.5 proved *works* and which this run proves is *unusable for this loop*. Both
+results stand; they are about different things. Options, none chosen:
+
+- **(i)** Mount source read-write and fall back on Control 1's hash to detect mutation — reverting to
+  detective rather than preventive, and giving up the strongest property §9.5 established (`EROFS`).
+- **(ii)** Mount a **disposable copy** read-write. The host tree is never writable; the container
+  mutates a copy that is discarded. Preserves the boundary and lets the plants work. Costs a copy
+  per round (see performance, below) and Control 1 must then hash the copy, not the host tree.
+- **(iii)** Rework the loop to plant into a designated writable area. Largest change, touches the
+  thing being reviewed, and would need its own review.
+
+**(ii) looks strongest on this evidence but is Phill's call, not mine.**
+
+### Other measured results
+
+| item | result |
+|---|---|
+| **`x.invalid` fixture** | **INTACT** — `ENOTFOUND` inside the container. The fail-closed test is not vacuous. |
+| **Stock-image tooling** | `git`, `python3`, `python`, `curl` **all MISSING** from `node:22-slim`. `apt-get install` cost **38s**, every run. Justifies Control 4's pinned image on cost alone. |
+| **`git` on a read-only `.git`** | **WORKS.** `rev-parse` OK; `git status --porcelain` OK. I expected this to fail and it did not — recorded because the expectation was wrong, not because it was confirmed. |
+| **CRLF** | `scripts/prove-controls.sh` is **committed with CRLF** (232 CR in the blob at HEAD). Linux bash rejects it (`set: pipefail: invalid option name`, `cd: $'/work\r\r'`); Windows bash tolerates it, which is why the host run passed. Five tracked executables are CRLF-committed; only the `.sh` breaks, since Node and Python tolerate it. **Worked around** by shadowing `scripts/` with a tmpfs and normalising — **a widening forced by a repo defect, not by a need of the loop.** The real fix is `.gitattributes` with `*.sh text eol=lf` plus renormalisation. |
+
+### Two items this run did NOT settle
+
+Stated plainly rather than reported as thin answers:
+
+- **Supabase egress: STILL UNSETTLED.** C12 reported `SKIP no dashboard build present` — `.next` was
+  an empty tmpfs, so **no build ran** and the build's network behaviour was never exercised. The DNS
+  lookups in the log are my own explicit probes, not the loop's traffic, and prove only that the host
+  is reachable from the container with no allowlist applied. Attribution still requires a run in
+  which the build actually executes.
+- **Performance: NOT COMPARABLE.** Host 68s for 23/23 including C12's build. Container 86s for
+  7-pass/5-fail with C12 **skipped** and no build. The two runs did different work, so 86 vs 68 is
+  not a 9p penalty measurement and must not be quoted as one. The only honest statement today is
+  that **toolchain install adds a fixed ~38s per run** unless baked into the image. A real comparison
+  needs option (i)/(ii)/(iii) resolved so the container can run the same 23 controls.
 
 ## 9.7 Open items before build
 
