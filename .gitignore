@@ -202,3 +202,10 @@ docs/session-handoffs/handoff-*.md
 
 # generated graph visualisation output (not source)
 swarm/graphify-out/
+
+# 2026-08-02: .harness/ is generated analysis output and MUST NOT be tracked.
+# secrets_check.py skips this path on the stated ground that it is not committed. A Codex Stop
+# hook running `autogit ship` made that false on 2026-06-16 and pushed 98MB to a PUBLIC repo
+# behind the exclusion. Untracked here so the exclusion premise is true again — the check
+# asserts it every run and fails loudly if it stops being true.
+.harness/
