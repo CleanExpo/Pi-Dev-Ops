@@ -363,3 +363,62 @@ even then it must be impossible in a deployed environment.
 `TAO_PASSWORD` unset was never established — Railway was not reachable from the diagnosing
 machine. The finding stands on its own regardless of whether it fired here: the branch exists,
 and while it exists this fault is always available.
+
+## CLAIM-SHAPE RULE — a narrowed instrument produces a narrowed claim, mechanically
+
+Failure mode 7 says a positive control validates the instrument and not the aim. That was
+written down on 2026-08-02 and **recurred the same day, hours later, by the same process that
+wrote it.** Prose did not prevent it. What follows is therefore not advice; it is a rule about
+the SHAPE of the sentence you are permitted to write.
+
+### The rule
+
+**Whenever an instrument is narrowed — for cost, speed, timeout, context, or convenience — the
+narrowing enters the claim as a qualifier, or the claim is invalid.**
+
+| you ran | the ONLY claim you may write |
+|---|---|
+| a search over selected paths | "confirmed **within targeted scope**: `<paths>`" |
+| a broad search that completed | "confirmed **by discovery**" |
+| a search that timed out and was replaced | "confirmed **within reduced scope**; the broad search did not complete" |
+| a check that skipped anything | "confirmed **excluding** `<exclusions>`" |
+
+`confirmed by discovery` is reserved for a search that was **not** narrowed and **did** complete.
+Writing it after running a narrowed search is the defect — not the narrowing, which is often
+correct and necessary. **Narrowing is legitimate. Reporting it as breadth is not.**
+
+### Mechanical trigger
+
+Any of these means the claim MUST carry a scope qualifier:
+
+- you replaced a running search with a faster one
+- you added `-maxdepth`, `--include`, a path list, `head`, or a `limit`
+- a command timed out, was backgrounded, or was killed
+- you scanned "the file" rather than "files matching the pattern"
+- you sampled N of M
+
+### Worked example — the recurrence this rule exists to stop
+
+*2026-08-02.* A broad sweep for anything invoking `autogit` was launched, ran past its timeout,
+and was backgrounded. It was replaced with a targeted sweep over specific config files, which
+returned clean. That was reported as **"confirmed by discovery: nothing else invokes autogit"**.
+
+The broad sweep later completed and found `~/.codex/hooks.json.bak-20260717-autogit` — a backup
+holding all four removed hook entries, one copy command from re-arming, in the same directory
+as the file that *was* checked.
+
+The targeted sweep checked `hooks.json`. It did not check `hooks.json.bak-*`. Both statements
+below are true, and only one was written:
+
+- ✅ *"confirmed within targeted scope: hooks.json, project `.codex/`, git hooks, scheduled tasks"*
+- ❌ *"confirmed by discovery"*
+
+The gap between those two sentences is where the finding lived. The narrowing was reasonable —
+the broad search genuinely was too slow. **The defect was upgrading the claim to match the
+intent rather than the method.**
+
+### The check to run on your own sentence
+
+Before writing any confirming claim, ask: *what did my instrument physically not look at?* If
+the answer is anything at all, it goes in the sentence. If you cannot enumerate what was
+excluded, you do not know your own scope, and no confirming claim is available to you yet.
