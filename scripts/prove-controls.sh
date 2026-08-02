@@ -168,7 +168,27 @@ fi
 # ─────────────────────────────────────────────────────────────────────────────
 if [ "$FAST" = 0 ]; then
 hdr "C12 — runtime route exercising (needs a build; ~90s)"
+# ESTABLISH the precondition; do not merely hope for it.
+#
+# Round-2 review ran this script and got 17/22 — five C12 controls "failed" while
+# "refuses to run against a stale build" PASSED. That combination is the signature: every
+# C12 invocation returned exit 2 because the build was older than the source, so the
+# controls were reporting the precondition, not the thing under test.
+#
+# It passed 22/22 for me and 17/22 for them from the same tree. That is the "works on my
+# machine" failure applied to a control suite, and by this estate's own standard a control
+# that is not reproducible is not a control. So this block now BUILDS when the build is
+# stale rather than depending on whoever ran it having built recently.
 if [ -f dashboard/.next/BUILD_ID ]; then
+  node scripts/route-exercise.mjs >/dev/null 2>&1
+  if [ $? -eq 2 ]; then
+    echo "  NOTE  build is stale — building now so the C12 controls test C12, not the build"
+    ( cd dashboard && PI_CEO_URL=https://x.invalid PI_CEO_PASSWORD=x       NEXT_PUBLIC_SUPABASE_URL=https://lksfwktwtmyznckodsau.supabase.co       NEXT_PUBLIC_SUPABASE_ANON_KEY=x SUPABASE_SERVICE_ROLE_KEY=x       npm run build >/dev/null 2>&1 )
+    node scripts/route-exercise.mjs >/dev/null 2>&1
+    [ $? -eq 0 ] && ok "precondition established: build is fresh"                  || bad "could not establish a fresh build — C12 results below would be meaningless"
+  else
+    ok "precondition: build was already fresh"
+  fi
   # Round-4 review, two defects in THIS script:
   #   · it left page.tsx touched after the stale-build test, so a SECOND run failed at the
   #     clean-surface step — the proof script was not idempotent, and the reviewer hit it.
