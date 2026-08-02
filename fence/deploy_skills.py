@@ -29,6 +29,13 @@ MACHINE = Path.home() / ".claude" / "skills"
 # Every skill whose source of truth is this repo. Adding one here makes the repo
 # authoritative for it and puts it under drift enforcement.
 MANIFEST = [
+    # Split 2026-08-02 from one 480-line file, BY MOMENT rather than by size:
+    #   control-design   loads while a check is being BUILT
+    #   proof-discipline loads while something is being CLAIMED done
+    # Both must be listed. A split half that is not in the manifest never deploys, which
+    # would reproduce exactly the drift this manifest exists to prevent — and silently,
+    # because the surviving half would still look healthy.
+    "control-design",
     "proof-discipline",
     # the self-healing chain
     "prove-the-failure", "contain", "diagnose", "classify",
