@@ -29,6 +29,35 @@ A diff-relative claim is decidable: compare the change against a named baseline 
 
 **A diff-relative claim is only as strong as its baseline.** Where the baseline's own safety properties are load-bearing — an execution surface, a payment path, an approval gate — establish the baseline **by hand, once, before the port**, and cite that record in the spec. Otherwise "no new surface" inherits whatever the source already had, unexamined.
 
+### The same rule applies to claims ABOUT EXISTING CODE, not only to specs
+
+**Write a reachability claim as a LOCATION, never as an ABSENCE.**
+
+The unbounded-negative trap is usually filed as a spec-writing error. It is not — it is a
+claim-*shape* error, and it bites just as hard when describing code that already exists.
+
+| Unbounded — do not claim | Bounded — claim this |
+|---|---|
+| "the vault is not reached from the repository" | "the vault is reached from exactly the POST registration path, and nowhere else" |
+| "nothing writes to this table" | "the only writer is `recordUsage()` at repository.ts:137" |
+| "this route has no auth dependency" | "auth enters at proxy.ts's PROTECTED_API_PREFIXES, and only there" |
+
+**Why the absence form fails.** "Not reached from here" invites *"what about a view? an RPC? a
+trigger? a helper you did not open?"* — and the reviewer is right to keep asking, forever.
+Nothing you produce settles it. The location form is decidable: go to the named place, confirm
+it is the reacher, confirm the search that found it was exhaustive. It is also **re-verifiable
+later by someone who was not there**, which an absence never is.
+
+**Worked example, 2026-08-02.** Reviewing the providers port, the builder claimed
+*"`credentials_vault` appears nowhere in `repository.ts`"* and traced it honestly. The reviewer
+agreed **and improved it**: the vault is reached **only by the POST registration path**
+(`provider-accounts/route.ts:69`), never by GET. Same underlying fact, strictly stronger claim —
+it names where the capability lives instead of one place it does not.
+
+**Treat a negative reachability claim in a brief as a SPEC DEFECT** and rewrite it before the
+review runs, exactly as you would an unbounded negative in a requirement. A reviewer that fails
+you for it is correct, and the attempt was spent on the shape of a sentence rather than on code.
+
 *Earned 2026-08-01: three bounded attempts at capability 1 of the command-centre migration were all correctly failed by cross-vendor review, because the spec asked for absolute read-only proof. The code was fine every time. The spec was the defect.*
 
 ## A review is never coverage

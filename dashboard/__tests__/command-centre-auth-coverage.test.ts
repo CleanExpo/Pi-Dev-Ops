@@ -102,7 +102,43 @@ describe("proxy auth coverage", () => {
     });
   }
 
-  it("/api/command-centre/wiki-graph 401s without a session", async () => {
+  // API routes, DISCOVERED — same reason as the pages above, and this one had already gone
+  // stale: only /api/command-centre/wiki-graph was asserted, so /api/command-centre/provider-usage
+  // entered the surface on 2026-08-02 with NO auth coverage at all. The check built to close the
+  // anonymous-access hole would not have noticed the next one.
+  const API_ROUTES = (() => {
+    const base = resolve(__dirname, "..", "app", "api", "command-centre");
+    const found: string[] = [];
+    (function walk(dir: string, urlPath: string) {
+      if (!existsSync(dir)) return;
+      for (const e of readdirSync(dir)) {
+        const p = join(dir, e);
+        if (statSync(p).isDirectory()) {
+          if (e.startsWith("[")) continue;
+          walk(p, e.startsWith("(") ? urlPath : `${urlPath}/${e}`);
+        } else if (e === "route.ts" || e === "route.tsx") {
+          found.push(urlPath);
+        }
+      }
+    })(base, "/api/command-centre");
+    return [...new Set(found)].sort();
+  })();
+
+  it("API discovery found the command-centre routes (positive control)", () => {
+    expect(API_ROUTES.length).toBeGreaterThan(0);
+  });
+
+  for (const route of API_ROUTES) {
+    it(`${route} 401s without a session`, async () => {
+      expect(
+        await outcome(route),
+        `${route} served an anonymous request. Command-centre APIs read through a ` +
+          `service-role client that bypasses RLS, so this is unauthenticated data access.`,
+      ).toBe("401");
+    });
+  }
+
+  it("the wiki-graph API 401s without a session (named explicitly, it reads the whole wiki)", async () => {
     expect(
       await outcome("/api/command-centre/wiki-graph"),
       "the wiki-graph API served an anonymous request. It reads wiki_pages through a " +

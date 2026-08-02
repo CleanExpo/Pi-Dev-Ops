@@ -266,9 +266,20 @@ async function main() {
   // next.config change or a dependency bump after a build left STANDALONE C12 measuring an
   // old artifact. The gate's build-before-C12 hid it; the check must not depend on being
   // called politely.
-  const FRESH_INPUTS = ["app", "components", "lib", "proxy.ts", "next.config.ts",
-                        "next.config.js", "next.config.mjs", "package.json",
-                        "package-lock.json", "pnpm-lock.yaml", "tsconfig.json"];
+  // DISCOVERED, not listed. A fixed list of source roots goes stale the moment someone adds a
+  // top-level directory — the freshness check would then pass over a changed surface. Take
+  // everything at the app root except generated/vendor trees, which is the inverse and stays
+  // correct as the app grows.
+  const NOT_SOURCE = new Set([
+    // Generated or vendored — never inputs to the built artifact.
+    "node_modules", ".next", ".git", ".turbo", "coverage", "dist", "build", ".vercel",
+    // Test-only, and NOT imported by the app: a vitest file cannot change what `next build`
+    // produces. Including it made a provenance edit read as a stale build, which is a false
+    // positive — and a freshness check that cries wolf gets switched off. Each exclusion here
+    // must be justifiable as "cannot affect the built artifact"; that is the whole test.
+    "__tests__",
+  ]);
+  const FRESH_INPUTS = fsRead(APP).filter((e) => !NOT_SOURCE.has(e) && !e.startsWith("."));
   for (const dir of FRESH_INPUTS) {
     (function walk(d) {
       if (!existsSync(d)) return;

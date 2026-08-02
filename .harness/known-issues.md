@@ -189,62 +189,65 @@ with its own review.
 
 ---
 
-## KI-008 — `CostAllocationTile` and `/api/command-centre/cost-allocation` DEFERRED
+## KI-008 — `CostAllocationTile` + `/api/command-centre/cost-allocation` — BLOCKED on tokens
 
-**Status:** open (deferred, two named conditions) · **Raised:** 2026-08-02 · **Ruled by:** founder
-**Capability:** 4 — providers
+**Status:** open (one blocker) · **Raised:** 2026-08-02 · **Ruled by:** founder
+**Capability:** 4 — providers · **Blocked on:** per-capability tokens, alongside [KI-007]
 
-Not ported with the read-only half. **Deferred on conditions, not refused** — and the distinction
-matters, because unlike KI-006 and KI-007 there is no safety finding here.
+Not ported with the read-only half. **One blocker, not two.** An earlier draft of this entry
+framed it as an access-policy decision plus an unknown fact. The founder corrected that, and the
+correction is the substance of this entry.
 
-**What was traced, so this is a decision on facts rather than on the name.**
+### The blocker: this is the identity gap, wearing different clothes
 
-- The tile is thin: `react`, `SourceBadge`, and one `fetch('/api/command-centre/cost-allocation')`.
-  Nothing in it to assess.
-- **The route is genuinely read-only.** Zero write verbs in the entire file — no `insert`,
-  `update`, `upsert`, `delete` or `rpc`. Three SELECTs: `cost_source`, `cost_record`,
-  `revenue_record`. That is a better position than `provider-accounts` (KI-007), which carried a
-  production write path.
-- Tile and route **move together or not at all**. Porting the tile without the route gives a
-  control that renders and always fails, which is the KI-005 rule.
+The question is not *"may estate financials be read from this dashboard"*. It is **who** may read
+them — and **the architecture cannot express the answer.** The ruling is *"I may read the books,
+the agent pool may not"*, and **one shared password cannot distinguish those two subjects.**
 
-**Why it is not a straight port.** The source uses `createServiceClient` — service-role, RLS
-bypassed **by design** — and does its authorization in the handler with `getUser()`. Those two
-halves are a deliberate pair. Ported here the `getUser()` half evaporates, because this app has
-no per-user identity, while the RLS-bypassing half remains. That is structurally the same swap
-that made `/api/command-centre/wiki-graph` a rebuild rather than a port. The difference is what
-it reads: **cost and revenue**.
+So there is no access-policy decision available here. Saying yes would put the books inside the
+blast radius of a single secret **while adding no control** — the same reasoning that placed
+per-capability tokens ahead of the operations approvals surface, where an approval endpoint
+reachable by anything holding the shared password is a button rather than a gate.
 
-### Condition 1 — an access-policy ruling, which is the founder's and not the agent's
+This folds into the **per-capability tokens** work with KI-007. Not a separate policy call, not a
+judgement about the sensitivity of the data. **Tokens make "which capability may read the cost
+tables" answerable; until then it is not a question this app can be asked.**
 
-Porting this means **anyone holding the shared dashboard password can read estate cost and
-revenue figures.** No credentials are involved, so this is not KI-007's problem; it is a question
-about data sensitivity and who the single shared secret is effectively granting access to.
+### What was traced, so the deferral rests on facts
 
-It is a policy call, not a technical one, and it does not become smaller by being implemented
-carefully. **Unblocks when the founder rules that shared-password access legitimately includes
-financial figures** — or when per-capability tokens land and the question becomes "which
-capability may read the cost tables", which is answerable rather than assumed.
+- The tile is thin: `react`, `SourceBadge`, one `fetch('/api/command-centre/cost-allocation')`.
+- **The route is genuinely read-only** — zero write verbs in the whole file. Three SELECTs:
+  `cost_source`, `cost_record`, `revenue_record`. Better placed than KI-007's route, which
+  carries a production write path.
+- Tile and route **move together or not at all**; porting the tile alone gives a control that
+  renders and always fails (the KI-005 rule).
+- The source pairs `createServiceClient` (service-role, RLS bypassed **by design**) with
+  `getUser()` authorization. Those halves are a deliberate pair. Ported here the authorization
+  half evaporates and the RLS-bypass remains — structurally the wiki-graph swap, except the data
+  is cost and revenue. **That is why identity, not sensitivity, is the blocker.**
 
-### Condition 2 — do the tables exist in the database this app points at?
+### Follow-on fact, deliberately UNANSWERED
 
-Both apps resolve the **same env vars** (`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`),
-so whichever project this dashboard is configured for is what the route would query. Whether
-`cost_source`, `cost_record` and `revenue_record` exist there is **unknown and was deliberately
-not checked**: answering it means querying a fenced production database, which is a stop under
-the operating contract. It is one authorized read-only query away from being answered — it is
-simply not the agent's to run unasked.
+Do `cost_source`, `cost_record` and `revenue_record` exist in the database this app points at?
+Both apps resolve the same env vars, so the route would query whichever project this dashboard is
+configured for.
 
-If the tables are absent, the tile renders a permanently degraded state, which fails the same
+**Not checked, and not to be checked yet.** It is one query, but answering it needs a production
+authorization, and **it cannot change anything while the blocker stands.** A production
+authorization should not be spent on a question with no consequence yet. Answer it when tokens
+land and the capability actually moves — at which point it is a follow-on step, not a condition.
+
+If the tables turn out to be absent, the tile renders permanently degraded, which fails the same
 "must not claim a capability it does not have" test that removed the wiki-graph node click.
 
-### If both conditions clear
+### If tokens land
 
-It ports **on the same terms as the wiki-graph rebuild**: a rebuilt route with no `getUser`, auth
-enforced by `proxy.ts` — which is now genuinely enforced and asserted by
-`command-centre-auth-coverage.test.ts`, not merely claimed — plus provenance entries and a
-declared delta for the client swap. The tile itself ports verbatim modulo the alias rewrite.
+It ports **on the wiki-graph terms**: a rebuilt route with no `getUser`, auth enforced by
+`proxy.ts` — genuinely enforced and asserted by `command-centre-auth-coverage.test.ts`, not
+merely claimed — plus provenance entries and a declared delta for the client swap. The tile ports
+verbatim modulo the alias rewrite.
 
-**Recorded distinction:** KI-006 is refused (its function is to spend). KI-007 is deferred on a
-missing mechanism (identity). **KI-008 is deferred on a decision plus a fact** — neither of which
-is a defect in the code, and both of which are cheap to resolve.
+**Recorded distinction between the three deferrals**, since they are not the same shape:
+**KI-006 is REFUSED** — its function is to spend, and no version of it is a button with a gate.
+**KI-007 and KI-008 are both BLOCKED ON IDENTITY** — one for credential custody, one for
+financial reads. Both unblock on the same mechanism.

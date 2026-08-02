@@ -117,6 +117,41 @@ esac
 rm -f docs/.control-secret.tmp
 
 # ─────────────────────────────────────────────────────────────────────────────
+hdr "C-DISCOVERY — a NEW surface is covered without editing any list"
+# The class: a check that knows a fixed set is a check that goes stale silently. It bit the
+# navigation detector (four rounds of patterns), C12's entry pages, the auth suite's page list,
+# and the auth suite's API list — where /api/command-centre/provider-usage entered with no
+# coverage at all. This control plants a brand-new page AND a brand-new API route and asserts
+# the auth suite grows to cover them on its own.
+count_auth_tests() {
+  ( cd dashboard && npx vitest run __tests__/command-centre-auth-coverage.test.ts 2>&1 )     | grep -oE 'Tests +[0-9]+ passed' | grep -oE '[0-9]+' | head -1
+}
+BASE_N="$(count_auth_tests)"
+NEWPAGE='dashboard/app/(main)/command-centre/__control-surface'
+NEWAPI='dashboard/app/api/command-centre/__control-route'
+CLEANUP+=("rm -rf '$ROOT/$NEWPAGE' '$ROOT/$NEWAPI'")
+# Planting directories changes the mtime of their PARENTS, which makes C12's freshness check
+# read the build as stale for the rest of the run. Snapshot and restore, or this control
+# breaks the control that follows it — which it did, on its first full run.
+PMREF="$(mktemp)"; AMREF="$(mktemp)"; CLEANUP+=("rm -f '$PMREF' '$AMREF'")
+touch -r 'dashboard/app/(main)/command-centre' "$PMREF"
+touch -r 'dashboard/app/api/command-centre' "$AMREF"
+mkdir -p "$NEWPAGE" "$NEWAPI"
+echo 'export default function P() { return null }' > "$NEWPAGE/page.tsx"
+echo 'export async function GET() { return new Response("{}") }' > "$NEWAPI/route.ts"
+GROWN_N="$(count_auth_tests)"
+rm -rf "$NEWPAGE" "$NEWAPI"
+touch -r "$PMREF" 'dashboard/app/(main)/command-centre'
+touch -r "$AMREF" 'dashboard/app/api/command-centre'
+FINAL_N="$(count_auth_tests)"
+if [ -n "$BASE_N" ] && [ -n "$GROWN_N" ] && [ "$GROWN_N" -gt "$BASE_N" ]; then
+  ok "auth coverage grew ${BASE_N} -> ${GROWN_N} for a new page + new API route, no list edited"
+else
+  bad "a new page and API route did NOT add coverage (${BASE_N} -> ${GROWN_N}) — a fixed enumeration has crept back"
+fi
+[ "$FINAL_N" = "$BASE_N" ] && ok "returns to ${BASE_N} once the planted surface is removed"                            || bad "did not return to baseline (${FINAL_N} vs ${BASE_N})"
+
+# ─────────────────────────────────────────────────────────────────────────────
 if [ "$FAST" = 0 ]; then
 hdr "C12 — runtime route exercising (needs a build; ~90s)"
 if [ -f dashboard/.next/BUILD_ID ]; then

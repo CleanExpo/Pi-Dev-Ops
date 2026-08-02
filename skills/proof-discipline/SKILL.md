@@ -86,6 +86,47 @@ failed 2 tests, which is what the exemption's narrowness actually rests on.*
 - **observed** — saw the right result once, but on a forced plan, sub-scale, friendly geometry, or bypassed auth. Must be stated as such.
 - **assumed** — reasoned, not run. **Zero `assumed` items allowed in the load-bearing set before declaring done.**
 
+## A Check That Knows a Fixed Set Is a Check That Goes Stale Silently
+
+**Any check that enumerates the surface it guards will, at some point, guard less than its name
+says — and it will not tell you.** The list is right the day it is written and wrong from the
+first addition afterwards. Nothing goes red. The suite stays green while covering less.
+
+This is the same class as enumerating navigation *forms* (four review rounds, four patterns), and
+it is not a tuning problem: **a fixed enumeration cannot notice what it does not contain.**
+
+**Where it was found, 2026-08-01/02 — note the trend in consequence:**
+
+| Check | Fixed set | What it stopped covering |
+|---|---|---|
+| navigation detector | `href=`, `fetch(`, `router.push` spellings | computed `<Link href={expr}>` |
+| C12 entry pages | four listed pages | any page added later |
+| auth suite pages | four listed pages | any page added later |
+| **auth suite API routes** | **one route** | **`/api/command-centre/provider-usage`, live, with no coverage at all** |
+| C12 freshness inputs | four source roots | a new top-level source directory |
+
+The fourth row is the one to sit with. That check exists **because** an anonymous-access hole
+reached production behind a service-role client — and as written, it would not have noticed the
+next one. **A control built to close a hole should be the last place a fixed list survives.**
+
+**The rule.** Derive the set; do not list it. Walk the route tree, the filesystem, the registry —
+whatever defines the surface in reality — and let the check grow on its own.
+
+**Two obligations that come with it, because discovery has its own failure mode:**
+
+1. **A positive control that the discovery is non-empty.** A broken walk returns zero items, and
+   zero items means every per-item assertion silently does not exist. That is a green run over
+   nothing — the same shape as a scan that reads no blobs.
+2. **A control that a NEW surface is picked up without editing a list.** Plant a page and a route,
+   assert coverage grows, remove them, assert it returns. Without this, "we use discovery now" is
+   an assertion about code you changed once. See `C-DISCOVERY` in `scripts/prove-controls.sh` —
+   12 → 14 → 12, observed.
+
+**When a fixed list is legitimate:** when it enumerates the *rules* rather than the *surface* —
+the tracked-construct regexes, the guard patterns, the gate list. Those are the check's own
+definition. The test is whether the world can add a member behind your back. It can add a page; it
+cannot add a rule.
+
 ## When the Claim Is Wider Than the Check, Decide WHICH One Is Wrong
 
 A review that says *"this covers less than you say it does"* has found a mismatch, not a
