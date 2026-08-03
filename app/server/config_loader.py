@@ -48,7 +48,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # The one place the config location is written down. Commit 2 changes this line and nothing
 # else. Exported publicly so consumers that need the DIRECTORY (rather than a named accessor)
 # can split their config base away from their runtime-state base — see triage.py.
-CONFIG_DIR = REPO_ROOT / ".harness"
+CONFIG_DIR = REPO_ROOT / "config" / "harness"
 _CONFIG_DIR = CONFIG_DIR  # internal alias, kept for readability below
 
 CONFIG_YAML = _CONFIG_DIR / "config.yaml"

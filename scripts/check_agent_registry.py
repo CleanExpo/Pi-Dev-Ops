@@ -21,9 +21,9 @@ from swarm.nexus.agent_registry import (  # noqa: E402
 
 def _paths(root: Path) -> dict[str, Path]:
     return {
-        "registry": root / ".harness" / "agents" / "registry.yaml",
+        "registry": root / "config" / "harness" / "agents" / "registry.yaml",
         "manifest": root / "agentskills.json",
-        "config": root / ".harness" / "config.yaml",
+        "config": root / "config" / "harness" / "config.yaml",
         "catalogue": root / "docs" / "agents" / "README.md",
     }
 

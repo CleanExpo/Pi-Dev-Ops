@@ -1,0 +1,79 @@
+version: 1
+agents:
+  - id: scout
+    purpose: Map the repository, prior decisions, relevant files, constraints, and unresolved assumptions without mutation.
+    model_policy_role: monitor
+    risk_tier_ceiling: 0
+    skills: [architecture]
+    evidence: [repository-map, constraints-report]
+    status: shadow
+  - id: planner
+    purpose: Produce dependency-aware implementation plans, risks, and acceptance tests before build work starts.
+    model_policy_role: planner
+    risk_tier_ceiling: 0
+    skills: [forward-planner, technical-plan]
+    evidence: [implementation-plan, acceptance-tests]
+    status: shadow
+  - id: builder
+    purpose: Implement an approved bounded slice inside an isolated workspace using test-driven development.
+    model_policy_role: generator
+    risk_tier_ceiling: 1
+    skills: [architecture, tao-tdd-pipeline]
+    evidence: [git-diff, focused-tests]
+    status: shadow
+  - id: verifier
+    purpose: Run tests, lint, builds, smoke checks, and capture reproducible exact-command evidence.
+    model_policy_role: evaluator
+    risk_tier_ceiling: 0
+    skills: [verify-test]
+    evidence: [test-results, lint-results, build-results]
+    status: shadow
+  - id: reviewer
+    purpose: Independently review candidate code and architecture without editing the candidate workspace.
+    model_policy_role: evaluator
+    risk_tier_ceiling: 0
+    skills: [agentic-review]
+    evidence: [review-verdict, file-line-findings]
+    status: shadow
+  - id: security
+    purpose: Review secrets, authentication, dependencies, network access, permissions, and fail-closed behaviour.
+    model_policy_role: evaluator
+    risk_tier_ceiling: 0
+    skills: [security-audit]
+    evidence: [security-report, secret-scan]
+    status: shadow
+  - id: ci-recovery
+    purpose: Classify failing CI gates and perform bounded reversible repairs without weakening or bypassing a gate.
+    model_policy_role: generator
+    risk_tier_ceiling: 1
+    skills: [unite-group-ci-recovery]
+    evidence: [failure-classification, repair-evidence]
+    status: shadow
+  - id: release-monitor
+    purpose: Observe release readiness and health, then provide rollback advice without merge or deployment authority.
+    model_policy_role: monitor
+    risk_tier_ceiling: 0
+    skills: [deployment, ship-release]
+    evidence: [health-observation, rollback-advice]
+    status: shadow
+accepted_projection_drift:
+  - id: judge
+    agents_sha256: 68e5e32f59315f590ea82592d19d26e69b657b05d08fa706776fe15dc5bb574f
+    claude_sha256: 796cb9a28a433b1784c4759c5868d308ce6607762fb7d8c6ec3c0934dd49acbf
+    rationale: Existing Codex and Claude command implementations differ beyond vendor-only metadata; Phase One records and detects changes without rewriting either projection.
+  - id: readiness-architect
+    agents_sha256: 5f9ac2e6f00f7a8867e4a704bf7b9285a3a992eb8a01746eba3efc793688645e
+    claude_sha256: 95f879e09d2603c39284399adf898c7f16f353ad907070746827e4be011088bf
+    rationale: Existing Codex and Claude command implementations differ beyond vendor-only metadata; Phase One records and detects changes without rewriting either projection.
+  - id: resume-from-handoff
+    agents_sha256: 55de621b44ac9b1434a0283e8ddc4378e8b1fd062b621045c9f4dfbb523349b7
+    claude_sha256: d3263bca0fe75e692c6414c5b25495de486ee14bf2e82a7d10b023786ec5c37b
+    rationale: Existing Codex and Claude command implementations differ beyond vendor-only metadata; Phase One records and detects changes without rewriting either projection.
+  - id: session-handoff
+    agents_sha256: 64e7b793f1796cebfe365ea94565ba3953d2d9cda1eade700f42a6d637d5d7bb
+    claude_sha256: 71107bf65954dc4321daa9dd7cde08b802f09d14559f7b0b8b65d6b73684a4c0
+    rationale: Existing Codex and Claude command implementations differ beyond vendor-only metadata; Phase One records and detects changes without rewriting either projection.
+  - id: spm
+    agents_sha256: c234d2ce7c63078d6e249c9bf7669b489389003341f8bafbc33cd80b0d7ef1ad
+    claude_sha256: 2caac693ea32e499f347c2f02d5d102e3c9d1e4a71bb014959b03eb6d265a462
+    rationale: Existing Codex and Claude command implementations differ beyond vendor-only metadata; Phase One records and detects changes without rewriting either projection.

@@ -44,10 +44,15 @@ const HARNESS_DIR = process.env.HARNESS_DIR
   || path.join(__dirname, "..", ".harness");
 
 // SINGLE SOURCE for where committed config lives — the JS counterpart of
-// config_loader._CONFIG_DIR. Commit 2 changes this line and nothing else on this side.
-// NOTE: HARNESS_DIR comes from process.env, so this surface's location is a DEPLOYMENT
-// concern; the env var must move in step with the files or startup fails loudly.
-const CONFIG_DIR = HARNESS_DIR;
+// config_loader.CONFIG_DIR.
+//
+// Deliberately NOT derived from HARNESS_DIR any more. HARNESS_DIR points at runtime STATE
+// (lessons, scan-results, digests), which is generated and gitignored and therefore has to be
+// locatable by env. Config is now TRACKED at config/harness/, so it ships with the code and is
+// always at a fixed offset from this file — no env var can be forgotten, and no deployment can
+// point config and state at each other by accident. That coupling was the deployment concern
+// this comment used to warn about; it is now removed rather than relocated.
+const CONFIG_DIR = path.join(__dirname, "..", "config", "harness");
 const CONFIG_PATHS = {
   projects: path.join(CONFIG_DIR, "projects.json"),
   cronTriggers: path.join(CONFIG_DIR, "cron-triggers.json"),
@@ -2179,9 +2184,8 @@ server.registerTool(
 // (line ~296, `if (!fs.existsSync(pj)) return null;`), which reads as "no projects" and is
 // indistinguishable from a working server with nothing to report.
 //
-// NOTE: HARNESS_DIR comes from process.env, so this surface's config location is a DEPLOYMENT
-// concern, not a repo-layout one. Moving files in commit 2 does not fix this server — its env
-// var must be updated in step with it, or it will fail loudly here, which is the point.
+// Config now resolves from the repo layout (see CONFIG_DIR), not from HARNESS_DIR, so a
+// deployment can no longer move the files and leave this server looking at the old place.
 const REQUIRED_AT_STARTUP = [
   CONFIG_PATHS.projects,
   CONFIG_PATHS.cronTriggers,
@@ -2193,7 +2197,7 @@ function validateStartup() {
   if (missing.length) {
     throw new Error(
       `Refusing to start — required instance-data file(s) absent: ${missing.join(", ")}. ` +
-        `Looked in ${HARNESS_DIR} (from HARNESS_DIR env). These describe the world and ` +
+        `Looked in ${CONFIG_DIR}. These describe the world and ` +
         `cannot be defaulted; starting without them means serving empty results while ` +
         `reporting healthy.`,
     );
