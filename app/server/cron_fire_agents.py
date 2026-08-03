@@ -22,7 +22,6 @@ _PREBRIEF_MAX_TOKENS = 600
 _PREBRIEF_TIMEOUT_S = 120  # Larger context (24h of lessons + sessions + tickets); cold-start headroom
 _HARNESS_ROOT = Path(__file__).parent.parent.parent / ".harness"
 _AUTONOMY_LOG = _HARNESS_ROOT / "autonomy.jsonl"
-_LESSONS_FILE = _HARNESS_ROOT / "lessons.jsonl"
 
 # RA-7085 — canonical job_id the board_meeting producer authors its
 # last-success record under (job_success_record). Single source of truth:
@@ -113,7 +112,11 @@ def _generate_board_prebrief(log) -> str:
     now = datetime.now(timezone.utc)
     since = now - timedelta(hours=24)
 
-    lessons = _tail_jsonl_recent(_LESSONS_FILE, since, max_lines=40)
+    # Read the SAME store the seeder installs and the writers append to.
+    # config.LESSONS_FILE honours the TAO_LESSONS override; the hardcoded
+    # _HARNESS_ROOT path this replaces read a different file under an override.
+    from . import config  # noqa: PLC0415 — local, matches this module's config imports
+    lessons = _tail_jsonl_recent(Path(config.LESSONS_FILE), since, max_lines=40)
     sessions = _tail_jsonl_recent(_SESSION_OUTCOMES_FILE, since, max_lines=40)
     tickets = _fetch_urgent_high_tickets()
 

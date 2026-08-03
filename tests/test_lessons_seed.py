@@ -242,6 +242,60 @@ def test_feedback_writer_appends_to_the_configured_store(tmp_path, monkeypatch):
     )
 
 
+# ── Review #5b finding on 4f2aee99 (codex, 2026-08-03) ───────────────────────────────────
+
+def test_board_context_reader_follows_the_configured_store(tmp_path, monkeypatch):
+    """P2: READERS must see the same store the seeder installs and the writers append to.
+
+    board_meeting._read_lessons used a hardcoded .harness/ path while seeding and both
+    writers honour config.LESSONS_FILE (the TAO_LESSONS override) — so under an override
+    the board read a different, unseeded file. Only config.LESSONS_FILE is patched here.
+    """
+    from app.server.agents import board_meeting
+
+    path = tmp_path / "override" / "lessons.jsonl"
+    monkeypatch.setattr(config, "LESSONS_FILE", str(path))
+    lessons.ensure_seeded()
+    lessons.append_lesson("test", "unit-test", "visible to board context", "info")
+
+    block = board_meeting._read_lessons(n=1000)
+    assert "visible to board context" in block, (
+        "board_meeting._read_lessons did not read the configured store"
+    )
+
+
+def test_prebrief_reader_follows_the_configured_store(tmp_path, monkeypatch):
+    """P2: the board pre-brief must tail the configured store, not a hardcoded path."""
+    import logging as _logging
+
+    from app.server import cron_fire_agents as cfa
+    from app.server import provider_router
+
+    path = tmp_path / "override" / "lessons.jsonl"
+    monkeypatch.setattr(config, "LESSONS_FILE", str(path))
+
+    seen: list[str] = []
+
+    def capture(p, since, max_lines=40):
+        seen.append(str(p))
+        return []
+
+    monkeypatch.setattr(cfa, "_tail_jsonl_recent", capture)
+    monkeypatch.setattr(cfa, "_fetch_urgent_high_tickets", lambda: [])
+    monkeypatch.setattr(cfa, "_sprinkle_log", lambda *a, **k: None)
+
+    def router_down(*_a, **_k):
+        raise RuntimeError("stubbed — the reader path is what is under test")
+
+    monkeypatch.setattr(provider_router, "run_via_provider_blocking", router_down)
+
+    cfa._generate_board_prebrief(_logging.getLogger("test"))
+
+    assert seen and seen[0] == str(path), (
+        "the pre-brief tailed a path other than the configured store"
+    )
+
+
 def test_unreadable_seed_is_logged_not_silent(tmp_path, monkeypatch, caplog):
     """P2: an INACCESSIBLE seed must not be mistaken for a deliberately absent one.
 
