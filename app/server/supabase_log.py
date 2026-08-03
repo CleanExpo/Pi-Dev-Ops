@@ -10,9 +10,11 @@ The pipeline must never fail because of an observability write.
 Tables written:
   gate_checks        — RA-651: every /ship phase gate evaluation
   alert_escalations  — RA-633: critical Telegram alerts + escalation state
+  lessons_durable    — RA-7111: runtime lesson appends (write-through + boot hydration)
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import urllib.request
@@ -504,3 +506,31 @@ def log_notebooklm_health(
         "response_ms":   response_ms,
         "checked_at":    datetime.now(timezone.utc).isoformat(),
     })
+
+
+# ── RA-7111: lessons_durable — cross-deploy lesson persistence ────────────────
+
+def save_lesson(entry: dict[str, Any]) -> bool:
+    """RA-7111 — Write-through one runtime lesson append to lessons_durable.
+
+    Idempotent: the primary key is the sha256 of the canonical JSON line, and
+    _upsert's merge-duplicates resolves PK conflicts, so a retried write lands on
+    itself. Fire-and-forget per module doctrine — the local append has already
+    succeeded before this is called, so a failure here costs durability of one
+    row, never availability.
+    """
+    line = json.dumps(entry, sort_keys=True)
+    row_hash = hashlib.sha256(line.encode("utf-8")).hexdigest()
+    return _upsert("lessons_durable", {"hash": row_hash, "line": entry})
+
+
+def fetch_lessons_since(iso_watermark: str) -> list[dict[str, Any]]:
+    """RA-7111 — Rows appended after the watermark, oldest first, for boot hydration.
+
+    Returns [{"line": {...}, "created_at": "..."}]. Empty list on any failure
+    (including unset Supabase env) — hydration is best-effort by design.
+    """
+    return _select(
+        "lessons_durable",
+        f"select=line,created_at&created_at=gt.{iso_watermark}&order=created_at.asc",
+    )

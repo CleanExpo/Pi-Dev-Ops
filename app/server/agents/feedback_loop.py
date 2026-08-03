@@ -535,13 +535,17 @@ def _write_outcome_lesson(feature: dict[str, Any], signal: str) -> None:
     # config.LESSONS_FILE honours the TAO_LESSONS override; the hardcoded _HARNESS_ROOT
     # path this replaces appended to a different file from the seeded one under an
     # override deployment, splitting the store.
-    from app.server.lessons import ensure_seeded  # noqa: PLC0415 — local, avoids an import cycle
+    from app.server.lessons import ensure_seeded, record_external_append  # noqa: PLC0415 — local, avoids an import cycle
     ensure_seeded()
     try:
         with open(_config.LESSONS_FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry) + "\n")
     except OSError as exc:
         log.warning("Could not write outcome lesson: %s", exc)
+        return
+    # RA-7111: durable copy — this writer bypasses lessons.append_lesson, so it
+    # writes through explicitly. Local append above already succeeded.
+    record_external_append(entry)
 
 
 # ── Cache helpers (avoid re-analysing features each run) ─────────────────────

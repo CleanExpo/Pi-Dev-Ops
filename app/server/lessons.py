@@ -161,6 +161,68 @@ def seed_at_boot() -> dict:
     return BOOT_SEED_SNAPSHOT
 
 
+# ── RA-7111: cross-deploy durability ─────────────────────────────────────────────────
+# The container filesystem is ephemeral, so every runtime append dies with its container
+# (measured live 2026-08-03→04: a runtime write raised the store to 50; the next deploy
+# served exactly the 49-row seed). Every append therefore writes through to the
+# lessons_durable Supabase table, and boot hydrates table rows back into the freshly
+# seeded file. The single-file read path is unchanged — readers never touch Supabase.
+
+def _write_through(entry: dict) -> None:
+    """Best-effort durable copy of one appended entry. Never raises: the local append
+    has already succeeded, so a failure here costs cross-deploy durability of one row,
+    never availability — and it is logged, not silent."""
+    try:
+        from . import supabase_log  # noqa: PLC0415 — lazy, keeps import graph one-way
+        supabase_log.save_lesson(entry)
+    except Exception as exc:
+        log_.warning("lesson write-through failed (local append intact): %s", exc)
+
+
+def record_external_append(entry: dict) -> None:
+    """Public write-through for the direct writers (pipeline, feedback_loop) that append
+    to the store file themselves rather than via append_lesson()."""
+    _write_through(entry)
+
+
+def hydrate_from_durable() -> int:
+    """Boot-time: append lessons_durable rows newer than the watermark into the store.
+
+    Called once from app_factory startup, AFTER seed_at_boot(). Pure appends — the
+    no-clobber install semantics are untouched. The watermark file lives next to the
+    store and shares its lifecycle: on an ephemeral filesystem both die together, so a
+    fresh container hydrates everything ever appended; on a persistent one, only the
+    delta. Best-effort: any failure logs a warning and the boot continues seed-only.
+    """
+    path = config.LESSONS_FILE
+    wm_path = path + ".hydrated-at"
+    watermark = "1970-01-01T00:00:00Z"
+    try:
+        with open(wm_path, "r", encoding="utf-8") as f:
+            watermark = f.read().strip() or watermark
+    except OSError:
+        pass
+    try:
+        from . import supabase_log  # noqa: PLC0415
+        rows = supabase_log.fetch_lessons_since(watermark)
+    except Exception as exc:
+        log_.warning("lesson hydration failed (store stays seed-only this boot): %s", exc)
+        return 0
+    if not rows:
+        return 0
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "a", encoding="utf-8") as f:
+        for r in rows:
+            f.write(json.dumps(r["line"]) + "\n")
+    newest = max(r["created_at"] for r in rows)
+    tmp = wm_path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(newest)
+    os.replace(tmp, wm_path)
+    log_.info("hydrated %d durable lesson(s); watermark now %s", len(rows), newest)
+    return len(rows)
+
+
 def ensure_seeded() -> None:
     """Public entry point for consumers that touch the lesson store directly.
 
@@ -263,6 +325,7 @@ def append_lesson(source: str, category: str, lesson: str, severity: str = "info
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry) + "\n")
+    _write_through(entry)   # RA-7111: durable copy; local append already succeeded
     return entry
 
 
@@ -350,6 +413,7 @@ def append_lesson_dedup(
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry) + "\n")
+    _write_through(entry)   # RA-7111: durable copy; local append already succeeded
     return True
 
 
