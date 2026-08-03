@@ -59,6 +59,12 @@ PROVISIONED_TOOLS_YAML = _CONFIG_DIR / "provisioned-tools.yaml"
 MARGOT_IDENTITY_JSON = _CONFIG_DIR / "margot" / "assets" / "margot_identity.json"
 NOTEBOOKLM_REGISTRY_JSON = _CONFIG_DIR / "notebooklm-registry.json"
 
+# The curated starting set of lessons. NOT the runtime store — see lessons._ensure_seeded().
+# It gets no accessor here because absence is survivable: an unseeded lesson store is empty,
+# which is degraded but not wrong, and the fail-loud treatment below would stop a process over
+# something that is genuinely optional.
+LESSONS_SEED_JSONL = _CONFIG_DIR / "lessons.seed.jsonl"
+
 
 class ConfigMissingError(RuntimeError):
     """A required instance-data file is absent. Not recoverable, not defaultable."""

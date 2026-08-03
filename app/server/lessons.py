@@ -1,5 +1,6 @@
 """
-lessons.py — Institutional memory backed by .harness/lessons.jsonl.
+lessons.py — Institutional memory backed by .harness/lessons.jsonl, seeded on first use
+from the tracked config/harness/lessons.seed.jsonl (see _ensure_seeded).
 
 JSONL format (one JSON object per line):
   {"ts": "ISO8601", "source": "...", "category": "...", "lesson": "...", "severity": "info|warn"}
@@ -16,13 +17,51 @@ Semantic search (RA-927 local use) lives in .harness/lessons_search.py (ChromaDB
 import json
 import os
 import re
+import shutil
 from collections import Counter
 from datetime import timezone, datetime
 from math import log
 from . import config
+from . import config_loader
+
+
+def _ensure_seeded() -> None:
+    """Populate the runtime store from the tracked seed the first time it is needed.
+
+    `.harness/lessons.jsonl` held 49 curated lessons, added over time by deliberate
+    `docs(lessons)` commits. #607 untracked `.harness/` wholesale — 609 files — and the
+    lessons went with it, so a clean clone served an empty list and the smoke check
+    "Lessons list is non-empty (seed data present)" failed on every run.
+
+    Seeding by COPY rather than by reading both files is deliberate. Three call sites write
+    to this store, and one of them (`_bump_occurrence`) rewrites it in place; if reads merged
+    a read-only seed with the runtime file, bumping a seeded lesson would find nothing to
+    rewrite and fail silently. One file at run time keeps every existing reader and writer
+    correct without touching them.
+
+    The runtime store stays in the untracked `.harness/` because it is appended to while the
+    server runs. The seed is committed config and is never written.
+    """
+    path = config.LESSONS_FILE
+    if os.path.exists(path) or not config_loader.LESSONS_SEED_JSONL.is_file():
+        return
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    # Copy via a pid-unique temp then rename, so a concurrent reader never observes a
+    # half-written store. os.replace is atomic within a filesystem.
+    tmp = f"{path}.seed-{os.getpid()}.tmp"
+    try:
+        shutil.copyfile(config_loader.LESSONS_SEED_JSONL, tmp)
+        os.replace(tmp, path)
+    except OSError:
+        # Never let seeding break a caller: an empty store is degraded, a crash is worse.
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
 
 
 def _read_lines() -> list[dict]:
+    _ensure_seeded()
     path = config.LESSONS_FILE
     if not os.path.exists(path):
         return []
@@ -107,6 +146,7 @@ def append_lesson(source: str, category: str, lesson: str, severity: str = "info
         "lesson": lesson[:500],
         "severity": severity,
     }
+    _ensure_seeded()
     path = config.LESSONS_FILE
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "a", encoding="utf-8") as f:
@@ -193,6 +233,7 @@ def append_lesson_dedup(
         "text": lesson_text[:300],
         "occurrence_count": 1,
     }
+    _ensure_seeded()
     path = config.LESSONS_FILE
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "a", encoding="utf-8") as f:
@@ -202,6 +243,7 @@ def append_lesson_dedup(
 
 def _bump_occurrence(entry_id: str, entry_text: str) -> None:
     """Rewrite JSONL updating last_seen + occurrence_count for the matched entry."""
+    _ensure_seeded()
     path = config.LESSONS_FILE
     if not os.path.exists(path):
         return
