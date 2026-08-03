@@ -1,5 +1,5 @@
 """
-test_notebooklm_registry.py — Acceptance tests for config/harness/notebooklm-registry.json.
+test_notebooklm_registry.py — Acceptance tests for .harness/notebooklm-registry.json.
 
 Covers:
   - Registry loads as valid JSON
@@ -18,8 +18,10 @@ from pathlib import Path
 
 import pytest
 
-CONFIG_DIR = Path(__file__).resolve().parent.parent / "config" / "harness"
-REGISTRY_PATH = CONFIG_DIR / "notebooklm-registry.json"
+# Moved to the tracked config/harness/ on 2026-08-03. These 16 tests errored at setup with
+# "Registry missing" because #607 untracked .harness/, so the file was absent from a clean
+# clone and the suite proved nothing about the registry it exists to check.
+REGISTRY_PATH = Path(__file__).resolve().parent.parent / "config" / "harness" / "notebooklm-registry.json"
 
 REQUIRED_ACTIVE_FIELDS = {
     "id", "entity", "name", "purpose", "sources",

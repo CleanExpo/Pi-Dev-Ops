@@ -152,3 +152,14 @@ def test_validate_startup_raises_and_names_every_missing_file(monkeypatch, tmp_p
 def test_validate_startup_passes_when_all_present():
     """Paired positive against the REAL repo files — proves the validator can also succeed."""
     cl.validate_startup()
+
+
+def test_validate_startup_rejects_a_malformed_registry(monkeypatch, tmp_path):
+    """Review #3 of #611: existence alone let malformed registry data through to consumers
+    that all degrade softly by design. Startup must parse it, not just stat it."""
+    bad = tmp_path / "notebooklm-registry.json"
+    bad.write_text("{this is not json", encoding="utf-8")
+    monkeypatch.setattr(cl, "NOTEBOOKLM_REGISTRY_JSON", bad)
+    monkeypatch.setattr(cl, "REQUIRED_AT_STARTUP", ((bad, "notebooklm-registry.json"),))
+    with pytest.raises(cl.ConfigMissingError, match="not valid JSON"):
+        cl.validate_startup()

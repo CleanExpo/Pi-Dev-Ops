@@ -130,6 +130,14 @@ async def on_startup():
     from .config_loader import validate_startup  # noqa: PLC0415
     validate_startup()
 
+    # Install the lesson seed before anything can read or write the store. Several modules
+    # open `.harness/lessons.jsonl` directly instead of going through lessons.py; doing this
+    # once at startup means those direct readers see the 49 curated lessons rather than an
+    # empty file on a clean clone. It never overwrites an existing store, and it logs rather
+    # than raises, because an empty lesson store is degraded but not a reason to refuse boot.
+    from .lessons import ensure_seeded  # noqa: PLC0415
+    ensure_seeded()
+
     restore_sessions()
     # RA-1407 PR 2 — cross-deploy recovery from Supabase. Local JSON restore
     # above handles same-container restarts; this catches sessions whose

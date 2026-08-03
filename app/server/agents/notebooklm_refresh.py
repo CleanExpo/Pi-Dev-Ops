@@ -25,8 +25,8 @@ to NotebookLM's source-update endpoint is gated behind credential discovery
 (see `_refresh_notebook_sources` below) and currently logs a structured
 "NEEDS_CREDENTIALS" outcome when env vars are absent. Once the user
 provides the credentials and the exact Enterprise API endpoint shape (which
-was announced at Google Cloud Next '26 — see `.harness/notebooklm-source-
-intel-gcnext26.md`), the `_refresh_notebook_sources` body fills in the
+was announced at Google Cloud Next '26 — see `config/harness/notebooklm-
+source-intel-gcnext26.md`), the `_refresh_notebook_sources` body fills in the
 last-mile HTTP call. Everything else is production code.
 """
 from __future__ import annotations
@@ -44,9 +44,14 @@ log = logging.getLogger("pi-ceo.agents.notebooklm-refresh")
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
 
+from app.server import config_loader  # noqa: E402
+
+# The registry is COMMITTED CONFIG and moved to config/harness/ on 2026-08-03. Freshness is
+# runtime STATE, written at run time, and stays under the untracked .harness/. Routed through
+# config_loader rather than rebuilding the path here — restating a location is the drift that
+# module was consolidated to prevent.
 _HARNESS = Path(__file__).parent.parent.parent.parent / ".harness"
-_CONFIG = Path(__file__).parent.parent.parent.parent / "config" / "harness"
-_REGISTRY_PATH = _CONFIG / "notebooklm-registry.json"
+_REGISTRY_PATH = config_loader.NOTEBOOKLM_REGISTRY_JSON
 _FRESHNESS_PATH = _HARNESS / "notebooklm-freshness.json"
 
 # ─── Env ─────────────────────────────────────────────────────────────────────
@@ -58,14 +63,29 @@ _ENV_SA_JSON = "NOTEBOOKLM_SERVICE_ACCOUNT_JSON"
 # ─── Registry I/O ────────────────────────────────────────────────────────────
 
 def _load_registry() -> dict:
-    """Load the notebook registry. Returns empty dict on missing/invalid."""
-    if not _REGISTRY_PATH.exists():
-        log.warning("notebooklm registry missing: %s", _REGISTRY_PATH)
-        return {}
+    """Load the notebook registry. Returns empty dict on missing/invalid.
+
+    Routed through `config_loader.notebooklm_registry()` so the parsing and the error text
+    live in one place rather than being restated here. The hard stop for an absent registry
+    is `config_loader.validate_startup()`, which runs at boot; by the time this executes the
+    file has already been proven present, so the soft return below is a genuine last resort
+    rather than the fail-open it would be if it were the only control.
+    """
+    if _REGISTRY_PATH != config_loader.NOTEBOOKLM_REGISTRY_JSON:
+        # Tests point _REGISTRY_PATH at a fixture. Honour that rather than silently reading
+        # the real registry underneath them.
+        if not _REGISTRY_PATH.exists():
+            log.warning("notebooklm registry missing: %s", _REGISTRY_PATH)
+            return {}
+        try:
+            return json.loads(_REGISTRY_PATH.read_text())
+        except Exception as exc:
+            log.warning("notebooklm registry load failed: %s", exc)
+            return {}
     try:
-        return json.loads(_REGISTRY_PATH.read_text())
-    except Exception as exc:
-        log.warning("notebooklm registry load failed: %s", exc)
+        return config_loader.notebooklm_registry()
+    except config_loader.ConfigMissingError as exc:
+        log.warning("notebooklm registry unavailable: %s", exc)
         return {}
 
 
@@ -139,9 +159,9 @@ async def _refresh_notebook_sources(
     The orchestration around this function (registry read, freshness track,
     error handling, scheduling) is fully implemented and tested.
     """
-    # TODO(RA-1668): replace with real Enterprise API call once endpoint
-    # shape is confirmed. See `.harness/notebooklm-source-intel-gcnext26.md`
-    # for what was announced at GCN '26.
+    # TODO(RA-1668): replace with real Enterprise API call once endpoint shape is
+    # confirmed. See `config/harness/notebooklm-source-intel-gcnext26.md` for what
+    # was announced at GCN '26.
     log.info(
         "notebooklm refresh: would refresh %s with %d sources (project=%s, sa_json=%s)",
         notebook_id, len(sources), project_id, "set" if sa_json_path else "default-creds",

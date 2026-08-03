@@ -1,5 +1,6 @@
 """
-lessons.py — Institutional memory backed by .harness/lessons.jsonl.
+lessons.py — Institutional memory backed by .harness/lessons.jsonl, seeded on first use
+from the tracked config/harness/lessons.seed.jsonl (see _ensure_seeded).
 
 JSONL format (one JSON object per line):
   {"ts": "ISO8601", "source": "...", "category": "...", "lesson": "...", "severity": "info|warn"}
@@ -14,15 +15,105 @@ search_lessons_keyword()  — RA-927: TF-IDF-style keyword search, stdlib-only (
 Semantic search (RA-927 local use) lives in .harness/lessons_search.py (ChromaDB, local-only).
 """
 import json
+import logging
 import os
 import re
+import shutil
+import uuid
 from collections import Counter
 from datetime import timezone, datetime
 from math import log
 from . import config
+from . import config_loader
+
+log_ = logging.getLogger("pi-ceo.lessons")
+
+
+def _ensure_seeded() -> None:
+    """Install the tracked seed as the runtime store, once, and never clobber.
+
+    `.harness/lessons.jsonl` held 49 curated lessons, added over time by deliberate
+    `docs(lessons)` commits. #607 untracked `.harness/` wholesale — 609 files — and the
+    lessons went with it, so a clean clone served an empty list and the smoke check
+    "Lessons list is non-empty (seed data present)" failed on every run.
+
+    Seeding by COPY rather than by reading both files is deliberate. Several call sites write
+    to this store, and one of them (`_bump_occurrence`) rewrites it in place; if reads merged
+    a read-only seed with the runtime file, bumping a seeded lesson would find nothing to
+    rewrite and fail silently. One file at run time keeps every reader and writer correct.
+
+    CONCURRENCY. The install must be atomic AND refuse to overwrite. An earlier version wrote
+    a temp file and called `os.replace`, which is atomic but unconditional — review of #611
+    demonstrated the loss: process A seeds and appends a lesson; process B, which passed its
+    existence check before A finished, then replaces the store with its own pristine seed copy
+    and A's append is gone for good. It also derived the temp name from the pid alone, so two
+    THREADS shared one temp path and a partially-copied 17-byte store was observed.
+
+    `os.link` fixes both. It is atomic and it fails with FileExistsError when the target
+    already exists, so whoever loses the race simply does nothing and no existing store — seed
+    plus appends or otherwise — is ever destroyed. The temp name carries a uuid so no two
+    callers, in any thread or process, can collide on it. The temp is built from the target
+    path, so it is always on the target's filesystem, which `os.link` requires.
+
+    The runtime store stays in the untracked `.harness/` because it is appended to while the
+    server runs. The seed is committed config and is never written.
+    """
+    path = config.LESSONS_FILE
+    if os.path.exists(path):
+        return
+    seed = config_loader.LESSONS_SEED_JSONL
+    try:
+        os.stat(seed)
+    except FileNotFoundError:
+        # An absent seed is a legitimate configuration, not a fault: nothing to install.
+        return
+    except OSError as exc:
+        # Not Path.is_file(): that swallows OSError into False, which would take the silent
+        # branch above and make an UNREADABLE seed indistinguishable from a deliberately
+        # absent one. stat() keeps the two apart — absent is legitimate, inaccessible is a
+        # fault that silently disables institutional memory on every read.
+        log_.error(
+            "lesson seed UNREADABLE (%s): %s — the lesson store will read as EMPTY. "
+            "This is a fault, not an empty-by-design store.", seed, exc,
+        )
+        return
+    tmp = f"{path}.seed-{uuid.uuid4().hex}.tmp"
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        shutil.copyfile(seed, tmp)
+        os.link(tmp, path)
+    except FileExistsError:
+        # Someone else installed the store first. Correct outcome, nothing to report.
+        pass
+    except OSError as exc:
+        # Do not raise: an empty store is degraded, a crashed caller is worse. But do not go
+        # quiet either — the smoke contract requires this store to be non-empty, so a
+        # persistent permissions/disk fault here disables institutional memory on every read
+        # and would otherwise be indistinguishable from a deliberately absent seed.
+        log_.error(
+            "lesson seeding FAILED (%s -> %s): %s — the lesson store will read as EMPTY. "
+            "This is a fault, not an empty-by-design store.", seed, path, exc,
+        )
+    finally:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+
+
+def ensure_seeded() -> None:
+    """Public entry point for consumers that touch the lesson store directly.
+
+    Several modules open `.harness/lessons.jsonl` themselves rather than going through this
+    one. For readers that is merely degraded; for a WRITER it is destructive, because a
+    direct append creates the file, and an existing file suppresses seeding for good — the
+    49 curated lessons would then never arrive. Any such module must call this first.
+    """
+    _ensure_seeded()
 
 
 def _read_lines() -> list[dict]:
+    _ensure_seeded()
     path = config.LESSONS_FILE
     if not os.path.exists(path):
         return []
@@ -107,6 +198,7 @@ def append_lesson(source: str, category: str, lesson: str, severity: str = "info
         "lesson": lesson[:500],
         "severity": severity,
     }
+    _ensure_seeded()
     path = config.LESSONS_FILE
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "a", encoding="utf-8") as f:
@@ -193,6 +285,7 @@ def append_lesson_dedup(
         "text": lesson_text[:300],
         "occurrence_count": 1,
     }
+    _ensure_seeded()
     path = config.LESSONS_FILE
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "a", encoding="utf-8") as f:
@@ -202,6 +295,7 @@ def append_lesson_dedup(
 
 def _bump_occurrence(entry_id: str, entry_text: str) -> None:
     """Rewrite JSONL updating last_seen + occurrence_count for the matched entry."""
+    _ensure_seeded()
     path = config.LESSONS_FILE
     if not os.path.exists(path):
         return

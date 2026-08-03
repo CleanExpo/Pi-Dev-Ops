@@ -1011,7 +1011,10 @@ def run_gap_audit_phase(dry_run: bool = False) -> dict[str, Any]:
 
 def _read_lessons(n: int = 20) -> str:
     """Read the last N entries from lessons.jsonl, formatted for board context."""
-    path = _HARNESS_ROOT / "lessons.jsonl"
+    # The SAME store the seeder installs and the writers append to — config.LESSONS_FILE
+    # honours the TAO_LESSONS override; a hardcoded _HARNESS_ROOT path here read a
+    # different file from the seeded one under an override.
+    path = Path(config.LESSONS_FILE)
     if not path.exists():
         return ""
     try:
