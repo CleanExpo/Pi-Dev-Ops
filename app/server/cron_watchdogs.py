@@ -845,8 +845,6 @@ def _vercel_projects_to_monitor():
 
     Pulled into a function so tests can monkeypatch this single seam.
     """
-    from pathlib import Path
-    import json as _json
 
     registry = config_loader.projects()
     out = []

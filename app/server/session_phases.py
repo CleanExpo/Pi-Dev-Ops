@@ -1258,7 +1258,6 @@ def _route_linear_ticket_to_target_project(
     No-ops if LINEAR_API_KEY is missing, projects.json has no entry, or the
     ticket creation fails for any reason (triage continues).
     """
-    from pathlib import Path  # noqa: PLC0415
     import json as _json  # noqa: PLC0415
     from .triage import LinearClient  # noqa: PLC0415
 

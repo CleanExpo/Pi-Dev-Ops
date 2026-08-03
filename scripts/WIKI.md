@@ -1,13 +1,12 @@
 # scripts — Wiki
 
-_Last updated: 2026-07-27T04:44:30Z (commits 0866310..6ae9701)_
+_Last updated: 2026-08-03T01:25:26Z (commits 2a0ec49..4a23525)_
 
 ## Recent changes
-- 6ae9701 — feat(nexus): add governed shadow agent registry (#602)
+- 4a23525 — fix(config): fail-loud loader with in-code spec — closes the silent model regression (#610)
 
 ## Architecture (current)
 Auto-stub: `scripts/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- scripts/check_agent_registry.py — touched in recent commits
-- scripts/handoff-loop.sh — touched in recent commits
+- scripts/analyse_lessons.py — touched in recent commits

@@ -24,7 +24,6 @@ import os
 import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from app.server import config_loader
 
 log = logging.getLogger("pi-ceo.digest")
