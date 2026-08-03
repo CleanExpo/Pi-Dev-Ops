@@ -57,6 +57,13 @@ CRON_TRIGGERS_JSON = _CONFIG_DIR / "cron-triggers.json"
 CONTENT_MANIFEST_JSON = _CONFIG_DIR / "content_manifest.json"
 PROVISIONED_TOOLS_YAML = _CONFIG_DIR / "provisioned-tools.yaml"
 MARGOT_IDENTITY_JSON = _CONFIG_DIR / "margot" / "assets" / "margot_identity.json"
+NOTEBOOKLM_REGISTRY_JSON = _CONFIG_DIR / "notebooklm-registry.json"
+
+# The curated starting set of lessons. NOT the runtime store — see lessons._ensure_seeded().
+# It gets no accessor here because absence is survivable: an unseeded lesson store is empty,
+# which is degraded but not wrong, and the fail-loud treatment below would stop a process over
+# something that is genuinely optional.
+LESSONS_SEED_JSONL = _CONFIG_DIR / "lessons.seed.jsonl"
 
 # Board governance corpus. Tracked instance data like the files above, but it lives under
 # docs/ rather than config/harness/ and it is a DIRECTORY, so it gets its own constant and
@@ -198,6 +205,21 @@ def provisioned_tools() -> Any:
     return _read_yaml(PROVISIONED_TOOLS_YAML, "provisioned tools (provisioned-tools.yaml)")
 
 
+def notebooklm_registry() -> Any:
+    """Which NotebookLM notebooks exist. INSTANCE DATA — raises if absent.
+
+    Declares notebook UUIDs, their sources and their linked issues. No in-code default can
+    be right: a made-up UUID points at someone else's notebook or nothing at all, which is
+    the "never default an EXTERNAL RESOURCE IDENTIFIER" rule at the top of this module.
+
+    Moved here 2026-08-03. It was the eighth file left behind in `.harness/` by #607, and
+    it failed the same way as the other seven — absent from a clean clone, so
+    tests/test_notebooklm_registry.py errored at setup on all 16 cases with
+    "Registry missing".
+    """
+    return _read_json(NOTEBOOKLM_REGISTRY_JSON, "NotebookLM registry (notebooklm-registry.json)")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # SPLIT FILE — margot_identity.json
 # Specification parts default; external resource identifiers do not.
@@ -237,6 +259,11 @@ REQUIRED_AT_STARTUP: tuple[tuple[Path, str], ...] = (
     (CONTENT_MANIFEST_JSON, "content_manifest.json"),
     (PROVISIONED_TOOLS_YAML, "provisioned-tools.yaml"),
     (MARGOT_IDENTITY_JSON, "margot_identity.json"),
+    # The registry's runtime consumers are periodic background probes, and they degrade
+    # softly on purpose — aborting the health watchdog would take every watchdog scheduled
+    # after it down too. That makes STARTUP the only place a missing registry can be caught
+    # loudly, which is exactly where this module's docstring says the check belongs.
+    (NOTEBOOKLM_REGISTRY_JSON, "notebooklm-registry.json"),
 )
 
 
@@ -256,6 +283,11 @@ def validate_startup() -> None:
             "  running with empty schedules, no projects and no content registry while\n"
             "  reporting healthy."
         )
+    # Existence is not enough for the NotebookLM registry: a malformed file passes the
+    # is_file() sweep above, and every runtime consumer of the registry then degrades
+    # softly by design — so boot is the only loud moment. Parse it here; _read_json
+    # raises ConfigMissingError naming the file and the JSON error.
+    notebooklm_registry()
 
     # Board governance corpus. Checked here rather than at first use because first use is
     # run_gap_audit_phase, inside the 05:00 UTC board-meeting cron, with nobody watching.

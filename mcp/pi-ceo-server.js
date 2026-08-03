@@ -496,7 +496,14 @@ server.registerTool(
 
 // ── Tool: search_lessons ──────────────────────────────────────────────────────
 const _handle_search_lessons = async ({ query, n = 5, category }) => {
-  const lessonsPath = path.join(HARNESS_DIR, "lessons.jsonl");
+  // The runtime store lives in the untracked HARNESS_DIR, so a clean clone has none until
+  // the server seeds it. Fall back to the committed seed rather than reporting that no
+  // lessons exist. This handler is read-only, so reading the seed in place is safe and needs
+  // none of the install semantics app/server/lessons.py carries for writers.
+  let lessonsPath = path.join(HARNESS_DIR, "lessons.jsonl");
+  if (!fs.existsSync(lessonsPath)) {
+    lessonsPath = path.join(CONFIG_DIR, "lessons.seed.jsonl");
+  }
   if (!fs.existsSync(lessonsPath)) {
     return { content: [{ type: "text", text: "No lessons.jsonl found. Lessons are added automatically during analysis runs." }] };
   }
