@@ -2,7 +2,7 @@
 """RA-7015 Cap 0 provisioning gate.
 
 Enforces the founder constraint "services/skills/agents may only use provisioned
-tools" against the tracked SSOT in fence/provisioned-tools.yaml.
+tools" against the SSOT in .harness/provisioned-tools.yaml.
 
 Two checks:
   1. BANNED-TOKEN SCAN (blocking): fail if any banned tool name appears in a
@@ -28,15 +28,19 @@ from pathlib import Path
 
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+# scripts/ is not a package and CI runs this as `python scripts/check_provisioning.py`,
+# so the repo root is not on sys.path and `app.server` is unimportable. Mirrors the
+# bootstrap in check_agent_registry.py:9-11, which is why that gate imports cleanly.
+SCRIPT_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(SCRIPT_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_REPO_ROOT))
 
 from app.server import config_loader  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("check_provisioning")
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
 SSOT_PATH = config_loader.PROVISIONED_TOOLS_YAML
 
 
@@ -155,7 +159,7 @@ def main(argv: list[str] | None = None) -> int:
         logger.error("BANNED TOOL(S) FOUND — %d hit(s):", len(hits))
         for rel, line_no, name, reason in hits:
             logger.error("  %s:%d  '%s' — %s", rel, line_no, name, reason)
-        logger.error("Fix: remove the banned tool. See fence/provisioned-tools.yaml.")
+        logger.error("Fix: remove the banned tool. See .harness/provisioned-tools.yaml.")
         return 1
     logger.info("banned-token scan: clean (0 hits for %s)", ", ".join(sorted(ssot.banned)))
 

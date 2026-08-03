@@ -2,12 +2,20 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
-from pathlib import Path
-
-import pytest
+from datetime import datetime, timedelta, timezone
 
 from swarm import margot_inflight
+
+
+def _recent_ts() -> str:
+    """A timestamp inside harvest_completed_for_chat's max_age_days window.
+
+    A literal date here is a time bomb: the entry ages past the 32-day cutoff at
+    margot_inflight.py:96 and the harvest silently reclassifies it
+    "harvested:expired", so `findings` comes back empty. The previous literal
+    (2026-07-01) expired on 2026-08-02 and turned this into `assert 0 == 1`.
+    """
+    return (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
 
 
 def test_harvest_completed_for_chat_marks_harvested(tmp_path, monkeypatch):
@@ -15,7 +23,7 @@ def test_harvest_completed_for_chat_marks_harvested(tmp_path, monkeypatch):
     inflight.parent.mkdir(parents=True)
     inflight.write_text(
         json.dumps({
-            "ts": datetime.now(timezone.utc).isoformat(),
+            "ts": _recent_ts(),
             "interaction_id": "ix-1",
             "topic": "NRPG pricing",
             "originating_session_id": "margot_chat:42",
@@ -30,11 +38,7 @@ def test_harvest_completed_for_chat_marks_harvested(tmp_path, monkeypatch):
         assert interaction_id == "ix-1"
         return {"status": "completed", "report": "Pricing is $99/mo."}
 
-    monkeypatch.setattr(
-        "swarm.margot_tools.check_research",
-        fake_check,
-        raising=False,
-    )
+    monkeypatch.setattr("swarm.margot_tools.check_research", fake_check)
 
     findings = margot_inflight.harvest_completed_for_chat("42")
     assert len(findings) == 1
@@ -60,7 +64,6 @@ def test_harvest_skips_board_meeting_entries(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "swarm.margot_tools.check_research",
         lambda _id: {"status": "completed", "report": "x"},
-        raising=False,
     )
     assert margot_inflight.harvest_completed_for_chat("42") == []
 
@@ -80,6 +83,5 @@ def test_harvest_pending_returns_empty(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "swarm.margot_tools.check_research",
         lambda _id: {"status": "processing"},
-        raising=False,
     )
     assert margot_inflight.harvest_completed_for_chat("9") == []
