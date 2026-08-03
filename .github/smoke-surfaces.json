@@ -568,6 +568,57 @@
         "lines"
       ],
       "_comment": "RA-7012: redacted pane tail; returns {session,lines:[],error} when the session is absent on the deploy — lines key always present."
+    },
+    {
+      "name": "telegram-proxy-linear-create-nosig",
+      "path": "/api/pi-ceo/api/telegram/linear/create",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body": {},
+      "_comment": "2026-08-03: app/server/routes/telegram_proxy.py was refactored through config_loader (f0b31df0) and the Smoke Surface Gate correctly caught that none of its six routes were declared. Every route on that router carries Depends(require_auth), which raises HTTPException(401, 'Not authenticated') (app/server/auth.py:206), so an anonymous call is 401 before any Linear/pipeline side effect. Bodies are ignored on 401. Reached through the dashboard /api/pi-ceo proxy prefix like every other FastAPI surface. Authenticated probes are deliberately NOT declared — a valid credential would create real Linear issues or trigger a real ship."
+    },
+    {
+      "name": "telegram-proxy-linear-status-nosig",
+      "path": "/api/pi-ceo/api/telegram/linear/status/SMOKE-1",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 401,
+      "_comment": "See telegram-proxy-linear-create-nosig for the rationale."
+    },
+    {
+      "name": "telegram-proxy-pipeline-nosig",
+      "path": "/api/pi-ceo/api/telegram/pipeline/SMOKE-1",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 401,
+      "_comment": "See telegram-proxy-linear-create-nosig for the rationale."
+    },
+    {
+      "name": "telegram-proxy-ship-nosig",
+      "path": "/api/pi-ceo/api/telegram/ship",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body": {},
+      "_comment": "See telegram-proxy-linear-create-nosig for the rationale."
+    },
+    {
+      "name": "telegram-proxy-plan-nosig",
+      "path": "/api/pi-ceo/api/telegram/plan",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 401,
+      "body": {},
+      "_comment": "See telegram-proxy-linear-create-nosig for the rationale."
+    },
+    {
+      "name": "telegram-proxy-digest-nosig",
+      "path": "/api/pi-ceo/api/telegram/digest",
+      "method": "GET",
+      "auth": false,
+      "expected_status": 401,
+      "_comment": "See telegram-proxy-linear-create-nosig for the rationale."
     }
   ],
   "vertical": {
