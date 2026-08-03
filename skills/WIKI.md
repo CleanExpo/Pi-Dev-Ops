@@ -1,17 +1,17 @@
 # skills — Wiki
 
-_Last updated: 2026-07-16T17:38:20Z (commits 89a2102..ecf3a6a)_
+_Last updated: 2026-08-03T06:47:34Z (commits db4c7a4..6e7e90a)_
 
 ## Recent changes
-- ecf3a6a — chore(skills): consolidate design-audit into impeccable in design-system routing (RA-7057) (#592)
+- 6e7e90a — Feat/command centre migration (#609)
 
 ## Architecture (current)
 Auto-stub: `skills/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- skills/design-audit/SKILL.md — touched in recent commits
-- skills/design-system/SKILL.md — touched in recent commits
-- skills/launch-enhance-debloat/SKILL.md — touched in recent commits
-- skills/launch-project-audit/SKILL.md — touched in recent commits
-- skills/launch-review/SKILL.md — touched in recent commits
-- skills/ui-ux-pro-max/SKILL.md — touched in recent commits
+- skills/adversarial-review/SKILL.md — touched in recent commits
+- skills/classify/SKILL.md — touched in recent commits
+- skills/contain/SKILL.md — touched in recent commits
+- skills/control-design/SKILL.md — touched in recent commits
+- skills/diagnose/SKILL.md — touched in recent commits
+- skills/immunise/SKILL.md — touched in recent commits

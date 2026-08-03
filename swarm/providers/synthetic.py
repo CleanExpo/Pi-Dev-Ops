@@ -1,6 +1,6 @@
 """swarm/providers/synthetic.py — deterministic CFO metrics provider.
 
-Reads ``.harness/projects.json`` to enumerate the 11 Unite-Group businesses
+Reads ``config/harness/projects.json`` to enumerate the 11 Unite-Group businesses
 and emits one ``RawMetrics`` per business with deterministic, plausible
 numbers. Same input → same output across cycles, so breach-detection unit
 tests are stable and the orchestrator's first cycle is always non-empty.
@@ -99,7 +99,7 @@ def _synth_one(bid: str) -> RawMetrics:
 
 
 def _load_business_ids() -> list[str]:
-    """Read .harness/projects.json and return the business id list."""
+    """Read tracked config/harness/projects.json and return the business id list."""
     p = PROJECTS_JSON_PATH
     if not p.exists():
         log.warning("synthetic: %s missing — returning []", p)

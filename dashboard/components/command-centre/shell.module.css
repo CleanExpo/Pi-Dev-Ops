@@ -1,0 +1,294 @@
+/* shell.module.css — UNI-2339 canvas register (slice 1 + slice 2).
+   Tokens translated verbatim from the ratified design canvas
+   (apps/web/docs/design/crm-control-panel.html) — Gun Metal ground +
+   Candy Red signal, glassmorphic frosted surfaces, Syne + JetBrains Mono.
+   Scoped to a CSS module so it composes with the existing command-deck
+   register without touching it. Slice 2 migrates the deck ground itself
+   (command-deck.module.css goes dark) and adds the Operate launch-pad +
+   Pipeline sections. */
+
+.canvasScope {
+  --canvas: #0e1014;
+  --surface-1: #141820;
+  --surface-2: #1c2230;
+  --surface-3: #232b3a;
+  --line: #262c36;
+  --line-soft: #1b2027;
+
+  --glass-1: rgba(20, 24, 32, 0.55);
+  --glass-2: rgba(28, 34, 48, 0.6);
+  --glass-hi: rgba(255, 255, 255, 0.06);
+  --glass-brd: rgba(255, 255, 255, 0.08);
+  --blur: blur(26px) saturate(145%);
+  --blur-lite: blur(14px) saturate(135%);
+
+  --ink: #f0f3f7;
+  --ink-dim: #a6afbc;
+  --ink-hush: #6d7887;
+
+  --red-500: #b30000;
+  --red-400: #cf1616;
+  --red-300: #e03333;
+  --green: #00a854;
+  --green-txt: #34d399;
+  --amber-txt: #f0a94c;
+
+  --r-sm: 2px;
+  --r-md: 4px;
+  --r-lg: 6px;
+
+  --sh-1: 0 1px 0 var(--glass-hi) inset, 0 10px 28px -14px rgba(0, 0, 0, 0.72), 0 1px 2px rgba(0, 0, 0, 0.45);
+  --sh-2: 0 1px 0 var(--glass-hi) inset, 0 22px 56px -22px rgba(0, 0, 0, 0.9), 0 3px 8px rgba(0, 0, 0, 0.55);
+
+  color: var(--ink);
+  font-family: var(--font-syne), system-ui, -apple-system, sans-serif;
+
+  /* Slice 2 — tiles are imported UNCHANGED, so tokens they consume are
+     re-pointed here instead of editing them. --color-text-muted is the
+     app-global light-theme muted ink (#5f5f66, ~2.4:1 on --surface-2 —
+     fails); inside canvas glass it resolves to --ink-dim (7.18:1). */
+  --color-text-muted: var(--ink-dim);
+}
+
+.mono {
+  font-family: var(--font-jbmono), ui-monospace, SFMono-Regular, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Glass panel primitive — solid --surface-2 fallback, frosted when
+   backdrop-filter is supported. Perf gate: Lighthouse before/after runs on
+   the preview deploy (coordinator handles); auto-degrade criterion is this
+   @supports boundary. ── */
+.glassPanel {
+  position: relative;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  border: 1px solid var(--glass-brd);
+  box-shadow: var(--sh-1);
+}
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .glassPanel {
+    background: var(--glass-1);
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+  }
+}
+
+/* ── Hero / cockpit band ── */
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: 22px 24px;
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  border: 1px solid var(--glass-brd);
+  box-shadow: var(--sh-2);
+  margin-bottom: 1.5rem;
+}
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .hero {
+    background: linear-gradient(135deg, rgba(28, 34, 48, 0.66), rgba(15, 18, 23, 0.6));
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+  }
+}
+.heroGreet { min-width: 0; }
+.eyebrow {
+  font-family: var(--font-jbmono), ui-monospace, monospace;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--ink-hush);
+}
+.heroTitle {
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 6px 0 0;
+  color: var(--ink);
+}
+.heroEm {
+  font-style: normal;
+  color: var(--red-300);
+}
+.heroSub {
+  color: var(--ink-dim);
+  font-size: 13px;
+  margin: 6px 0 0;
+  line-height: 1.5;
+  max-width: 640px;
+}
+
+/* ── Glass section head (canvas .sec-h) ──
+   Slice 2 flipped the deck ground dark (command-deck.module.css), so the
+   head's opaque --surface-2 ground now reads as a quiet card on the canvas
+   (--ink 14.28:1 on it) rather than the slice-1 island on the light deck. */
+.glassSectionHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  /* Slice 2: the deck's .sectionHead (which carried the 2rem section rhythm)
+     is gone — the glass head now owns the inter-section spacing. */
+  margin: 20px 0 8px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  border: 1px solid var(--glass-brd);
+  box-shadow: var(--sh-1);
+}
+.glassSectionHead h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+/* --ink-dim (not --ink-hush): 12px/10px mono on --surface-2 needs >= 4.5:1;
+   --ink-dim measures ~7.2:1, --ink-hush only ~3.6:1. */
+.glassSub {
+  color: var(--ink-dim);
+  font-family: var(--font-jbmono), ui-monospace, monospace;
+  font-size: 12px;
+}
+.glassSrc {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-jbmono), ui-monospace, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-dim);
+  border: 1px solid var(--glass-brd);
+  border-radius: 3px;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* ── Glass section body wrapper (canvas .panel) ── */
+.glassSection {
+  padding: 16px 18px;
+}
+
+/* ── Slice 2 — glass section-head extras ── */
+/* Full-width honesty caption inside a glass head (migrated from the deck's
+   .sectionCaption). 12px body copy on --surface-2 → --ink-dim (7.18:1). */
+.glassCaption {
+  flex-basis: 100%;
+  font-size: 12px;
+  line-height: 1.45;
+  letter-spacing: 0.02em;
+  color: var(--ink-dim);
+}
+/* Right-aligned control cluster inside a glass head (WikiEnhanceControl,
+   ProjectIntegrationWorkPacketControl migrate in unchanged). */
+.glassHeadTools {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── Slice 2 — Operate launch-pad (canvas §Operate, BUSINESSES registry) ──
+   Compact opaque tiles inside a glass panel: no backdrop-filter here, so the
+   @supports guard/decl parity is untouched. Text grounds are the solid
+   --surface-3 (#232b3a): --ink 12.77:1, --ink-dim 6.41:1, --green-txt
+   7.39:1 — all AA for their sizes (computed, not eyeballed). */
+.launchGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
+}
+.launchTile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+  border: 1px solid var(--glass-brd);
+  border-left: 3px solid var(--swatch, var(--red-500));
+  box-shadow: var(--sh-1);
+}
+.launchName {
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.launchMeta {
+  font-family: var(--font-jbmono), ui-monospace, monospace;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+}
+.launchLink {
+  font-family: var(--font-jbmono), ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--green-txt);
+  text-decoration: none;
+  width: fit-content;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.launchLink:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .hero { padding: 16px 18px; }
+  .heroTitle { font-size: 20px; }
+}
+
+/* ── Daylight register override (Affirm-inspired; pairs with
+   command-deck.module.css .daylight). .daylight lands on the deck root, so
+   every nested canvasScope section flips with it: paper ground, white
+   cards, soft radii, calm shadows, indigo-adjacent signal ramp. */
+.daylight .canvasScope {
+  --canvas: #faf9f7;
+  --surface-1: #ffffff;
+  --surface-2: #ffffff;
+  --surface-3: #f4f1eb;
+  --line: #e5e1d8;
+  --line-soft: #eeeae2;
+
+  --glass-1: rgba(255, 255, 255, 0.72);
+  --glass-2: rgba(250, 249, 247, 0.78);
+  --glass-hi: rgba(22, 24, 29, 0.03);
+  --glass-brd: rgba(22, 24, 29, 0.1);
+
+  --ink: #16181d;
+  --ink-dim: #5c6470;
+  --ink-hush: #79808c;
+
+  --red-500: #c62a30;
+  --red-400: #dc2626;
+  --red-300: #b91c1c;
+  --green: #0f9d58;
+  --green-txt: #0b7a44;
+  --amber-txt: #92510a;
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+
+  --sh-1: 0 1px 2px rgba(22, 24, 29, 0.05), 0 8px 24px -18px rgba(22, 24, 29, 0.18);
+  --sh-2: 0 2px 6px rgba(22, 24, 29, 0.06), 0 18px 44px -24px rgba(22, 24, 29, 0.22);
+
+  color: var(--ink);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+}
+
+/* Hero's @supports glass gradient hardcodes the dark ground — repaint it
+   paper in daylight (three-class specificity beats the @supports rule). */
+.daylight .canvasScope.hero {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(250, 249, 247, 0.66));
+}

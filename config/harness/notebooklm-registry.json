@@ -7,12 +7,7 @@
       "entity": "RestoreAssist",
       "name": "Pi-CEO — RestoreAssist Knowledge Base",
       "purpose": "Core business entity — Linear project docs, Pi-CEO pipeline, billing & estimation platform",
-      "sources": [
-        "Linear project documentation",
-        "GitHub repos (CleanExpo org)",
-        "Architecture docs, CLAUDE.md",
-        "Pi-Dev-Ops sprint plans"
-      ],
+      "sources": ["Linear project documentation", "GitHub repos (CleanExpo org)", "Architecture docs, CLAUDE.md", "Pi-Dev-Ops sprint plans"],
       "status": "active",
       "created_at": "2026-04-15",
       "acceptance_criteria": "10/10 standard queries pass + top-3-risks criterion (RA-822)",
@@ -23,11 +18,7 @@
       "entity": "Synthex",
       "name": "Pi-CEO — Synthex Knowledge Base",
       "purpose": "Active security work — CVE reduction programme 28→22",
-      "sources": [
-        "CVE audit reports and remediation notes",
-        "Security architecture docs",
-        "Dependency health tracking files"
-      ],
+      "sources": ["CVE audit reports and remediation notes", "Security architecture docs", "Dependency health tracking files"],
       "status": "active",
       "created_at": "2026-04-15",
       "acceptance_criteria": "10/10 standard queries pass + top-3-risks criterion (RA-823)",
@@ -38,11 +29,7 @@
       "entity": "CleanExpo",
       "name": "Pi-CEO — CleanExpo Knowledge Base",
       "purpose": "Primary GitHub org, core business entity",
-      "sources": [
-        "GitHub org repositories and README files",
-        "Business documentation",
-        "Project overviews and architecture notes"
-      ],
+      "sources": ["GitHub org repositories and README files", "Business documentation", "Project overviews and architecture notes"],
       "status": "active",
       "created_at": "2026-04-15",
       "acceptance_criteria": "10/10 standard queries pass + top-3-risks criterion (RA-824)",
@@ -60,7 +47,7 @@
         "MCP / A2A session recording (Google Cloud YouTube)",
         "Vertex AI updates blog post",
         "Google Workspace Updates blog (workspaceupdates.googleblog.com)",
-        ".harness/notebooklm-source-intel-gcnext26.md (pre-conference context)"
+        "config/harness/notebooklm-source-intel-gcnext26.md (pre-conference context)"
       ],
       "status": "pending_creation",
       "blocked_until": "2026-04-24",
@@ -82,5 +69,5 @@
     "What is the deployment topology?",
     "What are the known failure modes?"
   ],
-  "notes": "Notebook IDs are populated once notebooks are created in NotebookLM. Update 'status' to 'active' and 'id' field after creation. Run standard_queries acceptance test before marking linked_issue Done."
+  "notes": "Notebook IDs are populated once notebooks are created in NotebookLM. Update status and id after creation, then run the standard query acceptance test before closing the linked issue."
 }

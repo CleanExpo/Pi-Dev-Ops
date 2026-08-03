@@ -22,10 +22,13 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
-from app.server import config_loader
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from app.server import config_loader  # noqa: E402
+
 PROJECTS_JSON = config_loader.PROJECTS_JSON
 DEFAULT_BRAIN_ROOT = Path.home() / "2nd-brain"
 DEFAULT_LIMIT = 40
@@ -673,7 +676,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT, help="Maximum raw discoveries to fetch.")
     parser.add_argument("--min-score", type=int, default=45, help="Minimum relevance score to include.")
     parser.add_argument("--brain-root", type=Path, default=DEFAULT_BRAIN_ROOT, help="Path to active Obsidian/Brain-1 vault.")
-    parser.add_argument("--projects", type=Path, default=PROJECTS_JSON, help="Path to .harness/projects.json.")
+    parser.add_argument("--projects", type=Path, default=PROJECTS_JSON, help="Path to config/harness/projects.json.")
     parser.add_argument("--json", action="store_true", help="Print machine-readable JSON summary.")
     parser.add_argument("--dry-run", action="store_true", help="Do not write Brain-1 files.")
     return parser.parse_args(argv)

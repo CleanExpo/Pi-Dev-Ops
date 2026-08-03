@@ -1,7 +1,7 @@
 """swarm/providers/zendesk.py — real CS-tier1 provider (Zendesk + Intercom).
 
 Pulls real NPS / FCR / GRR / first-response metrics from Zendesk for each
-business in ``.harness/projects.json``. Intercom is wired through the same
+business in ``config/harness/projects.json``. Intercom is wired through the same
 module (different env-key prefix); the registry picks one or the other,
 not both — running both helpdesks for the same portfolio is a Wave 5
 problem.

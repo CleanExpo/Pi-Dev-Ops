@@ -6,7 +6,7 @@ handler is implemented (see Linear ticket /
 Wiki/hermes-agent-sprinkle-audit-2026-05-11.md § plan-discovery
 investigation).
 
-Why a script instead of a direct .harness/cron-triggers.json edit:
+Why a script instead of a direct config/harness/cron-triggers.json edit:
 the JSON file is hybrid tracked-but-runtime-mutated state, owned by
 the cron loop. ``cron_store.update_trigger`` (new in this branch)
 goes through the same atomic write + Supabase upsert path the cron

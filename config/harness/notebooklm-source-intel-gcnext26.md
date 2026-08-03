@@ -76,7 +76,7 @@ Load in this order — highest signal-to-noise first:
 | 4 | MCP / A2A session recording | Google Cloud YouTube or session transcript | Google's official agent interop position |
 | 5 | Vertex AI updates blog post | cloud.google.com/blog/products/ai-machine-learning | Function calling, grounding, multimodal |
 | 6 | Google Workspace Updates blog | workspaceupdates.googleblog.com | NotebookLM Workspace integration updates |
-| 7 | This source document | `.harness/notebooklm-source-intel-gcnext26.md` | Pre-conference context and stack state |
+| 7 | This source document | `config/harness/notebooklm-source-intel-gcnext26.md` | Pre-conference context and stack state |
 
 **Loading notes:**
 - NotebookLM accepts: Google Docs, PDF, web URLs, plain text, YouTube video links
@@ -110,7 +110,7 @@ Run this after 24 April 2026:
 - [ ] **Day 0 (25 Apr):** Load all 7 sources listed in Section 3 into a new NotebookLM notebook named `Pi-CEO Intel — Google Cloud Next '26`
 - [ ] **Day 0:** Wait for notebook indexing (~10 min after all sources loaded)
 - [ ] **Day 0:** Run all 8 acceptance queries (Section 4). Record answers.
-- [ ] **Day 0:** Update `.harness/notebooklm-registry.json` — set `id` to the new notebook's ID and `status` to `active`
+- [ ] **Day 0:** Update `config/harness/notebooklm-registry.json` — set `id` to the new notebook's ID and `status` to `active`
 - [ ] **Day 0:** Update RA-830 description with the delta report from query #6 (RA-830 delta)
 - [ ] **Day 0:** Comment on RA-828 with notebook ID + 8-query acceptance test results
 - [ ] **Day 0:** Mark RA-828 **Done**
@@ -121,7 +121,7 @@ Run this after 24 April 2026:
 
 ## 6. Source References
 
-- `.harness/notebooklm-registry.json` — registry entry: `entity: Intel`, `status: pending_creation`, `linked_issue: RA-828`
+- `config/harness/notebooklm-registry.json` — registry entry: `entity: Intel`, `status: pending_creation`, `linked_issue: RA-828`
 - `.harness/RA-830-gemini-evaluation.md` — current Gemini API evaluation (pre-GCN26 baseline). Section 3 "Pricing" and Section 5 "Recommendation" will need post-conference revision if pricing changes materially
 - `.harness/notebooklm-entity-template.md` — standard entity onboarding template (this notebook uses a modified intel-capture format, not the entity template)
 - RA-830: https://linear.app/unite-group/issue/RA-830 — linked acceptance criterion

@@ -25,4 +25,3 @@ Prompt: Premium editorial visual of an AI marketing command centre, warm cinemat
 ## cta
 Provider: nano-banana-2-pro
 Prompt: Premium editorial visual of an AI marketing command centre, warm cinematic light, professional SaaS team, no generic blue glowing AI clichés.. Scene: Book a strategy call
-

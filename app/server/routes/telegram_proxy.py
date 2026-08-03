@@ -69,7 +69,7 @@ def _linear_graphql(query: str, variables: dict | None = None) -> dict:
 
 
 def _projects_json_path() -> Path:
-    """Walk up from this file to find .harness/projects.json."""
+    """Walk up from this file to find config/harness/projects.json."""
     here = Path(__file__).resolve()
     for parent in here.parents:
         candidate = config_loader.PROJECTS_JSON
@@ -79,7 +79,7 @@ def _projects_json_path() -> Path:
 
 
 def _project_routing(project_id: str | None) -> dict:
-    """Resolve project_id -> Linear team + project IDs from .harness/projects.json."""
+    """Resolve project_id -> Linear team + project IDs from config/harness/projects.json."""
     path = _projects_json_path()
     default = {
         "teamId": config.LINEAR_TEAM_ID,

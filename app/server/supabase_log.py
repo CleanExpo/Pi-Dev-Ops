@@ -301,7 +301,7 @@ def _iso_or_now(ts: Any) -> str:
 def save_cron_last_fired(trigger_id: str, last_fired_at: float) -> bool:
     """RA-1439 — Persist a single trigger's last_fired_at to Supabase cron_state.
 
-    Survives Railway redeploys. The committed `.harness/cron-triggers.json`
+    Survives Railway redeploys. The committed `config/harness/cron-triggers.json`
     otherwise resets last_fired_at on every container boot, defeating
     catch-up because the next deploy reverts again before save persists.
 
@@ -325,7 +325,7 @@ def load_cron_state() -> dict[str, float]:
     """RA-1439 — Return {trigger_id: last_fired_at_epoch_seconds} from Supabase.
 
     Used by `cron_store._load_triggers()` to overlay durable state onto the
-    schedule defined in `.harness/cron-triggers.json`. Empty dict on
+    schedule defined in `config/harness/cron-triggers.json`. Empty dict on
     Supabase outage — caller falls back to JSON's value (which may be
     frozen but at least lets the system keep running).
     """

@@ -1249,7 +1249,7 @@ def _route_linear_ticket_to_target_project(
 ) -> None:
     """RA-1184 — create a Linear ticket in the TARGET repo's project.
 
-    Reads .harness/projects.json for repo → (linear_team_id, linear_project_id)
+    Reads config/harness/projects.json for repo → (linear_team_id, linear_project_id)
     mapping. Creates a ticket titled with the PR name, description linking to
     the PR + session ID + evaluator score. Ticket lands in the correct project
     board (e.g. Disaster-Recovery's Linear project, not Pi-Dev-Ops's) so teams

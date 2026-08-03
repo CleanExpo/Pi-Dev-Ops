@@ -1,0 +1,80 @@
+/* deck-details.module.css — styling for the DeckDetails disclosure primitive.
+   Matches the command-deck aesthetic: OLED-adjacent ground handled by the
+   parent tile, mono accents, rounded-sm (2px), --deck-* token vocabulary
+   (falls back to the --cc-* aliases the deck already maps onto them). */
+
+.deckDetails {
+  border: 1px solid var(--deck-line, var(--cc-grid, rgba(255, 255, 255, 0.1)));
+  border-radius: 2px;
+  background: transparent;
+}
+
+.deckSummary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  user-select: none;
+  min-width: 0;
+}
+.deckSummary::-webkit-details-marker {
+  display: none;
+}
+.deckSummary:hover .title {
+  color: var(--deck-text, var(--cc-ink, #f0f3f7));
+}
+
+.chev {
+  flex: 0 0 auto;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.7rem;
+  color: var(--deck-cyan-text, var(--cc-signal-text, #34d399));
+}
+.chev::before {
+  content: '▸';
+}
+.deckDetails[open] > .deckSummary .chev::before {
+  content: '▾';
+}
+
+.title {
+  color: var(--deck-text, var(--cc-ink, #f0f3f7));
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stats {
+  color: var(--deck-muted, var(--cc-ink-dim, #a6afbc));
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.badge {
+  margin-left: auto;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+}
+
+.body {
+  border-top: 1px solid var(--deck-line-soft, rgba(255, 255, 255, 0.05));
+  padding: 0.6rem 0.7rem;
+}
+
+.moreLine {
+  margin: 0.4rem 0 0;
+  color: var(--deck-muted, var(--cc-ink-dim, #a6afbc));
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+}

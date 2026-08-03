@@ -23,8 +23,9 @@ and surface before resuming.
 ## Input
 
 Handoff to resume from is supplied as `$ARGUMENTS`: a path to a handoff file, pasted
-handoff text, or a branch / PR reference. If empty, look for the most recent handoff under
-`.session-handoff/` or in the current context; if none is found, ask and stop.
+handoff text, or a branch / PR reference. If empty, load the latest report under
+`docs/session-handoffs/` and its paired `.handoff-logs/handoff-<ts>.log`; fall back to
+`.session-handoff/` or the current context. If none is found, ask and stop.
 
 ## Phase 1 — Load the handoff (read-only)
 
@@ -45,16 +46,22 @@ Check claim by claim: branch present/checked out; claimed commits exist
 (`git cat-file -t <sha>`); shipped/key files exist with claimed status; working tree
 clean/dirty as implied; PR/issue state (`gh pr view` if available).
 
-**Re-run the gate** — if `scripts/handoff-loop.sh` exists, run it (the same gate
-`/session-handoff` ran on the way out); a non-zero exit is a **CANNOT RESUME** until the
-named gate is fixed. Otherwise re-run only safe, read-only verification commands; report
-pass/fail honestly; mark unchecked items `NOT CHECKED`.
+Re-run only safe, read-only verification commands in this phase; report pass/fail honestly
+and mark unchecked items `NOT CHECKED`. Do not run `scripts/handoff-loop.sh` yet: that script
+deletes caches and can regenerate tracked manifests, so it belongs after reconciliation rather
+than inside the read-only verification phase.
 
 ## Phase 3 — Reconciliation report
 
-Emit a **Resume Reconciliation** with a verdict — MATCH / MINOR DRIFT / MATERIAL DRIFT /
-CANNOT RESUME — plus what matches, what changed since the handoff, still-valid vs
-now-invalid pickup steps, and blockers. See `.resume-from-handoff/reconciliation-checklist.md`.
+Emit a **Resume Reconciliation** before doing any work:
+
+- Verdict: MATCH / MINOR DRIFT / MATERIAL DRIFT / CANNOT RESUME
+- State vs handoff: what matches and what changed
+- Still-valid pickup instructions
+- Now-invalid or changed steps, with the reason
+- Blockers
+
+See `.resume-from-handoff/reconciliation-checklist.md`.
 
 Stop conditions (do NOT resume — surface and ask): missing branch/commits; conflicting
 uncommitted changes; PR already merged/closed obsoleting the work; a "first command" that
@@ -62,10 +69,17 @@ would now be destructive or wrong.
 
 ## Phase 4 — Resume the work
 
-Only after MATCH or MINOR DRIFT and after stating the plan: skip the "Do not redo" list;
-follow "Start here" (adjusted for minor drift); run the "First command to run" (or its
-corrected equivalent); respect repo gates (run `judge` before building anything new not
-already approved; honour CLAUDE.md / AGENTS.md boundaries).
+Only after MATCH or MINOR DRIFT and after stating the plan:
+
+1. If `scripts/handoff-loop.sh` exists, run it as the first resumed action when doing so will
+   not clobber user-owned work. Compare its verdict with the handoff's cited log. A non-zero
+   result pauses forward progress until the named gate is repaired; it does not retroactively
+   make the read-only reconciliation dishonest.
+2. Skip the handoff's "Do not redo" list.
+3. Follow "Start here", adjusted for minor drift.
+4. Run the "First command to run" or its corrected equivalent.
+5. Respect repo gates: run `judge` before building anything new that was not already approved,
+   and honour CLAUDE.md / AGENTS.md boundaries.
 
 ## Output
 

@@ -334,7 +334,7 @@ def _no_token_section(section: str) -> tuple[str, str | None]:
 def _no_repo_section(project_id: str) -> tuple[str, str | None]:
     return (
         f"_(github: project_id {project_id!r} has no `repo` mapping in "
-        ".harness/projects.json)_",
+        "config/harness/projects.json)_",
         "no_repo_mapping",
     )
 

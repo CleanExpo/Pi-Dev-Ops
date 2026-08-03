@@ -1,0 +1,193 @@
+{
+  "version": 1,
+  "mode": "shadow",
+  "_mode_note": "shadow = classify and log every decision, block NOTHING, never freeze, never record a terminal denial. enforce = the real fence. In shadow the script also fails OPEN on internal error - the inverse of enforce - because a crashed shadow observer must never be able to stop a session it was only supposed to watch.",
+  "_comment": "Canonical source. Installed to ~/.claude/fence/fence.json. Edits here are a gated action - see docs/orchestrator/01-decision-rights.md",
+  "spend": {
+    "max_aud": null,
+    "_max_aud_note": "null => every unenumerated spend stops. Pending founder ruling R1.",
+    "bash_patterns": [
+      "\\bstripe\\b",
+      "\\bvercel\\s+(buy|billing)",
+      "\\bdoctl\\s+(databases|apps)\\s+create",
+      "\\bnpm\\s+publish\\b",
+      "\\bgh\\s+api\\b.*billing"
+    ],
+    "mcp_tools": [
+      "buy_domain",
+      "buy_pro",
+      "buy_credits",
+      "buy_addon",
+      "confirm_billing_purchase",
+      "confirm_cost",
+      "get_purchase_quote",
+      "generate_image",
+      "generate_video",
+      "generate_audio",
+      "generate_voiceover",
+      "generate_3d",
+      "upscale_image",
+      "upscale_video",
+      "dubbing",
+      "clone_voice",
+      "create_voice",
+      "voice_change",
+      "outpaint_image",
+      "motion_control",
+      "personal_clipper_create",
+      "shorts_studio_create",
+      "video_analysis_create",
+      "create_project",
+      "create_branch",
+      "deploy_edge_function"
+    ]
+  },
+  "prod": {
+    "branches": [
+      "main",
+      "master",
+      "production",
+      "prod"
+    ],
+    "_source": "Pulled from live GitHub/Supabase/Vercel/DigitalOcean APIs 2026-08-01. See docs/orchestrator/05-production-definition.md. No other meaning of 'production' applies.",
+    "hosts": [
+      "carsi.com.au",
+      "www.carsi.com.au",
+      "disasterrecovery.com.au",
+      "www.disasterrecovery.com.au",
+      "disasterrecovery.au",
+      "www.disasterrecovery.au",
+      "restoreassist.app",
+      "synthex.social",
+      "www.synthex.social",
+      "nrpg.business",
+      "www.nrpg.business",
+      "ato-ai.app",
+      "live.unite-group.ink",
+      "optix.ccwarehouse.com.au",
+      "monkfish-app-kzsw2.ondigitalocean.app",
+      "ccw-bd8bc.ondigitalocean.app",
+      "itr-button-bs5ws.ondigitalocean.app",
+      "pi-dev-ops.vercel.app",
+      "pi-dev-ops-unite-group.vercel.app"
+    ],
+    "databases": [
+      "qwoggbbavikzhypzodcr",
+      "pwwwhoaxxtkmowifpuwf",
+      "zbryrmxmgfmslqzizsto",
+      "xwqymjisxmtcmaebcehw",
+      "lksfwktwtmyznckodsau",
+      "vmkqrzpbeefaruhfhsow",
+      "yhteftfnoegmdkimzzjd",
+      "gkffsjvfixvwulmjwtkl",
+      "znyjoyjsvjotlzjppzal",
+      "udooysjajglluvuxkijp",
+      "carsi-db-do-user-29653167-0.d.db.ondigitalocean.com",
+      "disaster-recovery-db-do-user-29653167-0.d.db.ondigitalocean.com",
+      "unite-group-do-user-29653167-0.e.db.ondigitalocean.com",
+      "db-itr-button-do-user-29653167-0.e.db.ondigitalocean.com",
+      "db-postgresql-syd1-86291-do-user-29653167-0.k.db.ondigitalocean.com",
+      "app-85f8cec5-cbbc-4481-aa39-092dba605374-do-user-29653167-0.g.db.ondigitalocean.com",
+      "disaster-recovery-redis"
+    ],
+    "_excluded_hosts_known_unassigned": [
+      "g-pilot.app",
+      "restorationinduction.com",
+      "restoreassist.ai"
+    ],
+    "_excluded_hosts_note": "Registered domains with no project assigned - no production surface. Listed so the drift check does not re-flag them every run. If one is ever assigned to a project, drift will still catch it via the Vercel project mapping.",
+    "_databases_excluded_preview_branches": [
+      "jhqjxomxlvvmjslgzqhd",
+      "vfbfivqwkgjvcqfswbwg",
+      "ghkxuwlimsiaalcvoiss",
+      "spwdnscthivbisjyhmlt"
+    ],
+    "_defaultdb_is_not_a_matcher": "All 6 DigitalOcean databases are named 'defaultdb'. It cannot discriminate production. Match the host prefix instead.",
+    "path_globs": [
+      "**/.env",
+      "**/.env.*",
+      "**/id_rsa",
+      "**/id_ed25519",
+      "**/*.pem",
+      "**/*.key"
+    ],
+    "self_modification_globs": [
+      "**/fence.json",
+      "**/pretooluse_fence.py",
+      "**/hooks/PreToolUse/**",
+      "**/.claude/settings.json",
+      "**/.claude/settings.local.json",
+      "**/denials.jsonl",
+      "**/HARD_STOP",
+      "**/docs/constitution/**"
+    ],
+    "_self_modification_note": "R3. Touching any of these is the agent expanding its own authority, so it freezes on the FIRST attempt, not the second. Includes denials.jsonl (clearing its own refusals), HARD_STOP (releasing its own freeze), and the constitution corpus the fence is derived from - rewriting the source document is the slowest possible way to widen the fence.",
+    "self_modification_bash_patterns": [
+      "\\b(cp|mv|rm|tee|truncate|sed\\s+-i|install)\\b[^|;]*\\b(fence\\.json|denials\\.jsonl|HARD_STOP|pretooluse_fence\\.py|settings\\.json)\\b",
+      ">\\s*[^|;]*\\b(fence\\.json|denials\\.jsonl|HARD_STOP|settings\\.json)\\b",
+      "\\b(rm|mv)\\b[^|;]*docs/constitution"
+    ],
+    "_bash_hole_note": "The file_path check only sees Write/Edit. A Bash `cp`/`>`/`sed -i` to a rule file would otherwise walk straight past it.",
+    "_outputs_exempt": [
+      "drift-report.txt",
+      "incidents/**",
+      "fence.jsonl",
+      "shadow.jsonl",
+      "material-pass.csv"
+    ],
+    "_outputs_exempt_note": "The fence's OUTPUTS are not its RULES. drift_check.py reads fence.json (line 108) and writes only drift-report.txt (line 170) - verified, it never edits the fence. In GitHub Actions it never passes the hook at all. Exempting outputs is what stops a local drift run from freezing the session.",
+    "bash_patterns": [
+      "\\bvercel\\b(?!.*\\b(ls|list|whoami|env\\s+pull|inspect|logs)\\b).*--prod",
+      "\\bvercel\\s+deploy\\b.*--prod",
+      "\\bdoctl\\s+apps\\s+(create|update|create-deployment)",
+      "\\brailway\\s+up\\b",
+      "\\bfly\\s+deploy\\b",
+      "\\bprisma\\s+(db\\s+push|migrate\\s+deploy)",
+      "\\bsupabase\\s+db\\s+push\\b",
+      "\\bgit\\s+push\\b.*(--force\\b|--force-with-lease\\b|\\s-f(\\s|$))",
+      "\\bgh\\s+pr\\s+merge\\b",
+      "\\bgh\\s+release\\s+create\\b",
+      "\\bgit\\s+push\\s+(origin\\s+)?--delete\\b",
+      "\\bvercel\\s+env\\s+add\\b",
+      "\\bsupabase\\s+secrets\\s+set\\b"
+    ],
+    "mcp_tools": [
+      "merge_branch",
+      "delete_branch",
+      "reset_branch",
+      "deploy_to_vercel",
+      "update_project_deployment_protection",
+      "pause_project",
+      "restore_project",
+      "publish_website",
+      "deploy_website",
+      "deploy_game",
+      "publish_game"
+    ],
+    "_mcp_tools_note": "Always-blocked: no safe target exists. merge_branch is here because merging a preview branch lands it ON production.",
+    "mcp_tools_target_scoped": [
+      "execute_sql",
+      "apply_migration",
+      "deploy_edge_function",
+      "create_branch"
+    ],
+    "_target_scoped_note": "Blocked only when the project ref names a production database. Against a preview branch these are the intended, safe workflow. Unresolvable target => blocked (fail closed).",
+    "_hosts_note": "Includes the dashboard own deployment hosts. Partial mitigation only: it catches an AGENT curling the dashboard at the tool layer. It does NOT gate the app calling its own endpoints, which the fence never sees."
+  },
+  "outbound": {
+    "mcp_tools": [
+      "tiktok_publish",
+      "tiktok_prepare_publish",
+      "create_draft",
+      "participate_in_contest"
+    ],
+    "bash_patterns": [
+      "\\bcurl\\b.*api\\.telegram\\.org.*sendMessage",
+      "\\bgh\\s+issue\\s+comment\\b",
+      "\\bgh\\s+pr\\s+comment\\b"
+    ]
+  },
+  "denials_log": ".harness/denials.jsonl",
+  "audit_log": ".harness/fence.jsonl",
+  "on_error": "STOP"
+}

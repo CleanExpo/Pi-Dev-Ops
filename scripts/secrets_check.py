@@ -30,6 +30,7 @@ import datetime
 import urllib.request
 import urllib.error
 import argparse
+import base64
 
 # ── CLI args ─────────────────────────────────────────────────────────────────
 parser = argparse.ArgumentParser(description="Pi-Dev-Ops secrets exposure check")
@@ -48,6 +49,31 @@ args = parser.parse_args()
 REPO_ROOT = os.path.abspath(args.repo_root)
 DRY_RUN = args.dry_run
 
+# ── SCOPE LIMIT — READ BEFORE TRUSTING A [PASS] ───────────────────────────────
+# This scanner sources its file list from
+#   git ls-files --cached --others --exclude-standard
+# FIXED 2026-08-02 — `--exclude-standard` was REMOVED, so gitignored files ARE now
+# scanned. The history below is kept because the failure is instructive.
+#
+# It previously applied .gitignore, so **secrets in gitignored files were NEVER
+# SCANNED**. Proven 2026-08-01 with the same fake AWS-shaped key in the same directory,
+# gitignore as the only variable: docs/secret-control.ts -> DETECTED CRITICAL;
+# docs/secret-control.tmp (matched by *.tmp) -> not listed, not scanned, MISSED.
+#
+# That matters here more than anywhere: .env.local, .env and credential files are exactly
+# what .gitignore covers. A [PASS] means "no secrets in files git will show you", NOT
+# "no secrets in this repo".
+#
+# Worse, the auto-patch below REMOVES FILES FROM THIS SCANNER'S OWN SCOPE: on finding a
+# violation it appends the offending path to .gitignore, after which that file is never
+# listed again and so never scanned again. Protective for committing; blinding for
+# scanning. Use --dry-run when testing this script so it does not rewrite .gitignore.
+#
+# See ".gitignore is a silent scope reducer" in .harness/lesson-patterns.md. The fix
+# pattern is fence/fail_open_check.py Class B: enumerate from an independent source, then
+# ASK git about each item, so an ignored file fails loudly instead of vanishing.
+# ──────────────────────────────────────────────────────────────────────────────
+
 # ── Secret patterns (mirrors app/server/scanner.py _SECRET_PATTERNS) ─────────
 _SECRET_PATTERNS: list[tuple[str, str, str]] = [
     (r"sk-ant-api[0-9A-Za-z\-_]{30,}", "Anthropic API key", "CRITICAL"),
@@ -61,10 +87,43 @@ _SECRET_PATTERNS: list[tuple[str, str, str]] = [
     (r"(?i)bearer\s+[0-9a-zA-Z\-._~+/]{20,}", "Bearer token in source", "HIGH"),
     (r"(?i)(?:db|database)_?(?:url|uri|connection)\s*=\s*['\"]postgresql://[^'\"]+['\"]",
      "DB connection string", "HIGH"),
+    # ── Added 2026-08-02. The previous ten shapes omitted the three with the most reach in
+    # this estate, so an all-clear could only ever have meant "clean for ten shapes":
+    #   - a Supabase service-role JWT bypasses RLS on every fenced production database; it is
+    #     the one key that makes row-level security irrelevant
+    #   - a live Stripe key is billing
+    #   - a Telegram bot token is the notification bus, which is also the approval channel
+    (r"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{20,}",
+     "JWT (Supabase service-role/anon key or similar)", "CRITICAL"),
+    (r"\b(sk|rk)_live_[0-9A-Za-z]{16,}", "Stripe LIVE secret key", "CRITICAL"),
+    (r"\b(sk|rk)_test_[0-9A-Za-z]{16,}", "Stripe test secret key", "HIGH"),
+    (r"\b\d{8,10}:AA[0-9A-Za-z_-]{32,}", "Telegram bot token", "CRITICAL"),
 ]
+
+# NOTE ON THE JWT PATTERN. It matches Supabase ANON keys too, which are public by design and
+# legitimately appear in NEXT_PUBLIC_* vars. That is deliberate: a regex cannot tell an anon
+# key from a service-role key without decoding the payload, and the two failure directions are
+# not symmetric. A false positive on an anon key costs one triage; a miss on a service-role key
+# costs RLS across the estate. Triage the hits; do not narrow the pattern.
 
 # Compiled with line-boundary awareness
 _COMPILED = [(re.compile(p), title, sev) for p, title, sev in _SECRET_PATTERNS]
+
+
+def _is_public_anon_jwt(value: str) -> bool:
+    """Return true only for a JWT whose payload explicitly identifies Supabase anon access.
+
+    Supabase anon keys are intentionally browser-public and are already documented as such in
+    SECURITY.md. Decoding the unsigned payload is classification, not authentication: every
+    other JWT shape, malformed token, or role still fails closed as a secret finding.
+    """
+    try:
+        payload = value.split(".", 2)[1]
+        payload += "=" * (-len(payload) % 4)
+        claims = json.loads(base64.urlsafe_b64decode(payload).decode("utf-8"))
+        return claims.get("iss") == "supabase" and claims.get("role") == "anon"
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+        return False
 
 # ── Placeholder exclusion (skip false positives from docs/examples) ───────────
 _PLACEHOLDER_RE = re.compile(
@@ -218,8 +277,13 @@ def _make_finding(path: str, line: int, title: str, severity: str, snippet: str)
 def _list_tracked_files() -> list[str]:
     """Return all git-tracked files relative to REPO_ROOT."""
     try:
+        # NOTE the ABSENT --exclude-standard. Including it meant gitignored files were
+        # never scanned, and .env.local / *.pem / credential dumps are exactly what
+        # .gitignore covers — the paths most worth scanning were the ones skipped.
+        # Heavy generated trees are dropped below instead, by path, so the exclusion is
+        # explicit and reviewable rather than inherited silently from .gitignore.
         result = subprocess.run(
-            ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+            ["git", "ls-files", "--cached", "--others"],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
@@ -228,7 +292,20 @@ def _list_tracked_files() -> list[str]:
         if result.returncode != 0:
             print(f"  [WARN] git ls-files failed: {result.stderr.strip()}", flush=True)
             return []
-        return [ln.strip() for ln in result.stdout.splitlines() if ln.strip()]
+        # Dropping --exclude-standard pulls in node_modules/.next/etc. Filter by path.
+        _HEAVY = ("node_modules/", ".next/", ".git/", "dist/", "build/", ".venv/",
+                  "venv/", "__pycache__/", ".pytest_cache/", ".turbo/", "coverage/",
+                  ".omx/")
+        out = []
+        for ln in result.stdout.splitlines():
+            f = ln.strip()
+            if not f:
+                continue
+            n = f.replace("\\", "/")
+            if any(h in n for h in _HEAVY):
+                continue
+            out.append(f)
+        return out
     except FileNotFoundError:
         print("  [WARN] git not found — scanning all files via os.walk()", flush=True)
         return []
@@ -273,6 +350,8 @@ def _scan_file(rel_path: str) -> list[dict]:
     for pattern, title, severity in _COMPILED:
         for match in pattern.finditer(text):
             matched_text = match.group(0)
+            if title.startswith("JWT (") and _is_public_anon_jwt(matched_text):
+                continue
             # Skip placeholders / example values
             if _PLACEHOLDER_RE.search(matched_text):
                 continue

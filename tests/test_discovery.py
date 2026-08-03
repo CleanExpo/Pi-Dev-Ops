@@ -56,7 +56,7 @@ def make_charter(isolated_state):
 
 @pytest.fixture
 def make_projects_json(isolated_state):
-    """Helper to write a synthetic .harness/projects.json for the loader."""
+    """Helper to write a synthetic config/harness/projects.json for the loader."""
     def _make(entries: list[dict]) -> Path:
         path = isolated_state / "projects.json"
         payload = {"version": "1.0", "projects": entries}

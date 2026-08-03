@@ -29,7 +29,6 @@ sys.path.insert(0, str(_ROOT))
 import app.server.config  # noqa: F401,E402 — triggers dotenv load
 from app.server.triage import LinearClient  # noqa: E402
 from app.server import config_loader  # noqa: E402
-from app.server import config_loader
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("pi-ceo.analyse-lessons")

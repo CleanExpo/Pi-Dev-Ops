@@ -2,7 +2,7 @@
 
 # Nexus Shadow Agent Catalogue
 
-This catalogue is generated from `.harness/agents/registry.yaml`.
+This catalogue is generated from `fence/agents/registry.yaml`.
 All roles are detection-only shadow definitions; this does not change runtime routing.
 
 ## `builder`

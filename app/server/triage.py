@@ -4,7 +4,7 @@ triage.py — Pi-SEO Finding Triage Engine
 Deduplicates findings by SHA256 fingerprint against a local cache and
 the Linear board, then creates tickets in the correct Linear project/team.
 
-Routes findings via .harness/projects.json:
+Routes findings via config/harness/projects.json:
   - Uses linear_project_id (or linear_team_id if no project) per repo
   - Ticket format: [Pi-SEO][scan_type] Title
 

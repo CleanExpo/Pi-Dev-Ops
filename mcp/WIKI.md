@@ -1,9 +1,9 @@
 # mcp — Wiki
 
-_Last updated: 2026-08-03T05:17:10Z (commits a4de09f..aacd7ed)_
+_Last updated: 2026-08-03T06:47:34Z (commits db4c7a4..6e7e90a)_
 
 ## Recent changes
-- aacd7ed — Fix/config loader fail loud (#611)
+- 6e7e90a — Feat/command centre migration (#609)
 
 ## Architecture (current)
 Auto-stub: `mcp/` had 1 recent commits. SDK unavailable for synthesis.

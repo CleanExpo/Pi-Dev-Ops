@@ -15,12 +15,13 @@ from swarm.nexus.agent_registry import (
     validate_catalogue,
     validate_projection_drift,
 )
-from app.server import config_loader
+from app.server.config_loader import HARNESS_SPEC
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-REGISTRY = config_loader.CONFIG_DIR / "agents" / "registry.yaml"
+REGISTRY = REPO_ROOT / "config/harness/agents/registry.yaml"
 MANIFEST = REPO_ROOT / "agentskills.json"
-CONFIG = config_loader.CONFIG_YAML
+CONFIG = REPO_ROOT / "config/harness/config.yaml"
+MODEL_ROLES = set(HARNESS_SPEC["agents"])
 
 
 @pytest.mark.parametrize(
@@ -39,13 +40,13 @@ def test_missing_sources_fail_with_specific_read_rule(
 
 
 def test_stale_projection_baseline_fails_closed() -> None:
-    registry = load_registry(REGISTRY, MANIFEST, CONFIG)
+    registry = load_registry(REGISTRY, MANIFEST, model_roles=MODEL_ROLES)
     agents_path = REPO_ROOT / ".agents/skills/skybridge/SKILL.md"
-    claude_path = REPO_ROOT / ".claude/skills/skybridge/SKILL.md"
+    canonical_path = REPO_ROOT / "skills/skybridge/SKILL.md"
     stale = {
         "id": "skybridge",
         "agents_sha256": normalised_projection_sha(agents_path),
-        "claude_sha256": normalised_projection_sha(claude_path),
+        "canonical_sha256": normalised_projection_sha(canonical_path),
         "rationale": "Red-team stale baseline fixture.",
     }
     mutated = replace(
@@ -58,16 +59,18 @@ def test_stale_projection_baseline_fails_closed() -> None:
 
 
 def test_missing_catalogue_fails_with_read_rule(tmp_path: Path) -> None:
-    registry = load_registry(REGISTRY, MANIFEST, CONFIG)
+    registry = load_registry(REGISTRY, MANIFEST, model_roles=MODEL_ROLES)
 
     with pytest.raises(RegistryValidationError, match="rule=catalogue-readable"):
         validate_catalogue(tmp_path / "missing.md", render_catalogue(registry))
 
 
-def _projection_pair(tmp_path: Path, agents: str, claude: str) -> Path:
+def _projection_pair(tmp_path: Path, agents: str, canonical: str) -> Path:
     root = tmp_path / "repo"
-    for vendor, content in ((".agents", agents), (".claude", claude)):
-        path = root / vendor / "skills/shared/SKILL.md"
+    for path, content in (
+        (root / ".agents/skills/shared/SKILL.md", agents),
+        (root / "skills/shared/SKILL.md", canonical),
+    ):
         path.parent.mkdir(parents=True)
         path.write_text(content, encoding="utf-8")
     return root
@@ -84,7 +87,7 @@ def test_malformed_projection_has_structured_read_error(tmp_path: Path) -> None:
         validate_projection_drift(
             root,
             replace(
-                load_registry(REGISTRY, MANIFEST, CONFIG),
+                load_registry(REGISTRY, MANIFEST, model_roles=MODEL_ROLES),
                 accepted_projection_drift=(),
             ),
         )
@@ -103,7 +106,7 @@ def test_non_mapping_projection_frontmatter_has_structured_read_error(
         validate_projection_drift(
             root,
             replace(
-                load_registry(REGISTRY, MANIFEST, CONFIG),
+                load_registry(REGISTRY, MANIFEST, model_roles=MODEL_ROLES),
                 accepted_projection_drift=(),
             ),
         )
@@ -120,7 +123,7 @@ def test_only_leading_command_heading_is_vendor_normalised(tmp_path: Path) -> No
         validate_projection_drift(
             root,
             replace(
-                load_registry(REGISTRY, MANIFEST, CONFIG),
+                load_registry(REGISTRY, MANIFEST, model_roles=MODEL_ROLES),
                 accepted_projection_drift=(),
             ),
         )

@@ -1,0 +1,71 @@
+name: Fence Drift Check
+
+# Re-pulls the four sources that define "production" and diffs them against
+# fence.json. A source it cannot check is reported as UNCHECKED, never as clean.
+#
+# Required secrets (all optional — a missing one degrades to UNCHECKED, loudly):
+#   SUPABASE_ACCESS_TOKEN · VERCEL_TOKEN · VERCEL_TEAM_ID · DIGITALOCEAN_TOKEN
+#   TELEGRAM_BOT_TOKEN · TELEGRAM_CHAT_ID   (PiCeoEmpire_Bot, founder-supplied)
+
+on:
+  schedule:
+    - cron: "37 20 * * *"   # 20:37 UTC = 06:37 AEST. Off-minute to avoid cron clustering.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        continue-on-error: true
+        with:
+          token: ${{ secrets.DIGITALOCEAN_TOKEN }}
+
+      - name: Install Vercel CLI
+        run: npm i -g vercel@latest
+        continue-on-error: true
+
+      - name: Stage fence
+        run: |
+          mkdir -p "$HOME/.claude/fence"
+          cp fence/fence.json "$HOME/.claude/fence/fence.json"
+
+      - name: Run drift check
+        id: drift
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set +e
+          python fence/drift_check.py
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Publish report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fence-drift-report
+          path: ~/.claude/fence/drift-report.txt
+          if-no-files-found: warn
+
+      # Drift (1) and unchecked (2) both fail the run. A drift check that goes
+      # green while a source was unreachable is the exact failure this guards.
+      - name: Fail on drift or unchecked source
+        if: steps.drift.outputs.code != '0'
+        run: |
+          echo "::error::Fence drift check returned ${{ steps.drift.outputs.code }} (1=drift, 2=a source could not be checked)."
+          exit 1

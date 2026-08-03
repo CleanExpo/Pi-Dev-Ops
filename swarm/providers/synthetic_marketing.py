@@ -1,6 +1,6 @@
 """swarm/providers/synthetic_marketing.py — deterministic CMO metrics provider.
 
-Reads ``.harness/projects.json`` to enumerate the 11 Unite-Group businesses
+Reads ``config/harness/projects.json`` to enumerate the 11 Unite-Group businesses
 and emits one ``RawMarketingMetrics`` per business with deterministic,
 plausible numbers. Same input → same output across cycles, so breach-
 detection unit tests are stable and the orchestrator's first cycle is

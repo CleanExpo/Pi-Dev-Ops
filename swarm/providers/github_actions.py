@@ -1,7 +1,7 @@
 """swarm/providers/github_actions.py — real CTO platform provider.
 
 Pulls real DORA metrics from GitHub Actions for each repo in
-``.harness/projects.json``. Vercel + Datadog connectors land as follow-up
+``config/harness/projects.json``. Vercel + Datadog connectors land as follow-up
 tickets — for now this connector handles the GitHub-side DORA quartet
 (deploy frequency, lead time p50, MTTR, change-failure rate) and falls
 back to synthetic for p99 latency, uptime, and cost-per-request.
@@ -14,7 +14,7 @@ Required env:
 * ``GITHUB_TOKEN`` — already in Pi-CEO env for the autonomous-PR loop.
   Read scope only: ``repo`` for private repos.
 
-Per-business `.harness/projects.json` ``repo`` field is used as
+Per-business `config/harness/projects.json` ``repo`` field is used as
 ``owner/name`` — already present for every business. The connector
 queries the most recent 30 days of workflow runs on the default branch.
 

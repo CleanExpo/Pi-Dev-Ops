@@ -59,6 +59,7 @@ USER pidev
 # Railway uses PORT env var; TAO reads TAO_HOST/TAO_PORT
 ENV TAO_HOST=0.0.0.0
 ENV TAO_PORT=8080
+ENV TAO_USE_AGENT_SDK=1
 ENV PYTHONPATH=/pi-ceo
 ENV MARGOT_SERVER_PATH=/pi-ceo/vendor/margot-deep-research/server.py
 # OM-1: 15-move lookahead planner (override per-deploy via Railway env).

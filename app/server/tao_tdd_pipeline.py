@@ -54,6 +54,7 @@ from __future__ import annotations
 import logging
 import re
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final
@@ -171,7 +172,7 @@ def _run_full_pytest(workspace: str, *, timeout_s: int = 180) -> tuple[bool, str
         return False, "_(no tests/ dir in workspace)_"
     try:
         proc = subprocess.run(
-            ["python", "-m", "pytest", "-q", "--tb=line", "--color=no", "tests/"],
+            [sys.executable, "-m", "pytest", "-q", "--tb=line", "--color=no", "tests/"],
             capture_output=True, text=True, timeout=timeout_s,
             cwd=workspace, check=False,
         )

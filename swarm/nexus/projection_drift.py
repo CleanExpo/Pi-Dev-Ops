@@ -1,4 +1,4 @@
-"""Detection-only comparison for Claude and Codex skill projections."""
+"""Detection-only comparison of Codex projections against canonical repo skills."""
 from __future__ import annotations
 
 import hashlib
@@ -53,17 +53,21 @@ def _validated_projection_sha(path: Path, error_factory: _RegistryErrorFactory) 
 def validate_projection_drift(
     repo_root: Path, registry: object, error_factory: _RegistryErrorFactory
 ) -> int:
-    """Fail on missing/new/changed drift without writing either projection tree."""
+    """Fail on missing/new/changed drift without writing source or projections."""
+    canonical_root = repo_root / "skills"
     agents_root = repo_root / ".agents" / "skills"
-    claude_root = repo_root / ".claude" / "skills"
     agents = {path.parent.name: path for path in agents_root.glob("*/SKILL.md")}
-    claude = {path.parent.name: path for path in claude_root.glob("*/SKILL.md")}
-    missing = sorted(set(agents).symmetric_difference(claude))
+    canonical = {
+        skill_id: canonical_root / skill_id / "SKILL.md" for skill_id in agents
+    }
+    missing = sorted(
+        skill_id for skill_id, path in canonical.items() if not path.is_file()
+    )
     if missing:
         raise error_factory(
             repo_root,
-            "projection-missing",
-            f"projection must exist in both vendor trees: {', '.join(missing)}",
+            "canonical-source-missing",
+            f"Codex projection has no canonical skills/<name>/SKILL.md source: {', '.join(missing)}",
         )
 
     raw_baseline = getattr(registry, "accepted_projection_drift")
@@ -71,9 +75,9 @@ def validate_projection_drift(
     accepted = 0
     for skill_id in sorted(agents):
         agents_sha = _validated_projection_sha(agents[skill_id], error_factory)
-        claude_sha = _validated_projection_sha(claude[skill_id], error_factory)
+        canonical_sha = _validated_projection_sha(canonical[skill_id], error_factory)
         entry = baseline.get(skill_id)
-        if agents_sha == claude_sha:
+        if agents_sha == canonical_sha:
             if entry:
                 raise error_factory(
                     repo_root,
@@ -89,9 +93,9 @@ def validate_projection_drift(
                 "normalised vendor projections differ without an accepted baseline",
                 skill_id,
             )
-        if (entry["agents_sha256"], entry["claude_sha256"]) != (
+        if (entry["agents_sha256"], entry["canonical_sha256"]) != (
             agents_sha,
-            claude_sha,
+            canonical_sha,
         ):
             raise error_factory(
                 repo_root,

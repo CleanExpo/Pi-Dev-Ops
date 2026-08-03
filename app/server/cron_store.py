@@ -1,7 +1,7 @@
 """
 cron_store.py — Persistence for cron triggers (GROUP F).
 
-Schedule definitions live in `.harness/cron-triggers.json` (committed to
+Schedule definitions live in `config/harness/cron-triggers.json` (committed to
 git as the canonical schedule). RA-1439: per-trigger `last_fired_at` is
 ALSO persisted to Supabase `cron_state` so Railway redeploys don't reset
 it back to whatever's frozen in git — without durable state, every deploy

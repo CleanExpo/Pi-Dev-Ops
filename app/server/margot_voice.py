@@ -9,7 +9,7 @@ Margot** — those env vars belong to other agents (e.g. Synthex Remotion).
 Margot's locked voice is ``p43fx6U8afP2xoq1Ai9f`` (override via
 ``MARGOT_ELEVENLABS_VOICE_ID`` for staging only).
 
-Canonical ID: ``.harness/margot/assets/margot_identity.json`` →
+Canonical ID: ``config/harness/margot/assets/margot_identity.json`` →
 ``packages/brand-config`` ``MARGOT_ELEVENLABS_VOICE_ID``.
 """
 from __future__ import annotations

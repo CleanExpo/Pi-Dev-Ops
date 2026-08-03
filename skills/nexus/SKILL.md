@@ -78,7 +78,9 @@ subagent to find credible sources that *contradict* it). If margot is unreachabl
 is **zero**. The routing menu lists up to ~10 specialists; deploy only the ones a stated need
 demands, default cap ≤3, escalating only on demonstrated breadth. Wrap each dispatch in the
 Nexus Prompt at its calibrated tier (nexus tier ladder in the playbook); cross-domain work →
-`specialist-council` for its `{verdict, must_fix, suggestions}` contract. A dispatched
+`specialist-council` for its `{verdict, must_fix, suggestions}` contract. Spec-shaped goals
+route to the `/spm` self-leveling bench instead (playbook G4 menu) — it brings its own
+fan-out; do not double-bench. A dispatched
 specialist must never re-enter this orchestrator; dispatch depth is capped at 1; the whole gate
 is bound to `TAO_HARD_STOP` / `TAO_MAX_COST_USD`.
 - Completion: each dispatched specialist earned its slot against a named need, or none were.

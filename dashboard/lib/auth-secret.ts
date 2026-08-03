@@ -60,6 +60,26 @@ export function authSecret(): string {
 }
 
 /**
+ * Constant-time comparison of two hex strings.
+ *
+ * Round-2 review: the shared verifier compared `expectedHex === sig`, and consolidation had
+ * just made that the SINGLE comparison guarding both `proxy.ts` and `/api/kill-switch`. Merging
+ * the two verifiers was right, but it also promoted one weak comparison from "one of two" to
+ * "the only one" — consolidation amplifies whatever it consolidates.
+ *
+ * `===` on strings short-circuits at the first differing character, so response time correlates
+ * with how many leading hex digits an attacker guessed correctly. That is the standard forgery
+ * oracle. Pure JS rather than node:crypto so this stays usable from either runtime; the length
+ * check leaks only length, which for a fixed-width SHA-256 digest is not a secret.
+ */
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+/**
  * Verify a `pi_session` token: `<issuedAtSeconds>.<hexHmacSha256(issuedAt)>`.
  *
  * This lives here, next to `resolvePassword`, for the reason this module exists at all:
@@ -101,7 +121,7 @@ export async function verifySessionToken(
     const expectedHex = Array.from(new Uint8Array(expected))
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
-    return expectedHex === sig;
+    return constantTimeEqual(expectedHex, sig);
   } catch {
     return false;
   }

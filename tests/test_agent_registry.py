@@ -44,10 +44,10 @@ def _repo(tmp_path: Path) -> dict[str, Path]:
     registry.parent.mkdir(parents=True)
     catalogue.parent.mkdir(parents=True)
     (root / ".agents" / "skills" / "shared").mkdir(parents=True)
-    (root / ".claude" / "skills" / "shared").mkdir(parents=True)
+    (root / "skills" / "shared").mkdir(parents=True)
     projection = "---\nname: shared\ndescription: shared\n---\n# shared\n\nSame body.\n"
     (root / ".agents" / "skills" / "shared" / "SKILL.md").write_text(projection)
-    (root / ".claude" / "skills" / "shared" / "SKILL.md").write_text(projection)
+    (root / "skills" / "shared" / "SKILL.md").write_text(projection)
     registry.write_text(
         yaml.safe_dump(
             {
@@ -171,7 +171,7 @@ def test_dependency_sources_reject_unsafe_shapes(
                     {
                         "id": "shared",
                         "agents_sha256": "bad",
-                        "claude_sha256": "0" * 64,
+                        "canonical_sha256": "0" * 64,
                         "rationale": "Known vendor projection difference.",
                     }
                 ],
@@ -203,13 +203,13 @@ def test_projection_normalisation_ignores_vendor_frontmatter_and_command_heading
     tmp_path: Path,
 ) -> None:
     paths = _repo(tmp_path)
-    claude_projection = (
+    agents_projection = (
         "---\nname: shared\ndescription: shared\nargument-hint: x\n"
         "allowed-tools: Read\ndisable-model-invocation: true\n---\n"
         "# /shared\n\nSame body.\n"
     )
-    (paths["root"] / ".claude/skills/shared/SKILL.md").write_text(
-        claude_projection, encoding="utf-8"
+    (paths["root"] / ".agents/skills/shared/SKILL.md").write_text(
+        agents_projection, encoding="utf-8"
     )
     module = importlib.import_module("swarm.nexus.agent_registry")
 
@@ -218,7 +218,7 @@ def test_projection_normalisation_ignores_vendor_frontmatter_and_command_heading
 
 def test_new_projection_drift_fails_without_baseline(tmp_path: Path) -> None:
     paths = _repo(tmp_path)
-    projection = paths["root"] / ".claude/skills/shared/SKILL.md"
+    projection = paths["root"] / ".agents/skills/shared/SKILL.md"
     projection.write_text(projection.read_text() + "New drift.\n", encoding="utf-8")
     module = importlib.import_module("swarm.nexus.agent_registry")
 
@@ -230,7 +230,7 @@ def test_exact_projection_drift_baseline_is_accepted_and_change_fails(
     tmp_path: Path,
 ) -> None:
     paths = _repo(tmp_path)
-    projection = paths["root"] / ".claude/skills/shared/SKILL.md"
+    projection = paths["root"] / ".agents/skills/shared/SKILL.md"
     projection.write_text(projection.read_text() + "Accepted drift.\n", encoding="utf-8")
     module = importlib.import_module("swarm.nexus.agent_registry")
     data = _registry_data(paths)
@@ -240,7 +240,9 @@ def test_exact_projection_drift_baseline_is_accepted_and_change_fails(
             "agents_sha256": module.normalised_projection_sha(
                 paths["root"] / ".agents/skills/shared/SKILL.md"
             ),
-            "claude_sha256": module.normalised_projection_sha(projection),
+            "canonical_sha256": module.normalised_projection_sha(
+                paths["root"] / "skills/shared/SKILL.md"
+            ),
             "rationale": "Existing accepted vendor divergence; detection only.",
         }
     ]
@@ -253,12 +255,12 @@ def test_exact_projection_drift_baseline_is_accepted_and_change_fails(
         module.validate_projection_drift(paths["root"], loaded)
 
 
-def test_projection_missing_from_one_vendor_fails(tmp_path: Path) -> None:
+def test_projection_without_canonical_source_fails(tmp_path: Path) -> None:
     paths = _repo(tmp_path)
-    (paths["root"] / ".claude/skills/shared/SKILL.md").unlink()
+    (paths["root"] / "skills/shared/SKILL.md").unlink()
     module = importlib.import_module("swarm.nexus.agent_registry")
 
-    with pytest.raises(RegistryValidationError, match="rule=projection-missing"):
+    with pytest.raises(RegistryValidationError, match="rule=canonical-source-missing"):
         module.validate_projection_drift(paths["root"], _load(paths))
 
 

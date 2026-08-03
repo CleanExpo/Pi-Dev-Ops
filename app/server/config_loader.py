@@ -32,8 +32,8 @@ they sit inside an otherwise specification-shaped file — see `margot_identity(
 
 PATHS
 -----
-`_CONFIG_DIR` is the single place the location is written down. Commit 2 moves these files out
-of `.harness/`; that is a one-line change here and nowhere else.
+`_CONFIG_DIR` is the single place the tracked configuration location is written down. Runtime
+state remains under `.harness/`; deployable inputs live under `config/harness/`.
 """
 from __future__ import annotations
 
@@ -45,8 +45,8 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-# The one place the config location is written down. Commit 2 changes this line and nothing
-# else. Exported publicly so consumers that need the DIRECTORY (rather than a named accessor)
+# The one place the tracked config location is written down. Exported publicly so consumers
+# that need the DIRECTORY (rather than a named accessor)
 # can split their config base away from their runtime-state base — see triage.py.
 CONFIG_DIR = REPO_ROOT / "config" / "harness"
 _CONFIG_DIR = CONFIG_DIR  # internal alias, kept for readability below
@@ -75,7 +75,7 @@ def _fail(path: Path, what: str) -> "ConfigMissingError":
         f"{what} not found at {path}.\n"
         f"  This file is INSTANCE DATA — it describes the world, so no in-code default can be\n"
         f"  correct. Refusing to continue rather than running with an empty value.\n"
-        f"  If this is a fresh clone, the file is not in the repository (see #607)."
+        "  Restore the tracked config/harness source before starting the service."
     )
 
 

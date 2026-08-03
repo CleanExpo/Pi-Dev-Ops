@@ -1,0 +1,32 @@
+{
+  "_comment": [
+    "Control 4 (PROPOSAL §9.6.1) — reviewer image identity, pinned by DIGEST not tag.",
+    "A tag is a mutable pointer; pinning to one is pinning to nothing.",
+    "Rotation is an explicit reviewed commit to this file with a reason. That is the point:",
+    "drift becomes a diff instead of an accident.",
+    "Asserted before every run by scripts/assert_image_digest.py, fail-closed on anything",
+    "not listed here. The asserted digest is recorded in the review evidence beside HEAD, so a",
+    "finding is bound to the image that produced it.",
+    "LIMIT: this binds the image, not its build provenance. It proves 'the same image as last",
+    "time', not 'built from trusted inputs'. See §9.6.1."
+  ],
+  "reference": "pi-reviewer:v1",
+  "authorised_digests": [
+    {
+      "digest": "sha256:b6a9d06afcb10cc68777138564dbc7eb8eb6e2abed8b8019e862705977dcd2d2",
+      "built": "2026-08-03",
+      "base": "node:20-slim",
+      "toolchain": {
+        "node": "v20.20.2",
+        "npm": "10.8.2",
+        "git": "2.39.5",
+        "python": "3.11.2",
+        "curl": "7.88.1"
+      },
+      "node_modules_packages": 418,
+      "size_mb": 531,
+      "reason": "Initial reviewer image. Bakes toolchain + node_modules so the per-round copy is source-only and the 38s/run apt install is removed.",
+      "known_deviation": "Built with `npm install`, not `npm ci`: this branch's dashboard/package-lock.json is out of sync with package.json (@testing-library/dom +9 transitive missing). origin/main's lock is correct. Reproducible by digest, NOT rebuildable-identical from the lockfile until that is fixed."
+    }
+  ]
+}
