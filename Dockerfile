@@ -42,6 +42,13 @@ COPY swarm/ ./swarm/
 COPY config/harness/ ./config/harness/
 COPY skills/ ./skills/
 
+# Board governance corpus — the locked conditions the mandate-consistency gate
+# reads (board_decision_index.build_decision_index). Not documentation from the
+# image's point of view: without it the gate raises BoardCorpusMissingError and
+# the daily board meeting stops at the gap-audit phase. Scoped to the one
+# directory rather than COPY docs/, which would bake the whole doc tree in.
+COPY docs/governance/board-meetings/ ./docs/governance/board-meetings/
+
 # Utility scripts (analyse_lessons, smoke_test, fallback_dryrun, etc.)
 COPY scripts/ ./scripts/
 
