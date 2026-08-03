@@ -1,5 +1,15 @@
 -- Pi CEO — Supabase Schema Migration
 -- Run this in the Supabase SQL Editor: https://supabase.com/dashboard/project/_/sql
+-- Via psql, plain `psql -f` also works: the transaction below makes any error abort
+-- the whole run, so a partial migration can never commit (RA-7117 review, P1-1).
+
+-- One transaction for the whole file. Two properties depend on it:
+--   1. Fail-fast: after any error every later statement (including the completion
+--      marker) fails too, so the marker can only print for a COMPLETE run.
+--   2. Atomic policy replacement: each DROP POLICY below would otherwise commit
+--      before its CREATE, leaving concurrent readers a window of RLS default-deny
+--      on a live database (RA-7117 review, P1-2).
+BEGIN;
 
 -- ── settings ─────────────────────────────────────────────────────────────────
 -- Key/value store for app credentials and config (GitHub token, API keys, etc.)
@@ -435,5 +445,8 @@ CREATE POLICY "service_only" ON lessons_durable FOR ALL TO service_role USING (t
 
 -- Completion marker (RA-7117): the historical failure mode was an unguarded
 -- CREATE POLICY aborting a re-run midway, leaving a silent partial migration.
--- A full run now always ends by returning this row.
+-- A full run now always ends by returning this row. It sits INSIDE the transaction
+-- on purpose: after any earlier error the transaction is aborted, this SELECT fails
+-- with it, and nothing was committed — no fail-fast flag required of the operator.
 SELECT 'migration complete' AS status;
+COMMIT;
