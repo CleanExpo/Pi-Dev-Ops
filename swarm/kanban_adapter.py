@@ -38,6 +38,28 @@ log = logging.getLogger("swarm.kanban_adapter")
 HERMES_BIN_ENV = "HERMES_BIN"
 DEFAULT_HERMES_BIN = "hermes"
 HERMES_TIMEOUT_S = 8.0
+_SUBPROCESS_ENV_KEYS = (
+    "COMSPEC",
+    "HOME",
+    "HERMES_HOME",
+    "HERMES_KANBAN_BOARD",
+    "HERMES_KANBAN_DB",
+    "HERMES_PROFILE",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "PATH",
+    "PATHEXT",
+    "SYSTEMROOT",
+    "TEMP",
+    "TMP",
+    "TMPDIR",
+    "USERPROFILE",
+    "WINDIR",
+    "XDG_CONFIG_HOME",
+    "XDG_DATA_HOME",
+    "XDG_STATE_HOME",
+)
 
 
 # ── Data shapes ──────────────────────────────────────────────────────────────
@@ -69,6 +91,20 @@ def _hermes_bin() -> str | None:
     return found
 
 
+def _subprocess_env() -> dict[str, str]:
+    """Return the least ambient environment needed by the Hermes CLI.
+
+    Board/DB selection is allowed, but parent task and run identity are never
+    forwarded. This prevents a nested adapter call from acting as its caller's
+    active Kanban worker or exposing unrelated provider credentials.
+    """
+    return {
+        key: os.environ[key]
+        for key in _SUBPROCESS_ENV_KEYS
+        if os.environ.get(key)
+    }
+
+
 def _run(args: list[str], *, timeout_s: float = HERMES_TIMEOUT_S
          ) -> tuple[int, str, str]:
     """Run `hermes <args>`; return (rc, stdout, stderr). Never raises."""
@@ -79,7 +115,7 @@ def _run(args: list[str], *, timeout_s: float = HERMES_TIMEOUT_S
         result = subprocess.run(  # noqa: S603 — controlled args
             [binary, *args],
             capture_output=True, text=True, timeout=timeout_s,
-            check=False,
+            check=False, env=_subprocess_env(),
         )
         return result.returncode, result.stdout, result.stderr
     except subprocess.TimeoutExpired:

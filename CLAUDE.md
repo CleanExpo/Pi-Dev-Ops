@@ -88,7 +88,7 @@ cd dashboard && npx tsc --noEmit && npm run build
 python scripts/smoke_test.py --url http://127.0.0.1:7777 --password $TAO_PASSWORD
 ```
 
-Expected: 3 pre-existing failures in `test_sdk_phase2.py` (claude_agent_sdk not installed locally); all others pass.
+Expected: zero failures with declared dependencies installed. The 2026-07-26 baseline completed with zero failures; intentional skips and xfails remain, and exact counts grow as tests are added.
 
 ## Code Conventions
 
@@ -403,3 +403,14 @@ Recommended command chain:
 /session-handoff
 /resume-from-handoff
 ```
+
+## Sub-agent doctrine (persistent specialists)
+
+Multi-round agent work follows the global `persistent-subagents` skill: keep ONE warm,
+named specialist per domain per session and feed follow-ups via SendMessage resume —
+never re-spawn for a second task in the same domain. The main thread coordinates only;
+noisy collection (grep sweeps, web fan-outs, bulk reads) goes to throwaway children,
+which return distilled verdicts. Standing specialist domains for this repo:
+`backend-pi-fastapi`, `ops-railway-pi`. Name = `<type>-<durable-mission>`, frozen at spawn, must still be true on
+resume #8. Retire a specialist near ~300k context with a written handoff; domain
+change = fresh agent, always.

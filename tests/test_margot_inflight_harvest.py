@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -14,7 +15,7 @@ def test_harvest_completed_for_chat_marks_harvested(tmp_path, monkeypatch):
     inflight.parent.mkdir(parents=True)
     inflight.write_text(
         json.dumps({
-            "ts": "2026-07-01T12:00:00+00:00",
+            "ts": datetime.now(timezone.utc).isoformat(),
             "interaction_id": "ix-1",
             "topic": "NRPG pricing",
             "originating_session_id": "margot_chat:42",

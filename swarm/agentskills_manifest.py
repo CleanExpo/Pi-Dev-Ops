@@ -122,7 +122,7 @@ def _scan_skill(skill_dir: Path) -> SkillEntry | None:
         description=fields.get("description", ""),
         owner_role=fields.get("owner_role", "(unset)"),
         status=fields.get("status", "(unset)"),
-        path=str(skill_md.relative_to(REPO_ROOT)),
+        path=skill_md.relative_to(REPO_ROOT).as_posix(),
         sha256=_sha256(content),
         dependencies=deps,
         safety=safety,
@@ -247,7 +247,10 @@ def _yaml_scalar(v: Any) -> str:
         return str(v)
     s = str(v)
     if any(ch in s for ch in ":#\n\"'") or s in ("true", "false", "null", ""):
-        return json.dumps(s)
+        # ensure_ascii=False: the default emits \ud83d-style surrogate-pair escapes
+        # for non-BMP characters (e.g. emoji), which are invalid YAML for strict
+        # parsers (Ruby Psych) and load as two surrogate code points in PyYAML.
+        return json.dumps(s, ensure_ascii=False)
     return s
 
 
@@ -324,12 +327,18 @@ def export() -> dict[str, Any]:
 
     version, reason = _bump_version(prev, prev_by_id, new_by_id)
 
+    # Re-stamping generated_at on an unchanged registry makes export()
+    # non-idempotent, which the generated-agentskills gate reads as drift.
+    generated_at = datetime.now(timezone.utc).isoformat()
+    if reason == "no_change" and prev:
+        generated_at = prev["package"]["generated_at"]
+
     manifest = {
         "manifest_version": 1,
         "package": {
             "name": PACKAGE_NAME,
             "version": version,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": generated_at,
             "source": PACKAGE_SOURCE,
         },
         "skills": sorted(new_skills, key=lambda s: s["id"]),

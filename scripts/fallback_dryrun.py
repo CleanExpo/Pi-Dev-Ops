@@ -17,7 +17,7 @@ Usage:
   python scripts/fallback_dryrun.py [--model sonnet] [--dry-run]
 
 Schedule: Quarterly on the 1st of Jan/Apr/Jul/Oct at 17:00 UTC (cron trigger in
-.harness/cron-triggers.json, id=fallback-dryrun-quarterly).
+config/harness/cron-triggers.json, id=fallback-dryrun-quarterly).
 """
 from __future__ import annotations
 

@@ -49,6 +49,11 @@ jobs:
         env:
           LIVE_NEXUS_URL: ${{ github.event.inputs.target_url || 'https://live.unite-group.ink' }}
           LIVE_NEXUS_SMOKE_SAVE: ${{ github.event.inputs.include_save == 'true' && '1' || '0' }}
+        # `shell: bash` runs this with `bash --noprofile --norc -eo pipefail`. Without it
+        # GitHub's default is `bash -e {0}` -- no pipefail -- so the step's exit status is
+        # tee's, not the smoke test's, and a failing probe reports success. The tee is
+        # required: the `if: always()` summary step below reads live-nexus-smoke.txt.
+        shell: bash
         run: |
           pnpm smoke:prod | tee live-nexus-smoke.txt
 

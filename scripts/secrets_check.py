@@ -30,6 +30,7 @@ import datetime
 import urllib.request
 import urllib.error
 import argparse
+import base64
 
 # ── CLI args ─────────────────────────────────────────────────────────────────
 parser = argparse.ArgumentParser(description="Pi-Dev-Ops secrets exposure check")
@@ -108,6 +109,22 @@ _SECRET_PATTERNS: list[tuple[str, str, str]] = [
 # Compiled with line-boundary awareness
 _COMPILED = [(re.compile(p), title, sev) for p, title, sev in _SECRET_PATTERNS]
 
+
+def _is_public_anon_jwt(value: str) -> bool:
+    """Return true only for a JWT whose payload explicitly identifies Supabase anon access.
+
+    Supabase anon keys are intentionally browser-public and are already documented as such in
+    SECURITY.md. Decoding the unsigned payload is classification, not authentication: every
+    other JWT shape, malformed token, or role still fails closed as a secret finding.
+    """
+    try:
+        payload = value.split(".", 2)[1]
+        payload += "=" * (-len(payload) % 4)
+        claims = json.loads(base64.urlsafe_b64decode(payload).decode("utf-8"))
+        return claims.get("iss") == "supabase" and claims.get("role") == "anon"
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+        return False
+
 # ── Placeholder exclusion (skip false positives from docs/examples) ───────────
 _PLACEHOLDER_RE = re.compile(
     r"<redacted>|<your-|<paste|<configured>|your-password|example\.com"
@@ -145,6 +162,92 @@ _SKIP_PATH_PREFIXES = (
     "app/server/config.py",    # exclusion list comments trigger pattern matches; real secrets are os.environ.get()
     ".harness/",               # generated analysis output — not committed secrets
 )
+
+# ── Exclusion preconditions ──────────────────────────────────────────────────
+#
+# EVERY EXCLUSION IS A CLAIM ABOUT THE WORLD, AND CLAIMS EXPIRE.
+#
+# `.harness/` was skipped above on the stated ground that it holds "generated analysis output —
+# not committed secrets". That was true the day it was written. On 2026-06-16 a Codex Stop hook
+# began running `autogit ship` — commit AND push — at the end of every session, and `.harness/`
+# started being committed and pushed to a PUBLIC repository. 98 MB accumulated behind an
+# exclusion whose premise had silently become false, including an entire vendored copy of
+# another product's working tree. Nothing rechecked, because nothing was ever asked to.
+#
+# A skipped path is indistinguishable from a clean path in the output. That is the same shape as
+# a vacuous control: the check reports health about its own aim, not about the world. So each
+# exclusion now DECLARES why it is safe, and the declaration is asserted at run time.
+#
+# `not-committed` is the only one that is fully machine-checkable, and it is the one that broke.
+NOT_COMMITTED = "not-committed"          # verifiable: nothing under it may be git-tracked
+REVIEWED_FIXTURE = "reviewed-fixture"    # committed deliberately; NOT machine-verifiable
+BINARY = "binary"                        # non-text by format
+UNVERIFIED_TEXT = "unverified-text"      # scannable text with no stated basis for skipping
+
+_PATH_PRECONDITIONS: dict[str, str] = {
+    "tests/": REVIEWED_FIXTURE,
+    "test/": REVIEWED_FIXTURE,
+    "app/server/scanner.py": REVIEWED_FIXTURE,
+    "app/server/config.py": REVIEWED_FIXTURE,
+    ".harness/": NOT_COMMITTED,
+}
+
+# Binary formats cannot carry a greppable secret; .md/.rst/.lock plainly can, and are skipped
+# for convenience rather than for a reason. Naming that honestly is the point — they are
+# reported every run so the cost of the convenience stays visible instead of invisible.
+_EXT_PRECONDITIONS: dict[str, str] = {
+    **{e: BINARY for e in (".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff",
+                           ".woff2", ".ttf", ".eot", ".pdf", ".zip", ".tar", ".gz", ".pyc")},
+    **{e: UNVERIFIED_TEXT for e in (".md", ".rst", ".lock")},
+}
+
+
+def _tracked_under(prefix: str) -> list[str]:
+    """Files git currently tracks under `prefix`. Empty list == the not-committed claim holds."""
+    try:
+        r = subprocess.run(["git", "ls-files", "--", prefix], cwd=REPO_ROOT,
+                           capture_output=True, text=True, timeout=120)
+        if r.returncode != 0:
+            return []
+        return [ln for ln in r.stdout.splitlines() if ln.strip()]
+    except Exception:
+        return []
+
+
+def verify_exclusion_preconditions() -> tuple[list[str], list[str]]:
+    """Assert every exclusion's stated reason still holds.
+
+    Returns (violations, warnings). A violation means an exclusion is actively hiding files it
+    claimed could not exist — treat it as a failed run, not a note, because the scan that
+    follows is unsound for exactly those paths.
+    """
+    violations: list[str] = []
+    warnings: list[str] = []
+
+    for prefix, kind in _PATH_PRECONDITIONS.items():
+        if kind == NOT_COMMITTED:
+            tracked = _tracked_under(prefix)
+            if tracked:
+                violations.append(
+                    f"{prefix!r} is skipped because it is {kind!r}, but git tracks "
+                    f"{len(tracked)} file(s) under it (e.g. {tracked[0]}). The exclusion's "
+                    f"premise is false, so those files are committed AND unscanned."
+                )
+        elif kind == REVIEWED_FIXTURE:
+            n = len(_tracked_under(prefix))
+            if n:
+                warnings.append(f"{prefix!r}: {n} tracked file(s) hidden by a {kind!r} exclusion "
+                                f"(committed on purpose; not machine-verifiable)")
+
+    for ext, kind in _EXT_PRECONDITIONS.items():
+        if kind != UNVERIFIED_TEXT:
+            continue
+        n = len([p for p in _tracked_under(".") if p.lower().endswith(ext)])
+        if n:
+            warnings.append(f"{ext!r}: {n} tracked text file(s) hidden by an {kind!r} exclusion "
+                            f"— these CAN carry secrets; skipped for convenience only")
+
+    return violations, warnings
 
 
 # ── .gitignore patterns that should always cover sensitive files ──────────────
@@ -191,7 +294,8 @@ def _list_tracked_files() -> list[str]:
             return []
         # Dropping --exclude-standard pulls in node_modules/.next/etc. Filter by path.
         _HEAVY = ("node_modules/", ".next/", ".git/", "dist/", "build/", ".venv/",
-                  "venv/", "__pycache__/", ".turbo/", "coverage/", ".omx/")
+                  "venv/", "__pycache__/", ".pytest_cache/", ".turbo/", "coverage/",
+                  ".omx/")
         out = []
         for ln in result.stdout.splitlines():
             f = ln.strip()
@@ -246,6 +350,8 @@ def _scan_file(rel_path: str) -> list[dict]:
     for pattern, title, severity in _COMPILED:
         for match in pattern.finditer(text):
             matched_text = match.group(0)
+            if title.startswith("JWT (") and _is_public_anon_jwt(matched_text):
+                continue
             # Skip placeholders / example values
             if _PLACEHOLDER_RE.search(matched_text):
                 continue
@@ -421,6 +527,23 @@ def main() -> int:
     print("=" * 60)
     if DRY_RUN:
         print("  MODE: dry-run (no writes, no tickets, no alerts)\n")
+
+    # 0. Assert the exclusions before trusting anything they hide.
+    #    Runs FIRST: a clean scan result is meaningless if an exclusion is concealing tracked
+    #    files it claimed could not exist. This is the check that would have caught .harness/
+    #    on 2026-06-16 instead of 47 days and 98 MB later.
+    print("Verifying exclusion preconditions…", flush=True)
+    violations, warnings = verify_exclusion_preconditions()
+    for w in warnings:
+        print(f"  [WARN] {w}")
+    if violations:
+        print("\n[FAIL] Exclusion precondition violated — this scan is NOT sound:\n")
+        for v in violations:
+            print(f"  [VIOLATION] {v}")
+        print("\n  Fix the exclusion or the world it describes. Do NOT widen the exclusion to\n"
+              "  match current behaviour — that is how the original defect was written.\n")
+        return 2
+    print("  all exclusion preconditions hold\n", flush=True)
 
     # 1. Scan
     print("Scanning git-tracked files for exposed secrets…", flush=True)

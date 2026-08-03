@@ -1,0 +1,186 @@
+{
+  "jobId": "ra-moisture-map-showcase-20260624",
+  "brief": {
+    "brand": "ra",
+    "channel": "learn/help/marketing",
+    "audience": "restorers, technicians, insurance assessors, and property managers",
+    "goal": "Showcase RestoreAssist moisture mapping as a visual proof layer for water-damage jobs",
+    "cta": "Use the Moisture Map tab during the next water-damage inspection",
+    "renderMode": "production"
+  },
+  "composition": "Explainer",
+  "props": {
+    "brand": "ra",
+    "hookSec": 7,
+    "ctaSec": 7,
+    "storyboard": [
+      {
+        "sceneId": "hook",
+        "sceneType": "hook",
+        "durationSec": 7,
+        "onScreenText": "Moisture mapping that makes the job easier to explain.",
+        "voiceover": "Moisture mapping in RestoreAssist turns scattered readings into a clear visual story of the job, so everyone can see what is wet, what is drying, and what is ready.",
+        "data": {
+          "eyebrow": "RestoreAssist moisture map"
+        },
+        "voiceoverAudioPath": "audio/ra-moisture-map-showcase-20260624/scene-0.mp3"
+      },
+      {
+        "sceneId": "problem",
+        "sceneType": "comparison",
+        "durationSec": 11,
+        "onScreenText": "Without a map, readings lose context.",
+        "voiceover": "A moisture number on its own is easy to misunderstand. RestoreAssist keeps each reading tied to the room, the material, and the inspection record.",
+        "data": {
+          "eyebrow": "The problem",
+          "comparisonRows": [
+            {
+              "them": "Numbers in a notebook",
+              "us": "Readings on the job map"
+            },
+            {
+              "them": "Photos without location",
+              "us": "Evidence tied to rooms"
+            },
+            {
+              "them": "Hard to explain later",
+              "us": "Clear visual handover"
+            }
+          ]
+        },
+        "image": {
+          "path": "assets/ra-moisture-map-showcase/readings-to-map.svg",
+          "alt": "Moisture readings mapped visually"
+        },
+        "voiceoverAudioPath": "audio/ra-moisture-map-showcase-20260624/scene-1.mp3"
+      },
+      {
+        "sceneId": "map",
+        "sceneType": "body",
+        "durationSec": 11,
+        "onScreenText": "Place readings where they were taken.",
+        "voiceover": "In the Moisture Map tab, readings can be placed where they were taken. The map gives the team a practical view of affected areas instead of a disconnected list.",
+        "data": {
+          "eyebrow": "Map readings"
+        },
+        "image": {
+          "path": "ra-wave-1-screencaps/03-inspection-detail-tabs.png",
+          "alt": "Inspection detail with moisture map workflow"
+        },
+        "voiceoverAudioPath": "audio/ra-moisture-map-showcase-20260624/scene-2.mp3"
+      },
+      {
+        "sceneId": "status",
+        "sceneType": "keypoints",
+        "durationSec": 12,
+        "onScreenText": "Dry, drying, and wet areas become visible.",
+        "voiceover": "RestoreAssist can show moisture status against material thresholds, making dry, drying, and wet areas easier to understand during site review and report preparation.",
+        "data": {
+          "eyebrow": "Moisture status",
+          "keypoints": [
+            "Dry areas",
+            "Drying areas",
+            "Wet areas",
+            "Material context"
+          ]
+        },
+        "image": {
+          "path": "assets/ra-moisture-map-showcase/drying-goals.svg",
+          "alt": "Drying goals and moisture status"
+        },
+        "voiceoverAudioPath": "audio/ra-moisture-map-showcase-20260624/scene-3.mp3"
+      },
+      {
+        "sceneId": "equipment",
+        "sceneType": "flow",
+        "durationSec": 10,
+        "onScreenText": "Connect readings to drying decisions.",
+        "voiceover": "The moisture map also helps explain drying decisions: where equipment is placed, where progress is expected, and where follow-up readings are needed.",
+        "data": {
+          "eyebrow": "Drying workflow",
+          "flowSteps": [
+            "Readings",
+            "Affected areas",
+            "Equipment",
+            "Follow-up",
+            "Report"
+          ]
+        },
+        "image": {
+          "path": "assets/ra-moisture-map-showcase/drying-goals.svg",
+          "alt": "Drying workflow map"
+        },
+        "voiceoverAudioPath": "audio/ra-moisture-map-showcase-20260624/scene-4.mp3"
+      },
+      {
+        "sceneId": "handover",
+        "sceneType": "stat",
+        "durationSec": 10,
+        "onScreenText": "The handover becomes easier to trust.",
+        "voiceover": "The result is a cleaner handover. The client sees the affected areas, the assessor sees the logic, and the restorer has the evidence in one place.",
+        "data": {
+          "eyebrow": "Outcome",
+          "stats": [
+            {
+              "value": "1",
+              "label": "visual map"
+            },
+            {
+              "value": "1",
+              "label": "evidence chain"
+            },
+            {
+              "value": "1",
+              "label": "clear handover"
+            }
+          ]
+        },
+        "image": {
+          "path": "assets/ra-moisture-map-showcase/assessor-proof.svg",
+          "alt": "Moisture map proof for handover"
+        },
+        "voiceoverAudioPath": "audio/ra-moisture-map-showcase-20260624/scene-5.mp3"
+      },
+      {
+        "sceneId": "cta",
+        "sceneType": "cta",
+        "durationSec": 7,
+        "onScreenText": "RestoreAssist. Map the moisture. Prove the progress.",
+        "voiceover": "RestoreAssist. Map the moisture, prove the progress, and make every water-damage report easier to defend.",
+        "data": {
+          "eyebrow": "Next step"
+        },
+        "voiceoverAudioPath": "audio/ra-moisture-map-showcase-20260624/scene-6.mp3"
+      }
+    ]
+  },
+  "voicePolicy": {
+    "provider": "local TTS tool",
+    "voiceCount": 1
+  },
+  "imagePolicy": {
+    "provider": "existing screencaps + local-svg-assets",
+    "assets": [
+      {
+        "path": "assets/ra-moisture-map-showcase/readings-to-map.svg",
+        "alt": "Moisture readings mapped visually"
+      },
+      {
+        "path": "ra-wave-1-screencaps/03-inspection-detail-tabs.png",
+        "alt": "Inspection detail with moisture map workflow"
+      },
+      {
+        "path": "assets/ra-moisture-map-showcase/drying-goals.svg",
+        "alt": "Drying goals and moisture status"
+      },
+      {
+        "path": "assets/ra-moisture-map-showcase/drying-goals.svg",
+        "alt": "Drying workflow map"
+      },
+      {
+        "path": "assets/ra-moisture-map-showcase/assessor-proof.svg",
+        "alt": "Moisture map proof for handover"
+      }
+    ]
+  }
+}

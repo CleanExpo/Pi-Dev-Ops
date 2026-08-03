@@ -1,5 +1,5 @@
 """
-test_notebooklm_registry.py — Acceptance tests for .harness/notebooklm-registry.json.
+test_notebooklm_registry.py — Acceptance tests for config/harness/notebooklm-registry.json.
 
 Covers:
   - Registry loads as valid JSON
@@ -18,8 +18,8 @@ from pathlib import Path
 
 import pytest
 
-HARNESS_DIR = Path(__file__).resolve().parent.parent / ".harness"
-REGISTRY_PATH = HARNESS_DIR / "notebooklm-registry.json"
+CONFIG_DIR = Path(__file__).resolve().parent.parent / "config" / "harness"
+REGISTRY_PATH = CONFIG_DIR / "notebooklm-registry.json"
 
 REQUIRED_ACTIVE_FIELDS = {
     "id", "entity", "name", "purpose", "sources",

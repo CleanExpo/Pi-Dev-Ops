@@ -120,6 +120,16 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def on_startup():
+    # DELIBERATELY FATAL, unlike every other hook in this function.
+    #
+    # The rest of on_startup is "log and continue" by design — a failed session restore should
+    # not stop the API. Absent instance data is different in kind: the process would come up
+    # healthy and then serve empty schedules, no projects and no content registry, reporting
+    # nothing wrong. That is the failure this raise exists to prevent, and it must happen HERE
+    # rather than at first use, so it surfaces on deploy instead of hours later.
+    from .config_loader import validate_startup  # noqa: PLC0415
+    validate_startup()
+
     restore_sessions()
     # RA-1407 PR 2 — cross-deploy recovery from Supabase. Local JSON restore
     # above handles same-container restarts; this catches sessions whose

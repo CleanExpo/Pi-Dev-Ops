@@ -15,12 +15,17 @@ via ``TAO_SIX_PAGER_HOUR_UTC``). 23-hour debounce prevents double-fire.
 Failure modes are non-fatal — every external-effect step degrades to a
 log.warning and returns False. The orchestrator never crashes on a fire.
 """
+
 from __future__ import annotations
 
+import importlib
 import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Callable
+
+from .ccw_support_contract import SupportSnapshot, SupportState
 
 log = logging.getLogger("swarm.six_pager_dispatcher")
 
@@ -30,11 +35,41 @@ VOICE_OUT_DIR_REL = ".harness/swarm/voice"
 STATE_KEY = "six_pager_last_daily_fire"
 
 
+def materialise_ccw_checkpoint(
+    snapshot: SupportSnapshot,
+    *,
+    checked_at: datetime,
+    record_checkpoint: Callable[[dict], None],
+) -> str:
+    """Render and certify one CCW run without posting an outward draft."""
+    if not snapshot.latest_run_id:
+        raise ValueError("CCW state lacks source run identity")
+    from .six_pager_client import render_ccw_client_health
+
+    rendered = render_ccw_client_health(snapshot)
+    record_checkpoint(
+        {
+            "tenant_id": snapshot.tenant_id,
+            "consumer_id": "six_pager",
+            "source_run_id": snapshot.latest_run_id,
+            "checked_at": checked_at,
+            "completed_at": checked_at,
+            "outcome": "success",
+            "derived_state": snapshot.state.value,
+            "error_code": None,
+        }
+    )
+    return rendered
+
+
 def _is_daily_fire_window(state: dict, now: datetime) -> bool:
     """06:00 UTC by default; once-per-23-hours debounce."""
-    target_hour = int(os.environ.get(
-        "TAO_SIX_PAGER_HOUR_UTC", DEFAULT_DAILY_HOUR_UTC,
-    ))
+    target_hour = int(
+        os.environ.get(
+            "TAO_SIX_PAGER_HOUR_UTC",
+            DEFAULT_DAILY_HOUR_UTC,
+        )
+    )
     if now.hour != target_hour:
         return False
     last_fired = state.get(STATE_KEY)
@@ -52,9 +87,14 @@ def _is_test_mode() -> bool:
     return os.environ.get("TAO_DRAFT_REVIEW_TEST", "0") == "1"
 
 
-def maybe_fire_daily(state: dict, *,
-                      repo_root: Path | None = None,
-                      now: datetime | None = None) -> bool:
+def maybe_fire_daily(
+    state: dict,
+    *,
+    repo_root: Path | None = None,
+    now: datetime | None = None,
+    ccw_snapshot: SupportSnapshot | None = None,
+    record_checkpoint: Callable[[dict], None] | None = None,
+) -> bool:
     """Fire the 6-pager if today's window is open and not yet fired.
 
     Returns True if a brief was emitted, False otherwise.
@@ -65,11 +105,26 @@ def maybe_fire_daily(state: dict, *,
     if not _is_daily_fire_window(state, now):
         return False
 
+    effective_ccw = ccw_snapshot or SupportSnapshot(
+        SupportState.INGEST_STALE,
+        "MISSING_HEARTBEAT",
+        None,
+        None,
+        None,
+        0,
+        0,
+        0,
+        None,
+    )
+
     # Compose the brief
     try:
         from . import six_pager  # noqa: PLC0415
+
         brief = six_pager.assemble_six_pager(
-            repo_root=rr, date_str=now.strftime("%Y-%m-%d"),
+            repo_root=rr,
+            date_str=now.strftime("%Y-%m-%d"),
+            ccw_snapshot=effective_ccw,
         )
     except Exception as exc:  # noqa: BLE001
         log.warning("6-pager: assemble failed: %s", exc)
@@ -80,8 +135,10 @@ def maybe_fire_daily(state: dict, *,
     voice_text = brief
     try:
         from . import voice_compose  # noqa: PLC0415
+
         voice_text, audio_path = voice_compose.compose_voice_variant(
-            brief, out_dir=rr / VOICE_OUT_DIR_REL,
+            brief,
+            out_dir=rr / VOICE_OUT_DIR_REL,
             filename_stem=f"6pager-{now.strftime('%Y-%m-%d')}",
         )
     except Exception as exc:  # noqa: BLE001
@@ -89,7 +146,10 @@ def maybe_fire_daily(state: dict, *,
 
     # PII redact + draft_review post (chunked for Telegram 4096-char cap)
     try:
-        from . import draft_review, pii_redactor, six_pager  # noqa: PLC0415
+        from . import six_pager  # noqa: PLC0415
+
+        draft_review = importlib.import_module("swarm.draft_review")
+        pii_redactor = importlib.import_module("swarm.pii_redactor")
         # pii_redactor.redact() returns a Result dataclass with a
         # `.redacted_payload` field. Test stubs may return a bare string
         # (pre-Result codepath); accept either to keep the seam working.
@@ -103,28 +163,31 @@ def maybe_fire_daily(state: dict, *,
 
         chunks = six_pager.chunk_for_telegram(redacted)
         total_chunks = len(chunks)
-        log.info("6-pager: redacted %d chars → %d chunk(s)",
-                 len(redacted), total_chunks)
+        log.info(
+            "6-pager: redacted %d chars → %d chunk(s)", len(redacted), total_chunks
+        )
 
         draft: dict = {}
         date_key = now.strftime("%Y-%m-%d")
         for idx, chunk_text in enumerate(chunks, start=1):
-            prefix = (f"[{idx}/{total_chunks}]\n"
-                      if total_chunks > 1 else "")
+            prefix = f"[{idx}/{total_chunks}]\n" if total_chunks > 1 else ""
             draft = draft_review.post_draft(
                 draft_text=prefix + chunk_text,
                 destination_chat_id=os.environ.get("REVIEW_CHAT_ID", "review"),
                 drafted_by_role="CoS",
                 originating_intent_id=(
                     f"six-pager-{date_key}-{idx}of{total_chunks}"
-                    if total_chunks > 1 else f"six-pager-{date_key}"
+                    if total_chunks > 1
+                    else f"six-pager-{date_key}"
                 ),
             )
 
-        log.info("6-pager fired: last_draft_id=%s chunks=%d audio=%s",
-                 draft.get("draft_id"),
-                 total_chunks,
-                 audio_path is not None)
+        log.info(
+            "6-pager fired: last_draft_id=%s chunks=%d audio=%s",
+            draft.get("draft_id"),
+            total_chunks,
+            audio_path is not None,
+        )
     except Exception as exc:  # noqa: BLE001
         if not _is_test_mode():
             log.warning("6-pager: draft_review post failed: %s", exc)
@@ -135,8 +198,10 @@ def maybe_fire_daily(state: dict, *,
     # Audit emit (best-effort)
     try:
         from . import audit_emit  # noqa: PLC0415
+
         audit_emit.row(
-            "six_pager_emitted", "CoS",
+            "six_pager_emitted",
+            "CoS",
             draft_id=draft.get("draft_id"),
             audio_attached=audio_path is not None,
             length=len(brief),
@@ -147,4 +212,4 @@ def maybe_fire_daily(state: dict, *,
     return True
 
 
-__all__ = ["maybe_fire_daily"]
+__all__ = ["materialise_ccw_checkpoint", "maybe_fire_daily"]

@@ -33,32 +33,31 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-import yaml
-
-from app.server import config
+from app.server import config, config_loader
 
 _log = logging.getLogger(__name__)
 
 # ── Constants ──────────────────────────────────────────────────────────────
-HARNESS_CONFIG_PATH = Path(__file__).resolve().parents[2] / ".harness" / "config.yaml"
+# CONFIG_PATH is now owned by config_loader — kept as an alias so existing references and
+# error messages still resolve. VIOLATIONS_PATH is runtime state and stays under .harness/.
+HARNESS_CONFIG_PATH = config_loader.CONFIG_YAML
 VIOLATIONS_PATH     = Path(__file__).resolve().parents[2] / ".harness" / "model-policy-violations.jsonl"
 
 
-# ── Cached harness config ──────────────────────────────────────────────────
-_harness_cache: Optional[dict] = None
-
-
+# ── Harness config ─────────────────────────────────────────────────────────
 def _load_harness() -> dict:
-    """Load and cache .harness/config.yaml. Cache is process-wide; restart to refresh."""
-    global _harness_cache
-    if _harness_cache is None:
-        try:
-            with HARNESS_CONFIG_PATH.open() as f:
-                _harness_cache = yaml.safe_load(f) or {}
-        except Exception as exc:
-            _log.warning("model_policy: failed to load %s: %s", HARNESS_CONFIG_PATH, exc)
-            _harness_cache = {}
-    return _harness_cache
+    """The harness specification, file-overridden where present.
+
+    WAS: opened .harness/config.yaml, and on ANY exception logged a warning and cached `{}`.
+    A `{}` here makes `agent_cfg.get("model", "sonnet")` below return "sonnet" for every role,
+    so planner/orchestrator/adversary silently dropped off opus when #607 untracked the file.
+    It logged a warning on every load for four days and nobody saw it.
+
+    Absence is no longer an error state: config_loader.harness_config() resolves to the in-code
+    specification, which carries the CORRECT models rather than the weakest ones. A malformed
+    file still raises — unreadable is not the same as absent.
+    """
+    return config_loader.harness_config()
 
 
 # ── Policy enforcement ──────────────────────────────────────────────────────

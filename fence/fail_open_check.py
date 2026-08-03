@@ -33,7 +33,7 @@ REPO = Path(sys.argv[1] if len(sys.argv) > 1 else r"D:\Pi-Dev-Ops")
 # a fail-open in ordinary application code.
 VERIFY_GLOBS = [
     "dashboard/__tests__/**/*.ts", "dashboard/__tests__/**/*.tsx",
-    ".harness/loops/*.sh", "fence/*.py", "scripts/verify*", "scripts/check*",
+    "scripts/loops/*.sh", "fence/*.py", "scripts/verify*", "scripts/check*",
 ]
 
 # CLASS A — swallowed signals.
@@ -56,9 +56,9 @@ PATTERNS = [
 
 # CLASS B — evidence that must be durably recorded, not just written to disk.
 EVIDENCE = [
-    ".harness/incidents.jsonl",
-    ".harness/known-issues.md",
-    ".harness/loops/ideas-drain-push-to-main.sh",
+    "docs/governance/incidents.jsonl",
+    "docs/governance/known-issues.md",
+    "scripts/loops/ideas-drain-push-to-main.sh",
     "dashboard/__tests__/command-centre-provenance.json",
 ]
 

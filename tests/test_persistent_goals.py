@@ -341,3 +341,188 @@ def test_debate_runner_no_goal_id_does_not_advance(tmp_path, monkeypatch):
     result = asyncio.run(DR.run_debate(inp))
     assert result.both_succeeded()
     assert called[0] is False
+
+
+# ── Stall / unreachable-condition circuit-breaker (goal-hook loop fix) ───────
+
+_STALL_VERDICT = (
+    "Condition demands the entire ecosystem without flaws. Instagram connection "
+    "unimplemented (credential entry barred); follower-snapshot behavioural proof "
+    "pending scheduled fire; apps/empire live health unverified off-machine. "
+    "Assistant awaits founder Mini session. Condition unsatisfied."
+)
+
+
+def test_detect_stall_scaffold_with_changing_token_not_stalled(tmp_path):
+    """A shared 20-token template with one changing token per turn must not
+    trip the detector (raw Jaccard would be 20/22 ~= 0.91 >= 0.82)."""
+    scaffold = " ".join(f"scaffold{c}" for c in "abcdefghijklmnopqrst")
+    g = PG.create_goal(role="CoS", business_id="portfolio",
+                        topic="templated verdicts", repo_root=tmp_path)
+    for changing in ("alpha", "beta", "gamma"):
+        PG.advance_goal(g.goal_id, drafter_text="progress",
+                        redteam_text=f"{scaffold} {changing}",
+                        auto_abort_on_stall=False, repo_root=tmp_path)
+    rep = PG.detect_stall(g.goal_id, repo_root=tmp_path)
+    assert rep.stalled is False
+
+
+def test_advance_goal_returns_none_when_stall_aborts(tmp_path):
+    g = PG.create_goal(role="CoS", business_id="portfolio",
+                        topic="make all systems work", repo_root=tmp_path)
+    t1 = PG.advance_goal(g.goal_id, drafter_text="same",
+                          redteam_text=_STALL_VERDICT, repo_root=tmp_path)
+    t2 = PG.advance_goal(g.goal_id, drafter_text="same",
+                          redteam_text=_STALL_VERDICT, repo_root=tmp_path)
+    t3 = PG.advance_goal(g.goal_id, drafter_text="same",
+                          redteam_text=_STALL_VERDICT, repo_root=tmp_path)
+    assert t1 is not None and t2 is not None
+    # The turn that trips the breaker signals stop to the driver.
+    assert t3 is None
+    assert PG.get_goal(g.goal_id, repo_root=tmp_path).status == "aborted"
+
+
+def test_stall_abort_writes_schema_valid_audit_row(tmp_path, monkeypatch):
+    from swarm import config as swarm_config
+    monkeypatch.setattr(swarm_config, "SWARM_LOG_DIR", tmp_path / "logs")
+    g = PG.create_goal(role="CoS", business_id="portfolio",
+                        topic="make all systems work", repo_root=tmp_path)
+    for _ in range(3):
+        PG.advance_goal(g.goal_id, drafter_text="same",
+                        redteam_text=_STALL_VERDICT, repo_root=tmp_path)
+    assert PG.get_goal(g.goal_id, repo_root=tmp_path).status == "aborted"
+    rows = [json.loads(line) for line in
+            (tmp_path / "logs" / "swarm.jsonl").read_text().splitlines()]
+    stall_rows = [r for r in rows if r["type"] == "goal_stalled_aborted"]
+    # audit_emit.row raises on unknown types, so a persisted row is schema-valid.
+    assert len(stall_rows) == 1
+    assert stall_rows[0]["actor_role"] == "PersistentGoals"
+    assert stall_rows[0]["fields"]["goal_id"] == g.goal_id
+
+
+def test_detect_stall_flags_repeated_residual(tmp_path):
+    g = PG.create_goal(role="CoS", business_id="portfolio",
+                        topic="make all systems work", repo_root=tmp_path)
+    for _ in range(3):
+        PG.advance_goal(g.goal_id, drafter_text="same state again",
+                        redteam_text=_STALL_VERDICT,
+                        auto_abort_on_stall=False, repo_root=tmp_path)
+    rep = PG.detect_stall(g.goal_id, repo_root=tmp_path)
+    assert rep.stalled is True
+    assert rep.mean_similarity >= PG.DEFAULT_STALL_SIMILARITY
+
+
+def test_detect_stall_progressing_not_flagged(tmp_path):
+    g = PG.create_goal(role="CoS", business_id="portfolio",
+                        topic="make all systems work", repo_root=tmp_path)
+    progressing = [
+        "Found the sentinel enumeration bug; fixed team_members resolution.",
+        "Descheduled the analyze-patterns no-op cron; audited follower snapshot.",
+        "Cloned unite-group; probed twenty-eight nexus crons; all healthy live.",
+    ]
+    for v in progressing:
+        PG.advance_goal(g.goal_id, drafter_text="progress",
+                        redteam_text=v, auto_abort_on_stall=False,
+                        repo_root=tmp_path)
+    rep = PG.detect_stall(g.goal_id, repo_root=tmp_path)
+    assert rep.stalled is False
+
+
+def test_advance_goal_auto_aborts_freeform_on_stall(tmp_path):
+    g = PG.create_goal(role="CoS", business_id="portfolio",
+                        topic="make all systems work", repo_root=tmp_path)
+    # Third identical turn trips the window and auto-aborts (default behaviour).
+    for _ in range(3):
+        PG.advance_goal(g.goal_id, drafter_text="same",
+                        redteam_text=_STALL_VERDICT, repo_root=tmp_path)
+    reloaded = PG.get_goal(g.goal_id, repo_root=tmp_path)
+    assert reloaded.status == "aborted"
+    assert "unreachable-condition" in reloaded.metadata.get("abort_reason", "")
+
+
+def test_predicate_goal_exempt_from_stall_abort(tmp_path):
+    g = PG.create_goal(role="CFO", business_id="portfolio",
+                        topic="runway", resolution_predicate="cfo.runway_at_least_18",
+                        repo_root=tmp_path)
+    for _ in range(4):
+        PG.advance_goal(g.goal_id, drafter_text="same",
+                        redteam_text=_STALL_VERDICT, repo_root=tmp_path)
+    reloaded = PG.get_goal(g.goal_id, repo_root=tmp_path)
+    # Predicate-backed goals resolve on real state, never on judge prose.
+    assert reloaded.status == "active"
+
+
+def test_auto_abort_direct_call_exempts_predicate_goal(tmp_path):
+    g = PG.create_goal(role="CFO", business_id="portfolio",
+                        topic="runway", resolution_predicate="cfo.runway_at_least_18",
+                        repo_root=tmp_path)
+    for _ in range(3):
+        PG.advance_goal(g.goal_id, drafter_text="same",
+                        redteam_text=_STALL_VERDICT,
+                        auto_abort_on_stall=False, repo_root=tmp_path)
+    # Direct call — not via advance_goal — must still exempt the goal.
+    rep = PG.auto_abort_if_stalled(g.goal_id, repo_root=tmp_path)
+    assert rep.stalled is False
+    assert "predicate-backed" in rep.reason
+    reloaded = PG.get_goal(g.goal_id, repo_root=tmp_path)
+    assert reloaded.status == "active"
+
+
+def test_auto_abort_idempotent_on_nonactive(tmp_path):
+    g = PG.create_goal(role="CoS", business_id="portfolio", topic="x",
+                        repo_root=tmp_path)
+    PG.abort_goal(g.goal_id, "already done", repo_root=tmp_path)
+    rep = PG.auto_abort_if_stalled(g.goal_id, repo_root=tmp_path)
+    assert rep.stalled is False
+
+
+def test_detect_stall_same_blocker_plus_noise_token_escapes(tmp_path):
+    """Documented trade-off (review round 3): the SAME blocker re-fired with
+    one varying noise token per turn is NOT flagged — token sets cannot
+    distinguish it from a template with one new resolved item per turn, and
+    the breaker's policy is fail-safe (prefer a missed stall over killing a
+    healthy goal). Exact repetition is the only trip signal."""
+    g = PG.create_goal(role="CoS", business_id="portfolio",
+                        topic="ambiguous", repo_root=tmp_path)
+    for noise in ("alpha", "beta", "gamma"):
+        PG.advance_goal(g.goal_id, drafter_text="same state",
+                        redteam_text=_STALL_VERDICT + " " + noise,
+                        auto_abort_on_stall=False, repo_root=tmp_path)
+    rep = PG.detect_stall(g.goal_id, repo_root=tmp_path)
+    assert rep.stalled is False
+
+
+def test_detect_stall_rejects_degenerate_window(tmp_path):
+    g = PG.create_goal(role="CoS", business_id="portfolio",
+                        topic="window", repo_root=tmp_path)
+    import pytest as _pytest
+    with _pytest.raises(ValueError):
+        PG.detect_stall(g.goal_id, window=1, repo_root=tmp_path)
+    with _pytest.raises(ValueError):
+        PG.detect_stall(g.goal_id, window=0, repo_root=tmp_path)
+
+
+def test_detect_stall_whitespace_redteam_falls_back_to_drafter(tmp_path):
+    """Whitespace-only red-team output must not mask an identical drafter
+    loop: the signature falls back to drafter text."""
+    g = PG.create_goal(role="CoS", business_id="portfolio",
+                        topic="whitespace", repo_root=tmp_path)
+    for _ in range(3):
+        PG.advance_goal(g.goal_id, drafter_text=_STALL_VERDICT,
+                        redteam_text="   ",
+                        auto_abort_on_stall=False, repo_root=tmp_path)
+    rep = PG.detect_stall(g.goal_id, repo_root=tmp_path)
+    assert rep.stalled is True
+
+
+def test_detect_stall_identical_stalls_regardless_of_threshold(tmp_path):
+    """Exact repetition trips the breaker even with an unreachable threshold —
+    `threshold` is reporting-only by contract."""
+    g = PG.create_goal(role="CoS", business_id="portfolio",
+                        topic="threshold", repo_root=tmp_path)
+    for _ in range(3):
+        PG.advance_goal(g.goal_id, drafter_text="same",
+                        redteam_text=_STALL_VERDICT,
+                        auto_abort_on_stall=False, repo_root=tmp_path)
+    rep = PG.detect_stall(g.goal_id, threshold=1.1, repo_root=tmp_path)
+    assert rep.stalled is True

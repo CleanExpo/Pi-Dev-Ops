@@ -59,7 +59,7 @@ def _linear_graphql(query: str, variables: dict | None = None) -> dict:
 def _projects_json() -> list[dict]:
     here = Path(__file__).resolve()
     for parent in here.parents:
-        candidate = parent / ".harness" / "projects.json"
+        candidate = parent / "config" / "harness" / "projects.json"
         if candidate.is_file():
             try:
                 return json.loads(candidate.read_text()).get("projects", []) or []

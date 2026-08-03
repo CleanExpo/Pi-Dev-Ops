@@ -1,8 +1,14 @@
 # swarm — Wiki
 
-_Last updated: 2026-07-05T11:55:01Z (commits 42e850e..a2975b9)_
+_Last updated: 2026-07-27T04:44:30Z (commits 0866310..6ae9701)_
 
 ## Recent changes
-- a2975b9 — fix(swarm): Guardian requires 2 consecutive misses before Ollama CRITICAL (#521)
+- 6ae9701 — feat(nexus): add governed shadow agent registry (#602)
 
+## Architecture (current)
+Auto-stub: `swarm/` had 1 recent commits. SDK unavailable for synthesis.
 
+## Files of interest
+- swarm/nexus/agent_catalogue.py — touched in recent commits
+- swarm/nexus/agent_registry.py — touched in recent commits
+- swarm/nexus/projection_drift.py — touched in recent commits

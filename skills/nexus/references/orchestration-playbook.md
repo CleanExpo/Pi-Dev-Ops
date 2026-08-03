@@ -98,7 +98,8 @@ what G3 already ran.
 |---|---|
 | Code / refactor / architecture | `Explore` (recon), `design-pressure-test` (pre-build), `opus-adversary` (post-draft), `judge` (gate) |
 | New domain vocabulary / entities | `grill-with-docs` (establish ubiquitous language + ADRs) |
-| Outward-facing / market / competitor | `source-ingest` (credible data), `storm` (multi-perspective), `eeat` (trust signals) |
+| Unshaped plan / sketch with open decisions | `grill-me` (one-question-at-a-time interview until every branch is DECIDED / RABBIT HOLE / NO-GO) |
+| Outward-facing / market / competitor | `source-ingest` (credible data), `storm` (multi-perspective), `eeat` (trust signals), `deep-loop` (iterative MoA/swarm depth on ONE topic needing current data, when G3's single-pass fan-out is not enough) |
 | Content / SEO / GEO | `seo`, `geo-optimization`, `eeat`, `marketing-orchestrator` |
 | Ship / go-live readiness | `readiness-architect`, `qa-lead`, `readiness` gates |
 | Strategic / go-no-go decision | `ceo-board` (deliberation), `boardroom` (multi-model triangulation), `judge` |
@@ -160,6 +161,9 @@ The failure mode is confident consensus-mush wearing a bibliography. Guard it:
    volume-scaling / fabrication anti-pattern).
 4. **Honest degradation.** If margot deep_research is unreachable or off-limits, say "deep tier
    did not run — WebSearch-only" rather than silently degrading while asserting depth.
+
+Escalation: when a single G3 pass leaves load-bearing gaps on ONE topic that needs current data,
+escalate to `deep-loop` (iterative MoA/swarm deepening) instead of re-running G3 wider.
 
 Deliverable name is honest: "credibility-weighted, corroborated, divergence-surfaced research",
 not "the 1% insight". The insight, if it exists, is the defended divergence — earned, not claimed.

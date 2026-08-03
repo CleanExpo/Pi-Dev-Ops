@@ -34,8 +34,9 @@ COPY src/ ./src/
 # `from swarm import orchestrator` fails at runtime with ModuleNotFoundError.
 COPY swarm/ ./swarm/
 
-# Harness data: lessons seed, TAO config, skills
-COPY .harness/ ./.harness/
+# Committed config is separate from `.harness/`, which is runtime-generated state and is
+# intentionally absent from clean clones. Copy only the tracked config needed at startup.
+COPY config/harness/ ./config/harness/
 COPY skills/ ./skills/
 
 # Utility scripts (analyse_lessons, smoke_test, fallback_dryrun, etc.)
@@ -45,8 +46,9 @@ COPY scripts/ ./scripts/
 # ~/.margot, but Railway containers need an in-image server path.
 COPY vendor/margot-deep-research/ ./vendor/margot-deep-research/
 
-# Runtime directories — owned by pidev so the server can write to them
-RUN mkdir -p app/workspaces app/logs/.sessions app/data && \
+# Runtime directories — owned by pidev so the server can write to them. `.harness/` starts
+# empty on purpose and contains generated state only.
+RUN mkdir -p .harness app/workspaces app/logs/.sessions app/data && \
     chown -R pidev:pidev /pi-ceo
 
 USER pidev
@@ -54,6 +56,7 @@ USER pidev
 # Railway uses PORT env var; TAO reads TAO_HOST/TAO_PORT
 ENV TAO_HOST=0.0.0.0
 ENV TAO_PORT=8080
+ENV TAO_USE_AGENT_SDK=1
 ENV PYTHONPATH=/pi-ceo
 ENV MARGOT_SERVER_PATH=/pi-ceo/vendor/margot-deep-research/server.py
 # OM-1: 15-move lookahead planner (override per-deploy via Railway env).

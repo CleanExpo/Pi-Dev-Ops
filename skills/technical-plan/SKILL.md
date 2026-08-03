@@ -50,6 +50,16 @@ Ordered list. Each step is a single atomic action (one file, one function, one m
 - **Regression:** Which existing tests must still pass
 ```
 
+## Closed-loop phase validation (IndyDevDan plan F3, 2026-07)
+
+Group Implementation Steps into phases executed top-to-bottom. Each task carries an explicit
+state — `[ ]` idle, `[~]` WIP, `[x]` complete, `[F]` failed — and each phase ends with validation
+commands drawn from the Test Plan. The builder does not start the next phase until every box in
+the current phase is checked and every validation command passes; an `[F]` routes back to re-plan
+that phase, never silently continues. plan.md is a living artifact: amend it in place as execution
+proceeds, with append-only header metadata (modified timestamps, commits, agent/session ids).
+[[plan-skill-rebuild-mythos-indydevdan-2026-07-14-ingest]]
+
 ## Effort Sizing
 
 | Size | Hours | Criteria |

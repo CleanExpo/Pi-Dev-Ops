@@ -1,0 +1,46 @@
+{
+  "jobId": "carsi-restoration-method-social-2026-07-01",
+  "brand": "carsi",
+  "composition": "Explainer",
+  "compositionRequested": "SocialAd",
+  "compositionNote": "SocialAd ships in v1.1 — falling back to Explainer with social (9:16) framing.",
+  "channel": "instagram",
+  "channelCutdowns": ["tiktok (identical 9:16)", "youtube-shorts (identical 9:16)"],
+  "aspectRatio": "1080x1920",
+  "durationSec": 30,
+  "topic": "Water damage restored to the IICRC S500 standard = measurable drying goals, verified moisture readings, and documented sign-off — the professional method behind a proper restoration.",
+  "audience": "restoration trainees and technical inspectors (brand primary); homeowner/facility-manager facing hook at top of funnel",
+  "voice": {
+    "single": true,
+    "elevenLabsVoiceId": "EXAVITQu4vr4xnSDxMaL",
+    "style": "narration",
+    "locale": "en-AU",
+    "tone": ["expert", "warm"],
+    "credsSource": "Synthex/.env.local (ELEVENLABS)"
+  },
+  "brandStyle": {
+    "colour": { "primary": "#B85C38", "secondary": "#2D2A26", "accent": "#F2E8D5", "family": "training" },
+    "typography": { "display": "Lora 700", "body": "Inter 400" },
+    "motion": { "signature": "iris", "transitionFrames": 18, "durations": { "fast": 12, "base": 24, "slow": 42 } }
+  },
+  "constraints": {
+    "noOnScreenProductNames": true,
+    "noPersonalNames": true,
+    "onScreenStandardAllowed": "IICRC S500 (industry standard, not one of the four products)",
+    "noVerbatimStandardText": true,
+    "singleVoiceOnly": true,
+    "noNewVendors": true
+  },
+  "funnelMap": [
+    { "cta": "Learn the method", "role": "knowledge/training/CEC authority", "product": "carsi" },
+    { "cta": "Find an accredited professional", "role": "contractor network + homeowner entry", "product": "nrpg+dr" },
+    { "cta": "Restore it right — the first time", "role": "on-the-job execution tool", "product": "ra" }
+  ],
+  "outputPath": ".remotion-renders/carsi-restoration-method-social-2026-07-01.mp4",
+  "mode": "dry-run",
+  "renderEntry": "npx tsx render/render.ts",
+  "notes": [
+    "carsi.ts brand config is a STUB — recommend remotion-brand-research before a production render to refine palette/voice/logo from CARSI's live sources.",
+    "Never commit the rendered MP4."
+  ]
+}

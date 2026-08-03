@@ -1,8 +1,12 @@
 # mcp — Wiki
 
-_Last updated: 2026-07-06T01:44:00Z (commits de36b9d..a487d3c)_
+_Last updated: 2026-08-03T01:25:26Z (commits 2a0ec49..4a23525)_
 
 ## Recent changes
-- a487d3c — fix(mcp): pin zod@3.25 to fix pi-ceo MCP _zod connection error (#524)
+- 4a23525 — fix(config): fail-loud loader with in-code spec — closes the silent model regression (#610)
 
+## Architecture (current)
+Auto-stub: `mcp/` had 1 recent commits. SDK unavailable for synthesis.
 
+## Files of interest
+- mcp/pi-ceo-server.js — touched in recent commits

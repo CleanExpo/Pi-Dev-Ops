@@ -48,6 +48,11 @@ log = logging.getLogger("swarm.persistent_goals")
 GOALS_DIR_REL = ".harness/swarm/goals"
 INDEX_FILE_NAME = "_index.json"
 
+# Stall circuit-breaker tunables (used as advance_goal defaults, so defined
+# here at module top; the detector functions live near the bottom).
+DEFAULT_STALL_WINDOW = 3          # consecutive unproductive turns before halting
+DEFAULT_STALL_SIMILARITY = 0.82   # mean pairwise Jaccard over the window
+
 GoalStatus = str  # "active" | "resolved" | "aborted"
 
 
@@ -255,9 +260,16 @@ def get_goal(goal_id: str, *,
 
 
 def advance_goal(goal_id: str, *, drafter_text: str, redteam_text: str,
-                  cycle_count: int = 0,
+                  cycle_count: int = 0, auto_abort_on_stall: bool = True,
+                  stall_window: int = DEFAULT_STALL_WINDOW,
                   repo_root: Path | None = None) -> GoalTurn | None:
-    """Append a new turn to a goal's jsonl ledger and bump counters."""
+    """Append a new turn to a goal's jsonl ledger and bump counters.
+
+    For a freeform goal (no resolution_predicate — which can never auto-resolve
+    via check_resolution), the stall circuit-breaker runs after the turn is
+    recorded: `stall_window` consecutive turns naming the same residual aborts
+    the goal so the driver stops re-firing an unreachable condition. Predicate-
+    backed goals are exempt (they resolve on real state, not on judge prose)."""
     rr = repo_root or Path(__file__).resolve().parents[1]
     goal = _load_goal_meta(rr, goal_id)
     if goal is None:
@@ -282,6 +294,13 @@ def advance_goal(goal_id: str, *, drafter_text: str, redteam_text: str,
 
     _audit("goal_advanced", goal_id=goal_id, role=goal.role,
             turns_count=goal.turns_count)
+
+    # Freeform goals can't auto-resolve — guard them against infinite re-fire.
+    if auto_abort_on_stall and not goal.resolution_predicate:
+        rep = auto_abort_if_stalled(goal_id, window=stall_window, repo_root=rr)
+        if rep.stalled:
+            # The goal was just aborted — signal the driver to stop this cycle.
+            return None
     return turn
 
 
@@ -386,10 +405,126 @@ def read_recent_turns(goal_id: str, *, limit: int = 5,
     return out
 
 
+# ── Stall / unreachable-condition circuit-breaker ───────────────────────────
+# A freeform goal (resolution_predicate=None) never auto-resolves via
+# check_resolution, so a Stop-hook/judge loop that re-fires it spins forever
+# when the residual is structurally unreachable by a solo agent (a prohibited
+# action, an off-machine repo, a time-gated fire, an owner-attestation HITL
+# gate). The judge keeps returning "unsatisfied" against an unchanging residual
+# and the agent keeps re-emitting slightly reworded state. This detects "no
+# state change across N consecutive turns" and aborts the goal (audit row
+# `goal_stalled_aborted` only — no alerting is wired here; the driver decides
+# how to surface it). See memory goal-hook-unsatisfiable-loops + skill
+# goal-circuit-breaker.
+
+import re as _re
+
+_SIG_TOKEN_RE = _re.compile(r"[a-z]{4,}")
+_SIG_STOPWORDS = frozenset((
+    "transcript", "evidence", "shows", "condition", "demands", "assistant",
+    "message", "final", "however", "remain", "remains", "still", "state",
+    "operate", "system", "entire", "unexecuted", "unsatisfied", "unfixed",
+    "these", "there", "which", "would", "their", "with", "that", "this",
+))
+
+
+def _verdict_signature(text: str) -> frozenset[str]:
+    """Content fingerprint of a judge verdict: significant alpha tokens, minus
+    the boilerplate scaffolding every verdict repeats. Two verdicts naming the
+    same residual gaps produce near-identical signatures even when reworded."""
+    toks = {t for t in _SIG_TOKEN_RE.findall((text or "").lower())
+            if t not in _SIG_STOPWORDS}
+    return frozenset(toks)
+
+
+def _jaccard(a: frozenset[str], b: frozenset[str]) -> float:
+    # An empty signature carries no evidence of a repeated residual — treat it
+    # as dissimilar so low-content verdicts never trip a false-positive stall.
+    if not a or not b:
+        return 0.0
+    return len(a & b) / len(a | b)
+
+
+@dataclass
+class StallReport:
+    stalled: bool
+    window: int
+    turns_seen: int
+    mean_similarity: float
+    reason: str
+
+
+def detect_stall(goal_id: str, *, window: int = DEFAULT_STALL_WINDOW,
+                  threshold: float = DEFAULT_STALL_SIMILARITY,
+                  repo_root: Path | None = None) -> StallReport:
+    """Return a StallReport: True ONLY when the last `window` turns carry
+    identical verdict signatures — the loop literally re-firing the same
+    verdict without changing state.
+
+    Deliberately fail-safe. Token sets cannot distinguish "shared template +
+    one new resolved item per turn" (healthy) from "same blocker + one noise
+    token per turn" (stalled); anything short of exact signature repetition
+    therefore counts as progress. A missed stall costs cycles; a false abort
+    kills a healthy goal. `threshold` is retained for API compatibility and
+    reporting only: after scaffold subtraction over a window of n turns the
+    mean pairwise residual similarity is bounded by 1/n, so no fuzzy
+    threshold above that is reachable — exact equality is the only honest
+    trip signal, and identical signatures stall regardless of `threshold`.
+    """
+    if window < 2:
+        raise ValueError(f"stall window must be >= 2, got {window}")
+    turns = read_recent_turns(goal_id, limit=window, repo_root=repo_root)
+    if len(turns) < window:
+        return StallReport(False, window, len(turns), 0.0,
+                            "insufficient turns to judge stall")
+    sigs = []
+    for t in turns:
+        # Whitespace-only red-team output is no verdict — fall back to the
+        # drafter text rather than fingerprinting an empty string.
+        text = (t.redteam_text or "").strip() or (t.drafter_text or "")
+        sigs.append(_verdict_signature(text))
+    identical = all(s == sigs[0] for s in sigs[1:])
+    if identical and sigs[0]:
+        return StallReport(
+            True, window, len(turns), 1.0,
+            f"{window} consecutive turns re-fired an identical verdict "
+            "signature (exact repetition)")
+    return StallReport(False, window, len(turns), 0.0,
+                        "progressing (verdict signatures not identical)")
+
+
+def auto_abort_if_stalled(goal_id: str, *, window: int = DEFAULT_STALL_WINDOW,
+                           threshold: float = DEFAULT_STALL_SIMILARITY,
+                           repo_root: Path | None = None) -> StallReport:
+    """Abort a goal that has stalled on an unreachable residual. Idempotent:
+    a non-active goal returns a non-stalled report, and predicate-backed goals
+    are never aborted here (they resolve on real state, not on judge prose).
+    On abort this writes two audit rows — `goal_aborted` (emitted by
+    `abort_goal`) and `goal_stalled_aborted` (the stall detail) — and does not
+    send any alert; surfacing the abort is the caller's job."""
+    goal = _load_goal_meta(repo_root or Path(__file__).resolve().parents[1],
+                            goal_id)
+    if goal is None or goal.status != "active":
+        return StallReport(False, window, 0, 0.0, "goal not active")
+    if goal.resolution_predicate:
+        return StallReport(False, window, 0, 0.0,
+                            "predicate-backed goal exempt from stall abort")
+    rep = detect_stall(goal_id, window=window, threshold=threshold,
+                        repo_root=repo_root)
+    if rep.stalled:
+        abort_goal(goal_id,
+                    reason=f"unreachable-condition: {rep.reason}",
+                    repo_root=repo_root)
+        _audit("goal_stalled_aborted", goal_id=goal_id,
+               window=window, mean_similarity=rep.mean_similarity)
+    return rep
+
+
 __all__ = [
-    "Goal", "GoalTurn",
+    "Goal", "GoalTurn", "StallReport",
     "create_goal", "list_goals", "get_goal",
     "advance_goal", "resolve_goal", "abort_goal",
     "check_resolution", "cycle_due", "read_recent_turns",
+    "detect_stall", "auto_abort_if_stalled",
     "register_predicate", "get_predicate",
 ]

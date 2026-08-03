@@ -65,6 +65,11 @@ const PROTECTED_API_PREFIXES = [
   // Same reason as "/command-centre" above — this route serves the graph built
   // from an RLS-bypassing read.
   "/api/command-centre",
+  // Ratified on main: these internal status surfaces borrow upstream authority and
+  // are only consumed from the already-protected control page.
+  "/api/zte",
+  "/api/swarm-status",
+  "/api/curator-proposals",
 ];
 
 // Public API routes — never require session

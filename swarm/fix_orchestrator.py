@@ -392,7 +392,7 @@ def run_cycle(repo_root: Path | None = None) -> OrchestratorResult:
                        if t.get("identifier") not in active_ticket_ids]
 
         # Load project registry for context
-        projects_json = _repo_root() / ".harness" / "projects.json"
+        projects_json = _repo_root() / "config" / "harness" / "projects.json"
         projects_map: dict[str, dict] = {}
         if projects_json.exists():
             for p in json.loads(projects_json.read_text()).get("projects", []):

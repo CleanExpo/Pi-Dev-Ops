@@ -43,33 +43,33 @@
       "path": "/api/zte",
       "method": "GET",
       "auth": false,
-      "expected_status": 200,
+      "expected_status": 401,
       "body_contains": [
-        "score",
-        "model"
-      ]
+        "Unauthorised"
+      ],
+      "_comment": "2026-08-02: was expected_status 200. That assertion recorded what the route did after it fell through proxy.ts's default-open fallthrough — never a decision. Ratified by Phill McGurk: the path is now in PROTECTED_API_PREFIXES, so an anonymous caller is refused. Its real callers are panels on /control, already a protected page. || prior: "
     },
     {
       "name": "api-swarm-status",
       "path": "/api/swarm-status",
       "method": "GET",
       "auth": false,
-      "expected_status": 200,
+      "expected_status": 401,
       "body_contains": [
-        "state"
-      ]
+        "Unauthorised"
+      ],
+      "_comment": "2026-08-02: was expected_status 200. That assertion recorded what the route did after it fell through proxy.ts's default-open fallthrough — never a decision. Ratified by Phill McGurk: the path is now in PROTECTED_API_PREFIXES, so an anonymous caller is refused. Its real callers are panels on /control, already a protected page. || prior: "
     },
     {
       "name": "curator-proposals-quiet",
       "path": "/api/curator-proposals?status=pending&limit=10",
       "method": "GET",
       "auth": false,
-      "expected_status": 200,
+      "expected_status": 401,
       "body_contains": [
-        "error",
-        "detail"
+        "Unauthorised"
       ],
-      "_comment": "PR #303: read-only Skill Curator polling must stay console-clean when the upstream is unavailable or unauthenticated; route returns a 200 degraded envelope instead of browser-visible 401/502/503 noise."
+      "_comment": "2026-08-02: was expected_status 200. That assertion recorded what the route did after it fell through proxy.ts's default-open fallthrough — never a decision. Ratified by Phill McGurk: the path is now in PROTECTED_API_PREFIXES, so an anonymous caller is refused. Its real callers are panels on /control, already a protected page. || prior: PR #303: read-only Skill Curator polling must stay console-clean when the upstream is unavailable or unauthenticated; route returns a 200 degraded envelope inst"
     },
     {
       "name": "login-wrong-pw",
@@ -375,12 +375,11 @@
       "path": "/api/kill-switch?op=status",
       "method": "GET",
       "auth": false,
-      "expected_status": 200,
+      "expected_status": 401,
       "body_contains": [
-        "error",
-        "detail"
+        "Unauthorised"
       ],
-      "_comment": "RA-3019/PR #303: dashboard status proxy that forwards to FastAPI /api/swarm/status. Read-only status polling returns a 200 envelope, including unauthenticated/degraded fallback, to keep the dashboard console clean; mutating kill/resume POSTs still preserve non-2xx failures."
+      "_comment": "2026-08-02: was expected_status 200. That assertion was written from what the route did, and the route's own comment then cited this surface ('a CI smoke surface calls it unauthenticated by design') as the reason the GET could stay public — a loop in which the test justified the code and the code justified the test, with no requirement anywhere. Observed live returning 200 to an anonymous caller with a body proving it had reached upstream, which it does with a borrowed PI_CEO_PASSWORD. The decision: an anonymous caller may not read swarm state through a credential it does not hold, so the GET now authenticates like the POST and this surface asserts the refusal. Keeping the dashboard console clean is not a reason to answer strangers."
     },
     {
       "name": "nexus-health",
@@ -425,7 +424,7 @@
       "body_contains": [
         "Forbidden"
       ],
-      "_comment": "2026-08-02: was 200. The webhook secret check used to fire only when a secret was PRESENTED, so an anonymous POST with no header skipped it entirely and reached the handler. Now fail-closed: no secret configured, or none presented, or a mismatch, all return 403 before the body is parsed. This expectation was updated deliberately with the fix — a smoke contract that still asserted 200 would have reasserted the vulnerability as the requirement."
+      "_comment": "RA-5690 PR: Telegram webhook (Fable 5 refusal-fallback added in ceoAgentCall). Unparseable/absent body returns {ok:true} by design so Telegram doesn't retry-flood. The secret-mismatch 403 path needs a custom x-telegram-bot-api-secret-token header, which smoke_test_e2e.py doesn't support — this probe surfaces the route only."
     },
     {
       "name": "telegram-webhook-intake-nosig",

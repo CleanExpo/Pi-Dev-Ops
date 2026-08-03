@@ -128,6 +128,8 @@ mcp/node_modules/
 .harness/scout-seen.json
 .harness/zte-v2-score.json
 .harness/session-outcomes.jsonl
+# RA-7085 job-authored last-success records (runtime state)
+.harness/job-success/
 
 # ── Docker / deployment ───────────────────────────────────────────────
 *.pid
@@ -212,4 +214,7 @@ docs/session-handoffs/handoff-*.md
 # exclusion was false HERE and merging would have carried the blind spot back onto main.
 # Same fix, same form as #607. The piecemeal .harness/* patterns above are subsumed by this
 # and left in place deliberately — removing them is a separate change.
+
+# generated graph visualisation output (not source)
+swarm/graphify-out/
 .harness/

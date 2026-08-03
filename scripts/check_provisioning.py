@@ -2,7 +2,7 @@
 """RA-7015 Cap 0 provisioning gate.
 
 Enforces the founder constraint "services/skills/agents may only use provisioned
-tools" against the SSOT in .harness/provisioned-tools.yaml.
+tools" against the tracked SSOT in fence/provisioned-tools.yaml.
 
 Two checks:
   1. BANNED-TOKEN SCAN (blocking): fail if any banned tool name appears in a
@@ -32,7 +32,7 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("check_provisioning")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SSOT_PATH = REPO_ROOT / ".harness" / "provisioned-tools.yaml"
+SSOT_PATH = REPO_ROOT / "fence" / "provisioned-tools.yaml"
 
 
 @dataclass
@@ -150,7 +150,7 @@ def main(argv: list[str] | None = None) -> int:
         logger.error("BANNED TOOL(S) FOUND — %d hit(s):", len(hits))
         for rel, line_no, name, reason in hits:
             logger.error("  %s:%d  '%s' — %s", rel, line_no, name, reason)
-        logger.error("Fix: remove the banned tool. See .harness/provisioned-tools.yaml.")
+        logger.error("Fix: remove the banned tool. See fence/provisioned-tools.yaml.")
         return 1
     logger.info("banned-token scan: clean (0 hits for %s)", ", ".join(sorted(ssot.banned)))
 

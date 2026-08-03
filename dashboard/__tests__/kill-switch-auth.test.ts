@@ -15,10 +15,14 @@
  * credentials do not get past auth, this file proves only that the endpoint is dead.
  */
 import { describe, it, expect, beforeAll } from "vitest";
-import { createHmac } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
 
-const PASSWORD = "kill-switch-test-secret";
-const KS_SECRET = "kill-switch-shared-secret";
+// Generated per run, never written as literals. The secrets scanner correctly flags a
+// secret-shaped string in any file — it cannot tell a fixture from a credential by reading
+// it, and narrowing its scope to accommodate a test is how a real one eventually walks
+// through. Second instance of this; route-exercise.mjs was the first.
+const PASSWORD = randomBytes(24).toString("hex");
+const KS_SECRET = randomBytes(24).toString("hex");
 
 beforeAll(() => {
   process.env.DASHBOARD_PASSWORD = PASSWORD;

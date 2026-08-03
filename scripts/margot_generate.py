@@ -17,7 +17,7 @@ from typing import Any
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_MANIFEST = REPO_ROOT / ".harness/margot/assets/margot_identity.json"
+DEFAULT_MANIFEST = REPO_ROOT / "config/harness/margot/assets/margot_identity.json"
 
 
 class MargotGenerationError(RuntimeError):

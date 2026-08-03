@@ -105,8 +105,8 @@ def test_section_provider_error_captured(tmp_path):
 
 def test_cron_trigger_registered():
     """The portfolio-pulse-daily cron trigger is registered in the
-    canonical .harness/cron-triggers.json."""
-    triggers_path = REPO_ROOT / ".harness" / "cron-triggers.json"
+    canonical config/harness/cron-triggers.json."""
+    triggers_path = REPO_ROOT / "config" / "harness" / "cron-triggers.json"
     triggers = json.loads(triggers_path.read_text(encoding="utf-8"))
     by_id = {t.get("id"): t for t in triggers}
     assert "portfolio-pulse-daily" in by_id, (

@@ -196,7 +196,7 @@ async def _fire_monitor_trigger(trigger: dict, log) -> None:
     # exists but is unused. Flipping the one most-recently-firing monitor gives
     # fastest A/B data with lowest blast radius — the other 3 monitors stay
     # deterministic so we can compare digests side-by-side. JSON `use_agent: false`
-    # in .harness/cron-triggers.json is intentionally left as-is (runtime state).
+    # in config/harness/cron-triggers.json is intentionally left as-is (runtime state).
     use_agent = trigger.get("use_agent", False)
     if trigger.get("id") == "monitor-0700":
         use_agent = True
@@ -210,14 +210,27 @@ async def _fire_monitor_trigger(trigger: dict, log) -> None:
 
 async def _fire_intel_refresh_trigger(trigger: dict, log) -> None:
     """RA-587 — Fire the Anthropic intel refresh loop directly (no subprocess)."""
-    from .agents.anthropic_intel_refresh import refresh_anthropic_intel
+    from .agents import anthropic_intel_refresh as _intel
     log.info("Firing intel_refresh trigger id=%s", trigger["id"])
-    result = await refresh_anthropic_intel(dry_run=False)
+    result = await _intel.refresh_anthropic_intel(dry_run=False)
     fetched = len(result.get("fetched_urls", []))
     brief = result.get("brief_path")
     errors = result.get("errors", [])
     if errors:
         log.warning("intel_refresh: %d fetch errors: %s", len(errors), errors)
+    # RA-7027 — a run only counts as a fire when EVERY required doc source
+    # fetched. A partial fetch (e.g. 1 of 3) would otherwise refresh
+    # `last_fired_at` forever while the other sources stay permanently dead
+    # and unmonitored. Raising keeps `last_fired_at` stale (the cron loop's
+    # skip contract), so the docs-staleness watchdog's trigger-truth overlay
+    # stays honest.
+    required = len(_intel._DOCS_URLS)
+    if fetched < required:
+        failed_urls = [u for u, _ in errors]
+        raise RuntimeError(
+            f"intel_refresh id={trigger['id']}: only {fetched}/{required} doc sources "
+            f"fetched — failed: {failed_urls}"
+        )
     log.info(
         "intel_refresh id=%s complete: fetched=%d brief=%s",
         trigger["id"], fetched, brief or "none (no delta)",

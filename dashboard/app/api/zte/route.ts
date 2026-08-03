@@ -3,6 +3,7 @@
 // if present; otherwise returns a sensible default.
 
 import { readFile } from "node:fs/promises";
+import { piCeoFetch } from "@/lib/pi-ceo-session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,15 +23,12 @@ async function fromBackend(): Promise<Partial<ZteResponse> | null> {
   const base = process.env.RAILWAY_URL ?? process.env.PI_CEO_URL;
   if (!base) return null;
 
-  const url = `${base.replace(/\/$/, "")}/api/zte/score`;
   try {
-    const res = await fetch(url, {
-      signal: AbortSignal.timeout(5_000),
-      headers: process.env.PI_CEO_PASSWORD
-        ? { Authorization: `Bearer ${process.env.PI_CEO_PASSWORD}` }
-        : {},
-    });
-    if (!res.ok) return null;
+    // Was `Authorization: Bearer ${PI_CEO_PASSWORD}` — a raw password where upstream requires
+    // a signed session token, so this never authenticated and the route silently served
+    // source:"default" as though it were a reading. See lib/pi-ceo-session.ts.
+    const res = await piCeoFetch("/api/zte/score", {}, 5_000);
+    if (!res || !res.ok) return null;
     const raw = (await res.json()) as Record<string, unknown>;
     const score = Number(raw.score ?? raw.zte_score ?? NaN);
     if (!Number.isFinite(score)) return null;

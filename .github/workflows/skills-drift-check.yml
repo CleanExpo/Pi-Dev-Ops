@@ -51,10 +51,8 @@ jobs:
 
       - name: Reject an in-place machine edit committed back to the repo
         run: |
-          # A skill whose only change is a machine-side edit round-tripped into git is
-          # exactly the two-way sync this ruling forbids. There is no automatic way to
-          # detect intent, so this checks the weaker but real property: SKILL.md files
-          # must live under skills/, never under a .claude path inside the repo.
+          # Any tracked .claude/skills copy creates a second writable source. Command adapters
+          # must also be generated/deployed from skills/<name>/SKILL.md, never committed back.
           if git ls-files | grep -E '^\.claude/skills/.*/SKILL\.md$'; then
             echo "::error::A machine-path skill copy is tracked in this repo. The repo source lives at skills/<name>/SKILL.md; ~/.claude/skills/ is a deploy artifact and must not be committed."
             exit 1

@@ -36,7 +36,7 @@ from . import portfolio_pulse
 log = logging.getLogger("swarm.portfolio_pulse.github")
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-PROJECTS_JSON_REL = ".harness/projects.json"
+PROJECTS_JSON_REL = "config/harness/projects.json"
 
 GH_API_BASE = "https://api.github.com"
 HTTP_TIMEOUT_S = 8.0
@@ -52,7 +52,7 @@ PER_PAGE = 50
 
 
 def _load_projects(repo_root: Path) -> dict[str, dict[str, Any]]:
-    """Load .harness/projects.json keyed by project id."""
+    """Load config/harness/projects.json keyed by project id."""
     p = repo_root / PROJECTS_JSON_REL
     if not p.exists():
         return {}
@@ -336,7 +336,7 @@ def _no_token_section(section: str) -> tuple[str, str | None]:
 def _no_repo_section(project_id: str) -> tuple[str, str | None]:
     return (
         f"_(github: project_id {project_id!r} has no `repo` mapping in "
-        ".harness/projects.json)_",
+        "config/harness/projects.json)_",
         "no_repo_mapping",
     )
 

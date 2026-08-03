@@ -1,6 +1,6 @@
 """swarm/providers/synthetic.py — deterministic CFO metrics provider.
 
-Reads ``.harness/projects.json`` to enumerate the 11 Unite-Group businesses
+Reads ``config/harness/projects.json`` to enumerate the 11 Unite-Group businesses
 and emits one ``RawMetrics`` per business with deterministic, plausible
 numbers. Same input → same output across cycles, so breach-detection unit
 tests are stable and the orchestrator's first cycle is always non-empty.
@@ -27,7 +27,7 @@ from ..cfo import RawMetrics
 log = logging.getLogger("swarm.providers.synthetic")
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-PROJECTS_JSON_REL = ".harness/projects.json"
+PROJECTS_JSON_REL = "config/harness/projects.json"
 
 # Businesses default to b2b unless their projects.json id is in this set.
 _PROSUMER_IDS: set[str] = {"synthex", "nodejs-starter"}
@@ -98,7 +98,7 @@ def _synth_one(bid: str) -> RawMetrics:
 
 
 def _load_business_ids() -> list[str]:
-    """Read .harness/projects.json and return the business id list."""
+    """Read config/harness/projects.json and return the business id list."""
     p = REPO_ROOT / PROJECTS_JSON_REL
     if not p.exists():
         log.warning("synthetic: %s missing — returning []", p)

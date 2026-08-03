@@ -11,6 +11,7 @@
 
 import { createHash, timingSafeEqual } from "crypto";
 import { verifySessionToken } from "@/lib/auth-secret";
+import { piCeoFetch, isLockedOut } from "@/lib/pi-ceo-session";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -29,13 +30,11 @@ function _baseUrl(): string | null {
   return raw ? raw.replace(/\/$/, "") : null;
 }
 
-function _authHeaders(): Record<string, string> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (process.env.PI_CEO_PASSWORD) {
-    headers.Authorization = `Bearer ${process.env.PI_CEO_PASSWORD}`;
-  }
-  return headers;
-}
+// _authHeaders() was here until 2026-08-02. It attached `Authorization: Bearer
+// ${PI_CEO_PASSWORD}` — a raw password where upstream requires a signed session token, so it
+// authenticated nothing for 92 days while this route reported HTTP 200. Replaced by
+// piCeoFetch(), which performs the login exchange upstream actually implements. See
+// lib/pi-ceo-session.ts for why that helper is single-flight and lockout-aware.
 
 function _quietStatus(error: string, detail?: string): Response {
   return Response.json(
@@ -54,6 +53,21 @@ function _quietStatus(error: string, detail?: string): Response {
 }
 
 export async function GET(request: Request): Promise<Response> {
+  // 2026-08-02: this was unauthenticated. /api/kill-switch is in neither proxy prefix list, so
+  // proxy() never looks at it, and the hotfix that closed POST left GET exactly as it found it.
+  // Observed live returning HTTP 200 to an anonymous caller with a body proving it had reached
+  // upstream — it only looked harmless because upstream happened to reject the credentials
+  // this route attaches on the caller's behalf. Correct that misconfiguration and the same
+  // anonymous GET begins returning internal swarm state.
+  //
+  // The previous justification was that "a CI smoke surface calls it unauthenticated by
+  // design" — the smoke test's observed behaviour cited as the requirement. The question is
+  // whether an anonymous caller SHOULD read swarm state through a credential it does not
+  // hold. It should not, so the smoke surface was changed to assert 401, not this handler.
+  if (!(await isAuthorised(request))) {
+    return Response.json({ error: "Unauthorised" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const op = searchParams.get("op") ?? "status";
   if (op !== "status") {
@@ -66,11 +80,16 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   try {
-    const upstream = await fetch(`${base}/api/swarm/status`, {
-      headers: _authHeaders(),
-      signal: AbortSignal.timeout(5_000),
-      cache: "no-store",
-    });
+    const upstream = await piCeoFetch("/api/swarm/status", {}, 5_000);
+    if (!upstream) {
+      // Could not obtain a session at all. Distinguish lockout from a bad credential — they
+      // are different faults and were conflated for 92 days. A 429 lockout on shared Vercel
+      // egress reads as an outage; reporting it as "wrong password" sends the next person
+      // to rotate a credential that was never the problem.
+      return _quietStatus(
+        isLockedOut() ? "upstream login locked out (429)" : "could not authenticate upstream",
+      );
+    }
     const body = await upstream.json().catch(() => ({}));
     return Response.json(
       upstream.ok ? body : { error: `HTTP ${upstream.status}`, ...body },
@@ -82,46 +101,35 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 /**
- * Authenticate a MUTATING kill-switch call.
+ * Authenticate ANY kill-switch call — read or mutate.
  *
- * Until 2026-08-02 POST had NO inbound check at all. `/api/kill-switch` is in neither
- * PROTECTED_API_PREFIXES nor PUBLIC_API_PREFIXES in proxy.ts, so it fell straight through the
- * proxy's auth block. That made an anonymous POST able to kill OR RESUME the swarm — and the
- * route supplies `Authorization: Bearer PI_CEO_PASSWORD` on the upstream call itself, so the
- * caller needed no credential of any kind. A confused deputy on a safety control.
+ * /api/kill-switch is in NEITHER PROTECTED_API_PREFIXES nor PUBLIC_API_PREFIXES in proxy.ts,
+ * so proxy() never examined it — and this route attaches Authorization: Bearer
+ * PI_CEO_PASSWORD to its own upstream call. An anonymous POST could therefore kill the swarm,
+ * or RESUME automation deliberately stopped, with no credential of any kind.
  *
- * `resume` is the sharper end: it can restart automation the founder deliberately stopped.
+ * Accepts a pi_session cookie (dashboard UI) or X-Kill-Switch-Secret matching
+ * KILL_SWITCH_SECRET (scripted/remote), compared in constant time over digests.
+ * FAIL-CLOSED: no session and no configured secret is 401.
  *
- * Two accepted credentials, because this control has two legitimate callers:
- *   · a `pi_session` cookie — the founder using the dashboard UI
- *   · `X-Kill-Switch-Secret` matching KILL_SWITCH_SECRET — scripted or remote use, where
- *     there is no browser session to carry. Compared with timingSafeEqual over digests, the
- *     same shape /api/webhook/github and /api/webhook/intake already use.
- *
- * FAIL-CLOSED. No session and no configured secret means 401, not "allow". That does cost an
- * abort axis while KILL_SWITCH_SECRET is unset — deliberately: an unauthenticated `resume` is
- * strictly worse than an HTTP kill path that is temporarily unavailable, and it is not the
- * only abort axis (RA-1966 wires a cost ceiling, a hard-stop file and an iteration cap).
- *
- * GET ?op=status is deliberately NOT gated: it is read-only, rejects any other op with 400,
- * and the CI smoke surface calls it unauthenticated by design.
+ * Named ...Mutation until 2026-08-02, which encoded the assumption that reads needed no
+ * credential. Both methods reach upstream with the same borrowed credential, so both are
+ * gated and the name no longer draws a distinction the route does not make.
  */
-async function isAuthorisedMutation(request: Request): Promise<boolean> {
+async function isAuthorised(request: Request): Promise<boolean> {
   const cookie = request.headers.get("cookie") ?? "";
   const m = /(?:^|;\s*)pi_session=([^;]+)/.exec(cookie);
   if (m) {
-    // decodeURIComponent throws on malformed percent-encoding. Round-1 review: an attacker
-    // could turn a bad cookie into a handler error instead of a clean 401 — noise that hides
-    // real signal, and an error page is a worse answer than a refusal.
+    // decodeURIComponent throws on malformed percent-encoding; a bad cookie must yield a
+    // clean 401, not a handler error.
     let token = m[1];
-    try { token = decodeURIComponent(token); } catch { /* use the raw value; it will not verify */ }
+    try { token = decodeURIComponent(token); } catch { /* raw value will simply not verify */ }
     if (await verifySessionToken(token)) return true;
   }
 
   const configured = (process.env.KILL_SWITCH_SECRET ?? "").trim();
   const presented = (request.headers.get("x-kill-switch-secret") ?? "").trim();
   if (!configured || !presented) return false;
-  // Hash both sides first so timingSafeEqual never throws on a length mismatch.
   return timingSafeEqual(
     createHash("sha256").update(configured).digest(),
     createHash("sha256").update(presented).digest(),
@@ -129,11 +137,10 @@ async function isAuthorisedMutation(request: Request): Promise<boolean> {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  if (!(await isAuthorisedMutation(request))) {
+  if (!(await isAuthorised(request))) {
     // No detail about which credential was missing or wrong — that is a probing oracle.
     return Response.json({ error: "Unauthorised" }, { status: 401 });
   }
-
   const { searchParams } = new URL(request.url);
   const op = searchParams.get("op") ?? "";
   if (op !== "kill" && op !== "resume") {
@@ -159,12 +166,24 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const upstream = await fetch(`${base}/api/swarm/${op}`, {
-      method: "POST",
-      headers: _authHeaders(),
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(10_000),
-    });
+    const upstream = await piCeoFetch(
+      `/api/swarm/${op}`,
+      { method: "POST", body: JSON.stringify(body) },
+      10_000,
+    );
+    if (!upstream) {
+      // Mutations must NOT be quiet. A kill or resume that could not authenticate has to
+      // surface loudly — the whole failure being fixed here is a safety control that
+      // reported success-shaped output while doing nothing.
+      return Response.json(
+        {
+          error: isLockedOut()
+            ? "upstream login locked out (429) — this is an availability fault, not a bad credential"
+            : "could not authenticate upstream — kill/resume did NOT take effect",
+        },
+        { status: 502 },
+      );
+    }
     const data = await upstream.json().catch(() => ({}));
     return Response.json(data, { status: upstream.status });
   } catch (exc) {

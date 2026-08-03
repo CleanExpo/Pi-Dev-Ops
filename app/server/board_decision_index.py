@@ -1,6 +1,6 @@
 """RA-6907 — queryable board decision index + mandate consistency gate.
 
-Extracts locked conditions from `.harness/board-meetings/*.md` and rejects
+Extracts locked conditions from `docs/governance/board-meetings/*.md` and rejects
 mandates that explicitly overturn them (deterministic negation patterns).
 """
 from __future__ import annotations
@@ -95,7 +95,7 @@ def _extract_locked_sections(content: str, source: str) -> list[BoardDecision]:
 def build_decision_index(meetings_dir: Path | None = None) -> list[BoardDecision]:
     """Load locked board decisions from harness board-meeting markdown."""
     if meetings_dir is None:
-        meetings_dir = Path(__file__).resolve().parents[2] / ".harness" / "board-meetings"
+        meetings_dir = Path(__file__).resolve().parents[2] / "docs" / "governance" / "board-meetings"
     if not meetings_dir.is_dir():
         return []
 

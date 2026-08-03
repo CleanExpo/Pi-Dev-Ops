@@ -1,6 +1,6 @@
 """swarm/providers/synthetic_platform.py — deterministic CTO platform provider.
 
-Reads ``.harness/projects.json`` and emits one ``RawPlatformMetrics`` per
+Reads ``config/harness/projects.json`` and emits one ``RawPlatformMetrics`` per
 business with deterministic, plausible DORA + ops numbers. Same input →
 same output across cycles.
 """

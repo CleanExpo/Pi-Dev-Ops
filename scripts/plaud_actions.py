@@ -35,7 +35,7 @@ ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
 
 PROMPT_TEMPLATE = (Path(__file__).parent / "prompts" / "action_extraction.md").read_text()
 
-PROJECTS_JSON = Path(__file__).resolve().parent.parent / ".harness" / "projects.json"
+PROJECTS_JSON = Path(__file__).resolve().parent.parent / "config" / "harness" / "projects.json"
 DEFAULT_PORTFOLIO_ID = "pi-dev-ops"  # fallback when LLM picks unknown
 
 

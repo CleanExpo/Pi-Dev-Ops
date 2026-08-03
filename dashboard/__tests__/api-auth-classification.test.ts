@@ -1,26 +1,43 @@
 /**
- * Is every API route classified for auth — or did one just quietly appear?
+ * Is every API METHOD classified for auth — or did one quietly appear?
  *
- * `/api/kill-switch` was in NEITHER `PROTECTED_API_PREFIXES` nor `PUBLIC_API_PREFIXES`, so
- * `proxy()` never looked at it. Its POST could kill or resume the swarm with no credential,
- * while the route supplied `PI_CEO_PASSWORD` upstream itself. Nothing was broken — a route
- * had simply never been classified, and no check existed that could notice.
+ * WHY THE UNIT IS A METHOD, NOT A ROUTE.
+ * The previous form of this control classified ROUTES. `/api/kill-switch` carried one entry
+ * claiming `unauth_status: 401`, and its own reason line acknowledged that `GET ?op=status`
+ * is called unauthenticated by design. Both statements were recorded and neither was wrong
+ * in isolation: POST refuses at 401, GET answers 200. A single per-route number cannot be
+ * true of both, so the entry was structurally incapable of being correct, and no assertion
+ * compared the declared number to reality.
  *
- * A sweep of the other seven unclassified routes found no second instance: four self-protect
- * (smoke asserts 401) and three are deliberately public reads (smoke asserts 200). So the
- * value here is not the sweep, which is a snapshot. It is that an UNCLASSIFIED ROUTE NOW
- * FAILS, which is what makes the next one impossible to miss.
+ * The same blindness produced the live defects found 2026-08-02: `/api/telegram` POST was
+ * hardened to fail closed while its GET — which calls Telegram `setWebhook` with the live bot
+ * token — was left open, and `/api/kill-switch` POST was hardened while its GET still reached
+ * upstream with credentials. A route-level control cannot see either, because in both cases
+ * the route is "classified" and one of its methods is not.
  *
- * Note the shape: the route SET is discovered from the filesystem, and the exceptions are
- * DECLARED with reasons. That is the declared-delta pattern from the provenance map, not a
- * fixed enumeration of the surface — the world can add a route, and when it does this goes
- * red until someone says what it is.
+ * PROXY GRANULARITY IS PATHS, SO PUBLIC PATHS NEED PER-METHOD ADJUDICATION.
+ * proxy.ts matches path prefixes. A path in PROTECTED_API_PREFIXES has every method gated, so
+ * it needs no entry. A path in PUBLIC_API_PREFIXES has NO method gated — being public is not a
+ * decision about any particular method, so each one still has to be adjudicated here. That is
+ * why `/api/telegram` needs two entries despite being deliberately public: the webhook has to
+ * be reachable, its registration endpoint does not.
+ *
+ * PROVENANCE IS REQUIRED, AND `discovery` FAILS.
+ * Entries used to be written from observed posture and then read as declared requirement.
+ * `/api/zte` and `/api/swarm-status` were never decided public; they fell through proxy.ts's
+ * default-open fallthrough and were documented afterwards as "deliberately-public". Every
+ * entry now says whether it records a DECISION someone made or a DISCOVERY of what the code
+ * already did, and a `discovery` is RED until somebody adjudicates it and signs it.
+ *
+ * NEVER resolve a red by writing down what the route currently does. That is the move that
+ * produced the entries this rebuild exists to correct.
  */
 import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const ROOT = resolve(__dirname, "..");
+const HTTP_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"] as const;
 
 /** Parse the prefix arrays out of proxy.ts. Never retype them — a copy goes stale silently. */
 function proxyPrefixes(name: string): string[] {
@@ -30,8 +47,37 @@ function proxyPrefixes(name: string): string[] {
   return [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]);
 }
 
-function discoverApiRoutes(): string[] {
-  const found: string[] = [];
+/**
+ * Extract the HTTP methods a route file exports.
+ *
+ * Both export forms are matched. `export const GET = handle` is not a stylistic variant —
+ * `/api/phone/gate` uses it, and a scan written only for `export async function` reported that
+ * route as having no methods at all. A parser that silently returns nothing looks identical to
+ * a route that is genuinely method-less, which is why emptiness is a failure below.
+ */
+function methodsOf(file: string): string[] {
+  const src = readFileSync(file, "utf8");
+  const alt = HTTP_METHODS.join("|");
+  const found = new Set<string>();
+  for (const re of [
+    new RegExp(`export\\s+(?:async\\s+)?function\\s+(${alt})\\s*\\(`, "g"),
+    new RegExp(`export\\s+const\\s+(${alt})\\s*[:=]`, "g"),
+    new RegExp(`export\\s*\\{[^}]*?\\bas\\s+(${alt})\\b[^}]*?\\}`, "g"),
+  ]) {
+    for (const m of src.matchAll(re)) found.add(m[1]);
+  }
+  return [...found].sort();
+}
+
+interface Surface {
+  key: string;      // "GET /api/kill-switch"
+  path: string;
+  method: string;
+}
+
+function discoverSurfaces(): { surfaces: Surface[]; methodless: string[] } {
+  const surfaces: Surface[] = [];
+  const methodless: string[] = [];
   (function walk(dir: string, urlPath: string) {
     if (!existsSync(dir)) return;
     for (const e of readdirSync(dir)) {
@@ -39,70 +85,135 @@ function discoverApiRoutes(): string[] {
       if (statSync(p).isDirectory()) {
         walk(p, e.startsWith("(") ? urlPath : `${urlPath}/${e}`);
       } else if (/^route\.(ts|tsx|js|jsx|mjs)$/.test(e)) {
-        // Round-1 review: this matched only .ts/.tsx, so a future JS route shape would have
-        // been invisible to the classification check — an unclassified route that the check
-        // built to catch unclassified routes could not see.
-        found.push(urlPath);
+        const ms = methodsOf(p);
+        if (ms.length === 0) methodless.push(urlPath);
+        for (const m of ms) surfaces.push({ key: `${m} ${urlPath}`, path: urlPath, method: m });
       }
     }
   })(join(ROOT, "app", "api"), "/api");
-  return [...new Set(found)].sort();
+  return { surfaces: surfaces.sort((a, b) => a.key.localeCompare(b.key)), methodless };
 }
+
+type Entry = {
+  classification: string;
+  unauth_status: number;
+  reason: string;
+  provenance: "decision" | "discovery";
+  decided_by: string;
+  decided_on: string;
+};
 
 const DECLARED = JSON.parse(
   readFileSync(join(__dirname, "api-auth-classification.json"), "utf8"),
-) as {
-  routes: Record<string, { classification: string; unauth_status: number; reason: string }>;
-};
+) as { surfaces: Record<string, Entry> };
 
 const PROTECTED = proxyPrefixes("PROTECTED_API_PREFIXES");
 const PUBLIC = proxyPrefixes("PUBLIC_API_PREFIXES");
-const ROUTES = discoverApiRoutes();
+const { surfaces: SURFACES, methodless: METHODLESS } = discoverSurfaces();
 
-describe("api auth classification", () => {
-  it("the prefix lists and the route list are both populated (positive control)", () => {
-    // Any of these empty makes every assertion below vacuous: an empty PROTECTED list would
-    // make routes look unclassified, and an empty route list would make the sweep pass over
-    // nothing at all.
+const isProxyProtected = (path: string) =>
+  !PUBLIC.some((p) => path.startsWith(p)) && PROTECTED.some((p) => path.startsWith(p));
+
+describe("api auth classification (method-aware)", () => {
+  it("positive control: prefixes parsed, surfaces discovered, both export forms seen", () => {
+    // Any of these empty makes every assertion below vacuous. The last two matter most: if
+    // method extraction silently returned nothing, every surface would look classified because
+    // there would be no surfaces at all.
     expect(PROTECTED.length, "parsed no PROTECTED_API_PREFIXES from proxy.ts").toBeGreaterThan(0);
     expect(PUBLIC.length, "parsed no PUBLIC_API_PREFIXES from proxy.ts").toBeGreaterThan(0);
-    expect(ROUTES.length, "discovered no API routes").toBeGreaterThan(5);
+    expect(SURFACES.length, "discovered no method surfaces").toBeGreaterThan(10);
+
+    // Prove the parser sees BOTH export forms, not just the common one. Pointing a working
+    // instrument at the wrong target yields a confident null — see docs in the header.
+    const fnForm = SURFACES.some((s) => s.path === "/api/kill-switch");
+    const constForm = SURFACES.some((s) => s.path === "/api/phone/gate");
+    expect(fnForm, "did not see `export async function` routes").toBe(true);
+    expect(constForm, "did not see `export const GET = handle` routes (/api/phone/gate)").toBe(true);
   });
 
-  it("every API route is classified — by the proxy, or explicitly with a reason", () => {
-    const unclassified = ROUTES.filter(
-      (r) =>
-        !PROTECTED.some((p) => r.startsWith(p)) &&
-        !PUBLIC.some((p) => r.startsWith(p)) &&
-        !DECLARED.routes[r],
-    );
+  it("no route file yields zero methods (a blind parser looks like a method-less route)", () => {
+    expect(
+      METHODLESS,
+      "these route files exported no recognisable HTTP method. Either they genuinely export\n" +
+        "none, or methodsOf() cannot see the form they use — and those two look identical from\n" +
+        "here. Extend methodsOf() rather than ignoring them:\n" + METHODLESS.join("\n"),
+    ).toEqual([]);
+  });
+
+  it("every method surface is classified — by the proxy, or explicitly with a reason", () => {
+    const unclassified = SURFACES.filter(
+      (s) => !isProxyProtected(s.path) && !DECLARED.surfaces[s.key],
+    ).map((s) => s.key);
     expect(
       unclassified,
-      "these API routes are in NEITHER proxy prefix list AND have no entry in\n" +
-        "api-auth-classification.json, so nothing decides whether an anonymous caller may\n" +
-        "reach them. That is exactly how /api/kill-switch POST became reachable with no\n" +
-        "credential. Classify each one — protected, public, or declared with a reason:\n" +
+      "these METHOD surfaces are not gated by PROTECTED_API_PREFIXES and have no entry in\n" +
+        "api-auth-classification.json, so nothing decides whether an anonymous caller may reach\n" +
+        "them. A path being in PUBLIC_API_PREFIXES does NOT classify its methods — the proxy\n" +
+        "gates none of them, so each is adjudicated here. Classify each:\n" +
         unclassified.join("\n"),
     ).toEqual([]);
   });
 
-  it("no declared entry describes a route that no longer exists", () => {
-    // A stale exception is a standing permission for a path nobody has looked at in months.
-    const phantom = Object.keys(DECLARED.routes).filter((r) => !ROUTES.includes(r));
-    expect(phantom, `declared classifications with no route on disk:\n${phantom.join("\n")}`).toEqual([]);
+  it("no declared entry describes a surface that no longer exists", () => {
+    const live = new Set(SURFACES.map((s) => s.key));
+    const phantom = Object.keys(DECLARED.surfaces).filter((k) => !live.has(k));
+    expect(phantom, `declared surfaces with no handler on disk:\n${phantom.join("\n")}`).toEqual([]);
   });
 
-  it("every declared entry carries a reason and an anonymous-caller status", () => {
-    const thin = Object.entries(DECLARED.routes)
-      .filter(([, v]) => !v.reason?.trim() || typeof v.unauth_status !== "number")
+  it("every declared entry carries reason, unauth_status, provenance and a signature", () => {
+    const thin = Object.entries(DECLARED.surfaces)
+      .filter(
+        ([, v]) =>
+          !v.reason?.trim() ||
+          typeof v.unauth_status !== "number" ||
+          !v.decided_by?.trim() ||
+          !v.decided_on?.trim() ||
+          (v.provenance !== "decision" && v.provenance !== "discovery"),
+      )
       .map(([k]) => k);
-    expect(thin, `declared without a reason or unauth_status:\n${thin.join("\n")}`).toEqual([]);
+    expect(thin, `incomplete entries:\n${thin.join("\n")}`).toEqual([]);
+  });
+
+  it("no entry is still an unadjudicated DISCOVERY", () => {
+    // A discovery records what the code was found doing. Leaving one in place is how observed
+    // posture becomes declared requirement without anyone choosing it.
+    const undecided = Object.entries(DECLARED.surfaces)
+      .filter(([, v]) => v.provenance === "discovery")
+      .map(([k, v]) => `${k} (found doing this, never decided — ${v.reason.slice(0, 60)}…)`);
+    expect(
+      undecided,
+      "these surfaces record what the code does, not a decision anyone made. Adjudicate each\n" +
+        "and set provenance to `decision` with decided_by/decided_on. Do NOT resolve this by\n" +
+        "writing down current behaviour:\n" + undecided.join("\n"),
+    ).toEqual([]);
+  });
+
+  it("every classification is one the schema defines", () => {
+    const known = Object.keys(
+      (JSON.parse(readFileSync(join(__dirname, "api-auth-classification.json"), "utf8")) as
+        { _classifications: Record<string, string> })._classifications,
+    );
+    const bogus = Object.entries(DECLARED.surfaces)
+      .filter(([, v]) => !known.includes(v.classification))
+      .map(([k, v]) => `${k}: ${v.classification}`);
+    expect(bogus, `unknown classification (invent a label and it means nothing):\n${bogus.join("\n")}`).toEqual([]);
+  });
+
+  it("a pending-remediation entry names the change that closes it", () => {
+    // Without this, the label degrades into a permanent excuse — which is what
+    // "deliberately-public" had already become for the three surfaces it covered.
+    const vague = Object.entries(DECLARED.surfaces)
+      .filter(
+        ([, v]) =>
+          v.classification === "accepted-exposure-pending-remediation" &&
+          !(v as Entry & { remediation?: string }).remediation?.trim(),
+      )
+      .map(([k]) => k);
+    expect(vague, `accepted exposure with no named remediation:\n${vague.join("\n")}`).toEqual([]);
   });
 
   it("a 'route-self-protected' entry claims a refusing status, not a success", () => {
-    // The classification means "the route turns anonymous callers away". If the declared
-    // status is a 2xx, the label and the claim disagree and the label is the lie.
-    const wrong = Object.entries(DECLARED.routes)
+    const wrong = Object.entries(DECLARED.surfaces)
       .filter(([, v]) => v.classification === "route-self-protected" && v.unauth_status < 400)
       .map(([k, v]) => `${k}: claims self-protected but unauth_status=${v.unauth_status}`);
     expect(wrong, wrong.join("\n")).toEqual([]);

@@ -9,7 +9,7 @@ Margot** — those env vars belong to other agents (e.g. Synthex Remotion).
 Margot's locked voice is ``p43fx6U8afP2xoq1Ai9f`` (override via
 ``MARGOT_ELEVENLABS_VOICE_ID`` for staging only).
 
-Canonical ID: ``.harness/margot/assets/margot_identity.json`` →
+Canonical ID: ``config/harness/margot/assets/margot_identity.json`` →
 ``packages/brand-config`` ``MARGOT_ELEVENLABS_VOICE_ID``.
 """
 from __future__ import annotations
@@ -20,7 +20,7 @@ from functools import lru_cache
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_IDENTITY_PATH = _REPO_ROOT / ".harness" / "margot" / "assets" / "margot_identity.json"
+_IDENTITY_PATH = _REPO_ROOT / "config" / "harness" / "margot" / "assets" / "margot_identity.json"
 
 # Locked ElevenLabs voice for Margot (founder-approved 2026-07-02).
 _CANONICAL_VOICE_ID = "p43fx6U8afP2xoq1Ai9f"

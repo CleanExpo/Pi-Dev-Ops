@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Remotion Video Workspace</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero panel">
+        <div>
+          <p class="eyebrow">Hermes × Remotion × Unite-Group</p>
+          <h1>AI-assisted marketing video command centre</h1>
+          <p>
+            Generate a dry-run production packet, image prompts, scene timing,
+            voice policy, and render command before spending ElevenLabs or image-generation credits.
+          </p>
+        </div>
+        <aside class="hero-status" aria-label="Workspace status">
+          <span class="pulse"></span>
+          <strong>localhost:3990 live</strong>
+          <small>Dry-run first · one Synthex voice · approved infrastructure only</small>
+        </aside>
+      </section>
+
+      <section class="insight-grid">
+        <article class="metric-card">
+          <span>Pipeline</span>
+          <strong>Brief → Script → Images → Timing → Render</strong>
+          <small>One production lane, no wandering.</small>
+        </article>
+        <article class="metric-card">
+          <span>Image AI</span>
+          <strong>ChatGPT or Nano Banana 2 Pro</strong>
+          <small>Prompts captured before asset replacement.</small>
+        </article>
+        <article class="metric-card">
+          <span>Unite-Group</span>
+          <strong>Control-plane wiring view</strong>
+          <small>Canonical Unite-Group naming only.</small>
+        </article>
+      </section>
+
+      <section class="grid">
+        <form id="job-form" class="card form-card">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">New packet</p>
+              <h2>AI-assisted video brief</h2>
+            </div>
+            <button class="ghost" type="button" id="assist-button">AI assist</button>
+          </div>
+
+          <div class="two-col">
+            <label>Brand <select name="brand"><option>synthex</option><option>unite</option><option>ccw</option><option>ra</option><option>nrpg</option><option>dr</option><option>carsi</option></select></label>
+            <label>Audience <input name="audience" value="founders" /></label>
+          </div>
+          <div class="two-col">
+            <label>Channel <select name="channel"><option>linkedin</option><option>website</option><option>youtube</option><option>sales</option><option>ads</option></select></label>
+            <label>Duration seconds <input name="durationSec" type="number" min="15" max="180" value="60" /></label>
+          </div>
+          <label>Goal <input name="goal" value="explain agentic marketing with generated visuals" /></label>
+          <label>CTA <input name="cta" value="Book a strategy call" /></label>
+          <label>Image generator
+            <select name="imageProvider">
+              <option value="nano-banana-2-pro">Nano Banana 2 Pro</option>
+              <option value="chatgpt">ChatGPT image generator</option>
+              <option value="none">No generated images</option>
+            </select>
+          </label>
+          <label>Image prompt <textarea name="imagePrompt">Premium editorial image of an AI marketing command centre, warm cinematic lighting, realistic business context, no generic blue-glowing-AI clichés.</textarea></label>
+          <label>Brief <textarea name="brief">Synthex turns marketing ideas into shipped campaigns using agents, Remotion, single-voice narration, and professional production gates.</textarea></label>
+          <button type="submit">Generate dry-run packet</button>
+        </form>
+
+        <aside class="side-stack">
+          <section class="card ai-card">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow">AI co-pilot</p>
+                <h2>Suggested improvements</h2>
+              </div>
+            </div>
+            <div id="assistant-plan" class="assistant-plan">
+              Press AI assist to tighten the brief, storyboard, image prompts, and render checks locally.
+            </div>
+          </section>
+
+          <section class="card">
+            <h2>Live progress</h2>
+            <pre id="progress">Waiting for a job…</pre>
+          </section>
+        </aside>
+      </section>
+
+      <section class="grid lower-grid">
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">Unite-Group control plane</p>
+              <h2>Project wiring status</h2>
+            </div>
+            <span class="badge">7 projects connected</span>
+          </div>
+          <div id="project-wiring" class="project-wiring"></div>
+          <p class="note">Canonical names are <code>UNITE_GROUP_API_URL</code> and <code>UNITE_GROUP_API_KEY</code>. Older Hub-style wording is treated as compatibility only.</p>
+        </section>
+
+        <section class="card">
+          <h2>Recent packets</h2>
+          <div id="jobs" class="jobs"></div>
+        </section>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

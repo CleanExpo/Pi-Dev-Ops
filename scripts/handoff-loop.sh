@@ -50,11 +50,29 @@ gate "clean-bloat" bash -c '
     -not -path "*/node_modules/*" -prune -exec rm -rf {} + 2>/dev/null
   rm -rf dashboard/.next/cache 2>/dev/null; true'
 
+# Interpreter. pyproject requires >=3.11, but a bare `python3` is 3.9 on some machines,
+# where PEP-604 annotations (`str | None`, `Path | None`) raise TypeError at import time.
+# That reads as broken code rather than a wrong interpreter, and has already produced one
+# fully invalid gate run. Prefer the repo venv; where python3 is already >=3.11 this
+# resolves to the same interpreter, so it is a no-op there. Exported so `bash -c` gates
+# inherit it.
+PY="python3"
+if [ -d "$ROOT/.venv/bin" ]; then
+  PY="$ROOT/.venv/bin/python3"
+  # Also front the venv on PATH. $PY alone only fixes the gates' own interpreter — tests
+  # spawn subprocesses that resolve `python3`/`pytest` from PATH and would still get 3.9,
+  # and repo tools (ruff) live here too, which is why lint-ruff reported "not installed".
+  # This is the `export PATH=…/.venv/bin:$PATH` workaround every caller was expected to
+  # remember, moved into the script so forgetting it can no longer fake a verdict.
+  PATH="$ROOT/.venv/bin:$PATH"; export PATH
+fi
+export PY
+
 # 2. Dependencies. Absent toolchain → SKIP (env not provisioned here), never FAIL.
 PY_OK=0; NODE_OK=0
 if [ -f app/requirements.txt ]; then
-  [ "$MODE_FULL" = 1 ] && python3 -m pip install -q -r app/requirements.txt >>"$LOG" 2>&1
-  if python3 -c "import fastapi, pydantic" >>"$LOG" 2>&1; then PY_OK=1; gate "deps-python" true
+  [ "$MODE_FULL" = 1 ] && "$PY" -m pip install -q -r app/requirements.txt >>"$LOG" 2>&1
+  if "$PY" -c "import fastapi, pydantic" >>"$LOG" 2>&1; then PY_OK=1; gate "deps-python" true
   else skip "deps-python" "app venv not active / deps not importable — run --full or activate the venv"; fi
 fi
 if [ -f dashboard/package.json ]; then
@@ -67,14 +85,19 @@ fi
 if [ -f swarm/agentskills_manifest.py ]; then
   if [ "$PY_OK" = 1 ]; then
     gate "generated-agentskills" bash -c '
-      python3 -m swarm.agentskills_manifest >/dev/null 2>&1
+      "$PY" -m swarm.agentskills_manifest >/dev/null 2>&1
       git diff --quiet -- agentskills.json agentskills.yaml'
   else skip "generated-agentskills" "python deps absent"; fi
+fi
+if [ -f scripts/check_agent_registry.py ]; then
+  if [ "$PY_OK" = 1 ]; then
+    gate "generated-agent-registry" "$PY" scripts/check_agent_registry.py
+  else skip "generated-agent-registry" "python deps absent"; fi
 fi
 
 # 4. Type checks.
 if [ -f app/server/main.py ]; then
-  [ "$PY_OK" = 1 ] && gate "type-python-import" python3 -c "from app.server.main import app" \
+  [ "$PY_OK" = 1 ] && gate "type-python-import" "$PY" -c "from app.server.main import app" \
     || { [ "$PY_OK" = 1 ] || skip "type-python-import" "python deps absent"; }
 fi
 if [ -f dashboard/package.json ]; then
@@ -94,7 +117,7 @@ fi
 if [ "$MODE_QUICK" = 1 ]; then skip "tests" "--quick"
 else
   if [ -d tests ]; then
-    [ "$PY_OK" = 1 ] && gate "tests-python" python3 -m pytest tests/ -q --ignore=tests/test_sdk_phase2.py \
+    [ "$PY_OK" = 1 ] && gate "tests-python" "$PY" -m pytest tests/ -q --ignore=tests/test_sdk_phase2.py \
       || { [ "$PY_OK" = 1 ] || skip "tests-python" "python deps absent"; }
   fi
   if [ -f dashboard/package.json ]; then
@@ -121,12 +144,23 @@ elif [ -f dashboard/.next/BUILD_ID ]; then
 else skip "route-exercise" "no dashboard build to serve"; fi
 
 # 8. Audits.
-if command -v detect-secrets >/dev/null 2>&1; then
-  gate "audit-secrets" bash -c 'detect-secrets scan --all-files > /tmp/.ds-$$ 2>/dev/null; \
-    ! grep -q "\"is_secret\": true" /tmp/.ds-$$; rm -f /tmp/.ds-$$'
-else skip "audit-secrets" "detect-secrets not installed"; fi
+# Gate on the repo's own scanner — the same one CI blocks merges with (ci.yml "Secrets
+# exposure scan"). --dry-run reports findings but never patches .gitignore, raises a
+# Linear ticket or fires Telegram: a gate must measure, not act. Exit 0 clean / 1 on
+# findings, both verified against a planted secret.
+#
+# This replaces a `detect-secrets scan` gate that was unable to fail three ways over:
+#   1. detect-secrets was never installed, so it SKIPped permanently;
+#   2. the body ended `rm -f /tmp/.ds-$$`, so bash -c returned rm's 0 and the `! grep`
+#      verdict was computed and discarded;
+#   3. it grepped for "is_secret", a field `scan` never emits — only `audit` writes it.
+# Installing detect-secrets would therefore have turned an honest SKIP into a permanent
+# green. Use the scanner that demonstrably works instead.
+if [ -f scripts/secrets_check.py ]; then
+  gate "audit-secrets" "$PY" scripts/secrets_check.py --repo-root "$ROOT" --dry-run
+else skip "audit-secrets" "scripts/secrets_check.py not present"; fi
 if [ "$PY_OK" = 1 ] && curl -sf -o /dev/null "http://127.0.0.1:7777/health" 2>/dev/null; then
-  gate "audit-smoke" python3 scripts/smoke_test.py --url http://127.0.0.1:7777 --password "${TAO_PASSWORD:-dev}"
+  gate "audit-smoke" "$PY" scripts/smoke_test.py --url http://127.0.0.1:7777 --password "${TAO_PASSWORD:-dev}"
 else skip "audit-smoke" "python deps absent or local server not reachable on :7777"; fi
 
 # Verdict.

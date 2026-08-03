@@ -72,6 +72,7 @@ _VALID_TYPES: set[str] = {
     "six_pager_emitted",
     # Persistent goals (RA-1858 Wave 5 prep — Ralph loop)
     "goal_created", "goal_advanced", "goal_resolved", "goal_aborted",
+    "goal_stalled_aborted",
     # Pi-CEO Board (RA-1868 Wave 5 — Layer 2 deliberation kernel)
     "board_deliberation_started",
     "board_directive_emitted",

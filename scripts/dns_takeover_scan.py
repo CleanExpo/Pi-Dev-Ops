@@ -9,7 +9,7 @@ pointed at a decommissioned Azure web app, the name got released, an attacker
 grabbed it, and every visitor to `www.example.com` was redirected to a spam
 site with valid SSL. Manual action + 24h of stress until reconsideration.
 
-This scanner walks `.harness/projects.json`, extracts custom domains, and for
+This scanner walks `config/harness/projects.json`, extracts custom domains, and for
 each domain probes BOTH the apex and the `www` variant. It flags:
 
   1. CNAMEs pointing at cloud app-platform hostnames where the endpoint
@@ -73,7 +73,7 @@ RISKY_SUFFIXES = (
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-REGISTRY = PROJECT_ROOT / ".harness" / "projects.json"
+REGISTRY = PROJECT_ROOT / "config" / "harness" / "projects.json"
 
 
 @dataclass

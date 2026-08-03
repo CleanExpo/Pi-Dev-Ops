@@ -318,7 +318,6 @@ print("\n[7/9] Lessons API")
 sc, body = get("/api/lessons")
 check("GET /api/lessons returns 200", sc == 200, f"got {sc}")
 check("Lessons response is a list", isinstance(body, list), str(type(body)))
-check("Lessons list is non-empty (seed data present)", isinstance(body, list) and len(body) > 0, f"len={len(body) if isinstance(body, list) else 'N/A'}")
 
 sc, entry = post("/api/lessons", {
     "source": "smoke-test",
@@ -328,6 +327,11 @@ sc, entry = post("/api/lessons", {
 })
 check("POST /api/lessons returns 200", sc == 200, f"got {sc}")
 check("New lesson entry has expected fields", isinstance(entry, dict) and "lesson" in entry and "category" in entry, str(entry))
+
+sc, smoke_lessons = get("/api/lessons?category=smoke-test")
+check("Posted lesson is readable", sc == 200 and isinstance(smoke_lessons, list)
+      and any(item.get("lesson") == "Smoke test lesson — safe to delete" for item in smoke_lessons),
+      f"got {sc}, count={len(smoke_lessons) if isinstance(smoke_lessons, list) else 'N/A'}")
 
 sc, filtered = get("/api/lessons?category=persistence")
 check("GET /api/lessons?category=persistence returns 200", sc == 200, f"got {sc}")

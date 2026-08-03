@@ -379,7 +379,7 @@ class IngestConfig:
     # Sub-project 2 fields (defaults so legacy callers don't break)
     anthropic_api_key: str = ""
     linear_api_key: str = ""
-    projects_json_path: Path = Path.home() / "Pi-CEO" / "Pi-Dev-Ops" / ".harness" / "projects.json"
+    projects_json_path: Path = Path.home() / "Pi-CEO" / "Pi-Dev-Ops" / "config" / "harness" / "projects.json"
     batch_results: list = field(default_factory=list)
 
 

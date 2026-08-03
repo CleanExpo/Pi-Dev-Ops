@@ -20,6 +20,7 @@ Public API (re-exported by sessions.py for backward compatibility):
 from __future__ import annotations
 
 import asyncio
+import base64
 import datetime
 import json
 import logging
@@ -392,10 +393,30 @@ def _select_model(phase: str, explicit_model: str = "") -> str:
     return "sonnet"
 
 
-async def run_cmd(cwd, *args, timeout=60):
-    proc = await asyncio.create_subprocess_exec(*args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, cwd=cwd)
+async def run_cmd(cwd, *args, timeout=60, env=None):
+    proc = await asyncio.create_subprocess_exec(
+        *args,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        cwd=cwd,
+        env=env,
+    )
     out, err = await asyncio.wait_for(proc.communicate(), timeout=timeout)
     return proc.returncode, out.decode("utf-8",errors="replace"), err.decode("utf-8",errors="replace")
+
+
+def _git_clone_env(repo_url: str) -> dict[str, str] | None:
+    """Return process-scoped GitHub auth without putting a token in argv/remote."""
+    token = os.environ.get("GITHUB_TOKEN", "")
+    if not token or not repo_url.startswith("https://github.com/"):
+        return None
+    basic = base64.b64encode(f"x-access-token:{token}".encode()).decode()
+    return {
+        **os.environ,
+        "GIT_CONFIG_COUNT": "1",
+        "GIT_CONFIG_KEY_0": "http.https://github.com/.extraheader",
+        "GIT_CONFIG_VALUE_0": f"AUTHORIZATION: basic {basic}",
+    }
 
 def parse_event(line, session):
     try:
@@ -541,6 +562,7 @@ async def _phase_clone(session, resume_from: str) -> bool:
             rc, _, stderr = await run_cmd(
                 session.workspace, "git", "clone", "--depth", "1",
                 session.repo_url, session.workspace, timeout=60,
+                env=_git_clone_env(session.repo_url),
             )
             if rc == 0:
                 # RA-1173 — verify the cloned repo's origin matches session.repo_url.
@@ -1226,7 +1248,7 @@ def _route_linear_ticket_to_target_project(
 ) -> None:
     """RA-1184 — create a Linear ticket in the TARGET repo's project.
 
-    Reads .harness/projects.json for repo → (linear_team_id, linear_project_id)
+    Reads config/harness/projects.json for repo → (linear_team_id, linear_project_id)
     mapping. Creates a ticket titled with the PR name, description linking to
     the PR + session ID + evaluator score. Ticket lands in the correct project
     board (e.g. Disaster-Recovery's Linear project, not Pi-Dev-Ops's) so teams
@@ -1245,7 +1267,7 @@ def _route_linear_ticket_to_target_project(
         return
 
     # Load projects.json; look up by repo name (case-insensitive)
-    projects_path = Path(__file__).parent.parent.parent / ".harness" / "projects.json"
+    projects_path = Path(__file__).parent.parent.parent / "config" / "harness" / "projects.json"
     if not projects_path.exists():
         em(session, "system", "  Linear ticket skipped: projects.json not found")
         return

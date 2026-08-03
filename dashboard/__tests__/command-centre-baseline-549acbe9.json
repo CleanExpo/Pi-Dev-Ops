@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "repository": "https://github.com/CleanExpo/Unite-Group",
+  "commit": "549acbe9ea2b3c15a253016c8b2a76dabe60b62b",
+  "source_root": "apps/web/src",
+  "files": {
+    "app/(founder)/founder/command-centre/hermes-control-panel/page.tsx": { "sha256": "7d62b2dddb2ad8503eabb3cd716c9e5b13ea184517e0887faf974cde712949dc", "counts": {} },
+    "components/command-centre/DeckDetails.tsx": { "sha256": "197331e86848d55ed0ec05c127322b6bb2d1038adb957db78729e5e39e1b8e14", "counts": {} },
+    "lib/operator-gateway/control-panel.ts": { "sha256": "5c551edd637bac51de252217b71e04f165690e2ac03b6bf6a5811f2c0e228dee", "counts": { "read-only flag": 9, "sandbox boundary": 1 } },
+    "app/(founder)/founder/command-centre/command-deck.module.css": { "sha256": "5403d34cde1a9b7dc8bcd18e279e597bb5577024eead4e5bd351620f34c3abac", "counts": { "disabled control": 2 } },
+    "components/command-centre/deck-details.module.css": { "sha256": "c055143f13d545ad5489da326a8e454e700429ef344a95d336e6945a0dbcfe6b", "counts": {} },
+    "app/(founder)/founder/command-centre/knowledge/page.tsx": { "sha256": "3f8eaf4870d2313ab66663c1467466c1a40962421b7c5f3641d052220aa077a4", "counts": {} },
+    "app/(founder)/founder/command-centre/DeckThemeShell.tsx": { "sha256": "a8adcd300001bcdb2aabbcec3a98cea4d5c9958de287894fa43d07ab2866d349", "counts": {} },
+    "app/(founder)/founder/command-centre/deck-visual-helpers.ts": { "sha256": "dd93bc5faade8c956d4e9538f473e9277a687c91d217664a744415aed1a73894", "counts": {} },
+    "app/(founder)/founder/command-centre/shell.module.css": { "sha256": "f72f5a4e9bc5e338bbaab124180676a75229f032e6bac54ff9bf66bc9fe0e36b", "counts": {} },
+    "components/command-centre/SourceBadge.tsx": { "sha256": "a79e6466bf25355d3589471ed7ed0d85fae5c9056daa9b1c33092232df34ec8e", "counts": {} },
+    "components/command-centre/DegradedDataBanner.tsx": { "sha256": "8fbe44039fa5d181a8a29d74f328bd96431d09c1492886382ab2865a09407cb3", "counts": {} },
+    "components/command-centre/wiki-graph/WikiGraphTile.tsx": { "sha256": "81fef9ef6601e95a5273352bdcd31b5c2c71db85abc1ed70fff40a6d1ab399c5", "counts": { "network: fetch": 1 } },
+    "lib/command-centre/tools/catalogue.ts": { "sha256": "2876efa1753c3af6e1a51fef54b17b2eb9a08d46a3d5a9f9beb6bef7faa3f827", "counts": {} },
+    "store/ui.ts": { "sha256": "70a6b14e237d85e26b0f8dabecccafc7ccc7aa5b6e36d534f5224adf0f837e5e", "counts": {} },
+    "lib/command-centre/wiki-graph.ts": { "sha256": "3b1b6c75eefe28d505628f18de7f8a1fc9018ab8742d6b449d89f52e6245403b", "counts": {} },
+    "app/(founder)/founder/command-centre/wiki-graph/page.tsx": { "sha256": "9dba2bc8b4bbaf7933c3c5778f76b4940501b8e63829c1996209f9163f7421d6", "counts": { "database client": 1, "auth gate": 3 } },
+    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx": { "sha256": "ef4fb55ae5fd7ccbb791e3da024facf3953ec62ce654be2031192b262d3d0778", "counts": {} },
+    "lib/command-centre/provider-usage.ts": { "sha256": "48b897db0480b004310ac39638898d5a23306ce3e08749834c09cac87be17325", "counts": { "paid API key": 2 } },
+    "components/command-centre/provider-usage/ProviderUsageCockpit.tsx": { "sha256": "c23ee750cf6bc62d19cfaa9f5e89621a263cc0e7c99c0c874b0a18a5a16e4338", "counts": { "network: fetch": 1 } }
+  }
+}

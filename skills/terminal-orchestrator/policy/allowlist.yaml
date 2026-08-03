@@ -57,7 +57,6 @@ verbs:
     safe_path_prefixes:
       - /Users/phillmcgurk/Pi-CEO
       - /Users/phillmcgurk/Synthex
-      - /Users/phillmcgurk/Unite-Hub
       - /Users/phillmcgurk/Unite-Group
       - /Users/phillmcgurk/2nd-brain
       - /Users/phillmcgurk/Disaster-Recovery

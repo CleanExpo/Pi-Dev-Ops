@@ -64,7 +64,7 @@ class MonitorDigest:
 # ─── project config ───────────────────────────────────────────────────────────
 
 def _load_projects() -> list[dict[str, Any]]:
-    """Load all projects from .harness/projects.json."""
+    """Load all projects from config/harness/projects.json."""
     if not _PROJECTS_FILE.exists():
         return []
     with open(_PROJECTS_FILE) as f:

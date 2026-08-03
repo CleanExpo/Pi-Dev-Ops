@@ -28,6 +28,7 @@ const PROV_RAW = JSON.parse(
 ) as Record<string, unknown>;
 const PROV = PROV_RAW as unknown as {
   _baseline_root: string;
+  _baseline_snapshot: string;
   files: Record<string, string>;
   /** Written fresh for this app. No source baseline exists, so diff-relative
    *  comparison is meaningless for these — they are declared, not compared. */
@@ -72,8 +73,16 @@ const DECLARED = new Set<string>([
   ...Object.keys((PROV_RAW as { _rebuilt_not_ported?: Record<string, string> })._rebuilt_not_ported ?? {}),
   ...Object.keys((PROV_RAW as { _target_native?: Record<string, string> })._target_native ?? {}),
 ]);
-const BASELINE = PROV._baseline_root;
-const baselineAvailable = existsSync(BASELINE);
+// The recorded path is the source machine's checkout. CI and independent reviewers may
+// provide the same source tree at a different absolute path without rewriting provenance.
+const BASELINE = process.env.CC_BASELINE_ROOT;
+const SNAPSHOT_PATH = join(__dirname, PROV._baseline_snapshot);
+const baselineAvailable = Boolean(BASELINE ? existsSync(BASELINE) : existsSync(SNAPSHOT_PATH));
+const SNAPSHOT = existsSync(SNAPSHOT_PATH)
+  ? JSON.parse(readFileSync(SNAPSHOT_PATH, "utf8")) as {
+      files: Record<string, { sha256: string; counts: Record<string, number> }>;
+    }
+  : null;
 
 /** Constructs whose COUNT must not increase relative to the baseline. */
 const TRACKED: Array<{ re: RegExp; rule: string }> = [
@@ -113,6 +122,16 @@ const strip = (s: string) =>
   s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 const count = (src: string, re: RegExp) => (strip(src).match(new RegExp(re.source, "g")) || []).length;
+
+/** Prefer a supplied source checkout; otherwise use the immutable, hash-anchored count snapshot. */
+const baselineCount = (source: string, rule: string, re: RegExp): number | null => {
+  if (BASELINE) {
+    const sourcePath = join(BASELINE, source);
+    return existsSync(sourcePath) ? count(readFileSync(sourcePath, "utf8"), re) : null;
+  }
+  const entry = SNAPSHOT?.files[source];
+  return entry?.sha256 ? (entry.counts[rule] ?? 0) : null;
+};
 
 function resolveSpec(spec: string, from: string): string | null {
   let base: string;
@@ -200,7 +219,7 @@ describe("command-centre: no new surface vs source baseline", () => {
     expect(undeclared, `no provenance entry for:\n${undeclared.join("\n")}`).toEqual([]);
   });
 
-  it("the baseline is reachable, or the run is explicitly acknowledged as unverified", () => {
+  it("pinned baseline evidence is available, or the run is explicitly acknowledged as unverified", () => {
     // A skipped comparison is not a passing one. Previously this only warned while
     // the suite still went green — so an environment without the baseline reported
     // success having checked nothing. It now FAILS closed. Setting
@@ -209,9 +228,9 @@ describe("command-centre: no new surface vs source baseline", () => {
     const acknowledged = process.env.CC_ALLOW_NO_BASELINE === "1";
     expect(
       baselineAvailable || acknowledged,
-      `[BASELINE UNAVAILABLE] ${BASELINE} not present, so the diff-relative claim ` +
+      `[BASELINE UNAVAILABLE] neither CC_BASELINE_ROOT nor ${SNAPSHOT_PATH} is usable, so the diff-relative claim ` +
         `was NOT verified. This suite refuses to report success without checking. ` +
-        `Provide the baseline checkout, or set CC_ALLOW_NO_BASELINE=1 to record ` +
+        `Provide the baseline checkout or pinned snapshot, or set CC_ALLOW_NO_BASELINE=1 to record ` +
         `deliberately that this run proves nothing about R2/R6.`
     ).toBe(true);
   });
@@ -305,10 +324,10 @@ describe("command-centre: no new surface vs source baseline", () => {
     for (const g of GUARDS) {
       for (const [ported, source] of Object.entries(PROV.files)) {
         const pPath = join(ROOT, ported);
-        const sPath = join(BASELINE, source);
-        if (!existsSync(pPath) || !existsSync(sPath)) continue; // covered by the unresolved check
+        if (!existsSync(pPath)) continue; // covered by the unresolved check
         const p = count(readFileSync(pPath, "utf8"), g.re);
-        const s = count(readFileSync(sPath, "utf8"), g.re);
+        const s = baselineCount(source, g.rule, g.re);
+        if (s === null) continue; // covered by the unresolved check
         if (p < s && !deltaDeclared(ported, g.rule, s, p)) lost.push(`${g.rule} in ${ported}: ${s} -> ${p}`);
       }
     }
@@ -325,14 +344,13 @@ describe("command-centre: no new surface vs source baseline", () => {
       const unresolved: string[] = [];
       for (const [ported, source] of Object.entries(PROV.files)) {
         const pPath = join(ROOT, ported);
-        const sPath = join(BASELINE, source);
         // A pair that cannot be resolved must NOT be skipped. Skipping it left the
         // file uncompared while the suite still went green — a mistyped baseline
         // path would read as "verified clean" having checked nothing.
         if (!existsSync(pPath)) { unresolved.push(`ported missing: ${ported}`); continue; }
-        if (!existsSync(sPath)) { unresolved.push(`baseline missing: ${source} (for ${ported})`); continue; }
+        const s = baselineCount(source, t.rule, t.re);
+        if (s === null) { unresolved.push(`baseline missing: ${source} (for ${ported})`); continue; }
         const p = count(readFileSync(pPath, "utf8"), t.re);
-        const s = count(readFileSync(sPath, "utf8"), t.re);
         if (p > s && !deltaDeclared(ported, t.rule, s, p)) grew.push(`${ported}: ${s} -> ${p}`);
       }
       expect(

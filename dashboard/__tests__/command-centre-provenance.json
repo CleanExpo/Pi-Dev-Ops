@@ -1,6 +1,7 @@
 {
   "_comment": "Provenance map for the command-centre migration. Every ported source file must appear here with the Authority-Site file it came from. The diff-relative conformance test compares each port against its named baseline: the port may not introduce a network/DB/execution construct the baseline did not already contain. An unlisted file fails the test, so a new file cannot enter the capability surface without a declared origin.",
   "_baseline_root": "D:/Authority-Site/apps/web/src",
+  "_baseline_snapshot": "command-centre-baseline-549acbe9.json",
   "_ruling": "2026-08-01 founder: port faithfully including existing behaviour. The claim under review is 'introduces no network surface the source did not have' — NOT absolute read-only proof. See adversarial-review spec-writing standard.",
   "files": {
     "app/(main)/command-centre/hermes/page.tsx": "app/(founder)/founder/command-centre/hermes-control-panel/page.tsx",

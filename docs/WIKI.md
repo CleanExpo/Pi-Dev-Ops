@@ -1,8 +1,12 @@
 # docs — Wiki
 
-_Last updated: 2026-07-05T10:27:59Z (commits 8c374a3..37584ea)_
+_Last updated: 2026-07-27T04:44:30Z (commits 0866310..6ae9701)_
 
 ## Recent changes
-- 37584ea — docs(runbook): correct fable-canary revert to 'railway variable delete' (set-empty is a no-op); record rehearsed revert 2026-07-05 (#518)
+- 6ae9701 — feat(nexus): add governed shadow agent registry (#602)
 
+## Architecture (current)
+Auto-stub: `docs/` had 1 recent commits. SDK unavailable for synthesis.
 
+## Files of interest
+- docs/agents/README.md — touched in recent commits

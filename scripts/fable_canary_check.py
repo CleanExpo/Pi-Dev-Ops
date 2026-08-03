@@ -15,7 +15,12 @@ import os
 import sys
 import urllib.request
 
-URL = os.environ.get("TAO_PROD_URL", "").rstrip("/")
+# The prod URL is not a secret — smoke_pipeline.yml has hardcoded this same value for
+# months and logs in successfully every 6h. Defaulting it (as scripts/smoke_test_pipeline.py
+# already does) removes the dependency on a TAO_PROD_URL secret that does not exist, which
+# is what made this canary skip every night. TAO_PROD_URL still overrides.
+DEFAULT_PROD_URL = "https://pi-dev-ops-production.up.railway.app"
+URL = (os.environ.get("TAO_PROD_URL") or DEFAULT_PROD_URL).rstrip("/")
 PASSWORD = os.environ.get("TAO_PASSWORD", "")
 
 
@@ -25,9 +30,15 @@ def _client():
 
 
 def main() -> int:
-    if not URL or not PASSWORD:
-        print("SKIP: TAO_PROD_URL / TAO_PASSWORD not set", file=sys.stderr)
-        return 0
+    if not PASSWORD:
+        # Previously this returned 0, so a missing secret produced a green check and a
+        # daily all-clear on a canary that had never once been read. A security control
+        # that cannot run must say so loudly: an unarmed canary is not a clean canary.
+        print(
+            "FAIL: TAO_PASSWORD not set — canary NOT checked. This is not a clean result.",
+            file=sys.stderr,
+        )
+        return 1
     opener = _client()
     # login (cookie session)
     login = urllib.request.Request(

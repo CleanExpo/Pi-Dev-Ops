@@ -1,7 +1,7 @@
 """swarm/providers/google_ads.py — real ad-platform CMO provider.
 
 Pulls real spend per channel from Google Ads for each business in
-``.harness/projects.json``. Other channels (LinkedIn, Meta, etc.) are
+``config/harness/projects.json``. Other channels (LinkedIn, Meta, etc.) are
 follow-up tickets — for now this connector handles Google Ads and falls
 back to synthetic for everything else in the channel mix.
 

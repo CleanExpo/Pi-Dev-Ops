@@ -43,6 +43,15 @@ const vm    = require("vm");  // RA-1458: code_execute sandbox
 const HARNESS_DIR = process.env.HARNESS_DIR
   || path.join(__dirname, "..", ".harness");
 
+// Committed configuration is fixed relative to the repository. HARNESS_DIR remains the
+// independently configurable location for generated runtime state.
+const CONFIG_DIR = path.join(__dirname, "..", "config", "harness");
+const CONFIG_PATHS = {
+  projects: path.join(CONFIG_DIR, "projects.json"),
+  cronTriggers: path.join(CONFIG_DIR, "cron-triggers.json"),
+  contentManifest: path.join(CONFIG_DIR, "content_manifest.json"),
+};
+
 const LINEAR_API_KEY = process.env.LINEAR_API_KEY || "";
 const LINEAR_API_URL = "https://api.linear.app/graphql";
 
@@ -282,7 +291,7 @@ async function findProjectId() {
 
 /**
  * RA-1518 gap #4 — Route Linear tickets to the correct repo's project.
- * Reads `.harness/projects.json` and returns { teamId, projectId, repo } for a
+ * Reads `config/harness/projects.json` and returns { teamId, projectId, repo } for a
  * given project_key (matches `id` field in the JSON: "restoreassist",
  * "pi-dev-ops", "carsi", "synthex", "dr-nrpg", etc.).
  *
@@ -292,7 +301,7 @@ async function findProjectId() {
 function resolveProjectRouting(project_key) {
   if (!project_key) return null;
   try {
-    const pj = path.join(HARNESS_DIR, "projects.json");
+    const pj = CONFIG_PATHS.projects;
     if (!fs.existsSync(pj)) return null;
     const data = JSON.parse(fs.readFileSync(pj, "utf8"));
     const entry = (data.projects || []).find(p => p.id === project_key);
@@ -355,10 +364,10 @@ function harnessStalenessBanner() {
   if (!stale.length) return "";
   return (
     "\n\n---\n" +
-    "⚠️  **HARNESS DOCS STALE (>48h)** — regenerate before trusting this data.\n" +
+    "⚠️  **CHECKED-IN ANALYSIS SNAPSHOT STALE (>48h)** — do not treat this as live evidence.\n" +
     "Stale files:\n" +
     stale.join("\n") +
-    "\n\nRun `mcp__pi-ceo__get_last_analysis` after a full board meeting or sprint close to refresh."
+    "\n\nThis tool is read-only. Regenerate the checked-in analysis snapshot with `scripts/analyze.sh`, then review and commit the resulting harness files."
   );
 }
 
@@ -732,14 +741,14 @@ server.registerTool(
   "linear_create_issue",
   {
     title: "Create Linear Issue",
-    description: "Create a new issue in a Linear project. Use project_key (e.g. 'restoreassist', 'carsi', 'synthex', 'dr-nrpg') to route to the correct repo's project — reads .harness/projects.json. Omit project_key to default to Pi-Dev-Ops.",
+    description: "Create a new issue in a Linear project. Use project_key (e.g. 'restoreassist', 'carsi', 'synthex', 'dr-nrpg') to route to the correct repo's project — reads config/harness/projects.json. Omit project_key to default to Pi-Dev-Ops.",
     inputSchema: {
       title: z.string().min(1).describe("Issue title"),
       description: z.string().optional().describe("Issue description in Markdown"),
       priority: z.number().int().min(0).max(4).default(3).describe("Priority: 0=None, 1=Urgent, 2=High, 3=Normal, 4=Low"),
       labels: z.array(z.string()).optional().describe("Array of label names to apply"),
       status: z.string().optional().describe("Initial status: backlog, todo, in_progress. Defaults to backlog."),
-      project_key: z.string().optional().describe("Repo key from .harness/projects.json (e.g. 'restoreassist', 'carsi', 'synthex', 'dr-nrpg', 'unite-group', 'ccw-crm'). Omit to default to Pi-Dev-Ops."),
+      project_key: z.string().optional().describe("Repo key from config/harness/projects.json (e.g. 'restoreassist', 'carsi', 'synthex', 'dr-nrpg', 'unite-group', 'ccw-crm'). Omit to default to Pi-Dev-Ops."),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
   },
@@ -1084,7 +1093,7 @@ server.registerTool(
 // ── Tool: get_project_health ──────────────────────────────────────────────────
 const _handle_get_project_health = async ({ project_id }) => {
   const resultsDir = path.join(HARNESS_DIR, "scan-results");
-  const projectsFile = path.join(HARNESS_DIR, "projects.json");
+  const projectsFile = CONFIG_PATHS.projects;
 
   let projects;
   try {
@@ -2162,8 +2171,34 @@ server.registerTool(
   }
 );
 
+// ── Startup validation ─────────────────────────────────────────────────────────
+// Mirrors app/server/config_loader.validate_startup(). Fatal on purpose: this server
+// previously returned `null` from getProjects() when projects.json was absent
+// (line ~296, `if (!fs.existsSync(pj)) return null;`), which reads as "no projects" and is
+// indistinguishable from a working server with nothing to report.
+//
+// Config resolves from the tracked repo layout, independently of HARNESS_DIR runtime state.
+const REQUIRED_AT_STARTUP = [
+  CONFIG_PATHS.projects,
+  CONFIG_PATHS.cronTriggers,
+  CONFIG_PATHS.contentManifest,
+];
+
+function validateStartup() {
+  const missing = REQUIRED_AT_STARTUP.filter((f) => !fs.existsSync(f));
+  if (missing.length) {
+    throw new Error(
+      `Refusing to start — required instance-data file(s) absent: ${missing.join(", ")}. ` +
+        `Looked in ${CONFIG_DIR}. These describe the world and ` +
+        `cannot be defaulted; starting without them means serving empty results while ` +
+        `reporting healthy.`,
+    );
+  }
+}
+
 // ── Start Server ───────────────────────────────────────────────────────────────
 async function main() {
+  validateStartup();
   const transport = new StdioServerTransport();
   await server.connect(transport);
   // Server is now running — the SDK handles all MCP protocol negotiation

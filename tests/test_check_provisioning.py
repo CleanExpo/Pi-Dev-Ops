@@ -41,15 +41,15 @@ _SSOT = {
 @pytest.fixture()
 def fake_repo(tmp_path: Path) -> Path:
     """A minimal repo root with the test SSOT and an empty skills dir."""
-    harness = tmp_path / ".harness"
-    harness.mkdir(parents=True)
-    (harness / "provisioned-tools.yaml").write_text(yaml.safe_dump(_SSOT), encoding="utf-8")
+    fence = tmp_path / "fence"
+    fence.mkdir(parents=True)
+    (fence / "provisioned-tools.yaml").write_text(yaml.safe_dump(_SSOT), encoding="utf-8")
     (tmp_path / "skills" / "demo").mkdir(parents=True)
     return tmp_path
 
 
 def _ssot(fake_repo: Path) -> cp.Ssot:
-    return cp.load_ssot(fake_repo / ".harness" / "provisioned-tools.yaml")
+    return cp.load_ssot(fake_repo / "fence" / "provisioned-tools.yaml")
 
 
 def test_load_ssot_normalises(fake_repo: Path) -> None:
@@ -131,7 +131,7 @@ def test_reconciliation_flags_unprovisioned_declaration(fake_repo: Path) -> None
 
 def test_main_exit_codes(fake_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(cp, "REPO_ROOT", fake_repo)
-    monkeypatch.setattr(cp, "SSOT_PATH", fake_repo / ".harness" / "provisioned-tools.yaml")
+    monkeypatch.setattr(cp, "SSOT_PATH", fake_repo / "fence" / "provisioned-tools.yaml")
     (fake_repo / "skills" / "demo" / "SKILL.md").write_text("Anthropic only.", encoding="utf-8")
     assert cp.main([]) == 0
     (fake_repo / "skills" / "demo" / "SKILL.md").write_text("via Higgsfield", encoding="utf-8")

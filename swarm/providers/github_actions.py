@@ -1,7 +1,7 @@
 """swarm/providers/github_actions.py — real CTO platform provider.
 
 Pulls real DORA metrics from GitHub Actions for each repo in
-``.harness/projects.json``. Vercel + Datadog connectors land as follow-up
+``config/harness/projects.json``. Vercel + Datadog connectors land as follow-up
 tickets — for now this connector handles the GitHub-side DORA quartet
 (deploy frequency, lead time p50, MTTR, change-failure rate) and falls
 back to synthetic for p99 latency, uptime, and cost-per-request.
@@ -14,7 +14,7 @@ Required env:
 * ``GITHUB_TOKEN`` — already in Pi-CEO env for the autonomous-PR loop.
   Read scope only: ``repo`` for private repos.
 
-Per-business `.harness/projects.json` ``repo`` field is used as
+Per-business `config/harness/projects.json` ``repo`` field is used as
 ``owner/name`` — already present for every business. The connector
 queries the most recent 30 days of workflow runs on the default branch.
 
@@ -168,9 +168,9 @@ def _compute_dora(runs: list[dict[str, Any]]
 
 
 def _load_repo_for_business(bid: str) -> str | None:
-    """Lookup the GitHub repo for a business id from .harness/projects.json."""
+    """Lookup the GitHub repo for a business id from config/harness/projects.json."""
     from pathlib import Path
-    p = Path(__file__).resolve().parents[2] / ".harness/projects.json"
+    p = Path(__file__).resolve().parents[2] / "config/harness/projects.json"
     if not p.exists():
         return None
     try:

@@ -2,18 +2,37 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.15.1",
-    "generated_at": "2026-07-05T11:12:14.389639+00:00",
+    "version": "1.20.0",
+    "generated_at": "2026-08-03T05:17:10.303052+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
+    {
+      "id": "adversarial-review",
+      "description": "Review a proposed fix with a different model in a fresh session that has no access to the builder's reasoning. Two axes, standards and spec, run as independent sub-agents. It flags; it never fixes. A fail returns to `propose-fix`. Use after `propose-fix`, before anything is applied.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/adversarial-review/SKILL.md",
+      "sha256": "c9c9a177117fb3555e027e930262f78b32f76b6268f674d909452f4fa9de3d89",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": true,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
     {
       "id": "afk-agent",
       "description": "Run agents unattended with stop guards and notifications.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/afk-agent/SKILL.md",
-      "sha256": "222bab78eb5f5327b0edbc163dd9d845cf3a5574ad977309395a797098b001f0",
+      "sha256": "972139e73b7e4863d66fb6e53b6f1e895a11c424530c27ef4cb0da4a0f625f47",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -22,7 +41,9 @@
         "requires_kill_switch": false,
         "requires_hitl_gate": false,
         "pii_handling": "pass-through"
-      }
+      },
+      "inferred": true,
+      "low_confidence": true
     },
     {
       "id": "agent-expert",
@@ -85,7 +106,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/agentic-loop/SKILL.md",
-      "sha256": "fbb38a51ef851d921537e3aa74c0c5a3719f2472beb069176a9940534daedd2e",
+      "sha256": "c595db4f446a6ef464a6b088c1264fd5b25ede30e172f9f9a09ea65046840809",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -94,7 +115,9 @@
         "requires_kill_switch": false,
         "requires_hitl_gate": false,
         "pii_handling": "pass-through"
-      }
+      },
+      "inferred": true,
+      "low_confidence": true
     },
     {
       "id": "agentic-review",
@@ -190,6 +213,25 @@
       "low_confidence": true
     },
     {
+      "id": "artlist-mcp",
+      "description": "Use when a task needs AI image or video generation \u2014 campaign visuals, hero shots, product or social video, thumbnails, ad creative, localized variants \u2014 through the official Artlist MCP (mcp.artlist.io, 100+ models incl. Nano Banana Pro, Seedance 2.0, Kling 3.0, Veo 3.1, Sora 2). The model catalog is discovered live from the server every session, never a stored or cached list. Use also before any autonomous run that could touch media generation, because it carries the credit-spend gate. Covers connection per surface, live model selection, the iterate-in-conversation loop, and failure handling.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/artlist-mcp/SKILL.md",
+      "sha256": "a70361438aa413c38a65650b66e73bbe3bff604547632b9bf8d00168e9f72080",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
       "id": "audit-emit",
       "description": "Centralised audit emitter sitting in front of every Dispatcher step + every Scribe send + every CoS routing decision. Writes to .harness/swarm/swarm.jsonl (existing immutable append) and optionally fires Langfuse webhooks for off-Pi-CEO observability. Closes Hermes Sprint 1 SWARM-006 + the audit-immutable safety control.",
       "owner_role": "Dispatcher (binds in front of every cross-tool step)",
@@ -231,7 +273,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/autonomy-ladder/SKILL.md",
-      "sha256": "e2490b617fca90265257968d9409592c4c203a65171404e2af51a34a18520b02",
+      "sha256": "4bedf8e3b496b5c6869591a7d61ef3869a4c2573440ae6e933ce68a5ae645a7e",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -340,6 +382,25 @@
       "low_confidence": true
     },
     {
+      "id": "carsi-course-production",
+      "description": "Use whenever creating, editing, refreshing, or reviewing ANY CARSI course, module, lesson, quiz, course trailer, or course marketing copy. Enforces the non-negotiable Australian-production standard (Australian English, 230V/10A power, metric units, Australian-available products, Australian standards/regulators, AUD) and the course quality bar.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/carsi-course-production/SKILL.md",
+      "sha256": "a9c0947c66131a4a7a17c3375582d932f8cb70fc66719aa5f096bf2c4dd30561",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
       "id": "ceo-mode",
       "description": "CEO-level strategic analysis and executive communication. Direct, evidence-based, no filler.",
       "owner_role": "(unset)",
@@ -384,6 +445,44 @@
       "status": "(unset)",
       "path": "skills/chrome-browser/SKILL.md",
       "sha256": "ca56cef2bf05ba53a0ac02802ba4ccc384837a5f232e7f05b4748d1487138b9c",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "claim-verifier",
+      "description": "The runnable cite-or-cut gate for FINISHED Nexus copy \u2014 walks every checkable factual claim in a completed asset, resolves each to a substantiation record or cuts it, runs the Australian Consumer Law excluded-tactics deny-list, and freezes the Substantiation Ledger before publish. Use as the last gate before any copy asset ships \u2014 landing page, service page, ad, email, franchise-recruitment copy. Triggers on \"cite-or-cut\", \"substantiate this copy\", \"claim check\", \"can we publish this\", \"freeze the ledger\", \"is every claim proven\", \"ACL check the copy\". NOT research (that is `storm`), NOT trust scoring (that is `eeat`).",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/claim-verifier/SKILL.md",
+      "sha256": "9560f775ca7b8373a8d4a3bc1b3d52ea982032d4ee49d95ede43de217fcc1ff7",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "classify",
+      "description": "The gate in the self-healing chain. Decides whether a diagnosed failure may proceed to an automated fix, by asking two questions \u2014 is this a known pattern in incident memory, and how wide is the blast radius. Known and low-radius may proceed; novel or high-radius stops and reports with the diagnosis attached. Also holds the chain's circuit breaker. Use after `diagnose`, before any repair is designed.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/classify/SKILL.md",
+      "sha256": "2adb090a984ac8e2a34bc8d8cd28ca98d73fb0dc3d9e02d5836286c67761aab3",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -526,6 +625,25 @@
       "low_confidence": true
     },
     {
+      "id": "contain",
+      "description": "Reach a safe state before diagnosing. Halt the affected job, revert to last known good, or stop the loop \u2014 containment, never a fix. Records what was contained and what was deliberately left alone. Use immediately after `prove-the-failure`, or any time a failure is actively recurring and the bleeding must stop first.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/contain/SKILL.md",
+      "sha256": "cf87cdc9999dc95c447df6eabef4334f455f2bd243e55bfe35a5a07ad5ed1084",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
       "id": "context-cockpit",
       "description": "Audit and reclaim a session's context/token budget in one pass \u2014 read /context, trim MCP tools, clear vs compact, CLI-over-MCP, model ladder, red-MCP triage.",
       "owner_role": "(unset)",
@@ -560,6 +678,44 @@
         "requires_hitl_gate": false,
         "pii_handling": "pass-through"
       }
+    },
+    {
+      "id": "control-design",
+      "description": "Use BEFORE writing or changing any check, test, gate, guard, assertion, exclusion, fixture or startup config branch \u2014 while the control is being built, not when its result is read. Catches controls that cannot fail, exclusions whose premise has expired, checks that know a fixed set and go stale, verifications that require handling the thing they protect, and missing-config branches that invent a credential instead of refusing to start. Triggers on \"add a check\", \"write a test for\", \"gate this\", \"skip/exclude this path\", \"assert that\", \"guard against\", or any first run of a new control.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/control-design/SKILL.md",
+      "sha256": "3ef208f29c1a26c5363d21cbe56b25db5af9e89c06c7157ec19026daf4fb0a37",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": true,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "creative-director",
+      "description": "Use when someone asks to build, design, make, create, or generate any deliverable from a short prompt \u2014 a deck, web page, report, poster, campaign, brand look, prototype \u2014 especially when the prompt is underspecified. Resolves the subject and client persona, grills only the gaps with one checkbox screen, routes to the right specialist skills and MCPs, and runs a polish gate before handoff. Do not start generating for such requests without this skill.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/creative-director/SKILL.md",
+      "sha256": "06ef002ad417d3d6036dcca01617da7ab3c518f60f4c3cfb9aadc2516df0bb09",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
     },
     {
       "id": "cross-tool-flow",
@@ -696,11 +852,11 @@
     },
     {
       "id": "design-audit",
-      "description": "Design quality auditor. Detects 24 anti-patterns in UI code (impeccable patterns), critiques visual hierarchy and UX, polishes components to shipping quality. Provides /critique, /audit, /polish, and /bolder commands.",
+      "description": "DEPRECATED (RA-7057) \u2014 superseded by the installed pbakaus/impeccable skill v3.9.1. Use `impeccable` (`/impeccable audit`, `/impeccable critique`, `/impeccable polish`, `/impeccable bolder`) instead. Kept for the archaeological record; do not route new work here.",
       "owner_role": "(unset)",
-      "status": "(unset)",
+      "status": "deprecated",
       "path": "skills/design-audit/SKILL.md",
-      "sha256": "1261e3c8517b404e2e2c8c7afc3e977eeb6591a202825f8d2fefd10e26c38d1f",
+      "sha256": "e229a08cb167c54638f73773b39a66537047b71a04e5e3d636d2ce78f643e462",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -810,11 +966,30 @@
     },
     {
       "id": "design-system",
-      "description": "Design stack orchestrator for Pi-CEO. Routes UI work to the correct specialist skill (design-intelligence, ui-component-builder, design-audit, visual-qa). Start here for any design task.",
+      "description": "Design stack orchestrator for Pi-CEO. Routes UI work to the correct specialist skill (design-intelligence, ui-component-builder, impeccable, visual-qa). Start here for any design task.",
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/design-system/SKILL.md",
-      "sha256": "9234d84337bdbef317187ba34388db8392e6f8f9fcaf26f9c9eaf6cca9742833",
+      "sha256": "1a6207f0de123d9c93583941fdcac3a0444228d77d9e4066ad27bf09df5c4171",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "diagnose",
+      "description": "Find root cause by running the red loop from `prove-the-failure` and changing one variable at a time \u2014 never by reading the code and reasoning about it. Outputs a written cause with file and line evidence. Use after containment, before any repair is designed.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/diagnose/SKILL.md",
+      "sha256": "77fd1b28f5a346eed62ea56695137a0139366c2fd38ee225438af7197fc9647f",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -929,7 +1104,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/grill-me/SKILL.md",
-      "sha256": "578438dbd9e224eb0c604eb1fc6942ff6acb57fcdc1fb0160b451123bc71e93e",
+      "sha256": "0031f73cb4494aba4d1a07f1e04353308a4068da3a7578c1fc4e291607075f19",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1000,6 +1175,44 @@
       "low_confidence": true
     },
     {
+      "id": "immunise",
+      "description": "Add the check, test, or workflow guard that stops this failure recurring. May propose a fence change; may never apply one. Use after `verify` passes and its cooldown has elapsed.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/immunise/SKILL.md",
+      "sha256": "01519b191e6fe0d82ef590da6282dbcf3574a921439c8a1085a1105b69a69042",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "incident-memory",
+      "description": "Write symptom, cause, fix, reviewer verdict and outcome to a searchable store \u2014 successes and failures alike. This is the store `classify` reads to decide known versus novel. Use as the final step of every self-healing chain, including chains that stopped early or gave up.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/incident-memory/SKILL.md",
+      "sha256": "38cbf58339f1d42eee4892649242152d6cdefbe2b647077fe05c3baea96d8575",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
       "id": "intent-parser",
       "description": "Classify an inbound Telegram message into one of six intent types so the Chief of Staff can route to the right role. Use this on every Telegram message that lands in Pi-CEO before any routing decision.",
       "owner_role": "Chief of Staff",
@@ -1024,7 +1237,7 @@
       "owner_role": "Tier-Architect (pre-build challenge gate; read-only reviewer)",
       "status": "active",
       "path": "skills/judge/SKILL.md",
-      "sha256": "5afd93dbae4158cecc39ddefd3cf8b864d13ef364cc40b38f9e3157400cbd3f9",
+      "sha256": "0fe5f4420bb6b97c7e24ec04a63d8ead44f54c10d536a5a7592fc112ebcd3bf1",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1081,7 +1294,7 @@
       "owner_role": "Builder",
       "status": "wave-4",
       "path": "skills/launch-enhance-debloat/SKILL.md",
-      "sha256": "71b603e0d486fd39d27483b2daa270a7299d1f30c593434a0a13a410ec8dcd70",
+      "sha256": "b461ee987dddb9f817e946bd1a32602bb473a239896bd2958f9e39c4afdbeadc",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1100,7 +1313,7 @@
       "owner_role": "Curator",
       "status": "wave-4",
       "path": "skills/launch-project-audit/SKILL.md",
-      "sha256": "791c12be7f8eaddff755e61baccd1efa615f5bafb6b90bfdfa12c7a1926931e8",
+      "sha256": "967d5090bead3e832bb0e642280ea9cff705d6b4e78b22e665ddfeb45c775326",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1115,11 +1328,11 @@
     },
     {
       "id": "launch-review",
-      "description": "Aggregate the repo's existing audit skills into ONE prioritized launch-readiness report through four lenses \u2014 PM journey, growth/SEO, engineering, design \u2014 adding only the two lenses nothing else covers (end-to-end PM journey + growth/SEO conversion) and fanning out to security-audit, design-audit, agentic-review, and leverage-audit for the rest. Review only; never fixes. Use on \"is this ready to launch\" or as the review step of /ship-it.",
+      "description": "Aggregate the repo's existing audit skills into ONE prioritized launch-readiness report through four lenses \u2014 PM journey, growth/SEO, engineering, design \u2014 adding only the two lenses nothing else covers (end-to-end PM journey + growth/SEO conversion) and fanning out to security-audit, impeccable, agentic-review, and leverage-audit for the rest. Review only; never fixes. Use on \"is this ready to launch\" or as the review step of /ship-it.",
       "owner_role": "Guardian",
       "status": "wave-4",
       "path": "skills/launch-review/SKILL.md",
-      "sha256": "c39e62f4c75f94116def9caee0eb0ddb8ff192acee91b4901435272860d847c0",
+      "sha256": "244810fb47934e78973108fcd28ac2ab4d6caee887a21fb595d43b88c3d0a5f9",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1418,6 +1631,25 @@
       "low_confidence": true
     },
     {
+      "id": "merge-gate",
+      "description": "Use before opening any PR, pushing to a shared branch, or merging in this estate \u2014 where automation force-readies draft PRs and squash-merges them on green within minutes, so opening a PR is authorising its merge. Fires when about to run gh pr create / gh pr ready / gh pr merge, or push to a deploy-on-push branch.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/merge-gate/SKILL.md",
+      "sha256": "7754112fa14afff6ac747ba68746d4a4dd321e142b1fa5598f81d7f4baac9eeb",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
       "id": "meta-curator",
       "description": "Skill self-authoring agent. Reads .harness/lessons.jsonl (weekly) and merged-PR diffs (daily), proposes new SKILL.md drafts via the existing skill-creator skill, and surfaces them through Scribe \u2192 telegram-draft-for-review for user \ud83d\udc4d before adding to the registry.",
       "owner_role": "Curator",
@@ -1442,7 +1674,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/nexus/SKILL.md",
-      "sha256": "35f7cb4b3251388bd8db22fa3780503bc697b1c49b49c657d38764494067f539",
+      "sha256": "a3aa8f7a35a8d3d61884676c5098d55d7a961813494fc1e2111647cdce8503d5",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1468,6 +1700,25 @@
       },
       "safety": {
         "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "orchestrator",
+      "description": "Continuity spine from idea to ship. Runs an OUTER loop that pushes work hub-to-spoke out to estate projects, and an INNER loop that audits itself against the constitution \u2014 trimming cache, flagging hallucinations, tightening code generation. Does NOT do the work; it routes, gates and carries state. Pulls a skill only when a stage needs it and releases it immediately, to protect context. The constitution is a hard gate checked before every self-modifying action. Stops for exactly two things \u2014 spending money and touching production. A denied action is terminal. Use when running a project end-to-end, resuming a stalled build, or dispatching work across multiple estate repos.",
+      "owner_role": "Orchestrator",
+      "status": "wave-1",
+      "path": "skills/orchestrator/SKILL.md",
+      "sha256": "3e49b3cefeb5ddfa5db89a4f089572a72f892729549c2302124e54f968706992",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": true,
         "requires_hitl_gate": false,
         "pii_handling": "pass-through"
       },
@@ -1518,7 +1769,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/pi-dev-linear-contract/SKILL.md",
-      "sha256": "6ef09ce127d548552b681ab70d908cc9f25d99de98f7a968b4a1314ea3b6a197",
+      "sha256": "8ed87e05202411c5fcb6691c827f8f23994d181169c1b276a5b7788951c53e09",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1667,6 +1918,82 @@
       "status": "(unset)",
       "path": "skills/product-manager/SKILL.md",
       "sha256": "771456c9fa061247f6024ad79f44a0dee21a8dc79b426ea15f3b181b7afd17b1",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "proof-discipline",
+      "description": "Use whenever about to mark a test, gate, verification or task as passing / GREEN / complete / fixed / shipped \u2014 the moment a CLAIM is made, not when a check is written. Catches vacuous verification, claims asserted but never checked against the live system, silent caps, deployed-vs-source drift, coverage gaps that hide non-functioning code, and green results whose control was aimed at the wrong target. Triggers on \"tests pass\", \"it's green\", \"verified\", \"done\", \"complete\", \"fixed\", \"shipped\".",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/proof-discipline/SKILL.md",
+      "sha256": "1c97d4db61d42f90b1d5ebcdab14ce5934e8eb059906e8c2059c99dbc035e527",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": true,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "propose-fix",
+      "description": "Produce the repair as a diff plus a regression test, never applied directly. Bounded to three attempts, each materially different, then it stops and reports the diagnosis rather than the error. Use only after `classify` returns proceed.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/propose-fix/SKILL.md",
+      "sha256": "4ce35aaee777447f4cf6c36bfbd177a93c7617b05f280045497209791a4d398e",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "prove-the-failure",
+      "description": "Build a tight, red-capable feedback loop that drives the actual failure path and asserts the exact symptom, before any hypothesis is formed. One command, already run once, deterministic, fast, agent-runnable. Use at the start of any self-healing chain, or whenever something is broken/failing/slow and you are tempted to read the code and guess. First link in the self-healing chain; hands off to `contain`.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/prove-the-failure/SKILL.md",
+      "sha256": "bd0ebd3b4ba1ea9666502c71e1f096f0dd5b1af2ebfe4e11b1f4abfb6eff7ccd",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "readiness-architect",
+      "description": "Generates a complete SPM-ready readiness scope for any project, product, app, authority site, CRM, contractor network, training platform, marketing engine, mobile app, internal operating system, AI agent system, or launch-readiness task. Use when preparing a project for /spm, /judge, /goal, shipit, launch, production readiness, operational readiness, connector readiness, security readiness, or client purchase readiness.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/readiness-architect/SKILL.md",
+      "sha256": "1b135d2339c7bf5c2a6049dd84c893387a219ceb734b798c6727d518666ea777",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1989,7 +2316,7 @@
       "owner_role": "Tier-Architect (handoff resumption; verify-then-resume)",
       "status": "active",
       "path": "skills/resume-from-handoff/SKILL.md",
-      "sha256": "1b0f62a3ca5e109a29176bb486d40acdf1a9ad2cb173e693f9fa3d72863b2540",
+      "sha256": "6b2f51f41dd1b7833a8585190dd95966ba26c7f00c20aae5b7d4777bb1dbe3d7",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2099,11 +2426,11 @@
     },
     {
       "id": "session-handoff",
-      "description": "Durable session handoff (/session-handoff). Gates the tree green via scripts/handoff-loop.sh, then generates a precise handoff before stopping, switching terminals, opening a PR, handing work to another agent, or resuming later. Writes a durable report + healthcheck log; the \"1\" of the 1-2 combo with /resume-from-handoff. Captures what was done, decisions locked, what shipped, key files, running state, verification, deferred/open questions, exact pickup point, risk notes, and a quality check.",
+      "description": "Durable session handoff (/session-handoff). Gates the tree green via scripts/handoff-loop.sh, classifies the session SHIPPED / READY-TO-SHIP / WIP-BLOCKED against a Definition-of-Done, then generates a precise handoff before stopping, switching terminals, opening a PR, handing work to another agent, or resuming later. Refuses to present unfinished work as a clean stop; for ready work hands off the exact merge-gate-guarded ship command. Writes a durable report + healthcheck log; the \"1\" of the 1-2 combo with /resume-from-handoff. Captures what was done, decisions locked, what shipped, key files, running state, verification, deferred/open questions, exact pickup point, risk notes, and a quality check.",
       "owner_role": "Tier-Architect (end-of-session handoff; gate-then-report)",
       "status": "active",
       "path": "skills/session-handoff/SKILL.md",
-      "sha256": "ba58220a5a86f455a0e589b760275442cf4be7aad76359b4d8ac7eed1c3c2fe8",
+      "sha256": "1acf10c157b5889304c3779a78026e551cf65288203f10aafffa02975d04f3b8",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2193,6 +2520,25 @@
       "low_confidence": true
     },
     {
+      "id": "skybridge",
+      "description": "| Guide developers through creating and updating ChatGPT and MCP apps. Covers the full lifecycle: brainstorming ideas against UX guidelines, bootstrapping projects, implementing tools/views, debugging, running dev servers, deploying and connecting apps to ChatGPT. Use when a user wants to create or update a ChatGPT app, MCP app, MCP server or use the Skybridge framework.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/skybridge/SKILL.md",
+      "sha256": "070f9d4346a834797ddce109a91332f48c18893374fb67194b5adee65689a3c1",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
       "id": "skybridge-rollout",
       "description": "Unite-Group rollout plan for Skybridge MCP-Apps framework \u2014 which businesses get an MCP App, in what order, with what auth, and how to productize it via Synthex. Invoke when planning, scoping, or building any MCP App across the portfolio.",
       "owner_role": "(unset)",
@@ -2217,7 +2563,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/specialist-council/SKILL.md",
-      "sha256": "992444de5a26cb2839d0598928e834d8230324551692d9ce24498f59690f49e2",
+      "sha256": "078b9ba443644d166360cdf2e3b14bcd7d5d868dc05aa1aa9bb9c68a3777a071",
       "dependencies": {
         "tools": [],
         "skills": [
@@ -2232,11 +2578,11 @@
     },
     {
       "id": "spm",
-      "description": "Senior Project Manager command (/spm). Use before implementation to turn a rough task, feature, bug, idea, ticket, PR, or repo area into a decision-grade spec.md \u2014 via read-only project inspection, a 15+ year specialist board, judge-style challenge, verification + stress-test planning, and goal-ready acceptance criteria. Read-only: produces the spec, never the build.",
+      "description": "Senior Project Manager command (/spm). Use before implementation to turn a rough task, feature, bug, idea, ticket, PR, or repo area into a decision-grade spec.md \u2014 via read-only project inspection, a self-leveling MOA specialist bench (0\u20138 seats sized to task complexity), judge-style challenge, verification + stress-test planning, and goal-ready acceptance criteria. Read-only \u2014 produces the spec, never the build.",
       "owner_role": "Tier-Architect (senior project manager; spec author, not builder)",
       "status": "active",
       "path": "skills/spm/SKILL.md",
-      "sha256": "e55e5c7049da277947a0b87f649bce314879e8a64156b859cdce9971ea499be0",
+      "sha256": "4d33a3ce544809ac6905c9abf790123849ca284eac7b146fc85a7f681d63a6cd",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2445,7 +2791,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/technical-plan/SKILL.md",
-      "sha256": "269257831923f91a9c2749a9c79fddd0e710ae3a5af7dd364180320c1f766f7c",
+      "sha256": "4de087a6e17524ca5c8c15b23bdcc63840bced710586cdd1641f7e284c5cf694",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2610,7 +2956,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/ui-ux-pro-max/SKILL.md",
-      "sha256": "200489cd31fb9f24f28bfd487df777b9eaa567097e1c9be5ab09532f985c8562",
+      "sha256": "601aecc80d33d377f66cc650eb65731752de1cecf5ed5923e5e7d2fcc39153c9",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -2662,6 +3008,25 @@
       "low_confidence": true
     },
     {
+      "id": "verify",
+      "description": "Run the loop from `prove-the-failure` and confirm red goes green, then hold a cooldown before any further action is permitted. Use after `adversarial-review` returns PASS, before `immunise`.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/verify/SKILL.md",
+      "sha256": "ce655b573fc26c1cb5df43995983d23445cc581facc4e99636c1b3efe8974d5f",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
       "id": "verify-test",
       "description": "Test verifier. Interprets smoke test and CI results, classifies pass/fail, detects flaky tests and coverage regressions, and produces a structured verdict with a recommendation for the /review gate.",
       "owner_role": "(unset)",
@@ -2694,6 +3059,25 @@
       "safety": {
         "requires_kill_switch": false,
         "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "wayfinder",
+      "description": "Chart a foggy, bigger-than-one-session effort as a shared map of decision tickets on Linear, then work the map one decision per session until the way is clear.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/wayfinder/SKILL.md",
+      "sha256": "9b0acf98e230bf79cbfa97f177f6dc55e3f96d3f27af4dc11adaba07b01a6848",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": true,
         "pii_handling": "pass-through"
       },
       "inferred": true,

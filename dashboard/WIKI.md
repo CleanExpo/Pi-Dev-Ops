@@ -1,8 +1,8 @@
 # dashboard — Wiki
 
-_Last updated: 2026-07-07T22:50:22Z (commits 0166cb3..13d4cd7)_
+_Last updated: 2026-07-15T02:58:36Z (commits 462e278..e109e63)_
 
 ## Recent changes
-- 13d4cd7 — feat(dashboard): TerminalPanel — live redacted tmux pane view (RA-7012) (#533)
+- e109e63 — fix(dashboard): skip squash-merged branches in fetchBranchDiffs (#580)
 
 

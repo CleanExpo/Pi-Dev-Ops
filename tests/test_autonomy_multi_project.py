@@ -2,7 +2,7 @@
 test_autonomy_multi_project.py — RA-1289 regression tests.
 
 Locks the behavior of the multi-project autonomy poller:
-  - `_load_portfolio_projects()` parses `.harness/projects.json` and emits
+  - `_load_portfolio_projects()` parses `config/harness/projects.json` and emits
     well-formed entries, skipping projects without a `linear_project_id`.
   - `_load_portfolio_projects()` falls back to the Pi-Dev-Ops singleton when
     `projects.json` is missing or malformed.

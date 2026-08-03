@@ -6,7 +6,7 @@ import json
 
 
 def test_margot_identity_projects_include_bubble_brands():
-    path = Path(__file__).resolve().parents[1] / ".harness" / "margot" / "assets" / "margot_identity.json"
+    path = Path(__file__).resolve().parents[1] / "config" / "harness" / "margot" / "assets" / "margot_identity.json"
     data = json.loads(path.read_text(encoding="utf-8"))
     projects = data["projects"]
     for slug in ("unite-group", "restoreassist", "carsi"):

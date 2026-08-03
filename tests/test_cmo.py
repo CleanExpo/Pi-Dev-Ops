@@ -42,7 +42,7 @@ def _clear_env(monkeypatch):
 
 
 def _expected_business_ids() -> list[str]:
-    p = REPO_ROOT / ".harness/projects.json"
+    p = REPO_ROOT / "config/harness/projects.json"
     data = json.loads(p.read_text(encoding="utf-8"))
     return [proj["id"] for proj in data["projects"] if proj.get("id")]
 

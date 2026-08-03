@@ -23,7 +23,7 @@ Probe types (in the DoD `check:` field):
     http                   url: <url>  [expect_status: 200]  [contains: <str>]
                            live smoke test; UNKNOWN (not FAIL) if unreachable.
     path_exists            path: <repo-relative path>
-    registry_has_project   project_id: <id>  (checks .harness/projects.json)
+    registry_has_project   project_id: <id>  (checks config/harness/projects.json)
     glob_grep              glob: <glob>  pattern: <regex>
     human                  (always UNKNOWN unless attested — see below)
 
@@ -88,7 +88,7 @@ def probe_path_exists(repo: Path, req: dict) -> tuple[str, str]:
 
 def probe_registry(repo: Path, req: dict) -> tuple[str, str]:
     pid = req.get("project_id", "")
-    reg = repo / ".harness" / "projects.json"
+    reg = repo / "config" / "harness" / "projects.json"
     if not reg.exists():
         return UNKNOWN, "projects.json not found — cannot verify"
     try:

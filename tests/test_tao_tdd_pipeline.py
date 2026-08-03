@@ -120,6 +120,24 @@ def test_run_full_pytest_passes_on_synthetic(tmp_path):
     assert "passed" in summary
 
 
+def test_run_full_pytest_passes_when_pytest_forces_colour(tmp_path, monkeypatch):
+    """A colour-forcing environment must not turn a green run into a false red.
+
+    pytest emits ANSI escapes when FORCE_COLOR is set; the summary regexes
+    would otherwise miss the coloured 'N passed' line. Locks the ANSI-strip
+    guard in _run_full_pytest.
+    """
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_x.py").write_text(
+        "def test_trivial():\n    assert 1 + 1 == 2\n"
+    )
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    monkeypatch.setenv("PY_COLORS", "1")
+    passed, summary = tdd._run_full_pytest(str(tmp_path), timeout_s=30)
+    assert passed is True
+    assert "\x1b[" not in summary
+
+
 def test_run_full_pytest_red_on_synthetic(tmp_path):
     (tmp_path / "tests").mkdir()
     (tmp_path / "tests" / "test_x.py").write_text(

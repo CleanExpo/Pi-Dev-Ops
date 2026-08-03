@@ -21,11 +21,11 @@ Composes (does not call the SDK or any external API by itself):
 
 Pure-ish: no network. Reads files only. Returns a string.
 """
+
 from __future__ import annotations
 
 import json
 import logging
-import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -34,6 +34,12 @@ from . import cfo as _cfo
 from . import cmo as _cmo
 from . import cs as _cs
 from . import cto as _cto
+from .ccw_support_contract import SupportSnapshot, SupportState
+from .six_pager_chunking import (
+    TELEGRAM_CHUNK_BUDGET,
+    TELEGRAM_MESSAGE_LIMIT,
+    chunk_for_telegram,
+)
 
 log = logging.getLogger("swarm.six_pager")
 
@@ -50,9 +56,7 @@ def _now_utc_date() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
-def _load_last_per_business(jsonl_rel: str,
-                             *,
-                             repo_root: Path) -> list[dict[str, Any]]:
+def _load_last_per_business(jsonl_rel: str, *, repo_root: Path) -> list[dict[str, Any]]:
     """Read the per-business last row of a snapshot jsonl ledger."""
     p = repo_root / jsonl_rel
     if not p.exists():
@@ -172,326 +176,48 @@ def _margot_section(repo_root: Path) -> str:
     summary = insight.get("summary") or insight.get("body") or "(no summary)"
     ts = insight.get("ts") or "n/a"
     topic = insight.get("topic") or "(no topic)"
-    return (
-        f"🧠 Margot insight — {topic}\n"
-        f"({ts})\n"
-        f"\n{summary[:1200]}"
-        + ("…" if len(summary) > 1200 else "")
+    return f"🧠 Margot insight — {topic}\n({ts})\n\n{summary[:1200]}" + (
+        "…" if len(summary) > 1200 else ""
     )
 
 
 def _board_section(repo_root: Path) -> str:
-    """Board pending + recent directives + open HITL.
+    from .six_pager_board import render_board_section
 
-    Reads .harness/board/{pending,sessions,directives}/. Degrades to a
-    single 'no recent activity' line when nothing is pending or completed.
-    """
-    try:
-        from . import board as _b  # noqa: PLC0415
-    except Exception:  # noqa: BLE001
-        return "🏛 Board — module unavailable."
-
-    pending = _b.get_pending(repo_root=repo_root)
-
-    # Find the last 5 completed sessions and their HITL flags
-    sessions_dir = repo_root / _b.SESSIONS_DIR_REL
-    recent_completed: list[dict[str, Any]] = []
-    if sessions_dir.exists():
-        for p in sorted(sessions_dir.glob("*.json"))[-5:]:
-            try:
-                row = json.loads(p.read_text(encoding="utf-8"))
-                recent_completed.append(row)
-            except Exception:
-                continue
-
-    open_hitl = [
-        s for s in recent_completed
-        if s.get("hitl_required")
-    ]
-    recent_directives_count = sum(
-        len(s.get("directives") or []) for s in recent_completed
-    )
-
-    lines = [
-        f"🏛 Board — {len(pending)} pending · "
-        f"{len(recent_completed)} recent sessions · "
-        f"{recent_directives_count} directives · "
-        f"{len(open_hitl)} HITL"
-    ]
-
-    if pending:
-        lines.append("")
-        lines.append("Pending deliberations:")
-        for sid in pending[:5]:
-            lines.append(f"- {sid}")
-
-    if open_hitl:
-        lines.append("")
-        lines.append("⏳ Awaiting founder decision:")
-        for s in open_hitl[:3]:
-            q = s.get("hitl_question") or "(no question)"
-            topic = (s.get("brief") or {}).get("topic", "")[:60]
-            lines.append(f"- [{s.get('session_id', '?')}] {topic}: {q}")
-
-    if recent_completed and not open_hitl and not pending:
-        # Show the two most recent decisions when nothing is queued
-        latest = recent_completed[-2:]
-        lines.append("")
-        lines.append("Recent decisions:")
-        for s in latest:
-            topic = (s.get("brief") or {}).get("topic", "")[:60]
-            n_dir = len(s.get("directives") or [])
-            lines.append(
-                f"- [{s.get('session_id', '?')}] {topic} → "
-                f"{n_dir} directive{'s' if n_dir != 1 else ''}"
-            )
-
-    return "\n".join(lines)
+    return render_board_section(repo_root)
 
 
 def _ra_1842_section(repo_root: Path) -> str:
     status = _load_ra_1842_status(repo_root)
     if not status:
-        return "📱 RA-1842 (iOS release) — no status file; check Linear ticket directly."
+        return (
+            "📱 RA-1842 (iOS release) — no status file; check Linear ticket directly."
+        )
     state = status.get("state") or "unknown"
     note = status.get("note") or ""
     last_update = status.get("last_update") or "n/a"
-    return (
-        f"📱 RA-1842 (iOS release) — {state}\n"
-        f"Last update: {last_update}\n"
-        f"{note}"
-    )
+    return f"📱 RA-1842 (iOS release) — {state}\nLast update: {last_update}\n{note}"
 
 
 def _first_client_section(repo_root: Path) -> str | None:
-    """Top-of-page banner for any first-client business with active state.
+    from .six_pager_client import render_first_client_section
 
-    Scans CFO + CMO + CTO + CS ledgers for rows whose business_id is in
-    the first-client list (default: ccw-crm). If found, renders a
-    one-glance summary with the highest-priority signals — first-response
-    time, NPS, runway band, recent CS alerts.
-
-    Returns None when no first-client has data in any ledger (suppresses
-    the banner — no point taking up section 0 if there's nothing to say).
-    """
-    try:
-        from . import client_priority  # noqa: PLC0415
-    except Exception:  # noqa: BLE001
-        return None
-
-    first_clients = client_priority.list_first_clients()
-    if not first_clients:
-        return None
-
-    # Pull last per-business rows from all four senior-bot ledgers.
-    cfo_rows = {r.get("business_id"): r
-                for r in _load_last_per_business(
-                    ".harness/swarm/cfo_state.jsonl", repo_root=repo_root)}
-    cmo_rows = {r.get("business_id"): r
-                for r in _load_last_per_business(
-                    ".harness/swarm/cmo_state.jsonl", repo_root=repo_root)}
-    cto_rows = {r.get("business_id"): r
-                for r in _load_last_per_business(
-                    ".harness/swarm/cto_state.jsonl", repo_root=repo_root)}
-    cs_rows = {r.get("business_id"): r
-               for r in _load_last_per_business(
-                   ".harness/swarm/cs_state.jsonl", repo_root=repo_root)}
-
-    have_data = False
-    blocks: list[str] = []
-    for bid in first_clients:
-        rows = {
-            "cfo": cfo_rows.get(bid),
-            "cmo": cmo_rows.get(bid),
-            "cto": cto_rows.get(bid),
-            "cs": cs_rows.get(bid),
-        }
-        if not any(rows.values()):
-            continue
-        have_data = True
-        block = [f"⭐ FIRST CLIENT — {bid}"]
-        cs_row = rows["cs"]
-        if cs_row:
-            fr = cs_row.get("avg_first_response_minutes")
-            nps = cs_row.get("nps")
-            grr = cs_row.get("grr_pct")
-            threats = cs_row.get("open_enterprise_churn_threats", 0)
-            sla_alert = client_priority.first_client_first_response_alert(bid)
-            sla_critical = (
-                client_priority.first_client_first_response_critical(bid)
-            )
-            sla_state = "✅ within SLA"
-            if fr is not None and fr > sla_critical:
-                sla_state = f"🔴 SLA BREACH ({fr:.0f}m > {sla_critical:.0f}m)"
-            elif fr is not None and fr > sla_alert:
-                sla_state = f"🟡 watching ({fr:.0f}m > {sla_alert:.0f}m)"
-            if nps is not None and grr is not None and fr is not None:
-                block.append(
-                    f"  CS: NPS {nps:.0f} | GRR {grr:.0%} | "
-                    f"first-response {fr:.0f}m | {threats} churn-threats | "
-                    f"{sla_state}"
-                )
-            else:
-                block.append("  CS: partial data — see section 4.")
-        cfo_row = rows["cfo"]
-        if cfo_row:
-            mrr = cfo_row.get("mrr")
-            nrr = cfo_row.get("nrr")
-            if mrr is not None and nrr is not None:
-                block.append(f"  CFO: ${mrr:,.0f} MRR | NRR {nrr:.0%}")
-        cto_row = rows["cto"]
-        if cto_row:
-            band = cto_row.get("dora_band")
-            uptime = cto_row.get("uptime_pct")
-            if band and uptime is not None:
-                block.append(
-                    f"  CTO: DORA {band} | uptime {uptime:.4%}"
-                )
-        cmo_row = rows["cmo"]
-        if cmo_row:
-            spend = cmo_row.get("total_spend_usd")
-            ratio = cmo_row.get("ltv_cac_ratio")
-            if spend is not None:
-                ratio_str = (f"L:C {ratio:.2f}"
-                             if ratio is not None else "L:C n/a")
-                block.append(
-                    f"  CMO: ${spend:,.0f} attributed spend | {ratio_str}"
-                )
-        blocks.append("\n".join(block))
-
-    if not have_data:
-        return None
-    return "\n\n".join(blocks)
-
-
-# ── Telegram chunking ───────────────────────────────────────────────────────
-
-TELEGRAM_MESSAGE_LIMIT = 4096
-# Reserve a few chars for the chunk header "[3/5]\n" so we don't push past
-# the limit when the receiver re-prepends the marker.
-TELEGRAM_CHUNK_BUDGET = TELEGRAM_MESSAGE_LIMIT - 32
-
-
-def chunk_for_telegram(brief: str, *,
-                        max_chars: int = TELEGRAM_CHUNK_BUDGET
-                        ) -> list[str]:
-    """Split a 6-pager into Telegram-safe chunks.
-
-    Splits on section boundaries first (lines matching ``\\d+\\. `` at the
-    start), then within an over-large section on paragraph boundaries
-    (blank lines), then within an over-large paragraph on line boundaries.
-    Hard-cuts mid-line only as a last resort — the caller can rely on
-    every chunk being <= max_chars.
-
-    A short message (≤ max_chars) returns as a single-element list. The
-    caller decides whether to prepend "[i/N]" markers.
-    """
-    if len(brief) <= max_chars:
-        return [brief]
-
-    # Try section-boundary splitting first
-    sections = _split_on_section_boundary(brief)
-    chunks: list[str] = []
-    current = ""
-    for sec in sections:
-        candidate = (current + ("\n\n" if current else "") + sec).strip()
-        if len(candidate) <= max_chars:
-            current = candidate
-            continue
-        # `current` is what fits; flush it and start a new chunk with `sec`
-        if current:
-            chunks.append(current)
-            current = ""
-        if len(sec) <= max_chars:
-            current = sec
-        else:
-            # The section itself is too big — recurse on paragraphs
-            for para_chunk in _split_oversize(sec, max_chars=max_chars):
-                if not current:
-                    current = para_chunk
-                elif len(current) + 2 + len(para_chunk) <= max_chars:
-                    current = current + "\n\n" + para_chunk
-                else:
-                    chunks.append(current)
-                    current = para_chunk
-    if current:
-        chunks.append(current)
-    return chunks
-
-
-_SECTION_BOUNDARY = re.compile(r"^(?=\d+\.\s+)", re.MULTILINE)
-
-
-def _split_on_section_boundary(text: str) -> list[str]:
-    """Split right before each `<digit>. ` line. Preserve order; drop empties."""
-    parts = _SECTION_BOUNDARY.split(text)
-    return [p.strip() for p in parts if p.strip()]
-
-
-def _split_oversize(section: str, *, max_chars: int) -> list[str]:
-    """Split an over-large section: paragraphs, then lines, then hard cut."""
-    if len(section) <= max_chars:
-        return [section]
-
-    # Paragraph boundary first
-    paragraphs = section.split("\n\n")
-    out: list[str] = []
-    current = ""
-    for para in paragraphs:
-        candidate = (current + ("\n\n" if current else "") + para)
-        if len(candidate) <= max_chars:
-            current = candidate
-            continue
-        if current:
-            out.append(current)
-            current = ""
-        if len(para) <= max_chars:
-            current = para
-        else:
-            # Line-boundary split inside one over-large paragraph
-            for line_chunk in _split_by_line(para, max_chars=max_chars):
-                if not current:
-                    current = line_chunk
-                elif len(current) + 1 + len(line_chunk) <= max_chars:
-                    current = current + "\n" + line_chunk
-                else:
-                    out.append(current)
-                    current = line_chunk
-    if current:
-        out.append(current)
-    return out
-
-
-def _split_by_line(paragraph: str, *, max_chars: int) -> list[str]:
-    out: list[str] = []
-    current = ""
-    for line in paragraph.split("\n"):
-        if len(line) > max_chars:
-            # Hard cut a single over-long line
-            if current:
-                out.append(current)
-                current = ""
-            for i in range(0, len(line), max_chars):
-                out.append(line[i:i + max_chars])
-            continue
-        candidate = (current + ("\n" if current else "") + line)
-        if len(candidate) <= max_chars:
-            current = candidate
-        else:
-            if current:
-                out.append(current)
-            current = line
-    if current:
-        out.append(current)
-    return out
+    return render_first_client_section(
+        repo_root,
+        lambda path: _load_last_per_business(path, repo_root=repo_root),
+    )
 
 
 # ── Public API ──────────────────────────────────────────────────────────────
 
 
-def assemble_six_pager(*, repo_root: Path | None = None,
-                        date_str: str | None = None,
-                        bra_reports: list | None = None) -> str:
+def assemble_six_pager(
+    *,
+    repo_root: Path | None = None,
+    date_str: str | None = None,
+    bra_reports: list | None = None,
+    ccw_snapshot: SupportSnapshot | None = None,
+) -> str:
     """Compose the daily 6-pager.
 
     Reads from the existing senior-agent jsonl ledgers; does not invoke
@@ -508,40 +234,60 @@ def assemble_six_pager(*, repo_root: Path | None = None,
 
     sections: list[str] = [f"📋 Pi-CEO daily 6-pager — {date_str}", ""]
 
+    effective_ccw = ccw_snapshot or SupportSnapshot(
+        SupportState.INGEST_STALE,
+        "MISSING_HEARTBEAT",
+        None,
+        None,
+        None,
+        0,
+        0,
+        0,
+        None,
+    )
+    from .six_pager_client import render_ccw_client_health
+
+    sections.extend([render_ccw_client_health(effective_ccw), ""])
+
     first_client = _first_client_section(rr)
     if first_client:
         sections.extend([first_client, ""])
 
-    sections.extend([
-        "1. " + _cfo_section(rr),
-        "",
-        "2. " + _cmo_section(rr),
-        "",
-        "3. " + _cto_section(rr),
-        "",
-        "4. " + _cs_section(rr),
-        "",
-        "5. " + _margot_section(rr),
-        "",
-        "6. " + _ra_1842_section(rr),
-        "",
-        "7. " + _board_section(rr),
-        "",
-    ])
+    sections.extend(
+        [
+            "1. " + _cfo_section(rr),
+            "",
+            "2. " + _cmo_section(rr),
+            "",
+            "3. " + _cto_section(rr),
+            "",
+            "4. " + _cs_section(rr),
+            "",
+            "5. " + _margot_section(rr),
+            "",
+            "6. " + _ra_1842_section(rr),
+            "",
+            "7. " + _board_section(rr),
+            "",
+        ]
+    )
 
     if bra_reports:
         try:
             from swarm.nexus.six_pager_bra import render_bra_block  # noqa: PLC0415
+
             block = render_bra_block(bra_reports)
             if block:
                 sections.extend([block, ""])
         except Exception:  # pragma: no cover — defensive
             pass
 
-    sections.extend([
-        "—",
-        "React 👍 to ack · ❌ to flag · ⏳ to defer per section.",
-    ])
+    sections.extend(
+        [
+            "—",
+            "React 👍 to ack · ❌ to flag · ⏳ to defer per section.",
+        ]
+    )
     return "\n".join(sections)
 
 

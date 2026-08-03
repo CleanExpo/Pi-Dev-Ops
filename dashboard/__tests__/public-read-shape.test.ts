@@ -1,11 +1,10 @@
 /**
- * Can the three deliberately-public reads grow their payload without anyone deciding to?
+ * Can the three protected reads grow their payload without anyone deciding to?
  *
  * `/api/zte`, `/api/swarm-status` and `/api/curator-proposals` are classified
- * `deliberately-public`: reachable with no credential, by design. Each proxies upstream using
- * `PI_CEO_PASSWORD`, which the caller does not hold — so whatever upstream returns becomes a
- * public payload. "Flagged to revisit if the payload widens" was an intention; by the estate's
- * own standard a review is never coverage, and a gap found and left unbuilt is still open.
+ * These routes are authenticated by the dashboard proxy and then authenticate independently
+ * to the Pi CEO upstream. Route-level projection remains defence in depth: an auth regression
+ * must not also become an unbounded payload disclosure.
  *
  * This is that control. Upstream is stubbed to return a WIDER body than expected — including
  * a plausibly sensitive key — and each route must not publish the additions.
@@ -41,18 +40,32 @@ const WIDE = {
 
 const realFetch = globalThis.fetch;
 
+function stubUpstream(payload: unknown) {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string | URL | Request) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.endsWith("/api/login")) {
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+            "set-cookie": "tao_session=test-session; HttpOnly; Path=/",
+          },
+        });
+      }
+      return new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }),
+  );
+}
+
 beforeEach(() => {
   process.env.PI_CEO_URL = "https://upstream.invalid";
   process.env.PI_CEO_PASSWORD = "x";
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () =>
-      new Response(JSON.stringify(WIDE), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      }),
-    ),
-  );
+  stubUpstream(WIDE);
 });
 
 afterEach(() => {
@@ -67,7 +80,7 @@ async function bodyOf(mod: string, path: string) {
   return { status: res.status, json: await res.json() };
 }
 
-describe("deliberately-public reads cannot widen silently", () => {
+describe("protected reads cannot widen silently", () => {
   it("CONTROL: the stub is actually being used, and it is wide", async () => {
     // If the stub were not wired, every assertion below would pass against an empty body —
     // a green run over nothing, which is the failure this whole suite exists to prevent.
@@ -113,18 +126,10 @@ describe("deliberately-public reads cannot widen silently", () => {
     // wrong reason — which is exactly what happened when this control was first written. Here
     // every top-level key is expected and the ONLY widening is one level down, so this test
     // can only pass if the check actually descends.
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            count: 1,
-            proposals: [{ id: 1, skill: "x", status: "pending", [NESTED_LEAK]: "leaked" }],
-          }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        ),
-      ),
-    );
+    stubUpstream({
+      count: 1,
+      proposals: [{ id: 1, skill: "x", status: "pending", [NESTED_LEAK]: "leaked" }],
+    });
     vi.resetModules();
     const { json } = await bodyOf(
       "../app/api/curator-proposals/route",
@@ -141,18 +146,10 @@ describe("deliberately-public reads cannot widen silently", () => {
   it("CONTROL: curator-proposals still serves a body whose keys are all expected", async () => {
     // Without this, "withholds everything" would pass the assertion above — the route could be
     // broken rather than guarded.
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        new Response(JSON.stringify({
-          proposals: [{ id: 1, skill: "x", status: "pending" }],
-          count: 1,
-        }), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        }),
-      ),
-    );
+    stubUpstream({
+      proposals: [{ id: 1, skill: "x", status: "pending" }],
+      count: 1,
+    });
     vi.resetModules();
     const { json } = await bodyOf(
       "../app/api/curator-proposals/route",

@@ -36,7 +36,7 @@ def test_provider_no_api_key(monkeypatch, tmp_path):
 def test_provider_missing_project_in_mapping(monkeypatch, tmp_path):
     """project_id not in projects.json → graceful fallback body."""
     monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
-    # tmp_path doesn't have .harness/projects.json
+    # tmp_path doesn't have config/harness/projects.json
     body, error = ppl.linear_section_provider("nonexistent-project", tmp_path)
     assert "not in" in body or "no linear_project_id" in body
     assert error in ("missing_projects_json_entry", "no_linear_project_id")
@@ -107,9 +107,9 @@ def test_classify_closed_splits_state_types():
 
 
 def test_load_projects_reads_json(tmp_path):
-    """_load_projects parses .harness/projects.json into id-keyed dict."""
-    harness = tmp_path / ".harness"
-    harness.mkdir()
+    """_load_projects parses config/harness/projects.json into id-keyed dict."""
+    harness = tmp_path / "config" / "harness"
+    harness.mkdir(parents=True)
     (harness / "projects.json").write_text(
         '{"projects": [{"id": "abc", "linear_project_id": "uuid-1"}]}',
     )

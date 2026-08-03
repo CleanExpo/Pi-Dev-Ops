@@ -100,8 +100,19 @@ async def cron_loop() -> None:
                         trigger["last_fired_at"] = time.time()
                         fired = True
                     except RuntimeError as exc:
-                        # Expected skip path (e.g., gated triggers raising RuntimeError)
-                        _log.warning("Trigger skipped id=%s reason=%s", trigger["id"], exc)
+                        if trigger.get("type") == "intel_refresh":
+                            # RA-7027 — intel_refresh raises RuntimeError on doc
+                            # fetch failure. That is an outage, not a gate: log
+                            # at error level with a distinct line so real
+                            # failures aren't mislabeled as expected skips.
+                            # last_fired_at intentionally NOT advanced.
+                            _log.error(
+                                "intel_refresh FAILED id=%s (last_fired_at not advanced): %s",
+                                trigger["id"], exc,
+                            )
+                        else:
+                            # Expected skip path (e.g., gated triggers raising RuntimeError)
+                            _log.warning("Trigger skipped id=%s reason=%s", trigger["id"], exc)
                     except Exception as exc:
                         # RA-1484/RA-1493/RA-1497: previously only RuntimeError was caught,
                         # so any other exception (network, subprocess, monitor cycle, etc.)
@@ -125,12 +136,12 @@ async def cron_loop() -> None:
             if _watchdog_interval >= 30:
                 _watchdog_interval = 0
                 await _watchdog_check(triggers, _log)
-                await _watchdog_docs_staleness(_log)          # RA-635
+                await _watchdog_docs_staleness(_log, triggers)  # RA-635/RA-7027
                 await _watchdog_escalations(_log)              # RA-633
                 await _watchdog_zte_reality_check(_log)        # RA-608
                 await _watchdog_notebooklm_health(_log)        # RA-820
                 await _watchdog_notebooklm_refresh_weekly(_log)  # RA-1668
-                await _watchdog_board_meeting_silence(_log)    # RA-1472
+                await _watchdog_board_meeting_silence(_log, triggers)    # RA-1472/RA-7030
                 await _watchdog_vercel_deploy_failures(_log)   # RA-1742
                 await _watchdog_linear_auth(_log)              # RA-1908
                 await _watchdog_health_full(_log)              # RA-1910

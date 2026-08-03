@@ -46,21 +46,21 @@ _AUTONOMY_LOG = (
     Path(os.path.dirname(__file__)).parents[1] / ".harness" / "autonomy.jsonl"
 )
 
-# Pi - Dev -Ops project / team constants (matches .harness/projects.json)
+# Pi - Dev -Ops project / team constants (matches config/harness/projects.json)
 _PROJECT_ID = "f45212be-3259-4bfb-89b1-54c122c939a7"
 _TEAM_ID    = "a8a52f07-63cf-4ece-9ad2-3e3bd3c15673"
 _DEFAULT_REPO_URL = "https://github.com/CleanExpo/Pi-Dev-Ops"
 
-# RA-1289 — portfolio registry. Poller spans every project in .harness/projects.json
+# RA-1289 — portfolio registry. Poller spans every project in config/harness/projects.json
 # so Urgent/High Todos on target-repo boards (Synthex, Unite-Group, CARSI, DR-NRPG…)
 # trigger autonomous builds — not just Pi-Dev-Ops's own board.
 _PROJECTS_JSON = (
-    Path(os.path.dirname(__file__)).parents[1] / ".harness" / "projects.json"
+    Path(os.path.dirname(__file__)).parents[1] / "config" / "harness" / "projects.json"
 )
 
 
 def _load_portfolio_projects() -> list[dict]:
-    """Load `.harness/projects.json` → list of dicts with the fields the poller needs.
+    """Load `config/harness/projects.json` → list of dicts with the fields the poller needs.
 
     Each entry: {project_id, team_id, repo_url, name}.
     Projects without `linear_project_id` are skipped (can't filter by project).
@@ -293,7 +293,7 @@ query AutonomyQueueIssues($projectId: String!, $statusName: String!, $autonomyLa
 def fetch_todo_issues(api_key: str) -> list[dict]:
     """Fetch Urgent + High priority Todo issues across every portfolio project.
 
-    RA-1289 — iterates `.harness/projects.json` so the poller picks up tickets
+    RA-1289 — iterates `config/harness/projects.json` so the poller picks up tickets
     filed in target-repo boards (Synthex, Unite-Group, CARSI, DR-NRPG, …), not
     just Pi-Dev-Ops. Each returned issue is annotated with `_repo_url`,
     `_team_id`, and `_project_name` so downstream transitions / comments /
@@ -490,7 +490,7 @@ def _extract_repo_url(issue: dict) -> str:
       1. `repo:` label (explicit override on the ticket)
       2. `repo:` line in the description (legacy override)
       3. RA-1289 — mapped `_repo_url` annotation from `fetch_todo_issues`
-         (picked up from `.harness/projects.json` for the issue's project)
+         (picked up from `config/harness/projects.json` for the issue's project)
       4. Pi-Dev-Ops default
 
     Overrides 1+2 still win because some cross-project tickets target a

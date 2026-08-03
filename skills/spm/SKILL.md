@@ -1,6 +1,6 @@
 ---
 name: spm
-description: Senior Project Manager command (/spm). Use before implementation to turn a rough task, feature, bug, idea, ticket, PR, or repo area into a decision-grade spec.md — via read-only project inspection, a self-leveling MOA specialist bench (0–8 seats sized to task complexity), judge-style challenge, verification + stress-test planning, and goal-ready acceptance criteria. Read-only: produces the spec, never the build.
+description: Senior Project Manager command (/spm). Use before implementation to turn a rough task, feature, bug, idea, ticket, PR, or repo area into a decision-grade spec.md — via read-only project inspection, a self-leveling MOA specialist bench (0–8 seats sized to task complexity), judge-style challenge, verification + stress-test planning, and goal-ready acceptance criteria. Read-only — produces the spec, never the build.
 owner_role: Tier-Architect (senior project manager; spec author, not builder)
 status: active
 automation: manual
@@ -76,5 +76,16 @@ A decision-grade **SPM Spec** with sections 1–19 (task / project context / pro
 outcome / scope / existing capability / specialist board / judge challenge / proposed solution /
 UX / technical / security / verification / loop+stress testing / acceptance criteria / goal
 command / implementation sequence / session-handoff seed / final recommendation).
+
+## Closed-loop phase validation (IndyDevDan plan F3, 2026-07)
+
+Section 17 (implementation sequence) must be phased for the builder: each phase self-contained,
+carrying a per-task state checklist (idle / WIP / complete / failed) and per-phase validation
+commands mirrored by the section-13 verification plan. The builder must not advance past a phase
+until its validations pass; a `failed` state routes back into the spec for amendment — never
+silently continue. The spec is a living artifact: amend it in place with append-only header
+metadata (modified timestamps, commits, agent/session ids), never fork a duplicate. Optionally
+render the spec as an HTML artifact with embedded diagrams/images when the founder will review it.
+[[plan-skill-rebuild-mythos-indydevdan-2026-07-14-ingest]]
 
 End with: `SPM spec complete. Next safe action: <one sentence>.`

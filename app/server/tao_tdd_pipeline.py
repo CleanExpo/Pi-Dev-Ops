@@ -54,6 +54,7 @@ from __future__ import annotations
 import logging
 import re
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final
@@ -92,6 +93,11 @@ _PASSED_RE: Final[re.Pattern[str]] = re.compile(
 _FAILED_RE: Final[re.Pattern[str]] = re.compile(
     r"\b\d+\s+(failed|error)\b", re.MULTILINE
 )
+
+# ANSI colour escape sequences — stripped from captured pytest output before
+# the summary regexes run, so colour-forcing environments can't produce a
+# false red (RA follow-up: test_run_full_pytest_passes_on_synthetic).
+_ANSI_RE: Final[re.Pattern[str]] = re.compile(r"\x1b\[[0-9;]*m")
 
 
 # ── Result type ──────────────────────────────────────────────────────────────
@@ -166,13 +172,18 @@ def _run_full_pytest(workspace: str, *, timeout_s: int = 180) -> tuple[bool, str
         return False, "_(no tests/ dir in workspace)_"
     try:
         proc = subprocess.run(
-            ["python", "-m", "pytest", "-q", "--tb=line", "tests/"],
+            [sys.executable, "-m", "pytest", "-q", "--tb=line", "--color=no", "tests/"],
             capture_output=True, text=True, timeout=timeout_s,
             cwd=workspace, check=False,
         )
     except (subprocess.SubprocessError, OSError) as exc:
         return False, f"_(pytest invocation failed: {exc})_"
-    out = (proc.stdout or "") + (proc.stderr or "")
+    # Strip any ANSI colour codes before regex matching. pytest emits colour
+    # when the environment forces it (FORCE_COLOR / PY_COLORS / a TTY), and the
+    # escape sequences break the summary-line regexes below — turning a green
+    # run into a false red. --color=no covers the common case; this strip is
+    # the belt-and-braces guard for tools that colour regardless.
+    out = _ANSI_RE.sub("", (proc.stdout or "") + (proc.stderr or ""))
     summary = out[-1500:].strip()
     if proc.returncode != 0:
         return False, summary

@@ -34,7 +34,7 @@ def test_resolve_margot_voice_id_ignores_generic_elevenlabs_env(monkeypatch):
 
 
 def test_margot_identity_json_has_elevenlabs_voice_id():
-    path = REPO_ROOT / ".harness" / "margot" / "assets" / "margot_identity.json"
+    path = REPO_ROOT / "config" / "harness" / "margot" / "assets" / "margot_identity.json"
     data = json.loads(path.read_text(encoding="utf-8"))
     assert data["elevenlabs"]["voice_id"] == "p43fx6U8afP2xoq1Ai9f"
 
