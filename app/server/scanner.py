@@ -26,13 +26,14 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from app.server import config_loader
 
 log = logging.getLogger("pi-ceo.scanner")
 
 # ─── paths ────────────────────────────────────────────────────────────────────
 
 _HARNESS = Path(__file__).parent.parent.parent / ".harness"
-_PROJECTS_FILE = _HARNESS / "projects.json"
+_PROJECTS_FILE = config_loader.PROJECTS_JSON
 _RESULTS_ROOT = _HARNESS / "scan-results"
 _SCAN_WORKSPACE = Path(
     os.environ.get("SCAN_WORKSPACE_ROOT", str(Path.home() / "pi-seo-workspace"))

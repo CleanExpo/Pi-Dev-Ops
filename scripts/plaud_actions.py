@@ -25,6 +25,7 @@ _REPO_ROOT_FOR_GROUNDING = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT_FOR_GROUNDING) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT_FOR_GROUNDING))
 from app.server import grounding
+from app.server import config_loader
 
 
 log = logging.getLogger("plaud_actions")
@@ -35,7 +36,7 @@ ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
 
 PROMPT_TEMPLATE = (Path(__file__).parent / "prompts" / "action_extraction.md").read_text()
 
-PROJECTS_JSON = Path(__file__).resolve().parent.parent / ".harness" / "projects.json"
+PROJECTS_JSON = config_loader.PROJECTS_JSON
 DEFAULT_PORTFOLIO_ID = "pi-dev-ops"  # fallback when LLM picks unknown
 
 

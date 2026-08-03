@@ -29,6 +29,7 @@ sys.path.insert(0, str(_ROOT))
 import app.server.config  # noqa: F401,E402 — triggers dotenv load
 from app.server.triage import LinearClient  # noqa: E402
 from app.server import config_loader  # noqa: E402
+from app.server import config_loader
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("pi-ceo.analyse-lessons")
@@ -41,7 +42,7 @@ _CONFIG = config_loader.CONFIG_DIR            # committed CONFIG - moves later
 
 _LESSONS_FILE = _HARNESS / "lessons.jsonl"
 _PROPOSALS_DIR = _HARNESS / "improvement-proposals"
-_CRON_FILE = _CONFIG / "cron-triggers.json"
+_CRON_FILE = config_loader.CRON_TRIGGERS_JSON
 
 # Categories that map to skill updates vs CLAUDE.md sections
 _SKILL_CATEGORIES = {"security", "architecture", "claude", "deployment"}

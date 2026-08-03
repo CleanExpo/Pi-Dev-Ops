@@ -24,7 +24,7 @@ import os
 import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from app.server import config_loader
 
 log = logging.getLogger("pi-ceo.digest")
 
@@ -57,15 +57,12 @@ def _linear_graphql(query: str, variables: dict | None = None) -> dict:
 
 
 def _projects_json() -> list[dict]:
-    here = Path(__file__).resolve()
-    for parent in here.parents:
-        candidate = parent / ".harness" / "projects.json"
-        if candidate.is_file():
-            try:
-                return json.loads(candidate.read_text()).get("projects", []) or []
-            except Exception:  # noqa: BLE001
-                return []
-    return []
+    """Raises if the registry is absent — see config_loader.
+
+    WAS: an upward directory walk that returned [] both when the file was unreadable and when
+    it was never found, so a missing registry was silently an empty one.
+    """
+    return config_loader.projects().get("projects", []) or []
 
 
 def _linear_activity_24h() -> dict:

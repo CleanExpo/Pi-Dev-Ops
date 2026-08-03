@@ -24,12 +24,13 @@ import textwrap
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
+from app.server import config_loader
 
 log = logging.getLogger("swarm.production_coordinator")
 
 STATE_KEY = "last_production_coordinator"
 REPO_ROOT = Path(__file__).resolve().parents[1]
-MANIFEST_PATH = REPO_ROOT / ".harness" / "content_manifest.json"
+MANIFEST_PATH = config_loader.CONTENT_MANIFEST_JSON
 
 # Priority order (user-confirmed 2026-05-08)
 # Synthex elevated to #1 — it's the distribution channel, currently in active build
@@ -152,9 +153,12 @@ def should_run(state: dict) -> bool:
 
 
 def _load_manifest() -> dict:
-    if not MANIFEST_PATH.exists():
-        return {}
-    return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    """Raises if the manifest is absent - see config_loader.
+
+    WAS: `if not MANIFEST_PATH.exists(): return {}`. An empty manifest reads as "no content
+    needed anywhere", which is indistinguishable from a fully-produced registry.
+    """
+    return config_loader.content_manifest()
 
 
 def _save_manifest(manifest: dict) -> None:

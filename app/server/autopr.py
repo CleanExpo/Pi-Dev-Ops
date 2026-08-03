@@ -23,6 +23,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from app.server import config_loader
 
 log = logging.getLogger("pi-ceo.autopr")
 
@@ -321,7 +322,7 @@ def _build_pr_body(project_id: str, fixable: dict[str, list[dict]], fixes_applie
 
 async def run_autopr_all(dry_run: bool = False) -> list[dict[str, Any]]:
     """Run auto-PR for all projects with auto-fixable findings."""
-    projects_file = _HARNESS / "projects.json"
+    projects_file = config_loader.PROJECTS_JSON
     with open(projects_file) as f:
         data = json.load(f)
     projects = data["projects"]
@@ -349,7 +350,7 @@ async def _main() -> None:
     args = parser.parse_args()
 
     if args.project:
-        projects_file = _HARNESS / "projects.json"
+        projects_file = config_loader.PROJECTS_JSON
         with open(projects_file) as f:
             all_projects = json.load(f)["projects"]
         proj = next((p for p in all_projects if p["id"] == args.project), None)

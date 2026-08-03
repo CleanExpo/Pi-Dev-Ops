@@ -14,10 +14,11 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from app.server import config_loader
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_MANIFEST = REPO_ROOT / ".harness/margot/assets/margot_identity.json"
+DEFAULT_MANIFEST = config_loader.MARGOT_IDENTITY_JSON
 
 
 class MargotGenerationError(RuntimeError):

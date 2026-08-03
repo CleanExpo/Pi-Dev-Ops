@@ -101,6 +101,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 log = logging.getLogger("plaud_ingest")
+from app.server import config_loader
 
 
 def _iso_24h_ago() -> str:
@@ -379,7 +380,7 @@ class IngestConfig:
     # Sub-project 2 fields (defaults so legacy callers don't break)
     anthropic_api_key: str = ""
     linear_api_key: str = ""
-    projects_json_path: Path = Path.home() / "Pi-CEO" / "Pi-Dev-Ops" / ".harness" / "projects.json"
+    projects_json_path: Path = config_loader.PROJECTS_JSON
     batch_results: list = field(default_factory=list)
 
 

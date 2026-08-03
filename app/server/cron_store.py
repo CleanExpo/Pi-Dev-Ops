@@ -23,21 +23,20 @@ import logging
 import os
 import time
 import uuid
+from app.server import config_loader
 
 _log = logging.getLogger("pi-ceo.cron_store")
 
-_TRIGGERS_FILE = os.path.join(
-    os.path.dirname(__file__), "..", "..", ".harness", "cron-triggers.json"
-)
+_TRIGGERS_FILE = str(config_loader.CRON_TRIGGERS_JSON)
 
 
 def _load_triggers_from_disk() -> list[dict]:
-    """Load schedule definitions from the committed JSON file."""
-    try:
-        with open(_TRIGGERS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (OSError, json.JSONDecodeError):
-        return []
+    """Load schedule definitions. Raises if absent — see config_loader.
+
+    WAS: `except (OSError, json.JSONDecodeError): return []`. An empty trigger list reads as
+    "nothing is scheduled", so every cron silently stopped with no failure anywhere.
+    """
+    return config_loader.cron_triggers()
 
 
 def _load_triggers() -> list[dict]:

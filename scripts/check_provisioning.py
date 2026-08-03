@@ -27,12 +27,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
+from app.server import config_loader
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("check_provisioning")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SSOT_PATH = REPO_ROOT / ".harness" / "provisioned-tools.yaml"
+SSOT_PATH = config_loader.PROVISIONED_TOOLS_YAML
 
 
 @dataclass

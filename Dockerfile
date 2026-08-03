@@ -34,8 +34,12 @@ COPY src/ ./src/
 # `from swarm import orchestrator` fails at runtime with ModuleNotFoundError.
 COPY swarm/ ./swarm/
 
-# Harness data: lessons seed, TAO config, skills
-COPY .harness/ ./.harness/
+# Committed config — the seven spec/instance-data files config_loader.py reads.
+# Was `COPY .harness/ ./.harness/`, which could not build from a clean clone: #607 untracked
+# .harness/, so the path is absent in CI and the build died with `"/.harness": not found`.
+# Only config is tracked and copied. .harness/ is runtime STATE — created empty below and
+# written at run time; copying it also baked gitignored runtime files into the image.
+COPY config/harness/ ./config/harness/
 COPY skills/ ./skills/
 
 # Utility scripts (analyse_lessons, smoke_test, fallback_dryrun, etc.)
@@ -45,8 +49,9 @@ COPY scripts/ ./scripts/
 # ~/.margot, but Railway containers need an in-image server path.
 COPY vendor/margot-deep-research/ ./vendor/margot-deep-research/
 
-# Runtime directories — owned by pidev so the server can write to them
-RUN mkdir -p app/workspaces app/logs/.sessions app/data && \
+# Runtime directories — owned by pidev so the server can write to them.
+# .harness/ is created empty on purpose: it is generated state, no longer shipped in the image.
+RUN mkdir -p app/workspaces app/logs/.sessions app/data .harness && \
     chown -R pidev:pidev /pi-ceo
 
 USER pidev

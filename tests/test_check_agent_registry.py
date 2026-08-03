@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import yaml
+from app.server import config_loader
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -24,13 +25,15 @@ def _run(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
 
 def _copy_registry_surface(tmp_path: Path) -> Path:
     root = tmp_path / "repo"
-    (root / ".harness" / "agents").mkdir(parents=True)
+    # Mirrors the real layout: check_agent_registry._paths() resolves both files under
+    # config/harness/, so the fixture must build that and not the pre-move .harness/.
+    (root / "config" / "harness" / "agents").mkdir(parents=True)
     (root / "docs" / "agents").mkdir(parents=True)
     shutil.copy2(REPO_ROOT / "agentskills.json", root / "agentskills.json")
-    shutil.copy2(REPO_ROOT / ".harness/config.yaml", root / ".harness/config.yaml")
+    shutil.copy2(config_loader.CONFIG_YAML, root / "config/harness/config.yaml")
     shutil.copy2(
-        REPO_ROOT / ".harness/agents/registry.yaml",
-        root / ".harness/agents/registry.yaml",
+        config_loader.CONFIG_DIR / "agents" / "registry.yaml",
+        root / "config/harness/agents/registry.yaml",
     )
     shutil.copytree(REPO_ROOT / ".agents/skills", root / ".agents/skills")
     shutil.copytree(REPO_ROOT / ".claude/skills", root / ".claude/skills")
@@ -69,7 +72,7 @@ def test_cli_refuses_symlinked_catalogue_without_touching_external_target(
 
 def test_cli_reports_file_id_rule_and_reproduction_on_failure(tmp_path: Path) -> None:
     root = _copy_registry_surface(tmp_path)
-    registry_path = root / ".harness/agents/registry.yaml"
+    registry_path = root / "config/harness/agents/registry.yaml"
     registry = yaml.safe_load(registry_path.read_text(encoding="utf-8"))
     registry["agents"][0]["id"] = "../escape"
     registry_path.write_text(yaml.safe_dump(registry, sort_keys=False), encoding="utf-8")

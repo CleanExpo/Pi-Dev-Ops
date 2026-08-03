@@ -20,6 +20,7 @@ import pytest
 from swarm import cfo as _cfo
 from swarm.bots import cfo as cfo_bot
 from swarm.providers import select_provider
+from app.server import config_loader
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -33,7 +34,7 @@ def _clear_provider_env(monkeypatch):
 
 
 def _expected_business_ids() -> list[str]:
-    p = REPO_ROOT / ".harness/projects.json"
+    p = config_loader.PROJECTS_JSON
     data = json.loads(p.read_text(encoding="utf-8"))
     return [proj["id"] for proj in data["projects"] if proj.get("id")]
 

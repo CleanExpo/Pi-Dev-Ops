@@ -33,7 +33,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-import yaml
 
 from app.server import config, config_loader
 
