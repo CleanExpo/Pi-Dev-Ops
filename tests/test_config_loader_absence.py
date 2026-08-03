@@ -163,3 +163,30 @@ def test_validate_startup_rejects_a_malformed_registry(monkeypatch, tmp_path):
     monkeypatch.setattr(cl, "REQUIRED_AT_STARTUP", ((bad, "notebooklm-registry.json"),))
     with pytest.raises(cl.ConfigMissingError, match="not valid JSON"):
         cl.validate_startup()
+
+
+# ── BOARD GOVERNANCE CORPUS ──────────────────────────────────────────────────
+# The corpus is a tracked directory the Dockerfile COPYs. Absence is a packaging
+# error, so it belongs at boot — where someone is watching — rather than at 05:00
+# UTC inside the unattended board-meeting cron, which is where the mandate gate
+# would otherwise discover it.
+def test_validate_startup_raises_when_board_corpus_absent(monkeypatch, tmp_path):
+    monkeypatch.setattr(cl, "BOARD_MEETINGS_DIR", tmp_path / "nowhere" / "board-meetings")
+    with pytest.raises(cl.ConfigMissingError) as exc:
+        cl.validate_startup()
+    assert "board-meetings" in str(exc.value)
+
+
+def test_validate_startup_raises_when_board_corpus_locks_nothing(monkeypatch, tmp_path):
+    """Existence is not enough, exactly as for the NotebookLM registry.
+
+    Markdown with no '## Conditions Locked' section yields an empty index, and an
+    empty index is what makes the mandate gate approve everything. A corpus that
+    parses to zero decisions is the same defect as an absent one.
+    """
+    corpus = tmp_path / "board-meetings"
+    corpus.mkdir()
+    (corpus / "notes.md").write_text("# Board notes\n\nNothing locked.\n", encoding="utf-8")
+    monkeypatch.setattr(cl, "BOARD_MEETINGS_DIR", corpus)
+    with pytest.raises(cl.ConfigMissingError):
+        cl.validate_startup()

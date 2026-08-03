@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.20.0
-  generated_at: "2026-08-03T05:17:10.303052+00:00"
+  version: 1.21.0
+  generated_at: "2026-08-03T07:59:50.533182+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: adversarial-review
@@ -544,6 +544,21 @@ skills:
       skills: []
     safety:
       requires_kill_switch: true
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: control-scope
+    description: "Use when a check has RUN and you are about to say what it proved, or when choosing where to plant a canary, narrow a search, or enumerate the surface a guard covers. Answers ONE question, what did the instrument actually look at and what sentence am I permitted to write. Catches searches aimed at the wrong name, checks that enumerate a fixed set and go stale, canaries planted where the instrument was already known to reach, and claims upgraded from \"within targeted scope\" to \"by discovery\". Triggers on \"confirmed\", \"nothing found\", \"scanned clean\", \"no matches\", \"I searched for\", \"-maxdepth\", \"--include\", \"sampled\", \"the broad search timed out\", \"we use discovery now\"."
+    owner_role: (unset)
+    status: (unset)
+    path: skills/control-scope/SKILL.md
+    sha256: f5ea807a708b16e7100beeb87c4804dc23526e20fc86c3dce0bd67cb311c4061
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
       requires_hitl_gate: false
       pii_handling: pass-through
     inferred: true

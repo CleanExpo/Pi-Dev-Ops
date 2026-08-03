@@ -65,6 +65,12 @@ NOTEBOOKLM_REGISTRY_JSON = _CONFIG_DIR / "notebooklm-registry.json"
 # something that is genuinely optional.
 LESSONS_SEED_JSONL = _CONFIG_DIR / "lessons.seed.jsonl"
 
+# Board governance corpus. Tracked instance data like the files above, but it lives under
+# docs/ rather than config/harness/ and it is a DIRECTORY, so it gets its own constant and
+# its own startup check — REQUIRED_AT_STARTUP entries are validated with is_file().
+# Owned here for the same reason as everything else in this block: one place to move it.
+BOARD_MEETINGS_DIR = REPO_ROOT / "docs" / "governance" / "board-meetings"
+
 
 class ConfigMissingError(RuntimeError):
     """A required instance-data file is absent. Not recoverable, not defaultable."""
@@ -282,3 +288,25 @@ def validate_startup() -> None:
     # softly by design — so boot is the only loud moment. Parse it here; _read_json
     # raises ConfigMissingError naming the file and the JSON error.
     notebooklm_registry()
+
+    # Board governance corpus. Checked here rather than at first use because first use is
+    # run_gap_audit_phase, inside the 05:00 UTC board-meeting cron, with nobody watching.
+    # The corpus is a tracked directory the image COPYs, so absence is a packaging error,
+    # and a packaging error should stop the boot it was packaged into.
+    #
+    # Imported inside the function on purpose: board_decision_index imports this module for
+    # BOARD_MEETINGS_DIR, so a module-level import here would be circular. Re-raised as
+    # ConfigMissingError so validate_startup still has exactly one failure type.
+    from .board_decision_index import (  # noqa: PLC0415
+        BoardCorpusMissingError,
+        build_decision_index,
+    )
+    try:
+        build_decision_index(BOARD_MEETINGS_DIR)
+    except BoardCorpusMissingError as exc:
+        raise ConfigMissingError(
+            f"Refusing to start — board governance corpus unusable at {BOARD_MEETINGS_DIR}.\n"
+            f"  {exc}\n"
+            "  The mandate-consistency gate reads an empty index as 'no contradictions',\n"
+            "  which approves every mandate. Failing at boot rather than at 05:00 UTC."
+        ) from exc

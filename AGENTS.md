@@ -91,6 +91,7 @@ a clear rationale in the PR body. Evaluator score must be ≥ 8/10 before auto-s
 | `dashboard/middleware.ts` | Next.js auth middleware — protects every dashboard route |
 | `dashboard/app/api/actions/` | Irreversible server actions (kill session, delete data) |
 | `supabase/seed.sql` | Production seed data |
+| `docs/governance/board-meetings/` | Locked board decisions — the only input to the mandate-consistency gate. `config_loader.validate_startup()` parses it at boot and **refuses to start** if it is absent or locks nothing, so emptying this directory stops the container. It is also one of the few `docs/` paths the Dockerfile COPYs: treat it as instance data, not documentation. |
 
 ---
 

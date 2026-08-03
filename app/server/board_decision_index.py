@@ -9,6 +9,18 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from app.server import config_loader
+
+class BoardCorpusMissingError(RuntimeError):
+    """Raised when the governance corpus cannot be read, or locks nothing.
+
+    Deliberately fatal, for the same reason `config_loader.validate_startup` is:
+    the only consumer reads an empty index as "no contradictions", so degrading
+    softly here converts a missing corpus into blanket approval. Refusing to
+    answer is correct; answering "yes" is the defect.
+    """
+
+
 _NEGATION_RE = re.compile(
     r"\b("
     r"remove|disable|lift|bypass|repeal|overturn|delete|drop|eliminate|"
@@ -93,11 +105,21 @@ def _extract_locked_sections(content: str, source: str) -> list[BoardDecision]:
 
 
 def build_decision_index(meetings_dir: Path | None = None) -> list[BoardDecision]:
-    """Load locked board decisions from harness board-meeting markdown."""
+    """Load locked board decisions from the governance board-meeting markdown.
+
+    Raises `BoardCorpusMissingError` when the corpus is absent or locks nothing,
+    rather than returning an empty index. See that class for why.
+    """
     if meetings_dir is None:
-        meetings_dir = Path(__file__).resolve().parents[2] / "docs" / "governance" / "board-meetings"
+        meetings_dir = config_loader.BOARD_MEETINGS_DIR
     if not meetings_dir.is_dir():
-        return []
+        raise BoardCorpusMissingError(
+            f"Board governance corpus not found at {meetings_dir}.\n"
+            "  Refusing to build an empty decision index: the mandate gate reads an empty\n"
+            "  index as 'no contradictions found', which approves every mandate — including\n"
+            "  one that overturns a locked board condition.\n"
+            "  In a container, confirm the image COPYs docs/governance/board-meetings/."
+        )
 
     index: list[BoardDecision] = []
     for path in sorted(meetings_dir.glob("*.md")):
@@ -106,6 +128,14 @@ def build_decision_index(meetings_dir: Path | None = None) -> list[BoardDecision
         except OSError:
             continue
         index.extend(_extract_locked_sections(content, path.name))
+
+    if not index:
+        raise BoardCorpusMissingError(
+            f"Board governance corpus at {meetings_dir} yielded no locked decisions.\n"
+            "  Existence is not enough. Markdown with no '## Conditions Locked' section —\n"
+            "  or files that could not be read — produces the same empty index, and so the\n"
+            "  same blanket approval as an absent directory."
+        )
     return index
 
 
@@ -149,6 +179,16 @@ def check_mandate_consistency(
         return MandateConsistencyResult(allowed=True)
 
     decisions = index if index is not None else build_decision_index(meetings_dir)
+    if not decisions:
+        # Only reachable when a caller passes index=[] directly — build_decision_index
+        # now raises rather than returning empty. Closing it here too because this is
+        # the shape the one production call site uses: it builds the index separately
+        # and passes it in, so a [] arriving by any future route must not read as consent.
+        raise BoardCorpusMissingError(
+            "Refusing to check mandate consistency against an empty decision index — "
+            "an index with nothing in it cannot contradict anything, so every mandate "
+            "would be approved."
+        )
     contradictions: list[dict[str, str]] = []
     for decision in decisions:
         detail = _mandate_contradicts_decision(text, decision)
