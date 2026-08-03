@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from . import portfolio_pulse
+from app.server import config_loader
 
 # linear_tools is imported lazily inside _fetch_movement / linear_section_provider
 # because it triggers flow_engine.register_with_flow_engine() at module load,
@@ -40,7 +41,7 @@ from . import portfolio_pulse
 log = logging.getLogger("swarm.portfolio_pulse.linear")
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-PROJECTS_JSON_REL = ".harness/projects.json"
+PROJECTS_JSON_PATH = config_loader.PROJECTS_JSON
 
 # 24h window matches the daily-pulse cadence.
 DEFAULT_LOOKBACK_HOURS = 24

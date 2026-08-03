@@ -32,11 +32,12 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from . import portfolio_pulse
+from app.server import config_loader
 
 log = logging.getLogger("swarm.portfolio_pulse.github")
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-PROJECTS_JSON_REL = ".harness/projects.json"
+PROJECTS_JSON_PATH = config_loader.PROJECTS_JSON
 
 GH_API_BASE = "https://api.github.com"
 HTTP_TIMEOUT_S = 8.0

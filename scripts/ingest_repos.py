@@ -23,6 +23,7 @@ import urllib.request
 import urllib.error
 from datetime import datetime, timezone, date
 from pathlib import Path
+from app.server import config_loader
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,7 +32,7 @@ logging.basicConfig(
 log = logging.getLogger()
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-PROJECTS_JSON = REPO_ROOT / ".harness" / "projects.json"
+PROJECTS_JSON = config_loader.PROJECTS_JSON
 SOURCES_DIR = Path.home() / "2nd Brain" / "2nd Brain" / "Sources"
 
 # Files to fetch from each repo (in priority order)

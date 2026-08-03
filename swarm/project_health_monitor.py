@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
+from app.server import config_loader
 
 log = logging.getLogger("swarm.project_health_monitor")
 
@@ -101,7 +102,7 @@ def _repo_root() -> Path:
 
 
 def _load_projects() -> list[dict[str, Any]]:
-    p = _repo_root() / ".harness" / "projects.json"
+    p = config_loader.PROJECTS_JSON
     if not p.exists():
         return []
     return json.loads(p.read_text(encoding="utf-8")).get("projects", [])

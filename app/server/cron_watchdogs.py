@@ -11,6 +11,7 @@ The ZTE pipeline-stall watchdog (RA-608) lives in cron_watchdog_zte.py.
 """
 import asyncio
 import time
+from app.server import config_loader
 
 # RA-635 — module-level dedup state for docs-stale watchdog.
 # Prevents spamming on every 30-minute watchdog check.
@@ -847,13 +848,7 @@ def _vercel_projects_to_monitor():
     from pathlib import Path
     import json as _json
 
-    candidate = Path(__file__).parent.parent.parent / ".harness" / "projects.json"
-    if not candidate.exists():
-        return []
-    try:
-        registry = _json.loads(candidate.read_text(encoding="utf-8"))
-    except Exception:  # noqa: BLE001
-        return []
+    registry = config_loader.projects()
     out = []
     for p in registry.get("projects", []):
         # Only repos that explicitly opt in via vercel_project_id get watched.

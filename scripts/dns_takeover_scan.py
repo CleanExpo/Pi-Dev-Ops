@@ -49,6 +49,7 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Iterable, Optional
 from urllib.parse import urlparse
+from app.server import config_loader
 
 # Cloud app-platform suffixes that auto-provision certs for any CNAME-verified
 # custom domain. A dangling CNAME to any of these is a takeover vector the
@@ -73,7 +74,7 @@ RISKY_SUFFIXES = (
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-REGISTRY = PROJECT_ROOT / ".harness" / "projects.json"
+REGISTRY = config_loader.PROJECTS_JSON
 
 
 @dataclass

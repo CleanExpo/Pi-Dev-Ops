@@ -23,11 +23,12 @@ from pathlib import Path
 from typing import Literal
 
 from ..cfo import RawMetrics
+from app.server import config_loader
 
 log = logging.getLogger("swarm.providers.synthetic")
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-PROJECTS_JSON_REL = ".harness/projects.json"
+PROJECTS_JSON_PATH = config_loader.PROJECTS_JSON
 
 # Businesses default to b2b unless their projects.json id is in this set.
 _PROSUMER_IDS: set[str] = {"synthex", "nodejs-starter"}

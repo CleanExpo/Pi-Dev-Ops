@@ -22,12 +22,13 @@ import time
 import urllib.request
 from pathlib import Path, PurePosixPath
 from typing import Any
+from app.server import config_loader
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("weekly-enhancement-loop")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-REGISTRY = REPO_ROOT / ".harness" / "projects.json"
+REGISTRY = config_loader.PROJECTS_JSON
 LOG_DIR = REPO_ROOT / ".harness" / "enhancement-loop"
 WORKSPACE_ROOT = Path(os.environ.get("ENHANCE_WORKSPACE", "/tmp/pi-ceo-enhance"))
 TRUSTED_HOME = Path(tempfile.gettempdir()) / "pi-ceo-enhance-trusted-home"

@@ -18,9 +18,10 @@ import json
 import os
 from functools import lru_cache
 from pathlib import Path
+from app.server import config_loader
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_IDENTITY_PATH = _REPO_ROOT / ".harness" / "margot" / "assets" / "margot_identity.json"
+_IDENTITY_PATH = config_loader.MARGOT_IDENTITY_JSON
 
 # Locked ElevenLabs voice for Margot (founder-approved 2026-07-02).
 _CANONICAL_VOICE_ID = "p43fx6U8afP2xoq1Ai9f"
