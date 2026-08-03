@@ -269,6 +269,24 @@ def test_lazy_reads_cannot_fabricate_boot_evidence(runtime_store, monkeypatch):
     )
 
 
+def test_boot_snapshot_counts_parsed_records_not_physical_lines(tmp_path, monkeypatch):
+    """NEGATIVE CONTROL (P1 on 018f6b7b, reviewer-run): a store of 40 garbage lines must
+    snapshot as 0 rows, failing the smoke predicate — the physical-line count reported
+    'seed intact' while the API had zero usable lessons."""
+    path = tmp_path / "h" / "lessons.jsonl"
+    path.parent.mkdir(parents=True)
+    path.write_text("not-json\n" * 40, encoding="utf-8")
+    monkeypatch.setattr(config, "LESSONS_FILE", str(path))
+    monkeypatch.setattr(lessons, "BOOT_SEED_SNAPSHOT", None)
+    snap = lessons.seed_at_boot()   # store exists → no-clobber → garbage stays
+    assert snap["store_existed_before_seed"] is True
+    assert snap["rows_after_seed"] == 0, (
+        "physical-line counting is back — garbage lines counted as lessons"
+    )
+    smoke_predicate = snap.get("rows_after_seed", 0) >= 40
+    assert not smoke_predicate
+
+
 def test_boot_snapshot_reflects_a_truncated_seed(tmp_path, monkeypatch):
     """A truncated seed must show up in the snapshot (the smoke check's >=40 floor)."""
     monkeypatch.setattr(config, "LESSONS_FILE", str(tmp_path / "h" / "lessons.jsonl"))

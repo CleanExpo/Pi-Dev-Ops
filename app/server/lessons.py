@@ -124,8 +124,20 @@ def seed_at_boot() -> dict:
     _ensure_seeded()
     rows = 0
     try:
+        # Count PARSEABLE lesson records, not physical lines: 40 lines of garbage must
+        # read as 0, not 40 — review of 018f6b7b demonstrated the physical-line count
+        # false-passing an unusable store. Parsed here directly (not via _read_lines())
+        # so the count cannot re-trigger seeding.
         with open(path, "r", encoding="utf-8") as f:
-            rows = sum(1 for line in f if line.strip())
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    if isinstance(json.loads(line), dict):
+                        rows += 1
+                except json.JSONDecodeError:
+                    pass
     except OSError:
         pass
     BOOT_SEED_SNAPSHOT = {
