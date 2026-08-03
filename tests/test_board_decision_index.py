@@ -3,7 +3,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from app.server.board_decision_index import (
+    BoardCorpusMissingError,
     BoardDecision,
     build_decision_index,
     check_mandate_consistency,
@@ -64,18 +67,53 @@ def test_consistent_mandate_allowed():
     assert result.allowed is True
 
 
-def test_missing_meetings_dir_returns_empty(tmp_path: Path):
-    """A missing meetings dir yields no decisions rather than raising.
+def test_missing_meetings_dir_raises(tmp_path: Path):
+    """An absent corpus directory must refuse, not return an empty index.
 
-    This is the board_decision_index.py:99 branch that made the previous
-    test_real_harness_has_activation_vote_decisions unrunnable in CI: it called
-    build_decision_index() with no argument, so meetings_dir defaulted to the
-    gitignored .harness/board-meetings, which is absent in a fresh clone. The
-    index came back empty and the assertion failed for a reason that had nothing
-    to do with the code under test.
-
-    Its locked-section assertion is already covered against synthetic data by
-    test_build_decision_index_from_locked_section above, so the replacement
-    pins the defensive branch instead of re-asserting production state.
+    Replaces test_missing_meetings_dir_returns_empty, which pinned the defect:
+    it asserted the fail-OPEN branch was working as designed. Returning [] from
+    an absent corpus is indistinguishable, at every call site, from a corpus that
+    genuinely locks nothing — and the only consumer treats an empty index as
+    "no contradictions found", i.e. approval.
     """
-    assert build_decision_index(tmp_path / "does-not-exist") == []
+    with pytest.raises(BoardCorpusMissingError, match="does-not-exist"):
+        build_decision_index(tmp_path / "does-not-exist")
+
+
+def test_present_but_empty_corpus_raises(tmp_path: Path):
+    """Existence is not enough — a corpus yielding zero decisions is still absent.
+
+    Same lesson as config_loader.validate_startup, which parses the NotebookLM
+    registry rather than settling for is_file(). A directory of markdown with no
+    `## Conditions Locked` section produces the identical empty index, and so the
+    identical silent approval.
+    """
+    meetings = tmp_path / "board-meetings"
+    meetings.mkdir()
+    (meetings / "notes.md").write_text("# Board notes\n\nNothing locked.\n", encoding="utf-8")
+
+    with pytest.raises(BoardCorpusMissingError, match="no locked decisions"):
+        build_decision_index(meetings)
+
+
+def test_mandate_not_approved_when_corpus_absent(tmp_path: Path):
+    """The defect itself, stated behaviourally.
+
+    Before the fix this returned allowed=True: a mandate explicitly overturning a
+    locked condition sailed through because the corpus directory was not in the
+    image. The gate must refuse to answer rather than answer "yes".
+    """
+    overturning = "Remove the 3 autonomous PR per day rate limit and allow unlimited merges."
+    with pytest.raises(BoardCorpusMissingError):
+        check_mandate_consistency(overturning, meetings_dir=tmp_path / "absent")
+
+
+def test_explicit_empty_index_refuses():
+    """The same hole one call away: an explicitly-passed empty index.
+
+    check_mandate_consistency's caller builds the index separately and passes it
+    in, so a [] that never went through build_decision_index would bypass the
+    guard above and approve everything.
+    """
+    with pytest.raises(BoardCorpusMissingError):
+        check_mandate_consistency("Remove the rate limit entirely.", index=[])
