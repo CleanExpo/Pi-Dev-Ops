@@ -101,6 +101,41 @@ def _ensure_seeded() -> None:
             pass
 
 
+# Boot-time seeding evidence (RA-7108 review finding). The read path lazily seeds —
+# _read_lines() calls _ensure_seeded() — so any probe that READS the store installs the
+# seed as a side effect and can never detect a dropped startup hook. This snapshot is
+# written ONLY by seed_at_boot(), which only app_factory startup calls; lazy reads never
+# touch it. A monitor that wants boot-state evidence asserts on the snapshot, not on a
+# read.
+BOOT_SEED_SNAPSHOT: dict | None = None
+
+
+def seed_at_boot() -> dict:
+    """Startup-only seeding entry point: seeds, then records what boot actually did.
+
+    Returns (and stores in BOOT_SEED_SNAPSHOT) the store state as installed AT BOOT:
+    whether a store already existed, and how many rows the store held immediately after
+    seeding — counted by reading the file directly, not via _read_lines(), so the count
+    itself cannot re-trigger seeding.
+    """
+    global BOOT_SEED_SNAPSHOT
+    path = config.LESSONS_FILE
+    existed_before = os.path.exists(path)
+    _ensure_seeded()
+    rows = 0
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            rows = sum(1 for line in f if line.strip())
+    except OSError:
+        pass
+    BOOT_SEED_SNAPSHOT = {
+        "store_existed_before_seed": existed_before,
+        "rows_after_seed": rows,
+        "seeded_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+    return BOOT_SEED_SNAPSHOT
+
+
 def ensure_seeded() -> None:
     """Public entry point for consumers that touch the lesson store directly.
 

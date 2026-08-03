@@ -319,20 +319,22 @@ sc, body = get("/api/lessons")
 check("GET /api/lessons returns 200", sc == 200, f"got {sc}")
 check("Lessons response is a list", isinstance(body, list), str(type(body)))
 
-# Seed presence BEFORE this run writes anything (RA-7108). This is the deploy-level
-# check that caught the #607 regression in production (clean deploys serving len=0);
-# #612 removed it because the store was gitignored and the check unpassable in CI —
-# #613's _ensure_seeded() made it passable everywhere: a fresh boot must serve the
-# 49-lesson tracked seed. The >=40 floor also trips on a truncated seed. This and the
-# read-after-write check below test DIFFERENT things: this one detects an empty or
-# partial store at boot, which the post-POST check can never see (it creates its own
-# fixture first).
+# Seed presence AT BOOT (RA-7108). The ancestor of this check caught the #607 regression
+# (clean deploys serving len=0); #612 removed it as unpassable pre-seeding; #613 made it
+# passable. Review of the first reinstatement found it vacuous for its main claim: a
+# GET /api/lessons probe lazily seeds via _read_lines() → _ensure_seeded(), so the
+# observation itself installs the seed and can never detect a dropped startup hook.
+# The evidence therefore comes from /health's `lessons_boot` — a snapshot written ONLY
+# by seed_at_boot() at startup, which the read path cannot fabricate: null means the
+# boot hook did not run; rows_after_seed < 40 means the seed file is missing/truncated
+# in the image. The read-after-write check below still covers write-path integrity.
+sc_h, health_body = get("/health")
+boot = health_body.get("lessons_boot") if isinstance(health_body, dict) else None
 check(
-    "Lessons store is seeded at boot (fresh deploy serves the curated seed)",
-    isinstance(body, list) and len(body) >= 40,
-    f"len={len(body) if isinstance(body, list) else 'N/A'} — a fresh container below 40 "
-    "means seeding regressed (startup call dropped, seed file moved, or image build "
-    "excluded config/harness/)",
+    "Lessons store was seeded AT BOOT (startup hook ran; seed intact)",
+    isinstance(boot, dict) and boot.get("rows_after_seed", 0) >= 40,
+    f"lessons_boot={boot!r} — null means the startup seeding hook did not run; "
+    "rows_after_seed below 40 means the seed file is missing or truncated in the image",
 )
 
 sc, entry = post("/api/lessons", {

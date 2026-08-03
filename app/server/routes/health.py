@@ -15,6 +15,7 @@ from ..auth import require_auth, verify_session_token
 from ..sessions import _sessions
 from ..vercel_monitor import check_deployment_drift
 from .. import config
+from .. import lessons as _lessons
 
 log = logging.getLogger("pi-ceo.main")
 
@@ -167,6 +168,11 @@ async def health(request: Request):
         "swarm_enabled":    swarm_enabled,
         "swarm_shadow":     swarm_shadow,
         "pi_seo_active":    pi_seo_active,
+        # RA-7108 — boot-time seeding evidence. Written ONLY by seed_at_boot() at startup;
+        # the lazy read path cannot produce it, so a null here means the startup seeding
+        # hook did not run — exactly the regression the smoke test asserts against. A
+        # GET /api/lessons probe can never detect that (the read itself seeds).
+        "lessons_boot":     _lessons.BOOT_SEED_SNAPSHOT,
     }
 
     # RA-1668 — NotebookLM source freshness (weekly refresh). Fail-soft so a
