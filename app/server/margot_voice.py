@@ -29,13 +29,15 @@ _CANONICAL_VOICE_ID = "p43fx6U8afP2xoq1Ai9f"
 
 @lru_cache(maxsize=1)
 def _voice_id_from_identity_json() -> str | None:
-    try:
-        data = json.loads(_IDENTITY_PATH.read_text(encoding="utf-8"))
-        elevenlabs = data.get("elevenlabs") or {}
-        voice_id = (elevenlabs.get("voice_id") or "").strip()
-        return voice_id or None
-    except Exception:
-        return None
+    """Resolve the locked ElevenLabs voice id. Raises if the identity file is absent.
+
+    WAS: a bare `except: return None`. A None voice id falls through to whatever default
+    the caller uses, so synthesising in the WRONG VOICE was silent. An external resource
+    identifier is never defaulted - see config_loader.margot_identity().
+    """
+    data = config_loader.margot_identity()
+    elevenlabs = data.get("elevenlabs") or {}
+    return (elevenlabs.get("voice_id") or "").strip() or None
 
 
 def resolve_margot_voice_id() -> str:

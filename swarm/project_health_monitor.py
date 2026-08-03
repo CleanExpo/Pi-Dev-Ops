@@ -102,10 +102,12 @@ def _repo_root() -> Path:
 
 
 def _load_projects() -> list[dict[str, Any]]:
-    p = config_loader.PROJECTS_JSON
-    if not p.exists():
-        return []
-    return json.loads(p.read_text(encoding="utf-8")).get("projects", [])
+    """Raises if the registry is absent - see config_loader.
+
+    WAS: `if not p.exists(): return []`. Routing the PATH was not enough - the bespoke
+    guard still swallowed absence. Caught by the behavioural check, not the structural one.
+    """
+    return config_loader.projects().get("projects", [])
 
 
 def _load_cto_breaches() -> list[dict[str, Any]]:

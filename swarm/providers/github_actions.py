@@ -169,15 +169,12 @@ def _compute_dora(runs: list[dict[str, Any]]
 
 
 def _load_repo_for_business(bid: str) -> str | None:
-    """Lookup the GitHub repo for a business id from .harness/projects.json."""
-    from pathlib import Path
-    p = config_loader.PROJECTS_JSON
-    if not p.exists():
-        return None
-    try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-    except Exception:
-        return None
+    """Lookup the GitHub repo for a business id. Raises if the registry is absent.
+
+    WAS: exists-check and bare except, both returning None - indistinguishable from
+    "this business has no repo".
+    """
+    data = config_loader.projects()
     for proj in data.get("projects", []) or []:
         if proj.get("id") == bid:
             return proj.get("repo")

@@ -153,9 +153,12 @@ def should_run(state: dict) -> bool:
 
 
 def _load_manifest() -> dict:
-    if not MANIFEST_PATH.exists():
-        return {}
-    return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    """Raises if the manifest is absent - see config_loader.
+
+    WAS: `if not MANIFEST_PATH.exists(): return {}`. An empty manifest reads as "no content
+    needed anywhere", which is indistinguishable from a fully-produced registry.
+    """
+    return config_loader.content_manifest()
 
 
 def _save_manifest(manifest: dict) -> None:

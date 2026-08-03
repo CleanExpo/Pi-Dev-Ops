@@ -53,15 +53,12 @@ PER_PAGE = 50
 
 
 def _load_projects(repo_root: Path) -> dict[str, dict[str, Any]]:
-    """Load .harness/projects.json keyed by project id."""
-    p = PROJECTS_JSON_PATH
-    if not p.exists():
-        return {}
-    try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-    except Exception as exc:  # noqa: BLE001
-        log.warning("portfolio_pulse_github: projects.json parse failed: %s", exc)
-        return {}
+    """Load the project registry keyed by project id. Raises if absent.
+
+    WAS: `if not p.exists(): return {}` plus a bare except that logged and returned {}.
+    An empty registry reads as "no projects to pulse" - a silent no-op.
+    """
+    data = config_loader.projects()
     out: dict[str, dict[str, Any]] = {}
     for proj in data.get("projects", []) or []:
         pid = proj.get("id")
