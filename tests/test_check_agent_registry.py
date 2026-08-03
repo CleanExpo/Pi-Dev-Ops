@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import yaml
+from app.server import config_loader
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -29,7 +30,7 @@ def _copy_registry_surface(tmp_path: Path) -> Path:
     shutil.copy2(REPO_ROOT / "agentskills.json", root / "agentskills.json")
     shutil.copy2(REPO_ROOT / ".harness/config.yaml", root / ".harness/config.yaml")
     shutil.copy2(
-        REPO_ROOT / ".harness/agents/registry.yaml",
+        config_loader.CONFIG_DIR / "agents" / "registry.yaml",
         root / ".harness/agents/registry.yaml",
     )
     shutil.copytree(REPO_ROOT / ".agents/skills", root / ".agents/skills")

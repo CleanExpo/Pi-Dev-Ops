@@ -43,6 +43,17 @@ const vm    = require("vm");  // RA-1458: code_execute sandbox
 const HARNESS_DIR = process.env.HARNESS_DIR
   || path.join(__dirname, "..", ".harness");
 
+// SINGLE SOURCE for where committed config lives — the JS counterpart of
+// config_loader._CONFIG_DIR. Commit 2 changes this line and nothing else on this side.
+// NOTE: HARNESS_DIR comes from process.env, so this surface's location is a DEPLOYMENT
+// concern; the env var must move in step with the files or startup fails loudly.
+const CONFIG_DIR = HARNESS_DIR;
+const CONFIG_PATHS = {
+  projects: path.join(CONFIG_DIR, "projects.json"),
+  cronTriggers: path.join(CONFIG_DIR, "cron-triggers.json"),
+  contentManifest: path.join(CONFIG_DIR, "content_manifest.json"),
+};
+
 const LINEAR_API_KEY = process.env.LINEAR_API_KEY || "";
 const LINEAR_API_URL = "https://api.linear.app/graphql";
 
@@ -292,7 +303,7 @@ async function findProjectId() {
 function resolveProjectRouting(project_key) {
   if (!project_key) return null;
   try {
-    const pj = path.join(HARNESS_DIR, "projects.json");
+    const pj = CONFIG_PATHS.projects;
     if (!fs.existsSync(pj)) return null;
     const data = JSON.parse(fs.readFileSync(pj, "utf8"));
     const entry = (data.projects || []).find(p => p.id === project_key);
@@ -1084,7 +1095,7 @@ server.registerTool(
 // ── Tool: get_project_health ──────────────────────────────────────────────────
 const _handle_get_project_health = async ({ project_id }) => {
   const resultsDir = path.join(HARNESS_DIR, "scan-results");
-  const projectsFile = path.join(HARNESS_DIR, "projects.json");
+  const projectsFile = CONFIG_PATHS.projects;
 
   let projects;
   try {
@@ -2172,15 +2183,13 @@ server.registerTool(
 // concern, not a repo-layout one. Moving files in commit 2 does not fix this server — its env
 // var must be updated in step with it, or it will fail loudly here, which is the point.
 const REQUIRED_AT_STARTUP = [
-  "projects.json",
-  "cron-triggers.json",
-  "content_manifest.json",
+  CONFIG_PATHS.projects,
+  CONFIG_PATHS.cronTriggers,
+  CONFIG_PATHS.contentManifest,
 ];
 
 function validateStartup() {
-  const missing = REQUIRED_AT_STARTUP.filter(
-    (f) => !fs.existsSync(path.join(HARNESS_DIR, f)),
-  );
+  const missing = REQUIRED_AT_STARTUP.filter((f) => !fs.existsSync(f));
   if (missing.length) {
     throw new Error(
       `Refusing to start — required instance-data file(s) absent: ${missing.join(", ")}. ` +

@@ -15,11 +15,12 @@ from swarm.nexus.agent_registry import (
     validate_catalogue,
     validate_projection_drift,
 )
+from app.server import config_loader
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-REGISTRY = REPO_ROOT / ".harness/agents/registry.yaml"
+REGISTRY = config_loader.CONFIG_DIR / "agents" / "registry.yaml"
 MANIFEST = REPO_ROOT / "agentskills.json"
-CONFIG = REPO_ROOT / ".harness/config.yaml"
+CONFIG = config_loader.CONFIG_YAML
 
 
 @pytest.mark.parametrize(

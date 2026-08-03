@@ -100,7 +100,7 @@ def _synth_one(bid: str) -> RawMetrics:
 
 def _load_business_ids() -> list[str]:
     """Read .harness/projects.json and return the business id list."""
-    p = REPO_ROOT / PROJECTS_JSON_REL
+    p = PROJECTS_JSON_PATH
     if not p.exists():
         log.warning("synthetic: %s missing — returning []", p)
         return []

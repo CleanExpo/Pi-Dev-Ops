@@ -20,6 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from swarm import portfolio_pulse  # noqa: E402
+from app.server import config_loader
 
 
 def test_build_pulse_writes_markdown(tmp_path):
@@ -106,7 +107,7 @@ def test_section_provider_error_captured(tmp_path):
 def test_cron_trigger_registered():
     """The portfolio-pulse-daily cron trigger is registered in the
     canonical .harness/cron-triggers.json."""
-    triggers_path = REPO_ROOT / ".harness" / "cron-triggers.json"
+    triggers_path = config_loader.CRON_TRIGGERS_JSON
     triggers = json.loads(triggers_path.read_text(encoding="utf-8"))
     by_id = {t.get("id"): t for t in triggers}
     assert "portfolio-pulse-daily" in by_id, (

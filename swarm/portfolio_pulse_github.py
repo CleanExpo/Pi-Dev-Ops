@@ -54,7 +54,7 @@ PER_PAGE = 50
 
 def _load_projects(repo_root: Path) -> dict[str, dict[str, Any]]:
     """Load .harness/projects.json keyed by project id."""
-    p = repo_root / PROJECTS_JSON_REL
+    p = PROJECTS_JSON_PATH
     if not p.exists():
         return {}
     try:

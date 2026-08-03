@@ -27,9 +27,7 @@ from app.server import config_loader
 
 _log = logging.getLogger("pi-ceo.cron_store")
 
-_TRIGGERS_FILE = os.path.join(
-    os.path.dirname(__file__), "..", "..", ".harness", "cron-triggers.json"
-)
+_TRIGGERS_FILE = str(config_loader.CRON_TRIGGERS_JSON)
 
 
 def _load_triggers_from_disk() -> list[dict]:
