@@ -135,8 +135,10 @@ async def on_startup():
     # once at startup means those direct readers see the 49 curated lessons rather than an
     # empty file on a clean clone. It never overwrites an existing store, and it logs rather
     # than raises, because an empty lesson store is degraded but not a reason to refuse boot.
-    from .lessons import ensure_seeded  # noqa: PLC0415
-    ensure_seeded()
+    # seed_at_boot() additionally records BOOT_SEED_SNAPSHOT — the boot-state evidence
+    # /health exposes; the lazy read path deliberately cannot produce it (RA-7108).
+    from .lessons import seed_at_boot  # noqa: PLC0415
+    seed_at_boot()
 
     restore_sessions()
     # RA-1407 PR 2 — cross-deploy recovery from Supabase. Local JSON restore

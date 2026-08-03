@@ -108,9 +108,10 @@
         "swarm_enabled",
         "pi_seo_active",
         "notebooklm",
-        "recovered"
+        "recovered",
+        "lessons_boot"
       ],
-      "_comment": "RA-1463: session-cookie auth now unlocks the full payload. RA-1469 added pi_seo_active. RA-1668 added notebooklm. RA-1407 PR 2 added recovered (count of sessions auto-resumed from Supabase on startup)."
+      "_comment": "RA-1463: session-cookie auth now unlocks the full payload. RA-1469 added pi_seo_active. RA-1668 added notebooklm. RA-1407 PR 2 added recovered (count of sessions auto-resumed from Supabase on startup). RA-7108 added lessons_boot (boot-time seeding snapshot; null means the startup hook did not run — asserted here because a GET probe lazily seeds and cannot detect that)."
     },
     {
       "name": "proxy-projects",

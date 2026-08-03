@@ -242,6 +242,97 @@ def test_feedback_writer_appends_to_the_configured_store(tmp_path, monkeypatch):
     )
 
 
+# ── RA-7108 boot-snapshot probe (review of 30cfd242, codex, 2026-08-04) ──────────────────
+
+def test_seed_at_boot_records_the_snapshot(runtime_store, monkeypatch):
+    """The startup hook must leave boot-state evidence: store absent before, seed rows after."""
+    monkeypatch.setattr(lessons, "BOOT_SEED_SNAPSHOT", None)
+    snap = lessons.seed_at_boot()
+    assert snap["store_existed_before_seed"] is False
+    assert snap["rows_after_seed"] >= 40
+    assert lessons.BOOT_SEED_SNAPSHOT == snap
+
+
+def test_lazy_reads_cannot_fabricate_boot_evidence(runtime_store, monkeypatch):
+    """MUTATION PIN for the smoke check's claim (P1 on 30cfd242): bypass the startup
+    hook entirely — reads still lazily seed the store, but the boot snapshot stays
+    null, so the smoke predicate FAILS. The first version of the smoke check asserted
+    on a GET, which the lazy path satisfies; this pins the distinction forever.
+    """
+    monkeypatch.setattr(lessons, "BOOT_SEED_SNAPSHOT", None)
+    entries = lessons.load_lessons(limit=1000)   # startup hook deliberately NOT called
+    assert len(entries) > 0, "lazy seeding should have fired — precondition of the pin"
+    boot = lessons.BOOT_SEED_SNAPSHOT
+    smoke_predicate = isinstance(boot, dict) and boot.get("rows_after_seed", 0) >= 40
+    assert boot is None and not smoke_predicate, (
+        "lazy reads fabricated boot evidence — the smoke check is vacuous again"
+    )
+
+
+def test_boot_snapshot_counts_parsed_records_not_physical_lines(tmp_path, monkeypatch):
+    """NEGATIVE CONTROL (P1 on 018f6b7b, reviewer-run): a store of 40 garbage lines must
+    snapshot as 0 rows, failing the smoke predicate — the physical-line count reported
+    'seed intact' while the API had zero usable lessons."""
+    path = tmp_path / "h" / "lessons.jsonl"
+    path.parent.mkdir(parents=True)
+    path.write_text("not-json\n" * 40, encoding="utf-8")
+    monkeypatch.setattr(config, "LESSONS_FILE", str(path))
+    monkeypatch.setattr(lessons, "BOOT_SEED_SNAPSHOT", None)
+    snap = lessons.seed_at_boot()   # store exists → no-clobber → garbage stays
+    assert snap["store_existed_before_seed"] is True
+    assert snap["rows_after_seed"] == 0, (
+        "physical-line counting is back — garbage lines counted as lessons"
+    )
+    smoke_predicate = snap.get("rows_after_seed", 0) >= 40
+    assert not smoke_predicate
+
+
+def test_boot_snapshot_rejects_structurally_invalid_dicts(tmp_path, monkeypatch):
+    """NEGATIVE CONTROL (P1 on c644eac0): 40 empty `{}` objects parse as dicts but carry
+    no content — they must snapshot as 0 rows and fail the smoke predicate."""
+    path = tmp_path / "h" / "lessons.jsonl"
+    path.parent.mkdir(parents=True)
+    path.write_text("{}\n" * 40, encoding="utf-8")
+    monkeypatch.setattr(config, "LESSONS_FILE", str(path))
+    monkeypatch.setattr(lessons, "BOOT_SEED_SNAPSHOT", None)
+    snap = lessons.seed_at_boot()
+    assert snap["rows_after_seed"] == 0, "content-free dicts counted as lessons"
+
+
+def test_boot_snapshot_survives_hostile_file_content(tmp_path, monkeypatch):
+    """NEGATIVE CONTROLS (P1 on c644eac0): parse failures beyond JSONDecodeError must
+    neither crash boot nor count. A 5000-digit integer raises ValueError (int digit
+    limit), and invalid UTF-8 raises UnicodeDecodeError out of the line iterator —
+    at c644eac0 both escaped seed_at_boot() and could abort application startup."""
+    # Case 1: huge-integer line among valid rows — must not raise, must count only valid.
+    path = tmp_path / "h" / "lessons.jsonl"
+    path.parent.mkdir(parents=True)
+    valid = json.dumps({"ts": "t", "source": "s", "category": "c",
+                        "lesson": "real", "severity": "info"})
+    path.write_text(("9" * 5000) + "\n" + valid + "\n", encoding="utf-8")
+    monkeypatch.setattr(config, "LESSONS_FILE", str(path))
+    monkeypatch.setattr(lessons, "BOOT_SEED_SNAPSHOT", None)
+    snap = lessons.seed_at_boot()
+    assert snap["rows_after_seed"] == 1
+
+    # Case 2: invalid UTF-8 — must not raise; file-level failure snapshots as 0.
+    path.write_bytes(b"\xff\xfe garbage bytes \xff\n")
+    monkeypatch.setattr(lessons, "BOOT_SEED_SNAPSHOT", None)
+    snap = lessons.seed_at_boot()
+    assert snap["rows_after_seed"] == 0
+
+
+def test_boot_snapshot_reflects_a_truncated_seed(tmp_path, monkeypatch):
+    """A truncated seed must show up in the snapshot (the smoke check's >=40 floor)."""
+    monkeypatch.setattr(config, "LESSONS_FILE", str(tmp_path / "h" / "lessons.jsonl"))
+    small = tmp_path / "seed.jsonl"
+    small.write_text(json.dumps({"lesson": "only row"}) + "\n", encoding="utf-8")
+    monkeypatch.setattr(config_loader, "LESSONS_SEED_JSONL", small)
+    monkeypatch.setattr(lessons, "BOOT_SEED_SNAPSHOT", None)
+    snap = lessons.seed_at_boot()
+    assert snap["rows_after_seed"] == 1 < 40
+
+
 # ── Review #5b finding on 4f2aee99 (codex, 2026-08-03) ───────────────────────────────────
 
 def test_board_context_reader_follows_the_configured_store(tmp_path, monkeypatch):

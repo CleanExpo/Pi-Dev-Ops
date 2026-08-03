@@ -101,6 +101,66 @@ def _ensure_seeded() -> None:
             pass
 
 
+# Boot-time seeding evidence (RA-7108 review finding). The read path lazily seeds —
+# _read_lines() calls _ensure_seeded() — so any probe that READS the store installs the
+# seed as a side effect and can never detect a dropped startup hook. This snapshot is
+# written ONLY by seed_at_boot(), which only app_factory startup calls; lazy reads never
+# touch it. A monitor that wants boot-state evidence asserts on the snapshot, not on a
+# read.
+BOOT_SEED_SNAPSHOT: dict | None = None
+
+
+def seed_at_boot() -> dict:
+    """Startup-only seeding entry point: seeds, then records what boot actually did.
+
+    Returns (and stores in BOOT_SEED_SNAPSHOT) the store state as installed AT BOOT:
+    whether a store already existed, and how many rows the store held immediately after
+    seeding — counted by reading the file directly, not via _read_lines(), so the count
+    itself cannot re-trigger seeding.
+    """
+    global BOOT_SEED_SNAPSHOT
+    path = config.LESSONS_FILE
+    existed_before = os.path.exists(path)
+    _ensure_seeded()
+    rows = 0
+    try:
+        # Count records satisfying the store's minimum content invariant, not physical
+        # lines and not bare dicts: review rounds on this probe demonstrated 40 garbage
+        # lines counting as 40 (018f6b7b) and 40 empty `{}` objects counting as 40
+        # (c644eac0). A record counts only if it is a dict carrying a non-empty
+        # `lesson` (append_lesson / seed / feedback_loop schema) or `text`
+        # (append_lesson_dedup schema) string. Parsed directly, not via _read_lines(),
+        # so counting cannot re-trigger seeding.
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except ValueError:
+                    # JSONDecodeError subclasses ValueError; the bare ValueError also
+                    # covers non-decode parse failures such as the int-digit limit.
+                    continue
+                if isinstance(rec, dict) and (
+                    isinstance(rec.get("lesson"), str) and rec["lesson"].strip()
+                    or isinstance(rec.get("text"), str) and rec["text"].strip()
+                ):
+                    rows += 1
+    except Exception:
+        # A boot-state probe must never abort boot (invalid UTF-8 raised out of the
+        # line iterator at c644eac0 and would have crashed startup). Any file-level
+        # read failure snapshots as 0 rows — indistinguishable from an unusable store,
+        # which is exactly what an unreadable store is.
+        rows = 0
+    BOOT_SEED_SNAPSHOT = {
+        "store_existed_before_seed": existed_before,
+        "rows_after_seed": rows,
+        "seeded_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+    return BOOT_SEED_SNAPSHOT
+
+
 def ensure_seeded() -> None:
     """Public entry point for consumers that touch the lesson store directly.
 
