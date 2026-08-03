@@ -22,6 +22,7 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from app.server import config_loader
 
 log = logging.getLogger("pi-ceo.agents.pi-seo-monitor")
 
@@ -30,7 +31,7 @@ log = logging.getLogger("pi-ceo.agents.pi-seo-monitor")
 _HARNESS = Path(__file__).parent.parent.parent.parent / ".harness"
 _RESULTS_ROOT = _HARNESS / "scan-results"
 _DIGESTS_ROOT = _HARNESS / "monitor-digests"
-_PROJECTS_FILE = _HARNESS / "projects.json"
+_PROJECTS_FILE = config_loader.PROJECTS_JSON
 _DIGEST_RETENTION_DAYS = 30
 
 # ─── data model ───────────────────────────────────────────────────────────────
@@ -64,12 +65,12 @@ class MonitorDigest:
 # ─── project config ───────────────────────────────────────────────────────────
 
 def _load_projects() -> list[dict[str, Any]]:
-    """Load all projects from config/harness/projects.json."""
-    if not _PROJECTS_FILE.exists():
-        return []
-    with open(_PROJECTS_FILE) as f:
-        data = json.load(f)
-    return data.get("projects", [])
+    """Load all projects. Raises if the registry is absent — see config_loader.
+
+    WAS: `if not _PROJECTS_FILE.exists(): return []`, which reads as "no projects" and is
+    indistinguishable from a working scan with nothing to report.
+    """
+    return config_loader.projects().get("projects", [])
 
 
 def _project_weight(project: dict[str, Any]) -> int:

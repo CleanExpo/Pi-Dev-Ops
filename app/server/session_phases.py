@@ -54,6 +54,7 @@ from .session_linear import (
     _sync_linear_on_completion,
     _notify_linear_session_started,  # RA-6502: started → In Progress outbound push
 )
+from app.server import config_loader
 
 _log = logging.getLogger("pi-ceo.sessions")
 
@@ -128,7 +129,7 @@ def _load_harness_config():
     """Load .harness/config.yaml via TAO TierConfig. Returns dict or None."""
     if not _TAO_AVAILABLE:
         return None
-    cfg_path = os.path.join(os.path.dirname(__file__), "..", "..", ".harness", "config.yaml")
+    cfg_path = str(config_loader.CONFIG_YAML)
     cfg_path = os.path.abspath(cfg_path)
     try:
         return _load_tao_config(cfg_path) if os.path.isfile(cfg_path) else None
@@ -1257,7 +1258,6 @@ def _route_linear_ticket_to_target_project(
     No-ops if LINEAR_API_KEY is missing, projects.json has no entry, or the
     ticket creation fails for any reason (triage continues).
     """
-    from pathlib import Path  # noqa: PLC0415
     import json as _json  # noqa: PLC0415
     from .triage import LinearClient  # noqa: PLC0415
 
@@ -1267,7 +1267,7 @@ def _route_linear_ticket_to_target_project(
         return
 
     # Load projects.json; look up by repo name (case-insensitive)
-    projects_path = Path(__file__).parent.parent.parent / "config" / "harness" / "projects.json"
+    projects_path = config_loader.PROJECTS_JSON
     if not projects_path.exists():
         em(session, "system", "  Linear ticket skipped: projects.json not found")
         return

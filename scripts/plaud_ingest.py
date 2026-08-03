@@ -97,10 +97,16 @@ def format_page(
 import json
 import logging
 import os
+import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 log = logging.getLogger("plaud_ingest")
+_SCRIPT_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_SCRIPT_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_REPO_ROOT))
+
+from app.server import config_loader  # noqa: E402
 
 
 def _iso_24h_ago() -> str:
@@ -379,7 +385,7 @@ class IngestConfig:
     # Sub-project 2 fields (defaults so legacy callers don't break)
     anthropic_api_key: str = ""
     linear_api_key: str = ""
-    projects_json_path: Path = Path.home() / "Pi-CEO" / "Pi-Dev-Ops" / "config" / "harness" / "projects.json"
+    projects_json_path: Path = config_loader.PROJECTS_JSON
     batch_results: list = field(default_factory=list)
 
 

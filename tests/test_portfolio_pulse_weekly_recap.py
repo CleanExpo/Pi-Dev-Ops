@@ -26,6 +26,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from swarm import portfolio_pulse  # noqa: E402
+from app.server import config_loader
 
 
 # ── lookback_window() context manager ────────────────────────────────────────
@@ -145,7 +146,7 @@ def test_linear_render_section_weekly_includes_closed_list():
 def test_friday_weekly_recap_entry_present():
     """The cron-triggers.json must contain a Friday weekly recap entry
     with the correct UTC weekday/hour mapping for Fri 08:00 AEST."""
-    triggers_path = REPO_ROOT / "config" / "harness" / "cron-triggers.json"
+    triggers_path = config_loader.CRON_TRIGGERS_JSON
     triggers = json.loads(triggers_path.read_text())
     friday = next(
         (t for t in triggers if t.get("id") == "weekly-recap-friday"),
@@ -174,7 +175,7 @@ def test_cron_matcher_fires_friday_entry_at_thursday_2200_utc():
     thursday_22_utc = datetime(2026, 5, 7, 22, 0, 0, tzinfo=timezone.utc)
     assert thursday_22_utc.weekday() == 3  # Thursday
 
-    triggers_path = REPO_ROOT / "config" / "harness" / "cron-triggers.json"
+    triggers_path = config_loader.CRON_TRIGGERS_JSON
     triggers = json.loads(triggers_path.read_text())
     friday = next(t for t in triggers if t["id"] == "weekly-recap-friday")
 
@@ -190,7 +191,7 @@ def test_cron_matcher_fires_friday_entry_at_thursday_2200_utc():
 def test_cron_matcher_does_not_fire_other_times():
     from app.server.cron_triggers import _matches
 
-    triggers_path = REPO_ROOT / "config" / "harness" / "cron-triggers.json"
+    triggers_path = config_loader.CRON_TRIGGERS_JSON
     triggers = json.loads(triggers_path.read_text())
     friday = next(t for t in triggers if t["id"] == "weekly-recap-friday")
 

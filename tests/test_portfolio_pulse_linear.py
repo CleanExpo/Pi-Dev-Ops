@@ -10,6 +10,7 @@ Coverage:
 from __future__ import annotations
 
 import sys
+import pytest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -17,6 +18,22 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from swarm import portfolio_pulse  # noqa: E402
 from swarm import portfolio_pulse_linear as ppl  # noqa: E402
+
+@pytest.fixture(autouse=True)
+def _restore_config_loader_paths():
+    """Restore config_loader path constants after every test.
+
+    _write_projects assigns config_loader.PROJECTS_JSON directly (it has no monkeypatch), so
+    without this the tmpdir path leaks into later tests in the same session.
+    """
+    from app.server import config_loader
+    saved = {k: getattr(config_loader, k) for k in
+             ("CONFIG_DIR", "CONFIG_YAML", "PROJECTS_JSON", "CRON_TRIGGERS_JSON",
+              "CONTENT_MANIFEST_JSON", "PROVISIONED_TOOLS_YAML", "MARGOT_IDENTITY_JSON")}
+    yield
+    for k, v in saved.items():
+        setattr(config_loader, k, v)
+
 
 
 def test_provider_self_registers_on_import():
@@ -108,17 +125,24 @@ def test_classify_closed_splits_state_types():
 
 def test_load_projects_reads_json(tmp_path):
     """_load_projects parses config/harness/projects.json into id-keyed dict."""
+    from app.server import config_loader
     harness = tmp_path / "config" / "harness"
     harness.mkdir(parents=True)
-    (harness / "projects.json").write_text(
+    target = harness / "projects.json"
+    target.write_text(
         '{"projects": [{"id": "abc", "linear_project_id": "uuid-1"}]}',
     )
+    # The read goes through config_loader now, not repo_root.
+    config_loader.PROJECTS_JSON = target
     out = ppl._load_projects(tmp_path)
     assert "abc" in out
     assert out["abc"]["linear_project_id"] == "uuid-1"
 
 
 def test_load_projects_missing_file(tmp_path):
-    """Missing projects.json → empty dict, no exception."""
-    out = ppl._load_projects(tmp_path)
-    assert out == {}
+    """Missing registry RAISES now. It used to return {} silently."""
+    import pytest
+    from app.server import config_loader
+    config_loader.PROJECTS_JSON = tmp_path / "nowhere" / "projects.json"
+    with pytest.raises(config_loader.ConfigMissingError):
+        ppl._load_projects(tmp_path)

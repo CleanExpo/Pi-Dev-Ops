@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
+from app.server import config_loader
 
 log = logging.getLogger("swarm.project_health_monitor")
 
@@ -101,10 +102,12 @@ def _repo_root() -> Path:
 
 
 def _load_projects() -> list[dict[str, Any]]:
-    p = _repo_root() / "config" / "harness" / "projects.json"
-    if not p.exists():
-        return []
-    return json.loads(p.read_text(encoding="utf-8")).get("projects", [])
+    """Raises if the registry is absent - see config_loader.
+
+    WAS: `if not p.exists(): return []`. Routing the PATH was not enough - the bespoke
+    guard still swallowed absence. Caught by the behavioural check, not the structural one.
+    """
+    return config_loader.projects().get("projects", [])
 
 
 def _load_cto_breaches() -> list[dict[str, Any]]:

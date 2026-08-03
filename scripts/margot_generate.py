@@ -15,9 +15,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_MANIFEST = REPO_ROOT / "config/harness/margot/assets/margot_identity.json"
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from app.server import config_loader  # noqa: E402
+
+DEFAULT_MANIFEST = config_loader.MARGOT_IDENTITY_JSON
 
 
 class MargotGenerationError(RuntimeError):

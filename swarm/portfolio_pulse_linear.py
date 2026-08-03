@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from . import portfolio_pulse
+from app.server import config_loader
 
 # linear_tools is imported lazily inside _fetch_movement / linear_section_provider
 # because it triggers flow_engine.register_with_flow_engine() at module load,
@@ -40,7 +41,7 @@ from . import portfolio_pulse
 log = logging.getLogger("swarm.portfolio_pulse.linear")
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-PROJECTS_JSON_REL = "config/harness/projects.json"
+PROJECTS_JSON_PATH = config_loader.PROJECTS_JSON
 
 # 24h window matches the daily-pulse cadence.
 DEFAULT_LOOKBACK_HOURS = 24
@@ -55,15 +56,12 @@ TOP_STALE_COUNT = 3
 
 
 def _load_projects(repo_root: Path) -> dict[str, dict[str, Any]]:
-    """Load config/harness/projects.json keyed by project id."""
-    p = repo_root / PROJECTS_JSON_REL
-    if not p.exists():
-        return {}
-    try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-    except Exception as exc:  # noqa: BLE001
-        log.warning("portfolio_pulse_linear: projects.json parse failed: %s", exc)
-        return {}
+    """Load the project registry keyed by project id. Raises if absent.
+
+    WAS: `if not p.exists(): return {}` plus a bare except that logged and returned {}.
+    An empty registry reads as "no projects to pulse" - a silent no-op.
+    """
+    data = config_loader.projects()
     out: dict[str, dict[str, Any]] = {}
     for proj in data.get("projects", []):
         pid = proj.get("id")

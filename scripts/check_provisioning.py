@@ -28,11 +28,16 @@ from pathlib import Path
 
 import yaml
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from app.server import config_loader  # noqa: E402
+
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("check_provisioning")
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-SSOT_PATH = REPO_ROOT / "fence" / "provisioned-tools.yaml"
+SSOT_PATH = config_loader.PROVISIONED_TOOLS_YAML
 
 
 @dataclass

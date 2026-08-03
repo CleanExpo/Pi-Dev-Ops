@@ -3,10 +3,11 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
+from app.server import config_loader
 
 
 def test_margot_identity_projects_include_bubble_brands():
-    path = Path(__file__).resolve().parents[1] / "config" / "harness" / "margot" / "assets" / "margot_identity.json"
+    path = config_loader.MARGOT_IDENTITY_JSON
     data = json.loads(path.read_text(encoding="utf-8"))
     projects = data["projects"]
     for slug in ("unite-group", "restoreassist", "carsi"):

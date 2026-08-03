@@ -38,6 +38,7 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 from typing import Any
+from app.server import config_loader
 
 log = logging.getLogger("pi-ceo.autonomy")
 
@@ -55,7 +56,7 @@ _DEFAULT_REPO_URL = "https://github.com/CleanExpo/Pi-Dev-Ops"
 # so Urgent/High Todos on target-repo boards (Synthex, Unite-Group, CARSI, DR-NRPG…)
 # trigger autonomous builds — not just Pi-Dev-Ops's own board.
 _PROJECTS_JSON = (
-    Path(os.path.dirname(__file__)).parents[1] / "config" / "harness" / "projects.json"
+    config_loader.PROJECTS_JSON
 )
 
 

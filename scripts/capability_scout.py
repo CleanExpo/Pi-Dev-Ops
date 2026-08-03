@@ -23,9 +23,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
-PROJECTS_JSON = REPO_ROOT / "config" / "harness" / "projects.json"
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from app.server import config_loader  # noqa: E402
+
+PROJECTS_JSON = config_loader.PROJECTS_JSON
 DEFAULT_BRAIN_ROOT = Path.home() / "2nd-brain"
 DEFAULT_LIMIT = 40
 

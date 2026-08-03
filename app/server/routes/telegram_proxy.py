@@ -29,6 +29,7 @@ from pydantic import BaseModel
 
 from ..auth import require_auth
 from .. import config
+from app.server import config_loader
 
 log = logging.getLogger("pi-ceo.telegram_proxy")
 router = APIRouter(prefix="/api/telegram", tags=["telegram"])
@@ -71,10 +72,10 @@ def _projects_json_path() -> Path:
     """Walk up from this file to find config/harness/projects.json."""
     here = Path(__file__).resolve()
     for parent in here.parents:
-        candidate = parent / "config" / "harness" / "projects.json"
+        candidate = config_loader.PROJECTS_JSON
         if candidate.is_file():
             return candidate
-    return Path("/app/config/harness/projects.json")
+    return config_loader.PROJECTS_JSON
 
 
 def _project_routing(project_id: str | None) -> dict:

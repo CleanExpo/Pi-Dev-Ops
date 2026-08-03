@@ -43,8 +43,15 @@ const vm    = require("vm");  // RA-1458: code_execute sandbox
 const HARNESS_DIR = process.env.HARNESS_DIR
   || path.join(__dirname, "..", ".harness");
 
-// Committed configuration is fixed relative to the repository. HARNESS_DIR remains the
-// independently configurable location for generated runtime state.
+// SINGLE SOURCE for where committed config lives — the JS counterpart of
+// config_loader.CONFIG_DIR.
+//
+// Deliberately NOT derived from HARNESS_DIR any more. HARNESS_DIR points at runtime STATE
+// (lessons, scan-results, digests), which is generated and gitignored and therefore has to be
+// locatable by env. Config is now TRACKED at config/harness/, so it ships with the code and is
+// always at a fixed offset from this file — no env var can be forgotten, and no deployment can
+// point config and state at each other by accident. That coupling was the deployment concern
+// this comment used to warn about; it is now removed rather than relocated.
 const CONFIG_DIR = path.join(__dirname, "..", "config", "harness");
 const CONFIG_PATHS = {
   projects: path.join(CONFIG_DIR, "projects.json"),
@@ -2177,7 +2184,8 @@ server.registerTool(
 // (line ~296, `if (!fs.existsSync(pj)) return null;`), which reads as "no projects" and is
 // indistinguishable from a working server with nothing to report.
 //
-// Config resolves from the tracked repo layout, independently of HARNESS_DIR runtime state.
+// Config now resolves from the repo layout (see CONFIG_DIR), not from HARNESS_DIR, so a
+// deployment can no longer move the files and leave this server looking at the old place.
 const REQUIRED_AT_STARTUP = [
   CONFIG_PATHS.projects,
   CONFIG_PATHS.cronTriggers,

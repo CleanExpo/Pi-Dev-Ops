@@ -41,7 +41,7 @@ _CONFIG = config_loader.CONFIG_DIR            # committed CONFIG - moves later
 
 _LESSONS_FILE = _HARNESS / "lessons.jsonl"
 _PROPOSALS_DIR = _HARNESS / "improvement-proposals"
-_CRON_FILE = _CONFIG / "cron-triggers.json"
+_CRON_FILE = config_loader.CRON_TRIGGERS_JSON
 
 # Categories that map to skill updates vs CLAUDE.md sections
 _SKILL_CATEGORIES = {"security", "architecture", "claude", "deployment"}

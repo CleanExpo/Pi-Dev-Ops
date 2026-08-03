@@ -11,6 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from app.server import margot_voice as mv  # noqa: E402
+from app.server import config_loader
 
 
 def test_resolve_margot_voice_id_canonical(monkeypatch):
@@ -34,7 +35,7 @@ def test_resolve_margot_voice_id_ignores_generic_elevenlabs_env(monkeypatch):
 
 
 def test_margot_identity_json_has_elevenlabs_voice_id():
-    path = REPO_ROOT / "config" / "harness" / "margot" / "assets" / "margot_identity.json"
+    path = config_loader.MARGOT_IDENTITY_JSON
     data = json.loads(path.read_text(encoding="utf-8"))
     assert data["elevenlabs"]["voice_id"] == "p43fx6U8afP2xoq1Ai9f"
 

@@ -43,6 +43,7 @@ from typing import Any
 from ..cto import RawPlatformMetrics
 from .synthetic import _load_business_ids
 from .synthetic_platform import synthetic_platform_one
+from app.server import config_loader
 
 log = logging.getLogger("swarm.providers.github_actions")
 
@@ -168,15 +169,12 @@ def _compute_dora(runs: list[dict[str, Any]]
 
 
 def _load_repo_for_business(bid: str) -> str | None:
-    """Lookup the GitHub repo for a business id from config/harness/projects.json."""
-    from pathlib import Path
-    p = Path(__file__).resolve().parents[2] / "config/harness/projects.json"
-    if not p.exists():
-        return None
-    try:
-        data = json.loads(p.read_text(encoding="utf-8"))
-    except Exception:
-        return None
+    """Lookup the GitHub repo for a business id. Raises if the registry is absent.
+
+    WAS: exists-check and bare except, both returning None - indistinguishable from
+    "this business has no repo".
+    """
+    data = config_loader.projects()
     for proj in data.get("projects", []) or []:
         if proj.get("id") == bid:
             return proj.get("repo")

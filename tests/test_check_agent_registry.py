@@ -7,7 +7,6 @@ import sys
 from pathlib import Path
 
 import yaml
-
 from app.server import config_loader
 
 
@@ -26,12 +25,14 @@ def _run(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
 
 def _copy_registry_surface(tmp_path: Path) -> Path:
     root = tmp_path / "repo"
-    (root / "docs" / "agents").mkdir(parents=True)
+    # Mirrors the real layout: check_agent_registry._paths() resolves both files under
+    # config/harness/, so the fixture must build that and not the pre-move .harness/.
     (root / "config" / "harness" / "agents").mkdir(parents=True)
+    (root / "docs" / "agents").mkdir(parents=True)
     shutil.copy2(REPO_ROOT / "agentskills.json", root / "agentskills.json")
     shutil.copy2(config_loader.CONFIG_YAML, root / "config/harness/config.yaml")
     shutil.copy2(
-        config_loader.CONFIG_DIR / "agents/registry.yaml",
+        config_loader.CONFIG_DIR / "agents" / "registry.yaml",
         root / "config/harness/agents/registry.yaml",
     )
     shutil.copytree(REPO_ROOT / ".agents/skills", root / ".agents/skills")

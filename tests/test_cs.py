@@ -17,6 +17,7 @@ from swarm.providers.synthetic_cs import (  # noqa: E402
     synthetic_cs_one,
     synthetic_cs_provider,
 )
+from app.server import config_loader
 
 
 @pytest.fixture(autouse=True)
@@ -26,7 +27,7 @@ def _clear_env(monkeypatch):
 
 
 def _expected_business_ids() -> list[str]:
-    p = REPO_ROOT / "config/harness/projects.json"
+    p = config_loader.PROJECTS_JSON
     data = json.loads(p.read_text(encoding="utf-8"))
     return [proj["id"] for proj in data["projects"] if proj.get("id")]
 

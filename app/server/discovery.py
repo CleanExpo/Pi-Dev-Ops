@@ -47,6 +47,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from app.server import config_loader
 
 log = logging.getLogger("pi-ceo.discovery")
 
@@ -216,7 +217,7 @@ def load_persona_config(
     each line beginning with `- ` becomes a Perplexity query.
     """
     pj_path = projects_json_path or (
-        Path(__file__).parent.parent.parent / "config" / "harness" / "projects.json"
+        config_loader.PROJECTS_JSON
     )
     cd = charters_dir or CHARTERS_DIR
 

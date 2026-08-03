@@ -50,6 +50,12 @@ from pathlib import Path
 from typing import Iterable, Optional
 from urllib.parse import urlparse
 
+_SCRIPT_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_SCRIPT_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_REPO_ROOT))
+
+from app.server import config_loader  # noqa: E402
+
 # Cloud app-platform suffixes that auto-provision certs for any CNAME-verified
 # custom domain. A dangling CNAME to any of these is a takeover vector the
 # moment the underlying app is deleted and the name recycled.
@@ -73,7 +79,7 @@ RISKY_SUFFIXES = (
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-REGISTRY = PROJECT_ROOT / "config" / "harness" / "projects.json"
+REGISTRY = config_loader.PROJECTS_JSON
 
 
 @dataclass

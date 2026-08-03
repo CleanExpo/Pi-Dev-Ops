@@ -113,7 +113,10 @@ def test_load_triggers_overlays_supabase_state(tmp_path, monkeypatch):
         {"id": "intel-refresh-daily-0200", "hour": 2, "enabled": True, "last_fired_at": 1700000000.0},
         {"id": "scan-high-0000", "hour": 0, "enabled": True, "last_fired_at": 1700000000.0},
     ]))
+    from app.server import config_loader
     monkeypatch.setattr(cron_store, "_TRIGGERS_FILE", str(triggers_file))
+    # cron_store now reads via the loader, so patch the loader too.
+    monkeypatch.setattr(config_loader, "CRON_TRIGGERS_JSON", triggers_file)
 
     # Supabase has fresher timestamps for both
     fresh_state = {
@@ -137,6 +140,9 @@ def test_load_triggers_falls_back_to_json_on_supabase_outage(tmp_path, monkeypat
         {"id": "x", "last_fired_at": 1700000000.0, "enabled": True},
     ]))
     monkeypatch.setattr(cron_store, "_TRIGGERS_FILE", str(triggers_file))
+    # cron_store reads via the loader now, so the loader must be patched too.
+    from app.server import config_loader
+    monkeypatch.setattr(config_loader, "CRON_TRIGGERS_JSON", triggers_file)
 
     with patch.object(supabase_log, "load_cron_state", side_effect=RuntimeError("down")):
         triggers = cron_store._load_triggers()
@@ -147,9 +153,16 @@ def test_load_triggers_falls_back_to_json_on_supabase_outage(tmp_path, monkeypat
 
 
 def test_load_triggers_returns_empty_when_no_file(tmp_path, monkeypatch):
-    from app.server import cron_store
-    monkeypatch.setattr(cron_store, "_TRIGGERS_FILE", str(tmp_path / "does-not-exist.json"))
-    assert cron_store._load_triggers() == []
+    """Absence RAISES now - an empty trigger list silently stopped every cron.
+
+    Patches config_loader, not cron_store._TRIGGERS_FILE: the read goes through the loader,
+    so the old monkeypatch target no longer governs the outcome.
+    """
+    import pytest
+    from app.server import cron_store, config_loader
+    monkeypatch.setattr(config_loader, "CRON_TRIGGERS_JSON", tmp_path / "does-not-exist.json")
+    with pytest.raises(config_loader.ConfigMissingError):
+        cron_store._load_triggers()
 
 
 def test_save_triggers_writes_json_and_calls_supabase(tmp_path, monkeypatch):

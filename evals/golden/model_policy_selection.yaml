@@ -11,6 +11,9 @@ selection:
   - {role: orchestrator,  model: opus,   effort: high}
   - {role: generator,     model: sonnet, effort: medium}
   - {role: evaluator,     model: sonnet, effort: high}
+  # adversary was the role nothing asserted. In the #607 regression it dropped from opus to
+  # sonnet silently — the pre-push review gate ran on the weaker model and no test noticed.
+  - {role: adversary,     model: opus,   effort: xhigh}
   - {role: board,         model: sonnet, effort: medium}
   - {role: monitor,       model: haiku,  effort: low}
   - {role: margot.casual, model: sonnet, effort: medium}
@@ -24,3 +27,4 @@ allowlist:
   - {role: monitor,      requested: opus, granted: sonnet}   # not allowed → downshift
   - {role: planner,      requested: opus, granted: opus}     # allowed → kept
   - {role: orchestrator, requested: opus, granted: opus}     # allowed → kept
+  - {role: adversary,    requested: opus, granted: opus}     # allowed → kept

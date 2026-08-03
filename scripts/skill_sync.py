@@ -19,14 +19,19 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from app.server import config_loader  # noqa: E402
+
 try:
     import yaml
 except Exception:  # pragma: no cover - PyYAML is a project dependency.
     yaml = None
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-PROJECTS_FILE = REPO_ROOT / "config" / "harness" / "projects.json"
+PROJECTS_FILE = config_loader.PROJECTS_JSON
 CANONICAL_SKILLS = REPO_ROOT / "skills"
 REPORT_DIR = REPO_ROOT / ".harness" / "skill-sync" / "reports"
 APPLY_DIR = REPO_ROOT / ".harness" / "skill-sync" / "applies"

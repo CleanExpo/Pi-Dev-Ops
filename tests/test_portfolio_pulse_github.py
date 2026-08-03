@@ -14,6 +14,7 @@ from __future__ import annotations
 import io
 import json
 import sys
+import pytest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.error import HTTPError
@@ -23,6 +24,22 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from swarm import portfolio_pulse  # noqa: E402
 from swarm import portfolio_pulse_github as ppg  # noqa: E402
+
+@pytest.fixture(autouse=True)
+def _restore_config_loader_paths():
+    """Restore config_loader path constants after every test.
+
+    _write_projects assigns config_loader.PROJECTS_JSON directly (it has no monkeypatch), so
+    without this the tmpdir path leaks into later tests in the same session.
+    """
+    from app.server import config_loader
+    saved = {k: getattr(config_loader, k) for k in
+             ("CONFIG_DIR", "CONFIG_YAML", "PROJECTS_JSON", "CRON_TRIGGERS_JSON",
+              "CONTENT_MANIFEST_JSON", "PROVISIONED_TOOLS_YAML", "MARGOT_IDENTITY_JSON")}
+    yield
+    for k, v in saved.items():
+        setattr(config_loader, k, v)
+
 
 
 # ── Fixtures helpers ────────────────────────────────────────────────────────
@@ -60,13 +77,22 @@ def _route(routes: dict[str, object]):
 
 
 def _write_projects(repo_root: Path, project_id: str, repo: str) -> None:
+    """Write a synthetic registry AND point config_loader at it.
+
+    The read now goes through config_loader rather than being derived from repo_root, so
+    writing under the tmpdir alone would no longer be seen. Patched at module scope via
+    the loader's own constant, which is what production reads.
+    """
+    from app.server import config_loader
     harness = repo_root / "config" / "harness"
     harness.mkdir(parents=True, exist_ok=True)
-    (harness / "projects.json").write_text(
+    target = harness / "projects.json"
+    target.write_text(
         json.dumps({"projects": [
             {"id": project_id, "repo": repo},
         ]})
     )
+    config_loader.PROJECTS_JSON = target
 
 
 # ── Self-registration ──────────────────────────────────────────────────────
@@ -251,5 +277,9 @@ def test_load_projects_reads_repo_field(tmp_path):
 
 
 def test_load_projects_missing_file(tmp_path):
-    out = ppg._load_projects(tmp_path)
-    assert out == {}
+    """Absence RAISES now. It used to return {} - "no projects to pulse" - silently."""
+    import pytest
+    from app.server import config_loader
+    config_loader.PROJECTS_JSON = tmp_path / "nowhere" / "projects.json"
+    with pytest.raises(config_loader.ConfigMissingError):
+        ppg._load_projects(tmp_path)

@@ -40,7 +40,7 @@ log = logging.getLogger("pi-ceo.triage")
 _HARNESS = Path(__file__).parent.parent.parent / ".harness"   # runtime STATE — stays
 _CONFIG = config_loader.CONFIG_DIR                            # committed CONFIG — moves later
 
-_PROJECTS_FILE = _CONFIG / "projects.json"
+_PROJECTS_FILE = config_loader.PROJECTS_JSON
 _CACHE_FILE = _HARNESS / "triage-cache.json"
 _AUTONOMY_LOG = _HARNESS / "autonomy.jsonl"
 
