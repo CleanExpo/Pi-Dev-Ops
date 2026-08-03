@@ -1,17 +1,14 @@
 # skills — Wiki
 
-_Last updated: 2026-08-03T06:47:34Z (commits db4c7a4..6e7e90a)_
+_Last updated: 2026-08-03T08:30:02Z (commits 8709a33..16c9ff6)_
 
 ## Recent changes
-- 6e7e90a — Feat/command centre migration (#609)
+- 16c9ff6 — Fix/mandate gate fail loud (#616)
 
 ## Architecture (current)
 Auto-stub: `skills/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- skills/adversarial-review/SKILL.md — touched in recent commits
-- skills/classify/SKILL.md — touched in recent commits
-- skills/contain/SKILL.md — touched in recent commits
-- skills/control-design/SKILL.md — touched in recent commits
-- skills/diagnose/SKILL.md — touched in recent commits
-- skills/immunise/SKILL.md — touched in recent commits
+- skills/README.md — touched in recent commits
+- skills/control-scope/SKILL.md — touched in recent commits
+- skills/control-scope/references/worked-examples.md — touched in recent commits

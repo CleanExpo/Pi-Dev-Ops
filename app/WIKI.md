@@ -1,17 +1,13 @@
 # app — Wiki
 
-_Last updated: 2026-08-03T07:48:00Z (commits 51c984b..cff9ddc)_
+_Last updated: 2026-08-03T08:30:02Z (commits 8709a33..16c9ff6)_
 
 ## Recent changes
-- cff9ddc — Fix/lessons seed 611 remainder (#613)
+- 16c9ff6 — Fix/mandate gate fail loud (#616)
 
 ## Architecture (current)
 Auto-stub: `app/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- app/server/agents/board_meeting.py — touched in recent commits
-- app/server/agents/feedback_loop.py — touched in recent commits
-- app/server/agents/notebooklm_refresh.py — touched in recent commits
-- app/server/app_factory.py — touched in recent commits
+- app/server/board_decision_index.py — touched in recent commits
 - app/server/config_loader.py — touched in recent commits
-- app/server/cron_fire_agents.py — touched in recent commits
