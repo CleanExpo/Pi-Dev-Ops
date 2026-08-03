@@ -13,3 +13,13 @@
 *.py    text eol=lf
 *.mjs   text eol=lf
 *.cjs   text eol=lf
+
+# Machine-generated manifests, pinned for a different reason: `swarm/agentskills_manifest`
+# writes them in text mode, so regenerating on Windows rewrites every line as CRLF. A
+# fifteen-line manifest change then arrives as a ~5,700-line diff, which buries the change
+# and makes the `generated-agentskills` no-op gate in scripts/handoff-loop.sh unsatisfiable
+# on a Windows host. Pinned by path rather than by `*.json` / `*.yaml`, keeping the narrow
+# policy above: a glob here would renormalise config and fixture files this has no reason
+# to touch.
+agentskills.json    text eol=lf
+agentskills.yaml    text eol=lf

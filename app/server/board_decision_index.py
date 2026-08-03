@@ -9,6 +9,8 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from app.server import config_loader
+
 class BoardCorpusMissingError(RuntimeError):
     """Raised when the governance corpus cannot be read, or locks nothing.
 
@@ -109,7 +111,7 @@ def build_decision_index(meetings_dir: Path | None = None) -> list[BoardDecision
     rather than returning an empty index. See that class for why.
     """
     if meetings_dir is None:
-        meetings_dir = Path(__file__).resolve().parents[2] / "docs" / "governance" / "board-meetings"
+        meetings_dir = config_loader.BOARD_MEETINGS_DIR
     if not meetings_dir.is_dir():
         raise BoardCorpusMissingError(
             f"Board governance corpus not found at {meetings_dir}.\n"
