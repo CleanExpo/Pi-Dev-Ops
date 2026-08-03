@@ -728,15 +728,19 @@ def _append_ship_lesson(pipeline_id: str, score: float) -> None:
     # file from the seeded one under an override deployment, splitting the store.
     from . import config  # noqa: PLC0415 — local, mirrors the lessons import above
     lessons_file = config.LESSONS_FILE
-    entry = json.dumps({
+    entry = {
         "cycle": "ship",
         "pipeline_id": pipeline_id,
         "pattern": "successful_ship",
         "score": score,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-    })
+    }
     try:
         with open(lessons_file, "a", encoding="utf-8") as f:
-            f.write(entry + "\n")
+            f.write(json.dumps(entry) + "\n")
     except OSError:
-        pass
+        return
+    # RA-7111: durable copy — this writer bypasses lessons.append_lesson, so it
+    # writes through explicitly. Local append above already succeeded.
+    from .lessons import record_external_append  # noqa: PLC0415
+    record_external_append(entry)

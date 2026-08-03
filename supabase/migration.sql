@@ -407,3 +407,21 @@ CREATE TABLE IF NOT EXISTS margot_research_queue (
 ALTER TABLE margot_research_queue ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "service_only" ON margot_research_queue;
 CREATE POLICY "service_only" ON margot_research_queue FOR ALL TO service_role USING (true);
+
+-- ── lessons_durable ───────────────────────────────────────────────────────────
+-- RA-7111: the Railway container filesystem is ephemeral, so every runtime lesson
+-- append dies with its container (measured live 2026-08-03→04: a runtime write raised
+-- the store to 50; the next deploy served exactly the 49-row seed again). This table is
+-- the write-through target for every append and the boot-hydration source, turning the
+-- store from reset-to-baseline into accumulating institutional memory. The tracked
+-- 49-lesson seed is NEVER written here — only runtime appends. `hash` is the sha256 of
+-- the raw JSONL line, so a retried write-through upserts onto itself.
+CREATE TABLE IF NOT EXISTS lessons_durable (
+  hash       TEXT         PRIMARY KEY,
+  line       JSONB        NOT NULL,
+  created_at TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS lessons_durable_created_at_idx ON lessons_durable (created_at);
+ALTER TABLE lessons_durable ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "service_only" ON lessons_durable;
+CREATE POLICY "service_only" ON lessons_durable FOR ALL TO service_role USING (true);

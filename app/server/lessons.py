@@ -14,11 +14,13 @@ search_lessons_keyword()  — RA-927: TF-IDF-style keyword search, stdlib-only (
 
 Semantic search (RA-927 local use) lives in .harness/lessons_search.py (ChromaDB, local-only).
 """
+import hashlib
 import json
 import logging
 import os
 import re
 import shutil
+import threading
 import uuid
 from collections import Counter
 from datetime import timezone, datetime
@@ -161,6 +163,129 @@ def seed_at_boot() -> dict:
     return BOOT_SEED_SNAPSHOT
 
 
+# ── RA-7111: cross-deploy durability ─────────────────────────────────────────────────
+# The container filesystem is ephemeral, so every runtime append dies with its container
+# (measured live 2026-08-03→04: a runtime write raised the store to 50; the next deploy
+# served exactly the 49-row seed). Every append therefore writes through to the
+# lessons_durable Supabase table, and boot hydrates table rows back into the freshly
+# seeded file. The single-file read path is unchanged — readers never touch Supabase.
+
+def _write_through(entry: dict) -> None:
+    """Best-effort durable copy of one appended entry, OFF the caller's thread.
+
+    Review of d83fa1e5 measured the synchronous version stalling the ship-critical
+    path by the full network latency (up to _upsert's 8s timeout) — a violation of the
+    fire-and-forget doctrine in caller time, not just in error handling. The send now
+    runs on a daemon thread: the local append has already succeeded before this is
+    called, so a lost race at process exit costs cross-deploy durability of one row,
+    never availability, and every failure inside the thread is logged, not silent."""
+    def _send() -> None:
+        try:
+            from . import supabase_log  # noqa: PLC0415 — lazy, keeps import graph one-way
+            supabase_log.save_lesson(entry)
+        except Exception as exc:
+            log_.warning("lesson write-through failed (local append intact): %s", exc)
+
+    try:
+        threading.Thread(target=_send, name="lesson-write-through", daemon=True).start()
+    except Exception as exc:
+        log_.warning("lesson write-through could not start (local append intact): %s", exc)
+
+
+def record_external_append(entry: dict) -> None:
+    """Public write-through for the direct writers (pipeline, feedback_loop) that append
+    to the store file themselves rather than via append_lesson()."""
+    _write_through(entry)
+
+
+def _canonical_hash(obj: dict) -> str:
+    """Content identity shared with supabase_log.save_lesson: sha256 of the
+    sort_keys-canonical JSON line."""
+    return hashlib.sha256(json.dumps(obj, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def hydrate_from_durable() -> int:
+    """Boot-time: reconcile lessons_durable into the store by CONTENT, not by time alone.
+
+    Called once from app_factory startup, AFTER seed_at_boot(). Review of 58e28fc4
+    demonstrated three failure modes of the first timestamp-only version, all closed by
+    hash reconciliation:
+    - retained-filesystem duplication: a runtime append reaches both the file and the
+      table but never advances the watermark, so the next boot re-fetched it — now the
+      row's hash is already in the file and it is skipped;
+    - boundary omission: the strict gt-cursor dropped rows sharing the watermark
+      timestamp — the cursor is now gte and re-fetched boundary rows dedup by hash;
+    - partial-state on failure: rows are appended and fsynced BEFORE the watermark
+      advances, each row is individually guarded (a malformed row skips, logged, rather
+      than aborting mid-append), and a crash anywhere retries idempotently because
+      reconciliation is content-based.
+    The whole body is caught: hydration must never abort boot. Pure appends — the
+    no-clobber install semantics are untouched.
+    """
+    try:
+        path = config.LESSONS_FILE
+        wm_path = path + ".hydrated-at"
+        watermark = "1970-01-01T00:00:00Z"
+        try:
+            with open(wm_path, "r", encoding="utf-8") as f:
+                watermark = f.read().strip() or watermark
+        except OSError:
+            pass
+        from . import supabase_log  # noqa: PLC0415
+        rows = supabase_log.fetch_lessons_since(watermark)
+        if not rows:
+            return 0
+        existing: set[str] = set()
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        existing.add(_canonical_hash(json.loads(line)))
+                    except ValueError:
+                        continue
+        except OSError:
+            pass
+        appended = 0
+        newest = watermark
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
+            for r in rows:
+                try:
+                    line_obj = r["line"]
+                    if not isinstance(line_obj, dict):
+                        # Wrong-shaped JSONB (review of d83fa1e5: a scalar line was
+                        # appended, persisted, and then crashed every reader with
+                        # AttributeError). Readers assume dict rows; refuse anything
+                        # else at the ingestion boundary.
+                        raise TypeError(f"line is {type(line_obj).__name__}, not object")
+                    created = str(r.get("created_at") or "")
+                    h = _canonical_hash(line_obj)
+                    if h not in existing:
+                        f.write(json.dumps(line_obj) + "\n")
+                        existing.add(h)
+                        appended += 1
+                    if created > newest:
+                        newest = created
+                except Exception as exc:
+                    log_.warning("skipping malformed durable lesson row: %s", exc)
+            f.flush()
+            os.fsync(f.fileno())
+        if newest != watermark:
+            tmp = wm_path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                f.write(newest)
+            os.replace(tmp, wm_path)
+        if appended:
+            log_.info("hydrated %d durable lesson(s); watermark now %s", appended, newest)
+        return appended
+    except Exception as exc:
+        log_.warning("lesson hydration failed (store stays seed-only this boot): %s", exc)
+        return 0
+
+
 def ensure_seeded() -> None:
     """Public entry point for consumers that touch the lesson store directly.
 
@@ -263,6 +388,7 @@ def append_lesson(source: str, category: str, lesson: str, severity: str = "info
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry) + "\n")
+    _write_through(entry)   # RA-7111: durable copy; local append already succeeded
     return entry
 
 
@@ -350,6 +476,7 @@ def append_lesson_dedup(
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry) + "\n")
+    _write_through(entry)   # RA-7111: durable copy; local append already succeeded
     return True
 
 

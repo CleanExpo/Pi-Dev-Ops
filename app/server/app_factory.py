@@ -137,8 +137,12 @@ async def on_startup():
     # than raises, because an empty lesson store is degraded but not a reason to refuse boot.
     # seed_at_boot() additionally records BOOT_SEED_SNAPSHOT — the boot-state evidence
     # /health exposes; the lazy read path deliberately cannot produce it (RA-7108).
-    from .lessons import seed_at_boot  # noqa: PLC0415
+    from .lessons import hydrate_from_durable, seed_at_boot  # noqa: PLC0415
     seed_at_boot()
+    # RA-7111 — after the seed, append back every runtime lesson persisted by previous
+    # containers (lessons_durable, watermark-scoped). Pure appends; best-effort; a
+    # failure logs and the boot continues seed-only.
+    hydrate_from_durable()
 
     restore_sessions()
     # RA-1407 PR 2 — cross-deploy recovery from Supabase. Local JSON restore

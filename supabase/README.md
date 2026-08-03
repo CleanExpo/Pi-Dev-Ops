@@ -1,7 +1,8 @@
 # Pi-CEO Supabase schema
 
-Single migration file: [`migration.sql`](./migration.sql) — 252 lines, all
+Single migration file: [`migration.sql`](./migration.sql) — all
 `CREATE TABLE IF NOT EXISTS …` so it's safe to re-run any number of times.
+(No line count here on purpose: counts in prose go stale silently.)
 
 ## When to run it
 

@@ -193,7 +193,7 @@ Three enforcement layers: `model_policy.py` `select_model()` downshifts opus→s
 
 ## Observability
 
-`supabase_log.py` is the single write path for server-side Supabase events — all writes fire-and-forget; observability failures must never block the pipeline. Tables with live writers: `gate_checks`, `notebooklm_health`. Declared but unwritten: `sessions`, `alert_escalations`, `telegram_sessions`. Documented but never created (cleanup target): `heartbeat_log`, `triage_log`, `workflow_runs`, `claude_api_costs`. Adding a logger → add the matching `CREATE TABLE IF NOT EXISTS` to `supabase/migration.sql` in the same PR (idempotent).
+`supabase_log.py` is the single write path for server-side Supabase events — all writes fire-and-forget; observability failures must never block the pipeline. Tables with live writers: `gate_checks`, `notebooklm_health`, `lessons_durable` (RA-7111: lesson write-through + boot hydration — read as well as written). Declared but unwritten: `sessions`, `alert_escalations`, `telegram_sessions`. Documented but never created (cleanup target): `heartbeat_log`, `triage_log`, `workflow_runs`, `claude_api_costs`. Adding a logger → add the matching `CREATE TABLE IF NOT EXISTS` to `supabase/migration.sql` in the same PR (idempotent).
 
 ## CI Pipeline
 
