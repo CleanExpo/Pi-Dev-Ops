@@ -1,13 +1,17 @@
 # scripts — Wiki
 
-_Last updated: 2026-08-03T05:55:49Z (commits e35f06c..46c6600)_
+_Last updated: 2026-08-03T06:47:34Z (commits db4c7a4..6e7e90a)_
 
 ## Recent changes
-- 46c6600 — test+ci: repair the three defects #611 exposed; split ruff out of the pytest job (#612)
+- 6e7e90a — Feat/command centre migration (#609)
 
 ## Architecture (current)
 Auto-stub: `scripts/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- scripts/check_provisioning.py — touched in recent commits
-- scripts/smoke_test.py — touched in recent commits
+- scripts/analyse_lessons.py — touched in recent commits
+- scripts/assert_image_digest.py — touched in recent commits
+- scripts/capability_scout.py — touched in recent commits
+- scripts/check_agent_registry.py — touched in recent commits
+- scripts/codex-review.sh — touched in recent commits
+- scripts/coverage_check.py — touched in recent commits
