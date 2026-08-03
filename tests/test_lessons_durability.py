@@ -80,7 +80,9 @@ def test_hydration_appends_and_advances_watermark(runtime_store, monkeypatch):
 
     def fake_fetch(watermark):
         fetched_with.append(watermark)
-        return [] if fetched_with[1:] else rows
+        # gte semantics: the boundary row is re-served on the second call — the
+        # content-hash reconciliation must skip it, not duplicate it.
+        return rows if not fetched_with[1:] else [rows[-1]]
 
     monkeypatch.setattr(supabase_log, "fetch_lessons_since", fake_fetch)
     lessons.ensure_seeded()
@@ -90,11 +92,69 @@ def test_hydration_appends_and_advances_watermark(runtime_store, monkeypatch):
     assert "survived the deploy" in got and "also survived" in got
     wm = open(str(runtime_store) + ".hydrated-at", encoding="utf-8").read()
     assert wm == "2026-08-04T02:00:00+00:00"
-    # Second hydration queries FROM the watermark and appends nothing.
     before = runtime_store.read_bytes()
-    assert lessons.hydrate_from_durable() == 0
+    assert lessons.hydrate_from_durable() == 0, "re-served boundary row was duplicated"
     assert fetched_with[1] == "2026-08-04T02:00:00+00:00"
     assert runtime_store.read_bytes() == before
+
+
+def test_hydration_dedups_rows_already_present_locally(runtime_store, captured, monkeypatch):
+    """P1 probe (58e28fc4): on a RETAINED filesystem, a runtime append reaches both the
+    file and the table without advancing the watermark; the next hydration re-fetches it
+    and, at 58e28fc4, duplicated it. Content reconciliation must skip it."""
+    entry = lessons.append_lesson("test", "unit-test", "already local", "info")
+    monkeypatch.setattr(
+        supabase_log, "fetch_lessons_since",
+        lambda _w: [{"line": entry, "created_at": "2026-08-04T03:00:00+00:00"}],
+    )
+    before = [e.get("lesson") for e in lessons.load_lessons(limit=1000)].count("already local")
+    assert before == 1
+    assert lessons.hydrate_from_durable() == 0, "locally present row was re-appended"
+    after = [e.get("lesson") for e in lessons.load_lessons(limit=1000)].count("already local")
+    assert after == 1
+
+
+def test_hydration_boundary_rows_neither_dropped_nor_duplicated(runtime_store, monkeypatch):
+    """P1 probe (58e28fc4): with the strict gt-cursor, row B sharing the watermark
+    timestamp of already-hydrated row A was permanently omitted. gte + hash dedup must
+    pick up B without duplicating A."""
+    T = "2026-08-04T05:00:00+00:00"
+    row_a = {"line": {"ts": "a", "source": "s", "category": "c",
+                      "lesson": "row A at the boundary", "severity": "info"}, "created_at": T}
+    row_b = {"line": {"ts": "b", "source": "s", "category": "c",
+                      "lesson": "row B late-visible at the boundary", "severity": "info"}, "created_at": T}
+    batches = [[row_a], [row_a, row_b]]
+    monkeypatch.setattr(supabase_log, "fetch_lessons_since", lambda _w: batches.pop(0))
+    lessons.ensure_seeded()
+    assert lessons.hydrate_from_durable() == 1
+    assert lessons.hydrate_from_durable() == 1, "late-visible boundary row was dropped"
+    got = [e.get("lesson") for e in lessons.load_lessons(limit=1000)]
+    assert got.count("row A at the boundary") == 1
+    assert got.count("row B late-visible at the boundary") == 1
+
+
+def test_hydration_skips_malformed_rows_and_retries_idempotently(runtime_store, monkeypatch, caplog):
+    """P1 probe (58e28fc4): a malformed row 2 raised KeyError AFTER row 1 was appended,
+    left no watermark, and duplicated row 1 on retry. Now: malformed rows skip with a
+    warning, valid rows land, the watermark still advances, and a retry appends nothing."""
+    T1, T3 = "2026-08-04T06:00:00+00:00", "2026-08-04T07:00:00+00:00"
+    rows = [
+        {"line": {"ts": "1", "source": "s", "category": "c", "lesson": "valid one", "severity": "info"},
+         "created_at": T1},
+        {"created_at": T1},  # no "line" key — the reviewer's KeyError probe
+        {"line": {"ts": "3", "source": "s", "category": "c", "lesson": "valid three", "severity": "info"},
+         "created_at": T3},
+    ]
+    monkeypatch.setattr(supabase_log, "fetch_lessons_since", lambda _w: rows)
+    lessons.ensure_seeded()
+    with caplog.at_level("WARNING"):
+        assert lessons.hydrate_from_durable() == 2
+    assert any("malformed durable lesson row" in r.getMessage() for r in caplog.records)
+    wm = open(str(runtime_store) + ".hydrated-at", encoding="utf-8").read()
+    assert wm == T3, "watermark must still advance past a malformed row"
+    assert lessons.hydrate_from_durable() == 0, "retry after partial batch duplicated rows"
+    got = [e.get("lesson") for e in lessons.load_lessons(limit=1000)]
+    assert got.count("valid one") == 1 and got.count("valid three") == 1
 
 
 def test_hydration_failure_is_nonfatal_and_logged(runtime_store, monkeypatch, caplog):

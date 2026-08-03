@@ -14,6 +14,7 @@ search_lessons_keyword()  — RA-927: TF-IDF-style keyword search, stdlib-only (
 
 Semantic search (RA-927 local use) lives in .harness/lessons_search.py (ChromaDB, local-only).
 """
+import hashlib
 import json
 import logging
 import os
@@ -185,42 +186,86 @@ def record_external_append(entry: dict) -> None:
     _write_through(entry)
 
 
-def hydrate_from_durable() -> int:
-    """Boot-time: append lessons_durable rows newer than the watermark into the store.
+def _canonical_hash(obj: dict) -> str:
+    """Content identity shared with supabase_log.save_lesson: sha256 of the
+    sort_keys-canonical JSON line."""
+    return hashlib.sha256(json.dumps(obj, sort_keys=True).encode("utf-8")).hexdigest()
 
-    Called once from app_factory startup, AFTER seed_at_boot(). Pure appends — the
-    no-clobber install semantics are untouched. The watermark file lives next to the
-    store and shares its lifecycle: on an ephemeral filesystem both die together, so a
-    fresh container hydrates everything ever appended; on a persistent one, only the
-    delta. Best-effort: any failure logs a warning and the boot continues seed-only.
+
+def hydrate_from_durable() -> int:
+    """Boot-time: reconcile lessons_durable into the store by CONTENT, not by time alone.
+
+    Called once from app_factory startup, AFTER seed_at_boot(). Review of 58e28fc4
+    demonstrated three failure modes of the first timestamp-only version, all closed by
+    hash reconciliation:
+    - retained-filesystem duplication: a runtime append reaches both the file and the
+      table but never advances the watermark, so the next boot re-fetched it — now the
+      row's hash is already in the file and it is skipped;
+    - boundary omission: the strict gt-cursor dropped rows sharing the watermark
+      timestamp — the cursor is now gte and re-fetched boundary rows dedup by hash;
+    - partial-state on failure: rows are appended and fsynced BEFORE the watermark
+      advances, each row is individually guarded (a malformed row skips, logged, rather
+      than aborting mid-append), and a crash anywhere retries idempotently because
+      reconciliation is content-based.
+    The whole body is caught: hydration must never abort boot. Pure appends — the
+    no-clobber install semantics are untouched.
     """
-    path = config.LESSONS_FILE
-    wm_path = path + ".hydrated-at"
-    watermark = "1970-01-01T00:00:00Z"
     try:
-        with open(wm_path, "r", encoding="utf-8") as f:
-            watermark = f.read().strip() or watermark
-    except OSError:
-        pass
-    try:
+        path = config.LESSONS_FILE
+        wm_path = path + ".hydrated-at"
+        watermark = "1970-01-01T00:00:00Z"
+        try:
+            with open(wm_path, "r", encoding="utf-8") as f:
+                watermark = f.read().strip() or watermark
+        except OSError:
+            pass
         from . import supabase_log  # noqa: PLC0415
         rows = supabase_log.fetch_lessons_since(watermark)
+        if not rows:
+            return 0
+        existing: set[str] = set()
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        existing.add(_canonical_hash(json.loads(line)))
+                    except ValueError:
+                        continue
+        except OSError:
+            pass
+        appended = 0
+        newest = watermark
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
+            for r in rows:
+                try:
+                    line_obj = r["line"]
+                    created = str(r.get("created_at") or "")
+                    h = _canonical_hash(line_obj)
+                    if h not in existing:
+                        f.write(json.dumps(line_obj) + "\n")
+                        existing.add(h)
+                        appended += 1
+                    if created > newest:
+                        newest = created
+                except Exception as exc:
+                    log_.warning("skipping malformed durable lesson row: %s", exc)
+            f.flush()
+            os.fsync(f.fileno())
+        if newest != watermark:
+            tmp = wm_path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                f.write(newest)
+            os.replace(tmp, wm_path)
+        if appended:
+            log_.info("hydrated %d durable lesson(s); watermark now %s", appended, newest)
+        return appended
     except Exception as exc:
         log_.warning("lesson hydration failed (store stays seed-only this boot): %s", exc)
         return 0
-    if not rows:
-        return 0
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "a", encoding="utf-8") as f:
-        for r in rows:
-            f.write(json.dumps(r["line"]) + "\n")
-    newest = max(r["created_at"] for r in rows)
-    tmp = wm_path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        f.write(newest)
-    os.replace(tmp, wm_path)
-    log_.info("hydrated %d durable lesson(s); watermark now %s", len(rows), newest)
-    return len(rows)
 
 
 def ensure_seeded() -> None:

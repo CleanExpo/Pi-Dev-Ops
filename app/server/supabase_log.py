@@ -525,12 +525,17 @@ def save_lesson(entry: dict[str, Any]) -> bool:
 
 
 def fetch_lessons_since(iso_watermark: str) -> list[dict[str, Any]]:
-    """RA-7111 — Rows appended after the watermark, oldest first, for boot hydration.
+    """RA-7111 — Rows at-or-after the watermark, oldest first, for boot hydration.
+
+    gte, not gt (review of 58e28fc4): a strict cursor permanently dropped rows sharing
+    the watermark timestamp that became visible after it was persisted. Boundary rows
+    are therefore re-fetched on every boot and the hydrator's content-hash
+    reconciliation skips the ones already in the file — no omission, no duplication.
 
     Returns [{"line": {...}, "created_at": "..."}]. Empty list on any failure
     (including unset Supabase env) — hydration is best-effort by design.
     """
     return _select(
         "lessons_durable",
-        f"select=line,created_at&created_at=gt.{iso_watermark}&order=created_at.asc",
+        f"select=line,created_at&created_at=gte.{iso_watermark}&order=created_at.asc",
     )
