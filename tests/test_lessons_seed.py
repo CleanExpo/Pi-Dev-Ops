@@ -98,3 +98,87 @@ def test_seed_survives_a_missing_parent_directory(runtime_store):
     assert not os.path.isdir(os.path.dirname(str(runtime_store)))
     assert len(lessons.load_lessons(limit=1000)) > 0
     assert os.path.isfile(str(runtime_store))
+
+
+# ── Review findings on f27f0c0e (codex, 2026-08-03) ──────────────────────────────────────
+
+def test_reseeding_never_erases_an_append(runtime_store):
+    """P1 data loss: a second seed must NOT clobber a store that already has appends.
+
+    The reviewer demonstrated the original defect: `os.replace` is atomic but unconditional,
+    so process A could seed and append while process B — which passed its existence check
+    before A finished — replaced the whole store with a pristine seed copy, destroying A's
+    append permanently. `os.link` refuses to overwrite, which is the property under test.
+    """
+    lessons.ensure_seeded()
+    lessons.append_lesson("test", "unit-test", "must survive a reseed", "info")
+    before = lessons.load_lessons(limit=1000)
+
+    lessons.ensure_seeded()  # the racing process's second install attempt
+
+    after = lessons.load_lessons(limit=1000)
+    assert len(after) == len(before), "a reseed erased data — os.replace semantics are back"
+    assert any(e.get("lesson") == "must survive a reseed" for e in after)
+
+
+def test_seed_install_refuses_to_overwrite_a_populated_store(tmp_path, monkeypatch):
+    """The no-clobber guarantee stated directly: an existing store is never replaced."""
+    path = tmp_path / "harness" / "lessons.jsonl"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        json.dumps({"ts": "2026-01-01T00:00:00Z", "source": "live", "category": "c",
+                    "lesson": "irreplaceable", "severity": "info"}) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(config, "LESSONS_FILE", str(path))
+    original = path.read_bytes()
+    lessons.ensure_seeded()
+    assert path.read_bytes() == original
+
+
+def test_no_temp_files_are_left_behind(runtime_store):
+    """The install writes a temp alongside the store; it must always be cleaned up."""
+    lessons.ensure_seeded()
+    leftovers = [p for p in os.listdir(os.path.dirname(str(runtime_store)))
+                 if ".seed-" in p or p.endswith(".tmp")]
+    assert leftovers == [], f"temp files left behind: {leftovers}"
+
+
+def test_seed_failure_is_logged_not_silent(tmp_path, monkeypatch, caplog):
+    """P2: a seeding fault must not be indistinguishable from an absent-by-design seed.
+
+    The store is required by the smoke contract to be non-empty, so a permissions or disk
+    fault here silently disables institutional memory on every read.
+    """
+    monkeypatch.setattr(config, "LESSONS_FILE", str(tmp_path / "h" / "lessons.jsonl"))
+
+    def boom(*_a, **_k):
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(lessons.shutil, "copyfile", boom)
+    with caplog.at_level("ERROR"):
+        lessons.ensure_seeded()
+    assert any("seeding FAILED" in r.message or "seeding FAILED" in r.getMessage()
+               for r in caplog.records), "seed failure produced no ERROR log"
+
+
+def test_direct_writer_seeds_before_appending(tmp_path, monkeypatch):
+    """P1: a direct writer that appends first would suppress the seed forever.
+
+    `pipeline._append_ship_lesson` writes to the store without going through lessons.py.
+    Once the file exists, seeding never runs again — so appending first permanently costs
+    the 49 curated lessons.
+    """
+    from app.server import pipeline
+
+    path = tmp_path / "harness" / "lessons.jsonl"
+    monkeypatch.setattr(config, "LESSONS_FILE", str(path))
+    monkeypatch.setattr(pipeline, "_HARNESS_ROOT", path.parent)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    pipeline._append_ship_lesson("pipeline-123", 9.0)
+
+    entries = lessons.load_lessons(limit=1000)
+    assert len(entries) > 1, (
+        "direct writer suppressed the seed — the store holds only its own row"
+    )

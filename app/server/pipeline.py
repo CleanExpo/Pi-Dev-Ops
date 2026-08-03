@@ -718,6 +718,11 @@ def _gate_reason(gate: str, score: float) -> str:
 
 
 def _append_ship_lesson(pipeline_id: str, score: float) -> None:
+    # Seed before appending. This writer creates the store if it is absent, and an existing
+    # store suppresses seeding for good, so appending first would silently cost the 49
+    # curated lessons on a clean clone.
+    from .lessons import ensure_seeded  # noqa: PLC0415 — local, avoids an import cycle
+    ensure_seeded()
     lessons_file = _HARNESS_ROOT / "lessons.jsonl"
     entry = json.dumps({
         "cycle": "ship",

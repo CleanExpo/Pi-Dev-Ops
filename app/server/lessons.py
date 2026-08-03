@@ -15,49 +15,89 @@ search_lessons_keyword()  — RA-927: TF-IDF-style keyword search, stdlib-only (
 Semantic search (RA-927 local use) lives in .harness/lessons_search.py (ChromaDB, local-only).
 """
 import json
+import logging
 import os
 import re
 import shutil
+import uuid
 from collections import Counter
 from datetime import timezone, datetime
 from math import log
 from . import config
 from . import config_loader
 
+log_ = logging.getLogger("pi-ceo.lessons")
+
 
 def _ensure_seeded() -> None:
-    """Populate the runtime store from the tracked seed the first time it is needed.
+    """Install the tracked seed as the runtime store, once, and never clobber.
 
     `.harness/lessons.jsonl` held 49 curated lessons, added over time by deliberate
     `docs(lessons)` commits. #607 untracked `.harness/` wholesale — 609 files — and the
     lessons went with it, so a clean clone served an empty list and the smoke check
     "Lessons list is non-empty (seed data present)" failed on every run.
 
-    Seeding by COPY rather than by reading both files is deliberate. Three call sites write
+    Seeding by COPY rather than by reading both files is deliberate. Several call sites write
     to this store, and one of them (`_bump_occurrence`) rewrites it in place; if reads merged
     a read-only seed with the runtime file, bumping a seeded lesson would find nothing to
-    rewrite and fail silently. One file at run time keeps every existing reader and writer
-    correct without touching them.
+    rewrite and fail silently. One file at run time keeps every reader and writer correct.
+
+    CONCURRENCY. The install must be atomic AND refuse to overwrite. An earlier version wrote
+    a temp file and called `os.replace`, which is atomic but unconditional — review of #611
+    demonstrated the loss: process A seeds and appends a lesson; process B, which passed its
+    existence check before A finished, then replaces the store with its own pristine seed copy
+    and A's append is gone for good. It also derived the temp name from the pid alone, so two
+    THREADS shared one temp path and a partially-copied 17-byte store was observed.
+
+    `os.link` fixes both. It is atomic and it fails with FileExistsError when the target
+    already exists, so whoever loses the race simply does nothing and no existing store — seed
+    plus appends or otherwise — is ever destroyed. The temp name carries a uuid so no two
+    callers, in any thread or process, can collide on it. The temp is built from the target
+    path, so it is always on the target's filesystem, which `os.link` requires.
 
     The runtime store stays in the untracked `.harness/` because it is appended to while the
     server runs. The seed is committed config and is never written.
     """
     path = config.LESSONS_FILE
-    if os.path.exists(path) or not config_loader.LESSONS_SEED_JSONL.is_file():
+    if os.path.exists(path):
         return
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    # Copy via a pid-unique temp then rename, so a concurrent reader never observes a
-    # half-written store. os.replace is atomic within a filesystem.
-    tmp = f"{path}.seed-{os.getpid()}.tmp"
+    seed = config_loader.LESSONS_SEED_JSONL
+    if not seed.is_file():
+        # An absent seed is a legitimate configuration, not a fault: nothing to install.
+        return
+    tmp = f"{path}.seed-{uuid.uuid4().hex}.tmp"
     try:
-        shutil.copyfile(config_loader.LESSONS_SEED_JSONL, tmp)
-        os.replace(tmp, path)
-    except OSError:
-        # Never let seeding break a caller: an empty store is degraded, a crash is worse.
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        shutil.copyfile(seed, tmp)
+        os.link(tmp, path)
+    except FileExistsError:
+        # Someone else installed the store first. Correct outcome, nothing to report.
+        pass
+    except OSError as exc:
+        # Do not raise: an empty store is degraded, a crashed caller is worse. But do not go
+        # quiet either — the smoke contract requires this store to be non-empty, so a
+        # persistent permissions/disk fault here disables institutional memory on every read
+        # and would otherwise be indistinguishable from a deliberately absent seed.
+        log_.error(
+            "lesson seeding FAILED (%s -> %s): %s — the lesson store will read as EMPTY. "
+            "This is a fault, not an empty-by-design store.", seed, path, exc,
+        )
+    finally:
         try:
             os.unlink(tmp)
         except OSError:
             pass
+
+
+def ensure_seeded() -> None:
+    """Public entry point for consumers that touch the lesson store directly.
+
+    Several modules open `.harness/lessons.jsonl` themselves rather than going through this
+    one. For readers that is merely degraded; for a WRITER it is destructive, because a
+    direct append creates the file, and an existing file suppresses seeding for good — the
+    49 curated lessons would then never arrive. Any such module must call this first.
+    """
+    _ensure_seeded()
 
 
 def _read_lines() -> list[dict]:

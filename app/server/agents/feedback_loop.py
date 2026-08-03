@@ -530,6 +530,11 @@ def _write_outcome_lesson(feature: dict[str, Any], signal: str) -> None:
         "lesson": lesson_map.get(signal, "Unknown outcome."),
         "severity": severity_map.get(signal, "info"),
     }
+    # Seed before appending. This writer creates the store if it is absent, and an existing
+    # store suppresses seeding for good, so appending first would silently cost the 49
+    # curated lessons on a clean clone.
+    from app.server.lessons import ensure_seeded  # noqa: PLC0415 — local, avoids an import cycle
+    ensure_seeded()
     try:
         with open(_LESSONS_FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry) + "\n")

@@ -253,6 +253,11 @@ REQUIRED_AT_STARTUP: tuple[tuple[Path, str], ...] = (
     (CONTENT_MANIFEST_JSON, "content_manifest.json"),
     (PROVISIONED_TOOLS_YAML, "provisioned-tools.yaml"),
     (MARGOT_IDENTITY_JSON, "margot_identity.json"),
+    # The registry's runtime consumers are periodic background probes, and they degrade
+    # softly on purpose — aborting the health watchdog would take every watchdog scheduled
+    # after it down too. That makes STARTUP the only place a missing registry can be caught
+    # loudly, which is exactly where this module's docstring says the check belongs.
+    (NOTEBOOKLM_REGISTRY_JSON, "notebooklm-registry.json"),
 )
 
 

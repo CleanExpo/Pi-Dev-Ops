@@ -456,7 +456,7 @@ async def _watchdog_notebooklm_health(log) -> None:
     RA-820 — NotebookLM knowledge base health probe.
 
     Every 6 hours, runs one standard query against each active notebook in
-    .harness/notebooklm-registry.json. Logs results to Supabase notebooklm_health.
+    config/harness/notebooklm-registry.json. Logs results to Supabase notebooklm_health.
     Sends a Telegram alert if any notebook fails or times out.
     """
     global _notebooklm_health_last_ran
@@ -565,7 +565,9 @@ async def _watchdog_notebooklm_health(log) -> None:
         f"⚠️ *[NotebookLM Health]* KB probe failed\n\n"
         f"Notebooks unreachable: `{names}`\n"
         f"Query: _{_HEALTH_QUERY}_\n\n"
-        f"Check `nlm login` session and `.harness/notebooklm-registry.json`.\n"
+        # Resolved, not hard-coded: this line sends an operator to a file during an incident,
+        # and it pointed at the pre-#607 `.harness/` location after the registry moved.
+        f"Check `nlm login` session and `{config_loader.NOTEBOOKLM_REGISTRY_JSON}`.\n"
         f"_RA-820_"
     )
     payload = _json.dumps({
