@@ -1,12 +1,12 @@
 # .github — Wiki
 
-_Last updated: 2026-07-27T04:44:30Z (commits 0866310..6ae9701)_
+_Last updated: 2026-08-03T05:17:10Z (commits a4de09f..aacd7ed)_
 
 ## Recent changes
-- 6ae9701 — feat(nexus): add governed shadow agent registry (#602)
+- aacd7ed — Fix/config loader fail loud (#611)
 
 ## Architecture (current)
 Auto-stub: `.github/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- .github/workflows/ci.yml — touched in recent commits
+- .github/smoke-surfaces.json — touched in recent commits
