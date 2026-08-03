@@ -37,6 +37,13 @@ MANIFEST = [
     # because the surviving half would still look healthy.
     "control-design",
     "proof-discipline",
+    # Split again 2026-08-03, one day later, when control-design reached 495 lines:
+    #   control-scope    loads while a check's RESULT is being read — what did the
+    #                    instrument actually look at, and what claim does that permit
+    # It was not listed at the time, so it existed only as a machine-local file under
+    # ~/.claude/skills/ with no repo source. The warning directly above describes what
+    # had, by then, already happened a second time. Listed now.
+    "control-scope",
     # the self-healing chain
     "prove-the-failure", "contain", "diagnose", "classify",
     "propose-fix", "adversarial-review", "verify", "immunise", "incident-memory",
