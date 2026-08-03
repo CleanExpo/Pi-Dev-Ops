@@ -1,0 +1,60 @@
+name: Skills Drift Check
+
+# The repo is canonical; ~/.claude/skills/<name>/ is a deploy artifact. One-way,
+# repo -> machine, never the reverse. Editing the machine copy in place is editing
+# files on a production server, and two-way sync is what produces diverging skills.
+#
+# This is failure mode 4 — deployed-versus-template drift — which bit proof-discipline,
+# the file that catalogues it: it lived only in a gitignored machine directory, so the
+# lesson inherited nowhere.
+#
+# In CI there is no machine copy, so the check reports every skill as "absent". That is
+# correct and expected: what CI enforces is that every manifest entry EXISTS IN THE REPO.
+# A missing repo source is a real gap and fails the build. Machine parity is enforced
+# locally by `python fence/deploy_skills.py --check`.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  skills-source-of-truth:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Every manifest skill must exist in the repo
+        run: |
+          python - <<'PY'
+          import sys, pathlib
+          sys.path.insert(0, "fence")
+          from deploy_skills import MANIFEST
+          repo = pathlib.Path(".")
+          missing = [n for n in MANIFEST if not (repo / "skills" / n / "SKILL.md").exists()]
+          print(f"manifest: {len(MANIFEST)} skills")
+          if missing:
+              print("::error::Manifest entries with no repo source — the repo is canonical, "
+                    "so a skill that exists only on a machine is unreachable to everyone else:")
+              for m in missing:
+                  print(f"  - {m}")
+              sys.exit(1)
+          print("all manifest skills have a repo source")
+          PY
+
+      - name: Reject an in-place machine edit committed back to the repo
+        run: |
+          # Any tracked .claude/skills copy creates a second writable source. Command adapters
+          # must also be generated/deployed from skills/<name>/SKILL.md, never committed back.
+          if git ls-files | grep -E '^\.claude/skills/.*/SKILL\.md$'; then
+            echo "::error::A machine-path skill copy is tracked in this repo. The repo source lives at skills/<name>/SKILL.md; ~/.claude/skills/ is a deploy artifact and must not be committed."
+            exit 1
+          fi
+          echo "no machine-path skill copies tracked"

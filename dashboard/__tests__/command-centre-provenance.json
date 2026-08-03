@@ -1,0 +1,402 @@
+{
+  "_comment": "Provenance map for the command-centre migration. Every ported source file must appear here with the Authority-Site file it came from. The diff-relative conformance test compares each port against its named baseline: the port may not introduce a network/DB/execution construct the baseline did not already contain. An unlisted file fails the test, so a new file cannot enter the capability surface without a declared origin.",
+  "_baseline_root": "D:/Authority-Site/apps/web/src",
+  "_baseline_snapshot": "command-centre-baseline-549acbe9.json",
+  "_ruling": "2026-08-01 founder: port faithfully including existing behaviour. The claim under review is 'introduces no network surface the source did not have' — NOT absolute read-only proof. See adversarial-review spec-writing standard.",
+  "files": {
+    "app/(main)/command-centre/hermes/page.tsx": "app/(founder)/founder/command-centre/hermes-control-panel/page.tsx",
+    "components/command-centre/DeckDetails.tsx": "components/command-centre/DeckDetails.tsx",
+    "lib/command-centre/control-panel.ts": "lib/operator-gateway/control-panel.ts",
+    "components/command-centre/command-deck.module.css": "app/(founder)/founder/command-centre/command-deck.module.css",
+    "components/command-centre/deck-details.module.css": "components/command-centre/deck-details.module.css",
+    "app/(main)/command-centre/knowledge/page.tsx": "app/(founder)/founder/command-centre/knowledge/page.tsx",
+    "components/command-centre/DeckThemeShell.tsx": "app/(founder)/founder/command-centre/DeckThemeShell.tsx",
+    "components/command-centre/deck-visual-helpers.ts": "app/(founder)/founder/command-centre/deck-visual-helpers.ts",
+    "components/command-centre/shell.module.css": "app/(founder)/founder/command-centre/shell.module.css",
+    "components/command-centre/SourceBadge.tsx": "components/command-centre/SourceBadge.tsx",
+    "components/command-centre/DegradedDataBanner.tsx": "components/command-centre/DegradedDataBanner.tsx",
+    "components/command-centre/wiki-graph/WikiGraphTile.tsx": "components/command-centre/wiki-graph/WikiGraphTile.tsx",
+    "lib/command-centre/tools/catalogue.ts": "lib/command-centre/tools/catalogue.ts",
+    "store/ui.ts": "store/ui.ts",
+    "lib/command-centre/wiki-graph.ts": "lib/command-centre/wiki-graph.ts",
+    "app/(main)/command-centre/wiki-graph/page.tsx": "app/(founder)/founder/command-centre/wiki-graph/page.tsx",
+    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx": "components/command-centre/wiki-graph/WikiGraphCanvas.tsx",
+    "lib/command-centre/provider-usage.ts": "lib/command-centre/provider-usage.ts",
+    "components/command-centre/provider-usage/ProviderUsageCockpit.tsx": "components/command-centre/provider-usage/ProviderUsageCockpit.tsx"
+  },
+  "_baseline_verified_by_hand": {
+    "_note": "Capabilities whose baseline safety properties are load-bearing require a hand-established baseline BEFORE porting, recorded here. Capability 6 (operator-gateway) is the one that needs it — its whole safety story is 'no live runner, no real execute button'. 'No new surface' is worthless against an unexamined baseline.",
+    "operator-gateway": "NOT YET ESTABLISHED — blocks capability 6"
+  },
+  "imports": {
+    "app/(main)/command-centre/hermes/page.tsx :: next/font/google": {
+      "specifier": "next/font/google",
+      "resolves_in_source": "package: next/font/google",
+      "resolves_in_target": "package: next/font/google",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "app/(main)/command-centre/hermes/page.tsx :: @/lib/command-centre/control-panel": {
+      "specifier": "@/lib/command-centre/control-panel",
+      "resolves_in_source": "unresolved: @/lib/command-centre/control-panel",
+      "resolves_in_target": "file: lib/command-centre/control-panel.ts",
+      "judgment": "must-change",
+      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
+    },
+    "app/(main)/command-centre/hermes/page.tsx :: @/components/command-centre/DeckDetails": {
+      "specifier": "@/components/command-centre/DeckDetails",
+      "resolves_in_source": "file: components/command-centre/DeckDetails.tsx",
+      "resolves_in_target": "file: components/command-centre/DeckDetails.tsx",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha 197331e86848)"
+    },
+    "app/(main)/command-centre/hermes/page.tsx :: @/components/command-centre/command-deck.module.css": {
+      "specifier": "@/components/command-centre/command-deck.module.css",
+      "resolves_in_source": "unresolved: @/components/command-centre/command-deck.module.css",
+      "resolves_in_target": "file: components/command-centre/command-deck.module.css",
+      "judgment": "must-change",
+      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
+    },
+    "components/command-centre/DeckDetails.tsx :: ./deck-details.module.css": {
+      "specifier": "./deck-details.module.css",
+      "resolves_in_source": "file: components/command-centre/deck-details.module.css",
+      "resolves_in_target": "file: components/command-centre/deck-details.module.css",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha c055143f13d5)"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: next/link": {
+      "specifier": "next/link",
+      "resolves_in_source": "package: next/link",
+      "resolves_in_target": "package: next/link",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: next/font/google": {
+      "specifier": "next/font/google",
+      "resolves_in_source": "package: next/font/google",
+      "resolves_in_target": "package: next/font/google",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/lib/command-centre/tools/catalogue": {
+      "specifier": "@/lib/command-centre/tools/catalogue",
+      "resolves_in_source": "file: lib/command-centre/tools/catalogue.ts",
+      "resolves_in_target": "file: lib/command-centre/tools/catalogue.ts",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha 2876efa1753c)"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/wiki-graph/WikiGraphTile": {
+      "specifier": "@/components/command-centre/wiki-graph/WikiGraphTile",
+      "resolves_in_source": "file: components/command-centre/wiki-graph/WikiGraphTile.tsx",
+      "resolves_in_target": "file: components/command-centre/wiki-graph/WikiGraphTile.tsx",
+      "judgment": "different-but-checked",
+      "note": "content diff is exactly one line: '../SourceBadge' -> '@/components/command-centre/SourceBadge' (R5 alias rewrite). Verified by diff with line endings normalised; no behavioural change."
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/DeckDetails": {
+      "specifier": "@/components/command-centre/DeckDetails",
+      "resolves_in_source": "file: components/command-centre/DeckDetails.tsx",
+      "resolves_in_target": "file: components/command-centre/DeckDetails.tsx",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha 197331e86848)"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/DeckThemeShell": {
+      "specifier": "@/components/command-centre/DeckThemeShell",
+      "resolves_in_source": "unresolved: @/components/command-centre/DeckThemeShell",
+      "resolves_in_target": "file: components/command-centre/DeckThemeShell.tsx",
+      "judgment": "must-change",
+      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/deck-visual-helpers": {
+      "specifier": "@/components/command-centre/deck-visual-helpers",
+      "resolves_in_source": "unresolved: @/components/command-centre/deck-visual-helpers",
+      "resolves_in_target": "file: components/command-centre/deck-visual-helpers.ts",
+      "judgment": "must-change",
+      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/shell.module.css": {
+      "specifier": "@/components/command-centre/shell.module.css",
+      "resolves_in_source": "unresolved: @/components/command-centre/shell.module.css",
+      "resolves_in_target": "file: components/command-centre/shell.module.css",
+      "judgment": "must-change",
+      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
+    },
+    "app/(main)/command-centre/knowledge/page.tsx :: @/components/command-centre/command-deck.module.css": {
+      "specifier": "@/components/command-centre/command-deck.module.css",
+      "resolves_in_source": "unresolved: @/components/command-centre/command-deck.module.css",
+      "resolves_in_target": "file: components/command-centre/command-deck.module.css",
+      "judgment": "must-change",
+      "note": "specifier deliberately rewritten for the target alias (R5); the source never had this path"
+    },
+    "components/command-centre/DeckThemeShell.tsx :: react": {
+      "specifier": "react",
+      "resolves_in_source": "package: react",
+      "resolves_in_target": "package: react",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "components/command-centre/DeckThemeShell.tsx :: @/store/ui": {
+      "specifier": "@/store/ui",
+      "resolves_in_source": "file: store/ui.ts",
+      "resolves_in_target": "file: store/ui.ts",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha 70a6b14e237d)"
+    },
+    "components/command-centre/DeckThemeShell.tsx :: ./command-deck.module.css": {
+      "specifier": "./command-deck.module.css",
+      "resolves_in_source": "file: app/(founder)/founder/command-centre/command-deck.module.css",
+      "resolves_in_target": "file: components/command-centre/command-deck.module.css",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha 5403d34cde1a)"
+    },
+    "components/command-centre/DeckThemeShell.tsx :: ./shell.module.css": {
+      "specifier": "./shell.module.css",
+      "resolves_in_source": "file: app/(founder)/founder/command-centre/shell.module.css",
+      "resolves_in_target": "file: components/command-centre/shell.module.css",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha f72f5a4e9bc5)"
+    },
+    "app/api/command-centre/wiki-graph/route.ts :: next/server": {
+      "specifier": "next/server",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: next/server",
+      "judgment": "no-source-baseline",
+      "note": "The route is REBUILT, not ported, so there is no source import to compare. Surfaced only after importGraph() was seeded from app/api/command-centre as well as the pages — before that the route's imports were outside the graph entirely."
+    },
+    "app/api/command-centre/wiki-graph/route.ts :: @/lib/supabase/server": {
+      "specifier": "@/lib/supabase/server",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: lib/supabase/server.ts",
+      "judgment": "no-source-baseline",
+      "note": "The privilege-sensitive one, and the reason this gap mattered rather than being bookkeeping. The source route imports getUser+createClient from ITS @/lib/supabase/server: anon-key, RLS-enforced, per-user. The identical specifier resolves here to a service-role client that bypasses RLS. That divergence is the whole reason the route was rebuilt instead of ported - and until the graph was seeded from the API directory, this import could have been changed with nothing to declare and nothing to fail."
+    },
+    "app/api/command-centre/wiki-graph/route.ts :: @/lib/command-centre/wiki-graph": {
+      "specifier": "@/lib/command-centre/wiki-graph",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: lib/command-centre/wiki-graph.ts",
+      "judgment": "no-source-baseline",
+      "note": "The shared pure graph builder, itself a ported file with its own provenance entry. Pure: no network, no DB, no execution."
+    },
+    "app/(main)/command-centre/page.tsx :: next/link": {
+      "specifier": "next/link",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: next/link",
+      "judgment": "no-source-baseline",
+      "note": "The command-centre index is NEW in the target, so there is no source import to compare this against. Surfaced by the map-vs-reality check: it was reachable in the capability graph and carried no judgment at all."
+    },
+    "lib/supabase/server.ts :: @supabase/ssr": {
+      "specifier": "@supabase/ssr",
+      "resolves_in_source": "n/a: this file has no source baseline (_target_native)",
+      "resolves_in_target": "package: @supabase/ssr",
+      "judgment": "no-source-baseline",
+      "note": "Pre-existing file of this app. No source equivalent, so no cross-app import judgment is possible. Worth stating plainly: this is the module behind the SERVICE-ROLE client that bypasses RLS, and until the map-vs-reality check existed its imports carried no declared judgment despite being the most privilege-sensitive file in the graph."
+    },
+    "lib/supabase/server.ts :: @supabase/supabase-js": {
+      "specifier": "@supabase/supabase-js",
+      "resolves_in_source": "n/a: this file has no source baseline (_target_native)",
+      "resolves_in_target": "package: @supabase/supabase-js",
+      "judgment": "no-source-baseline",
+      "note": "Same as @supabase/ssr above — target-native, no source counterpart to compare."
+    },
+    "components/command-centre/wiki-graph/WikiGraphTile.tsx :: react": {
+      "specifier": "react",
+      "resolves_in_source": "package: react",
+      "resolves_in_target": "package: react",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "components/command-centre/wiki-graph/WikiGraphTile.tsx :: next/link": {
+      "specifier": "next/link",
+      "resolves_in_source": "package: next/link",
+      "resolves_in_target": "package: next/link",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "components/command-centre/wiki-graph/WikiGraphTile.tsx :: @/components/command-centre/SourceBadge": {
+      "specifier": "@/components/command-centre/SourceBadge",
+      "resolves_in_source": "file: components/command-centre/SourceBadge.tsx",
+      "resolves_in_target": "file: components/command-centre/SourceBadge.tsx",
+      "judgment": "same",
+      "note": "relocated but byte-identical (sha 344f6941b31e)"
+    },
+    "lib/command-centre/tools/catalogue.ts :: node:fs/promises": {
+      "specifier": "node:fs/promises",
+      "resolves_in_source": "package: node:fs/promises",
+      "resolves_in_target": "package: node:fs/promises",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "lib/command-centre/tools/catalogue.ts :: node:path": {
+      "specifier": "node:path",
+      "resolves_in_source": "package: node:path",
+      "resolves_in_target": "package: node:path",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "lib/command-centre/tools/catalogue.ts :: node:os": {
+      "specifier": "node:os",
+      "resolves_in_source": "package: node:os",
+      "resolves_in_target": "package: node:os",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "store/ui.ts :: zustand": {
+      "specifier": "zustand",
+      "resolves_in_source": "package: zustand",
+      "resolves_in_target": "package: zustand",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "store/ui.ts :: zustand/middleware": {
+      "specifier": "zustand/middleware",
+      "resolves_in_source": "package: zustand/middleware",
+      "resolves_in_target": "package: zustand/middleware",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "app/(main)/command-centre/wiki-graph/page.tsx :: next/link": {
+      "specifier": "next/link",
+      "resolves_in_source": "package: next/link",
+      "resolves_in_target": "package: next/link",
+      "judgment": "same",
+      "note": "same npm package, version matched to the baseline"
+    },
+    "app/(main)/command-centre/wiki-graph/page.tsx :: @/lib/supabase/server": {
+      "specifier": "@/lib/supabase/server",
+      "resolves_in_source": "file: lib/supabase/server.ts",
+      "resolves_in_target": "file: lib/supabase/server.ts",
+      "judgment": "different-but-checked",
+      "note": "THE drift case. Source: anon-key, RLS-enforced, per-user (getUser + createClient). Target: service-role, no per-user identity. Handled by REBUILDING the page data access against createServerClient and removing the getUser/redirect gate, since auth is enforced upstream by proxy.ts. Not a silent substitution - the divergence is the reason for the rebuild."
+    },
+    "app/(main)/command-centre/wiki-graph/page.tsx :: @/lib/command-centre/wiki-graph": {
+      "specifier": "@/lib/command-centre/wiki-graph",
+      "resolves_in_source": "file: lib/command-centre/wiki-graph.ts",
+      "resolves_in_target": "file: lib/command-centre/wiki-graph.ts",
+      "judgment": "same",
+      "note": "relocated, byte-identical (sha 3b1b6c75eefe)"
+    },
+    "app/(main)/command-centre/wiki-graph/page.tsx :: @/components/command-centre/wiki-graph/WikiGraphCanvas": {
+      "specifier": "@/components/command-centre/wiki-graph/WikiGraphCanvas",
+      "resolves_in_source": "file: components/command-centre/wiki-graph/WikiGraphCanvas.tsx",
+      "resolves_in_target": "file: components/command-centre/wiki-graph/WikiGraphCanvas.tsx",
+      "judgment": "same",
+      "note": "relocated, byte-identical (sha ef4fb55ae5fd)"
+    },
+    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx :: react": {
+      "specifier": "react",
+      "resolves_in_source": "package: react",
+      "resolves_in_target": "package: react",
+      "judgment": "same",
+      "note": "same npm package, version matched to the baseline"
+    },
+    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx :: d3-force": {
+      "specifier": "d3-force",
+      "resolves_in_source": "package: d3-force",
+      "resolves_in_target": "package: d3-force",
+      "judgment": "same",
+      "note": "same npm package, version matched to the baseline"
+    },
+    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx :: d3-selection": {
+      "specifier": "d3-selection",
+      "resolves_in_source": "package: d3-selection",
+      "resolves_in_target": "package: d3-selection",
+      "judgment": "same",
+      "note": "same npm package, version matched to the baseline"
+    },
+    "components/command-centre/wiki-graph/WikiGraphCanvas.tsx :: d3-zoom": {
+      "specifier": "d3-zoom",
+      "resolves_in_source": "package: d3-zoom",
+      "resolves_in_target": "package: d3-zoom",
+      "judgment": "same",
+      "note": "same npm package, version matched to the baseline"
+    },
+    "app/api/command-centre/provider-usage/route.ts :: next/server": {
+      "specifier": "next/server",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: next/server",
+      "judgment": "no-source-baseline",
+      "note": "Rebuilt route; no source import to compare."
+    },
+    "app/api/command-centre/provider-usage/route.ts :: @/lib/command-centre/provider-usage": {
+      "specifier": "@/lib/command-centre/provider-usage",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: lib/command-centre/provider-usage.ts",
+      "judgment": "no-source-baseline",
+      "note": "The pure signals/cockpit builder, itself a ported file with its own entry. No network, no DB, no execution."
+    },
+    "app/(main)/command-centre/providers/page.tsx :: next/link": {
+      "specifier": "next/link",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "package: next/link",
+      "judgment": "no-source-baseline",
+      "note": "Rebuilt page; the source page is a different composition."
+    },
+    "app/(main)/command-centre/providers/page.tsx :: @/components/command-centre/provider-usage/ProviderUsageCockpit": {
+      "specifier": "@/components/command-centre/provider-usage/ProviderUsageCockpit",
+      "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
+      "resolves_in_target": "file: components/command-centre/provider-usage/ProviderUsageCockpit.tsx",
+      "judgment": "no-source-baseline",
+      "note": "The one tile carried over from the source page's three."
+    },
+    "components/command-centre/provider-usage/ProviderUsageCockpit.tsx :: react": {
+      "specifier": "react",
+      "resolves_in_source": "package: react",
+      "resolves_in_target": "package: react",
+      "judgment": "same",
+      "note": "same npm package in both apps"
+    },
+    "components/command-centre/provider-usage/ProviderUsageCockpit.tsx :: @/lib/command-centre/provider-usage": {
+      "specifier": "@/lib/command-centre/provider-usage",
+      "resolves_in_source": "file: lib/command-centre/provider-usage.ts",
+      "resolves_in_target": "file: lib/command-centre/provider-usage.ts",
+      "judgment": "same",
+      "note": "relocated but byte-identical; type-only import of the pure builder's types"
+    },
+    "components/command-centre/provider-usage/ProviderUsageCockpit.tsx :: @/components/command-centre/SourceBadge": {
+      "specifier": "@/components/command-centre/SourceBadge",
+      "resolves_in_source": "file: components/command-centre/SourceBadge.tsx",
+      "resolves_in_target": "file: components/command-centre/SourceBadge.tsx",
+      "judgment": "must-change",
+      "note": "specifier rewritten from '../SourceBadge' for the target alias (R5); resolves to the same already-ported component"
+    },
+    "components/command-centre/provider-usage/ProviderUsageCockpit.tsx :: @/components/command-centre/DegradedDataBanner": {
+      "specifier": "@/components/command-centre/DegradedDataBanner",
+      "resolves_in_source": "file: components/command-centre/DegradedDataBanner.tsx",
+      "resolves_in_target": "file: components/command-centre/DegradedDataBanner.tsx",
+      "judgment": "must-change",
+      "note": "specifier rewritten from '../DegradedDataBanner' for the target alias (R5); same already-ported component"
+    }
+  },
+  "_imports_note": "Import-level provenance. judgment must be one of: same | different-but-checked | must-change. UNDECLARED fails the suite exactly as an undeclared FILE does. File provenance proves origin; this proves the imports still mean what they meant.",
+  "_rebuilt_not_ported": {
+    "app/api/command-centre/wiki-graph/route.ts": "REBUILT against this app's createServerClient. The source imports getUser+createClient from its own @/lib/supabase/server (anon-key, RLS-enforced, per-user). The same specifier resolves here to a service-role client with no per-user identity. A verbatim port would have typechecked while silently swapping an RLS-enforced read for an RLS-bypassing one. No source baseline applies, so it is excluded from diff-relative comparison by design.",
+    "app/(main)/command-centre/page.tsx": "NEW in the target. The source index carries the founder shell and nine deck tiles; porting it would drag in six unmigrated capabilities. Small index over what exists; grows as capabilities land. No source baseline applies.",
+    "app/api/command-centre/provider-usage/route.ts": "REBUILT. The source imports getUser from its @/lib/supabase/server (anon-key, RLS-enforced, per-user); the identical specifier resolves here to a service-role client with no per-user identity, so a verbatim port would have typechecked while swapping a per-user auth check for nothing. Auth is enforced by proxy.ts and asserted in command-centre-auth-coverage.test.ts. Read-only, metadata-only: never reads a key value, never reaches credentials_vault, holds no write path. No source baseline applies.",
+    "app/(main)/command-centre/providers/page.tsx": "REBUILT. The source page composes ProviderAccountsTile + ProviderUsageCockpit + CostAllocationTile; only the usage cockpit is ported (KI-006 provider-test omitted as a spend path, KI-007 credential custody deferred to per-capability tokens). A verbatim port would import two components this app deliberately does not have. Written fresh over what exists. No source baseline applies."
+  },
+  "_omitted_deliberately": {
+    "components/command-centre/WikiEnhanceControl.tsx": "KI-002. Dropped from the knowledge port. It POSTs to a route that enqueues into operator_jobs on a production database and needs a per-user identity this app lacks. The route is ABSENT rather than stubbed.",
+    "app/api/command-centre/provider-test/route.ts": "KI-006. Its whole function is to spend: executeChat posts to api.openai.com / api.minimax.io / openrouter.ai / generativelanguage.googleapis.com with a resolved key. Ported here it is a spend path reachable over HTTP by anything holding the shared dashboard password, on a surface the fence cannot observe. ABSENT, not stubbed. Route back: 'is this credential valid' is answerable against a non-billable models-list or account-status endpoint, so the button gets BUILT against one of those rather than by gating a completion call.",
+    "app/api/command-centre/provider-accounts/route.ts": "KI-007. Credential custody deferred and bound to per-capability tokens: this app is single-operator behind one shared password, so there is no per-capability scoping, no audit of which capability read which key, and no identity to attribute a read to. PROVEN, not assumed: credentials_vault appears nowhere in lib/provider-pool/repository.ts and the GET path selects only provider_accounts + provider_quota_events, so the header's metadata-only claim is true. It still does not port on the same terms — the same module carries .insert() into provider_quota_events and probes process.env provider keys via hasEnvKey, so porting it imports a production write path. The metadata half needs a REBUILT read-only repository, as separate work.",
+    "components/command-centre/provider-accounts/ProviderAccountsTile.tsx": "KI-007. Renders and mutates the account surface omitted above. Absent rather than shown-disabled.",
+    "components/command-centre/cost-allocation/CostAllocationTile.tsx": "Not assessed for capability 4's read-only half. Out of scope until its data sources are traced the way provider-usage's were; not omitted on a safety finding, omitted because it is unexamined."
+  },
+  "_target_native": {
+    "lib/supabase/server.ts": "Pre-existing file of THIS app, not ported and not rebuilt for the migration. It is in the capability graph because the rebuilt wiki-graph page imports it. No source baseline applies; diff-relative comparison is meaningless for it."
+  },
+  "_declared_deltas": {
+    "app/(main)/command-centre/wiki-graph/page.tsx": {
+      "auth gate": {
+        "from": 3,
+        "to": 0,
+        "reason": "EXPECTED, and now PROVEN rather than asserted. The source's getUser()/redirect('/auth/login') gate is removed: per-user auth has no equivalent here (single operator, no identity). The gate moved layer - it is now proxy.ts. The FIRST version of this reason said 'auth is enforced upstream by proxy.ts, whose matcher covers all non-static routes and 401s without a session', and that was FALSE. The matcher does cover every non-static route, but proxy() only checks a session for paths listed in PROTECTED_PAGE_PREFIXES / PROTECTED_API_PREFIXES, and /command-centre was in neither - so all four command-centre pages and the wiki-graph API served anonymous requests while reading wiki_pages through a service-role client that bypasses RLS. __tests__/command-centre-auth-coverage.test.ts calls proxy() directly with no cookie and proved it: 5 failed against 2 passing positive controls, so the red was not vacuous. /command-centre and /api/command-centre were then added to the protected prefixes and it went 7/7. This exemption's reason is now the tested behaviour of a named file rather than a sentence.",
+        "evidence": "__tests__/command-centre-auth-coverage.test.ts"
+      },
+      "database client": {
+        "from": 1,
+        "to": 2,
+        "reason": "EXPECTED. `await createClient()` (anon-key, RLS-enforced) replaced by `createServerClient()` (this app's client). The count reaches 2 rather than 1 because the tracked regex matches both the import specifier and the call site of the renamed function - one client counted twice, not a second client appearing. Bounded to exactly 1 -> 2: a genuine additional client in this file reads 1 -> 3 and still fails. What this exemption explicitly does NOT excuse is the privilege change - the target client is service-role and bypasses RLS, which is precisely why the auth gate above had to be re-established at the proxy layer instead of declared away."
+      }
+    }
+  },
+  "_declared_deltas_note": "Per-file, per-rule expected divergences, each naming the EXACT count transition it excuses (from -> to) plus a reason. Only that one measured transition is exempt: any other magnitude, in the same file under the same rule, still fails. Keying on file+rule alone - the first design - was a blanket exclusion wearing a narrower label, and cross-vendor review caught it: declaring 'auth gate' on a file excused every future auth-gate loss in that file, forever. Second lesson from the same review: a reason must be checkable against something. 'Enforced upstream by proxy.ts' read as evidence, was not, and was wrong - until a test made it both."
+}

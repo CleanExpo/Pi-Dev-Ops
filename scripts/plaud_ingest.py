@@ -97,11 +97,16 @@ def format_page(
 import json
 import logging
 import os
+import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 log = logging.getLogger("plaud_ingest")
-from app.server import config_loader
+_SCRIPT_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_SCRIPT_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_REPO_ROOT))
+
+from app.server import config_loader  # noqa: E402
 
 
 def _iso_24h_ago() -> str:

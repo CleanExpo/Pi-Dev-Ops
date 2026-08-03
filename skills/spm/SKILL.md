@@ -1,6 +1,6 @@
 ---
 name: spm
-description: Senior Project Manager command (/spm). Use before implementation to turn a rough task, feature, bug, idea, ticket, PR, or repo area into a decision-grade spec.md — via read-only project inspection, a 15+ year specialist board, judge-style challenge, verification + stress-test planning, and goal-ready acceptance criteria. Read-only: produces the spec, never the build.
+description: Senior Project Manager command (/spm). Use before implementation to turn a rough task, feature, bug, idea, ticket, PR, or repo area into a decision-grade spec.md — via read-only project inspection, a self-leveling MOA specialist bench (0–8 seats sized to task complexity), judge-style challenge, verification + stress-test planning, and goal-ready acceptance criteria. Read-only — produces the spec, never the build.
 owner_role: Tier-Architect (senior project manager; spec author, not builder)
 status: active
 automation: manual
@@ -42,12 +42,26 @@ the full spec. Still `No spec. No build.` — it produces the micro-spec, not th
 1. Understand the user request (`$ARGUMENTS`; if empty, ask what to plan).
 2. Inspect current project state (read-only: `git branch`/`status`/`log`/`diff`, README, CLAUDE.md, AGENTS.md, `.judge/`, `.session-handoff/`, `.resume-from-handoff/`, `.spm/`, `skills/`, `scripts/`, `tests/`, `.harness/`, relevant `app/`/`dashboard/`/`mcp/`/`src/`).
 3. Review existing capabilities (do not rebuild what exists).
-4. Apply 15+ year specialist perspectives (see `.spm/agent-board.md`): Product Manager, Software Architect, UX/UI Reviewer, Security Reviewer, QA/Test Lead, Devil's Advocate / Judge. Use subagents where helpful.
-5. Apply judge-style pushback (score out of 100; REJECT / REDUCE SCOPE / APPROVE EXPERIMENT / APPROVE BUILD). **Hard line: APPROVE BUILD requires a real 100/100 — every mandatory criterion satisfied. Below 100 is never a build authorisation; iterate to a real 100 or report the honest ceiling.**
+4. Convene the **self-leveling MOA bench**: score the 5-axis rubric (F/I/N/X/S) from step-2 recon → tier T0–T3 per `references/leveling.md` → seat the bench from `references/moa-board.md` (a project-local `.spm/agent-board.md` overrides the roster) → dispatch seats as **parallel read-only subagents in one message**, each wrapped in `~/.claude/skills/nexus/references/NEXUS_PROMPT.md` at its calibrated tier + effort → collect consult contracts, measure divergence, ramp up/down (max 2 rounds) → synthesize into spec §7. **T0 = zero seats. Never role-play a board you didn't convene** — a board that wasn't dispatched is reported as "T0/inline", not simulated.
+5. Apply judge-style pushback (score out of 100; REJECT / REDUCE SCOPE / APPROVE EXPERIMENT / APPROVE BUILD). At T2+ the §8 judge challenge **is the devils-advocate-judge seat's contract** — its `must_fix` items become mandatory 100/100 criteria; at T0/T1 run the judge rubric inline. **Hard line: APPROVE BUILD requires a real 100/100 — every mandatory criterion satisfied. Below 100 is never a build authorisation; iterate to a real 100 or report the honest ceiling.** A security-seat `fail` at confidence ≥0.8 blocks 100/100 regardless of consensus.
 6. Define scope, risks, UX, security, testing, and acceptance criteria.
-7. Produce a high-quality SPM Spec (see `.spm/spec-template.md`).
-8. Generate the exact `/goal` command to implement the spec (see `.spm/goal-template.md`).
+7. Produce a high-quality SPM Spec (template: `.spm/spec-template.md` if the project ships one, else the section list under Required output).
+8. Generate the exact `/goal` command to implement the spec (template: `.spm/goal-template.md` if present, else spec §16 conventions). The spec's verification plan (§13–14) must satisfy `references/sandbox-policy.md` — isolation named, prod untouched.
 9. Prepare a session-handoff seed so the next terminal can resume cleanly.
+
+## Bench guards
+
+- Seats are **leaf agents**: read-only, no Skill/Agent/Task/Workflow calls, no file writes —
+  the guard text in `references/moa-board.md` goes verbatim into every seat brief.
+- Depth: under `/nexus`, bench seats are nexus's depth-1 dispatches; standalone `/spm`,
+  seats are depth 1. Seats are terminal either way.
+- Honour `~/.claude/HARD_STOP` (checked before dispatch and between rounds) and
+  `TAO_MAX_COST_USD` — narrow the bench before breaching it; the disconfirming seat is
+  never dropped.
+- Operator override: "no board" / "bench=T0" (or any explicit tier pin) in `$ARGUMENTS`
+  pins the tier — honored without argument, logged in §7.
+- §7 always records: tier + axis scores, seats convened, per-seat verdict+confidence,
+  divergence numbers, ramp decisions, `board_version`. Every run leaves a receipt.
 
 ## Evidence policy
 

@@ -130,7 +130,7 @@ class CycleReport:
 @dataclass
 class PersonaConfig:
     """Resolved configuration for one Discovery persona. Built from the
-    business charter file + .harness/projects.json entry."""
+    business charter file + config/harness/projects.json entry."""
     persona_id: str
     linear_project_id: str
     linear_team_id: str
@@ -209,7 +209,7 @@ def load_persona_config(
     projects_json_path: Path | None = None,
     charters_dir: Path | None = None,
 ) -> PersonaConfig | None:
-    """Resolve a persona id (e.g. 'restoreassist') against `.harness/projects.json`
+    """Resolve a persona id (e.g. 'restoreassist') against `config/harness/projects.json`
     and the business-charter file. Returns None if persona not found or charter
     missing.
 

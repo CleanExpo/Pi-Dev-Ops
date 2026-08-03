@@ -21,7 +21,7 @@ Usage:
     python3 scripts/kpi_watchdog.py --dry-run        # print, do not post
     python3 scripts/kpi_watchdog.py --silent-if-ok   # post only on breach
 
-Run via cron (suggested 06:00 + 18:00 UTC) or wire into .harness/cron-triggers.json.
+Run via cron (suggested 06:00 + 18:00 UTC) or wire into config/harness/cron-triggers.json.
 """
 
 from __future__ import annotations

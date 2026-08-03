@@ -59,21 +59,17 @@ agents:
 accepted_projection_drift:
   - id: judge
     agents_sha256: 68e5e32f59315f590ea82592d19d26e69b657b05d08fa706776fe15dc5bb574f
-    claude_sha256: 796cb9a28a433b1784c4759c5868d308ce6607762fb7d8c6ec3c0934dd49acbf
-    rationale: Existing Codex and Claude command implementations differ beyond vendor-only metadata; Phase One records and detects changes without rewriting either projection.
-  - id: readiness-architect
-    agents_sha256: 5f9ac2e6f00f7a8867e4a704bf7b9285a3a992eb8a01746eba3efc793688645e
-    claude_sha256: 95f879e09d2603c39284399adf898c7f16f353ad907070746827e4be011088bf
-    rationale: Existing Codex and Claude command implementations differ beyond vendor-only metadata; Phase One records and detects changes without rewriting either projection.
+    canonical_sha256: 14f127e8b5003c04172f2bf9d657e87ee30c7f08eacbda9f3421f967d50dac23
+    rationale: The existing Codex projection differs from the stricter canonical judge policy; detect changes without rewriting either file.
   - id: resume-from-handoff
     agents_sha256: 55de621b44ac9b1434a0283e8ddc4378e8b1fd062b621045c9f4dfbb523349b7
-    claude_sha256: d3263bca0fe75e692c6414c5b25495de486ee14bf2e82a7d10b023786ec5c37b
-    rationale: Existing Codex and Claude command implementations differ beyond vendor-only metadata; Phase One records and detects changes without rewriting either projection.
+    canonical_sha256: 6349c54e6aaaa8a6e61e5a69db783503e1db6004b7292e57e323d60a30d2ae9c
+    rationale: The canonical skill includes the reconciled gate ordering and durable-log rules; detect projection drift without treating it as source.
   - id: session-handoff
     agents_sha256: 64e7b793f1796cebfe365ea94565ba3953d2d9cda1eade700f42a6d637d5d7bb
-    claude_sha256: 71107bf65954dc4321daa9dd7cde08b802f09d14559f7b0b8b65d6b73684a4c0
-    rationale: Existing Codex and Claude command implementations differ beyond vendor-only metadata; Phase One records and detects changes without rewriting either projection.
+    canonical_sha256: d1f6611756d2ca64955d979c9a1282bff392a2a406075c3a5a2c154a15197aa9
+    rationale: The canonical skill contains newer completion classification and fork-slice policy; detect projection drift without treating it as source.
   - id: spm
     agents_sha256: c234d2ce7c63078d6e249c9bf7669b489389003341f8bafbc33cd80b0d7ef1ad
-    claude_sha256: 2caac693ea32e499f347c2f02d5d102e3c9d1e4a71bb014959b03eb6d265a462
-    rationale: Existing Codex and Claude command implementations differ beyond vendor-only metadata; Phase One records and detects changes without rewriting either projection.
+    canonical_sha256: 8593aea14e9febdf7506c0c37605422bccc6e1f5a6f5fc9032c87ce212322207
+    rationale: The canonical skill contains newer self-leveling bench and closed-loop policy; detect projection drift without treating it as source.

@@ -263,7 +263,7 @@ _ADW_TEMPLATES = {
             "5. RENDER: remotion-render-pipeline runs `npx tsx render/render.ts`,\n"
             "   synthesises ElevenLabs voiceover, validates MP4, ships to\n"
             "   Telegram via app.server.telegram_video.send_telegram_video,\n"
-            "   uploads to Supabase, opens Linear ticket per .harness/projects.json."
+            "   uploads to Supabase, opens Linear ticket per config/harness/projects.json."
         ),
     },
 }

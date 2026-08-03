@@ -1,0 +1,25 @@
+{
+  "_comment": "Behaviours a security fix CHANGED. A contract, smoke or snapshot test that still asserts the pre-fix behaviour encodes the vulnerability as a requirement — and after the fix it fails while pointing AT the fix, so it arrives dressed as a regression and argues for reintroducing the hole. This registry makes that mechanical. It bit twice inside a single smoke entry on 2026-08-02 and the second was caught only on a re-read, so a human re-read is not the control.",
+  "fixes": [
+    {
+      "id": "telegram-anon-post",
+      "path": "/api/telegram",
+      "method": "POST",
+      "pre_fix_status": 200,
+      "post_fix_status": 403,
+      "pre_fix_body_tokens": ["ok"],
+      "post_fix_body_tokens": ["Forbidden"],
+      "reason": "The webhook secret check fired only on a PRESENTED mismatch, so an anonymous POST that omitted the header reached the handler. isAuthorized also failed open. Both now fail closed."
+    },
+    {
+      "id": "kill-switch-anon-mutation",
+      "path": "/api/kill-switch",
+      "method": "POST",
+      "pre_fix_status": null,
+      "post_fix_status": 401,
+      "pre_fix_body_tokens": [],
+      "post_fix_body_tokens": ["Unauthorised"],
+      "reason": "POST had no inbound authentication and the route supplies PI_CEO_PASSWORD upstream itself. No smoke surface asserted the pre-fix behaviour, so pre_fix_status is null — the entry exists so a future contract cannot assert an unauthenticated 2xx here."
+    }
+  ]
+}

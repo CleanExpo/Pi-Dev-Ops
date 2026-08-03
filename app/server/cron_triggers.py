@@ -196,7 +196,7 @@ async def _fire_monitor_trigger(trigger: dict, log) -> None:
     # exists but is unused. Flipping the one most-recently-firing monitor gives
     # fastest A/B data with lowest blast radius — the other 3 monitors stay
     # deterministic so we can compare digests side-by-side. JSON `use_agent: false`
-    # in .harness/cron-triggers.json is intentionally left as-is (runtime state).
+    # in config/harness/cron-triggers.json is intentionally left as-is (runtime state).
     use_agent = trigger.get("use_agent", False)
     if trigger.get("id") == "monitor-0700":
         use_agent = True

@@ -298,7 +298,7 @@ async function findProjectId() {
 
 /**
  * RA-1518 gap #4 — Route Linear tickets to the correct repo's project.
- * Reads `.harness/projects.json` and returns { teamId, projectId, repo } for a
+ * Reads `config/harness/projects.json` and returns { teamId, projectId, repo } for a
  * given project_key (matches `id` field in the JSON: "restoreassist",
  * "pi-dev-ops", "carsi", "synthex", "dr-nrpg", etc.).
  *
@@ -748,14 +748,14 @@ server.registerTool(
   "linear_create_issue",
   {
     title: "Create Linear Issue",
-    description: "Create a new issue in a Linear project. Use project_key (e.g. 'restoreassist', 'carsi', 'synthex', 'dr-nrpg') to route to the correct repo's project — reads .harness/projects.json. Omit project_key to default to Pi-Dev-Ops.",
+    description: "Create a new issue in a Linear project. Use project_key (e.g. 'restoreassist', 'carsi', 'synthex', 'dr-nrpg') to route to the correct repo's project — reads config/harness/projects.json. Omit project_key to default to Pi-Dev-Ops.",
     inputSchema: {
       title: z.string().min(1).describe("Issue title"),
       description: z.string().optional().describe("Issue description in Markdown"),
       priority: z.number().int().min(0).max(4).default(3).describe("Priority: 0=None, 1=Urgent, 2=High, 3=Normal, 4=Low"),
       labels: z.array(z.string()).optional().describe("Array of label names to apply"),
       status: z.string().optional().describe("Initial status: backlog, todo, in_progress. Defaults to backlog."),
-      project_key: z.string().optional().describe("Repo key from .harness/projects.json (e.g. 'restoreassist', 'carsi', 'synthex', 'dr-nrpg', 'unite-group', 'ccw-crm'). Omit to default to Pi-Dev-Ops."),
+      project_key: z.string().optional().describe("Repo key from config/harness/projects.json (e.g. 'restoreassist', 'carsi', 'synthex', 'dr-nrpg', 'unite-group', 'ccw-crm'). Omit to default to Pi-Dev-Ops."),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
   },

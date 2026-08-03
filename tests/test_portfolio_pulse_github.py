@@ -84,8 +84,8 @@ def _write_projects(repo_root: Path, project_id: str, repo: str) -> None:
     the loader's own constant, which is what production reads.
     """
     from app.server import config_loader
-    harness = repo_root / ".harness"
-    harness.mkdir(exist_ok=True)
+    harness = repo_root / "config" / "harness"
+    harness.mkdir(parents=True, exist_ok=True)
     target = harness / "projects.json"
     target.write_text(
         json.dumps({"projects": [
@@ -123,7 +123,7 @@ def test_provider_no_token(monkeypatch, tmp_path):
 def test_provider_missing_repo_mapping(monkeypatch, tmp_path):
     """Token set but project_id has no repo → graceful fallback."""
     monkeypatch.setenv("GITHUB_TOKEN", "fake-token")
-    # tmp_path has no .harness/projects.json
+    # tmp_path has no config/harness/projects.json
     body, error = ppg.deploys_provider("ghost-project", tmp_path)
     assert "no `repo` mapping" in body
     assert error == "no_repo_mapping"

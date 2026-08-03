@@ -22,12 +22,16 @@ import time
 import urllib.request
 from pathlib import Path, PurePosixPath
 from typing import Any
-from app.server import config_loader
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from app.server import config_loader  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("weekly-enhancement-loop")
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
 REGISTRY = config_loader.PROJECTS_JSON
 LOG_DIR = REPO_ROOT / ".harness" / "enhancement-loop"
 WORKSPACE_ROOT = Path(os.environ.get("ENHANCE_WORKSPACE", "/tmp/pi-ceo-enhance"))

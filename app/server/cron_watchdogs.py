@@ -46,7 +46,7 @@ _BOARD_MEETING_SILENT_COOLDOWN_H = 12.0
 # 6 days / 11 h respectively while every prod deploy errored. /health
 # stayed green (it polls the DB, not the deploy state). This watchdog
 # polls the Vercel API for the most-recent prod deployment per project
-# in `.harness/projects.json` and alerts when the latest is `ERROR` and
+# in `config/harness/projects.json` and alerts when the latest is `ERROR` and
 # >2 h old. Cooldown: 6 h to avoid storming during a multi-day outage.
 _vercel_deploy_failure_last_raised: float = 0.0
 _VERCEL_DEPLOY_FAILURE_THRESHOLD_H = 2.0
@@ -425,11 +425,11 @@ async def _watchdog_docs_staleness(log, triggers: list[dict] | None = None) -> N
                     f"The `.harness/anthropic-docs/` snapshot is **{age_desc}** "
                     f"(threshold: {_STALE_THRESHOLD_H:.0f}h).\n\n"
                     "This means the daily `intel_refresh` cron trigger "
-                    "(`intel-refresh-daily-0200` in `.harness/cron-triggers.json`) "
+                    "(`intel-refresh-daily-0200` in `config/harness/cron-triggers.json`) "
                     "has not run recently.\n\n"
                     "**Investigate:**\n"
                     "1. Check Railway logs for `intel_refresh id=intel-refresh-daily-0200` lines\n"
-                    "2. Verify `intel-refresh-daily-0200` trigger is enabled in `.harness/cron-triggers.json`\n"
+                    "2. Verify `intel-refresh-daily-0200` trigger is enabled in `config/harness/cron-triggers.json`\n"
                     "3. Check `anthropic_intel_refresh.py` for fetch errors (docs.claude.com reachable?)\n\n"
                     "**Related:** RA-635 (Risk Register R-08)"
                 ),
@@ -456,7 +456,7 @@ async def _watchdog_notebooklm_health(log) -> None:
     RA-820 — NotebookLM knowledge base health probe.
 
     Every 6 hours, runs one standard query against each active notebook in
-    .harness/notebooklm-registry.json. Logs results to Supabase notebooklm_health.
+    config/harness/notebooklm-registry.json. Logs results to Supabase notebooklm_health.
     Sends a Telegram alert if any notebook fails or times out.
     """
     global _notebooklm_health_last_ran
@@ -472,7 +472,7 @@ async def _watchdog_notebooklm_health(log) -> None:
     from pathlib import Path
     from . import config
 
-    _REGISTRY = Path(__file__).parent.parent.parent / ".harness" / "notebooklm-registry.json"
+    _REGISTRY = Path(__file__).parent.parent.parent / "config" / "harness" / "notebooklm-registry.json"
     _HEALTH_QUERY = "What are the top 3 risks for this entity right now?"
     _QUERY_HASH = hashlib.md5(_HEALTH_QUERY.encode()).hexdigest()[:12]
     _TIMEOUT_S = 60
@@ -562,7 +562,7 @@ async def _watchdog_notebooklm_health(log) -> None:
         f"⚠️ *[NotebookLM Health]* KB probe failed\n\n"
         f"Notebooks unreachable: `{names}`\n"
         f"Query: _{_HEALTH_QUERY}_\n\n"
-        f"Check `nlm login` session and `.harness/notebooklm-registry.json`.\n"
+        f"Check `nlm login` session and `config/harness/notebooklm-registry.json`.\n"
         f"_RA-820_"
     )
     payload = _json.dumps({
@@ -840,7 +840,7 @@ async def _watchdog_linear_auth(log) -> None:
 
 def _vercel_projects_to_monitor():
     """Return [{name, project_id, team_id}] for portfolio repos with
-    Vercel deployments worth monitoring. Read from .harness/projects.json
+    Vercel deployments worth monitoring. Read from config/harness/projects.json
     so the watchdog automatically picks up new repos as the portfolio grows.
 
     Pulled into a function so tests can monkeypatch this single seam.
@@ -894,7 +894,7 @@ async def _watchdog_vercel_deploy_failures(log) -> None:
 
     projects = _vercel_projects_to_monitor()
     if not projects:
-        log.debug("Vercel watchdog: no monitored projects in .harness/projects.json")
+        log.debug("Vercel watchdog: no monitored projects in config/harness/projects.json")
         return
 
     import urllib.request as _ureq

@@ -12,7 +12,7 @@ Safe under concurrent appends:
 - Once the live file is reopened (e.g. next swarm cycle), writes
   start landing in the fresh inode.
 
-Wire via .harness/cron-triggers.json as a daily trigger (suggested
+Wire via config/harness/cron-triggers.json as a daily trigger (suggested
 04:00 UTC, off-peak).
 
 Usage:

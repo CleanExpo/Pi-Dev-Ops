@@ -28,4 +28,3 @@ allowlist:
   - {role: planner,      requested: opus, granted: opus}     # allowed → kept
   - {role: orchestrator, requested: opus, granted: opus}     # allowed → kept
   - {role: adversary,    requested: opus, granted: opus}     # allowed → kept
-

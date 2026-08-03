@@ -105,6 +105,7 @@ what G3 already ran.
 | Strategic / go-no-go decision | `ceo-board` (deliberation), `boardroom` (multi-model triangulation), `judge` |
 | Knowledge base / project brain adoption (index a repo or bot's knowledge tree, retrieval standard, drift gates) | `second-brain-adopt` — preflights hands-off/autogit gates, applies the brain-1 adoption kit, ships via PR lane |
 | Cross-domain (≥3 of the above) | `specialist-council` — one call returns `{verdict, must_fix, suggestions}` |
+| Spec-shaped goal (what exactly should be built — plan/spec/scope) | `spm` — its **self-leveling MOA bench** brings its own fan-out (0–8 seats sized by its F/I/N/X/S rubric, `spm/references/leveling.md`); do **not** dispatch additional G4 specialists for the same need (no double-benching) |
 | Finance / growth / infra / support metrics | senior agents CFO / CMO / CTO / CS (Pi-Dev-Ops swarm) |
 
 Dispatch mechanics: fan out as parallel `Agent` calls in one message (or a `Workflow` for a
@@ -136,9 +137,11 @@ token is unprovisioned) — do NOT claim unattended resilience until those close
 
 ### Recursion + cost guard (mandatory when G4 opens)
 A dispatched specialist must never re-enter this orchestrator (no nexus-inside-nexus). Dispatch
-depth is capped at 1 level. Bind the whole gate to the estate kill-switches: honour
-`TAO_HARD_STOP` (the `~/.claude/HARD_STOP` file) and `TAO_MAX_COST_USD`; if a fan-out would
-exceed the cost ceiling, narrow the bench first.
+depth is capped at 1 level. When the G4 pick is `spm`, nexus pulls `Skill(spm)` inline and the
+bench's seats count as nexus's depth-1 dispatches — seats are terminal leaf agents (they never
+invoke skills or spawn agents; guard text in `spm/references/moa-board.md`). Bind the whole gate
+to the estate kill-switches: honour `TAO_HARD_STOP` (the `~/.claude/HARD_STOP` file) and
+`TAO_MAX_COST_USD`; if a fan-out would exceed the cost ceiling, narrow the bench first.
 
 ## G3 — Deep-research integrity bar
 The failure mode is confident consensus-mush wearing a bibliography. Guard it:

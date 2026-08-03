@@ -133,6 +133,16 @@ elif [ -f dashboard/package.json ]; then
     || { [ "$NODE_OK" = 1 ] || skip "build-dashboard" "node_modules absent — run --full"; }
 fi
 
+# 7b. Runtime route exercising (C12) — the authority on G1.
+# Must follow build-dashboard: it serves the built output. The static check in the vitest
+# suite is a TRIPWIRE over three literal spellings; this one starts the app and requests
+# every internal link the pages actually rendered, so the form a link was written in stops
+# mattering. Skipped under --quick and when there is no build to serve.
+if [ "$MODE_QUICK" = 1 ]; then skip "route-exercise" "--quick"
+elif [ -f dashboard/.next/BUILD_ID ]; then
+  gate "route-exercise" node scripts/route-exercise.mjs
+else skip "route-exercise" "no dashboard build to serve"; fi
+
 # 8. Audits.
 # Gate on the repo's own scanner — the same one CI blocks merges with (ci.yml "Secrets
 # exposure scan"). --dry-run reports findings but never patches .gitignore, raises a

@@ -2,7 +2,7 @@
 
 Pulls real numbers from Stripe (MRR, expansion, contraction, churn, new MRR)
 and Xero (revenue, COGS, cash on hand) for each business in
-``.harness/projects.json``. Falls back to ``synthetic_one(bid)`` for any
+``config/harness/projects.json``. Falls back to ``synthetic_one(bid)`` for any
 business missing credentials, so a partially-wired portfolio still emits a
 coherent daily brief.
 

@@ -17,13 +17,13 @@ from swarm.nexus.agent_registry import (  # noqa: E402
     validate_catalogue,
     validate_projection_drift,
 )
+from app.server.config_loader import HARNESS_SPEC  # noqa: E402
 
 
 def _paths(root: Path) -> dict[str, Path]:
     return {
         "registry": root / "config" / "harness" / "agents" / "registry.yaml",
         "manifest": root / "agentskills.json",
-        "config": root / "config" / "harness" / "config.yaml",
         "catalogue": root / "docs" / "agents" / "README.md",
     }
 
@@ -71,7 +71,11 @@ def main(argv: list[str] | None = None) -> int:
     paths = _paths(root)
 
     try:
-        registry = load_registry(paths["registry"], paths["manifest"], paths["config"])
+        registry = load_registry(
+            paths["registry"],
+            paths["manifest"],
+            model_roles=set(HARNESS_SPEC["agents"]),
+        )
         accepted = validate_projection_drift(root, registry)
         catalogue = render_catalogue(registry)
         changed = False

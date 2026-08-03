@@ -1,7 +1,7 @@
 """
 scanner.py — Pi-SEO Multi-Project Scanner
 
-Clones/updates all repos from .harness/projects.json, runs 4 scan types,
+Clones/updates all repos from config/harness/projects.json, runs 4 scan types,
 saves results to .harness/scan-results/{project-id}/{date}.json.
 
 Scan types:

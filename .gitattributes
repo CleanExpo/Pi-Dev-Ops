@@ -1,0 +1,15 @@
+# Line-ending policy — added 2026-08-03.
+#
+# WHY: scripts/prove-controls.sh was committed with CRLF (232 CR bytes in the blob at HEAD).
+# Windows bash tolerates that; Linux bash does not, and rejects the file outright:
+#   set: pipefail: invalid option name · cd: $'/work\r\r': No such file or directory
+# It therefore ran green on the host and failed instantly in a Linux container. Any Linux
+# execution surface — container, CI runner, WSL — hits the same wall.
+#
+# Executable text is pinned to LF so the committed blob is correct regardless of which
+# platform writes it. Left deliberately narrow rather than `* text=auto`: a repo-wide
+# normalisation would rewrite files this change has no reason to touch.
+*.sh    text eol=lf
+*.py    text eol=lf
+*.mjs   text eol=lf
+*.cjs   text eol=lf

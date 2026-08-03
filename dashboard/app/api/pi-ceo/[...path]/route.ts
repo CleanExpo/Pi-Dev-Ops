@@ -188,10 +188,60 @@ async function proxySse(path: string, clientSignal: AbortSignal): Promise<Respon
   });
 }
 
+/**
+ * Upstream path allowlist.
+ *
+ * This was a catch-all: any path under /api/pi-ceo/* was forwarded verbatim to
+ * PI_CEO_URL, including /api/login. In a single shared-password system anything
+ * holding that password — including the estate's own automation — could reach any
+ * upstream route, and the fence intercepts tool calls rather than HTTP, so nothing
+ * gated it.
+ *
+ * Derived from the paths the dashboard actually calls (19 distinct, enumerated from
+ * source). Anything not listed is refused here rather than forwarded. Adding a route
+ * upstream now requires adding it here too — deliberately, so the surface cannot grow
+ * silently.
+ */
+const ALLOWED_UPSTREAM: RegExp[] = [
+  /^\/health$/,
+  /^\/api\/health$/,
+  /^\/api\/health\/obsidian$/,
+  /^\/api\/sessions$/,
+  /^\/api\/sessions\/[^/]+\/(logs|stream|resume)$/,
+  /^\/api\/terminal\/(sessions|tail)$/,
+  /^\/api\/projects\/health$/,
+  /^\/api\/projects\/[^/]+\/findings$/,
+  /^\/api\/routines$/,
+  /^\/api\/mission-control\/live$/,
+  /^\/api\/margot\/assets$/,
+  /^\/api\/spec-pipeline$/,
+  /^\/api\/scan$/,
+  /^\/api\/build$/,
+];
+
+function allowed(pathStr: string): boolean {
+  // Compare the path only. A query string must never widen what is reachable.
+  const bare = pathStr.split("?")[0];
+  return ALLOWED_UPSTREAM.some((re) => re.test(bare));
+}
+
+function refuse(pathStr: string): Response {
+  return new Response(
+    JSON.stringify({
+      error: "Upstream path not allowed",
+      path: pathStr.split("?")[0],
+      hint: "This proxy forwards an explicit allowlist. Add the route to ALLOWED_UPSTREAM if it is legitimate.",
+    }),
+    { status: 403, headers: { "content-type": "application/json" } }
+  );
+}
+
 export async function GET(request: Request, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
   const url = new URL(request.url);
   const pathStr = "/" + path.join("/") + url.search;
+
+  if (!allowed(pathStr)) return refuse(pathStr);
 
   if (SSE_PATH_RE.test(pathStr)) {
     return proxySse(pathStr, request.signal);
@@ -203,6 +253,9 @@ export async function POST(request: Request, context: { params: Promise<{ path: 
   const { path } = await context.params;
   const url = new URL(request.url);
   const pathStr = "/" + path.join("/") + url.search;
+
+  if (!allowed(pathStr)) return refuse(pathStr);
+
   const body = await request.text();
   return proxyRequest("POST", pathStr, body);
 }

@@ -28,6 +28,23 @@ function _quietError(error: string, detail?: string): Response {
   );
 }
 
+const ALLOWED_PATHS = new Set([
+  "count", "status", "limit", "total", "returned", "by_status", "error", "detail",
+  "proposals",
+  "proposals[].id", "proposals[].skill", "proposals[].status",
+  "proposals[].created_at", "proposals[].summary", "proposals[].rationale",
+]);
+
+/** Every payload key path, with array positions collapsed to `[]`. */
+function keyPaths(value: unknown, prefix = ""): string[] {
+  if (Array.isArray(value)) return value.flatMap((item) => keyPaths(item, `${prefix}[]`));
+  if (!value || typeof value !== "object") return [];
+  return Object.entries(value as Record<string, unknown>).flatMap(([key, item]) => {
+    const path = prefix ? `${prefix}.${key}` : key;
+    return [path, ...keyPaths(item, path)];
+  });
+}
+
 export async function GET(request: Request): Promise<Response> {
   const base = _baseUrl();
   if (!base) {
@@ -53,10 +70,16 @@ export async function GET(request: Request): Promise<Response> {
       );
     }
     const body = await upstream.json().catch(() => ({}));
-    return Response.json(
-      upstream.ok ? body : { error: `HTTP ${upstream.status}`, ...body },
-      { status: 200, headers: { "X-Upstream-Status": String(upstream.status) } },
-    );
+    const payload = upstream.ok ? body : { error: `HTTP ${upstream.status}`, ...body };
+    const unexpected = [...new Set(keyPaths(payload))].filter((key) => !ALLOWED_PATHS.has(key));
+    if (unexpected.length > 0) {
+      console.error("[curator-proposals] upstream returned unexpected key paths:", unexpected);
+      return _quietError("upstream payload shape changed", "response withheld pending review");
+    }
+    return Response.json(payload, {
+      status: 200,
+      headers: { "X-Upstream-Status": String(upstream.status) },
+    });
   } catch (exc) {
     return _quietError("upstream unreachable", String(exc));
   }

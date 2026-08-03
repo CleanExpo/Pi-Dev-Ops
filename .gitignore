@@ -200,12 +200,21 @@ remotion-studio/public/ra-wave-1-screencaps/
 docs/session-handoffs/handoff-*.md
 .handoff-logs/*.log
 
+# Auto-commit fallout (2026-08-01). An `autogit busy` hook wired into Claude Code's
+# UserPromptSubmit/PostToolUse was sweeping these into commits authored as the
+# founder and pushing them unreviewed. The hook is dead; these stay ignored so a
+# future one cannot re-pollute the branch.
+.omx/
+.harness/*.txt
+.harness/*.diff
+
+# 2026-08-03: .harness/ is generated analysis output and MUST NOT be tracked.
+# secrets_check.py skips this path on the stated ground that it is not committed. main made
+# that premise true again in #607; this branch still tracked 608 files under it, so the
+# exclusion was false HERE and merging would have carried the blind spot back onto main.
+# Same fix, same form as #607. The piecemeal .harness/* patterns above are subsumed by this
+# and left in place deliberately — removing them is a separate change.
+
 # generated graph visualisation output (not source)
 swarm/graphify-out/
-
-# 2026-08-02: .harness/ is generated analysis output and MUST NOT be tracked.
-# secrets_check.py skips this path on the stated ground that it is not committed. A Codex Stop
-# hook running `autogit ship` made that false on 2026-06-16 and pushed 98MB to a PUBLIC repo
-# behind the exclusion. Untracked here so the exclusion premise is true again — the check
-# asserts it every run and fails loudly if it stops being true.
 .harness/

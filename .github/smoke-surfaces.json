@@ -619,6 +619,40 @@
       "auth": false,
       "expected_status": 401,
       "_comment": "See telegram-proxy-linear-create-nosig for the rationale."
+    },
+    {
+      "name": "cc-provider-usage",
+      "path": "/api/command-centre/provider-usage",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "_comment": "#609: proxy.ts PROTECTED_API_PREFIXES covers /api/command-centre, so unauth 401s. body_contains deliberately omitted — buildProviderCockpit's top-level shape was not read, and a guessed key is a control that fails for the wrong reason."
+    },
+    {
+      "name": "cc-wiki-graph",
+      "path": "/api/command-centre/wiki-graph",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": ["pageCount"],
+      "_comment": "#609: returns {...graph, pageCount, truncated}. pageCount is always present; truncated may legitimately be false, so it is not asserted."
+    },
+    {
+      "name": "curator-proposals",
+      "path": "/api/curator-proposals",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "_comment": "#609: protected via proxy.ts. The handler pins status 200 even when upstream errors (shape-guarded proxy), so status alone is a weak assertion — recorded rather than left implicit."
+    },
+    {
+      "name": "sessions-list",
+      "path": "/api/sessions",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": ["sessions"],
+      "_comment": "#609: GET returns NextResponse.json({ sessions })."
     }
   ],
   "vertical": {

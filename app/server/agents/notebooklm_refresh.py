@@ -1,7 +1,7 @@
 """
 notebooklm_refresh.py — NotebookLM source auto-refresh loop (RA-1668).
 
-Iterates the active notebooks in `.harness/notebooklm-registry.json` and
+Iterates the active notebooks in `config/harness/notebooklm-registry.json` and
 re-ingests their declared sources via the NotebookLM Enterprise API.
 Replaces the fragile n8n manual workflow.
 
@@ -45,7 +45,8 @@ log = logging.getLogger("pi-ceo.agents.notebooklm-refresh")
 # ─── Paths ────────────────────────────────────────────────────────────────────
 
 _HARNESS = Path(__file__).parent.parent.parent.parent / ".harness"
-_REGISTRY_PATH = _HARNESS / "notebooklm-registry.json"
+_CONFIG = Path(__file__).parent.parent.parent.parent / "config" / "harness"
+_REGISTRY_PATH = _CONFIG / "notebooklm-registry.json"
 _FRESHNESS_PATH = _HARNESS / "notebooklm-freshness.json"
 
 # ─── Env ─────────────────────────────────────────────────────────────────────

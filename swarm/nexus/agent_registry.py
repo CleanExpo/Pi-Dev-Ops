@@ -39,7 +39,7 @@ _AGENT_FIELDS = {
     "evidence",
     "status",
 }
-_DRIFT_FIELDS = {"id", "agents_sha256", "claude_sha256", "rationale"}
+_DRIFT_FIELDS = {"id", "agents_sha256", "canonical_sha256", "rationale"}
 
 
 class RegistryValidationError(ValueError):
@@ -222,8 +222,8 @@ def _validate_drift_baseline(path: Path, drift: Any) -> tuple[dict[str, str], ..
             and bool(_ID_RE.fullmatch(entry["id"]))
             and isinstance(entry.get("agents_sha256"), str)
             and bool(_SHA_RE.fullmatch(entry["agents_sha256"]))
-            and isinstance(entry.get("claude_sha256"), str)
-            and bool(_SHA_RE.fullmatch(entry["claude_sha256"]))
+            and isinstance(entry.get("canonical_sha256"), str)
+            and bool(_SHA_RE.fullmatch(entry["canonical_sha256"]))
             and isinstance(entry.get("rationale"), str)
             and bool(entry["rationale"].strip())
             and entry["id"] not in ids
@@ -241,7 +241,9 @@ def _validate_drift_baseline(path: Path, drift: Any) -> tuple[dict[str, str], ..
 def load_registry(
     registry_path: Path,
     skills_manifest_path: Path,
-    model_policy_path: Path,
+    model_policy_path: Path | None = None,
+    *,
+    model_roles: set[str] | None = None,
 ) -> AgentRegistry:
     """Load and validate the registry without mutating any source or projection."""
     data = _read_yaml(registry_path, "registry-readable")
@@ -261,7 +263,12 @@ def load_registry(
             registry_path, "agents-shape", "agents must be a list"
         )
     known_skills = _known_skill_ids(skills_manifest_path)
-    model_roles = _model_policy_roles(model_policy_path)
+    if model_roles is None:
+        if model_policy_path is None:
+            raise RegistryValidationError(
+                registry_path, "model-policy-readable", "model policy source is required"
+            )
+        model_roles = _model_policy_roles(model_policy_path)
     agents = tuple(
         _agent_from_raw(raw, index, registry_path, known_skills, model_roles)
         for index, raw in enumerate(raw_agents)

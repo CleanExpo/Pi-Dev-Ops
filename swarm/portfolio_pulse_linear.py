@@ -10,7 +10,7 @@ For each project, queries Linear for movement in the last 24h:
     `pi-dev:blocked-reason:*`)
   * Stale tickets (open ≥ 14 days no update)
 
-Project → Linear project_id mapping comes from `.harness/projects.json`.
+Project → Linear project_id mapping comes from `config/harness/projects.json`.
 
 The provider is registered at module import time, so any caller that
 imports this module (or `swarm.portfolio_pulse_sections`) gets the
@@ -19,7 +19,7 @@ upgraded section. Foundation's placeholder is replaced.
 Failure modes (graceful):
   * No LINEAR_API_KEY → returns "_(linear: no API key)_" body
   * project_id not in projects.json → returns
-    "_(linear: project_id 'xxx' not in .harness/projects.json)_"
+    "_(linear: project_id 'xxx' not in config/harness/projects.json)_"
   * Network error / GraphQL error → returns the error string in body
 """
 from __future__ import annotations
@@ -316,7 +316,7 @@ def linear_section_provider(project_id: str,
     if proj is None:
         return (
             f"_(linear: project_id {project_id!r} not in "
-            ".harness/projects.json — add a `linear_project_id` mapping)_",
+            "config/harness/projects.json — add a `linear_project_id` mapping)_",
             "missing_projects_json_entry",
         )
 
@@ -324,7 +324,7 @@ def linear_section_provider(project_id: str,
     if not linear_project_id:
         return (
             f"_(linear: project {project_id!r} has no linear_project_id "
-            "in .harness/projects.json)_",
+            "in config/harness/projects.json)_",
             "no_linear_project_id",
         )
 

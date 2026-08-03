@@ -36,7 +36,7 @@ def _copy_registry_surface(tmp_path: Path) -> Path:
         root / "config/harness/agents/registry.yaml",
     )
     shutil.copytree(REPO_ROOT / ".agents/skills", root / ".agents/skills")
-    shutil.copytree(REPO_ROOT / ".claude/skills", root / ".claude/skills")
+    shutil.copytree(REPO_ROOT / "skills", root / "skills")
     return root
 
 
@@ -98,7 +98,7 @@ def test_real_repository_registry_gate_passes() -> None:
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert "8 shadow agents" in result.stdout
-    assert "5 accepted projection divergences" in result.stdout
+    assert "4 accepted projection divergences" in result.stdout
 
 
 def test_registry_gate_is_additive_to_ci_and_handoff_generated_checks() -> None:
