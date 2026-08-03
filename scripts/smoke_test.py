@@ -318,7 +318,6 @@ print("\n[7/9] Lessons API")
 sc, body = get("/api/lessons")
 check("GET /api/lessons returns 200", sc == 200, f"got {sc}")
 check("Lessons response is a list", isinstance(body, list), str(type(body)))
-check("Lessons list is non-empty (seed data present)", isinstance(body, list) and len(body) > 0, f"len={len(body) if isinstance(body, list) else 'N/A'}")
 
 sc, entry = post("/api/lessons", {
     "source": "smoke-test",
@@ -328,6 +327,17 @@ sc, entry = post("/api/lessons", {
 })
 check("POST /api/lessons returns 200", sc == 200, f"got {sc}")
 check("New lesson entry has expected fields", isinstance(entry, dict) and "lesson" in entry and "category" in entry, str(entry))
+
+# Read-after-write. The non-empty assertion used to sit BEFORE this POST, which
+# required a pre-seeded .harness/lessons.jsonl — gitignored, so absent in any fresh
+# container and unpassable in CI. Asserting it here instead lets the run construct
+# its own fixture, and it now proves the write is actually readable back.
+sc, after_post = get("/api/lessons")
+check(
+    "Lessons list is non-empty after this run's POST",
+    sc == 200 and isinstance(after_post, list) and len(after_post) > 0,
+    f"got {sc}, len={len(after_post) if isinstance(after_post, list) else 'N/A'}",
+)
 
 sc, filtered = get("/api/lessons?category=persistence")
 check("GET /api/lessons?category=persistence returns 200", sc == 200, f"got {sc}")
