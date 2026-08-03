@@ -1,12 +1,12 @@
 # tests — Wiki
 
-_Last updated: 2026-08-03T15:43:40Z (commits f91fcea..74925a0)_
+_Last updated: 2026-08-03T17:02:22Z (commits b497f1c..63f2bb1)_
 
 ## Recent changes
-- 74925a0 — fix(security): replace shell command probe contract (#619)
+- 63f2bb1 — fix(smoke): deploy-level seed-presence check that cannot lie (RA-7108) (#620)
 
 ## Architecture (current)
 Auto-stub: `tests/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- tests/test_coverage_check.py — touched in recent commits
+- tests/test_lessons_seed.py — touched in recent commits
