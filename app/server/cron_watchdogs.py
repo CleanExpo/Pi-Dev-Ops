@@ -473,21 +473,19 @@ async def _watchdog_notebooklm_health(log) -> None:
 
     from . import config_loader
 
-    # Moved to config/harness/ on 2026-08-03 and routed through config_loader rather than
-    # rebuilt here. This line previously hard-coded .harness/, which #607 untracked.
-    _REGISTRY = config_loader.NOTEBOOKLM_REGISTRY_JSON
     _HEALTH_QUERY = "What are the top 3 risks for this entity right now?"
     _QUERY_HASH = hashlib.md5(_HEALTH_QUERY.encode()).hexdigest()[:12]
     _TIMEOUT_S = 60
 
-    if not _REGISTRY.exists():
-        log.warning("NotebookLM health: registry not found at %s", _REGISTRY)
-        return
-
+    # Routed through the config_loader accessor rather than re-parsing the file here, so
+    # the location, the parsing and the error text live in one place. Degrading softly is
+    # deliberate: aborting this watchdog would take down every watchdog scheduled after
+    # it. The LOUD stop for a missing or malformed registry is validate_startup(), which
+    # parses it at boot — by the time this runs, absence here is transient, not silent.
     try:
-        registry = _json.loads(_REGISTRY.read_text())
-    except Exception as exc:
-        log.warning("NotebookLM health: failed to load registry: %s", exc)
+        registry = config_loader.notebooklm_registry()
+    except config_loader.ConfigMissingError as exc:
+        log.warning("NotebookLM health: registry unavailable: %s", exc)
         return
 
     active = [nb for nb in registry.get("notebooks", []) if nb.get("status") == "active"]

@@ -723,7 +723,11 @@ def _append_ship_lesson(pipeline_id: str, score: float) -> None:
     # curated lessons on a clean clone.
     from .lessons import ensure_seeded  # noqa: PLC0415 — local, avoids an import cycle
     ensure_seeded()
-    lessons_file = _HARNESS_ROOT / "lessons.jsonl"
+    # Append to the SAME path the seeder installs. config.LESSONS_FILE honours the
+    # TAO_LESSONS override; a hardcoded _HARNESS_ROOT path here appended to a different
+    # file from the seeded one under an override deployment, splitting the store.
+    from . import config  # noqa: PLC0415 — local, mirrors the lessons import above
+    lessons_file = config.LESSONS_FILE
     entry = json.dumps({
         "cycle": "ship",
         "pipeline_id": pipeline_id,

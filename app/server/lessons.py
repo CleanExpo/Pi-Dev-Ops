@@ -62,8 +62,20 @@ def _ensure_seeded() -> None:
     if os.path.exists(path):
         return
     seed = config_loader.LESSONS_SEED_JSONL
-    if not seed.is_file():
+    try:
+        os.stat(seed)
+    except FileNotFoundError:
         # An absent seed is a legitimate configuration, not a fault: nothing to install.
+        return
+    except OSError as exc:
+        # Not Path.is_file(): that swallows OSError into False, which would take the silent
+        # branch above and make an UNREADABLE seed indistinguishable from a deliberately
+        # absent one. stat() keeps the two apart — absent is legitimate, inaccessible is a
+        # fault that silently disables institutional memory on every read.
+        log_.error(
+            "lesson seed UNREADABLE (%s): %s — the lesson store will read as EMPTY. "
+            "This is a fault, not an empty-by-design store.", seed, exc,
+        )
         return
     tmp = f"{path}.seed-{uuid.uuid4().hex}.tmp"
     try:

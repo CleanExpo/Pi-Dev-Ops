@@ -24,7 +24,6 @@ log = logging.getLogger("pi-ceo.agents.feedback-loop")
 
 _HARNESS_ROOT = Path(__file__).resolve().parents[3] / ".harness"
 _SHIPPED_FEATURES_FILE = _HARNESS_ROOT / "shipped-features.jsonl"
-_LESSONS_FILE = _HARNESS_ROOT / "lessons.jsonl"
 _FEEDBACK_CACHE_FILE = _HARNESS_ROOT / "feedback-cache.json"
 _AUTONOMY_LOG = _HARNESS_ROOT / "autonomy.jsonl"
 
@@ -532,11 +531,14 @@ def _write_outcome_lesson(feature: dict[str, Any], signal: str) -> None:
     }
     # Seed before appending. This writer creates the store if it is absent, and an existing
     # store suppresses seeding for good, so appending first would silently cost the 49
-    # curated lessons on a clean clone.
+    # curated lessons on a clean clone. And append to the SAME path the seeder installs —
+    # config.LESSONS_FILE honours the TAO_LESSONS override; the hardcoded _HARNESS_ROOT
+    # path this replaces appended to a different file from the seeded one under an
+    # override deployment, splitting the store.
     from app.server.lessons import ensure_seeded  # noqa: PLC0415 — local, avoids an import cycle
     ensure_seeded()
     try:
-        with open(_LESSONS_FILE, "a", encoding="utf-8") as f:
+        with open(_config.LESSONS_FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry) + "\n")
     except OSError as exc:
         log.warning("Could not write outcome lesson: %s", exc)

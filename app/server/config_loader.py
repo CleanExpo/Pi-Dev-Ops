@@ -277,3 +277,8 @@ def validate_startup() -> None:
             "  running with empty schedules, no projects and no content registry while\n"
             "  reporting healthy."
         )
+    # Existence is not enough for the NotebookLM registry: a malformed file passes the
+    # is_file() sweep above, and every runtime consumer of the registry then degrades
+    # softly by design — so boot is the only loud moment. Parse it here; _read_json
+    # raises ConfigMissingError naming the file and the JSON error.
+    notebooklm_registry()

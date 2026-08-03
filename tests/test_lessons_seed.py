@@ -173,12 +173,94 @@ def test_direct_writer_seeds_before_appending(tmp_path, monkeypatch):
 
     path = tmp_path / "harness" / "lessons.jsonl"
     monkeypatch.setattr(config, "LESSONS_FILE", str(path))
-    monkeypatch.setattr(pipeline, "_HARNESS_ROOT", path.parent)
-    path.parent.mkdir(parents=True, exist_ok=True)
+    # ONLY config.LESSONS_FILE is patched. Review of 7799bbfa found the earlier version of
+    # this test also monkeypatched pipeline._HARNESS_ROOT into alignment, which masked the
+    # writer appending to a different file from the one the seeder installs.
 
     pipeline._append_ship_lesson("pipeline-123", 9.0)
 
     entries = lessons.load_lessons(limit=1000)
+    assert any(e.get("pipeline_id") == "pipeline-123" for e in entries), (
+        "the writer appended somewhere other than the configured store — the paths split"
+    )
     assert len(entries) > 1, (
         "direct writer suppressed the seed — the store holds only its own row"
+    )
+
+
+# ── Review findings on 7799bbfa (codex, 2026-08-03, review #3) ────────────────────────────
+
+def test_losing_racer_reaches_the_publication_primitive_and_cannot_clobber(
+    runtime_store, monkeypatch,
+):
+    """P0: the no-clobber property must be proven AT the publication primitive.
+
+    test_reseeding_never_erases_an_append returns at the existence check on its second
+    call, so it never reaches the install — reverting `os.link` to the clobbering
+    `os.replace` would still pass it. This test simulates the actual race: a caller whose
+    existence check went stale (said absent) while another caller installed and appended.
+    It is forced all the way to the publication primitive, must lose gracefully, and must
+    leave the store byte-identical.
+    """
+    lessons.ensure_seeded()
+    lessons.append_lesson("test", "unit-test", "the losing racer must not destroy this", "info")
+    before = runtime_store.read_bytes()
+
+    real_exists = os.path.exists
+    monkeypatch.setattr(
+        lessons.os.path, "exists",
+        lambda p: False if str(p) == str(config.LESSONS_FILE) else real_exists(p),
+    )
+    lessons._ensure_seeded()  # the stale check forces this call past line one to the install
+
+    assert runtime_store.read_bytes() == before, (
+        "the losing racer replaced the store — os.replace semantics are back"
+    )
+
+
+def test_feedback_writer_appends_to_the_configured_store(tmp_path, monkeypatch):
+    """P1: feedback_loop's direct writer must seed AND write the same configured path.
+
+    Like the pipeline writer, `_write_outcome_lesson` used a hardcoded `.harness/` path
+    while the seeder honours config.LESSONS_FILE (the TAO_LESSONS override). Under an
+    override deployment the first direct append created a second, unseeded store. Only
+    config.LESSONS_FILE is patched here, so a re-split fails this test.
+    """
+    from app.server.agents import feedback_loop as fl
+
+    path = tmp_path / "harness" / "lessons.jsonl"
+    monkeypatch.setattr(config, "LESSONS_FILE", str(path))
+
+    fl._write_outcome_lesson({"pipeline_id": "RA-999", "shipped_at": ""}, "positive")
+
+    entries = lessons.load_lessons(limit=1000)
+    assert any(e.get("pipeline_id") == "RA-999" for e in entries), (
+        "the writer appended somewhere other than the configured store — the paths split"
+    )
+    assert len(entries) > 1, (
+        "direct writer suppressed the seed — the store holds only its own row"
+    )
+
+
+def test_unreadable_seed_is_logged_not_silent(tmp_path, monkeypatch, caplog):
+    """P2: an INACCESSIBLE seed must not be mistaken for a deliberately absent one.
+
+    Path.is_file() swallows OSError into False, so an unreadable seed took the silent
+    absent-by-design branch and the ERROR handler never ran. The lookup now uses stat(),
+    which keeps the two cases apart.
+    """
+    monkeypatch.setattr(config, "LESSONS_FILE", str(tmp_path / "h" / "lessons.jsonl"))
+    seed = str(config_loader.LESSONS_SEED_JSONL)
+    real_stat = os.stat
+
+    def stat_denied(p, *a, **k):
+        if str(p) == seed:
+            raise PermissionError(13, "Permission denied", str(p))
+        return real_stat(p, *a, **k)
+
+    monkeypatch.setattr(lessons.os, "stat", stat_denied)
+    with caplog.at_level("ERROR"):
+        lessons.ensure_seeded()
+    assert any("UNREADABLE" in r.getMessage() for r in caplog.records), (
+        "an unreadable seed produced no ERROR log — it read as absent-by-design"
     )
