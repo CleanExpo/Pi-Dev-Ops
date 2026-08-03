@@ -1,14 +1,12 @@
 # tests — Wiki
 
-_Last updated: 2026-07-27T04:44:30Z (commits 0866310..6ae9701)_
+_Last updated: 2026-08-03T01:25:26Z (commits 2a0ec49..4a23525)_
 
 ## Recent changes
-- 6ae9701 — feat(nexus): add governed shadow agent registry (#602)
+- 4a23525 — fix(config): fail-loud loader with in-code spec — closes the silent model regression (#610)
 
 ## Architecture (current)
 Auto-stub: `tests/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- tests/test_agent_registry.py — touched in recent commits
-- tests/test_agent_registry_red_team.py — touched in recent commits
-- tests/test_check_agent_registry.py — touched in recent commits
+- tests/test_config_loader_absence.py — touched in recent commits
