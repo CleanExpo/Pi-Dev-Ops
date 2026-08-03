@@ -287,6 +287,41 @@ def test_boot_snapshot_counts_parsed_records_not_physical_lines(tmp_path, monkey
     assert not smoke_predicate
 
 
+def test_boot_snapshot_rejects_structurally_invalid_dicts(tmp_path, monkeypatch):
+    """NEGATIVE CONTROL (P1 on c644eac0): 40 empty `{}` objects parse as dicts but carry
+    no content — they must snapshot as 0 rows and fail the smoke predicate."""
+    path = tmp_path / "h" / "lessons.jsonl"
+    path.parent.mkdir(parents=True)
+    path.write_text("{}\n" * 40, encoding="utf-8")
+    monkeypatch.setattr(config, "LESSONS_FILE", str(path))
+    monkeypatch.setattr(lessons, "BOOT_SEED_SNAPSHOT", None)
+    snap = lessons.seed_at_boot()
+    assert snap["rows_after_seed"] == 0, "content-free dicts counted as lessons"
+
+
+def test_boot_snapshot_survives_hostile_file_content(tmp_path, monkeypatch):
+    """NEGATIVE CONTROLS (P1 on c644eac0): parse failures beyond JSONDecodeError must
+    neither crash boot nor count. A 5000-digit integer raises ValueError (int digit
+    limit), and invalid UTF-8 raises UnicodeDecodeError out of the line iterator —
+    at c644eac0 both escaped seed_at_boot() and could abort application startup."""
+    # Case 1: huge-integer line among valid rows — must not raise, must count only valid.
+    path = tmp_path / "h" / "lessons.jsonl"
+    path.parent.mkdir(parents=True)
+    valid = json.dumps({"ts": "t", "source": "s", "category": "c",
+                        "lesson": "real", "severity": "info"})
+    path.write_text(("9" * 5000) + "\n" + valid + "\n", encoding="utf-8")
+    monkeypatch.setattr(config, "LESSONS_FILE", str(path))
+    monkeypatch.setattr(lessons, "BOOT_SEED_SNAPSHOT", None)
+    snap = lessons.seed_at_boot()
+    assert snap["rows_after_seed"] == 1
+
+    # Case 2: invalid UTF-8 — must not raise; file-level failure snapshots as 0.
+    path.write_bytes(b"\xff\xfe garbage bytes \xff\n")
+    monkeypatch.setattr(lessons, "BOOT_SEED_SNAPSHOT", None)
+    snap = lessons.seed_at_boot()
+    assert snap["rows_after_seed"] == 0
+
+
 def test_boot_snapshot_reflects_a_truncated_seed(tmp_path, monkeypatch):
     """A truncated seed must show up in the snapshot (the smoke check's >=40 floor)."""
     monkeypatch.setattr(config, "LESSONS_FILE", str(tmp_path / "h" / "lessons.jsonl"))

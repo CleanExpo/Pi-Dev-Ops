@@ -124,22 +124,35 @@ def seed_at_boot() -> dict:
     _ensure_seeded()
     rows = 0
     try:
-        # Count PARSEABLE lesson records, not physical lines: 40 lines of garbage must
-        # read as 0, not 40 — review of 018f6b7b demonstrated the physical-line count
-        # false-passing an unusable store. Parsed here directly (not via _read_lines())
-        # so the count cannot re-trigger seeding.
+        # Count records satisfying the store's minimum content invariant, not physical
+        # lines and not bare dicts: review rounds on this probe demonstrated 40 garbage
+        # lines counting as 40 (018f6b7b) and 40 empty `{}` objects counting as 40
+        # (c644eac0). A record counts only if it is a dict carrying a non-empty
+        # `lesson` (append_lesson / seed / feedback_loop schema) or `text`
+        # (append_lesson_dedup schema) string. Parsed directly, not via _read_lines(),
+        # so counting cannot re-trigger seeding.
         with open(path, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
                     continue
                 try:
-                    if isinstance(json.loads(line), dict):
-                        rows += 1
-                except json.JSONDecodeError:
-                    pass
-    except OSError:
-        pass
+                    rec = json.loads(line)
+                except ValueError:
+                    # JSONDecodeError subclasses ValueError; the bare ValueError also
+                    # covers non-decode parse failures such as the int-digit limit.
+                    continue
+                if isinstance(rec, dict) and (
+                    isinstance(rec.get("lesson"), str) and rec["lesson"].strip()
+                    or isinstance(rec.get("text"), str) and rec["text"].strip()
+                ):
+                    rows += 1
+    except Exception:
+        # A boot-state probe must never abort boot (invalid UTF-8 raised out of the
+        # line iterator at c644eac0 and would have crashed startup). Any file-level
+        # read failure snapshots as 0 rows — indistinguishable from an unusable store,
+        # which is exactly what an unreadable store is.
+        rows = 0
     BOOT_SEED_SNAPSHOT = {
         "store_existed_before_seed": existed_before,
         "rows_after_seed": rows,
