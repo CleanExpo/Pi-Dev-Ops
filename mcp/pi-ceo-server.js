@@ -2162,8 +2162,38 @@ server.registerTool(
   }
 );
 
+// ── Startup validation ─────────────────────────────────────────────────────────
+// Mirrors app/server/config_loader.validate_startup(). Fatal on purpose: this server
+// previously returned `null` from getProjects() when projects.json was absent
+// (line ~296, `if (!fs.existsSync(pj)) return null;`), which reads as "no projects" and is
+// indistinguishable from a working server with nothing to report.
+//
+// NOTE: HARNESS_DIR comes from process.env, so this surface's config location is a DEPLOYMENT
+// concern, not a repo-layout one. Moving files in commit 2 does not fix this server — its env
+// var must be updated in step with it, or it will fail loudly here, which is the point.
+const REQUIRED_AT_STARTUP = [
+  "projects.json",
+  "cron-triggers.json",
+  "content_manifest.json",
+];
+
+function validateStartup() {
+  const missing = REQUIRED_AT_STARTUP.filter(
+    (f) => !fs.existsSync(path.join(HARNESS_DIR, f)),
+  );
+  if (missing.length) {
+    throw new Error(
+      `Refusing to start — required instance-data file(s) absent: ${missing.join(", ")}. ` +
+        `Looked in ${HARNESS_DIR} (from HARNESS_DIR env). These describe the world and ` +
+        `cannot be defaulted; starting without them means serving empty results while ` +
+        `reporting healthy.`,
+    );
+  }
+}
+
 // ── Start Server ───────────────────────────────────────────────────────────────
 async function main() {
+  validateStartup();
   const transport = new StdioServerTransport();
   await server.connect(transport);
   // Server is now running — the SDK handles all MCP protocol negotiation
