@@ -1,13 +1,12 @@
 # tests — Wiki
 
-_Last updated: 2026-08-03T08:30:02Z (commits 8709a33..16c9ff6)_
+_Last updated: 2026-08-03T08:34:54Z (commits 0042c3a..0321408)_
 
 ## Recent changes
-- 16c9ff6 — Fix/mandate gate fail loud (#616)
+- 0321408 — test(notebooklm): resolve the registry path through config_loader (#617)
 
 ## Architecture (current)
 Auto-stub: `tests/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- tests/test_board_decision_index.py — touched in recent commits
-- tests/test_config_loader_absence.py — touched in recent commits
+- tests/test_notebooklm_registry.py — touched in recent commits
