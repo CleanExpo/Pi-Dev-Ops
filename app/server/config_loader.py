@@ -57,6 +57,7 @@ CRON_TRIGGERS_JSON = _CONFIG_DIR / "cron-triggers.json"
 CONTENT_MANIFEST_JSON = _CONFIG_DIR / "content_manifest.json"
 PROVISIONED_TOOLS_YAML = _CONFIG_DIR / "provisioned-tools.yaml"
 MARGOT_IDENTITY_JSON = _CONFIG_DIR / "margot" / "assets" / "margot_identity.json"
+NOTEBOOKLM_REGISTRY_JSON = _CONFIG_DIR / "notebooklm-registry.json"
 
 
 class ConfigMissingError(RuntimeError):
@@ -190,6 +191,21 @@ def provisioned_tools() -> Any:
     something outside this repo. An in-code copy would be a copy of a copy.
     """
     return _read_yaml(PROVISIONED_TOOLS_YAML, "provisioned tools (provisioned-tools.yaml)")
+
+
+def notebooklm_registry() -> Any:
+    """Which NotebookLM notebooks exist. INSTANCE DATA — raises if absent.
+
+    Declares notebook UUIDs, their sources and their linked issues. No in-code default can
+    be right: a made-up UUID points at someone else's notebook or nothing at all, which is
+    the "never default an EXTERNAL RESOURCE IDENTIFIER" rule at the top of this module.
+
+    Moved here 2026-08-03. It was the eighth file left behind in `.harness/` by #607, and
+    it failed the same way as the other seven — absent from a clean clone, so
+    tests/test_notebooklm_registry.py errored at setup on all 16 cases with
+    "Registry missing".
+    """
+    return _read_json(NOTEBOOKLM_REGISTRY_JSON, "NotebookLM registry (notebooklm-registry.json)")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

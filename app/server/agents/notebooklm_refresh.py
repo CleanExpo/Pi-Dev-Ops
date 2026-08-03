@@ -44,8 +44,14 @@ log = logging.getLogger("pi-ceo.agents.notebooklm-refresh")
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
 
+from app.server import config_loader  # noqa: E402
+
+# The registry is COMMITTED CONFIG and moved to config/harness/ on 2026-08-03. Freshness is
+# runtime STATE, written at run time, and stays under the untracked .harness/. Routed through
+# config_loader rather than rebuilding the path here — restating a location is the drift that
+# module was consolidated to prevent.
 _HARNESS = Path(__file__).parent.parent.parent.parent / ".harness"
-_REGISTRY_PATH = _HARNESS / "notebooklm-registry.json"
+_REGISTRY_PATH = config_loader.NOTEBOOKLM_REGISTRY_JSON
 _FRESHNESS_PATH = _HARNESS / "notebooklm-freshness.json"
 
 # ─── Env ─────────────────────────────────────────────────────────────────────

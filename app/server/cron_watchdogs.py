@@ -469,10 +469,13 @@ async def _watchdog_notebooklm_health(log) -> None:
     import asyncio
     import hashlib
     import json as _json
-    from pathlib import Path
     from . import config
 
-    _REGISTRY = Path(__file__).parent.parent.parent / ".harness" / "notebooklm-registry.json"
+    from . import config_loader
+
+    # Moved to config/harness/ on 2026-08-03 and routed through config_loader rather than
+    # rebuilt here. This line previously hard-coded .harness/, which #607 untracked.
+    _REGISTRY = config_loader.NOTEBOOKLM_REGISTRY_JSON
     _HEALTH_QUERY = "What are the top 3 risks for this entity right now?"
     _QUERY_HASH = hashlib.md5(_HEALTH_QUERY.encode()).hexdigest()[:12]
     _TIMEOUT_S = 60
