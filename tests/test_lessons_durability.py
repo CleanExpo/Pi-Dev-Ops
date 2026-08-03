@@ -8,6 +8,8 @@ doctrine they patch config.LESSONS_FILE and nothing else on the store side.
 """
 import json
 import os
+import threading
+import time
 
 import pytest
 
@@ -22,25 +24,39 @@ def runtime_store(tmp_path, monkeypatch):
     return path
 
 
+class _Captured(list):
+    """Write-throughs arrive on a daemon thread (d83fa1e5 review: synchronous sends
+    stalled the ship path). wait_for(n) makes assertions deterministic."""
+
+    def wait_for(self, n: int, timeout: float = 5.0) -> "_Captured":
+        deadline = time.monotonic() + timeout
+        while len(self) < n and time.monotonic() < deadline:
+            time.sleep(0.005)
+        assert len(self) >= n, f"expected {n} write-through(s), saw {len(self)}"
+        return self
+
+
 @pytest.fixture
 def captured(monkeypatch):
-    """Capture write-throughs at the supabase_log boundary."""
-    calls: list[dict] = []
+    """Capture write-throughs at the supabase_log boundary (thread-safe append)."""
+    calls = _Captured()
     monkeypatch.setattr(supabase_log, "save_lesson", lambda e: (calls.append(e), True)[1])
     return calls
 
 
 def test_append_writes_through(runtime_store, captured):
     entry = lessons.append_lesson("test", "unit-test", "durable please", "info")
-    assert captured == [entry]
+    assert captured.wait_for(1) == [entry]
     assert any(e.get("lesson") == "durable please" for e in lessons.load_lessons(limit=1000))
 
 
 def test_dedup_append_writes_through_new_entries_only(runtime_store, captured):
     assert lessons.append_lesson_dedup("a genuinely novel durable lesson", "workflow") is True
-    assert len(captured) == 1 and captured[0]["text"] == "a genuinely novel durable lesson"
+    captured.wait_for(1)
+    assert captured[0]["text"] == "a genuinely novel durable lesson"
     # A near-duplicate takes the bump path: metadata rewrite, no new durable row.
     assert lessons.append_lesson_dedup("a genuinely novel durable lesson", "workflow") is False
+    time.sleep(0.05)   # give a wrong extra write-through the chance to arrive
     assert len(captured) == 1, "the bump path must not write through a duplicate row"
 
 
@@ -50,9 +66,34 @@ def test_direct_writers_write_through(runtime_store, captured, monkeypatch):
 
     pipeline._append_ship_lesson("RA-777", 8.5)
     fl._write_outcome_lesson({"pipeline_id": "RA-778", "shipped_at": ""}, "positive")
+    captured.wait_for(2)
     ids = [(e.get("pipeline_id"), e.get("cycle") or e.get("category")) for e in captured]
     assert ("RA-777", "ship") in ids
     assert ("RA-778", "outcome") in ids
+
+
+def test_write_through_never_blocks_the_caller(runtime_store, monkeypatch):
+    """P1 pin (d83fa1e5): a slow durable write must not stall the appending caller —
+    the reviewer measured the ship path stalling by the full stub latency. Deterministic
+    (event-gated, not timing-based): append_lesson must RETURN while save_lesson is
+    still parked on an Event only this test releases."""
+    release = threading.Event()
+    finished = threading.Event()
+    seen: dict = {}
+
+    def parked_save(entry):
+        seen["thread"] = threading.current_thread().name
+        release.wait(5)
+        finished.set()
+        return True
+
+    monkeypatch.setattr(supabase_log, "save_lesson", parked_save)
+    entry = lessons.append_lesson("test", "unit-test", "must not block", "info")
+    assert entry["lesson"] == "must not block"
+    assert not finished.is_set(), "append_lesson blocked until the durable write finished"
+    release.set()
+    assert finished.wait(5), "the parked write-through never completed after release"
+    assert seen.get("thread") != "MainThread", "write-through ran on the caller's thread"
 
 
 def test_write_through_failure_never_breaks_append(runtime_store, monkeypatch, caplog):
@@ -131,6 +172,28 @@ def test_hydration_boundary_rows_neither_dropped_nor_duplicated(runtime_store, m
     got = [e.get("lesson") for e in lessons.load_lessons(limit=1000)]
     assert got.count("row A at the boundary") == 1
     assert got.count("row B late-visible at the boundary") == 1
+
+
+def test_hydration_rejects_wrong_shaped_jsonb(runtime_store, monkeypatch, caplog):
+    """P1 pin (d83fa1e5): a PRESENT but non-object `line` (scalar/list JSONB) was
+    appended, persisted, and then crashed every reader with AttributeError. Ingestion
+    must refuse non-dict rows; readers stay uncrashed."""
+    T = "2026-08-04T08:00:00+00:00"
+    rows = [
+        {"line": 42, "created_at": T},                       # the reviewer's scalar probe
+        {"line": ["a", "list"], "created_at": T},
+        {"line": {"ts": "ok", "source": "s", "category": "c",
+                  "lesson": "the only valid row", "severity": "info"}, "created_at": T},
+    ]
+    monkeypatch.setattr(supabase_log, "fetch_lessons_since", lambda _w: rows)
+    lessons.ensure_seeded()
+    with caplog.at_level("WARNING"):
+        assert lessons.hydrate_from_durable() == 1
+    assert sum("malformed durable lesson row" in r.getMessage() for r in caplog.records) == 2
+    # The poison never reaches the file: every reader keeps working.
+    got = lessons.load_lessons(limit=1000)
+    assert any(e.get("lesson") == "the only valid row" for e in got)
+    assert lessons.search_lessons_keyword("valid row") is not None   # no AttributeError
 
 
 def test_hydration_skips_malformed_rows_and_retries_idempotently(runtime_store, monkeypatch, caplog):

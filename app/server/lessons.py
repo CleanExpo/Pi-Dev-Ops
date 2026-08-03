@@ -20,6 +20,7 @@ import logging
 import os
 import re
 import shutil
+import threading
 import uuid
 from collections import Counter
 from datetime import timezone, datetime
@@ -170,14 +171,25 @@ def seed_at_boot() -> dict:
 # seeded file. The single-file read path is unchanged — readers never touch Supabase.
 
 def _write_through(entry: dict) -> None:
-    """Best-effort durable copy of one appended entry. Never raises: the local append
-    has already succeeded, so a failure here costs cross-deploy durability of one row,
-    never availability — and it is logged, not silent."""
+    """Best-effort durable copy of one appended entry, OFF the caller's thread.
+
+    Review of d83fa1e5 measured the synchronous version stalling the ship-critical
+    path by the full network latency (up to _upsert's 8s timeout) — a violation of the
+    fire-and-forget doctrine in caller time, not just in error handling. The send now
+    runs on a daemon thread: the local append has already succeeded before this is
+    called, so a lost race at process exit costs cross-deploy durability of one row,
+    never availability, and every failure inside the thread is logged, not silent."""
+    def _send() -> None:
+        try:
+            from . import supabase_log  # noqa: PLC0415 — lazy, keeps import graph one-way
+            supabase_log.save_lesson(entry)
+        except Exception as exc:
+            log_.warning("lesson write-through failed (local append intact): %s", exc)
+
     try:
-        from . import supabase_log  # noqa: PLC0415 — lazy, keeps import graph one-way
-        supabase_log.save_lesson(entry)
+        threading.Thread(target=_send, name="lesson-write-through", daemon=True).start()
     except Exception as exc:
-        log_.warning("lesson write-through failed (local append intact): %s", exc)
+        log_.warning("lesson write-through could not start (local append intact): %s", exc)
 
 
 def record_external_append(entry: dict) -> None:
@@ -243,6 +255,12 @@ def hydrate_from_durable() -> int:
             for r in rows:
                 try:
                     line_obj = r["line"]
+                    if not isinstance(line_obj, dict):
+                        # Wrong-shaped JSONB (review of d83fa1e5: a scalar line was
+                        # appended, persisted, and then crashed every reader with
+                        # AttributeError). Readers assume dict rows; refuse anything
+                        # else at the ingestion boundary.
+                        raise TypeError(f"line is {type(line_obj).__name__}, not object")
                     created = str(r.get("created_at") or "")
                     h = _canonical_hash(line_obj)
                     if h not in existing:
