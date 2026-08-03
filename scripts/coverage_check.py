@@ -1,47 +1,9 @@
 #!/usr/bin/env python3
-"""coverage_check.py — honest Definition-of-Done coverage for a project.
+"""Report machine-observed Definition-of-Done coverage for a project.
 
-Reads a DoD spec (.harness/dod/<project>.dod.yaml), runs each requirement's
-probe against the real repo, and prints a status you can trust because every
-line is backed by something the machine actually observed.
-
-The design rule that makes this honest:
-
-    Items the machine CANNOT verify are reported as UNKNOWN and are NEVER
-    counted toward "done". The headline percentage is computed ONLY over
-    machine-checkable items (PASS / FAIL). UNKNOWN items are listed
-    separately as "needs your confirmation". Nothing is ever guessed.
-
-This is the opposite of a status report that says "48% done" by quietly
-treating everything it didn't check as finished.
-
-Probe types (in the DoD `check:` field):
-    command                cmd: <shell>  [expect_exit: 0]  [timeout: 120]
-                           the real oracle: run a test/typecheck/lint/assertion;
-                           PASS only when exit code matches. Use expect_exit: 1
-                           for negative tests that prove a gate fails closed.
-    http                   url: <url>  [expect_status: 200]  [contains: <str>]
-                           live smoke test; UNKNOWN (not FAIL) if unreachable.
-    path_exists            path: <repo-relative path>
-    registry_has_project   project_id: <id>  (checks config/harness/projects.json)
-    glob_grep              glob: <glob>  pattern: <regex>
-    human                  (always UNKNOWN unless attested — see below)
-
-SAFETY: `command` probes execute shell. Only run DoD specs you trust (your own,
-in your own repo). This is a verification harness for your projects, by design.
-
-Human attestation (optional): .harness/dod/attestations.yaml
-    ra-30-design-team: {confirmed: true, by: "Phill", date: "2026-06-10", note: "..."}
-A human item is only PASS if you explicitly confirm it there. This keeps the
-human in the loop without letting the machine invent progress.
-
-Usage:
-    python scripts/coverage_check.py .harness/dod/restoreassist.dod.yaml
-    python scripts/coverage_check.py .harness/dod/restoreassist.dod.yaml --repo /path/to/repo
-    python scripts/coverage_check.py .harness/dod/restoreassist.dod.yaml --json
-
-Exit code is always 0 — this is a report, not a gate. (A gate that blocks the
-build on coverage is a later phase; first you need to trust the number.)
+Command probes accept `argv` or ordered `steps`; shell strings are rejected.
+Specs still choose executables, so only run trusted DoD configuration.
+UNKNOWN items are never counted toward machine-checkable coverage.
 """
 from __future__ import annotations
 
@@ -51,6 +13,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -126,29 +89,66 @@ def probe_human(repo: Path, req: dict, attest: dict) -> tuple[str, str]:
     return UNKNOWN, "needs your confirmation (no attestation on file)"
 
 
-def probe_command(repo: Path, req: dict) -> tuple[str, str]:
-    """Run a shell command in the repo. PASS when exit code == expect_exit.
+def _command_steps(req: dict) -> tuple[list[list[str]] | None, str | None]:
+    """Return validated command steps, rejecting ambiguous or legacy shapes."""
+    if "cmd" in req:
+        return None, "legacy cmd strings are not supported; use argv or steps"
+    if ("argv" in req) == ("steps" in req):
+        return None, "command probe requires exactly one of argv or steps"
 
-    This is the real oracle: a test runner, a type-checker, a linter, or a
-    one-off assertion script. 'done' is an exit code, not a model's opinion.
-    expect_exit defaults to 0; set it (e.g. 1) for negative tests that prove
-    a gate fails closed on bad input.
-    """
-    cmd = req.get("cmd", "")
-    if not cmd:
-        return UNKNOWN, "no cmd specified"
+    raw_steps = [req["argv"]] if "argv" in req else req["steps"]
+    if not isinstance(raw_steps, list) or not raw_steps:
+        return None, "command vectors must be non-empty lists of strings"
+    if any(
+        not isinstance(argv, list)
+        or not argv
+        or any(not isinstance(arg, str) or not arg for arg in argv)
+        for argv in raw_steps
+    ):
+        return None, "command vectors must be non-empty lists of strings"
+    return raw_steps, None
+
+
+def _run_command_steps(
+    repo: Path, steps: list[list[str]], timeout: int
+) -> tuple[subprocess.CompletedProcess[str] | None, list[str], tuple[str, str] | None]:
+    """Run ordered steps within one timeout budget and retain combined output."""
+    deadline = time.monotonic() + timeout
+    output: list[str] = []
+    proc = None
+    for argv in steps:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return None, output, (FAIL, f"timed out after {timeout}s running: {argv!r}")
+        try:
+            proc = subprocess.run(
+                argv, shell=False, cwd=str(repo), capture_output=True,
+                text=True, timeout=remaining,
+            )
+        except subprocess.TimeoutExpired:
+            return None, output, (FAIL, f"timed out after {timeout}s running: {argv!r}")
+        except OSError as exc:
+            return None, output, (UNKNOWN, f"could not run command: {exc}")
+        output.extend((proc.stdout + proc.stderr).strip().splitlines())
+        if proc.returncode != 0:
+            break
+    return proc, output, None
+
+
+def probe_command(repo: Path, req: dict) -> tuple[str, str]:
+    """Run structured argv in the repo. PASS when exit code == expect_exit."""
+    steps, error = _command_steps(req)
+    if error:
+        return FAIL, error
+    assert steps is not None
     expect = int(req.get("expect_exit", 0))
     timeout = int(req.get("timeout", 120))
-    try:
-        proc = subprocess.run(
-            cmd, shell=True, cwd=str(repo),
-            capture_output=True, text=True, timeout=timeout,
-        )
-    except subprocess.TimeoutExpired:
-        return FAIL, f"timed out after {timeout}s running: {cmd[:60]}"
-    except OSError as exc:
-        return UNKNOWN, f"could not run command: {exc}"
-    out = (proc.stdout + proc.stderr).strip().splitlines()
+    proc, out, failure = _run_command_steps(repo, steps, timeout)
+    if failure:
+        status, evidence = failure
+        last = out[-1][:120] if out else ""
+        return status, f"{evidence} — {last}" if last else evidence
+    assert proc is not None
     last = out[-1][:120] if out else "(no output)"
     status = PASS if proc.returncode == expect else FAIL
     return status, f"exit {proc.returncode} (expected {expect}) — {last}"
@@ -251,7 +251,7 @@ def print_human(rep: dict) -> None:
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description="Honest Definition-of-Done coverage report")
     ap.add_argument("dod", help="path to a .dod.yaml spec")
-    ap.add_argument("--repo", default=None, help="repo root to probe (default: 3 levels up from the dod file, i.e. repo root)")
+    ap.add_argument("--repo", default=None, help="repo root to probe (default: 4 levels up from the dod file)")
     ap.add_argument("--json", action="store_true", help="emit JSON instead of the human report")
     args = ap.parse_args(argv)
 
@@ -259,8 +259,11 @@ def main(argv: list[str]) -> int:
     if not dod_path.exists():
         print(f"error: DoD spec not found: {dod_path}", file=sys.stderr)
         return 2
-    # default repo root: the dod lives at <repo>/.harness/dod/<file>, so go up 3
-    repo = Path(args.repo).resolve() if args.repo else dod_path.parents[2]
+    if args.repo:
+        repo = Path(args.repo).resolve()
+    else:
+        harness_root = dod_path.parent.parent
+        repo = dod_path.parents[2] if harness_root.name == ".harness" else dod_path.parents[3]
 
     dod = _load_yaml(dod_path)
     results = evaluate(dod, repo)
