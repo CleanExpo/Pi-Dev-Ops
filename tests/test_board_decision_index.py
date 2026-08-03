@@ -64,6 +64,18 @@ def test_consistent_mandate_allowed():
     assert result.allowed is True
 
 
-def test_real_harness_has_activation_vote_decisions():
-    index = build_decision_index()
-    assert any("Rate limit" in d.title for d in index)
+def test_missing_meetings_dir_returns_empty(tmp_path: Path):
+    """A missing meetings dir yields no decisions rather than raising.
+
+    This is the board_decision_index.py:99 branch that made the previous
+    test_real_harness_has_activation_vote_decisions unrunnable in CI: it called
+    build_decision_index() with no argument, so meetings_dir defaulted to the
+    gitignored .harness/board-meetings, which is absent in a fresh clone. The
+    index came back empty and the assertion failed for a reason that had nothing
+    to do with the code under test.
+
+    Its locked-section assertion is already covered against synthetic data by
+    test_build_decision_index_from_locked_section above, so the replacement
+    pins the defensive branch instead of re-asserting production state.
+    """
+    assert build_decision_index(tmp_path / "does-not-exist") == []

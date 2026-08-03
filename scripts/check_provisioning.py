@@ -27,7 +27,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
-from app.server import config_loader
+
+# scripts/ is not a package and CI runs this as `python scripts/check_provisioning.py`,
+# so the repo root is not on sys.path and `app.server` is unimportable. Mirrors the
+# bootstrap in check_agent_registry.py:9-11, which is why that gate imports cleanly.
+SCRIPT_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(SCRIPT_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_REPO_ROOT))
+
+from app.server import config_loader  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("check_provisioning")
