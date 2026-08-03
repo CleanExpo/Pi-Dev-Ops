@@ -1,14 +1,16 @@
 # app — Wiki
 
-_Last updated: 2026-08-03T17:02:22Z (commits b497f1c..63f2bb1)_
+_Last updated: 2026-08-03T17:17:32Z (commits 217cae1..1f547af)_
 
 ## Recent changes
-- 63f2bb1 — fix(smoke): deploy-level seed-presence check that cannot lie (RA-7108) (#620)
+- 1f547af — feat(lessons): cross-deploy durability — write-through + boot hydration (RA-7111) (#621)
 
 ## Architecture (current)
 Auto-stub: `app/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
+- app/server/agents/feedback_loop.py — touched in recent commits
 - app/server/app_factory.py — touched in recent commits
 - app/server/lessons.py — touched in recent commits
-- app/server/routes/health.py — touched in recent commits
+- app/server/pipeline.py — touched in recent commits
+- app/server/supabase_log.py — touched in recent commits

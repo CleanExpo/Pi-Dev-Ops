@@ -1,8 +1,13 @@
 # supabase — Wiki
 
-_Last updated: 2026-07-05T08:52:28Z (commits 64a6939..f99d458)_
+_Last updated: 2026-08-03T17:17:32Z (commits 217cae1..1f547af)_
 
 ## Recent changes
-- f99d458 — fix(models): correct stale model IDs in seeds, deploy scaffolding, and haiku defaults (#515)
+- 1f547af — feat(lessons): cross-deploy durability — write-through + boot hydration (RA-7111) (#621)
 
+## Architecture (current)
+Auto-stub: `supabase/` had 1 recent commits. SDK unavailable for synthesis.
 
+## Files of interest
+- supabase/README.md — touched in recent commits
+- supabase/migration.sql — touched in recent commits
