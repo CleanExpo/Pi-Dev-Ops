@@ -28,14 +28,20 @@ sys.path.insert(0, str(_ROOT))
 
 import app.server.config  # noqa: F401,E402 — triggers dotenv load
 from app.server.triage import LinearClient  # noqa: E402
+from app.server import config_loader  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("pi-ceo.analyse-lessons")
 
-_HARNESS = _ROOT / ".harness"
+# SPLIT - config and runtime state no longer share a base. `_CRON_FILE` is committed config;
+# lessons.jsonl and the proposals dir are generated state. Repointing one must not move the
+# other. Commit 2 repoints _CONFIG only, via config_loader.
+_HARNESS = _ROOT / ".harness"                 # runtime STATE - stays
+_CONFIG = config_loader.CONFIG_DIR            # committed CONFIG - moves later
+
 _LESSONS_FILE = _HARNESS / "lessons.jsonl"
 _PROPOSALS_DIR = _HARNESS / "improvement-proposals"
-_CRON_FILE = _HARNESS / "cron-triggers.json"
+_CRON_FILE = _CONFIG / "cron-triggers.json"
 
 # Categories that map to skill updates vs CLAUDE.md sections
 _SKILL_CATEGORIES = {"security", "architecture", "claude", "deployment"}

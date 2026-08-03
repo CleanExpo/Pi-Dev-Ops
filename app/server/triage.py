@@ -27,13 +27,20 @@ from typing import Any
 
 from app.server.scanner import Finding, ScanResult
 import app.server.config  # noqa: F401 — triggers dotenv load for standalone runs
+from app.server import config_loader
 
 log = logging.getLogger("pi-ceo.triage")
 
 # ─── paths ────────────────────────────────────────────────────────────────────
 
-_HARNESS = Path(__file__).parent.parent.parent / ".harness"
-_PROJECTS_FILE = _HARNESS / "projects.json"
+# SPLIT — config and runtime state no longer share a base.
+# These four lines used to hang off one `_HARNESS`, so repointing config would silently drag
+# the state files with it. They are different in kind: config is committed and reviewed,
+# state is generated and gitignored. Commit 2 repoints _CONFIG only, via config_loader.
+_HARNESS = Path(__file__).parent.parent.parent / ".harness"   # runtime STATE — stays
+_CONFIG = config_loader.CONFIG_DIR                            # committed CONFIG — moves later
+
+_PROJECTS_FILE = _CONFIG / "projects.json"
 _CACHE_FILE = _HARNESS / "triage-cache.json"
 _AUTONOMY_LOG = _HARNESS / "autonomy.jsonl"
 
