@@ -21,7 +21,13 @@ import pytest
 # Moved to the tracked config/harness/ on 2026-08-03. These 16 tests errored at setup with
 # "Registry missing" because #607 untracked .harness/, so the file was absent from a clean
 # clone and the suite proved nothing about the registry it exists to check.
-REGISTRY_PATH = Path(__file__).resolve().parent.parent / "config" / "harness" / "notebooklm-registry.json"
+#
+# Resolved through config_loader rather than rebuilt here. Restating the location is what let
+# the path drift last time, and a test that hard-codes it would keep passing against the old
+# location after a move — asserting on a file nothing reads.
+from app.server import config_loader  # noqa: E402
+
+REGISTRY_PATH = config_loader.NOTEBOOKLM_REGISTRY_JSON
 
 REQUIRED_ACTIVE_FIELDS = {
     "id", "entity", "name", "purpose", "sources",
