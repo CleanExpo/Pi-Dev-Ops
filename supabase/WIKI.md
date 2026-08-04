@@ -1,13 +1,12 @@
 # supabase — Wiki
 
-_Last updated: 2026-08-03T17:17:32Z (commits 217cae1..1f547af)_
+_Last updated: 2026-08-04T09:01:48Z (commits 1603449..e47d4d1)_
 
 ## Recent changes
-- 1f547af — feat(lessons): cross-deploy durability — write-through + boot hydration (RA-7111) (#621)
+- e47d4d1 — fix(supabase): make migration.sql truly re-runnable (RA-7117) (#622)
 
 ## Architecture (current)
 Auto-stub: `supabase/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- supabase/README.md — touched in recent commits
 - supabase/migration.sql — touched in recent commits
