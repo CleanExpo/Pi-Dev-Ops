@@ -1,12 +1,12 @@
 # scripts — Wiki
 
-_Last updated: 2026-08-03T17:02:22Z (commits b497f1c..63f2bb1)_
+_Last updated: 2026-08-04T12:08:37Z (commits eb964ae..12b95e1)_
 
 ## Recent changes
-- 63f2bb1 — fix(smoke): deploy-level seed-presence check that cannot lie (RA-7108) (#620)
+- 12b95e1 — fix(supabase): split durable lessons migration (RA-7119) (#623)
 
 ## Architecture (current)
 Auto-stub: `scripts/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- scripts/smoke_test.py — touched in recent commits
+- scripts/test_lessons_durable_migration.py — touched in recent commits
