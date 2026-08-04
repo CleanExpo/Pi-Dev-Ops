@@ -1,5 +1,15 @@
 -- Pi CEO — Supabase Schema Migration
 -- Run this in the Supabase SQL Editor: https://supabase.com/dashboard/project/_/sql
+-- Via psql, plain `psql -f` also works: the transaction below makes any error abort
+-- the whole run, so a partial migration can never commit (RA-7117 review, P1-1).
+
+-- One transaction for the whole file. Two properties depend on it:
+--   1. Fail-fast: after any error every later statement (including the completion
+--      marker) fails too, so the marker can only print for a COMPLETE run.
+--   2. Atomic policy replacement: each DROP POLICY below would otherwise commit
+--      before its CREATE, leaving concurrent readers a window of RLS default-deny
+--      on a live database (RA-7117 review, P1-2).
+BEGIN;
 
 -- ── settings ─────────────────────────────────────────────────────────────────
 -- Key/value store for app credentials and config (GitHub token, API keys, etc.)
@@ -61,7 +71,9 @@ CREATE INDEX IF NOT EXISTS sessions_repo_name_idx  ON sessions (repo_name);
 CREATE INDEX IF NOT EXISTS sessions_status_idx     ON sessions (status);
 
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "public_read" ON sessions;
 CREATE POLICY "public_read"    ON sessions FOR SELECT USING (true);
+DROP POLICY IF EXISTS "service_write" ON sessions;
 CREATE POLICY "service_write"  ON sessions FOR INSERT TO service_role WITH CHECK (true);
 DROP POLICY IF EXISTS "service_update" ON sessions;
 CREATE POLICY "service_update" ON sessions FOR UPDATE TO service_role USING (true);
@@ -102,6 +114,7 @@ CREATE TABLE IF NOT EXISTS terminal_lines (
 CREATE INDEX IF NOT EXISTS terminal_lines_session_idx ON terminal_lines (session_id, seq);
 
 ALTER TABLE terminal_lines ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "public_read" ON terminal_lines;
 CREATE POLICY "public_read"    ON terminal_lines FOR SELECT USING (true);
 DROP POLICY IF EXISTS "service_insert" ON terminal_lines;
 CREATE POLICY "service_insert" ON terminal_lines FOR INSERT TO service_role WITH CHECK (true);
@@ -119,6 +132,7 @@ CREATE TABLE IF NOT EXISTS phase_states (
 );
 
 ALTER TABLE phase_states ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "public_read" ON phase_states;
 CREATE POLICY "public_read"    ON phase_states FOR SELECT USING (true);
 DROP POLICY IF EXISTS "service_insert" ON phase_states;
 CREATE POLICY "service_insert" ON phase_states FOR INSERT TO service_role WITH CHECK (true);
@@ -147,6 +161,7 @@ CREATE INDEX IF NOT EXISTS gate_checks_checked_at_idx  ON gate_checks (checked_a
 CREATE INDEX IF NOT EXISTS gate_checks_pipeline_id_idx ON gate_checks (pipeline_id);
 
 ALTER TABLE gate_checks ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "public_read" ON gate_checks;
 CREATE POLICY "public_read"    ON gate_checks FOR SELECT USING (true);
 DROP POLICY IF EXISTS "service_insert" ON gate_checks;
 CREATE POLICY "service_insert" ON gate_checks FOR INSERT TO service_role WITH CHECK (true);
@@ -200,6 +215,7 @@ CREATE INDEX IF NOT EXISTS alert_escalations_unacked_idx
   WHERE telegram_sent = TRUE AND escalated = FALSE AND acked = FALSE;
 
 ALTER TABLE alert_escalations ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "public_read" ON alert_escalations;
 CREATE POLICY "public_read"    ON alert_escalations FOR SELECT USING (true);
 DROP POLICY IF EXISTS "service_insert" ON alert_escalations;
 CREATE POLICY "service_insert" ON alert_escalations FOR INSERT TO service_role WITH CHECK (true);
@@ -298,6 +314,7 @@ CREATE INDEX IF NOT EXISTS notebooklm_health_failures_idx
   WHERE status != 'ok';
 
 ALTER TABLE notebooklm_health ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "public_read" ON notebooklm_health;
 CREATE POLICY "public_read"    ON notebooklm_health FOR SELECT USING (true);
 DROP POLICY IF EXISTS "service_insert" ON notebooklm_health;
 CREATE POLICY "service_insert" ON notebooklm_health FOR INSERT TO service_role WITH CHECK (true);
@@ -425,3 +442,11 @@ CREATE INDEX IF NOT EXISTS lessons_durable_created_at_idx ON lessons_durable (cr
 ALTER TABLE lessons_durable ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "service_only" ON lessons_durable;
 CREATE POLICY "service_only" ON lessons_durable FOR ALL TO service_role USING (true);
+
+-- Completion marker (RA-7117): the historical failure mode was an unguarded
+-- CREATE POLICY aborting a re-run midway, leaving a silent partial migration.
+-- A full run now always ends by returning this row. It sits INSIDE the transaction
+-- on purpose: after any earlier error the transaction is aborted, this SELECT fails
+-- with it, and nothing was committed — no fail-fast flag required of the operator.
+SELECT 'migration complete' AS status;
+COMMIT;
