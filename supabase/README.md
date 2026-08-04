@@ -1,16 +1,27 @@
 # Pi-CEO Supabase schema
 
-Single migration file: [`migration.sql`](./migration.sql) — all
-`CREATE TABLE IF NOT EXISTS …` so it's safe to re-run any number of times.
-(No line count here on purpose: counts in prose go stale silently.)
+The schema has two independently re-runnable entry points:
+
+- [`migration.sql`](./migration.sql) — the general Pi-CEO schema.
+- [`migrations/20260804190000_lessons_durable.sql`](./migrations/20260804190000_lessons_durable.sql)
+  — only the durable lesson store required by RA-7111.
+
+Both files run in their own transaction and replace policies atomically. Neither
+file invokes the other or applies itself to a database.
 
 ## When to run it
 
-- **First deploy to a new Supabase project** — required, otherwise the few
-  fire-and-forget logger calls in `supabase_log.py` will warn-and-skip on
-  every invocation (non-fatal but noisy).
-- **After adding a new table** to the migration — re-run; idempotency guards
-  the existing rows.
+- **Complete new project:** run `migration.sql` first, then the ordered
+  `20260804190000_lessons_durable.sql` migration. Re-running either file is safe.
+- **Add durable lessons to an existing project:** run only
+  `20260804190000_lessons_durable.sql`. It preserves an existing table and rows
+  created by the former bundled definition while reconciling its index, RLS and
+  `service_only` policy.
+- **Lessons-only sandbox or service:** the standalone migration can run against
+  an otherwise empty Supabase/PostgreSQL database; it has no table dependency on
+  `migration.sql`.
+- **After adding another general table:** re-run `migration.sql`; idempotency
+  guards existing rows.
 
 ## How to run
 
@@ -18,23 +29,28 @@ Single migration file: [`migration.sql`](./migration.sql) — all
 
 1. Open the Supabase project's SQL Editor:
    `https://supabase.com/dashboard/project/<PROJECT_REF>/sql/new`
-2. Paste the contents of `migration.sql`
+2. Paste the contents of the required file from the ordering above.
 3. Hit **Run**
 
-### Option 2 — Supabase MCP / CLI
+### Option 2 — psql (CI / programmatic)
 
 ```bash
-# Via supabase CLI (assumes `supabase login` done)
-supabase db push --include-all --project-ref <PROJECT_REF>
-```
-
-### Option 3 — psql (CI / programmatic)
-
-```bash
-PGPASSWORD=$SUPABASE_DB_PASSWORD psql \
+PGPASSWORD=$SUPABASE_DB_PASSWORD psql -X -v ON_ERROR_STOP=1 \
   "postgresql://postgres@db.<PROJECT_REF>.supabase.co:5432/postgres" \
-  -f supabase/migration.sql
+  -f supabase/migrations/20260804190000_lessons_durable.sql
 ```
+
+Use `-f supabase/migration.sql` instead when applying the general schema.
+Do not use `supabase db push --include-all` to target only durable lessons: that
+command can apply other pending files from `supabase/migrations/` as well.
+
+## Rollback awareness
+
+These are forward-only schema migrations. If application rollout is reverted,
+leave `lessons_durable` and its rows in place; the unused table is harmless and
+retains institutional-memory data for a later retry. Do not automate `DROP TABLE`
+as rollback. Removing the table or rows is a destructive production data action
+that requires a separately approved backup and operator plan.
 
 ## Which tables matter
 
