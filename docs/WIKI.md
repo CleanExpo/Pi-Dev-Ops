@@ -15,3 +15,4 @@ Auto-stub: `docs/` had 1 recent commits. SDK unavailable for synthesis.
 - docs/OPERATING-CONTRACT.md — touched in recent commits
 - docs/PLAN-command-centre-build-2026-08-01.md — touched in recent commits
 - docs/PLAN-command-centre-consolidation-2026-08-01.md — touched in recent commits
+
