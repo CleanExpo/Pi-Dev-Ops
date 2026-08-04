@@ -18,8 +18,9 @@ file invokes the other or applies itself to a database.
   created by the former bundled definition while reconciling its index, RLS and
   `service_only` policy.
 - **Lessons-only sandbox or service:** the standalone migration can run against
-  an otherwise empty Supabase/PostgreSQL database; it has no table dependency on
-  `migration.sql`.
+  an otherwise empty Supabase database; it has no table dependency on
+  `migration.sql`. A plain PostgreSQL fixture must first create the Supabase
+  `service_role`, as the sandbox verifier does.
 - **After adding another general table:** re-run `migration.sql`; idempotency
   guards existing rows.
 

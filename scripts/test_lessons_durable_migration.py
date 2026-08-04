@@ -61,7 +61,7 @@ class Sandbox:
         options = f"-F -p {self.port} -k {self.socket} -h ''"
         self.run([postgres_bin("pg_ctl"), "-D", str(self.data), "-l", str(self.log), "-o", options, "-w", "start"])
         self.running = True
-        self.sql("postgres", "CREATE ROLE service_role NOLOGIN;")
+        self.sql("postgres", "CREATE ROLE service_role NOLOGIN; CREATE ROLE anon NOLOGIN;")
         print(f"SANDBOX target=local-unix-socket:{self.socket} port={self.port} shared=false production=false")
 
     def stop(self) -> None:
@@ -116,8 +116,17 @@ def assert_contract(box: Sandbox, database: str, expected_rows: str) -> None:
         f"{database}.primary_key",
     )
     expect(
-        box.sql(database, "SELECT to_regclass('public.lessons_durable_created_at_idx') IS NOT NULL;"),
-        "t",
+        box.sql(
+            database,
+            """SELECT count(*)
+               FROM pg_index i
+               JOIN pg_attribute a
+                 ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+               WHERE i.indexrelid = 'public.lessons_durable_created_at_idx'::regclass
+                 AND i.indrelid = 'public.lessons_durable'::regclass
+                 AND i.indnatts = 1 AND a.attname = 'created_at' AND NOT i.indisunique;""",
+        ),
+        "1",
         f"{database}.created_at_index",
     )
     expect(
@@ -138,6 +147,27 @@ def assert_contract(box: Sandbox, database: str, expected_rows: str) -> None:
         f"{database}.service_only_policy",
     )
     expect(box.sql(database, "SELECT count(*) FROM lessons_durable;"), expected_rows, f"{database}.row_count")
+
+
+def assert_access_contract(box: Sandbox, database: str) -> None:
+    box.sql(
+        database,
+        """GRANT USAGE ON SCHEMA public TO service_role, anon;
+           GRANT SELECT, INSERT, UPDATE, DELETE ON lessons_durable TO service_role;
+           GRANT SELECT ON lessons_durable TO anon;""",
+    )
+    service_output = box.sql(
+        database,
+        """SET ROLE service_role;
+           WITH inserted AS (
+             INSERT INTO lessons_durable (hash, line)
+             VALUES ('access-probe', jsonb_build_object('lesson', 'service role allowed'))
+             RETURNING hash
+           ) SELECT hash FROM inserted;""",
+    )
+    expect(service_output.splitlines()[-1], "access-probe", f"{database}.service_role_write")
+    anon_output = box.sql(database, "SET ROLE anon; SELECT count(*) FROM lessons_durable;")
+    expect(anon_output.splitlines()[-1], "0", f"{database}.anon_default_deny")
 
 
 def main() -> int:
@@ -163,6 +193,7 @@ def main() -> int:
             box.apply("lessons_only", LESSONS, 1)
             box.apply("lessons_only", LESSONS, 2)
             assert_contract(box, "lessons_only", "0")
+            assert_access_contract(box, "lessons_only")
 
             box.create_database("legacy_upgrade")
             box.sql(

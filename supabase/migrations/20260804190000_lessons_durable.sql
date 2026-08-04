@@ -1,8 +1,9 @@
 -- RA-7119 — standalone durable lesson store migration
 --
 -- This forward-only migration deliberately has no dependency on migration.sql.
--- It can create the RA-7111 store in an otherwise empty Supabase/PostgreSQL
--- database, or reconcile the exact table formerly bundled in migration.sql.
+-- It can create the RA-7111 store in an otherwise empty Supabase database, or
+-- reconcile the exact table formerly bundled in migration.sql. A plain PostgreSQL
+-- fixture must first provide Supabase's service_role.
 -- Existing rows are never deleted or rewritten.
 BEGIN;
 
