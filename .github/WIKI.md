@@ -1,13 +1,12 @@
 # .github — Wiki
 
-_Last updated: 2026-08-03T17:02:22Z (commits b497f1c..63f2bb1)_
+_Last updated: 2026-08-07T04:28:56Z (commits 70c7369..015e436)_
 
 ## Recent changes
-- 63f2bb1 — fix(smoke): deploy-level seed-presence check that cannot lie (RA-7108) (#620)
+- 015e436 — fix(ci): install PyYAML for DNS takeover scan (#627)
 
 ## Architecture (current)
 Auto-stub: `.github/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- .github/smoke-surfaces.json — touched in recent commits
-- .github/workflows/smoke_test.yml — touched in recent commits
+- .github/workflows/dns_takeover_scan.yml — touched in recent commits
