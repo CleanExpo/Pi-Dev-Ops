@@ -17,6 +17,8 @@
  * Both functions throw on failure. The render entry point catches and exits 1.
  */
 import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 import type { Storyboarded } from './voiceover';
 
 // ── pre-flight ─────────────────────────────────────────────────────────────
@@ -87,9 +89,40 @@ interface ProbeResult {
   hasAudio: boolean;
 }
 
+/**
+ * Locate an ffprobe binary.
+ *
+ * Remotion ships one inside its platform-specific compositor package, so a
+ * render that just succeeded always has a usable ffprobe on disk. Shelling out
+ * to a bare `ffprobe` made this step depend on a system ffmpeg install that is
+ * absent from most CI images and containers — the probe then threw ENOENT and
+ * the job reported FAILED on an MP4 that had rendered correctly.
+ *
+ * Resolution order: explicit override, Remotion's bundled binary, then PATH.
+ */
+function resolveFfprobe(): string {
+  if (process.env.FFPROBE_PATH) return process.env.FFPROBE_PATH;
+
+  // @remotion/compositor-<platform>-<arch>-<libc>; the exact name varies, so
+  // match on the prefix rather than hardcoding one platform.
+  const remotionScope = path.join(process.cwd(), 'node_modules', '@remotion');
+  try {
+    const bundled = fs
+      .readdirSync(remotionScope)
+      .filter((dir) => dir.startsWith('compositor-'))
+      .map((dir) => path.join(remotionScope, dir, 'ffprobe'))
+      .find((candidate) => fs.existsSync(candidate));
+    if (bundled) return bundled;
+  } catch {
+    // node_modules/@remotion missing — fall through to PATH.
+  }
+
+  return 'ffprobe';
+}
+
 function probeMp4(mp4Path: string): ProbeResult {
   const json = execFileSync(
-    'ffprobe',
+    resolveFfprobe(),
     [
       '-v', 'error',
       '-show_entries', 'stream=codec_type,duration:format=duration',

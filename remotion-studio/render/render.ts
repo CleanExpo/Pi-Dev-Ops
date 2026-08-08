@@ -91,10 +91,26 @@ async function main() {
 
   // 5. Pick the composition.
   console.log(`[render] selecting composition ${args.comp}`);
+  /*
+   * Allow a pre-installed Chromium to be used instead of the one Remotion
+   * downloads on first render.
+   *
+   * Without this the renderer always fetches Chrome Headless Shell from
+   * remotion.media, which fails outright anywhere egress is restricted:
+   *
+   *   Error: Received a status code of 403 while downloading ...
+   *   Host not in allowlist: remotion.media.
+   *
+   * Remotion offers no environment-variable fallback for `browserExecutable`,
+   * so it has to be threaded through explicitly. Unset, behaviour is unchanged.
+   */
+  const browserExecutable = process.env.REMOTION_BROWSER_EXECUTABLE || null;
+
   const composition = await selectComposition({
     serveUrl,
     id: args.comp,
     inputProps: args.props,
+    browserExecutable,
   });
 
   // 6. Render.
@@ -108,6 +124,7 @@ async function main() {
     inputProps: args.props,
     concurrency: 4,
     pixelFormat: 'yuv420p',
+    browserExecutable,
   });
   console.log(`[render] done: ${args.out}`);
 
