@@ -26,9 +26,19 @@
 // service-role client that bypasses RLS. Proven and closed in
 // __tests__/command-centre-auth-coverage.test.ts — which now fails if the prefix is
 // ever removed, so this comment cannot rot back into a false claim silently.
+//
+// WRONG SUPABASE PROJECT, separately from the above. wiki_pages lives in the
+// Unite-Group production project (lksfwktwtmyznckodsau — see
+// scripts/sync_wiki_to_supabase.py, the writer), not in Pi CEO's own project
+// (zbryrmxmgfmslqzizsto), which is what lib/supabase/server.ts's createServerClient()
+// reaches. This route used that client anyway, so every request hit the wrong
+// project's PostgREST endpoint for a table it doesn't have, got a 404 back, and
+// surfaced it to callers as a bare 500 with nothing pointing at the real cause.
+// Fixed by giving this route its own client scoped to the Unite-Group project —
+// lib/supabase/unite-group-server.ts.
 
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import { createUniteGroupServerClient } from "@/lib/supabase/unite-group-server";
 import { buildWikiGraph, type WikiPageRow } from "@/lib/command-centre/wiki-graph";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +49,7 @@ const WIKI_PAGES_LIMIT = 1000;
 
 export async function GET(): Promise<Response> {
   try {
-    const supabase = createServerClient();
+    const supabase = createUniteGroupServerClient();
 
     const { data, error } = await supabase
       .from("wiki_pages")

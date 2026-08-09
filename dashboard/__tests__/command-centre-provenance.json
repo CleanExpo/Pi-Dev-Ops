@@ -162,12 +162,12 @@
       "judgment": "no-source-baseline",
       "note": "The route is REBUILT, not ported, so there is no source import to compare. Surfaced only after importGraph() was seeded from app/api/command-centre as well as the pages — before that the route's imports were outside the graph entirely."
     },
-    "app/api/command-centre/wiki-graph/route.ts :: @/lib/supabase/server": {
-      "specifier": "@/lib/supabase/server",
+    "app/api/command-centre/wiki-graph/route.ts :: @/lib/supabase/unite-group-server": {
+      "specifier": "@/lib/supabase/unite-group-server",
       "resolves_in_source": "n/a: this file has no source baseline (_rebuilt_not_ported)",
-      "resolves_in_target": "file: lib/supabase/server.ts",
+      "resolves_in_target": "file: lib/supabase/unite-group-server.ts",
       "judgment": "no-source-baseline",
-      "note": "The privilege-sensitive one, and the reason this gap mattered rather than being bookkeeping. The source route imports getUser+createClient from ITS @/lib/supabase/server: anon-key, RLS-enforced, per-user. The identical specifier resolves here to a service-role client that bypasses RLS. That divergence is the whole reason the route was rebuilt instead of ported - and until the graph was seeded from the API directory, this import could have been changed with nothing to declare and nothing to fail."
+      "note": "Was @/lib/supabase/server (Pi-CEO-scoped service-role client, zbryrmxmgfmslqzizsto) until the wrong-project bug was found: wiki_pages lives in the Unite-Group prod project (lksfwktwtmyznckodsau), so every read 404'd upstream and surfaced as an opaque 500. Repointed to a client scoped to the correct project. Still privilege-sensitive (service-role, bypasses RLS) - that property did not change, only which project it reaches."
     },
     "app/api/command-centre/wiki-graph/route.ts :: @/lib/command-centre/wiki-graph": {
       "specifier": "@/lib/command-centre/wiki-graph",
@@ -183,19 +183,12 @@
       "judgment": "no-source-baseline",
       "note": "The command-centre index is NEW in the target, so there is no source import to compare this against. Surfaced by the map-vs-reality check: it was reachable in the capability graph and carried no judgment at all."
     },
-    "lib/supabase/server.ts :: @supabase/ssr": {
-      "specifier": "@supabase/ssr",
-      "resolves_in_source": "n/a: this file has no source baseline (_target_native)",
-      "resolves_in_target": "package: @supabase/ssr",
-      "judgment": "no-source-baseline",
-      "note": "Pre-existing file of this app. No source equivalent, so no cross-app import judgment is possible. Worth stating plainly: this is the module behind the SERVICE-ROLE client that bypasses RLS, and until the map-vs-reality check existed its imports carried no declared judgment despite being the most privilege-sensitive file in the graph."
-    },
-    "lib/supabase/server.ts :: @supabase/supabase-js": {
+    "lib/supabase/unite-group-server.ts :: @supabase/supabase-js": {
       "specifier": "@supabase/supabase-js",
       "resolves_in_source": "n/a: this file has no source baseline (_target_native)",
       "resolves_in_target": "package: @supabase/supabase-js",
       "judgment": "no-source-baseline",
-      "note": "Same as @supabase/ssr above — target-native, no source counterpart to compare."
+      "note": "New file, target-native (see _target_native entry). Same npm package lib/supabase/server.ts already uses, pointed at a different project's URL/key pair at call time."
     },
     "components/command-centre/wiki-graph/WikiGraphTile.tsx :: react": {
       "specifier": "react",
@@ -260,12 +253,12 @@
       "judgment": "same",
       "note": "same npm package, version matched to the baseline"
     },
-    "app/(main)/command-centre/wiki-graph/page.tsx :: @/lib/supabase/server": {
-      "specifier": "@/lib/supabase/server",
-      "resolves_in_source": "file: lib/supabase/server.ts",
-      "resolves_in_target": "file: lib/supabase/server.ts",
+    "app/(main)/command-centre/wiki-graph/page.tsx :: @/lib/supabase/unite-group-server": {
+      "specifier": "@/lib/supabase/unite-group-server",
+      "resolves_in_source": "n/a: this file has no source baseline for this specifier (the source's @/lib/supabase/server import was replaced, see note)",
+      "resolves_in_target": "file: lib/supabase/unite-group-server.ts",
       "judgment": "different-but-checked",
-      "note": "THE drift case. Source: anon-key, RLS-enforced, per-user (getUser + createClient). Target: service-role, no per-user identity. Handled by REBUILDING the page data access against createServerClient and removing the getUser/redirect gate, since auth is enforced upstream by proxy.ts. Not a silent substitution - the divergence is the reason for the rebuild."
+      "note": "THE drift case, still. Source: anon-key, RLS-enforced, per-user (getUser + createClient) against the source's own project. First rebuild pointed this app's data access at createServerClient() (this app's Pi-CEO-scoped service-role client, zbryrmxmgfmslqzizsto) - typechecked, ran, and was wrong: wiki_pages lives in the Unite-Group prod project (lksfwktwtmyznckodsau), so every read 404'd upstream and surfaced as an opaque 500 with nothing pointing at the real cause. Repointed to createUniteGroupServerClient(), scoped to the correct project. Not a silent substitution either time - both the auth-model divergence and the wrong-project bug are the reasons this file keeps needing rebuilding instead of a straight port."
     },
     "app/(main)/command-centre/wiki-graph/page.tsx :: @/lib/command-centre/wiki-graph": {
       "specifier": "@/lib/command-centre/wiki-graph",
@@ -381,7 +374,7 @@
     "components/command-centre/cost-allocation/CostAllocationTile.tsx": "Not assessed for capability 4's read-only half. Out of scope until its data sources are traced the way provider-usage's were; not omitted on a safety finding, omitted because it is unexamined."
   },
   "_target_native": {
-    "lib/supabase/server.ts": "Pre-existing file of THIS app, not ported and not rebuilt for the migration. It is in the capability graph because the rebuilt wiki-graph page imports it. No source baseline applies; diff-relative comparison is meaningless for it."
+    "lib/supabase/unite-group-server.ts": "NEW file of THIS app, added to fix a real production bug: wiki_pages lives in the Unite-Group prod Supabase project (lksfwktwtmyznckodsau), not Pi CEO's own project (zbryrmxmgfmslqzizsto) that lib/supabase/server.ts reaches. The wiki-graph route and page were both calling the wrong client (lib/supabase/server.ts — no longer in this capability's import graph now that both call sites were repointed), so every read hit the wrong project's PostgREST endpoint, got a 404, and surfaced as an opaque 500. This file gives wiki-graph its own client scoped to the correct project. No source baseline applies; diff-relative comparison is meaningless for it."
   },
   "_declared_deltas": {
     "app/(main)/command-centre/wiki-graph/page.tsx": {
@@ -393,8 +386,8 @@
       },
       "database client": {
         "from": 1,
-        "to": 2,
-        "reason": "EXPECTED. `await createClient()` (anon-key, RLS-enforced) replaced by `createServerClient()` (this app's client). The count reaches 2 rather than 1 because the tracked regex matches both the import specifier and the call site of the renamed function - one client counted twice, not a second client appearing. Bounded to exactly 1 -> 2: a genuine additional client in this file reads 1 -> 3 and still fails. What this exemption explicitly does NOT excuse is the privilege change - the target client is service-role and bypasses RLS, which is precisely why the auth gate above had to be re-established at the proxy layer instead of declared away."
+        "to": 0,
+        "reason": "History: `await createClient()` (anon-key, RLS-enforced) was first replaced by `createServerClient()` (this app's Pi-CEO-scoped client), which read 1 -> 2 under the tracked regex (import specifier + call site of the same renamed function, not two clients). That client turned out to reach the wrong Supabase project - wiki_pages lives in Unite-Group prod, not Pi CEO's project - so it was replaced again with `createUniteGroupServerClient()`. That name does not contain the literal substrings `createServerClient` or `createClient(`, so the tracked regex now counts 0 in this file: not because the client disappeared, but because the count is textual, not semantic, and a renamed call site stops matching. A decrease is not flagged by the TRACKED test (it only fails on an increase), so this entry exists for documentation honesty, not to pass a check. What it does NOT excuse, either time: the privilege level. Both clients are service-role and bypass RLS - only which project is reached has changed."
       }
     }
   },
