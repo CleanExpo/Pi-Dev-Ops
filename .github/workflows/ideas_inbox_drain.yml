@@ -50,6 +50,9 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install dependencies
+        run: pip install pyyaml
+
       - name: Drain inbox
         env:
           LINEAR_API_KEY:      ${{ secrets.LINEAR_API_KEY }}
