@@ -143,8 +143,8 @@ async def test_fable_refusal_falls_back_to_opus_no_silent_success(monkeypatch):
             thinking="enabled",     # exercise the fable adaptive-only strip
         )
 
-    # Fable refused → one-shot retry on opus-4-8 → opus's success is returned.
-    assert seen_models == ["claude-fable-5", "claude-opus-4-8"]
+    # Fable refused → one-shot retry on opus-5 → opus's success is returned.
+    assert seen_models == ["claude-fable-5", "claude-opus-5"]
     assert rc == 0
     assert "APPROVE" in text
 
@@ -154,7 +154,7 @@ async def test_fable_refusal_falls_back_to_opus_no_silent_success(monkeypatch):
     assert fable_rows[0]["error"] == "refusal"
     assert fable_rows[0]["stop_reason"] == "refusal"
     assert fable_rows[0]["output_tokens"] == 12  # amplification field populated
-    opus_rows = [m for m in metrics if m["model"] == "claude-opus-4-8"]
+    opus_rows = [m for m in metrics if m["model"] == "claude-opus-5"]
     assert opus_rows and opus_rows[0]["success"] is True
     assert opus_rows[0]["output_tokens"] == 40
 
