@@ -53,8 +53,8 @@ Sum the axes (0–10), then apply floors — floors beat sums:
 |---|---|---|---|---|---|
 | **T0** | **0** — no Agent dispatch | n/a | 0 | judge rubric run inline by the spec author | micro-spec or direct answer; §7 = one line: `T0, no seats (F… I… N… X… S…) · rounds 0 · board_version: X.Y · leveling_version: X.Y` |
 | **T1** | 1–2 (most-relevant lens; add the disconfirming seat only if seat 1 is not a clean `pass`) | Sonnet 5, low/medium effort | 1 pass | inline judge rubric | full or micro-spec |
-| **T2** | 3–4, **≥1 mandatorily disconfirming (judge seat)** | Sonnet 5 default; security/architect seats Opus 4.8 | max 2 | divergence measured (§4); sandbox-policy compliance stated in §13–14 | full 19-section spec |
-| **T3** | 6–8 + **adversarial verify pass** (non-author model, opus-adversary style — a pass, not a seat) | synthesis/security/adversary Opus 4.8 at high effort; rest Sonnet 5 | max 2 | flip-test folded into §8; §13–14 **must name the container strategy** (sandbox-policy.md) | full spec, hard-floor rules active |
+| **T2** | 3–4, **≥1 mandatorily disconfirming (judge seat)** | Sonnet 5 default; security/architect seats Opus 5 | max 2 | divergence measured (§4); sandbox-policy compliance stated in §13–14 | full 19-section spec |
+| **T3** | 6–8 + **adversarial verify pass** (non-author model, opus-adversary style — a pass, not a seat) | synthesis/security/adversary Opus 5 at high effort; rest Sonnet 5 | max 2 | flip-test folded into §8; §13–14 **must name the container strategy** (sandbox-policy.md) | full spec, hard-floor rules active |
 
 ## 4. Divergence measurement
 
@@ -77,7 +77,7 @@ Both numbers are printed in §7.
 | **Consensus** | split = 0, all `pass`, no must_fix | **RAMP DOWN**: early-exit, skip round 2, synthesize now |
 | **Unanimous criticism** | split = 0 with non-`pass` verdicts (any overlap) | fold ALL must_fix, synthesize, no round 2 — round 2 exists to resolve contradictions, not unanimity |
 | **Convergent criticism** | split ≤ 0.25 AND overlap ≥ 0.5 | fold the agreed must_fix into the spec; no round 2 |
-| **Divergent** | split ≥ 0.5, OR (overlap < 0.2 AND ≥1 non-pass) | **RAMP UP**: escalate synthesis to Opus 4.8; add the judge seat if absent; run round 2 (final); round-2 briefs carry peers' round-1 must_fix (cooperation gate) |
+| **Divergent** | split ≥ 0.5, OR (overlap < 0.2 AND ≥1 non-pass) | **RAMP UP**: escalate synthesis to Opus 5; add the judge seat if absent; run round 2 (final); round-2 briefs carry peers' round-1 must_fix (cooperation gate) |
 | **Hard floor** | any `fail` with confidence ≥ 0.8 from the security seat, or on an irreversibility finding | the spec **cannot reach APPROVE BUILD 100/100** until the finding is resolved — regardless of the other seats' consensus |
 
 Additional ramp triggers:

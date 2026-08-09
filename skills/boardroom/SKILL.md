@@ -31,7 +31,7 @@ Returns `answer`, `panel` (verbatim per model), `min_pairwise_similarity`, `esca
 
 - Panellists: `deepseek/deepseek-v4-flash`, `anthropic/claude-sonnet-5`
 - Synthesiser: `anthropic/claude-sonnet-5`
-- Escalation (Jaccard &lt; 0.35): `anthropic/claude-opus-4-8`
+- Escalation (Jaccard &lt; 0.35): `anthropic/claude-opus-5`
 
 ## Hard rules
 

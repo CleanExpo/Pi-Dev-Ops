@@ -3,7 +3,7 @@
 // When a new model is released, update ONLY this file.
 // All routes import from here — no more hunting through 6 files.
 //
-// As of July 01 2026: Opus 4.8 · Sonnet 5 · Haiku 4.5
+// As of Aug 09 2026: Opus 5 · Sonnet 5 · Haiku 4.5
 // Tier logic:
 //   ANALYST      — intelligence-heavy tasks: scoring, planning, narrative, ZTE
 //   WORKER       — fast/cheap tasks: file listing, inventory, summarisation
@@ -12,7 +12,7 @@
 export const MODELS = {
   // ── Tier 1: Full intelligence ────────────────────────────────────────────────
   ANALYST:      (process.env.ANALYST_MODEL      ?? "claude-sonnet-5").trim(),
-  ORCHESTRATOR: (process.env.ORCHESTRATOR_MODEL ?? "claude-opus-4-8").trim(),
+  ORCHESTRATOR: (process.env.ORCHESTRATOR_MODEL ?? "claude-opus-5").trim(),
 
   // ── Tier 2: Fast/cheap tasks ─────────────────────────────────────────────────
   WORKER:       (process.env.WORKER_MODEL       ?? "claude-haiku-4-5-20251001").trim(),
@@ -34,7 +34,7 @@ export function refusalFallback(model: string): {
     return { params: {}, options: {} };
   }
   return {
-    params: { fallbacks: [{ model: "claude-opus-4-8" }] },
+    params: { fallbacks: [{ model: "claude-opus-5" }] },
     options: { headers: { "anthropic-beta": "server-side-fallback-2026-06-01" } },
   };
 }

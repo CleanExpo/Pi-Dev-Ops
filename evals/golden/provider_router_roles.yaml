@@ -4,31 +4,31 @@
 # the router with the Fable-Free ladder, update these expectations in the same PR.
 # Ground-truthed 2026-07-08 against app/server/provider_router.py.
 cases:
-  # TOP tier — Anthropic Opus 4.8 (quality-critical reasoning)
+  # TOP tier — Anthropic Opus 5 (quality-critical reasoning)
   - role: planner
     tier: top
     provider: anthropic
-    model_id: claude-opus-4-8
+    model_id: claude-opus-5
   - role: orchestrator
     tier: top
     provider: anthropic
-    model_id: claude-opus-4-8
+    model_id: claude-opus-5
   - role: board
     tier: top
     provider: anthropic
-    model_id: claude-opus-4-8
+    model_id: claude-opus-5
   - role: debate.drafter
     tier: top
     provider: anthropic
-    model_id: claude-opus-4-8
+    model_id: claude-opus-5
   - role: margot.synthesis
     tier: top
     provider: anthropic
-    model_id: claude-opus-4-8
+    model_id: claude-opus-5
   - role: realtime_lookup
     tier: top
     provider: anthropic
-    model_id: claude-opus-4-8
+    model_id: claude-opus-5
   # MID tier — Anthropic Sonnet 5 (production-quality output)
   - role: generator
     tier: mid

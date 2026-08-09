@@ -149,7 +149,7 @@ def _make_classifier_with_anthropic(model: str) -> Callable[[str], list[Hit]]:
         # (HTTP 200, stop_reason="refusal"); retry on Opus server-side.
         fallback_kwargs = {
             "extra_headers": {"anthropic-beta": "server-side-fallback-2026-06-01"},
-            "extra_body": {"fallbacks": [{"model": "claude-opus-4-8"}]},
+            "extra_body": {"fallbacks": [{"model": "claude-opus-5"}]},
         }
 
     def _classify(text: str) -> list[Hit]:

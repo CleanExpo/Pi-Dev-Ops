@@ -186,7 +186,7 @@ CLAUDE_EXTRA_FLAGS   = [] if _INTERACTIVE else ["--dangerously-skip-permissions"
 ALLOWED_MODELS       = ["opus", "sonnet", "haiku", "fable"]
 
 # ── MODEL ROUTING POLICY (RA-1099 — hardwired 2026-04-17) ──────────────────
-# Opus 4.8 is reserved for Senior PM (planner) and Senior Orchestrator agents.
+# Opus 5 is reserved for Senior PM (planner) and Senior Orchestrator agents.
 # Every other agent role MUST use Sonnet 5 or Haiku 4.5.
 # Override via TAO_OPUS_ALLOWED_ROLES if you ever need to widen this — but the
 # default is strict by design (cost + latency).
@@ -196,7 +196,7 @@ OPUS_ALLOWED_ROLES   = set(
         "planner,orchestrator,adversary,portfolio",
     ).split(",")
 )
-# RA-1743 — `adversary` runs the pre-push opus-adversary review gate. Opus 4.8
+# RA-1743 — `adversary` runs the pre-push opus-adversary review gate. Opus 5
 # is required for genuine model-diversity vs Sonnet 5 generator/evaluator.
 # RA-1922 — `portfolio` is the role bucket for the cross-portfolio synthesis
 # (RA-1892, the "10x layer" of the daily Portfolio Pulse). session_sdk.py:127
@@ -210,7 +210,7 @@ OPUS_ALLOWED_ROLES   = set(
 # (no code redeploy needed). The .harness/config.yaml adversary model stays
 # 'opus', so this env var is the ONLY switch in either direction. When a role is
 # listed here, session_sdk resolves its effective model to claude-fable-5, strips
-# sampling params (adaptive-thinking-only), and falls back to claude-opus-4-8 on
+# sampling params (adaptive-thinking-only), and falls back to claude-opus-5 on
 # a refusal or model-unavailability error so the review never silently passes.
 FABLE_ALLOWED_ROLES  = set(filter(None, os.environ.get("TAO_FABLE_ALLOWED_ROLES", "").split(",")))
 # Long-form model IDs — SSOT in model_registry.py; re-exported here for legacy imports.

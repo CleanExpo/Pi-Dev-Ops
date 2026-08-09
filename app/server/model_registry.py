@@ -3,8 +3,8 @@
 Official reference:
   https://platform.claude.com/docs/en/about-claude/models/overview
 
-As of July 01 2026 (Anthropic "Latest models comparison"):
-  Opus   → claude-opus-4-8
+As of Aug 09 2026 (Anthropic "Latest models comparison"):
+  Opus   → claude-opus-5
   Sonnet → claude-sonnet-5
   Haiku  → claude-haiku-4-5-20251001  (alias: claude-haiku-4-5)
 
@@ -14,7 +14,7 @@ Mythos-class:
     (default empty = OFF); today that is the `adversary` pre-push review role
     only. Adaptive-thinking-only (no temperature/top_p/top_k/budget_tokens) and
     may return stop_reason="refusal" — the session_sdk fable path strips sampling
-    params and falls back to claude-opus-4-8 on a refusal/error.
+    params and falls back to claude-opus-5 on a refusal/error.
   claude-mythos-5 (Glasswing only) — still not wired.
 
 OpenRouter boardroom panellist:
@@ -27,7 +27,7 @@ DOCS_MODELS_OVERVIEW = "https://platform.claude.com/docs/en/about-claude/models/
 
 # ── Anthropic Messages API (direct / Agent SDK) ─────────────────────────────
 
-ANTHROPIC_OPUS = "claude-opus-4-8"
+ANTHROPIC_OPUS = "claude-opus-5"
 ANTHROPIC_SONNET = "claude-sonnet-5"
 ANTHROPIC_HAIKU = "claude-haiku-4-5-20251001"
 # RA-1099 Wave 3 — gated canary tier (adversary role only; env-flag off by default).
@@ -51,7 +51,7 @@ SHORT_TO_ANTHROPIC: dict[str, str] = {
 # ── OpenRouter slugs (provider/model) ───────────────────────────────────────
 
 OPENROUTER_SONNET = "anthropic/claude-sonnet-5"
-OPENROUTER_OPUS = "anthropic/claude-opus-4-8"
+OPENROUTER_OPUS = "anthropic/claude-opus-5"
 OPENROUTER_DEEPSEEK_FLASH = "deepseek/deepseek-v4-flash"
 
 # Tier-0 paid spill default (cheap JSON + tools)

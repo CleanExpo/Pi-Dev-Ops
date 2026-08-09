@@ -10,7 +10,7 @@ before running apply mode.
 - Scope: <full vault | area | single note>
 - Shortlist cap: 25 · Shortlisted: <n> · Batches: <n> × 5
 - Dropped by cap (re-run to cover): <list or "none">
-- Tiering: triage = Sonnet 5 via nexus; contested re-judgement = Opus 4.8; synthesis = Fable.
+- Tiering: triage = Sonnet 5 via nexus; contested re-judgement = Opus 5; synthesis = Fable.
   Per-dispatch session-handoff omitted (read-only research).
 
 ## Inventory
