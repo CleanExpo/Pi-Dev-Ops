@@ -38,15 +38,22 @@ interface Session {
 // metricKey is separate because _emit_phase_metric() calls use shorter strings for two
 // phases (session_phases.py:977/1005 write "generate", :1243 writes "evaluate") — a real,
 // pre-existing naming inconsistency between last_completed_phase and phase_metrics' keys.
-const ROLES: { key: string; metricKey: string; label: string }[] = [
-  { key: "clone", metricKey: "clone", label: "Clone" },
-  { key: "analyze", metricKey: "analyze", label: "Analyse workspace" },
-  { key: "claude_check", metricKey: "claude_check", label: "Claude check" },
-  { key: "sandbox", metricKey: "sandbox", label: "Sandbox verify" },
-  { key: "plan", metricKey: "plan", label: "Plan" },
-  { key: "generator", metricKey: "generate", label: "Generate (Claude)" },
-  { key: "evaluator", metricKey: "evaluate", label: "Evaluate" },
-  { key: "push", metricKey: "push", label: "Push branch" },
+// tracksMetrics is false for claude_check/sandbox: those phases mark completion
+// (session_phases.py:689,727 set last_completed_phase) but never call
+// _emit_phase_metric — there is no duration/cost data for them anywhere, and no way to
+// tell from session data whether they've ever run (last_completed_phase only holds a
+// session's single most recent value, not its full history). Showing "no runs recorded
+// yet" for these two would misleadingly imply they never executed, when the truth is
+// simply that this phase isn't individually measured — a distinct, honest state.
+const ROLES: { key: string; metricKey: string; label: string; tracksMetrics: boolean }[] = [
+  { key: "clone", metricKey: "clone", label: "Clone", tracksMetrics: true },
+  { key: "analyze", metricKey: "analyze", label: "Analyse workspace", tracksMetrics: true },
+  { key: "claude_check", metricKey: "claude_check", label: "Claude check", tracksMetrics: false },
+  { key: "sandbox", metricKey: "sandbox", label: "Sandbox verify", tracksMetrics: false },
+  { key: "plan", metricKey: "plan", label: "Plan", tracksMetrics: true },
+  { key: "generator", metricKey: "generate", label: "Generate (Claude)", tracksMetrics: true },
+  { key: "evaluator", metricKey: "evaluate", label: "Evaluate", tracksMetrics: true },
+  { key: "push", metricKey: "push", label: "Push branch", tracksMetrics: true },
 ];
 
 const ACTIVE_STATUSES = new Set([
@@ -67,12 +74,18 @@ function formatElapsed(startedUnix: number): string {
 interface RoleStatus {
   key: string;
   label: string;
-  state: "idle" | "never";
+  state: "idle" | "never" | "untracked";
   detail: string;
 }
 
 function deriveRoleStatuses(sessions: Session[]): RoleStatus[] {
-  return ROLES.map(({ key, metricKey, label }) => {
+  return ROLES.map(({ key, metricKey, label, tracksMetrics }) => {
+    if (!tracksMetrics) {
+      return {
+        key, label, state: "untracked",
+        detail: "not individually measured (no duration/cost metric for this phase)",
+      };
+    }
     // Most recently-started session that recorded a metric for this phase.
     const withMetric = sessions
       .filter((s) => s.phase_metrics && s.phase_metrics[metricKey])
@@ -88,7 +101,7 @@ function deriveRoleStatuses(sessions: Session[]): RoleStatus[] {
   });
 }
 
-function StateDot({ state }: { state: "idle" | "never" | "active" }) {
+function StateDot({ state }: { state: "idle" | "never" | "untracked" | "active" }) {
   const colour = state === "active" ? "var(--accent)" : state === "idle" ? "var(--success)" : "var(--text-dim)";
   return (
     <span
@@ -209,7 +222,7 @@ export default function AgentRolesPanel() {
             </span>
             <span
               className="text-[10px] font-mono ml-auto"
-              style={{ color: r.state === "never" ? "var(--text-dim)" : "var(--text-muted)" }}
+              style={{ color: r.state === "idle" ? "var(--text-muted)" : "var(--text-dim)" }}
             >
               {r.detail}
             </span>
