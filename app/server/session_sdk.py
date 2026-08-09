@@ -430,7 +430,7 @@ async def _run_claude_via_sdk(
 
     # RA-1099 Wave-3 ERROR-PATH FALLBACK — the Board requires that a fable
     # refusal OR a fable unavailability error retries the SAME call on
-    # claude-opus-4-8 before giving up, so the adversary pre-push gate never
+    # claude-opus-5 before giving up, so the adversary pre-push gate never
     # silently passes on an errored/refused review. One-shot retry only.
     if model == _fable_id and rc != 0:
         _log.warning(

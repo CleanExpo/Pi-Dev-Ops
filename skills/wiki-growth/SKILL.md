@@ -56,7 +56,7 @@ stages drafts in the sandbox; promotion out of it is a manual act by the pilot.
 4. **Synthesise** (this session, not a subagent) — merge batches, dedupe ideas that are the
    same proposal in different notes (mark the extras `Merge`), flag conflicts between
    batches rather than silently resolving, and escalate any *contested or high-stakes* row
-   (spend, prod change, new build) to a single Opus 4.8 re-judgement via `nexus`.
+   (spend, prod change, new build) to a single Opus 5 re-judgement via `nexus`.
    — *Done when: no duplicate rows and every contested row carries a second verdict.*
 5. **Report** — fill [`references/report-template.md`](references/report-template.md) and
    write it to `_system/wiki-growth/REPORT-<YYYY-MM-DD>.md`. End the turn with the
@@ -83,7 +83,7 @@ stages drafts in the sandbox; promotion out of it is a manual act by the pilot.
 
 - **Haiku 4.5** — none in v1 (inventory is Glob/Grep, cheaper than any dispatch).
 - **Sonnet 5** — default for batch-triage subagents (clear rubric, known pattern).
-- **Opus 4.8** — single-idea re-judgement of contested/high-stakes rows.
+- **Opus 5** — single-idea re-judgement of contested/high-stakes rows.
 - **Fable (this session)** — synthesis, dedupe, conflict calls, the report itself.
 
 Triage dispatches are pure read-only research: per the nexus skill's own step 7, the

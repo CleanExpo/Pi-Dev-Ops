@@ -29,9 +29,9 @@ describe("MODELS constants", () => {
     expect(MODELS.ANALYST).toBe("claude-sonnet-5");
   });
 
-  it("ORCHESTRATOR default is claude-opus-4-8", async () => {
+  it("ORCHESTRATOR default is claude-opus-5", async () => {
     const { MODELS } = await import("@/lib/models");
-    expect(MODELS.ORCHESTRATOR).toBe("claude-opus-4-8");
+    expect(MODELS.ORCHESTRATOR).toBe("claude-opus-5");
   });
 
   it("DEFAULT matches ANALYST (sonnet-5)", async () => {

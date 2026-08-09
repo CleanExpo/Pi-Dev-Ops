@@ -8,10 +8,10 @@ turns, intent classification, monitor cycles).
 
 Tier mapping (defaults; all overridable via env):
 
-  TIER 1 — TOP    Anthropic Opus 4.8
+  TIER 1 — TOP    Anthropic Opus 5
                   Roles: planner, orchestrator, board, debate.drafter,
                   debate.redteam, margot.synthesis (Phase 2)
-                  Env: TAO_TOP_MODEL=claude-opus-4-8
+                  Env: TAO_TOP_MODEL=claude-opus-5
 
   TIER 2 — MID    Anthropic Sonnet 5
                   Roles: generator, evaluator, senior-brief

@@ -13,7 +13,7 @@ Pi CEO uses a **Tiered Agent Orchestrator (TAO)** model with three Claude tiers:
 | Tier | Model | Role |
 |------|-------|------|
 | Flagship | Fable 5 (`claude-fable-5`) | Hardest planning, strategy synthesis, adversarial review |
-| Orchestrator | Opus 4.8 (`claude-opus-4-8`) | Plans, decomposes, reviews |
+| Orchestrator | Opus 5 (`claude-opus-5`) | Plans, decomposes, reviews |
 | Specialist | Sonnet 5 (`claude-sonnet-5`) | Complex features, code review |
 | Worker | Haiku 4.5 (`claude-haiku-4-5-20251001`) | Discrete tasks, fast execution |
 
@@ -154,7 +154,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 - **Backend:** Python 3.11+, FastAPI, Uvicorn, WebSockets
 - **Dashboard:** Next.js 16, React 19, TypeScript, Tailwind CSS
-- **AI:** Claude Max (Fable 5 / Opus 4.8 / Sonnet 4.6 / Haiku 4.5) via `claude_agent_sdk`
+- **AI:** Claude Max (Fable 5 / Opus 5 / Sonnet 5 / Haiku 4.5) via `claude_agent_sdk`
 - **Integrations:** @anthropic-ai/sdk, @octokit/rest, MCP (stdio), Linear, Supabase, Telegram
 - **Deployment:** Vercel (dashboard), Railway (backend, Docker)
 

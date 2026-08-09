@@ -129,7 +129,7 @@ def default_entitlements() -> dict[PlanId, PlanEntitlement]:
             plan_id="claude_max_1",
             monthly_request_budget=_env_int("TAO_FLEET_MAX1_MONTHLY_REQUESTS", 50_000),
             provider="claude_print",
-            model_id=(os.environ.get("TAO_TOP_MODEL") or "claude-opus-4-8").strip(),
+            model_id=(os.environ.get("TAO_TOP_MODEL") or "claude-opus-5").strip(),
             description="Primary Max workhorse",
         ),
         "claude_max_2": PlanEntitlement(

@@ -158,11 +158,20 @@ def assert_model_allowed(role: str, model_id_or_short: str) -> None:
     SDK — assert here before the call hits the wire.
     """
     short = model_id_or_short
-    # Map long-form IDs back to short names
-    for s, lid in config.MODEL_SHORT_TO_ID.items():
-        if model_id_or_short == lid:
-            short = s
-            break
+    # Map long-form IDs back to short names. Opus is matched by prefix, not exact
+    # equality against the current SSOT value — a retired Opus ID (e.g.
+    # claude-opus-4-8, superseded by claude-opus-5) must still be classified as
+    # "opus" for policy purposes, or it silently bypasses the opus-allowed-roles
+    # gate entirely (caught by independent review after the Opus 5 SSOT bump —
+    # exact-match classification left any caller still supplying the old literal
+    # ID unclassified, so it was never rejected).
+    if model_id_or_short.startswith("claude-opus-"):
+        short = "opus"
+    else:
+        for s, lid in config.MODEL_SHORT_TO_ID.items():
+            if model_id_or_short == lid:
+                short = s
+                break
     if short == "fable" and role not in config.FABLE_ALLOWED_ROLES:
         _record_violation(role=role, requested=model_id_or_short, granted="REJECTED",
                           reason="assert_model_allowed: fable canary not enabled for role")

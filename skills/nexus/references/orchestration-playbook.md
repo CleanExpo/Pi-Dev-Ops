@@ -114,11 +114,11 @@ calibrated tier. Reconcile their condensed returns — do not paste raw subagent
 answer.
 
 ### Tier ladder for dispatched seats (nexus calibration — Fable Free)
-Standing default is **Opus 4.8**, not Fable 5 — the estate flipped off a Fable-only substrate on
+Standing default is **Opus 5**, not Fable 5 — the estate flipped off a Fable-only substrate on
 2026-07-08 (`fable-free-orchestration-2026-07-08` in the vault). Fable 5 is an explicit per-route
 carve-out, never the ambient default. nexus is the control surface: it selects the seat model from
 this ladder and only reaches for Fable when the route is on the carve-out list below.
-- **Opus 4.8** — the standing orchestrator + final cross-seat synthesis / judgment seat, and the
+- **Opus 5** — the standing orchestrator + final cross-seat synthesis / judgment seat, and the
   security, architecture, adversarial/verification seats; ambiguity that is costly to get wrong.
 - **Sonnet 5** — default execution: recon, drafting, known-pattern work.
 - **Haiku 4.5** — mechanical, single-increment sub-tasks; escalate after 2 failed verify cycles.

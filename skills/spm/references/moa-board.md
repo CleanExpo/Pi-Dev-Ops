@@ -45,11 +45,11 @@ Each seat is defined with agent-workflow's 5-part contract (name · soul · job 
 | # | Seat | Lens (soul) | Default model | Seated when |
 |---|---|---|---|---|
 | 1 | `product-manager` | value, scope, appetite; ruthless about what NOT to build. Does NOT design solutions | Sonnet 5 | feature-shaped work, T1+ |
-| 2 | `architect` | boundaries, complexity, data flow; folds in council-of-logic's Turing (complexity) + Von Neumann (architecture) checks | Sonnet 5 → Opus 4.8 at T3 | F≥1 or N≥1 |
+| 2 | `architect` | boundaries, complexity, data flow; folds in council-of-logic's Turing (complexity) + Von Neumann (architecture) checks | Sonnet 5 → Opus 5 at T3 | F≥1 or N≥1 |
 | 3 | `ux-reviewer` | flows, empty/error states, friction; the user's advocate | Sonnet 5 | any user-facing surface |
-| 4 | `security-reviewer` | auth/authz, PII, secrets, tenancy, RLS, untrusted input | **Opus 4.8 always — never cost-downgraded** | S≥1; mandatory at S=2 |
-| 5 | `qa-verification-lead` | test + verification plan; proof-discipline embedded ({proven \| observed \| assumed} claim classes); owns the sandbox-policy check (§13–14) | Sonnet 5 → Opus 4.8 at T3 | T2+ |
-| 6 | `devils-advocate-judge` | **the designated disconfirming seat** — argues against the build; judge's 7-lens rubric; returns a score /100 with its contract | Opus 4.8 | mandatory T2+; conditional at T1 (only if seat 1 isn't a clean pass) |
+| 4 | `security-reviewer` | auth/authz, PII, secrets, tenancy, RLS, untrusted input | **Opus 5 always — never cost-downgraded** | S≥1; mandatory at S=2 |
+| 5 | `qa-verification-lead` | test + verification plan; proof-discipline embedded ({proven \| observed \| assumed} claim classes); owns the sandbox-policy check (§13–14) | Sonnet 5 → Opus 5 at T3 | T2+ |
+| 6 | `devils-advocate-judge` | **the designated disconfirming seat** — argues against the build; judge's 7-lens rubric; returns a score /100 with its contract | Opus 5 | mandatory T2+; conditional at T1 (only if seat 1 isn't a clean pass) |
 | 7 | `domain-specialist` | parametric slot — filled per task shape from the nexus G4 menu vocabulary (seo / geo-optimization / eeat / marketing-orchestrator / remotion / data / readiness / …) | Sonnet 5 | X≥1 with a non-engineering domain in play |
 | 8 | `ops-cost-realist` | deploy, rollback, monitoring, run-cost; enforces sandbox-policy in the verification plan | Sonnet 5 | I≥1 or an infra/ops domain |
 

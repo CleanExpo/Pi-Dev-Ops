@@ -390,7 +390,7 @@ class OllamaProvider:
 # Default model assignments per tier. Overridable via env or by passing
 # explicit provider lists into `get_client`.
 _DEFAULT_FRONTIER_LADDER = (
-    ("anthropic", "claude-opus-4-8"),
+    ("anthropic", "claude-opus-5"),
     ("anthropic", "claude-sonnet-5"),
     ("openrouter", "anthropic/claude-sonnet-5"),
 )

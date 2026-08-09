@@ -26,7 +26,7 @@ each `"phase":"adversary"` row carries `output_tokens` (billed) and `output_len`
 
 ## Model-unavailability / refusal behaviour
 A fable refusal (`stop_reason=="refusal"`) or any fable error auto-retries the
-SAME review once on `claude-opus-4-8` (`app/server/session_sdk.py`
+SAME review once on `claude-opus-5` (`app/server/session_sdk.py`
 `_run_claude_via_sdk`), so the gate never silently passes an errored/refused
 review. A fallback run writes two metric rows (fable failure + opus retry). Unset
 the env var to make opus the permanent default again.
