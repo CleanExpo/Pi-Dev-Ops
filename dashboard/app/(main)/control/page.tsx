@@ -14,6 +14,7 @@ import CuratorProposalsPanel from "@/components/control/CuratorProposalsPanel";
 import MargotAssetsPanel from "@/components/control/MargotAssetsPanel";
 import SpecPipelinePanel from "@/components/control/SpecPipelinePanel";
 import TerminalPanel from "@/components/control/TerminalPanel";
+import AgentRolesPanel from "@/components/control/AgentRolesPanel";
 
 export default function ControlPage() {
   return (
@@ -42,6 +43,9 @@ export default function ControlPage() {
 
           {/* Panel 3 — Portfolio health */}
           <HealthGrid />
+
+          {/* Panel 3b — Pipeline role status (real 8-phase roster, not fabricated agents) */}
+          <AgentRolesPanel />
 
           {/* Panel 4 — Build + routine runs */}
           <section

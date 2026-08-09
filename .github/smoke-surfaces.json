@@ -16,7 +16,7 @@
       "method": "GET",
       "auth": false,
       "expected_status": 307,
-      "_comment": "RA-7012: added TerminalPanel (live redacted tmux pane view) to the /control grid. Unauth still 307-redirects to login; the panel renders only when authed, so its live output is founder-verified per RA-1109 rather than smoke-asserted here."
+      "_comment": "RA-7012: added TerminalPanel (live redacted tmux pane view) to the /control grid. Unauth still 307-redirects to login; the panel renders only when authed, so its live output is founder-verified per RA-1109 rather than smoke-asserted here. PR #632: same pattern for AgentRolesPanel (real pipeline-role status roster, sourced from the already-covered /api/pi-ceo/api/sessions proxy) — no new distinct endpoint, unauth 307 unaffected."
     },
     {
       "name": "loop-redirect",
