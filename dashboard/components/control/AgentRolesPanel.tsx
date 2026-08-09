@@ -9,6 +9,12 @@
 // data polled from /api/pi-ceo/api/sessions — the same endpoint ActiveBuildStrip already
 // uses. A role with no recorded runs says so plainly (dead shows dead), it does not
 // fabricate a plausible-looking status.
+//
+// Deliberately does NOT attribute "running" to a specific role row: BuildSession.last_phase
+// (last_completed_phase server-side) only updates when a phase FINISHES, so it always names
+// the phase that already ended, not the one currently executing — attributing "running" to
+// that role would mislabel whichever phase is actually in flight (caught by independent
+// review). Active sessions are surfaced as their own line instead, same lag disclosed.
 "use client";
 
 import { useEffect, useState } from "react";
@@ -27,17 +33,20 @@ interface Session {
   phase_metrics?: Record<string, PhaseMetric>;
 }
 
-// Source of truth: app/server/session_phases.py _PHASE_ORDER. Kept in this exact order —
-// do not alphabetise, it's the real execution sequence.
-const ROLES: { key: string; label: string }[] = [
-  { key: "clone", label: "Clone" },
-  { key: "analyze", label: "Analyse workspace" },
-  { key: "claude_check", label: "Claude check" },
-  { key: "sandbox", label: "Sandbox verify" },
-  { key: "plan", label: "Plan" },
-  { key: "generator", label: "Generate (Claude)" },
-  { key: "evaluator", label: "Evaluate" },
-  { key: "push", label: "Push branch" },
+// Source of truth: app/server/session_phases.py _PHASE_ORDER (role key, matching
+// last_completed_phase) — kept in this exact order, it's the real execution sequence.
+// metricKey is separate because _emit_phase_metric() calls use shorter strings for two
+// phases (session_phases.py:977/1005 write "generate", :1243 writes "evaluate") — a real,
+// pre-existing naming inconsistency between last_completed_phase and phase_metrics' keys.
+const ROLES: { key: string; metricKey: string; label: string }[] = [
+  { key: "clone", metricKey: "clone", label: "Clone" },
+  { key: "analyze", metricKey: "analyze", label: "Analyse workspace" },
+  { key: "claude_check", metricKey: "claude_check", label: "Claude check" },
+  { key: "sandbox", metricKey: "sandbox", label: "Sandbox verify" },
+  { key: "plan", metricKey: "plan", label: "Plan" },
+  { key: "generator", metricKey: "generate", label: "Generate (Claude)" },
+  { key: "evaluator", metricKey: "evaluate", label: "Evaluate" },
+  { key: "push", metricKey: "push", label: "Push branch" },
 ];
 
 const ACTIVE_STATUSES = new Set([
@@ -58,52 +67,35 @@ function formatElapsed(startedUnix: number): string {
 interface RoleStatus {
   key: string;
   label: string;
-  state: "running" | "idle" | "never";
+  state: "idle" | "never";
   detail: string;
 }
 
 function deriveRoleStatuses(sessions: Session[]): RoleStatus[] {
-  return ROLES.map(({ key, label }) => {
-    // Running: some non-terminal session is currently in this phase.
-    const running = sessions.find(
-      (s) => ACTIVE_STATUSES.has(s.status) && s.last_phase === key
-    );
-    if (running) {
-      return {
-        key, label, state: "running",
-        detail: `${shortRepo(running.repo)} · ${formatElapsed(running.started)}`,
-      };
-    }
-
-    // Idle: find the most recently-started session that recorded a metric for this phase.
+  return ROLES.map(({ key, metricKey, label }) => {
+    // Most recently-started session that recorded a metric for this phase.
     const withMetric = sessions
-      .filter((s) => s.phase_metrics && s.phase_metrics[key])
+      .filter((s) => s.phase_metrics && s.phase_metrics[metricKey])
       .sort((a, b) => b.started - a.started)[0];
     if (withMetric) {
-      const m = withMetric.phase_metrics![key];
+      const m = withMetric.phase_metrics![metricKey];
       return {
         key, label, state: "idle",
         detail: `last: ${shortRepo(withMetric.repo)} · ${m.duration_s}s · $${m.cost_usd.toFixed(4)}`,
       };
     }
-
     return { key, label, state: "never", detail: "no runs recorded yet" };
   });
 }
 
-function StateDot({ state }: { state: RoleStatus["state"] }) {
-  const colour =
-    state === "running" ? "var(--accent)" : state === "idle" ? "var(--success)" : "var(--text-dim)";
+function StateDot({ state }: { state: "idle" | "never" | "active" }) {
+  const colour = state === "active" ? "var(--accent)" : state === "idle" ? "var(--success)" : "var(--text-dim)";
   return (
     <span
       aria-hidden="true"
       style={{
-        width: 7,
-        height: 7,
-        borderRadius: "50%",
-        background: colour,
-        flexShrink: 0,
-        animation: state === "running" ? "pi-roles-pulse 1.4s ease-in-out infinite" : undefined,
+        width: 7, height: 7, borderRadius: "50%", background: colour, flexShrink: 0,
+        animation: state === "active" ? "pi-roles-pulse 1.4s ease-in-out infinite" : undefined,
       }}
     />
   );
@@ -140,7 +132,7 @@ export default function AgentRolesPanel() {
   }, []);
 
   const roles = deriveRoleStatuses(sessions);
-  const runningCount = roles.filter((r) => r.state === "running").length;
+  const active = sessions.filter((s) => ACTIVE_STATUSES.has(s.status));
 
   return (
     <section
@@ -166,7 +158,7 @@ export default function AgentRolesPanel() {
           style={{ color: "var(--text-dim)", background: "var(--panel-hover)", border: "1px solid var(--border)" }}
           title="Each build session runs through these 8 real phases — this is not a roster of independently-running agents."
         >
-          {runningCount > 0 ? `${runningCount} running` : "idle"}
+          {active.length > 0 ? `${active.length} active` : "idle"}
         </span>
       </header>
 
@@ -179,6 +171,30 @@ export default function AgentRolesPanel() {
           <p className="text-[11px] font-mono px-1" style={{ color: "var(--warning)" }}>
             ⚠ {fetchError} — retrying every 5s
           </p>
+        )}
+
+        {!loading && active.length > 0 && (
+          <div className="flex flex-col gap-1 mb-1">
+            {active.map((s) => (
+              <div
+                key={s.id}
+                className="flex items-center gap-2.5 px-2.5 py-1.5"
+                style={{ background: "var(--panel-hover)", border: "1px solid var(--accent)", borderRadius: 6 }}
+              >
+                <StateDot state="active" />
+                <span className="text-[11px] font-medium" style={{ color: "var(--text)" }}>
+                  {shortRepo(s.repo)}
+                </span>
+                <span
+                  className="text-[10px] font-mono ml-auto"
+                  style={{ color: "var(--text-muted)" }}
+                  title="last_phase reflects the last COMPLETED phase, not the one currently running — the exact live phase isn't tracked by the backend today."
+                >
+                  {formatElapsed(s.started)} · past: {s.last_phase || "starting"}
+                </span>
+              </div>
+            ))}
+          </div>
         )}
 
         {!loading && roles.map((r) => (
