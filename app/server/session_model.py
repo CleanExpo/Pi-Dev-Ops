@@ -106,6 +106,7 @@ def list_sessions() -> list[dict]:
             "scope_adhered": s.scope_adhered,
             "files_modified": len(s.modified_files),
             "complexity_tier": s.complexity_tier,
+            "phase_metrics": s.phase_metrics,
         }
         for s in _sessions.values()
     ]
