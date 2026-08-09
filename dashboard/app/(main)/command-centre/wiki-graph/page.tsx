@@ -13,7 +13,14 @@ import Link from 'next/link'
 // `@/lib/supabase/server` is an anon-key, RLS-enforced, per-user client; the same
 // specifier resolves here to a service-role client and this app has no per-user
 // identity. Auth is enforced upstream by proxy.ts, so there is no getUser() to call.
-import { createServerClient } from '@/lib/supabase/server'
+//
+// Client is scoped to the Unite-Group production Supabase project
+// (lksfwktwtmyznckodsau), where wiki_pages actually lives — NOT this app's
+// Pi-CEO-scoped lib/supabase/server.ts client, which points at a different project
+// (zbryrmxmgfmslqzizsto) that has no wiki_pages table. See
+// lib/supabase/unite-group-server.ts and the matching note in the API route this
+// page's tile shares logic with (app/api/command-centre/wiki-graph/route.ts).
+import { createUniteGroupServerClient } from '@/lib/supabase/unite-group-server'
 import { buildWikiGraph, type WikiPageRow } from '@/lib/command-centre/wiki-graph'
 import { WikiGraphCanvas } from '@/components/command-centre/wiki-graph/WikiGraphCanvas'
 
@@ -36,7 +43,7 @@ function formatSync(iso: string | null): string {
 }
 
 export default async function WikiGraphPage() {
-  const supabase = createServerClient()
+  const supabase = createUniteGroupServerClient()
   const { data, error } = await supabase
     .from('wiki_pages')
     .select('id, title, tags, content, updated_at')
