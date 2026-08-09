@@ -1,12 +1,12 @@
 # .github — Wiki
 
-_Last updated: 2026-08-07T04:28:56Z (commits 70c7369..015e436)_
+_Last updated: 2026-08-09T07:04:07Z (commits b9517be..67032f8)_
 
 ## Recent changes
-- 015e436 — fix(ci): install PyYAML for DNS takeover scan (#627)
+- 67032f8 — fix(ci): install pyyaml before draining the ideas inbox (#629)
 
 ## Architecture (current)
 Auto-stub: `.github/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- .github/workflows/dns_takeover_scan.yml — touched in recent commits
+- .github/workflows/ideas_inbox_drain.yml — touched in recent commits
