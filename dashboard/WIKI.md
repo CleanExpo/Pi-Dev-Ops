@@ -1,17 +1,13 @@
 # dashboard — Wiki
 
-_Last updated: 2026-08-03T06:47:34Z (commits db4c7a4..6e7e90a)_
+_Last updated: 2026-08-09T10:31:00Z (commits 7dc6065..15ea5a8)_
 
 ## Recent changes
-- 6e7e90a — Feat/command centre migration (#609)
+- 15ea5a8 — feat(dashboard): add real pipeline-role status roster to Mission Control (#632)
 
 ## Architecture (current)
 Auto-stub: `dashboard/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- dashboard/.gitignore — touched in recent commits
-- dashboard/__tests__/api-auth-classification.json — touched in recent commits
-- dashboard/__tests__/build-import-provenance.mjs — touched in recent commits
-- dashboard/__tests__/command-centre-auth-coverage.test.ts — touched in recent commits
-- dashboard/__tests__/command-centre-baseline-549acbe9.json — touched in recent commits
-- dashboard/__tests__/command-centre-provenance.json — touched in recent commits
+- dashboard/app/(main)/control/page.tsx — touched in recent commits
+- dashboard/components/control/AgentRolesPanel.tsx — touched in recent commits
