@@ -1,12 +1,12 @@
 # .github — Wiki
 
-_Last updated: 2026-08-09T07:04:07Z (commits b9517be..67032f8)_
+_Last updated: 2026-08-09T10:31:00Z (commits 7dc6065..15ea5a8)_
 
 ## Recent changes
-- 67032f8 — fix(ci): install pyyaml before draining the ideas inbox (#629)
+- 15ea5a8 — feat(dashboard): add real pipeline-role status roster to Mission Control (#632)
 
 ## Architecture (current)
 Auto-stub: `.github/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- .github/workflows/ideas_inbox_drain.yml — touched in recent commits
+- .github/smoke-surfaces.json — touched in recent commits

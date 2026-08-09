@@ -1,16 +1,12 @@
 # app — Wiki
 
-_Last updated: 2026-08-03T17:17:32Z (commits 217cae1..1f547af)_
+_Last updated: 2026-08-09T10:31:00Z (commits 7dc6065..15ea5a8)_
 
 ## Recent changes
-- 1f547af — feat(lessons): cross-deploy durability — write-through + boot hydration (RA-7111) (#621)
+- 15ea5a8 — feat(dashboard): add real pipeline-role status roster to Mission Control (#632)
 
 ## Architecture (current)
 Auto-stub: `app/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- app/server/agents/feedback_loop.py — touched in recent commits
-- app/server/app_factory.py — touched in recent commits
-- app/server/lessons.py — touched in recent commits
-- app/server/pipeline.py — touched in recent commits
-- app/server/supabase_log.py — touched in recent commits
+- app/server/session_model.py — touched in recent commits
