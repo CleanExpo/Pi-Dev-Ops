@@ -80,6 +80,25 @@ def test_probe_exception_recorded_as_unhealthy():
     assert "boom" in snap["checks"]["linear_api_key"]["detail"]
 
 
+def test_notify_telegram_contains_missing_routing_system_exit(monkeypatch):
+    """Missing optional Telegram routing must never terminate the health daemon."""
+    import sys
+    from types import SimpleNamespace
+
+    def missing_routing(_text):
+        raise SystemExit(1)
+
+    monkeypatch.setitem(
+        sys.modules,
+        "send_telegram",
+        SimpleNamespace(send_telegram=missing_routing),
+    )
+
+    # Production crash regression: this call must return instead of propagating
+    # SystemExit through integration_health_loop and the FastAPI lifespan.
+    ih._notify_telegram("linear_api_key", "HTTP 401")
+
+
 def test_startup_transition_from_unknown_to_unhealthy_does_not_fire():
     """RA-1293 — first-ever probe returning False must NOT fire Telegram.
 
