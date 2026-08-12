@@ -143,6 +143,15 @@ def _notify_telegram(name: str, detail: str) -> None:
         )
         send_telegram(msg)
         log.warning("integration-health: telegram nudge sent for %s", name)
+    except SystemExit as exc:
+        # send_telegram is also a CLI helper and raises SystemExit when optional
+        # routing is absent. Contain that CLI signal at this best-effort boundary
+        # so it cannot terminate the FastAPI lifespan.
+        log.warning(
+            "integration-health: telegram nudge skipped for %s: config exit %s",
+            name,
+            exc.code,
+        )
     except Exception as exc:
         # Don't let notification failure kill the daemon
         log.warning("integration-health: telegram nudge failed for %s: %s", name, exc)
