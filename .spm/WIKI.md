@@ -1,8 +1,12 @@
 # .spm — Wiki
 
-_Last updated: 2026-07-05T08:50:04Z (commits 983cd2e..38ecf5d)_
+_Last updated: 2026-08-14T04:30:12Z (commits 5cfc3be..094b6e4)_
 
 ## Recent changes
-- 38ecf5d — spm: skool silent-genius engagement loop spec (APPROVE EXPERIMENT, pilot executed 2026-07-05) (#513)
+- 094b6e4 — docs(spm): SPM spec for RA-7216 completion — gap 2 steps 3-6 + gap 4 (#642)
 
+## Architecture (current)
+Auto-stub: `.spm/` had 1 recent commits. SDK unavailable for synthesis.
 
+## Files of interest
+- .spm/RA-7216-completion.md — touched in recent commits
