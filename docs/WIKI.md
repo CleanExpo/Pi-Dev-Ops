@@ -1,12 +1,12 @@
 # docs — Wiki
 
-_Last updated: 2026-08-14T03:10:32Z (commits 1e960d4..24f7767)_
+_Last updated: 2026-08-14T03:59:08Z (commits f59b656..0a74a98)_
 
 ## Recent changes
-- 24f7767 — docs(metrics): RA-7216 slice 1 — metric contract and telemetry-gap audit (#638)
+- 0a74a98 — docs(metrics): rollback + escaped-defect telemetry design [RA-7216] (#640)
 
 ## Architecture (current)
 Auto-stub: `docs/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- docs/AUDIT-RA-7216-metric-contract-and-telemetry-gaps-2026-08-14.md — touched in recent commits
+- docs/DESIGN-RA-7216-rollback-telemetry-2026-08-14.md — touched in recent commits
