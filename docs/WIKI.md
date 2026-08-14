@@ -1,12 +1,12 @@
 # docs — Wiki
 
-_Last updated: 2026-08-09T11:15:17Z (commits 7291c1b..390da2d)_
+_Last updated: 2026-08-14T03:10:32Z (commits 1e960d4..24f7767)_
 
 ## Recent changes
-- 390da2d — feat(models): bump default orchestrator/top-tier model from Opus 4.8 to Opus 5 (#631)
+- 24f7767 — docs(metrics): RA-7216 slice 1 — metric contract and telemetry-gap audit (#638)
 
 ## Architecture (current)
 Auto-stub: `docs/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- docs/runbooks/fable-canary-revert.md — touched in recent commits
+- docs/AUDIT-RA-7216-metric-contract-and-telemetry-gaps-2026-08-14.md — touched in recent commits
