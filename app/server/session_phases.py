@@ -1750,6 +1750,11 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
             scope_adhered=session.scope_adhered,      # RA-676: scope contract result
             files_modified=len(session.modified_files),  # RA-676: modified file count
             linear_state_after=_linear_state or None,    # RA-672 C2: durable state
+            # RA-7216: join key for the acceptance event. `_linear_state` above
+            # is a hardcoded literal that never changes after push; the real
+            # terminal outcome arrives later via the Linear webhook and is
+            # matched back to this row by issue id.
+            linear_issue_id=getattr(session, "linear_issue_id", None),
         )
     except Exception:
         pass  # observability must never block the pipeline

@@ -154,6 +154,7 @@ def log_gate_check(
     scope_adhered: bool | None = None,
     files_modified: int | None = None,
     linear_state_after: str | None = None,
+    linear_issue_id: str | None = None,
 ) -> None:
     """
     Write one gate_check row to Supabase after every /ship phase.
@@ -195,6 +196,12 @@ def log_gate_check(
         row["files_modified"] = files_modified
     if linear_state_after is not None:
         row["linear_state_after"] = linear_state_after
+    # RA-7216: the join key. `record_acceptance()` below is driven by a Linear
+    # webhook, which knows only the issue id — without this column an acceptance
+    # event has no gate_checks row to attach to, and first-pass acceptance,
+    # trigger-to-accepted and review latency all stay unmeasurable.
+    if linear_issue_id:
+        row["linear_issue_id"] = linear_issue_id
     _insert("gate_checks", row)
     log.info(
         "gate_check logged: pipeline=%s all_passed=%s score=%.1f confidence=%s "
@@ -203,6 +210,55 @@ def log_gate_check(
         f"{confidence:.0f}%" if confidence is not None else "n/a",
         scope_adhered, files_modified, shipped,
     )
+
+
+# ── RA-7216: acceptance events ────────────────────────────────────────────────
+
+def record_acceptance(
+    *,
+    linear_issue_id: str,
+    state_name: str,
+    state_type: str,
+    occurred_at: str | None = None,
+) -> bool:
+    """RA-7216 — Stamp the terminal Linear outcome onto this issue's gate_checks row.
+
+    Called from the Linear webhook when an issue reaches a terminal state. This
+    is the only writer of `accepted_at`, and `accepted_at` is what makes
+    first-pass acceptance, trigger-to-accepted-outcome and review latency
+    measurable. Review latency is derived at read time as
+    `accepted_at - push_timestamp` (the founder's chosen instrument, 14/08/2026)
+    rather than stored, so there is one source of truth and no column to drift.
+
+    `state_type` distinguishes an acceptance ("completed") from a rejection
+    ("canceled"); both are recorded. Writing only acceptances would reproduce the
+    defect this ticket exists to fix — a numerator with no denominator.
+
+    Only rows whose `accepted_at` is still null are patched, so the FIRST
+    terminal transition wins. That makes a retried webhook idempotent, and it
+    keeps the metric honest when an issue is reopened and closed again: the
+    reopen is rework, and it must not be able to overwrite the original outcome
+    and disguise itself as a clean first pass.
+
+    Fire-and-forget per module doctrine: returns False on any failure, never raises.
+    """
+    if not linear_issue_id or not state_type:
+        return False
+    patch: dict[str, Any] = {
+        "accepted_at": occurred_at or datetime.now(timezone.utc).isoformat(),
+        "accepted_state": state_name or "",
+        "accepted_state_type": state_type,
+    }
+    ok = _patch(
+        "gate_checks",
+        f"linear_issue_id=eq.{linear_issue_id}&accepted_at=is.null",
+        patch,
+    )
+    log.info(
+        "RA-7216 acceptance recorded: issue=%s state=%s type=%s ok=%s",
+        linear_issue_id, state_name, state_type, ok,
+    )
+    return ok
 
 
 # ── RA-1407: sessions table checkpointing ────────────────────────────────────

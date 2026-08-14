@@ -45,14 +45,23 @@ def parse_github_event(event_type: str, payload: dict) -> dict | None:
     return result
 
 
+# RA-7216: Linear state types that terminate an issue. "completed" is an
+# acceptance; "canceled" is a rejection. Both end the founder-review window, so
+# both must be captured — the distinction is carried in `state_type` rather than
+# by dropping one, because a scorer that only ever sees acceptances measures
+# nothing (that is exactly how C2 came to score 5/5 by construction).
+_TERMINAL_STATE_TYPES = ("completed", "canceled")
+
+
 def parse_linear_event(payload: dict) -> dict | None:
     """Extract issue data from Linear webhook events.
 
-    Handles two triggers:
+    Handles three triggers:
       - action=update + state→started  → issue moved to In Progress
+      - action=update + state→terminal → issue accepted or cancelled (RA-7216)
       - action=create + priority≤2 + state=unstarted → Urgent/High issue created (RA-888)
 
-    Returns a normalised dict for both cases, or None to skip the event.
+    Returns a normalised dict for all three cases, or None to skip the event.
     """
     action = payload.get("action")
     event_type = payload.get("type")
@@ -61,14 +70,22 @@ def parse_linear_event(payload: dict) -> dict | None:
     data = payload.get("data") or {}
 
     if action == "update":
-        # Existing path: only trigger when state changes to "started" (In Progress)
         updated = payload.get("updatedFrom") or {}
         if "stateId" not in updated:
             return None
         state = (data.get("state") or {})
-        if state.get("type") != "started":
+        state_type = state.get("type")
+        if state_type == "started":
+            event_name = "issue_started"
+        elif state_type in _TERMINAL_STATE_TYPES:
+            # RA-7216: the acceptance event. Before this, the only "acceptance"
+            # signal written anywhere was the literal string "In Review",
+            # hardcoded at push time in session_linear.py and never revisited —
+            # so no terminal outcome was observable and `accepted_at` had no
+            # source. This is that source.
+            event_name = "issue_completed"
+        else:
             return None
-        event_name = "issue_started"
 
     elif action == "create":
         # RA-888: instant trigger — fire on Urgent (1) or High (2) new issues in unstarted state
@@ -108,6 +125,17 @@ def parse_linear_event(payload: dict) -> dict | None:
         "labels": labels,
         "priority": priority,
         "repo_url": repo_url,
+        # RA-7216: carried on every event, not just terminal ones, so a caller
+        # never has to infer state from the event name. `state_type` is the
+        # field that separates an acceptance ("completed") from a rejection
+        # ("canceled") — the event name deliberately does not.
+        "state_name": state.get("name", ""),
+        "state_type": state.get("type", ""),
+        # Linear sets completedAt on terminal transitions. updatedAt is the
+        # fallback so a cancelled issue (which may carry no completedAt) still
+        # yields a timestamp; without one the review-latency arithmetic has no
+        # end point and the row would be silently unmeasurable.
+        "occurred_at": data.get("completedAt") or data.get("updatedAt") or "",
     }
 
 

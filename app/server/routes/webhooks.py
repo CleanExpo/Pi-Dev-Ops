@@ -12,7 +12,7 @@ from pydantic import BaseModel, field_validator
 
 from ..auth import require_auth, require_rate_limit
 from ..sessions import create_session
-from ..supabase_log import mark_alert_acked
+from ..supabase_log import mark_alert_acked, record_acceptance
 from ..webhook import (
     verify_github_signature,
     verify_linear_signature,
@@ -166,6 +166,28 @@ async def webhook(request: Request):
         event = parse_linear_event(payload)
         if not event:
             return {"skipped": True, "reason": "Not an issue-started event"}
+        # RA-7216: a terminal transition is an OUTCOME, not a trigger. It is
+        # handled before the repo_url gate and before session creation for two
+        # reasons: a closed issue must never spawn a build, and acceptance must
+        # be recorded even for issues carrying no `repo:` label — otherwise the
+        # denominator silently excludes exactly the issues Pi-CEO did not build,
+        # which is the survivorship bias this ticket is meant to remove.
+        if event.get("event") == "issue_completed":
+            issue_id = event.get("issue_id") or ""
+            recorded = record_acceptance(
+                linear_issue_id=issue_id,
+                state_name=event.get("state_name", ""),
+                state_type=event.get("state_type", ""),
+                occurred_at=event.get("occurred_at") or None,
+            )
+            return {
+                "triggered": False,
+                "recorded": recorded,
+                "source": "linear",
+                "event": "issue_completed",
+                "linear_issue_id": issue_id,
+                "state_type": event.get("state_type", ""),
+            }
         if not event.get("repo_url"):
             return {"skipped": True, "reason": "No repo URL found in issue (add repo:<url> label)"}
         repo_url = event["repo_url"]
