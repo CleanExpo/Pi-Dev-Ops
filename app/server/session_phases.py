@@ -1600,6 +1600,55 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
 # ── Orchestrator ──────────────────────────────────────────────────────────────
 
 
+def _log_ship_gate_check(session, push_ok: bool, push_ts: float) -> None:
+    """RA-656 — write the post-push gate_check row. Fire-and-forget.
+
+    RA-7216 extracted this from `run_build` so the row it builds can be asserted
+    directly. It previously sat inline inside a large async orchestrator, so the
+    only way to reach it was to drive an entire build — and nothing did. A
+    mutation dropping the `linear_issue_id` join key passed the whole suite
+    because of it. The seam is the point.
+    """
+    try:
+        spec_exists = os.path.isfile(os.path.join(session.workspace, ".harness", "spec.md"))
+        plan_exists = os.path.isfile(os.path.join(session.workspace, ".harness", "plan.md"))
+        # RA-674: passed_low_confidence is a passing state (score gate cleared)
+        # RA-676: scope_violation is NOT a passing state
+        review_passed = getattr(session, "evaluator_status", "") in (
+            "passed", "passed_low_confidence"
+        )
+        review_score = float(session.evaluator_score or 0)
+        # RA-672 C2: "In Review" after push = PR open, awaiting merge.
+        # Written to Supabase so C2 scoring survives Railway redeploys.
+        _linear_state = "In Review" if (getattr(session, "linear_issue_id", None) and push_ok) else ""
+        log_gate_check(
+            pipeline_id=session.id,
+            session_id=session.id,
+            gate_checks={
+                "spec_exists":    spec_exists,
+                "plan_exists":    plan_exists,
+                "build_complete": True,   # reached here only if generate succeeded
+                "tests_passed":   True,   # reached here only if sandbox succeeded
+                "review_passed":  review_passed,
+            },
+            review_score=review_score,
+            shipped=push_ok,
+            session_started_at=session.started_at,   # RA-672: C3 mean time to value
+            push_timestamp=push_ts if push_ok else None,
+            confidence=session.evaluator_confidence,  # RA-674: log to Supabase
+            scope_adhered=session.scope_adhered,      # RA-676: scope contract result
+            files_modified=len(session.modified_files),  # RA-676: modified file count
+            linear_state_after=_linear_state or None,    # RA-672 C2: durable state
+            # RA-7216: join key for the acceptance event. `_linear_state` above
+            # is a hardcoded literal that never changes after push; the real
+            # terminal outcome arrives later via the Linear webhook and is
+            # matched back to this row by issue id.
+            linear_issue_id=getattr(session, "linear_issue_id", None),
+        )
+    except Exception:
+        pass  # observability must never block the pipeline
+
+
 async def run_build(session, brief="", model="sonnet", intent="", resume_from=""):
     em(session, "phase", "  Pi CEO Solo DevOps Tool")
     em(session, "system", f"  Session: {session.id}")
@@ -1720,39 +1769,7 @@ async def run_build(session, brief="", model="sonnet", intent="", resume_from=""
     persistence.save_session(session)
 
     # RA-656: log gate_check row — fire-and-forget, never blocks pipeline
-    try:
-        spec_exists = os.path.isfile(os.path.join(session.workspace, ".harness", "spec.md"))
-        plan_exists = os.path.isfile(os.path.join(session.workspace, ".harness", "plan.md"))
-        # RA-674: passed_low_confidence is a passing state (score gate cleared)
-        # RA-676: scope_violation is NOT a passing state
-        review_passed = getattr(session, "evaluator_status", "") in (
-            "passed", "passed_low_confidence"
-        )
-        review_score = float(session.evaluator_score or 0)
-        # RA-672 C2: "In Review" after push = PR open, awaiting merge.
-        # Written to Supabase so C2 scoring survives Railway redeploys.
-        _linear_state = "In Review" if (getattr(session, "linear_issue_id", None) and push_ok) else ""
-        log_gate_check(
-            pipeline_id=session.id,
-            session_id=session.id,
-            gate_checks={
-                "spec_exists":    spec_exists,
-                "plan_exists":    plan_exists,
-                "build_complete": True,   # reached here only if generate succeeded
-                "tests_passed":   True,   # reached here only if sandbox succeeded
-                "review_passed":  review_passed,
-            },
-            review_score=review_score,
-            shipped=push_ok,
-            session_started_at=session.started_at,   # RA-672: C3 mean time to value
-            push_timestamp=push_ts if push_ok else None,
-            confidence=session.evaluator_confidence,  # RA-674: log to Supabase
-            scope_adhered=session.scope_adhered,      # RA-676: scope contract result
-            files_modified=len(session.modified_files),  # RA-676: modified file count
-            linear_state_after=_linear_state or None,    # RA-672 C2: durable state
-        )
-    except Exception:
-        pass  # observability must never block the pipeline
+    _log_ship_gate_check(session, push_ok, push_ts)
 
     # Two-way Linear sync: move issue to "In Review" now that the build is pushed
     if session.linear_issue_id:

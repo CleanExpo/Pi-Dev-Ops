@@ -191,6 +191,28 @@ ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS files_modified INTEGER;
 ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS linear_state_after TEXT;
 CREATE INDEX IF NOT EXISTS gate_checks_linear_state_idx ON gate_checks (linear_state_after) WHERE linear_state_after IS NOT NULL;
 
+-- RA-7216: acceptance-event columns. Terminal Linear outcome, captured by the
+-- webhook (routes/webhooks.py) and written by supabase_log.record_acceptance().
+--
+-- linear_issue_id is the join key. Without it a webhook — which knows only the
+-- issue id — has no gate_checks row to attach an outcome to.
+--
+-- accepted_state_type separates an acceptance ("completed") from a rejection
+-- ("canceled"). Both are recorded: the pre-existing linear_state_after column
+-- only ever held the literal "In Review", hardcoded at push time, so C2 was
+-- reading a constant and scored 5/5 by construction. These columns are what
+-- replace it.
+--
+-- Review latency is deliberately NOT stored — it is derived at read time as
+-- accepted_at - push_timestamp, so there is one source of truth and no column
+-- that can drift out of agreement with its own inputs.
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS linear_issue_id TEXT;
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMPTZ;
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS accepted_state TEXT;
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS accepted_state_type TEXT;
+CREATE INDEX IF NOT EXISTS gate_checks_linear_issue_idx ON gate_checks (linear_issue_id) WHERE linear_issue_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS gate_checks_accepted_at_idx  ON gate_checks (accepted_at DESC) WHERE accepted_at IS NOT NULL;
+
 -- ── alert_escalations ────────────────────────────────────────────────────────
 -- RA-633: Tracks critical alerts sent via Telegram + escalation/ack state.
 -- Enables the 30-min escalation watchdog: unacked alerts → second louder page.

@@ -173,51 +173,89 @@ def _lessons_per_week(days: int = 30) -> float:
 # ─── scoring functions ────────────────────────────────────────────────────────
 
 def score_c1_deployment_success(rows: list[dict]) -> tuple[int, str]:
-    """C1: % of shipped builds surviving 24h without rollback."""
-    shipped = [r for r in rows if r.get("shipped")]
-    if not shipped:
-        return 1, "no deployment data yet"
-    # Approximate: use shipped count / total as proxy until rollback tracking lands
+    """C1: % of shipped builds surviving 24h without rollback.
+
+    RA-7216: this previously scored `shipped/total` and reported it as the
+    survival rate, with an inline note that it was a proxy "until rollback
+    tracking lands". It never landed. The ship rate carries no information about
+    what happened AFTER the ship, so it cannot distinguish a clean deploy from
+    one reverted twenty minutes later, and RA-7216's first guardrail names this
+    exact construction as forbidden.
+
+    No rollback telemetry exists yet, so this now returns an explicit
+    needs_data state. The ship rate is still surfaced in the note, labelled as
+    diagnostic — the same treatment RA-7216 mandates for PR and token counts.
+    Restore a real score only when a rollback/escaped-defect event source exists.
+    """
     total = len(rows)
-    rate = len(shipped) / total if total else 0
-    note = f"{len(shipped)}/{total} builds shipped ({rate:.0%}) over window"
-    if rate >= 0.95:
-        return 5, note
-    if rate >= 0.85:
-        return 4, note
-    if rate >= 0.70:
-        return 3, note
-    if rate >= 0.50:
-        return 2, note
-    return 1, note
+    if not total:
+        return 1, "needs_data — no gate_check rows in window"
+    shipped = [r for r in rows if r.get("shipped")]
+    rate = len(shipped) / total
+    return 1, (
+        f"needs_data — no rollback telemetry; cannot measure 24h survival. "
+        f"Ship rate {len(shipped)}/{total} ({rate:.0%}) is DIAGNOSTIC ONLY "
+        f"and is not a survival measure."
+    )
+
+
+#: Minimum terminal outcomes before C2 reports a real score (see _score_from_rows).
+_C2_MIN_SAMPLE = 5
 
 
 def score_c2_output_acceptance(days: int = 30) -> tuple[int, str]:
-    """C2: % of sessions whose output was accepted (shipped PR in review or done).
+    """C2: % of terminal outcomes that were acceptances.
 
-    "Accepted" = the autonomous session pushed a PR that reached "In Review" or
-    "Done" — i.e., the output cleared the evaluator gate AND was pushed for human
-    review.  Entries that are still "In Review" count as accepted because the human
-    merge is the final step; we don't double-penalise for review latency.
+    RA-7216 rewrote this. It previously had three defects, all measured:
 
-    Primary: reads gate_checks.linear_state_after from Supabase (durable across
-    Railway redeploys).  Fallback: reads .harness/session-outcomes.jsonl (Mac Mini
-    dev environment without Supabase credentials).
+    1. It counted "In Review" as accepted. That is the state in which
+       founder-review minutes are being spent and the outcome is still unknown,
+       so the metric could not detect the problem the ticket exists to measure.
+    2. `linear_state_after` is a hardcoded literal — `"In Review" if (issue_id
+       and push_ok) else ""`, set once at push time in session_linear.py and
+       never revisited. It is the ONLY value ever written, so the five-element
+       accepted-states set matched a constant.
+    3. The Supabase path filtered `linear_state_after=not.is.null` while the
+       write site sent `_linear_state or None`. Failed pushes therefore wrote
+       NULL and were dropped from the denominator, while every surviving row
+       said "In Review" and scored as accepted — so C2 returned 5/5 by
+       construction whenever any row existed.
+
+    It now reads `accepted_at` / `accepted_state_type`, written by
+    supabase_log.record_acceptance() from the Linear terminal-transition
+    webhook. Open issues are excluded from both numerator and denominator.
     """
-    _ACCEPTED_STATES = {"done", "completed", "closed", "in review", "in_review"}
-
     def _score_from_rows(rows: list[dict], source: str) -> tuple[int, str] | None:
-        """Score C2 from a list of {shipped, linear_state_after} dicts. Returns None if no data."""
+        """Score C2 from rows carrying a TERMINAL outcome. None if no data.
+
+        Denominator is issues that reached a terminal Linear state; numerator is
+        those whose terminal state was an acceptance ("completed") rather than a
+        rejection ("canceled"). Issues still open are excluded from BOTH — their
+        outcome is genuinely unknown, and counting them either way is a guess.
+        """
         total = accepted = 0
         for r in rows:
+            if not r.get("accepted_at"):
+                continue          # still open — outcome unknown, not a data point
             total += 1
-            state = (r.get("linear_state_after") or "").lower()
-            if state in _ACCEPTED_STATES or (not state and (r.get("shipped") or r.get("push_ok"))):
+            if (r.get("accepted_state_type") or "").lower() == "completed":
                 accepted += 1
         if total == 0:
             return None
         rate = accepted / total
-        note = f"{accepted}/{total} sessions accepted — shipped/in-review/done ({rate:.0%}) [{source}]"
+        # Sample floor. Without it a single accepted issue scores 1/1 = 100% and
+        # lands the whole card in the top band — a routing decision driven by one
+        # data point. RA-7216 requires rejecting metrics that cannot change a
+        # decision correctly, and a 100% built from n=1 changes it wrongly.
+        # 5 is a starting threshold, not a derived one; retune once the 30-day
+        # baseline exists and the real weekly volume is known.
+        if total < _C2_MIN_SAMPLE:
+            return 1, (
+                f"needs_data — only {total} terminal outcome(s) in window, below the "
+                f"{_C2_MIN_SAMPLE}-sample floor; {accepted}/{total} accepted is "
+                f"DIAGNOSTIC ONLY [{source}]"
+            )
+        note = f"{accepted}/{total} terminal outcomes accepted ({rate:.0%}) [{source}]"
         if rate >= 0.90:
             return 5, note
         if rate >= 0.75:
@@ -228,45 +266,33 @@ def score_c2_output_acceptance(days: int = 30) -> tuple[int, str]:
             return 2, note
         return 1, note
 
-    # ── Primary: Supabase gate_checks.linear_state_after ─────────────────────
+    # ── Supabase gate_checks — the only source with a terminal outcome ────────
+    # No `not.is.null` filter on the acceptance columns: filtering at the query
+    # is what produced the old survivorship bias, because the write site turned
+    # a missing state into NULL and the read site then dropped exactly those
+    # rows. The window is the only filter; _score_from_rows decides what counts.
     cutoff_iso = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat().replace("+", "%2B")
     sb_rows = _supabase_query(
         "gate_checks",
-        "shipped,linear_state_after,checked_at",
-        f"checked_at=gte.{cutoff_iso}&linear_state_after=not.is.null",
+        "shipped,accepted_at,accepted_state_type,checked_at",
+        f"checked_at=gte.{cutoff_iso}&order=checked_at.desc&limit=500",
     )
     result = _score_from_rows(sb_rows, "supabase")
     if result is not None:
         return result
 
-    # ── Fallback: local session-outcomes.jsonl ────────────────────────────────
-    outcomes_file = _HARNESS / "session-outcomes.jsonl"
-    if not outcomes_file.exists():
-        return 1, "needs_data — session-outcomes.jsonl not yet written (sessions completing will populate this)"
-    cutoff_dt = datetime.now(timezone.utc) - timedelta(days=days)
-    local_rows: list[dict] = []
-    try:
-        with open(outcomes_file, encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    entry = json.loads(line)
-                    ts_str = entry.get("completed_at", "")
-                    if ts_str:
-                        ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-                        if ts < cutoff_dt:
-                            continue
-                    local_rows.append(entry)
-                except Exception:
-                    pass
-    except Exception:
-        return 1, "error reading session-outcomes.jsonl"
-    result = _score_from_rows(local_rows, "jsonl")
-    if result is not None:
-        return result
-    return 1, "needs_data — no entries in window yet"
+    # No JSONL fallback. session-outcomes.jsonl is written at PUSH time by
+    # _record_session_outcome(), so it cannot carry a terminal outcome — the
+    # outcome arrives hours or days later via the Linear webhook. The old
+    # fallback scored a different population from the Supabase path using a
+    # different rule, which meant C2's meaning depended on which backend
+    # answered. An honest needs_data beats a second definition.
+    if not sb_rows:
+        return 1, "needs_data — no gate_check rows in window (or Supabase unreachable)"
+    return 1, (
+        f"needs_data — {len(sb_rows)} rows in window but none has reached a terminal "
+        f"Linear state yet; acceptance is unknown, not zero"
+    )
 
 
 def score_c3_mean_time_to_value(rows: list[dict]) -> tuple[int, str]:

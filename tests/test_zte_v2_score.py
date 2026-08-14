@@ -32,25 +32,38 @@ def test_band_boundaries():
 
 # ─── C1 deployment success ───────────────────────────────────────────────────
 
+# RA-7216 rewrote C1. These tests previously pinned the bands of a
+# `shipped/total` ratio that was REPORTED as "% of shipped builds surviving 24h
+# without rollback". The ship rate says nothing about what happens after the
+# ship, and RA-7216's first guardrail names that exact construction as
+# forbidden. The bands are gone; what is pinned now is that C1 refuses to score
+# at all until rollback telemetry exists.
+
 def test_c1_no_data_floor():
     score, note = z.score_c1_deployment_success([])
     assert score == 1
-    assert "no deployment data" in note
+    assert "needs_data" in note
 
 
-def test_c1_all_shipped_is_max():
+def test_c1_does_not_score_a_perfect_ship_rate():
+    """A 100% ship rate is still zero evidence about 24h survival."""
     rows = [{"shipped": True} for _ in range(10)]
-    score, _ = z.score_c1_deployment_success(rows)
-    assert score == 5
+    score, note = z.score_c1_deployment_success(rows)
+    assert score == 1
+    assert "needs_data" in note
 
 
-def test_c1_band_steps():
-    # 6/10 shipped = 0.60 → falls in the >=0.50 band → 2
-    rows = [{"shipped": True}] * 6 + [{"shipped": False}] * 4
-    assert z.score_c1_deployment_success(rows)[0] == 2
-    # 8/10 = 0.80 → >=0.70 band → 3
-    rows = [{"shipped": True}] * 8 + [{"shipped": False}] * 2
-    assert z.score_c1_deployment_success(rows)[0] == 3
+def test_c1_has_no_bands_without_rollback_telemetry():
+    """MUTATION CONTROL: restore the shipped/total banding → this fails.
+
+    Every ship rate must land on the same needs_data floor. If any ratio starts
+    scoring differently from any other, the proxy is back.
+    """
+    for shipped, failed in ((6, 4), (8, 2), (10, 0), (0, 10)):
+        rows = [{"shipped": True}] * shipped + [{"shipped": False}] * failed
+        score, note = z.score_c1_deployment_success(rows)
+        assert score == 1, f"{shipped}/{shipped+failed} scored {score}"
+        assert "DIAGNOSTIC ONLY" in note
 
 
 # ─── C3 mean time to value ───────────────────────────────────────────────────
@@ -125,12 +138,28 @@ def test_c5_low_velocity_band():
 # ─── C2 output acceptance (primary Supabase path, monkeypatched) ─────────────
 
 def test_c2_accepted_states_score_high(monkeypatch):
-    accepted = [{"linear_state_after": "Done"} for _ in range(9)]
-    accepted.append({"linear_state_after": "Backlog"})  # 9/10 accepted = 0.90
-    monkeypatch.setattr(z, "_supabase_query", lambda *a, **k: accepted)
+    """RA-7216: C2 now reads the terminal outcome written by the Linear webhook,
+    not `linear_state_after` — which was a hardcoded "In Review" literal set at
+    push time and never updated, so the old version of this test was pinning a
+    metric that scored 5/5 by construction.
+    """
+    rows = [{"accepted_at": "2026-08-14T05:00:00Z",
+             "accepted_state_type": "completed"} for _ in range(9)]
+    rows.append({"accepted_at": "2026-08-14T05:00:00Z",
+                 "accepted_state_type": "canceled"})   # 9/10 accepted = 0.90
+    monkeypatch.setattr(z, "_supabase_query", lambda *a, **k: rows)
     score, note = z.score_c2_output_acceptance(days=30)
     assert score == 5
     assert "supabase" in note
+
+
+def test_c2_ignores_the_legacy_in_review_literal(monkeypatch):
+    """The rows the old scorer returned 5/5 on now report needs_data."""
+    rows = [{"shipped": True, "linear_state_after": "In Review"} for _ in range(12)]
+    monkeypatch.setattr(z, "_supabase_query", lambda *a, **k: rows)
+    score, note = z.score_c2_output_acceptance(days=30)
+    assert score == 1
+    assert "needs_data" in note
 
 
 def test_c2_no_data_falls_through_to_floor(monkeypatch, tmp_path):
