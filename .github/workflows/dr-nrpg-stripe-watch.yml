@@ -11,7 +11,15 @@ name: DR-NRPG Stripe Watch
 
 on:
   schedule:
-    - cron: "17 * * * *"
+    # RA-7222 — was "17 * * * *" (hourly). This probe polls for a HUMAN-GATED
+    # state change: whether the Stripe keys have been set per
+    # STRIPE-SETUP-FOR-RANA.md. Exit 2/3 (missing keys) is the expected steady
+    # state and does not fail the job, so hourly polling bought nothing but
+    # billed a full minute every hour — ~720 min/month on a private repo, 36%
+    # of the 2,000-minute Free allowance, for one 1-job workflow.
+    # Six-hourly still detects the setup within a working day.
+    # Use `workflow_dispatch` for an immediate check after setting the keys.
+    - cron: "17 */6 * * *"
   workflow_dispatch:
 
 permissions:
