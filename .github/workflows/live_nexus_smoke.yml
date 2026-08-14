@@ -2,8 +2,14 @@ name: Live Nexus Smoke (production)
 
 on:
   schedule:
-    # Every 2 hours, offset from the main Pi-CEO smoke jobs.
-    - cron: "20 */2 * * *"
+    # Every 4 hours, offset from the main Pi-CEO smoke jobs.
+    # RA-7222 — was */2. Halved rather than cut harder because this one is a
+    # GENUINE production liveness probe of live.unite-group.ink, unlike the
+    # human-gated Stripe watch: reducing it trades real detection latency, so
+    # worst-case time-to-notice goes 2h → 4h. ~360 → ~180 billed min/month.
+    # Revisit only if an external uptime monitor covers the same URL — then
+    # this job is redundant and can go to daily.
+    - cron: "20 */4 * * *"
   workflow_dispatch:
     inputs:
       target_url:

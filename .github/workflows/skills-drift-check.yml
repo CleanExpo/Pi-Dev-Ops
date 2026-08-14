@@ -14,10 +14,21 @@ name: Skills Drift Check
 # locally by `python fence/deploy_skills.py --check`.
 
 on:
+  # RA-7222 — scoped to main. Previously ["**"], which fired this workflow
+  # on every PR-branch push AND again on the pull_request event: two full
+  # billed runs of the same commit (observed 05:28:54 + 05:29:16 on PR #645).
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
   workflow_dispatch:
+
+# RA-7222 — cancel superseded runs. Without this, pushing three times in quick
+# succession runs all three sets to completion and bills every one. The group is
+# keyed per workflow per ref so different PRs never cancel each other, and
+# main is never cancelled (a merged commit must be fully verified).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read

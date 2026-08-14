@@ -14,6 +14,14 @@ on:
   pull_request:
     branches: [main, "ra-7014-**"]
 
+# RA-7222 — cancel superseded runs. Without this, pushing three times in quick
+# succession runs all three sets to completion and bills every one. The group is
+# keyed per workflow per ref so different PRs never cancel each other, and
+# main is never cancelled (a merged commit must be fully verified).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   evals:
     name: Golden-dataset evals (blocking)
