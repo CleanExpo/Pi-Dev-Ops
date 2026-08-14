@@ -1,9 +1,9 @@
 # .github — Wiki
 
-_Last updated: 2026-08-09T11:15:17Z (commits 7291c1b..390da2d)_
+_Last updated: 2026-08-14T03:42:36Z (commits a7f9957..d25ff6e)_
 
 ## Recent changes
-- 390da2d — feat(models): bump default orchestrator/top-tier model from Opus 4.8 to Opus 5 (#631)
+- d25ff6e — feat(metrics): capture the Linear acceptance event [RA-7216] (#639)
 
 ## Architecture (current)
 Auto-stub: `.github/` had 1 recent commits. SDK unavailable for synthesis.
