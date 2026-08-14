@@ -254,6 +254,14 @@
       "_comment": "RA-1504: webhook rejects unsigned requests. Surfaces the route for the RA-1109 .catch cleanup. RA-2209: dedup against open [CI FAILURE] tickets — append comment to existing ticket instead of creating a new one when same (repo, workflow) is already open."
     },
     {
+      "name": "webhook-dispatch-nosig",
+      "path": "/api/pi-ceo/api/webhook",
+      "method": "POST",
+      "auth": false,
+      "expected_status": 400,
+      "_comment": "RA-7216: the shared GitHub+Linear dispatch route (app/server/routes/webhooks.py:102) had no smoke entry at all until this PR — the surface gate caught it. RA-7216 added a third branch here: a Linear terminal-state transition (issue_completed) records the acceptance outcome instead of spawning a build. A request carrying NEITHER x-hub-signature-256 nor Linear-Signature always returns 400 before any branch is reached, which is config-independent by design — the 401 (bad signature) and 500 (LINEAR_WEBHOOK_SECRET unset) paths both depend on deploy config and would make this probe flap. Signed traffic, including the terminal-transition branch, is covered by tests/test_ra7216_acceptance_events.py because smoke_test_e2e.py cannot forge a Linear HMAC."
+    },
+    {
       "name": "cron-analyze-unauth",
       "path": "/api/cron/analyze",
       "method": "GET",
