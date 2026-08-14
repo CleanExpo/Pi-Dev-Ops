@@ -409,7 +409,17 @@ async def run_cmd(cwd, *args, timeout=60, env=None):
 def _git_clone_env(repo_url: str) -> dict[str, str] | None:
     """Return process-scoped GitHub auth without putting a token in argv/remote."""
     token = os.environ.get("GITHUB_TOKEN", "")
-    if not token or not repo_url.startswith("https://github.com/"):
+    if not repo_url.startswith("https://github.com/"):
+        return None
+    if not token:
+        # Returning None here silently downgrades to an UNAUTHENTICATED clone,
+        # and a private repo answers that with a bare 404 — indistinguishable
+        # from a typo'd URL. Name the missing variable so the cause is obvious
+        # instead of being inferred from a misleading "not found".
+        _log.warning(
+            "GITHUB_TOKEN is unset — cloning %s unauthenticated. "
+            "A private repo will fail with 404, not 401.", repo_url,
+        )
         return None
     basic = base64.b64encode(f"x-access-token:{token}".encode()).decode()
     return {
@@ -500,6 +510,30 @@ def _emit_phase_metric(session, phase_name: str, phase_start: float, phase_cost:
         pass  # metric tracking must never break a phase
 
 
+def _fail_phase(session, reason: str) -> None:
+    """Emit, RECORD and persist a terminal phase failure.
+
+    `session.error` is serialised into the checkpoint by persistence.save_session
+    (persistence.py:45) and read back by session_model, but until now nothing in
+    the codebase ever assigned it — every terminal path set `status = "failed"`
+    and called `em(session, "error", ...)`, which reaches only the live event
+    stream. So a failed session persisted `error: ""` and became undiagnosable
+    the moment nobody was watching the stream.
+
+    That is how 51 sessions failed over 7 days in _phase_clone without the cause
+    ever being visible: `last_completed_phase` was "" and `error` was "", so the
+    persisted record said a session failed but never said why. Durable rule 5
+    (honest failure reporting) requires the reason outlive the session.
+
+    Truncated to 500 chars — the checkpoint is written on every state change and
+    a full git stderr or traceback would bloat it without adding diagnosis.
+    """
+    em(session, "error", f"  {reason}")
+    session.error = reason[:500]
+    session.status = "failed"
+    persistence.save_session(session)
+
+
 _PHASE_ORDER = ["clone", "analyze", "claude_check", "sandbox", "plan", "generator", "evaluator", "push"]
 
 
@@ -558,6 +592,11 @@ async def _phase_clone(session, resume_from: str) -> bool:
     persistence.save_session(session)
     session.workspace = os.path.join(config.WORKSPACE_ROOT, session.id)
     os.makedirs(session.workspace, exist_ok=True)
+    # The stderr of the LAST attempt is the only thing that names the actual
+    # cause (auth rejection vs 404 vs DNS). It was previously emitted per-attempt
+    # to the event stream and then discarded, so the terminal failure below said
+    # only "failed after 3 attempts" with no reason attached.
+    last_stderr = ""
     for attempt in range(3):
         try:
             rc, _, stderr = await run_cmd(
@@ -582,11 +621,10 @@ async def _phase_clone(session, resume_from: str) -> bool:
                         u = "https://github.com/" + u.split("@github.com/", 1)[1]
                     return u.removesuffix(".git")
                 if _canon(origin_ru) != _canon(session.repo_url):
-                    em(session, "error",
-                       f"  Clone contamination: workspace origin={origin_ru} but expected {session.repo_url}. "
-                       "Aborting — fix TAO_WORKSPACE to a path outside any parent git repo.")
-                    session.status = "failed"
-                    persistence.save_session(session)
+                    _fail_phase(
+                        session,
+                        f"Clone contamination: workspace origin={origin_ru} but expected {session.repo_url}. "
+                        "Aborting — fix TAO_WORKSPACE to a path outside any parent git repo.")
                     _emit_phase_metric(session, "clone", phase_start)
                     return False
                 # Plant a stub CLAUDE.md so Claude Code doesn't walk upward
@@ -627,13 +665,13 @@ async def _phase_clone(session, resume_from: str) -> bool:
                 persistence.save_session(session)
                 _emit_phase_metric(session, "clone", phase_start)
                 return True
-            em(session, "error", f"  Clone attempt {attempt + 1}/3 failed: {stderr[:200]}")
+            last_stderr = (stderr or "").strip()
+            em(session, "error", f"  Clone attempt {attempt + 1}/3 failed: {last_stderr[:200]}")
         except asyncio.TimeoutError:
+            last_stderr = f"timed out after {60}s"
             em(session, "error", f"  Clone attempt {attempt + 1}/3 timed out")
         except FileNotFoundError:
-            em(session, "error", "  Git not in PATH")
-            session.status = "failed"
-            persistence.save_session(session)
+            _fail_phase(session, "Git not in PATH")
             _emit_phase_metric(session, "clone", phase_start)
             return False
         if attempt < 2:
@@ -643,9 +681,7 @@ async def _phase_clone(session, resume_from: str) -> bool:
             if os.path.exists(session.workspace):
                 shutil.rmtree(session.workspace, ignore_errors=True)
                 os.makedirs(session.workspace, exist_ok=True)
-    em(session, "error", "  Clone failed after 3 attempts")
-    session.status = "failed"
-    persistence.save_session(session)
+    _fail_phase(session, f"Clone failed after 3 attempts: {last_stderr or 'no stderr captured'}")
     _emit_phase_metric(session, "clone", phase_start)
     return False
 
@@ -690,9 +726,7 @@ async def _phase_claude_check(session, resume_from: str) -> bool:
         persistence.save_session(session)
         return True
     except ImportError:
-        em(session, "error", "  claude_agent_sdk not installed — required by SDK-only mandate (RA-1094B)")
-        session.status = "failed"
-        persistence.save_session(session)
+        _fail_phase(session, "claude_agent_sdk not installed — required by SDK-only mandate (RA-1094B)")
         return False
 
 
@@ -712,15 +746,11 @@ async def _phase_sandbox(session, resume_from: str) -> bool:
             )
             _, stderr = await asyncio.wait_for(proc_reclone.communicate(), timeout=60)
             if proc_reclone.returncode != 0:
-                em(session, "error", f"  Sandbox re-clone failed: {stderr.decode()[:200]}")
-                session.status = "failed"
-                persistence.save_session(session)
+                _fail_phase(session, f"Sandbox re-clone failed: {stderr.decode().strip()[:300]}")
                 return False
             em(session, "success", "  Sandbox restored via re-clone")
         except Exception as e:
-            em(session, "error", f"  Sandbox regeneration error: {e}")
-            session.status = "failed"
-            persistence.save_session(session)
+            _fail_phase(session, f"Sandbox regeneration error: {type(e).__name__}: {e}")
             return False
     else:
         em(session, "success", f"  Sandbox verified: {session.workspace}")
@@ -927,6 +957,9 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
     """Run claude CLI; retry once with simplified prompt on failure."""
     phase_start = time.monotonic()
     _generate_cost: float = 0.0
+    # Reason for the LAST attempt's failure, carried out of the retry loop so the
+    # terminal failure records why rather than just that it happened.
+    last_failure = ""
     em(session, "phase", "[4/5] Running Claude Code (live)...")
     em(session, "system", "")
     session.status = "building"
@@ -980,6 +1013,7 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
                     _emit_sdk_canary_metric(session.id, success=True)
                 return True
             _log.warning("SDK generator failed rc=%d (attempt %d/2)", rc, attempt + 1)
+            last_failure = f"SDK failed rc={rc}"
             em(session, "error", f"  SDK failed rc={rc} (attempt {attempt + 1}/2)")
             if attempt == 0:
                 em(session, "system", "  Retrying with simplified prompt...")
@@ -991,6 +1025,7 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
             # or the SDK itself.
             import traceback  # noqa: PLC0415
             _tb = traceback.format_exc()
+            last_failure = f"{type(e).__name__}: {e}"
             em(session, "error", f"  Error: {type(e).__name__}: {e} (attempt {attempt + 1}/2)")
             # Emit last few traceback frames so we can see where it came from.
             for ln in _tb.strip().split("\n")[-8:]:
@@ -999,9 +1034,7 @@ async def _phase_generate(session, spec: str, model: str, resume_from: str) -> b
             _log.exception("Generator attempt %d/2 raised", attempt + 1)
             if attempt > 0:
                 break
-    em(session, "error", "  Generator failed after 2 attempts")
-    session.status = "failed"
-    persistence.save_session(session)
+    _fail_phase(session, f"Generator failed after 2 attempts: {last_failure or 'no failure detail captured'}")
     _emit_phase_metric(session, "generate", phase_start, _generate_cost)
     return False
 
