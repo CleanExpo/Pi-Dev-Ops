@@ -142,6 +142,25 @@ async def health(request: Request):
     # see "scheduler armed: false" instead of guessing at Railway env state.
     pi_seo_active = os.environ.get("PI_SEO_ACTIVE", "0") == "1"
 
+    # RA-7220 — GITHUB_TOKEN presence. Every build starts with `git clone`, so
+    # without this token EVERY session dies in the clone phase, ~7s in. That is
+    # not hypothetical: 51 sessions failed over 7 days while /health kept
+    # returning 200, because the one credential that gates all work was the one
+    # credential /health did not report.
+    #
+    # Exactly the failure CLAUDE.md already hardwired for linear_api_key
+    # ("autonomy.py silently skips every poll when the key is missing while
+    # /health still returns 200"), reappearing on a different key.
+    #
+    # Read at request time, and with the SAME .strip() rule as
+    # session_phases._git_clone_env, so this flag reports what the clone will
+    # actually do rather than a second opinion about the same variable.
+    #
+    # A bool only — never the value. Presence is not validity: a set-but-expired
+    # token reports True and still fails to clone. The clone error tells the two
+    # apart, this flag only rules out "the variable is missing".
+    github_token_ok = bool(os.environ.get("GITHUB_TOKEN", "").strip())
+
     healthy = disk_free_gb is not None
     payload = {
         "status":           "ok" if healthy else "degraded",
@@ -165,6 +184,8 @@ async def health(request: Request):
         "disk_free_gb":     disk_free_gb,
         "version":          "1.0.0",
         "vercel_token":     bool(config.VERCEL_TOKEN),
+        # RA-7220 — presence only. False means every build will fail at clone.
+        "github_token":     github_token_ok,
         "swarm_enabled":    swarm_enabled,
         "swarm_shadow":     swarm_shadow,
         "pi_seo_active":    pi_seo_active,

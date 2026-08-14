@@ -408,17 +408,26 @@ async def run_cmd(cwd, *args, timeout=60, env=None):
 
 def _git_clone_env(repo_url: str) -> dict[str, str] | None:
     """Return process-scoped GitHub auth without putting a token in argv/remote."""
-    token = os.environ.get("GITHUB_TOKEN", "")
+    # .strip() matters: Vercel/Railway env values pick up a trailing newline
+    # (the same hazard CLAUDE.md records for ANTHROPIC_API_KEY). Without it a
+    # whitespace-only value is truthy here and we send a malformed AUTHORIZATION
+    # header instead of taking the unset path — a different, harder failure that
+    # also makes /health disagree with what the clone actually does.
+    token = os.environ.get("GITHUB_TOKEN", "").strip()
     if not repo_url.startswith("https://github.com/"):
         return None
     if not token:
-        # Returning None here silently downgrades to an UNAUTHENTICATED clone,
-        # and a private repo answers that with a bare 404 — indistinguishable
-        # from a typo'd URL. Name the missing variable so the cause is obvious
-        # instead of being inferred from a misleading "not found".
+        # Returning None here silently downgrades to an UNAUTHENTICATED clone.
+        # Observed on session bbd234abd80c (14/08/2026): a private repo does NOT
+        # answer with a bare 404 — GitHub challenges, git then tries to PROMPT
+        # for a username, and with no TTY the clone dies with
+        #   fatal: could not read Username for 'https://github.com'
+        # That message is identical whether the token is missing or merely
+        # rejected, so this warning is the only thing that tells the two apart.
         _log.warning(
-            "GITHUB_TOKEN is unset — cloning %s unauthenticated. "
-            "A private repo will fail with 404, not 401.", repo_url,
+            "GITHUB_TOKEN is unset — cloning %s unauthenticated. Expect "
+            "'could not read Username' rather than an explicit auth error.",
+            repo_url,
         )
         return None
     basic = base64.b64encode(f"x-access-token:{token}".encode()).decode()
