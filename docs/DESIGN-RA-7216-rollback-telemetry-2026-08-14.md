@@ -160,25 +160,38 @@ Therefore C1 should be labelled **`observed_rollback_rate`**, not "% surviving 2
 
 ---
 
-## 9. Decision required before build
+## 9. Decision — unattributable reverts: **(b), decided 14/08/2026**
 
 **How should an unattributable revert count?** It is recorded either way, but C1's denominator changes:
 
-- **(a) Exclude** — measure only what can be attributed. Clean, and understates the true rate.
-- **(b) Include in a separate `unattributed` count** shown beside C1, never folded in. **Recommended:** it keeps the number honest without contaminating it, and a rising unattributed count is itself the signal that attribution coverage is degrading.
-- **(c) Include in the denominator** — treats an unknown as a Pi-CEO rollback. Rejected: that is inventing history.
+- (a) Exclude — measure only what can be attributed. Clean, and understates the true rate.
+- **(b) Separate `unattributed` count shown beside C1, never folded in. ← CHOSEN (founder, 14/08/2026)**
+- (c) Include in the denominator — treats an unknown as a Pi-CEO rollback. Rejected: that is inventing history.
 
-Not decided here. Everything else in this document follows from prior decisions or from the code.
+### What (b) obliges the implementation to do
+
+Recording the row is not enough — (a) and (b) both record it. The difference is entirely in what is reported, so the obligations are concrete:
+
+1. **C1 emits two numbers, never one.** `observed_rollback_rate` over attributed reverts only, plus `unattributed_reverts` as a raw count beside it. They are never summed, averaged, or reconciled into a single score. A caller that reads only the rate is reading a partial figure by design, which is why the count sits next to it rather than in a footnote.
+2. **The unattributed count is a first-class signal, not a footnote.** A rising count means attribution coverage is degrading — keys are not being written, or reverts are landing on changes Pi-CEO did not ship. That is worth acting on independently of the rate itself.
+3. **Coverage is surfaced, not inferred.** Report `attributed / (attributed + unattributed)` as an explicit **attribution coverage** figure. Without it, a healthy-looking `observed_rollback_rate` computed over three attributed reverts while forty went unattributed reads as reassurance when it is the opposite.
+4. **Low coverage degrades the rate to `needs_data`.** If coverage falls below a floor, `observed_rollback_rate` must report `needs_data` rather than a confident number over a small attributed slice — the same discipline as C2's sample floor. Starting threshold: coverage < 50%, or fewer than 5 attributed reverts. Both to be retuned once the baseline exists; neither is derived.
+
+Point 4 is the one that makes (b) meaningfully different from (a) in practice. Without it, (b) is just (a) with a number printed alongside that nothing ever reads.
+
+Everything else in this document follows from prior decisions or from the code.
 
 ---
 
 ## 10. Sequence
 
-1. Founder decision on §9.
+1. ~~Founder decision on §9~~ — **done 14/08/2026, option (b).**
 2. Attribution keys (§6 schema + code 1–3). No detector yet — keys must accrue **before** detection is useful, since a revert can only match rows that already carry a `merge_sha`.
 3. Detector A + the pre-session ordering + the self-modification carve-out.
 4. Detector B (the one-line `Prefer` change plus a reopen event).
 5. Detector C as a diagnostic row.
-6. Re-point C1, renamed `observed_rollback_rate`, with a sample floor.
+6. Re-point C1 as `observed_rollback_rate` + `unattributed_reverts` + attribution coverage, with the §9.4 floors.
 
 Steps 2 and 3 are separately shippable. Nothing here changes routing, per the ticket's third guardrail.
+
+**Implementation is not authorised by the §9 decision alone.** Per the repo's Judge Gate, building follows a separate explicit approval; §9 settled a design question, not the go-ahead.
