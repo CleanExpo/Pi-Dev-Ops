@@ -12,7 +12,7 @@ from pydantic import BaseModel, field_validator
 
 from ..auth import require_auth, require_rate_limit
 from ..sessions import create_session
-from ..supabase_log import mark_alert_acked, record_acceptance
+from ..supabase_log import mark_alert_acked, record_acceptance, record_merge
 from ..webhook import (
     verify_github_signature,
     verify_linear_signature,
@@ -125,6 +125,33 @@ async def webhook(request: Request):
         event = parse_github_event(gh_event, payload)
         if not event:
             return {"skipped": True, "reason": f"Unsupported event: {gh_event}"}
+        # RA-7216 gap 2 — a merged PR is an OUTCOME, not a trigger. Handled here
+        # deliberately, ahead of BOTH skips below and ahead of session creation:
+        #
+        #   * ahead of session creation, because a merge must not spawn a build;
+        #   * ahead of the RA-1182 self-modification skip, because that skip
+        #     exists to stop Pi-CEO *building* against its own repo, and
+        #     recording a merge is not building. With the skip first, Pi-CEO's
+        #     own merges would carry no merge_sha — leaving the repo that ships
+        #     the most changes as the one blind spot in rollback attribution.
+        #
+        # This is the ordering the design flagged as the mistake the obvious
+        # implementation makes.
+        if gh_event == "pull_request" and event.get("action") == "closed" and event.get("merged"):
+            recorded = record_merge(
+                repo_name=event.get("repo_name", ""),
+                pr_number=event.get("pr_number") or 0,
+                merge_sha=event.get("merge_commit_sha", ""),
+                merged_at=event.get("merged_at") or None,
+            )
+            return {
+                "triggered": False,
+                "recorded": recorded,
+                "source": "github",
+                "event": "pull_request_merged",
+                "repo_name": event.get("repo_name", ""),
+                "pr_number": event.get("pr_number"),
+            }
         repo_url = event["repo_url"]
         # RA-1182 — skip webhook-triggered sessions on Pi-CEO's own auto-
         # branches (pidev/auto-<sid>, pidev/analysis-*). Without this, every

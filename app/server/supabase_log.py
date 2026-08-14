@@ -155,6 +155,9 @@ def log_gate_check(
     files_modified: int | None = None,
     linear_state_after: str | None = None,
     linear_issue_id: str | None = None,
+    repo_name: str | None = None,
+    pr_number: int | None = None,
+    head_branch: str | None = None,
 ) -> None:
     """
     Write one gate_check row to Supabase after every /ship phase.
@@ -202,6 +205,16 @@ def log_gate_check(
     # trigger-to-accepted and review latency all stay unmeasurable.
     if linear_issue_id:
         row["linear_issue_id"] = linear_issue_id
+    # RA-7216 gap 2: the ship-time half of the attribution keys. `record_merge()`
+    # matches on (repo_name, pr_number) — pr_number alone is unique only within a
+    # repo, and Pi-CEO ships to many. Written only when non-empty so a session
+    # that opened no PR does not leave a row matchable by an empty key.
+    if repo_name:
+        row["repo_name"] = repo_name
+    if pr_number:
+        row["pr_number"] = int(pr_number)
+    if head_branch:
+        row["head_branch"] = head_branch
     _insert("gate_checks", row)
     log.info(
         "gate_check logged: pipeline=%s all_passed=%s score=%.1f confidence=%s "
@@ -257,6 +270,48 @@ def record_acceptance(
     log.info(
         "RA-7216 acceptance recorded: issue=%s state=%s type=%s ok=%s",
         linear_issue_id, state_name, state_type, ok,
+    )
+    return ok
+
+
+def record_merge(
+    *,
+    repo_name: str,
+    pr_number: int,
+    merge_sha: str,
+    merged_at: str | None = None,
+) -> bool:
+    """RA-7216 gap 2 — stamp the merge identity onto this PR's gate_checks row.
+
+    Called from the GitHub webhook when a pull request closes as merged. This is
+    the second half of the attribution keys: `merge_sha` is the value a future
+    revert detector matches against, and it does not exist at ship time because
+    the PR is only opened then, not merged.
+
+    Matches on (repo_name, pr_number). Both are required — `pr_number` is unique
+    only within a repository, so matching on it alone would stamp a merge in one
+    portfolio repo onto a gate_check row from another.
+
+    Only rows whose `merge_sha` is still null are patched, so the first merge
+    wins. A PR cannot merge twice, but a redelivered webhook can arrive twice,
+    and GitHub redelivers freely — this makes the write idempotent rather than
+    relying on that not happening.
+
+    Fire-and-forget per module doctrine: returns False on any failure, never raises.
+    """
+    if not repo_name or not pr_number or not merge_sha:
+        return False
+    ok = _patch(
+        "gate_checks",
+        f"repo_name=eq.{repo_name}&pr_number=eq.{int(pr_number)}&merge_sha=is.null",
+        {
+            "merge_sha": merge_sha,
+            "merged_at": merged_at or datetime.now(timezone.utc).isoformat(),
+        },
+    )
+    log.info(
+        "RA-7216 merge recorded: repo=%s pr=%s sha=%s ok=%s",
+        repo_name, pr_number, merge_sha[:12], ok,
     )
     return ok
 

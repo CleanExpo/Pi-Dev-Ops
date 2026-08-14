@@ -42,6 +42,18 @@ def parse_github_event(event_type: str, payload: dict) -> dict | None:
         result["action"] = payload.get("action", "")
         pr = payload.get("pull_request") or {}
         result["ref"] = (pr.get("head") or {}).get("ref", "")
+        # RA-7216 gap 2 — the merge identity. `merge_commit_sha` is the value a
+        # revert detector matches against, and it exists ONLY on this event:
+        # at ship time the PR is opened, not merged. It was parsed away here.
+        # `merged` distinguishes a merged close from an abandoned one; GitHub
+        # sends action="closed" for both and populates merge_commit_sha on
+        # non-merged PRs too, so the flag is what makes the distinction, not
+        # the SHA's presence.
+        result["merged"] = bool(pr.get("merged"))
+        result["pr_number"] = pr.get("number")
+        result["merge_commit_sha"] = pr.get("merge_commit_sha") or ""
+        result["merged_at"] = pr.get("merged_at") or ""
+        result["repo_name"] = (payload.get("repository") or {}).get("full_name", "")
     return result
 
 
