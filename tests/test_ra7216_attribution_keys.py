@@ -206,7 +206,12 @@ def _call_webhook(payload: dict, monkeypatched_record, monkeypatched_create):
          patch.object(wh, "verify_github_signature", return_value=True), \
          patch.object(wh, "record_merge", side_effect=monkeypatched_record), \
          patch.object(wh, "create_session", side_effect=monkeypatched_create):
-        return asyncio.get_event_loop().run_until_complete(wh.webhook(_Req()))
+        # asyncio.run, NOT get_event_loop().run_until_complete(): from Python
+        # 3.10 get_event_loop() raises "There is no current event loop" when no
+        # loop is running and none has been set, which is the state pytest
+        # leaves the main thread in. That is what failed CI on the first push of
+        # this PR — a defect in this harness, not in the route.
+        return asyncio.run(wh.webhook(_Req()))
 
 
 def test_merged_pr_records_and_does_not_spawn_a_session():
