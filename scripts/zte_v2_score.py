@@ -246,6 +246,23 @@ def score_c1_deployment_success(rows: list[dict], days: int = 30) -> tuple[int, 
     return 1, note
 
 
+def _llm_cost_usd(days: int) -> float:
+    """Total LLM spend in the window from the durable llm_costs table.
+
+    Returns 0.0 on any failure, which the caller treats as needs_data rather
+    than as "the work was free".
+    """
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    rows = _supabase_query("llm_costs", "cost_usd", f"ts=gte.{cutoff}&limit=5000")
+    total = 0.0
+    for r in rows:
+        try:
+            total += float(r.get("cost_usd") or 0)
+        except (TypeError, ValueError):
+            continue
+    return total
+
+
 def _fetch_outcome_events(kind: str, days: int) -> list[dict]:
     """Return outcome_events of one kind inside the window. [] on any failure."""
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
@@ -566,9 +583,15 @@ def compute_ra7216_metrics(rows: list[dict], days: int = 30) -> dict:
                    "median accepted_at - push_timestamp. QUEUE time, not attention time")
             if latencies else _needs("no accepted row carries both timestamps yet")
         ),
-        "cost_per_accepted_outcome": _needs(
-            "llm_costs covers only the provider_router path until the Agent SDK "
-            "writer ships; a figure now would be biased far low"
+        "cost_per_accepted_outcome": (
+            _value(round(_llm_cost_usd(days) / len(accepted), 4), "usd",
+                   "llm_costs summed over window / accepted outcomes")
+            if accepted and _llm_cost_usd(days) > 0
+            else _needs(
+                "no llm_costs rows in window. Agent SDK spend began reaching "
+                "llm_costs only from RA-7216 gap 4; figures spanning earlier "
+                "windows undercount the dominant build cost"
+            )
         ),
     }
 

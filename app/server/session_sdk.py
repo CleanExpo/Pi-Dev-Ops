@@ -440,4 +440,28 @@ async def _run_claude_via_sdk(
         )
         rc, text, cost, _stop, _out_tok, _err = await _attempt(config.MODEL_ID_OPUS)
 
+    # RA-7216 gap 4 — route this invocation's spend to the durable llm_costs
+    # table. Until now the Agent SDK path recorded cost ONLY to
+    # .harness/agent-sdk-metrics/, which is gitignored and lives on ephemeral
+    # Railway disk, so generator and evaluator spend — the dominant cost of a
+    # build — was lost on every redeploy and never reached llm_costs. Cost per
+    # accepted outcome computed from that table was therefore biased far low,
+    # counting only the cheap-tier provider_router calls.
+    #
+    # record_cost is fire-and-forget by contract and must not raise into the
+    # SDK path; the try/except is belt-and-braces for the import itself.
+    try:
+        from swarm.budget_tracker import record_cost  # noqa: PLC0415
+
+        record_cost(
+            provider="anthropic_agent_sdk",
+            role=_role or "",
+            model=model,
+            cost_usd=float(cost or 0.0),
+            tokens_in=0,          # the SDK usage payload exposes billed output
+            tokens_out=int(_out_tok or 0),   # tokens only; in-tokens stay 0 rather
+        )                                    # than being guessed.
+    except Exception as exc:  # noqa: BLE001
+        _log.debug("RA-7216 SDK cost record failed (non-fatal): %s", exc)
+
     return (rc, text, cost)
