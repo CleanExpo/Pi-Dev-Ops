@@ -1,15 +1,12 @@
 # app — Wiki
 
-_Last updated: 2026-08-14T04:45:50Z (commits 4ef1c6c..7b94abc)_
+_Last updated: 2026-08-14T05:19:56Z (commits 6484791..06f80ba)_
 
 ## Recent changes
-- 7b94abc — feat(metrics): rollback telemetry detectors, C1 re-point, SDK cost [RA-7216 phases 2-7] (#643)
+- 06f80ba — fix(sessions): persist WHY a session failed, not just that it did (#644)
 
 ## Architecture (current)
 Auto-stub: `app/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- app/server/routes/webhooks.py — touched in recent commits
-- app/server/session_sdk.py — touched in recent commits
-- app/server/supabase_log.py — touched in recent commits
-- app/server/webhook.py — touched in recent commits
+- app/server/session_phases.py — touched in recent commits
