@@ -53,17 +53,21 @@ def test_c1_does_not_score_a_perfect_ship_rate():
     assert "needs_data" in note
 
 
-def test_c1_has_no_bands_without_rollback_telemetry():
+def test_c1_has_no_bands_without_rollback_telemetry(monkeypatch):
     """MUTATION CONTROL: restore the shipped/total banding → this fails.
 
-    Every ship rate must land on the same needs_data floor. If any ratio starts
-    scoring differently from any other, the proxy is back.
+    RA-7216 gap 2 gave C1 real revert events, but the invariant is permanent:
+    the SHIP RATE never bands. With no reverts recorded, every ship rate must
+    land on the same needs_data floor — if any ratio starts scoring differently
+    from any other on ship rate alone, the proxy is back.
     """
+    monkeypatch.setattr(z, "_fetch_outcome_events", lambda kind, days: [])
     for shipped, failed in ((6, 4), (8, 2), (10, 0), (0, 10)):
-        rows = [{"shipped": True}] * shipped + [{"shipped": False}] * failed
-        score, note = z.score_c1_deployment_success(rows)
+        rows = ([{"shipped": True, "merge_sha": f"s{i}"} for i in range(shipped)]
+                + [{"shipped": False}] * failed)
+        score, note = z.score_c1_deployment_success(rows, 30)
         assert score == 1, f"{shipped}/{shipped+failed} scored {score}"
-        assert "DIAGNOSTIC ONLY" in note
+        assert "needs_data" in note
 
 
 # ─── C3 mean time to value ───────────────────────────────────────────────────

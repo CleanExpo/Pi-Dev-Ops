@@ -9,6 +9,7 @@ Linear: Linear-Signature header, raw hex format
 """
 import hashlib
 import hmac
+import re
 
 
 def verify_github_signature(raw_body: bytes, signature: str, secret: str) -> bool:
@@ -36,8 +37,22 @@ def parse_github_event(event_type: str, payload: dict) -> dict | None:
     if not repo_url:
         return None
     result = {"source": "github", "event": event_type, "repo_url": repo_url}
+    result["repo_name"] = (payload.get("repository") or {}).get("full_name", "")
+    result["default_branch"] = (payload.get("repository") or {}).get("default_branch", "")
     if event_type == "push":
         result["ref"] = payload.get("ref", "")
+        # RA-7216 gap 2 step 3 — commit payload for the revert detector. Only
+        # the ref was extracted before, so commit messages (the one place a
+        # revert names what it reverted) were parsed away.
+        head = payload.get("head_commit") or {}
+        result["head_commit_sha"] = head.get("id", "")
+        result["head_commit_message"] = head.get("message", "")
+        result["head_commit_timestamp"] = head.get("timestamp", "")
+        result["commits"] = [
+            {"id": c.get("id", ""), "message": c.get("message", ""),
+             "timestamp": c.get("timestamp", "")}
+            for c in (payload.get("commits") or [])
+        ]
     elif event_type == "pull_request":
         result["action"] = payload.get("action", "")
         pr = payload.get("pull_request") or {}
@@ -55,6 +70,35 @@ def parse_github_event(event_type: str, payload: dict) -> dict | None:
         result["merged_at"] = pr.get("merged_at") or ""
         result["repo_name"] = (payload.get("repository") or {}).get("full_name", "")
     return result
+
+
+# RA-7216 gap 2 step 3 — revert-commit recognition.
+#
+# Both the GitHub revert button and `git revert` produce a subject of
+# `Revert "<original subject>"` and a body line `This reverts commit <sha>.`
+# The SHA is stated, not inferred, which is what makes Detector A high
+# precision. Anchored at the start of the subject so a commit merely
+# *mentioning* a revert ("do not revert this", "Revert plan discussed") does
+# not match, and the SHA is constrained to the hex class so nothing arbitrary
+# from an attacker-influenceable commit message reaches a query.
+_REVERT_SUBJECT_RE = re.compile(r'^Revert\s+"')
+_REVERTS_COMMIT_RE = re.compile(r"This reverts commit ([0-9a-f]{7,40})", re.IGNORECASE)
+
+
+def parse_revert_commit(message: str) -> str | None:
+    """Return the SHA a revert commit reverts, or None if it is not a revert.
+
+    Both halves are required: a subject that starts `Revert "` AND a body that
+    names the reverted commit. A subject alone gives nothing to attribute to,
+    and a body line alone appears in ordinary prose.
+    """
+    if not message:
+        return None
+    lines = message.splitlines()
+    if not lines or not _REVERT_SUBJECT_RE.match(lines[0].strip()):
+        return None
+    m = _REVERTS_COMMIT_RE.search(message)
+    return m.group(1).lower() if m else None
 
 
 # RA-7216: Linear state types that terminate an issue. "completed" is an

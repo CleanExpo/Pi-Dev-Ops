@@ -244,6 +244,48 @@ CREATE INDEX IF NOT EXISTS gate_checks_merge_sha_idx
   ON gate_checks (merge_sha)
   WHERE merge_sha IS NOT NULL;
 
+-- ── outcome_events ────────────────────────────────────────────────────────────
+-- RA-7216 gap 2 step 2b: post-merge outcomes. Spec: .spm/RA-7216-completion.md
+--
+-- Append-only. Nothing updates a row after insert; a correction is a new row.
+--
+-- gate_check_id is NULLABLE ON PURPOSE. An unattributable revert — one whose
+-- reverted SHA matches no gate_checks row — is a REAL event and is recorded as
+-- a known-unknown. Dropping it would rebuild the survivorship bias that slice 2
+-- removed, in a new place. Per the §9 decision (option b, 14/08/2026) these are
+-- counted separately beside C1 and never folded into it.
+--
+-- kind:
+--   revert          a change Pi-CEO shipped was reverted on a default branch
+--   re_land         a revert of a revert — excluded from C1's numerator
+--   reopen          an accepted Linear issue transitioned back to started
+--   ci_fail_on_main CI failed on a default branch — DIAGNOSTIC ONLY, never scored
+CREATE TABLE IF NOT EXISTS outcome_events (
+  id            BIGSERIAL   PRIMARY KEY,
+  kind          TEXT        NOT NULL,
+  gate_check_id BIGINT,
+  repo_name     TEXT        NOT NULL,
+  merge_sha     TEXT,
+  event_sha     TEXT,
+  occurred_at   TIMESTAMPTZ NOT NULL,
+  detected_by   TEXT        NOT NULL,
+  raw_ref       TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS outcome_events_kind_time_idx
+  ON outcome_events (kind, occurred_at DESC);
+-- Idempotence: GitHub and Linear both redeliver webhooks freely. One event per
+-- (kind, event_sha) — the insert is allowed to fail on conflict and does not retry.
+CREATE UNIQUE INDEX IF NOT EXISTS outcome_events_dedupe_idx
+  ON outcome_events (kind, event_sha) WHERE event_sha IS NOT NULL;
+
+ALTER TABLE outcome_events ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "public_read" ON outcome_events;
+CREATE POLICY "public_read"    ON outcome_events FOR SELECT USING (true);
+DROP POLICY IF EXISTS "service_insert" ON outcome_events;
+CREATE POLICY "service_insert" ON outcome_events FOR INSERT TO service_role WITH CHECK (true);
+
 -- ── alert_escalations ────────────────────────────────────────────────────────
 -- RA-633: Tracks critical alerts sent via Telegram + escalation/ack state.
 -- Enables the 30-min escalation watchdog: unacked alerts → second louder page.

@@ -172,30 +172,104 @@ def _lessons_per_week(days: int = 30) -> float:
 
 # ─── scoring functions ────────────────────────────────────────────────────────
 
-def score_c1_deployment_success(rows: list[dict]) -> tuple[int, str]:
-    """C1: % of shipped builds surviving 24h without rollback.
+#: Minimum attributed reverts before C1 reports a rate (see score_c1).
+_C1_MIN_ATTRIBUTED = 5
+#: Minimum attribution coverage before C1 reports a rate.
+_C1_MIN_COVERAGE = 0.5
 
-    RA-7216: this previously scored `shipped/total` and reported it as the
-    survival rate, with an inline note that it was a proxy "until rollback
-    tracking lands". It never landed. The ship rate carries no information about
-    what happened AFTER the ship, so it cannot distinguish a clean deploy from
-    one reverted twenty minutes later, and RA-7216's first guardrail names this
-    exact construction as forbidden.
 
-    No rollback telemetry exists yet, so this now returns an explicit
-    needs_data state. The ship rate is still surfaced in the note, labelled as
-    diagnostic — the same treatment RA-7216 mandates for PR and token counts.
-    Restore a real score only when a rollback/escaped-defect event source exists.
+def score_c1_deployment_success(rows: list[dict], days: int = 30) -> tuple[int, str]:
+    """C1: observed rollback rate over changes Pi-CEO shipped.
+
+    RA-7216 gap 2. This previously scored `shipped/total` and reported it as a
+    24-hour survival rate — the construction the ticket's first guardrail names
+    as forbidden, because a ship rate says nothing about what happened after the
+    ship. It then returned `needs_data` at every rate while the telemetry was
+    built. It now reads real revert events.
+
+    Deliberately NOT named "% surviving 24h". Silent defects, forward fixes and
+    non-Pi-CEO changes are all invisible to any passive signal, so this measures
+    OBSERVED rollbacks of ATTRIBUTED changes — a floor, not the true rate. The
+    honest name is what stops it being read as the thing it is not.
+
+    Per the §9 decision (option b, 14/08/2026) the unattributed count is
+    reported beside the rate and never folded into it, and coverage is surfaced
+    explicitly — a healthy-looking rate computed over three attributed reverts
+    while forty went unattributed reads as reassurance when it is the opposite.
+    Below either floor the rate degrades to `needs_data` rather than reporting
+    confidently over a small attributed slice.
+
+    `re_land` (a revert of a revert) is excluded from the numerator: it re-lands
+    the original change, and counting it would double-penalise the recovery.
     """
-    total = len(rows)
-    if not total:
-        return 1, "needs_data — no gate_check rows in window"
-    shipped = [r for r in rows if r.get("shipped")]
-    rate = len(shipped) / total
-    return 1, (
-        f"needs_data — no rollback telemetry; cannot measure 24h survival. "
-        f"Ship rate {len(shipped)}/{total} ({rate:.0%}) is DIAGNOSTIC ONLY "
-        f"and is not a survival measure."
+    merged = [r for r in rows if r.get("merge_sha")]
+    events = _fetch_outcome_events("revert", days)
+    attributed = [e for e in events if e.get("gate_check_id") is not None]
+    unattributed = len(events) - len(attributed)
+
+    if not merged:
+        return 1, "needs_data — no merged changes in window to measure against"
+
+    total_events = len(attributed) + unattributed
+    coverage = (len(attributed) / total_events) if total_events else 1.0
+    suffix = (
+        f"unattributed_reverts={unattributed}; "
+        f"attribution_coverage={coverage:.0%}"
+    )
+
+    if len(attributed) < _C1_MIN_ATTRIBUTED:
+        return 1, (
+            f"needs_data — only {len(attributed)} attributed revert(s), below the "
+            f"{_C1_MIN_ATTRIBUTED}-event floor; {suffix} [DIAGNOSTIC ONLY]"
+        )
+    if coverage < _C1_MIN_COVERAGE:
+        return 1, (
+            f"needs_data — attribution coverage {coverage:.0%} below "
+            f"{_C1_MIN_COVERAGE:.0%}; a rate over {len(attributed)} attributed "
+            f"reverts would misrepresent {unattributed} unattributed; {suffix}"
+        )
+
+    rate = len(attributed) / len(merged)
+    note = (
+        f"observed_rollback_rate={len(attributed)}/{len(merged)} ({rate:.0%}) "
+        f"of merged changes reverted; {suffix}"
+    )
+    # Lower rollback rate is better, so the bands invert relative to the others.
+    if rate <= 0.02:
+        return 5, note
+    if rate <= 0.05:
+        return 4, note
+    if rate <= 0.10:
+        return 3, note
+    if rate <= 0.20:
+        return 2, note
+    return 1, note
+
+
+def _llm_cost_usd(days: int) -> float:
+    """Total LLM spend in the window from the durable llm_costs table.
+
+    Returns 0.0 on any failure, which the caller treats as needs_data rather
+    than as "the work was free".
+    """
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    rows = _supabase_query("llm_costs", "cost_usd", f"ts=gte.{cutoff}&limit=5000")
+    total = 0.0
+    for r in rows:
+        try:
+            total += float(r.get("cost_usd") or 0)
+        except (TypeError, ValueError):
+            continue
+    return total
+
+
+def _fetch_outcome_events(kind: str, days: int) -> list[dict]:
+    """Return outcome_events of one kind inside the window. [] on any failure."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    return _supabase_query(
+        "outcome_events",
+        "kind,gate_check_id,merge_sha,occurred_at",
+        f"kind=eq.{kind}&occurred_at=gte.{cutoff}&limit=500",
     )
 
 
@@ -392,7 +466,7 @@ def compute_v2_score(days: int = 30) -> dict:
     # when Supabase credentials are absent (dev / Mac Mini environment).
     rows = _supabase_query(
         "gate_checks",
-        "shipped,review_score,session_started_at,push_timestamp,checked_at",
+        "shipped,review_score,session_started_at,push_timestamp,checked_at,merge_sha,accepted_at,accepted_state_type",
         f"checked_at=gte.{cutoff}&order=checked_at.desc&limit=500",
     )
     if not rows:
@@ -401,7 +475,7 @@ def compute_v2_score(days: int = 30) -> dict:
     projects = _load_scanner_summary()
     lpw = _lessons_per_week(days)
 
-    c1_score, c1_note = score_c1_deployment_success(rows)
+    c1_score, c1_note = score_c1_deployment_success(rows, days)
     c2_score, c2_note = score_c2_output_acceptance(days)
     c3_score, c3_note = score_c3_mean_time_to_value(rows)
     c4_score, c4_note = score_c4_security_posture(projects)
@@ -425,6 +499,7 @@ def compute_v2_score(days: int = 30) -> dict:
             "total": section_c,
             "max":   25,
         },
+        "ra7216_metrics": compute_ra7216_metrics(rows, days),
         "v2_total": total,
         "v2_max": 100,
         "band": _band(total),
@@ -434,6 +509,91 @@ def compute_v2_score(days: int = 30) -> dict:
     _HARNESS.mkdir(exist_ok=True)
     _OUTPUT.write_text(json.dumps(result, indent=2))
     return result
+
+
+def compute_ra7216_metrics(rows: list[dict], days: int = 30) -> dict:
+    """The seven RA-7216 metrics: each a real value or an explicit needs_data.
+
+    Separate from the ZTE Section C card because RA-7216 is a different
+    contract: PR and token counts are diagnostic-only there, and no metric here
+    may report a number it cannot support.
+
+    Review latency is DERIVED (`accepted_at - push_timestamp`), not stored, per
+    the founder's 14/08/2026 instrument decision — one source of truth, no
+    column that can drift from its own inputs. It is named `review_latency` and
+    not `review_minutes` on purpose: it measures how long the change sat in the
+    queue, not how long a human attended to it. Conflating the two would
+    overstate founder effort by every idle overnight hour.
+    """
+    def _dt(value):
+        try:
+            return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            return None
+
+    terminal = [r for r in rows if r.get("accepted_at")]
+    accepted = [r for r in terminal
+                if (r.get("accepted_state_type") or "").lower() == "completed"]
+    reopens = _fetch_outcome_events("reopen", days)
+
+    latencies, trigger_to_accepted = [], []
+    for r in accepted:
+        acc, push, start = _dt(r.get("accepted_at")), _dt(r.get("push_timestamp")), _dt(r.get("session_started_at"))
+        if acc and push:
+            latencies.append((acc - push).total_seconds() / 60)
+        if acc and start:
+            trigger_to_accepted.append((acc - start).total_seconds() / 60)
+
+    def _median(xs):
+        return sorted(xs)[len(xs) // 2] if xs else None
+
+    def _needs(reason):
+        return {"value": None, "state": "needs_data", "reason": reason}
+
+    def _value(v, unit, provenance):
+        return {"value": v, "state": "measured", "unit": unit, "provenance": provenance}
+
+    return {
+        "first_pass_acceptance": (
+            _value(round(len(accepted) / len(terminal), 3), "ratio",
+                   "gate_checks.accepted_state_type over terminal outcomes")
+            if terminal else _needs("no terminal outcomes in window")
+        ),
+        "human_correction_count": _needs(
+            "no source. Nothing attributes post-merge commits to a human author; "
+            "measuring it needs a per-commit authorship feed that does not exist. "
+            "Not inferred from reopen count — a reopen is not a correction."
+        ),
+        "rework_ratio": (
+            _value(round(len(reopens) / len(accepted), 3), "ratio",
+                   "outcome_events.reopen over accepted outcomes")
+            if accepted else _needs("no accepted outcomes in window")
+        ),
+        "rollback_escaped_defects": _value(
+            len(_fetch_outcome_events("revert", days)), "count",
+            "outcome_events.revert — see C1 for rate, coverage and unattributed"
+        ),
+        "trigger_to_accepted_outcome": (
+            _value(round(_median(trigger_to_accepted), 1), "minutes",
+                   "median accepted_at - session_started_at")
+            if trigger_to_accepted else _needs("no accepted row carries both timestamps yet")
+        ),
+        "review_latency": (
+            _value(round(_median(latencies), 1), "minutes",
+                   "median accepted_at - push_timestamp. QUEUE time, not attention time")
+            if latencies else _needs("no accepted row carries both timestamps yet")
+        ),
+        "cost_per_accepted_outcome": (
+            _value(round(_llm_cost_usd(days) / len(accepted), 4), "usd",
+                   "llm_costs summed over window / accepted outcomes")
+            if accepted and _llm_cost_usd(days) > 0
+            else _needs(
+                "no llm_costs rows in window. Agent SDK spend began reaching "
+                "llm_costs only from RA-7216 gap 4; figures spanning earlier "
+                "windows undercount the dominant build cost"
+            )
+        ),
+    }
 
 
 def _band(score: int) -> str:

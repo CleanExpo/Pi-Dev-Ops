@@ -279,20 +279,20 @@ def test_log_gate_check_omits_the_key_when_absent():
 def test_c1_never_reports_a_survival_score():
     """MUTATION CONTROL: restore the shipped/total proxy → this fails.
 
-    RA-7216's first guardrail forbids presenting shipped/total as a 24h rollback
-    measure. Until rollback telemetry exists C1 must be needs_data at any ship
-    rate, including a perfect one.
+    RA-7216's first guardrail forbids presenting shipped/total as a rollback
+    measure. Gap 2 replaced the interim needs_data stub with real revert events,
+    but the invariant this test exists for is unchanged and permanent: **the
+    ship rate never produces a score.** With no revert events recorded, a
+    perfect ship rate must still yield needs_data.
     """
     z = _load_scorer()
-    for rows in ([{"shipped": True}] * 20,
-                 [{"shipped": True}] * 19 + [{"shipped": False}],
+    z._fetch_outcome_events = lambda kind, days: []
+    for rows in ([{"shipped": True, "merge_sha": "a"}] * 20,
+                 [{"shipped": True, "merge_sha": "a"}] * 19 + [{"shipped": False}],
                  []):
-        score, note = z.score_c1_deployment_success(rows)
-        assert score == 1, f"C1 scored {score} without rollback data"
+        score, note = z.score_c1_deployment_success(rows, 30)
+        assert score == 1, f"C1 scored {score} from a ship rate alone"
         assert "needs_data" in note
-    # the ship rate survives as an explicitly-labelled diagnostic
-    _, note = z.score_c1_deployment_success([{"shipped": True}] * 20)
-    assert "DIAGNOSTIC ONLY" in note
 
 
 def test_c2_treats_the_old_in_review_literal_as_unknown():

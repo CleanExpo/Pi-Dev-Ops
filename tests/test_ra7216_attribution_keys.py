@@ -160,7 +160,10 @@ def test_record_merge_matches_on_repo_and_pr_and_only_unstamped_rows():
 
     assert ok is True
     assert captured["table"] == "gate_checks"
-    assert "repo_name=eq.CleanExpo/Pi-Dev-Ops" in captured["filter"]
+    # RA-7219: filter values are now percent-encoded, so the slash arrives as
+    # %2F. PostgREST decodes it back — the encoding is what stops a value
+    # containing & or = silently broadening the filter.
+    assert "repo_name=eq.CleanExpo%2FPi-Dev-Ops" in captured["filter"]
     assert "pr_number=eq.7" in captured["filter"]
     assert "merge_sha=is.null" in captured["filter"]
     assert captured["body"]["merge_sha"] == "abc123def4567890"

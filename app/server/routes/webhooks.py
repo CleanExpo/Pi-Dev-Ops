@@ -12,8 +12,17 @@ from pydantic import BaseModel, field_validator
 
 from ..auth import require_auth, require_rate_limit
 from ..sessions import create_session
-from ..supabase_log import mark_alert_acked, record_acceptance, record_merge
+from ..supabase_log import (
+    find_accepted_gate_check,
+    find_gate_check_by_merge_sha,
+    is_recorded_revert,
+    mark_alert_acked,
+    record_acceptance,
+    record_merge,
+    record_outcome_event,
+)
 from ..webhook import (
+    parse_revert_commit,
     verify_github_signature,
     verify_linear_signature,
     parse_github_event,
@@ -152,6 +161,22 @@ async def webhook(request: Request):
                 "repo_name": event.get("repo_name", ""),
                 "pr_number": event.get("pr_number"),
             }
+        # RA-7216 gap 2 step 3 — Detector A. A revert on a default branch is an
+        # OUTCOME, not a trigger. Placed here for the same three reasons as the
+        # merged-PR branch above: a revert must not spawn a build; it must be
+        # recorded even on Pi-CEO's own repo (the RA-1182 skip stops BUILDING,
+        # not recording, and Pi-CEO ships more changes than anything else); and
+        # it must not be lost to the pidev/ auto-branch skip.
+        if gh_event == "push":
+            recorded = _record_reverts_in_push(event)
+            if recorded:
+                return {
+                    "triggered": False,
+                    "recorded": len(recorded),
+                    "source": "github",
+                    "event": "revert_push",
+                    "kinds": recorded,
+                }
         repo_url = event["repo_url"]
         # RA-1182 — skip webhook-triggered sessions on Pi-CEO's own auto-
         # branches (pidev/auto-<sid>, pidev/analysis-*). Without this, every
@@ -215,6 +240,33 @@ async def webhook(request: Request):
                 "linear_issue_id": issue_id,
                 "state_type": event.get("state_type", ""),
             }
+        # RA-7216 gap 2 step 4 — Detector B. A transition back to `started` on an
+        # issue that was ALREADY accepted is a reopen: rework, and often an
+        # escaped defect.
+        #
+        # Determined by explicit lookup, never by inference. The design proposed
+        # reading it off a PATCH that matched no rows; that conflates "already
+        # accepted" with "Pi-CEO never shipped this issue" — two different facts,
+        # and the metric would be wrong in a way nothing surfaces. Superseded in
+        # .spm/RA-7216-completion.md §8.
+        #
+        # Unlike the merge and revert branches this does NOT return: a reopened
+        # issue moving to In Progress is still a legitimate build trigger, so
+        # recording the outcome must not suppress the session.
+        if event.get("event") == "issue_started":
+            try:
+                _gc_id = find_accepted_gate_check(event.get("issue_id", ""))
+                if _gc_id is not None:
+                    record_outcome_event(
+                        kind="reopen",
+                        repo_name=event.get("repo_url", "") or "linear",
+                        occurred_at=event.get("occurred_at") or _now_iso(),
+                        detected_by="detector_b_reopen_after_acceptance",
+                        gate_check_id=_gc_id,
+                        event_sha=f"reopen:{event.get('issue_id', '')}:{_gc_id}",
+                    )
+            except Exception as exc:  # noqa: BLE001
+                log.warning("RA-7216 reopen detection failed (non-fatal): %s", exc)
         if not event.get("repo_url"):
             return {"skipped": True, "reason": "No repo URL found in issue (add repo:<url> label)"}
         repo_url = event["repo_url"]
@@ -243,6 +295,77 @@ async def webhook(request: Request):
 
     else:
         raise HTTPException(400, "Missing webhook signature header (x-hub-signature-256 or Linear-Signature)")
+
+
+# ── RA-7216 gap 2 step 3: revert detection ───────────────────────────────────
+
+def _record_reverts_in_push(event: dict) -> list[str]:
+    """Record every revert commit in a default-branch push. Returns kinds recorded.
+
+    Empty list means this push contained no revert, and the caller falls through
+    to the normal session-trigger path — ordinary pushes are unaffected.
+
+    Only the default branch counts: a revert on a feature branch reverts
+    something that never shipped, so it is not a rollback of anything Pi-CEO
+    delivered. `ref` is `refs/heads/<name>`; the repository payload states its
+    own default branch, so the comparison needs no hardcoded "main".
+    """
+    ref = event.get("ref", "")
+    default_branch = event.get("default_branch", "")
+    if not ref or not default_branch or ref != f"refs/heads/{default_branch}":
+        return []
+
+    repo_name = event.get("repo_name", "")
+    if not repo_name:
+        return []
+
+    # head_commit is included in commits[] for a normal push, so dedupe by SHA
+    # to avoid recording the same revert twice from one delivery.
+    seen: set[str] = set()
+    candidates = list(event.get("commits") or [])
+    head_sha = event.get("head_commit_sha", "")
+    if head_sha and not any(c.get("id") == head_sha for c in candidates):
+        candidates.append({
+            "id": head_sha,
+            "message": event.get("head_commit_message", ""),
+            "timestamp": event.get("head_commit_timestamp", ""),
+        })
+
+    recorded: list[str] = []
+    for commit in candidates:
+        sha = commit.get("id", "")
+        if not sha or sha in seen:
+            continue
+        seen.add(sha)
+        reverted_sha = parse_revert_commit(commit.get("message", ""))
+        if not reverted_sha:
+            continue
+        try:
+            # A revert OF a revert re-lands the original change. Counting it as
+            # a second rollback would double-penalise the recovery, so it is
+            # classified separately and excluded from C1's numerator.
+            kind = "re_land" if is_recorded_revert(reverted_sha) else "revert"
+            gate_check_id = find_gate_check_by_merge_sha(reverted_sha)
+            record_outcome_event(
+                kind=kind,
+                repo_name=repo_name,
+                occurred_at=commit.get("timestamp") or _now_iso(),
+                detected_by="detector_a_revert_commit",
+                gate_check_id=gate_check_id,
+                merge_sha=reverted_sha,
+                event_sha=sha,
+                raw_ref=ref,
+            )
+            recorded.append(kind)
+        except Exception as exc:  # noqa: BLE001
+            # Observability must never raise into the webhook handler.
+            log.warning("RA-7216 revert detection failed (non-fatal): %s", exc)
+    return recorded
+
+
+def _now_iso() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).isoformat()
 
 
 # ── RA-847: CI failure alerting helpers ──────────────────────────────────────
@@ -334,6 +457,28 @@ async def _handle_workflow_run(payload: dict, request: Request) -> None:
     workflow_name = run.get("name", "CI")
     run_url = run.get("html_url", "")
     sha = sha_full[:8]
+
+    # RA-7216 gap 2 step 5 — Detector C. RA-847 already detects this; the only
+    # thing missing was durability, so the event existed as an alert and never
+    # as data. Recorded AFTER the dedup gate above so one broken commit yields
+    # one row rather than one per job.
+    #
+    # DIAGNOSTIC ONLY. This never enters a score: a red build on the default
+    # branch is as often a flaky test or an infrastructure blip as a real
+    # escaped defect, and blending a low-precision signal into C1 is how the
+    # original proxy came to misrepresent itself. It is context beside the
+    # number, the same status the ticket assigns PR and token counts.
+    try:
+        record_outcome_event(
+            kind="ci_fail_on_main",
+            repo_name=repo,
+            occurred_at=run.get("updated_at") or _now_iso(),
+            detected_by="detector_c_ci_failure",
+            event_sha=sha_full or None,
+            raw_ref=f"{workflow_name}",
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.warning("RA-7216 CI-failure event record failed (non-fatal): %s", exc)
     commit_msg = run.get("head_commit", {}).get("message", "")[:80]
 
     title = f"[CI FAILURE] {repo} — {workflow_name} on main"
