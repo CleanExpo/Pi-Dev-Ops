@@ -1,9 +1,9 @@
 # scripts — Wiki
 
-_Last updated: 2026-08-14T03:42:36Z (commits a7f9957..d25ff6e)_
+_Last updated: 2026-08-14T04:45:50Z (commits 4ef1c6c..7b94abc)_
 
 ## Recent changes
-- d25ff6e — feat(metrics): capture the Linear acceptance event [RA-7216] (#639)
+- 7b94abc — feat(metrics): rollback telemetry detectors, C1 re-point, SDK cost [RA-7216 phases 2-7] (#643)
 
 ## Architecture (current)
 Auto-stub: `scripts/` had 1 recent commits. SDK unavailable for synthesis.
