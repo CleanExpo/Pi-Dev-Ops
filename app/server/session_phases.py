@@ -1561,6 +1561,19 @@ async def _phase_push(session, total_phases: int) -> tuple[list[str], bool]:
                                     session.pr_url = pr_url  # type: ignore[attr-defined]
                                 except Exception:
                                     pass
+                                # RA-7216 gap 2 — attribution keys. pr_number was
+                                # read here and then discarded as a local, so a
+                                # merge event had nothing to match a gate_checks
+                                # row by. Carried on the session (matching the
+                                # pr_url line above) rather than widening
+                                # _phase_push's return tuple, which several
+                                # callers unpack.
+                                try:
+                                    session.pr_number = pr_number      # type: ignore[attr-defined]
+                                    session.head_branch = branch_name  # type: ignore[attr-defined]
+                                    session.repo_name = owner_repo     # type: ignore[attr-defined]
+                                except Exception:
+                                    pass
                                 # RA-1184 — route Linear ticket to the TARGET
                                 # repo's Linear project (not Pi-Dev-Ops). Reads
                                 # projects.json for team_id + linear_project_id.
@@ -1644,6 +1657,13 @@ def _log_ship_gate_check(session, push_ok: bool, push_ts: float) -> None:
             # terminal outcome arrives later via the Linear webhook and is
             # matched back to this row by issue id.
             linear_issue_id=getattr(session, "linear_issue_id", None),
+            # RA-7216 gap 2: attribution keys for rollback telemetry. Set in
+            # _phase_push only when a PR was actually opened, so they are absent
+            # for sessions that pushed nothing — correct, because there is no
+            # merge for those to attribute.
+            repo_name=getattr(session, "repo_name", None),
+            pr_number=getattr(session, "pr_number", None),
+            head_branch=getattr(session, "head_branch", None),
         )
     except Exception:
         pass  # observability must never block the pipeline

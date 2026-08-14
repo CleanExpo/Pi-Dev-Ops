@@ -213,6 +213,37 @@ ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS accepted_state_type TEXT;
 CREATE INDEX IF NOT EXISTS gate_checks_linear_issue_idx ON gate_checks (linear_issue_id) WHERE linear_issue_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS gate_checks_accepted_at_idx  ON gate_checks (accepted_at DESC) WHERE accepted_at IS NOT NULL;
 
+-- RA-7216 gap 2 step 2: attribution keys for rollback telemetry.
+-- Design: docs/DESIGN-RA-7216-rollback-telemetry-2026-08-14.md
+--
+-- A revert commit names the SHA it reverts. Nothing here held a SHA, PR number
+-- or branch, so a revert had no row to attach to. These close that gap. They
+-- accrue BEFORE any detector ships, because a revert can only ever match rows
+-- that already carry a merge_sha.
+--
+-- Written in two passes, because the identity is only complete after the merge:
+--   ship time  → repo_name, pr_number, head_branch  (log_gate_check)
+--   PR merged  → merge_sha, merged_at               (record_merge, from the webhook)
+--
+-- repo_name is NOT in the original design and was added during implementation:
+-- pr_number is unique only WITHIN a repo, and Pi-CEO ships to a dozen portfolio
+-- repos, so PR #5 exists in many of them. Matching a merge on pr_number alone
+-- would cross-attribute a merge in one repo to a gate_check row in another.
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS repo_name   TEXT;
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS pr_number   INTEGER;
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS head_branch TEXT;
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS merge_sha   TEXT;
+ALTER TABLE gate_checks ADD COLUMN IF NOT EXISTS merged_at   TIMESTAMPTZ;
+
+-- The lookup record_merge() performs: (repo_name, pr_number) → the row to stamp.
+CREATE INDEX IF NOT EXISTS gate_checks_repo_pr_idx
+  ON gate_checks (repo_name, pr_number)
+  WHERE pr_number IS NOT NULL;
+-- The lookup a revert detector will perform: merge_sha → the row it belongs to.
+CREATE INDEX IF NOT EXISTS gate_checks_merge_sha_idx
+  ON gate_checks (merge_sha)
+  WHERE merge_sha IS NOT NULL;
+
 -- ── alert_escalations ────────────────────────────────────────────────────────
 -- RA-633: Tracks critical alerts sent via Telegram + escalation/ack state.
 -- Enables the 30-min escalation watchdog: unacked alerts → second louder page.
