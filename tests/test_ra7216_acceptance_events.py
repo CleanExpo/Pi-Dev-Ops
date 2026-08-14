@@ -221,6 +221,43 @@ def test_log_gate_check_carries_linear_issue_id():
     assert captured["row"]["linear_issue_id"] == "issue-abc"
 
 
+def test_ship_gate_check_call_site_passes_the_join_key():
+    """MUTATION CONTROL: change the call site to `linear_issue_id=None` → fails.
+
+    The test below exercises supabase_log.log_gate_check directly, so it keeps
+    passing when the CALLER stops supplying the key — which is precisely what a
+    mutation run showed (19/19 green with the join key dropped at the call
+    site). This asserts the real caller, which is why _log_ship_gate_check was
+    extracted from run_build.
+    """
+    from types import SimpleNamespace
+    from app.server import session_phases
+
+    session = SimpleNamespace(
+        id="sid-1", workspace="/nonexistent", evaluator_status="passed",
+        evaluator_score=9.0, evaluator_confidence=88.0, scope_adhered=True,
+        modified_files=["a.py"], started_at=1700000000.0,
+        linear_issue_id="issue-abc",
+    )
+    captured = {}
+    with patch.object(session_phases, "log_gate_check",
+                      side_effect=lambda **kw: captured.update(kw)):
+        session_phases._log_ship_gate_check(session, push_ok=True, push_ts=1700000600.0)
+
+    assert captured["linear_issue_id"] == "issue-abc"
+    assert captured["shipped"] is True
+    assert captured["push_timestamp"] == 1700000600.0
+
+
+def test_ship_gate_check_never_raises_into_the_pipeline():
+    """Observability must not be able to fail a build. A session missing every
+    attribute must still return cleanly."""
+    from types import SimpleNamespace
+    from app.server import session_phases
+
+    session_phases._log_ship_gate_check(SimpleNamespace(), push_ok=False, push_ts=0.0)
+
+
 def test_log_gate_check_omits_the_key_when_absent():
     """A session with no Linear issue must not write an empty join key —
     `linear_issue_id=eq.` would otherwise match it from an unrelated event."""
