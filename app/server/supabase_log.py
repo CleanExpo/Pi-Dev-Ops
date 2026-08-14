@@ -17,8 +17,9 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import urllib.request
 import urllib.error
+import urllib.parse
+import urllib.request
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -38,6 +39,27 @@ def _cfg() -> tuple[str, str]:
         _URL = _c.SUPABASE_URL
         _KEY = _c.SUPABASE_SERVICE_ROLE_KEY
     return _URL, _KEY
+
+
+# ── Filter-value escaping (RA-7219) ───────────────────────────────────────────
+
+def _q(value: Any) -> str:
+    """Percent-encode a value for use inside a PostgREST filter.
+
+    Every filter in this module is built by f-string interpolation. An
+    unescaped `&` starts a NEW filter parameter and an unescaped `=` splits the
+    operator, so a value containing either silently BROADENS the query instead
+    of erroring — and a PATCH whose filter is broadened updates rows it was
+    never meant to touch. `_patch` only checks the HTTP status, so that failure
+    is invisible.
+
+    Not an injection fix: every caller's value arrives on a signature-verified
+    webhook or is generated internally. The sharp one is `alert_key`, whose own
+    docstring calls it a "finding fingerprint" — arbitrary content by
+    construction. safe="" so that `&`, `=` and `/` are all encoded; repo names
+    like CleanExpo/Pi-Dev-Ops encode their slash, which PostgREST decodes back.
+    """
+    return urllib.parse.quote(str(value), safe="")
 
 
 # ── Low-level REST helpers ─────────────────────────────────────────────────────
@@ -264,7 +286,7 @@ def record_acceptance(
     }
     ok = _patch(
         "gate_checks",
-        f"linear_issue_id=eq.{linear_issue_id}&accepted_at=is.null",
+        f"linear_issue_id=eq.{_q(linear_issue_id)}&accepted_at=is.null",
         patch,
     )
     log.info(
@@ -303,7 +325,7 @@ def record_merge(
         return False
     ok = _patch(
         "gate_checks",
-        f"repo_name=eq.{repo_name}&pr_number=eq.{int(pr_number)}&merge_sha=is.null",
+        f"repo_name=eq.{_q(repo_name)}&pr_number=eq.{int(pr_number)}&merge_sha=is.null",
         {
             "merge_sha": merge_sha,
             "merged_at": merged_at or datetime.now(timezone.utc).isoformat(),
@@ -314,6 +336,111 @@ def record_merge(
         repo_name, pr_number, merge_sha[:12], ok,
     )
     return ok
+
+
+# ── RA-7216 gap 2: outcome events ─────────────────────────────────────────────
+
+def find_gate_check_by_merge_sha(merge_sha: str) -> int | None:
+    """Return the gate_checks.id whose merge_sha matches, or None.
+
+    Prefix match: a revert commit body may name a short SHA (`This reverts
+    commit a1b2c3d.`) while the stored merge_sha is full-length, so an equality
+    match would miss. `like.<sha>*` resolves both. Returns None on no match —
+    the caller records the event with a NULL gate_check_id rather than dropping
+    it, per the §9 decision.
+    """
+    if not merge_sha:
+        return None
+    rows = _select("gate_checks", f"select=id&merge_sha=like.{_q(merge_sha)}*&limit=2")
+    if len(rows) != 1:
+        # 0 = unattributable. >1 = ambiguous prefix, which must NOT be guessed:
+        # attributing a revert to the wrong session is worse than not attributing it.
+        return None
+    try:
+        return int(rows[0]["id"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def find_accepted_gate_check(linear_issue_id: str) -> int | None:
+    """Return the gate_checks.id for an issue that has ALREADY been accepted.
+
+    This is Detector B's whole basis. The design proposed inferring a reopen
+    from a PATCH that matched no rows; that conflates "already accepted" with
+    "Pi-CEO never shipped this issue" — two different facts, and the metric
+    would be wrong in a way nothing surfaces. An explicit lookup cannot make
+    that mistake. Superseded in .spm/RA-7216-completion.md §8.
+    """
+    if not linear_issue_id:
+        return None
+    rows = _select(
+        "gate_checks",
+        f"select=id&linear_issue_id=eq.{_q(linear_issue_id)}"
+        f"&accepted_at=not.is.null&limit=1",
+    )
+    try:
+        return int(rows[0]["id"]) if rows else None
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def record_outcome_event(
+    *,
+    kind: str,
+    repo_name: str,
+    occurred_at: str,
+    detected_by: str,
+    gate_check_id: int | None = None,
+    merge_sha: str | None = None,
+    event_sha: str | None = None,
+    raw_ref: str | None = None,
+) -> bool:
+    """RA-7216 gap 2 — append one post-merge outcome. Fire-and-forget.
+
+    Append-only: nothing here updates an existing row. A duplicate delivery
+    collides with `outcome_events_dedupe_idx` and the insert fails; that is the
+    intended outcome and is not retried, so redelivery is idempotent without a
+    read-modify-write.
+    """
+    if not kind or not repo_name or not occurred_at:
+        return False
+    row: dict[str, Any] = {
+        "kind": kind,
+        "repo_name": repo_name,
+        "occurred_at": occurred_at,
+        "detected_by": detected_by or "unknown",
+    }
+    if gate_check_id is not None:
+        row["gate_check_id"] = int(gate_check_id)
+    if merge_sha:
+        row["merge_sha"] = merge_sha
+    if event_sha:
+        row["event_sha"] = event_sha
+    if raw_ref:
+        row["raw_ref"] = raw_ref
+    ok = _insert("outcome_events", row)
+    log.info(
+        "RA-7216 outcome_event: kind=%s repo=%s attributed=%s sha=%s ok=%s",
+        kind, repo_name, gate_check_id is not None,
+        (event_sha or "")[:12], ok,
+    )
+    return ok
+
+
+def is_recorded_revert(event_sha: str) -> bool:
+    """True when this SHA is itself a previously-recorded revert.
+
+    A revert of a revert re-lands the original change; counting it as a second
+    rollback would double-penalise a recovery. Detector A uses this to classify
+    such an event as `re_land`, which is excluded from C1's numerator.
+    """
+    if not event_sha:
+        return False
+    rows = _select(
+        "outcome_events",
+        f"select=id&kind=eq.revert&event_sha=like.{_q(event_sha)}*&limit=1",
+    )
+    return bool(rows)
 
 
 # ── RA-1407: sessions table checkpointing ────────────────────────────────────
@@ -520,7 +647,7 @@ def mark_alert_escalated(alert_key: str) -> None:
     """RA-633 — Mark an alert as escalated after the second Telegram page fires."""
     _patch(
         "alert_escalations",
-        f"alert_key=eq.{alert_key}",
+        f"alert_key=eq.{_q(alert_key)}",
         {
             "escalated":    True,
             "escalated_at": datetime.now(timezone.utc).isoformat(),
@@ -532,7 +659,7 @@ def mark_alert_acked(alert_key: str) -> None:
     """RA-633 — Mark an alert as acknowledged (called from Telegram /ack command)."""
     _patch(
         "alert_escalations",
-        f"alert_key=eq.{alert_key}",
+        f"alert_key=eq.{_q(alert_key)}",
         {
             "acked":    True,
             "acked_at": datetime.now(timezone.utc).isoformat(),
@@ -563,12 +690,12 @@ def insert_eval_candidate(row: dict[str, Any]) -> bool:
 
 def select_eval_candidates(status: str = "pending", limit: int = 50) -> list[dict[str, Any]]:
     """Fetch capture-queue rows for the founder promotion CLI."""
-    return _select("eval_candidates", f"status=eq.{status}&order=captured_at.asc&limit={limit}")
+    return _select("eval_candidates", f"status=eq.{_q(status)}&order=captured_at.asc&limit={int(limit)}")
 
 
 def update_eval_candidate_status(candidate_id: int, status: str) -> bool:
     """Mark a candidate promoted/rejected after founder review."""
-    return _patch("eval_candidates", f"id=eq.{candidate_id}", {"status": status})
+    return _patch("eval_candidates", f"id=eq.{int(candidate_id)}", {"status": status})
 
 
 def select_margot_conversations(
@@ -584,8 +711,8 @@ def select_margot_conversations(
     if not chat_id:
         return []
     params = (
-        f"tenant_id=eq.{tenant_id}"
-        f"&chat_id=eq.{chat_id}"
+        f"tenant_id=eq.{_q(tenant_id)}"
+        f"&chat_id=eq.{_q(chat_id)}"
         f"&order=started_at.desc"
         f"&limit={int(limit)}"
     )
