@@ -47,7 +47,20 @@ MANIFEST = [
     # the self-healing chain
     "prove-the-failure", "contain", "diagnose", "classify",
     "propose-fix", "adversarial-review", "verify", "immunise", "incident-memory",
+    # Actuation. The repo copy is a DISCOVERY STUB by design: the real workflow is
+    # served by the installed CLI (`agent-browser skills get core`) so it cannot go
+    # stale against the binary. Inlining it here would manufacture the very
+    # deployed-versus-template drift this manifest exists to catch — with the added
+    # twist that the drift would be against a version number, not another machine.
+    "agent-browser",
 ]
+
+# NOTE on the blind-pile rule (skill-trainer): this script copies exactly
+# `skills/<name>/SKILL.md` and nothing else, so an `evals/` directory beside a skill
+# can never be deployed to a machine. That is structural rather than a rule anyone has
+# to remember — there is no directory walk to exclude anything from. If this ever grows
+# to copy a skill's whole directory, evals/ needs an explicit exclusion at that moment,
+# because a build pile shipped to every machine is a build pile nobody prunes.
 
 
 def sha(p: Path) -> str | None:
