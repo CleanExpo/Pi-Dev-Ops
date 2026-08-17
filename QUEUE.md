@@ -17,18 +17,24 @@ ADW), 4 (ticket: Linear routing), 6 (review: evaluator + judge), 7 (schedule:
 `cron_scheduler` + routines), 8 (parallel: `/api/build/parallel`) and 9 (permissions:
 autonomy ladder + `model_policy`) are present and were left alone.
 
-- [ ] Pillar 5, "eyes" — establish whether a GENERATED session verifies the product it
-      built, or only that the code compiles. RA-1109 says a feature is not shipped until
-      the user-visible outcome is demonstrable, and the surface gate enforces that on PRs
-      into this repo — but it is not yet confirmed that the generator's own loop opens the
-      app, exercises the flow and reads the result before reporting done. Check the phase
-      sequence in `session_phases.py`; if the check is absent, that is the same class as
-      `audit-smoke` never running.
-- [ ] Pillar 6 at the WORKSPACE level — a generated workspace now inherits business
-      context via `CLAUDE.md`, but no review standard. The show-notes setup carries three
-      root files; the evaluator applies its own rubric server-side, so confirm whether the
-      target repo needs a `REVIEW.md` at all before writing one. Do not add a third file
-      just to match a video.
+- [ ] Pillar 5, "eyes" — **CONFIRMED ABSENT. Designed, deliberately not built tonight.**
+      `_PHASE_ORDER` is `clone → analyze → claude_check → sandbox → plan → generator →
+      evaluator → push`. No phase runs the product. `_phase_sandbox` only verifies the
+      workspace directory exists (or re-clones it). `_phase_evaluate` is a pure diff
+      reader: its prompt grades COMPLETENESS / CORRECTNESS / CONCISENESS / FORMAT /
+      KARPATHY from the diff against the brief, and asks "any bugs, logic errors ... or
+      broken tests?" without ever having run one. The system grades code by reading it.
+      That is exactly the RA-1109 hazard this repo hardwired against ("HTTP 200, types
+      compiling, and green lint are not shipping"), sitting in its own generator.
+      DESIGN: a `verify` phase between `generator` and `evaluator` that runs the TARGET
+      repo's own checks in the workspace (detect `npm test` / `pytest` / build) and feeds
+      the captured result into the evaluator prompt, so the grade is grounded in execution
+      rather than inference. NOT SHIPPED because the blast radius is wrong for tonight: it
+      changes `_PHASE_ORDER`, the `total_phases` 5/6 arithmetic, and
+      `dashboard/lib/phases.ts`, which parses the phase sequence — a cross-cutting change
+      to the loop that ships code to 12 portfolio repos, while Actions allocates no runner
+      to validate it. Same call as the Vercel `ignoreCommand`, for the same reason.
+      (pillar 6 resolved as a decision — see Done)
 
 ## BLOCKED — founder action, do not treat as queue items
 
@@ -49,6 +55,24 @@ autonomy ladder + `model_policy`) are present and were left alone.
   `/api/autonomy/status`. `.env.local` was never required for this.
 
 ## Done — 2026-08-18 overnight
+
+- [x] Pillars 1 + 2 (workspace + memory) BUILT. A generated session got a three-line
+      containment stub and none of the business context Pi-CEO already held. The planted
+      `CLAUDE.md` now carries registry facts and the business charter, with the guard
+      still first. `check_business_charters.py` added as a ratchet, both failure arms
+      verified to fire.
+- [x] Pillar 6 at the workspace level — DECISION: do not add a per-repo `REVIEW.md`. The
+      evaluator's rubric (completeness / correctness / conciseness / format / Karpathy,
+      with the threshold and confidence contract) lives in the server-side prompt and is
+      applied uniformly to all 12 portfolio repos. A per-repo standard file would
+      duplicate it and drift from it, and nothing in the generator reads one. The
+      show-notes three-file setup is for a human working a single repo; the equivalent
+      here is already central and enforced. Adding a third file to match a video would be
+      the "unnecessary complexity" the rubric itself scores down.
+- [x] Pillars 3, 4, 7, 8, 9 audited as ALREADY PRESENT and deliberately left alone:
+      `brief.py` (PITER intent + ADW routing), Linear routing via `projects.json`,
+      `cron_scheduler` + routines, `/api/build/parallel`, and the autonomy ladder +
+      `model_policy` permission tiers.
 
 - [x] CI's `smoke-local` reproduced locally: **35/35 checks pass**. But running it exposed a
       worse problem than the skip it was meant to close — the gate was **not hermetic**.
