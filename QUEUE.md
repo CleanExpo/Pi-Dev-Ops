@@ -18,13 +18,37 @@ mode `goal-circuit-breaker` exists to catch.
 * **GitHub Actions allocates no runner** (since 2026-08-14T05:20Z). Needs a billing or
   infrastructure decision. Evidence and the three options:
   `docs/BLOCKER-github-actions-runners-2026-08-18.md`.
-* **Mission Control authenticated payload unverified.** No `.env.local` on this machine,
-  so `scripts/smoke_test.py` cannot authenticate. Every protected endpoint correctly
-  returns 401 and `/control` 307s to login; the surfaces are up, the payload content is
-  unconfirmed.
+* **`/command-centre/wiki-graph` returns 500** — RA-7264. `route-exercise` is now the only
+  failing gate, so `handoff-loop.sh` reports BLOCKED on every run. Pre-existing: the same
+  500 appears in handoff logs from before today's cron work. Left as a ticket rather than
+  fixed here, because a red gate that everyone learns to ignore is how a real regression
+  gets waved through — it should be fixed deliberately, not folded into unrelated work.
+* ~~**Mission Control authenticated payload unverified.**~~ **DISPROVEN 2026-08-18.** The
+  premise was that `scripts/smoke_test.py` cannot authenticate without `.env.local`. It
+  can: start the server with `TAO_PASSWORD` set and pass the same value to `--password`.
+  Done, and the authenticated payload is now confirmed — 35/35 checks including
+  `POST /api/login` 200, `tao_session` cookie set, `GET /api/me` → `authenticated:true`,
+  and authenticated bodies for `/api/sessions`, `/api/lessons`, `/api/gc` and
+  `/api/autonomy/status`. `.env.local` was never required for this.
 
 ## Done — 2026-08-18 overnight
 
+- [x] CI's `smoke-local` reproduced locally: **35/35 checks pass**. But running it exposed a
+      worse problem than the skip it was meant to close — the gate was **not hermetic**.
+      `TAO_AUTONOMY_ENABLED=0` gates the Linear poller only; `cron_loop` is separate and
+      ungated, and ten seconds after boot it fires every trigger whose `last_fired_at` is
+      older than its schedule. Booting the server for a *test* therefore ran a real board
+      meeting (live model calls, an Ollama call, a Claude Agent SDK subprocess) and wrote
+      `.harness/board-meetings/2026-08-17-research.json`. CI is worse, not better: a fresh
+      checkout takes `last_fired_at` straight from git, so every trigger is overdue there.
+      Fixed with `TAO_CRON_ENABLED`, **default 1 so production is unchanged**, set to 0 in
+      `ci.yml`'s smoke-local job and in `handoff-loop.sh`'s `_smoke_with_server`.
+      Evidence: gate now reports `skip=0` (was `skip=1`) and **0** board-meeting artefacts
+      where the pre-fix run produced 1. 9 new tests; suite 3234 passed. Positive control:
+      removing the `if config.CRON_ENABLED` guard turns the suppression test red.
+      Honest note: the very first smoke run of the session failed on `secrets_check`, and I
+      could not reproduce it — I truncated its diagnostic output myself. The concurrent
+      cron activity is the likely cause and is now gone, but that is inference, not proof.
 - [x] `secrets_check.py` reported 102 vendored files as exposed secrets on every local run
       (`.venv-verify/` missed by a name-based filter) and rewrote `.gitignore`. Fixed by
       matching `site-packages/` structurally, with a verified NOT_COMMITTED precondition.

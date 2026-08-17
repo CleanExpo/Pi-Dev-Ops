@@ -207,6 +207,12 @@ jobs:
       TAO_GC_MAX_AGE: "3600"
       TAO_SWARM_ENABLED: "0"
       TAO_AUTONOMY_ENABLED: "0"
+      # TAO_AUTONOMY_ENABLED gates the Linear poller, NOT cron. Without this the
+      # startup catch-up in cron_loop fires every trigger whose last_fired_at is
+      # older than its schedule — and in a fresh checkout that value comes from
+      # git, so CI runs a real board meeting (live model calls) and real script
+      # triggers on every smoke run. A gate must measure, not act.
+      TAO_CRON_ENABLED: "0"
       PYTHONPATH: ${{ github.workspace }}
 
     steps:
