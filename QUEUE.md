@@ -11,33 +11,13 @@ mode `goal-circuit-breaker` exists to catch.
 
 ## Active
 
-- [ ] `scripts/ci_local.sh` — one command that runs every gate the CI workflow runs
-      (ruff, pytest tests/, pytest swarm/, check_provisioning, check_agent_registry,
-      secrets_check, tsc, eslint, next build) and exits non-zero on the first failure.
-      GitHub Actions has allocated no runner since 2026-08-14, so local parity is
-      currently the *only* quality signal this repo has. Must print a per-gate
-      pass/fail table, not just an exit code.
-- [ ] `dashboard/vercel.json` has no `ignoreCommand`, so every push to `main` triggers a
-      production build — including `docs(wiki): refresh per-directory WIKI.md [skip ci]`
-      commits that touch no dashboard file. `[skip ci]` suppresses GitHub Actions but not
-      Vercel. Add an Ignored Build Step keyed on whether the diff touches `dashboard/`.
-      Efficiency only, low priority.
-      CORRECTION: the five `BLOCKED` production deployments are NOT an ongoing fault and
-      are not caused by this. They all fall between 03:59 and 05:20 on 2026-08-14 and the
-      latest deployment (06:23:49Z, main's tip) is `READY`. No push to `main` has happened
-      since, so that list is just the tail of that day. Do not build a fix on the BLOCKED
-      premise.
-- [ ] Verify `/health` surfaces what CLAUDE.md requires it to: a boolean that the autonomy
-      loop will fire next tick, the timestamp of the last successful tick, and
-      `linear_api_key: bool`. Confirm against `routes/health.py` + `health_full.py`; the
-      unauthenticated shape is `{"status":"ok"}` only, so check the authed payload path.
-- [ ] `.venv-verify/` is an 8,099-file virtualenv in the working tree that no script,
-      workflow or doc references. Establish whether anything still needs it; if not,
-      remove it and add it to `.gitignore` so it stops inflating local tooling runs.
-- [ ] `secrets_check.py` rewrites `.gitignore` as a side effect of the default (non
-      `--dry-run`) run. A check that mutates the tree it is checking is surprising —
-      decide whether the write should move behind an explicit `--fix` flag, and record
-      the decision either way.
+- [ ] Reproduce CI's `smoke-local` job locally — the one CI job not yet covered. It starts
+      the server on 127.0.0.1:7777 with a dummy password and runs
+      `scripts/smoke_test.py --url ... --password ...`. `handoff-loop.sh`'s `audit-smoke`
+      gate SKIPs when nothing is listening on :7777, which means the repo's end-to-end
+      surface check has been silently skipped every run. Run it for real and record the
+      result; if it passes, consider whether the gate should start its own server rather
+      than SKIP.
 
 ## BLOCKED — founder action, do not treat as queue items
 
@@ -60,3 +40,40 @@ mode `goal-circuit-breaker` exists to catch.
 - [x] Registry carried no `vercel_project_id`, so the RA-1742 check inspected nothing;
       wired 4 ids and corrected two stale frontend URLs (one was a 404 used by two entries).
 - [x] Diagnosed and documented the Actions runner starvation.
+- [x] `handoff-loop.sh` was weaker than the CI job it stands in for: it excluded
+      `test_sdk_phase2.py` on a stale "CI-only" premise, and ran neither `pytest swarm/`
+      nor `check_provisioning.py`. All three closed — it is now the CI-parity runner, so
+      no second `ci_local.sh` is needed.
+- [x] `agentskills.json/yaml` had drifted (b881b4e0 added `agent-browser` without
+      regenerating; `boardroom` + `nexus` hashes stale). Regenerated. Confirmed the gate is
+      passable rather than permanently red: two consecutive runs are byte-identical.
+- [x] Vercel `ignoreCommand` — DECISION: deliberately deferred, not skipped. Groundwork
+      done: `dashboard/package.json` has no local path dependencies (so no `packages/`
+      change can affect the build, which was the trap that would have made a naive
+      `dashboard/`-scoped check silently serve stale UI), rootDirectory is `dashboard`,
+      and `git diff --quiet HEAD^ HEAD .` is the correct command. Not applied, because it
+      changes production deployment behaviour, its failure mode is a build skipped when it
+      should have run, and it cannot be validated while no push to `main` is happening and
+      Actions allocates no runner. Low-value efficiency work is not worth an unverifiable
+      production change. Apply and watch one deploy once runners return.
+      The original premise — five `BLOCKED` deploys blamed on the wiki bot — was wrong and
+      is disproven: all five fall between 03:59 and 05:20 on 2026-08-14, the latest
+      deployment is `READY`, and no push to `main` has happened since.
+- [x] `.venv-verify/` — premise was wrong, no code change needed. `.gitignore:163`
+      (`.venv*/`) already covers it, confirmed via `git check-ignore -v`, so it was never
+      a git risk. It reached the secrets scan only because that scanner deliberately drops
+      `--exclude-standard` in order to see `.env.local` / `*.pem`; the `site-packages/`
+      fix already excludes it. Nothing in the repo creates or references it. It is a stray
+      303 MB local artifact — deleting 8,099 files is Phill's call, not an agent's, and it
+      now costs nothing to leave in place.
+- [x] `secrets_check.py` `.gitignore` write — DECISION: no change. The split is already
+      coherent and deliberate: default = detect *and* remediate, `--dry-run` = measure
+      only, documented at `secrets_check.py:70`. `handoff-loop.sh` correctly uses
+      `--dry-run` on the stated principle that "a gate must measure, not act", and CI uses
+      the default where mutation is harmless in a fresh checkout and the exit code is what
+      blocks the merge. Moving the write behind a `--fix` flag would be unrequested
+      refactoring of working, documented behaviour.
+- [x] `/health` verified END-TO-END against a running local server, not just read from
+      source: the authed payload carries `linear_api_key`, `github_token`, `vercel_token`
+      and `autonomy.{enabled,armed,poll_count,last_tick,seconds_since_last_poll}`. The
+      CLAUDE.md requirement is already met; unauthed correctly returns `{"status":"ok"}`.

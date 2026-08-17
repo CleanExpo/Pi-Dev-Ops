@@ -194,6 +194,10 @@ _PATH_PRECONDITIONS: dict[str, str] = {
     # Verified rather than trusted: if vendored dependencies are ever committed, this fires
     # and fails the run instead of silently leaving 8k+ committed files unscanned.
     ":(glob)**/site-packages/**": NOT_COMMITTED,
+    # Generated gate logs, skipped by the _HEAVY filter to stop this scanner reporting its
+    # own recorded findings back to itself. Only the *.log files are excluded and only
+    # while none are committed; .handoff-logs/README.md stays tracked and in scope.
+    ":(glob).handoff-logs/**/*.log": NOT_COMMITTED,
 }
 
 # Binary formats cannot carry a greppable secret; .md/.rst/.lock plainly can, and are skipped
@@ -314,9 +318,17 @@ def _list_tracked_files() -> list[str] | None:
         # wolf is a gate nobody reads. Any interpreter layout puts installed packages under
         # `site-packages/`, so this holds for a venv of any name — and the precondition below
         # verifies the exclusion instead of trusting it.
+        #
+        # `.handoff-logs/` closes a self-poisoning loop. handoff-loop.sh runs this scanner
+        # as its `audit-secrets` gate and tees the output — including each finding's
+        # snippet — into .handoff-logs/handoff-<ts>.log. The next run then scans that log,
+        # finds the recorded snippet, and reports it as a fresh secret. One real finding
+        # therefore became permanent, surviving the fix to the line that caused it, and
+        # the gate could never return to green. The logs are gitignored generated
+        # artifacts, so nothing here can ever reach a commit.
         _HEAVY = ("node_modules/", ".next/", ".git/", "dist/", "build/", ".venv/",
                   "venv/", "site-packages/", "__pycache__/", ".pytest_cache/",
-                  ".turbo/", "coverage/", ".omx/")
+                  ".turbo/", "coverage/", ".omx/", ".handoff-logs/")
         out = []
         for ln in result.stdout.splitlines():
             f = ln.strip()

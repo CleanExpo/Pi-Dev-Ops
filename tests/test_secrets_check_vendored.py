@@ -76,6 +76,32 @@ def test_vendored_exclusion_does_not_mask_a_real_finding(tmp_path: Path) -> None
     assert "site-packages" not in result.stdout
 
 
+def test_gate_log_findings_are_not_rescanned_as_new_secrets(tmp_path: Path) -> None:
+    """handoff-loop.sh tees this scanner's output into .handoff-logs/handoff-<ts>.log.
+
+    Each finding's snippet is recorded there verbatim, so the next run used to scan that
+    log, find the snippet, and report it as a fresh secret — one real finding became
+    permanent and survived the fix to the line that caused it.
+    """
+    repo = _repo_with(tmp_path, "app/handler.py")
+    log_dir = repo / ".handoff-logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    (log_dir / "handoff-20260818-000000.log").write_text(
+        f'  [CRITICAL]   app/handler.py:1 — AWS access key ID\n'
+        f'             aws_access = "{CANARY}"\n',
+        encoding="utf-8",
+    )
+
+    result = _scan(repo)
+
+    # The real finding in app/handler.py must still be reported...
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "app/handler.py" in result.stdout
+    # ...but the copy of it recorded in the gate log must not be counted a second time.
+    assert ".handoff-logs" not in result.stdout
+    assert result.stdout.count("AWS access key ID") == 1
+
+
 def test_committed_site_packages_fails_the_run_instead_of_being_skipped(
     tmp_path: Path,
 ) -> None:

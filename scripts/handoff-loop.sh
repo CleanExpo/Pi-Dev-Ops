@@ -145,9 +145,24 @@ else
 fi
 
 # 7. Production build (skipped by --quick).
+#
+# next.config.ts hard-fails the build when PI_CEO_URL / PI_CEO_PASSWORD are unset, so this
+# gate failed on every run that did not happen to have them exported — and route-exercise
+# below then failed too, having no build to serve. A permanently-red gate in the runner
+# /session-handoff refuses to pass without is worse than no gate: it makes BLOCKED the
+# normal verdict, so a real failure looks like the usual noise.
+#
+# These are the same build-time stubs ci.yml's `frontend` job sets. They are placeholders
+# that satisfy a presence check during a static build, not credentials — nothing
+# authenticates with them and no request is made at build time.
 if [ "$MODE_QUICK" = 1 ]; then skip "build" "--quick"
 elif [ -f dashboard/package.json ]; then
-  [ "$NODE_OK" = 1 ] && gate "build-dashboard" bash -c 'cd dashboard && npm run build' \
+  [ "$NODE_OK" = 1 ] && gate "build-dashboard" env \
+      PI_CEO_URL="http://127.0.0.1:7777" \
+      PI_CEO_PASSWORD="placeholder-not-a-real-password" \
+      NEXT_PUBLIC_SUPABASE_URL="https://stub.supabase.co" \
+      NEXT_PUBLIC_SUPABASE_ANON_KEY="stub-key" \
+      bash -c 'cd dashboard && npm run build' \
     || { [ "$NODE_OK" = 1 ] || skip "build-dashboard" "node_modules absent — run --full"; }
 fi
 
