@@ -94,6 +94,13 @@ if [ -f scripts/check_agent_registry.py ]; then
     gate "generated-agent-registry" "$PY" scripts/check_agent_registry.py
   else skip "generated-agent-registry" "python deps absent"; fi
 fi
+# CI runs this as its own step in the `python` job; this runner did not, so a
+# provisioning regression could pass here and only surface after the push.
+if [ -f scripts/check_provisioning.py ]; then
+  if [ "$PY_OK" = 1 ]; then
+    gate "provisioning" "$PY" scripts/check_provisioning.py
+  else skip "provisioning" "python deps absent"; fi
+fi
 
 # 4. Type checks.
 if [ -f app/server/main.py ]; then
@@ -113,12 +120,23 @@ if [ -f dashboard/package.json ]; then
     || { [ "$NODE_OK" = 1 ] || skip "lint-dashboard" "node_modules absent"; }
 fi
 
-# 6. Tests (skipped by --quick). test_sdk_phase2 needs claude_agent_sdk (CI-only) — excluded.
+# 6. Tests (skipped by --quick).
+#
+# test_sdk_phase2.py was excluded here as "needs claude_agent_sdk (CI-only)". That is not
+# true: claude_agent_sdk is a declared dependency in app/requirements.txt, the file runs
+# and passes locally, and CI does not exclude it. The exclusion made this gate strictly
+# weaker than the CI job it is supposed to stand in for — the one situation a local gate
+# must never be in, and worse while Actions is allocating no runners.
 if [ "$MODE_QUICK" = 1 ]; then skip "tests" "--quick"
 else
   if [ -d tests ]; then
-    [ "$PY_OK" = 1 ] && gate "tests-python" "$PY" -m pytest tests/ -q --ignore=tests/test_sdk_phase2.py \
+    [ "$PY_OK" = 1 ] && gate "tests-python" "$PY" -m pytest tests/ -q \
       || { [ "$PY_OK" = 1 ] || skip "tests-python" "python deps absent"; }
+  fi
+  # CI runs `pytest swarm/` as its own step; this runner never did.
+  if [ -d swarm ]; then
+    [ "$PY_OK" = 1 ] && gate "tests-swarm" "$PY" -m pytest swarm/ -q \
+      || { [ "$PY_OK" = 1 ] || skip "tests-swarm" "python deps absent"; }
   fi
   if [ -f dashboard/package.json ]; then
     [ "$NODE_OK" = 1 ] && gate "tests-dashboard" bash -c 'cd dashboard && CI=1 npm run --silent test' \

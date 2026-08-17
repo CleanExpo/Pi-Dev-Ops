@@ -17,10 +17,16 @@ mode `goal-circuit-breaker` exists to catch.
       GitHub Actions has allocated no runner since 2026-08-14, so local parity is
       currently the *only* quality signal this repo has. Must print a per-gate
       pass/fail table, not just an exit code.
-- [ ] Wiki bot triggers a production Vercel deploy on every `[skip ci]` commit, and five
-      recent ones landed in state `BLOCKED`. `[skip ci]` suppresses GitHub Actions but not
-      Vercel. Investigate `vercel.json` `ignoreCommand` / Ignored Build Step so
-      `docs(wiki): refresh per-directory WIKI.md` stops queuing production builds.
+- [ ] `dashboard/vercel.json` has no `ignoreCommand`, so every push to `main` triggers a
+      production build — including `docs(wiki): refresh per-directory WIKI.md [skip ci]`
+      commits that touch no dashboard file. `[skip ci]` suppresses GitHub Actions but not
+      Vercel. Add an Ignored Build Step keyed on whether the diff touches `dashboard/`.
+      Efficiency only, low priority.
+      CORRECTION: the five `BLOCKED` production deployments are NOT an ongoing fault and
+      are not caused by this. They all fall between 03:59 and 05:20 on 2026-08-14 and the
+      latest deployment (06:23:49Z, main's tip) is `READY`. No push to `main` has happened
+      since, so that list is just the tail of that day. Do not build a fix on the BLOCKED
+      premise.
 - [ ] Verify `/health` surfaces what CLAUDE.md requires it to: a boolean that the autonomy
       loop will fire next tick, the timestamp of the last successful tick, and
       `linear_api_key: bool`. Confirm against `routes/health.py` + `health_full.py`; the
