@@ -190,6 +190,10 @@ _PATH_PRECONDITIONS: dict[str, str] = {
     "app/server/scanner.py": REVIEWED_FIXTURE,
     "app/server/config.py": REVIEWED_FIXTURE,
     ".harness/": NOT_COMMITTED,
+    # Installed third-party packages, skipped by the _HEAVY filter in _list_tracked_files().
+    # Verified rather than trusted: if vendored dependencies are ever committed, this fires
+    # and fails the run instead of silently leaving 8k+ committed files unscanned.
+    ":(glob)**/site-packages/**": NOT_COMMITTED,
 }
 
 # Binary formats cannot carry a greppable secret; .md/.rst/.lock plainly can, and are skipped
@@ -274,8 +278,15 @@ def _make_finding(path: str, line: int, title: str, severity: str, snippet: str)
 
 
 # ── File enumeration ──────────────────────────────────────────────────────────
-def _list_tracked_files() -> list[str]:
-    """Return all git-tracked files relative to REPO_ROOT."""
+def _list_tracked_files() -> list[str] | None:
+    """Return files to scan, relative to REPO_ROOT. None means git could not be consulted.
+
+    The None/[] distinction is load-bearing. An empty list is a real answer — every
+    enumerated file was excluded — whereas None means enumeration never happened. Returning
+    [] for both let `scan_all` treat "nothing left to scan" as "git is unavailable" and fall
+    back to walking the whole tree, which re-admitted the vendored files the filter had just
+    removed.
+    """
     try:
         # NOTE the ABSENT --exclude-standard. Including it meant gitignored files were
         # never scanned, and .env.local / *.pem / credential dumps are exactly what
@@ -291,11 +302,21 @@ def _list_tracked_files() -> list[str]:
         )
         if result.returncode != 0:
             print(f"  [WARN] git ls-files failed: {result.stderr.strip()}", flush=True)
-            return []
+            return None
         # Dropping --exclude-standard pulls in node_modules/.next/etc. Filter by path.
+        #
+        # `site-packages/` is matched on STRUCTURE, not on the virtualenv's directory name.
+        # Naming each venv directory ('.venv/', 'venv/') looked equivalent and was not: this
+        # repo also carries a `.venv-verify/`, and `'.venv/' in '.venv-verify/lib/...'` is
+        # False — the next character is '-', not '/'. That one miss put 8,099 vendored files
+        # into every local scan and reported 102 third-party matches as exposed secrets, so
+        # the gate exited 1 on a clean tree and rewrote .gitignore. A gate that always cries
+        # wolf is a gate nobody reads. Any interpreter layout puts installed packages under
+        # `site-packages/`, so this holds for a venv of any name — and the precondition below
+        # verifies the exclusion instead of trusting it.
         _HEAVY = ("node_modules/", ".next/", ".git/", "dist/", "build/", ".venv/",
-                  "venv/", "__pycache__/", ".pytest_cache/", ".turbo/", "coverage/",
-                  ".omx/")
+                  "venv/", "site-packages/", "__pycache__/", ".pytest_cache/",
+                  ".turbo/", "coverage/", ".omx/")
         out = []
         for ln in result.stdout.splitlines():
             f = ln.strip()
@@ -308,7 +329,7 @@ def _list_tracked_files() -> list[str]:
         return out
     except FileNotFoundError:
         print("  [WARN] git not found — scanning all files via os.walk()", flush=True)
-        return []
+        return None
 
 
 def _list_all_files() -> list[str]:
@@ -365,7 +386,8 @@ def _scan_file(rel_path: str) -> list[dict]:
 
 def scan_all() -> list[dict]:
     """Enumerate and scan all relevant files. Returns deduplicated findings."""
-    rel_files = _list_tracked_files() or _list_all_files()
+    tracked = _list_tracked_files()
+    rel_files = _list_all_files() if tracked is None else tracked
     all_findings: list[dict] = []
     for rel in rel_files:
         all_findings.extend(_scan_file(rel))
