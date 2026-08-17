@@ -192,9 +192,49 @@ else skip "route-exercise" "no dashboard build to serve"; fi
 if [ -f scripts/secrets_check.py ]; then
   gate "audit-secrets" "$PY" scripts/secrets_check.py --repo-root "$ROOT" --dry-run
 else skip "audit-secrets" "scripts/secrets_check.py not present"; fi
-if [ "$PY_OK" = 1 ] && curl -sf -o /dev/null "http://127.0.0.1:7777/health" 2>/dev/null; then
-  gate "audit-smoke" "$PY" scripts/smoke_test.py --url http://127.0.0.1:7777 --password "${TAO_PASSWORD:-dev}"
-else skip "audit-smoke" "python deps absent or local server not reachable on :7777"; fi
+# audit-smoke — the repo's only end-to-end surface check (35 assertions across auth,
+# sessions, lessons, webhook HMAC, rate limiting and autonomy status).
+#
+# It used to run only when a server HAPPENED to be listening on :7777. Nothing in this
+# script, or any workflow, starts one — so it SKIPped on every run and the check has never
+# actually executed here, while still reporting a tidy SKIP that reads like a considered
+# decision. ci.yml's `smoke-local` job starts its own server for exactly this reason.
+#
+# Start one when the port is free, reuse a developer's server when it is not, and always
+# clean up the process this script started.
+_smoke_with_server() {
+  local pw pid rc
+  pw="ci-smoke-local-dummy-password"; pid=""
+  if ! curl -sf -o /dev/null "http://127.0.0.1:7777/health" 2>/dev/null; then
+    # TAO_CRON_ENABLED=0 is load-bearing, not tidiness. TAO_AUTONOMY_ENABLED
+    # gates the Linear poller only; cron_loop is separate and, ten seconds
+    # after boot, fires every trigger whose last_fired_at is older than its
+    # schedule. Without this the gate runs a real board meeting (live model
+    # calls) and real script triggers, and writes into .harness/ — a gate must
+    # measure, not act. Observed doing exactly that before the flag existed.
+    TAO_PASSWORD="$pw" TAO_SESSION_SECRET="ci-session-secret-fixed-for-test" \
+    TAO_EVALUATOR_ENABLED=false TAO_SWARM_ENABLED=0 TAO_AUTONOMY_ENABLED=0 \
+    TAO_CRON_ENABLED=0 \
+    TAO_GC_MAX_AGE=3600 PYTHONPATH="$ROOT" \
+      "$PY" -m uvicorn app.server.main:app --host 127.0.0.1 --port 7777 \
+        --log-level warning >>"$LOG" 2>&1 &
+    pid=$!
+    for _ in $(seq 1 30); do
+      curl -sf -o /dev/null "http://127.0.0.1:7777/health" 2>/dev/null && break
+      sleep 1
+    done
+  else
+    # Someone else's server — use their password, and never kill it.
+    pw="${TAO_PASSWORD:-dev}"
+  fi
+  "$PY" scripts/smoke_test.py --url http://127.0.0.1:7777 --password "$pw"
+  rc=$?
+  [ -n "$pid" ] && kill "$pid" 2>/dev/null
+  return $rc
+}
+if [ "$PY_OK" = 1 ]; then
+  gate "audit-smoke" _smoke_with_server
+else skip "audit-smoke" "python deps absent"; fi
 
 # Verdict.
 log ""; log "════ SUMMARY  pass=$PASS fail=$FAIL skip=$SKIP"

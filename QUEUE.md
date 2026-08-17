@@ -11,13 +11,7 @@ mode `goal-circuit-breaker` exists to catch.
 
 ## Active
 
-- [ ] Reproduce CI's `smoke-local` job locally — the one CI job not yet covered. It starts
-      the server on 127.0.0.1:7777 with a dummy password and runs
-      `scripts/smoke_test.py --url ... --password ...`. `handoff-loop.sh`'s `audit-smoke`
-      gate SKIPs when nothing is listening on :7777, which means the repo's end-to-end
-      surface check has been silently skipped every run. Run it for real and record the
-      result; if it passes, consider whether the gate should start its own server rather
-      than SKIP.
+      (all Active items resolved — see Done)
 
 ## BLOCKED — founder action, do not treat as queue items
 
@@ -47,6 +41,19 @@ mode `goal-circuit-breaker` exists to catch.
 - [x] `agentskills.json/yaml` had drifted (b881b4e0 added `agent-browser` without
       regenerating; `boardroom` + `nexus` hashes stale). Regenerated. Confirmed the gate is
       passable rather than permanently red: two consecutive runs are byte-identical.
+- [x] CI's `smoke-local` reproduced locally — **35/35 checks passed**. That was the last CI
+      job not yet verified here, so every CI job is now green locally.
+- [x] `audit-smoke` was a control that could never fire: it ran only when a server
+      HAPPENED to be on :7777, and nothing starts one — so it SKIPped every run while
+      reporting a tidy SKIP that read like a considered decision. It now starts its own
+      server (as ci.yml's `smoke-local` does), reuses a developer's if one is already
+      listening, and only kills the process it started.
+- [x] `build-dashboard` failed on every run because `next.config.ts` hard-fails without
+      `PI_CEO_URL`/`PI_CEO_PASSWORD`, which ci.yml supplies and this runner did not —
+      taking `route-exercise` down with it for want of a build to serve.
+- [x] `audit-secrets` was poisoning itself: the gate tees findings, snippet included, into
+      `.handoff-logs/`, and the next run rescanned that log and reported it as a fresh
+      secret — so one real finding became permanent and outlived its own fix.
 - [x] Vercel `ignoreCommand` — DECISION: deliberately deferred, not skipped. Groundwork
       done: `dashboard/package.json` has no local path dependencies (so no `packages/`
       change can affect the build, which was the trap that would have made a naive
