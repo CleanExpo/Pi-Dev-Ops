@@ -94,16 +94,39 @@ Production is also healthy and current:
 
 ## Options — Phill's call
 
-1. **Raise / enable the GitHub Actions spending limit.** Fastest restore, but it creates a
-   new direct cost, which is outside any standing autonomy mandate and needs an explicit
-   decision.
-2. **Wait for the allowance to reset** at the next billing cycle. Free, but leaves the
-   "always-on" pipeline dark until then, and the backlog keeps accumulating behind it.
-3. **Add a self-hosted runner** (e.g. on the Mac Mini already in the fleet). Removes the
-   per-minute billing entirely for this repo. Larger change, needs its own security review
-   before a private repo executes untrusted PR code on estate hardware.
+**RECOMMENDED: option 1 or 2 now, option 3 as a follow-up project.** Scoped 2026-08-18.
 
-Option 1 or 2 is a spend/timing decision. Option 3 is an infrastructure decision.
+1. **Raise / enable the GitHub Actions spending limit.** Fastest restore. An earlier draft
+   of this document framed the cost as significant; that was overstated. This repo's jobs
+   are Linux (`ubuntu-latest`), which sits in the cheapest tier — realistically **cents per
+   CI run, not dollars**. Caveat: GitHub's classic per-minute multipliers page now
+   redirects, so that figure is a well-grounded estimate rather than a confirmed rate.
+   Still a founder spend decision, but a far smaller one than first stated.
+2. **Wait for the allowance to reset** at the next billing cycle. Free, but leaves the
+   "always-on" pipeline dark until then, and the backlog accumulates behind it.
+3. **Add a self-hosted runner** (e.g. the Mac Mini in the fleet). Confirmed on
+   docs.github.com: *"GitHub Actions usage is free for self-hosted runners"* regardless of
+   repo visibility — $0/minute permanently. Registered via `config.sh`, then
+   `svc.sh install` runs it as a **launchd** service so it survives reboot.
+
+   **Security, stated precisely.** GitHub's hardening guidance says self-hosted runners
+   "should almost never be used for public repositories". For a PRIVATE repo the risk
+   narrows but does not vanish: *anyone who can fork the repository and open a pull request
+   (generally read access) can compromise the runner environment, including secrets and
+   `GITHUB_TOKEN`*. This repo has no outside collaborators today, so present exposure is
+   low — it grows the moment anyone gains read access. Mitigations are `--ephemeral`
+   (fresh environment per job) and runner groups; bare-metal macOS cannot fully replicate
+   GitHub-hosted VM isolation, so this is mitigation, not a guarantee.
+
+   **Not a same-day fix.** Five workflows use `runs-on: ubuntu-latest` and would need
+   retagging, and the suites carry Linux assumptions (paths, binary locations, possible
+   case-sensitivity) — expect a session of compatibility work. `smoke-local` starts a live
+   uvicorn server, which needs port-conflict thought on shared estate hardware.
+
+Options 1 and 2 are a spend/timing decision. Option 3 trades a spend problem for an
+operational-security one on founder hardware, and needs its own explicit call on ephemeral
+mode and label scoping. Founder-only either way: the spend, the hardware exposure, and the
+runner registration token.
 
 ## Side observation (separate, low priority)
 
