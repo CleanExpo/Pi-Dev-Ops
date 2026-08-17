@@ -102,6 +102,50 @@ def test_gate_log_findings_are_not_rescanned_as_new_secrets(tmp_path: Path) -> N
     assert result.stdout.count("AWS access key ID") == 1
 
 
+def test_only_generated_logs_are_skipped_under_handoff_logs(tmp_path: Path) -> None:
+    """The gate-log exclusion must be a suffix rule, not a directory rule.
+
+    Found by independent review. Putting ".handoff-logs/" in the heavy-path list looked
+    equivalent to excluding its logs and was not: that list is a bare substring test, so it
+    excluded EVERY file under the directory while the comment and the precondition both
+    claimed only *.log. A secret in any non-log file there was unscanned forever, and the
+    precondition stayed green because it only ever inspected *.log.
+    """
+    repo = _repo_with(tmp_path, ".handoff-logs/leaked.json", "app/handler.py")
+    # A generated gate log carrying a recorded finding — this one MUST stay excluded, or
+    # the scanner reports its own previous output as a fresh secret.
+    logs = repo / ".handoff-logs"
+    (logs / "handoff-20260818-000000.log").write_text(
+        f'aws_access = "{CANARY}"\n', encoding="utf-8"
+    )
+
+    result = _scan(repo)
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    # Non-log file under .handoff-logs is in scope...
+    assert "leaked.json" in result.stdout
+    # ...the ordinary source file still is too...
+    assert "app/handler.py" in result.stdout
+    # ...and the generated log is still skipped, so the self-poisoning loop stays closed.
+    assert ".log" not in result.stdout.replace("leaked.json", "")
+
+
+def test_scanner_imports_under_python_39_annotations(tmp_path: Path) -> None:
+    """PEP-604 unions in this file must not crash a pre-3.10 interpreter.
+
+    handoff-loop.sh falls back to a bare `python3` when .venv/bin is absent, and that is
+    3.9 on some machines — a hazard this repo already has a named lesson against. A
+    `list[str] | None` annotation without `from __future__ import annotations` raises
+    TypeError at import, so the gate reported a generic failure having never scanned.
+    """
+    source = SCRIPT.read_text(encoding="utf-8")
+
+    assert "from __future__ import annotations" in source, (
+        "secrets_check.py uses PEP-604 unions; without the future import it cannot be "
+        "imported by the python3 that handoff-loop.sh falls back to."
+    )
+
+
 def test_committed_site_packages_fails_the_run_instead_of_being_skipped(
     tmp_path: Path,
 ) -> None:

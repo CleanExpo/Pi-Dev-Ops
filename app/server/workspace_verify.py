@@ -27,6 +27,7 @@ import asyncio
 import json
 import logging
 import os
+import signal
 from dataclasses import dataclass
 
 log = logging.getLogger("pi-ceo.workspace_verify")
@@ -106,6 +107,11 @@ async def run_workspace_checks(
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
             env=env,
+            # Own process group, so the timeout below can kill the whole tree. A test
+            # script routinely spawns dev servers, watchers and workers; killing only the
+            # direct child leaves those orphaned, and on the long-lived Railway container
+            # they accumulate across every session that ever timed out.
+            start_new_session=True,
         )
     except (OSError, ValueError) as exc:
         return VerifyResult(NOT_RUN, label, f"could not start: {exc}", "")
@@ -113,10 +119,14 @@ async def run_workspace_checks(
     try:
         stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout_s)
     except asyncio.TimeoutError:
+        # Kill the group, not just the child — see start_new_session above.
         try:
-            proc.kill()
-        except ProcessLookupError:
-            pass
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except (ProcessLookupError, PermissionError, OSError):
+            try:
+                proc.kill()
+            except ProcessLookupError:
+                pass
         return VerifyResult(TIMED_OUT, label, "", f"exceeded {timeout_s}s")
 
     tail = (stdout or b"").decode("utf-8", errors="replace")[-2000:]

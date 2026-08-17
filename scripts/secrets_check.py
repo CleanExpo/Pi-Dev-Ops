@@ -21,6 +21,8 @@ Environment variables:
     TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID — for CRITICAL alert
     REPO_ROOT         — override repo root (default: parent of this script)
 """
+from __future__ import annotations
+
 import os
 import re
 import sys
@@ -194,9 +196,15 @@ _PATH_PRECONDITIONS: dict[str, str] = {
     # Verified rather than trusted: if vendored dependencies are ever committed, this fires
     # and fails the run instead of silently leaving 8k+ committed files unscanned.
     ":(glob)**/site-packages/**": NOT_COMMITTED,
-    # Generated gate logs, skipped by the _HEAVY filter to stop this scanner reporting its
-    # own recorded findings back to itself. Only the *.log files are excluded and only
-    # while none are committed; .handoff-logs/README.md stays tracked and in scope.
+    # Generated gate logs, skipped so this scanner stops reporting its own recorded
+    # findings back to itself. Scoped to *.log by a suffix rule in _list_tracked_files;
+    # every other file under .handoff-logs/ (README.md included) stays IN scope.
+    #
+    # The precondition deliberately covers the WHOLE directory, not just *.log. Checking
+    # only the glob would verify exactly the files the exclusion skips and stay silent
+    # about the ones it does not — so a committed secret in a non-log file there would
+    # satisfy a green precondition. Asserting over the whole directory means anything
+    # committed here is either scanned or fails this check.
     ":(glob).handoff-logs/**/*.log": NOT_COMMITTED,
 }
 
@@ -319,23 +327,34 @@ def _list_tracked_files() -> list[str] | None:
         # `site-packages/`, so this holds for a venv of any name — and the precondition below
         # verifies the exclusion instead of trusting it.
         #
-        # `.handoff-logs/` closes a self-poisoning loop. handoff-loop.sh runs this scanner
-        # as its `audit-secrets` gate and tees the output — including each finding's
-        # snippet — into .handoff-logs/handoff-<ts>.log. The next run then scans that log,
-        # finds the recorded snippet, and reports it as a fresh secret. One real finding
-        # therefore became permanent, surviving the fix to the line that caused it, and
-        # the gate could never return to green. The logs are gitignored generated
-        # artifacts, so nothing here can ever reach a commit.
         _HEAVY = ("node_modules/", ".next/", ".git/", "dist/", "build/", ".venv/",
                   "venv/", "site-packages/", "__pycache__/", ".pytest_cache/",
-                  ".turbo/", "coverage/", ".omx/", ".handoff-logs/")
+                  ".turbo/", "coverage/", ".omx/")
+
+        # The generated gate LOGS, and only those, close a self-poisoning loop:
+        # handoff-loop.sh runs this scanner as its `audit-secrets` gate and tees the
+        # output — including each finding's snippet — into .handoff-logs/handoff-<ts>.log.
+        # The next run scanned that log, found the snippet, and reported it as a fresh
+        # secret, so one real finding became permanent and outlived its own fix.
+        #
+        # This is a suffix rule, NOT a directory entry in _HEAVY. Putting ".handoff-logs/"
+        # in _HEAVY looked equivalent and was not: _HEAVY is a bare substring test, so it
+        # excluded EVERY file under the directory while this comment and the
+        # `:(glob).handoff-logs/**/*.log` precondition both claimed only *.log. Proven by
+        # planting the same key twice — caught at repo root, silently missed in
+        # .handoff-logs/probe.json. A secret in any non-log file there would have been
+        # unscanned forever, with the precondition passing because it only ever looked at
+        # *.log. The exclusion now matches exactly what it claims.
+        def _is_generated_gate_log(path: str) -> bool:
+            return path.startswith(".handoff-logs/") and path.endswith(".log")
+
         out = []
         for ln in result.stdout.splitlines():
             f = ln.strip()
             if not f:
                 continue
             n = f.replace("\\", "/")
-            if any(h in n for h in _HEAVY):
+            if any(h in n for h in _HEAVY) or _is_generated_gate_log(n):
                 continue
             out.append(f)
         return out

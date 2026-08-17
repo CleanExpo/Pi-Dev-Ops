@@ -235,9 +235,19 @@ _smoke_with_server() {
     # Someone else's server — use their password, and never kill it.
     pw="${TAO_PASSWORD:-dev}"
   fi
+  # Clean up on interrupt too, not just on the happy path. Without this, Ctrl-C during
+  # the smoke run leaves the background uvicorn holding :7777 — and the NEXT invocation
+  # sees a listener, treats it as "someone else's server", and reuses it with the wrong
+  # password. The gate then fails for a reason that has nothing to do with the code.
+  if [ -n "$pid" ]; then
+    trap 'kill "$pid" 2>/dev/null; trap - INT TERM EXIT' INT TERM EXIT
+  fi
   "$PY" scripts/smoke_test.py --url http://127.0.0.1:7777 --password "$pw"
   rc=$?
-  [ -n "$pid" ] && kill "$pid" 2>/dev/null
+  if [ -n "$pid" ]; then
+    kill "$pid" 2>/dev/null
+    trap - INT TERM EXIT
+  fi
   return $rc
 }
 if [ "$PY_OK" = 1 ]; then
