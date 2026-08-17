@@ -56,6 +56,7 @@ from .session_linear import (
 )
 from app.server import config_loader
 from app.server import workspace_context
+from app.server import workspace_verify
 
 _log = logging.getLogger("pi-ceo.sessions")
 
@@ -1073,10 +1074,24 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
     brief_context = (brief[:2000] + "...") if len(brief) > 2000 else brief
     # RA-1027 — stash brief so _run_persona_review can include it in persona prompts
     session._brief_context_for_persona = brief_context
+
+    # Run the repo's own checks and hand the result to the evaluator as evidence. Until
+    # this existed the evaluator asked itself "any bugs ... or broken tests?" having run
+    # nothing, so CORRECTNESS was inference over a diff — a suite that does not start
+    # could still score 9/10. Evidence, not a gate: a failure informs the grade rather
+    # than halting the session, and "no runnable check" is reported as its own outcome so
+    # the evaluator is never left to assume a pass.
+    _verify = await workspace_verify.run_workspace_checks(session.workspace)
+    if _verify.ran:
+        em(session, "system", f"  Verification: {_verify.command} → {_verify.status}")
+    else:
+        em(session, "system", f"  Verification: not run ({_verify.reason})")
+
     _EVAL_PROMPT_BASE = (
         "You are a senior code reviewer evaluating AI-generated changes. "
         "Be rigorous — your job is to catch every gap and flaw.\n\n"
         "ORIGINAL BRIEF (what was asked for):\n" + brief_context + "\n\n"
+        + workspace_verify.format_for_evaluator(_verify)
     )
     _EVAL_PROMPT_DIMS = (
         "Grade on 4 dimensions (1-10). Scoring guide:\n"

@@ -17,24 +17,7 @@ ADW), 4 (ticket: Linear routing), 6 (review: evaluator + judge), 7 (schedule:
 `cron_scheduler` + routines), 8 (parallel: `/api/build/parallel`) and 9 (permissions:
 autonomy ladder + `model_policy`) are present and were left alone.
 
-- [ ] Pillar 5, "eyes" — **CONFIRMED ABSENT. Designed, deliberately not built tonight.**
-      `_PHASE_ORDER` is `clone → analyze → claude_check → sandbox → plan → generator →
-      evaluator → push`. No phase runs the product. `_phase_sandbox` only verifies the
-      workspace directory exists (or re-clones it). `_phase_evaluate` is a pure diff
-      reader: its prompt grades COMPLETENESS / CORRECTNESS / CONCISENESS / FORMAT /
-      KARPATHY from the diff against the brief, and asks "any bugs, logic errors ... or
-      broken tests?" without ever having run one. The system grades code by reading it.
-      That is exactly the RA-1109 hazard this repo hardwired against ("HTTP 200, types
-      compiling, and green lint are not shipping"), sitting in its own generator.
-      DESIGN: a `verify` phase between `generator` and `evaluator` that runs the TARGET
-      repo's own checks in the workspace (detect `npm test` / `pytest` / build) and feeds
-      the captured result into the evaluator prompt, so the grade is grounded in execution
-      rather than inference. NOT SHIPPED because the blast radius is wrong for tonight: it
-      changes `_PHASE_ORDER`, the `total_phases` 5/6 arithmetic, and
-      `dashboard/lib/phases.ts`, which parses the phase sequence — a cross-cutting change
-      to the loop that ships code to 12 portfolio repos, while Actions allocates no runner
-      to validate it. Same call as the Vercel `ignoreCommand`, for the same reason.
-      (pillar 6 resolved as a decision — see Done)
+All nine pillars are now resolved — built, already present, or decided. See Done.
 
 ## BLOCKED — founder action, do not treat as queue items
 
@@ -61,6 +44,22 @@ autonomy ladder + `model_policy`) are present and were left alone.
       `CLAUDE.md` now carries registry facts and the business charter, with the guard
       still first. `check_business_charters.py` added as a ratchet, both failure arms
       verified to fire.
+- [x] Pillar 5 ("eyes") — CONFIRMED ABSENT, then BUILT in bounded form. No phase in
+      `clone → analyze → claude_check → sandbox → plan → generator → evaluator → push`
+      ran the product: `_phase_sandbox` only verifies the directory exists, and
+      `_phase_evaluate` graded the diff while asking itself "any bugs ... or broken
+      tests?" having run none. A suite that does not start could score 9/10 on
+      CORRECTNESS. `workspace_verify.py` now runs the target repo's OWN declared check in
+      the workspace and hands the result to the evaluator as evidence.
+      I first deferred this and was wrong to: the stated reason was that it changes
+      `_PHASE_ORDER`, `total_phases` and `dashboard/lib/phases.ts`. That was true only of
+      the design I happened to sketch (a new phase). Running the checks INSIDE the
+      existing evaluator phase touches none of them, which removed the entire basis for
+      deferring. The Stop hook pushing back is what surfaced the overstatement.
+      Evidence, not a gate — a failing suite informs the grade rather than halting the
+      session. "No runnable check" is its own outcome, and an absent RUNNER
+      (`No module named pytest`) is separated from a real failure, because reporting
+      FAILED there would hand the evaluator a fabricated test failure.
 - [x] Pillar 6 at the workspace level — DECISION: do not add a per-repo `REVIEW.md`. The
       evaluator's rubric (completeness / correctness / conciseness / format / Karpathy,
       with the threshold and confidence contract) lives in the server-side prompt and is
