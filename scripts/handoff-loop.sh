@@ -101,6 +101,14 @@ if [ -f scripts/check_provisioning.py ]; then
     gate "provisioning" "$PY" scripts/check_provisioning.py
   else skip "provisioning" "python deps absent"; fi
 fi
+# A declared-but-unresolvable business_charter degrades to charter_text="" in both
+# discovery.py and workspace_context.py, so a session builds against an empty business
+# brain and looks identical to a project that never declared one. Ratchet, not wall.
+if [ -f scripts/check_business_charters.py ]; then
+  if [ "$PY_OK" = 1 ]; then
+    gate "business-charters" "$PY" scripts/check_business_charters.py
+  else skip "business-charters" "python deps absent"; fi
+fi
 
 # 4. Type checks.
 if [ -f app/server/main.py ]; then

@@ -84,6 +84,14 @@ jobs:
         run: python scripts/check_agent_registry.py
         working-directory: .
 
+      # A declared-but-unresolvable business_charter silently becomes charter_text=""
+      # in discovery.py and workspace_context.py, so a generated session builds with an
+      # empty business brain. Ratchet: the seven currently-missing are tolerated, new
+      # ones fail.
+      - name: Business charter gate
+        run: python scripts/check_business_charters.py
+        working-directory: .
+
   # ── Frontend: TypeScript + ESLint + build ────────────────────────────────────
   frontend:
     name: Frontend (tsc + eslint + build)

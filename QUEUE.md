@@ -11,7 +11,24 @@ mode `goal-circuit-breaker` exists to catch.
 
 ## Active
 
-      (all Active items resolved — see Done)
+Audit of the nine "AI employee" pillars against what Pi-CEO already runs. Most were
+already built — only the genuine gaps are listed. Pillars 3 (brief: `brief.py` PITER +
+ADW), 4 (ticket: Linear routing), 6 (review: evaluator + judge), 7 (schedule:
+`cron_scheduler` + routines), 8 (parallel: `/api/build/parallel`) and 9 (permissions:
+autonomy ladder + `model_policy`) are present and were left alone.
+
+- [ ] Pillar 5, "eyes" — establish whether a GENERATED session verifies the product it
+      built, or only that the code compiles. RA-1109 says a feature is not shipped until
+      the user-visible outcome is demonstrable, and the surface gate enforces that on PRs
+      into this repo — but it is not yet confirmed that the generator's own loop opens the
+      app, exercises the flow and reads the result before reporting done. Check the phase
+      sequence in `session_phases.py`; if the check is absent, that is the same class as
+      `audit-smoke` never running.
+- [ ] Pillar 6 at the WORKSPACE level — a generated workspace now inherits business
+      context via `CLAUDE.md`, but no review standard. The show-notes setup carries three
+      root files; the evaluator applies its own rubric server-side, so confirm whether the
+      target repo needs a `REVIEW.md` at all before writing one. Do not add a third file
+      just to match a video.
 
 ## BLOCKED — founder action, do not treat as queue items
 

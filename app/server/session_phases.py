@@ -55,6 +55,7 @@ from .session_linear import (
     _notify_linear_session_started,  # RA-6502: started → In Progress outbound push
 )
 from app.server import config_loader
+from app.server import workspace_context
 
 _log = logging.getLogger("pi-ceo.sessions")
 
@@ -636,17 +637,24 @@ async def _phase_clone(session, resume_from: str) -> bool:
                         "Aborting — fix TAO_WORKSPACE to a path outside any parent git repo.")
                     _emit_phase_metric(session, "clone", phase_start)
                     return False
-                # Plant a stub CLAUDE.md so Claude Code doesn't walk upward
-                # into an ancestor repo's CLAUDE.md when the cloned repo has
-                # no CLAUDE.md at the root.
+                # Plant a CLAUDE.md so Claude Code doesn't walk upward into an
+                # ancestor repo's CLAUDE.md when the cloned repo has no CLAUDE.md
+                # at the root. The containment guard is still the first thing in
+                # the file; what follows is the project's own context from
+                # config/harness/projects.json plus its business charter, which
+                # Pi-CEO already held and never passed to the workspace. A
+                # generator that cannot see the product, the buyer or the quality
+                # bar has to infer them, which is the vague-ticket failure mode
+                # applied to every session this system starts.
                 stub_md = os.path.join(session.workspace, "CLAUDE.md")
                 if not os.path.exists(stub_md):
                     try:
                         with open(stub_md, "w", encoding="utf-8") as _fh:
                             _fh.write(
-                                "# Scoped Pi-CEO workspace\n\n"
-                                "This is an isolated autonomous workspace. Only read and edit files\n"
-                                "inside this directory. Do not walk upward into parent directories.\n"
+                                workspace_context.build_workspace_claude_md(
+                                    session.repo_url,
+                                    getattr(session, "brief", "") or "",
+                                )
                             )
                     except OSError:
                         pass
