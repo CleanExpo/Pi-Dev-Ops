@@ -17,9 +17,11 @@
         "TypeScript"
       ],
       "deployments": {
-        "frontend": "https://dashboard-unite-group.vercel.app",
+        "frontend": "https://pi-dev-ops.vercel.app",
         "backend": "https://pi-dev-ops-production.up.railway.app"
       },
+      "vercel_project_id": "prj_I5sYqNTlL51DlvyzSFjiHX6FrLAX",
+      "vercel_team_id": "team_KMZACI5rIltoCRhAtGCXlxUf",
       "scan_priority": "high",
       "scan_schedule": "*/6 * * * *",
       "path_exclusions": [
@@ -61,6 +63,8 @@
       "deployments": {
         "frontend": "https://restoreassist.app"
       },
+      "vercel_project_id": "prj_Aw90JJ2x7mTMatTxa3ymgcU7WPV2",
+      "vercel_team_id": "team_KMZACI5rIltoCRhAtGCXlxUf",
       "scan_priority": "high",
       "scan_schedule": "0 */6 * * *",
       "business_charter": "business-charters/restoreassist.md",
@@ -136,6 +140,8 @@
       "deployments": {
         "frontend": "https://synthex.social"
       },
+      "vercel_project_id": "prj_gbQmHn6quoHgG3AswRrDoUlYaF40",
+      "vercel_team_id": "team_KMZACI5rIltoCRhAtGCXlxUf",
       "scan_priority": "high",
       "scan_schedule": "0 */6 * * *",
       "business_charter": "business-charters/synthex.md",
@@ -155,8 +161,10 @@
         "Claude AI"
       ],
       "deployments": {
-        "frontend": "https://dashboard-unite-group.vercel.app"
+        "frontend": "https://unite-group.vercel.app"
       },
+      "vercel_project_id": "prj_IfUuJNLjXTE8VXqEGwLAleIGhiA0",
+      "vercel_team_id": "team_KMZACI5rIltoCRhAtGCXlxUf",
       "scan_priority": "high",
       "scan_schedule": "0 */6 * * *",
       "business_charter": "business-charters/unite-group.md",
