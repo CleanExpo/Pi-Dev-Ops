@@ -2,8 +2,8 @@
   "manifest_version": 1,
   "package": {
     "name": "pi-ceo-skills",
-    "version": "1.21.0",
-    "generated_at": "2026-08-03T07:59:50.533182+00:00",
+    "version": "1.22.0",
+    "generated_at": "2026-08-17T22:25:36.702174+00:00",
     "source": "github.com/CleanExpo/Pi-Dev-Ops"
   },
   "skills": [
@@ -33,6 +33,25 @@
       "status": "(unset)",
       "path": "skills/afk-agent/SKILL.md",
       "sha256": "972139e73b7e4863d66fb6e53b6f1e895a11c424530c27ef4cb0da4a0f625f47",
+      "dependencies": {
+        "tools": [],
+        "skills": []
+      },
+      "safety": {
+        "requires_kill_switch": false,
+        "requires_hitl_gate": false,
+        "pii_handling": "pass-through"
+      },
+      "inferred": true,
+      "low_confidence": true
+    },
+    {
+      "id": "agent-browser",
+      "description": "Browser automation CLI for AI agents. Use when the user needs to interact with websites, including navigating pages, filling forms, clicking buttons, taking screenshots, extracting data, testing web apps, or automating any browser task. Triggers include requests to \"open a website\", \"fill out a form\", \"click a button\", \"take a screenshot\", \"test this web app\", \"login to a site\", \"automate browser actions\", or any task requiring programmatic web interaction. Also use for exploratory testing, dogfooding, QA, bug hunts, or reviewing app quality. Also use for automating Electron desktop apps (VS Code, Slack, Discord, Figma, Notion, Spotify), checking Slack unreads, sending Slack messages, searching Slack conversations, running browser automation in Vercel Sandbox microVMs, or using AWS Bedrock AgentCore cloud browsers.",
+      "owner_role": "(unset)",
+      "status": "(unset)",
+      "path": "skills/agent-browser/SKILL.md",
+      "sha256": "771a030d8c028c2fc9908b84c7f2aeb6d229efe82c13cec8b1b4d21b0819d104",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -311,7 +330,7 @@
       "owner_role": "Orchestrator",
       "status": "active",
       "path": "skills/boardroom/SKILL.md",
-      "sha256": "245320f3fd5e4fc1dad9164f307b77ee473293fb4e2732c65aa305163db55948",
+      "sha256": "c94fa459a6853dd11bef23fe2c629691ff99c817dfdc838843b19d1db622cbf6",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1693,7 +1712,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/nexus/SKILL.md",
-      "sha256": "a3aa8f7a35a8d3d61884676c5098d55d7a961813494fc1e2111647cdce8503d5",
+      "sha256": "8cad881926641c8ce7d2d012991353c3136261ff1f213f816e710a68e3680eaa",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -1807,7 +1826,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/pi-dev-ops-model-farm/SKILL.md",
-      "sha256": "b239e8767719d144f50324581d49206293b08b975309c9eda26c4b746701c578",
+      "sha256": "f85508e84e4b2f0ecedf6b487c01b6f9f88c328ea056be1eea07698af3f176b5",
       "dependencies": {
         "tools": [],
         "skills": []
@@ -3127,7 +3146,7 @@
       "owner_role": "(unset)",
       "status": "(unset)",
       "path": "skills/wiki-growth/SKILL.md",
-      "sha256": "7aad45caa438a1d092f06538e8e80cf66277ed022c0e25bb6b550c14dc931536",
+      "sha256": "40de09212258d50f5fbfdb7f2465da81a4c8cca3b66b5d05451118911c098135",
       "dependencies": {
         "tools": [],
         "skills": []
