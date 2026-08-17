@@ -13,7 +13,7 @@ Standing mandate: do the **requested** task end-to-end without asking permission
 **Durable rules — every session, no confirmation:**
 
 1. **Sandbox first, push only when asked.** Iterate in `/tmp/` or `/tmp/pi-ceo-workspaces/` clones. Push / open PR / ship only when the user's latest message says so. Otherwise stage the diff, write the PR body to a file, STOP.
-2. **File a Linear ticket for every discovery** via `mcp__pi-ceo__linear_create_issue`, routed by `.harness/projects.json` (repo → `linear_team_id` + `linear_project_id`). Never dump findings into Pi-Dev-Ops's own project unless the finding is about Pi-CEO itself.
+2. **File a Linear ticket for every discovery** via `mcp__pi-ceo__linear_create_issue`, routed by `config/harness/projects.json` (repo → `linear_team_id` + `linear_project_id`). Never dump findings into Pi-Dev-Ops's own project unless the finding is about Pi-CEO itself.
 3. **Smoke-test before committing:** `python -m py_compile` on edited Python, `npx tsc --noEmit` on edited TS, probe changed endpoints, trigger changed CI workflows and wait.
 4. **Surface-treatment prohibition (RA-1109)** applies always — see that section.
 5. **Honest failure reporting:** state the exact error class + source line, file a follow-up ticket. Never dress a failure as "still running" or silently retry forever.
@@ -222,7 +222,7 @@ Three jobs: `python` (pytest + ruff), `frontend` (tsc + eslint + build), `smoke-
 |------|-----|
 | Webhook handler skips refs containing `pidev/` and repo `CleanExpo/Pi-Dev-Ops` | Prevents recursive self-modification (43 zombie branches, 2026-04-17) |
 | After a successful push with a real diff, auto-open a PR via GitHub REST | The branch alone isn't a mergeable action |
-| Auto-open a Linear ticket in the TARGET repo's project (per `.harness/projects.json`) | Tickets land on the right kanban |
+| Auto-open a Linear ticket in the TARGET repo's project (per `config/harness/projects.json`) | Tickets land on the right kanban |
 | `session.workspace = f"{TAO_WORKSPACE}/{session.id}"` | UUID isolation outside the harness tree |
 
 ### Dashboard UX (RA-1181)
@@ -235,7 +235,7 @@ Three jobs: `python` (pytest + ruff), `frontend` (tsc + eslint + build), `smoke-
 
 ### Linear routing reference
 
-`.harness/projects.json` is canonical (match repo name case-insensitive, last path segment → `linear_team_id` + `linear_project_id`):
+`config/harness/projects.json` is canonical (match repo name case-insensitive, last path segment → `linear_team_id` + `linear_project_id`):
 
 ```
 pi-dev-ops        → team a8a52f07  project f45212be
@@ -264,7 +264,7 @@ Four senior-agent bots run in the orchestrator loop, each owning one slice of ex
 
 Shape per bot: pure-Python engine (compute / detect_breaches / assemble_daily_brief / approve_*) + thin bot wrapper (gates on `TAO_SWARM_ENABLED` + kill-switch) + jsonl ledger `.harness/swarm/<bot>_state.jsonl` + daily-fire window (default 06:00 UTC).
 
-**Provider envs** (default `synthetic`, seeded from `.harness/projects.json`): `TAO_CFO_PROVIDER` (`stripe_xero` → Stripe MRR + Xero cash/COGS/revenue real); `TAO_CMO_PROVIDER`, `TAO_CTO_PROVIDER`, `TAO_CS_PROVIDER` (stubs — fall back to synthetic with warning). Ceiling overrides: `TAO_CFO_SPEND_CEILING` (1000), `TAO_CMO_ADSPEND_CEILING` (5000), `TAO_CS_REFUND_CEILING` (100). Stripe-Xero needs `STRIPE_API_KEY`, optional `STRIPE_ACCOUNT_<BID>`, `XERO_ACCESS_TOKEN` (30-min expiry, refresh sidecar required), `XERO_TENANT_<BID>`.
+**Provider envs** (default `synthetic`, seeded from `config/harness/projects.json`): `TAO_CFO_PROVIDER` (`stripe_xero` → Stripe MRR + Xero cash/COGS/revenue real); `TAO_CMO_PROVIDER`, `TAO_CTO_PROVIDER`, `TAO_CS_PROVIDER` (stubs — fall back to synthetic with warning). Ceiling overrides: `TAO_CFO_SPEND_CEILING` (1000), `TAO_CMO_ADSPEND_CEILING` (5000), `TAO_CS_REFUND_CEILING` (100). Stripe-Xero needs `STRIPE_API_KEY`, optional `STRIPE_ACCOUNT_<BID>`, `XERO_ACCESS_TOKEN` (30-min expiry, refresh sidecar required), `XERO_TENANT_<BID>`.
 
 - **Multi-agent debate (RA-1867):** `swarm/debate_runner.py` runs drafter + adversarial red-team via `asyncio.gather`, both through `model_policy.select_model` (no Opus leak); emits a Hermes Kanban card via `swarm/kanban_adapter.py`; `/panic` cancels and persists `debate_aborted`.
 - **Daily 6-pager (RA-1863):** `swarm/six_pager.py` composes from the four ledgers + latest Margot insight (pure file-read). `swarm/six_pager_dispatcher.py` owns side effects: PII redact → optional voice via `swarm/voice_compose.py` (`ELEVENLABS_API_KEY`, optional `ELEVENLABS_VOICE_ID`; text-only without) → `draft_review.post_draft` HITL → audit. Fires in the daily window with 23 h debounce.
