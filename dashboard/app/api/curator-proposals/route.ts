@@ -28,12 +28,44 @@ function _quietError(error: string, detail?: string): Response {
   );
 }
 
+// The upstream contract, taken from the two places that define it rather than guessed:
+// the record built at swarm/meta_curator.py:518-529, and the response assembled at
+// app/server/routes/swarm.py:251-258 (which strips `proposed_skill_content` from the list
+// view because it is the whole SKILL.md body).
+//
+// The previous list named `proposals[].id`, `.skill`, `.summary` and `.rationale`. Upstream
+// has never sent those. It emits `proposal_id`, `proposed_skill_name`, `cluster_summary`
+// and `ts`, and has done since 2026-07-01 — a month before this list was written on
+// 2026-08-03 (#609). So every response failed the check, the route returned "upstream
+// payload shape changed" and withheld the body, and the panel has been dark since it
+// shipped. Not drift: the list never matched either side.
+//
+// `CuratorProposalsPanel.tsx` reads exactly these names (`p.proposal_id`, `p.ts`,
+// `p.cluster_id`, `p.proposed_skill_name`, `p.cluster_summary`, `p.evidence_count`), so the
+// component and the backend already agreed with each other. Only this list disagreed.
 const ALLOWED_PATHS = new Set([
-  "count", "status", "limit", "total", "returned", "by_status", "error", "detail",
-  "proposals",
-  "proposals[].id", "proposals[].skill", "proposals[].status",
-  "proposals[].created_at", "proposals[].summary", "proposals[].rationale",
+  "total", "returned", "by_status", "proposals", "error", "detail",
+  // Accepted on the error path built below, and by older upstreams.
+  "count", "status", "limit",
+  "proposals[].ts", "proposals[].proposal_id", "proposals[].cluster_id",
+  "proposals[].trigger_source", "proposals[].cluster_summary",
+  "proposals[].evidence_count", "proposals[].proposed_skill_name",
+  "proposals[].proposed_skill_path", "proposals[].status",
+  "proposals[].created_at", "proposals[].draft_id", "proposals[].reason",
 ]);
+
+/** `by_status` is a Record<string, number> keyed by status, so its keys cannot be enumerated.
+ *
+ * Allow-listing the bare `by_status` was why `by_status.pending` tripped the guard — and any
+ * other status would have too. The set of statuses is open (pending, accepted,
+ * rejected_dedup, rejected_cooloff, rejected_rate, expired, queued_dry_run, and `unknown`
+ * when a record has none), so a fixed list here would go stale the next time one is added.
+ * Depth is still bounded: only direct children of `by_status` pass.
+ */
+function isAllowedPath(path: string): boolean {
+  if (ALLOWED_PATHS.has(path)) return true;
+  return /^by_status\.[^.]+$/.test(path);
+}
 
 /** Every payload key path, with array positions collapsed to `[]`. */
 function keyPaths(value: unknown, prefix = ""): string[] {
@@ -71,7 +103,7 @@ export async function GET(request: Request): Promise<Response> {
     }
     const body = await upstream.json().catch(() => ({}));
     const payload = upstream.ok ? body : { error: `HTTP ${upstream.status}`, ...body };
-    const unexpected = [...new Set(keyPaths(payload))].filter((key) => !ALLOWED_PATHS.has(key));
+    const unexpected = [...new Set(keyPaths(payload))].filter((key) => !isAllowedPath(key));
     if (unexpected.length > 0) {
       console.error("[curator-proposals] upstream returned unexpected key paths:", unexpected);
       return _quietError("upstream payload shape changed", "response withheld pending review");
