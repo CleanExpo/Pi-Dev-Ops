@@ -15,6 +15,29 @@ import urllib.error
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
+import swarm as _swarm_pkg
+
+
+def _patch_linear_tools(save_issue):
+    """Patch the object `from swarm import linear_tools` actually resolves to.
+
+    These tests used to patch `sys.modules["swarm.linear_tools"]`. That entry is consulted
+    only on the submodule-import fallback path, and Python skips that path entirely once
+    the submodule has been imported and bound as an attribute of the `swarm` package. So
+    any earlier import in the same process silently defeated the mock, the real save_issue
+    ran, and the assertions failed — while the same tests passed when `swarm/` ran alone.
+
+    Reproduced deterministically with a single `import swarm.linear_tools` before the
+    suite. It surfaced as two failures whenever `tests/` and `swarm/` shared a process;
+    CI never saw it because ci.yml:72 and ci.yml:76 run them as separate steps, which made
+    a real ordering bug look like an artefact of how you invoked pytest.
+
+    Patching the package attribute works whether or not the submodule was imported first.
+    """
+    return patch.object(
+        _swarm_pkg, "linear_tools", MagicMock(save_issue=save_issue), create=True
+    )
+
 # Env vars are required by the router at import time when calling
 # _supabase_*().  Set safe defaults before import.
 os.environ.setdefault("SUPABASE_UNITE_GROUP_URL", "https://test.supabase.co")
@@ -119,10 +142,7 @@ class ProcessUpdateTests(unittest.TestCase):
         linear_mock = MagicMock(return_value={"identifier": "UNI-9999"})
         with patch.object(ir, "_sb_request") as sb, \
              patch.object(ir, "_send_reply") as reply, \
-             patch.dict(
-                 "sys.modules",
-                 {"swarm.linear_tools": MagicMock(save_issue=linear_mock)},
-             ):
+             _patch_linear_tools(linear_mock):
             n, lid = ir._process_update(bot, _update(text="add a new floor plan widget"), dry_run=False)
         self.assertEqual(n, 1)
         self.assertEqual(lid, "UNI-9999")
@@ -143,10 +163,7 @@ class ProcessUpdateTests(unittest.TestCase):
             return None
         with patch.object(ir, "_sb_request", side_effect=fake_sb), \
              patch.object(ir, "_send_reply") as reply, \
-             patch.dict(
-                 "sys.modules",
-                 {"swarm.linear_tools": MagicMock(save_issue=MagicMock(return_value={"identifier":"UNI-1"}))},
-             ):
+             _patch_linear_tools(MagicMock(return_value={"identifier": "UNI-1"})):
             n, _ = ir._process_update(bot, _update(), dry_run=False)
         self.assertEqual(n, 0)
         # Auto-reply must NOT fire on a duplicate
@@ -189,7 +206,7 @@ class ProcessUpdateTests(unittest.TestCase):
         linear_mock = MagicMock(return_value={"identifier": "UNI-4242"})
         with patch.object(ir, "_sb_request"), \
              patch.object(ir, "_send_reply", side_effect=fake_reply), \
-             patch.dict("sys.modules", {"swarm.linear_tools": MagicMock(save_issue=linear_mock)}):
+             _patch_linear_tools(linear_mock):
             ir._process_update(bot, _update(), dry_run=False)
         self.assertIn("UNI-4242", captured["text"])
         self.assertIn("Got it.", captured["text"])
