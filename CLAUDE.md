@@ -159,6 +159,40 @@ password, so all 35 assertions fail with `401 Invalid password`. That reads as a
 surface and is two gates racing. Seen twice on 2026-08-18. Before believing an `audit-smoke` auth
 failure, run `lsof -nP -iTCP:7777 -sTCP:LISTEN`.
 
+### The secrets gate is blind to 682 tracked files — demonstrated, and currently harmless
+
+`_SKIP_EXTS` in `scripts/secrets_check.py:149` excludes `.md`, `.rst` and `.lock`. The scanner is
+honest about it, warning at every run that these are skipped "for convenience only" and **can**
+carry secrets. Nobody had tested what that costs.
+
+Demonstrated 2026-08-19 with the same planted `AKIA` + 16-char key in a tracked file:
+
+| File | This repo's `secrets_check.py` | Same patterns, applied to skipped files |
+|---|---|---|
+| `canary_probe.txt` | `RESULT: 1 secret(s) exposed` | — |
+| `canary_doc.md` | **`[PASS] No exposed secrets detected`** | `[CRITICAL] canary_doc.md:3` |
+
+**A CRITICAL AWS key in any tracked `.md` passes the gate.** Both canaries were removed; neither
+was ever committed.
+
+**The current content is clean, and that is a checked claim, not an assumption.** All 682 tracked
+`.md`/`.rst`/`.lock` files were scanned by importing `_COMPILED` and `_PLACEHOLDER_RE` from the
+scanner itself (no reimplementation, so a pattern change propagates). Eight matches, all triaged
+and all false positives:
+
+- six in `docs/superpowers/plans/2026-05-17-*.md` — values 11–12 characters. `sk-ant-api03-` alone
+  is 13 and a Linear key is 48, so they are too short to be credentials. The pattern fires on the
+  `sk-`/`lin_api_` prefix, not on a real key.
+- one `token = '…'` in a TypeScript example inside a plan document.
+- one in `skills/control-design/SKILL.md:135`, quoting `const KS_SECRET = "…"` as an example. The
+  real `dashboard/__tests__/kill-switch-auth.test.ts:25` uses `randomBytes(24).toString("hex")` —
+  generated per run, not hardcoded.
+
+**Widening the scope is a founder call, not an agent's.** Dropping `.md` from `_SKIP_EXTS` turns
+those eight into gate failures until each is triaged or allow-listed, so it trades a working gate
+for coverage. The finding to act on is that the gap is real and proven, not that it is currently
+being exploited.
+
 Two canary attempts failed first, and both failures were the canary's fault, not the scanner's:
 an untracked file (it scans git-tracked files only) and a string with 12 characters after `AKIA`
 where the pattern needs 16. **Verify the canary matches the pattern before concluding the guard is
