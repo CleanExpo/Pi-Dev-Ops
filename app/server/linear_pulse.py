@@ -56,10 +56,29 @@ def _graphql(query: str, variables: dict | None = None) -> dict:
     )
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
-            return (json.loads(resp.read()) or {}).get("data", {}) or {}
+            body = json.loads(resp.read()) or {}
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
         log.warning("linear_pulse: graphql error: %s", exc)
         return {}
+
+    # Linear answers an APPLICATION error with HTTP 200, a top-level `errors` array and
+    # `data: null` — an unknown or deleted issue id, a permission denial, an invalid input.
+    # This function used to return `.get("data", {}) or {}` and drop `errors` on the floor,
+    # so the caller saw an empty dict and logged "the 15-min heartbeat did not reach Linear
+    # this tick" with no cause. That ran every 15 minutes from 12:18 on 2026-08-18 without a
+    # single success and without one diagnosable line: the URLError branch above never fired,
+    # which is exactly how we know the failure was here and not on the wire.
+    #
+    # Four call sites in this repo already surface it (triage.py, feedback_loop.py,
+    # telegram_proxy.py, routes/webhooks.py all raise `Linear GraphQL errors: {...}`), and
+    # margot_tools.py logs its exception — which is why ITS failures are diagnosable and this
+    # one was not. Same defect as 06f80ba3, "persist WHY a session failed, not just that it
+    # did", in a different module.
+    errors = body.get("errors")
+    if errors:
+        log.error("linear_pulse: Linear GraphQL errors: %s", errors)
+        return {}
+    return body.get("data") or {}
 
 
 def _load_state() -> dict:
