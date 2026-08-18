@@ -149,3 +149,59 @@ def test_evaluator_text_carries_a_real_failure() -> None:
 
     assert "FAILED" in text
     assert "assert 1 == 2" in text
+
+
+def test_a_timed_out_child_is_reaped_not_left_a_zombie(tmp_path: Path, monkeypatch) -> None:
+    """Killing a process does not collect its exit status.
+
+    os.killpg on timeout without a following `await proc.wait()` leaves the child unreaped.
+    On the long-lived Railway container those accumulate across every session that ever
+    timed out. The pre-existing timeout test asserts only that the result is TIMED_OUT,
+    which passes just as happily with a zombie left behind — so it could not catch this.
+
+    Asserted on `proc.returncode`: None means never reaped.
+    """
+    repo = _py_repo(tmp_path, "import time\n\n\ndef test_hangs():\n    time.sleep(30)\n")
+    captured = {}
+
+    real_exec = asyncio.create_subprocess_exec
+
+    async def _capture(*args, **kwargs):
+        proc = await real_exec(*args, **kwargs)
+        captured["proc"] = proc
+        return proc
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", _capture)
+
+    result = _run(wv.run_workspace_checks(str(repo), timeout_s=2))
+
+    assert result.status == wv.TIMED_OUT
+    proc = captured.get("proc")
+    assert proc is not None, "positive control failed: no subprocess was ever started"
+    assert proc.returncode is not None, (
+        "child was killed but never awaited — it is a zombie"
+    )
+
+
+def test_a_timeout_kills_the_whole_process_group(tmp_path: Path) -> None:
+    """A test script's own background children must die with it.
+
+    start_new_session puts the child in its own process group so the timeout can kill the
+    tree. Without it only the direct child dies and any dev server, watcher or worker the
+    suite spawned survives, holding ports and memory on a container that never restarts.
+    """
+    marker = tmp_path / "grandchild-alive"
+    body = (
+        "import subprocess, sys, time\n\n\n"
+        "def test_spawns_a_survivor():\n"
+        f"    subprocess.Popen([sys.executable, '-c',\n"
+        f"        \"import time;open(r'{marker}','w').write('x');time.sleep(30)\"])\n"
+        "    time.sleep(30)\n"
+    )
+    repo = _py_repo(tmp_path, body)
+
+    result = _run(wv.run_workspace_checks(str(repo), timeout_s=3))
+
+    assert result.status == wv.TIMED_OUT
+    # Positive control: the grandchild must actually have started, or this proves nothing.
+    assert marker.exists(), "grandchild never ran — the test cannot show group-kill works"
