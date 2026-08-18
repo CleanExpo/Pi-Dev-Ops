@@ -89,6 +89,8 @@ FALLBACK_TRIGGER_ERRORS = (
     "openrouter_no_api_key",
     "openrouter_http_402",  # insufficient credit
     "openrouter_http_429",  # rate limited
+    "openrouter_call_raised",  # connection refused / DNS / timeout
+    "openrouter_httpx_import_failed",  # the OpenRouter path cannot run at all
 )
 
 # Cheap tier resolution:
@@ -547,10 +549,16 @@ def _openrouter_cannot_serve(error: str | None) -> bool:
     """True when the OpenRouter error means the provider is unusable.
 
     Narrow on purpose: a 400 or a model-specific error would fail on Anthropic
-    too, so retrying it just spends the capped key for nothing.
+    too, so retrying it just spends the capped key for nothing. The test is
+    availability, not failure — an OpenRouter outage (5xx, connection refused)
+    says nothing about whether Anthropic can answer, so it falls back; a
+    malformed request says it would fail there too, so it does not.
     """
     if not error:
         return False
+    if error.startswith("openrouter_http_5"):
+        # OpenRouter is broken, not the request. Anthropic is unaffected.
+        return True
     return any(error.startswith(e) for e in FALLBACK_TRIGGER_ERRORS)
 
 

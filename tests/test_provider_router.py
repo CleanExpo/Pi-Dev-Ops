@@ -510,6 +510,51 @@ def test_openrouter_bad_request_does_not_spend_the_capped_key(monkeypatch):
     assert captured == {}, "Anthropic must not be called for a 400"
 
 
+@pytest.mark.parametrize("err", [
+    "openrouter_call_raised: ConnectError('[Errno 61] Connection refused')",
+    "openrouter_http_503: upstream unavailable",
+    "openrouter_http_500: internal error",
+    "openrouter_httpx_import_failed: No module named 'httpx'",
+])
+def test_openrouter_outage_falls_back(monkeypatch, err):
+    """An OpenRouter OUTAGE says nothing about Anthropic — it must fall back.
+
+    A missing key was already covered; an unreachable provider was not, which
+    left the paid surface with no second the moment OpenRouter went down.
+    """
+    captured: dict = {}
+    monkeypatch.setitem(sys.modules, "app.server.provider_openrouter",
+                        _openrouter_returning(err))
+    monkeypatch.setitem(sys.modules, "app.server.session_sdk",
+                        _anthropic_recorder(captured))
+    rc, _text, _cost, error = asyncio.run(PR.run_via_provider(
+        prompt="hi", role="planner", session_id="s1",
+    ))
+    assert rc == 0, f"no fallback for {err!r}; error={error!r}"
+    assert captured["model"] == PR.FALLBACK_TOP_MODEL
+
+
+@pytest.mark.parametrize("err", [
+    "openrouter_http_403: forbidden",
+    "openrouter_http_404: no such model",
+    "openrouter_http_422: unprocessable",
+])
+def test_openrouter_client_error_still_does_not_spend_the_cap(monkeypatch, err):
+    """Negative control for the outage rule: 4xx is the request, not the
+    provider, so widening the fallback to 5xx must not widen it to these."""
+    captured: dict = {}
+    monkeypatch.setitem(sys.modules, "app.server.provider_openrouter",
+                        _openrouter_returning(err))
+    monkeypatch.setitem(sys.modules, "app.server.session_sdk",
+                        _anthropic_recorder(captured))
+    rc, _text, _cost, error = asyncio.run(PR.run_via_provider(
+        prompt="hi", role="planner", session_id="s1",
+    ))
+    assert rc == 1
+    assert error == err
+    assert captured == {}, f"Anthropic must not be called for {err!r}"
+
+
 def test_anthropic_fallback_can_be_disabled(monkeypatch):
     """TAO_ANTHROPIC_FALLBACK=0 for when the $20 cap outranks availability."""
     captured: dict = {}
