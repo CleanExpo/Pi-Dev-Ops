@@ -131,10 +131,18 @@ fi
 # ci.yml's pin is the single source of truth. Read it rather than hardcoding a second copy
 # that would drift on the next bump, and fail loudly on mismatch instead of silently
 # grading against the wrong rule set.
+# Extraction is deliberately tolerant of quoting (pip install "ruff==X" / 'ruff==X' / ruff==X)
+# and FAILS CLOSED when it cannot read a pin at all. An earlier draft guarded the comparison
+# with [ -n "$RUFF_WANT" ], which meant any future reformatting of that ci.yml line silently
+# disabled the whole check and restored the original defect — a guard that quietly stops
+# guarding is worse than none, because the gate still reports PASS.
 if command -v ruff >/dev/null 2>&1 && [ -d app ]; then
-  RUFF_WANT="$(sed -n 's/.*pip install "ruff==\([0-9.]*\)".*/\1/p' .github/workflows/ci.yml | head -1)"
+  RUFF_CI=".github/workflows/ci.yml"
+  RUFF_WANT="$(sed -n "s/.*pip install [\"']\{0,1\}ruff==\([0-9][0-9.]*\)[\"']\{0,1\}.*/\1/p" "$RUFF_CI" 2>/dev/null | head -1)"
   RUFF_HAVE="$(ruff --version 2>/dev/null | awk '{print $2}')"
-  if [ -n "$RUFF_WANT" ] && [ -n "$RUFF_HAVE" ] && [ "$RUFF_WANT" != "$RUFF_HAVE" ]; then
+  if [ -z "$RUFF_WANT" ] || [ -z "$RUFF_HAVE" ]; then
+    gate "lint-ruff" bash -c "echo 'cannot determine the ruff version to grade against (ci.yml pin=\"$RUFF_WANT\", local=\"$RUFF_HAVE\").'; echo 'Refusing to lint rather than grade against an unknown rule set. Check the pip install ruff== line in $RUFF_CI'; exit 1"
+  elif [ "$RUFF_WANT" != "$RUFF_HAVE" ]; then
     gate "lint-ruff" bash -c "echo 'ruff version drift: local $RUFF_HAVE, ci.yml pins $RUFF_WANT.'; echo 'This gate cannot stand in for CI on a different rule set. Fix: pip install \"ruff==$RUFF_WANT\"'; exit 1"
   else
     gate "lint-ruff" ruff check app
