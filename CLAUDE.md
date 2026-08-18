@@ -73,10 +73,61 @@ Found by direct check on 2026-08-18. Each is real and unfixed; treat as work, no
 | 3 | All four `.claude/skills/{judge,spm,session-handoff,resume-from-handoff}/SKILL.md` are **missing**. The Codex side (`.agents/skills/…`) exists. Every Claude Code slash-command route the old file documented pointed at nothing | `ls .claude/skills/` |
 | 4 | `HERMES.md` is **missing**, though it was cited as Launch Crew governance | `ls HERMES.md` |
 | 5 | `app/server/routes/webhooks.py` is **1292 lines** against a documented 300-line ceiling; `mission_control.py` 406; `health.py` 302 | `wc -l app/server/routes/*.py` |
-| 6 | `Monorepo CI` on `main` last passed **2026-08-14T04:44** and has been red since **05:18** that day | `gh run list --workflow ci.yml` |
+| 6 | **There is no working CI.** Actions minutes are exhausted, so no runner is assigned and every job fails in ~3 s having executed zero steps. Last real pass on `main`: **2026-08-14T04:44** | see the section below |
 
 Do not paste per-file line counts into this document again. They were wrong in every row of the
 previous version — one claimed ~214 lines against an actual 1292. Run `wc -l` instead.
+
+## CI is not broken — the Actions minutes are gone
+
+**Read this before debugging any red run on this repo.** A red job here is almost never your code.
+
+This repo is **private** on GitHub Free, which allots **2000 Actions minutes/month**. When they are
+spent, GitHub stops assigning runners and every job fails in about three seconds with a misleading
+*"recent account payments have failed or your spending limit needs to be increased"* — which fires
+even with no card on file. Chasing that as a code or billing fault wastes the whole session.
+
+Measured on run `32134189485` (the merge of PR #646, 2026-08-18T11:55:55Z), all four jobs:
+
+```
+runner_name: ""        <- no runner ever assigned
+steps: 0               <- zero steps executed
+started 11:55:56Z -> completed 11:55:59Z   (3 seconds)
+```
+
+Four independent jobs — lint, pytest, secrets-scan, frontend — failing simultaneously with zero
+failed *steps* is the signature. Confirm it this way, not by reading job logs (there are none):
+
+```bash
+gh api /repos/CleanExpo/Pi-Dev-Ops/actions/runs/<id>/jobs \
+  --jq '.jobs[] | {name, conclusion, runner_name, started_at, completed_at}'
+```
+
+`runner_name: ""` plus a ~3-second lifetime means quota, full stop. The control that distinguishes
+it from a real failure: `CleanExpo/Unite-Group` is **public**, so its minutes are free, and its CI
+kept running normally through the same window with real multi-minute job durations.
+
+**What burns the quota.** ~779 scheduled runs/month before a single push is counted:
+
+| Cadence | Workflows | Runs/month |
+|---|---|---:|
+| every 4 h | `live_nexus_smoke` | 186 |
+| every 6 h | `dns_takeover_scan`, `smoke_pipeline`, `dr-nrpg-stripe-watch` | 372 |
+| daily | `fable_canary_check`, `fail-open-check`, `fence-drift-check`, `ideas_inbox_drain`, `linear_evidence_audit`, `morning_briefing`, `sandbox-framework-drift` | 217 |
+| weekly | `weekly-enhancement-loop` | 4 |
+
+That leaves an average of ~2.5 minutes per scheduled run and **nothing at all** for pushes and PRs.
+Re-derive with `grep -l 'schedule:' .github/workflows/*.yml`.
+
+**Consequences that matter more than the inconvenience:**
+
+- **Every "CI is green" claim since 2026-08-14 is vacuous.** No run has executed. `bash
+  scripts/handoff-loop.sh` is the only verification with evidence behind it — treat its 18 gates as
+  the real gate and say "CI did not run" rather than implying a hosted pass.
+- Verify locally *before* pushing, never after. The `github-actions-quota-guard` skill covers the
+  full procedure; it exists because this has happened before.
+- Cutting the scheduled cadence is the durable fix and is a founder decision, because it trades
+  monitoring frequency for CI availability. Not something an agent should quietly reduce.
 
 ## Non-negotiables
 
