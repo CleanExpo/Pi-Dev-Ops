@@ -256,14 +256,26 @@ def run_pulse() -> dict:
         else:
             minutes = (datetime.now(timezone.utc).timestamp() - last_seen) / 60
             if minutes >= _STUCK_PHASE_MINUTES and not state.get(f"{key}:alerted"):
-                _post_comment(
+                # Only mark the alert as delivered once it actually posted. Setting
+                # `:alerted` unconditionally meant a stuck-session alert that Linear
+                # refused was permanently suppressed — the flag says "already told
+                # them" forever, and no later tick retries. A dropped 🚨 is the one
+                # alert that must not be silently swallowed, so on failure leave the
+                # flag unset (the next 15-min tick retries) and say so in the log.
+                if _post_comment(
                     iid,
                     f"🚨 **Stuck-phase alert** — session has been in "
                     f"`{sess.get('phase', '?')}` for {int(minutes)} min. "
                     "Consider killing + retrying.",
-                )
-                state[f"{key}:alerted"] = True
-                stuck_alerts += 1
+                ):
+                    state[f"{key}:alerted"] = True
+                    stuck_alerts += 1
+                else:
+                    log.error(
+                        "linear_pulse: stuck-phase alert FAILED to post for session=%s "
+                        "phase=%s (%d min) — not marking alerted; next tick retries",
+                        sess.get("id"), sess.get("phase", "?"), int(minutes),
+                    )
 
     # 2. Portfolio-pulse comment
     pulse_id = _pulse_issue_id(state)
@@ -274,7 +286,15 @@ def run_pulse() -> dict:
             body = render_digest_text()
         except Exception as exc:  # noqa: BLE001
             body = f"digest unavailable: {exc}"
-        _post_comment(pulse_id, body)
+        pulse_posted = _post_comment(pulse_id, body)
+        if not pulse_posted:
+            log.error(
+                "linear_pulse: portfolio-pulse comment FAILED to post to issue=%s — "
+                "the 15-min heartbeat did not reach Linear this tick",
+                pulse_id,
+            )
+    else:
+        pulse_posted = False
 
     _save_state(state)
 
@@ -282,7 +302,11 @@ def run_pulse() -> dict:
         "ts": now,
         "session_comments": session_comments,
         "stuck_alerts": stuck_alerts,
-        "pulse_posted": bool(pulse_id),
+        # Whether the comment actually posted, NOT whether a pulse issue id existed.
+        # `bool(pulse_id)` reported True whenever an id was resolvable, so a Linear
+        # outage still logged `pulse_posted: True` — the single-pane-of-glass claiming
+        # it had updated the pane it never reached.
+        "pulse_posted": pulse_posted,
     }
     log.info("linear_pulse: %s", summary)
     return summary
