@@ -21,8 +21,23 @@ emit_dead() {
 }
 
 # Candidate checkouts, most authoritative first.
+#
+# SECURITY — only version-controlled checkouts under $HOME, never /tmp. An earlier
+# version of this list included /tmp/pi-overnight for development convenience.
+# /tmp is world-writable, so ANY local process could drop a liveness_prover.py
+# there and have it executed as this user every hour by a LaunchAgent: local code
+# execution with persistence, handed over by the very thing meant to be watching.
+# Caught in independent review, 2026-08-19.
+#
+# If the script is not in a checkout under $HOME the correct behaviour is to report
+# DEAD, not to go looking somewhere less trustworthy. A monitor that widens its own
+# trust boundary to stay green is worse than one that admits it cannot run.
 SCRIPT=""
-for root in "$HOME/Pi-Dev-Ops" "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" /tmp/pi-overnight; do
+for root in "$HOME/Pi-Dev-Ops" "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; do
+  case "$root" in
+    "$HOME"/*) : ;;                     # inside $HOME — acceptable
+    *) continue ;;                      # anything else (incl. /tmp) — refuse
+  esac
   if [ -f "$root/scripts/liveness_prover.py" ]; then SCRIPT="$root/scripts/liveness_prover.py"; ROOT="$root"; break; fi
 done
 

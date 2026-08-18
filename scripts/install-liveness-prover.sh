@@ -100,6 +100,29 @@ if [ "$after" -le "$before" ]; then
   exit 1
 fi
 
+# The prover having RUN is not the same as the prover WORKING. If the wrapper could
+# not locate or execute the script it still writes a well-formed verdict, whose only
+# probe is prover_itself: DEAD — and byte growth alone would read that as success.
+#
+# Note what is deliberately NOT required here: an overall ALIVE verdict. Review
+# suggested it; it is wrong. A monitor is installed precisely when the estate is
+# unhealthy, so demanding ALIVE would make installation impossible exactly when it
+# matters most. The installer's job is to prove the MONITOR works, not that the
+# estate is well. Those are different claims and conflating them is how you end up
+# tuning a gate until it passes.
+if python3 - "$LOG" <<'PY'
+import json, sys, pathlib
+t = pathlib.Path(sys.argv[1]).read_text()
+d = json.loads(t[t.rfind('{\n  "checked_at"'):])
+names = [p["name"] for p in d["probes"]]
+sys.exit(0 if names == ["prover_itself"] else 1)
+PY
+then
+  echo "FAIL: the agent ran but the prover could not execute — verdict contains only prover_itself"
+  tail -6 "$LOG"
+  exit 1
+fi
+
 echo
 echo "INSTALLED and VERIFIED:"
 echo "  loaded : $(launchctl list | grep "$LABEL")"
