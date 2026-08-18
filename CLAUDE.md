@@ -119,7 +119,24 @@ concludes the table is wrong:
 | weekly | `weekly-enhancement-loop` | 4 |
 
 That leaves an average of ~2.5 minutes per scheduled run and **nothing at all** for pushes and PRs.
-Re-derive with `grep -l 'schedule:' .github/workflows/*.yml`.
+
+Re-derive the total, not just the file list — `grep -l 'schedule:'` counts workflows (12), which is
+not the same claim:
+
+```bash
+python3 - <<'EOF'
+import re, glob, os
+DAYS = 31; total = 0
+for f in sorted(glob.glob(".github/workflows/*.yml")):
+    for cron in re.findall(r"cron:\s*['\"]([^'\"]+)", open(f).read()):
+        mi, hr, dom, mon, dow = (cron.split() + ["*"] * 5)[:5]
+        per_day = 24 // int(hr[2:]) if hr.startswith("*/") else (24 if hr == "*" else len(hr.split(",")))
+        runs = per_day * DAYS if dow == "*" else per_day * (DAYS // 7)
+        total += runs
+        print(f"{os.path.basename(f):<34}{cron:<16}{runs:>4}/month")
+print(f"{'TOTAL':<50}{total:>4}/month")
+EOF
+```
 
 **Consequences that matter more than the inconvenience:**
 
