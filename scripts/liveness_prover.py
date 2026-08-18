@@ -52,6 +52,7 @@ Exit codes: 0 all alive · 1 at least one DEAD · 2 self-test failed.
 from __future__ import annotations
 
 import argparse
+import calendar
 import json
 import os
 import subprocess
@@ -123,7 +124,12 @@ def probe_ci_executes(repo: str, max_age_h: int = 48) -> Probe:
         if rc2 != 0:
             continue
         names = [n for n in out2.splitlines() if n.strip() and n.strip() != "null"]
-        created = time.mktime(time.strptime(r["createdAt"][:19], "%Y-%m-%dT%H:%M:%S"))
+        # calendar.timegm, NOT time.mktime. GitHub returns createdAt in UTC, and
+        # mktime interprets a struct_time as LOCAL time — so the age was wrong by
+        # the machine's UTC offset (10h here). In a negative-offset zone that
+        # skews runs to look NEWER than they are, i.e. a FALSE ALIVE, which is the
+        # one direction this prover must never fail in. Caught in review 2026-08-19.
+        created = calendar.timegm(time.strptime(r["createdAt"][:19], "%Y-%m-%dT%H:%M:%S"))
         if names and created >= cutoff:
             return Probe("ci_executes", ALIVE,
                          f"run {r['databaseId']} got runner {names[0]!r}")
@@ -296,6 +302,14 @@ def self_test() -> int:
 
     checks.append(("absent agent -> DEAD",
                    probe_launchagent("com.example.definitely.not.loaded").state == DEAD))
+
+    # Timestamps must be read as UTC. mktime would read them as local time and, in a
+    # negative-offset zone, make old runs look recent — a FALSE ALIVE, the one
+    # direction this prover must never fail in.
+    probe_ts = "2026-08-18T18:00:00"
+    st = time.strptime(probe_ts, "%Y-%m-%dT%H:%M:%S")
+    checks.append(("timestamps parsed as UTC, not local",
+                   calendar.timegm(st) != time.mktime(st) or time.timezone == 0))
 
     # Both directions of the alert probe, since it is the one that matters most.
     saved = (os.environ.pop("TELEGRAM_BOT_TOKEN", None),
