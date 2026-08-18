@@ -270,6 +270,20 @@ def _resolve_cheap_tier() -> tuple[Provider, str]:
 # ── Public API ──────────────────────────────────────────────────────────────
 
 
+def _is_tier_downgrade(role: str, model_id: str) -> bool:
+    """True when `model_id` is the configured cheap model for a top/mid role.
+
+    Single predicate shared by the recorder and the correction. They were two
+    copies of the same condition for exactly one commit, which is the shape of
+    bug where a gate logs one thing and enforces another — the ledger says a
+    downgrade happened while the router quietly allows it, or the reverse.
+    """
+    if ROLE_TIER.get(role) not in ("top", "mid"):
+        return False
+    cheap_model = (os.environ.get("TAO_CHEAP_REMOTE_MODEL") or "").strip()
+    return bool(cheap_model) and model_id.strip() == cheap_model
+
+
 def _record_tier_downgrade(role: str, provider: str, model_id: str, env_key: str) -> None:
     """Record when a per-role env override runs a quality-critical role on the cheap model.
 
@@ -291,12 +305,9 @@ def _record_tier_downgrade(role: str, provider: str, model_id: str, env_key: str
     production down on a config that has been live for months; the defect was that the
     downgrade was unobservable, so the fix is to make it observable.
     """
+    if not _is_tier_downgrade(role, model_id):
+        return
     tier = ROLE_TIER.get(role)
-    if tier not in ("top", "mid"):
-        return
-    cheap_model = (os.environ.get("TAO_CHEAP_REMOTE_MODEL") or "").strip()
-    if not cheap_model or model_id.strip() != cheap_model:
-        return
     try:
         from . import model_policy as _mp
         path = _mp.VIOLATIONS_PATH
@@ -341,6 +352,40 @@ def select_provider_model(role: str,
             log.debug("provider_router: %s overridden via %s = %s:%s",
                       role, env_key, prov, model)
             _record_tier_downgrade(role, prov, model, env_key)
+
+            # A per-role override may not DOWNGRADE a quality-critical role onto
+            # the cheap-tier model. The previous change made this visible; making
+            # it visible did not stop it happening, and every planner,
+            # orchestrator, board, generator and evaluator call in production was
+            # still being answered by the cheap model.
+            #
+            # Correction, not refusal: the role falls back to its tier default
+            # rather than erroring. Refusing would take production down over a
+            # config that has been live for months — the same reason the earlier
+            # change stopped at observability. Correcting keeps every call
+            # served while ending the downgrade, which is the outcome actually
+            # wanted. CLAUDE.md already records what a too-cheap planner
+            # produces: 5%-confidence plans and prose refusals.
+            #
+            # Deliberately narrow: it fires ONLY when the override names the
+            # configured cheap model for a top/mid role. Any other override —
+            # a different Anthropic model, a specific OpenRouter model, a local
+            # Ollama pin — is honoured untouched, because the operator asking
+            # for a specific capable model is a legitimate decision and this is
+            # not a general-purpose model policy.
+            if _is_tier_downgrade(role, model):
+                tier = ROLE_TIER.get(role, "mid")
+                corrected_prov, corrected_model = _tier_default(tier)
+                log.warning(
+                    "provider_router: ignoring %s — a %s-tier role may not run on the "
+                    "cheap model %s; using %s:%s instead",
+                    env_key, tier, model, corrected_prov, corrected_model,
+                )
+                return ProviderModel(
+                    provider=corrected_prov, model_id=corrected_model,
+                    tier=tier, role=role, source="tier_downgrade_corrected",
+                )
+
             return ProviderModel(
                 provider=prov, model_id=model,
                 tier=ROLE_TIER.get(role, "mid"),

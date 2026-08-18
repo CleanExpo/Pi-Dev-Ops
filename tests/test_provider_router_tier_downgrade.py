@@ -47,7 +47,14 @@ def test_quality_critical_role_on_cheap_model_is_recorded(
 
     resolved = provider_router.select_provider_model(role)
 
-    assert resolved.model_id == CHEAP
+    # Was `== CHEAP`, asserting the downgrade was honoured. That documented a
+    # deliberate choice to observe rather than gate — and observing did not stop
+    # production answering every one of these roles with the cheap model. The
+    # override is now corrected to the tier default. The recording assertions
+    # below are unchanged and still the point of this test: correcting must not
+    # silence the ledger, or the wrong env var would live forever unseen.
+    assert resolved.model_id != CHEAP
+    assert resolved.source == "tier_downgrade_corrected"
     recorded = _records(ledger)
     assert len(recorded) == 1, f"no record written for {role}"
     assert recorded[0]["role"] == role
@@ -90,4 +97,9 @@ def test_recording_failure_never_breaks_resolution(
 
     resolved = provider_router.select_provider_model("planner")
 
-    assert resolved.model_id == CHEAP
+    # The guarantee is unchanged — a broken ledger still yields a usable model.
+    # Only the expected value moves, because the downgrade is now corrected
+    # rather than honoured. Asserting a non-empty model_id as well, so this
+    # cannot pass on an empty string if resolution ever half-fails.
+    assert resolved.model_id != CHEAP
+    assert resolved.model_id
