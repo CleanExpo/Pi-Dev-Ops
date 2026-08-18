@@ -129,6 +129,33 @@ Re-derive with `grep -l 'schedule:' .github/workflows/*.yml`.
 - Cutting the scheduled cadence is the durable fix and is a founder decision, because it trades
   monitoring frequency for CI availability. Not something an agent should quietly reduce.
 
+### The local gate does cover CI — audited 2026-08-18
+
+Since `handoff-loop.sh` is now the only verification that runs, "does it actually stand in for CI?"
+is load-bearing. Every command in `ci.yml` maps to a gate:
+
+| `ci.yml` runs | local gate |
+|---|---|
+| `ruff check app/` | `lint-ruff` |
+| `pytest tests/` · `pytest swarm/` | `tests-python` · `tests-swarm` |
+| `check_provisioning.py` · `check_agent_registry.py` · `check_business_charters.py` | `provisioning` · `generated-agent-registry` · `business-charters` |
+| `npx tsc --noEmit` · `npm run lint` · `npm run build` | `type-dashboard` · `lint-dashboard` · `build-dashboard` |
+| `secrets_check.py --repo-root .` | `audit-secrets` |
+
+Only `smoke-prod` has no local equivalent — it targets a deployed environment by definition.
+
+`audit-secrets` runs with `--dry-run` where CI does not. That does **not** weaken it: `--dry-run`
+suppresses side effects only (no `.gitignore` rewrite, no Linear ticket, no Telegram alert), and
+the `return 1` on findings is not gated on it. Proven by planted canary rather than by reading the
+code — a tracked file containing `AKIA` + 16 chars produced `RESULT: 1 secret(s) exposed`, and
+removing it returned `[PASS]`.
+
+Two canary attempts failed first, and both failures were the canary's fault, not the scanner's:
+an untracked file (it scans git-tracked files only) and a string with 12 characters after `AKIA`
+where the pattern needs 16. **Verify the canary matches the pattern before concluding the guard is
+blind.** The scanner also announces its own blind spot — it warns that ~681 tracked `.md` files are
+skipped as `unverified-text` and can carry secrets. Read that warning; it is not noise.
+
 ## Non-negotiables
 
 **POLICY — Surface-treatment prohibition (RA-1109).** A feature is not shipped until the
