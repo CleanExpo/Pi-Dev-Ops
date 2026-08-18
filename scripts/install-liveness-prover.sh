@@ -110,18 +110,44 @@ fi
 # matters most. The installer's job is to prove the MONITOR works, not that the
 # estate is well. Those are different claims and conflating them is how you end up
 # tuning a gate until it passes.
-if python3 - "$LOG" <<'PY'
+# Three states, distinguished explicitly, because an earlier version of this check
+# FAILED OPEN: it ran python inside `if`, so an exception (malformed or absent JSON)
+# produced a non-zero exit, the `if` went false, and the installer reported success
+# over a prover that had emitted nothing usable. "Could not parse" was read as
+# "fine" — the same defect this whole change exists to remove, written into its own
+# verifier. Caught in review 2026-08-19.
+#
+#   0 = a real verdict with real probes      -> install is good
+#   1 = only prover_itself                   -> agent runs, prover cannot execute
+#   2 = no parseable verdict at all          -> agent produced nothing usable
+# Anything else is also treated as failure.
+set +e
+python3 - "$LOG" <<'PY'
 import json, sys, pathlib
-t = pathlib.Path(sys.argv[1]).read_text()
-d = json.loads(t[t.rfind('{\n  "checked_at"'):])
-names = [p["name"] for p in d["probes"]]
-sys.exit(0 if names == ["prover_itself"] else 1)
+try:
+    t = pathlib.Path(sys.argv[1]).read_text()
+    i = t.rfind('{\n  "checked_at"')
+    if i < 0:
+        sys.exit(2)
+    d = json.loads(t[i:])
+    names = [p["name"] for p in d["probes"]]
+except Exception:
+    sys.exit(2)
+sys.exit(1 if names == ["prover_itself"] else 0)
 PY
-then
-  echo "FAIL: the agent ran but the prover could not execute — verdict contains only prover_itself"
-  tail -6 "$LOG"
-  exit 1
-fi
+verdict_rc=$?
+# NB: do not `set -e` here. The script header is `set -uo pipefail` deliberately —
+# turning errexit on partway through would change behaviour for everything below.
+
+case "$verdict_rc" in
+  0) : ;;
+  1) echo "FAIL: the agent ran but the prover could not execute — verdict contains only prover_itself"
+     tail -6 "$LOG"; exit 1 ;;
+  2) echo "FAIL: the agent produced no parseable verdict in $LOG"
+     tail -6 "$LOG"; exit 1 ;;
+  *) echo "FAIL: verdict check itself errored (rc=$verdict_rc) — refusing to claim success"
+     exit 1 ;;
+esac
 
 echo
 echo "INSTALLED and VERIFIED:"
