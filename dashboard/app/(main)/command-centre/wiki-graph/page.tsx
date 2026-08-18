@@ -43,13 +43,35 @@ function formatSync(iso: string | null): string {
 }
 
 export default async function WikiGraphPage() {
-  const supabase = createUniteGroupServerClient()
-  const { data, error } = await supabase
-    .from('wiki_pages')
-    .select('id, title, tags, content, updated_at')
-    .limit(WIKI_PAGES_LIMIT)
+  // createUniteGroupServerClient() THROWS when the Unite-Group Supabase vars are unset,
+  // and it used to be called bare, outside any try. So `error` below could only ever hold
+  // a PostgREST query error — a missing-config error bypassed it entirely, both EmptyState
+  // branches were unreachable, and the throw surfaced as the generic Application Error
+  // panel with a redacted message and an opaque digest. Five authenticated users hit that
+  // between 2026-08-09 and 2026-08-14; the vars are still absent from the Vercel project.
+  // The header's promise of an "honest empty state" was false for the one failure mode
+  // actually happening.
+  //
+  // The factory's throw is deliberate and stays — it is pinned by a test that stops it
+  // falling back to the Pi-CEO client, which is the wrong Supabase project (#634). The
+  // call site is what needed to handle it.
+  let error: unknown = null
+  let rows: WikiPageRow[] = []
+  try {
+    const supabase = createUniteGroupServerClient()
+    const res = await supabase
+      .from('wiki_pages')
+      .select('id, title, tags, content, updated_at')
+      .limit(WIKI_PAGES_LIMIT)
+    error = res.error
+    rows = (res.data ?? []) as WikiPageRow[]
+  } catch (e) {
+    // Logged server-side only. The existing EmptyState copy is accurate and secret-free;
+    // the caught message names env vars, so it must never reach the page.
+    console.error('[wiki-graph page] unhandled failure building graph:', e)
+    error = e
+  }
 
-  const rows = (data ?? []) as WikiPageRow[]
   const graph = error ? null : buildWikiGraph(rows)
   const truncated = !error && rows.length === WIKI_PAGES_LIMIT
 

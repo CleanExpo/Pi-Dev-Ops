@@ -156,7 +156,13 @@ async def on_startup():
     except Exception as exc:
         log.warning("RA-1407 startup recovery failed (non-fatal): %s", exc)
     asyncio.create_task(_resilient(lambda: gc_loop(_sessions), "gc_loop"))
-    asyncio.create_task(_resilient(cron_loop, "cron_loop"))
+    # Gated so a server started for TESTING does not fire the startup catch-up,
+    # which runs a real board meeting and real script triggers. Default is on,
+    # so production is unchanged; the smoke path sets TAO_CRON_ENABLED=0.
+    if config.CRON_ENABLED:
+        asyncio.create_task(_resilient(cron_loop, "cron_loop"))
+    else:
+        log.info("cron_loop not started — TAO_CRON_ENABLED=0")
     asyncio.create_task(_resilient(linear_todo_poller, "linear_todo_poller"))
     asyncio.create_task(_resilient(stall_watchdog_loop, "stall_watchdog_loop"))  # RA-1104
     asyncio.create_task(_resilient(integration_health_loop, "integration_health_loop"))  # RA-1293

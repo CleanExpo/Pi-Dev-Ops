@@ -84,6 +84,14 @@ jobs:
         run: python scripts/check_agent_registry.py
         working-directory: .
 
+      # A declared-but-unresolvable business_charter silently becomes charter_text=""
+      # in discovery.py and workspace_context.py, so a generated session builds with an
+      # empty business brain. Ratchet: the seven currently-missing are tolerated, new
+      # ones fail.
+      - name: Business charter gate
+        run: python scripts/check_business_charters.py
+        working-directory: .
+
   # ── Frontend: TypeScript + ESLint + build ────────────────────────────────────
   frontend:
     name: Frontend (tsc + eslint + build)
@@ -207,6 +215,12 @@ jobs:
       TAO_GC_MAX_AGE: "3600"
       TAO_SWARM_ENABLED: "0"
       TAO_AUTONOMY_ENABLED: "0"
+      # TAO_AUTONOMY_ENABLED gates the Linear poller, NOT cron. Without this the
+      # startup catch-up in cron_loop fires every trigger whose last_fired_at is
+      # older than its schedule — and in a fresh checkout that value comes from
+      # git, so CI runs a real board meeting (live model calls) and real script
+      # triggers on every smoke run. A gate must measure, not act.
+      TAO_CRON_ENABLED: "0"
       PYTHONPATH: ${{ github.workspace }}
 
     steps:

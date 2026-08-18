@@ -357,6 +357,19 @@ SCAN_RESULTS_DIR     = os.environ.get("SCAN_RESULTS_DIR",
 # across all 11 repos until the operator explicitly activates it.
 PI_SEO_ACTIVE        = os.environ.get("PI_SEO_ACTIVE", "0") == "1"
 
+# Cron loop master switch. Default 1 — production behaviour is unchanged.
+#
+# Exists because booting the server for a TEST fires the startup catch-up in
+# cron_scheduler.cron_loop(), which runs real work: a full board meeting with
+# live model calls, and script triggers that write into .harness/. That made
+# the smoke test non-hermetic — CI's smoke-local job boots a fresh checkout
+# whose cron-triggers.json last_fired_at comes from git, so every overdue
+# trigger fires there too.
+#
+# A gate must measure, not act. Set TAO_CRON_ENABLED=0 whenever the server is
+# started to be tested rather than to serve.
+CRON_ENABLED         = os.environ.get("TAO_CRON_ENABLED", "1") == "1"
+
 # RA-586 — Path exclusion patterns for known documentation false positives.
 # Files matching any of these glob-style substrings are skipped by the secret scanner.
 # SEC-1: dr-nrpg  — docs/runbooks/secrets-rotation.md (example rotation procedure)

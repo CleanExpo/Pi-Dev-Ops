@@ -55,6 +55,8 @@ from .session_linear import (
     _notify_linear_session_started,  # RA-6502: started → In Progress outbound push
 )
 from app.server import config_loader
+from app.server import workspace_context
+from app.server import workspace_verify
 
 _log = logging.getLogger("pi-ceo.sessions")
 
@@ -636,20 +638,37 @@ async def _phase_clone(session, resume_from: str) -> bool:
                         "Aborting — fix TAO_WORKSPACE to a path outside any parent git repo.")
                     _emit_phase_metric(session, "clone", phase_start)
                     return False
-                # Plant a stub CLAUDE.md so Claude Code doesn't walk upward
-                # into an ancestor repo's CLAUDE.md when the cloned repo has
-                # no CLAUDE.md at the root.
+                # Plant a CLAUDE.md so Claude Code doesn't walk upward into an
+                # ancestor repo's CLAUDE.md when the cloned repo has no CLAUDE.md
+                # at the root. The containment guard is still the first thing in
+                # the file; what follows is the project's own context from
+                # config/harness/projects.json plus its business charter, which
+                # Pi-CEO already held and never passed to the workspace. A
+                # generator that cannot see the product, the buyer or the quality
+                # bar has to infer them, which is the vague-ticket failure mode
+                # applied to every session this system starts.
                 stub_md = os.path.join(session.workspace, "CLAUDE.md")
-                if not os.path.exists(stub_md):
-                    try:
+                _brief = getattr(session, "brief", "") or ""
+                try:
+                    if not os.path.exists(stub_md):
                         with open(stub_md, "w", encoding="utf-8") as _fh:
-                            _fh.write(
-                                "# Scoped Pi-CEO workspace\n\n"
-                                "This is an isolated autonomous workspace. Only read and edit files\n"
-                                "inside this directory. Do not walk upward into parent directories.\n"
-                            )
-                    except OSError:
-                        pass
+                            _fh.write(workspace_context.build_workspace_claude_md(
+                                session.repo_url, _brief))
+                    else:
+                        # The repo ships its own CLAUDE.md. Previously that meant no guard
+                        # was planted at all — but Claude Code reads CLAUDE.md from the cwd
+                        # AND its ancestors, so the repo's own file does not stop an upward
+                        # walk. Prepend the guard and keep their content intact; overwriting
+                        # would destroy the instructions the repository actually ships.
+                        with open(stub_md, "r", encoding="utf-8") as _fh:
+                            _existing = _fh.read()
+                        _merged = workspace_context.ensure_guard(
+                            _existing, session.repo_url, _brief)
+                        if _merged is not None:
+                            with open(stub_md, "w", encoding="utf-8") as _fh:
+                                _fh.write(_merged)
+                except OSError:
+                    pass
                 # RA-1374 — append `.pi-ceo/` to the cloned repo's .gitignore
                 # so task-memory files (PLAN.md, IMPLEMENT.md, PROMPT.md,
                 # STATUS.md) don't get committed when the generator stages
@@ -1065,10 +1084,24 @@ async def _phase_evaluate(session, brief: str, model: str, spec: str, resolved_i
     brief_context = (brief[:2000] + "...") if len(brief) > 2000 else brief
     # RA-1027 — stash brief so _run_persona_review can include it in persona prompts
     session._brief_context_for_persona = brief_context
+
+    # Run the repo's own checks and hand the result to the evaluator as evidence. Until
+    # this existed the evaluator asked itself "any bugs ... or broken tests?" having run
+    # nothing, so CORRECTNESS was inference over a diff — a suite that does not start
+    # could still score 9/10. Evidence, not a gate: a failure informs the grade rather
+    # than halting the session, and "no runnable check" is reported as its own outcome so
+    # the evaluator is never left to assume a pass.
+    _verify = await workspace_verify.run_workspace_checks(session.workspace)
+    if _verify.ran:
+        em(session, "system", f"  Verification: {_verify.command} → {_verify.status}")
+    else:
+        em(session, "system", f"  Verification: not run ({_verify.reason})")
+
     _EVAL_PROMPT_BASE = (
         "You are a senior code reviewer evaluating AI-generated changes. "
         "Be rigorous — your job is to catch every gap and flaw.\n\n"
         "ORIGINAL BRIEF (what was asked for):\n" + brief_context + "\n\n"
+        + workspace_verify.format_for_evaluator(_verify)
     )
     _EVAL_PROMPT_DIMS = (
         "Grade on 4 dimensions (1-10). Scoring guide:\n"

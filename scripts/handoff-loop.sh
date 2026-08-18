@@ -94,6 +94,21 @@ if [ -f scripts/check_agent_registry.py ]; then
     gate "generated-agent-registry" "$PY" scripts/check_agent_registry.py
   else skip "generated-agent-registry" "python deps absent"; fi
 fi
+# CI runs this as its own step in the `python` job; this runner did not, so a
+# provisioning regression could pass here and only surface after the push.
+if [ -f scripts/check_provisioning.py ]; then
+  if [ "$PY_OK" = 1 ]; then
+    gate "provisioning" "$PY" scripts/check_provisioning.py
+  else skip "provisioning" "python deps absent"; fi
+fi
+# A declared-but-unresolvable business_charter degrades to charter_text="" in both
+# discovery.py and workspace_context.py, so a session builds against an empty business
+# brain and looks identical to a project that never declared one. Ratchet, not wall.
+if [ -f scripts/check_business_charters.py ]; then
+  if [ "$PY_OK" = 1 ]; then
+    gate "business-charters" "$PY" scripts/check_business_charters.py
+  else skip "business-charters" "python deps absent"; fi
+fi
 
 # 4. Type checks.
 if [ -f app/server/main.py ]; then
@@ -113,12 +128,23 @@ if [ -f dashboard/package.json ]; then
     || { [ "$NODE_OK" = 1 ] || skip "lint-dashboard" "node_modules absent"; }
 fi
 
-# 6. Tests (skipped by --quick). test_sdk_phase2 needs claude_agent_sdk (CI-only) — excluded.
+# 6. Tests (skipped by --quick).
+#
+# test_sdk_phase2.py was excluded here as "needs claude_agent_sdk (CI-only)". That is not
+# true: claude_agent_sdk is a declared dependency in app/requirements.txt, the file runs
+# and passes locally, and CI does not exclude it. The exclusion made this gate strictly
+# weaker than the CI job it is supposed to stand in for — the one situation a local gate
+# must never be in, and worse while Actions is allocating no runners.
 if [ "$MODE_QUICK" = 1 ]; then skip "tests" "--quick"
 else
   if [ -d tests ]; then
-    [ "$PY_OK" = 1 ] && gate "tests-python" "$PY" -m pytest tests/ -q --ignore=tests/test_sdk_phase2.py \
+    [ "$PY_OK" = 1 ] && gate "tests-python" "$PY" -m pytest tests/ -q \
       || { [ "$PY_OK" = 1 ] || skip "tests-python" "python deps absent"; }
+  fi
+  # CI runs `pytest swarm/` as its own step; this runner never did.
+  if [ -d swarm ]; then
+    [ "$PY_OK" = 1 ] && gate "tests-swarm" "$PY" -m pytest swarm/ -q \
+      || { [ "$PY_OK" = 1 ] || skip "tests-swarm" "python deps absent"; }
   fi
   if [ -f dashboard/package.json ]; then
     [ "$NODE_OK" = 1 ] && gate "tests-dashboard" bash -c 'cd dashboard && CI=1 npm run --silent test' \
@@ -127,9 +153,24 @@ else
 fi
 
 # 7. Production build (skipped by --quick).
+#
+# next.config.ts hard-fails the build when PI_CEO_URL / PI_CEO_PASSWORD are unset, so this
+# gate failed on every run that did not happen to have them exported — and route-exercise
+# below then failed too, having no build to serve. A permanently-red gate in the runner
+# /session-handoff refuses to pass without is worse than no gate: it makes BLOCKED the
+# normal verdict, so a real failure looks like the usual noise.
+#
+# These are the same build-time stubs ci.yml's `frontend` job sets. They are placeholders
+# that satisfy a presence check during a static build, not credentials — nothing
+# authenticates with them and no request is made at build time.
 if [ "$MODE_QUICK" = 1 ]; then skip "build" "--quick"
 elif [ -f dashboard/package.json ]; then
-  [ "$NODE_OK" = 1 ] && gate "build-dashboard" bash -c 'cd dashboard && npm run build' \
+  [ "$NODE_OK" = 1 ] && gate "build-dashboard" env \
+      PI_CEO_URL="http://127.0.0.1:7777" \
+      PI_CEO_PASSWORD="placeholder-not-a-real-password" \
+      NEXT_PUBLIC_SUPABASE_URL="https://stub.supabase.co" \
+      NEXT_PUBLIC_SUPABASE_ANON_KEY="stub-key" \
+      bash -c 'cd dashboard && npm run build' \
     || { [ "$NODE_OK" = 1 ] || skip "build-dashboard" "node_modules absent — run --full"; }
 fi
 
@@ -159,9 +200,59 @@ else skip "route-exercise" "no dashboard build to serve"; fi
 if [ -f scripts/secrets_check.py ]; then
   gate "audit-secrets" "$PY" scripts/secrets_check.py --repo-root "$ROOT" --dry-run
 else skip "audit-secrets" "scripts/secrets_check.py not present"; fi
-if [ "$PY_OK" = 1 ] && curl -sf -o /dev/null "http://127.0.0.1:7777/health" 2>/dev/null; then
-  gate "audit-smoke" "$PY" scripts/smoke_test.py --url http://127.0.0.1:7777 --password "${TAO_PASSWORD:-dev}"
-else skip "audit-smoke" "python deps absent or local server not reachable on :7777"; fi
+# audit-smoke — the repo's only end-to-end surface check (35 assertions across auth,
+# sessions, lessons, webhook HMAC, rate limiting and autonomy status).
+#
+# It used to run only when a server HAPPENED to be listening on :7777. Nothing in this
+# script, or any workflow, starts one — so it SKIPped on every run and the check has never
+# actually executed here, while still reporting a tidy SKIP that reads like a considered
+# decision. ci.yml's `smoke-local` job starts its own server for exactly this reason.
+#
+# Start one when the port is free, reuse a developer's server when it is not, and always
+# clean up the process this script started.
+_smoke_with_server() {
+  local pw pid rc
+  pw="ci-smoke-local-dummy-password"; pid=""
+  if ! curl -sf -o /dev/null "http://127.0.0.1:7777/health" 2>/dev/null; then
+    # TAO_CRON_ENABLED=0 is load-bearing, not tidiness. TAO_AUTONOMY_ENABLED
+    # gates the Linear poller only; cron_loop is separate and, ten seconds
+    # after boot, fires every trigger whose last_fired_at is older than its
+    # schedule. Without this the gate runs a real board meeting (live model
+    # calls) and real script triggers, and writes into .harness/ — a gate must
+    # measure, not act. Observed doing exactly that before the flag existed.
+    TAO_PASSWORD="$pw" TAO_SESSION_SECRET="ci-session-secret-fixed-for-test" \
+    TAO_EVALUATOR_ENABLED=false TAO_SWARM_ENABLED=0 TAO_AUTONOMY_ENABLED=0 \
+    TAO_CRON_ENABLED=0 \
+    TAO_GC_MAX_AGE=3600 PYTHONPATH="$ROOT" \
+      "$PY" -m uvicorn app.server.main:app --host 127.0.0.1 --port 7777 \
+        --log-level warning >>"$LOG" 2>&1 &
+    pid=$!
+    # Trap armed IMMEDIATELY after the PID exists, before the readiness wait below.
+    # It used to be installed after that loop, leaving a 30-second window in which
+    # Ctrl-C leaked the uvicorn process — and a leaked server on :7777 is not a tidy
+    # failure: the NEXT run sees a listener, treats it as "someone else's server",
+    # and smoke-tests it with the wrong password, so the gate fails for a reason
+    # unrelated to the code. Flagged by the gpt-oss-120b cross-model review.
+    trap 'kill "$pid" 2>/dev/null; trap - INT TERM EXIT' INT TERM EXIT
+    for _ in $(seq 1 30); do
+      curl -sf -o /dev/null "http://127.0.0.1:7777/health" 2>/dev/null && break
+      sleep 1
+    done
+  else
+    # Someone else's server — use their password, and never kill it.
+    pw="${TAO_PASSWORD:-dev}"
+  fi
+  "$PY" scripts/smoke_test.py --url http://127.0.0.1:7777 --password "$pw"
+  rc=$?
+  if [ -n "$pid" ]; then
+    kill "$pid" 2>/dev/null
+    trap - INT TERM EXIT
+  fi
+  return $rc
+}
+if [ "$PY_OK" = 1 ]; then
+  gate "audit-smoke" _smoke_with_server
+else skip "audit-smoke" "python deps absent"; fi
 
 # Verdict.
 log ""; log "════ SUMMARY  pass=$PASS fail=$FAIL skip=$SKIP"

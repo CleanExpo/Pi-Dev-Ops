@@ -176,10 +176,27 @@ async def cron_loop() -> None:
                 try:
                     from .digest import push_digest_to_telegram
 
-                    await asyncio.get_event_loop().run_in_executor(
+                    # push_digest_to_telegram() returns False on a refused push (missing
+                    # token or chat id) WITHOUT raising. Discarding that return value and
+                    # logging success anyway produced the exact pair observed in Railway
+                    # on 2026-08-18T08:00:18Z:
+                    #     digest: TELEGRAM_BOT_TOKEN or chat id missing — skipping push
+                    #     Daily digest pushed at 2026-08-18T08:00:14 UTC
+                    # An always-on engine whose only status channel is dead, while the log
+                    # claims it fired, is indistinguishable from a working one. RA-1109.
+                    pushed = await asyncio.get_event_loop().run_in_executor(
                         None, push_digest_to_telegram
                     )
-                    _log.info("Daily digest pushed at %s UTC", now.isoformat())
+                    if pushed:
+                        _log.info("Daily digest pushed at %s UTC", now.isoformat())
+                    else:
+                        _log.error(
+                            "Daily digest NOT pushed at %s UTC — push_digest_to_telegram() "
+                            "returned False. See the preceding 'digest:' line for the reason "
+                            "(usually TELEGRAM_BOT_TOKEN or a chat id missing in Railway). "
+                            "The engine ran; its status channel did not.",
+                            now.isoformat(),
+                        )
                 except Exception as exc:
                     _log.error("Daily digest push failed: %s", exc)
 

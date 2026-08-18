@@ -21,6 +21,8 @@ Environment variables:
     TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID — for CRITICAL alert
     REPO_ROOT         — override repo root (default: parent of this script)
 """
+from __future__ import annotations
+
 import os
 import re
 import sys
@@ -190,6 +192,20 @@ _PATH_PRECONDITIONS: dict[str, str] = {
     "app/server/scanner.py": REVIEWED_FIXTURE,
     "app/server/config.py": REVIEWED_FIXTURE,
     ".harness/": NOT_COMMITTED,
+    # Installed third-party packages, skipped by the _HEAVY filter in _list_tracked_files().
+    # Verified rather than trusted: if vendored dependencies are ever committed, this fires
+    # and fails the run instead of silently leaving 8k+ committed files unscanned.
+    ":(glob)**/site-packages/**": NOT_COMMITTED,
+    # Generated gate logs, skipped so this scanner stops reporting its own recorded
+    # findings back to itself. Scoped to *.log by a suffix rule in _list_tracked_files;
+    # every other file under .handoff-logs/ (README.md included) stays IN scope.
+    #
+    # The precondition deliberately covers the WHOLE directory, not just *.log. Checking
+    # only the glob would verify exactly the files the exclusion skips and stay silent
+    # about the ones it does not — so a committed secret in a non-log file there would
+    # satisfy a green precondition. Asserting over the whole directory means anything
+    # committed here is either scanned or fails this check.
+    ":(glob).handoff-logs/**/*.log": NOT_COMMITTED,
 }
 
 # Binary formats cannot carry a greppable secret; .md/.rst/.lock plainly can, and are skipped
@@ -274,8 +290,15 @@ def _make_finding(path: str, line: int, title: str, severity: str, snippet: str)
 
 
 # ── File enumeration ──────────────────────────────────────────────────────────
-def _list_tracked_files() -> list[str]:
-    """Return all git-tracked files relative to REPO_ROOT."""
+def _list_tracked_files() -> list[str] | None:
+    """Return files to scan, relative to REPO_ROOT. None means git could not be consulted.
+
+    The None/[] distinction is load-bearing. An empty list is a real answer — every
+    enumerated file was excluded — whereas None means enumeration never happened. Returning
+    [] for both let `scan_all` treat "nothing left to scan" as "git is unavailable" and fall
+    back to walking the whole tree, which re-admitted the vendored files the filter had just
+    removed.
+    """
     try:
         # NOTE the ABSENT --exclude-standard. Including it meant gitignored files were
         # never scanned, and .env.local / *.pem / credential dumps are exactly what
@@ -291,24 +314,53 @@ def _list_tracked_files() -> list[str]:
         )
         if result.returncode != 0:
             print(f"  [WARN] git ls-files failed: {result.stderr.strip()}", flush=True)
-            return []
+            return None
         # Dropping --exclude-standard pulls in node_modules/.next/etc. Filter by path.
+        #
+        # `site-packages/` is matched on STRUCTURE, not on the virtualenv's directory name.
+        # Naming each venv directory ('.venv/', 'venv/') looked equivalent and was not: this
+        # repo also carries a `.venv-verify/`, and `'.venv/' in '.venv-verify/lib/...'` is
+        # False — the next character is '-', not '/'. That one miss put 8,099 vendored files
+        # into every local scan and reported 102 third-party matches as exposed secrets, so
+        # the gate exited 1 on a clean tree and rewrote .gitignore. A gate that always cries
+        # wolf is a gate nobody reads. Any interpreter layout puts installed packages under
+        # `site-packages/`, so this holds for a venv of any name — and the precondition below
+        # verifies the exclusion instead of trusting it.
+        #
         _HEAVY = ("node_modules/", ".next/", ".git/", "dist/", "build/", ".venv/",
-                  "venv/", "__pycache__/", ".pytest_cache/", ".turbo/", "coverage/",
-                  ".omx/")
+                  "venv/", "site-packages/", "__pycache__/", ".pytest_cache/",
+                  ".turbo/", "coverage/", ".omx/")
+
+        # The generated gate LOGS, and only those, close a self-poisoning loop:
+        # handoff-loop.sh runs this scanner as its `audit-secrets` gate and tees the
+        # output — including each finding's snippet — into .handoff-logs/handoff-<ts>.log.
+        # The next run scanned that log, found the snippet, and reported it as a fresh
+        # secret, so one real finding became permanent and outlived its own fix.
+        #
+        # This is a suffix rule, NOT a directory entry in _HEAVY. Putting ".handoff-logs/"
+        # in _HEAVY looked equivalent and was not: _HEAVY is a bare substring test, so it
+        # excluded EVERY file under the directory while this comment and the
+        # `:(glob).handoff-logs/**/*.log` precondition both claimed only *.log. Proven by
+        # planting the same key twice — caught at repo root, silently missed in
+        # .handoff-logs/probe.json. A secret in any non-log file there would have been
+        # unscanned forever, with the precondition passing because it only ever looked at
+        # *.log. The exclusion now matches exactly what it claims.
+        def _is_generated_gate_log(path: str) -> bool:
+            return path.startswith(".handoff-logs/") and path.endswith(".log")
+
         out = []
         for ln in result.stdout.splitlines():
             f = ln.strip()
             if not f:
                 continue
             n = f.replace("\\", "/")
-            if any(h in n for h in _HEAVY):
+            if any(h in n for h in _HEAVY) or _is_generated_gate_log(n):
                 continue
             out.append(f)
         return out
     except FileNotFoundError:
         print("  [WARN] git not found — scanning all files via os.walk()", flush=True)
-        return []
+        return None
 
 
 def _list_all_files() -> list[str]:
@@ -365,7 +417,8 @@ def _scan_file(rel_path: str) -> list[dict]:
 
 def scan_all() -> list[dict]:
     """Enumerate and scan all relevant files. Returns deduplicated findings."""
-    rel_files = _list_tracked_files() or _list_all_files()
+    tracked = _list_tracked_files()
+    rel_files = _list_all_files() if tracked is None else tracked
     all_findings: list[dict] = []
     for rel in rel_files:
         all_findings.extend(_scan_file(rel))
