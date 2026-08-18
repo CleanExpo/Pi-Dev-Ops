@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from pathlib import Path
 
 from app.server import workspace_verify as wv
@@ -190,12 +191,18 @@ def test_a_timeout_kills_the_whole_process_group(tmp_path: Path) -> None:
     tree. Without it only the direct child dies and any dev server, watcher or worker the
     suite spawned survives, holding ports and memory on a container that never restarts.
     """
-    marker = tmp_path / "grandchild-alive"
+    started = tmp_path / "grandchild-started"
+    survived = tmp_path / "grandchild-survived"
+    # Two markers, because one cannot tell "killed" from "never ran". The grandchild records
+    # that it started, sleeps past the timeout, then records that it outlived it.
+    grandchild = (
+        f"import time;open(r'{started}','w').write('x');"
+        f"time.sleep(6);open(r'{survived}','w').write('x')"
+    )
     body = (
         "import subprocess, sys, time\n\n\n"
         "def test_spawns_a_survivor():\n"
-        f"    subprocess.Popen([sys.executable, '-c',\n"
-        f"        \"import time;open(r'{marker}','w').write('x');time.sleep(30)\"])\n"
+        f"    subprocess.Popen([sys.executable, '-c', {grandchild!r}])\n"
         "    time.sleep(30)\n"
     )
     repo = _py_repo(tmp_path, body)
@@ -203,5 +210,11 @@ def test_a_timeout_kills_the_whole_process_group(tmp_path: Path) -> None:
     result = _run(wv.run_workspace_checks(str(repo), timeout_s=3))
 
     assert result.status == wv.TIMED_OUT
-    # Positive control: the grandchild must actually have started, or this proves nothing.
-    assert marker.exists(), "grandchild never ran — the test cannot show group-kill works"
+    # Positive control: without this, "survived is absent" would pass if it never ran at all.
+    assert started.exists(), "grandchild never ran — the test cannot show group-kill works"
+    # Wait past the grandchild's own sleep, then assert it never got there.
+    time.sleep(6)
+    assert not survived.exists(), (
+        "the grandchild outlived the timeout — the process group was not killed, so a test "
+        "script's dev servers and workers would survive on the container"
+    )
