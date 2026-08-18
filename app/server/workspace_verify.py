@@ -153,6 +153,14 @@ async def run_workspace_checks(
                 proc.kill()
             except ProcessLookupError:
                 pass
+        # Reap it. Killing a process does not collect its exit status — without this the
+        # child stays a zombie, and on the long-lived Railway container they accumulate
+        # across every session that ever timed out. Bounded, so a process that refuses to
+        # die cannot hang the evaluate phase in place of the timeout just enforced.
+        try:
+            await asyncio.wait_for(proc.wait(), timeout=5)
+        except (asyncio.TimeoutError, ProcessLookupError, ChildProcessError):
+            log.warning("workspace_verify: child %s did not reap after SIGKILL", proc.pid)
         return VerifyResult(TIMED_OUT, label, "", f"exceeded {timeout_s}s")
 
     tail = (stdout or b"").decode("utf-8", errors="replace")[-2000:]

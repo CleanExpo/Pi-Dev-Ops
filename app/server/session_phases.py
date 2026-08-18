@@ -667,8 +667,17 @@ async def _phase_clone(session, resume_from: str) -> bool:
                         if _merged is not None:
                             with open(stub_md, "w", encoding="utf-8") as _fh:
                                 _fh.write(_merged)
-                except OSError:
-                    pass
+                except OSError as _exc:
+                    # NEVER silent. The containment guard is load-bearing: without it
+                    # Claude Code can walk up into an ancestor repo's CLAUDE.md. The old
+                    # `except OSError: pass` meant a failed write produced a session
+                    # indistinguishable from a guarded one. Emitted to the session stream
+                    # so an operator sees it, and logged so it outlives the stream.
+                    em(session, "system",
+                       f"  WARNING: containment guard NOT planted "
+                       f"({type(_exc).__name__}: {_exc})")
+                    _log.warning("clone: failed to write workspace CLAUDE.md at %s: %s",
+                                 stub_md, _exc)
                 # RA-1374 — append `.pi-ceo/` to the cloned repo's .gitignore
                 # so task-memory files (PLAN.md, IMPLEMENT.md, PROMPT.md,
                 # STATUS.md) don't get committed when the generator stages
