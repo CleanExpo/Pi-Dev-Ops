@@ -110,8 +110,25 @@ surface; anything over 2 s gets a live progress surface, not a toast; destructiv
 confirm plus success/undo or an actionable error; spawn actions get an inline log stream or a link
 to watch it. `.github/PULL_REQUEST_TEMPLATE.md` enforces a "Manual verification path".
 
+**POLICY — Provider routing (founder directive 2026-08-19).** OpenRouter is tried first on the
+paid tiers; the Anthropic key carries a $20 cap and is the fallback, never the default path.
+
+- `app/server/provider_router.py` — `DEFAULT_TOP_PROVIDER` / `DEFAULT_MID_PROVIDER` are
+  `openrouter`, both on `qwen/qwen3.8-27b`
+- `_resolve_paid_tier()` — `TAO_TOP_MODEL` / `TAO_MID_MODEL` accept either an explicit
+  `provider:model_id` spec or a bare id whose provider is inferred from its shape, so
+  `qwen/qwen3.8-27b` reaches OpenRouter instead of the Anthropic SDK
+- `run_via_provider()` falls back to Anthropic **only** when OpenRouter cannot serve at all
+  (`openrouter_no_api_key`, HTTP 402, HTTP 429). A 400 is not retried — it would fail on
+  Anthropic too and only spends the cap. `TAO_ANTHROPIC_FALLBACK=0` disables the fallback
+- The cheap tier never falls back to Anthropic; it has its own ollama/openrouter resolution
+
+Re-derive: `.venv/bin/python -m pytest tests/test_provider_router.py -q`
+
 **POLICY — Model routing (RA-1099).** Opus is reserved for `planner` and `orchestrator`. Every
-other role uses Sonnet or Haiku. Enforcement lives in code, not in a config file:
+other role uses Sonnet or Haiku. This constrains Anthropic usage and still applies to the
+fallback path above — which is why the top-tier fallback is Opus and the mid-tier fallback is
+Sonnet. Enforcement lives in code, not in a config file:
 
 - `app/server/model_policy.py` — `select_model()` downshifts opus→sonnet for non-allowed roles and
   logs to `.harness/model-policy-violations.jsonl`

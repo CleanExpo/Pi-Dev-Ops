@@ -66,8 +66,30 @@ Provider = Literal["anthropic", "openrouter", "ollama", "claude_print"]
 
 # ── Defaults — all env-overridable ──────────────────────────────────────────
 
-DEFAULT_TOP_MODEL = ANTHROPIC_OPUS
-DEFAULT_MID_MODEL = ANTHROPIC_SONNET
+# Founder directive 2026-08-19: OpenRouter is tried FIRST on every paid tier.
+# The Anthropic key carries a $20 cap, so Anthropic is the FALLBACK and must
+# never be the default path. "First" is only meaningful if there is a second:
+# run_via_provider falls back to the models below when OpenRouter cannot serve
+# (no key / no credit / rate limited). Without that fallback an absent
+# OPENROUTER_API_KEY would take the whole top+mid surface down.
+DEFAULT_TOP_PROVIDER: Provider = "openrouter"
+DEFAULT_TOP_MODEL = "qwen/qwen3.8-27b"
+DEFAULT_MID_PROVIDER: Provider = "openrouter"
+DEFAULT_MID_MODEL = "qwen/qwen3.8-27b"
+
+# Anthropic fallback — reached only when OpenRouter cannot serve the request.
+FALLBACK_TOP_MODEL = ANTHROPIC_OPUS
+FALLBACK_MID_MODEL = ANTHROPIC_SONNET
+
+# OpenRouter failures that mean "this provider cannot serve you at all" and so
+# justify spending the capped Anthropic key. A malformed request or a model
+# error is NOT here: retrying those on Anthropic burns the cap without any
+# prospect of a better answer.
+FALLBACK_TRIGGER_ERRORS = (
+    "openrouter_no_api_key",
+    "openrouter_http_402",  # insufficient credit
+    "openrouter_http_429",  # rate limited
+)
 
 # Cheap tier resolution:
 #   1. Probe Ollama at localhost:11434 (or OLLAMA_BASE_URL).
@@ -183,16 +205,8 @@ def _tier_default(tier: str) -> tuple[Provider, str]:
       3. Ollama reachability probe → if reachable, use local.
       4. Otherwise → OpenRouter remote.
     """
-    if tier == "top":
-        model = (os.environ.get("TAO_TOP_MODEL") or DEFAULT_TOP_MODEL).strip()
-        if os.environ.get("TAO_TOP_USE_CLAUDE_PRINT", "").strip() == "1":
-            return "claude_print", model
-        return "anthropic", model
-    if tier == "mid":
-        model = (os.environ.get("TAO_MID_MODEL") or DEFAULT_MID_MODEL).strip()
-        if os.environ.get("TAO_MID_USE_CLAUDE_PRINT", "").strip() == "1":
-            return "claude_print", model
-        return "anthropic", model
+    if tier in ("top", "mid"):
+        return _resolve_paid_tier(tier)
 
     # Tier-0 gathering lane (UNI-2212) — free OpenRouter first, capacity-aware,
     # spilling to paid/local. Returns the head lane; callers needing failover
@@ -203,6 +217,58 @@ def _tier_default(tier: str) -> tuple[Provider, str]:
 
     # Cheap tier — multi-step resolution
     return _resolve_cheap_tier()
+
+
+def _detect_provider(model_id: str) -> Provider:
+    """Infer the provider from a bare model id.
+
+    Same shape test the cheap tier applies to TAO_CHEAP_MODEL: ``claude-*`` is
+    Anthropic, ``vendor/model`` is OpenRouter, anything else is a local Ollama
+    tag. Deliberately duplicated rather than shared with _resolve_cheap_tier —
+    that function is live production routing and this change has no business
+    editing it.
+
+    This is what makes ``TAO_TOP_MODEL=qwen/qwen3.8-27b`` reach OpenRouter.
+    Before, the bare slug was handed to the Anthropic SDK as an unknown model.
+    """
+    if model_id.startswith("claude-"):
+        return "anthropic"
+    if "/" in model_id:
+        return "openrouter"
+    return "ollama"
+
+
+def _resolve_paid_tier(tier: str) -> tuple[Provider, str]:
+    """Resolve the top/mid tier to (provider, model_id).
+
+    Layers, most specific first:
+      1. TAO_{TOP,MID}_MODEL as an explicit ``provider:model_id`` spec.
+      2. TAO_{TOP,MID}_MODEL as a bare model id, provider inferred from shape.
+      3. TAO_{TOP,MID}_USE_CLAUDE_PRINT=1 — $0 marginal under the Max plan, so
+         it outranks the paid default but not an explicit model pin.
+      4. Default: OpenRouter qwen/qwen3.8-27b (founder directive 2026-08-19).
+    """
+    env_key = "TAO_TOP_MODEL" if tier == "top" else "TAO_MID_MODEL"
+    print_key = (
+        "TAO_TOP_USE_CLAUDE_PRINT" if tier == "top" else "TAO_MID_USE_CLAUDE_PRINT"
+    )
+    use_print = os.environ.get(print_key, "").strip() == "1"
+
+    raw = (os.environ.get(env_key) or "").strip()
+    if raw:
+        parsed = _parse_provider_spec(raw)
+        if parsed is not None:
+            return parsed
+        if use_print:
+            return "claude_print", raw
+        return _detect_provider(raw), raw
+
+    model = DEFAULT_TOP_MODEL if tier == "top" else DEFAULT_MID_MODEL
+    if use_print:
+        # Model id kept as the audit label, matching prior behaviour.
+        return "claude_print", model
+    provider = DEFAULT_TOP_PROVIDER if tier == "top" else DEFAULT_MID_PROVIDER
+    return provider, model
 
 
 def _resolve_cheap_tier() -> tuple[Provider, str]:
@@ -460,6 +526,77 @@ async def _run_via_claude_print(
 # ── Unified async entry ─────────────────────────────────────────────────────
 
 
+def _anthropic_fallback_model(tier: str) -> str | None:
+    """Which Anthropic model backs up a failed OpenRouter call, if any.
+
+    Only the paid tiers fall back. The cheap tier already has its own
+    ollama/openrouter resolution and must never spend the capped Anthropic key.
+    ``TAO_ANTHROPIC_FALLBACK=0`` disables the fallback outright, for when the
+    $20 cap matters more than availability.
+    """
+    if os.environ.get("TAO_ANTHROPIC_FALLBACK", "").strip() == "0":
+        return None
+    if tier == "top":
+        return FALLBACK_TOP_MODEL
+    if tier == "mid":
+        return FALLBACK_MID_MODEL
+    return None
+
+
+def _openrouter_cannot_serve(error: str | None) -> bool:
+    """True when the OpenRouter error means the provider is unusable.
+
+    Narrow on purpose: a 400 or a model-specific error would fail on Anthropic
+    too, so retrying it just spends the capped key for nothing.
+    """
+    if not error:
+        return False
+    return any(error.startswith(e) for e in FALLBACK_TRIGGER_ERRORS)
+
+
+async def _run_via_anthropic(prompt: str, *, role: str, model_id: str,
+                              workspace: str | None, timeout_s: int,
+                              session_id: str, thinking: str,
+                              ) -> tuple[int, str, float, str | None]:
+    """Dispatch one call through the Anthropic SDK.
+
+    Extracted verbatim from run_via_provider so the OpenRouter path can reuse
+    it as its fallback. Still routes through session_sdk to preserve the
+    model_policy gate.
+    """
+    try:
+        # Look up via sys.modules first so test monkeypatches via
+        # monkeypatch.setitem(sys.modules, "app.server.session_sdk", ...)
+        # win over the cached import binding.
+        import sys as _sys  # noqa: PLC0415
+        session_sdk = _sys.modules.get("app.server.session_sdk")
+        if session_sdk is None:
+            from . import session_sdk  # noqa: PLC0415
+        _run_claude_via_sdk = session_sdk._run_claude_via_sdk
+    except Exception as exc:  # noqa: BLE001
+        return 1, "", 0.0, f"anthropic_sdk_import_failed: {exc}"
+    try:
+        rc, text, cost = await _run_claude_via_sdk(
+            prompt=prompt,
+            model=model_id,
+            workspace=workspace or "",
+            timeout=timeout_s,
+            session_id=session_id,
+            phase=role,
+            thinking=thinking,
+        )
+        rc_i = int(rc)
+        cost_f = float(cost or 0.0)
+        if rc_i == 0 and cost_f > 0:
+            _record_cost_safe(
+                provider="anthropic", role=role, model=model_id,
+                cost_usd=cost_f,
+            )
+        return rc_i, text or "", cost_f, None
+    except Exception as exc:  # noqa: BLE001
+        return 1, "", 0.0, f"anthropic_sdk_call_raised: {exc}"
+
+
 async def run_via_provider(prompt: str, *, role: str,
                              task_class: str = "default",
                              timeout_s: int = 120,
@@ -513,37 +650,10 @@ async def run_via_provider(prompt: str, *, role: str,
         return rc, text, cost, err
 
     if pm.provider == "anthropic":
-        try:
-            # Look up via sys.modules first so test monkeypatches via
-            # monkeypatch.setitem(sys.modules, "app.server.session_sdk", ...)
-            # win over the cached import binding.
-            import sys as _sys  # noqa: PLC0415
-            session_sdk = _sys.modules.get("app.server.session_sdk")
-            if session_sdk is None:
-                from . import session_sdk  # noqa: PLC0415
-            _run_claude_via_sdk = session_sdk._run_claude_via_sdk
-        except Exception as exc:  # noqa: BLE001
-            return 1, "", 0.0, f"anthropic_sdk_import_failed: {exc}"
-        try:
-            rc, text, cost = await _run_claude_via_sdk(
-                prompt=prompt,
-                model=pm.model_id,
-                workspace=workspace or "",
-                timeout=timeout_s,
-                session_id=session_id,
-                phase=role,
-                thinking=thinking,
-            )
-            rc_i = int(rc)
-            cost_f = float(cost or 0.0)
-            if rc_i == 0 and cost_f > 0:
-                _record_cost_safe(
-                    provider="anthropic", role=role, model=pm.model_id,
-                    cost_usd=cost_f,
-                )
-            return rc_i, text or "", cost_f, None
-        except Exception as exc:  # noqa: BLE001
-            return 1, "", 0.0, f"anthropic_sdk_call_raised: {exc}"
+        return await _run_via_anthropic(
+            prompt, role=role, model_id=pm.model_id, workspace=workspace,
+            timeout_s=timeout_s, session_id=session_id, thinking=thinking,
+        )
 
     # Ollama path (local; free)
     if pm.provider == "ollama":
@@ -583,6 +693,24 @@ async def run_via_provider(prompt: str, *, role: str,
             provider="openrouter", role=role, model=pm.model_id,
             cost_usd=float(result[2] or 0.0),
         )
+        return result
+
+    # OpenRouter is tried FIRST, so it needs a second. Fall back to the capped
+    # Anthropic key only when OpenRouter genuinely cannot serve the request.
+    error = result[3] if len(result) > 3 else None
+    if _openrouter_cannot_serve(error):
+        fallback = _anthropic_fallback_model(pm.tier)
+        if fallback:
+            log.warning(
+                "provider_router: openrouter:%s unavailable for role=%s (%s) — "
+                "falling back to anthropic:%s",
+                pm.model_id, role, error, fallback,
+            )
+            return await _run_via_anthropic(
+                prompt, role=role, model_id=fallback, workspace=workspace,
+                timeout_s=timeout_s, session_id=session_id, thinking=thinking,
+            )
+
     return result
 
 

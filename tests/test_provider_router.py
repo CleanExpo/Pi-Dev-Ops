@@ -21,6 +21,7 @@ def _clear_env(monkeypatch):
         "TAO_CHEAP_MODEL", "TAO_CHEAP_PROVIDER",
         "TAO_CHEAP_LOCAL_MODEL", "TAO_CHEAP_REMOTE_MODEL",
         "TAO_TOP_USE_CLAUDE_PRINT", "TAO_MID_USE_CLAUDE_PRINT",
+        "TAO_ANTHROPIC_FALLBACK",
     ]:
         monkeypatch.delenv(k, raising=False)
     import os
@@ -39,17 +40,21 @@ def _clear_env(monkeypatch):
 # ── Tier defaults ───────────────────────────────────────────────────────────
 
 
-def test_planner_routes_to_top_anthropic():
+def test_planner_routes_to_top_openrouter():
+    """Founder directive 2026-08-19: paid tiers try OpenRouter first.
+
+    The Anthropic key carries a $20 cap, so it must not be the default path.
+    """
     pm = PR.select_provider_model("planner")
     assert pm.tier == "top"
-    assert pm.provider == "anthropic"
+    assert pm.provider == "openrouter"
     assert pm.model_id == PR.DEFAULT_TOP_MODEL
 
 
-def test_orchestrator_routes_to_top_anthropic():
+def test_orchestrator_routes_to_top_openrouter():
     pm = PR.select_provider_model("orchestrator")
     assert pm.tier == "top"
-    assert pm.provider == "anthropic"
+    assert pm.provider == "openrouter"
 
 
 def test_board_routes_to_top():
@@ -66,13 +71,13 @@ def test_margot_synthesis_top():
     """Phase 2 (research-integrated) gets top tier."""
     pm = PR.select_provider_model("margot.synthesis")
     assert pm.tier == "top"
-    assert pm.provider == "anthropic"
+    assert pm.provider == "openrouter"
 
 
 def test_generator_routes_to_mid():
     pm = PR.select_provider_model("generator")
     assert pm.tier == "mid"
-    assert pm.provider == "anthropic"
+    assert pm.provider == "openrouter"
     assert pm.model_id == PR.DEFAULT_MID_MODEL
 
 
@@ -279,7 +284,8 @@ def test_is_ollama_helper():
 
 
 def test_run_via_provider_anthropic_path(monkeypatch):
-    """role=planner → Anthropic SDK call."""
+    """An explicit anthropic: pin still dispatches through the Anthropic SDK."""
+    monkeypatch.setenv("TAO_TOP_MODEL", "anthropic:claude-opus-5")
     captured: dict = {}
 
     async def fake_anthropic(*, prompt, model, workspace, timeout,
@@ -300,7 +306,7 @@ def test_run_via_provider_anthropic_path(monkeypatch):
     assert cost == 0.05
     assert error is None
     assert captured["phase"] == "planner"
-    assert captured["model"] == PR.DEFAULT_TOP_MODEL
+    assert captured["model"] == "claude-opus-5"
 
 
 def test_run_via_provider_openrouter_path(monkeypatch):
@@ -406,10 +412,133 @@ def test_tao_mid_use_claude_print_routes_mid_via_claude_print(monkeypatch):
     assert pm.model_id == PR.DEFAULT_MID_MODEL
 
 
-def test_top_use_claude_print_flag_off_routes_anthropic(monkeypatch):
-    """Flag NOT set → top tier still goes to Anthropic (backwards compat)."""
+def test_top_use_claude_print_flag_off_routes_openrouter(monkeypatch):
+    """Flag NOT set → top tier takes the OpenRouter-first default."""
     pm = PR.select_provider_model("planner")
+    assert pm.provider == "openrouter"
+
+
+# ── OpenRouter-first routing (founder directive 2026-08-19) ────────────────
+
+
+def test_tao_top_model_accepts_explicit_openrouter_spec(monkeypatch):
+    """provider:model spec is honoured at tier level, as per-role already was."""
+    monkeypatch.setenv("TAO_TOP_MODEL", "openrouter:qwen/qwen3.8-27b")
+    pm = PR.select_provider_model("planner")
+    assert pm.provider == "openrouter"
+    assert pm.model_id == "qwen/qwen3.8-27b"
+
+
+def test_tao_top_model_bare_vendor_slug_infers_openrouter(monkeypatch):
+    """The regression this change exists to prevent.
+
+    A bare `vendor/model` slug carries no provider prefix. The old code
+    returned ("anthropic", "qwen/qwen3.8-27b") — a Qwen id handed to the
+    Anthropic SDK, which fails at the wire with a confusing error.
+    """
+    monkeypatch.setenv("TAO_TOP_MODEL", "qwen/qwen3.8-27b")
+    pm = PR.select_provider_model("planner")
+    assert pm.provider == "openrouter"
+    assert pm.model_id == "qwen/qwen3.8-27b"
+
+
+def test_tao_mid_model_bare_claude_id_still_anthropic(monkeypatch):
+    """Backwards compat: a bare claude-* id keeps routing to Anthropic."""
+    monkeypatch.setenv("TAO_MID_MODEL", "claude-sonnet-5")
+    pm = PR.select_provider_model("generator")
     assert pm.provider == "anthropic"
+    assert pm.model_id == "claude-sonnet-5"
+
+
+def _openrouter_returning(error: str):
+    async def fake_or_call(*, prompt, model_id, timeout_s, max_tokens=4096,
+                            role="", session_id=""):
+        return 1, "", 0.0, error
+    return types.SimpleNamespace(call=fake_or_call)
+
+
+def _anthropic_recorder(captured: dict):
+    async def fake_anthropic(*, prompt, model, workspace, timeout,
+                              session_id, phase, thinking):
+        captured.update({"model": model, "phase": phase})
+        return 0, "anthropic fallback reply", 0.07
+    return types.SimpleNamespace(_run_claude_via_sdk=fake_anthropic)
+
+
+def test_openrouter_no_key_falls_back_to_anthropic(monkeypatch):
+    """"OpenRouter first" needs a second, or a missing key takes top+mid down."""
+    captured: dict = {}
+    monkeypatch.setitem(sys.modules, "app.server.provider_openrouter",
+                        _openrouter_returning("openrouter_no_api_key"))
+    monkeypatch.setitem(sys.modules, "app.server.session_sdk",
+                        _anthropic_recorder(captured))
+
+    rc, text, cost, error = asyncio.run(PR.run_via_provider(
+        prompt="hi", role="planner", session_id="s1",
+    ))
+    assert rc == 0
+    assert text == "anthropic fallback reply"
+    assert error is None
+    assert captured["model"] == PR.FALLBACK_TOP_MODEL
+
+
+def test_openrouter_out_of_credit_falls_back(monkeypatch):
+    captured: dict = {}
+    monkeypatch.setitem(sys.modules, "app.server.provider_openrouter",
+                        _openrouter_returning("openrouter_http_402: no credit"))
+    monkeypatch.setitem(sys.modules, "app.server.session_sdk",
+                        _anthropic_recorder(captured))
+    rc, _text, _cost, _error = asyncio.run(PR.run_via_provider(
+        prompt="hi", role="generator", session_id="s1",
+    ))
+    assert rc == 0
+    assert captured["model"] == PR.FALLBACK_MID_MODEL
+
+
+def test_openrouter_bad_request_does_not_spend_the_capped_key(monkeypatch):
+    """A 400 would fail on Anthropic too — retrying only burns the $20 cap."""
+    captured: dict = {}
+    monkeypatch.setitem(sys.modules, "app.server.provider_openrouter",
+                        _openrouter_returning("openrouter_http_400: bad model"))
+    monkeypatch.setitem(sys.modules, "app.server.session_sdk",
+                        _anthropic_recorder(captured))
+    rc, _text, _cost, error = asyncio.run(PR.run_via_provider(
+        prompt="hi", role="planner", session_id="s1",
+    ))
+    assert rc == 1
+    assert error is not None and error.startswith("openrouter_http_400")
+    assert captured == {}, "Anthropic must not be called for a 400"
+
+
+def test_anthropic_fallback_can_be_disabled(monkeypatch):
+    """TAO_ANTHROPIC_FALLBACK=0 for when the $20 cap outranks availability."""
+    captured: dict = {}
+    monkeypatch.setenv("TAO_ANTHROPIC_FALLBACK", "0")
+    monkeypatch.setitem(sys.modules, "app.server.provider_openrouter",
+                        _openrouter_returning("openrouter_no_api_key"))
+    monkeypatch.setitem(sys.modules, "app.server.session_sdk",
+                        _anthropic_recorder(captured))
+    rc, _text, _cost, error = asyncio.run(PR.run_via_provider(
+        prompt="hi", role="planner", session_id="s1",
+    ))
+    assert rc == 1
+    assert error == "openrouter_no_api_key"
+    assert captured == {}
+
+
+def test_cheap_tier_never_spends_the_anthropic_key(monkeypatch):
+    """The cheap tier has its own ollama/openrouter resolution — no fallback."""
+    captured: dict = {}
+    monkeypatch.setitem(sys.modules, "app.server.provider_openrouter",
+                        _openrouter_returning("openrouter_no_api_key"))
+    monkeypatch.setitem(sys.modules, "app.server.session_sdk",
+                        _anthropic_recorder(captured))
+    rc, _text, _cost, error = asyncio.run(PR.run_via_provider(
+        prompt="hi", role="margot.casual", session_id="s1",
+    ))
+    assert rc == 1
+    assert error == "openrouter_no_api_key"
+    assert captured == {}
 
 
 def test_per_role_override_to_claude_print(monkeypatch):
