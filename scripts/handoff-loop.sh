@@ -227,6 +227,13 @@ _smoke_with_server() {
       "$PY" -m uvicorn app.server.main:app --host 127.0.0.1 --port 7777 \
         --log-level warning >>"$LOG" 2>&1 &
     pid=$!
+    # Trap armed IMMEDIATELY after the PID exists, before the readiness wait below.
+    # It used to be installed after that loop, leaving a 30-second window in which
+    # Ctrl-C leaked the uvicorn process — and a leaked server on :7777 is not a tidy
+    # failure: the NEXT run sees a listener, treats it as "someone else's server",
+    # and smoke-tests it with the wrong password, so the gate fails for a reason
+    # unrelated to the code. Flagged by the gpt-oss-120b cross-model review.
+    trap 'kill "$pid" 2>/dev/null; trap - INT TERM EXIT' INT TERM EXIT
     for _ in $(seq 1 30); do
       curl -sf -o /dev/null "http://127.0.0.1:7777/health" 2>/dev/null && break
       sleep 1
@@ -234,13 +241,6 @@ _smoke_with_server() {
   else
     # Someone else's server — use their password, and never kill it.
     pw="${TAO_PASSWORD:-dev}"
-  fi
-  # Clean up on interrupt too, not just on the happy path. Without this, Ctrl-C during
-  # the smoke run leaves the background uvicorn holding :7777 — and the NEXT invocation
-  # sees a listener, treats it as "someone else's server", and reuses it with the wrong
-  # password. The gate then fails for a reason that has nothing to do with the code.
-  if [ -n "$pid" ]; then
-    trap 'kill "$pid" 2>/dev/null; trap - INT TERM EXIT' INT TERM EXIT
   fi
   "$PY" scripts/smoke_test.py --url http://127.0.0.1:7777 --password "$pw"
   rc=$?

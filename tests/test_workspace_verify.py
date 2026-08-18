@@ -108,6 +108,33 @@ def test_absent_runner_is_not_reported_as_a_test_failure(tmp_path: Path, monkeyp
     assert "not installed" in result.reason
 
 
+def test_secrets_do_not_reach_the_cloned_repos_test_command(monkeypatch) -> None:
+    """A cloned repo's test script must not be handed this process's credentials.
+
+    Flagged as blocking by the gpt-oss-120b cross-model review. This process holds
+    GITHUB_TOKEN, LINEAR_API_KEY, Stripe, Supabase service-role and session secrets, and
+    the child used to receive dict(os.environ) in full.
+
+    Asserted through the real allow-list rather than a hand-listed set of secret names —
+    a deny-list test would keep passing the day someone adds a new credential.
+    """
+    for name in ("GITHUB_TOKEN", "LINEAR_API_KEY", "STRIPE_API_KEY",
+                 "SUPABASE_SERVICE_ROLE_KEY", "TAO_SESSION_SECRET",
+                 "ANTHROPIC_API_KEY", "OP_SERVICE_ACCOUNT_TOKEN"):
+        monkeypatch.setenv(name, "sentinel-must-not-propagate")
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+
+    env = wv._child_env()
+
+    assert "sentinel-must-not-propagate" not in env.values(), (
+        f"a secret reached the child environment: {sorted(env)}"
+    )
+    # Positive control: the allow-list must still deliver what a test runner needs,
+    # otherwise this passes trivially by handing the child nothing at all.
+    assert env["PATH"] == "/usr/bin:/bin"
+    assert env["CI"] == "1"
+
+
 def test_evaluator_text_forbids_assuming_a_pass_when_nothing_ran() -> None:
     text = wv.format_for_evaluator(wv.VerifyResult(wv.NOT_RUN, "", "no tests", ""))
 

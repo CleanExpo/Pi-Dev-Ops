@@ -53,6 +53,37 @@ class VerifyResult:
         return self.status in (PASSED, FAILED, TIMED_OUT)
 
 
+# Everything the child needs to find an interpreter, resolve packages and behave as CI.
+# Nothing else. Deliberately an ALLOW-list: a deny-list of known-secret names silently
+# admits the next credential anyone adds.
+_ENV_ALLOW = (
+    "PATH", "HOME", "USER", "SHELL", "LANG", "LC_ALL", "TMPDIR", "TZ",
+    "NODE_PATH", "NVM_DIR", "NPM_CONFIG_CACHE", "NPM_CONFIG_PREFIX",
+    "PYTHONPATH", "PYTHONHASHSEED", "VIRTUAL_ENV", "SYSTEMROOT",
+)
+
+
+def _child_env() -> dict:
+    """The minimal environment handed to a cloned repo's test command.
+
+    This process holds GITHUB_TOKEN, LINEAR_API_KEY, Stripe, Supabase service-role and
+    session secrets. Passing `dict(os.environ)` handed all of them to a third-party
+    repository's declared test script on every evaluate phase. Two independent reviewers
+    flagged it; the second called it blocking, and it is: the earlier defence — that the
+    generator's Claude Code already runs in that workspace with the same exposure — argues
+    the boundary was already crossed elsewhere, not that crossing it again deterministically
+    and without any judgement in the loop is safe.
+
+    An allow-list, not a deny-list. `CI=1` is set because test runners key non-interactive
+    behaviour off it. ANTHROPIC_API_KEY is deliberately absent: the child has no business
+    calling a model, and CLAUDE.md records that the claude CLI exports it EMPTY, which
+    children then treat as "key mode, empty key" and fail auth on.
+    """
+    env = {k: os.environ[k] for k in _ENV_ALLOW if k in os.environ}
+    env["CI"] = "1"
+    return env
+
+
 def detect_check(workspace: str) -> tuple[list[str], str]:
     """Return (argv, label) for the repo's own check, or ([], reason) when there is none.
 
@@ -93,12 +124,7 @@ async def run_workspace_checks(
     if not argv:
         return VerifyResult(NOT_RUN, "", label, "")
 
-    env = dict(os.environ)
-    # Same hazard CLAUDE.md records: the claude CLI exports an EMPTY ANTHROPIC_API_KEY,
-    # which children treat as "key mode, empty key" and fail auth on.
-    if not env.get("ANTHROPIC_API_KEY"):
-        env.pop("ANTHROPIC_API_KEY", None)
-    env["CI"] = "1"
+    env = _child_env()
 
     try:
         proc = await asyncio.create_subprocess_exec(
