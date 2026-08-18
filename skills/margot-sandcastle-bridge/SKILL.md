@@ -136,7 +136,7 @@ Kill-switch: `TAO_SANDCASTLE_ENABLED=0` falls through to weak-sandbox path.
 
 The `target_repo` is extracted from the research body via:
 - Explicit mention (e.g. "we should fix RestoreAssist's Stripe webhook" → `CleanExpo/RestoreAssist`)
-- Match against `.harness/projects.json` repo names
+- Match against `config/harness/projects.json` repo names
 - Fallback: ask the founder via the draft body itself ("Confirm target repo? Detected: [list of candidates]")
 
 ## Why two-step (draft → ticket → poll → run) instead of direct
@@ -212,7 +212,7 @@ Add to `swarm/audit_emit.py::_VALID_TYPES` (additive):
 - **PII redactor** runs automatically on every `draft_review.post_draft` (per Wave 1/2 wiring). Margot research bodies often contain customer names, internal URLs, vendor names — all redacted at strictness=standard before reaching Telegram.
 - **Confidence floor** — below 0.75 never routes to action. Logged.
 - **Action verb scrubber** — research bodies that contain verbs like "delete", "drop", "destructive" require confidence ≥ 0.90 (stricter). Configurable via `MARGOT_DESTRUCTIVE_VERBS` env var.
-- **Repo allowlist** — `target_repo` must be in `.harness/projects.json`. Margot can't propose action against a repo Pi-CEO doesn't know about.
+- **Repo allowlist** — `target_repo` must be in `config/harness/projects.json`. Margot can't propose action against a repo Pi-CEO doesn't know about.
 - **Rate limit** — max 5 Margot-originated drafts per 24-hour window. Above that, queue. Prevents accidental flood from a Margot run that returns 50 action-shaped findings.
 - **Loop detection** — if the same `interaction_id` was previously rejected, drafts for it are auto-suppressed for 7 days.
 

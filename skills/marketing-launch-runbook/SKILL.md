@@ -102,7 +102,7 @@ Every video deliverable on the calendar gets a `remotion-orchestrator` sub-job a
 
 - `remotion-orchestrator` (every video drop)
 - `marketing-analytics-attribution` (UTM scheme + dashboard before T-7)
-- Linear (auto-creates a ticket per drop in the brand's project per `.harness/projects.json`)
+- Linear (auto-creates a ticket per drop in the brand's project per `config/harness/projects.json`)
 - Telegram (war-room channel pinned)
 
 ## Per-project keys

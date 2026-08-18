@@ -22,7 +22,7 @@ Autonomous:
 - Approve PR merges to feature branches and dev infra
 
 HITL (dual-key gate):
-- PR merge to production (`is_production=True` from `.harness/projects.json`)
+- PR merge to production (`is_production=True` from `config/harness/projects.json`)
 - AWS / Vercel / Supabase scaling moves
 - Database migrations on production
 - Platform consolidation decisions (region, provider switch)

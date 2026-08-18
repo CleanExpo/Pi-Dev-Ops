@@ -78,7 +78,7 @@ Brief contains any of: `video`, `explainer`, `promo`, `ad`, `reel`, `intro`, `ou
 The Pi-Dev-Ops planner (Opus 4.7) calls this skill with:
 - `brief` — original free-text request
 - `repo_url` — usually `local:Pi-Dev-Ops/remotion-studio`
-- `linear_team_id`, `linear_project_id` — pre-resolved from `.harness/projects.json`
+- `linear_team_id`, `linear_project_id` — pre-resolved from `config/harness/projects.json`
 
 ## Output
 
@@ -136,7 +136,7 @@ If brief names multiple brands, ask the planner to split into N parallel jobs (o
 
 ## Linear routing
 
-After the render skill writes the MP4, this skill (or the render skill) opens a Linear ticket in the project mapped from `.harness/projects.json`:
+After the render skill writes the MP4, this skill (or the render skill) opens a Linear ticket in the project mapped from `config/harness/projects.json`:
 
 | Brand | Linear team | project |
 |---|---|---|
