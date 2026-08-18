@@ -130,6 +130,33 @@ def test_brief_is_carried_into_the_workspace(registry) -> None:
     assert "Add a waitlist form with a success state" in out
 
 
+def test_repo_with_its_own_claude_md_still_gets_the_guard(registry) -> None:
+    """Raised as blocking by the gpt-oss-120b cross-model review.
+
+    Claude Code reads CLAUDE.md from the working directory AND its ancestors, so a repo
+    shipping its own file does not stop an upward walk — it only meant nothing of ours was
+    there to forbid one.
+    """
+    registry([{"id": "carsi", "repo": "CleanExpo/carsi"}])
+    theirs = "# Their project\n\nRun `make build` before anything else.\n"
+
+    merged = wc.ensure_guard(theirs, "https://github.com/CleanExpo/carsi")
+
+    assert merged is not None
+    assert GUARD in merged
+    # Their instructions must survive — overwriting was the other reviewer's concern.
+    assert "Run `make build` before anything else." in merged
+    assert merged.index(GUARD) < merged.index("Their project"), "guard must come first"
+
+
+def test_an_already_guarded_file_is_left_alone(registry) -> None:
+    """Negative control: without this, a guard could be prepended on every clone."""
+    registry([{"id": "carsi", "repo": "CleanExpo/carsi"}])
+    already = wc.build_workspace_claude_md("https://github.com/CleanExpo/carsi") + "\nmore\n"
+
+    assert wc.ensure_guard(already, "https://github.com/CleanExpo/carsi") is None
+
+
 def test_unreadable_registry_still_yields_the_guard(tmp_path, monkeypatch) -> None:
     """Context is a bonus; containment is not. A broken registry must not drop the guard."""
     broken = tmp_path / "projects.json"

@@ -648,17 +648,27 @@ async def _phase_clone(session, resume_from: str) -> bool:
                 # bar has to infer them, which is the vague-ticket failure mode
                 # applied to every session this system starts.
                 stub_md = os.path.join(session.workspace, "CLAUDE.md")
-                if not os.path.exists(stub_md):
-                    try:
+                _brief = getattr(session, "brief", "") or ""
+                try:
+                    if not os.path.exists(stub_md):
                         with open(stub_md, "w", encoding="utf-8") as _fh:
-                            _fh.write(
-                                workspace_context.build_workspace_claude_md(
-                                    session.repo_url,
-                                    getattr(session, "brief", "") or "",
-                                )
-                            )
-                    except OSError:
-                        pass
+                            _fh.write(workspace_context.build_workspace_claude_md(
+                                session.repo_url, _brief))
+                    else:
+                        # The repo ships its own CLAUDE.md. Previously that meant no guard
+                        # was planted at all — but Claude Code reads CLAUDE.md from the cwd
+                        # AND its ancestors, so the repo's own file does not stop an upward
+                        # walk. Prepend the guard and keep their content intact; overwriting
+                        # would destroy the instructions the repository actually ships.
+                        with open(stub_md, "r", encoding="utf-8") as _fh:
+                            _existing = _fh.read()
+                        _merged = workspace_context.ensure_guard(
+                            _existing, session.repo_url, _brief)
+                        if _merged is not None:
+                            with open(stub_md, "w", encoding="utf-8") as _fh:
+                                _fh.write(_merged)
+                except OSError:
+                    pass
                 # RA-1374 — append `.pi-ceo/` to the cloned repo's .gitignore
                 # so task-memory files (PLAN.md, IMPLEMENT.md, PROMPT.md,
                 # STATUS.md) don't get committed when the generator stages

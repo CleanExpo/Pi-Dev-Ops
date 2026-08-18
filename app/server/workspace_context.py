@@ -35,6 +35,29 @@ _GUARD = (
     "inside this directory. Do not walk upward into parent directories.\n"
 )
 
+# Stable substring used to detect the guard in an existing file. Matching on this rather
+# than the whole block so reformatting the guard cannot silently cause it to be planted twice.
+GUARD_MARKER = "Do not walk upward into parent directories."
+
+
+def ensure_guard(existing: str, repo_url: str = "", brief: str = "") -> str | None:
+    """Return the text a repo's OWN CLAUDE.md should become, or None if already guarded.
+
+    The clone phase only planted a guard when no CLAUDE.md existed, on the reasoning that a
+    repo shipping its own file did not need one. A cross-model review pointed out the hole:
+    Claude Code reads CLAUDE.md from the working directory AND its ancestors, so the repo's
+    own file does not stop an upward walk — it just means nothing of ours is there to forbid
+    it. The invariant that made this survivable is TAO_WORKSPACE living outside any parent
+    git repo (RA-1169-1178), which is a placement convention, not an enforced guarantee.
+
+    Prepending rather than overwriting is the point: the guard becomes unconditional while
+    the repository's own instructions are preserved in full, which is what a bare write
+    would have destroyed.
+    """
+    if GUARD_MARKER in existing:
+        return None
+    return build_workspace_claude_md(repo_url, brief) + "\n---\n\n" + existing
+
 
 def find_project(repo_url: str) -> dict | None:
     """Registry entry for a repo URL, matched on the last path segment.
