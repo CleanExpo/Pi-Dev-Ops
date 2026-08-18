@@ -150,6 +150,13 @@ the `return 1` on findings is not gated on it. Proven by planted canary rather t
 code — a tracked file containing `AKIA` + 16 chars produced `RESULT: 1 secret(s) exposed`, and
 removing it returned `[PASS]`.
 
+**Never run two `handoff-loop.sh` invocations concurrently.** `audit-smoke` starts its own server
+on 7777 with a fixture password, but if it finds one already listening it deliberately does not
+kill it and falls back to `${TAO_PASSWORD:-dev}` — which does not match the other run's fixture
+password, so all 35 assertions fail with `401 Invalid password`. That reads as a broken auth
+surface and is two gates racing. Seen twice on 2026-08-18. Before believing an `audit-smoke` auth
+failure, run `lsof -nP -iTCP:7777 -sTCP:LISTEN`.
+
 Two canary attempts failed first, and both failures were the canary's fault, not the scanner's:
 an untracked file (it scans git-tracked files only) and a string with 12 characters after `AKIA`
 where the pattern needs 16. **Verify the canary matches the pattern before concluding the guard is
