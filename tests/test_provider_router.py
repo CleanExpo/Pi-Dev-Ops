@@ -515,6 +515,7 @@ def test_openrouter_bad_request_does_not_spend_the_capped_key(monkeypatch):
     "openrouter_http_503: upstream unavailable",
     "openrouter_http_500: internal error",
     "openrouter_httpx_import_failed: No module named 'httpx'",
+    "openrouter_http_401: invalid api key",
 ])
 def test_openrouter_outage_falls_back(monkeypatch, err):
     """An OpenRouter OUTAGE says nothing about Anthropic — it must fall back.

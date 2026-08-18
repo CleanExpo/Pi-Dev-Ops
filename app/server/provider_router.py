@@ -87,6 +87,7 @@ FALLBACK_MID_MODEL = ANTHROPIC_SONNET
 # prospect of a better answer.
 FALLBACK_TRIGGER_ERRORS = (
     "openrouter_no_api_key",
+    "openrouter_http_401",  # key rejected — same class as no key at all
     "openrouter_http_402",  # insufficient credit
     "openrouter_http_429",  # rate limited
     "openrouter_call_raised",  # connection refused / DNS / timeout
