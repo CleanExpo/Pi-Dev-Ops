@@ -142,6 +142,11 @@ if command -v ruff >/dev/null 2>&1 && [ -d app ]; then
   # step would otherwise win via head -1 and fail the gate against a version nobody installs.
   RUFF_WANT="$(sed -n -e '/^[[:space:]]*#/d' -e "s/.*pip install [\"']\{0,1\}ruff==\([0-9][0-9.]*\)[\"']\{0,1\}.*/\1/p" "$RUFF_CI" 2>/dev/null | head -1)"
   RUFF_HAVE="$(ruff --version 2>/dev/null | awk '{print $2}')"
+  # Reviewed 2026-08-18 for shell injection via these two values in the bash -c strings below,
+  # and REFUTED BY EXECUTION, not by argument. The capture class is [0-9][0-9.]* so a crafted
+  # pin `pip install "ruff==0.15.10' ; rm -rf / ; echo "` extracts exactly `0.15.10` — a quote
+  # or semicolon cannot enter RUFF_WANT. RUFF_HAVE comes from the ruff binary's own output;
+  # anyone able to control that already has code execution, so it is not an escalation.
   if [ -z "$RUFF_WANT" ] || [ -z "$RUFF_HAVE" ]; then
     gate "lint-ruff" bash -c "echo 'cannot determine the ruff version to grade against (ci.yml pin=\"$RUFF_WANT\", local=\"$RUFF_HAVE\").'; echo 'Refusing to lint rather than grade against an unknown rule set. Check the pip install ruff== line in $RUFF_CI'; exit 1"
   elif [ "$RUFF_WANT" != "$RUFF_HAVE" ]; then
