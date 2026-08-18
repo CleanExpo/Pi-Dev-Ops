@@ -55,7 +55,7 @@ a clear rationale in the PR body. Evaluator score must be ≥ 8/10 before auto-s
 |------|------|---------------|
 | `app/server/app_factory.py` | FastAPI app object, middleware, startup/shutdown hooks | Verify `/health`, all routers, CORS still work; run import check |
 | `app/server/sessions.py` | Session lifecycle facade | Run full pytest suite; zero import regressions |
-| `app/server/session_model.py` | `BuildSession` dataclass | Field additions need `persistence.py` migration |
+| `app/server/session_model.py` | `BuildSession` dataclass | Field additions need `app/server/persistence.py` migration |
 | `app/server/session_sdk.py` | SDK runner + metrics | Confirm `.harness/agent-sdk-metrics/` still writes |
 | `app/server/session_linear.py` | Linear GraphQL sync | Verify state transitions on mock issue |
 | `app/server/orchestrator.py` | Multi-session fan-out | Confirm concurrency limits enforced |
@@ -88,7 +88,8 @@ a clear rationale in the PR body. Evaluator score must be ≥ 8/10 before auto-s
 | `app/data/.password-hash` | Live bcrypt hash — overwrite = locked out |
 | `app/data/.session-secret` | JWT signing key — rotate only via deliberate Railway redeploy |
 | `.env*` / `*.env` | Secrets — never read or write env files |
-| `dashboard/middleware.ts` | Next.js auth middleware — protects every dashboard route |
+| `dashboard/proxy.ts` | The auth boundary. `PROTECTED_API_PREFIXES` (line 57) / `PUBLIC_API_PREFIXES` (line 76) decide what is gated. Previously listed here as `dashboard/middleware.ts`, which does not exist anywhere in the repo — there is no Next.js middleware |
+| `dashboard/__tests__/api-auth-classification.json` | Per-**method** auth classification. Every API method not covered by a protected prefix needs an entry; the paired test fails when one appears unclassified. A route-level version of this control missed two live defects on 2026-08-02 (`/api/telegram` GET calling `setWebhook` with the live bot token, and `/api/kill-switch` GET reaching upstream with credentials) because the route was "classified" and one method was not |
 | `dashboard/app/api/actions/` | Irreversible server actions (kill session, delete data) |
 | `supabase/seed.sql` | Production seed data |
 | `docs/governance/board-meetings/` | Locked board decisions — the only input to the mandate-consistency gate. `config_loader.validate_startup()` parses it at boot and **refuses to start** if it is absent or locks nothing, so emptying this directory stops the container. It is also one of the few `docs/` paths the Dockerfile COPYs: treat it as instance data, not documentation. |
