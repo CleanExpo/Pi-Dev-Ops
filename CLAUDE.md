@@ -177,7 +177,10 @@ the only feedback for a long action; a label overstating what the action did.
 Require: every write action produces an immediate UI state change or a subscribable progress
 surface; anything over 2 s gets a live progress surface, not a toast; destructive actions get
 confirm plus success/undo or an actionable error; spawn actions get an inline log stream or a link
-to watch it. `.github/PULL_REQUEST_TEMPLATE.md` enforces a "Manual verification path".
+to watch it. `.github/PULL_REQUEST_TEMPLATE.md` carries a `## Verification` block whose last item
+is "Manual smoke test of changed feature" — the prior text called this a "Manual verification path"
+and said it was *enforced*. It is a checkbox: self-attestation, not a gate. Nothing rejects a PR
+that ticks it untruthfully, so treat it as a prompt and put the real evidence in the PR body.
 
 **Model routing (RA-1099) — the previous description of this was wrong twice over.** It claimed
 Opus is allowed for `planner` and `orchestrator` *only*, and that there is no config file. Both
@@ -307,9 +310,16 @@ These cost real debugging time. Each is a behaviour of an external system, not a
   Linear signatures. The `pidev/` skip is at `app/server/routes/webhooks.py:187`.
 - **Recursive self-modification guard** — the webhook handler skips refs containing `pidev/` when
   the repo is `CleanExpo/Pi-Dev-Ops`. Removing this produced 43 zombie branches on 2026-04-17.
-- **Workspace isolation** — `TAO_WORKSPACE` must live outside any parent git repo (e.g.
-  `/tmp/pi-ceo-workspaces`), or git uses the outer `.git` and pushes to the wrong remote. Plant a
-  stub `CLAUDE.md` at the workspace root so Claude's upward search cannot inherit this file.
+- **Workspace isolation.** The invariant is that each session workspace is a **real clone with its
+  own `.git` and the correct remote** — not that the root sits outside the repo. The prior text
+  stated the stricter rule, which the shipped default already violates: `config.py:226` defaults
+  `TAO_WORKSPACE` to `app/server/../workspaces`, i.e. `app/workspaces/` **inside** this repo.
+  Checked 2026-08-19 — all 19 workspaces there have their own `.git` pointing at
+  `CleanExpo/Pi-Dev-Ops`, and `.gitignore:77` excludes the directory, so nothing leaks into a
+  commit and no clone inherits the outer `.git`. Setting it to `/tmp/pi-ceo-workspaces` is still
+  the safer choice; just do not treat the default as broken, and do not "fix" it on the strength
+  of the old wording. Plant a stub `CLAUDE.md` at the workspace root either way, so Claude's
+  upward search cannot inherit this file.
 
 ## Observability
 
