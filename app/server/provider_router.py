@@ -49,10 +49,12 @@ Public API:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Literal
 
 from app.server.model_registry import ANTHROPIC_OPUS, ANTHROPIC_SONNET
@@ -268,6 +270,53 @@ def _resolve_cheap_tier() -> tuple[Provider, str]:
 # ── Public API ──────────────────────────────────────────────────────────────
 
 
+def _record_tier_downgrade(role: str, provider: str, model_id: str, env_key: str) -> None:
+    """Record when a per-role env override runs a quality-critical role on the cheap model.
+
+    ROLE_TIER declares planner, orchestrator and board as "top — quality-critical
+    reasoning", and generator/evaluator as "mid — production-quality output". A per-role
+    override is resolution step 1 and the tier mapping is step 2, so an override silently
+    replaces the tier decision and nothing anywhere notices.
+
+    That is not hypothetical. Production currently routes every one of those roles to the
+    model configured as the CHEAP tier, and the divergence was invisible for months:
+    model_policy guards a different path (it reads config.yaml, and this module states at
+    the top that it does not enforce OPUS_ALLOWED_ROLES), and that gate is a ceiling
+    anyway — it only ever asks whether something is opus when it should not be. Nothing
+    asked whether a model was good enough for the role. CLAUDE.md records that Haiku had
+    to be retired from planning for 5%-confidence plans and prose refusals; that lesson
+    lived as prose, not as a control.
+
+    Fire-and-forget observability, deliberately NOT a gate. Blocking here would take
+    production down on a config that has been live for months; the defect was that the
+    downgrade was unobservable, so the fix is to make it observable.
+    """
+    tier = ROLE_TIER.get(role)
+    if tier not in ("top", "mid"):
+        return
+    cheap_model = (os.environ.get("TAO_CHEAP_REMOTE_MODEL") or "").strip()
+    if not cheap_model or model_id.strip() != cheap_model:
+        return
+    try:
+        from . import model_policy as _mp
+        path = _mp.VIOLATIONS_PATH
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a") as fh:
+            fh.write(json.dumps({
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "role": role,
+                "requested": f"{tier}-tier model",
+                "granted": f"{provider}:{model_id}",
+                "reason": (f"{env_key} routes a {tier}-tier role to the cheap-tier model; "
+                           "the ROLE_TIER mapping was bypassed by a per-role override"),
+                "caller": "provider_router.select_provider_model",
+            }) + "\n")
+        log.warning("provider_router: %s-tier role %r routed to cheap model %s:%s via %s",
+                    tier, role, provider, model_id, env_key)
+    except Exception as exc:  # never break a build over a log line
+        log.error("provider_router: failed to record tier downgrade (non-fatal): %s", exc)
+
+
 def select_provider_model(role: str,
                             task_class: str = "default") -> ProviderModel:
     """Pick the (provider, model_id) for one role.
@@ -291,6 +340,7 @@ def select_provider_model(role: str,
             prov, model = parsed
             log.debug("provider_router: %s overridden via %s = %s:%s",
                       role, env_key, prov, model)
+            _record_tier_downgrade(role, prov, model, env_key)
             return ProviderModel(
                 provider=prov, model_id=model,
                 tier=ROLE_TIER.get(role, "mid"),
