@@ -138,7 +138,9 @@ fi
 # guarding is worse than none, because the gate still reports PASS.
 if command -v ruff >/dev/null 2>&1 && [ -d app ]; then
   RUFF_CI=".github/workflows/ci.yml"
-  RUFF_WANT="$(sed -n "s/.*pip install [\"']\{0,1\}ruff==\([0-9][0-9.]*\)[\"']\{0,1\}.*/\1/p" "$RUFF_CI" 2>/dev/null | head -1)"
+  # Commented lines are dropped first: a stale '# pip install ruff==0.14.0' left above the real
+  # step would otherwise win via head -1 and fail the gate against a version nobody installs.
+  RUFF_WANT="$(sed -n -e '/^[[:space:]]*#/d' -e "s/.*pip install [\"']\{0,1\}ruff==\([0-9][0-9.]*\)[\"']\{0,1\}.*/\1/p" "$RUFF_CI" 2>/dev/null | head -1)"
   RUFF_HAVE="$(ruff --version 2>/dev/null | awk '{print $2}')"
   if [ -z "$RUFF_WANT" ] || [ -z "$RUFF_HAVE" ]; then
     gate "lint-ruff" bash -c "echo 'cannot determine the ruff version to grade against (ci.yml pin=\"$RUFF_WANT\", local=\"$RUFF_HAVE\").'; echo 'Refusing to lint rather than grade against an unknown rule set. Check the pip install ruff== line in $RUFF_CI'; exit 1"
