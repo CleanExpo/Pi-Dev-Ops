@@ -58,6 +58,24 @@ cd dashboard && npx tsc --noEmit && npm run build
 bash scripts/handoff-loop.sh                            # full definition-of-done gate
 ```
 
+### Release-gate receipts — record ONE command, not four
+
+`pr_release_gate.py` re-runs every command recorded in the receipt's `tests` array on each push.
+`scripts/handoff-loop.sh` already runs ruff, `pytest tests/` and `pytest swarm/` as its own gates
+(`lint-ruff`, `tests-python`, `tests-swarm`) plus 15 more. Recording those three *alongside*
+`handoff-loop.sh` runs the 75-second Python suite twice — ~140 s total, which exceeds the
+2-minute tool timeout and kills the push mid-gate. Two pushes died this way on 2026-08-18.
+
+Record exactly this, and nothing else:
+
+```
+bash scripts/handoff-loop.sh
+```
+
+It is strictly stronger than the four-command list (18 gates versus 3) and finishes inside the
+timeout. Verify with `wc -l` on the receipt's `tests` array: more than one entry means the next
+push will time out.
+
 Local auth: the dashboard password defaults to `dev` when `.env.local` holds unresolved `op://`
 refs. Override with `DASHBOARD_PASSWORD` in `dashboard/.env.local`. `.env.local` is gitignored —
 never commit a plaintext password.
@@ -69,8 +87,8 @@ Found by direct check on 2026-08-18. Each is real and unfixed; treat as work, no
 | # | Defect | Evidence |
 |---|---|---|
 | 1 | `.harness/config.yaml` **does not exist**, yet the prior model-routing table named it as the config location for all six agent roles | `ls .harness/` |
-| 2 | `config/harness/projects.json` maps `CleanExpo/Pi-Dev-Ops` to **two** projects (`pi-dev-ops` → `f45212be`, `margot` → `94da87f8`), so repo→project lookup is ambiguous for this repo | 12 entries, 1 duplicate |
-| 3 | All four `.claude/skills/{judge,spm,session-handoff,resume-from-handoff}/SKILL.md` are **missing**. The Codex side (`.agents/skills/…`) exists. Every Claude Code slash-command route the old file documented pointed at nothing | `ls .claude/skills/` |
+| 2 | ~~`projects.json` repo→project lookup is ambiguous~~ — **RETRACTED, was never a defect.** `CleanExpo/Pi-Dev-Ops` legitimately carries two Linear projects (`pi-dev-ops`, `margot`). All 12 `id` values are unique and both consumers key on `id`, never `repo`. See the routing section | ids 12/12 unique |
+| 3 | ~~Four `.claude/skills/*/SKILL.md` missing~~ — **FIXED 2026-08-18.** Added as symlinks to the `.agents/skills/` originals, matching the existing `skybridge` convention. Six routes now resolve | `ls -la .claude/skills/` |
 | 4 | `HERMES.md` is **missing**, though it was cited as Launch Crew governance | `ls HERMES.md` |
 | 5 | `app/server/routes/webhooks.py` is **1292 lines** against a documented 300-line ceiling; `mission_control.py` 406; `health.py` 302 | `wc -l app/server/routes/*.py` |
 | 6 | `Monorepo CI` on `main` last passed **2026-08-14T04:44** and has been red since **05:18** that day | `gh run list --workflow ci.yml` |
@@ -234,8 +252,15 @@ process, it is not autonomous.
 
 ## Linear routing
 
-`config/harness/projects.json` is canonical — match on `repo`, case-insensitive. Note defect 2: the
-Pi-Dev-Ops entry is duplicated, so resolve `id` explicitly rather than relying on first match.
+`config/harness/projects.json` is canonical. **Route on `id`, never on `repo`.** `id` is unique
+across all 12 entries; `repo` is not — `CleanExpo/Pi-Dev-Ops` deliberately carries two Linear
+projects (`pi-dev-ops` and `margot`), so a repo-keyed lookup would silently pick one. This is
+already how the code works, and it is correct:
+
+- `mcp/pi-ceo-server.js:313` — `resolveProjectRouting()` matches `p.id === project_key`
+- `app/server/autonomy.py:82` — the poller iterates every entry, so both projects get polled
+
+The previous version of this file described the lookup as repo-keyed. It never was.
 
 Primary team/project for this repo: team `a8a52f07-63cf-4ece-9ad2-3e3bd3c15673`, project
 `f45212be-3259-4bfb-89b1-54c122c939a7`. Ticket format `RA-xxx`.
