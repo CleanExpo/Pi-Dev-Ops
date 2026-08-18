@@ -40,6 +40,30 @@ _GUARD = (
 GUARD_MARKER = "Do not walk upward into parent directories."
 
 
+# The guard block's first line. Presence of the marker ANYWHERE is not enough — see below.
+_GUARD_HEADING = "# Scoped Pi-CEO workspace"
+
+
+def _already_guarded(existing: str) -> bool:
+    """True only when the guard is FIRST, not merely somewhere in the file.
+
+    Detection used to be `GUARD_MARKER in existing`, which tests the wrong property. The
+    invariant is "the guard comes first"; that check only asked "does this phrase appear".
+    A repository whose own CLAUDE.md contained the sentence anywhere — accidentally, or
+    deliberately to suppress it — was treated as already guarded, so nothing was prepended
+    and the upward-walk protection silently did not exist for exactly the repo that wanted
+    it gone. Raised as a blocking finding by the gpt-oss-120b cross-model review.
+
+    Requiring the heading at the top and the marker within the guard block itself means an
+    embedded copy further down cannot suppress anything, while a genuine re-clone of an
+    already-composed workspace is still recognised and left alone.
+    """
+    head = existing.lstrip()
+    if not head.startswith(_GUARD_HEADING):
+        return False
+    return GUARD_MARKER in head[: len(_GUARD) + 200]
+
+
 def ensure_guard(existing: str, repo_url: str = "", brief: str = "") -> str | None:
     """Return the text a repo's OWN CLAUDE.md should become, or None if already guarded.
 
@@ -54,7 +78,7 @@ def ensure_guard(existing: str, repo_url: str = "", brief: str = "") -> str | No
     the repository's own instructions are preserved in full, which is what a bare write
     would have destroyed.
     """
-    if GUARD_MARKER in existing:
+    if _already_guarded(existing):
         return None
     return build_workspace_claude_md(repo_url, brief) + "\n---\n\n" + existing
 
