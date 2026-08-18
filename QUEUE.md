@@ -21,8 +21,28 @@ All nine pillars are now resolved — built, already present, or decided. See Do
 
 ## BLOCKED — founder action, do not treat as queue items
 
-* **GitHub Actions allocates no runner** (since 2026-08-14T05:20Z). Needs a billing or
-  infrastructure decision. Evidence and the three options:
+* **The autonomy loop is switched off in production.** Verified 2026-08-18 from the live
+  Railway startup log of deployment `7efdcf28` (commit `1c4df736`):
+  `Autonomy poller DISABLED (TAO_AUTONOMY_ENABLED=0)` / `enabled=False`, and
+  `Swarm orchestrator NOT started (TAO_SWARM_ENABLED != 1)`. Everything else ticks —
+  `linear_pulse` at 07:50, daily digest at 08:00, mesh heartbeats every 20s — so the
+  engine is alive and deliberately inert. `TAO_AUTONOMY_ENABLED=1` is the single switch
+  between "runs when asked" and "picks up Urgent/High Linear tickets on its own".
+  Founder-only: flipping a production master switch is activation, not maintenance.
+  Recommended order: set `TELEGRAM_BOT_TOKEN` first (below), then autonomy, then swarm —
+  turning on an autonomous loop whose only status channel is dead makes a working night
+  indistinguishable from a stalled one.
+* **`TELEGRAM_BOT_TOKEN` / `TELEGRAM_ALERT_CHAT_ID` absent in Railway.** Live log,
+  2026-08-18T08:00:18Z: `digest: TELEGRAM_BOT_TOKEN or chat id missing — skipping push`.
+  The engine's only outbound status channel to the founder is unconfigured. Credential —
+  founder-only. (The scheduler no longer *lies* about this: see `ff0587b8`.)
+* **Do NOT read `cron-triggers.json` `last_fired_at` as liveness.** It shows 2026-07-02,
+  47 days stale, because those values reset to the git-committed state on every Railway
+  redeploy (CLAUDE.md:176). The crons are firing. Use the Railway deploy log, not this
+  file, or you will conclude the engine has been dead for six weeks when it has not.
+* **GitHub Actions allocates no runner** (since 2026-08-14T05:20Z). Re-verified
+  2026-08-18: run `32106958359` at 06:26Z died in 3s with `runner_id=0`,
+  `runner_name=""`, `steps=0`. Needs a billing or infrastructure decision. Evidence and the three options:
   `docs/BLOCKER-github-actions-runners-2026-08-18.md`.
 * **`/command-centre/wiki-graph` returns 500** — RA-7264. `route-exercise` is now the only
   failing gate, so `handoff-loop.sh` reports BLOCKED on every run. Pre-existing: the same
