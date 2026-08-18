@@ -68,7 +68,7 @@ Found by direct check on 2026-08-18. Each is real and unfixed; treat as work, no
 
 | # | Defect | Evidence |
 |---|---|---|
-| 1 | `.harness/config.yaml` **does not exist**, yet the prior model-routing table named it as the config location for all six agent roles | `ls .harness/` |
+| 1 | ~~`.harness/config.yaml` does not exist~~ — **RETRACTED 2026-08-19, and my retraction of it was also wrong.** The file exists at `config/harness/config.yaml`; only the path prefix was wrong. Concluding "no config file, routing lives in code" from a failed `ls` on the wrong path was the same error one level down. See the routing section | `ls config/harness/config.yaml` |
 | 2 | `config/harness/projects.json` maps `CleanExpo/Pi-Dev-Ops` to **two** projects (`pi-dev-ops` → `f45212be`, `margot` → `94da87f8`), so repo→project lookup is ambiguous for this repo | 12 entries, 1 duplicate |
 | 3 | All four `.claude/skills/{judge,spm,session-handoff,resume-from-handoff}/SKILL.md` are **missing**. The Codex side (`.agents/skills/…`) exists. Every Claude Code slash-command route the old file documented pointed at nothing | `ls .claude/skills/` |
 | 4 | `HERMES.md` is **missing**, though it was cited as Launch Crew governance | `ls HERMES.md` |
@@ -107,7 +107,9 @@ gh api /repos/CleanExpo/Pi-Dev-Ops/actions/runs/<id>/jobs \
 it from a real failure: `CleanExpo/Unite-Group` is **public**, so its minutes are free, and its CI
 kept running normally through the same window with real multi-minute job durations.
 
-**What burns the quota.** ~779 scheduled runs/month before a single push is counted:
+**What burns the quota.** ~779 scheduled runs/month before a single push is counted. Figures below
+assume a **31-day month** — state the basis, because a reader computing on 30 days gets 754 and
+concludes the table is wrong:
 
 | Cadence | Workflows | Runs/month |
 |---|---|---:|
@@ -177,14 +179,45 @@ surface; anything over 2 s gets a live progress surface, not a toast; destructiv
 confirm plus success/undo or an actionable error; spawn actions get an inline log stream or a link
 to watch it. `.github/PULL_REQUEST_TEMPLATE.md` enforces a "Manual verification path".
 
-**POLICY — Model routing (RA-1099).** Opus is reserved for `planner` and `orchestrator`. Every
-other role uses Sonnet or Haiku. Enforcement lives in code, not in a config file:
+**Model routing (RA-1099) — the previous description of this was wrong twice over.** It claimed
+Opus is allowed for `planner` and `orchestrator` *only*, and that there is no config file. Both
+are false. Read from source 2026-08-19:
+
+**Four** roles may use Opus. `app/server/config.py:193`:
+
+```python
+OPUS_ALLOWED_ROLES = set(os.environ.get(
+    "TAO_OPUS_ALLOWED_ROLES", "planner,orchestrator,adversary,portfolio").split(","))
+```
+
+`adversary` is deliberate — RA-1743 runs the pre-push opus-adversary review, and a Sonnet reviewer
+grading a Sonnet generator is not model diversity.
+
+The config file **does** exist, at `config/harness/config.yaml` (not `.harness/config.yaml` — that
+wrong prefix is what made it look absent). Its `agents:` block, mirrored by `HARNESS_SPEC` in
+`config_loader.py:115` as the fallback when the file is missing:
+
+| Role | Model | | Role | Model |
+|---|---|---|---|---|
+| `planner` | opus | | `evaluator` | sonnet |
+| `orchestrator` | opus | | `board` | sonnet |
+| `adversary` | opus | | `monitor` | haiku |
+| `generator` | sonnet | | | |
+
+Enforcement, all three layers:
 
 - `app/server/model_policy.py` — `select_model()` downshifts opus→sonnet for non-allowed roles and
   logs to `.harness/model-policy-violations.jsonl`
-- `app/server/config.py:193` — `OPUS_ALLOWED_ROLES`, overridable via `TAO_OPUS_ALLOWED_ROLES`
 - `app/server/model_policy.py:153` — `assert_model_allowed()`, called at
   `app/server/session_sdk.py:234` so it raises before the wire
+- `config/harness/config.yaml` — the declared per-role models above
+
+Re-derive both halves before trusting any restatement of this policy:
+
+```bash
+grep -A10 '^agents:' config/harness/config.yaml
+grep -A6 'OPUS_ALLOWED_ROLES' app/server/config.py
+```
 
 Never pass `model="claude-opus-*"` directly. Budget-tier escalation changes retries, threshold and
 timeout — never the model. The plan phase runs on Sonnet by intent: Haiku produced 5%-confidence
