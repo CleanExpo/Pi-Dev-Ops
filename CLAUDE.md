@@ -58,6 +58,12 @@ cd dashboard && npx tsc --noEmit && npm run build
 bash scripts/handoff-loop.sh                            # full definition-of-done gate
 ```
 
+**`ruff` must match CI's pin exactly.** `ci.yml:39` installs `ruff==0.15.10`; a venv that picks
+up a newer ruff grades `app/` against a different rule set. Observed 2026-08-18: ruff 0.16.3
+reported 1006 errors on code that is green on `main`. `scripts/handoff-loop.sh` now reads the pin
+out of `ci.yml` and fails `lint-ruff` on mismatch rather than grading against the wrong rules —
+proven with a planted mismatch (fails) and a matching pair (passes).
+
 ### Release-gate receipts — record ONE command, not four
 
 `pr_release_gate.py` re-runs every command recorded in the receipt's `tests` array on each push.

@@ -121,7 +121,24 @@ if [ -f dashboard/package.json ]; then
 fi
 
 # 5. Lint.
-if command -v ruff >/dev/null 2>&1 && [ -d app ]; then gate "lint-ruff" ruff check app
+#
+# ruff's rule set changes between minor releases, so an unpinned local ruff makes this gate
+# disagree with CI in BOTH directions. Observed 2026-08-18: a fresh venv picked up ruff
+# 0.16.3, which reports 1006 errors across app/ — including UP017 on untouched code that is
+# green on main — while ci.yml pins 0.15.10 and passes. The reverse is worse: an older local
+# ruff goes green on code CI will reject, which is a gate that lies.
+#
+# ci.yml's pin is the single source of truth. Read it rather than hardcoding a second copy
+# that would drift on the next bump, and fail loudly on mismatch instead of silently
+# grading against the wrong rule set.
+if command -v ruff >/dev/null 2>&1 && [ -d app ]; then
+  RUFF_WANT="$(sed -n 's/.*pip install "ruff==\([0-9.]*\)".*/\1/p' .github/workflows/ci.yml | head -1)"
+  RUFF_HAVE="$(ruff --version 2>/dev/null | awk '{print $2}')"
+  if [ -n "$RUFF_WANT" ] && [ -n "$RUFF_HAVE" ] && [ "$RUFF_WANT" != "$RUFF_HAVE" ]; then
+    gate "lint-ruff" bash -c "echo 'ruff version drift: local $RUFF_HAVE, ci.yml pins $RUFF_WANT.'; echo 'This gate cannot stand in for CI on a different rule set. Fix: pip install \"ruff==$RUFF_WANT\"'; exit 1"
+  else
+    gate "lint-ruff" ruff check app
+  fi
 else skip "lint-ruff" "ruff not installed"; fi
 if [ -f dashboard/package.json ]; then
   [ "$NODE_OK" = 1 ] && gate "lint-dashboard" bash -c 'cd dashboard && npm run --silent lint' \
