@@ -128,7 +128,7 @@ describe("protected reads cannot widen silently", () => {
     // can only pass if the check actually descends.
     stubUpstream({
       count: 1,
-      proposals: [{ id: 1, skill: "x", status: "pending", [NESTED_LEAK]: "leaked" }],
+      proposals: [{ proposal_id: "p1", ts: "2026-08-18T13:04:17+00:00", proposed_skill_name: "x", status: "pending", [NESTED_LEAK]: "leaked" }],
     });
     vi.resetModules();
     const { json } = await bodyOf(
@@ -147,7 +147,7 @@ describe("protected reads cannot widen silently", () => {
     // Without this, "withholds everything" would pass the assertion above — the route could be
     // broken rather than guarded.
     stubUpstream({
-      proposals: [{ id: 1, skill: "x", status: "pending" }],
+      proposals: [{ proposal_id: "p1", ts: "2026-08-18T13:04:17+00:00", proposed_skill_name: "x", status: "pending" }],
       count: 1,
     });
     vi.resetModules();
