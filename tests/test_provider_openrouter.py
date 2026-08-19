@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import sys
 from pathlib import Path
 
@@ -296,3 +297,32 @@ def test_call_empty_response_returns_error(monkeypatch):
     ))
     assert rc == 1
     assert error == "openrouter_empty_response"
+
+
+def test_truncated_content_is_returned_but_reported(caplog):
+    """A truncated read must not look like a complete one.
+
+    The content is still the model's own output — long-form roles hit
+    max_tokens routinely and the partial text is the useful result — so it is
+    returned rather than discarded. But it is logged, so an incomplete answer
+    is visible instead of silently passing as whole.
+    """
+    response = {
+        "choices": [{
+            "finish_reason": "length",
+            "message": {"content": "a partial answer that ran out of budget"},
+        }],
+    }
+    with caplog.at_level(logging.WARNING, logger="app.server.provider_openrouter"):
+        text = POR._extract_text(response)
+
+    assert text == "a partial answer that ran out of budget"
+    assert any("incomplete" in r.getMessage() for r in caplog.records)
+
+
+def test_clean_content_is_not_reported_as_incomplete():
+    """Positive control: without this, the test above proves nothing."""
+    response = {
+        "choices": [{"finish_reason": "stop", "message": {"content": "whole answer"}}],
+    }
+    assert POR._extract_text(response) == "whole answer"

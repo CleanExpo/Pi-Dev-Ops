@@ -86,8 +86,19 @@ def _extract_text(response: dict[str, Any]) -> str:
         return ""
     choice = choices[0]
     msg = choice.get("message") or {}
+    finish = choice.get("finish_reason")
     content = msg.get("content") or ""
     if content:
+        # Truncated content is still the model's own output — for the long-form
+        # roles (generator, evaluator, board) hitting max_tokens is routine and
+        # the partial text is the useful result, so discarding it here would
+        # turn every long generation into openrouter_empty_response. But a
+        # truncated read must not look like a complete one, so say so.
+        if finish not in (None, "", "stop"):
+            log.warning(
+                "openrouter: returning %d chars that ended on finish_reason=%r "
+                "— the response is incomplete", len(content), finish,
+            )
         return content
     # Some providers (Cloudflare/DeepInfra serving GLM, Nemotron) put the
     # answer in ``reasoning`` and leave ``content`` null. Falling back keeps
@@ -106,7 +117,7 @@ def _extract_text(response: dict[str, Any]) -> str:
     # a half-finished trace as the answer would be a failed read rendering as
     # a successful one; an empty string surfaces honestly to the caller as
     # openrouter_empty_response instead.
-    if choice.get("finish_reason") != "stop":
+    if finish != "stop":
         return ""
     return msg.get("reasoning") or ""
 
