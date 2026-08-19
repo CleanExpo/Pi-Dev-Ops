@@ -128,6 +128,30 @@ def test_extract_text_ignores_reasoning_when_response_was_truncated():
     assert _extract_text_of(response) == ""
 
 
+def test_extract_text_ignores_reasoning_on_any_unclean_finish():
+    """Allowlist, not denylist — "length" is not the only unfinished state.
+
+    content_filter, error, or a reason a provider invents next quarter all mean
+    the model did not finish saying this, so the trace is not an answer.
+    """
+    for finish in ("content_filter", "error", "tool_calls", "some_new_reason"):
+        response = {
+            "choices": [{
+                "finish_reason": finish,
+                "message": {"content": None, "reasoning": "partial thought"},
+            }],
+        }
+        assert POR._extract_text(response) == "", finish
+
+
+def test_extract_text_uses_reasoning_when_provider_omits_finish_reason():
+    """Providers that never send finish_reason must not lose their answer."""
+    response = {
+        "choices": [{"message": {"content": None, "reasoning": '{"intent":"ticket"}'}}],
+    }
+    assert POR._extract_text(response) == '{"intent":"ticket"}'
+
+
 def test_extract_text_uses_reasoning_when_model_finished():
     """The same shape with a clean stop IS the answer, so it must come back."""
     response = {

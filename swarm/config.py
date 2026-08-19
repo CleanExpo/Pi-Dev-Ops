@@ -92,6 +92,15 @@ OLLAMA_TRIAGE_MODEL_HEAVY: str = os.environ.get("OLLAMA_TRIAGE_MODEL_HEAVY", "qw
 # Interactive triage calls (Telegram intent classification) must never hold a
 # user-facing turn for the full OLLAMA_TIMEOUT_S. Past this budget the caller
 # degrades to the regex layer / "unknown" rather than leaving Telegram silent.
+#
+# Known tradeoff, accepted deliberately: a COLD Ollama model can take 20-40s to
+# load (see app/server/triage.py, which sets a 90s budget for exactly that), so
+# the first message after an idle period will exceed 15s and answer from the
+# regex layer instead. That is the intended bias — a chat turn that answers in
+# 15s from regex beats one that answers in 40s from the model, and every
+# subsequent message hits a warm model in ~1-3s. Raise this only if you would
+# rather the founder wait than get a regex answer. The real fix for cold starts
+# is an Ollama keep_alive on the host, not a longer budget here.
 OLLAMA_TRIAGE_TIMEOUT_S: int = int(os.environ.get("OLLAMA_TRIAGE_TIMEOUT_S", "15"))
 
 # ── Telegram ──────────────────────────────────────────────────────────────────
