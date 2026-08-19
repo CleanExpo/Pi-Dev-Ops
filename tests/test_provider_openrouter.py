@@ -68,6 +68,57 @@ def test_extract_text_handles_missing_choices():
     assert POR._extract_text({"choices": []}) == ""
 
 
+# ── Reasoning-model handling ────────────────────────────────────────────────
+#
+# Reasoning-capable cheap-tier models (GLM 4.7 Flash, Nemotron 3) return the
+# answer in ``message.reasoning`` and leave ``content`` null. Measured against
+# the live API 2026-08-19: glm-4.7-flash served by DeepInfra returned
+# content=None with reasoning='{"intent":"ticket"}'. Reading only ``content``
+# turned that valid response into openrouter_empty_response.
+
+
+def test_build_body_disables_reasoning():
+    """Left on, a reasoning model spends the whole max_tokens on its trace.
+
+    Measured: glm-4.7-flash at max_tokens=120 burned 122 reasoning tokens and
+    returned finish_reason='length' with no content at all.
+    """
+    body = POR._build_body("hello", "z-ai/glm-4.7-flash", max_tokens=2048)
+    assert body["reasoning"] == {"enabled": False}
+
+
+def test_extract_text_falls_back_to_reasoning_when_content_is_null():
+    response = {
+        "choices": [{"message": {"content": None, "reasoning": '{"intent":"ticket"}'}}],
+    }
+    assert POR._extract_text(response) == '{"intent":"ticket"}'
+
+
+def test_extract_text_prefers_content_over_reasoning():
+    """When both are present, content is the answer and reasoning is the trace."""
+    response = {
+        "choices": [{
+            "message": {"content": "the answer", "reasoning": "step 1, step 2"},
+        }],
+    }
+    assert POR._extract_text(response) == "the answer"
+
+
+def test_extract_text_empty_when_neither_content_nor_reasoning():
+    """Both empty must still be empty — the fallback must not invent text.
+
+    This is the case that still has to reach the caller as
+    openrouter_empty_response.
+    """
+    assert POR._extract_text({"choices": [{"message": {}}]}) == ""
+    assert POR._extract_text(
+        {"choices": [{"message": {"content": None, "reasoning": None}}]},
+    ) == ""
+    assert POR._extract_text(
+        {"choices": [{"message": {"content": "", "reasoning": ""}}]},
+    ) == ''
+
+
 def test_extract_cost_usd_from_usage_block():
     response = {"usage": {"cost": 0.000123}}
     assert POR._extract_cost_usd(response) == 0.000123
