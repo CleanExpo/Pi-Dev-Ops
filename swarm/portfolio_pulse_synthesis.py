@@ -41,9 +41,9 @@ TIMEOUT_S = 90
 # RA-1985 sprinkle #3 / RA-2995 migration — second extraction pass for
 # BOARD-TRIGGERs. First synthesis pass is creative; this is structured-
 # extraction only. Routes through provider_router (cheap tier → Ollama
-# Gemma 4 → OpenRouter fallback). No direct Anthropic SDK calls.
+# Qwen 3.5 → OpenRouter fallback). No direct Anthropic SDK calls.
 #
-# Production override recommended: set TAO_MODEL_SPRINKLE_PULSE=ollama:gemma4:26b
+# Production override recommended: set TAO_MODEL_SPRINKLE_PULSE=ollama:qwen3.5:32b
 # in .env.local to use the 27B variant for cleaner structured JSON output.
 _EXTRACT_ROLE = "sprinkle.pulse"
 _EXTRACT_MAX_TOKENS = 600
@@ -223,7 +223,7 @@ def _format_triggers(items: list[dict], *, existing_topics: set[str] | None = No
 def _extract_board_triggers(
     synthesis: str, per_project_pulses: dict[str, "PulseResult"],
 ) -> str:
-    """Second structured-extraction pass via cheap-tier LLM (Ollama Gemma 4
+    """Second structured-extraction pass via cheap-tier LLM (Ollama Qwen 3.5
     → OpenRouter fallback). Extracts BOARD-TRIGGER candidates as JSON, then
     renders into the sentinel format the orchestrator parses.
 

@@ -28,7 +28,7 @@ _FEEDBACK_CACHE_FILE = _HARNESS_ROOT / "feedback-cache.json"
 _AUTONOMY_LOG = _HARNESS_ROOT / "autonomy.jsonl"
 
 # RA-1985 sprinkle #2 / RA-2995 migration — pattern-naming on neutral outcomes.
-# Routes through provider_router (cheap tier → Ollama Gemma 4 → OpenRouter
+# Routes through provider_router (cheap tier → Ollama Qwen 3.5 → OpenRouter
 # fallback). No direct Anthropic SDK calls — cost-control per RA-2989.
 _PATTERN_ROLE = "sprinkle.feedback"
 _PATTERN_MAX_TOKENS = 200
@@ -89,7 +89,7 @@ def _log_sprinkle_event(event: dict[str, Any]) -> None:
 def _classify_with_claude(
     comments: list[str], state: str, days_since: int, pipeline_id: str,
 ) -> dict[str, Any] | None:
-    """Classify neutral outcomes via the cheap-tier LLM (Ollama Gemma 4 →
+    """Classify neutral outcomes via the cheap-tier LLM (Ollama Qwen 3.5 →
     OpenRouter fallback). Returns {category, label, confidence} or None.
 
     Function name kept for caller compatibility; the LLM provider is no

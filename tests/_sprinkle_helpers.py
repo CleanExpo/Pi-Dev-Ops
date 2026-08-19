@@ -23,7 +23,7 @@ from dataclasses import dataclass
 class _ProviderModelStub:
     """Minimal stand-in for app.server.provider_router.ProviderModel."""
     provider: str = "ollama"
-    model_id: str = "gemma4:26b"
+    model_id: str = "qwen3.5:32b"
     tier: str = "cheap"
 
 

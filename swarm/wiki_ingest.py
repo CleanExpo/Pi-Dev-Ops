@@ -55,12 +55,12 @@ def _load_index(wdir: Path) -> str:
 
 
 def _call_llm(prompt: str) -> str:
-    """Gemma 4 (local, zero-cost) → Gemini 3.1 Pro fallback."""
-    # ── Primary: Gemma 4 via Ollama (free) ───────────────────────────────────
+    """Qwen 3.5 (local, zero-cost) → Gemini 3.1 Pro fallback."""
+    # ── Primary: Qwen 3.5 via Ollama (free) ──────────────────────────────────
     try:
         from . import ollama_client, config as _cfg  # noqa: PLC0415
         result = ollama_client.chat(
-            model=_cfg.OLLAMA_TRIAGE_MODEL,  # gemma4:latest — fast for ingest
+            model=_cfg.OLLAMA_TRIAGE_MODEL,  # qwen3.5:latest — fast for ingest
             system="You are a precise knowledge management assistant. Follow instructions exactly.",
             user_message=prompt,
             temperature=0.2,
@@ -68,7 +68,7 @@ def _call_llm(prompt: str) -> str:
         if result:
             return result
     except Exception as _exc:  # noqa: BLE001
-        log.debug("wiki_ingest: gemma4 unavailable (%s) — falling back to Gemini", _exc)
+        log.debug("wiki_ingest: local triage model unavailable (%s) — falling back to Gemini", _exc)
 
     # ── Fallback: Gemini 3.1 Pro ─────────────────────────────────────────────
     from pathlib import Path as _Path  # noqa: PLC0415
@@ -78,7 +78,7 @@ def _call_llm(prompt: str) -> str:
         if key_file.exists():
             api_key = key_file.read_text(encoding="utf-8").strip()
     if not api_key:
-        raise RuntimeError("Gemma 4 unavailable and GEMINI_API_KEY not set")
+        raise RuntimeError("Local triage model unavailable and GEMINI_API_KEY not set")
 
     from google import genai  # noqa: PLC0415
     import concurrent.futures  # noqa: PLC0415

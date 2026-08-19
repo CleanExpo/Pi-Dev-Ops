@@ -56,7 +56,7 @@ DEFAULT_TIER0_PAID_SPILL = (
 )
 
 # Local overflow + the ONLY confidential lane (today = the existing Ollama tag).
-DEFAULT_TIER0_LOCAL_MODEL = "gemma4:latest"
+DEFAULT_TIER0_LOCAL_MODEL = "qwen3.5:latest"
 
 # Capacity ceilings — one global OpenRouter account pool (keys do NOT stack).
 DEFAULT_TIER0_RPD_CAP = 1000

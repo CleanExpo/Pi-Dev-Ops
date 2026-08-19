@@ -473,7 +473,7 @@ def run() -> None:
             log.warning("production_coordinator failed (continuing): %s", exc)
 
         # ── Enhancement Scout: scan wiki for system improvements (daily) ────
-        # Finds unimplemented tech-drops, unbuilt agents, Gemma 4 migration
+        # Finds unimplemented tech-drops, unbuilt agents, cheap-tier migration
         # opportunities → files as Board agenda items + Linear tickets.
         try:
             from . import enhancement_scout as _es  # noqa: PLC0415

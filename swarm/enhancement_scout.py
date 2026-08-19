@@ -102,9 +102,9 @@ def _scan_agency_blueprint() -> list[dict]:
     return items[:5]
 
 
-def _scan_gemma4_opportunities() -> list[dict]:
-    """Find tasks still on paid APIs that could move to Gemma 4."""
-    p = _wiki_dir() / "gemma4-cost-strategy.md"
+def _scan_cheap_model_opportunities() -> list[dict]:
+    """Find tasks still on paid APIs that could move to the cheap tier."""
+    p = _wiki_dir() / "cheap-model-cost-strategy.md"
     if not p.exists():
         return []
     content = p.read_text(encoding="utf-8")
@@ -112,8 +112,8 @@ def _scan_gemma4_opportunities() -> list[dict]:
     import re  # noqa: PLC0415
     for match in re.finditer(r'###\s+\d+\.\s+(.+)\n', content):
         items.append({
-            "source": "gemma4-cost-strategy.md",
-            "text": f"Migrate to Gemma 4: {match.group(1).strip()[:80]}",
+            "source": "cheap-model-cost-strategy.md",
+            "text": f"Migrate to cheap tier: {match.group(1).strip()[:80]}",
             "urgency": "medium",
         })
     return items[:3]
@@ -130,7 +130,7 @@ def _build_proposals(raw_items: list[dict]) -> list[EnhancementProposal]:
         text_lower = text.lower()
         if any(w in text_lower for w in ["build", "agent", "skill", "idd", "sd-"]):
             category = "builder"
-        elif any(w in text_lower for w in ["gemma", "cost", "migrate", "ollama"]):
+        elif any(w in text_lower for w in ["cheap tier", "cost", "migrate", "ollama"]):
             category = "cost"
         elif any(w in text_lower for w in ["marketing", "seo", "content", "brand"]):
             category = "growth"
@@ -206,7 +206,7 @@ def run_daily(repo_root: Path | None = None) -> ScoutResult:
     raw: list[dict] = []
     raw.extend(_scan_tech_drops())
     raw.extend(_scan_agency_blueprint())
-    raw.extend(_scan_gemma4_opportunities())
+    raw.extend(_scan_cheap_model_opportunities())
 
     if not raw:
         log.info("enhancement_scout: no new enhancements found")

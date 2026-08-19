@@ -164,7 +164,7 @@ def default_entitlements() -> dict[PlanId, PlanEntitlement]:
             plan_id="openrouter",
             monthly_request_budget=_env_int("TAO_FLEET_OPENROUTER_MONTHLY_REQUESTS", 100_000),
             provider="openrouter",
-            model_id=(os.environ.get("TAO_CHEAP_REMOTE_MODEL") or "google/gemma-4-26b-a4b-it").strip(),
+            model_id=(os.environ.get("TAO_CHEAP_REMOTE_MODEL") or "z-ai/glm-4.7-flash").strip(),
             description="Overflow / experimental",
         ),
     }

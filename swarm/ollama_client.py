@@ -24,6 +24,7 @@ def chat(
     user_message: str,
     temperature: float = 0.3,
     json_format: bool = False,
+    timeout_s: int | None = None,
 ) -> str | None:
     """Send a single chat turn to a local Ollama model.
 
@@ -33,6 +34,9 @@ def chat(
         user_message: The user/task message.
         temperature:  Sampling temperature (lower = more deterministic).
         json_format:  If True, instructs Ollama to return valid JSON output.
+        timeout_s:    Per-call socket timeout. Defaults to config.OLLAMA_TIMEOUT_S.
+                      Interactive callers (Telegram intent triage) pass a short
+                      budget so a slow local model cannot hold a user turn.
 
     Returns:
         The model's response text, or None on any error.
@@ -57,7 +61,9 @@ def chat(
         headers={"Content-Type": "application/json"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=config.OLLAMA_TIMEOUT_S) as resp:
+        with urllib.request.urlopen(
+            req, timeout=timeout_s or config.OLLAMA_TIMEOUT_S,
+        ) as resp:
             data = json.loads(resp.read())
             return data.get("message", {}).get("content", "").strip()
     except Exception as exc:

@@ -16,7 +16,7 @@ from pathlib import Path
 
 # RA-1985 sprinkle #4 / RA-2995 migration — pre-brief LLM call before the
 # board meeting runs. Routes through provider_router (cheap tier → Ollama
-# Gemma 4 → OpenRouter fallback). No direct Anthropic SDK calls.
+# Qwen 3.5 → OpenRouter fallback). No direct Anthropic SDK calls.
 _PREBRIEF_ROLE = "sprinkle.board_prebrief"
 _PREBRIEF_MAX_TOKENS = 600
 _PREBRIEF_TIMEOUT_S = 120  # Larger context (24h of lessons + sessions + tickets); cold-start headroom
@@ -105,7 +105,7 @@ def _fetch_urgent_high_tickets() -> list[dict]:
 
 
 def _generate_board_prebrief(log) -> str:
-    """Build a 5-bullet pre-brief via cheap-tier LLM (Ollama Gemma 4 →
+    """Build a 5-bullet pre-brief via cheap-tier LLM (Ollama Qwen 3.5 →
     OpenRouter fallback). Returns "" on any failure — board meeting still
     runs without the pre-brief (no regression).
     """

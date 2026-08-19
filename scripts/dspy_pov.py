@@ -31,7 +31,7 @@ from app.server.agents import feedback_eval as fe  # noqa: E402
 
 DATASET = "docs/experiments/2026-07-01-feedback-loop-eval/dataset.jsonl"
 RESULT_JSON = "docs/experiments/2026-07-01-feedback-loop-eval/dspy_result.json"
-MODEL = "openrouter/google/gemma-4-26b-a4b-it"  # same model as the baseline run
+MODEL = "openrouter/z-ai/glm-4.7-flash"  # same model as the baseline run
 FALLBACK_COST_USD = 0.0005  # conservative; measured baseline ≈ $0.000025/call
 HOLDOUT_PER_CLASS = 4  # 36 cases → 24 train / 12 dev
 

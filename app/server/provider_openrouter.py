@@ -5,7 +5,7 @@ provider_router. Anthropic stays on its native SDK; OpenRouter goes
 through this module.
 
 Why OpenAI-compatible: OpenRouter speaks the OpenAI Chat Completions
-API for any underlying model (Gemma, Llama, Mistral, etc.). One client,
+API for any underlying model (GLM, Llama, Nemotron, etc.). One client,
 many models, configurable per-role via env.
 
 Required env:
@@ -60,6 +60,14 @@ def _build_headers() -> dict[str, str]:
 
 
 def _build_body(prompt: str, model_id: str, *, max_tokens: int) -> dict[str, Any]:
+    # ``reasoning.enabled=False`` matters for reasoning-capable cheap-tier
+    # models (GLM 4.7 Flash, Nemotron 3). Left on, they spend the whole
+    # max_tokens budget on a reasoning trace, return ``content: None`` and
+    # finish_reason "length" — which reaches _extract_text as an empty
+    # string and fails the call. Measured 2026-08-19: glm-4.7-flash at
+    # max_tokens=120 burned 122 reasoning tokens and returned no content;
+    # with reasoning off it answered in 0.8s. Harmless on non-reasoning
+    # models — OpenRouter ignores the field when unsupported.
     return {
         "model": model_id,
         "messages": [
@@ -67,6 +75,7 @@ def _build_body(prompt: str, model_id: str, *, max_tokens: int) -> dict[str, Any
         ],
         "max_tokens": max_tokens,
         "temperature": 0.3,
+        "reasoning": {"enabled": False},
     }
 
 
@@ -76,7 +85,10 @@ def _extract_text(response: dict[str, Any]) -> str:
     if not choices:
         return ""
     msg = choices[0].get("message") or {}
-    return msg.get("content") or ""
+    # Some providers (Cloudflare/DeepInfra serving GLM, Nemotron) put the
+    # answer in ``reasoning`` and leave ``content`` null. Falling back keeps
+    # a valid response from being reported as openrouter_empty_response.
+    return (msg.get("content") or "") or (msg.get("reasoning") or "")
 
 
 def _extract_cost_usd(response: dict[str, Any]) -> float:

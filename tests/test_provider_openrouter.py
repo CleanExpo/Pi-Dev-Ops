@@ -23,7 +23,7 @@ def _clear_env(monkeypatch):
 
 def test_call_returns_no_api_key_error_when_unset():
     rc, text, cost, error = asyncio.run(POR.call(
-        prompt="hi", model_id="google/gemma-3-27b-it",
+        prompt="hi", model_id="z-ai/glm-4.7-flash",
     ))
     assert rc == 1
     assert error == "openrouter_no_api_key"
@@ -47,8 +47,8 @@ def test_build_headers_empty_when_no_key():
 
 
 def test_build_body_shape():
-    body = POR._build_body("hello", "google/gemma-3-27b-it", max_tokens=2048)
-    assert body["model"] == "google/gemma-3-27b-it"
+    body = POR._build_body("hello", "z-ai/glm-4.7-flash", max_tokens=2048)
+    assert body["model"] == "z-ai/glm-4.7-flash"
     assert body["messages"][0] == {"role": "user", "content": "hello"}
     assert body["max_tokens"] == 2048
 
@@ -131,7 +131,7 @@ def test_call_happy_path(monkeypatch):
     _install_fake_httpx(monkeypatch, _FakeResponse(status_code=200, body=body))
 
     rc, text, cost, error = asyncio.run(POR.call(
-        prompt="hi", model_id="google/gemma-3-27b-it",
+        prompt="hi", model_id="z-ai/glm-4.7-flash",
     ))
     assert rc == 0
     assert text == "Margot's reply"
@@ -159,7 +159,7 @@ def test_call_http_500_returns_error(monkeypatch):
         monkeypatch, _FakeResponse(status_code=500, text="overloaded"),
     )
     rc, text, cost, error = asyncio.run(POR.call(
-        prompt="hi", model_id="google/gemma-3-27b-it",
+        prompt="hi", model_id="z-ai/glm-4.7-flash",
     ))
     assert rc == 1
     assert "openrouter_http_500" in error
@@ -172,7 +172,7 @@ def test_call_empty_response_returns_error(monkeypatch):
         _FakeResponse(status_code=200, body={"choices": [{"message": {"content": ""}}]}),
     )
     rc, text, cost, error = asyncio.run(POR.call(
-        prompt="hi", model_id="google/gemma-3-27b-it",
+        prompt="hi", model_id="z-ai/glm-4.7-flash",
     ))
     assert rc == 1
     assert error == "openrouter_empty_response"

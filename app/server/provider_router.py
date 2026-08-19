@@ -17,10 +17,10 @@ Tier mapping (defaults; all overridable via env):
                   Roles: generator, evaluator, senior-brief
                   Env: TAO_MID_MODEL=claude-sonnet-5
 
-  TIER 3 — CHEAP  OpenRouter → Gemma 3 27B (default; configurable)
+  TIER 3 — CHEAP  OpenRouter → GLM 4.7 Flash (default; configurable)
                   Roles: margot.casual, intent_classify, monitor,
                   guardian, scribe.draft
-                  Env: TAO_CHEAP_MODEL=google/gemma-3-27b-it
+                  Env: TAO_CHEAP_REMOTE_MODEL=z-ai/glm-4.7-flash
 
 Per-role override:
 
@@ -79,16 +79,34 @@ DEFAULT_MID_MODEL = ANTHROPIC_SONNET
 #   - Override the remote model via TAO_CHEAP_REMOTE_MODEL=<openrouter-id>
 #   - Force one or the other via TAO_CHEAP_PROVIDER=ollama|openrouter (skips probe)
 #   - Override per-role via TAO_MODEL_<ROLE> (highest precedence)
-DEFAULT_CHEAP_LOCAL_MODEL = "gemma4:latest"
+DEFAULT_CHEAP_LOCAL_MODEL = "qwen3.5:latest"
 
-# OpenRouter remote-fallback default: Gemma 4 26B A4B (instruction-tuned).
-# OpenRouter offers four Gemma 4 variants — pick by use case:
-#   google/gemma-4-26b-a4b-it       — paid, ~$0.06/M in, $0.33/M out (default)
-#   google/gemma-4-26b-a4b-it:free  — free tier, rate-limited
-#   google/gemma-4-31b-it           — paid, ~$0.13/M in, $0.38/M out
-#   google/gemma-4-31b-it:free      — free tier, rate-limited
-# Override via TAO_CHEAP_REMOTE_MODEL env at deploy time.
-DEFAULT_CHEAP_REMOTE_MODEL = "google/gemma-4-26b-a4b-it"
+# OpenRouter remote default: GLM 4.7 Flash (Z.ai / Zhipu, open weights).
+# Replaced Gemma 4 on 2026-08-19 — Gemma was the slowest option measured at
+# identical accuracy and was stalling the Telegram intent path.
+#
+# Measured 2026-08-19, 6-case intent-classification probe, JSON mode,
+# reasoning disabled (all three scored 6/6 correct — the split is latency):
+#   z-ai/glm-4.7-flash                      0.8s avg   ~$0.06/M in, $0.40/M out
+#   nvidia/nemotron-3-super-120b-a12b:free  1.0s avg   $0.00 (free pool)
+#   google/gemma-4-26b-a4b-it:free          4.7s avg   $0.00  ← 5.9x slower
+#
+# Cost at this volume is negligible: the whole 6-call probe cost $0.000054.
+# GLM 4.7 Flash also carries 202K context, tool calling and JSON mode.
+#
+# Zero-cost alternatives (override via TAO_CHEAP_REMOTE_MODEL):
+#   nvidia/nemotron-3-super-120b-a12b:free — verified $0, 3/3 then 6/6 clean.
+#   z-ai/glm-4.7-flash direct from Z.ai    — the SAME model at $0/$0 on Z.ai's
+#     standing free tier (api.z.ai, OpenAI-compatible, ~1 req/s). Needs a Z.ai
+#     key; see DEFAULT_CHEAP_FREE_MODEL note below.
+#
+# NOT usable: z-ai/glm-5.2:free returned 429 "rate-limited upstream" on 3/3
+# attempts (2026-08-19) — do not wire the shared free pool into an always-on
+# path. qwen/qwen3-next-80b-a3b-instruct:free now 404s; its free tier is gone.
+DEFAULT_CHEAP_REMOTE_MODEL = "z-ai/glm-4.7-flash"
+
+# Verified-$0 fallback, used when TAO_CHEAP_FREE_ONLY=1 is set.
+DEFAULT_CHEAP_FREE_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
 
 # Role → tier mapping (top/mid/cheap). Roles not listed default to "mid".
 ROLE_TIER: dict[str, str] = {
@@ -113,7 +131,7 @@ ROLE_TIER: dict[str, str] = {
     "monitor":           "cheap",
     "guardian":          "cheap",
     "scribe.draft":      "cheap",
-    "sprinkle.lessons":  "cheap",  # RA-2995: analyse_lessons cluster-title naming (Gemma 4 first sprinkle migration)
+    "sprinkle.lessons":  "cheap",  # RA-2995: analyse_lessons cluster-title naming (first sprinkle migration)
     "sprinkle.triage":   "cheap",  # RA-2995: triage real/false-positive verdict on scanner findings
     "sprinkle.feedback": "cheap",  # RA-2995: feedback_loop neutral-outcome pattern naming
     "sprinkle.pulse":    "cheap",  # RA-2995: portfolio_pulse BOARD-TRIGGER structured extraction
@@ -147,7 +165,7 @@ def _env_role_key(role: str) -> str:
 def _parse_provider_spec(spec: str) -> tuple[Provider, str] | None:
     """Parse '<provider>:<model_id>' env value. Returns None on malformed.
 
-    OpenRouter model_ids contain colons (e.g. "openrouter:google/gemma-3"),
+    OpenRouter model_ids contain colons (e.g. "openrouter:z-ai/glm-4.7-flash"),
     so we split on the first colon only.
     """
     spec = (spec or "").strip()

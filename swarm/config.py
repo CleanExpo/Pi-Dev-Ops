@@ -80,10 +80,19 @@ BOT_MODELS: dict[str, str] = {
 }
 
 # ── Local Ollama triage model (zero API cost) ─────────────────────────────────
-# Gemma 4 via Ollama — used for triage, routing, and low-stakes decisions.
-# Updated 2026-05-08 on Mac Mini. Use 26b for higher quality, latest for speed.
-OLLAMA_TRIAGE_MODEL: str = os.environ.get("OLLAMA_TRIAGE_MODEL", "gemma4:latest")
-OLLAMA_TRIAGE_MODEL_HEAVY: str = os.environ.get("OLLAMA_TRIAGE_MODEL_HEAVY", "gemma4:26b")
+# Qwen 3.5 via Ollama — used for triage, routing, and low-stakes decisions.
+# Replaced Gemma 4 on 2026-08-19: Gemma was the slowest option measured and
+# was stalling the Telegram intent path. Qwen 3.5 is already this file's
+# standard for guardian/scribe/click (BOT_MODELS above), so the local box now
+# serves one model family instead of two.
+# Requires `ollama pull qwen3.5:latest` (and :32b) on the host running Ollama.
+OLLAMA_TRIAGE_MODEL: str = os.environ.get("OLLAMA_TRIAGE_MODEL", "qwen3.5:latest")
+OLLAMA_TRIAGE_MODEL_HEAVY: str = os.environ.get("OLLAMA_TRIAGE_MODEL_HEAVY", "qwen3.5:32b")
+
+# Interactive triage calls (Telegram intent classification) must never hold a
+# user-facing turn for the full OLLAMA_TIMEOUT_S. Past this budget the caller
+# degrades to the regex layer / "unknown" rather than leaving Telegram silent.
+OLLAMA_TRIAGE_TIMEOUT_S: int = int(os.environ.get("OLLAMA_TRIAGE_TIMEOUT_S", "15"))
 
 # ── Telegram ──────────────────────────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN: str  = os.environ.get("TELEGRAM_BOT_TOKEN",   "")

@@ -1304,7 +1304,7 @@ async def _call_llm(*, prompt: str, timeout_s: int = 120,
                      ) -> tuple[int, str, float, str | None]:
     """Margot's LLM call — routed via provider_router for cost control.
 
-    Default role="margot.casual" → cheap tier (OpenRouter Gemma by
+    Default role="margot.casual" → cheap tier (OpenRouter GLM 4.7 Flash by
     default). Phase 2 callers pass role="margot.synthesis" → top tier
     (Anthropic Opus) for quality on research integration.
 
@@ -1473,7 +1473,7 @@ async def handle_turn(*, chat_id: str, user_text: str,
         for marker in ("[RESEARCH", "[TRUTH-CHECK", "[REALTIME")
     )
     # ── Phase 1: draft response ────────────────────────────────────────
-    # role=margot.casual → cheap tier by default (OpenRouter Gemma).
+    # role=margot.casual → cheap tier by default (OpenRouter GLM 4.7 Flash).
     # If the message is clearly research-needing, the Phase 1 model will
     # emit a [RESEARCH] sentinel; Phase 2 then runs on top tier.
     #

@@ -51,8 +51,8 @@ _LINEAR_TEAM_ID = os.environ.get("LINEAR_TEAM_ID", "a8a52f07-63cf-4ece-9ad2-3e3b
 _LINEAR_PROJECT_ID = "f45212be-3259-4bfb-89b1-54c122c939a7"  # Pi - Dev -Ops
 
 # RA-1985 sprinkle #5 / RA-2995 migration — root-cause cluster naming.
-# Routes through provider_router → Ollama Gemma 4 by default (free, local).
-# Falls back to OpenRouter (paid Gemma 4 26B) when Ollama unreachable,
+# Routes through provider_router → Ollama Qwen 3.5 by default (free, local).
+# Falls back to OpenRouter (GLM 4.7 Flash) when Ollama unreachable,
 # falls through to None (-> deterministic naming) on any failure.
 # No direct Anthropic SDK calls — cost-control per RA-2989.
 _CLUSTER_ROLE = "sprinkle.lessons"
@@ -79,7 +79,7 @@ def _sprinkle_log(event: dict) -> None:
 
 
 def _claude_cluster_title(category: str, entries: list[dict]) -> str | None:
-    """Ask the cheap-tier LLM (Ollama Gemma 4 → OpenRouter fallback) for a
+    """Ask the cheap-tier LLM (Ollama Qwen 3.5 → OpenRouter fallback) for a
     <=12-word root-cause title. Routes through provider_router so no direct
     Anthropic SDK calls happen here. Returns None on any failure → caller
     falls back to deterministic category naming.

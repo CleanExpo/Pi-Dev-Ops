@@ -8,7 +8,7 @@ new tickets.
 
 Four protocols:
 
-  1. SCAN     — local Gemma 4 26B (ollama) summarises Perplexity
+  1. SCAN     — local Qwen 3.5 32B (ollama) summarises Perplexity
                 output for the persona's watch-list. Zero cost.
   2. GAP      — OpenRouter Llama 3.3 70B classifies findings against
                 the persona's business charter + current OKRs. Output:
@@ -33,7 +33,7 @@ within the dedup window emits zero new tickets.
 Kill-switch: respects TAO_SWARM_ENABLED env (same gate as senior bots)
 + HARD_STOP file (`app/server/kill_switch.py`).
 
-Cost: SCAN $0 (Gemma 4 local); GAP+PROPOSAL ~$0.001/persona/day
+Cost: SCAN $0 (Qwen 3.5 local); GAP+PROPOSAL ~$0.001/persona/day
 (Llama 3.3 70B AkashML); ESCALATE bounded by sev>=7 rate (rare).
 """
 from __future__ import annotations
@@ -73,7 +73,7 @@ SEV_ESCALATE_MIN: int = 7   # above: ESCALATE protocol fires alongside PROPOSAL
 
 # Models per protocol (RA-1099 + operator directive: OpenRouter open-source
 # first; Anthropic only for hardest tasks)
-SCAN_MODEL: str = os.environ.get("DISCOVERY_SCAN_MODEL", "gemma4:26b")
+SCAN_MODEL: str = os.environ.get("DISCOVERY_SCAN_MODEL", "qwen3.5:32b")
 GAP_MODEL: str = os.environ.get(
     "DISCOVERY_GAP_MODEL", "meta-llama/llama-3.3-70b-instruct"
 )
@@ -369,7 +369,7 @@ def set_perplexity_hook(fn) -> None:
     _PERPLEXITY_HOOK = fn
 
 
-def _summarise_with_gemma(prompt: str, *, timeout_s: int = 120) -> str:
+def _summarise_with_local(prompt: str, *, timeout_s: int = 120) -> str:
     """SCAN-stage summariser. Returns text; "" on any failure (fail-soft)."""
     try:
         from swarm import ollama_client  # noqa: PLC0415
@@ -393,8 +393,8 @@ def _summarise_with_gemma(prompt: str, *, timeout_s: int = 120) -> str:
 def scan(persona: PersonaConfig) -> list[Finding]:
     """Protocol 1 — SCAN. Iterate persona's watch-list, route each query
     through the NotebookLM-first research provider (RA-2027), accumulate
-    Findings. Each Finding is independently summarised by Gemma 4 when
-    no upstream summary is provided (fail-soft when Gemma is offline).
+    Findings. Each Finding is independently summarised by the local model
+    when no upstream summary is provided (fail-soft when Ollama is offline).
 
     The watch-list query format ``[external] <query>`` flags external
     signals — they skip NotebookLM and go straight to Perplexity. All
@@ -423,12 +423,12 @@ def scan(persona: PersonaConfig) -> list[Finding]:
             f.persona_id = persona.persona_id
             f.raw_query = query
             if not f.summary:
-                # Gemma 4 summarises raw research output for this finding
+                # Local model summarises raw research output for this finding
                 blob = (
                     f"Title: {f.title}\nURL: {f.url}\nDate: {f.published_date}\n"
                     f"Source: {f.source}\nQuery: {query}"
                 )
-                f.summary = _summarise_with_gemma(blob)
+                f.summary = _summarise_with_local(blob)
             findings.append(f)
     return findings
 

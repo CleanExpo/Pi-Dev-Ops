@@ -29,7 +29,7 @@ Hooks:
   startup.
 
 The returned list[Finding] flows directly into Discovery's existing
-Protocol 1 hash-dedup / Gemma 4 summarisation / GAP classification.
+Protocol 1 hash-dedup / local-model summarisation / GAP classification.
 """
 from __future__ import annotations
 
