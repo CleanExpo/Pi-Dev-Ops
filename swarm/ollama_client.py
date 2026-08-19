@@ -49,6 +49,11 @@ def chat(
         ],
         "stream": False,
         "options": {"temperature": temperature},
+        # Keep the model resident between calls. Without this Ollama unloads
+        # after 5 minutes, and the next request pays a 20-40s load — long
+        # enough that the interactive triage budget gives up and falls back
+        # to regex on the first message after any idle period.
+        "keep_alive": config.OLLAMA_KEEP_ALIVE,
     }
     if json_format:
         body["format"] = "json"

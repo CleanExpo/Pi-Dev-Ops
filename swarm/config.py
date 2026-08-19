@@ -100,8 +100,16 @@ OLLAMA_TRIAGE_MODEL_HEAVY: str = os.environ.get("OLLAMA_TRIAGE_MODEL_HEAVY", "qw
 # 15s from regex beats one that answers in 40s from the model, and every
 # subsequent message hits a warm model in ~1-3s. Raise this only if you would
 # rather the founder wait than get a regex answer. The real fix for cold starts
-# is an Ollama keep_alive on the host, not a longer budget here.
+# is OLLAMA_KEEP_ALIVE below, which stops the model unloading in the first place.
 OLLAMA_TRIAGE_TIMEOUT_S: int = int(os.environ.get("OLLAMA_TRIAGE_TIMEOUT_S", "15"))
+
+# How long Ollama holds a model in memory after a request. Ollama's own default
+# is 5 minutes, so an assistant that is idle between messages pays a 20-40s
+# reload on the next one — which the 15s interactive budget above would turn
+# into a silent fall back to regex on the first message every time. Holding the
+# model resident removes the cold start instead of budgeting around it.
+# Set to "0" to unload immediately, or "-1" to keep loaded indefinitely.
+OLLAMA_KEEP_ALIVE: str = os.environ.get("OLLAMA_KEEP_ALIVE", "30m")
 
 # ── Telegram ──────────────────────────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN: str  = os.environ.get("TELEGRAM_BOT_TOKEN",   "")

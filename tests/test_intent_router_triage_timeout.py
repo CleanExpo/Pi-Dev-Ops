@@ -46,3 +46,42 @@ def test_classify_llm_degrades_to_base_on_unparseable_output():
     """A small local model emitting prose must not crash the classifier."""
     with patch("swarm.ollama_client.chat", return_value="I think you want a ticket!"):
         assert intent_router.classify_llm("anything", BASE) == BASE
+
+
+def test_ollama_requests_keep_the_model_resident():
+    """The cold start is removed, not budgeted around.
+
+    Ollama unloads a model 5 minutes after its last request by default, so an
+    assistant idle between messages pays a 20-40s reload on the next one — long
+    enough that the 15s interactive budget above would fall back to regex on the
+    first message every single time. keep_alive holds the model in memory so the
+    short budget is the right budget rather than a self-inflicted degradation.
+    """
+    import json
+    from unittest.mock import MagicMock
+
+    from swarm import ollama_client
+
+    captured: dict = {}
+
+    class _Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return json.dumps({"message": {"content": "ok"}}).encode()
+
+    def _fake_urlopen(req, timeout=None):
+        captured["body"] = json.loads(req.data)
+        captured["timeout"] = timeout
+        return _Resp()
+
+    with patch("swarm.ollama_client.urllib.request.urlopen", _fake_urlopen):
+        ollama_client.chat(model="qwen3.5:latest", system="s", user_message="u",
+                           timeout_s=15)
+
+    assert captured["body"]["keep_alive"] == cfg.OLLAMA_KEEP_ALIVE
+    assert captured["timeout"] == 15, "the per-call budget must reach the socket"
