@@ -18,6 +18,19 @@ from . import config
 log = logging.getLogger("swarm.ollama")
 
 
+def _keep_alive_value() -> int | str:
+    """Normalise OLLAMA_KEEP_ALIVE to whichever form the operator wrote.
+
+    Ollama accepts a duration string ("30m", its documented default is "5m")
+    or an integer number of seconds. Passing digits through as an int keeps
+    OLLAMA_KEEP_ALIVE=600 valid without forcing operators to learn one form.
+    """
+    raw = str(config.OLLAMA_KEEP_ALIVE).strip()
+    if raw.lstrip("-").isdigit():
+        return int(raw)
+    return raw
+
+
 def chat(
     model: str,
     system: str,
@@ -53,7 +66,12 @@ def chat(
         # after 5 minutes, and the next request pays a 20-40s load — long
         # enough that the interactive triage budget gives up and falls back
         # to regex on the first message after any idle period.
-        "keep_alive": config.OLLAMA_KEEP_ALIVE,
+        #
+        # Ollama documents the default as "5m", so a duration string is the
+        # native form, but the API also accepts a bare number of seconds.
+        # Send whichever the operator configured rather than assuming: a
+        # digits-only value goes as an int, anything else as the string.
+        "keep_alive": _keep_alive_value(),
     }
     if json_format:
         body["format"] = "json"

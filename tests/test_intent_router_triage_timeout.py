@@ -85,3 +85,50 @@ def test_ollama_requests_keep_the_model_resident():
 
     assert captured["body"]["keep_alive"] == cfg.OLLAMA_KEEP_ALIVE
     assert captured["timeout"] == 15, "the per-call budget must reach the socket"
+
+
+def test_keep_alive_accepts_both_a_duration_string_and_bare_seconds():
+    """Ollama documents "5m" as its default but also takes an integer.
+
+    Operators write either; neither should reach the API in the wrong type.
+    """
+    from swarm import ollama_client
+
+    for raw, expected in [("30m", "30m"), ("5m", "5m"), ("600", 600),
+                          ("0", 0), ("-1", -1)]:
+        with patch.object(ollama_client.config, "OLLAMA_KEEP_ALIVE", raw):
+            assert ollama_client._keep_alive_value() == expected
+
+
+def test_existing_batch_callers_keep_the_long_default_timeout():
+    """chat()'s new timeout_s is keyword-only with a default.
+
+    The six batch callers (wiki_ingest, wiki_lint, wiki_query, analyst,
+    fix_orchestrator, discovery) never pass it and must still get the long
+    budget, not the interactive one.
+    """
+    import json
+
+    from swarm import ollama_client
+
+    seen: dict = {}
+
+    class _Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return json.dumps({"message": {"content": "ok"}}).encode()
+
+    def _fake_urlopen(req, timeout=None):
+        seen["timeout"] = timeout
+        return _Resp()
+
+    with patch("swarm.ollama_client.urllib.request.urlopen", _fake_urlopen):
+        ollama_client.chat(model="qwen3.5:latest", system="s", user_message="u")
+
+    assert seen["timeout"] == cfg.OLLAMA_TIMEOUT_S
+    assert seen["timeout"] != cfg.OLLAMA_TRIAGE_TIMEOUT_S
