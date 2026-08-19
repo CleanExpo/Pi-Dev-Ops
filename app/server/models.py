@@ -79,6 +79,22 @@ class TriggerRequest(BaseModel):
         return v
 
 
+class GoalTicketRequest(BaseModel):
+    """Goal → Linear: required fields only. No autonomy markers."""
+
+    goal: str
+    repo: str
+    acceptance: str
+
+    @field_validator("goal", "repo", "acceptance")
+    @classmethod
+    def strip_required(cls, v: str) -> str:
+        v = (v or "").strip()
+        if not v:
+            raise ValueError("field cannot be empty")
+        return v
+
+
 class LessonRequest(BaseModel):
     source: str = "manual"
     category: str = "general"

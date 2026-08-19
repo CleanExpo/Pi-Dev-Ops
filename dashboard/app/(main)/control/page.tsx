@@ -7,6 +7,7 @@ import SwarmPanel from "@/components/control/SwarmPanel";
 import ModelBadge from "@/components/control/ModelBadge";
 import HealthGrid from "@/components/control/HealthGrid";
 import BuildForm from "@/components/control/BuildForm";
+import GoalTicketForm from "@/components/control/GoalTicketForm";
 import RoutineTable from "@/components/control/RoutineTable";
 import ActiveBuildStrip from "@/components/control/ActiveBuildStrip";
 import LiveActivityFeed from "@/components/control/LiveActivityFeed";
@@ -65,6 +66,7 @@ export default function ControlPage() {
               </h2>
             </header>
             <div className="flex-1 overflow-auto p-4 flex flex-col gap-4 min-h-0">
+              <GoalTicketForm />
               <BuildForm />
               <div className="flex-1 min-h-0 flex flex-col">
                 <RoutineTable />
