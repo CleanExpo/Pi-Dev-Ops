@@ -88,8 +88,12 @@ def test_build_body_disables_reasoning():
 
 
 def test_extract_text_falls_back_to_reasoning_when_content_is_null():
+    """The measured DeepInfra/GLM shape: clean stop, null content, real answer."""
     response = {
-        "choices": [{"message": {"content": None, "reasoning": '{"intent":"ticket"}'}}],
+        "choices": [{
+            "finish_reason": "stop",
+            "message": {"content": None, "reasoning": '{"intent":"ticket"}'},
+        }],
     }
     assert POR._extract_text(response) == '{"intent":"ticket"}'
 
@@ -144,12 +148,18 @@ def test_extract_text_ignores_reasoning_on_any_unclean_finish():
         assert POR._extract_text(response) == "", finish
 
 
-def test_extract_text_uses_reasoning_when_provider_omits_finish_reason():
-    """Providers that never send finish_reason must not lose their answer."""
+def test_extract_text_ignores_reasoning_when_finish_reason_is_absent():
+    """Silence is not proof the model finished.
+
+    A provider that never reports finish_reason gives us no evidence the trace
+    is complete, so it does not earn the fallback. Returning a possibly-partial
+    thought as the answer would be a failed read dressed as a successful one;
+    an empty string reaches the caller honestly as openrouter_empty_response.
+    """
     response = {
         "choices": [{"message": {"content": None, "reasoning": '{"intent":"ticket"}'}}],
     }
-    assert POR._extract_text(response) == '{"intent":"ticket"}'
+    assert POR._extract_text(response) == ""
 
 
 def test_extract_text_uses_reasoning_when_model_finished():

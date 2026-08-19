@@ -99,12 +99,14 @@ def _extract_text(response: dict[str, Any]) -> str:
     # glm-4.7-flash at max_tokens=120. Returning that would hand the caller a
     # chain-of-thought dressed as a result, which is worse than a clean empty.
     #
-    # Allowlist rather than denylist: "length" is the truncation case we
-    # measured, but content_filter, error and any reason a provider invents
-    # later are all "the model did not finish saying this". Only a clean stop
-    # (or a provider that omits the field entirely) earns the fallback.
-    finish = choice.get("finish_reason")
-    if finish not in (None, "", "stop"):
+    # Allowlist rather than denylist, and an ABSENT finish_reason does not
+    # earn the fallback either. "length" is the truncation case we measured,
+    # but content_filter, error, and a provider that simply never says whether
+    # it finished are all "no evidence this thought was completed". Returning
+    # a half-finished trace as the answer would be a failed read rendering as
+    # a successful one; an empty string surfaces honestly to the caller as
+    # openrouter_empty_response instead.
+    if choice.get("finish_reason") != "stop":
         return ""
     return msg.get("reasoning") or ""
 

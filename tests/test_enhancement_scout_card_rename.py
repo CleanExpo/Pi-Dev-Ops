@@ -45,3 +45,18 @@ def test_source_names_the_card_actually_read():
 
 def test_returns_empty_when_no_card_exists_at_all():
     assert _scan_with_card("unrelated.md") == []
+
+
+def test_current_card_wins_when_both_exist():
+    """Precedence must be unambiguous, not filesystem-order dependent."""
+    with tempfile.TemporaryDirectory() as d:
+        root = pathlib.Path(d)
+        (root / "cheap-model-cost-strategy.md").write_text(
+            "### 1. Current card\n", encoding="utf-8")
+        (root / "gemma4-cost-strategy.md").write_text(
+            "### 1. Legacy card\n### 2. Legacy second\n", encoding="utf-8")
+        with patch.object(ES, "_wiki_dir", return_value=root):
+            items = ES._scan_cheap_model_opportunities()
+
+    assert [i["source"] for i in items] == ["cheap-model-cost-strategy.md"]
+    assert "Current card" in items[0]["text"]
