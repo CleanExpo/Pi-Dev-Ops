@@ -84,11 +84,23 @@ def _extract_text(response: dict[str, Any]) -> str:
     choices = response.get("choices") or []
     if not choices:
         return ""
-    msg = choices[0].get("message") or {}
+    choice = choices[0]
+    msg = choice.get("message") or {}
+    content = msg.get("content") or ""
+    if content:
+        return content
     # Some providers (Cloudflare/DeepInfra serving GLM, Nemotron) put the
     # answer in ``reasoning`` and leave ``content`` null. Falling back keeps
     # a valid response from being reported as openrouter_empty_response.
-    return (msg.get("content") or "") or (msg.get("reasoning") or "")
+    #
+    # But only when the model actually finished. finish_reason "length" means
+    # the budget ran out mid-trace, so ``reasoning`` holds a partial thought
+    # ("1. **Analyze the Request:** ...") rather than an answer — measured on
+    # glm-4.7-flash at max_tokens=120. Returning that would hand the caller a
+    # chain-of-thought dressed as a result, which is worse than a clean empty.
+    if choice.get("finish_reason") == "length":
+        return ""
+    return msg.get("reasoning") or ""
 
 
 def _extract_cost_usd(response: dict[str, Any]) -> float:

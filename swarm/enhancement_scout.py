@@ -106,6 +106,10 @@ def _scan_cheap_model_opportunities() -> list[dict]:
     """Find tasks still on paid APIs that could move to the cheap tier."""
     p = _wiki_dir() / "cheap-model-cost-strategy.md"
     if not p.exists():
+        # Renamed from gemma4-cost-strategy.md on 2026-08-19. The card lives in
+        # the vault, not this repo, so a machine that has not synced the rename
+        # finds nothing — say so rather than returning [] as if it had looked.
+        log.debug("enhancement_scout: no cost-strategy card at %s", p)
         return []
     content = p.read_text(encoding="utf-8")
     items = []

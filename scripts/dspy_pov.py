@@ -31,7 +31,13 @@ from app.server.agents import feedback_eval as fe  # noqa: E402
 
 DATASET = "docs/experiments/2026-07-01-feedback-loop-eval/dataset.jsonl"
 RESULT_JSON = "docs/experiments/2026-07-01-feedback-loop-eval/dspy_result.json"
-MODEL = "openrouter/z-ai/glm-4.7-flash"  # same model as the baseline run
+# Pinned to the model that produced the recorded baseline in
+# docs/experiments/2026-07-01-feedback-loop-eval/dspy_result.json. This is a
+# historical reproduction script, NOT a live routing default — Gemma 4 was
+# retired from all routing on 2026-08-19, but changing the string here would
+# silently invalidate the recorded result. Override to re-baseline:
+#   DSPY_POV_MODEL=openrouter/z-ai/glm-4.7-flash python3 scripts/dspy_pov.py
+MODEL = os.environ.get("DSPY_POV_MODEL", "openrouter/google/gemma-4-26b-a4b-it")
 FALLBACK_COST_USD = 0.0005  # conservative; measured baseline ≈ $0.000025/call
 HOLDOUT_PER_CLASS = 4  # 36 cases → 24 train / 12 dev
 

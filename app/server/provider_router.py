@@ -96,6 +96,7 @@ DEFAULT_CHEAP_LOCAL_MODEL = "qwen3.5:latest"
 #
 # Zero-cost alternatives (override via TAO_CHEAP_REMOTE_MODEL):
 #   nvidia/nemotron-3-super-120b-a12b:free — verified $0, 3/3 then 6/6 clean.
+#     Set TAO_CHEAP_REMOTE_MODEL to this id to run the cheap tier at zero cost.
 #   z-ai/glm-4.7-flash direct from Z.ai    — the SAME model at $0/$0 on Z.ai's
 #     standing free tier (api.z.ai, OpenAI-compatible, ~1 req/s). Needs a Z.ai
 #     key; see DEFAULT_CHEAP_FREE_MODEL note below.
@@ -105,8 +106,6 @@ DEFAULT_CHEAP_LOCAL_MODEL = "qwen3.5:latest"
 # path. qwen/qwen3-next-80b-a3b-instruct:free now 404s; its free tier is gone.
 DEFAULT_CHEAP_REMOTE_MODEL = "z-ai/glm-4.7-flash"
 
-# Verified-$0 fallback, used when TAO_CHEAP_FREE_ONLY=1 is set.
-DEFAULT_CHEAP_FREE_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
 
 # Role → tier mapping (top/mid/cheap). Roles not listed default to "mid".
 ROLE_TIER: dict[str, str] = {

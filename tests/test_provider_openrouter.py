@@ -104,6 +104,41 @@ def test_extract_text_prefers_content_over_reasoning():
     assert POR._extract_text(response) == "the answer"
 
 
+def _extract_text_of(response):
+    return POR._extract_text(response)
+
+
+def test_extract_text_ignores_reasoning_when_response_was_truncated():
+    """A truncated trace is a partial thought, not an answer.
+
+    finish_reason "length" means the token budget ran out mid-reasoning.
+    Measured on glm-4.7-flash at max_tokens=120: reasoning held
+    '1.  **Analyze the Request:** ...' and content was null. Returning that
+    would hand the caller a chain-of-thought dressed as a result.
+    """
+    response = {
+        "choices": [{
+            "finish_reason": "length",
+            "message": {
+                "content": None,
+                "reasoning": "1.  **Analyze the Request:** the user wants",
+            },
+        }],
+    }
+    assert _extract_text_of(response) == ""
+
+
+def test_extract_text_uses_reasoning_when_model_finished():
+    """The same shape with a clean stop IS the answer, so it must come back."""
+    response = {
+        "choices": [{
+            "finish_reason": "stop",
+            "message": {"content": None, "reasoning": '{"intent":"ticket"}'},
+        }],
+    }
+    assert _extract_text_of(response) == '{"intent":"ticket"}'
+
+
 def test_extract_text_empty_when_neither_content_nor_reasoning():
     """Both empty must still be empty — the fallback must not invent text.
 
