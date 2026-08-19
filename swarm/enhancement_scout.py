@@ -107,16 +107,25 @@ def _scan_cheap_model_opportunities() -> list[dict]:
     p = _wiki_dir() / "cheap-model-cost-strategy.md"
     if not p.exists():
         # Renamed from gemma4-cost-strategy.md on 2026-08-19. The card lives in
-        # the vault, not this repo, so a machine that has not synced the rename
-        # finds nothing — say so rather than returning [] as if it had looked.
-        log.debug("enhancement_scout: no cost-strategy card at %s", p)
-        return []
+        # the vault, not this repo, so a host that has not synced the rename
+        # would otherwise scan nothing and report that as "no opportunities".
+        # Read the old name while the fleet catches up.
+        legacy = _wiki_dir() / "gemma4-cost-strategy.md"
+        if legacy.exists():
+            log.warning(
+                "enhancement_scout: reading legacy card %s — rename it to %s",
+                legacy.name, p.name,
+            )
+            p = legacy
+        else:
+            log.debug("enhancement_scout: no cost-strategy card at %s", p)
+            return []
     content = p.read_text(encoding="utf-8")
     items = []
     import re  # noqa: PLC0415
     for match in re.finditer(r'###\s+\d+\.\s+(.+)\n', content):
         items.append({
-            "source": "cheap-model-cost-strategy.md",
+            "source": p.name,
             "text": f"Migrate to cheap tier: {match.group(1).strip()[:80]}",
             "urgency": "medium",
         })
