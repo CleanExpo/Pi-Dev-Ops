@@ -31,13 +31,28 @@ from app.server.agents import feedback_eval as fe  # noqa: E402
 
 DATASET = "docs/experiments/2026-07-01-feedback-loop-eval/dataset.jsonl"
 RESULT_JSON = "docs/experiments/2026-07-01-feedback-loop-eval/dspy_result.json"
-# Pinned to the model that produced the recorded baseline in
-# docs/experiments/2026-07-01-feedback-loop-eval/dspy_result.json. This is a
-# historical reproduction script, NOT a live routing default — Gemma 4 was
-# retired from all routing on 2026-08-19, but changing the string here would
-# silently invalidate the recorded result. Override to re-baseline:
-#   DSPY_POV_MODEL=openrouter/z-ai/glm-4.7-flash python3 scripts/dspy_pov.py
-MODEL = os.environ.get("DSPY_POV_MODEL", "openrouter/google/gemma-4-26b-a4b-it")
+
+
+def _recorded_baseline_model(default: str = "openrouter/google/gemma-4-26b-a4b-it") -> str:
+    """Read the model that produced the recorded result, from that result.
+
+    This script reproduces a fixed experiment, so its model is a property of
+    RESULT_JSON rather than a routing choice — Gemma 4 was retired from all
+    live routing on 2026-08-19, but rewriting the string here would silently
+    invalidate the numbers it is meant to reproduce. Sourcing it from the
+    record means the two can never disagree.
+
+    Override to re-baseline against a current model:
+        DSPY_POV_MODEL=openrouter/z-ai/glm-4.7-flash python3 scripts/dspy_pov.py
+    """
+    try:
+        with open(Path(__file__).resolve().parents[1] / RESULT_JSON) as fh:
+            return json.load(fh).get("model") or default
+    except (OSError, ValueError):
+        return default
+
+
+MODEL = os.environ.get("DSPY_POV_MODEL") or _recorded_baseline_model()
 FALLBACK_COST_USD = 0.0005  # conservative; measured baseline ≈ $0.000025/call
 HOLDOUT_PER_CLASS = 4  # 36 cases → 24 train / 12 dev
 
