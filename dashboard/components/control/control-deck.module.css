@@ -275,3 +275,12 @@
   border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
   background: var(--accent-subtle);
 }
+
+.diagram {
+  margin: 0.5rem 0 0;
+  white-space: pre-wrap;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text);
+}
