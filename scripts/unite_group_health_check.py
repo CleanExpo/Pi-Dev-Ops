@@ -203,14 +203,22 @@ def parse_iso(ts: str | None) -> _dt.datetime | None:
 
 
 def prior_run() -> dict[str, Any] | None:
-    """Load the most recent JSON report prior to this run."""
+    """Load the most recent JSON report prior to this run.
+
+    The shape check is not decoration. `json.loads("5")` succeeds, so a truncated or
+    clobbered record parses cleanly into an int, and every caller then does
+    `prior.get(...)` — an AttributeError that the top-level handler turns into
+    `FATAL ... exit 2`, skipping the entire hour's health check. A corrupt record
+    means "no usable prior run", not "no health check today".
+    """
     files = sorted(glob.glob(str(LOG_DIR / "unite-group-*.json")))
     if not files:
         return None
     try:
-        return json.loads(Path(files[-1]).read_text())
+        record = json.loads(Path(files[-1]).read_text())
     except Exception:
         return None
+    return record if isinstance(record, dict) else None
 
 
 # ── check primitives ───────────────────────────────────────────────────────────
@@ -234,6 +242,11 @@ def should_resurface(tier1_failing: list[str]) -> tuple[bool, str]:
         state = json.loads(ALERT_STATE.read_text())
     except (OSError, ValueError):
         return True, "no prior alert state"
+    if not isinstance(state, dict):
+        # A bare scalar is valid JSON, so it slips past the decode guard above and
+        # reaches `.get()`. Unreadable state already means "alert" — a corrupt file
+        # must take the same route, not crash the run that was about to alert.
+        return True, "unreadable alert state"
     if sorted(state.get("signature") or []) != current:
         return True, "failing set changed"
     try:

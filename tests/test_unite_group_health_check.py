@@ -135,3 +135,38 @@ def test_growth_beyond_slack_still_fails(monkeypatch):
     )
 
     assert total_check(health.check_supabase_advisors({}))["status"] == "FAIL"
+
+
+# ── a corrupt state file must not abort the whole run ──────────────────────────
+# `json.loads("5")` succeeds, so a clobbered store slips past the decode guard and
+# reaches `.get()`. The AttributeError is caught by the top-level handler as
+# `FATAL ... exit 2` — the hour's health check is skipped entirely, and a monitor that
+# dies on bad input reports nothing about anything.
+@pytest.mark.parametrize("payload", ["5", '"clobbered"', "null", "[1, 2, 3]"])
+def test_corrupt_alert_state_alerts_instead_of_crashing(monkeypatch, tmp_path, payload):
+    state = tmp_path / "alert-state.json"
+    state.write_text(payload)
+    monkeypatch.setattr(health, "ALERT_STATE", state)
+
+    resurface, why = health.should_resurface(["unite api/health"])
+
+    assert resurface is True
+    assert why
+
+
+@pytest.mark.parametrize("payload", ["5", '"clobbered"', "null", "[1, 2, 3]"])
+def test_corrupt_prior_record_reads_as_absent(monkeypatch, tmp_path, payload):
+    (tmp_path / "unite-group-2026-08-21T000000.json").write_text(payload)
+    monkeypatch.setattr(health, "LOG_DIR", tmp_path)
+
+    assert health.prior_run() is None
+
+
+def test_a_valid_prior_record_is_still_loaded(monkeypatch, tmp_path):
+    """Negative control: the guard must not make every prior run look absent."""
+    (tmp_path / "unite-group-2026-08-21T000000.json").write_text(
+        '{"started": "2026-08-21T00:00:00+00:00", "checks": []}'
+    )
+    monkeypatch.setattr(health, "LOG_DIR", tmp_path)
+
+    assert health.prior_run()["started"] == "2026-08-21T00:00:00+00:00"
