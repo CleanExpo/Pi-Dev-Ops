@@ -51,6 +51,12 @@
     <string>/Users/phill-mac/.hermes</string>
   </dict>
 
+  <!-- The script self-limits to a 300s wall-clock budget; ExitTimeOut gives
+       launchd a hard stop 60s past that, so a wedged run can never hold the
+       daily slot open indefinitely. Without it launchd waits forever. -->
+  <key>ExitTimeOut</key>
+  <integer>360</integer>
+
   <key>ProcessType</key>
   <string>Background</string>
 </dict>

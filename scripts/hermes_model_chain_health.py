@@ -66,6 +66,16 @@ import urllib.request
 HERMES = os.path.expanduser("~/.hermes")
 OPENROUTER = "https://openrouter.ai/api/v1/chat/completions"
 
+# Per-probe timeout. Measured latencies for these models are 0.3-2.0s, so 30s is
+# already ~15x headroom; the previous 90s bought nothing. It matters because the
+# worst case is multiplicative: 6 profiles x up to 3 entries, so 90s per probe put
+# the ceiling near 27 minutes of a hung run holding the daily slot.
+PROBE_TIMEOUT_S = 30
+# Hard wall-clock ceiling for the whole run. Past this, remaining entries are
+# reported as unprobed rather than the run hanging indefinitely — launchd has no
+# way to know the difference between "slow" and "wedged".
+RUN_BUDGET_S = 300
+
 
 def read_key() -> str | None:
     try:
@@ -132,7 +142,7 @@ def probe(provider: str, model: str, key: str) -> tuple[bool | None, str]:
     )
     t0 = time.time()
     try:
-        d = json.loads(urllib.request.urlopen(req, timeout=90).read())
+        d = json.loads(urllib.request.urlopen(req, timeout=PROBE_TIMEOUT_S).read())
     except urllib.error.HTTPError as exc:
         return False, f"HTTP {exc.code} {exc.read()[:120].decode(errors='ignore')}"
     except Exception as exc:  # noqa: BLE001
@@ -173,13 +183,17 @@ def main() -> int:
     report: dict[str, dict] = {}
     failed_profiles = []
     unverified_profiles = []
+    started = time.time()
     for name, chain in chains.items():
         entries = []
         any_ok = False
         any_probed = False
         all_probed = True
         for provider, model in chain:
-            ok, detail = probe(provider, model, key)
+            if time.time() - started > RUN_BUDGET_S:
+                ok, detail = None, f"NOT PROBED (run exceeded {RUN_BUDGET_S}s budget)"
+            else:
+                ok, detail = probe(provider, model, key)
             if ok is None:
                 all_probed = False
             else:
