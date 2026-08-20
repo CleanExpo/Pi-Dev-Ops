@@ -1,6 +1,6 @@
 """Pydantic request models for the Pi CEO API (RA-937)."""
 from typing import Literal
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class BuildRequest(BaseModel):
@@ -77,6 +77,69 @@ class TriggerRequest(BaseModel):
         if v is not None and not (0 <= v <= 23):
             raise ValueError("hour must be 0-23")
         return v
+
+
+class GoalTicketRequest(BaseModel):
+    """Goal → Linear: required fields only. No autonomy markers."""
+
+    goal: str
+    repo: str
+    acceptance: str
+
+    @field_validator("goal", "repo", "acceptance")
+    @classmethod
+    def strip_required(cls, v: str) -> str:
+        v = (v or "").strip()
+        if not v:
+            raise ValueError("field cannot be empty")
+        return v
+
+
+class GoalDraft(BaseModel):
+    """One proposed ticket. Filed only after explicit approval."""
+
+    model_config = ConfigDict(extra="allow")
+
+    title: str
+    goal: str
+    acceptance: str
+    rationale: str = ""
+    context: str = ""
+    user_story: str = ""
+    current_behaviour: str = ""
+    expected_behaviour: str = ""
+    technical_requirements: str = ""
+    edge_cases: str = ""
+    testing: str = ""
+    dependencies: str = ""
+    ticket_id: str = ""
+    priority: str = ""
+    summary: str = ""
+    scope: str = ""
+    user_flow: str = ""
+    technical_flow: str = ""
+    examples: str = ""
+    implementation_notes: str = ""
+    risks: str = ""
+    review: str = ""
+    ui_ux: str = ""
+    data_state: str = ""
+    affected_surfaces: str = ""
+
+    @field_validator("title", "goal", "acceptance")
+    @classmethod
+    def strip_draft(cls, v: str) -> str:
+        v = (v or "").strip()
+        if not v:
+            raise ValueError("field cannot be empty")
+        return v
+
+
+class GoalTicketFileRequest(GoalTicketRequest):
+    """Linear write. `approved` must be true; tickets are the reviewed drafts."""
+
+    approved: bool
+    tickets: list[GoalDraft]
 
 
 class LessonRequest(BaseModel):

@@ -240,7 +240,7 @@ export default function OverviewPage() {
           </p>
         </div>
         <Link
-          href="/control"
+          href="/control/build"
           className="text-xs font-medium px-3 py-1.5 rounded-md transition-colors"
           style={{ background: "var(--accent)", color: "var(--on-accent)" }}
         >
@@ -347,7 +347,7 @@ export default function OverviewPage() {
                     No active builds.
                   </p>
                   <Link
-                    href="/control"
+                    href="/control/build"
                     className="text-xs mt-1"
                     style={{ color: "var(--accent)" }}
                   >

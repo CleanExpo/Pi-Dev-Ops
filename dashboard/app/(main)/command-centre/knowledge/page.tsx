@@ -12,6 +12,7 @@ import Link from 'next/link'
 import { Chakra_Petch, Syne, JetBrains_Mono } from 'next/font/google'
 import { getToolCatalogue } from '@/lib/command-centre/tools/catalogue'
 import { WikiGraphTile } from '@/components/command-centre/wiki-graph/WikiGraphTile'
+import { IntentCatalogTile } from '@/components/command-centre/youtube-intent/IntentCatalogTile'
 import { DeckDetails, DeckMoreLine, DECK_LIST_CAP } from '@/components/command-centre/DeckDetails'
 import { DeckThemeShell } from '@/components/command-centre/DeckThemeShell'
 import { railFor } from '@/components/command-centre/deck-visual-helpers'
@@ -67,6 +68,10 @@ export default async function KnowledgeDeckPage() {
       {/* Wiki Graph (UNI-2304) — knowledge-base graph summary + link to full view. */}
       <section className={`${styles.reveal}`} style={{ animationDelay: '0.02s' }}>
         <WikiGraphTile />
+      </section>
+
+      <section className={`${styles.reveal}`} style={{ animationDelay: '0.03s' }}>
+        <IntentCatalogTile />
       </section>
 
       {/* ── Capability bus — canvas register (UNI-2339 slice 2) ──────── */}

@@ -1,12 +1,15 @@
 # dashboard — Wiki
 
-_Last updated: 2026-08-09T12:37:34Z (commits 9f9a857..da2bfb2)_
+_Last updated: 2026-08-20T04:38:06Z (commits 3da053e..9100adc)_
 
 ## Recent changes
-- da2bfb2 — docs(command-centre): fix stale provenance prose after the Supabase client swap (#635)
+- 9100adc — feat: add intent-only YouTube catalog for UG-N Nexus (#650)
 
 ## Architecture (current)
 Auto-stub: `dashboard/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- dashboard/__tests__/command-centre-provenance.json — touched in recent commits
+- dashboard/app/(main)/command-centre/knowledge/page.tsx — touched in recent commits
+- dashboard/app/(main)/command-centre/youtube-intent/page.tsx — touched in recent commits
+- dashboard/app/api/command-centre/youtube-intent/route.ts — touched in recent commits
+- dashboard/components/command-centre/youtube-intent/IntentCatalogTile.tsx — touched in recent commits

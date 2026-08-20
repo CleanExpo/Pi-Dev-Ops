@@ -1,9 +1,9 @@
 # .github — Wiki
 
-_Last updated: 2026-08-14T04:45:50Z (commits 4ef1c6c..7b94abc)_
+_Last updated: 2026-08-20T05:09:46Z (commits 9b350b8..9a97a42)_
 
 ## Recent changes
-- 7b94abc — feat(metrics): rollback telemetry detectors, C1 re-point, SDK cost [RA-7216 phases 2-7] (#643)
+- 9a97a42 — feat: add direct YouTube OAuth connector + Takeout import (#651)
 
 ## Architecture (current)
 Auto-stub: `.github/` had 1 recent commits. SDK unavailable for synthesis.

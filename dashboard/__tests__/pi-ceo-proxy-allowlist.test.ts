@@ -11,7 +11,8 @@
  * silently widen the gate into a catch-all again.
  */
 import { describe, it, expect } from "vitest";
-import { allowed } from "@/app/api/pi-ceo/[...path]/route";
+import { allowed } from "@/lib/pi-ceo-proxy-allowlist";
+import { PROXY_ANALYZE_MS, PROXY_DEFAULT_MS, proxyAbortPayload, proxyTimeoutMs } from "@/lib/pi-ceo-proxy-timeout";
 
 describe("pi-ceo proxy ALLOWED_UPSTREAM", () => {
   it("admits every auth:true route the smoke suite depends on", () => {
@@ -36,6 +37,8 @@ describe("pi-ceo proxy ALLOWED_UPSTREAM", () => {
       "/api/sessions/abc123/resume",
       "/api/spec-pipeline",
       "/api/mission-control/live",
+      "/api/goal-ticket",
+      "/api/goal-ticket/analyze",
     ];
     for (const path of legitimate) {
       expect(allowed(path), `expected ${path} to be allowed`).toBe(true);
@@ -58,5 +61,21 @@ describe("pi-ceo proxy ALLOWED_UPSTREAM", () => {
   it("compares the path only — a query string cannot widen what is reachable", () => {
     expect(allowed("/api/autonomy/status?x=1")).toBe(true);
     expect(allowed("/api/login?path=/api/autonomy/status")).toBe(false);
+  });
+
+  it("gives goal analyze a long enough window that a 25s LLM call is not a 502", () => {
+    expect(proxyTimeoutMs("/api/goal-ticket/analyze")).toBe(PROXY_ANALYZE_MS);
+    expect(proxyTimeoutMs("/api/goal-ticket/analyze?x=1")).toBe(PROXY_ANALYZE_MS);
+    expect(proxyTimeoutMs("/api/goal-ticket")).toBe(PROXY_DEFAULT_MS);
+    expect(proxyTimeoutMs("/api/health")).toBe(PROXY_DEFAULT_MS);
+    expect(PROXY_ANALYZE_MS).toBeGreaterThan(25_000);
+  });
+
+  it("names a timeout distinctly from unreachable so analyze is not a fake 502", () => {
+    const timed = proxyAbortPayload({ name: "TimeoutError" });
+    expect(timed.status).toBe(504);
+    expect(timed.error).toMatch(/timed out/i);
+    const down = proxyAbortPayload(new Error("connect"));
+    expect(down.status).toBe(502);
   });
 });
