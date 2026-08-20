@@ -3,6 +3,15 @@
 // Handles auth transparently — clients never see Pi CEO credentials.
 // SSE paths (/api/sessions/*/logs and /api/sessions/*/stream) are streamed without timeout.
 
+import {
+  PROXY_LOGIN_MS,
+  PROXY_MAX_DURATION_S,
+  proxyAbortPayload,
+  proxyTimeoutMs,
+} from "@/lib/pi-ceo-proxy-timeout";
+
+export const maxDuration = PROXY_MAX_DURATION_S;
+
 const PI_CEO_URL = (process.env.PI_CEO_URL ?? "http://127.0.0.1:7777").replace(/\/$/, "");
 const PI_CEO_PASSWORD = process.env.PI_CEO_PASSWORD ?? "";
 
@@ -91,6 +100,7 @@ async function getAuthCookie(): Promise<string | null> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ password: PI_CEO_PASSWORD }),
+      signal: AbortSignal.timeout(PROXY_LOGIN_MS),
     });
     if (!res.ok) return null;
     const setCookie = res.headers.get("set-cookie");
@@ -117,21 +127,28 @@ async function proxyRequest(method: string, path: string, body?: string): Promis
   };
 
   const upstream = `${PI_CEO_URL}${path}`;
+  const timeoutMs = proxyTimeoutMs(path);
 
-  // 10 s was too short for Railway cold-start — RA-1699 smoke test
-  // (`GET /api/pi-ceo/api/routines?limit=1`) returned 502 because the
-  // upstream container hadn't booted by the time AbortSignal fired.
-  // Bumped to 25 s, which sits inside Vercel's default 30 s function
-  // limit while giving Railway enough headroom for a cold boot.
+  // Default 25 s covers Railway cold-start (RA-1699). Goal analyze is an LLM
+  // call and needs the longer window — 25 s returned 502 "unreachable" on Vercel
+  // while the model was still running.
   const doFetch = () =>
-    fetch(upstream, { method, headers, body, signal: AbortSignal.timeout(25_000) });
+    fetch(upstream, { method, headers, body, signal: AbortSignal.timeout(timeoutMs) });
 
-  let res = await doFetch().catch(() => null);
+  let timedOut: ReturnType<typeof proxyAbortPayload> | null = null;
+  let res = await doFetch().catch((err: unknown) => {
+    timedOut = proxyAbortPayload(err);
+    return null;
+  });
   if (!res) {
+    const fail = timedOut ?? proxyAbortPayload(new Error("unreachable"));
     if (method === "GET") {
-      return quietFallback(path, "Pi CEO server unreachable");
+      return quietFallback(path, fail.error, fail.status);
     }
-    return Response.json({ error: "Pi CEO server unreachable" }, { status: 502 });
+    return Response.json(
+      { error: fail.error, hint: fail.hint },
+      { status: fail.status },
+    );
   }
 
   // On 401 — session cookie expired, re-login once
