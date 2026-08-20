@@ -690,6 +690,33 @@
       "expected_status": 200,
       "body_contains": ["policy"],
       "_comment": "PR #650: FastAPI intent-policy route surfaced through dashboard proxy."
+    },
+    {
+      "name": "proxy-youtube-intent-oauth-start",
+      "path": "/api/pi-ceo/api/nexus/youtube-intent/oauth/start",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": ["configured", "state", "scope"],
+      "_comment": "Direct YouTube connector bootstrap endpoint. Always responds 200 with either an auth_url or missing-config report."
+    },
+    {
+      "name": "proxy-youtube-intent-oauth-state",
+      "path": "/api/pi-ceo/api/nexus/youtube-intent/oauth/state",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": ["connected", "scope"],
+      "_comment": "Direct YouTube connector state for dashboard/control surfaces."
+    },
+    {
+      "name": "proxy-youtube-intent-import-takeout",
+      "path": "/api/pi-ceo/api/nexus/youtube-intent/import-takeout",
+      "method": "POST",
+      "auth": true,
+      "expected_status": 422,
+      "body": {},
+      "_comment": "Connector import surface exists and validates payload shape. Empty payload is intentionally rejected with 422."
     }
   ],
   "vertical": {
