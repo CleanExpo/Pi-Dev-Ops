@@ -663,6 +663,33 @@
       "expected_status": 200,
       "body_contains": ["sessions"],
       "_comment": "#609: GET returns NextResponse.json({ sessions })."
+    },
+    {
+      "name": "cc-youtube-intent-summary",
+      "path": "/api/command-centre/youtube-intent",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": ["acceptedCount", "excludedCount", "boardUrl"],
+      "_comment": "PR #650: intent-only UG-N YouTube catalog summary for the Knowledge deck tile and /command-centre/youtube-intent page."
+    },
+    {
+      "name": "cc-youtube-intent-page",
+      "path": "/command-centre/youtube-intent",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": ["UG-N Intent-Only YouTube Catalog"],
+      "_comment": "PR #650: dedicated command-centre surface for persona/pathway output from strategic YouTube signals."
+    },
+    {
+      "name": "proxy-youtube-intent-policy",
+      "path": "/api/pi-ceo/api/nexus/youtube-intent/policy",
+      "method": "GET",
+      "auth": true,
+      "expected_status": 200,
+      "body_contains": ["policy"],
+      "_comment": "PR #650: FastAPI intent-policy route surfaced through dashboard proxy."
     }
   ],
   "vertical": {
