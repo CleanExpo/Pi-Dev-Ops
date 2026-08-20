@@ -89,7 +89,7 @@ def test_margot_casual_routes_to_cheap_remote_when_ollama_unreachable():
 
 
 def test_margot_casual_routes_to_ollama_when_reachable(monkeypatch):
-    """When Ollama probe returns True, cheap tier → ollama:gemma4:latest."""
+    """When Ollama probe returns True, cheap tier → ollama:qwen3.5:latest."""
     from app.server import provider_ollama
     monkeypatch.setattr(provider_ollama, "is_reachable", lambda **kw: True)
     pm = PR.select_provider_model("margot.casual")
@@ -225,12 +225,12 @@ def test_per_role_override_role_with_dot(monkeypatch):
     """Role names with dots (e.g. 'debate.redteam') become DEBATE_REDTEAM env."""
     monkeypatch.setenv(
         "TAO_MODEL_DEBATE_REDTEAM",
-        "openrouter:google/gemma-4-26b-a4b-it",
+        "openrouter:z-ai/glm-4.7-flash",
     )
     pm = PR.select_provider_model("debate.redteam")
     assert pm.source == "env_role_override"
     assert pm.provider == "openrouter"
-    assert pm.model_id == "google/gemma-4-26b-a4b-it"
+    assert pm.model_id == "z-ai/glm-4.7-flash"
 
 
 def test_per_role_override_malformed_falls_through(monkeypatch):
@@ -268,7 +268,7 @@ def test_is_openrouter_helper():
 
 
 def test_is_ollama_helper():
-    pm = PR.ProviderModel(provider="ollama", model_id="gemma4:latest",
+    pm = PR.ProviderModel(provider="ollama", model_id="qwen3.5:latest",
                             tier="cheap", role="r", source="default")
     assert PR.is_ollama(pm) is True
     assert PR.is_anthropic(pm) is False
@@ -307,7 +307,7 @@ def test_run_via_provider_openrouter_path(monkeypatch):
     """role=margot.casual → OpenRouter call."""
     async def fake_or_call(*, prompt, model_id, timeout_s, max_tokens=4096,
                             role="", session_id=""):
-        return 0, "gemma reply", 0.0001, None
+        return 0, "qwen reply", 0.0001, None
 
     fake_mod = types.SimpleNamespace(call=fake_or_call)
     monkeypatch.setitem(sys.modules, "app.server.provider_openrouter", fake_mod)
@@ -316,7 +316,7 @@ def test_run_via_provider_openrouter_path(monkeypatch):
         prompt="hi", role="margot.casual",
     ))
     assert rc == 0
-    assert text == "gemma reply"
+    assert text == "qwen reply"
     assert cost == 0.0001
     assert error is None
 
@@ -356,7 +356,7 @@ def test_run_via_provider_ollama_path(monkeypatch):
 
     async def fake_ollama_call(*, prompt, model_id, timeout_s,
                                  max_tokens=4096, role="", session_id=""):
-        return 0, "gemma4 reply", 0.0, None
+        return 0, "qwen reply", 0.0, None
 
     fake_mod = types.SimpleNamespace(call=fake_ollama_call)
     monkeypatch.setitem(sys.modules, "app.server.provider_ollama", fake_mod)
@@ -365,7 +365,7 @@ def test_run_via_provider_ollama_path(monkeypatch):
         prompt="hi", role="margot.casual",
     ))
     assert rc == 0
-    assert text == "gemma4 reply"
+    assert text == "qwen reply"
     assert cost == 0.0
     assert error is None
 

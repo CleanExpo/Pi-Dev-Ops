@@ -52,15 +52,15 @@ def test_build_headers():
 
 
 def test_build_body_shape():
-    body = POL._build_body("hello", "gemma4:latest", max_tokens=2048)
-    assert body["model"] == "gemma4:latest"
+    body = POL._build_body("hello", "qwen3.5:latest", max_tokens=2048)
+    assert body["model"] == "qwen3.5:latest"
     assert body["messages"][0] == {"role": "user", "content": "hello"}
     assert body["max_tokens"] == 2048
 
 
 def test_extract_text_from_well_formed_response():
-    response = {"choices": [{"message": {"content": "hi from gemma4"}}]}
-    assert POL._extract_text(response) == "hi from gemma4"
+    response = {"choices": [{"message": {"content": "hi from qwen"}}]}
+    assert POL._extract_text(response) == "hi from qwen"
 
 
 def test_extract_text_handles_missing_choices():
@@ -214,14 +214,14 @@ def _install_fake_post(monkeypatch, response: _FakeJsonResponse):
 
 
 def test_call_happy_path(monkeypatch):
-    body = {"choices": [{"message": {"content": "Margot via gemma4"}}]}
+    body = {"choices": [{"message": {"content": "Margot via qwen"}}]}
     _install_fake_post(monkeypatch, _FakeJsonResponse(status_code=200, body=body))
 
     rc, text, cost, error = asyncio.run(POL.call(
-        prompt="hi", model_id="gemma4:latest",
+        prompt="hi", model_id="qwen3.5:latest",
     ))
     assert rc == 0
-    assert text == "Margot via gemma4"
+    assert text == "Margot via qwen"
     assert cost == 0.0  # Ollama is free
     assert error is None
 
@@ -232,7 +232,7 @@ def test_call_http_500_returns_error(monkeypatch):
         _FakeJsonResponse(status_code=500, text="model load failed"),
     )
     rc, text, cost, error = asyncio.run(POL.call(
-        prompt="hi", model_id="gemma4:latest",
+        prompt="hi", model_id="qwen3.5:latest",
     ))
     assert rc == 1
     assert "ollama_http_500" in error
@@ -248,7 +248,7 @@ def test_call_empty_response_returns_error(monkeypatch):
         ),
     )
     rc, text, cost, error = asyncio.run(POL.call(
-        prompt="hi", model_id="gemma4:latest",
+        prompt="hi", model_id="qwen3.5:latest",
     ))
     assert rc == 1
     assert error == "ollama_empty_response"
@@ -271,7 +271,7 @@ def test_call_connection_error_returns_error(monkeypatch):
     monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
 
     rc, text, cost, error = asyncio.run(POL.call(
-        prompt="hi", model_id="gemma4:latest",
+        prompt="hi", model_id="qwen3.5:latest",
     ))
     assert rc == 1
     assert "ollama_call_raised" in error

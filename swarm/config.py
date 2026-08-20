@@ -80,10 +80,36 @@ BOT_MODELS: dict[str, str] = {
 }
 
 # ── Local Ollama triage model (zero API cost) ─────────────────────────────────
-# Gemma 4 via Ollama — used for triage, routing, and low-stakes decisions.
-# Updated 2026-05-08 on Mac Mini. Use 26b for higher quality, latest for speed.
-OLLAMA_TRIAGE_MODEL: str = os.environ.get("OLLAMA_TRIAGE_MODEL", "gemma4:latest")
-OLLAMA_TRIAGE_MODEL_HEAVY: str = os.environ.get("OLLAMA_TRIAGE_MODEL_HEAVY", "gemma4:26b")
+# Qwen 3.5 via Ollama — used for triage, routing, and low-stakes decisions.
+# Replaced Gemma 4 on 2026-08-19: Gemma was the slowest option measured and
+# was stalling the Telegram intent path. Qwen 3.5 is already this file's
+# standard for guardian/scribe/click (BOT_MODELS above), so the local box now
+# serves one model family instead of two.
+# Requires `ollama pull qwen3.5:latest` (and :32b) on the host running Ollama.
+OLLAMA_TRIAGE_MODEL: str = os.environ.get("OLLAMA_TRIAGE_MODEL", "qwen3.5:latest")
+OLLAMA_TRIAGE_MODEL_HEAVY: str = os.environ.get("OLLAMA_TRIAGE_MODEL_HEAVY", "qwen3.5:32b")
+
+# Interactive triage calls (Telegram intent classification) must never hold a
+# user-facing turn for the full OLLAMA_TIMEOUT_S. Past this budget the caller
+# degrades to the regex layer / "unknown" rather than leaving Telegram silent.
+#
+# Known tradeoff, accepted deliberately: a COLD Ollama model can take 20-40s to
+# load (see app/server/triage.py, which sets a 90s budget for exactly that), so
+# the first message after an idle period will exceed 15s and answer from the
+# regex layer instead. That is the intended bias — a chat turn that answers in
+# 15s from regex beats one that answers in 40s from the model, and every
+# subsequent message hits a warm model in ~1-3s. Raise this only if you would
+# rather the founder wait than get a regex answer. The real fix for cold starts
+# is OLLAMA_KEEP_ALIVE below, which stops the model unloading in the first place.
+OLLAMA_TRIAGE_TIMEOUT_S: int = int(os.environ.get("OLLAMA_TRIAGE_TIMEOUT_S", "15"))
+
+# How long Ollama holds a model in memory after a request. Ollama's own default
+# is 5 minutes, so an assistant that is idle between messages pays a 20-40s
+# reload on the next one — which the 15s interactive budget above would turn
+# into a silent fall back to regex on the first message every time. Holding the
+# model resident removes the cold start instead of budgeting around it.
+# Set to "0" to unload immediately, or "-1" to keep loaded indefinitely.
+OLLAMA_KEEP_ALIVE: str = os.environ.get("OLLAMA_KEEP_ALIVE", "30m")
 
 # ── Telegram ──────────────────────────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN: str  = os.environ.get("TELEGRAM_BOT_TOKEN",   "")

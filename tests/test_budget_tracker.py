@@ -34,7 +34,7 @@ def test_record_cost_writes_jsonl(isolated_log, monkeypatch):
     )
     bt.record_cost(
         provider="openrouter", role="margot.casual",
-        model="google/gemma-4-26b-a4b-it",
+        model="z-ai/glm-4.7-flash",
         cost_usd=0.0123, tokens_in=1000, tokens_out=200,
     )
     assert log.exists()
@@ -43,7 +43,7 @@ def test_record_cost_writes_jsonl(isolated_log, monkeypatch):
     row = json.loads(lines[0])
     assert row["provider"] == "openrouter"
     assert row["role"] == "margot.casual"
-    assert row["model"] == "google/gemma-4-26b-a4b-it"
+    assert row["model"] == "z-ai/glm-4.7-flash"
     assert row["cost_usd"] == 0.0123
     assert row["tokens_in"] == 1000
     assert row["tokens_out"] == 200
@@ -81,7 +81,7 @@ def test_record_cost_swallows_jsonl_write_error(tmp_path, monkeypatch):
     from swarm import budget_tracker  # noqa: PLC0415
     # Must not raise
     budget_tracker.record_cost(
-        provider="ollama", role="monitor", model="gemma4:latest",
+        provider="ollama", role="monitor", model="qwen3.5:latest",
         cost_usd=0.0, tokens_in=0, tokens_out=0,
     )
 

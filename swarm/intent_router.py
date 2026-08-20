@@ -293,6 +293,10 @@ def classify_llm(text: str, base: dict[str, Any]) -> dict[str, Any]:
             user_message=text[:500],
             temperature=0.1,
             json_format=True,
+            # This runs inside a live Telegram turn. Without an explicit
+            # budget it inherits OLLAMA_TIMEOUT_S (120s), so one slow local
+            # model made the bot look dead for two minutes per message.
+            timeout_s=_cfg.OLLAMA_TRIAGE_TIMEOUT_S,
         )
         if not resp:
             return base

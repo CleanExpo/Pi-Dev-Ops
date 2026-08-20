@@ -5,7 +5,7 @@ provider_router. Anthropic stays on its native SDK; OpenRouter goes
 through this module.
 
 Why OpenAI-compatible: OpenRouter speaks the OpenAI Chat Completions
-API for any underlying model (Gemma, Llama, Mistral, etc.). One client,
+API for any underlying model (GLM, Llama, Nemotron, etc.). One client,
 many models, configurable per-role via env.
 
 Required env:
@@ -60,6 +60,14 @@ def _build_headers() -> dict[str, str]:
 
 
 def _build_body(prompt: str, model_id: str, *, max_tokens: int) -> dict[str, Any]:
+    # ``reasoning.enabled=False`` matters for reasoning-capable cheap-tier
+    # models (GLM 4.7 Flash, Nemotron 3). Left on, they spend the whole
+    # max_tokens budget on a reasoning trace, return ``content: None`` and
+    # finish_reason "length" — which reaches _extract_text as an empty
+    # string and fails the call. Measured 2026-08-19: glm-4.7-flash at
+    # max_tokens=120 burned 122 reasoning tokens and returned no content;
+    # with reasoning off it answered in 0.8s. Harmless on non-reasoning
+    # models — OpenRouter ignores the field when unsupported.
     return {
         "model": model_id,
         "messages": [
@@ -67,6 +75,7 @@ def _build_body(prompt: str, model_id: str, *, max_tokens: int) -> dict[str, Any
         ],
         "max_tokens": max_tokens,
         "temperature": 0.3,
+        "reasoning": {"enabled": False},
     }
 
 
@@ -75,8 +84,42 @@ def _extract_text(response: dict[str, Any]) -> str:
     choices = response.get("choices") or []
     if not choices:
         return ""
-    msg = choices[0].get("message") or {}
-    return msg.get("content") or ""
+    choice = choices[0]
+    msg = choice.get("message") or {}
+    finish = choice.get("finish_reason")
+    content = msg.get("content") or ""
+    if content:
+        # Truncated content is still the model's own output — for the long-form
+        # roles (generator, evaluator, board) hitting max_tokens is routine and
+        # the partial text is the useful result, so discarding it here would
+        # turn every long generation into openrouter_empty_response. But a
+        # truncated read must not look like a complete one, so say so.
+        if finish not in (None, "", "stop"):
+            log.warning(
+                "openrouter: returning %d chars that ended on finish_reason=%r "
+                "— the response is incomplete", len(content), finish,
+            )
+        return content
+    # Some providers (Cloudflare/DeepInfra serving GLM, Nemotron) put the
+    # answer in ``reasoning`` and leave ``content`` null. Falling back keeps
+    # a valid response from being reported as openrouter_empty_response.
+    #
+    # But only when the model actually finished. finish_reason "length" means
+    # the budget ran out mid-trace, so ``reasoning`` holds a partial thought
+    # ("1. **Analyze the Request:** ...") rather than an answer — measured on
+    # glm-4.7-flash at max_tokens=120. Returning that would hand the caller a
+    # chain-of-thought dressed as a result, which is worse than a clean empty.
+    #
+    # Allowlist rather than denylist, and an ABSENT finish_reason does not
+    # earn the fallback either. "length" is the truncation case we measured,
+    # but content_filter, error, and a provider that simply never says whether
+    # it finished are all "no evidence this thought was completed". Returning
+    # a half-finished trace as the answer would be a failed read rendering as
+    # a successful one; an empty string surfaces honestly to the caller as
+    # openrouter_empty_response instead.
+    if finish != "stop":
+        return ""
+    return msg.get("reasoning") or ""
 
 
 def _extract_cost_usd(response: dict[str, Any]) -> float:

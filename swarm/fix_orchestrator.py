@@ -177,7 +177,7 @@ def _fetch_open_work_orders() -> list[dict[str, Any]]:
 
 
 def _ollama_triage(user_message: str, system: str = "You are a precise engineering triage agent. Be concise.") -> str:
-    """Use Gemma 4 via Ollama for zero-cost triage and routing decisions."""
+    """Use Qwen 3.5 via Ollama for zero-cost triage and routing decisions."""
     try:
         from . import ollama_client, config  # noqa: PLC0415
         result = ollama_client.chat(
@@ -195,7 +195,7 @@ def _ollama_triage(user_message: str, system: str = "You are a precise engineeri
 def _parse_work_order_from_ticket(ticket: dict[str, Any]) -> dict[str, Any] | None:
     """Extract structured work order fields from the Linear ticket description.
 
-    Uses regex for the structured title (zero cost), Gemma 4 via Ollama only
+    Uses regex for the structured title (zero cost), Qwen 3.5 via Ollama only
     for ambiguous cases that need LLM interpretation.
     """
     desc = ticket.get("description", "")
@@ -212,7 +212,7 @@ def _parse_work_order_from_ticket(ticket: dict[str, Any]) -> dict[str, Any] | No
     failure_type = m.group(2)
     severity = m.group(3)
 
-    # Use Gemma 4 to refine specialist assignment for ambiguous failure types
+    # Use Qwen 3.5 to refine specialist assignment for ambiguous failure types
     specialist = _guess_specialist(failure_type, project_id)
     if failure_type == "unknown" or failure_type.startswith("dora_"):
         triage_prompt = (

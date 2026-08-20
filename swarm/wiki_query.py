@@ -43,7 +43,7 @@ def _wiki_dir() -> Path:
 
 
 def _call_llm(prompt: str) -> str:
-    """Gemma 4 (local, zero-cost) → Gemini 3.1 Pro fallback."""
+    """Qwen 3.5 (local, zero-cost) → Gemini 3.1 Pro fallback."""
     try:
         from . import ollama_client, config as _cfg  # noqa: PLC0415
         result = ollama_client.chat(
@@ -55,7 +55,7 @@ def _call_llm(prompt: str) -> str:
         if result:
             return result
     except Exception as _exc:  # noqa: BLE001
-        log.debug("wiki_query: gemma4 unavailable (%s) — falling back to Gemini", _exc)
+        log.debug("wiki_query: local triage model unavailable (%s) — falling back to Gemini", _exc)
 
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
@@ -63,7 +63,7 @@ def _call_llm(prompt: str) -> str:
         if key_file.exists():
             api_key = key_file.read_text(encoding="utf-8").strip()
     if not api_key:
-        raise RuntimeError("Gemma 4 unavailable and GEMINI_API_KEY not set")
+        raise RuntimeError("Local triage model unavailable and GEMINI_API_KEY not set")
 
     from google import genai  # noqa: PLC0415
     text_model = os.environ.get("MARGOT_TEXT_MODEL", "gemini-3.1-pro-preview-customtools")

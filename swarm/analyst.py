@@ -130,7 +130,7 @@ def _slugify(text: str, max_len: int = 48) -> str:
 
 
 def _call_llm(prompt: str) -> str:
-    """Gemma 4 (local) → Gemini fallback — same pattern as wiki_query."""
+    """Qwen 3.5 (local) → Gemini fallback — same pattern as wiki_query."""
     try:
         from . import config as _cfg, ollama_client  # noqa: PLC0415
         result = ollama_client.chat(

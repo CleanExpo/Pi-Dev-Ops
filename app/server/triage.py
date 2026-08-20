@@ -49,11 +49,11 @@ _AUTONOMY_LOG = _HARNESS / "autonomy.jsonl"
 # rewrites the operator-facing title. Per audit: suppress when verdict is
 # false_positive AND confidence >= 0.9. Any failure → fall through to template.
 #
-# Now routes through provider_router (cheap tier → Ollama Gemma 4 → OpenRouter
+# Now routes through provider_router (cheap tier → Ollama Qwen 3.5 → OpenRouter
 # fallback). No direct Anthropic SDK calls — cost-control per RA-2989.
 _TRIAGE_ROLE = "sprinkle.triage"
 _TRIAGE_MAX_TOKENS = 300
-_TRIAGE_TIMEOUT_S = 90  # Cold-start tolerant; Gemma 4 8B can take 20-40s warming up
+_TRIAGE_TIMEOUT_S = 90  # Cold-start tolerant; a local model can take 20-40s warming up
 _TRIAGE_CONFIDENCE_SUPPRESS = 0.9
 
 # The code excerpt is attacker-controllable text (it's scanned source code).
@@ -83,7 +83,7 @@ def _log_sprinkle_event(event: dict[str, Any]) -> None:
 
 
 def _claude_triage(project_id: str, finding: Finding) -> dict[str, Any] | None:
-    """Pre-classify a critical finding via the cheap-tier LLM (Ollama Gemma 4
+    """Pre-classify a critical finding via the cheap-tier LLM (Ollama Qwen 3.5
     → OpenRouter fallback). Returns dict or None on any failure.
 
     Routes through provider_router so no direct Anthropic SDK calls happen

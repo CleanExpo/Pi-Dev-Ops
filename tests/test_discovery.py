@@ -272,8 +272,8 @@ def test_scan_calls_hook_per_watchlist_query(isolated_state, make_charter, make_
     assert all(f.raw_query in ("q1", "q2", "q3") for f in findings)
 
 
-def test_scan_skips_gemma_when_summary_already_present(isolated_state, make_charter, make_projects_json):
-    """If Perplexity already returns a summary, Gemma is not invoked."""
+def test_scan_skips_local_summary_when_summary_already_present(isolated_state, make_charter, make_projects_json):
+    """If Perplexity already returns a summary, the local summariser is not invoked."""
     make_charter("ra", ["q"])
     pj = make_projects_json([{"id": "ra", "linear_project_id": "p",
                                 "linear_team_id": "t", "linear_team_key": "RA"}])
@@ -283,10 +283,10 @@ def test_scan_skips_gemma_when_summary_already_present(isolated_state, make_char
                             published_date="d", summary="pre-summarised"),
     ])
     try:
-        with patch.object(discovery, "_summarise_with_gemma") as mock_gemma:
-            mock_gemma.return_value = "should not run"
+        with patch.object(discovery, "_summarise_with_local") as mock_local:
+            mock_local.return_value = "should not run"
             findings = discovery.scan(cfg)
-            assert mock_gemma.call_count == 0
+            assert mock_local.call_count == 0
     finally:
         discovery.set_perplexity_hook(None)
     assert findings[0].summary == "pre-summarised"

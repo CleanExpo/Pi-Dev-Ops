@@ -5,7 +5,7 @@ Usage:
     python scripts/eval_feedback_loop.py [dataset.jsonl]
 
 Runs the LIVE cheap-tier classifier (`feedback_loop._classify_with_claude`, which
-routes to Ollama Gemma 4 -> OpenRouter, OFF Anthropic) over the golden set and
+routes to Ollama Qwen 3.5 -> OpenRouter, OFF Anthropic) over the golden set and
 prints category-agreement accuracy. This produces the baseline number the DSPy
 PoV (llm-stack-adoption-decision item 4) must beat.
 
