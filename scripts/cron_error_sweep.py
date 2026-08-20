@@ -68,6 +68,13 @@ def failing_jobs(stores: list[tuple[str, Path]]) -> list[dict]:
             continue
         jobs = raw.get("jobs", raw) if isinstance(raw, dict) else raw
         for job in jobs:
+            # A retired job keeps whatever status it died with. Reporting those is a
+            # false alarm, and false alarms are what get a monitor ignored — the exact
+            # failure this sweep exists to prevent. The Unite-Group health check was
+            # deliberately paused in the 2026-06-15 cull and still carried `error`;
+            # this sweep dutifully reported it as live breakage for a day.
+            if job.get("enabled") is False or job.get("state") == "paused":
+                continue
             status_bad = job.get("last_status") == "error"
             # A job can run perfectly and still fail to reach anyone. Hermes records that
             # in last_delivery_error while leaving last_status "ok" — so a delivery failure
@@ -144,6 +151,20 @@ def self_test() -> int:
         print(f"SELF-TEST: detects ran-ok-but-UNDELIVERED ... {'PASS' if ok2 else 'FAIL'}")
         if not ok2:
             print(f"  expected undeliv01/UNDELIVERED, got {[(f['id'], f.get('kind')) for f in found]}")
+            return 1
+
+        # A paused/retired job keeps its dying status forever. Reporting it is a false
+        # alarm. Watched failing here because this sweep shipped with exactly that bug.
+        (root / "profiles" / "fake" / "cron" / "jobs.json").write_text(json.dumps({"jobs": [
+            {"id": "retired01", "name": "deliberately retired", "last_status": "error",
+             "enabled": False, "state": "paused", "last_run_at": "2026-05-13T06:00:42+10:00",
+             "last_error": "exited 1"},
+        ]}))
+        muted = failing_jobs(discover_stores(root))
+        ok3 = muted == []
+        print(f"SELF-TEST: ignores a paused/retired job ... {'PASS' if ok3 else 'FAIL'}")
+        if not ok3:
+            print(f"  expected nothing, got {[f['id'] for f in muted]}")
             return 1
 
         # Negative control: a clean estate must stay silent, or the sweep is just noise.
