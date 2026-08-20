@@ -43,7 +43,11 @@ def discover_stores(root: Path) -> list[tuple[str, Path]]:
 
 
 def _age_days(stamp: str | None) -> int | None:
-    if not stamp:
+    if not isinstance(stamp, str) or not stamp:
+        # `fromisoformat` raises TypeError, not ValueError, on a non-str — so a job
+        # whose last_run_at is a number escaped the except clause and took the sweep
+        # down. An unreadable timestamp is an unknown age, which the caller renders
+        # as "never run"; it is not a reason to stop reporting the other jobs.
         return None
     try:
         when = datetime.fromisoformat(stamp)

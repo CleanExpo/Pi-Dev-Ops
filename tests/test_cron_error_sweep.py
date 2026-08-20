@@ -64,3 +64,24 @@ def test_a_healthy_store_stays_silent(tmp_path):
     payload = json.dumps({"jobs": [{"id": "ok01", "name": "fine", "last_status": "ok"}]})
 
     assert sweep.failing_jobs(store_holding(tmp_path, payload)) == []
+
+
+@pytest.mark.parametrize("stamp", [5, 1.5, True, ["2026-01-01"], {"at": "x"}, None])
+def test_a_non_string_timestamp_is_an_unknown_age_not_a_crash(stamp):
+    """`fromisoformat` raises TypeError, not ValueError, on a non-str — so the except
+    clause missed it and one malformed job took the whole sweep down."""
+    assert sweep._age_days(stamp) is None
+
+
+def test_a_job_with_a_numeric_timestamp_is_still_reported(tmp_path):
+    """The finding must survive the bad field, not be lost with it."""
+    payload = json.dumps({"jobs": [
+        {"id": "bad01", "name": "numeric stamp", "last_status": "error",
+         "last_run_at": 1755734400, "last_error": "synthetic"},
+    ]})
+
+    found = sweep.failing_jobs(store_holding(tmp_path, payload))
+
+    assert [f["id"] for f in found] == ["bad01"]
+    assert found[0]["age"] is None
+    assert "never run" in sweep.render(found)

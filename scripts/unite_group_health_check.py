@@ -260,7 +260,13 @@ def should_resurface(tier1_failing: list[str]) -> tuple[bool, str]:
         # reaches `.get()`. Unreadable state already means "alert" — a corrupt file
         # must take the same route, not crash the run that was about to alert.
         return True, "unreadable alert state"
-    if sorted(state.get("signature") or []) != current:
+    stored = state.get("signature") or []
+    if not isinstance(stored, list):
+        # Right container, wrong contents: `sorted(5)` raises TypeError and aborts the
+        # run BEFORE stdout is written, so it suppresses the very alert it was deciding
+        # about. Guarding the outer type without the inner one is not guarding it.
+        return True, "unreadable alert state signature"
+    if sorted(stored) != current:
         return True, "failing set changed"
     try:
         last = _dt.datetime.fromisoformat(state["last_alert_at"])
@@ -406,13 +412,18 @@ def check_supabase_advisors(env: dict[str, str]) -> list[dict[str, Any]]:
             drift=drift,
         )
     elif drift < -ADVISOR_BASELINE_SLACK:
-        # A genuine drop this large is good news that still needs the baseline moved.
-        # WARN says so without an hourly Tier-1 FAIL about a sanctioned improvement,
-        # which is how a monitor teaches its reader to ignore it.
+        # This was a WARN, to avoid an hourly Tier-1 FAIL about a sanctioned
+        # improvement. A reviewer traced it and was right to object: tier1_failing
+        # collects status == "FAIL" only, and regressed() likewise, so a Tier-1 WARN
+        # reaches NO alert path — it lands in a JSON file nobody opens. That is the
+        # deliver-to-origin failure this whole ticket exists to remove.
+        # FAIL is correct, and the noise concern is already answered by the
+        # REALERT_HOURS throttle: it alerts once, then every 6h until re-baselined,
+        # which is the prompt to move ADVISOR_BASELINE.
         tot_res = mk(
             "supabase advisor total",
             1,
-            "WARN",
+            "FAIL",
             f"{total} findings is {abs(drift)} below baseline {ADVISOR_BASELINE} — "
             f"re-baseline or investigate the source (drift {drift:+d})",
             count=total,
@@ -815,14 +826,17 @@ def regressed(checks: list[dict[str, Any]], prior: dict[str, Any] | None) -> lis
     """Return names of Tier-1 checks that were PASS previously and are FAIL now."""
     if not prior:
         return []
-    # Subscripts, not .get() — a Tier-1 entry missing either key would raise KeyError
-    # here, which prior_run's shape guard does not screen for (it checks that entries
-    # are dicts, not which keys they hold). An entry we cannot read is an entry with
-    # no prior status, which is exactly what the comparison below already handles.
+    # Subscripts, not .get() — a Tier-1 entry missing either key raises KeyError here,
+    # and one whose "name" is a list raises TypeError when used as a dict key. prior_run
+    # screens entry TYPE, not the type of what is inside an entry, so both routes reach
+    # this comprehension. Requiring str for both closes them together: an entry we
+    # cannot read is an entry with no prior status, which the comparison below handles.
     prior_status = {
         r["name"]: r["status"]
         for r in prior.get("checks", [])
-        if r.get("tier") == 1 and "name" in r and "status" in r
+        if r.get("tier") == 1
+        and isinstance(r.get("name"), str)
+        and isinstance(r.get("status"), str)
     }
     out: list[str] = []
     for c in checks:
