@@ -1,12 +1,12 @@
 # docs — Wiki
 
-_Last updated: 2026-08-14T03:59:08Z (commits f59b656..0a74a98)_
+_Last updated: 2026-08-20T20:50:24Z (commits 304d2ce..590b8aa)_
 
 ## Recent changes
-- 0a74a98 — docs(metrics): rollback + escaped-defect telemetry design [RA-7216] (#640)
+- 590b8aa — docs: scope Unlazy model routing system (#654)
 
 ## Architecture (current)
 Auto-stub: `docs/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- docs/DESIGN-RA-7216-rollback-telemetry-2026-08-14.md — touched in recent commits
+- docs/RESEARCH-unlazy-model-routing-2026-08-21.md — touched in recent commits

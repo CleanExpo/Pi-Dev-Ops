@@ -1,12 +1,12 @@
 # .spm — Wiki
 
-_Last updated: 2026-08-14T04:30:12Z (commits 5cfc3be..094b6e4)_
+_Last updated: 2026-08-20T20:50:24Z (commits 304d2ce..590b8aa)_
 
 ## Recent changes
-- 094b6e4 — docs(spm): SPM spec for RA-7216 completion — gap 2 steps 3-6 + gap 4 (#642)
+- 590b8aa — docs: scope Unlazy model routing system (#654)
 
 ## Architecture (current)
 Auto-stub: `.spm/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- .spm/RA-7216-completion.md — touched in recent commits
+- .spm/2026-08-21-unlazy-model-router-scope.md — touched in recent commits
