@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "name": "intent_only_strategic_policy",
+  "include_if": [
+    "selected_by_user == true",
+    "contains strategic keyword",
+    "channel/title/tags match business taxonomy"
+  ],
+  "exclude_if": [
+    "contains entertainment keyword and no strategic keyword",
+    "explicit force_exclude == true",
+    "ambiguous relevance without force_include"
+  ],
+  "manual_overrides": [
+    "force_include",
+    "force_exclude"
+  ],
+  "notes": [
+    "Personal and entertainment viewing is excluded by default.",
+    "Ambiguous items are excluded unless manually promoted.",
+    "The catalog is intended for UG-N strategy and vertical pathway planning."
+  ]
+}
