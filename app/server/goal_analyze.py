@@ -5,7 +5,12 @@ import logging
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
-from app.server.goal_analyze_fields import analysis_overlay, as_text, flatten_ticket
+from app.server.goal_analyze_fields import (
+    analysis_overlay,
+    as_text,
+    flatten_ticket,
+    parse_analyze_payload,
+)
 from app.server.goal_repo_context import gather_repo_context
 from app.server.goal_ticket import (
     _MIN_TEXT,
@@ -14,13 +19,24 @@ from app.server.goal_ticket import (
     title_from_goal,
     validate_goal,
 )
-from app.server.spec_pipeline.llm import complete, try_parse_json_object
+from app.server.spec_pipeline.llm import complete
 
 log = logging.getLogger("pi-ceo.goal_analyze")
 
 _MAX_TICKETS = 6
-_MAX_TOKENS = 8192
+_MAX_TOKENS = 16384
 _PROMPT_PATH = Path(__file__).with_name("goal_analyze_prompt.txt")
+_SYSTEM = (
+    "Return one JSON object only. Fill every ticket with real work, not the empty schema. "
+    "Every ticket needs a real title, expected_behaviour, and Given/When/Then acceptance. "
+    "If repo inspection is unavailable, still produce tickets and list limitations. "
+    "Do not copy placeholder text from the schema."
+)
+_PLACEHOLDERS = (
+    "human-written imperative title",
+    "given ... when ... then ...",
+    "as a ... i want ... so that ...",
+)
 CompleteFn = Callable[..., Awaitable[tuple[str, float]]]
 ContextFn = Callable[[str, str], dict[str, Any]]
 
@@ -62,14 +78,26 @@ def fallback_drafts(goal: str, acceptance: str, limitation: str) -> list[dict[st
     ]
 
 
+def _is_placeholder(text: str) -> bool:
+    lower = text.lower()
+    return any(marker in lower for marker in _PLACEHOLDERS)
+
+
 def _clean_draft(item: dict[str, Any], goal: str, acceptance: str) -> dict[str, str] | None:
     flat = flatten_ticket(item)
-    expected = flat["expected_behaviour"]
-    ticket_goal = as_text(item.get("goal")) or expected
-    ticket_acc = flat["acceptance"]
+    title = as_text(item.get("title")) or title_from_goal(goal)
+    if _is_placeholder(title):
+        return None
+    ticket_goal = (
+        as_text(item.get("goal"))
+        or flat["expected_behaviour"]
+        or flat["summary"]
+    )
+    ticket_acc = flat["acceptance"] or as_text(acceptance)
+    if _is_placeholder(ticket_goal) or _is_placeholder(ticket_acc):
+        return None
     if len(ticket_goal) < _MIN_TEXT or len(ticket_acc) < _MIN_TEXT:
         return None
-    title = as_text(item.get("title")) or title_from_goal(goal)
     out = {
         **flat,
         "title": title[:200],
@@ -81,15 +109,14 @@ def _clean_draft(item: dict[str, Any], goal: str, acceptance: str) -> dict[str, 
     return out
 
 
-def drafts_from_payload(
+def cleaned_drafts(
     payload: dict[str, Any] | None,
     goal: str,
     acceptance: str,
-    limitation: str = "",
 ) -> list[dict[str, str]]:
     raw = (payload or {}).get("tickets")
     if not isinstance(raw, list):
-        return fallback_drafts(goal, acceptance, limitation)
+        return []
     out: list[dict[str, str]] = []
     for item in raw:
         if not isinstance(item, dict):
@@ -99,7 +126,38 @@ def drafts_from_payload(
             out.append(cleaned)
         if len(out) >= _MAX_TICKETS:
             break
-    return out or fallback_drafts(goal, acceptance, limitation)
+    return out
+
+
+def drafts_from_payload(
+    payload: dict[str, Any] | None,
+    goal: str,
+    acceptance: str,
+    limitation: str = "",
+) -> list[dict[str, str]]:
+    return cleaned_drafts(payload, goal, acceptance) or fallback_drafts(
+        goal, acceptance, limitation
+    )
+
+
+def fallback_overlay(limitation: str, reason: str) -> dict[str, Any]:
+    summary = " ".join(part for part in (reason, limitation) if part)
+    return {
+        "summary": summary,
+        "split_reason": (
+            "Analysis did not return implementable tickets, so this is one editable "
+            "draft from the stated goal rather than an invented split."
+        ),
+        "goal_analysis": {
+            "summary": summary,
+            "repo_limitations": [limitation] if limitation else [],
+            "overall_risk": "High",
+        },
+        "user_flow": {},
+        "technical_flow": {},
+        "implementation_order": [],
+        "final_review": {},
+    }
 
 
 def render_analyze_prompt(goal: str, slug: str, acceptance: str, ctx: dict[str, Any]) -> str:
@@ -142,37 +200,45 @@ async def analyze_goal(
     limitation = str(ctx.get("limitation") or "")
     payload: dict[str, Any] | None = None
     fallback = False
+    model_reason = ""
     cost = 0.0
     try:
         fn = complete_fn or complete
         text, cost = await fn(
             prompt=render_analyze_prompt(goal, slug, acceptance, ctx),
-            system="",
+            system=_SYSTEM,
             role="goal_analyst",
             max_tokens=_MAX_TOKENS,
         )
-        payload = try_parse_json_object(text)
+        payload = parse_analyze_payload(text)
         if payload is None:
             fallback = True
-            log.warning("goal analyze: no JSON in model output")
+            model_reason = "The model did not return a usable ticket plan."
+            log.warning("goal analyze: no usable JSON in model output")
     except Exception as exc:
         fallback = True
+        model_reason = f"The model call failed ({type(exc).__name__})."
         log.warning("goal analyze: model failed: %s", type(exc).__name__)
 
-    tickets = drafts_from_payload(payload, goal, acceptance, limitation)
-    if fallback:
+    tickets = cleaned_drafts(payload, goal, acceptance)
+    if not tickets:
+        fallback = True
+        if not model_reason:
+            model_reason = "The model JSON had no implementable tickets."
         tickets = fallback_drafts(goal, acceptance, limitation)
-    overlay = analysis_overlay(None if fallback else payload)
-    if fallback and not overlay["summary"]:
-        overlay["summary"] = (
-            limitation or "Analysis fell back. Repo inspection was not used as a completed review."
-        )
+        overlay = analysis_overlay(payload)
+        if not overlay["summary"]:
+            overlay = fallback_overlay(limitation, model_reason)
+    else:
+        overlay = analysis_overlay(payload)
+        if limitation and not overlay["summary"]:
+            overlay["summary"] = limitation
     return {
         "status": "proposed",
         "filed": False,
         "fallback": fallback,
-        "code_inspected": inspected and not fallback,
-        "code_limitation": "" if (inspected and not fallback) else limitation,
+        "code_inspected": inspected,
+        "code_limitation": "" if inspected else limitation,
         "cost_usd": cost,
         "repo": slug,
         "project_id": project["project_id"],
