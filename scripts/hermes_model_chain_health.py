@@ -15,17 +15,25 @@ which is exactly how Hermes sat broken for six days in August.
 Per-profile status
 ------------------
   OK          at least one entry was probed and answered
-  DOWN        entries were probed and every one failed — that profile cannot serve
+  DOWN        EVERY entry was probed and every one failed — that profile cannot serve
+  DEGRADED    a probed entry failed, but an unprobeable fallback remains. The
+              profile may still serve, so "cannot serve" is not claimed — but a
+              failed primary needs attention, so it still alarms.
   UNVERIFIED  nothing in the chain could be probed, so health is UNKNOWN, not good
               (e.g. `ownest`, whose chain is moa + openai-codex, neither reachable
               over HTTP). Reported loudly, but does not alarm, because it is a
               standing property of that profile rather than a new fault.
 
+Each state says exactly what was PROVEN and no more. DOWN and DEGRADED are kept
+apart because both Windows profiles are free + free + openai-codex: if the free
+tier goes down, the codex fallback may well serve them, and reporting a proven
+outage there would be a claim beyond the evidence.
+
 Exit codes
 ----------
-  0  no profile is DOWN (UNVERIFIED profiles are printed but do not fail the run)
-  1  at least one profile is DOWN
-  2  could not run (no key, unreadable config)
+  0  nothing failed a probe (OK and UNVERIFIED profiles)
+  1  at least one profile is DOWN or DEGRADED
+  2  could not run — no API key, or a profile config that cannot be read/parsed
 
 Usage
 -----
@@ -70,6 +78,17 @@ def read_key() -> str | None:
     return None
 
 
+class ConfigError(RuntimeError):
+    """A profile config could not be read or parsed.
+
+    Deliberately fatal. An earlier revision turned this into a fake chain entry
+    ("UNREADABLE"), which probe() then reported as unprobeable, so the profile
+    came out UNVERIFIED and the run exited 0 — a corrupt config read as "checked,
+    nothing wrong". That is the failed-read-as-success pattern this tool exists
+    to catch, reproduced inside the tool.
+    """
+
+
 def profiles() -> dict[str, list[tuple[str, str]]]:
     """profile name -> ordered [(provider, model)] chain, primary first."""
     import yaml
@@ -81,9 +100,8 @@ def profiles() -> dict[str, list[tuple[str, str]]]:
     for path, name in paths:
         try:
             cfg = yaml.safe_load(open(path)) or {}
-        except Exception as exc:  # noqa: BLE001 - a bad config is a finding, not a crash
-            out[name] = [("UNREADABLE", str(exc)[:60])]
-            continue
+        except Exception as exc:  # noqa: BLE001 - surfaced as ConfigError below
+            raise ConfigError(f"{path}: {exc}") from exc
         model = cfg.get("model") or {}
         chain = [(model.get("provider", "?"), model.get("default", "?"))]
         for fb in cfg.get("fallback_providers") or []:
@@ -142,7 +160,13 @@ def main() -> int:
         print("FATAL: no OPENROUTER_API_KEY in ~/.hermes/.env", file=sys.stderr)
         return 2
 
-    chains = profiles()
+    try:
+        chains = profiles()
+    except ConfigError as exc:
+        # Exit 2, never 0. A config we cannot read is an unknown we must not
+        # dress up as a clean run — launchd would record success.
+        print(f"FATAL: unreadable profile config — {exc}", file=sys.stderr)
+        return 2
     if args.inject_broken:
         chains = {"__selftest__": [("openrouter", "definitely/not-a-real-model-xyz")]}
 
@@ -153,19 +177,33 @@ def main() -> int:
         entries = []
         any_ok = False
         any_probed = False
+        all_probed = True
         for provider, model in chain:
             ok, detail = probe(provider, model, key)
-            if ok is not None:
+            if ok is None:
+                all_probed = False
+            else:
                 any_probed = True
                 any_ok = any_ok or ok
             entries.append({"provider": provider, "model": model, "ok": ok, "detail": detail})
-        # Three states, deliberately. A profile whose every entry is unprobeable has
-        # NOT been shown to work — calling that OK is the same failed-read-as-success
-        # error that let a dead Ollama sit undetected for six days.
-        status = "OK" if any_ok else ("DOWN" if any_probed else "UNVERIFIED")
+        # Four states. Each says exactly what was PROVEN, never more.
+        #   OK           something answered
+        #   DOWN         every entry was probed and every one failed
+        #   DEGRADED     a probed entry failed, but an unprobeable fallback remains,
+        #                so "cannot serve" is NOT proven — still alarms, because a
+        #                failed primary needs attention either way
+        #   UNVERIFIED   nothing could be probed; health is unknown, not good
+        if any_ok:
+            status = "OK"
+        elif not any_probed:
+            status = "UNVERIFIED"
+        elif all_probed:
+            status = "DOWN"
+        else:
+            status = "DEGRADED"
         report[name] = {"chain": entries, "status": status,
                         "healthy": status == "OK", "verified": any_probed}
-        if status == "DOWN":
+        if status in ("DOWN", "DEGRADED"):
             failed_profiles.append(name)
         elif status == "UNVERIFIED":
             unverified_profiles.append(name)
