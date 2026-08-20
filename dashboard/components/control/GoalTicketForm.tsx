@@ -7,6 +7,7 @@ import GoalDraftReview, {
   type AnalysisPayload,
   type DraftTicket,
 } from "./GoalDraftReview";
+import styles from "./control-deck.module.css";
 
 function sanitize(s: string): string {
   return s.replace(/[<>]/g, "");
@@ -28,6 +29,7 @@ interface FiledTicket {
 
 interface ErrorBody {
   error?: string;
+  hint?: string;
   detail?: { error?: string; fields?: string[]; hint?: string; repo?: string };
 }
 
@@ -35,7 +37,8 @@ function errorMessage(data: ErrorBody, status: number): string {
   const detail = data.detail;
   const fields = detail?.fields?.join(", ");
   return (
-    detail?.hint
+    data.hint
+    || detail?.hint
     || (fields ? `Missing: ${fields}` : null)
     || detail?.error
     || data.error
@@ -43,14 +46,11 @@ function errorMessage(data: ErrorBody, status: number): string {
   );
 }
 
-const inputBase: React.CSSProperties = {
-  background: "var(--panel-hover)",
-  color: "var(--text)",
-  border: "1px solid var(--border)",
-  fontFamily: "var(--font-mono, monospace)",
-  fontSize: "11px",
-  outline: "none",
-};
+function analyzingCopy(seconds: number): string {
+  if (seconds < 8) return `${seconds}s · reaching Pi CEO. Linear is not written.`;
+  if (seconds < 25) return `${seconds}s · product + engineering read. Linear is not written.`;
+  return `${seconds}s · still analyzing. Linear is not written.`;
+}
 
 export default function GoalTicketForm() {
   const activeProject = useActiveProject();
@@ -58,6 +58,7 @@ export default function GoalTicketForm() {
   const [repo, setRepo] = useState("");
   const [acceptance, setAcceptance] = useState("");
   const [busy, setBusy] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState("");
   const [analysis, setAnalysis] = useState<AnalysisPayload | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -65,9 +66,17 @@ export default function GoalTicketForm() {
 
   useEffect(() => {
     if (!activeProject) return;
-    const url = repoToUrl(activeProject.repo);
-    setRepo((current) => (current ? current : url));
+    setRepo((current) => (current ? current : repoToUrl(activeProject.repo)));
   }, [activeProject]);
+
+  useEffect(() => {
+    if (!busy) {
+      setElapsed(0);
+      return;
+    }
+    const id = setInterval(() => setElapsed((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, [busy]);
 
   async function analyze() {
     if (busy) return;
@@ -124,7 +133,7 @@ export default function GoalTicketForm() {
         tickets,
       });
     } catch {
-      setError("Network error — Pi CEO backend unreachable.");
+      setError("Network error — Pi CEO backend unreachable. Linear was not written.");
     } finally {
       setBusy(false);
     }
@@ -153,9 +162,7 @@ export default function GoalTicketForm() {
           })),
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as ErrorBody & {
-        tickets?: FiledTicket[];
-      };
+      const data = (await res.json().catch(() => ({}))) as ErrorBody & { tickets?: FiledTicket[] };
       if (!res.ok) {
         setError(errorMessage(data, res.status));
         return;
@@ -171,88 +178,88 @@ export default function GoalTicketForm() {
       setGoal("");
       setAcceptance("");
     } catch {
-      setError("Network error — Pi CEO backend unreachable.");
+      setError("Network error — Pi CEO backend unreachable. Linear was not written.");
     } finally {
       setBusy(false);
     }
   }
 
-  function setTickets(tickets: DraftTicket[]) {
-    if (!analysis) return;
-    setAnalysis({ ...analysis, tickets });
-  }
+  const stage = confirming ? 3 : analysis ? 2 : 1;
 
   return (
-    <div className="flex flex-col gap-2 max-w-3xl">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-widest font-mono" style={{ color: "var(--text-dim)" }}>
-          <span style={{ color: "var(--accent)" }} aria-hidden="true">$ </span>
-          goal → linear tickets
-        </span>
-        <span className="text-[10px] font-mono" style={{ color: "var(--text-muted)" }}>
-          Analyze first — Linear only after approve
-        </span>
+    <div className="max-w-3xl">
+      <div className={styles.stageRow} aria-label="Goal filing stages">
+        {[
+          { n: 1, label: "Compose" },
+          { n: 2, label: "Analyze" },
+          { n: 3, label: "Approve" },
+        ].map((s) => (
+          <div key={s.n} className={`${styles.stage} ${stage === s.n ? styles.stageOn : ""}`}>
+            <div className={styles.stageNum}>Stage {s.n}</div>
+            <div className={styles.stageLabel}>{s.label}</div>
+          </div>
+        ))}
       </div>
 
-      <textarea
-        id="goal-text"
-        name="goal"
-        value={goal}
-        onChange={(e) => setGoal(e.target.value)}
-        placeholder="Goal — what should exist when this is done"
-        disabled={busy || Boolean(analysis)}
-        rows={2}
-        className="w-full px-2.5 py-2 rounded-md bg-transparent outline-none resize-none disabled:opacity-50 text-[11px]"
-        style={inputBase}
-        aria-label="Goal"
-      />
-      <input
-        id="goal-repo"
-        name="repo"
-        type="text"
-        value={repo}
-        onChange={(e) => setRepo(e.target.value)}
-        placeholder="https://github.com/owner/repo"
-        disabled={busy || Boolean(analysis)}
-        className="w-full h-9 px-2.5 rounded-md bg-transparent outline-none disabled:opacity-50 text-[11px]"
-        style={inputBase}
-        aria-label="Target repository"
-      />
-      <textarea
-        id="goal-acceptance"
-        name="acceptance"
-        value={acceptance}
-        onChange={(e) => setAcceptance(e.target.value)}
-        placeholder="Acceptance — how a stranger can tell this is done"
-        disabled={busy || Boolean(analysis)}
-        rows={2}
-        className="w-full px-2.5 py-2 rounded-md bg-transparent outline-none resize-none disabled:opacity-50 text-[11px]"
-        style={inputBase}
-        aria-label="Acceptance criteria"
-      />
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>Goal</span>
+        <textarea
+          id="goal-text"
+          name="goal"
+          value={goal}
+          onChange={(e) => setGoal(e.target.value)}
+          placeholder="What should exist when this is done"
+          disabled={busy || Boolean(analysis)}
+          rows={3}
+          className={styles.input}
+        />
+      </label>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>Repository</span>
+        <input
+          id="goal-repo"
+          name="repo"
+          type="text"
+          value={repo}
+          onChange={(e) => setRepo(e.target.value)}
+          placeholder="https://github.com/CleanExpo/Synthex"
+          disabled={busy || Boolean(analysis)}
+          className={styles.input}
+        />
+      </label>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>Acceptance</span>
+        <textarea
+          id="goal-acceptance"
+          name="acceptance"
+          value={acceptance}
+          onChange={(e) => setAcceptance(e.target.value)}
+          placeholder="How a stranger can tell this is done"
+          disabled={busy || Boolean(analysis)}
+          rows={3}
+          className={styles.input}
+        />
+      </label>
 
       {!analysis ? (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => void analyze()}
             disabled={busy || !goal.trim() || !repo.trim() || !acceptance.trim()}
-            className="h-8 px-3 rounded-md text-xs font-mono font-medium disabled:opacity-30"
-            style={{ background: "var(--accent)", color: "var(--on-accent)" }}
+            className={styles.primary}
           >
-            {busy ? "analyzing…" : "analyze goal"}
+            {busy ? "Analyzing…" : "Analyze goal"}
           </button>
-          {busy ? (
-            <span className="text-[11px] font-mono" style={{ color: "var(--text-muted)" }}>
-              Reading as product + engineering. Nothing is filed yet.
-            </span>
-          ) : null}
+          {busy ? <span className={styles.note}>{analyzingCopy(elapsed)}</span> : (
+            <span className={styles.note}>Drafts first. Linear only after approve.</span>
+          )}
         </div>
       ) : (
         <GoalDraftReview
           analysis={analysis}
           confirming={confirming}
           filing={busy}
-          onChange={setTickets}
+          onChange={(tickets) => setAnalysis({ ...analysis, tickets })}
           onDiscard={() => { setAnalysis(null); setConfirming(false); }}
           onRequestFile={() => setConfirming(true)}
           onCancelConfirm={() => setConfirming(false)}
@@ -261,19 +268,18 @@ export default function GoalTicketForm() {
       )}
 
       {error ? (
-        <p className="text-[11px] font-mono" style={{ color: "var(--error)" }}>{error}</p>
+        <p className="mt-3 text-[13px]" style={{ color: "var(--error)" }}>{error}</p>
       ) : null}
 
       {filed.length > 0 ? (
-        <ul className="flex flex-col gap-1">
+        <ul className="mt-4 flex flex-col gap-2">
           {filed.map((ticket) => (
-            <li key={ticket.identifier} className="text-[11px] font-mono" style={{ color: "var(--success)" }}>
-              Filed{" "}
+            <li key={ticket.identifier} className={styles.card}>
               <a href={ticket.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)" }}>
                 {ticket.identifier}
               </a>
-              {" "}· {ticket.title} · {ticket.state}
-              {ticket.labels.length > 0 ? ` · ${ticket.labels.join(", ")}` : ""}
+              <span className="block text-[13px] mt-1" style={{ color: "var(--text)" }}>{ticket.title}</span>
+              <span className={styles.note}>{ticket.state}{ticket.labels.length ? ` · ${ticket.labels.join(", ")}` : ""}</span>
             </li>
           ))}
         </ul>

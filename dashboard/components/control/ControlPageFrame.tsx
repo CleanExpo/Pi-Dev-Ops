@@ -1,27 +1,27 @@
 import type { ReactNode } from "react";
+import styles from "./control-deck.module.css";
 
 export default function ControlPageFrame({
+  kicker = "Control",
   title,
   hint,
   children,
 }: {
+  kicker?: string;
   title: string;
   hint?: string;
   children: ReactNode;
 }) {
   return (
-    <div className="flex-1 overflow-auto p-4 min-h-0">
-      <header className="mb-4">
-        <h1 className="text-sm font-semibold tracking-tight" style={{ color: "var(--text)" }}>
-          {title}
-        </h1>
-        {hint ? (
-          <p className="text-[11px] mt-1 font-mono" style={{ color: "var(--text-muted)" }}>
-            {hint}
-          </p>
-        ) : null}
+    <div className="flex-1 overflow-auto min-h-0">
+      <header className={styles.hero}>
+        <div>
+          <div className={styles.kicker}>{kicker}</div>
+          <h1 className={styles.title}>{title}</h1>
+          {hint ? <p className={styles.lede}>{hint}</p> : null}
+        </div>
       </header>
-      {children}
+      <div className="px-5 pb-8 pt-2">{children}</div>
     </div>
   );
 }
