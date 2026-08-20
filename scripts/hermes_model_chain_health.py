@@ -37,6 +37,10 @@ Exit codes
      exit would be a timeout dressed as a pass)
   2  could not run — no API key, or a profile config that cannot be read/parsed
 
+Also checks gateway profile multiplexing. A config migration silently disabled it
+on 2026-08-20, unloading four of five Telegram bots with no error logged — see
+multiplex_finding().
+
 Usage
 -----
   python3 scripts/hermes_model_chain_health.py
@@ -170,6 +174,58 @@ def probe(provider: str, model: str, key: str) -> tuple[bool | None, str]:
     return True, f"{dt:.1f}s ${cost:.6f}"
 
 
+
+def multiplex_finding() -> tuple[str, str] | None:
+    """Detect the config shape that silently unloads every non-default bot.
+
+    Real regression, 2026-08-20: a `hermes update` config migration (v34 -> v37)
+    ADDED a new TOP-LEVEL `multiplex_profiles: false` to ~/.hermes/config.yaml.
+    v34 had no top-level key and `gateway.multiplex_profiles: true`. The top-level
+    key OVERRIDES the gateway one, so after the next restart only the default
+    Telegram adapter loaded and the empire / empire-mac / empire-laptop-win /
+    empire-tower-win bots stopped connecting.
+
+    Nothing caught it, because the failure is silent by construction:
+    `_start_secondary_profile_adapters()` returns 0 with no log line. There is no
+    error to grep for — the only symptom is bots that are simply absent. Setting
+    `gateway.multiplex_profiles: true` alone does NOT fix it; verified against
+    Hermes's own load_gateway_config(), which still reported False until the
+    top-level key was changed.
+
+    Returns (severity, message) or None. Severity "FAULT" fails the run.
+    """
+    import yaml
+
+    try:
+        cfg = yaml.safe_load(open(os.path.join(HERMES, "config.yaml"))) or {}
+    except Exception as exc:  # noqa: BLE001
+        raise ConfigError(f"{HERMES}/config.yaml: {exc}") from exc
+
+    top = cfg.get("multiplex_profiles")
+    nested = (cfg.get("gateway") or {}).get("multiplex_profiles")
+    # A single-profile install legitimately runs with multiplexing off, so only
+    # flag when secondary profiles actually exist to be unloaded.
+    secondaries = [
+        d for d in glob.glob(os.path.join(HERMES, "profiles", "*"))
+        if os.path.isfile(os.path.join(d, "config.yaml"))
+    ]
+    if not secondaries:
+        return None
+
+    effective = top if top is not None else nested
+
+    if top is not None and nested is not None and bool(top) != bool(nested):
+        return ("FAULT",
+                f"multiplex_profiles disagree — top-level={top!r} overrides "
+                f"gateway.multiplex_profiles={nested!r}. The top-level key wins; "
+                "fixing only the gateway one has no effect.")
+    if not effective:
+        return ("FAULT",
+                f"multiplex_profiles is off ({effective!r}) but {len(secondaries)} "
+                "secondary profile(s) exist — their bots will not connect, silently.")
+    return None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", action="store_true")
@@ -184,6 +240,7 @@ def main() -> int:
 
     try:
         chains = profiles()
+        mux = None if args.inject_broken else multiplex_finding()
     except ConfigError as exc:
         # Exit 2, never 0. A config we cannot read is an unknown we must not
         # dress up as a clean run — launchd would record success.
@@ -248,6 +305,8 @@ def main() -> int:
             print(f"\nPROFILES WITH NO WORKING MODEL: {', '.join(failed_profiles)}")
         if unverified_profiles:
             print(f"UNVERIFIED (nothing in the chain could be probed): {', '.join(unverified_profiles)}")
+        if mux and mux[0] == "FAULT":
+            print(f"\nMULTIPLEX FAULT — {mux[1]}")
         if budget_exceeded:
             print(f"\nRUN INCOMPLETE — exceeded the {RUN_BUDGET_S}s budget; entries above "
                   "marked NOT PROBED were never attempted. Treat this as a fault, not a pass.")
@@ -263,7 +322,7 @@ def main() -> int:
     # would blow the budget, mark everything NOT PROBED -> UNVERIFIED, and exit 0 —
     # a timeout dressed as a quiet clean run, which is the exact failure class this
     # tool exists to catch.
-    return 1 if (failed_profiles or budget_exceeded) else 0
+    return 1 if (failed_profiles or budget_exceeded or (mux and mux[0] == "FAULT")) else 0
 
 
 if __name__ == "__main__":
