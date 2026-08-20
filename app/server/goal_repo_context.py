@@ -36,6 +36,18 @@ def _headers() -> dict[str, str]:
     return headers
 
 
+def _without_auth(headers: dict[str, str]) -> dict[str, str]:
+    return {key: value for key, value in headers.items() if key != "Authorization"}
+
+
+def _limitation_reason(status: int, headers: dict[str, str]) -> str:
+    if status in (401, 403) and "Authorization" in headers:
+        return f"GitHub HTTP {status} (token rejected)"
+    if status in (401, 403, 404) and "Authorization" not in headers:
+        return "missing GITHUB_TOKEN or repo is private"
+    return f"GitHub HTTP {status or 'error'}"
+
+
 def _http_get(url: str, headers: dict[str, str]) -> tuple[int, str]:
     req = urllib.request.Request(url, method="GET", headers=headers)
     try:
@@ -114,8 +126,12 @@ def gather_repo_context(
     headers = _headers()
     tree_url = f"https://api.github.com/repos/{slug}/git/trees/HEAD?recursive=1"
     status, tree_body = getter(tree_url, headers)
+    if status in (401, 403) and "Authorization" in headers:
+        log.warning("github HTTP %s with token for %s; retrying without auth", status, slug)
+        headers = _without_auth(headers)
+        status, tree_body = getter(tree_url, headers)
     if status != 200:
-        reason = "missing GITHUB_TOKEN" if status in (401, 404) and "Authorization" not in headers else f"GitHub HTTP {status or 'error'}"
+        reason = _limitation_reason(status, headers)
         return {
             "ok": False,
             "limitation": (
