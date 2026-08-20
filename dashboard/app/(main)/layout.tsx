@@ -6,6 +6,7 @@ import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import CeoHealthPanel from "@/components/CeoHealthPanel";
 import MargotBubble from "@/components/margot/MargotBubble";
+import { pathMatchesNav } from "@/lib/nav-active";
 import { useEffect, useState } from "react";
 
 const NAV = [
@@ -131,7 +132,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         {/* Nav links */}
         <nav className="flex flex-col gap-0.5 px-2 py-3 flex-1">
           {NAV.map(({ href, label, icon }) => {
-            const active = path === href || (href !== "/control" && path.startsWith(href));
+            const active = pathMatchesNav(path, href);
             return (
               <Link
                 key={href}
@@ -208,7 +209,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         }}
       >
         {NAV.map(({ href, label, icon }) => {
-          const active = path === href || (href !== "/control" && path.startsWith(href));
+          const active = pathMatchesNav(path, href);
           return (
             <Link
               key={href}
