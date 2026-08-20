@@ -3,8 +3,11 @@
 
 Runs as a Hermes cron (hourly). For each of ~25 checks emits PASS/FAIL/WARN.
 
-Tier 1 (critical): regression of any PASS->FAIL since prior run forces exit 1
-                   so Hermes routes the summary to Telegram.
+Tier 1 (critical): a PASS->FAIL regression since the prior run, or a persistent Tier-1
+                   failure resurfacing (immediately when the failing set changes, else
+                   every REALERT_HOURS), writes the summary to stdout. Hermes delivers on
+                   non-empty stdout — the exit code does not gate delivery. Exit 1 is set
+                   alongside so the run is also visibly non-clean in its own job status.
 Tier 2 (important): tracked but never alert.
 Tier 3 (info):      logged for trend analysis.
 
@@ -279,21 +282,29 @@ def check_http(name: str, url: str, tier: int = 1) -> dict[str, Any]:
         return mk(name, tier, "FAIL", f"error: {type(e).__name__}: {e}")
 
 
+# HEAD is not universally implemented. A 404/405 from it means "ask again with GET",
+# never "healthy" — but both were excluded from the fallback condition below, so a HEAD
+# 404 skipped the GET entirely and then cleared a sub-500 accept band as a PASS. This
+# check reported green on a missing endpoint: the exact failure it exists to catch.
+_HEAD_RETRY_CODES = frozenset({0, 404, 405})
+
+
 def check_unite_health_api(url: str) -> dict[str, Any]:
-    # HEAD first; if 405/404 fall back to GET (still acceptable if not 5xx)
     try:
         status, _, _ = http_get(url, method="HEAD", timeout=15)
     except Exception:
         status = 0
-    if status == 0 or status >= 500:
-        # try GET
+    if status in _HEAD_RETRY_CODES or status >= 500:
         try:
             status, _, _ = http_get(url, method="GET", timeout=15)
         except Exception:
             return mk("unite api/health", 1, "FAIL", "unreachable")
-    if status >= 500:
-        return mk("unite api/health", 1, "FAIL", f"HTTP {status}", code=status)
-    return mk("unite api/health", 1, "PASS", f"HTTP {status}", code=status)
+    # 2xx only. A 3xx here is a redirect away from the endpoint or an auth wall, not a
+    # health report — the preview deployment answering 302 behind Vercel protection is
+    # precisely the read that must not count as healthy.
+    if 200 <= status < 300:
+        return mk("unite api/health", 1, "PASS", f"HTTP {status}", code=status)
+    return mk("unite api/health", 1, "FAIL", f"HTTP {status}", code=status)
 
 
 def check_supabase_status(env: dict[str, str]) -> dict[str, Any]:
@@ -340,13 +351,39 @@ def check_supabase_advisors(env: dict[str, str]) -> list[dict[str, Any]]:
             "supabase advisor errors", 1, "FAIL", f"{err_count} ERROR-level findings — regression", count=err_count
         )
     )
+    # Drift was signed and bounded upward only, so a collapse to zero scored
+    # `-71 <= 5` and read as healthy. The bound is now two-sided, and an empty list is
+    # not reported as a clean read of zero findings.
     drift = total - ADVISOR_BASELINE
-    if drift <= ADVISOR_BASELINE_SLACK:
+    if total == 0:
         tot_res = mk(
             "supabase advisor total",
             1,
-            "PASS",
-            f"{total} findings (baseline {ADVISOR_BASELINE}, drift {drift:+d})",
+            "FAIL",
+            "0 findings — an empty advisor list is indistinguishable from an "
+            "unreadable response, so it is not reported as a clean read",
+            count=total,
+            drift=drift,
+        )
+    elif drift > ADVISOR_BASELINE_SLACK:
+        tot_res = mk(
+            "supabase advisor total",
+            1,
+            "FAIL",
+            f"{total} findings exceeds baseline+{ADVISOR_BASELINE_SLACK} (drift {drift:+d})",
+            count=total,
+            drift=drift,
+        )
+    elif drift < -ADVISOR_BASELINE_SLACK:
+        # A genuine drop this large is good news that still needs the baseline moved.
+        # WARN says so without an hourly Tier-1 FAIL about a sanctioned improvement,
+        # which is how a monitor teaches its reader to ignore it.
+        tot_res = mk(
+            "supabase advisor total",
+            1,
+            "WARN",
+            f"{total} findings is {abs(drift)} below baseline {ADVISOR_BASELINE} — "
+            f"re-baseline or investigate the source (drift {drift:+d})",
             count=total,
             drift=drift,
         )
@@ -354,8 +391,8 @@ def check_supabase_advisors(env: dict[str, str]) -> list[dict[str, Any]]:
         tot_res = mk(
             "supabase advisor total",
             1,
-            "FAIL",
-            f"{total} findings exceeds baseline+{ADVISOR_BASELINE_SLACK} (drift {drift:+d})",
+            "PASS",
+            f"{total} findings (baseline {ADVISOR_BASELINE}, drift {drift:+d})",
             count=total,
             drift=drift,
         )
@@ -842,8 +879,9 @@ def stdout_report(
 ) -> None:
     """Print to stdout ONLY when we want Hermes to deliver to Telegram.
 
-    Hermes --no-agent cron treats empty stdout as silent.  We stay quiet
-    unless a Tier-1 check regressed from PASS->FAIL since the prior run.
+    Hermes --no-agent cron treats empty stdout as silent, and delivers whatever is
+    printed regardless of exit code.  We stay quiet unless a Tier-1 check regressed
+    from PASS->FAIL, or a persistent Tier-1 failure is due to resurface.
     """
     if not alert:
         return

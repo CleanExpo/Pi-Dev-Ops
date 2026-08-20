@@ -67,6 +67,17 @@ def failing_jobs(stores: list[tuple[str, Path]]) -> list[dict]:
             })
             continue
         jobs = raw.get("jobs", raw) if isinstance(raw, dict) else raw
+        if not isinstance(jobs, list) or any(not isinstance(j, dict) for j in jobs):
+            # A store holding a bare scalar, or a dict with no "jobs" key, parses fine —
+            # so it never reached the JSONDecodeError branch above. It reached `for job
+            # in jobs` instead, where a str iterates as characters until `.get()` raises
+            # AttributeError and takes the whole sweep down. Same finding as unreadable.
+            found.append({
+                "store": label, "id": "-", "name": f"UNREADABLE STORE {path}",
+                "age": None, "kind": "UNREADABLE",
+                "error": f"expected a list of job objects, got {type(jobs).__name__}",
+            })
+            continue
         for job in jobs:
             # A retired job keeps whatever status it died with. Reporting those is a
             # false alarm, and false alarms are what get a monitor ignored — the exact
