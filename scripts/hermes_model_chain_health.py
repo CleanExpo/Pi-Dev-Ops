@@ -156,6 +156,16 @@ def probe(provider: str, model: str, key: str) -> tuple[bool | None, str]:
     text = (msg.get("content") or msg.get("reasoning") or "").strip()
     if not text:
         return False, "empty response"
+    # "Non-empty" is a weak liveness test: a refusal, a content-filter notice, or
+    # an error rendered as prose would all pass it while the model cannot actually
+    # serve a turn. Check the model did what it was asked.
+    #
+    # Substring, not equality: instruction-tuned models add punctuation, quotes or
+    # markdown ("OK.", "**OK**"), and a monitor that false-alarms on a full stop
+    # gets ignored, which is worse than one that is slightly lenient. The actual
+    # reply is echoed on failure so a false alarm is diagnosable at a glance.
+    if "ok" not in text.lower():
+        return False, f"answered but did not comply: {text[:60]!r}"
     cost = (d.get("usage") or {}).get("cost", 0.0)
     return True, f"{dt:.1f}s ${cost:.6f}"
 
