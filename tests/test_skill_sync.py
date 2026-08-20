@@ -154,6 +154,21 @@ def test_approved_only_promotion(tmp_path: Path) -> None:
     assert not (repo_root / "skills" / "unapproved-skill").exists()
 
 
+def test_approval_parser_preserves_source_paths_with_spaces(tmp_path: Path) -> None:
+    source = _skill(tmp_path / "Storage Unit" / "Approved Skills", "space-safe")
+    report = tmp_path / "report.md"
+    folder_hash = skill_sync.folder_hash(source)
+    report.write_text(
+        f"- [x] APPROVE_PROMOTE name=space-safe source={source} "
+        f"folder_sha256={folder_hash} — operator-approved\n",
+        encoding="utf-8",
+    )
+
+    assert skill_sync.parse_approved_rows(report) == [
+        {"name": "space-safe", "source": str(source), "folder": folder_hash}
+    ]
+
+
 def test_manifest_regeneration_runs_when_module_exists(tmp_path: Path) -> None:
     repo_root = tmp_path / "Pi-Dev-Ops"
     (repo_root / "swarm").mkdir(parents=True)

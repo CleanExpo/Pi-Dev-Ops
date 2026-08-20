@@ -55,7 +55,7 @@ SIBLING_REF_ROOTS = {"assets", "examples", "references", "scripts", "templates"}
 APPROVAL_RE = re.compile(
     r"^- \[[xX]\] APPROVE_PROMOTE name=(?P<name>[a-z0-9_-]+) "
     r"source=(?P<source>.+?) folder_sha256=(?P<folder>[0-9a-f]{64})"
-    r"(?: resolution=(?P<resolution>[a-z0-9_-]+))?"
+    r"(?: resolution=(?P<resolution>[a-z0-9_-]+))?(?:\s+—.*)?$"
 )
 
 
@@ -457,7 +457,12 @@ def parse_approved_rows(report_path: Path) -> list[dict[str, str]]:
         match = APPROVAL_RE.match(line.strip())
         if not match:
             continue
-        approvals.append({k: v for k, v in match.groupdict().items() if v})
+        row = {k: v for k, v in match.groupdict().items() if v}
+        source = row["source"].strip()
+        if len(source) >= 2 and source[0] == source[-1] and source[0] in {"'", '"'}:
+            source = source[1:-1]
+        row["source"] = source
+        approvals.append(row)
     return approvals
 
 

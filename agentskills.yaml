@@ -1,8 +1,8 @@
 manifest_version: 1
 package:
   name: pi-ceo-skills
-  version: 1.22.0
-  generated_at: "2026-08-17T22:25:36.702174+00:00"
+  version: 1.23.0
+  generated_at: "2026-08-20T22:25:57.115223+00:00"
   source: github.com/CleanExpo/Pi-Dev-Ops
 skills:
   - id: adversarial-review
@@ -1343,6 +1343,21 @@ skills:
       pii_handling: pass-through
     inferred: true
     low_confidence: true
+  - id: model-router
+    description: Use before substantive work when choosing whether to work inline, delegate, fan out, or escalate based on ambiguity, stakes, scope, repetition, privacy, and prior failure.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/model-router/SKILL.md
+    sha256: b343f55bdd4f199410dae0363153cb3fd6f7d6ead894df9cffbe470a6cac4ea2
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
   - id: nexus
     description: "Master-orchestrator command. Type /nexus <goal> to have the estate's best minds work a goal end-to-end — frame it, research it to primary sources, deploy the right specialists, think past the obvious downstream, verify it adversarially, and hand back a decision a non-technical founder can act on. Default-lean; it does the minimum the goal actually needs."
     owner_role: (unset)
@@ -2373,6 +2388,21 @@ skills:
     status: (unset)
     path: skills/unite-group-ci-recovery/SKILL.md
     sha256: 90177cc198a6b8e25e5cb294f5a7ea164ed3bbb7e8e7c21315d1cd6337d61066
+    dependencies:
+      tools: []
+      skills: []
+    safety:
+      requires_kill_switch: false
+      requires_hitl_gate: false
+      pii_handling: pass-through
+    inferred: true
+    low_confidence: true
+  - id: unlazy
+    description: Turn substantial delivery work into a dependency tree with owned files, rolling dispatch, executable gates, and exact completion evidence.
+    owner_role: (unset)
+    status: (unset)
+    path: skills/unlazy/SKILL.md
+    sha256: 0e7031c0b02036df4aa66618b22e2e54100b33dadd7ddac51520ada58b5a93be
     dependencies:
       tools: []
       skills: []

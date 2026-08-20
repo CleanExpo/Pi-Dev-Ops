@@ -52,19 +52,26 @@ def _install_fake_sdk(monkeypatch, *, drafter_text: str, redteam_text: str,
                        redteam_seconds: float = 0.05,
                        drafter_rc: int = 0, redteam_rc: int = 0,
                        drafter_raises: bool = False,
-                       redteam_raises: bool = False):
+                       redteam_raises: bool = False,
+                       phase_intervals: dict[str, list[float]] | None = None):
     """Patch _run_claude_via_sdk + model_policy at the call site."""
     async def fake_sdk(*, prompt, model, workspace, timeout, session_id,
                        phase, thinking):
+        if phase_intervals is not None:
+            phase_intervals[phase] = [asyncio.get_running_loop().time()]
         if phase == "drafter":
             if drafter_raises:
                 raise RuntimeError("drafter exploded")
             await asyncio.sleep(drafter_seconds)
+            if phase_intervals is not None:
+                phase_intervals[phase].append(asyncio.get_running_loop().time())
             return drafter_rc, drafter_text, 0.001
         else:  # "redteam"
             if redteam_raises:
                 raise RuntimeError("redteam exploded")
             await asyncio.sleep(redteam_seconds)
+            if phase_intervals is not None:
+                phase_intervals[phase].append(asyncio.get_running_loop().time())
             return redteam_rc, redteam_text, 0.001
 
     def fake_select(role, requested=None):
@@ -140,8 +147,8 @@ def test_happy_path_both_sides_succeed(monkeypatch, tmp_path):
     assert result.total_cost_usd == 0.002
 
 
-def test_parallelism_under_50pct_of_sequential(monkeypatch, tmp_path):
-    """Acceptance: drafter+redteam wall-clock <50% of sequential sum."""
+def test_drafter_and_redteam_sdk_calls_overlap(monkeypatch, tmp_path):
+    """Acceptance: drafter and red-team SDK calls execute concurrently."""
     monkeypatch.setattr(DR, "REPO_ROOT", tmp_path)
     monkeypatch.setattr(DR, "DEBATE_STATE_FILE_REL", "debates.jsonl")
     # This gate measures the two SDK sides, not cold audit imports or external
@@ -152,31 +159,22 @@ def test_parallelism_under_50pct_of_sequential(monkeypatch, tmp_path):
     from swarm import kanban_adapter
     monkeypatch.setattr(kanban_adapter, "emit_debate_card", lambda **kwargs: None)
     _install_fake_kill(monkeypatch, _FakeKillSwitch(on=False))
-    # Each side sleeps 0.30s — sequential would be 0.60s.
+    phase_intervals: dict[str, list[float]] = {}
     _install_fake_sdk(
         monkeypatch,
         drafter_text="d", redteam_text="r",
         drafter_seconds=0.30, redteam_seconds=0.30,
+        phase_intervals=phase_intervals,
     )
 
-    import time
-    t0 = time.monotonic()
     result = asyncio.run(DR.run_debate(
         DR.DebateInput(topic="t", role="CFO", business_id="bid")
     ))
-    elapsed = time.monotonic() - t0
 
-    one_side_seconds = 0.30
-    sequential_seconds = 0.60
     assert result.both_succeeded()
-    # The meaningful parallelism check: elapsed is closer to one-side time
-    # than to the sequential sum. Use 1.6x one-side as the ceiling — that
-    # absorbs asyncio overhead on slow machines while still failing if
-    # the two sides ran sequentially (which would be ≥ 2.0x one-side).
-    assert elapsed < one_side_seconds * 1.6, (
-        f"elapsed {elapsed}s suggests sequential execution "
-        f"(should be < {one_side_seconds * 1.6}s; sequential would be {sequential_seconds}s)"
-    )
+    drafter_start, drafter_end = phase_intervals["drafter"]
+    redteam_start, redteam_end = phase_intervals["redteam"]
+    assert max(drafter_start, redteam_start) < min(drafter_end, redteam_end)
 
 
 def test_one_side_raising_does_not_break_other(monkeypatch, tmp_path):
