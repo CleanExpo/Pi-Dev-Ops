@@ -3,14 +3,14 @@
 // Handles auth transparently — clients never see Pi CEO credentials.
 // SSE paths (/api/sessions/*/logs and /api/sessions/*/stream) are streamed without timeout.
 
+import { allowed } from "@/lib/pi-ceo-proxy-allowlist";
 import {
   PROXY_LOGIN_MS,
-  PROXY_MAX_DURATION_S,
   proxyAbortPayload,
   proxyTimeoutMs,
 } from "@/lib/pi-ceo-proxy-timeout";
 
-export const maxDuration = PROXY_MAX_DURATION_S;
+export const maxDuration = 120;
 
 const PI_CEO_URL = (process.env.PI_CEO_URL ?? "http://127.0.0.1:7777").replace(/\/$/, "");
 const PI_CEO_PASSWORD = process.env.PI_CEO_PASSWORD ?? "";
@@ -203,61 +203,6 @@ async function proxySse(path: string, clientSignal: AbortSignal): Promise<Respon
       "X-Accel-Buffering": "no",
     },
   });
-}
-
-/**
- * Upstream path allowlist.
- *
- * This was a catch-all: any path under /api/pi-ceo/* was forwarded verbatim to
- * PI_CEO_URL, including /api/login. In a single shared-password system anything
- * holding that password — including the estate's own automation — could reach any
- * upstream route, and the fence intercepts tool calls rather than HTTP, so nothing
- * gated it.
- *
- * Derived from the paths the dashboard actually calls (19 distinct, enumerated from
- * source). Anything not listed is refused here rather than forwarded. Adding a route
- * upstream now requires adding it here too — deliberately, so the surface cannot grow
- * silently.
- *
- * RA-fix-allowed-upstream-gap: the original enumeration missed routes that pre-date
- * it and are still asserted by the E2E smoke suite's `auth: true` (post-login)
- * probes — those reach this gate directly (the `auth: false` probes never get past
- * proxy.ts's session check, so they never exercised this allowlist at all). Added
- * back: autonomy/integrations/nexus/health-endpoint reads, the Telegram webhook
- * intake path (called externally, so it was never in "what the dashboard calls"),
- * spec-pipeline/run, and the sessions logs/stream SSE alias + kill action.
- */
-const ALLOWED_UPSTREAM: RegExp[] = [
-  /^\/health$/,
-  /^\/api\/health$/,
-  /^\/api\/health\/obsidian$/,
-  /^\/api\/health\/full$/,
-  /^\/api\/sessions$/,
-  /^\/api\/sessions\/[^/]+\/(logs(?:\/stream)?|stream|resume|kill)$/,
-  /^\/api\/terminal\/(sessions|tail)$/,
-  /^\/api\/projects\/health$/,
-  /^\/api\/projects\/[^/]+\/findings$/,
-  /^\/api\/routines$/,
-  /^\/api\/mission-control\/live$/,
-  /^\/api\/margot\/assets$/,
-  /^\/api\/spec-pipeline$/,
-  /^\/api\/spec-pipeline\/run$/,
-  /^\/api\/scan$/,
-  /^\/api\/build$/,
-  /^\/api\/goal-ticket$/,
-  /^\/api\/goal-ticket\/analyze$/,
-  /^\/api\/autonomy\/status$/,
-  /^\/api\/integrations\/health$/,
-  /^\/api\/nexus\/health$/,
-  /^\/api\/nexus\/ingest\/health$/,
-  /^\/api\/telegram\/intake\/status$/,
-  /^\/webhook\/telegram$/,
-];
-
-export function allowed(pathStr: string): boolean {
-  // Compare the path only. A query string must never widen what is reachable.
-  const bare = pathStr.split("?")[0];
-  return ALLOWED_UPSTREAM.some((re) => re.test(bare));
 }
 
 function refuse(pathStr: string): Response {

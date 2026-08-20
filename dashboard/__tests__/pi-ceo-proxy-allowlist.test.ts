@@ -11,7 +11,7 @@
  * silently widen the gate into a catch-all again.
  */
 import { describe, it, expect } from "vitest";
-import { allowed } from "@/app/api/pi-ceo/[...path]/route";
+import { allowed } from "@/lib/pi-ceo-proxy-allowlist";
 import { PROXY_ANALYZE_MS, PROXY_DEFAULT_MS, proxyAbortPayload, proxyTimeoutMs } from "@/lib/pi-ceo-proxy-timeout";
 
 describe("pi-ceo proxy ALLOWED_UPSTREAM", () => {
