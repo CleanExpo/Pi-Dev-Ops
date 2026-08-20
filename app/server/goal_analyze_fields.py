@@ -1,6 +1,7 @@
 """Flatten nested analyze JSON into string fields for review and Linear."""
 from __future__ import annotations
 
+import json
 from typing import Any
 
 _TEXT_KEYS = (
@@ -126,3 +127,53 @@ def analysis_overlay(payload: dict[str, Any] | None) -> dict[str, Any]:
         "implementation_order": order if isinstance(order, list) else [],
         "final_review": review if isinstance(review, dict) else {},
     }
+
+
+def payload_score(obj: dict[str, Any]) -> int:
+    """Prefer a full analyze payload over a nested fragment or the empty schema."""
+    tickets = obj.get("tickets")
+    score = 0
+    if isinstance(tickets, list):
+        score += min(len(tickets), 6)
+        for item in tickets:
+            if not isinstance(item, dict):
+                continue
+            title = as_text(item.get("title")).lower()
+            if "human-written imperative title" in title:
+                continue
+            expected = as_text(
+                item.get("expected_behaviour") or item.get("goal") or item.get("summary")
+            )
+            acceptance = as_text(item.get("acceptance") or item.get("acceptance_criteria"))
+            if expected and acceptance:
+                score += 8
+    ga = obj.get("goal_analysis")
+    if isinstance(ga, dict) and as_text(ga.get("summary")):
+        score += 4
+    if as_text(obj.get("split_reason")):
+        score += 1
+    return score
+
+
+def parse_analyze_payload(text: str) -> dict[str, Any] | None:
+    """Pick the analyze JSON object, not a nested review/schema fragment."""
+    decoder = json.JSONDecoder()
+    best: dict[str, Any] | None = None
+    best_score = 0
+    start = 0
+    while True:
+        index = text.find("{", start)
+        if index < 0:
+            break
+        try:
+            obj, _end = decoder.raw_decode(text, index)
+        except json.JSONDecodeError:
+            start = index + 1
+            continue
+        if isinstance(obj, dict):
+            score = payload_score(obj)
+            if score > best_score:
+                best = obj
+                best_score = score
+        start = index + 1
+    return best if best_score > 0 else None

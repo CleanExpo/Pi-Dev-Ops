@@ -42,6 +42,7 @@ export interface AnalysisOverview {
   split_reason: string;
   code_inspected: boolean;
   code_limitation: string;
+  fallback?: boolean;
   goal_analysis?: GoalAnalysisBlock;
   user_flow?: FlowBlock;
   technical_flow?: FlowBlock;
@@ -88,7 +89,7 @@ export default function GoalAnalysisOverview({ analysis }: { analysis: AnalysisO
   const techFlow = analysis.technical_flow || {};
   const review = analysis.final_review || {};
   const order = analysis.implementation_order || [];
-  const summary = ga.summary || analysis.summary || "No analysis text returned.";
+  const summary = (ga.summary || "").trim() || analysis.summary || "No analysis text returned.";
   const gaps = asLines(ga.identified_gaps);
   const reuse = asLines(ga.existing_functionality_to_reuse);
   const included = asLines(ga.scope?.included);
@@ -124,13 +125,18 @@ export default function GoalAnalysisOverview({ analysis }: { analysis: AnalysisO
         {ga.overall_risk ? (
           <p className={`${styles.note} mt-2`}>Overall risk: {ga.overall_risk}</p>
         ) : null}
+        {analysis.fallback ? (
+          <p className="mt-2 text-[13px]" style={{ color: "var(--warning)" }}>
+            This is a fallback draft. The analyzer did not return a completed plan.
+          </p>
+        ) : null}
         {!analysis.code_inspected && analysis.code_limitation ? (
           <p className="mt-2 text-[13px]" style={{ color: "var(--warning)" }}>
             {analysis.code_limitation}
           </p>
-        ) : (
+        ) : analysis.code_inspected ? (
           <p className={`${styles.note} mt-2`}>Repo excerpt was used. Paths still need a human check.</p>
-        )}
+        ) : null}
       </section>
 
       <Block title="Current behaviour" body={ga.current_behaviour || ""} />

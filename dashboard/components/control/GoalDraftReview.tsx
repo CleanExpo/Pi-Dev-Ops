@@ -83,6 +83,11 @@ const AREAS: Array<{ key: keyof DraftTicket; label: string; rows: number }> = [
   { key: "rationale", label: "Why this ticket", rows: 2 },
 ];
 
+const ALWAYS_SHOW: Array<keyof DraftTicket> = [
+  "expected_behaviour",
+  "acceptance",
+];
+
 function selectedCount(tickets: DraftTicket[]): number {
   return tickets.filter((t) => t.selected).length;
 }
@@ -207,6 +212,7 @@ export default function GoalDraftReview({
             {ticket.ticket_id || `Ticket ${index + 1}`} of {analysis.tickets.length}
             {ticket.priority ? ` · ${ticket.priority}` : ""}
           </label>
+          {ticket.ticket_id || ticket.priority ? (
           <div className="grid gap-3 sm:grid-cols-2">
             <label className={styles.field}>
               <span className={styles.fieldLabel}>ID</span>
@@ -229,6 +235,7 @@ export default function GoalDraftReview({
               />
             </label>
           </div>
+          ) : null}
           <label className={styles.field}>
             <span className={styles.fieldLabel}>Title</span>
             <input
@@ -239,7 +246,10 @@ export default function GoalDraftReview({
               aria-label={`Title ${index + 1}`}
             />
           </label>
-          {AREAS.map((field) => (
+          {AREAS.filter(
+            (field) =>
+              ALWAYS_SHOW.includes(field.key) || String(ticket[field.key] ?? "").trim(),
+          ).map((field) => (
             <label key={field.key} className={styles.field}>
               <span className={styles.fieldLabel}>{field.label}</span>
               <textarea

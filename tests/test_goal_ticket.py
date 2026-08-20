@@ -413,6 +413,8 @@ async def test_analyze_goal_falls_back_when_model_fails() -> None:
     assert "unavailable" in out["code_limitation"].lower() or "unavailable" in out["tickets"][0]["context"].lower()
     assert out["tickets"][0]["current_behaviour"].startswith("Unknown")
     assert len(out["tickets"]) == 1
+    assert out["summary"]
+    assert "failed" in out["summary"].lower() or "unavailable" in out["summary"].lower()
 
 
 def test_route_rejects_unapproved_file(client: TestClient) -> None:
@@ -534,3 +536,69 @@ def test_drafts_from_payload_flattens_nested_schema() -> None:
     assert "e2e:" in drafts[0]["testing"]
     assert "clarity: High" in drafts[0]["review"]
     assert "Required." in drafts[0]["ui_ux"]
+
+
+def test_drafts_from_payload_uses_parent_acceptance_when_ticket_omits_it() -> None:
+    drafts = drafts_from_payload(
+        {
+            "tickets": [
+                {
+                    "title": "Add project create on the dashboard",
+                    "summary": "User can create a project from the dashboard.",
+                    "technical_requirements": ["Reuse the existing dashboard shell"],
+                }
+            ]
+        },
+        "Let a user create projects and tasks",
+        "A user can create a project, add a task, and see status persist after refresh.",
+    )
+    assert len(drafts) == 1
+    assert drafts[0]["title"] == "Add project create on the dashboard"
+    assert "persist after refresh" in drafts[0]["acceptance"]
+
+
+def test_drafts_from_payload_skips_schema_placeholder_tickets() -> None:
+    drafts = drafts_from_payload(
+        {
+            "tickets": [
+                {
+                    "title": "Human-written imperative title <= 80 characters",
+                    "expected_behaviour": "",
+                    "acceptance": ["Given ... When ... Then ..."],
+                }
+            ]
+        },
+        "Let a user create projects and tasks",
+        "A user can create a project, add a task, and see status persist after refresh.",
+    )
+    assert drafts[0]["rationale"].startswith("Single draft")
+
+
+@pytest.mark.asyncio
+async def test_analyze_goal_keeps_model_tickets_when_repo_inspect_fails() -> None:
+    async def fake_complete(**kwargs: Any) -> tuple[str, float]:
+        return (
+            '{"goal_analysis":{"summary":"Inspection failed; tickets still split by surface."},'
+            '"split_reason":"UI vs persist.",'
+            '"tickets":[{"title":"Create project from dashboard",'
+            '"expected_behaviour":"User can create a named project.",'
+            '"acceptance":["Given a logged-in user When they create a project Then it appears after refresh"]}]}',
+            0.01,
+        )
+
+    out = await analyze_goal(
+        "Let a user create projects, add tasks, and track task status from their dashboard",
+        "CleanExpo/Synthex",
+        "A user can create a project, add a task, change its status, refresh, and see it persist.",
+        complete_fn=fake_complete,
+        context_fn=lambda slug, goal: {
+            "ok": False,
+            "limitation": "Repo inspection unavailable (GitHub HTTP 401).",
+            "excerpt": "",
+        },
+    )
+    assert out["fallback"] is False
+    assert out["code_inspected"] is False
+    assert "401" in out["code_limitation"]
+    assert out["tickets"][0]["title"] == "Create project from dashboard"
+    assert out["summary"] == "Inspection failed; tickets still split by surface."
