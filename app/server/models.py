@@ -95,6 +95,30 @@ class GoalTicketRequest(BaseModel):
         return v
 
 
+class GoalDraft(BaseModel):
+    """One proposed ticket. Filed only after explicit approval."""
+
+    title: str
+    goal: str
+    acceptance: str
+    rationale: str = ""
+
+    @field_validator("title", "goal", "acceptance")
+    @classmethod
+    def strip_draft(cls, v: str) -> str:
+        v = (v or "").strip()
+        if not v:
+            raise ValueError("field cannot be empty")
+        return v
+
+
+class GoalTicketFileRequest(GoalTicketRequest):
+    """Linear write. `approved` must be true; tickets are the reviewed drafts."""
+
+    approved: bool
+    tickets: list[GoalDraft]
+
+
 class LessonRequest(BaseModel):
     source: str = "manual"
     category: str = "general"

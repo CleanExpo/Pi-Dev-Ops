@@ -228,6 +228,7 @@ const ALLOWED_UPSTREAM: RegExp[] = [
   /^\/api\/scan$/,
   /^\/api\/build$/,
   /^\/api\/goal-ticket$/,
+  /^\/api\/goal-ticket\/analyze$/,
   /^\/api\/autonomy\/status$/,
   /^\/api\/integrations\/health$/,
   /^\/api\/nexus\/health$/,

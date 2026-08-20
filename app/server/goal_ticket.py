@@ -1,11 +1,4 @@
-"""Goal → Linear ticket — first hop of the execution loop.
-
-A human states a goal, target repo, and acceptance criteria. This module
-files a Linear issue in Backlog with `pi-dev:source` only.
-
-It does not apply `Ready for Pi-Dev` or `pi-dev:autonomous`. Those markers
-are the later pull step, not this hop.
-"""
+"""Goal → Linear ticket — Backlog only, no autonomy markers."""
 from __future__ import annotations
 
 import json
@@ -68,15 +61,29 @@ def title_from_goal(goal: str) -> str:
     return line[:200]
 
 
-def build_description(goal: str, repo: str, acceptance: str) -> str:
-    return (
-        f"## Goal\n{goal.strip()}\n\n"
-        f"## Target repo\n`{repo}`\n\n"
-        f"## Acceptance\n{acceptance.strip()}\n\n"
+def build_description(
+    goal: str,
+    repo: str,
+    acceptance: str,
+    *,
+    notes: str = "",
+    parent_goal: str = "",
+) -> str:
+    parts = [
+        f"## Goal\n{goal.strip()}",
+        f"## Target repo\n`{repo}`",
+        f"## Acceptance\n{acceptance.strip()}",
+    ]
+    if parent_goal.strip() and parent_goal.strip() != goal.strip():
+        parts.append(f"## Parent goal\n{parent_goal.strip()}")
+    if notes.strip():
+        parts.append(f"## Why this ticket\n{notes.strip()}")
+    parts.append(
         "---\n"
         "Filed via Goal → Linear (dashboard). Status: Backlog. "
         "Not authorised for autonomous pickup.\n"
     )
+    return "\n\n".join(parts)
 
 
 def resolve_project(repo: str) -> dict[str, str] | None:
@@ -176,6 +183,9 @@ def file_goal(
     acceptance: str,
     *,
     gql: GqlFn | None = None,
+    title: str | None = None,
+    notes: str = "",
+    parent_goal: str = "",
 ) -> dict[str, Any]:
     """Create a Backlog Linear ticket. Never authorises autonomous pickup."""
     missing = validate_goal(goal, repo, acceptance)
@@ -193,13 +203,15 @@ def file_goal(
         return {"error": "backlog_state_missing", "team_id": project["team_id"]}
 
     label_id = _source_label_id(client, project["team_id"])
-    title = title_from_goal(goal)
+    issue_title = (title or "").strip() or title_from_goal(goal)
     issue_input: dict[str, Any] = {
         "teamId": project["team_id"],
         "projectId": project["project_id"],
         "stateId": state_id,
-        "title": title,
-        "description": build_description(goal, slug, acceptance),
+        "title": issue_title[:200],
+        "description": build_description(
+            goal, slug, acceptance, notes=notes, parent_goal=parent_goal,
+        ),
     }
     labels = [_SOURCE_LABEL]
     if label_id:
@@ -250,3 +262,38 @@ def _submit_issue(
         "project_id": project["project_id"],
         "registry_id": project["registry_id"],
     }
+
+
+def file_drafts(
+    repo: str,
+    drafts: list[dict[str, Any]],
+    *,
+    approved: bool,
+    parent_goal: str = "",
+    gql: GqlFn | None = None,
+) -> dict[str, Any]:
+    """File approved drafts. Refuses unless `approved` is True."""
+    if not approved:
+        return {"error": "not_approved"}
+    if not drafts:
+        return {"error": "validation", "fields": ["tickets"]}
+    created: list[dict[str, Any]] = []
+    for draft in drafts:
+        out = file_goal(
+            str(draft.get("goal") or ""),
+            repo,
+            str(draft.get("acceptance") or ""),
+            gql=gql,
+            title=str(draft.get("title") or ""),
+            notes=str(draft.get("rationale") or ""),
+            parent_goal=parent_goal,
+        )
+        if out.get("error"):
+            return {
+                "error": out["error"],
+                "fields": out.get("fields"),
+                "filed": created,
+                "failed_title": draft.get("title"),
+            }
+        created.append(out)
+    return {"status": "created", "count": len(created), "tickets": created}

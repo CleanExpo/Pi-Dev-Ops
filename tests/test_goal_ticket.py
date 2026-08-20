@@ -13,12 +13,14 @@ from app.server.goal_ticket import (
     _READY_STATE,
     _SOURCE_LABEL,
     build_description,
+    file_drafts,
     file_goal,
     normalize_repo,
     resolve_project,
     title_from_goal,
     validate_goal,
 )
+from app.server.goal_analyze import analyze_goal, drafts_from_payload, fallback_drafts
 from app.server.routes import goal_ticket as goal_ticket_route
 
 
@@ -72,7 +74,8 @@ class _FakeLinear:
     """Captures issueCreate input. Serves Backlog + source label lookups."""
 
     def __init__(self) -> None:
-        self.created: dict[str, Any] | None = None
+        self.created: list[dict[str, Any]] = []
+        self.calls = 0
 
     def __call__(self, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
         q = query.replace(" ", "")
@@ -103,16 +106,19 @@ class _FakeLinear:
                 }
             }
         if "issueCreate" in query:
-            self.created = (variables or {}).get("input")
+            self.calls += 1
+            payload = (variables or {}).get("input") or {}
+            self.created.append(payload)
+            ident = f"RA-800{self.calls}"
             return {
                 "data": {
                     "issueCreate": {
                         "success": True,
                         "issue": {
-                            "id": "issue-1",
-                            "identifier": "RA-8000",
-                            "title": title_from_goal("File this as a Linear ticket now"),
-                            "url": "https://linear.app/unite-group/issue/RA-8000",
+                            "id": f"issue-{self.calls}",
+                            "identifier": ident,
+                            "title": payload.get("title") or title_from_goal("File this as a Linear ticket now"),
+                            "url": f"https://linear.app/unite-group/issue/{ident}",
                         },
                     }
                 }
@@ -129,19 +135,20 @@ def test_file_goal_creates_backlog_without_autonomy_markers() -> None:
         gql=fake,
     )
     assert out["status"] == "created"
-    assert out["identifier"] == "RA-8000"
-    assert out["url"].endswith("RA-8000")
+    assert out["identifier"] == "RA-8001"
+    assert out["url"].endswith("RA-8001")
     assert out["state"] == "Backlog"
     assert _AUTONOMY_LABEL not in out["labels"]
     assert _SOURCE_LABEL in out["labels"]
-    assert fake.created is not None
-    assert fake.created["projectId"] == PI_DEV_OPS_LINEAR_PROJECT
-    assert fake.created["teamId"] == PI_DEV_OPS_TEAM
-    assert fake.created["stateId"] == "state-backlog"
-    assert fake.created["stateId"] != "state-ready"
-    assert fake.created["labelIds"] == ["label-source"]
-    assert _AUTONOMY_LABEL not in fake.created["description"]
-    assert _READY_STATE not in fake.created["description"]
+    assert fake.created
+    first = fake.created[0]
+    assert first["projectId"] == PI_DEV_OPS_LINEAR_PROJECT
+    assert first["teamId"] == PI_DEV_OPS_TEAM
+    assert first["stateId"] == "state-backlog"
+    assert first["stateId"] != "state-ready"
+    assert first["labelIds"] == ["label-source"]
+    assert _AUTONOMY_LABEL not in first["description"]
+    assert _READY_STATE not in first["description"]
 
 
 def test_file_goal_rejects_unknown_repo() -> None:
@@ -171,34 +178,240 @@ def client() -> TestClient:
 
 
 def test_route_returns_ticket_url(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    def fake_file(goal: str, repo: str, acceptance: str) -> dict[str, Any]:
-        assert "Linear" in goal
+    def fake_file(
+        repo: str,
+        drafts: list[dict[str, Any]],
+        *,
+        approved: bool,
+        parent_goal: str = "",
+        gql: Any = None,
+    ) -> dict[str, Any]:
+        assert approved is True
+        assert len(drafts) == 1
+        assert "Linear" in parent_goal
         return {
             "status": "created",
-            "identifier": "RA-8001",
-            "url": "https://linear.app/unite-group/issue/RA-8001",
-            "title": goal,
-            "state": "Backlog",
-            "labels": [_SOURCE_LABEL],
+            "count": 1,
+            "tickets": [
+                {
+                    "identifier": "RA-8001",
+                    "url": "https://linear.app/unite-group/issue/RA-8001",
+                    "title": drafts[0]["title"],
+                    "state": "Backlog",
+                    "labels": [_SOURCE_LABEL],
+                }
+            ],
         }
 
-    monkeypatch.setattr(goal_ticket_route, "file_goal", fake_file)
+    monkeypatch.setattr(goal_ticket_route, "file_drafts", fake_file)
     resp = client.post(
         "/api/goal-ticket",
         json={
             "goal": "File this as a Linear ticket now",
             "repo": "CleanExpo/Pi-Dev-Ops",
             "acceptance": "Ticket RA-8001 exists in Linear Backlog.",
+            "approved": True,
+            "tickets": [
+                {
+                    "title": "File this as a Linear ticket now",
+                    "goal": "File this as a Linear ticket now",
+                    "acceptance": "Ticket RA-8001 exists in Linear Backlog.",
+                    "rationale": "Single hop",
+                }
+            ],
         },
     )
     assert resp.status_code == 200
     body = resp.json()
-    assert body["identifier"] == "RA-8001"
-    assert body["url"].endswith("RA-8001")
-    assert body["state"] == "Backlog"
-    assert _AUTONOMY_LABEL not in body["labels"]
+    assert body["tickets"][0]["identifier"] == "RA-8001"
+    assert body["tickets"][0]["url"].endswith("RA-8001")
+    assert body["tickets"][0]["state"] == "Backlog"
+    assert _AUTONOMY_LABEL not in body["tickets"][0]["labels"]
 
 
 def test_route_rejects_empty_body(client: TestClient) -> None:
     resp = client.post("/api/goal-ticket", json={"goal": "", "repo": "", "acceptance": ""})
     assert resp.status_code == 422
+
+
+def test_file_drafts_refuses_without_approval() -> None:
+    fake = _FakeLinear()
+    out = file_drafts(
+        "CleanExpo/Pi-Dev-Ops",
+        [
+            {
+                "title": "Do not file this ticket yet",
+                "goal": "This draft must not hit Linear",
+                "acceptance": "No Linear issue exists for this draft.",
+            }
+        ],
+        approved=False,
+        gql=fake,
+    )
+    assert out["error"] == "not_approved"
+    assert fake.created == []
+
+
+def test_file_drafts_creates_each_approved_ticket() -> None:
+    fake = _FakeLinear()
+    out = file_drafts(
+        "CleanExpo/Pi-Dev-Ops",
+        [
+            {
+                "title": "Add the form",
+                "goal": "The goal form exists on Control",
+                "acceptance": "A stranger can file a ticket from /control/goal.",
+                "rationale": "UI hop",
+            },
+            {
+                "title": "Add the API",
+                "goal": "POST /api/goal-ticket files Backlog issues",
+                "acceptance": "A test proves approval is required before write.",
+                "rationale": "API hop",
+            },
+        ],
+        approved=True,
+        parent_goal="Ship Goal to Linear with approval",
+        gql=fake,
+    )
+    assert out["status"] == "created"
+    assert out["count"] == 2
+    assert [t["identifier"] for t in out["tickets"]] == ["RA-8001", "RA-8002"]
+    assert len(fake.created) == 2
+    assert fake.created[0]["title"] == "Add the form"
+    assert "Ship Goal to Linear with approval" in fake.created[0]["description"]
+    assert _AUTONOMY_LABEL not in fake.created[0]["description"]
+
+
+def test_drafts_from_payload_splits_valid_tickets() -> None:
+    drafts = drafts_from_payload(
+        {
+            "tickets": [
+                {
+                    "title": "Ticket A",
+                    "goal": "Surface A exists in the dashboard",
+                    "acceptance": "A stranger can open surface A.",
+                    "rationale": "UI",
+                },
+                {
+                    "title": "Ticket B",
+                    "goal": "API B returns the new payload",
+                    "acceptance": "A test covers the new payload.",
+                    "rationale": "API",
+                },
+            ]
+        },
+        "parent goal text here",
+        "parent acceptance text here",
+    )
+    assert len(drafts) == 2
+    assert drafts[0]["title"] == "Ticket A"
+
+
+def test_drafts_from_payload_falls_back_when_empty() -> None:
+    drafts = drafts_from_payload({}, "parent goal text here", "parent acceptance lives here")
+    assert drafts == fallback_drafts("parent goal text here", "parent acceptance lives here")
+
+
+@pytest.mark.asyncio
+async def test_analyze_goal_does_not_write_linear() -> None:
+    async def fake_complete(**kwargs: Any) -> tuple[str, float]:
+        return (
+            '{"summary":"Two hops.","product":"Operator files after review.",'
+            '"engineering":"Analyze then approve.","split_reason":"UI vs API",'
+            '"tickets":['
+            '{"title":"UI review","goal":"Review screen shows proposed tickets",'
+            '"acceptance":"Approve is required before Linear write.","rationale":"UX"},'
+            '{"title":"API file","goal":"Approved drafts become Backlog issues",'
+            '"acceptance":"A test proves not_approved refuses write.","rationale":"API"}'
+            "]}",
+            0.01,
+        )
+
+    out = await analyze_goal(
+        "Analyze then file Linear tickets after approval",
+        "CleanExpo/Pi-Dev-Ops",
+        "Drafts appear first; Linear only after approve.",
+        complete_fn=fake_complete,
+    )
+    assert out["status"] == "proposed"
+    assert out["filed"] is False
+    assert out["fallback"] is False
+    assert len(out["tickets"]) == 2
+    assert "issueCreate" not in str(out)
+
+
+@pytest.mark.asyncio
+async def test_analyze_goal_falls_back_when_model_fails() -> None:
+    async def boom(**kwargs: Any) -> tuple[str, float]:
+        raise RuntimeError("no model")
+
+    out = await analyze_goal(
+        "Analyze then file Linear tickets after approval",
+        "CleanExpo/Pi-Dev-Ops",
+        "Drafts appear first; Linear only after approve.",
+        complete_fn=boom,
+    )
+    assert out["filed"] is False
+    assert out["fallback"] is True
+    assert len(out["tickets"]) == 1
+    assert out["tickets"][0]["goal"].startswith("Analyze then file")
+
+
+def test_route_rejects_unapproved_file(client: TestClient) -> None:
+    resp = client.post(
+        "/api/goal-ticket",
+        json={
+            "goal": "File this as a Linear ticket now",
+            "repo": "CleanExpo/Pi-Dev-Ops",
+            "acceptance": "Ticket should not exist yet in Linear.",
+            "approved": False,
+            "tickets": [
+                {
+                    "title": "Do not file",
+                    "goal": "This must stay a draft only",
+                    "acceptance": "No Linear issue is created.",
+                }
+            ],
+        },
+    )
+    assert resp.status_code == 400
+    assert resp.json()["detail"]["error"] == "not_approved"
+
+
+def test_analyze_route_returns_drafts_not_identifiers(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_analyze(goal: str, repo: str, acceptance: str) -> dict[str, Any]:
+        return {
+            "status": "proposed",
+            "filed": False,
+            "fallback": False,
+            "summary": "One ticket.",
+            "product": "Operator reviews first.",
+            "engineering": "No Linear write.",
+            "split_reason": "atomic",
+            "tickets": [
+                {
+                    "title": "File after approval",
+                    "goal": goal,
+                    "acceptance": acceptance,
+                    "rationale": "single",
+                }
+            ],
+        }
+
+    monkeypatch.setattr(goal_ticket_route, "analyze_goal", fake_analyze)
+    resp = client.post(
+        "/api/goal-ticket/analyze",
+        json={
+            "goal": "File this as a Linear ticket now",
+            "repo": "CleanExpo/Pi-Dev-Ops",
+            "acceptance": "Drafts exist; Linear does not yet.",
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["filed"] is False
+    assert "identifier" not in body
+    assert body["tickets"][0]["title"] == "File after approval"
