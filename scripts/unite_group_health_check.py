@@ -210,6 +210,14 @@ def prior_run() -> dict[str, Any] | None:
     `prior.get(...)` — an AttributeError that the top-level handler turns into
     `FATAL ... exit 2`, skipping the entire hour's health check. A corrupt record
     means "no usable prior run", not "no health check today".
+
+    `isinstance(record, dict)` alone was not enough, and a reviewer caught it: both
+    consumers — regressed() and check_github_commits_growth() — iterate
+    `prior["checks"]` and call `.get()` on each element. A record shaped
+    `{"checks": {"name": "x"}}` iterates the dict's KEYS, so `.get()` lands on a str
+    and crashes exactly as before, one level deeper. The only thing either consumer
+    reads is `checks`, so a record whose checks are unusable is a record with nothing
+    usable in it.
     """
     files = sorted(glob.glob(str(LOG_DIR / "unite-group-*.json")))
     if not files:
@@ -218,7 +226,12 @@ def prior_run() -> dict[str, Any] | None:
         record = json.loads(Path(files[-1]).read_text())
     except Exception:
         return None
-    return record if isinstance(record, dict) else None
+    if not isinstance(record, dict):
+        return None
+    checks = record.get("checks", [])
+    if not isinstance(checks, list) or any(not isinstance(c, dict) for c in checks):
+        return None
+    return record
 
 
 # ── check primitives ───────────────────────────────────────────────────────────
@@ -348,6 +361,11 @@ def check_supabase_advisors(env: dict[str, str]) -> list[dict[str, Any]]:
         )
         return [bad, mk("supabase advisor total", 1, "FAIL", f"mgmt API HTTP {status}")]
     lints = data.get("lints") if isinstance(data, dict) else data
+    if isinstance(lints, list) and any(not isinstance(x, dict) for x in lints):
+        # Same class as the store guards: the advisor API is external, and one
+        # non-object entry would reach `x.get("level")` and abort the whole run.
+        # A response we cannot count is an unreadable response, not zero findings.
+        lints = None
     if not isinstance(lints, list):
         return [
             mk("supabase advisor errors", 1, "FAIL", "no lint list in response"),
@@ -797,10 +815,14 @@ def regressed(checks: list[dict[str, Any]], prior: dict[str, Any] | None) -> lis
     """Return names of Tier-1 checks that were PASS previously and are FAIL now."""
     if not prior:
         return []
+    # Subscripts, not .get() — a Tier-1 entry missing either key would raise KeyError
+    # here, which prior_run's shape guard does not screen for (it checks that entries
+    # are dicts, not which keys they hold). An entry we cannot read is an entry with
+    # no prior status, which is exactly what the comparison below already handles.
     prior_status = {
         r["name"]: r["status"]
         for r in prior.get("checks", [])
-        if r.get("tier") == 1
+        if r.get("tier") == 1 and "name" in r and "status" in r
     }
     out: list[str] = []
     for c in checks:

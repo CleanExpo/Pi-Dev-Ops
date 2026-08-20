@@ -170,3 +170,65 @@ def test_a_valid_prior_record_is_still_loaded(monkeypatch, tmp_path):
     monkeypatch.setattr(health, "LOG_DIR", tmp_path)
 
     assert health.prior_run()["started"] == "2026-08-21T00:00:00+00:00"
+
+
+# ── the guard has to be as deep as the consumers reach ─────────────────────────
+# A reviewer caught `isinstance(record, dict)` being one level too shallow: both
+# regressed() and check_github_commits_growth() iterate prior["checks"] and call
+# .get() on each element, so `{"checks": {...}}` iterates the dict's KEYS and lands
+# .get() on a str — the same crash, one level deeper.
+@pytest.mark.parametrize(
+    "payload",
+    [
+        '{"checks": {"name": "x"}}',
+        '{"checks": "not a list"}',
+        '{"checks": 5}',
+        '{"checks": [{"name": "ok", "tier": 1, "status": "PASS"}, "a bare string"]}',
+    ],
+)
+def test_prior_record_with_unusable_checks_reads_as_absent(monkeypatch, tmp_path, payload):
+    (tmp_path / "unite-group-2026-08-21T000000.json").write_text(payload)
+    monkeypatch.setattr(health, "LOG_DIR", tmp_path)
+
+    assert health.prior_run() is None
+
+
+def test_a_record_with_no_checks_key_is_still_usable(monkeypatch, tmp_path):
+    """Negative control: both consumers default to [], so an absent key is fine."""
+    (tmp_path / "unite-group-2026-08-21T000000.json").write_text('{"started": "t"}')
+    monkeypatch.setattr(health, "LOG_DIR", tmp_path)
+
+    assert health.prior_run() == {"started": "t"}
+
+
+def test_regressed_survives_every_record_prior_run_will_hand_it(monkeypatch, tmp_path):
+    """The guard is only worth anything if it covers what the consumer actually does."""
+    (tmp_path / "unite-group-2026-08-21T000000.json").write_text(
+        '{"checks": [{"name": "unite api/health", "tier": 1, "status": "PASS"}]}'
+    )
+    monkeypatch.setattr(health, "LOG_DIR", tmp_path)
+    now = [{"name": "unite api/health", "tier": 1, "status": "FAIL", "detail": "HTTP 503"}]
+
+    assert health.regressed(now, health.prior_run()) == ["unite api/health"]
+
+
+def test_a_non_object_advisor_entry_is_an_unreadable_response(monkeypatch):
+    """The advisor API is external; one bad entry must not abort the whole run."""
+    monkeypatch.setattr(
+        health, "supabase_mgmt", lambda env, path: (200, {"lints": [{"level": "WARN"}, "oops"]})
+    )
+
+    results = health.check_supabase_advisors({})
+
+    assert [r["status"] for r in results] == ["FAIL", "FAIL"]
+
+
+def test_a_tier1_entry_missing_its_keys_does_not_raise(monkeypatch, tmp_path):
+    """prior_run screens entry TYPE, not entry KEYS — regressed() subscripts both."""
+    (tmp_path / "unite-group-2026-08-21T000000.json").write_text(
+        '{"checks": [{"tier": 1}, {"name": "unite api/health", "tier": 1, "status": "PASS"}]}'
+    )
+    monkeypatch.setattr(health, "LOG_DIR", tmp_path)
+    now = [{"name": "unite api/health", "tier": 1, "status": "FAIL", "detail": "HTTP 503"}]
+
+    assert health.regressed(now, health.prior_run()) == ["unite api/health"]
