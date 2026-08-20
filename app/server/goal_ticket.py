@@ -9,6 +9,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
+from .goal_ticket_format import format_draft_notes
+
 log = logging.getLogger("pi-ceo.goal_ticket")
 
 _PROJECTS_JSON = Path(__file__).resolve().parents[2] / "config" / "harness" / "projects.json"
@@ -285,7 +287,7 @@ def file_drafts(
             str(draft.get("acceptance") or ""),
             gql=gql,
             title=str(draft.get("title") or ""),
-            notes=str(draft.get("rationale") or ""),
+            notes=format_draft_notes(draft),
             parent_goal=parent_goal,
         )
         if out.get("error"):

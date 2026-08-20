@@ -102,6 +102,14 @@ class GoalDraft(BaseModel):
     goal: str
     acceptance: str
     rationale: str = ""
+    context: str = ""
+    user_story: str = ""
+    current_behaviour: str = ""
+    expected_behaviour: str = ""
+    technical_requirements: str = ""
+    edge_cases: str = ""
+    testing: str = ""
+    dependencies: str = ""
 
     @field_validator("title", "goal", "acceptance")
     @classmethod

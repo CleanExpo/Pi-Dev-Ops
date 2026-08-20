@@ -21,6 +21,7 @@ from app.server.goal_ticket import (
     validate_goal,
 )
 from app.server.goal_analyze import analyze_goal, drafts_from_payload, fallback_drafts
+from app.server.goal_ticket_format import format_draft_notes
 from app.server.routes import goal_ticket as goal_ticket_route
 
 
@@ -262,6 +263,11 @@ def test_file_drafts_creates_each_approved_ticket() -> None:
                 "goal": "The goal form exists on Control",
                 "acceptance": "A stranger can file a ticket from /control/goal.",
                 "rationale": "UI hop",
+                "context": "The Control goal form",
+                "current_behaviour": "No form on Control.",
+                "expected_behaviour": "The goal form exists on Control",
+                "technical_requirements": "GoalTicketForm on /control/goal",
+                "testing": "Click analyze, see drafts, nothing in Linear.",
             },
             {
                 "title": "Add the API",
@@ -280,6 +286,8 @@ def test_file_drafts_creates_each_approved_ticket() -> None:
     assert len(fake.created) == 2
     assert fake.created[0]["title"] == "Add the form"
     assert "Ship Goal to Linear with approval" in fake.created[0]["description"]
+    assert "## Context" in fake.created[0]["description"]
+    assert "The Control goal form" in fake.created[0]["description"]
     assert _AUTONOMY_LABEL not in fake.created[0]["description"]
 
 
@@ -310,20 +318,23 @@ def test_drafts_from_payload_splits_valid_tickets() -> None:
 
 def test_drafts_from_payload_falls_back_when_empty() -> None:
     drafts = drafts_from_payload({}, "parent goal text here", "parent acceptance lives here")
-    assert drafts == fallback_drafts("parent goal text here", "parent acceptance lives here")
+    assert drafts == fallback_drafts("parent goal text here", "parent acceptance lives here", "")
 
 
 @pytest.mark.asyncio
 async def test_analyze_goal_does_not_write_linear() -> None:
     async def fake_complete(**kwargs: Any) -> tuple[str, float]:
         return (
-            '{"summary":"Two hops.","product":"Operator files after review.",'
-            '"engineering":"Analyze then approve.","split_reason":"UI vs API",'
+            '{"summary":"Two hops.","split_reason":"UI vs API",'
             '"tickets":['
-            '{"title":"UI review","goal":"Review screen shows proposed tickets",'
-            '"acceptance":"Approve is required before Linear write.","rationale":"UX"},'
-            '{"title":"API file","goal":"Approved drafts become Backlog issues",'
-            '"acceptance":"A test proves not_approved refuses write.","rationale":"API"}'
+            '{"title":"UI review","expected_behaviour":"Review screen shows proposed tickets",'
+            '"acceptance":"Approve is required before Linear write.","context":"Control Goal",'
+            '"current_behaviour":"No drafts.","technical_requirements":"GoalDraftReview",'
+            '"testing":"Analyze then approve.","rationale":"UX"},'
+            '{"title":"API file","expected_behaviour":"Approved drafts become Backlog issues",'
+            '"acceptance":"A test proves not_approved refuses write.","context":"API",'
+            '"current_behaviour":"No write gate.","technical_requirements":"file_drafts",'
+            '"testing":"POST without approved is 400.","rationale":"API"}'
             "]}",
             0.01,
         )
@@ -333,11 +344,14 @@ async def test_analyze_goal_does_not_write_linear() -> None:
         "CleanExpo/Pi-Dev-Ops",
         "Drafts appear first; Linear only after approve.",
         complete_fn=fake_complete,
+        context_fn=lambda slug, goal: {"ok": True, "limitation": "", "excerpt": "app/server/goal_ticket.py"},
     )
     assert out["status"] == "proposed"
     assert out["filed"] is False
     assert out["fallback"] is False
+    assert out["code_inspected"] is True
     assert len(out["tickets"]) == 2
+    assert out["tickets"][0]["context"] == "Control Goal"
     assert "issueCreate" not in str(out)
 
 
@@ -351,11 +365,18 @@ async def test_analyze_goal_falls_back_when_model_fails() -> None:
         "CleanExpo/Pi-Dev-Ops",
         "Drafts appear first; Linear only after approve.",
         complete_fn=boom,
+        context_fn=lambda slug, goal: {
+            "ok": False,
+            "limitation": "Repo inspection unavailable in this test.",
+            "excerpt": "",
+        },
     )
     assert out["filed"] is False
     assert out["fallback"] is True
+    assert out["code_inspected"] is False
+    assert "unavailable" in out["code_limitation"].lower() or "unavailable" in out["tickets"][0]["context"].lower()
+    assert out["tickets"][0]["current_behaviour"].startswith("Unknown")
     assert len(out["tickets"]) == 1
-    assert out["tickets"][0]["goal"].startswith("Analyze then file")
 
 
 def test_route_rejects_unapproved_file(client: TestClient) -> None:
@@ -415,3 +436,17 @@ def test_analyze_route_returns_drafts_not_identifiers(
     assert body["filed"] is False
     assert "identifier" not in body
     assert body["tickets"][0]["title"] == "File after approval"
+
+
+def test_format_draft_notes_includes_implementation_sections() -> None:
+    body = format_draft_notes(
+        {
+            "context": "Synthex looks feed",
+            "acceptance": "ignored here",
+            "testing": "Playwright save-look path",
+        }
+    )
+    assert "## Context" in body
+    assert "Synthex looks feed" in body
+    assert "## Testing" in body
+    assert "Ready for Pi-Dev" not in body

@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { useActiveProject } from "./ProjectSelector";
 import GoalDraftReview, {
+  draftsFromAnalyze,
   type AnalysisPayload,
   type DraftTicket,
 } from "./GoalDraftReview";
@@ -47,8 +48,8 @@ function errorMessage(data: ErrorBody, status: number): string {
 }
 
 function analyzingCopy(seconds: number): string {
-  if (seconds < 8) return `${seconds}s · reaching Pi CEO. Linear is not written.`;
-  if (seconds < 25) return `${seconds}s · product + engineering read. Linear is not written.`;
+  if (seconds < 10) return `${seconds}s · inspecting the repo. Linear is not written.`;
+  if (seconds < 35) return `${seconds}s · breaking the goal into tickets. Linear is not written.`;
   return `${seconds}s · still analyzing. Linear is not written.`;
 }
 
@@ -96,12 +97,12 @@ export default function GoalTicketForm() {
       });
       const data = (await res.json().catch(() => ({}))) as ErrorBody & {
         summary?: string;
-        product?: string;
-        engineering?: string;
         split_reason?: string;
         fallback?: boolean;
         filed?: boolean;
-        tickets?: Array<{ title?: string; goal?: string; acceptance?: string; rationale?: string }>;
+        code_inspected?: boolean;
+        code_limitation?: string;
+        tickets?: Array<Partial<DraftTicket>>;
       };
       if (!res.ok) {
         setError(errorMessage(data, res.status));
@@ -111,25 +112,17 @@ export default function GoalTicketForm() {
         setError("Analyze wrote to Linear. Stopped. Nothing further was filed.");
         return;
       }
-      const tickets = (data.tickets || [])
-        .filter((t) => t.title && t.goal && t.acceptance)
-        .map((t) => ({
-          title: t.title || "",
-          goal: t.goal || "",
-          acceptance: t.acceptance || "",
-          rationale: t.rationale || "",
-          selected: true,
-        }));
+      const tickets = draftsFromAnalyze(data.tickets || []);
       if (tickets.length === 0) {
         setError("Analysis returned no tickets.");
         return;
       }
       setAnalysis({
         summary: data.summary || "",
-        product: data.product || "",
-        engineering: data.engineering || "",
         split_reason: data.split_reason || "",
         fallback: Boolean(data.fallback),
+        code_inspected: Boolean(data.code_inspected),
+        code_limitation: data.code_limitation || "",
         tickets,
       });
     } catch {
@@ -156,9 +149,17 @@ export default function GoalTicketForm() {
           approved: true,
           tickets: chosen.map((t) => ({
             title: sanitize(t.title.trim()),
-            goal: sanitize(t.goal.trim()),
+            goal: sanitize((t.goal || t.expected_behaviour).trim()),
             acceptance: sanitize(t.acceptance.trim()),
             rationale: sanitize(t.rationale.trim()),
+            context: sanitize(t.context.trim()),
+            user_story: sanitize(t.user_story.trim()),
+            current_behaviour: sanitize(t.current_behaviour.trim()),
+            expected_behaviour: sanitize(t.expected_behaviour.trim()),
+            technical_requirements: sanitize(t.technical_requirements.trim()),
+            edge_cases: sanitize(t.edge_cases.trim()),
+            testing: sanitize(t.testing.trim()),
+            dependencies: sanitize(t.dependencies.trim()),
           })),
         }),
       });

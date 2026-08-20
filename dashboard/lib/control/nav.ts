@@ -36,7 +36,7 @@ export const CONTROL_SECTIONS: readonly ControlNavItem[] = [
     slug: "goal",
     label: "Goal",
     title: "Goal → Linear",
-    blurb: "Analyze a goal into tickets, then approve before Linear is written.",
+    blurb: "Inspect the repo, draft implementation-ready tickets, approve before Linear.",
   },
   {
     href: "/control/swarm",
