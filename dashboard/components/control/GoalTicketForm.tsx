@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useActiveProject } from "./ProjectSelector";
 import GoalDraftReview, {
   draftsFromAnalyze,
+  filePayloadFromDraft,
   type AnalysisPayload,
   type DraftTicket,
 } from "./GoalDraftReview";
@@ -95,13 +96,8 @@ export default function GoalTicketForm() {
           acceptance: sanitize(acceptance.trim()),
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as ErrorBody & {
-        summary?: string;
-        split_reason?: string;
-        fallback?: boolean;
+      const data = (await res.json().catch(() => ({}))) as ErrorBody & Partial<AnalysisPayload> & {
         filed?: boolean;
-        code_inspected?: boolean;
-        code_limitation?: string;
         tickets?: Array<Partial<DraftTicket>>;
       };
       if (!res.ok) {
@@ -123,6 +119,11 @@ export default function GoalTicketForm() {
         fallback: Boolean(data.fallback),
         code_inspected: Boolean(data.code_inspected),
         code_limitation: data.code_limitation || "",
+        goal_analysis: data.goal_analysis,
+        user_flow: data.user_flow,
+        technical_flow: data.technical_flow,
+        implementation_order: data.implementation_order,
+        final_review: data.final_review,
         tickets,
       });
     } catch {
@@ -147,20 +148,7 @@ export default function GoalTicketForm() {
           repo: sanitize(repo.trim()),
           acceptance: sanitize(acceptance.trim()),
           approved: true,
-          tickets: chosen.map((t) => ({
-            title: sanitize(t.title.trim()),
-            goal: sanitize((t.goal || t.expected_behaviour).trim()),
-            acceptance: sanitize(t.acceptance.trim()),
-            rationale: sanitize(t.rationale.trim()),
-            context: sanitize(t.context.trim()),
-            user_story: sanitize(t.user_story.trim()),
-            current_behaviour: sanitize(t.current_behaviour.trim()),
-            expected_behaviour: sanitize(t.expected_behaviour.trim()),
-            technical_requirements: sanitize(t.technical_requirements.trim()),
-            edge_cases: sanitize(t.edge_cases.trim()),
-            testing: sanitize(t.testing.trim()),
-            dependencies: sanitize(t.dependencies.trim()),
-          })),
+          tickets: chosen.map((t) => filePayloadFromDraft(t, sanitize)),
         }),
       });
       const data = (await res.json().catch(() => ({}))) as ErrorBody & { tickets?: FiledTicket[] };
