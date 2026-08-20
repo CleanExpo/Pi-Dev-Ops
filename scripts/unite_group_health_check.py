@@ -202,6 +202,11 @@ def parse_iso(ts: str | None) -> _dt.datetime | None:
         return None
 
 
+# Truthy on purpose: `bool(prior)` is what main() uses to tell a first run from a
+# later one, and an unreadable record is not a first run.
+UNREADABLE_PRIOR: dict[str, Any] = {"started": None, "checks": [], "unreadable": True}
+
+
 def prior_run() -> dict[str, Any] | None:
     """Load the most recent JSON report prior to this run.
 
@@ -225,13 +230,19 @@ def prior_run() -> dict[str, Any] | None:
     try:
         record = json.loads(Path(files[-1]).read_text())
     except Exception:
-        return None
-    if not isinstance(record, dict):
-        return None
-    checks = record.get("checks", [])
-    if not isinstance(checks, list) or any(not isinstance(c, dict) for c in checks):
-        return None
-    return record
+        record = None
+    if isinstance(record, dict):
+        checks = record.get("checks", [])
+        if isinstance(checks, list) and all(isinstance(c, dict) for c in checks):
+            return record
+    # A record exists but cannot be read. Returning None here said "there was no prior
+    # run", which sends main() down the baseline path: alert is `bool(prior) and ...`,
+    # so a live Tier-1 failure went out SILENT at exit 0. Two reviewers caught it, and
+    # it is worse than the crash it replaced — exit 2 at least showed up in the cron
+    # store as last_status=error, visible to the sweep in this same branch.
+    # UNREADABLE_PRIOR means "a run happened, we know nothing about its checks": no
+    # regression can be computed, but persistent-failure resurfacing still fires.
+    return dict(UNREADABLE_PRIOR)
 
 
 # ── check primitives ───────────────────────────────────────────────────────────
@@ -968,7 +979,9 @@ def main() -> int:
     log(f"Unite-Group health check starting — {started.isoformat()}")
 
     prior = prior_run()
-    if prior:
+    if prior and prior.get("unreadable"):
+        log("prior run UNREADABLE — no regression baseline, but alerting stays live")
+    elif prior:
         log(f"prior run loaded: {prior.get('started')}")
     else:
         log("no prior run found — this is the baseline")

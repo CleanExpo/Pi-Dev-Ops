@@ -10,7 +10,9 @@ The script path is overridable so the identical file can be run against an older
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import os
 from pathlib import Path
 
@@ -164,11 +166,14 @@ def test_corrupt_alert_state_alerts_instead_of_crashing(monkeypatch, tmp_path, p
 
 
 @pytest.mark.parametrize("payload", ["5", '"clobbered"', "null", "[1, 2, 3]"])
-def test_corrupt_prior_record_reads_as_absent(monkeypatch, tmp_path, payload):
+def test_a_corrupt_prior_record_is_unreadable_not_absent(monkeypatch, tmp_path, payload):
+    """Not `is None` — that is the distinction whose loss silenced the monitor."""
     (tmp_path / "unite-group-2026-08-21T000000.json").write_text(payload)
     monkeypatch.setattr(health, "LOG_DIR", tmp_path)
 
-    assert health.prior_run() is None
+    prior = health.prior_run()
+
+    assert prior and prior["unreadable"] is True
 
 
 def test_a_valid_prior_record_is_still_loaded(monkeypatch, tmp_path):
@@ -195,11 +200,18 @@ def test_a_valid_prior_record_is_still_loaded(monkeypatch, tmp_path):
         '{"checks": [{"name": "ok", "tier": 1, "status": "PASS"}, "a bare string"]}',
     ],
 )
-def test_prior_record_with_unusable_checks_reads_as_absent(monkeypatch, tmp_path, payload):
+def test_an_unreadable_prior_record_is_not_reported_as_no_prior_run(monkeypatch, tmp_path, payload):
+    """`None` here meant "no prior run", which sends main() down the baseline path and
+    takes a live Tier-1 failure out SILENT at exit 0. A record we cannot read is a run
+    that happened whose checks are unknown — truthy, with no statuses to compare."""
     (tmp_path / "unite-group-2026-08-21T000000.json").write_text(payload)
     monkeypatch.setattr(health, "LOG_DIR", tmp_path)
 
-    assert health.prior_run() is None
+    prior = health.prior_run()
+
+    assert prior, "must be truthy — main() reads bool(prior) to detect a first run"
+    assert prior["unreadable"] is True
+    assert prior["checks"] == []
 
 
 def test_a_record_with_no_checks_key_is_still_usable(monkeypatch, tmp_path):
@@ -290,3 +302,60 @@ def test_a_tier1_entry_missing_its_keys_does_not_raise(monkeypatch, tmp_path):
     now = [{"name": "unite api/health", "tier": 1, "status": "FAIL", "detail": "HTTP 503"}]
 
     assert health.regressed(now, health.prior_run()) == ["unite api/health"]
+
+
+# ── end-to-end: the monitor must not go silent on a live failure ───────────────
+def _drive_main(monkeypatch, tmp_path, prior_payload, failing=True):
+    """Run main() over a stubbed run_all so the whole alert chain is exercised."""
+    monkeypatch.setattr(health, "LOG_DIR", tmp_path)
+    monkeypatch.setattr(health, "LATEST_MD", tmp_path / "latest.md")
+    monkeypatch.setattr(health, "ALERT_STATE", tmp_path / "alert-state.json")
+    status = "FAIL" if failing else "PASS"
+    monkeypatch.setattr(
+        health,
+        "run_all",
+        lambda: [{"name": "unite api/health", "tier": 1, "status": status,
+                  "detail": "HTTP 503", "data": {"code": 503}}],
+    )
+    if prior_payload is not None:
+        (tmp_path / "unite-group-2026-08-21T000000.json").write_text(prior_payload)
+
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        code = health.main()
+    return code, buf.getvalue().strip()
+
+
+@pytest.mark.parametrize(
+    "payload",
+    ['{"checks": "not a list"}', '{"checks": {"name": "x"}}', "5", '"clobbered"'],
+)
+def test_a_corrupt_prior_record_does_not_silence_a_live_failure(monkeypatch, tmp_path, payload):
+    """The defect two reviewers caught: corrupt prior -> baseline path -> exit 0,
+    silent, while the endpoint is down. Hermes delivers on non-empty stdout, so
+    silence here is the monitor reporting nothing about a live outage."""
+    code, delivered = _drive_main(monkeypatch, tmp_path, payload)
+
+    assert code == 1
+    assert delivered, "stdout empty means Hermes delivers nothing"
+    assert "unite api/health" in delivered
+
+
+def test_a_genuine_first_run_is_still_silent(monkeypatch, tmp_path):
+    """Negative control: the baseline path must survive. Without this, 'always alert'
+    would satisfy the test above."""
+    code, delivered = _drive_main(monkeypatch, tmp_path, None)
+
+    assert code == 0
+    assert delivered == ""
+
+
+def test_a_healthy_prior_still_reports_the_regression(monkeypatch, tmp_path):
+    """Negative control: the normal regression path is untouched."""
+    code, delivered = _drive_main(
+        monkeypatch, tmp_path,
+        '{"checks": [{"name": "unite api/health", "tier": 1, "status": "PASS"}]}',
+    )
+
+    assert code == 1
+    assert "REGRESSION" in delivered
