@@ -1,5 +1,12 @@
 "use client";
 
+import GoalAnalysisOverview, {
+  type AnalysisOverview,
+  type FinalReviewBlock,
+  type FlowBlock,
+  type GoalAnalysisBlock,
+  type OrderStep,
+} from "./GoalAnalysisOverview";
 import styles from "./control-deck.module.css";
 
 export interface DraftTicket {
@@ -15,16 +22,30 @@ export interface DraftTicket {
   edge_cases: string;
   testing: string;
   dependencies: string;
+  ticket_id: string;
+  priority: string;
+  summary: string;
+  scope: string;
+  user_flow: string;
+  technical_flow: string;
+  examples: string;
+  implementation_notes: string;
+  risks: string;
+  review: string;
+  ui_ux: string;
+  data_state: string;
+  affected_surfaces: string;
   selected: boolean;
 }
 
-export interface AnalysisPayload {
-  summary: string;
-  split_reason: string;
+export interface AnalysisPayload extends AnalysisOverview {
   fallback: boolean;
-  code_inspected: boolean;
-  code_limitation: string;
   tickets: DraftTicket[];
+  goal_analysis?: GoalAnalysisBlock;
+  user_flow?: FlowBlock;
+  technical_flow?: FlowBlock;
+  implementation_order?: OrderStep[];
+  final_review?: FinalReviewBlock;
 }
 
 interface Props {
@@ -39,43 +60,113 @@ interface Props {
 }
 
 const AREAS: Array<{ key: keyof DraftTicket; label: string; rows: number }> = [
+  { key: "summary", label: "Summary", rows: 2 },
   { key: "context", label: "Context", rows: 3 },
   { key: "user_story", label: "User story", rows: 2 },
   { key: "current_behaviour", label: "Current behaviour", rows: 3 },
   { key: "expected_behaviour", label: "Expected behaviour", rows: 3 },
+  { key: "scope", label: "Scope", rows: 3 },
+  { key: "affected_surfaces", label: "Affected surfaces", rows: 2 },
   { key: "technical_requirements", label: "Technical requirements", rows: 4 },
+  { key: "implementation_notes", label: "Implementation notes", rows: 3 },
+  { key: "ui_ux", label: "UI / UX", rows: 3 },
+  { key: "data_state", label: "Data / state", rows: 3 },
+  { key: "user_flow", label: "User flow", rows: 4 },
+  { key: "technical_flow", label: "Technical flow", rows: 4 },
+  { key: "examples", label: "Examples", rows: 3 },
   { key: "acceptance", label: "Acceptance criteria", rows: 4 },
   { key: "edge_cases", label: "Edge cases", rows: 3 },
   { key: "testing", label: "Testing", rows: 3 },
   { key: "dependencies", label: "Dependencies", rows: 2 },
+  { key: "risks", label: "Risks", rows: 2 },
+  { key: "review", label: "Review", rows: 3 },
+  { key: "rationale", label: "Why this ticket", rows: 2 },
 ];
 
 function selectedCount(tickets: DraftTicket[]): number {
   return tickets.filter((t) => t.selected).length;
 }
 
+const BLANK: Omit<DraftTicket, "selected"> = {
+  title: "",
+  goal: "",
+  acceptance: "",
+  rationale: "",
+  context: "",
+  user_story: "",
+  current_behaviour: "",
+  expected_behaviour: "",
+  technical_requirements: "",
+  edge_cases: "",
+  testing: "",
+  dependencies: "",
+  ticket_id: "",
+  priority: "",
+  summary: "",
+  scope: "",
+  user_flow: "",
+  technical_flow: "",
+  examples: "",
+  implementation_notes: "",
+  risks: "",
+  review: "",
+  ui_ux: "",
+  data_state: "",
+  affected_surfaces: "",
+};
+
 export function draftsFromAnalyze(raw: Array<Partial<DraftTicket>>): DraftTicket[] {
-  const blank: Omit<DraftTicket, "selected"> = {
-    title: "",
-    goal: "",
-    acceptance: "",
-    rationale: "",
-    context: "",
-    user_story: "",
-    current_behaviour: "",
-    expected_behaviour: "",
-    technical_requirements: "",
-    edge_cases: "",
-    testing: "",
-    dependencies: "",
-  };
   return raw.flatMap((t) => {
     const expected = (t.expected_behaviour || t.goal || "").trim();
     const acceptance = (t.acceptance || "").trim();
     const title = (t.title || "").trim();
     if (!title || !expected || !acceptance) return [];
-    return [{ ...blank, ...t, title, goal: expected, expected_behaviour: expected, acceptance, selected: true }];
+    const next: DraftTicket = { ...BLANK, selected: true };
+    (Object.keys(BLANK) as Array<keyof typeof BLANK>).forEach((key) => {
+      const value = t[key];
+      next[key] = typeof value === "string" ? value : BLANK[key];
+    });
+    next.title = title;
+    next.goal = expected;
+    next.expected_behaviour = expected;
+    next.acceptance = acceptance;
+    next.selected = true;
+    return [next];
   });
+}
+
+export function filePayloadFromDraft(
+  t: DraftTicket,
+  sanitize: (value: string) => string,
+): Record<string, string> {
+  const s = (value: string) => sanitize(value.trim());
+  return {
+    title: s(t.title),
+    goal: s(t.goal || t.expected_behaviour),
+    acceptance: s(t.acceptance),
+    rationale: s(t.rationale),
+    context: s(t.context),
+    user_story: s(t.user_story),
+    current_behaviour: s(t.current_behaviour),
+    expected_behaviour: s(t.expected_behaviour),
+    technical_requirements: s(t.technical_requirements),
+    edge_cases: s(t.edge_cases),
+    testing: s(t.testing),
+    dependencies: s(t.dependencies),
+    ticket_id: s(t.ticket_id),
+    priority: s(t.priority),
+    summary: s(t.summary),
+    scope: s(t.scope),
+    user_flow: s(t.user_flow),
+    technical_flow: s(t.technical_flow),
+    examples: s(t.examples),
+    implementation_notes: s(t.implementation_notes),
+    risks: s(t.risks),
+    review: s(t.review),
+    ui_ux: s(t.ui_ux),
+    data_state: s(t.data_state),
+    affected_surfaces: s(t.affected_surfaces),
+  };
 }
 
 export default function GoalDraftReview({
@@ -96,31 +187,12 @@ export default function GoalDraftReview({
 
   return (
     <div className="flex flex-col gap-4">
-      <section className={styles.card}>
-        <div className={styles.fieldLabel}>Goal analysis</div>
-        <p className="mt-2 text-[14px] leading-relaxed" style={{ color: "var(--text)" }}>
-          {analysis.summary || "No analysis text returned."}
-        </p>
-        {!analysis.code_inspected && analysis.code_limitation ? (
-          <p className="mt-2 text-[13px]" style={{ color: "var(--warning)" }}>
-            {analysis.code_limitation}
-          </p>
-        ) : (
-          <p className={`${styles.note} mt-2`}>Repo excerpt was used. Paths still need a human check.</p>
-        )}
-      </section>
-
-      <section className={styles.card}>
-        <div className={styles.fieldLabel}>Implementation breakdown</div>
-        <p className="mt-2 text-[14px] leading-relaxed" style={{ color: "var(--text)" }}>
-          {analysis.split_reason || "Split reason was not returned."}
-        </p>
-      </section>
+      <GoalAnalysisOverview analysis={analysis} />
 
       <div className={styles.fieldLabel}>Draft Linear tickets</div>
       {analysis.tickets.map((ticket, index) => (
         <article
-          key={`${ticket.title}-${index}`}
+          key={`${ticket.ticket_id || ticket.title}-${index}`}
           className={styles.card}
           style={{ opacity: ticket.selected ? 1 : 0.5 }}
         >
@@ -132,8 +204,31 @@ export default function GoalDraftReview({
               onChange={(e) => patch(index, { selected: e.target.checked })}
               aria-label={`Include ticket ${index + 1}`}
             />
-            Ticket {index + 1} of {analysis.tickets.length}
+            {ticket.ticket_id || `Ticket ${index + 1}`} of {analysis.tickets.length}
+            {ticket.priority ? ` · ${ticket.priority}` : ""}
           </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>ID</span>
+              <input
+                value={ticket.ticket_id}
+                disabled={filing || !ticket.selected}
+                onChange={(e) => patch(index, { ticket_id: e.target.value })}
+                className={styles.input}
+                aria-label={`ID ${index + 1}`}
+              />
+            </label>
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Priority</span>
+              <input
+                value={ticket.priority}
+                disabled={filing || !ticket.selected}
+                onChange={(e) => patch(index, { priority: e.target.value })}
+                className={styles.input}
+                aria-label={`Priority ${index + 1}`}
+              />
+            </label>
+          </div>
           <label className={styles.field}>
             <span className={styles.fieldLabel}>Title</span>
             <input
