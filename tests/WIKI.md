@@ -1,12 +1,12 @@
 # tests — Wiki
 
-_Last updated: 2026-08-20T02:47:05Z (commits 9977ebb..90f85a0)_
+_Last updated: 2026-08-20T04:38:06Z (commits 3da053e..9100adc)_
 
 ## Recent changes
-- 90f85a0 — test(linear): cover prompt substitution and nested analyze JSON
+- 9100adc — feat: add intent-only YouTube catalog for UG-N Nexus (#650)
 
 ## Architecture (current)
 Auto-stub: `tests/` had 1 recent commits. SDK unavailable for synthesis.
 
 ## Files of interest
-- tests/test_goal_ticket.py — touched in recent commits
+- tests/test_routes_youtube_intent.py — touched in recent commits
