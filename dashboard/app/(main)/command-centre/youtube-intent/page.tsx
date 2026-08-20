@@ -60,7 +60,7 @@ export default async function YouTubeIntentPage() {
   }
 
   return (
-    <DeckThemeShell>
+    <DeckThemeShell className="">
       <Link href="/command-centre/knowledge" style={{ fontSize: 12, textDecoration: 'none' }}>
         &larr; Knowledge deck
       </Link>
