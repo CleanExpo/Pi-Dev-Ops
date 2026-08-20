@@ -1,6 +1,6 @@
 """Pydantic request models for the Pi CEO API (RA-937)."""
 from typing import Literal
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class BuildRequest(BaseModel):
@@ -98,6 +98,8 @@ class GoalTicketRequest(BaseModel):
 class GoalDraft(BaseModel):
     """One proposed ticket. Filed only after explicit approval."""
 
+    model_config = ConfigDict(extra="allow")
+
     title: str
     goal: str
     acceptance: str
@@ -110,6 +112,19 @@ class GoalDraft(BaseModel):
     edge_cases: str = ""
     testing: str = ""
     dependencies: str = ""
+    ticket_id: str = ""
+    priority: str = ""
+    summary: str = ""
+    scope: str = ""
+    user_flow: str = ""
+    technical_flow: str = ""
+    examples: str = ""
+    implementation_notes: str = ""
+    risks: str = ""
+    review: str = ""
+    ui_ux: str = ""
+    data_state: str = ""
+    affected_surfaces: str = ""
 
     @field_validator("title", "goal", "acceptance")
     @classmethod
