@@ -37,6 +37,10 @@ fi
 # rather than at 09:15 tomorrow into a log nobody is reading.
 /opt/homebrew/bin/python3 -c 'import yaml' 2>/dev/null || { echo "WARN: /opt/homebrew/bin/python3 lacks PyYAML — hermes-model-health would fail every run"; exit 1; }
 
+# launchd cannot create a missing StandardOutPath directory; the job just fails
+# to start. ~/.hermes/logs exists on the current Mini but not on a fresh machine.
+mkdir -p "$HOME/.hermes/logs"
+
 for f in $AGENTS; do
   cp "$HERE/$f.plist" "$DEST/$f.plist"
   launchctl bootout "gui/$(id -u)/$f" 2>/dev/null || true

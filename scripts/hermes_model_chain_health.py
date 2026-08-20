@@ -31,8 +31,10 @@ outage there would be a claim beyond the evidence.
 
 Exit codes
 ----------
-  0  nothing failed a probe (OK and UNVERIFIED profiles)
-  1  at least one profile is DOWN or DEGRADED
+  0  nothing failed a probe and the run completed within its budget
+  1  at least one profile is DOWN or DEGRADED, OR the run exceeded RUN_BUDGET_S
+     (an incomplete run is a fault: entries were never attempted, so a clean
+     exit would be a timeout dressed as a pass)
   2  could not run — no API key, or a profile config that cannot be read/parsed
 
 Usage
@@ -184,6 +186,7 @@ def main() -> int:
     failed_profiles = []
     unverified_profiles = []
     started = time.time()
+    budget_exceeded = False
     for name, chain in chains.items():
         entries = []
         any_ok = False
@@ -191,6 +194,7 @@ def main() -> int:
         all_probed = True
         for provider, model in chain:
             if time.time() - started > RUN_BUDGET_S:
+                budget_exceeded = True
                 ok, detail = None, f"NOT PROBED (run exceeded {RUN_BUDGET_S}s budget)"
             else:
                 ok, detail = probe(provider, model, key)
@@ -234,7 +238,10 @@ def main() -> int:
             print(f"\nPROFILES WITH NO WORKING MODEL: {', '.join(failed_profiles)}")
         if unverified_profiles:
             print(f"UNVERIFIED (nothing in the chain could be probed): {', '.join(unverified_profiles)}")
-        if not failed_profiles and not unverified_profiles:
+        if budget_exceeded:
+            print(f"\nRUN INCOMPLETE — exceeded the {RUN_BUDGET_S}s budget; entries above "
+                  "marked NOT PROBED were never attempted. Treat this as a fault, not a pass.")
+        if not failed_profiles and not unverified_profiles and not budget_exceeded:
             print("\nEvery profile has at least one model proven to answer.")
 
     if args.inject_broken:
@@ -242,7 +249,11 @@ def main() -> int:
         print(f"\nSELF-TEST: {'PASSED — the check detects a dead model' if ok else 'FAILED — a dead model was not flagged'}")
         return 0 if ok else 1
 
-    return 1 if failed_profiles else 0
+    # An incomplete run is a fault. Without this, a systematically hung provider
+    # would blow the budget, mark everything NOT PROBED -> UNVERIFIED, and exit 0 —
+    # a timeout dressed as a quiet clean run, which is the exact failure class this
+    # tool exists to catch.
+    return 1 if (failed_profiles or budget_exceeded) else 0
 
 
 if __name__ == "__main__":
