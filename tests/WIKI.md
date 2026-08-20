@@ -1,9 +1,9 @@
 # tests — Wiki
 
-_Last updated: 2026-08-20T01:16:54Z (commits 2311464..0315694)_
+_Last updated: 2026-08-20T02:47:05Z (commits 9977ebb..90f85a0)_
 
 ## Recent changes
-- 0315694 — feat(linear): analyze a goal into tickets and file only after approval
+- 90f85a0 — test(linear): cover prompt substitution and nested analyze JSON
 
 ## Architecture (current)
 Auto-stub: `tests/` had 1 recent commits. SDK unavailable for synthesis.
