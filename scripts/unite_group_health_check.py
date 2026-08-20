@@ -105,11 +105,27 @@ def load_env() -> dict[str, str]:
     return env
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Return the 3xx itself instead of chasing it.
+
+    urlopen installs HTTPRedirectHandler by default, so a caller never sees a 3xx —
+    it sees whatever the redirect lands on. Measured against the protected preview
+    deployment on 2026-08-21: the true first hop is 302 to Vercel's SSO wall, and
+    http_get returned **200** with an HTML login page. An endpoint check that accepts
+    that is reporting a login screen as a healthy API — the exact defect this file was
+    opened to fix, recreated inside the fix for it.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def http_get(
     url: str,
     headers: dict[str, str] | None = None,
     method: str = "GET",
     timeout: int = HTTP_TIMEOUT,
+    follow_redirects: bool = True,
 ) -> tuple[int, dict[str, str], bytes]:
     hdrs = {"User-Agent": USER_AGENT}
     if headers:
@@ -117,7 +133,15 @@ def http_get(
     req = urllib.request.Request(url, method=method, headers=hdrs)
     ctx = ssl.create_default_context()
     try:
-        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+        if follow_redirects:
+            opener = urllib.request.urlopen
+            with opener(req, timeout=timeout, context=ctx) as resp:
+                return resp.status, dict(resp.headers), resp.read()
+        # A custom opener is the only way to decline the default redirect handler.
+        built = urllib.request.build_opener(
+            _NoRedirect, urllib.request.HTTPSHandler(context=ctx)
+        )
+        with built.open(req, timeout=timeout) as resp:
             return resp.status, dict(resp.headers), resp.read()
     except urllib.error.HTTPError as e:
         return e.code, dict(e.headers or {}), e.read() or b""
@@ -202,9 +226,16 @@ def parse_iso(ts: str | None) -> _dt.datetime | None:
         return None
 
 
-# Truthy on purpose: `bool(prior)` is what main() uses to tell a first run from a
-# later one, and an unreadable record is not a first run.
-UNREADABLE_PRIOR: dict[str, Any] = {"started": None, "checks": [], "unreadable": True}
+def unreadable_prior() -> dict[str, Any]:
+    """Truthy on purpose: `bool(prior)` is what main() uses to tell a first run from a
+    later one, and an unreadable record is not a first run.
+
+    Built fresh per call rather than copied from a module constant — a `dict(CONST)`
+    shallow copy shares the `checks` list, so one caller appending to it would corrupt
+    every later call in the process. No caller mutates it today; this file's whole
+    history is guards that were right until they weren't.
+    """
+    return {"started": None, "checks": [], "unreadable": True}
 
 
 def prior_run() -> dict[str, Any] | None:
@@ -242,7 +273,7 @@ def prior_run() -> dict[str, Any] | None:
     # store as last_status=error, visible to the sweep in this same branch.
     # UNREADABLE_PRIOR means "a run happened, we know nothing about its checks": no
     # regression can be computed, but persistent-failure resurfacing still fires.
-    return dict(UNREADABLE_PRIOR)
+    return unreadable_prior()
 
 
 # ── check primitives ───────────────────────────────────────────────────────────
@@ -272,10 +303,12 @@ def should_resurface(tier1_failing: list[str]) -> tuple[bool, str]:
         # must take the same route, not crash the run that was about to alert.
         return True, "unreadable alert state"
     stored = state.get("signature") or []
-    if not isinstance(stored, list):
-        # Right container, wrong contents: `sorted(5)` raises TypeError and aborts the
-        # run BEFORE stdout is written, so it suppresses the very alert it was deciding
-        # about. Guarding the outer type without the inner one is not guarding it.
+    if not isinstance(stored, list) or any(not isinstance(x, str) for x in stored):
+        # Right container, wrong contents: `sorted(5)` raises TypeError, and so does
+        # `sorted(["x", 5])` — '<' not supported between int and str. Either aborts the
+        # run BEFORE stdout is written, suppressing the very alert it was deciding
+        # about. The element check is the third time in this file that guarding the
+        # container turned out not to be guarding the value.
         return True, "unreadable alert state signature"
     if sorted(stored) != current:
         return True, "failing set changed"
@@ -333,13 +366,15 @@ _HEAD_RETRY_CODES = frozenset({0, 404, 405})
 
 
 def check_unite_health_api(url: str) -> dict[str, Any]:
+    # follow_redirects=False so a 3xx is SEEN as a 3xx. With the default handler this
+    # check followed an auth wall to a 200 HTML login page and called it healthy.
     try:
-        status, _, _ = http_get(url, method="HEAD", timeout=15)
+        status, _, _ = http_get(url, method="HEAD", timeout=15, follow_redirects=False)
     except Exception:
         status = 0
     if status in _HEAD_RETRY_CODES or status >= 500:
         try:
-            status, _, _ = http_get(url, method="GET", timeout=15)
+            status, _, _ = http_get(url, method="GET", timeout=15, follow_redirects=False)
         except Exception:
             return mk("unite api/health", 1, "FAIL", "unreachable")
     # 2xx only. A 3xx here is a redirect away from the endpoint or an auth wall, not a

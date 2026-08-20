@@ -36,18 +36,28 @@ URL = "https://unite-group.in/api/health"
 _ALERTING_STATUSES = {"FAIL"}
 
 
-def scripted_http(monkeypatch, by_method):
-    """Patch http_get to answer per HTTP method, recording the methods actually used."""
-    seen: list[str] = []
+class _Calls(list):
+    """A list that can also carry the follow_redirects flags — a plain list cannot
+    hold attributes, and pretending otherwise broke every caller of this helper."""
 
-    def fake(url, headers=None, method="GET", timeout=None):
+    follow_flags: list[bool]
+
+
+def scripted_http(monkeypatch, by_method):
+    """Patch http_get to answer per HTTP method, recording the calls actually made."""
+    seen = _Calls()
+    follow_flags: list[bool] = []
+
+    def fake(url, headers=None, method="GET", timeout=None, follow_redirects=True):
         seen.append(method)
+        follow_flags.append(follow_redirects)
         outcome = by_method[method]
         if isinstance(outcome, Exception):
             raise outcome
         return outcome, {}, b""
 
     monkeypatch.setattr(health, "http_get", fake)
+    seen.follow_flags = follow_flags
     return seen
 
 
@@ -359,3 +369,66 @@ def test_a_healthy_prior_still_reports_the_regression(monkeypatch, tmp_path):
 
     assert code == 1
     assert "REGRESSION" in delivered
+
+
+def test_two_unreadable_priors_do_not_share_state(monkeypatch, tmp_path):
+    """A dict(CONST) shallow copy shares the inner list; one caller appending to it
+    would poison every later call in the process."""
+    (tmp_path / "unite-group-2026-08-21T000000.json").write_text('{"checks": "not a list"}')
+    monkeypatch.setattr(health, "LOG_DIR", tmp_path)
+
+    first = health.prior_run()
+    first["checks"].append({"name": "poison", "tier": 1, "status": "PASS"})
+
+    assert health.prior_run()["checks"] == []
+
+
+# ── the endpoint check must SEE a 3xx, not chase it ────────────────────────────
+def test_the_health_check_declines_redirects(monkeypatch):
+    """urlopen installs HTTPRedirectHandler by default, so the caller never sees a
+    3xx — it sees whatever the redirect lands on. Measured live against the protected
+    preview: the true first hop is 302 to Vercel's SSO wall, and the default handler
+    returned 200 with an HTML login page. The 2xx-only band was decorative."""
+    seen = scripted_http(monkeypatch, {"HEAD": 302, "GET": 302})
+
+    res = health.check_unite_health_api(URL)
+
+    assert all(flag is False for flag in seen.follow_flags), (
+        "every request this check makes must decline redirects, or an auth wall "
+        "reads as a healthy 200"
+    )
+    assert res["status"] == "FAIL"
+    assert res["data"]["code"] == 302
+
+
+def test_http_get_still_follows_redirects_by_default(monkeypatch):
+    """Negative control: check_http probes pages, which legitimately redirect. The
+    no-follow behaviour must be opt-in, not a change to every caller."""
+    import inspect
+
+    sig = inspect.signature(health.http_get)
+
+    assert sig.parameters["follow_redirects"].default is True
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        '{"signature": ["x", 5], "last_alert_at": "2026-08-21T00:00:00+00:00"}',
+        '{"signature": [{"a": 1}, "x"], "last_alert_at": "2026-08-21T00:00:00+00:00"}',
+        '{"signature": [None], "last_alert_at": "2026-08-21T00:00:00+00:00"}',
+    ],
+)
+def test_a_signature_with_mixed_element_types_alerts_instead_of_crashing(
+    monkeypatch, tmp_path, payload
+):
+    """`sorted(["x", 5])` raises TypeError: '<' not supported between int and str.
+    Guarding that the signature is a list did not guard what is in it."""
+    state = tmp_path / "alert-state.json"
+    state.write_text(payload)
+    monkeypatch.setattr(health, "ALERT_STATE", state)
+
+    resurface, why = health.should_resurface(["unite api/health"])
+
+    assert resurface is True
+    assert why
