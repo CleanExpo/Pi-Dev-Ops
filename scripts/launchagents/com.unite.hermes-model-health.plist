@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.unite.hermes-model-health</string>
+
+  <!-- Probes every Hermes profile's model chain against the live provider.
+       Exists because as of 2026-08-20 every profile's PRIMARY is an OpenRouter
+       :free model, and free tiers in this estate demonstrably vanish without
+       notice — glm-5.2:free returned 429 on 3/3 attempts and qwen3-next's free
+       tier was withdrawn outright, both measured 2026-08-19.
+
+       `hermes doctor` only validates config SHAPE and never calls a model.
+       That gap is why a uninstalled Ollama went unnoticed while Hermes returned
+       HTTP 500 on every Telegram turn for six days. This calls the models. -->
+
+  <!-- Homebrew python, NOT /usr/bin/python3 (no PyYAML) and NOT the Hermes venv:
+       that venv lives on /Volumes/Storage Unit, and a monitor that dies when the
+       external drive unmounts cannot report that the external drive unmounted. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/python3</string>
+    <string>/Users/phill-mac/Pi-CEO/Pi-Dev-Ops-routines/scripts/hermes_model_chain_health.py</string>
+  </array>
+
+  <!-- 09:15 local, daily. Late enough that an overnight free-tier withdrawal is
+       caught before the day's work starts. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>9</integer>
+    <key>Minute</key><integer>15</integer>
+  </dict>
+
+  <!-- StartCalendarInterval + RunAtLoad false: if the Mini is asleep at 09:15,
+       launchd runs it on wake rather than skipping the day. A monitor that
+       silently misses days is not a monitor. -->
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/phill-mac/.hermes/logs/model-health.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/phill-mac/.hermes/logs/model-health.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin</string>
+    <key>HERMES_HOME</key>
+    <string>/Users/phill-mac/.hermes</string>
+  </dict>
+
+  <key>ProcessType</key>
+  <string>Background</string>
+</dict>
+</plist>
