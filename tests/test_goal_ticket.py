@@ -20,7 +20,12 @@ from app.server.goal_ticket import (
     title_from_goal,
     validate_goal,
 )
-from app.server.goal_analyze import analyze_goal, drafts_from_payload, fallback_drafts
+from app.server.goal_analyze import (
+    analyze_goal,
+    drafts_from_payload,
+    fallback_drafts,
+    render_analyze_prompt,
+)
 from app.server.goal_ticket_format import format_draft_notes
 from app.server.routes import goal_ticket as goal_ticket_route
 
@@ -353,6 +358,37 @@ async def test_analyze_goal_does_not_write_linear() -> None:
     assert len(out["tickets"]) == 2
     assert out["tickets"][0]["context"] == "Control Goal"
     assert "issueCreate" not in str(out)
+    assert out["summary"] == "Two hops."
+
+
+@pytest.mark.asyncio
+async def test_analyze_goal_maps_nested_goal_analysis() -> None:
+    async def fake_complete(**kwargs: Any) -> tuple[str, float]:
+        assert "{{GOAL}}" not in kwargs["prompt"]
+        assert "Maximum 6 tickets" in kwargs["prompt"]
+        return (
+            '{"goal_analysis":{"summary":"Inspected Control Goal.","overall_risk":"Low"},'
+            '"split_reason":"One ticket.",'
+            '"user_flow":{"diagram":"User\\n↓\\nApprove"},'
+            '"tickets":[{"id":"T1","priority":"P0","title":"Gate Linear write",'
+            '"expected_behaviour":"Analyze then approve before Linear.",'
+            '"acceptance":["Given drafts exist When approve Then Linear is written"]}]}',
+            0.01,
+        )
+
+    out = await analyze_goal(
+        "Analyze then file Linear tickets after approval",
+        "CleanExpo/Pi-Dev-Ops",
+        "Drafts appear first; Linear only after approve.",
+        complete_fn=fake_complete,
+        context_fn=lambda slug, goal: {"ok": True, "limitation": "", "excerpt": "app/server/goal_ticket.py"},
+    )
+    assert out["filed"] is False
+    assert out["summary"] == "Inspected Control Goal."
+    assert out["goal_analysis"]["overall_risk"] == "Low"
+    assert out["user_flow"]["diagram"].startswith("User")
+    assert out["tickets"][0]["ticket_id"] == "T1"
+    assert out["tickets"][0]["priority"] == "P0"
 
 
 @pytest.mark.asyncio
@@ -450,3 +486,51 @@ def test_format_draft_notes_includes_implementation_sections() -> None:
     assert "Synthex looks feed" in body
     assert "## Testing" in body
     assert "Ready for Pi-Dev" not in body
+
+
+def test_render_analyze_prompt_uses_review_template() -> None:
+    text = render_analyze_prompt(
+        "Save a look on the feed",
+        "CleanExpo/Synthex",
+        "Saved look remains after refresh.",
+        {"ok": True, "limitation": "", "excerpt": "app/pages/look.tsx"},
+    )
+    assert "Save a look on the feed" in text
+    assert "CleanExpo/Synthex" in text
+    assert "app/pages/look.tsx" in text
+    assert "{{GOAL}}" not in text
+    assert "Maximum 6 tickets" in text
+    assert "goal_analysis" in text
+
+
+def test_drafts_from_payload_flattens_nested_schema() -> None:
+    drafts = drafts_from_payload(
+        {
+            "goal_analysis": {"summary": "One ticket is enough."},
+            "tickets": [
+                {
+                    "id": "T1",
+                    "priority": "P0",
+                    "title": "Add save look",
+                    "expected_behaviour": "Look A appears in Saved after save.",
+                    "acceptance": [
+                        "Given the user is logged in When they save Look A Then it appears in Saved"
+                    ],
+                    "technical_requirements": ["Reuse the existing save API"],
+                    "testing": {"unit": ["parser"], "e2e": ["save then refresh"]},
+                    "scope": {"included": ["save button"], "excluded": ["new feed"]},
+                    "review": {"clarity": "High", "main_risk": "unknown API shape"},
+                    "ui_ux": {"required": True, "details": ["Use existing button styles"]},
+                }
+            ],
+        },
+        "parent goal text here",
+        "parent acceptance text here",
+    )
+    assert len(drafts) == 1
+    assert drafts[0]["ticket_id"] == "T1"
+    assert drafts[0]["priority"] == "P0"
+    assert "Included:" in drafts[0]["scope"]
+    assert "e2e:" in drafts[0]["testing"]
+    assert "clarity: High" in drafts[0]["review"]
+    assert "Required." in drafts[0]["ui_ux"]
