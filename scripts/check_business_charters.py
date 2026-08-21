@@ -10,7 +10,7 @@ When it cannot be resolved, both degrade to `charter_text = ""` and carry on. No
 raises, nothing logs at a level anyone reads, and the session builds against an empty brain
 — which looks exactly like a project that never declared one.
 
-A RATCHET, not a wall. Seven entries are known-missing today (the charters live under
+A RATCHET, not a wall. Six entries are known-missing today (the charters live under
 `~/.hermes/business-charters/`, which is machine-local and outside the repo, so they do not
 propagate). Failing on those would make this gate red on the day it was written, and a gate
 that is red on arrival is one nobody reads — the exact failure this repo has fixed twice.
@@ -32,10 +32,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 REGISTRY = REPO_ROOT / "config" / "harness" / "projects.json"
 
-# Charters that do not resolve on a clean checkout today. Shrink this set; never grow it.
+# Charters that do not resolve on this machine today. Shrink this set; never grow it.
 # Each entry is business context a generated session is currently building without.
 _KNOWN_MISSING = {
-    "restoreassist",
     "disaster-recovery",
     "dr-nrpg",
     "synthex",
