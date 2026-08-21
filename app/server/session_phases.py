@@ -811,6 +811,9 @@ async def verify_workspace_identity(
     if actual.strip() != expected_base_sha:
         if not allow_descendant:
             return False
+        ancestry_env = os.environ.copy()
+        ancestry_env["GIT_NO_REPLACE_OBJECTS"] = "1"
+        ancestry_env["GIT_GRAFT_FILE"] = os.devnull
         ancestor_rc, _ancestor_out, _ancestor_error = await run_cmd(
             workspace,
             "git",
@@ -819,6 +822,7 @@ async def verify_workspace_identity(
             expected_base_sha,
             "HEAD",
             timeout=10,
+            env=ancestry_env,
         )
         if ancestor_rc != 0:
             return False

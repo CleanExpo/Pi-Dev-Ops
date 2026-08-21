@@ -6,6 +6,7 @@ import ast
 import copy
 import importlib.util
 import inspect
+import subprocess
 import sys
 import time
 from datetime import datetime, timezone
@@ -408,6 +409,57 @@ async def test_workspace_identity_checks_every_push_url_and_allows_base_descenda
             expected_repo,
             allow_descendant=True,
         )
+    ancestry_call = descendant.await_args_list[1]
+    assert ancestry_call.kwargs["env"]["GIT_NO_REPLACE_OBJECTS"] == "1"
+    assert ancestry_call.kwargs["env"]["GIT_GRAFT_FILE"] == "/dev/null"
+
+
+@pytest.mark.asyncio
+async def test_descendant_guard_ignores_local_replace_refs(admitted, tmp_path):
+    def git(*args, env=None):
+        return subprocess.run(
+            ["git", *args],
+            cwd=tmp_path,
+            env=env,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+    assert git("init").returncode == 0
+    assert git("config", "user.name", "Harness Test").returncode == 0
+    assert git("config", "user.email", "harness@example.invalid").returncode == 0
+    (tmp_path / "base.txt").write_text("base\n", encoding="utf-8")
+    assert git("add", "base.txt").returncode == 0
+    assert git("commit", "-m", "base").returncode == 0
+    base_sha = git("rev-parse", "HEAD").stdout.strip()
+
+    assert git("checkout", "--orphan", "unrelated").returncode == 0
+    assert git("rm", "-rf", ".").returncode == 0
+    (tmp_path / "unrelated.txt").write_text("unrelated\n", encoding="utf-8")
+    assert git("add", "unrelated.txt").returncode == 0
+    assert git("commit", "-m", "unrelated").returncode == 0
+    unrelated_sha = git("rev-parse", "HEAD").stdout.strip()
+    assert git("merge-base", "--is-ancestor", base_sha, unrelated_sha).returncode == 1
+    assert git("replace", "--graft", unrelated_sha, base_sha).returncode == 0
+    assert git("merge-base", "--is-ancestor", base_sha, unrelated_sha).returncode == 0
+
+    hardened_env = __import__("os").environ.copy()
+    hardened_env["GIT_NO_REPLACE_OBJECTS"] = "1"
+    hardened_env["GIT_GRAFT_FILE"] = "/dev/null"
+    assert git(
+        "merge-base",
+        "--is-ancestor",
+        base_sha,
+        unrelated_sha,
+        env=hardened_env,
+    ).returncode == 1
+    assert not await session_phases.verify_workspace_identity(
+        str(tmp_path),
+        base_sha,
+        "https://github.com/unite-group/pi-dev-ops.git",
+        allow_descendant=True,
+    )
 
 
 @pytest.mark.asyncio
