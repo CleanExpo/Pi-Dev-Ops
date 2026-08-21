@@ -663,3 +663,38 @@ def test_an_empty_prior_record_does_not_silence_a_live_failure(monkeypatch, tmp_
 
     assert code == 1
     assert "unite api/health" in delivered
+
+
+def test_a_reporter_that_dies_before_printing_still_reaches_hermes(monkeypatch, tmp_path):
+    """never_fatal keeps main() alive, but staying alive is not the goal. If
+    stdout_report raises before its first print, the alert is decided (alert=True,
+    exit 1) and never emitted — and Hermes delivers on stdout content, not exit code."""
+    def die_before_printing(_checks, _regressions, _json_path, _alert):
+        raise RuntimeError("died before the first print")
+
+    monkeypatch.setattr(health, "stdout_report", die_before_printing)
+    code, delivered = _drive_main(
+        monkeypatch, tmp_path,
+        '{"checks": [{"name": "unite api/health", "tier": 1, "status": "PASS"}]}',
+    )
+
+    assert code == 1
+    assert delivered, "alert decided but never emitted"
+    assert "unite api/health" in delivered
+    assert "HTTP 503" in delivered
+
+
+def test_the_fallback_alert_stays_quiet_on_a_healthy_run(monkeypatch, tmp_path):
+    """Negative control: the last-resort emitter must not fire when nothing is wrong."""
+    def die_before_printing(_checks, _regressions, _json_path, _alert):
+        raise RuntimeError("died")
+
+    monkeypatch.setattr(health, "stdout_report", die_before_printing)
+    code, delivered = _drive_main(
+        monkeypatch, tmp_path,
+        '{"checks": [{"name": "unite api/health", "tier": 1, "status": "PASS"}]}',
+        failing=False,
+    )
+
+    assert code == 0
+    assert delivered == ""

@@ -1125,7 +1125,20 @@ def main() -> int:
     )
     alert = bool(prior) and (bool(regressions) or resurface)
 
-    never_fatal("stdout_report", lambda: stdout_report(checks, regressions, json_path, alert), None)
+    # never_fatal keeps main() alive, but staying alive is not the goal — reaching
+    # Hermes is. If stdout_report dies before its first print, the alert is DECIDED
+    # (alert=True, exit 1) and never EMITTED, and Hermes delivers on stdout content,
+    # not on exit code. Last link in the chain: emit a minimal alert ourselves.
+    emitted = never_fatal(
+        "stdout_report",
+        lambda: (stdout_report(checks, regressions, json_path, alert), True)[1],
+        False,
+    )
+    if alert and not emitted:
+        print("Unite-Group health ALERT — report generation failed, raw list follows")
+        for c in checks:
+            if c.get("tier") == 1 and c.get("status") == "FAIL":
+                print(f"  • {c.get('name')} — {c.get('detail')}")
 
     if not prior:
         log("baseline run; stdout silent, exit 0")
