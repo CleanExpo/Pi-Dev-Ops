@@ -18,6 +18,25 @@ current user instruction
 The verifier and arbiter are gates below the Harness, not permission to widen the task. Horizon is a
 read-mostly advisory plane. Its proposals must pass an admission move before any delivery action.
 
+## Startup admission
+
+Before the TaskContract exists, `scripts/setup_driver.py` creates a separate startup contract and
+receipt. It freezes the literal objective, exact Git checkout and HEAD, dirty-state digest, driver
+digest, resolved skill-folder digests, a truthful host capability probe, the executable
+model-router request and decision, and the requirement that Unlazy own downstream delivery control.
+A valid startup receipt may admit mediated nonmutating discovery and planning. It is not a TaskContract, route receipt,
+Unlazy plan, verification receipt, signed authority lease, or mutation permission.
+
+Codex project hooks require repository trust and do not intercept every hosted or specialised tool.
+Claude project hooks can be disabled by bare/safe modes. Therefore hook presence proves only the
+named mediated lifecycle surface; remote branch protection, CI gates, and trusted runtime authority
+adapters remain separate controls.
+
+The project PreToolUse adapter requires startup admission and injects the objective lock; it does not
+classify generic shell, edit, or MCP mutation authority. Those calls remain under existing host and
+repository controls. The deterministic `guard-dispatch` boundary is narrower: it admits only a
+ready, nonmutating delivery move and rejects stopped uncertainty paths.
+
 ## TaskContract
 
 Required top-level fields:

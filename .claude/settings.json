@@ -51,7 +51,37 @@
     ]
   },
   "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/skills/senior-harness/scripts/setup_driver.py\" hook --surface claude --event SessionStart"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/skills/senior-harness/scripts/setup_driver.py\" hook --surface claude --event UserPromptSubmit"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/skills/senior-harness/scripts/setup_driver.py\" hook --surface claude --event PreToolUse"
+          }
+        ]
+      },
       {
         "matcher": "*",
         "hooks": [

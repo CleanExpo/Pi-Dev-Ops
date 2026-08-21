@@ -11,8 +11,25 @@ may not expand authority, accept its own work, repeat a failed pathway, or promo
 
 ## Usage
 
-After installation and a new task reload, explicit invocation remains available when automatic
-triggering is uncertain:
+In trusted Pi-Dev-Ops sessions, project lifecycle hooks run the setup driver before mediated local
+tools. The first user prompt is frozen byte-for-byte as the primary objective; later prompts are
+subordinate until a new task starts. The receipt binds the Git worktree, exact HEAD and dirty-state
+digest, this driver, and the installed `senior-harness`, `model-router`, and `unlazy` skill folders.
+It also executes the provider-neutral router and binds its `RoutingRequest` and `RouteDecision`, then
+requires Unlazy as the downstream decomposition, gate, integration, and receipt controller.
+
+Run the same driver explicitly from any Git project when hooks are unavailable or untrusted:
+
+```bash
+python ~/.codex/skills/senior-harness/scripts/setup_driver.py start \
+  "<literal request>" --project "$(git rev-parse --show-toplevel)" --surface codex
+```
+
+Use `--surface claude` or `--surface vscode-openrouter` for the other hosts. Exit `0` plus a
+`startup-admitted` JSON receipt proves deterministic startup only. It never grants mutation,
+business, financial, privacy, deployment, or irreversible authority.
+
+Explicit skill invocation also remains available when automatic triggering is uncertain:
 
 ```text
 Codex:      $senior-harness <literal request>
@@ -32,6 +49,16 @@ Pi-Dev-Ops scripts.
 Use `--horizon-required` for strategic, architectural, multi-project, product, or repeatedly stalled
 work. Omit it for routine bounded work. Exit `0` plus valid JSON is an intake receipt, not execution
 proof.
+
+Project hooks cover normal trusted Codex/Claude lifecycle paths. Codex hosted or specialised tools,
+Claude `--bare`/`--safe-mode`, disabled or untrusted project hooks, direct shells, and other hosts can
+bypass them. Never claim universal interception; use the explicit driver and downstream scheduler
+gate on those surfaces.
+
+The hooks mechanically require a valid startup receipt before the first mediated local tool and keep
+injecting the frozen objective afterward. They do not infer whether an arbitrary Bash, edit, or MCP
+call is authorised. Existing host/repository policy controls generic mutations; `guard-dispatch`
+separately rejects mutating delivery moves until a trusted authority adapter exists.
 
 ## 1. Ground
 
